@@ -14,7 +14,7 @@ class ChannelTemplate:
             self,
             name: str,
             default: Optional[Any] = None,
-            types: Optional[tuple] = None
+            types: Optional[tuple | type[Any]] = None
     ):
         self.name = name
         self.default = default
