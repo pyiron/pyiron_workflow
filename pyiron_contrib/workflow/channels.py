@@ -3,6 +3,7 @@ from __future__ import annotations
 from abc import ABC, abstractmethod
 from copy import deepcopy
 from typing import Any, Optional, TYPE_CHECKING
+from warnings import warn
 
 if TYPE_CHECKING:
     from pyiron_contrib.workflow.node import Node
@@ -70,6 +71,11 @@ class Channel(ABC):
             if self._valid_connection(other):
                 self.connections.append(other)
                 other.connections.append(self)
+            else:
+                warn(
+                    f"{self.name} ({self.__class__.__name__}) and {other.name} "
+                    f"({other.__class__.__name__}) were not a valid connection"
+                )
 
     def _valid_connection(self, other):
         if self._is_IO_pair(other) and not self._already_connected(other):
