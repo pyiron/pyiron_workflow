@@ -17,7 +17,7 @@ class ChannelTemplate:
         self.default = default
         self.types = types
 
-    def _to_IOChannel(self, node: Node, class_: type[IOChannel]) -> IOChannel:
+    def _to_IOChannel(self, node: Node, class_: type[Channel]) -> Channel:
         return class_(
             node=node,
             default=deepcopy(self.default),
@@ -31,7 +31,7 @@ class ChannelTemplate:
         return self._to_IOChannel(node, OutputChannel)
 
 
-class IOChannel(ABC):
+class Channel(ABC):
     def __init__(
             self,
             node: Node,
@@ -61,10 +61,10 @@ class IOChannel(ABC):
             return True
 
     @abstractmethod
-    def connect(self, other: IOChannel):
+    def connect(self, other: Channel):
         pass
 
-    def disconnect(self, other: IOChannel):
+    def disconnect(self, other: Channel):
         if other in self.connections:
             self.connections.remove(other)
             other.disconnect(self)
@@ -79,7 +79,7 @@ class IOChannel(ABC):
             return not already_connected
 
 
-class InputChannel(IOChannel):
+class InputChannel(Channel):
     def update(self, value):
         self.value = value
         self.node.update()
@@ -90,7 +90,7 @@ class InputChannel(IOChannel):
             other.connections.append(self)
 
 
-class OutputChannel(IOChannel):
+class OutputChannel(Channel):
     def update(self, value):
         self.value = value
         for inp in self.connections:
