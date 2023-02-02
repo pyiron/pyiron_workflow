@@ -10,8 +10,8 @@ if TYPE_CHECKING:
 
 
 class Node:
-    input_channels: list[ChannelTemplate] = {}
-    output_channels: list[ChannelTemplate] = {}
+    input_channels: list[ChannelTemplate] = []
+    output_channels: list[ChannelTemplate] = []
 
     def __init__(
             self,
