@@ -1,6 +1,6 @@
 from unittest import TestCase
 
-from pyiron_contrib.workflow.io import IOChannel, Input, Output
+from pyiron_contrib.workflow.io import ChannelTemplate, InputChannel, OutputChannel
 
 
 class DummyNode:
@@ -10,17 +10,17 @@ class DummyNode:
 
 class TestIO(TestCase):
     def test_channels(self):
-        num_channel = IOChannel(default=1, types=[int, float])
+        num_channel = ChannelTemplate(default=1, types=[int, float])
         # Note: We intentionally violate the type hinting and give a *mutable* _list_ of
         #       types instead of an immutable _tuple_ of types
-        str_list_channel = IOChannel(default=["foo"], types=list)
+        str_list_channel = ChannelTemplate(default=["foo"], types=list)
         ni1 = num_channel.to_input(DummyNode())
         ni2 = num_channel.to_input(DummyNode())
         no = num_channel.to_output(DummyNode())
 
         with self.subTest("Validate `to_X` typing"):
-            self.assertIsInstance(ni1, Input)
-            self.assertIsInstance(no, Output)
+            self.assertIsInstance(ni1, InputChannel)
+            self.assertIsInstance(no, OutputChannel)
 
         so1 = str_list_channel.to_output(DummyNode())
         so2 = str_list_channel.to_output(DummyNode())

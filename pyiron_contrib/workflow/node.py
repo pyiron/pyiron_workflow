@@ -4,12 +4,12 @@ from abc import ABC, abstractmethod
 from typing import Optional, TYPE_CHECKING
 
 if TYPE_CHECKING:
-    from pyiron_contrib.workflow.io import IOChannel
+    from pyiron_contrib.workflow.io import ChannelTemplate
 
 
 class Node:
-    input_channels: dict[IOChannel] = {}
-    output_channels: dict[IOChannel] = {}
+    input_channels: dict[ChannelTemplate] = {}
+    output_channels: dict[ChannelTemplate] = {}
 
     def __init__(
             self,
@@ -17,8 +17,8 @@ class Node:
             preprocessor: Optional[Processor] = None,
             postprocessor: Optional[Processor] = None,
             update_automatically: bool = True,
-            input_channels: Optional[dict[IOChannel]] = None,
-            output_channels: Optional[dict[IOChannel]] = None,
+            input_channels: Optional[dict[ChannelTemplate]] = None,
+            output_channels: Optional[dict[ChannelTemplate]] = None,
     ):
         if input_channels is not None:
             self._check_channel_conflict(input_channels, self.input_channels)
