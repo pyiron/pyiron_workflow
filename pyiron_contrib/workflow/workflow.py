@@ -1,7 +1,15 @@
+from __future__ import annotations
+
+from typing import TYPE_CHECKING
+
+if TYPE_CHECKING:
+    from pyiron_contrib.workflow.node import Node
+
+
 class Workflow:
-    def __init__(self, *args, name=None):
-        self.nodes = [node for node in args]
+    def __init__(self, name: str, *nodes: Node):
         self.name = name
+        self.nodes = [node for node in nodes]
 
     @property
     def input(self):
