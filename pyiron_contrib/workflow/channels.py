@@ -72,10 +72,16 @@ class Channel(ABC):
                 self.connections.append(other)
                 other.connections.append(self)
             else:
-                warn(
-                    f"{self.name} ({self.__class__.__name__}) and {other.name} "
-                    f"({other.__class__.__name__}) were not a valid connection"
-                )
+                if isinstance(other, Channel):
+                    warn(
+                        f"{self.name} ({self.__class__.__name__}) and {other.name} "
+                        f"({other.__class__.__name__}) were not a valid connection"
+                    )
+                else:
+                    raise TypeError(
+                        f"Can only connect two channels, but {self.name} "
+                        f"({self.__class__.__name__}) got a {other} ({type(other)})"
+                    )
 
     def _valid_connection(self, other):
         if self._is_IO_pair(other) and not self._already_connected(other):

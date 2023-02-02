@@ -73,6 +73,9 @@ class TestChannels(TestCase):
         self.ni1.types = (int, float, bool)  # Override with a larger set
         self.ni2.types = (int,)  # Override with a smaller set
 
+        with self.assertRaises(TypeError):
+            self.ni1.connect("Not a channel at all")
+
         self.no.connect(self.ni1)
         self.assertIn(
             self.no,
