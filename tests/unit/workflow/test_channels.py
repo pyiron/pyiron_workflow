@@ -8,78 +8,97 @@ class DummyNode:
         pass
 
 
-class TestIO(TestCase):
-    def test_channels(self):
-        num_channel = ChannelTemplate(default=1, types=[int, float])
+class TestChannels(TestCase):
+    @classmethod
+    def setUpClass(cls) -> None:
+        cls.num_channel = ChannelTemplate(default=1, types=[int, float])
         # Note: We intentionally violate the type hinting and give a *mutable* _list_ of
         #       types instead of an immutable _tuple_ of types
-        str_list_channel = ChannelTemplate(default=["foo"], types=list)
-        ni1 = num_channel.to_input(DummyNode())
-        ni2 = num_channel.to_input(DummyNode())
-        no = num_channel.to_output(DummyNode())
+        cls.str_list_channel = ChannelTemplate(default=["foo"], types=list)
 
-        with self.subTest("Validate `to_X` typing"):
-            self.assertIsInstance(ni1, InputChannel)
-            self.assertIsInstance(no, OutputChannel)
+    def setUp(self) -> None:
+        self.ni1 = self.num_channel.to_input(DummyNode())
+        self.ni2 = self.num_channel.to_input(DummyNode())
+        self.no = self.num_channel.to_output(DummyNode())
 
-        so1 = str_list_channel.to_output(DummyNode())
-        so2 = str_list_channel.to_output(DummyNode())
+        self.so1 = self.str_list_channel.to_output(DummyNode())
+        self.so2 = self.str_list_channel.to_output(DummyNode())
 
-        with self.subTest("Ensure that types are not treated mutably"):
-            # We intentionally passed the wrong type at instantiation, let's make sure
-            # this can't get us into trouble
-            self.assertIsInstance(ni1.types, tuple)
+    def test_template_conversion(self):
+        self.assertIsInstance(self.ni1, InputChannel)
+        self.assertIsInstance(self.no, OutputChannel)
 
-        with self.subTest("Ensure that mutable defaults aren't shared among instances"):
-            so1.default.append("bar")
-            self.assertEqual(len(so2.default), len(so1.default) - 1)
+    def test_type_tuple_conversion(self):
+        # We intentionally passed the wrong type at instantiation, let's make sure
+        # this can't get us into trouble
+        self.assertIsInstance(self.ni1.types, tuple)
+        self.assertIsInstance(self.ni2.types, tuple)
+
+    def test_mutable_defaults(self):
+        self.so1.default.append("bar")
+        self.assertEqual(
+            len(self.so2.default),
+            len(self.so1.default) - 1,
+            msg="Mutable defaults should avoid sharing between instances"
+        )
+
+    def test_connections(self):
 
         with self.subTest("Test connection reflexivity"):
-            ni1.connect(no)
-            self.assertIn(no, ni1.connections)
-            self.assertIn(ni1, no.connections)
+            self.ni1.connect(self.no)
+            self.assertIn(self.no, self.ni1.connections)
+            self.assertIn(self.ni1, self.no.connections)
 
         with self.subTest("Test disconnection"):
-            ni2.disconnect(no)  # Should do nothing
-            ni1.disconnect(no)
-            self.assertEqual([], ni1.connections, msg="No connections should be left")
+            self.ni2.disconnect(self.no)  # Should do nothing
+            self.ni1.disconnect(self.no)
             self.assertEqual(
-                [], no.connections, msg="Disconnection should also have been reflexive"
+                [], self.ni1.connections, msg="No connections should be left"
+            )
+            self.assertEqual(
+                [],
+                self.no.connections,
+                msg="Disconnection should also have been reflexive"
             )
 
-        with self.subTest("Test connection validity"):
-            ni1.types = (int, float, bool)  # Override with a larger set
-            ni2.types = (int,)  # Override with a smaller set
+    def test_connection_validity_tests(self):
+        self.ni1.types = (int, float, bool)  # Override with a larger set
+        self.ni2.types = (int,)  # Override with a smaller set
 
-            no.connect(ni1)
-            self.assertIn(
-                no,
-                ni1.connections,
-                "Input types should be allowed to be a super-set of output types"
+        self.no.connect(self.ni1)
+        self.assertIn(
+            self.no,
+            self.ni1.connections,
+            "Input types should be allowed to be a super-set of output types"
+        )
+
+        self.no.connect(self.ni2)
+        self.assertNotIn(
+            self.no,
+            self.ni2.connections,
+            "Input types should not be allowed to be a sub-set of output types"
+        )
+
+        self.so1.connect(self.ni2)
+        self.assertNotIn(
+            self.so1,
+            self.ni2.connections,
+            "Totally different types should not allow connections"
+        )
+
+    def test_ready(self):
+        self.no.value = 1
+        self.assertTrue(self.no.ready)
+        self.no.value = "Not numeric at all"
+        self.assertFalse(self.no.ready)
+
+    def test_update(self):
+        self.no.connect(self.ni1)
+        self.no.connect(self.ni2)
+        self.no.update(42)
+        for inp in self.no.connections:
+            self.assertEqual(
+                self.no.value,
+                inp.value,
+                msg="Value should have been passed downstream"
             )
-
-            no.connect(ni2)
-            self.assertNotIn(
-                no,
-                ni2.connections,
-                "Input types should not be allowed to be a sub-set of output types"
-            )
-
-            so1.connect(ni2)
-            self.assertNotIn(
-                so1,
-                ni2.connections,
-                "Totally different types should not allow connections"
-            )
-
-        with self.subTest("Test value readiness"):
-            no.value = 1
-            self.assertTrue(no.ready)
-            no.value = "Not numeric at all"
-            self.assertFalse(no.ready)
-
-        with self.subTest("Test update message passing"):
-            assert(ni1 in no.connections)  # Internal check for test structure
-            # Should still be connected from earlier
-            no.update(42)
-            self.assertEqual(42, ni1.value)
