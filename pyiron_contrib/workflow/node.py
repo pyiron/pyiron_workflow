@@ -4,7 +4,7 @@ from abc import ABC, abstractmethod
 from typing import Optional, TYPE_CHECKING
 
 if TYPE_CHECKING:
-    from pyiron_contrib.workflow.io import ChannelTemplate
+    from pyiron_contrib.workflow.channels import ChannelTemplate
 
 
 class Node:

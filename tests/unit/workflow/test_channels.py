@@ -1,6 +1,6 @@
 from unittest import TestCase
 
-from pyiron_contrib.workflow.io import ChannelTemplate, InputChannel, OutputChannel
+from pyiron_contrib.workflow.channels import ChannelTemplate, InputChannel, OutputChannel
 
 
 class DummyNode:
