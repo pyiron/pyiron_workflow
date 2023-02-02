@@ -21,7 +21,7 @@ class IOChannel:
         return class_(
             node=node,
             default=deepcopy(self.default),
-            types=deepcopy(self.types),
+            types=self.types,
         )
 
     def to_input(self, node: Node) -> Input:
@@ -41,8 +41,17 @@ class IO(ABC):
         self.node = node
         self.default = default
         self.value = default
-        self.types = types if isinstance(types, tuple) else (types,)
+        self.types = None if types is None else self._types_to_tuple(types)
         self.connections = []
+
+    @staticmethod
+    def _types_to_tuple(types):
+        if isinstance(types, tuple):
+            return types
+        elif isinstance(types, list):
+            return tuple(types)
+        else:
+            return (types,)
 
     @property
     def ready(self):
@@ -54,6 +63,11 @@ class IO(ABC):
     @abstractmethod
     def connect(self, other: IO):
         pass
+
+    def disconnect(self, other: IO):
+        if other in self.connections:
+            self.connections.remove(other)
+            other.disconnect(self)
 
     @staticmethod
     def _valid_connection(output: Output, input: Input):
