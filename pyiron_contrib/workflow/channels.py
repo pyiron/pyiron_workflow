@@ -11,33 +11,38 @@ if TYPE_CHECKING:
 class ChannelTemplate:
     def __init__(
             self,
+            name: str,
             default: Optional[Any] = None,
             types: Optional[tuple] = None
     ):
+        self.name = name
         self.default = default
         self.types = types
 
     def _to_IOChannel(self, node: Node, class_: type[Channel]) -> Channel:
         return class_(
+            name=self.name,
             node=node,
             default=deepcopy(self.default),
             types=self.types,
         )
 
     def to_input(self, node: Node) -> InputChannel:
-        return self._to_IOChannel(node, InputChannel)
+        return self._to_IOChannel(node=node, class_=InputChannel)
 
     def to_output(self, node: Node) -> OutputChannel:
-        return self._to_IOChannel(node, OutputChannel)
+        return self._to_IOChannel(node=node, class_=OutputChannel)
 
 
 class Channel(ABC):
     def __init__(
             self,
+            name: str,
             node: Node,
             default: Optional[Any] = None,
             types: Optional[tuple] = None
     ):
+        self.name = name
         self.node = node
         self.default = default
         self.value = default

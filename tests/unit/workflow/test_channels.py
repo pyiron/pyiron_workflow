@@ -11,10 +11,10 @@ class DummyNode:
 class TestChannels(TestCase):
     @classmethod
     def setUpClass(cls) -> None:
-        cls.num_channel = ChannelTemplate(default=1, types=[int, float])
+        cls.num_channel = ChannelTemplate(name="numeric", default=1, types=[int, float])
         # Note: We intentionally violate the type hinting and give a *mutable* _list_ of
         #       types instead of an immutable _tuple_ of types
-        cls.str_list_channel = ChannelTemplate(default=["foo"], types=list)
+        cls.str_list_channel = ChannelTemplate(name="list", default=["foo"], types=list)
 
     def setUp(self) -> None:
         self.ni1 = self.num_channel.to_input(DummyNode())
@@ -23,6 +23,10 @@ class TestChannels(TestCase):
 
         self.so1 = self.str_list_channel.to_output(DummyNode())
         self.so2 = self.str_list_channel.to_output(DummyNode())
+
+    def test_name(self):
+        self.assertEqual(self.num_channel.name, self.ni1.name)
+        self.assertEqual(self.num_channel.name, self.no.name)
 
     def test_template_conversion(self):
         self.assertIsInstance(self.ni1, InputChannel)
