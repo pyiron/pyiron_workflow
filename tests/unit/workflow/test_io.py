@@ -14,9 +14,9 @@ class TestIO(TestCase):
 
     @classmethod
     def setUpClass(cls) -> None:
-        inputs = [
-            ChannelTemplate(name="x", types=float),
-            ChannelTemplate(name="y", types=float)
+        cls.inputs = [
+            ChannelTemplate(name="x", default=0, types=float),
+            ChannelTemplate(name="y", default=1, types=float)
         ]
         outputs = [
             ChannelTemplate(name="a", types=float),
@@ -25,7 +25,7 @@ class TestIO(TestCase):
 
         cls.post_facto_output = ChannelTemplate(name="b", types=float).to_output(node)
 
-        cls.input = Input(node, *inputs)
+        cls.input = Input(node, *cls.inputs)
         cls.output = Output(node, *outputs)
 
     def test_access(self):
@@ -64,4 +64,12 @@ class TestIO(TestCase):
             msg="Should be able to create connections by assignment"
         )
 
-
+    def test_conversion(self):
+        converted = self.input.to_value_dict()
+        for template in self.inputs:
+            self.assertEqual(template.default, converted[template.name])
+        self.assertEqual(
+            len(self.inputs),
+            len(converted),
+            msg="And it shouldn't have any extra items either"
+        )

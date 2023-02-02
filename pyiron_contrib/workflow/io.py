@@ -51,6 +51,9 @@ class _IO(ABC):
     def __setitem__(self, key, value):
         self.__setattr__(key, value)
 
+    def to_value_dict(self):
+        return {name: channel.value for name, channel in self._channels.items()}
+
 
 class Input(_IO):
     def __init__(self, node: Node, *channels: ChannelTemplate):
