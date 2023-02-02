@@ -61,6 +61,10 @@ class TestChannels(TestCase):
                 msg="Disconnection should also have been reflexive"
             )
 
+        with self.subTest("Test multiple connections"):
+            self.no.connect(self.ni1, self.ni2)
+            self.assertEqual(2, len(self.no.connections), msg="Should connect to all")
+
     def test_connection_validity_tests(self):
         self.ni1.types = (int, float, bool)  # Override with a larger set
         self.ni2.types = (int,)  # Override with a smaller set
@@ -93,8 +97,7 @@ class TestChannels(TestCase):
         self.assertFalse(self.no.ready)
 
     def test_update(self):
-        self.no.connect(self.ni1)
-        self.no.connect(self.ni2)
+        self.no.connect(self.ni1, self.ni2)
         self.no.update(42)
         for inp in self.no.connections:
             self.assertEqual(
