@@ -3,6 +3,8 @@ from __future__ import annotations
 from abc import ABC, abstractmethod
 from typing import Optional, TYPE_CHECKING
 
+from pyiron_contrib.workflow.io import Input, Output
+
 if TYPE_CHECKING:
     from pyiron_contrib.workflow.channels import ChannelTemplate
 
@@ -27,14 +29,8 @@ class Node:
             self._check_channel_conflict(output_channels, self.output_channels)
             self.output_channels = output_channels
 
-        self.input = {
-            name: inp.to_input(self)
-            for name, inp in self.input_channels.items()
-        }
-        self.output = {
-            name: out.to_output(self)
-            for name, out in self.output_channels.items()
-        }
+        self.input = Input(self, *self.input_channels)
+        self.output = Output(self, *self.output_channels)
         self.preprocessor = preprocessor if preprocessor is not None else Passer()
         self.engine = engine
         self.postprocessor = postprocessor if postprocessor is not None else Passer()
@@ -53,12 +49,10 @@ class Node:
 
     @property
     def ready(self):
-        return all([inp.ready for inp in self.input.values()])
+        return all([inp.ready for inp in self.input])
 
     def run(self):
-        engine_input = self.preprocessor(
-            **{name: channel.value for name, channel in self.input.items()}
-        )
+        engine_input = self.preprocessor(**self.input.to_value_dict())
         engine_output = self.engine(**engine_input)
         node_output = self.postprocessor(**engine_output)
         self._update_output(node_output)
