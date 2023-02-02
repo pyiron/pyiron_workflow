@@ -8,8 +8,8 @@ if TYPE_CHECKING:
 
 
 class Node:
-    input_channels: dict[ChannelTemplate] = {}
-    output_channels: dict[ChannelTemplate] = {}
+    input_channels: list[ChannelTemplate] = {}
+    output_channels: list[ChannelTemplate] = {}
 
     def __init__(
             self,
@@ -17,8 +17,8 @@ class Node:
             preprocessor: Optional[Processor] = None,
             postprocessor: Optional[Processor] = None,
             update_automatically: bool = True,
-            input_channels: Optional[dict[ChannelTemplate]] = None,
-            output_channels: Optional[dict[ChannelTemplate]] = None,
+            input_channels: Optional[list[ChannelTemplate]] = None,
+            output_channels: Optional[list[ChannelTemplate]] = None,
     ):
         if input_channels is not None:
             self._check_channel_conflict(input_channels, self.input_channels)
