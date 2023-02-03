@@ -93,8 +93,6 @@ class Node:
         self._update_output(node_output)
 
     def _update_output(self, data: dict):
-        if not self._dict_is_subset(data, self.output):
-            raise KeyError("Got unrecognized input...")  # And say something useful
         for k, v in data.items():
             self.output[k].update(v)
 
