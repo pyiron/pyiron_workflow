@@ -130,4 +130,3 @@ class OutputChannel(Channel):
         self.value = value
         for inp in self.connections:
             inp.update(self.value)
-
