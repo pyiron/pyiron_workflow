@@ -71,6 +71,10 @@ class Input(_IO):
     def _channel_class(self) -> type[InputChannel]:
         return InputChannel
 
+    @property
+    def ready(self):
+        return all([c.ready for c in self._channels.values()])
+
 
 class Output(_IO):
     def __init__(self, node: Node, *channels: ChannelTemplate):

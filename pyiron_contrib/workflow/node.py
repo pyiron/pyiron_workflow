@@ -49,7 +49,7 @@ class Node:
 
     @property
     def ready(self):
-        return all([inp.ready for inp in self.input])
+        return self.input.ready
 
     @property
     def connected(self):
