@@ -35,9 +35,9 @@ class Node:
     # Children may define sub-components at the class level and override __init__ to
     # not accept them
     input_channels: list[ChannelTemplate] = None
-    preprocessor: Processor = None
-    engine: Engine | callable = None
-    postprocessor: Processor = None
+    preprocessor: callable = None
+    engine: callable = None
+    postprocessor: callable = None
     output_channels: list[ChannelTemplate] = None
 
     def __init__(
@@ -47,6 +47,9 @@ class Node:
             preprocessor: Optional[Processor] = None,
             postprocessor: Optional[Processor] = None,
             input_channels: Optional[list[ChannelTemplate]] = None,
+            preprocessor: Optional[callable] = None,
+            engine: Optional[callable] = None,
+            postprocessor: Optional[callable] = None,
             output_channels: Optional[list[ChannelTemplate]] = None,
             update_automatically: bool = True,
     ):
@@ -100,23 +103,6 @@ class Node:
         return self.input.fully_connected and self.output.fully_connected
 
 
-class Engine(ABC):
-    @abstractmethod
-    def run(self, **kwargs) -> dict:
-        pass
-
-    def __call__(self, **kwargs) -> dict:
-        return self.run(**kwargs)
-
-
-class Processor(ABC):
-    @abstractmethod
-    def __call__(self, **kwargs) -> dict:
-        pass
-
-
-class Passer(Processor):
-    def __call__(self, **kwargs) -> dict:
-        return kwargs
-
-
+def pass_all(**kwargs) -> dict:
+    """Just return everything you get as a dictionary."""
+    return kwargs
