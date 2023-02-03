@@ -1,12 +1,9 @@
 from __future__ import annotations
 
-from typing import TYPE_CHECKING
 from warnings import warn
 
+from pyiron_contrib.workflow.node import Node
 from pyiron_contrib.workflow.util import DotDict
-
-if TYPE_CHECKING:
-    from pyiron_contrib.workflow.node import Node
 
 
 class Workflow:
