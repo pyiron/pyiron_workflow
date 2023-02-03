@@ -1,3 +1,22 @@
+"""
+Nodes take input, and when run produce output. Internally they have the structure
+pre-processor -> engine -> post-processor. Where the pre- and post-processors handle
+both the conversion of IO data to/from what the engine expects *and* handle any
+interactions with file storage and the database. The engine just takes arbitrary kwargs
+(passed from the pre-processor) and returns an arbitrary dictionary (parsed by the
+post-processor). In the simplest case, it is just some python code and the dictionaries
+it takes and returns align with the names of the IO.
+
+Nodes should be able to be forced to run, or gently prodded to run but only actually
+do so if all their input is ready to go.
+
+Nodes can either be sub-classes, with pre-defined IO fields, processors, and engine,
+XOR they can be instantiated with some or all of these passed in at runtime. However,
+it should not be possible to mix and match -- either you're instantiating a generic
+node and you're free to pass in any of the sub-components, or you're instantiating a
+sub-classed node and some or all of these are pre-defined.
+"""
+
 from __future__ import annotations
 
 from abc import ABC, abstractmethod
