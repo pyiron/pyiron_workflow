@@ -66,6 +66,10 @@ class _IO(ABC):
         for c in self._channels.values():
             c.disconnect_all()
 
+    def set_storage_priority(self, priority: int):
+        for c in self._channels.values():
+            c.storage_priority = priority
+
 
 class Input(_IO):
     def __init__(self, node: Node, *channels: ChannelTemplate):

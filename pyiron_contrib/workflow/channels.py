@@ -14,11 +14,13 @@ class ChannelTemplate:
             self,
             name: str,
             default: Optional[Any] = None,
-            types: Optional[tuple | type[Any]] = None
+            types: Optional[tuple | type[Any]] = None,
+            storage_priority: int = 0,
     ):
         self.name = name
         self.default = default
         self.types = types
+        self.storage_priority = storage_priority
 
     def _to_IOChannel(self, node: Node, class_: type[Channel]) -> Channel:
         return class_(
@@ -26,6 +28,7 @@ class ChannelTemplate:
             node=node,
             default=deepcopy(self.default),
             types=self.types,
+            storage_priority=self.storage_priority
         )
 
     def to_input(self, node: Node) -> InputChannel:
@@ -41,13 +44,15 @@ class Channel(ABC):
             name: str,
             node: Node,
             default: Optional[Any] = None,
-            types: Optional[tuple] = None
+            types: Optional[tuple] = None,
+            storage_priority: int = 0,
     ):
         self.name = name
         self.node = node
         self.default = default
         self.value = default
         self.types = None if types is None else self._types_to_tuple(types)
+        self.storage_priority = storage_priority
         self.connections = []
 
     @staticmethod

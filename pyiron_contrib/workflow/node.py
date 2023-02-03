@@ -227,6 +227,10 @@ class Node:
     def fully_connected(self):
         return self.input.fully_connected and self.output.fully_connected
 
+    def set_storage_priority(self, priority: int):
+        self.input.set_storage_priority(priority)
+        self.output.set_storage_priority(priority)
+
 
 def pass_all(**kwargs) -> dict:
     """Just returns everything it gets as a dictionary."""
