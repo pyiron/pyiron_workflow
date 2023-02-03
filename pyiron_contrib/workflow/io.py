@@ -6,6 +6,7 @@ from typing import TYPE_CHECKING
 from pyiron_contrib.workflow.channels import (
     Channel, ChannelTemplate, InputChannel, OutputChannel
 )
+from pyiron_contrib.workflow.util import DotDict
 
 if TYPE_CHECKING:
     from pyiron_contrib.workflow.node import Node
@@ -13,27 +14,28 @@ if TYPE_CHECKING:
 
 class _IO(ABC):
     def __init__(self, *channels: Channel):
-        self._channels = {
-            channel.name: channel for channel in channels
-            if isinstance(channel, self._channel_class)
-            # else raise TypeError(f"Expected {self._channel_class} but {channel.name} had type {type(channel)}")
-        }
+        self.channels = DotDict(
+            {
+                channel.name: channel for channel in channels
+                if isinstance(channel, self._channel_class)
+            }
+        )
 
     def __getattr__(self, item):
-        return self._channels[item]
+        return self.channels[item]
 
     def __setattr__(self, key, value):
-        if key in ["_channels"]:
+        if key in ["channels"]:
             super().__setattr__(key, value)
-        elif key in self._channels.keys():
-            self._channels[key].connect(value)
+        elif key in self.channels.keys():
+            self.channels[key].connect(value)
         elif isinstance(value, self._channel_class):
             if key != value.name:
                 raise ValueError(
                     f"Channels can only be assigned to attributes matching their name,"
                     f"but just tried to assign the channel {value.name} to {key}"
                 )
-            self._channels[key] = value
+            self.channels[key] = value
         else:
             raise TypeError(
                 f"Can only set Channel object or connect to existing channels, but the "
@@ -52,27 +54,27 @@ class _IO(ABC):
         self.__setattr__(key, value)
 
     def to_value_dict(self):
-        return {name: channel.value for name, channel in self._channels.items()}
+        return {name: channel.value for name, channel in self.channels.items()}
 
     @property
     def connected(self):
-        return any([c.connected for c in self._channels.values()])
+        return any([c.connected for c in self.channels.values()])
 
     @property
     def fully_connected(self):
-        return all([c.connected for c in self._channels.values()])
+        return all([c.connected for c in self.channels.values()])
 
     def disconnect(self):
-        for c in self._channels.values():
+        for c in self.channels.values():
             c.disconnect_all()
 
     def set_storage_priority(self, priority: int):
-        for c in self._channels.values():
+        for c in self.channels.values():
             c.storage_priority = priority
 
     @property
     def names(self):
-        return list(self._channels.keys())
+        return list(self.channels.keys())
 
 
 class Input(_IO):
@@ -85,7 +87,7 @@ class Input(_IO):
 
     @property
     def ready(self):
-        return all([c.ready for c in self._channels.values()])
+        return all([c.ready for c in self.channels.values()])
 
 
 class Output(_IO):
