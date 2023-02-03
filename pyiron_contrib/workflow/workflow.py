@@ -77,6 +77,7 @@ class Workflow:
                 f"does not match the attribute name {name}"
             )
         else:
+            node.name = name
             self.add(node)
 
     def __getattr__(self, key):
