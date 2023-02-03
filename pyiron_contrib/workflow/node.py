@@ -10,38 +10,43 @@ if TYPE_CHECKING:
 
 
 class Node:
-    input_channels: list[ChannelTemplate] = []
-    output_channels: list[ChannelTemplate] = []
+    # Children may define sub-components at the class level and override __init__ to
+    # not accept them
+    input_channels: list[ChannelTemplate] = None
+    preprocessor: Processor = None
+    engine: Engine | callable = None
+    postprocessor: Processor = None
+    output_channels: list[ChannelTemplate] = None
 
     def __init__(
             self,
+            name: str,
             engine: Engine | callable,
             preprocessor: Optional[Processor] = None,
             postprocessor: Optional[Processor] = None,
-            update_automatically: bool = True,
             input_channels: Optional[list[ChannelTemplate]] = None,
             output_channels: Optional[list[ChannelTemplate]] = None,
+            update_automatically: bool = True,
     ):
-        if input_channels is not None:
-            self._check_channel_conflict(input_channels, self.input_channels)
-            self.input_channels = input_channels
-        if output_channels is not None:
-            self._check_channel_conflict(output_channels, self.output_channels)
-            self.output_channels = output_channels
+        for key, arg in [
+            ("input_channels", input_channels),
+            ("preprocessor", preprocessor),
+            ("engine", engine),
+            ("postprocessor", postprocessor),
+            ("output_channels", output_channels)
+        ]:
+            if arg is not None and getattr(self, key) is not None:
+                raise ValueError(
+                    f"{key} can be defined at the class level XOR passed as an argument"
+                    f"to __init__, but {name} just got both."
+                )
 
         self.input = Input(self, *self.input_channels)
-        self.output = Output(self, *self.output_channels)
-        self.preprocessor = preprocessor if preprocessor is not None else Passer()
+        self.preprocessor = preprocessor or self.preprocessor or Passer()
         self.engine = engine
-        self.postprocessor = postprocessor if postprocessor is not None else Passer()
+        self.postprocessor = postprocessor or self.postprocessor or Passer()
+        self.output = Output(self, *self.output_channels)
         self.update_automatically = update_automatically
-
-    def _check_channel_conflict(self, argument, attribute):
-        if argument is not None and len(attribute) > 0:
-            raise ValueError(
-                "Input/Output channels can be specified at instantiation XOR as "
-                "subclass attributes -- not both."
-            )
 
     def update(self):
         if self.update_automatically and self.ready:
