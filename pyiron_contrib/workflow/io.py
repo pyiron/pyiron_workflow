@@ -62,6 +62,10 @@ class _IO(ABC):
     def fully_connected(self):
         return all([c.connected for c in self._channels.values()])
 
+    def disconnect(self):
+        for c in self._channels.values():
+            c.disconnect_all()
+
 
 class Input(_IO):
     def __init__(self, node: Node, *channels: ChannelTemplate):

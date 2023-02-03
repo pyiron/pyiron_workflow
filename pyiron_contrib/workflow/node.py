@@ -57,6 +57,7 @@ class Node:
             run the engine.
         run: Parse and process the input, execute the engine, process the results and
             update the output.
+        disconnect: Disconnect all IO connections.
 
     Note:
         The IO keys/channel names throughout your node need to be consistent:
@@ -209,6 +210,10 @@ class Node:
 
     def __call__(self) -> None:
         self.run()
+
+    def disconnect(self):
+        self.input.disconnect()
+        self.output.disconnect()
 
     @property
     def ready(self) -> bool:

@@ -114,6 +114,9 @@ class Channel(ABC):
                 self.connections.remove(other)
                 other.disconnect(self)
 
+    def disconnect_all(self):
+        self.disconnect(*self.connections)
+
     @property
     def connected(self):
         return len(self.connections) > 0
