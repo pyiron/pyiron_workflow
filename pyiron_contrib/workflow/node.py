@@ -102,8 +102,8 @@ class Node:
     def _dict_is_subset(candidate: dict, reference: dict) -> bool:
         return len(set(candidate.keys()).difference(reference.keys())) == 0
 
-    def __call__(self, **kwargs) -> None:
-        self.run(**kwargs)
+    def __call__(self) -> None:
+        self.run()
 
 
 class Engine(ABC):
