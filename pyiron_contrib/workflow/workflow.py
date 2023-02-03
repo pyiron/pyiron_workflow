@@ -18,7 +18,7 @@ class Workflow:
     by dot-access on the workflow object itself.
 
     The workflow guarantees that each node it owns has a unique within the scope of this
-    workflow.
+    workflow, and that each node instance appears only once.
 
     Using the `input` and `output` attributes, the workflow gives access to all the
     IO channels among its nodes which are currently unconnected.
@@ -42,6 +42,9 @@ class Workflow:
             self.add(node)
 
     def add(self, node: Node):
+        if node in self.nodes.values():
+            raise ValueError(f"The node {node.name} is already in the workflow")
+
         if node.name is not None:
             if node.name in self.__dir__():
                 raise ValueError(
