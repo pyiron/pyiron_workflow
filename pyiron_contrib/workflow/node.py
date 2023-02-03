@@ -18,6 +18,8 @@ sub-classed node and some or all of these are pre-defined.
 
 After running, nodes trigger the update on their output channels, which will trigger
 updates of connected downstream nodes.
+
+Nodes should optionally be allowed to update on instantiation.
 """
 
 from __future__ import annotations
@@ -43,15 +45,13 @@ class Node:
     def __init__(
             self,
             name: str,
-            engine: Engine | callable,
-            preprocessor: Optional[Processor] = None,
-            postprocessor: Optional[Processor] = None,
             input_channels: Optional[list[ChannelTemplate]] = None,
             preprocessor: Optional[callable] = None,
             engine: Optional[callable] = None,
             postprocessor: Optional[callable] = None,
             output_channels: Optional[list[ChannelTemplate]] = None,
             update_automatically: bool = True,
+            update_now: bool = True,
     ):
         for key, arg in [
             ("input_channels", input_channels),
@@ -75,11 +75,11 @@ class Node:
         self.output_channels = output_channels or self.output_channels or []
 
         self.input = Input(self, *self.input_channels)
-        self.preprocessor = preprocessor or self.preprocessor or Passer()
-        self.engine = engine
-        self.postprocessor = postprocessor or self.postprocessor or Passer()
         self.output = Output(self, *self.output_channels)
         self.update_automatically = update_automatically
+
+        if update_now:
+            self.update()
 
     def update(self) -> None:
         if self.update_automatically and self.ready:
