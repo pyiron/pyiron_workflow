@@ -1,27 +1,3 @@
-"""
-Nodes take input, and when run produce output. Internally they have the structure
-pre-processor -> engine -> post-processor. Where the pre- and post-processors handle
-both the conversion of IO data to/from what the engine expects *and* handle any
-interactions with file storage and the database. The engine just takes arbitrary kwargs
-(passed from the pre-processor) and returns an arbitrary dictionary (parsed by the
-post-processor). In the simplest case, it is just some python code and the dictionaries
-it takes and returns align with the names of the IO.
-
-Nodes should be able to be forced to run, or gently prodded to run but only actually
-do so if all their input is ready to go.
-
-Nodes can either be sub-classes, with pre-defined IO fields, processors, and engine,
-XOR they can be instantiated with some or all of these passed in at runtime. However,
-it should not be possible to mix and match -- either you're instantiating a generic
-node and you're free to pass in any of the sub-components, or you're instantiating a
-sub-classed node and some or all of these are pre-defined.
-
-After running, nodes trigger the update on their output channels, which will trigger
-updates of connected downstream nodes.
-
-Nodes should optionally be allowed to update on instantiation.
-"""
-
 from __future__ import annotations
 
 from abc import ABC, abstractmethod
@@ -34,6 +10,142 @@ if TYPE_CHECKING:
 
 
 class Node:
+    """
+    Nodes have input and output channels that interface with the outside world, and
+    internally have a structure of preprocess->run->postprocess. After running, their
+    output channels are updated with the results of the node's computation, which
+    triggers downstream node updates if those output channels are connected to other
+    input channels.
+
+    Nodes can be forced to run, or more gently "updated", which will trigger a
+    calculation only if all of the input is ready.
+
+    Nodes can optionally update themselves at instantiation.
+
+    Actual node instances can either be instances of the base node class, in which case
+    all information about IO, processing, and computation needs to be provided at
+    instantiation as arguments, OR they can be instances of children of this class.
+    Those children may define some or all of the node behaviour at the class level, and
+    if they do it is no longer available for specification at instantiation time.
+
+    Args:
+        name (str): The node's name.
+        input_channels (Optional[list[ChannelTemplate]]): A list of channel templates
+            used to create the input. (Default is an empty list.)
+        preprocessor (Optional[callable]): Any callable taking only kwargs and returning
+            a dict. Will get receive the input values as a dictionary. (Default is
+            `pass_all`, a function that just returns the kwargs as a dict.)
+        engine (Optional[callable]): Any callable taking only kwargs and returning
+            a dict. Will receive the preprocessor output. (Default is `pass_all`.)
+        postprocessor (Optional[callable]): Any callable taking only kwargs and
+            returning a dict. Will receive the engine output. (Default is `pass_all`.)
+        output_channels (Optional[list[ChannelTemplate]]): A list of channel templates
+            used to create the output. Will get updated from the output of the
+            postprocessor. (Default is an empty list.)
+        update_automatically (bool): Whether to run when you are updated and all your
+            input is ready. (Default is True).
+        update_now (bool): Whether to call an update at the end of instantiation.
+            (Default is True.)
+
+    Attributes:
+        ready (bool): All input reports ready.
+        connected (bool): Any IO channel has at least one connection.
+        fully_connected (bool): Every IO channel has at least one connection.
+
+    Methods:
+        update: If `update_automatically` is true and all your input is ready, will
+            run the engine.
+        run: Parse and process the input, execute the engine, process the results and
+            update the output.
+
+    Note:
+        The IO keys/channel names throughout your node need to be consistent:
+        input -> pre-processor -> engine -> post-processor -> output. But the processors
+        exist so that the terminology (and even number of arguments) for your internal
+        engine can differ arbitrarily from the IO interface exposed to users.
+
+    Note:
+        When specifying any of `preprocessor`, `engine`, or `postprocessor`.
+
+    Note:
+        The simplest case for the  `preprocessor`, `engine`, or `postprocessor` is a
+        function, but it is also possible to pass in any class instance where `__call__`
+        is defined. These attributes are intended to operate in a purely functional way
+        (i.e. without internal state), but it's possible a class-based description may
+        be useful.
+
+    Warning:
+        `input_channels` and `output_channels` are mutable class-level variables.
+        Modifying them in any way is probably unwise.
+
+    Examples:
+        Instantiating from `Node`:
+        >>> from pyiron_contrib.workflow.node import Node
+        >>> from pyiron_contrib.workflow.channels import ChannelTemplate
+        >>>
+        >>> def start_to_end(a=None):
+        ...     return {"x": a}
+        >>>
+        >>> def add_one(x=None):
+        ...    return {"y": x + 1}
+        >>>
+        >>> my_adder = Node(
+        ...     "my_adder",
+        ...     input_channels=[ChannelTemplate("a", types=(int, float))],
+        ...     preprocessor=start_to_end,
+        ...     engine=add_one,
+        ...     # We'll leave the post-processor empty and just align our output
+        ...     # with what our engine returns
+        ...     output_channels=[ChannelTemplate("y")],
+        ... )
+        >>> my_adder.output.y.value
+
+        >>> # Nothing! It tried to update automatically, but there's no default for
+        >>> # "a", so it's not ready!
+        >>> my_adder.input.a.update(1)
+        >>> my_adder.output.y.value
+        2
+
+        Subclassing `Node`:
+        >>> from pyiron_contrib.workflow.node import Node, pass_all
+        >>> from pyiron_contrib.workflow.channels import ChannelTemplate
+        >>>
+        >>> class ThreeToOne(Node):
+        ...     # Expects an engine that maps three numeric values (xyz) to one (w)
+        ...     input_channels = [
+        ...         ChannelTemplate("x", default=1, types=(int, float)),
+        ...         ChannelTemplate("y", default=2, types=(int, float)),
+        ...         ChannelTemplate("z", default=4, types=(int, float)),
+        ...     ]
+        ...     preprocessor = staticmethod(pass_all)
+        ...
+        ...     @staticmethod
+        ...     def postprocessor(**kwargs):
+        ...         return pass_all(**kwargs)
+        ...     # Neither pre- nor post-processor does anything here,
+        ...     # they're just exampels of how to declare them as static
+        ...
+        ...     output_channels = [
+        ...         ChannelTemplate("w", types=(int, float)),
+        ...     ]
+        ...
+        ...     def __init__(self, name: str, engine: callable):
+        ...         # We'll modify what's available in init to push our users a certain direction.
+        ...         super().__init__(name=name, engine=engine)
+        >>>
+        >>> def add(x, y, z):
+        ...     return {"w": x + y + z}
+        >>>
+        >>> adder = ThreeToOne("add", add)
+        >>> adder.output.w.value
+        7
+        >>> def multiply(x, y, z):
+        ...     return {"w": x * y * z}
+        >>>
+        >>> multiplier = ThreeToOne("mult", multiply)
+        >>> multiplier.output.w.value
+        8
+    """
     # Children may define sub-components at the class level and override __init__ to
     # not accept them
     input_channels: list[ChannelTemplate] = None
@@ -112,5 +224,5 @@ class Node:
 
 
 def pass_all(**kwargs) -> dict:
-    """Just return everything you get as a dictionary."""
+    """Just returns everything it gets as a dictionary."""
     return kwargs
