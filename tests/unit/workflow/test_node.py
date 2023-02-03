@@ -30,11 +30,10 @@ class ChildNode(Node):
 
 class TestNode(TestCase):
     def test_defaults(self):
-        node = Node("a_node")
+        node = Node()
 
     def test_instantiation_update(self):
         no_update = Node(
-            "has_no_output",
             engine=plus_one,
             input_channels=[ChannelTemplate(name='x', default=1)],
             output_channels=[ChannelTemplate(name='y')],
@@ -43,7 +42,6 @@ class TestNode(TestCase):
         self.assertIsNone(no_update.output.y.value)
 
         update = Node(
-            "has_no_output",
             engine=plus_one,
             input_channels=[ChannelTemplate(name='x', default=1)],
             output_channels=[ChannelTemplate(name='y')],
@@ -53,7 +51,6 @@ class TestNode(TestCase):
 
     def test_input_kwargs(self):
         node = Node(
-            "node",
             engine=plus_one,
             input_channels=[ChannelTemplate(name='x', default=1)],
             output_channels=[ChannelTemplate(name='y')],
@@ -63,7 +60,6 @@ class TestNode(TestCase):
 
     def test_automatic_updates(self):
         node = Node(
-            "death_node",
             engine=throw_error,
             input_channels=[ChannelTemplate(name='x', types=int)],
         )
@@ -76,7 +72,7 @@ class TestNode(TestCase):
                 node.input.x.update(1)
 
     def test_double_definitions(self):
-        child = ChildNode("child")
+        child = ChildNode()
 
         for kwargs in [
             {"input_channels": ChildNode.input_channels},

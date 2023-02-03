@@ -161,7 +161,7 @@ class Node:
 
     def __init__(
             self,
-            name: str,
+            name: Optional[str] = None,
             input_channels: Optional[list[ChannelTemplate]] = None,
             preprocessor: Optional[callable] = None,
             engine: Optional[callable] = None,
