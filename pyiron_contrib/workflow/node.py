@@ -74,18 +74,6 @@ class Node:
         if self.update_automatically and self.ready:
             self.run()
 
-    @property
-    def ready(self) -> bool:
-        return self.input.ready
-
-    @property
-    def connected(self) -> bool:
-        return self.input.connected or self.output.connected
-
-    @property
-    def fully_connected(self):
-        return self.input.fully_connected and self.output.fully_connected
-
     def run(self) -> None:
         engine_input = self.preprocessor(**self.input.to_value_dict())
         engine_output = self.engine(**engine_input)
@@ -98,6 +86,18 @@ class Node:
 
     def __call__(self) -> None:
         self.run()
+
+    @property
+    def ready(self) -> bool:
+        return self.input.ready
+
+    @property
+    def connected(self) -> bool:
+        return self.input.connected or self.output.connected
+
+    @property
+    def fully_connected(self):
+        return self.input.fully_connected and self.output.fully_connected
 
 
 class Engine(ABC):
