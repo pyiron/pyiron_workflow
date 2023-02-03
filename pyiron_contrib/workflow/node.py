@@ -66,6 +66,14 @@ class Node:
                     f"to __init__, but {name} just got both."
                 )
 
+        self.name = name
+
+        self.input_channels = input_channels or self.input_channels or []
+        self.preprocessor = preprocessor or self.preprocessor or pass_all
+        self.engine = engine or self.engine or pass_all
+        self.postprocessor = postprocessor or self.postprocessor or pass_all
+        self.output_channels = output_channels or self.output_channels or []
+
         self.input = Input(self, *self.input_channels)
         self.preprocessor = preprocessor or self.preprocessor or Passer()
         self.engine = engine
