@@ -22,6 +22,8 @@ class Node:
 
     Nodes can optionally update themselves at instantiation.
 
+    Nodes can be instantiated with keyword arguments for their input channel values.
+
     Actual node instances can either be instances of the base node class, in which case
     all information about IO, processing, and computation needs to be provided at
     instantiation as arguments, OR they can be instances of children of this class.
@@ -46,6 +48,8 @@ class Node:
             input is ready. (Default is True).
         update_now (bool): Whether to call an update at the end of instantiation.
             (Default is True.)
+        **kwargs: Any additional keyword arguments whose keyword matches the name of an
+            input channel will have their value assigned to that channel.
 
     Attributes:
         ready (bool): All input reports ready.
@@ -116,7 +120,7 @@ class Node:
         ...     input_channels = [
         ...         ChannelTemplate("x", default=1, types=(int, float)),
         ...         ChannelTemplate("y", default=2, types=(int, float)),
-        ...         ChannelTemplate("z", default=4, types=(int, float)),
+        ...         ChannelTemplate("z", default=3, types=(int, float)),
         ...     ]
         ...     preprocessor = staticmethod(pass_all)
         ...
@@ -130,20 +134,20 @@ class Node:
         ...         ChannelTemplate("w", types=(int, float)),
         ...     ]
         ...
-        ...     def __init__(self, name: str, engine: callable):
+        ...     def __init__(self, name: str, engine: callable, **kwargs):
         ...         # We'll modify what's available in init to push our users a certain direction.
-        ...         super().__init__(name=name, engine=engine)
+        ...         super().__init__(name=name, engine=engine, **kwargs)
         >>>
         >>> def add(x, y, z):
         ...     return {"w": x + y + z}
         >>>
         >>> adder = ThreeToOne("add", add)
         >>> adder.output.w.value
-        7
+        6
         >>> def multiply(x, y, z):
         ...     return {"w": x * y * z}
         >>>
-        >>> multiplier = ThreeToOne("mult", multiply)
+        >>> multiplier = ThreeToOne("mult", multiply, z=4)
         >>> multiplier.output.w.value
         8
     """
@@ -165,6 +169,7 @@ class Node:
             output_channels: Optional[list[ChannelTemplate]] = None,
             update_automatically: bool = True,
             update_now: bool = True,
+            **kwargs
     ):
         for key, arg in [
             ("input_channels", input_channels),
@@ -190,6 +195,10 @@ class Node:
         self.input = Input(self, *self.input_channels)
         self.output = Output(self, *self.output_channels)
         self.update_automatically = update_automatically
+
+        for k, v in kwargs.items():
+            if k in self.input.names:
+                self.input[k].update(v)
 
         if update_now:
             self.update()

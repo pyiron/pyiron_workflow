@@ -51,6 +51,16 @@ class TestNode(TestCase):
         )
         self.assertEqual(2, update.output.y.value)
 
+    def test_input_kwargs(self):
+        node = Node(
+            "node",
+            engine=plus_one,
+            input_channels=[ChannelTemplate(name='x', default=1)],
+            output_channels=[ChannelTemplate(name='y')],
+            x=2
+        )
+        self.assertEqual(3, node.output.y.value)
+
     def test_automatic_updates(self):
         node = Node(
             "death_node",

@@ -70,6 +70,10 @@ class _IO(ABC):
         for c in self._channels.values():
             c.storage_priority = priority
 
+    @property
+    def names(self):
+        return list(self._channels.keys())
+
 
 class Input(_IO):
     def __init__(self, node: Node, *channels: ChannelTemplate):
