@@ -8,7 +8,7 @@ def throw_error(x=None):
     raise RuntimeError
 
 
-def plus_one(x=None):
+def plus_one(x):
     return {'y': x + 1}
 
 
