@@ -15,6 +15,9 @@ XOR they can be instantiated with some or all of these passed in at runtime. How
 it should not be possible to mix and match -- either you're instantiating a generic
 node and you're free to pass in any of the sub-components, or you're instantiating a
 sub-classed node and some or all of these are pre-defined.
+
+After running, nodes trigger the update on their output channels, which will trigger
+updates of connected downstream nodes.
 """
 
 from __future__ import annotations
@@ -67,23 +70,23 @@ class Node:
         self.output = Output(self, *self.output_channels)
         self.update_automatically = update_automatically
 
-    def update(self):
+    def update(self) -> None:
         if self.update_automatically and self.ready:
             self.run()
 
     @property
-    def ready(self):
+    def ready(self) -> bool:
         return self.input.ready
 
     @property
-    def connected(self):
+    def connected(self) -> bool:
         return self.input.connected or self.output.connected
 
     @property
     def fully_connected(self):
         return self.input.fully_connected and self.output.fully_connected
 
-    def run(self):
+    def run(self) -> None:
         engine_input = self.preprocessor(**self.input.to_value_dict())
         engine_output = self.engine(**engine_input)
         node_output = self.postprocessor(**engine_output)
@@ -96,19 +99,19 @@ class Node:
             self.output[k].update(v)
 
     @staticmethod
-    def _dict_is_subset(candidate: dict, reference: dict):
+    def _dict_is_subset(candidate: dict, reference: dict) -> bool:
         return len(set(candidate.keys()).difference(reference.keys())) == 0
 
-    def __call__(self, **kwargs):
+    def __call__(self, **kwargs) -> None:
         self.run(**kwargs)
 
 
 class Engine(ABC):
     @abstractmethod
-    def run(self, **kwargs):
+    def run(self, **kwargs) -> dict:
         pass
 
-    def __call__(self, **kwargs):
+    def __call__(self, **kwargs) -> dict:
         return self.run(**kwargs)
 
 
@@ -119,7 +122,7 @@ class Processor(ABC):
 
 
 class Passer(Processor):
-    def __call__(self, **kwargs):
+    def __call__(self, **kwargs) -> dict:
         return kwargs
 
 
