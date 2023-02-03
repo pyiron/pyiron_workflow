@@ -54,6 +54,14 @@ class _IO(ABC):
     def to_value_dict(self):
         return {name: channel.value for name, channel in self._channels.items()}
 
+    @property
+    def connected(self):
+        return any([c.connected for c in self._channels.values()])
+
+    @property
+    def fully_connected(self):
+        return all([c.connected for c in self._channels.values()])
+
 
 class Input(_IO):
     def __init__(self, node: Node, *channels: ChannelTemplate):

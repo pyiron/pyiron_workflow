@@ -51,6 +51,14 @@ class Node:
     def ready(self):
         return all([inp.ready for inp in self.input])
 
+    @property
+    def connected(self):
+        return self.input.connected or self.output.connected
+
+    @property
+    def fully_connected(self):
+        return self.input.fully_connected and self.output.fully_connected
+
     def run(self):
         engine_input = self.preprocessor(**self.input.to_value_dict())
         engine_output = self.engine(**engine_input)

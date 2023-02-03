@@ -114,6 +114,10 @@ class Channel(ABC):
                 self.connections.remove(other)
                 other.disconnect(self)
 
+    @property
+    def connected(self):
+        return len(self.connections) > 0
+
 
 class InputChannel(Channel):
     def update(self, value):
