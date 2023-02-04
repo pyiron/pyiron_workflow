@@ -126,8 +126,9 @@ class Workflow:
         raise NotImplementedError
 
     def update(self):
-        # Maybe we need this if workflows can be used as nodes?
-        raise NotImplementedError
+        for node in self.nodes.values():
+            if node.output.connected and not node.input.connected:
+                node.update()
 
     def run(self):
         # Maybe we need this if workflows can be used as nodes?
