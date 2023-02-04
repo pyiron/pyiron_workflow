@@ -56,7 +56,16 @@ class TestNode(TestCase):
             output_channels=[ChannelTemplate(name='y')],
             x=2
         )
-        self.assertEqual(3, node.output.y.value)
+        self.assertEqual(3, node.output.y.value, msg="Initialize from value")
+
+        node2 = Node(
+            engine=plus_one,
+            input_channels=[ChannelTemplate(name='x', default=1)],
+            output_channels=[ChannelTemplate(name='y')],
+            x=node.output.y
+        )
+        node.update()
+        self.assertEqual(4, node2.output.y.value, msg="Initialize from connection")
 
     def test_automatic_updates(self):
         node = Node(

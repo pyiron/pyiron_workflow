@@ -1,8 +1,8 @@
 from __future__ import annotations
 
-from abc import ABC, abstractmethod
 from typing import Optional, TYPE_CHECKING
 
+from pyiron_contrib.workflow.channels import OutputChannel
 from pyiron_contrib.workflow.io import Input, Output
 
 if TYPE_CHECKING:
@@ -23,6 +23,9 @@ class Node:
     Nodes can optionally update themselves at instantiation.
 
     Nodes can be instantiated with keyword arguments for their input channel values.
+    These can be values, or output channels. In the latter case, the upstream node
+    will need to be updated again before the output channel value gets passed into this
+    node's input.
 
     Actual node instances can either be instances of the base node class, in which case
     all information about IO, processing, and computation needs to be provided at
@@ -198,7 +201,10 @@ class Node:
 
         for k, v in kwargs.items():
             if k in self.input.names:
-                self.input[k].update(v)
+                if isinstance(v, OutputChannel):
+                    self.input[k] = v
+                else:
+                    self.input[k].update(v)
 
         if update_now:
             self.update()
