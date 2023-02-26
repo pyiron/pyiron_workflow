@@ -154,46 +154,25 @@ class Node:
         >>> multiplier.output.w.value
         8
     """
-    # Children may define sub-components at the class level and override __init__ to
-    # not accept them
-    input_channels: list[ChannelTemplate] = None
-    preprocessor: callable = None
-    node_function: callable = None
-    postprocessor: callable = None
-    output_channels: list[ChannelTemplate] = None
-
     def __init__(
             self,
+            node_function: callable,
             name: Optional[str] = None,
             input_channels: Optional[list[ChannelTemplate]] = None,
             preprocessor: Optional[callable] = None,
-            node_function: Optional[callable] = None,
             postprocessor: Optional[callable] = None,
             output_channels: Optional[list[ChannelTemplate]] = None,
             update_automatically: bool = True,
             update_now: bool = True,
             **kwargs
     ):
-        for key, arg in [
-            ("input_channels", input_channels),
-            ("preprocessor", preprocessor),
-            ("node_function", node_function),
-            ("postprocessor", postprocessor),
-            ("output_channels", output_channels)
-        ]:
-            if arg is not None and getattr(self, key) is not None:
-                raise ValueError(
-                    f"{key} can be defined at the class level XOR passed as an argument"
-                    f"to __init__, but {name} just got both."
-                )
-
+        self.node_function = node_function
         self.name = name
 
-        self.input_channels = input_channels or self.input_channels or []
-        self.preprocessor = preprocessor or self.preprocessor or pass_all
-        self.node_function = node_function or self.node_function or pass_all
-        self.postprocessor = postprocessor or self.postprocessor or pass_all
-        self.output_channels = output_channels or self.output_channels or []
+        self.input_channels = input_channels or []
+        self.preprocessor = preprocessor or pass_all
+        self.postprocessor = postprocessor or pass_all
+        self.output_channels = output_channels or []
 
         self.input = Input(self, *self.input_channels)
         self.output = Output(self, *self.output_channels)

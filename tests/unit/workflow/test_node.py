@@ -1,4 +1,5 @@
 from unittest import TestCase
+from typing import Optional
 
 from pyiron_contrib.workflow.node import Node, pass_all
 from pyiron_contrib.workflow.channels import ChannelTemplate
@@ -17,20 +18,35 @@ class ChildNode(Node):
     All sub-compnents are defined, but __init__ is not overriden -- should throw an
     error every time we give non-None input for these!
     """
-    input_channels = [ChannelTemplate(name='x', types=(int))]
-    preprocessor = staticmethod(pass_all)
-    node_function = staticmethod(plus_one)
-    # postprocessor = staticmethod(pass_all)  # We could define it as a property instead
-    output_channels = [ChannelTemplate(name='y')]
+
+    def __init__(
+            self,
+            name: Optional[str] = None,
+            update_automatically: bool = True,
+            update_now: bool = True,
+            **kwargs
+    ):
+        super().__init__(
+                node_function=plus_one,
+                name=name,
+                input_channels=[ChannelTemplate(name='x', types=(int))],
+                preprocessor=pass_all,
+                postprocessor=self.my_pass_all,
+                output_channels=[ChannelTemplate(name='y')],
+                update_automatically=update_automatically,
+                update_now=update_now,
+                **kwargs,
+        )
 
     @staticmethod
-    def postprocessor(**kwargs):
+    def my_pass_all(**kwargs):
         return pass_all(**kwargs)
 
 
 class TestNode(TestCase):
     def test_defaults(self):
-        node = Node()
+        with self.assertRaises(RuntimeError):
+            node = Node(node_function=throw_error)
 
     def test_instantiation_update(self):
         no_update = Node(
@@ -79,16 +95,3 @@ class TestNode(TestCase):
         with self.subTest("Valid data should trigger a run"):
             with self.assertRaises(RuntimeError):
                 node.input.x.update(1)
-
-    def test_double_definitions(self):
-        child = ChildNode()
-
-        for kwargs in [
-            {"input_channels": ChildNode.input_channels},
-            {"preprocessor": ChildNode.preprocessor},
-            {"node_function": ChildNode.node_function},
-            {"postprocessor": ChildNode.postprocessor},
-            {"output_channels": ChildNode.output_channels},
-        ]:
-            with self.assertRaises(ValueError):
-                ChildNode("input_tries_to_override_class", **kwargs)
