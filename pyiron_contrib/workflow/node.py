@@ -170,8 +170,8 @@ class Node:
         self.name = name
 
         self.input_channels = input_channels or []
-        self.preprocessor = preprocessor or pass_all
-        self.postprocessor = postprocessor or pass_all
+        self.preprocessor = preprocessor
+        self.postprocessor = postprocessor
         self.output_channels = output_channels or []
 
         self.input = Input(self, *self.input_channels)
@@ -193,9 +193,11 @@ class Node:
             self.run()
 
     def run(self) -> None:
-        engine_input = self.preprocessor(**self.input.to_value_dict())
-        engine_output = self.node_function(**engine_input)
-        node_output = self.postprocessor(**engine_output)
+        engine_input = self.preprocessor(**self.input.to_value_dict()) \
+            if self.preprocessor is not None else self.input.to_value_dict()
+        function_output = self.node_function(**engine_input)
+        node_output = self.postprocessor(**function_output) \
+            if self.postprocessor is not None else function_output
         self._update_output(node_output)
 
     def _update_output(self, data: dict):
