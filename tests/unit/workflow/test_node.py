@@ -19,7 +19,7 @@ class ChildNode(Node):
     """
     input_channels = [ChannelTemplate(name='x', types=(int))]
     preprocessor = staticmethod(pass_all)
-    engine = staticmethod(plus_one)
+    node_function = staticmethod(plus_one)
     # postprocessor = staticmethod(pass_all)  # We could define it as a property instead
     output_channels = [ChannelTemplate(name='y')]
 
@@ -34,7 +34,7 @@ class TestNode(TestCase):
 
     def test_instantiation_update(self):
         no_update = Node(
-            engine=plus_one,
+            node_function=plus_one,
             input_channels=[ChannelTemplate(name='x', default=1)],
             output_channels=[ChannelTemplate(name='y')],
             update_now=False
@@ -42,7 +42,7 @@ class TestNode(TestCase):
         self.assertIsNone(no_update.output.y.value)
 
         update = Node(
-            engine=plus_one,
+            node_function=plus_one,
             input_channels=[ChannelTemplate(name='x', default=1)],
             output_channels=[ChannelTemplate(name='y')],
             update_now=True
@@ -51,7 +51,7 @@ class TestNode(TestCase):
 
     def test_input_kwargs(self):
         node = Node(
-            engine=plus_one,
+            node_function=plus_one,
             input_channels=[ChannelTemplate(name='x', default=1)],
             output_channels=[ChannelTemplate(name='y')],
             x=2
@@ -59,7 +59,7 @@ class TestNode(TestCase):
         self.assertEqual(3, node.output.y.value, msg="Initialize from value")
 
         node2 = Node(
-            engine=plus_one,
+            node_function=plus_one,
             input_channels=[ChannelTemplate(name='x', default=1)],
             output_channels=[ChannelTemplate(name='y')],
             x=node.output.y
@@ -69,7 +69,7 @@ class TestNode(TestCase):
 
     def test_automatic_updates(self):
         node = Node(
-            engine=throw_error,
+            node_function=throw_error,
             input_channels=[ChannelTemplate(name='x', types=int)],
         )
 
@@ -86,7 +86,7 @@ class TestNode(TestCase):
         for kwargs in [
             {"input_channels": ChildNode.input_channels},
             {"preprocessor": ChildNode.preprocessor},
-            {"engine": ChildNode.engine},
+            {"node_function": ChildNode.node_function},
             {"postprocessor": ChildNode.postprocessor},
             {"output_channels": ChildNode.output_channels},
         ]:

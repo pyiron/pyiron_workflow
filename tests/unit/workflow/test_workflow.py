@@ -10,7 +10,7 @@ class DummyNode(Node):
     output_channels = [ChannelTemplate(name="y")]
 
     @staticmethod
-    def engine(x):
+    def node_function(x):
         return {"y": x}
 
 

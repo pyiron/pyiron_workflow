@@ -114,7 +114,7 @@ class Workflow:
     def to_node(self):
         """
         Export the workflow to a macro node, with the currently exposed IO mapped to
-        new IO channels, and the workflow mapped into the engine.
+        new IO channels, and the workflow mapped into the node_function.
         """
         raise NotImplementedError
 

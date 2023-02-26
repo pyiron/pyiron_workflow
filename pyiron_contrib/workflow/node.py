@@ -40,7 +40,7 @@ class Node:
         preprocessor (Optional[callable]): Any callable taking only kwargs and returning
             a dict. Will get receive the input values as a dictionary. (Default is
             `pass_all`, a function that just returns the kwargs as a dict.)
-        engine (Optional[callable]): Any callable taking only kwargs and returning
+        node_function (Optional[callable]): Any callable taking only kwargs and returning
             a dict. Will receive the preprocessor output. (Default is `pass_all`.)
         postprocessor (Optional[callable]): Any callable taking only kwargs and
             returning a dict. Will receive the engine output. (Default is `pass_all`.)
@@ -101,7 +101,7 @@ class Node:
         ...     "my_adder",
         ...     input_channels=[ChannelTemplate("a", types=(int, float))],
         ...     preprocessor=start_to_end,
-        ...     engine=add_one,
+        ...     node_function=add_one,
         ...     # We'll leave the post-processor empty and just align our output
         ...     # with what our engine returns
         ...     output_channels=[ChannelTemplate("y")],
@@ -139,7 +139,7 @@ class Node:
         ...
         ...     def __init__(self, name: str, engine: callable, **kwargs):
         ...         # We'll modify what's available in init to push our users a certain direction.
-        ...         super().__init__(name=name, engine=engine, **kwargs)
+        ...         super().__init__(name=name, node_function=node_function, **kwargs)
         >>>
         >>> def add(x, y, z):
         ...     return {"w": x + y + z}
@@ -158,7 +158,7 @@ class Node:
     # not accept them
     input_channels: list[ChannelTemplate] = None
     preprocessor: callable = None
-    engine: callable = None
+    node_function: callable = None
     postprocessor: callable = None
     output_channels: list[ChannelTemplate] = None
 
@@ -167,7 +167,7 @@ class Node:
             name: Optional[str] = None,
             input_channels: Optional[list[ChannelTemplate]] = None,
             preprocessor: Optional[callable] = None,
-            engine: Optional[callable] = None,
+            node_function: Optional[callable] = None,
             postprocessor: Optional[callable] = None,
             output_channels: Optional[list[ChannelTemplate]] = None,
             update_automatically: bool = True,
@@ -177,7 +177,7 @@ class Node:
         for key, arg in [
             ("input_channels", input_channels),
             ("preprocessor", preprocessor),
-            ("engine", engine),
+            ("node_function", node_function),
             ("postprocessor", postprocessor),
             ("output_channels", output_channels)
         ]:
@@ -191,7 +191,7 @@ class Node:
 
         self.input_channels = input_channels or self.input_channels or []
         self.preprocessor = preprocessor or self.preprocessor or pass_all
-        self.engine = engine or self.engine or pass_all
+        self.node_function = node_function or self.node_function or pass_all
         self.postprocessor = postprocessor or self.postprocessor or pass_all
         self.output_channels = output_channels or self.output_channels or []
 
@@ -215,7 +215,7 @@ class Node:
 
     def run(self) -> None:
         engine_input = self.preprocessor(**self.input.to_value_dict())
-        engine_output = self.engine(**engine_input)
+        engine_output = self.node_function(**engine_input)
         node_output = self.postprocessor(**engine_output)
         self._update_output(node_output)
 
