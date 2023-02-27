@@ -39,11 +39,14 @@ class TestWorkflow(TestCase):
         wf.add(n_unnamed)
 
         self.assertEqual(3, len(wf.nodes), msg="Add with add")
-        self.assertTrue(DummyNode.__name__ in wf.nodes.keys(), msg="Auto-label based on class")
+        self.assertTrue(
+            n_unnamed.node_function.__name__ in wf.nodes.keys(),
+            msg="Auto-label based on function"
+        )
 
         wf.add(DummyNode())
         self.assertTrue(
-            DummyNode.__name__ + "0" in wf.nodes.keys(),
+            n_unnamed.label + "0" in wf.nodes.keys(),
             msg="automatically increment duplicate names"
         )
 

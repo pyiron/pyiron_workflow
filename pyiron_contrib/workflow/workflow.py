@@ -42,12 +42,9 @@ class Workflow:
         if node in self.nodes.values():
             raise ValueError(f"The node {node.label} is already in the workflow")
 
-        if node.label is not None:
-            if node.label in self.__dir__():
-                raise ValueError(
-                    f"Cannot add a node with label {node.label}, that is already an attribute")
-        else:
-            node.label = node.__class__.__name__
+        if node.label in self.__dir__():
+            raise ValueError(
+                f"Cannot add a node with label {node.label}, that is already an attribute")
 
         i = 0
         while node.label in self.nodes.keys():
@@ -71,12 +68,13 @@ class Workflow:
             )
         elif not isinstance(node, Node):
             raise TypeError(f"Can only assign nodes, but got {type(node)}")
-        elif node.label is not None and node.label != label:
-            warn(
-                f"Tried to assign a node to {self.label}, but the node label "
-                f"{node.label} does not match the attribute label {label}"
-            )
         else:
+            if node.label != label:
+                warn(
+                    f"Reassigning the node {node.label} to the label {label} when "
+                    f"adding it to the workflow {self.label}."
+                )
+            # TODO: Make sure the node belongs to no other workflows
             node.label = label
             self.add(node)
 

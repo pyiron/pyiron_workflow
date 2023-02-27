@@ -155,19 +155,22 @@ class Node:
     def __init__(
             self,
             node_function: callable,
-            output_labels: tuple[str],
+            output_labels: tuple[str] | str,
             label: Optional[str] = None,
             input_storage_priority: Optional[dict[str:int]] = None,
             output_storage_priority: Optional[dict[str:int]] = None,
             update_automatically: bool = True,
-            update_now: bool = True,
+            update_now: bool = False,
             **kwargs
     ):
         self.node_function = node_function
-        self.label = label
+        self.label = label if label is not None else node_function.__name__
 
         input_channels = self._build_input_channels(input_storage_priority)
         self.inputs = IO(*input_channels)
+
+        if not isinstance(output_labels, (tuple, list)):
+            output_labels = (output_labels,)
         output_channels = self._build_output_channels(
             output_labels, output_storage_priority
         )
