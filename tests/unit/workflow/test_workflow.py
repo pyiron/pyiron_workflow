@@ -74,3 +74,6 @@ class TestWorkflow(TestCase):
             open_inputs - len(wf.input),
             msg="Should only list open connections"
         )
+
+        with self.subTest("Test iteration"):
+            self.assertTrue(all([node in wf.nodes.values() for node in wf]))

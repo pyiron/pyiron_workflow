@@ -89,6 +89,9 @@ class Workflow:
     def __setitem__(self, key, value):
         self.__setattr__(key, value)
 
+    def __iter__(self):
+        return self.nodes.values().__iter__()
+
     @property
     def input(self):
         return DotDict(
