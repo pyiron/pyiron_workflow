@@ -166,13 +166,10 @@ class Node:
         self.node_function = node_function
         self.label = label
 
-        input_channels = self._build_input_channels(
-            input_storage_priority if input_storage_priority is not None else {}
-        )
+        input_channels = self._build_input_channels(input_storage_priority)
         self.inputs = IO(*input_channels)
         output_channels = self._build_output_channels(
-            output_labels,
-            output_storage_priority if output_storage_priority is not None else {}
+            output_labels, output_storage_priority
         )
         self.outputs = IO(*output_channels)
         self.update_automatically = update_automatically
@@ -187,36 +184,43 @@ class Node:
         if update_now:
             self.update()
 
-    def _build_input_channels(self, input_storage_priority: dict[str:int]):
+    def _get_channel_kwargs(self, label, annotation, storage_priority):
+        storage_priority = {} if storage_priority is None else storage_priority
+        channel_kwargs = {"label": label, "node": self}
+
+        if annotation is not inspect.Parameter.empty:
+            channel_kwargs["types"] = get_args(annotation)
+
+        try:
+            channel_kwargs["storage_priority"] = storage_priority[label]
+        except KeyError:
+            pass
+
+        return channel_kwargs
+
+    def _build_input_channels(self, storage_priority: dict[str:int]):
         channels = []
-        for key, value in inspect.signature(self.node_function).parameters.items():
-            new_input = {"label": key, "node": self}
-            if value.annotation is not inspect.Parameter.empty:
-                new_input["types"] = get_args(value.annotation)
+        for label, value in inspect.signature(self.node_function).parameters.items():
+            channel_kwargs = self._get_channel_kwargs(
+                label, value.annotation, storage_priority
+            )
             if value.default is not inspect.Parameter.empty:
-                new_input["default"] = value.default
-            try:
-                new_input["storage_priority"] = input_storage_priority[key]
-            except KeyError:
-                pass
-            channels.append(InputChannel(**new_input))
+                channel_kwargs["default"] = value.default
+
+            channels.append(InputChannel(**channel_kwargs))
         return channels
 
-    def _build_output_channels(self, channel_names, storage_priority):
-        channels = []
+    def _build_output_channels(self, channel_labels, storage_priority):
         return_annotations = inspect.signature(self.node_function).return_annotation
         if not isinstance(return_annotations, tuple):
             return_annotations = return_annotations,
 
-        for key, annotation in zip(channel_names, return_annotations):
-            new_input = {"label": key, "node": self}
-            if annotation is not inspect.Parameter.empty:
-                new_input["types"] = get_args(annotation)
-            try:
-                new_input["storage_priority"] = storage_priority[key]
-            except KeyError:
-                pass
-            channels.append(OutputChannel(**new_input))
+        channels = []
+        for label, annotation in zip(channel_labels, return_annotations):
+            channel_kwargs = self._get_channel_kwargs(
+                label, annotation, storage_priority
+            )
+            channels.append(OutputChannel(**channel_kwargs))
         return channels
 
     def update(self) -> None:
