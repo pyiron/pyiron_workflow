@@ -1,15 +1,9 @@
 from __future__ import annotations
 
-from abc import ABC, abstractmethod
-from typing import TYPE_CHECKING
+from abc import ABC
 
-from pyiron_contrib.workflow.channels import (
-    Channel, InputChannel, OutputChannel
-)
+from pyiron_contrib.workflow.channels import Channel
 from pyiron_contrib.workflow.util import DotDict
-
-if TYPE_CHECKING:
-    from pyiron_contrib.workflow.node import Node
 
 
 class IO(ABC):

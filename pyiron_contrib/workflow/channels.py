@@ -1,7 +1,6 @@
 from __future__ import annotations
 
 from abc import ABC
-from copy import deepcopy
 from typing import Any, Optional, TYPE_CHECKING
 from warnings import warn
 
