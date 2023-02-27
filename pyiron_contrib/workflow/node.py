@@ -1,12 +1,10 @@
 from __future__ import annotations
 
-from typing import Optional, TYPE_CHECKING
+import inspect
+from typing import get_args, Optional
 
-from pyiron_contrib.workflow.channels import OutputChannel
+from pyiron_contrib.workflow.channels import ChannelTemplate, OutputChannel
 from pyiron_contrib.workflow.io import Input, Output
-
-if TYPE_CHECKING:
-    from pyiron_contrib.workflow.channels import ChannelTemplate
 
 
 class Node:
@@ -157,11 +155,12 @@ class Node:
     def __init__(
             self,
             node_function: callable,
+            output_names: tuple[str],
             name: Optional[str] = None,
-            input_channels: Optional[list[ChannelTemplate]] = None,
+            input_storage_priority: Optional[dict[str:int]] = None,
+            output_storage_priority: Optional[dict[str:int]] = None,
             preprocessor: Optional[callable] = None,
             postprocessor: Optional[callable] = None,
-            output_channels: Optional[list[ChannelTemplate]] = None,
             update_automatically: bool = True,
             update_now: bool = True,
             **kwargs
@@ -169,13 +168,18 @@ class Node:
         self.node_function = node_function
         self.name = name
 
-        self.input_channels = input_channels or []
         self.preprocessor = preprocessor
         self.postprocessor = postprocessor
-        self.output_channels = output_channels or []
 
-        self.input = Input(self, *self.input_channels)
-        self.output = Output(self, *self.output_channels)
+        input_channels = self._build_input_channels(
+            input_storage_priority if input_storage_priority is not None else {}
+        )
+        self.input = Input(self, *input_channels)
+        output_channels = self._build_output_channels(
+            output_names,
+            output_storage_priority if output_storage_priority is not None else {}
+        )
+        self.output = Output(self, *output_channels)
         self.update_automatically = update_automatically
 
         for k, v in kwargs.items():
@@ -187,6 +191,37 @@ class Node:
 
         if update_now:
             self.update()
+
+    def _build_input_channels(self, input_storage_priority: dict[str:int]):
+        channels = []
+        for key, value in inspect.signature(self.node_function).parameters.items():
+            new_input = {"name": key}
+            if value.annotation is not inspect.Parameter.empty:
+                new_input["types"] = get_args(value.annotation)
+            if value.default is not inspect.Parameter.empty:
+                new_input["default"] = value.default
+            try:
+                new_input["storage_priority"] = input_storage_priority[key]
+            except KeyError:
+                pass
+            channels.append(ChannelTemplate(**new_input))
+        return channels
+
+    def _build_output_channels(self, channel_names, storage_priority):
+        channels = []
+        return_annotations = inspect.signature(self.node_function).return_annotation
+        if not isinstance(return_annotations, tuple):
+            return_annotations = return_annotations,
+        for key, annotation in zip(channel_names, return_annotations):
+            new_input = {"name": key}
+            if annotation is not inspect.Parameter.empty:
+                new_input["types"] = get_args(annotation)
+            try:
+                new_input["storage_priority"] = storage_priority[key]
+            except KeyError:
+                pass
+            channels.append(ChannelTemplate(**new_input))
+        return channels
 
     def update(self) -> None:
         if self.update_automatically and self.ready:

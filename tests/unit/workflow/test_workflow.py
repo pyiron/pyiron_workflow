@@ -1,7 +1,6 @@
 from unittest import TestCase
 from typing import Optional
 
-from pyiron_contrib.workflow.channels import ChannelTemplate
 from pyiron_contrib.workflow.node import Node
 from pyiron_contrib.workflow.workflow import Workflow
 
@@ -15,9 +14,8 @@ class DummyNode(Node):
     ):
         super().__init__(
             node_function=self.pass_value,
+            output_names=("y",),
             name=name,
-            input_channels=[ChannelTemplate(name="x")],
-            output_channels=[ChannelTemplate(name="y")],
             **kwargs
         )
 
