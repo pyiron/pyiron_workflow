@@ -14,7 +14,7 @@ if TYPE_CHECKING:
 
 class _IO(ABC):
     def __init__(self, *channels: Channel):
-        self.channels = DotDict(
+        self.channel_dict = DotDict(
             {
                 channel.name: channel for channel in channels
                 if isinstance(channel, self._channel_class)
@@ -22,20 +22,20 @@ class _IO(ABC):
         )
 
     def __getattr__(self, item):
-        return self.channels[item]
+        return self.channel_dict[item]
 
     def __setattr__(self, key, value):
-        if key in ["channels"]:
+        if key in ["channel_dict"]:
             super().__setattr__(key, value)
-        elif key in self.channels.keys():
-            self.channels[key].connect(value)
+        elif key in self.channel_dict.keys():
+            self.channel_dict[key].connect(value)
         elif isinstance(value, self._channel_class):
             if key != value.name:
                 raise ValueError(
                     f"Channels can only be assigned to attributes matching their name,"
                     f"but just tried to assign the channel {value.name} to {key}"
                 )
-            self.channels[key] = value
+            self.channel_dict[key] = value
         else:
             raise TypeError(
                 f"Can only set Channel object or connect to existing channels, but the "
@@ -54,27 +54,27 @@ class _IO(ABC):
         self.__setattr__(key, value)
 
     def to_value_dict(self):
-        return {name: channel.value for name, channel in self.channels.items()}
+        return {name: channel.value for name, channel in self.channel_dict.items()}
 
     @property
     def connected(self):
-        return any([c.connected for c in self.channels.values()])
+        return any([c.connected for c in self.channel_dict.values()])
 
     @property
     def fully_connected(self):
-        return all([c.connected for c in self.channels.values()])
+        return all([c.connected for c in self.channel_dict.values()])
 
     def disconnect(self):
-        for c in self.channels.values():
+        for c in self.channel_dict.values():
             c.disconnect_all()
 
     def set_storage_priority(self, priority: int):
-        for c in self.channels.values():
+        for c in self.channel_dict.values():
             c.storage_priority = priority
 
     @property
     def names(self):
-        return list(self.channels.keys())
+        return list(self.channel_dict.keys())
 
 
 class Input(_IO):
@@ -87,7 +87,7 @@ class Input(_IO):
 
     @property
     def ready(self):
-        return all([c.ready for c in self.channels.values()])
+        return all([c.ready for c in self.channel_dict.values()])
 
 
 class Output(_IO):

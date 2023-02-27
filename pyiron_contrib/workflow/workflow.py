@@ -95,7 +95,7 @@ class Workflow:
             {
                 f"{node.name}_{channel.name}": channel
                 for node in self.nodes.values()
-                for channel in node.input.channels.values()
+                for channel in node.input.channel_dict.values()
                 if not channel.connected
             }
         )
@@ -106,7 +106,7 @@ class Workflow:
             {
                 f"{node.name}_{channel.name}": channel
                 for node in self.nodes.values()
-                for channel in node.output.channels.values()
+                for channel in node.output.channel_dict.values()
                 if not channel.connected
             }
         )
