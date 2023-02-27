@@ -18,7 +18,7 @@ class _IO(ABC):
             channel for channel in channels if isinstance(channel, self._channel_class)
         ]
         self.channel_dict = DotDict(
-            {channel.name: channel for channel in self.channel_list}
+            {channel.label: channel for channel in self.channel_list}
         )
 
     def __getattr__(self, item):
@@ -30,10 +30,10 @@ class _IO(ABC):
         elif key in self.channel_dict.keys():
             self.channel_dict[key].connect(value)
         elif isinstance(value, self._channel_class):
-            if key != value.name:
+            if key != value.label:
                 raise ValueError(
-                    f"Channels can only be assigned to attributes matching their name,"
-                    f"but just tried to assign the channel {value.name} to {key}"
+                    f"Channels can only be assigned to attributes matching their label,"
+                    f"but just tried to assign the channel {value.label} to {key}"
                 )
             self.channel_dict[key] = value
         else:
@@ -54,7 +54,7 @@ class _IO(ABC):
         self.__setattr__(key, value)
 
     def to_value_dict(self):
-        return {name: channel.value for name, channel in self.channel_dict.items()}
+        return {label: channel.value for label, channel in self.channel_dict.items()}
 
     @property
     def connected(self):
@@ -73,7 +73,7 @@ class _IO(ABC):
             c.storage_priority = priority
 
     @property
-    def names(self):
+    def labels(self):
         return list(self.channel_dict.keys())
 
     def __iter__(self):

@@ -13,12 +13,12 @@ from pyiron_contrib.workflow.node import Node
 
 class BulkStructure(Node):
     input_channels = [
-        ChannelTemplate(name="element", default="Fe", types=str),
-        ChannelTemplate(name="cubic", default=False, types=bool),
-        ChannelTemplate(name="repeat", default=1, types=int),
+        ChannelTemplate(label="element", default="Fe", types=str),
+        ChannelTemplate(label="cubic", default=False, types=bool),
+        ChannelTemplate(label="repeat", default=1, types=int),
     ]
     output_channels = [
-        ChannelTemplate(name="structure", types=Atoms),
+        ChannelTemplate(label="structure", types=Atoms),
     ]
 
     @staticmethod
@@ -30,10 +30,10 @@ class BulkStructure(Node):
 
 class Lammps(Node):
     input_channels = [
-        ChannelTemplate(name="structure", types=Atoms),
+        ChannelTemplate(label="structure", types=Atoms),
     ]
     output_channels = [
-        ChannelTemplate(name="job", types=LammpsJob),
+        ChannelTemplate(label="job", types=LammpsJob),
     ]
 
     @staticmethod
@@ -47,16 +47,16 @@ class Lammps(Node):
 
 class CalcMD(Node):
     input_channels = [
-        ChannelTemplate(name="job_name", types=str),
-        ChannelTemplate(name="job", types=(AtomisticGenericJob)),
-        ChannelTemplate(name="n_ionic_steps", types=int, default=1000),
-        ChannelTemplate(name="n_print", types=int, default=100),
-        ChannelTemplate(name="temperature", types=(int, float), default=300.),
-        ChannelTemplate(name="pressure", types=(float, tuple, type(None)), default=None)
+        ChannelTemplate(label="job_name", types=str),
+        ChannelTemplate(label="job", types=(AtomisticGenericJob)),
+        ChannelTemplate(label="n_ionic_steps", types=int, default=1000),
+        ChannelTemplate(label="n_print", types=int, default=100),
+        ChannelTemplate(label="temperature", types=(int, float), default=300.),
+        ChannelTemplate(label="pressure", types=(float, tuple, type(None)), default=None)
     ]
     output_channels = [
-        ChannelTemplate(name="steps", types=np.ndarray),
-        ChannelTemplate(name="energy_pot", types=np.ndarray),
+        ChannelTemplate(label="steps", types=np.ndarray),
+        ChannelTemplate(label="energy_pot", types=np.ndarray),
     ]
 
     @staticmethod
@@ -86,11 +86,11 @@ class CalcMD(Node):
 
 class Plot(Node):
     input_channels = [
-        ChannelTemplate(name="x", types=(list, np.ndarray)),
-        ChannelTemplate(name="y", types=(list, np.ndarray)),
+        ChannelTemplate(label="x", types=(list, np.ndarray)),
+        ChannelTemplate(label="y", types=(list, np.ndarray)),
     ]
     output_channels = [
-        ChannelTemplate(name="plot"),
+        ChannelTemplate(label="plot"),
     ]
 
     @staticmethod

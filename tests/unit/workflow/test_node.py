@@ -20,15 +20,15 @@ class ChildNode(Node):
 
     def __init__(
             self,
-            name: Optional[str] = None,
+            label: Optional[str] = None,
             update_automatically: bool = True,
             update_now: bool = True,
             **kwargs
     ):
         super().__init__(
                 node_function=plus_one,
-                output_names=("y",),
-                name=name,
+                output_labels=("y",),
+                label=label,
                 update_automatically=update_automatically,
                 update_now=update_now,
                 **kwargs,
@@ -37,19 +37,19 @@ class ChildNode(Node):
 
 class TestNode(TestCase):
     def test_defaults(self):
-        node = Node(node_function=plus_one, output_names=["y"])
+        node = Node(node_function=plus_one, output_labels=["y"])
 
     def test_instantiation_update(self):
         no_update = Node(
             node_function=plus_one,
-            output_names=("y",),
+            output_labels=("y",),
             update_now=False
         )
         self.assertIsNone(no_update.output.y.value)
 
         update = Node(
             node_function=plus_one,
-            output_names=("y",),
+            output_labels=("y",),
             update_now=True
         )
         self.assertEqual(2, update.output.y.value)
@@ -57,14 +57,14 @@ class TestNode(TestCase):
     def test_input_kwargs(self):
         node = Node(
             node_function=plus_one,
-            output_names=("y",),
+            output_labels=("y",),
             x=2
         )
         self.assertEqual(3, node.output.y.value, msg="Initialize from value")
 
         node2 = Node(
             node_function=plus_one,
-            output_names=("y",),
+            output_labels=("y",),
             x=node.output.y
         )
         node.update()
@@ -73,7 +73,7 @@ class TestNode(TestCase):
     def test_automatic_updates(self):
         node = Node(
             node_function=throw_error,
-            output_names=(),
+            output_labels=(),
             update_now=False,
         )
 

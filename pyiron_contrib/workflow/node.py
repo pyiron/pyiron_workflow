@@ -32,7 +32,7 @@ class Node:
     if they do it is no longer available for specification at instantiation time.
 
     Args:
-        name (str): The node's name.
+        label (str): The node's label.
         input_channels (Optional[list[ChannelTemplate]]): A list of channel templates
             used to create the input. (Default is an empty list.)
         preprocessor (Optional[callable]): Any callable taking only kwargs and returning
@@ -49,7 +49,7 @@ class Node:
             input is ready. (Default is True).
         update_now (bool): Whether to call an update at the end of instantiation.
             (Default is True.)
-        **kwargs: Any additional keyword arguments whose keyword matches the name of an
+        **kwargs: Any additional keyword arguments whose keyword matches the label of an
             input channel will have their value assigned to that channel.
 
     Attributes:
@@ -65,7 +65,7 @@ class Node:
         disconnect: Disconnect all IO connections.
 
     Note:
-        The IO keys/channel names throughout your node need to be consistent:
+        The IO keys/channel labels throughout your node need to be consistent:
         input -> pre-processor -> engine -> post-processor -> output. But the processors
         exist so that the terminology (and even number of arguments) for your internal
         engine can differ arbitrarily from the IO interface exposed to users.
@@ -135,9 +135,9 @@ class Node:
         ...         ChannelTemplate("w", types=(int, float)),
         ...     ]
         ...
-        ...     def __init__(self, name: str, engine: callable, **kwargs):
+        ...     def __init__(self, label: str, engine: callable, **kwargs):
         ...         # We'll modify what's available in init to push our users a certain direction.
-        ...         super().__init__(name=name, node_function=node_function, **kwargs)
+        ...         super().__init__(label=label, node_function=node_function, **kwargs)
         >>>
         >>> def add(x, y, z):
         ...     return {"w": x + y + z}
@@ -155,8 +155,8 @@ class Node:
     def __init__(
             self,
             node_function: callable,
-            output_names: tuple[str],
-            name: Optional[str] = None,
+            output_labels: tuple[str],
+            label: Optional[str] = None,
             input_storage_priority: Optional[dict[str:int]] = None,
             output_storage_priority: Optional[dict[str:int]] = None,
             update_automatically: bool = True,
@@ -164,21 +164,21 @@ class Node:
             **kwargs
     ):
         self.node_function = node_function
-        self.name = name
+        self.label = label
 
         input_channels = self._build_input_channels(
             input_storage_priority if input_storage_priority is not None else {}
         )
         self.input = Input(self, *input_channels)
         output_channels = self._build_output_channels(
-            output_names,
+            output_labels,
             output_storage_priority if output_storage_priority is not None else {}
         )
         self.output = Output(self, *output_channels)
         self.update_automatically = update_automatically
 
         for k, v in kwargs.items():
-            if k in self.input.names:
+            if k in self.input.labels:
                 if isinstance(v, OutputChannel):
                     self.input[k] = v
                 else:
@@ -190,7 +190,7 @@ class Node:
     def _build_input_channels(self, input_storage_priority: dict[str:int]):
         channels = []
         for key, value in inspect.signature(self.node_function).parameters.items():
-            new_input = {"name": key}
+            new_input = {"label": key}
             if value.annotation is not inspect.Parameter.empty:
                 new_input["types"] = get_args(value.annotation)
             if value.default is not inspect.Parameter.empty:
@@ -208,7 +208,7 @@ class Node:
         if not isinstance(return_annotations, tuple):
             return_annotations = return_annotations,
         for key, annotation in zip(channel_names, return_annotations):
-            new_input = {"name": key}
+            new_input = {"label": key}
             if annotation is not inspect.Parameter.empty:
                 new_input["types"] = get_args(annotation)
             try:

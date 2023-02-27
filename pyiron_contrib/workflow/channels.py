@@ -12,19 +12,19 @@ if TYPE_CHECKING:
 class ChannelTemplate:
     def __init__(
             self,
-            name: str,
+            label: str,
             default: Optional[Any] = None,
             types: Optional[tuple | type[Any]] = None,
             storage_priority: int = 0,
     ):
-        self.name = name
+        self.label = label
         self.default = default
         self.types = types
         self.storage_priority = storage_priority
 
     def _to_IOChannel(self, node: Node, class_: type[Channel]) -> Channel:
         return class_(
-            name=self.name,
+            label=self.label,
             node=node,
             default=deepcopy(self.default),
             types=self.types,
@@ -41,13 +41,13 @@ class ChannelTemplate:
 class Channel(ABC):
     def __init__(
             self,
-            name: str,
+            label: str,
             node: Node,
             default: Optional[Any] = None,
             types: Optional[tuple] = None,
             storage_priority: int = 0,
     ):
-        self.name = name
+        self.label = label
         self.node = node
         self.default = default
         self.value = default
@@ -79,12 +79,12 @@ class Channel(ABC):
             else:
                 if isinstance(other, Channel):
                     warn(
-                        f"{self.name} ({self.__class__.__name__}) and {other.name} "
+                        f"{self.label} ({self.__class__.__name__}) and {other.label} "
                         f"({other.__class__.__name__}) were not a valid connection"
                     )
                 else:
                     raise TypeError(
-                        f"Can only connect two channels, but {self.name} "
+                        f"Can only connect two channels, but {self.label} "
                         f"({self.__class__.__name__}) got a {other} ({type(other)})"
                     )
 

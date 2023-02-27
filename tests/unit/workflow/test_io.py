@@ -15,15 +15,15 @@ class TestIO(TestCase):
     @classmethod
     def setUpClass(cls) -> None:
         cls.inputs = [
-            ChannelTemplate(name="x", default=0, types=float),
-            ChannelTemplate(name="y", default=1, types=float)
+            ChannelTemplate(label="x", default=0, types=float),
+            ChannelTemplate(label="y", default=1, types=float)
         ]
         outputs = [
-            ChannelTemplate(name="a", types=float),
+            ChannelTemplate(label="a", types=float),
         ]
         node = DummyNode()
 
-        cls.post_facto_output = ChannelTemplate(name="b", types=float).to_output(node)
+        cls.post_facto_output = ChannelTemplate(label="b", types=float).to_output(node)
 
         cls.input = Input(node, *cls.inputs)
         cls.output = Output(node, *outputs)
@@ -39,7 +39,7 @@ class TestIO(TestCase):
             self.output.not_this_channels_name = self.post_facto_output
 
         with self.assertRaises(TypeError):
-            # Right name, and a channel, but wrong type of channel
+            # Right label, and a channel, but wrong type of channel
             self.input.b = self.post_facto_output
 
         with self.subTest("Successful channel assignment"):
@@ -67,7 +67,7 @@ class TestIO(TestCase):
     def test_conversion(self):
         converted = self.input.to_value_dict()
         for template in self.inputs:
-            self.assertEqual(template.default, converted[template.name])
+            self.assertEqual(template.default, converted[template.label])
         self.assertEqual(
             len(self.inputs),
             len(converted),
@@ -75,4 +75,4 @@ class TestIO(TestCase):
         )
 
     def test_iteration(self):
-        self.assertTrue(all([c.name in self.input.names for c in self.input]))
+        self.assertTrue(all([c.label in self.input.labels for c in self.input]))

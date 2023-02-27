@@ -32,52 +32,52 @@ class Workflow:
         apply that falls short of a full export, but still guarantees the internal
         integrity of workflows when they're used somewhere else?
     """
-    def __init__(self, name: str, *nodes: Node):
-        self.__dict__['name'] = name
+    def __init__(self, label: str, *nodes: Node):
+        self.__dict__['label'] = label
         self.__dict__['nodes'] = DotDict()
         for node in nodes:
             self.add(node)
 
     def add(self, node: Node):
         if node in self.nodes.values():
-            raise ValueError(f"The node {node.name} is already in the workflow")
+            raise ValueError(f"The node {node.label} is already in the workflow")
 
-        if node.name is not None:
-            if node.name in self.__dir__():
+        if node.label is not None:
+            if node.label in self.__dir__():
                 raise ValueError(
-                    f"Cannot add a node with name {node.name}, that is already an attribute")
+                    f"Cannot add a node with label {node.label}, that is already an attribute")
         else:
-            node.name = node.__class__.__name__
+            node.label = node.__class__.__name__
 
         i = 0
-        while node.name in self.nodes.keys():
-            warn(f"{node.name} is already a node; appending an index to the name...")
-            node.name = f"{node.name}{i}"
+        while node.label in self.nodes.keys():
+            warn(f"{node.label} is already a node; appending an index to the label...")
+            node.label = f"{node.label}{i}"
 
-        self.nodes[node.name] = node
+        self.nodes[node.label] = node
 
     def remove(self, node: Node | str):
         if isinstance(node, Node):
-            del self.nodes[node.name]
+            del self.nodes[node.label]
         else:
             del self.nodes[node]
 
-    def __setattr__(self, name: str, node: Node):
-        if name in self.__dir__():
+    def __setattr__(self, label: str, node: Node):
+        if label in self.__dir__():
             warn(
-                f"{name} is already an attribute of {self.name} and cannot be "
+                f"{label} is already an attribute of {self.label} and cannot be "
                 f"reassigned. If this is a node, you can remove the existing node "
                 f"first to free the namespace."
             )
         elif not isinstance(node, Node):
             raise TypeError(f"Can only assign nodes, but got {type(node)}")
-        elif node.name is not None and node.name != name:
+        elif node.label is not None and node.label != label:
             warn(
-                f"Tried to assign a node to {self.name}, but the node name {node.name} "
-                f"does not match the attribute name {name}"
+                f"Tried to assign a node to {self.label}, but the node label "
+                f"{node.label} does not match the attribute label {label}"
             )
         else:
-            node.name = name
+            node.label = label
             self.add(node)
 
     def __getattr__(self, key):
@@ -96,7 +96,7 @@ class Workflow:
     def input(self):
         return DotDict(
             {
-                f"{node.name}_{channel.name}": channel
+                f"{node.label}_{channel.label}": channel
                 for node in self.nodes.values()
                 for channel in node.input
                 if not channel.connected
@@ -107,7 +107,7 @@ class Workflow:
     def output(self):
         return DotDict(
             {
-                f"{node.name}_{channel.name}": channel
+                f"{node.label}_{channel.label}": channel
                 for node in self.nodes.values()
                 for channel in node.output
                 if not channel.connected
