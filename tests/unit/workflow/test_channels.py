@@ -1,6 +1,6 @@
 from unittest import TestCase
 
-from pyiron_contrib.workflow.channels import ChannelTemplate, InputChannel, OutputChannel
+from pyiron_contrib.workflow.channels import Channel, InputChannel, OutputChannel
 
 
 class DummyNode:
@@ -9,28 +9,14 @@ class DummyNode:
 
 
 class TestChannels(TestCase):
-    @classmethod
-    def setUpClass(cls) -> None:
-        cls.num_channel = ChannelTemplate(label="numeric", default=1, types=[int, float])
-        # Note: We intentionally violate the type hinting and give a *mutable* _list_ of
-        #       types instead of an immutable _tuple_ of types
-        cls.str_list_channel = ChannelTemplate(label="list", default=["foo"], types=list)
 
     def setUp(self) -> None:
-        self.ni1 = self.num_channel.to_input(DummyNode())
-        self.ni2 = self.num_channel.to_input(DummyNode())
-        self.no = self.num_channel.to_output(DummyNode())
+        self.ni1 = InputChannel(label="numeric", node=DummyNode(), default=1, types=(int, float))
+        self.ni2 = InputChannel(label="numeric", node=DummyNode(), default=1, types=(int, float))
+        self.no = OutputChannel(label="numeric", node=DummyNode(), default=1, types=(int, float))
 
-        self.so1 = self.str_list_channel.to_output(DummyNode())
-        self.so2 = self.str_list_channel.to_output(DummyNode())
-
-    def test_name(self):
-        self.assertEqual(self.num_channel.label, self.ni1.label)
-        self.assertEqual(self.num_channel.label, self.no.label)
-
-    def test_template_conversion(self):
-        self.assertIsInstance(self.ni1, InputChannel)
-        self.assertIsInstance(self.no, OutputChannel)
+        self.so1 = OutputChannel(label="list", node=DummyNode(), default=["foo"], types=list)
+        self.so2 = OutputChannel(label="list", node=DummyNode(), default=["foo"], types=list)
 
     def test_type_tuple_conversion(self):
         # We intentionally passed the wrong type at instantiation, let's make sure

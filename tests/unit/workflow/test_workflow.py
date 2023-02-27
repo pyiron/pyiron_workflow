@@ -21,7 +21,7 @@ class DummyNode(Node):
 
     @staticmethod
     def pass_value(x):
-        return {"y": x}
+        return x
 
 
 class TestWorkflow(TestCase):

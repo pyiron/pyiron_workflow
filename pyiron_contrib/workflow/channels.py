@@ -9,42 +9,13 @@ if TYPE_CHECKING:
     from pyiron_contrib.workflow.node import Node
 
 
-class ChannelTemplate:
-    def __init__(
-            self,
-            label: str,
-            default: Optional[Any] = None,
-            types: Optional[tuple | type[Any]] = None,
-            storage_priority: int = 0,
-    ):
-        self.label = label
-        self.default = default
-        self.types = types
-        self.storage_priority = storage_priority
-
-    def _to_IOChannel(self, node: Node, class_: type[Channel]) -> Channel:
-        return class_(
-            label=self.label,
-            node=node,
-            default=deepcopy(self.default),
-            types=self.types,
-            storage_priority=self.storage_priority
-        )
-
-    def to_input(self, node: Node) -> InputChannel:
-        return self._to_IOChannel(node=node, class_=InputChannel)
-
-    def to_output(self, node: Node) -> OutputChannel:
-        return self._to_IOChannel(node=node, class_=OutputChannel)
-
-
 class Channel(ABC):
     def __init__(
             self,
             label: str,
             node: Node,
             default: Optional[Any] = None,
-            types: Optional[tuple] = None,
+            types: Optional[tuple | type[Any]] = None,
             storage_priority: int = 0,
     ):
         self.label = label

@@ -3,8 +3,8 @@ from __future__ import annotations
 import inspect
 from typing import get_args, Optional
 
-from pyiron_contrib.workflow.channels import ChannelTemplate, OutputChannel
-from pyiron_contrib.workflow.io import Inputs, Outputs
+from pyiron_contrib.workflow.channels import InputChannel, OutputChannel
+from pyiron_contrib.workflow.io import IO
 
 
 class Node:
@@ -169,12 +169,12 @@ class Node:
         input_channels = self._build_input_channels(
             input_storage_priority if input_storage_priority is not None else {}
         )
-        self.inputs = Inputs(self, *input_channels)
+        self.inputs = IO(*input_channels)
         output_channels = self._build_output_channels(
             output_labels,
             output_storage_priority if output_storage_priority is not None else {}
         )
-        self.outputs = Outputs(self, *output_channels)
+        self.outputs = IO(*output_channels)
         self.update_automatically = update_automatically
 
         for k, v in kwargs.items():
@@ -190,7 +190,7 @@ class Node:
     def _build_input_channels(self, input_storage_priority: dict[str:int]):
         channels = []
         for key, value in inspect.signature(self.node_function).parameters.items():
-            new_input = {"label": key}
+            new_input = {"label": key, "node": self}
             if value.annotation is not inspect.Parameter.empty:
                 new_input["types"] = get_args(value.annotation)
             if value.default is not inspect.Parameter.empty:
@@ -199,7 +199,7 @@ class Node:
                 new_input["storage_priority"] = input_storage_priority[key]
             except KeyError:
                 pass
-            channels.append(ChannelTemplate(**new_input))
+            channels.append(InputChannel(**new_input))
         return channels
 
     def _build_output_channels(self, channel_names, storage_priority):
@@ -207,15 +207,16 @@ class Node:
         return_annotations = inspect.signature(self.node_function).return_annotation
         if not isinstance(return_annotations, tuple):
             return_annotations = return_annotations,
+
         for key, annotation in zip(channel_names, return_annotations):
-            new_input = {"label": key}
+            new_input = {"label": key, "node": self}
             if annotation is not inspect.Parameter.empty:
                 new_input["types"] = get_args(annotation)
             try:
                 new_input["storage_priority"] = storage_priority[key]
             except KeyError:
                 pass
-            channels.append(ChannelTemplate(**new_input))
+            channels.append(OutputChannel(**new_input))
         return channels
 
     def update(self) -> None:

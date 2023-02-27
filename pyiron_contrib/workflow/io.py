@@ -4,7 +4,7 @@ from abc import ABC, abstractmethod
 from typing import TYPE_CHECKING
 
 from pyiron_contrib.workflow.channels import (
-    Channel, ChannelTemplate, InputChannel, OutputChannel
+    Channel, InputChannel, OutputChannel
 )
 from pyiron_contrib.workflow.util import DotDict
 
@@ -12,11 +12,9 @@ if TYPE_CHECKING:
     from pyiron_contrib.workflow.node import Node
 
 
-class _IO(ABC):
+class IO(ABC):
     def __init__(self, *channels: Channel):
-        self.channel_list = [
-            channel for channel in channels if isinstance(channel, self._channel_class)
-        ]
+        self.channel_list = [channel for channel in channels]
         self.channel_dict = DotDict(
             {channel.label: channel for channel in self.channel_list}
         )
@@ -41,11 +39,6 @@ class _IO(ABC):
                 f"Can only set Channel object or connect to existing channels, but the "
                 f"attribute {key} got assigned {value} of type {type(value)}"
             )
-
-    @property
-    @abstractmethod
-    def _channel_class(self) -> type[Channel]:
-        pass
 
     def __getitem__(self, item):
         return self.__getattr__(item)
@@ -82,24 +75,6 @@ class _IO(ABC):
     def __len__(self):
         return len(self.channel_list)
 
-
-class Inputs(_IO):
-    def __init__(self, node: Node, *channels: ChannelTemplate):
-        super().__init__(*[channel.to_input(node) for channel in channels])
-
-    @property
-    def _channel_class(self) -> type[InputChannel]:
-        return InputChannel
-
     @property
     def ready(self):
-        return all([c.ready for c in self.channel_dict.values()])
-
-
-class Outputs(_IO):
-    def __init__(self, node: Node, *channels: ChannelTemplate):
-        super().__init__(*[channel.to_output(node) for channel in channels])
-
-    @property
-    def _channel_class(self) -> type[OutputChannel]:
-        return OutputChannel
+        return all([c.ready for c in self.channel_list])
