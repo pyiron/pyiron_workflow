@@ -129,6 +129,9 @@ class Channel(ABC):
     def __iter__(self):
         return self.connections.__iter__()
 
+    def __len__(self):
+        return len(self.connections)
+
 
 class InputChannel(Channel):
     def update(self, value):

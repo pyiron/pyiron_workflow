@@ -92,6 +92,9 @@ class Workflow:
     def __iter__(self):
         return self.nodes.values().__iter__()
 
+    def __len__(self):
+        return len(self.nodes)
+
     @property
     def input(self):
         return DotDict(

@@ -79,6 +79,9 @@ class _IO(ABC):
     def __iter__(self):
         return self.channel_list.__iter__()
 
+    def __len__(self):
+        return len(self.channel_list)
+
 
 class Inputs(_IO):
     def __init__(self, node: Node, *channels: ChannelTemplate):
