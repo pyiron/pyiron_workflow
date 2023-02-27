@@ -73,3 +73,6 @@ class TestIO(TestCase):
             len(converted),
             msg="And it shouldn't have any extra items either"
         )
+
+    def test_iteration(self):
+        self.assertTrue(all([c.name in self.input.names for c in self.input]))

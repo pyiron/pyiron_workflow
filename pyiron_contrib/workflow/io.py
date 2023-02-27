@@ -14,18 +14,18 @@ if TYPE_CHECKING:
 
 class _IO(ABC):
     def __init__(self, *channels: Channel):
+        self.channel_list = [
+            channel for channel in channels if isinstance(channel, self._channel_class)
+        ]
         self.channel_dict = DotDict(
-            {
-                channel.name: channel for channel in channels
-                if isinstance(channel, self._channel_class)
-            }
+            {channel.name: channel for channel in self.channel_list}
         )
 
     def __getattr__(self, item):
         return self.channel_dict[item]
 
     def __setattr__(self, key, value):
-        if key in ["channel_dict"]:
+        if key in ["channel_dict", "channel_list"]:
             super().__setattr__(key, value)
         elif key in self.channel_dict.keys():
             self.channel_dict[key].connect(value)
@@ -58,23 +58,26 @@ class _IO(ABC):
 
     @property
     def connected(self):
-        return any([c.connected for c in self.channel_dict.values()])
+        return any([c.connected for c in self.channel_list])
 
     @property
     def fully_connected(self):
-        return all([c.connected for c in self.channel_dict.values()])
+        return all([c.connected for c in self.channel_list])
 
     def disconnect(self):
-        for c in self.channel_dict.values():
+        for c in self.channel_list:
             c.disconnect_all()
 
     def set_storage_priority(self, priority: int):
-        for c in self.channel_dict.values():
+        for c in self.channel_list:
             c.storage_priority = priority
 
     @property
     def names(self):
         return list(self.channel_dict.keys())
+
+    def __iter__(self):
+        return self.channel_list.__iter__()
 
 
 class Input(_IO):
