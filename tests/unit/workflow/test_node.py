@@ -1,7 +1,7 @@
 from unittest import TestCase
 from typing import Optional, get_args
 
-from pyiron_contrib.workflow.node import Node, pass_all
+from pyiron_contrib.workflow.node import Node
 from pyiron_contrib.workflow.channels import ChannelTemplate
 
 
@@ -30,16 +30,10 @@ class ChildNode(Node):
                 node_function=plus_one,
                 output_names=("y",),
                 name=name,
-                preprocessor=pass_all,
-                postprocessor=self.my_pass_all,
                 update_automatically=update_automatically,
                 update_now=update_now,
                 **kwargs,
         )
-
-    @staticmethod
-    def my_pass_all(**kwargs):
-        return pass_all(**kwargs)
 
 
 class TestNode(TestCase):

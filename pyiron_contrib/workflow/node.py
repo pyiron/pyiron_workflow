@@ -159,17 +159,12 @@ class Node:
             name: Optional[str] = None,
             input_storage_priority: Optional[dict[str:int]] = None,
             output_storage_priority: Optional[dict[str:int]] = None,
-            preprocessor: Optional[callable] = None,
-            postprocessor: Optional[callable] = None,
             update_automatically: bool = True,
             update_now: bool = True,
             **kwargs
     ):
         self.node_function = node_function
         self.name = name
-
-        self.preprocessor = preprocessor
-        self.postprocessor = postprocessor
 
         input_channels = self._build_input_channels(
             input_storage_priority if input_storage_priority is not None else {}
@@ -228,12 +223,8 @@ class Node:
             self.run()
 
     def run(self) -> None:
-        engine_input = self.preprocessor(**self.input.to_value_dict()) \
-            if self.preprocessor is not None else self.input.to_value_dict()
-        function_output = self.node_function(**engine_input)
-        node_output = self.postprocessor(**function_output) \
-            if self.postprocessor is not None else function_output
-        self._update_output(node_output)
+        function_output = self.node_function(**self.input.to_value_dict())
+        self._update_output(function_output)
 
     def _update_output(self, data: dict):
         for k, v in data.items():
