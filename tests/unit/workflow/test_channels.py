@@ -69,6 +69,9 @@ class TestChannels(TestCase):
             self.no.connect(self.ni1, self.ni2)
             self.assertEqual(2, len(self.no.connections), msg="Should connect to all")
 
+        with self.subTest("Test iteration"):
+            self.assertTrue(all([con in self.no.connections for con in self.no]))
+
     def test_connection_validity_tests(self):
         self.ni1.types = (int, float, bool)  # Override with a larger set
         self.ni2.types = (int,)  # Override with a smaller set
