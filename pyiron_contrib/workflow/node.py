@@ -224,12 +224,11 @@ class Node:
 
     def run(self) -> None:
         function_output = self.node_function(**self.inputs.to_value_dict())
+
         if len(self.outputs) == 1:
             function_output = (function_output,)
-        self._update_output(function_output)
 
-    def _update_output(self, data: dict):
-        for out, value in zip(self.outputs, data):
+        for out, value in zip(self.outputs, function_output):
             out.update(value)
 
     def __call__(self) -> None:
