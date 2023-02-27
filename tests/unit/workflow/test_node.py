@@ -1,5 +1,5 @@
 from unittest import TestCase
-from typing import Optional
+from typing import Optional, Union
 
 from pyiron_contrib.workflow.node import Node
 
@@ -8,8 +8,8 @@ def throw_error(x: Optional[int] = None):
     raise RuntimeError
 
 
-def plus_one(x=1):
-    return {'y': x + 1}
+def plus_one(x=1) -> Union[int, float]:
+    return x + 1
 
 
 class ChildNode(Node):
