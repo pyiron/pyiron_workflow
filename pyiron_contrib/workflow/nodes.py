@@ -74,8 +74,8 @@ class CalcMD(Node):
 
     @staticmethod
     def postprocessor(project, job):
-        steps = job.output.steps
-        energy_pot = job.output.energy_pot
+        steps = job.outputs.steps
+        energy_pot = job.outputs.energy_pot
         job.remove()
         project.remove(enable=True)
         return {

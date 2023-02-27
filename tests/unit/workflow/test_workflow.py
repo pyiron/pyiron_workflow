@@ -68,7 +68,7 @@ class TestWorkflow(TestCase):
         )
 
         open_inputs = len(wf.input)
-        wf.n2.input.x = wf.n1.output.y  # Allow connections from workflow access
+        wf.n2.inputs.x = wf.n1.outputs.y  # Allow connections from workflow access
         self.assertEqual(
             1,
             open_inputs - len(wf.input),

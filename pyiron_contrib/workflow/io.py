@@ -80,7 +80,7 @@ class _IO(ABC):
         return self.channel_list.__iter__()
 
 
-class Input(_IO):
+class Inputs(_IO):
     def __init__(self, node: Node, *channels: ChannelTemplate):
         super().__init__(*[channel.to_input(node) for channel in channels])
 
@@ -93,7 +93,7 @@ class Input(_IO):
         return all([c.ready for c in self.channel_dict.values()])
 
 
-class Output(_IO):
+class Outputs(_IO):
     def __init__(self, node: Node, *channels: ChannelTemplate):
         super().__init__(*[channel.to_output(node) for channel in channels])
 

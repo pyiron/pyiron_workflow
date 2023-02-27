@@ -45,14 +45,14 @@ class TestNode(TestCase):
             output_labels=("y",),
             update_now=False
         )
-        self.assertIsNone(no_update.output.y.value)
+        self.assertIsNone(no_update.outputs.y.value)
 
         update = Node(
             node_function=plus_one,
             output_labels=("y",),
             update_now=True
         )
-        self.assertEqual(2, update.output.y.value)
+        self.assertEqual(2, update.outputs.y.value)
 
     def test_input_kwargs(self):
         node = Node(
@@ -60,15 +60,15 @@ class TestNode(TestCase):
             output_labels=("y",),
             x=2
         )
-        self.assertEqual(3, node.output.y.value, msg="Initialize from value")
+        self.assertEqual(3, node.outputs.y.value, msg="Initialize from value")
 
         node2 = Node(
             node_function=plus_one,
             output_labels=("y",),
-            x=node.output.y
+            x=node.outputs.y
         )
         node.update()
-        self.assertEqual(4, node2.output.y.value, msg="Initialize from connection")
+        self.assertEqual(4, node2.outputs.y.value, msg="Initialize from connection")
 
     def test_automatic_updates(self):
         node = Node(
@@ -78,8 +78,8 @@ class TestNode(TestCase):
         )
 
         with self.subTest("Shouldn't run for invalid input on update"):
-            node.input.x.update("not an int")
+            node.inputs.x.update("not an int")
 
         with self.subTest("Valid data should trigger a run"):
             with self.assertRaises(RuntimeError):
-                node.input.x.update(1)
+                node.inputs.x.update(1)

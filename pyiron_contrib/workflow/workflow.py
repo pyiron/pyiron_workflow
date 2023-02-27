@@ -98,7 +98,7 @@ class Workflow:
             {
                 f"{node.label}_{channel.label}": channel
                 for node in self.nodes.values()
-                for channel in node.input
+                for channel in node.inputs
                 if not channel.connected
             }
         )
@@ -109,7 +109,7 @@ class Workflow:
             {
                 f"{node.label}_{channel.label}": channel
                 for node in self.nodes.values()
-                for channel in node.output
+                for channel in node.outputs
                 if not channel.connected
             }
         )
@@ -130,7 +130,7 @@ class Workflow:
 
     def update(self):
         for node in self.nodes.values():
-            if node.output.connected and not node.input.connected:
+            if node.outputs.connected and not node.inputs.connected:
                 node.update()
 
     def run(self):

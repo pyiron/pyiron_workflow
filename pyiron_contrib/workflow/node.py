@@ -4,7 +4,7 @@ import inspect
 from typing import get_args, Optional
 
 from pyiron_contrib.workflow.channels import ChannelTemplate, OutputChannel
-from pyiron_contrib.workflow.io import Input, Output
+from pyiron_contrib.workflow.io import Inputs, Outputs
 
 
 class Node:
@@ -104,12 +104,12 @@ class Node:
         ...     # with what our engine returns
         ...     output_channels=[ChannelTemplate("y")],
         ... )
-        >>> my_adder.output.y.value
+        >>> my_adder.outputs.y.value
 
         >>> # Nothing! It tried to update automatically, but there's no default for
         >>> # "a", so it's not ready!
-        >>> my_adder.input.a.update(1)
-        >>> my_adder.output.y.value
+        >>> my_adder.inputs.a.update(1)
+        >>> my_adder.outputs.y.value
         2
 
         Subclassing `Node`:
@@ -143,13 +143,13 @@ class Node:
         ...     return {"w": x + y + z}
         >>>
         >>> adder = ThreeToOne("add", add)
-        >>> adder.output.w.value
+        >>> adder.outputs.w.value
         6
         >>> def multiply(x, y, z):
         ...     return {"w": x * y * z}
         >>>
         >>> multiplier = ThreeToOne("mult", multiply, z=4)
-        >>> multiplier.output.w.value
+        >>> multiplier.outputs.w.value
         8
     """
     def __init__(
@@ -169,20 +169,20 @@ class Node:
         input_channels = self._build_input_channels(
             input_storage_priority if input_storage_priority is not None else {}
         )
-        self.input = Input(self, *input_channels)
+        self.inputs = Inputs(self, *input_channels)
         output_channels = self._build_output_channels(
             output_labels,
             output_storage_priority if output_storage_priority is not None else {}
         )
-        self.output = Output(self, *output_channels)
+        self.outputs = Outputs(self, *output_channels)
         self.update_automatically = update_automatically
 
         for k, v in kwargs.items():
-            if k in self.input.labels:
+            if k in self.inputs.labels:
                 if isinstance(v, OutputChannel):
-                    self.input[k] = v
+                    self.inputs[k] = v
                 else:
-                    self.input[k].update(v)
+                    self.inputs[k].update(v)
 
         if update_now:
             self.update()
@@ -223,32 +223,32 @@ class Node:
             self.run()
 
     def run(self) -> None:
-        function_output = self.node_function(**self.input.to_value_dict())
+        function_output = self.node_function(**self.inputs.to_value_dict())
         self._update_output(function_output)
 
     def _update_output(self, data: dict):
         for k, v in data.items():
-            self.output[k].update(v)
+            self.outputs[k].update(v)
 
     def __call__(self) -> None:
         self.run()
 
     def disconnect(self):
-        self.input.disconnect()
-        self.output.disconnect()
+        self.inputs.disconnect()
+        self.outputs.disconnect()
 
     @property
     def ready(self) -> bool:
-        return self.input.ready
+        return self.inputs.ready
 
     @property
     def connected(self) -> bool:
-        return self.input.connected or self.output.connected
+        return self.inputs.connected or self.outputs.connected
 
     @property
     def fully_connected(self):
-        return self.input.fully_connected and self.output.fully_connected
+        return self.inputs.fully_connected and self.outputs.fully_connected
 
     def set_storage_priority(self, priority: int):
-        self.input.set_storage_priority(priority)
-        self.output.set_storage_priority(priority)
+        self.inputs.set_storage_priority(priority)
+        self.outputs.set_storage_priority(priority)

@@ -2,7 +2,7 @@ from unittest import TestCase
 
 
 from pyiron_contrib.workflow.channels import ChannelTemplate
-from pyiron_contrib.workflow.io import Input, Output
+from pyiron_contrib.workflow.io import Inputs, Outputs
 
 
 class DummyNode:
@@ -25,8 +25,8 @@ class TestIO(TestCase):
 
         cls.post_facto_output = ChannelTemplate(label="b", types=float).to_output(node)
 
-        cls.input = Input(node, *cls.inputs)
-        cls.output = Output(node, *outputs)
+        cls.input = Inputs(node, *cls.inputs)
+        cls.output = Outputs(node, *outputs)
 
     def test_access(self):
         self.assertEqual(self.input.x, self.input["x"])
