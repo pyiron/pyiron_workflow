@@ -252,8 +252,3 @@ class Node:
     def set_storage_priority(self, priority: int):
         self.input.set_storage_priority(priority)
         self.output.set_storage_priority(priority)
-
-
-def pass_all(**kwargs) -> dict:
-    """Just returns everything it gets as a dictionary."""
-    return kwargs

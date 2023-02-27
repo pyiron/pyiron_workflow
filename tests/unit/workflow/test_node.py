@@ -1,8 +1,7 @@
 from unittest import TestCase
-from typing import Optional, get_args
+from typing import Optional
 
 from pyiron_contrib.workflow.node import Node
-from pyiron_contrib.workflow.channels import ChannelTemplate
 
 
 def throw_error(x: Optional[int] = None):
