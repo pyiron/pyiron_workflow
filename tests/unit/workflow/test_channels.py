@@ -12,12 +12,12 @@ class DummyNode:
 class TestChannels(TestCase):
 
     def setUp(self) -> None:
-        self.ni1 = InputChannel(label="numeric", node=DummyNode(), default=1, types=int | float)
-        self.ni2 = InputChannel(label="numeric", node=DummyNode(), default=1, types=int | float)
-        self.no = OutputChannel(label="numeric", node=DummyNode(), default=1, types=int | float)
+        self.ni1 = InputChannel(label="numeric", node=DummyNode(), default=1, type_hint=int | float)
+        self.ni2 = InputChannel(label="numeric", node=DummyNode(), default=1, type_hint=int | float)
+        self.no = OutputChannel(label="numeric", node=DummyNode(), default=1, type_hint=int | float)
 
-        self.so1 = OutputChannel(label="list", node=DummyNode(), default=["foo"], types=list)
-        self.so2 = OutputChannel(label="list", node=DummyNode(), default=["foo"], types=list)
+        self.so1 = OutputChannel(label="list", node=DummyNode(), default=["foo"], type_hint=list)
+        self.so2 = OutputChannel(label="list", node=DummyNode(), default=["foo"], type_hint=list)
 
     def test_value_validation(self):
         class Foo:
@@ -119,8 +119,8 @@ class TestChannels(TestCase):
             self.assertTrue(all([con in self.no.connections for con in self.no]))
 
     def test_connection_validity_tests(self):
-        self.ni1.types = int | float | bool  # Override with a larger set
-        self.ni2.types = int  # Override with a smaller set
+        self.ni1.type_hint = int | float | bool  # Override with a larger set
+        self.ni2.type_hint = int  # Override with a smaller set
 
         with self.assertRaises(TypeError):
             self.ni1.connect("Not a channel at all")

@@ -18,21 +18,21 @@ class Channel(ABC):
             label: str,
             node: Node,
             default: typing.Optional[typing.Any] = None,
-            types: typing.Optional[tuple | type[typing.Any]] = None,
+            type_hint: typing.Optional[tuple | type[typing.Any]] = None,
             storage_priority: int = 0,
     ):
         self.label = label
         self.node = node
         self.default = default
         self.value = default
-        self.types = types
+        self.type_hint = type_hint
         self.storage_priority = storage_priority
         self.connections = []
 
     @property
     def ready(self):
-        if self.types is not None:
-            return self._valid_value(self.value, self.types)
+        if self.type_hint is not None:
+            return self._valid_value(self.value, self.type_hint)
         else:
             return True
 
@@ -83,11 +83,11 @@ class Channel(ABC):
         return other in self.connections
 
     def _both_typed(self, other: Channel):
-        return self.types is not None and other.types is not None
+        return self.type_hint is not None and other.type_hint is not None
 
     def _output_types_are_subset_of_input_types(self, other: Channel):
         out, inp = self._figure_out_who_is_who(other)
-        return self._hint_is_as_or_more_specific_than(out.types, inp.types)
+        return self._hint_is_as_or_more_specific_than(out.type_hint, inp.type_hint)
 
     def _figure_out_who_is_who(self, other: Channel) -> (OutputChannel, InputChannel):
         return (self, other) if isinstance(self, OutputChannel) else (other, self)
