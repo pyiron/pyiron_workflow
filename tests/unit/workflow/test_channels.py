@@ -12,9 +12,9 @@ class DummyNode:
 class TestChannels(TestCase):
 
     def setUp(self) -> None:
-        self.ni1 = InputChannel(label="numeric", node=DummyNode(), default=1, types=(int, float))
-        self.ni2 = InputChannel(label="numeric", node=DummyNode(), default=1, types=(int, float))
-        self.no = OutputChannel(label="numeric", node=DummyNode(), default=1, types=(int, float))
+        self.ni1 = InputChannel(label="numeric", node=DummyNode(), default=1, types=int | float)
+        self.ni2 = InputChannel(label="numeric", node=DummyNode(), default=1, types=int | float)
+        self.no = OutputChannel(label="numeric", node=DummyNode(), default=1, types=int | float)
 
         self.so1 = OutputChannel(label="list", node=DummyNode(), default=["foo"], types=list)
         self.so2 = OutputChannel(label="list", node=DummyNode(), default=["foo"], types=list)
@@ -83,12 +83,6 @@ class TestChannels(TestCase):
                 Channel._hint_is_as_or_more_specific_than(target, reference),
                 is_more_specific
             )
-
-    def test_type_tuple_conversion(self):
-        # We intentionally passed the wrong type at instantiation, let's make sure
-        # this can't get us into trouble
-        self.assertIsInstance(self.ni1.types, tuple)
-        self.assertIsInstance(self.ni2.types, tuple)
 
     def test_mutable_defaults(self):
         self.so1.default.append("bar")
