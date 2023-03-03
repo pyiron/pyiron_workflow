@@ -1,7 +1,7 @@
 from __future__ import annotations
 
 import inspect
-from typing import get_args, Optional
+from typing import get_args, get_type_hints, Optional
 
 from pyiron_contrib.workflow.channels import InputChannel, OutputChannel
 from pyiron_contrib.workflow.io import IO
@@ -158,43 +158,74 @@ class Node:
         if update_now:
             self.update()
 
-    def _get_channel_kwargs(self, label, annotation, storage_priority):
-        storage_priority = {} if storage_priority is None else storage_priority
-        channel_kwargs = {"label": label, "node": self}
-
-        if annotation is not inspect.Parameter.empty:
-            channel_kwargs["types"] = get_args(annotation)
-
-        try:
-            channel_kwargs["storage_priority"] = storage_priority[label]
-        except KeyError:
-            pass
-
-        return channel_kwargs
-
     def _build_input_channels(self, storage_priority: dict[str:int]):
         channels = []
-        for label, value in inspect.signature(self.node_function).parameters.items():
-            channel_kwargs = self._get_channel_kwargs(
-                label, value.annotation, storage_priority
-            )
-            if value.default is not inspect.Parameter.empty:
-                channel_kwargs["default"] = value.default
+        type_hints = get_type_hints(self.node_function)
+        parameters = inspect.signature(self.node_function).parameters
 
-            channels.append(InputChannel(**channel_kwargs))
+        for label, value in parameters.items():
+            try:
+                priority = storage_priority[label]
+            except (KeyError, TypeError):
+                priority = None
+
+            try:
+                type_hint = type_hints[label]
+            except KeyError:
+                type_hint = None
+
+            if value.default is not inspect.Parameter.empty:
+                default = value.default
+            else:
+                default = None
+
+            channels.append(InputChannel(
+                label=label,
+                node=self,
+                default=default,
+                type_hint=type_hint,
+                storage_priority=priority,
+            ))
         return channels
 
-    def _build_output_channels(self, channel_labels, storage_priority):
-        return_annotations = inspect.signature(self.node_function).return_annotation
-        if not isinstance(return_annotations, tuple):
-            return_annotations = return_annotations,
-
+    def _build_output_channels(self, return_labels, storage_priority: dict[str:int]):
         channels = []
-        for label, annotation in zip(channel_labels, return_annotations):
-            channel_kwargs = self._get_channel_kwargs(
-                label, annotation, storage_priority
+        try:
+            type_hints = get_type_hints(self.node_function)["return"]
+        except KeyError:
+            type_hints = None
+
+        if isinstance(return_labels, str):
+            try:
+                priority = storage_priority[return_labels]
+            except (KeyError, TypeError):
+                priority = None
+
+            channels.append(
+                OutputChannel(
+                    label=return_labels,
+                    node=self,
+                    type_hint=type_hints,
+                    storage_priority=priority,
+                )
             )
-            channels.append(OutputChannel(**channel_kwargs))
+        else:
+            hints = get_args(type_hints) if type_hints is not None else [None] * len(
+                return_labels)
+            for label, hint in zip(return_labels, hints):
+                try:
+                    priority = storage_priority[label]
+                except (KeyError, TypeError):
+                    priority = None
+
+                channels.append(
+                    OutputChannel(
+                        label=label,
+                        node=self,
+                        type_hint=hint,
+                        storage_priority=priority,
+                    )
+                )
         return channels
 
     def update(self) -> None:
