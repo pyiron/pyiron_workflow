@@ -119,8 +119,8 @@ class TestChannels(TestCase):
             self.assertTrue(all([con in self.no.connections for con in self.no]))
 
     def test_connection_validity_tests(self):
-        self.ni1.types = (int, float, bool)  # Override with a larger set
-        self.ni2.types = (int,)  # Override with a smaller set
+        self.ni1.types = int | float | bool  # Override with a larger set
+        self.ni2.types = int  # Override with a smaller set
 
         with self.assertRaises(TypeError):
             self.ni1.connect("Not a channel at all")
