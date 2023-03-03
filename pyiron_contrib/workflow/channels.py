@@ -92,7 +92,8 @@ class Channel(ABC):
     def _figure_out_who_is_who(self, other: Channel) -> (OutputChannel, InputChannel):
         return (self, other) if isinstance(self, OutputChannel) else (other, self)
 
-    def _hint_is_as_or_more_specific_than(self, hint, other):
+    @classmethod
+    def _hint_is_as_or_more_specific_than(cls, hint, other):
         hint_origin = typing.get_origin(hint)
         other_origin = typing.get_origin(other)
         if set([hint_origin, other_origin]) & set([types.UnionType, typing.Union]):
@@ -101,11 +102,11 @@ class Channel(ABC):
                 [
                     any(
                         [
-                            self._hint_is_as_or_more_specific_than(h, o)
-                            for o in self._hint_to_tuple(other)
+                            cls._hint_is_as_or_more_specific_than(h, o)
+                            for o in cls._hint_to_tuple(other)
                         ]
                     )
-                    for h in self._hint_to_tuple(hint)
+                    for h in cls._hint_to_tuple(hint)
                 ]
             )
         elif hint_origin is None and other_origin is None:
@@ -124,7 +125,7 @@ class Channel(ABC):
                 # If order matters, make sure the arguments match 1:1
                 return all(
                     [
-                        self._hint_is_as_or_more_specific_than(h, o)
+                        cls._hint_is_as_or_more_specific_than(h, o)
                         for o, h in zip(other_args, hint_args)
                     ]
                 )
@@ -134,7 +135,7 @@ class Channel(ABC):
                     [
                         any(
                             [
-                                self._hint_is_as_or_more_specific_than(h, o)
+                                cls._hint_is_as_or_more_specific_than(h, o)
                                 for o in other_args
                             ]
                         )

@@ -44,6 +44,46 @@ class TestChannels(TestCase):
             self.assertTrue(Channel._valid_value(good, hint))
             self.assertFalse(Channel._valid_value(bad, hint))
 
+    def test_hint_comparisons(self):
+        # Standard types and typing types should be interoperable
+        # tuple, dict, and typing.Callable care about the exact matching of args
+        # Everyone else just needs to have args be a subset (e.g. typing.Literal)
+
+        for target, reference, is_more_specific in [
+            (int, int | float, True),
+            (int | float, int, False),
+            (typing.Literal[1, 2], typing.Literal[1, 2, 3], True),
+            (typing.Literal[1, 2, 3], typing.Literal[1, 2], False),
+            (tuple[str, int], typing.Tuple[str, int], True),
+            (typing.Tuple[int, str], tuple[str, int], False),
+            (tuple[str, int], typing.Tuple[str, int | float], True),
+            (typing.Tuple[str, int | float], tuple[str, int], False),
+            (list[int], typing.List[int], True),
+            (typing.List, list[int], False),
+            (dict[str, int], typing.Dict[str, int], True),
+            (dict[int, str], typing.Dict[str, int], False),
+            (typing.Callable[[int, float], None], typing.Callable, True),
+            (
+                    typing.Callable[[int, float], None],
+                    typing.Callable[[float, int], None],
+                    False
+            ),
+            (
+                    typing.Callable[[int, float], float],
+                    typing.Callable[[int, float], float | str],
+                    True
+            ),
+            (
+                    typing.Callable[[int, float, str], float],
+                    typing.Callable[[int, float], float],
+                    False
+            ),
+        ]:
+            self.assertEqual(
+                Channel._hint_is_as_or_more_specific_than(target, reference),
+                is_more_specific
+            )
+
     def test_type_tuple_conversion(self):
         # We intentionally passed the wrong type at instantiation, let's make sure
         # this can't get us into trouble
