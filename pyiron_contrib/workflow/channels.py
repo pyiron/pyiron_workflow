@@ -87,7 +87,7 @@ class Channel(ABC):
 
     def _output_types_are_subset_of_input_types(self, other: Channel):
         out, inp = self._figure_out_who_is_who(other)
-        return
+        return self._hint_is_as_or_more_specific_than(out.types, inp.types)
 
     def _figure_out_who_is_who(self, other: Channel) -> (OutputChannel, InputChannel):
         return (self, other) if isinstance(self, OutputChannel) else (other, self)
