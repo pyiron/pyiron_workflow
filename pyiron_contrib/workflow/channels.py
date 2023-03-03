@@ -13,12 +13,62 @@ if typing.TYPE_CHECKING:
 
 
 class Channel(ABC):
+    """
+    Channels control the flow of data on the graph.
+    They have a label and belong to a node.
+    They may optionally have a type hint.
+    They may optionally have a storage priority (but this doesn't do anything yet).
+    (In the future they may optionally have an ontological type.)
+
+    Input/output channels can be (dis)connected from other output/input channels, and
+    store all of their current connections in a list.
+
+    The `value` held by a channel can be manually assigned, but should normally be set
+    by the `update` method.
+    In neither case is the type hint strictly enforced.
+    Input channels will then propagate their value along to their owning node.
+    Output channels with then propagate their value to all the input channels they're
+    connected to.
+
+    Type hinting is strictly enforced in one situation: when making connections to
+    other channels and at least one channel has a non-None value for its type hint.
+    In this case, we insist that the output type hint be _as or more more specific_ than
+    the input type hint, to ensure that the input always receives output of a type it
+    expects.
+
+    For simple type hints like `int` or `str`, this is trivial.
+    However, some hints take arguments, e.g. `dict[str, int]` to specify key and value
+    types; `tuple[int, int, str]` to specify a tuple with certain values;
+    `typing.Literal['a', 'b', 'c']` to specify particular choices;
+    `typing.Callable[[float, float], str]` to specify a callable that takes particular
+    argument types and has a return type; etc.
+    For hints with the origin `dict`, `tuple`, and `typing.Callable`, the two hints must
+    have _exactly the same arguments_ for one two qualify as "as or more specific".
+    E.g. `tuple[int, int|float]` is as or more specific than
+    `tuple[int|float, int|float]`, but not `tuple[int, int|float, str]`.
+    For _all other hints_, we demand that the output hint arguments be a _subset_ of
+    the input.
+    E.g. `Literal[1, 2]` is as or more specific that both `Literal[1, 2]` and
+    `Literal[1, 2, "three"]`.
+
+    Warning:
+        Type hinting in python is quite complex, and determining when a hint is
+        "more specific" can be tricky. For instance, in python 3.11 you can now type
+        hint a tuple with a mixture of fixed elements of fixed type, followed by an
+        arbitrary elements of arbitrary type. This and other complex scenarios are not
+        yet included in our test suite and behaviour is not guaranteed.
+
+    TODO:
+        In direct relation to the above warning, it may be nice to add a flag to
+        channels to turn on/off the strict enforcement of type hints when making
+        connections.
+    """
     def __init__(
             self,
             label: str,
             node: Node,
             default: typing.Optional[typing.Any] = None,
-            type_hint: typing.Optional[tuple | type[typing.Any]] = None,
+            type_hint: typing.Optional[typing.Any] = None,
             storage_priority: int = 0,
     ):
         self.label = label
