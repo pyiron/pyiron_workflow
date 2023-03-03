@@ -1,3 +1,4 @@
+import typing
 from unittest import TestCase
 
 from pyiron_contrib.workflow.channels import Channel, InputChannel, OutputChannel
@@ -17,6 +18,31 @@ class TestChannels(TestCase):
 
         self.so1 = OutputChannel(label="list", node=DummyNode(), default=["foo"], types=list)
         self.so2 = OutputChannel(label="list", node=DummyNode(), default=["foo"], types=list)
+
+    def test_value_validation(self):
+        class Foo:
+            pass
+
+        class Bar:
+            def __call__(self):
+                return None
+
+        for hint, good, bad in (
+                (int | float, 1, "foo"),
+                (typing.Union[int, float], 2.0, "bar"),
+                (typing.Literal[1, 2], 2, 3),
+                (typing.Literal[1, 2], 1, "baz"),
+                (Foo, Foo(), Foo),
+                (typing.Type[Bar], Bar, Bar()),
+                # (callable, Bar(), Foo()),  # Misses the bad!
+                # Can't hint args and returns without typing.Callable anyhow, so that's
+                # what people should be using regardless
+                (typing.Callable, Bar(), Foo()),
+                (tuple[int, float], (1, 1.1), ("fo", 0)),
+                (dict[str, int], {'a': 1}, {'a': 'b'}),
+        ):
+            self.assertTrue(Channel._valid_value(good, hint))
+            self.assertFalse(Channel._valid_value(bad, hint))
 
     def test_type_tuple_conversion(self):
         # We intentionally passed the wrong type at instantiation, let's make sure
