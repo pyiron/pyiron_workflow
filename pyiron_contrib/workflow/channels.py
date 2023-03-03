@@ -4,6 +4,8 @@ from abc import ABC
 from typing import Any, Optional, TYPE_CHECKING
 from warnings import warn
 
+from typeguard import check_type
+
 if TYPE_CHECKING:
     from pyiron_contrib.workflow.node import Node
 
@@ -21,25 +23,30 @@ class Channel(ABC):
         self.node = node
         self.default = default
         self.value = default
-        self.types = None if types is None else self._types_to_tuple(types)
+        self.types = types
         self.storage_priority = storage_priority
         self.connections = []
-
-    @staticmethod
-    def _types_to_tuple(types):
-        if isinstance(types, tuple):
-            return types
-        elif isinstance(types, list):
-            return tuple(types)
-        else:
-            return (types,)
 
     @property
     def ready(self):
         if self.types is not None:
-            return isinstance(self.value, self.types)
+            return self._valid_value(self.value, self.types)
         else:
             return True
+
+    @staticmethod
+    def _valid_value(value, type_hint):
+        try:
+            return isinstance(value, type_hint)
+        except TypeError:
+            # Subscripted generics cannot be used with class and instance checks
+            try:
+                # typeguard handles this case
+                check_type("", value, type_hint)
+                return True
+            except TypeError:
+                # typeguard raises an error on a failed check
+                return False
 
     def connect(self, *others: Channel):
         for other in others:
@@ -78,7 +85,7 @@ class Channel(ABC):
 
     def _output_types_are_subset_of_input_types(self, other: Channel):
         out, inp = self._figure_out_who_is_who(other)
-        return all([any([issubclass(o, i) for i in inp.types]) for o in out.types])
+        return
 
     def _figure_out_who_is_who(self, other: Channel) -> (OutputChannel, InputChannel):
         return (self, other) if isinstance(self, OutputChannel) else (other, self)
