@@ -7,6 +7,12 @@ from pyiron_contrib.workflow.util import DotDict
 
 
 class IO(ABC):
+    """
+    IO is a convenience layer for holding and accessing multiple input/output channels.
+    It allows key and dot-based access to the underlying channels based on their name.
+    Channels can also be iterated over, and there are a number of helper functions to
+    alter the properties of or check the status of all the channels at once.
+    """
     def __init__(self, *channels: Channel):
         self.channel_list = [channel for channel in channels]
         self.channel_dict = DotDict(
