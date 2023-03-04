@@ -23,8 +23,8 @@ class Node:
     Nodes must be instantiated with a callable to deterimine their function, and a tuple
     of strings to name each returned value of that callable.
 
-    The `inspect` module is used to populate the node label (unless otherwise provided),
-    IO types, and input defaults for the _automatically_ from the node function.
+    The node label (unless otherwise provided), IO types, and input defaults for the
+    _automatically_ from introspection of the node function.
     Additional properties like storage priority (present but doesn't do anything yet)
     and ontological type (not yet present) can be set using kwarg dictionaries with
     keys corresponding to the channel labels (i.e. the node arguments of the node
