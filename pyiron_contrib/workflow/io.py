@@ -44,7 +44,6 @@ class IO(ABC):
             if isinstance(value, Channel):
                 self.channel_dict[key].connect(value)
             else:
-                print(f"updating {key} to {value}")
                 self.channel_dict[key].update(value)
         elif isinstance(value, self._channel_class):
             if key != value.label:
