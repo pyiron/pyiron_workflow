@@ -1,8 +1,8 @@
 from __future__ import annotations
 
-from abc import ABC
+from abc import ABC, abstractmethod
 
-from pyiron_contrib.workflow.channels import Channel
+from pyiron_contrib.workflow.channels import Channel, InputChannel, OutputChannel
 from pyiron_contrib.workflow.util import DotDict
 
 
@@ -12,12 +12,27 @@ class IO(ABC):
     It allows key and dot-based access to the underlying channels based on their name.
     Channels can also be iterated over, and there are a number of helper functions to
     alter the properties of or check the status of all the channels at once.
+
+    A new channel can be assigned as an attribute of an IO collection, as long as the
+    attribute name matches the channel's label and type (i.e. `OutputChannel` for
+    `Outputs` and `InputChannel` for `Inputs`).
+
+    When assigning something to an attribute holding an existing channel, if the
+    assigned object is a `Channel`, then it is treated like a `connection`, otherwise
+    it is treated like a value `update`.
     """
     def __init__(self, *channels: Channel):
-        self.channel_list = [channel for channel in channels]
+        self.channel_list = [
+            channel for channel in channels if isinstance(channel, self._channel_class)
+        ]
         self.channel_dict = DotDict(
             {channel.label: channel for channel in self.channel_list}
         )
+
+    @property
+    @abstractmethod
+    def _channel_class(self) -> Channel:
+        pass
 
     def __getattr__(self, item):
         return self.channel_dict[item]
@@ -26,7 +41,11 @@ class IO(ABC):
         if key in ["channel_dict", "channel_list"]:
             super().__setattr__(key, value)
         elif key in self.channel_dict.keys():
-            self.channel_dict[key].connect(value)
+            if isinstance(value, Channel):
+                self.channel_dict[key].connect(value)
+            else:
+                print(f"updating {key} to {value}")
+                self.channel_dict[key].update(value)
         elif isinstance(value, self._channel_class):
             if key != value.label:
                 raise ValueError(
@@ -75,6 +94,18 @@ class IO(ABC):
     def __len__(self):
         return len(self.channel_list)
 
+
+class Inputs(IO):
+    @property
+    def _channel_class(self) -> InputChannel:
+        return InputChannel
+
     @property
     def ready(self):
         return all([c.ready for c in self.channel_list])
+
+
+class Outputs(IO):
+    @property
+    def _channel_class(self) -> OutputChannel:
+        return OutputChannel

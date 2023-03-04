@@ -4,7 +4,7 @@ import inspect
 from typing import get_args, get_type_hints, Optional
 
 from pyiron_contrib.workflow.channels import InputChannel, OutputChannel
-from pyiron_contrib.workflow.io import IO
+from pyiron_contrib.workflow.io import Inputs, Outputs
 
 
 class Node:
@@ -138,14 +138,14 @@ class Node:
         self.label = label if label is not None else node_function.__name__
 
         input_channels = self._build_input_channels(input_storage_priority)
-        self.inputs = IO(*input_channels)
+        self.inputs = Inputs(*input_channels)
 
         if not isinstance(output_labels, (tuple, list)):
             output_labels = (output_labels,)
         output_channels = self._build_output_channels(
             output_labels, output_storage_priority
         )
-        self.outputs = IO(*output_channels)
+        self.outputs = Outputs(*output_channels)
         self.update_automatically = update_automatically
 
         for k, v in kwargs.items():

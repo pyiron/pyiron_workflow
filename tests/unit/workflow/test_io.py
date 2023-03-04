@@ -1,7 +1,6 @@
 from unittest import TestCase
 
-
-from pyiron_contrib.workflow.channels import ChannelTemplate
+from pyiron_contrib.workflow.channels import InputChannel, OutputChannel
 from pyiron_contrib.workflow.io import Inputs, Outputs
 
 
@@ -13,20 +12,20 @@ class DummyNode:
 class TestIO(TestCase):
 
     @classmethod
-    def setUpClass(cls) -> None:
-        cls.inputs = [
-            ChannelTemplate(label="x", default=0, types=float),
-            ChannelTemplate(label="y", default=1, types=float)
+    def setUp(self) -> None:
+        node = DummyNode()
+        self.inputs = [
+            InputChannel(label="x", node=node, default=0, type_hint=float),
+            InputChannel(label="y", node=node, default=1, type_hint=float)
         ]
         outputs = [
-            ChannelTemplate(label="a", types=float),
+            OutputChannel(label="a", node=node, type_hint=float),
         ]
-        node = DummyNode()
 
-        cls.post_facto_output = ChannelTemplate(label="b", types=float).to_output(node)
+        self.post_facto_output = OutputChannel(label="b", node=node, type_hint=float)
 
-        cls.input = Inputs(node, *cls.inputs)
-        cls.output = Outputs(node, *outputs)
+        self.input = Inputs(*self.inputs)
+        self.output = Outputs(*outputs)
 
     def test_access(self):
         self.assertEqual(self.input.x, self.input["x"])
@@ -46,10 +45,6 @@ class TestIO(TestCase):
             self.output.b = self.post_facto_output
 
     def test_connection(self):
-        with self.assertRaises(TypeError):
-            # Tries to make a connection, but can't connect to non-channels
-            self.input.x = "foo"
-
         self.input.x = self.input.y
         self.assertEqual(
             0,
@@ -63,6 +58,9 @@ class TestIO(TestCase):
             self.output.a.connections,
             msg="Should be able to create connections by assignment"
         )
+
+        self.input.x = 7
+        self.assertEqual(self.input.x.value, 7)
 
     def test_conversion(self):
         converted = self.input.to_value_dict()
