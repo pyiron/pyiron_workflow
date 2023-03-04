@@ -49,6 +49,8 @@ class Node:
             input channel will have their value assigned to that channel.
 
     Attributes:
+        inputs (Inputs): A collection of input channels.
+        outputs (Outputs): A collection of output channels.
         ready (bool): All input reports ready.
         connected (bool): Any IO channel has at least one connection.
         fully_connected (bool): Every IO channel has at least one connection.
