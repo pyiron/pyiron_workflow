@@ -13,6 +13,10 @@ def plus_one(x=1) -> Union[int, float]:
     return x + 1
 
 
+def no_default(x, y):
+    return x + y + 1
+
+
 @skipUnless(version_info[0] == 3 and version_info[1] >= 10, "Only supported for 3.10+")
 class TestNode(TestCase):
     def test_defaults(self):
@@ -32,6 +36,23 @@ class TestNode(TestCase):
             update_on_instantiation=True
         )
         self.assertEqual(2, update.outputs.y.value)
+
+        with self.assertRaises(TypeError):
+            Node(node_function=no_default, output_labels="z")
+            # None + None + 1 -> error
+
+        with self.assertRaises(TypeError):
+            Node(node_function=no_default, output_labels="z", x=1)
+            # 1 + None + 1 -> error
+
+        deferred_update = Node(node_function=no_default, output_labels="z", x=1, y=1)
+        self.assertEqual(
+            deferred_update.outputs.z.value,
+            3,
+            msg="By default, all initial values should be parsed before triggering "
+                "an update"
+        )
+
 
     def test_input_kwargs(self):
         node = Node(

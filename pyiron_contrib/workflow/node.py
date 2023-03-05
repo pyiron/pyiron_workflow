@@ -18,7 +18,8 @@ class Node:
     Nodes can be forced to run, or more gently "updated", which will trigger a
     calculation only if all of the input is ready.
 
-    Nodes can optionally update themselves at instantiation.
+    Nodes won't update themselves while setting inputs to initial values, but can
+    optionally update themselves at the end instantiation.
 
     Nodes must be instantiated with a callable to deterimine their function, and a tuple
     of strings to name each returned value of that callable.
@@ -91,21 +92,25 @@ class Node:
         In this case, our input is untyped -- so it's always considered valid -- and the
         type error comes from our `y - 1` term in the function, which is `None - 1`.
 
-        There are two ways to resolve this: First, we could set
+        There are three ways to resolve this: First, we could set
         `run_automatically = False`, then the node would not execute until we
         manually call the `run()` method.
-        Let's try this.
-        At the same time, we'll introduce another feature: setting initial values with
-        kwargs corresponding to the node function signature:
+        This impacts the long-term behaviour of the node though, so let's keep
+        searching.
+
+        We can provide initial values for our node function at instantiation using our
+        kwargs.
+        The node update is deferred until _all_ of these initial values are processed.
+        Thus, the second solution is to ensure that _all_ the arguments of our function
+        are receiving good enough initial values to facilitate an execution of the node
+        function at the end of instantiation:
         >>> plus_minus_1 = Node(
         ...     node_function=mwe,
         ...     output_labels=("p1", "m1"),
-        ...     run_automatically = False,
         ...     x=1,
         ...     y=2
         ... )
         >>>
-        >>> plus_minus_1.run()
         >>> print(plus_minus_1.outputs.to_value_dict())
         {'p1': 2, 'm1': 1}
 
@@ -221,7 +226,7 @@ class Node:
             input_storage_priority: Optional[dict[str, int]] = None,
             output_storage_priority: Optional[dict[str, int]] = None,
             run_automatically: bool = True,
-            update_on_instantiation: bool = False,
+            update_on_instantiation: bool = True,
             **kwargs
     ):
         self.node_function = node_function
@@ -234,14 +239,15 @@ class Node:
             output_labels, output_storage_priority
         )
         self.outputs = Outputs(*output_channels)
-        self.run_automatically = run_automatically
 
+        self.run_automatically = False
         for k, v in kwargs.items():
             if k in self.inputs.labels:
                 if isinstance(v, OutputChannel):
                     self.inputs[k] = v
                 else:
                     self.inputs[k].update(v)
+        self.run_automatically = run_automatically
 
         if update_on_instantiation:
             self.update()
