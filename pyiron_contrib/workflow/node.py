@@ -104,12 +104,7 @@ class Node:
         Thus, the second solution is to ensure that _all_ the arguments of our function
         are receiving good enough initial values to facilitate an execution of the node
         function at the end of instantiation:
-        >>> plus_minus_1 = Node(
-        ...     node_function=mwe,
-        ...     output_labels=("p1", "m1"),
-        ...     x=1,
-        ...     y=2
-        ... )
+        >>> plus_minus_1 = Node(mwe, ("p1", "m1"), x=1, y=2)
         >>>
         >>> print(plus_minus_1.outputs.to_value_dict())
         {'p1': 2, 'm1': 1}
@@ -131,10 +126,8 @@ class Node:
         ... ) -> tuple[int, int | float]:
         ...     return x+1, y-1
         >>>
-        >>> plus_minus_1 = Node(
-        ...     node_function=hinted_example,
-        ...     output_labels=("p1", "m1")
-        ... )
+        >>> plus_minus_1 = Node(hinted_example, ("p1", "m1"))
+        >>>
         >>> plus_minus_1.inputs.x = 1
         >>> print(plus_minus_1.outputs.to_value_dict())
         {'p1': 2, 'm1': 0}
