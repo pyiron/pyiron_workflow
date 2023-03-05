@@ -67,71 +67,159 @@ class Node:
         labels provided must be consistent!
 
     Examples:
-        Instantiating from `Node`:
+        At the most basic level, to use nodes all we need to do is provide the `Node`
+        class with a function and labels for its output, like so:
         >>> from pyiron_contrib.workflow.node import Node
         >>>
-        >>> def start_to_end(a=None):
-        ...     return a
+        >>> def mwe(x, y):
+        ...     return x+1, y-1
         >>>
-        >>> def add_one(x=None):
-        ...    return x + 1
+        >>> plus_minus_1 = Node(node_function=mwe, output_labels=("p1", "m1"))
         >>>
-        >>> my_adder = Node(node_function=add_one, output_labels=("y",))
-        >>> my_adder.outputs.y.value
+        >>> print(plus_minus_1.outputs.p1)
+        None
 
-        >>> # Nothing! It tried to update automatically, but there's no default for
-        >>> # "a", so it's not ready!
-        >>> my_adder.inputs.a.update(1)
-        >>> my_adder.outputs.y.value
-        2
+        There is no output because we haven't given our function any input, and it has
+        no defaults!
+        However, we'll run into a hiccup if we try to update one of the inputs...
+        >>> plus_minus_1.inputs.x = 1
+        TypeError
 
-        Subclassing `Node`:
-        >>> from pyiron_contrib.workflow.node import Node, pass_all
-        >>> from pyiron_contrib.workflow.channels import ChannelTemplate
+        This is because updating an input value triggers the node to update -- i.e. it
+        checks if all it's input is of a valid type, and if so attempts to execute its
+        node function.
+        In this case, our input is untyped -- so it's always considered valid -- and the
+        type error comes from our `y - 1` term in the function, which is `None - 1`.
+
+        There are two ways to resolve this: First, we could set
+        `update_automatically = False`, then the node would not execute until we
+        manually call the `run()` method.
+        Let's try this.
+        At the same time, we'll introduce another feature: setting initial values with
+        kwargs corresponding to the node function signature:
+        >>> plus_minus_1 = Node(
+        ...     node_function=mwe,
+        ...     output_labels=("p1", "m1"),
+        ...     update_automatically = False,
+        ...     x=1,
+        ...     y=2
+        ... )
         >>>
-        >>> class ThreeToOne(Node):
-        ...     # Expects an engine that maps three numeric values (xyz) to one (w)
-        ...     input_channels = [
-        ...         ChannelTemplate("x", default=1, types=(int, float)),
-        ...         ChannelTemplate("y", default=2, types=(int, float)),
-        ...         ChannelTemplate("z", default=3, types=(int, float)),
-        ...     ]
-        ...     preprocessor = staticmethod(pass_all)
+        >>> plus_minus_1.run()
+        >>> print(plus_minus_1.outputs.to_value_dict())
+        {'p1': 2, 'm1': 1}
+
+        Second, we could add type hints/defaults to our function so that it knows better
+        than to try to evaluate itself with bad data.
+        Let's make a new node following the second path.
+
+        In this example, note the mixture of old-school (`typing.Union`) and new (`|`)
+        type hints as well as nested hinting with a union-type inside the tuple for the
+        return hint.
+        Our treatment of type hints is **not infinitely robust**, but covers a wide
+        variety of common use cases.
+        >>> from typing import Union
+        >>>
+        >>> def hinted_example(
+        ...     x: Union[int, float],
+        ...     y: int | float = 1
+        ... ) -> tuple[int, int | float]:
+        ...     return x+1, y-1
+        >>>
+        >>> plus_minus_1 = Node(
+        ...     node_function=hinted_example,
+        ...     output_labels=("p1", "m1")
+        ... )
+        >>> plus_minus_1.inputs.x = 1
+        >>> print(plus_minus_1.outputs.to_value_dict())
+        {'p1': 2, 'm1': 0}
+
+        In this case, we're able to use the default value for `y`, but you can
+        experiment with updating `y` first (when `x` still has the invalid value of
+        `None`) to verify that the update is not triggered until _both_ inputs have
+        valid values.
+
+        In these examples, we've instantiated nodes directly from the base `Node` class,
+        and populated their input directly with data.
+        In practice, these nodes are meant to be part of complex workflows; that means
+        both that you are likely to have particular nodes that get heavily re-used, and
+        that you need the nodes to pass data to each other.
+
+        For reusable nodes, we want to create a sub-class of `Node` that fixes some of
+        the node behaviour -- usually the `node_function` and `output_labels`.
+        There are two straightforward ways to accomplish this.
+        The first is to override the `__init__` method directly:
+        >>> from typing import Literal, Optional
+        >>>
+        >>> class AlphabetModThree(Node):
+        ...     def __init__(
+        ...         self,
+        ...         label: Optional[str] = None,
+        ...         input_storage_priority: Optional[dict[str, int]] = None,
+        ...         output_storage_priority: Optional[dict[str, int]] = None,
+        ...         update_automatically: bool = True,
+        ...         update_now: bool = False,
+        ...         **kwargs
+        ...     ):
+        ...         super().__init__(
+        ...             node_function=self.alphabet_mod_three,
+        ...             output_labels="letter",
+        ...             labe=label,
+        ...             input_storage_priority=input_storage_priority,
+        ...             output_storage_priority=output_storage_priority,
+        ...             update_automatically=update_automatically,
+        ...             update_now=update_now,
+        ...             **kwargs
+        ...         )
         ...
         ...     @staticmethod
-        ...     def postprocessor(**kwargs):
-        ...         return pass_all(**kwargs)
-        ...     # Neither pre- nor post-processor does anything here,
-        ...     # they're just exampels of how to declare them as static
+        ...     def alphabet_mod_three(i: int) -> Literal["a", "b", "c"]:
+        ...         return ["a", "b", "c"][i % 3]
+
+        The second effectively does the same thing, but leverages python's
+        `functools.partialmethod` to do so much more succinctly.
+        In this example, note that the function is declared _before_ `__init__` is set,
+        so that it is available in the correct scope (above, we could place it
+        afterwards because we were accessing it through self).
+        >>> from functools import partialmethod
+        >>>
+        >>> class Adder(Node):
+        ...     @staticmethod
+        ...     def adder(x: int = 0, y: int = 0) -> int:
+        ...         return x + y
         ...
-        ...     output_channels = [
-        ...         ChannelTemplate("w", types=(int, float)),
-        ...     ]
-        ...
-        ...     def __init__(self, label: str, engine: callable, **kwargs):
-        ...         # We'll modify what's available in init to push our users a certain direction.
-        ...         super().__init__(label=label, node_function=node_function, **kwargs)
+        ...     __init__ = partialmethod(
+        ...         Node.__init__,
+        ...         node_function=adder,
+        ...         output_labels="sum",
+        ...     )
+
+        Finally, instead of setting input to a particular data value, we'll set it to
+        be another node's output channel, thus forming a connection.
+        When we update the upstream node, we'll see the result passed downstream:
+        >>> adder = Adder()
+        >>> alpha = AlphabetModThree(i=adder.outputs.sum)
         >>>
-        >>> def add(x, y, z):
-        ...     return {"w": x + y + z}
-        >>>
-        >>> adder = ThreeToOne("add", add)
-        >>> adder.outputs.w.value
-        6
-        >>> def multiply(x, y, z):
-        ...     return {"w": x * y * z}
-        >>>
-        >>> multiplier = ThreeToOne("mult", multiply, z=4)
-        >>> multiplier.outputs.w.value
-        8
+        >>> adder.inputs.x = 1
+        >>> print(alpha.outputs.letter)
+        "b"
+        >>> adder.inputs.y = 1
+        >>> print(alpha.outputs.letter)
+        "c"
+        >>> adder.inputs.x = 0
+        >>> adder.inputs.y = 0
+        >>> print(alpha.outputs.letter)
+        "a"
+
+        To see how to use many nodes together, look at the `Workflow` class.
     """
     def __init__(
             self,
             node_function: callable,
-            output_labels: tuple[str] | str,
+            output_labels: tuple[str, ...] | str,
             label: Optional[str] = None,
-            input_storage_priority: Optional[dict[str:int]] = None,
-            output_storage_priority: Optional[dict[str:int]] = None,
+            input_storage_priority: Optional[dict[str, int]] = None,
+            output_storage_priority: Optional[dict[str, int]] = None,
             update_automatically: bool = True,
             update_now: bool = False,
             **kwargs
@@ -142,8 +230,6 @@ class Node:
         input_channels = self._build_input_channels(input_storage_priority)
         self.inputs = Inputs(*input_channels)
 
-        if not isinstance(output_labels, (tuple, list)):
-            output_labels = (output_labels,)
         output_channels = self._build_output_channels(
             output_labels, output_storage_priority
         )
