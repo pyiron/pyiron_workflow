@@ -222,6 +222,9 @@ class Channel(ABC):
     def __len__(self):
         return len(self.connections)
 
+    def __str__(self):
+        return str(self.value)
+
 
 class InputChannel(Channel):
     def update(self, value):
