@@ -1,4 +1,5 @@
-from unittest import TestCase
+from unittest import TestCase, skipUnless
+from sys import version_info
 from typing import Optional, Union
 
 from pyiron_contrib.workflow.node import Node
@@ -12,29 +13,7 @@ def plus_one(x=1) -> Union[int, float]:
     return x + 1
 
 
-class ChildNode(Node):
-    """
-    All sub-compnents are defined, but __init__ is not overriden -- should throw an
-    error every time we give non-None input for these!
-    """
-
-    def __init__(
-            self,
-            label: Optional[str] = None,
-            run_automatically: bool = True,
-            update_on_instantiation: bool = True,
-            **kwargs
-    ):
-        super().__init__(
-                node_function=plus_one,
-                output_labels=("y",),
-                label=label,
-                run_automatically=run_automatically,
-                update_on_instantiation=update_on_instantiation,
-                **kwargs,
-        )
-
-
+@skipUnless(version_info[0] == 3 and version_info[1] >= 10, "Only supported for 3.10+")
 class TestNode(TestCase):
     def test_defaults(self):
         node = Node(node_function=plus_one, output_labels=["y"])

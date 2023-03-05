@@ -1,41 +1,46 @@
-from unittest import TestCase
+from unittest import TestCase, skipUnless
+from sys import version_info
 from typing import Optional
 
 from pyiron_contrib.workflow.node import Node
 from pyiron_contrib.workflow.workflow import Workflow
 
 
-class DummyNode(Node):
-
-    def __init__(
-            self,
-            label: Optional[str] = None,
-            **kwargs
-    ):
-        super().__init__(
-            node_function=self.pass_value,
-            output_labels=("y",),
-            label=label,
-            **kwargs
-        )
-
-    @staticmethod
-    def pass_value(x):
-        return x
-
-
+@skipUnless(version_info[0] == 3 and version_info[1] >= 10, "Only supported for 3.10+")
 class TestWorkflow(TestCase):
+    @classmethod
+    def setUpClass(cls) -> None:
+        class DummyNode(Node):
+
+            def __init__(
+                    self,
+                    label: Optional[str] = None,
+                    **kwargs
+            ):
+                super().__init__(
+                    node_function=self.pass_value,
+                    output_labels=("y",),
+                    label=label,
+                    **kwargs
+                )
+
+            @staticmethod
+            def pass_value(x):
+                return x
+
+        cls.DummyNode = DummyNode
+
     def test_ugly(self):
         # I'm a bit short on time, and I want to get to the integration
         # So this is just a slapdash version of some stuff I was testing in notebook
-        n1 = DummyNode(label="n1")
-        n2 = DummyNode(label="n2")
+        n1 = self.DummyNode(label="n1")
+        n2 = self.DummyNode(label="n2")
 
         wf = Workflow("my_workflow", n1, n2)
 
         self.assertEqual(2, len(wf.nodes), msg="Add at instantiation")
 
-        n_unnamed = DummyNode()
+        n_unnamed = self.DummyNode()
         wf.add(n_unnamed)
 
         self.assertEqual(3, len(wf.nodes), msg="Add with add")
@@ -44,7 +49,7 @@ class TestWorkflow(TestCase):
             msg="Auto-label based on function"
         )
 
-        wf.add(DummyNode())
+        wf.add(self.DummyNode())
         self.assertTrue(
             n_unnamed.label + "0" in wf.nodes.keys(),
             msg="automatically increment duplicate names"
@@ -64,7 +69,7 @@ class TestWorkflow(TestCase):
         #     wf.foo = n_unnamed
         # Ok, the test suite is not catching warnings this way, but I don't have time
         # to debug it now. The warnings are there.
-        wf.foo = DummyNode()
+        wf.foo = self.DummyNode()
         self.assertTrue(
             "foo" in wf.nodes.keys(),
             msg="automatically set empty names to attribute label"

@@ -1,4 +1,5 @@
-from unittest import TestCase
+from unittest import TestCase, skipUnless
+from sys import version_info
 
 from pyiron_contrib.workflow.channels import InputChannel, OutputChannel
 from pyiron_contrib.workflow.io import Inputs, Outputs
@@ -9,6 +10,7 @@ class DummyNode:
         pass
 
 
+@skipUnless(version_info[0] == 3 and version_info[1] >= 10, "Only supported for 3.10+")
 class TestIO(TestCase):
 
     @classmethod

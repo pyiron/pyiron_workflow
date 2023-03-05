@@ -1,5 +1,6 @@
 import typing
-from unittest import TestCase
+from unittest import TestCase, skipUnless
+from sys import version_info
 
 from pyiron_contrib.workflow.channels import Channel, InputChannel, OutputChannel
 
@@ -9,6 +10,7 @@ class DummyNode:
         pass
 
 
+@skipUnless(version_info[0] == 3 and version_info[1] >= 10, "Only supported for 3.10+")
 class TestChannels(TestCase):
 
     def setUp(self) -> None:
