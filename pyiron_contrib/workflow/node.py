@@ -56,7 +56,7 @@ class Node:
         fully_connected (bool): Every IO channel has at least one connection.
 
     Methods:
-        update: If `update_automatically` is true and all your input is ready, will
+        update: If `run_automatically` is true and all your input is ready, will
             run the engine.
         run: Parse and process the input, execute the engine, process the results and
             update the output.
@@ -92,7 +92,7 @@ class Node:
         type error comes from our `y - 1` term in the function, which is `None - 1`.
 
         There are two ways to resolve this: First, we could set
-        `update_automatically = False`, then the node would not execute until we
+        `run_automatically = False`, then the node would not execute until we
         manually call the `run()` method.
         Let's try this.
         At the same time, we'll introduce another feature: setting initial values with
@@ -157,8 +157,8 @@ class Node:
         ...         label: Optional[str] = None,
         ...         input_storage_priority: Optional[dict[str, int]] = None,
         ...         output_storage_priority: Optional[dict[str, int]] = None,
-        ...         update_automatically: bool = True,
-        ...         update_now: bool = False,
+        ...         run_automatically: bool = True,
+        ...         update_on_instantiation: bool = False,
         ...         **kwargs
         ...     ):
         ...         super().__init__(
@@ -167,8 +167,8 @@ class Node:
         ...             labe=label,
         ...             input_storage_priority=input_storage_priority,
         ...             output_storage_priority=output_storage_priority,
-        ...             run_automatically=update_automatically,
-        ...             update_on_instantiation=update_now,
+        ...             run_automatically=run_automatically,
+        ...             update_on_instantiation=update_on_instantiation,
         ...             **kwargs
         ...         )
         ...
@@ -234,7 +234,7 @@ class Node:
             output_labels, output_storage_priority
         )
         self.outputs = Outputs(*output_channels)
-        self.update_automatically = run_automatically
+        self.run_automatically = run_automatically
 
         for k, v in kwargs.items():
             if k in self.inputs.labels:
@@ -317,7 +317,7 @@ class Node:
         return channels
 
     def update(self) -> None:
-        if self.update_automatically and self.ready:
+        if self.run_automatically and self.ready:
             self.run()
 
     def run(self) -> None:
