@@ -19,7 +19,17 @@ class IO(ABC):
 
     When assigning something to an attribute holding an existing channel, if the
     assigned object is a `Channel`, then it is treated like a `connection`, otherwise
-    it is treated like a value `update`.
+    it is treated like a value `update`. I.e.
+    >>> some_io.some_existing_channel = 5
+
+    is equivalent to
+    >>> some_io.some_existing_channel.update(5)
+
+    and
+    >>> some_io.some_existing_channel = some_other_channel
+
+    is equivalent to
+    >>> some_io.some_existing_channel.connect(some_other_channel)
     """
     def __init__(self, *channels: Channel):
         self.channel_list = [
