@@ -41,9 +41,9 @@ class Node:
         node_function (callable): The function determining the behaviour of the node.
         output_labels (tuple[str]): A name for each return value of the node function.
         label (str): The node's label. (Defaults to the node function's name.)
-        update_automatically (bool): Whether to run when you are updated and all your
+        run_automatically (bool): Whether to run when you are updated and all your
             input is ready. (Default is True).
-        update_now (bool): Whether to force an update at the end of instantiation.
+        update_on_instantiation (bool): Whether to force an update at the end of instantiation.
             (Default is False.)
         **kwargs: Any additional keyword arguments whose keyword matches the label of an
             input channel will have their value assigned to that channel.
@@ -100,7 +100,7 @@ class Node:
         >>> plus_minus_1 = Node(
         ...     node_function=mwe,
         ...     output_labels=("p1", "m1"),
-        ...     update_automatically = False,
+        ...     run_automatically = False,
         ...     x=1,
         ...     y=2
         ... )
@@ -167,8 +167,8 @@ class Node:
         ...             labe=label,
         ...             input_storage_priority=input_storage_priority,
         ...             output_storage_priority=output_storage_priority,
-        ...             update_automatically=update_automatically,
-        ...             update_now=update_now,
+        ...             run_automatically=update_automatically,
+        ...             update_on_instantiation=update_now,
         ...             **kwargs
         ...         )
         ...
@@ -220,8 +220,8 @@ class Node:
             label: Optional[str] = None,
             input_storage_priority: Optional[dict[str, int]] = None,
             output_storage_priority: Optional[dict[str, int]] = None,
-            update_automatically: bool = True,
-            update_now: bool = False,
+            run_automatically: bool = True,
+            update_on_instantiation: bool = False,
             **kwargs
     ):
         self.node_function = node_function
@@ -234,7 +234,7 @@ class Node:
             output_labels, output_storage_priority
         )
         self.outputs = Outputs(*output_channels)
-        self.update_automatically = update_automatically
+        self.update_automatically = run_automatically
 
         for k, v in kwargs.items():
             if k in self.inputs.labels:
@@ -243,7 +243,7 @@ class Node:
                 else:
                     self.inputs[k].update(v)
 
-        if update_now:
+        if update_on_instantiation:
             self.update()
 
     def _build_input_channels(self, storage_priority: dict[str:int]):

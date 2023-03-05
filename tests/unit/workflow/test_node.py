@@ -21,16 +21,16 @@ class ChildNode(Node):
     def __init__(
             self,
             label: Optional[str] = None,
-            update_automatically: bool = True,
-            update_now: bool = True,
+            run_automatically: bool = True,
+            update_on_instantiation: bool = True,
             **kwargs
     ):
         super().__init__(
                 node_function=plus_one,
                 output_labels=("y",),
                 label=label,
-                update_automatically=update_automatically,
-                update_now=update_now,
+                run_automatically=run_automatically,
+                update_on_instantiation=update_on_instantiation,
                 **kwargs,
         )
 
@@ -43,14 +43,14 @@ class TestNode(TestCase):
         no_update = Node(
             node_function=plus_one,
             output_labels=("y",),
-            update_now=False
+            update_on_instantiation=False
         )
         self.assertIsNone(no_update.outputs.y.value)
 
         update = Node(
             node_function=plus_one,
             output_labels=("y",),
-            update_now=True
+            update_on_instantiation=True
         )
         self.assertEqual(2, update.outputs.y.value)
 
@@ -74,7 +74,7 @@ class TestNode(TestCase):
         node = Node(
             node_function=throw_error,
             output_labels=(),
-            update_now=False,
+            update_on_instantiation=False,
         )
 
         with self.subTest("Shouldn't run for invalid input on update"):
