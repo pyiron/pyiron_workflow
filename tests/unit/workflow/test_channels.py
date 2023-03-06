@@ -63,6 +63,8 @@ class TestChannels(TestCase):
             (typing.Tuple[int, str], tuple[str, int], False),
             (tuple[str, int], typing.Tuple[str, int | float], True),
             (typing.Tuple[str, int | float], tuple[str, int], False),
+            (tuple[str, int], typing.Tuple, True),
+            (tuple[str, int], tuple[str, int, float], False),
             (list[int], typing.List[int], True),
             (typing.List, list[int], False),
             (dict[str, int], typing.Dict[str, int], True),

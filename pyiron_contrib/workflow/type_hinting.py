@@ -56,12 +56,18 @@ def type_hint_is_as_or_more_specific_than(hint, other) -> bool:
             return False
         elif hint_origin in [dict, tuple, Callable]:
             # If order matters, make sure the arguments match 1:1
-            return all(
-                [
-                    type_hint_is_as_or_more_specific_than(h, o)
-                    for o, h in zip(other_args, hint_args)
-                ]
-            )
+            # Or that the reference has no arguments
+            if len(other_args) == 0:
+                return True
+            elif len(other_args) == len(hint_args):
+                return all(
+                    [
+                        type_hint_is_as_or_more_specific_than(h, o)
+                        for o, h in zip(other_args, hint_args)
+                    ]
+                )
+            else:
+                return False
         else:
             # Otherwise just make sure the arguments are a subset
             return all(
