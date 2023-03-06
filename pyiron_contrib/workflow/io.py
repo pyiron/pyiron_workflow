@@ -113,6 +113,12 @@ class Inputs(IO):
     def ready(self):
         return all([c.ready for c in self.channel_list])
 
+    def activate_strict_connections(self):
+        [c.activate_strict_connections() for c in self.channel_list]
+
+    def deactivate_strict_connections(self):
+        [c.deactivate_strict_connections() for c in self.channel_list]
+
 
 class Outputs(IO):
     @property

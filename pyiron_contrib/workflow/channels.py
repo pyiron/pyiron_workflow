@@ -162,6 +162,12 @@ class InputChannel(Channel):
         self.value = value
         self.node.update()
 
+    def activate_strict_connections(self):
+        self.strict_connections = True
+
+    def deactivate_strict_connections(self):
+        self.strict_connections = False
+
 
 class OutputChannel(Channel):
     def update(self, value):
