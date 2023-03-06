@@ -51,17 +51,20 @@ class TestWorkflow(TestCase):
         with self.assertRaises(AttributeError):
             Node(fnc, "x", label="boa", workflow=wf)
 
-    def test_double_workfloage(self):
+    def test_double_workfloage_and_node_removal(self):
         wf1 = Workflow("one")
+        wf1.add.Node(fnc, "y", label="node1")
+        node2 = Node(fnc, "y", label="node2", workflow=wf1, x=wf1.node1.outputs.y)
+        self.assertTrue(node2.connected)
+
         wf2 = Workflow("two")
-        node = Node(fnc, "y")
-        wf1.add(node)
         with self.assertRaises(ValueError):
             # Can't belong to two workflows at once
-            wf2.add(node)
-        wf1.remove(node)
-        wf2.add(node)
-        self.assertEqual(node.workflow, wf2)
+            wf2.add(node2)
+        wf1.remove(node2)
+        wf2.add(node2)
+        self.assertEqual(node2.workflow, wf2)
+        self.assertFalse(node2.connected)
 
     def test_ugly(self):
         def fnc(x=0): return x + 1
