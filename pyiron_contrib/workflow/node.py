@@ -1,11 +1,13 @@
 from __future__ import annotations
 
 import inspect
-from typing import get_args, get_type_hints, Optional
+from typing import get_args, get_type_hints, Optional, TYPE_CHECKING
 
 from pyiron_contrib.workflow.channels import InputChannel, OutputChannel
 from pyiron_contrib.workflow.io import Inputs, Outputs
 
+if TYPE_CHECKING:
+    from pyiron_contrib.workflow.workflow import Workflow
 
 class Node:
     """
@@ -220,10 +222,15 @@ class Node:
             output_storage_priority: Optional[dict[str, int]] = None,
             run_automatically: bool = True,
             update_on_instantiation: bool = True,
+            workflow: Optional[Workflow] = None,
             **kwargs
     ):
         self.node_function = node_function
         self.label = label if label is not None else node_function.__name__
+
+        self.workflow = None
+        if workflow is not None:
+            workflow.add(self)
 
         input_channels = self._build_input_channels(input_storage_priority)
         self.inputs = Inputs(*input_channels)

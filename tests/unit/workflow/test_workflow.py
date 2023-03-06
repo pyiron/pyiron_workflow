@@ -8,29 +8,56 @@ from pyiron_contrib.workflow.workflow import Workflow
 
 @skipUnless(version_info[0] == 3 and version_info[1] >= 10, "Only supported for 3.10+")
 class TestWorkflow(TestCase):
-    @classmethod
-    def setUpClass(cls) -> None:
-        class DummyNode(Node):
 
-            def __init__(
-                    self,
-                    label: Optional[str] = None,
-                    **kwargs
-            ):
-                super().__init__(
-                    node_function=self.pass_value,
-                    output_labels=("y",),
-                    label=label,
-                    **kwargs
-                )
+    def test_node_addition(self):
+        def fnc(x=0):
+            return x + 1
 
-            @staticmethod
-            def pass_value(x):
-                return x
+        wf = Workflow("my_workflow")
 
-        cls.DummyNode = DummyNode
+        # Validate the four ways to add a node
+        wf.add(Node(fnc, "x", label="foo"))
+        wf.add.Node(fnc, "y", label="bar")
+        wf.baz = Node(fnc, "y", label="whatever_baz_gets_used")
+        Node(fnc, "x", label="boa", workflow=wf)
+        self.assertListEqual(list(wf.nodes.keys()), ["foo", "bar", "baz", "boa"])
+
+        wf.deactivate_strict_naming()
+        # Validate name incrementation
+        wf.add(Node(fnc, "x", label="foo"))
+        wf.add.Node(fnc, "y", label="bar")
+        wf.baz = Node(fnc, "y", label="whatever_baz_gets_used")
+        Node(fnc, "x", label="boa", workflow=wf)
+        self.assertListEqual(
+            list(wf.nodes.keys()),
+            [
+                "foo", "bar", "baz", "boa",
+                "foo0", "bar0", "baz0", "boa0",
+            ]
+        )
+
+        wf.activate_strict_naming()
+        # Validate name preservation
+        with self.assertRaises(AttributeError):
+            wf.add(Node(fnc, "x", label="foo"))
+
+        with self.assertRaises(AttributeError):
+            wf.add.Node(fnc, "y", label="bar")
+
+        with self.assertRaises(AttributeError):
+            wf.baz = Node(fnc, "y", label="whatever_baz_gets_used")
+
+        with self.assertRaises(AttributeError):
+            Node(fnc, "x", label="boa", workflow=wf)
 
     def test_ugly(self):
+        def fnc(x=0): return x + 1
+
+        wf = Workflow("my_workflow")
+        wf.add.Node(fnc, "y", label="foo")  # 1
+        wf.bar = Node(fnc, "y", label="whatever_bar_gets_used")  # 2
+        Node(fnc, "x", label="baz", workflow=wf)
+
         # I'm a bit short on time, and I want to get to the integration
         # So this is just a slapdash version of some stuff I was testing in notebook
         n1 = self.DummyNode(label="n1")

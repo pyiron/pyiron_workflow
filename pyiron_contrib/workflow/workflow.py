@@ -1,9 +1,76 @@
 from __future__ import annotations
 
+from functools import partial
 from warnings import warn
 
 from pyiron_contrib.workflow.node import Node
 from pyiron_contrib.workflow.util import DotDict
+
+
+class _NodeAdder:
+    """
+    We allow adding nodes to workflows in four equivalent ways:
+    >>> from pyiron_contrib.workflow.workflow import Workflow
+    >>> from pyiron_contrib.workflow.node import Node
+    >>>
+    >>> def fnc(x=0): return x + 1
+    >>>
+    >>> wf = Workflow("my_workflow")
+    >>> # The four ways:
+    >>> wf.add(Node(fnc, "x", label="foo"))
+    >>> wf.add.Node(fnc, "y", label="bar")
+    >>> wf.baz = Node(fnc, "y", label="whatever_baz_gets_used")
+    >>> Node(fnc, "x", label="boa", workflow=wf)
+
+    Number (4) is pretty easy, and just involves the node calling a registration method
+    on the workflow it gets passed and giving itself (the node) as an argument.
+    The other two require some misdirection to make sure that this step gets followed
+    and that the node label doesn't conflict with anything, etc.
+
+    This class exists to help with that misdirection.
+    Such is the cost of syntactic sugar, but if you see a cleaner way suggest it!
+
+    TODO: Give access to pre-built fixed nodes under various domain names
+    """
+    def __init__(self, workflow: Workflow):
+        self._workflow = workflow
+
+    Node = Node
+
+    def __getattribute__(self, key):
+        value = super().__getattribute__(key)
+        if value == Node:
+            return partial(Node, workflow=self._workflow)
+        return value
+
+    def __call__(self, node: Node):
+        if node.workflow is not None:
+            raise ValueError(
+                f"This node ({node.label}) already belongs to the workflow "
+                f"{node.workflow.label}. Please remove it there before trying to add it"
+                f"to this workflow ({self._workflow.label})."
+            )
+
+        if node.label in self._workflow.__dir__():
+            raise AttributeError(
+                f"Cannot add a node with label {node.label}, that is already an "
+                f"attribute"
+            )
+
+        if self._workflow.strict_naming and node.label in self._workflow.nodes.keys():
+            raise AttributeError(
+                f"Cannot add a node with label {node.label}, that is already a node."
+            )
+
+        # Otherwise, if not strict then iterate on name
+        i = 0
+        while node.label in self._workflow.nodes.keys():
+            warn(f"{node.label} is already a node; appending an index to the label...")
+            node.label = f"{node.label}{i}"
+        # Or this while loop just terminates immediately if the name is unique
+
+        self._workflow.nodes[node.label] = node
+        node.workflow = self._workflow
 
 
 class Workflow:
@@ -32,26 +99,21 @@ class Workflow:
         apply that falls short of a full export, but still guarantees the internal
         integrity of workflows when they're used somewhere else?
     """
-    def __init__(self, label: str, *nodes: Node):
+    def __init__(self, label: str, *nodes: Node, strict_naming=True):
         self.__dict__['label'] = label
         self.__dict__['nodes'] = DotDict()
+        self.__dict__['add'] = _NodeAdder(self)
+        self.__dict__['strict_naming'] = strict_naming
+        # We directly assign using __dict__ because we override the setattr later
+
         for node in nodes:
             self.add(node)
 
-    def add(self, node: Node):
-        if node in self.nodes.values():
-            raise ValueError(f"The node {node.label} is already in the workflow")
+    def activate_strict_naming(self):
+        self.__dict__['strict_naming'] = True
 
-        if node.label in self.__dir__():
-            raise ValueError(
-                f"Cannot add a node with label {node.label}, that is already an attribute")
-
-        i = 0
-        while node.label in self.nodes.keys():
-            warn(f"{node.label} is already a node; appending an index to the label...")
-            node.label = f"{node.label}{i}"
-
-        self.nodes[node.label] = node
+    def deactivate_strict_naming(self):
+        self.__dict__['strict_naming'] = False
 
     def remove(self, node: Node | str):
         if isinstance(node, Node):
@@ -61,7 +123,7 @@ class Workflow:
 
     def __setattr__(self, label: str, node: Node):
         if label in self.__dir__():
-            warn(
+            raise AttributeError(
                 f"{label} is already an attribute of {self.label} and cannot be "
                 f"reassigned. If this is a node, you can remove the existing node "
                 f"first to free the namespace."
@@ -74,9 +136,15 @@ class Workflow:
                     f"Reassigning the node {node.label} to the label {label} when "
                     f"adding it to the workflow {self.label}."
                 )
-            # TODO: Make sure the node belongs to no other workflows
-            node.label = label
-            self.add(node)
+            old_label = node.label
+            old_workflow = node.workflow
+            try:
+                node.label = label
+                self.add(node)
+            except:
+                node.label = old_label
+                node.workflow = old_workflow
+                raise
 
     def __getattr__(self, key):
         return self.nodes[key]
