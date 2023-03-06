@@ -1,3 +1,8 @@
+"""
+This module provides helper functions for evaluating data relative to type hints, and
+type hints relative to each other.
+"""
+
 import types
 import typing
 from collections.abc import Callable
@@ -49,17 +54,19 @@ def type_hint_is_as_or_more_specific_than(hint, other) -> bool:
         except TypeError:
             return hint == other
     elif hint_origin == other_origin:
+        # If they both have an origin, break into arguments and treat cases
         hint_args = typing.get_args(hint)
         other_args = typing.get_args(other)
         if len(hint_args) == 0 and len(other_args) > 0:
             # Failing to specify anything is not being more specific
             return False
         elif hint_origin in [dict, tuple, Callable]:
-            # If order matters, make sure the arguments match 1:1
-            # Or that the reference has no arguments
+            # for these origins the order of arguments matters
             if len(other_args) == 0:
+                # If the other doesn't specify _any_ arguments, we must be more specific
                 return True
             elif len(other_args) == len(hint_args):
+                # If they both specify arguments, they should be more specific 1:1
                 return all(
                     [
                         type_hint_is_as_or_more_specific_than(h, o)
@@ -67,9 +74,10 @@ def type_hint_is_as_or_more_specific_than(hint, other) -> bool:
                     ]
                 )
             else:
+                # Otherwise they both specify but a mis-matching number of args
                 return False
         else:
-            # Otherwise just make sure the arguments are a subset
+            # Otherwise order doesn't matter so make sure the arguments are a subset
             return all(
                 [
                     any(
@@ -82,5 +90,5 @@ def type_hint_is_as_or_more_specific_than(hint, other) -> bool:
                 ]
             )
     else:
-        # Otherwise they both have origins, but different ones
+        # Lastly, if they both have origins, but different ones, fail
         return False
