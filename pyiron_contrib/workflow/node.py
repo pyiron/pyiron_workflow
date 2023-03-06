@@ -9,6 +9,7 @@ from pyiron_contrib.workflow.io import Inputs, Outputs
 if TYPE_CHECKING:
     from pyiron_contrib.workflow.workflow import Workflow
 
+
 class Node:
     """
     Nodes have input and output channels that interface with the outside world, and
