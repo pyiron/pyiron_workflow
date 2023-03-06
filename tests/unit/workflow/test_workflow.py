@@ -6,13 +6,14 @@ from pyiron_contrib.workflow.node import Node
 from pyiron_contrib.workflow.workflow import Workflow
 
 
+def fnc(x=0):
+    return x + 1
+
+
 @skipUnless(version_info[0] == 3 and version_info[1] >= 10, "Only supported for 3.10+")
 class TestWorkflow(TestCase):
 
     def test_node_addition(self):
-        def fnc(x=0):
-            return x + 1
-
         wf = Workflow("my_workflow")
 
         # Validate the four ways to add a node
@@ -49,6 +50,18 @@ class TestWorkflow(TestCase):
 
         with self.assertRaises(AttributeError):
             Node(fnc, "x", label="boa", workflow=wf)
+
+    def test_double_workfloage(self):
+        wf1 = Workflow("one")
+        wf2 = Workflow("two")
+        node = Node(fnc, "y")
+        wf1.add(node)
+        with self.assertRaises(ValueError):
+            # Can't belong to two workflows at once
+            wf2.add(node)
+        wf1.remove(node)
+        wf2.add(node)
+        self.assertEqual(node.workflow, wf2)
 
     def test_ugly(self):
         def fnc(x=0): return x + 1

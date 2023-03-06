@@ -117,6 +117,8 @@ class Workflow:
 
     def remove(self, node: Node | str):
         if isinstance(node, Node):
+            node.workflow = None
+            node.disconnect()
             del self.nodes[node.label]
         else:
             del self.nodes[node]
