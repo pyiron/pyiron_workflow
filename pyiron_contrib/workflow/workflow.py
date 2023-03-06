@@ -101,6 +101,19 @@ class Workflow:
         >>> print(wf.my_node.inputs.x, wf.my_node0.inputs.x, wf.my_node1.inputs.x)
         0, 1, 2
 
+        We can also use pre-built nodes, e.g.
+        >>> from pyiron_contrib.workflow import nodes
+        >>>
+        >>> wf = Workflow("with_prebuilt")
+        >>>
+        >>> wf.structure = nodes.BulkStructure(repeat=3, cubic=True, element="Al")
+        >>> wf.engine = nodes.Lammps(structure=wf.structure.outputs.structure)
+        >>> wf.calc = nodes.CalcMD(job=wf.engine.outputs.job)
+        >>> wf.plot = nodes.Scatter(
+        ...     x=wf.calc.outputs.steps,
+        ...     y=wf.calc.outputs.temperature
+        ... )
+        >>> wf.update()
 
 
     TODO: Workflows can be serialized.
