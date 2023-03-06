@@ -1,12 +1,12 @@
 from __future__ import annotations
 
-import types
 import typing
 from abc import ABC
-from collections.abc import Callable
 from warnings import warn
 
-from typeguard import check_type
+from pyiron_contrib.workflow.type_hinting import (
+    valid_value, type_hint_is_as_or_more_specific_than
+)
 
 if typing.TYPE_CHECKING:
     from pyiron_contrib.workflow.node import Node
@@ -82,23 +82,9 @@ class Channel(ABC):
     @property
     def ready(self):
         if self.type_hint is not None:
-            return self._valid_value(self.value, self.type_hint)
+            return valid_value(self.value, self.type_hint)
         else:
             return True
-
-    @staticmethod
-    def _valid_value(value, type_hint):
-        try:
-            return isinstance(value, type_hint)
-        except TypeError:
-            # Subscripted generics cannot be used with class and instance checks
-            try:
-                # typeguard handles this case
-                check_type("", value, type_hint)
-                return True
-            except TypeError:
-                # typeguard raises an error on a failed check
-                return False
 
     def connect(self, *others: Channel):
         for other in others:
@@ -137,71 +123,10 @@ class Channel(ABC):
 
     def _output_types_are_subset_of_input_types(self, other: Channel):
         out, inp = self._figure_out_who_is_who(other)
-        return self._hint_is_as_or_more_specific_than(out.type_hint, inp.type_hint)
+        return type_hint_is_as_or_more_specific_than(out.type_hint, inp.type_hint)
 
     def _figure_out_who_is_who(self, other: Channel) -> (OutputChannel, InputChannel):
         return (self, other) if isinstance(self, OutputChannel) else (other, self)
-
-    @classmethod
-    def _hint_is_as_or_more_specific_than(cls, hint, other):
-        hint_origin = typing.get_origin(hint)
-        other_origin = typing.get_origin(other)
-        if set([hint_origin, other_origin]) & set([types.UnionType, typing.Union]):
-            # If either hint is a union, turn both into tuples and call recursively
-            return all(
-                [
-                    any(
-                        [
-                            cls._hint_is_as_or_more_specific_than(h, o)
-                            for o in cls._hint_to_tuple(other)
-                        ]
-                    )
-                    for h in cls._hint_to_tuple(hint)
-                ]
-            )
-        elif hint_origin is None and other_origin is None:
-            # Once both are raw classes, just do a subclass test
-            try:
-                return issubclass(hint, other)
-            except TypeError:
-                return hint == other
-        elif hint_origin == other_origin:
-            hint_args = typing.get_args(hint)
-            other_args = typing.get_args(other)
-            if len(hint_args) == 0 and len(other_args) > 0:
-                # Failing to specify anything is not being more specific
-                return False
-            elif hint_origin in [dict, tuple, Callable]:
-                # If order matters, make sure the arguments match 1:1
-                return all(
-                    [
-                        cls._hint_is_as_or_more_specific_than(h, o)
-                        for o, h in zip(other_args, hint_args)
-                    ]
-                )
-            else:
-                # Otherwise just make sure the arguments are a subset
-                return all(
-                    [
-                        any(
-                            [
-                                cls._hint_is_as_or_more_specific_than(h, o)
-                                for o in other_args
-                            ]
-                        )
-                        for h in hint_args
-                    ]
-                )
-        else:
-            # Otherwise they both have origins, but different ones
-            return False
-
-    @staticmethod
-    def _hint_to_tuple(type_hint):
-        if isinstance(type_hint, (types.UnionType, typing._UnionGenericAlias)):
-            return typing.get_args(type_hint)
-        else:
-            return (type_hint,)
 
     def disconnect(self, *others: Channel):
         for other in others:

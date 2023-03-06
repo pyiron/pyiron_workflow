@@ -3,6 +3,9 @@ from unittest import TestCase, skipUnless
 from sys import version_info
 
 from pyiron_contrib.workflow.channels import Channel, InputChannel, OutputChannel
+from pyiron_contrib.workflow.type_hinting import (
+    type_hint_is_as_or_more_specific_than, valid_value
+)
 
 
 class DummyNode:
@@ -43,8 +46,8 @@ class TestChannels(TestCase):
                 (tuple[int, float], (1, 1.1), ("fo", 0)),
                 (dict[str, int], {'a': 1}, {'a': 'b'}),
         ):
-            self.assertTrue(Channel._valid_value(good, hint))
-            self.assertFalse(Channel._valid_value(bad, hint))
+            self.assertTrue(valid_value(good, hint))
+            self.assertFalse(valid_value(bad, hint))
 
     def test_hint_comparisons(self):
         # Standard types and typing types should be interoperable
@@ -81,10 +84,13 @@ class TestChannels(TestCase):
                     False
             ),
         ]:
-            self.assertEqual(
-                Channel._hint_is_as_or_more_specific_than(target, reference),
-                is_more_specific
-            )
+            with self.subTest(
+                    target=target, reference=reference, expected=is_more_specific
+            ):
+                self.assertEqual(
+                    type_hint_is_as_or_more_specific_than(target, reference),
+                    is_more_specific
+                )
 
     def test_mutable_defaults(self):
         self.so1.default.append("bar")
