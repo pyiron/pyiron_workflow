@@ -9,15 +9,8 @@ from pyiron_contrib.workflow.util import DotDict
 
 class _NodeAdder:
     """
-
-
-    Number (4) is pretty easy, and just involves the node calling a registration method
-    on the workflow it gets passed and giving itself (the node) as an argument.
-    The other two require some misdirection to make sure that this step gets followed
-    and that the node label doesn't conflict with anything, etc.
-
-    This class exists to help with that misdirection.
-    Such is the cost of syntactic sugar, but if you see a cleaner way suggest it!
+    This class exists to help with the misdirection required for the syntactic sugar
+    that lets us add nodes to the workflow.
 
     TODO: Give access to pre-built fixed nodes under various domain names
     """
