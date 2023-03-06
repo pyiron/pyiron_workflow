@@ -156,6 +156,14 @@ class Channel(ABC):
     def __str__(self):
         return str(self.value)
 
+    @property
+    def status(self):
+        return (
+            self.label,
+            self.ready,
+            [f"{c.node.label}.{c.label}" for c in self.connections]
+        )
+
 
 class InputChannel(Channel):
     def update(self, value):

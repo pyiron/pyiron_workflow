@@ -358,3 +358,7 @@ class Node:
     def set_storage_priority(self, priority: int):
         self.inputs.set_storage_priority(priority)
         self.outputs.set_storage_priority(priority)
+
+    @property
+    def status(self):
+        return self.inputs.status, self.outputs.status

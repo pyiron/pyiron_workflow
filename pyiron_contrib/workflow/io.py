@@ -103,6 +103,10 @@ class IO(ABC):
     def __len__(self):
         return len(self.channel_list)
 
+    @property
+    def status(self):
+        return [c.status for c in self.channel_list]
+
 
 class Inputs(IO):
     @property
