@@ -9,18 +9,7 @@ from pyiron_contrib.workflow.util import DotDict
 
 class _NodeAdder:
     """
-    We allow adding nodes to workflows in four equivalent ways:
-    >>> from pyiron_contrib.workflow.workflow import Workflow
-    >>> from pyiron_contrib.workflow.node import Node
-    >>>
-    >>> def fnc(x=0): return x + 1
-    >>>
-    >>> wf = Workflow("my_workflow")
-    >>> # The four ways:
-    >>> wf.add(Node(fnc, "x", label="foo"))
-    >>> wf.add.Node(fnc, "y", label="bar")
-    >>> wf.baz = Node(fnc, "y", label="whatever_baz_gets_used")
-    >>> Node(fnc, "x", label="boa", workflow=wf)
+
 
     Number (4) is pretty easy, and just involves the node calling a registration method
     on the workflow it gets passed and giving itself (the node) as an argument.
@@ -64,9 +53,12 @@ class _NodeAdder:
 
         # Otherwise, if not strict then iterate on name
         i = 0
-        while node.label in self._workflow.nodes.keys():
-            warn(f"{node.label} is already a node; appending an index to the label...")
-            node.label = f"{node.label}{i}"
+        label = node.label
+        while label in self._workflow.nodes.keys():
+            warn(f"{label} is already a node; appending an index to the label...")
+            label = f"{node.label}{i}"
+            i += 1
+        node.label = label
         # Or this while loop just terminates immediately if the name is unique
 
         self._workflow.nodes[node.label] = node
@@ -87,9 +79,40 @@ class Workflow:
     Using the `input` and `output` attributes, the workflow gives access to all the
     IO channels among its nodes which are currently unconnected.
 
-    (TODO) Workflows can be serialized.
+    Examples:
+        We allow adding nodes to workflows in five equivalent ways:
+        >>> from pyiron_contrib.workflow.workflow import Workflow
+        >>> from pyiron_contrib.workflow.node import Node
+        >>>
+        >>> def fnc(x=0): return x + 1
+        >>>
+        >>> n1 = Node(fnc, "x", label="n1")
+        >>>
+        >>> wf = Workflow("my_workflow", n1)  # As *args at instantiation
+        >>> wf.add(Node(fnc, "x", label="n2"))  # Passing a node to the add caller
+        >>> wf.add.Node(fnc, "y", label="n3")  # Instantiating from add
+        >>> wf.n4 = Node(fnc, "y", label="whatever_n4_gets_used")
+        >>> # By attribute assignment
+        >>> Node(fnc, "x", label="n5", workflow=wf)
+        >>> # By instantiating the node with a workflow
 
-    (TODO) Once you're satisfied with how a workflow is structured, you can export it
+        By default, the node naming scheme is strict, so if you try to add a node to a
+        label that already exists, you will get an error. This behaviour can be changed
+        at instantiation with the `strict_naming` kwarg, or afterwards with the
+        `(de)activate_strict_naming()` method(s). When deactivated, repeated assignments
+        to the same label just get appended with an index:
+        >>> wf.deactivate_strict_naming()
+        >>> wf.my_node = Node(fnc, "y", x=0)
+        >>> wf.my_node = Node(fnc, "y", x=1)
+        >>> wf.my_node = Node(fnc, "y", x=2)
+        >>> print(wf.my_node.inputs.x, wf.my_node0.inputs.x, wf.my_node1.inputs.x)
+        0, 1, 2
+
+
+
+    TODO: Workflows can be serialized.
+
+    TODO: Once you're satisfied with how a workflow is structured, you can export it
         as a macro node for use in other workflows. (Maybe we should allow for nested
         workflows without exporting to a node? I was concerned then what happens to the
         nesting abstraction if, instead of accessing IO through the workflow's IO flags,
