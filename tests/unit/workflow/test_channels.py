@@ -82,6 +82,14 @@ class TestChannels(TestCase):
             "Totally different types should not allow connections"
         )
 
+        self.ni2.strict_connections = False
+        self.so1.connect(self.ni2)
+        self.assertIn(
+            self.so1,
+            self.ni2.connections,
+            "With strict connections turned off, we should allow type-violations"
+        )
+
     def test_ready(self):
         self.no.value = 1
         self.assertTrue(self.no.ready)

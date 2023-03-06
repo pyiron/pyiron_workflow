@@ -34,9 +34,10 @@ class Channel(ABC):
     other channels and at least one channel has a non-None value for its type hint.
     In this case, we insist that the output type hint be _as or more more specific_ than
     the input type hint, to ensure that the input always receives output of a type it
-    expects.
+    expects. This behaviour can be disabled and all connections allowed by setting
+    `strict_connections = False` on the relevant input channel.
 
-    For simple type hints like `int` or `str`, this is trivial.
+    For simple type hints like `int` or `str`, type hint comparison is trivial.
     However, some hints take arguments, e.g. `dict[str, int]` to specify key and value
     types; `tuple[int, int, str]` to specify a tuple with certain values;
     `typing.Literal['a', 'b', 'c']` to specify particular choices;
@@ -70,6 +71,7 @@ class Channel(ABC):
             default: typing.Optional[typing.Any] = None,
             type_hint: typing.Optional[typing.Any] = None,
             storage_priority: int = 0,
+            strict_connections: bool = True,
     ):
         self.label = label
         self.node = node
@@ -77,6 +79,7 @@ class Channel(ABC):
         self.value = default
         self.type_hint = type_hint
         self.storage_priority = storage_priority
+        self.strict_connections = True
         self.connections = []
 
     @property
@@ -106,8 +109,15 @@ class Channel(ABC):
     def _valid_connection(self, other):
         if self._is_IO_pair(other) and not self._already_connected(other):
             if self._both_typed(other):
-                return self._output_types_are_subset_of_input_types(other)
+                out, inp = self._figure_out_who_is_who(other)
+                if not inp.strict_connections:
+                    return True
+                else:
+                    return type_hint_is_as_or_more_specific_than(
+                        out.type_hint, inp.type_hint
+                    )
             else:
+                # If either is untyped, don't do type checking
                 return True
         else:
             return False
@@ -120,10 +130,6 @@ class Channel(ABC):
 
     def _both_typed(self, other: Channel):
         return self.type_hint is not None and other.type_hint is not None
-
-    def _output_types_are_subset_of_input_types(self, other: Channel):
-        out, inp = self._figure_out_who_is_who(other)
-        return type_hint_is_as_or_more_specific_than(out.type_hint, inp.type_hint)
 
     def _figure_out_who_is_who(self, other: Channel) -> (OutputChannel, InputChannel):
         return (self, other) if isinstance(self, OutputChannel) else (other, self)
