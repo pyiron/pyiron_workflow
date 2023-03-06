@@ -1,6 +1,5 @@
 from unittest import TestCase, skipUnless
 from sys import version_info
-from typing import Optional
 
 from pyiron_contrib.workflow.node import Node
 from pyiron_contrib.workflow.workflow import Workflow
@@ -66,65 +65,17 @@ class TestWorkflow(TestCase):
         self.assertEqual(node2.workflow, wf2)
         self.assertFalse(node2.connected)
 
-    def test_ugly(self):
-        def fnc(x=0): return x + 1
+    def test_workflow_io(self):
+        wf = Workflow("wf")
+        wf.add.Node(fnc, "y", label="n1")
+        wf.add.Node(fnc, "y", label="n2")
+        wf.add.Node(fnc, "y", label="n3")
 
-        wf = Workflow("my_workflow")
-        wf.add.Node(fnc, "y", label="foo")  # 1
-        wf.bar = Node(fnc, "y", label="whatever_bar_gets_used")  # 2
-        Node(fnc, "x", label="baz", workflow=wf)
+        self.assertEqual(len(wf.input), 3)
+        self.assertEqual(len(wf.output), 3)
 
-        # I'm a bit short on time, and I want to get to the integration
-        # So this is just a slapdash version of some stuff I was testing in notebook
-        n1 = self.DummyNode(label="n1")
-        n2 = self.DummyNode(label="n2")
+        wf.n3.inputs.x = wf.n2.outputs.y
+        wf.n2.inputs.x = wf.n1.outputs.y
 
-        wf = Workflow("my_workflow", n1, n2)
-
-        self.assertEqual(2, len(wf.nodes), msg="Add at instantiation")
-
-        n_unnamed = self.DummyNode()
-        wf.add(n_unnamed)
-
-        self.assertEqual(3, len(wf.nodes), msg="Add with add")
-        self.assertTrue(
-            n_unnamed.node_function.__name__ in wf.nodes.keys(),
-            msg="Auto-label based on function"
-        )
-
-        wf.add(self.DummyNode())
-        self.assertTrue(
-            n_unnamed.label + "0" in wf.nodes.keys(),
-            msg="automatically increment duplicate names"
-        )
-
-        with self.assertRaises(ValueError):
-            # Can't have the same one twice!
-            n_unnamed.label = "We_even_modify_something_about_it_first"
-            wf.add(n_unnamed)
-
-        # with self.assertWarns(Warning):
-        #     # Name and attribute need to match or we warn and quit
-        #     wf.foo = DummyNode(label="not_foo")
-        #
-        # with self.assertRaises(Warning):
-        #     # Add the same label twice and we warn that we're updating it
-        #     wf.foo = n_unnamed
-        # Ok, the test suite is not catching warnings this way, but I don't have time
-        # to debug it now. The warnings are there.
-        wf.foo = self.DummyNode()
-        self.assertTrue(
-            "foo" in wf.nodes.keys(),
-            msg="automatically set empty names to attribute label"
-        )
-
-        open_inputs = len(wf.input)
-        wf.n2.inputs.x = wf.n1.outputs.y  # Allow connections from workflow access
-        self.assertEqual(
-            1,
-            open_inputs - len(wf.input),
-            msg="Should only list open connections"
-        )
-
-        with self.subTest("Test iteration"):
-            self.assertTrue(all([node in wf.nodes.values() for node in wf]))
+        self.assertEqual(len(wf.input), 1)
+        self.assertEqual(len(wf.output), 1)
