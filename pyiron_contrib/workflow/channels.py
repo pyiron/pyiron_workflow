@@ -1,9 +1,9 @@
 from __future__ import annotations
 
 import typing
-from abc import ABC
 from warnings import warn
 
+from pyiron_contrib.workflow.has_to_dict import HasToDict
 from pyiron_contrib.workflow.type_hinting import (
     valid_value, type_hint_is_as_or_more_specific_than
 )
@@ -12,7 +12,7 @@ if typing.TYPE_CHECKING:
     from pyiron_contrib.workflow.node import Node
 
 
-class Channel(ABC):
+class Channel(HasToDict):
     """
     Channels control the flow of data on the graph.
     They have a label and belong to a node.
@@ -158,13 +158,14 @@ class Channel(ABC):
     def __str__(self):
         return str(self.value)
 
-    @property
-    def status(self):
-        return (
-            self.label,
-            self.ready,
-            [f"{c.node.label}.{c.label}" for c in self.connections]
-        )
+    def to_dict(self):
+        return {
+            "label": self.label,
+            "value": str(self.value),
+            "ready": self.ready,
+            "connected": self.connected,
+            "connections": [f"{c.node.label}.{c.label}" for c in self.connections]
+        }
 
 
 class InputChannel(Channel):

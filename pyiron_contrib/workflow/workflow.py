@@ -3,6 +3,7 @@ from __future__ import annotations
 from functools import partial
 from warnings import warn
 
+from pyiron_contrib.workflow.has_to_dict import HasToDict
 from pyiron_contrib.workflow.node import Node
 from pyiron_contrib.workflow.util import DotDict
 
@@ -58,7 +59,7 @@ class _NodeAdder:
         node.workflow = self._workflow
 
 
-class Workflow:
+class Workflow(HasToDict):
     """
     Workflows are an abstraction for holding a collection of related nodes.
 
@@ -113,7 +114,6 @@ class Workflow:
         ...     x=wf.calc.outputs.steps,
         ...     y=wf.calc.outputs.temperature
         ... )
-        >>> wf.update()
 
 
     TODO: Workflows can be serialized.
@@ -213,6 +213,12 @@ class Workflow:
                 if not channel.connected
             }
         )
+
+    def to_dict(self):
+        return {
+            "label": self.label,
+            "nodes": {n.label: n.to_dict() for n in self.nodes.values()},
+        }
 
     def to_node(self):
         """

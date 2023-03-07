@@ -1,12 +1,13 @@
 from __future__ import annotations
 
-from abc import ABC, abstractmethod
+from abc import abstractmethod
 
 from pyiron_contrib.workflow.channels import Channel, InputChannel, OutputChannel
+from pyiron_contrib.workflow.has_to_dict import HasToDict
 from pyiron_contrib.workflow.util import DotDict
 
 
-class IO(ABC):
+class IO(HasToDict):
     """
     IO is a convenience layer for holding and accessing multiple input/output channels.
     It allows key and dot-based access to the underlying channels based on their name.
@@ -104,18 +105,23 @@ class IO(ABC):
         return len(self.channel_list)
 
     @property
-    def status(self):
-        return [c.status for c in self.channel_list]
+    def ready(self):
+        return all([c.ready for c in self.channel_list])
+
+    def to_dict(self):
+        return {
+            "label": "inputs",
+            "ready": self.ready,
+            "connected": self.connected,
+            "fully_connected": self.fully_connected,
+            "channels": {c.label: c.to_dict() for c in self.channel_list}
+        }
 
 
 class Inputs(IO):
     @property
     def _channel_class(self) -> InputChannel:
         return InputChannel
-
-    @property
-    def ready(self):
-        return all([c.ready for c in self.channel_list])
 
     def activate_strict_connections(self):
         [c.activate_strict_connections() for c in self.channel_list]

@@ -4,13 +4,14 @@ import inspect
 from typing import get_args, get_type_hints, Optional, TYPE_CHECKING
 
 from pyiron_contrib.workflow.channels import InputChannel, OutputChannel
+from pyiron_contrib.workflow.has_to_dict import HasToDict
 from pyiron_contrib.workflow.io import Inputs, Outputs
 
 if TYPE_CHECKING:
     from pyiron_contrib.workflow.workflow import Workflow
 
 
-class Node:
+class Node(HasToDict):
     """
     Nodes have input and output channels that interface with the outside world, and
     a callable that determines what they actually compute. After running, their output
@@ -359,6 +360,12 @@ class Node:
         self.inputs.set_storage_priority(priority)
         self.outputs.set_storage_priority(priority)
 
-    @property
-    def status(self):
-        return self.inputs.status, self.outputs.status
+    def to_dict(self):
+        return {
+            "label": self.label,
+            "ready": self.ready,
+            "connected": self.connected,
+            "fully_connected": self.fully_connected,
+            "inputs": self.inputs.to_dict(),
+            "outputs": self.outputs.to_dict(),
+        }
