@@ -15,7 +15,7 @@ class TestChannels(TestCase):
     def setUp(self) -> None:
         self.ni1 = InputChannel(label="numeric", node=DummyNode(), default=1, type_hint=int | float)
         self.ni2 = InputChannel(label="numeric", node=DummyNode(), default=1, type_hint=int | float)
-        self.no = OutputChannel(label="numeric", node=DummyNode(), default=1, type_hint=int | float)
+        self.no = OutputChannel(label="numeric", node=DummyNode(), default=0, type_hint=int | float)
 
         self.so1 = OutputChannel(label="list", node=DummyNode(), default=["foo"], type_hint=list)
         self.so2 = OutputChannel(label="list", node=DummyNode(), default=["foo"], type_hint=list)
@@ -30,10 +30,12 @@ class TestChannels(TestCase):
 
     def test_connections(self):
 
-        with self.subTest("Test connection reflexivity"):
+        with self.subTest("Test connection reflexivity and value updating"):
+            self.assertEqual(self.no.value, 0)
             self.ni1.connect(self.no)
             self.assertIn(self.no, self.ni1.connections)
             self.assertIn(self.ni1, self.no.connections)
+            self.assertEqual(self.no.value, self.ni1.value)
 
         with self.subTest("Test disconnection"):
             self.ni2.disconnect(self.no)  # Should do nothing

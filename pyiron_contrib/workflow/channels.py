@@ -94,6 +94,8 @@ class Channel(ABC):
             if self._valid_connection(other):
                 self.connections.append(other)
                 other.connections.append(self)
+                out, inp = self._figure_out_who_is_who(other)
+                inp.update(out.value)
             else:
                 if isinstance(other, Channel):
                     warn(
