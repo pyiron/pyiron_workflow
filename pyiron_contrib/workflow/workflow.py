@@ -34,7 +34,8 @@ class _NodeAdder:
                 f"to this workflow ({self._workflow.label})."
             )
 
-        if node.label in self._workflow.__dir__():
+        if node.label in self._workflow.__dir__() and \
+                not isinstance(getattr(self._workflow, node.label), Node):
             raise AttributeError(
                 f"Cannot add a node with label {node.label}, that is already an "
                 f"attribute"
@@ -153,7 +154,7 @@ class Workflow(HasToDict):
             del self.nodes[node]
 
     def __setattr__(self, label: str, node: Node):
-        if label in self.__dir__():
+        if label in self.__dir__() and not isinstance(getattr(self, label), Node):
             raise AttributeError(
                 f"{label} is already an attribute of {self.label} and cannot be "
                 f"reassigned. If this is a node, you can remove the existing node "
@@ -242,3 +243,6 @@ class Workflow(HasToDict):
     def run(self):
         # Maybe we need this if workflows can be used as nodes?
         raise NotImplementedError
+
+    def __dir__(self):
+        return set(super().__dir__() + list(self.nodes.keys()))
