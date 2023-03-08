@@ -33,11 +33,11 @@ class IO(HasToDict):
     >>> some_io.some_existing_channel.connect(some_other_channel)
     """
     def __init__(self, *channels: Channel):
-        self.channel_list = [
-            channel for channel in channels if isinstance(channel, self._channel_class)
-        ]
         self.channel_dict = DotDict(
-            {channel.label: channel for channel in self.channel_list}
+            {
+                channel.label: channel for channel in channels
+                if isinstance(channel, self._channel_class)
+            }
         )
 
     @property
@@ -80,18 +80,18 @@ class IO(HasToDict):
 
     @property
     def connected(self):
-        return any([c.connected for c in self.channel_list])
+        return any([c.connected for c in self])
 
     @property
     def fully_connected(self):
-        return all([c.connected for c in self.channel_list])
+        return all([c.connected for c in self])
 
     def disconnect(self):
-        for c in self.channel_list:
+        for c in self:
             c.disconnect_all()
 
     def set_storage_priority(self, priority: int):
-        for c in self.channel_list:
+        for c in self:
             c.storage_priority = priority
 
     @property
@@ -99,14 +99,14 @@ class IO(HasToDict):
         return list(self.channel_dict.keys())
 
     def __iter__(self):
-        return self.channel_list.__iter__()
+        return self.channel_dict.values().__iter__()
 
     def __len__(self):
-        return len(self.channel_list)
+        return len(self.channel_dict)
 
     @property
     def ready(self):
-        return all([c.ready for c in self.channel_list])
+        return all([c.ready for c in self])
 
     def to_dict(self):
         return {
@@ -114,7 +114,7 @@ class IO(HasToDict):
             "ready": self.ready,
             "connected": self.connected,
             "fully_connected": self.fully_connected,
-            "channels": {c.label: c.to_dict() for c in self.channel_list}
+            "channels": {l: c.to_dict() for l, c in self.channel_dict.items()}
         }
 
     def __dir__(self):
@@ -127,10 +127,10 @@ class Inputs(IO):
         return InputChannel
 
     def activate_strict_connections(self):
-        [c.activate_strict_connections() for c in self.channel_list]
+        [c.activate_strict_connections() for c in self]
 
     def deactivate_strict_connections(self):
-        [c.deactivate_strict_connections() for c in self.channel_list]
+        [c.deactivate_strict_connections() for c in self]
 
 
 class Outputs(IO):
