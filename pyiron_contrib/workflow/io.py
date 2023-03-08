@@ -120,6 +120,7 @@ class IO(HasToDict):
     def __dir__(self):
         return set(super().__dir__() + self.labels)
 
+
 class Inputs(IO):
     @property
     def _channel_class(self) -> InputChannel:
