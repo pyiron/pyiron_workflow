@@ -117,6 +117,8 @@ class IO(HasToDict):
             "channels": {c.label: c.to_dict() for c in self.channel_list}
         }
 
+    def __dir__(self):
+        return set(super().__dir__() + self.labels)
 
 class Inputs(IO):
     @property
