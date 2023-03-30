@@ -21,11 +21,7 @@ class BulkStructure(Node):
     ) -> Atoms:
         return _StructureFactory().bulk(element, cubic=cubic).repeat(repeat)
 
-    __init__ = partialmethod(
-        Node.__init__,
-        node_function=bulk_structure,
-        output_labels="structure"
-    )
+    __init__ = partialmethod(Node.__init__, bulk_structure, "structure")
 
 
 class Lammps(Node):
@@ -37,11 +33,7 @@ class Lammps(Node):
         job.potential = job.list_potentials()[0]
         return job
 
-    __init__ = partialmethod(
-        Node.__init__,
-        node_function=lammps,
-        output_labels="job"
-    )
+    __init__ = partialmethod(Node.__init__, lammps, "job")
 
 
 class CalcMD(Node):
@@ -101,23 +93,21 @@ class CalcMD(Node):
 
     __init__ = partialmethod(
         Node.__init__,
-        node_function=calc_md,
-        output_labels=(
-            "cells",
-            "displacements",
-            "energy_pot",
-            "energy_tot",
-            "force_max",
-            "forces",
-            "indices",
-            "positions",
-            "pressures",
-            "steps",
-            "temperature",
-            "total_displacements",
-            "unwrapped_positions",
-            "volume",
-        ),
+        calc_md,
+        "cells",
+        "displacements",
+        "energy_pot",
+        "energy_tot",
+        "force_max",
+        "forces",
+        "indices",
+        "positions",
+        "pressures",
+        "steps",
+        "temperature",
+        "total_displacements",
+        "unwrapped_positions",
+        "volume",
     )
 
 
@@ -126,8 +116,4 @@ class Scatter(Node):
     def scatter(x: list | np.ndarray, y: list | np.ndarray):
         return plt.scatter(x, y)
 
-    __init__ = partialmethod(
-        Node.__init__,
-        node_function=scatter,
-        output_labels="fig",
-    )
+    __init__ = partialmethod(Node.__init__, scatter, "fig")
