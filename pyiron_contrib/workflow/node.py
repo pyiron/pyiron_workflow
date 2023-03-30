@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import inspect
+from functools import partialmethod
 from typing import get_args, get_type_hints, Optional, TYPE_CHECKING
 
 from pyiron_contrib.workflow.channels import InputChannel, OutputChannel
@@ -372,3 +373,24 @@ class Node(HasToDict):
             "inputs": self.inputs.to_dict(),
             "outputs": self.outputs.to_dict(),
         }
+
+
+def node(*output_labels: str):
+    """
+    A decorator for dynamically creating node classes from functions.
+
+    Decorates a function.
+    Takes an output label for each returned value of the function.
+    Returns a `Node` subclass whose name is the camel-case version of the function node,
+    and whose signature is modified to exclude the node function and output labels
+    (which are explicitly defined in the process of using the decorator).
+    """
+
+    def as_node(node_function: callable):
+        return type(
+            node_function.__name__.title().replace("_", ""),  # fnc_name to CamelCase
+            (Node,),  # Define parentage
+            {'__init__': partialmethod(Node.__init__, node_function, *output_labels)}
+        )
+
+    return as_node
