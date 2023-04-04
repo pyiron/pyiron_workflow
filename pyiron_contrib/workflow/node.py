@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import inspect
+from functools import partialmethod
 from typing import get_args, get_type_hints, Optional, TYPE_CHECKING
 
 from pyiron_contrib.workflow.channels import InputChannel, OutputChannel
@@ -79,7 +80,7 @@ class Node(HasToDict):
         >>> def mwe(x, y):
         ...     return x+1, y-1
         >>>
-        >>> plus_minus_1 = Node(node_function=mwe, output_labels=("p1", "m1"))
+        >>> plus_minus_1 = Node(mwe, "p1", "m1")
         >>>
         >>> print(plus_minus_1.outputs.p1)
         None
@@ -108,7 +109,7 @@ class Node(HasToDict):
         Thus, the second solution is to ensure that _all_ the arguments of our function
         are receiving good enough initial values to facilitate an execution of the node
         function at the end of instantiation:
-        >>> plus_minus_1 = Node(mwe, ("p1", "m1"), x=1, y=2)
+        >>> plus_minus_1 = Node(mwe, "p1", "m1", x=1, y=2)
         >>>
         >>> print(plus_minus_1.outputs.to_value_dict())
         {'p1': 2, 'm1': 1}
@@ -130,7 +131,7 @@ class Node(HasToDict):
         ... ) -> tuple[int, int | float]:
         ...     return x+1, y-1
         >>>
-        >>> plus_minus_1 = Node(hinted_example, ("p1", "m1"))
+        >>> plus_minus_1 = Node(hinted_example, "p1", "m1")
         >>>
         >>> plus_minus_1.inputs.x = 1
         >>> print(plus_minus_1.outputs.to_value_dict())
@@ -164,8 +165,8 @@ class Node(HasToDict):
         ...         **kwargs
         ...     ):
         ...         super().__init__(
-        ...             node_function=self.alphabet_mod_three,
-        ...             output_labels="letter",
+        ...             self.alphabet_mod_three,
+        ...             "letter",
         ...             labe=label,
         ...             input_storage_priority=input_storage_priority,
         ...             output_storage_priority=output_storage_priority,
@@ -218,7 +219,7 @@ class Node(HasToDict):
     def __init__(
             self,
             node_function: callable,
-            output_labels: tuple[str, ...] | str,
+            *output_labels: str,
             label: Optional[str] = None,
             input_storage_priority: Optional[dict[str, int]] = None,
             output_storage_priority: Optional[dict[str, int]] = None,
@@ -238,7 +239,7 @@ class Node(HasToDict):
         self.inputs = Inputs(*input_channels)
 
         output_channels = self._build_output_channels(
-            output_labels, output_storage_priority
+            *output_labels, storage_priority=output_storage_priority
         )
         self.outputs = Outputs(*output_channels)
 
@@ -284,44 +285,47 @@ class Node(HasToDict):
             ))
         return channels
 
-    def _build_output_channels(self, return_labels, storage_priority: dict[str:int]):
-        channels = []
+    def _build_output_channels(
+            self, *return_labels: str, storage_priority: dict[str:int] = None
+    ):
         try:
             type_hints = get_type_hints(self.node_function)["return"]
+            if len(return_labels) > 1:
+                type_hints = get_args(type_hints)
+                if not isinstance(type_hints, tuple):
+                    raise TypeError(
+                        f"With multiple return labels expected to get a tuple of type "
+                        f"hints, but got type {type(type_hints)}"
+                    )
+                if len(type_hints) != len(return_labels):
+                    raise ValueError(
+                        f"Expected type hints and return labels to have matching "
+                        f"lengths, but got {len(type_hints)} hints and "
+                        f"{len(return_labels)} labels: {type_hints}, {return_labels}"
+                    )
+            else:
+                # If there's only one hint, wrap it in a tuple so we can zip it with
+                # *return_labels and iterate over both at once
+                type_hints = (type_hints,)
         except KeyError:
-            type_hints = None
+            type_hints = [None] * len(return_labels)
 
-        if isinstance(return_labels, str):
+        channels = []
+        for label, hint in zip(return_labels, type_hints):
             try:
-                priority = storage_priority[return_labels]
+                priority = storage_priority[label]
             except (KeyError, TypeError):
                 priority = None
 
             channels.append(
                 OutputChannel(
-                    label=return_labels,
+                    label=label,
                     node=self,
-                    type_hint=type_hints,
+                    type_hint=hint,
                     storage_priority=priority,
                 )
             )
-        else:
-            hints = get_args(type_hints) if type_hints is not None else [None] * len(
-                return_labels)
-            for label, hint in zip(return_labels, hints):
-                try:
-                    priority = storage_priority[label]
-                except (KeyError, TypeError):
-                    priority = None
 
-                channels.append(
-                    OutputChannel(
-                        label=label,
-                        node=self,
-                        type_hint=hint,
-                        storage_priority=priority,
-                    )
-                )
         return channels
 
     def update(self) -> None:
@@ -369,3 +373,24 @@ class Node(HasToDict):
             "inputs": self.inputs.to_dict(),
             "outputs": self.outputs.to_dict(),
         }
+
+
+def node(*output_labels: str):
+    """
+    A decorator for dynamically creating node classes from functions.
+
+    Decorates a function.
+    Takes an output label for each returned value of the function.
+    Returns a `Node` subclass whose name is the camel-case version of the function node,
+    and whose signature is modified to exclude the node function and output labels
+    (which are explicitly defined in the process of using the decorator).
+    """
+
+    def as_node(node_function: callable):
+        return type(
+            node_function.__name__.title().replace("_", ""),  # fnc_name to CamelCase
+            (Node,),  # Define parentage
+            {'__init__': partialmethod(Node.__init__, node_function, *output_labels)}
+        )
+
+    return as_node

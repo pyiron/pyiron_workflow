@@ -20,32 +20,24 @@ def no_default(x, y):
 @skipUnless(version_info[0] == 3 and version_info[1] >= 10, "Only supported for 3.10+")
 class TestNode(TestCase):
     def test_defaults(self):
-        node = Node(node_function=plus_one, output_labels=["y"])
+        node = Node(plus_one, "y")
 
     def test_instantiation_update(self):
-        no_update = Node(
-            node_function=plus_one,
-            output_labels=("y",),
-            update_on_instantiation=False
-        )
+        no_update = Node(plus_one, "y", update_on_instantiation=False)
         self.assertIsNone(no_update.outputs.y.value)
 
-        update = Node(
-            node_function=plus_one,
-            output_labels=("y",),
-            update_on_instantiation=True
-        )
+        update = Node(plus_one, "y", update_on_instantiation=True)
         self.assertEqual(2, update.outputs.y.value)
 
         with self.assertRaises(TypeError):
-            Node(node_function=no_default, output_labels="z")
+            Node(no_default, "z")
             # None + None + 1 -> error
 
         with self.assertRaises(TypeError):
-            Node(node_function=no_default, output_labels="z", x=1)
+            Node(no_default, "z", x=1)
             # 1 + None + 1 -> error
 
-        deferred_update = Node(node_function=no_default, output_labels="z", x=1, y=1)
+        deferred_update = Node(no_default, "z", x=1, y=1)
         self.assertEqual(
             deferred_update.outputs.z.value,
             3,
@@ -53,29 +45,16 @@ class TestNode(TestCase):
                 "an update"
         )
 
-
     def test_input_kwargs(self):
-        node = Node(
-            node_function=plus_one,
-            output_labels=("y",),
-            x=2
-        )
+        node = Node(plus_one, "y", x=2)
         self.assertEqual(3, node.outputs.y.value, msg="Initialize from value")
 
-        node2 = Node(
-            node_function=plus_one,
-            output_labels=("y",),
-            x=node.outputs.y
-        )
+        node2 = Node(plus_one, "y", x=node.outputs.y)
         node.update()
         self.assertEqual(4, node2.outputs.y.value, msg="Initialize from connection")
 
     def test_automatic_updates(self):
-        node = Node(
-            node_function=throw_error,
-            output_labels=(),
-            update_on_instantiation=False,
-        )
+        node = Node(throw_error, update_on_instantiation=False)
 
         with self.subTest("Shouldn't run for invalid input on update"):
             node.inputs.x.update("not an int")
