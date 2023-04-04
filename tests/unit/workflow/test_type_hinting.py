@@ -31,8 +31,10 @@ class TestTypeHinting(TestCase):
                 (tuple[int, float], (1, 1.1), ("fo", 0)),
                 (dict[str, int], {'a': 1}, {'a': 'b'}),
         ):
-            self.assertTrue(valid_value(good, hint))
-            self.assertFalse(valid_value(bad, hint))
+            with self.subTest(msg=f"Good {good} vs hint {hint}"):
+                self.assertTrue(valid_value(good, hint))
+            with self.subTest(msg=f"Bad {bad} vs hint {hint}"):
+                self.assertFalse(valid_value(bad, hint))
 
     def test_hint_comparisons(self):
         # Standard types and typing types should be interoperable
