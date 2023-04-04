@@ -17,7 +17,7 @@ def valid_value(value, type_hint) -> bool:
         # Subscripted generics cannot be used with class and instance checks
         try:
             # typeguard handles this case
-            check_type("", value, type_hint)
+            check_type(value, type_hint)
             return True
         except TypeError:
             # typeguard raises an error on a failed check
