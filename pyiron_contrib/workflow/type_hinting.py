@@ -7,7 +7,7 @@ import types
 import typing
 from collections.abc import Callable
 
-from typeguard import check_type
+from typeguard import check_type, TypeCheckError
 
 
 def valid_value(value, type_hint) -> bool:
@@ -17,9 +17,9 @@ def valid_value(value, type_hint) -> bool:
         # Subscripted generics cannot be used with class and instance checks
         try:
             # typeguard handles this case
-            check_type("", value, type_hint)
+            check_type(value, type_hint)
             return True
-        except TypeError:
+        except TypeCheckError:
             # typeguard raises an error on a failed check
             return False
 
