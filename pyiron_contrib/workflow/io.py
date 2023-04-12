@@ -1,13 +1,13 @@
 from __future__ import annotations
 
-from abc import abstractmethod
+from abc import ABC, abstractmethod
 
-from pyiron_contrib.workflow.channels import DataChannel, InputData, OutputData
+from pyiron_contrib.workflow.channels import Channel, DataChannel, InputData, OutputData
 from pyiron_contrib.workflow.has_to_dict import HasToDict
 from pyiron_contrib.workflow.util import DotDict
 
 
-class IO(HasToDict):
+class IO(HasToDict, ABC):
     """
     IO is a convenience layer for holding and accessing multiple input/output channels.
     It allows key and dot-based access to the underlying channels based on their name.
@@ -32,7 +32,7 @@ class IO(HasToDict):
     is equivalent to
     >>> some_io.some_existing_channel.connect(some_other_channel)
     """
-    def __init__(self, *channels: DataChannel):
+    def __init__(self, *channels: Channel):
         self.channel_dict = DotDict(
             {
                 channel.label: channel for channel in channels
@@ -42,7 +42,11 @@ class IO(HasToDict):
 
     @property
     @abstractmethod
-    def _channel_class(self) -> DataChannel:
+    def _channel_class(self) -> Channel:
+        pass
+
+    @abstractmethod
+    def _set_existing(self, key, value):
         pass
 
     def __getattr__(self, item):
@@ -52,10 +56,7 @@ class IO(HasToDict):
         if key in ["channel_dict"]:
             super().__setattr__(key, value)
         elif key in self.channel_dict.keys():
-            if isinstance(value, DataChannel):
-                self.channel_dict[key].connect(value)
-            else:
-                self.channel_dict[key].update(value)
+            self._set_existing(key, value)
         elif isinstance(value, self._channel_class):
             if key != value.label:
                 raise ValueError(
@@ -75,9 +76,6 @@ class IO(HasToDict):
     def __setitem__(self, key, value):
         self.__setattr__(key, value)
 
-    def to_value_dict(self):
-        return {label: channel.value for label, channel in self.channel_dict.items()}
-
     @property
     def connected(self):
         return any([c.connected for c in self])
@@ -90,10 +88,6 @@ class IO(HasToDict):
         for c in self:
             c.disconnect_all()
 
-    def set_storage_priority(self, priority: int):
-        for c in self:
-            c.storage_priority = priority
-
     @property
     def labels(self):
         return list(self.channel_dict.keys())
@@ -104,9 +98,27 @@ class IO(HasToDict):
     def __len__(self):
         return len(self.channel_dict)
 
+    def __dir__(self):
+        return set(super().__dir__() + self.labels)
+
+
+class DataIO(IO, ABC):
+    def _set_existing(self, key, value):
+        if isinstance(value, DataChannel):
+            self.channel_dict[key].connect(value)
+        else:
+            self.channel_dict[key].update(value)
+
+    def to_value_dict(self):
+        return {label: channel.value for label, channel in self.channel_dict.items()}
+
     @property
     def ready(self):
         return all([c.ready for c in self])
+
+    def set_storage_priority(self, priority: int):
+        for c in self:
+            c.storage_priority = priority
 
     def to_dict(self):
         return {
@@ -117,11 +129,8 @@ class IO(HasToDict):
             "channels": {l: c.to_dict() for l, c in self.channel_dict.items()}
         }
 
-    def __dir__(self):
-        return set(super().__dir__() + self.labels)
 
-
-class Inputs(IO):
+class Inputs(DataIO):
     @property
     def _channel_class(self) -> InputData:
         return InputData
@@ -133,7 +142,7 @@ class Inputs(IO):
         [c.deactivate_strict_connections() for c in self]
 
 
-class Outputs(IO):
+class Outputs(DataIO):
     @property
     def _channel_class(self) -> OutputData:
         return OutputData
