@@ -49,11 +49,6 @@ class IO(HasToDict, ABC):
     def _channel_class(self) -> Channel:
         pass
 
-    @property
-    @abstractmethod
-    def label(self) -> str:
-        pass
-
     @abstractmethod
     def _set_existing(self, key, value):
         pass
