@@ -62,6 +62,13 @@ class Channel(HasToDict, ABC):
     def __len__(self):
         return len(self.connections)
 
+    def to_dict(self):
+        return {
+            "label": self.label,
+            "connected": self.connected,
+            "connections": [f"{c.node.label}.{c.label}" for c in self.connections]
+        }
+
 
 class DataChannel(Channel, ABC):
     """
@@ -185,13 +192,9 @@ class DataChannel(Channel, ABC):
         return str(self.value)
 
     def to_dict(self):
-        return {
-            "label": self.label,
-            "value": str(self.value),
-            "ready": self.ready,
-            "connected": self.connected,
-            "connections": [f"{c.node.label}.{c.label}" for c in self.connections]
-        }
+        d = super().to_dict()
+        d["value"] = self.value
+        d["ready"] = self.ready
 
 
 class InputData(DataChannel):
@@ -264,16 +267,12 @@ class InputSignal(SignalChannel):
         self.callback()
 
     def __str__(self):
-        return f"{self.label} runs " \
-               f"{[f.__name__ for f in self.callbacks]}"
+        return f"{self.label} runs {self.callback.__name__}"
 
     def to_dict(self):
-        return {
-            "label": self.label,
-            "callbacks": [f.__name__ for f in self.callbacks],
-            "connected": self.connected,
-            "connections": [f"{c.node.label}.{c.label}" for c in self.connections]
-        }
+        d = super().to_dict()
+        d["callback"] = self.callback.__name__
+        return d
 
 
 class OutputSignal(SignalChannel):
@@ -284,10 +283,3 @@ class OutputSignal(SignalChannel):
     def __str__(self):
         return f"{self.label} activates " \
                f"{[f'{c.node.label}.{c.label}' for c in self.connections]}"
-
-    def to_dict(self):
-        return {
-            "label": self.label,
-            "connected": self.connected,
-            "connections": [f"{c.node.label}.{c.label}" for c in self.connections]
-        }
