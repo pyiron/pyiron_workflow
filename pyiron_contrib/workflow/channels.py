@@ -60,7 +60,7 @@ class Channel(HasToDict, ABC):
         return len(self.connections)
 
 
-class DataChannel(Channel):
+class DataChannel(Channel, ABC):
     """
     Data channels control the flow of data on the graph.
     They store this data in a `value` attribute.
