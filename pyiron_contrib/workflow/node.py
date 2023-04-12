@@ -4,9 +4,11 @@ import inspect
 from functools import partialmethod
 from typing import get_args, get_type_hints, Optional, TYPE_CHECKING
 
-from pyiron_contrib.workflow.channels import InputData, OutputData
+from pyiron_contrib.workflow.channels import (
+    InputData, OutputData, InputSignal, OutputSignal
+)
 from pyiron_contrib.workflow.has_to_dict import HasToDict
-from pyiron_contrib.workflow.io import Inputs, Outputs
+from pyiron_contrib.workflow.io import Inputs, Outputs, Signals
 
 if TYPE_CHECKING:
     from pyiron_contrib.workflow.workflow import Workflow
@@ -243,6 +245,8 @@ class Node(HasToDict):
         )
         self.outputs = Outputs(*output_channels)
 
+        self.signals = self._build_signal_channels()
+
         self.run_automatically = False
         for k, v in kwargs.items():
             if k in self.inputs.labels:
@@ -328,6 +332,12 @@ class Node(HasToDict):
 
         return channels
 
+    def _build_signal_channels(self):
+        signals = Signals()
+        signals.input.run = InputSignal("run", self, self.run)
+        signals.output.ran = OutputSignal("ran", self)
+        return signals
+
     def update(self) -> None:
         if self.run_automatically and self.ready:
             self.run()
@@ -341,12 +351,15 @@ class Node(HasToDict):
         for out, value in zip(self.outputs, function_output):
             out.update(value)
 
+        self.signals.output.ran()
+
     def __call__(self) -> None:
         self.run()
 
     def disconnect(self):
         self.inputs.disconnect()
         self.outputs.disconnect()
+        self.signals.disconnect()
 
     @property
     def ready(self) -> bool:
@@ -354,11 +367,13 @@ class Node(HasToDict):
 
     @property
     def connected(self) -> bool:
-        return self.inputs.connected or self.outputs.connected
+        return self.inputs.connected or self.outputs.connected or self.signals.connected
 
     @property
     def fully_connected(self):
-        return self.inputs.fully_connected and self.outputs.fully_connected
+        return self.inputs.fully_connected \
+            and self.outputs.fully_connected \
+            and self.signals.fully_connected
 
     def set_storage_priority(self, priority: int):
         self.inputs.set_storage_priority(priority)
@@ -372,6 +387,7 @@ class Node(HasToDict):
             "fully_connected": self.fully_connected,
             "inputs": self.inputs.to_dict(),
             "outputs": self.outputs.to_dict(),
+            "signals": self.signals.to_dict()
         }
 
 

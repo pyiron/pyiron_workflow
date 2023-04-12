@@ -2,7 +2,7 @@ from unittest import TestCase, skipUnless
 from sys import version_info
 from typing import Optional, Union
 
-from pyiron_contrib.workflow.node import Node
+from pyiron_contrib.workflow.node import Node, node
 
 
 def throw_error(x: Optional[int] = None):
@@ -62,3 +62,29 @@ class TestNode(TestCase):
         with self.subTest("Valid data should trigger a run"):
             with self.assertRaises(RuntimeError):
                 node.inputs.x.update(1)
+
+    def test_signals(self):
+        @node("y")
+        def linear(x):
+            return x
+
+        @node("z")
+        def times_two(y):
+            return 2 * y
+
+        l = linear(x=1)
+        t2 = times_two(
+            y=l.outputs.y, update_on_instantiation=False, run_automatically=False
+        )
+        self.assertIsNone(
+            t2.outputs.z.value,
+            msg="Without updates, the output should initially be None"
+        )
+
+        # Nodes should _all_ have the run and ran signals
+        t2.signals.input.run = l.signals.output.ran
+        l.run()
+        self.assertEqual(
+            t2.outputs.z.value, 2,
+            msg="Running the upstream node should trigger a run here"
+        )

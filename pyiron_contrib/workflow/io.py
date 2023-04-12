@@ -188,3 +188,21 @@ class Signals:
     def __init__(self):
         self.input = InputSignals()
         self.output = OutputSignals()
+
+    def disconnect(self):
+        self.input.disconnect()
+        self.output.disconnect()
+
+    @property
+    def connected(self):
+        return self.input.connected or self.output.connected
+
+    @property
+    def fully_connected(self):
+        return self.input.fully_connected and self.output.fully_connected
+
+    def to_dict(self):
+        return {
+            "input": self.input.to_dict(),
+            "output": self.output.to_dict(),
+        }
