@@ -49,6 +49,11 @@ class IO(HasToDict, ABC):
     def _channel_class(self) -> Channel:
         pass
 
+    @property
+    @abstractmethod
+    def label(self) -> str:
+        pass
+
     @abstractmethod
     def _set_existing(self, key, value):
         pass
@@ -105,6 +110,14 @@ class IO(HasToDict, ABC):
     def __dir__(self):
         return set(super().__dir__() + self.labels)
 
+    def to_dict(self):
+        return {
+            "label": self.__class__.__name__,
+            "connected": self.connected,
+            "fully_connected": self.fully_connected,
+            "channels": {l: c.to_dict() for l, c in self.channel_dict.items()}
+        }
+
 
 class DataIO(IO, ABC):
     def _set_existing(self, key, value):
@@ -125,13 +138,9 @@ class DataIO(IO, ABC):
             c.storage_priority = priority
 
     def to_dict(self):
-        return {
-            "label": "inputs",
-            "ready": self.ready,
-            "connected": self.connected,
-            "fully_connected": self.fully_connected,
-            "channels": {l: c.to_dict() for l, c in self.channel_dict.items()}
-        }
+        d = super().to_dict()
+        d["ready"] = self.ready
+        return d
 
 
 class Inputs(DataIO):
@@ -162,14 +171,6 @@ class SignalIO(IO, ABC):
                 f" a {type(self.channel_dict[key])}. Only other signal channels may be "
                 f"connected in this way."
             )
-
-    def to_dict(self):
-        return {
-            "label": "inputs",
-            "connected": self.connected,
-            "fully_connected": self.fully_connected,
-            "channels": {l: c.to_dict() for l, c in self.channel_dict.items()}
-        }
 
 
 class InputSignals(SignalIO):
