@@ -1,7 +1,7 @@
 from unittest import TestCase, skipUnless
 from sys import version_info
 
-from pyiron_contrib.workflow.channels import InputChannel, OutputChannel
+from pyiron_contrib.workflow.channels import InputData, OutputData
 from pyiron_contrib.workflow.io import Inputs, Outputs
 
 
@@ -17,14 +17,14 @@ class TestIO(TestCase):
     def setUp(self) -> None:
         node = DummyNode()
         self.inputs = [
-            InputChannel(label="x", node=node, default=0, type_hint=float),
-            InputChannel(label="y", node=node, default=1, type_hint=float)
+            InputData(label="x", node=node, default=0, type_hint=float),
+            InputData(label="y", node=node, default=1, type_hint=float)
         ]
         outputs = [
-            OutputChannel(label="a", node=node, type_hint=float),
+            OutputData(label="a", node=node, type_hint=float),
         ]
 
-        self.post_facto_output = OutputChannel(label="b", node=node, type_hint=float)
+        self.post_facto_output = OutputData(label="b", node=node, type_hint=float)
 
         self.input = Inputs(*self.inputs)
         self.output = Outputs(*outputs)

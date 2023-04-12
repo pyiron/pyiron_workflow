@@ -12,7 +12,7 @@ if typing.TYPE_CHECKING:
     from pyiron_contrib.workflow.node import Node
 
 
-class Channel(HasToDict):
+class DataChannel(HasToDict):
     """
     Channels control the flow of data on the graph.
     They have a label and belong to a node.
@@ -89,7 +89,7 @@ class Channel(HasToDict):
         else:
             return True
 
-    def connect(self, *others: Channel):
+    def connect(self, *others: DataChannel):
         for other in others:
             if self._valid_connection(other):
                 self.connections.append(other)
@@ -97,7 +97,7 @@ class Channel(HasToDict):
                 out, inp = self._figure_out_who_is_who(other)
                 inp.update(out.value)
             else:
-                if isinstance(other, Channel):
+                if isinstance(other, DataChannel):
                     warn(
                         f"{self.label} ({self.__class__.__name__}) and {other.label} "
                         f"({other.__class__.__name__}) were not a valid connection"
@@ -124,19 +124,19 @@ class Channel(HasToDict):
         else:
             return False
 
-    def _is_IO_pair(self, other: Channel):
-        return isinstance(other, Channel) and type(self) != type(other)
+    def _is_IO_pair(self, other: DataChannel):
+        return isinstance(other, DataChannel) and type(self) != type(other)
 
-    def _already_connected(self, other: Channel):
+    def _already_connected(self, other: DataChannel):
         return other in self.connections
 
-    def _both_typed(self, other: Channel):
+    def _both_typed(self, other: DataChannel):
         return self.type_hint is not None and other.type_hint is not None
 
-    def _figure_out_who_is_who(self, other: Channel) -> (OutputChannel, InputChannel):
-        return (self, other) if isinstance(self, OutputChannel) else (other, self)
+    def _figure_out_who_is_who(self, other: DataChannel) -> (OutputData, InputData):
+        return (self, other) if isinstance(self, OutputData) else (other, self)
 
-    def disconnect(self, *others: Channel):
+    def disconnect(self, *others: DataChannel):
         for other in others:
             if other in self.connections:
                 self.connections.remove(other)
@@ -168,7 +168,7 @@ class Channel(HasToDict):
         }
 
 
-class InputChannel(Channel):
+class InputData(DataChannel):
     def update(self, value):
         self.value = value
         self.node.update()
@@ -180,7 +180,7 @@ class InputChannel(Channel):
         self.strict_connections = False
 
 
-class OutputChannel(Channel):
+class OutputData(DataChannel):
     def update(self, value):
         self.value = value
         for inp in self.connections:

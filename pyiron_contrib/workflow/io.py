@@ -2,7 +2,7 @@ from __future__ import annotations
 
 from abc import abstractmethod
 
-from pyiron_contrib.workflow.channels import Channel, InputChannel, OutputChannel
+from pyiron_contrib.workflow.channels import DataChannel, InputData, OutputData
 from pyiron_contrib.workflow.has_to_dict import HasToDict
 from pyiron_contrib.workflow.util import DotDict
 
@@ -32,7 +32,7 @@ class IO(HasToDict):
     is equivalent to
     >>> some_io.some_existing_channel.connect(some_other_channel)
     """
-    def __init__(self, *channels: Channel):
+    def __init__(self, *channels: DataChannel):
         self.channel_dict = DotDict(
             {
                 channel.label: channel for channel in channels
@@ -42,7 +42,7 @@ class IO(HasToDict):
 
     @property
     @abstractmethod
-    def _channel_class(self) -> Channel:
+    def _channel_class(self) -> DataChannel:
         pass
 
     def __getattr__(self, item):
@@ -52,7 +52,7 @@ class IO(HasToDict):
         if key in ["channel_dict", "channel_list"]:
             super().__setattr__(key, value)
         elif key in self.channel_dict.keys():
-            if isinstance(value, Channel):
+            if isinstance(value, DataChannel):
                 self.channel_dict[key].connect(value)
             else:
                 self.channel_dict[key].update(value)
@@ -123,8 +123,8 @@ class IO(HasToDict):
 
 class Inputs(IO):
     @property
-    def _channel_class(self) -> InputChannel:
-        return InputChannel
+    def _channel_class(self) -> InputData:
+        return InputData
 
     def activate_strict_connections(self):
         [c.activate_strict_connections() for c in self]
@@ -135,5 +135,5 @@ class Inputs(IO):
 
 class Outputs(IO):
     @property
-    def _channel_class(self) -> OutputChannel:
-        return OutputChannel
+    def _channel_class(self) -> OutputData:
+        return OutputData

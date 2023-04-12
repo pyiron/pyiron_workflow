@@ -4,7 +4,7 @@ import inspect
 from functools import partialmethod
 from typing import get_args, get_type_hints, Optional, TYPE_CHECKING
 
-from pyiron_contrib.workflow.channels import InputChannel, OutputChannel
+from pyiron_contrib.workflow.channels import InputData, OutputData
 from pyiron_contrib.workflow.has_to_dict import HasToDict
 from pyiron_contrib.workflow.io import Inputs, Outputs
 
@@ -246,7 +246,7 @@ class Node(HasToDict):
         self.run_automatically = False
         for k, v in kwargs.items():
             if k in self.inputs.labels:
-                if isinstance(v, OutputChannel):
+                if isinstance(v, OutputData):
                     self.inputs[k] = v
                 else:
                     self.inputs[k].update(v)
@@ -276,7 +276,7 @@ class Node(HasToDict):
             else:
                 default = None
 
-            channels.append(InputChannel(
+            channels.append(InputData(
                 label=label,
                 node=self,
                 default=default,
@@ -318,7 +318,7 @@ class Node(HasToDict):
                 priority = None
 
             channels.append(
-                OutputChannel(
+                OutputData(
                     label=label,
                     node=self,
                     type_hint=hint,

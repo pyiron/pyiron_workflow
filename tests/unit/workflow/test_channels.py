@@ -1,7 +1,7 @@
 from unittest import TestCase, skipUnless
 from sys import version_info
 
-from pyiron_contrib.workflow.channels import InputChannel, OutputChannel
+from pyiron_contrib.workflow.channels import InputData, OutputData
 
 
 class DummyNode:
@@ -13,12 +13,12 @@ class DummyNode:
 class TestChannels(TestCase):
 
     def setUp(self) -> None:
-        self.ni1 = InputChannel(label="numeric", node=DummyNode(), default=1, type_hint=int | float)
-        self.ni2 = InputChannel(label="numeric", node=DummyNode(), default=1, type_hint=int | float)
-        self.no = OutputChannel(label="numeric", node=DummyNode(), default=0, type_hint=int | float)
+        self.ni1 = InputData(label="numeric", node=DummyNode(), default=1, type_hint=int | float)
+        self.ni2 = InputData(label="numeric", node=DummyNode(), default=1, type_hint=int | float)
+        self.no = OutputData(label="numeric", node=DummyNode(), default=0, type_hint=int | float)
 
-        self.so1 = OutputChannel(label="list", node=DummyNode(), default=["foo"], type_hint=list)
-        self.so2 = OutputChannel(label="list", node=DummyNode(), default=["foo"], type_hint=list)
+        self.so1 = OutputData(label="list", node=DummyNode(), default=["foo"], type_hint=list)
+        self.so2 = OutputData(label="list", node=DummyNode(), default=["foo"], type_hint=list)
 
     def test_mutable_defaults(self):
         self.so1.default.append("bar")
