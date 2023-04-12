@@ -49,7 +49,7 @@ class IO(HasToDict):
         return self.channel_dict[item]
 
     def __setattr__(self, key, value):
-        if key in ["channel_dict", "channel_list"]:
+        if key in ["channel_dict"]:
             super().__setattr__(key, value)
         elif key in self.channel_dict.keys():
             if isinstance(value, DataChannel):
