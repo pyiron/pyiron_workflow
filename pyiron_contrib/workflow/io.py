@@ -2,7 +2,11 @@ from __future__ import annotations
 
 from abc import ABC, abstractmethod
 
-from pyiron_contrib.workflow.channels import Channel, DataChannel, InputData, OutputData
+from pyiron_contrib.workflow.channels import (
+    Channel,
+    DataChannel, InputData, OutputData,
+    SignalChannel, InputSignal, OutputSignal
+)
 from pyiron_contrib.workflow.has_to_dict import HasToDict
 from pyiron_contrib.workflow.util import DotDict
 
@@ -146,3 +150,41 @@ class Outputs(DataIO):
     @property
     def _channel_class(self) -> OutputData:
         return OutputData
+
+
+class SignalIO(IO, ABC):
+    def _set_existing(self, key, value):
+        if isinstance(value, SignalChannel):
+            self.channel_dict[key].connect(value)
+        else:
+            raise TypeError(
+                f"Tried to assign {value} ({type(value)} to the {key}, which is already"
+                f" a {type(self.channel_dict[key])}. Only other signal channels may be "
+                f"connected in this way."
+            )
+
+    def to_dict(self):
+        return {
+            "label": "inputs",
+            "connected": self.connected,
+            "fully_connected": self.fully_connected,
+            "channels": {l: c.to_dict() for l, c in self.channel_dict.items()}
+        }
+
+
+class InputSignals(SignalIO):
+    @property
+    def _channel_class(self) -> InputSignal:
+        return InputSignal
+
+
+class OutputSignals(SignalIO):
+    @property
+    def _channel_class(self) -> OutputSignal:
+        return OutputSignal
+
+
+class Signals:
+    def __init__(self):
+        self.input = InputSignals()
+        self.output = OutputSignals()
