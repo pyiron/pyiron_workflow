@@ -40,7 +40,7 @@ class Channel(HasToDict, ABC):
     def connect(self, *others: Channel):
         pass
 
-    def disconnect(self, *others: DataChannel):
+    def disconnect(self, *others: Channel):
         for other in others:
             if other in self.connections:
                 self.connections.remove(other)
@@ -52,6 +52,9 @@ class Channel(HasToDict, ABC):
     @property
     def connected(self):
         return len(self.connections) > 0
+
+    def _already_connected(self, other: Channel):
+        return other in self.connections
 
     def __iter__(self):
         return self.connections.__iter__()
@@ -172,9 +175,6 @@ class DataChannel(Channel, ABC):
     def _is_IO_pair(self, other: DataChannel):
         return isinstance(other, DataChannel) and type(self) != type(other)
 
-    def _already_connected(self, other: DataChannel):
-        return other in self.connections
-
     def _both_typed(self, other: DataChannel):
         return self.type_hint is not None and other.type_hint is not None
 
@@ -211,3 +211,83 @@ class OutputData(DataChannel):
         self.value = value
         for inp in self.connections:
             inp.update(self.value)
+
+
+class SignalChannel(Channel, ABC):
+    """
+    Signal channels give the option control execution flow by triggering callback
+    functions.
+
+    Output channels can be called to trigger the callback functions of all input
+    channels to which they are connected.
+    """
+
+    @abstractmethod
+    def __call__(self):
+        pass
+
+    def connect(self, *others: Channel):
+        for other in others:
+            if self._valid_connection(other):
+                self.connections.append(other)
+                other.connections.append(self)
+            else:
+                if isinstance(other, SignalChannel):
+                    warn(
+                        f"{self.label} ({self.__class__.__name__}) and {other.label} "
+                        f"({other.__class__.__name__}) were not a valid connection"
+                    )
+                else:
+                    raise TypeError(
+                        f"Can only connect two signal channels, but {self.label} "
+                        f"({self.__class__.__name__}) got a {other} ({type(other)})"
+                    )
+
+    def _valid_connection(self, other) -> bool:
+        return self._is_IO_pair(other) and not self._already_connected(other)
+
+    def _is_IO_pair(self, other) -> bool:
+        return isinstance(other, SignalChannel) and type(self) != type(other)
+
+
+class InputSignal(SignalChannel):
+    def __init__(
+            self,
+            label: str,
+            node: Node,
+            callback: callable,
+    ):
+        super().__init__(label=label, node=node)
+        self.callback: callable = callback
+
+    def __call__(self):
+        self.callback()
+
+    def __str__(self):
+        return f"{self.label} runs " \
+               f"{[f.__name__ for f in self.callbacks]}"
+
+    def to_dict(self):
+        return {
+            "label": self.label,
+            "callbacks": [f.__name__ for f in self.callbacks],
+            "connected": self.connected,
+            "connections": [f"{c.node.label}.{c.label}" for c in self.connections]
+        }
+
+
+class OutputSignal(SignalChannel):
+    def __call__(self):
+        for c in self.connections:
+            c()
+
+    def __str__(self):
+        return f"{self.label} activates " \
+               f"{[f'{c.node.label}.{c.label}' for c in self.connections]}"
+
+    def to_dict(self):
+        return {
+            "label": self.label,
+            "connected": self.connected,
+            "connections": [f"{c.node.label}.{c.label}" for c in self.connections]
+        }
