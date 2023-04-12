@@ -125,7 +125,7 @@ class DataChannel(Channel):
         self.value = default
         self.type_hint = type_hint
         self.storage_priority = storage_priority
-        self.strict_connections = True
+        self.strict_connections = strict_connections
 
     @property
     def ready(self):
