@@ -180,7 +180,7 @@ class DataChannel(Channel, ABC):
             return False
 
     def _is_IO_pair(self, other: DataChannel):
-        return isinstance(other, DataChannel) and type(self) != type(other)
+        return isinstance(other, DataChannel) and not isinstance(other, self.__class__)
 
     def _both_typed(self, other: DataChannel):
         return self.type_hint is not None and other.type_hint is not None
@@ -250,7 +250,8 @@ class SignalChannel(Channel, ABC):
         return self._is_IO_pair(other) and not self._already_connected(other)
 
     def _is_IO_pair(self, other) -> bool:
-        return isinstance(other, SignalChannel) and type(self) != type(other)
+        return isinstance(other, SignalChannel) \
+            and not isinstance(other, self.__class__)
 
 
 class InputSignal(SignalChannel):
