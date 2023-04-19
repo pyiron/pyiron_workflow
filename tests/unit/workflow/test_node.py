@@ -74,7 +74,7 @@ class TestNode(TestCase):
 
         l = linear(x=1)
         t2 = times_two(
-            y=l.outputs.y, update_on_instantiation=False, run_automatically=False
+            update_on_instantiation=False, run_automatically=False, y=l.outputs.y
         )
         self.assertIsNone(
             t2.outputs.z.value,
