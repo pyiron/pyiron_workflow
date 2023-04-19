@@ -2,7 +2,7 @@ from unittest import TestCase, skipUnless
 from sys import version_info
 
 from pyiron_contrib.workflow.channels import (
-    InputData, OutputData, InputSignal, OutputSignal, SignalChannel
+    InputData, OutputData, InputSignal, OutputSignal
 )
 
 
