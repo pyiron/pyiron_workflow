@@ -391,6 +391,49 @@ class Node(HasToDict):
         }
 
 
+class FastNode(Node):
+    """
+    Like a regular node, but _all_ input channels _must_ have default values provided,
+    and the initialization signature forces `` and `` to be `True`.
+    """
+
+    def __init__(
+            self,
+            node_function: callable,
+            *output_labels: str,
+            label: Optional[str] = None,
+            input_storage_priority: Optional[dict[str, int]] = None,
+            output_storage_priority: Optional[dict[str, int]] = None,
+            workflow: Optional[Workflow] = None,
+            **kwargs
+    ):
+        self.ensure_params_have_defaults(node_function)
+        super().__init__(
+            node_function,
+            *output_labels,
+            label=label,
+            input_storage_priority=input_storage_priority,
+            output_storage_priority=output_storage_priority,
+            run_automatically=True,
+            update_on_instantiation=True,
+            workflow=workflow,
+            ** kwargs
+        )
+
+    @classmethod
+    def ensure_params_have_defaults(cls, fnc: callable) -> None:
+        """Raise a `ValueError` if any parameters of the callable lack defaults."""
+        if any(
+            param.default != inspect._empty
+            for param in inspect.signature(fnc).parameters.values()
+        ):
+            raise ValueError(
+                f"Fast nodes require all function parameters to have defaults, but "
+                f"{fnc.__name__} has the parameters "
+                f"{inspect.signature(fnc).parameters.values()}"
+            )
+
+
 def node(*output_labels: str):
     """
     A decorator for dynamically creating node classes from functions.
@@ -410,3 +453,26 @@ def node(*output_labels: str):
         )
 
     return as_node
+
+
+def fast_node(*output_labels: str):
+    """
+    A decorator for dynamically creating fast node classes from functions.
+
+    Unlike normal nodes, fast nodes _must_ have default values set for all their inputs.
+    """
+    def as_fast_node(node_function: callable):
+        FastNode.ensure_params_have_defaults(node_function)
+        return type(
+            node_function.__name__.title().replace("_", ""),  # fnc_name to CamelCase
+            (FastNode,),  # Define parentage
+            {
+                '__init__': partialmethod(
+                    FastNode.__init__,
+                    node_function,
+                    *output_labels
+                )
+            }
+        )
+
+    return as_fast_node
