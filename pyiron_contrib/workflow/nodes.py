@@ -7,10 +7,10 @@ from pyiron_atomistics.atomistics.job.atomistic import AtomisticGenericJob
 from pyiron_atomistics.atomistics.structure.atoms import Atoms
 from pyiron_atomistics.lammps.lammps import Lammps as LammpsJob
 
-from pyiron_contrib.workflow.node import node
+from pyiron_contrib.workflow.node import node, single_value_node
 
 
-@node("structure")
+@single_value_node("structure")
 def bulk_structure(element: str = "Fe", cubic: bool = False, repeat: int = 1) -> Atoms:
     return _StructureFactory().bulk(element, cubic=cubic).repeat(repeat)
 
