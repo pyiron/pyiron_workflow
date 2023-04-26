@@ -424,7 +424,7 @@ class FastNode(Node):
     def ensure_params_have_defaults(cls, fnc: callable) -> None:
         """Raise a `ValueError` if any parameters of the callable lack defaults."""
         if any(
-            param.default != inspect._empty
+            param.default == inspect._empty
             for param in inspect.signature(fnc).parameters.values()
         ):
             raise ValueError(
