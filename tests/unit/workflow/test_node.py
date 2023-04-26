@@ -2,7 +2,7 @@ from unittest import TestCase, skipUnless
 from sys import version_info
 from typing import Optional, Union
 
-from pyiron_contrib.workflow.node import FastNode, Node, node
+from pyiron_contrib.workflow.node import FastNode, Node, SingleValueNode, node
 
 
 def throw_error(x: Optional[int] = None):
@@ -94,3 +94,13 @@ class TestNode(TestCase):
 
         with self.assertRaises(ValueError):
             missing_defaults_should_fail = FastNode(no_default, "z")
+
+    def test_single_value_node(self):
+        with self.subTest("Test creation"):
+            has_defaults_and_one_return = SingleValueNode(plus_one, "y")
+
+            with self.assertRaises(ValueError):
+                too_many_labels = SingleValueNode(plus_one, "z", "excess_label")
+
+        with self.subTest("Test output attribute access as a fallback"):
+            pass

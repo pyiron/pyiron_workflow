@@ -434,6 +434,42 @@ class FastNode(Node):
             )
 
 
+class SingleValueNode(FastNode):
+    """
+    A fast node that _must_ return only a single value.
+
+    Attribute and item access is modified to finally attempt access on the output value.
+    """
+    def __init__(
+            self,
+            node_function: callable,
+            *output_labels: str,
+            label: Optional[str] = None,
+            input_storage_priority: Optional[dict[str, int]] = None,
+            output_storage_priority: Optional[dict[str, int]] = None,
+            workflow: Optional[Workflow] = None,
+            **kwargs
+    ):
+        self.ensure_there_is_only_one_return_value(output_labels)
+        super().__init__(
+            node_function,
+            *output_labels,
+            label=label,
+            input_storage_priority=input_storage_priority,
+            output_storage_priority=output_storage_priority,
+            workflow=workflow,
+            **kwargs
+        )
+
+    @classmethod
+    def ensure_there_is_only_one_return_value(cls, output_labels):
+        if len(output_labels) > 1:
+            raise ValueError(
+                f"SingleValueNode must only have a single return value, but got "
+                f"multiple output labels: {output_labels}"
+            )
+
+
 def node(*output_labels: str):
     """
     A decorator for dynamically creating node classes from functions.
@@ -476,3 +512,27 @@ def fast_node(*output_labels: str):
         )
 
     return as_fast_node
+
+
+def single_value_node(*output_labels: str):
+    """
+    A decorator for dynamically creating fast node classes from functions.
+
+    Unlike normal nodes, fast nodes _must_ have default values set for all their inputs.
+    """
+    def as_single_value_node(node_function: callable):
+        SingleValueNode.ensure_there_is_only_one_return_value(output_labels)
+        SingleValueNode.ensure_params_have_defaults(node_function)
+        return type(
+            node_function.__name__.title().replace("_", ""),  # fnc_name to CamelCase
+            (SingleValueNode,),  # Define parentage
+            {
+                '__init__': partialmethod(
+                    SingleValueNode.__init__,
+                    node_function,
+                    *output_labels
+                )
+            }
+        )
+
+    return as_single_value_node
