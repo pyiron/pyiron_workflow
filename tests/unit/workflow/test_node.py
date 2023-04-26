@@ -103,4 +103,44 @@ class TestNode(TestCase):
                 too_many_labels = SingleValueNode(plus_one, "z", "excess_label")
 
         with self.subTest("Test output attribute access as a fallback"):
-            pass
+            class Foo:
+                some_attribute = "exists"
+                connected = True  # Overlaps with an attribute of the node
+
+                def __getitem__(self, item):
+                    if item == 0:
+                        return True
+                    else:
+                        return False
+
+            def returns_foo() -> Foo:
+                return Foo()
+
+            svn = SingleValueNode(returns_foo, "foo")
+
+            self.assertEqual(
+                svn.some_attribute,
+                "exists",
+                msg="Should fall back to looking on the single value"
+            )
+
+            self.assertEqual(
+                svn.connected,
+                False,
+                msg="Should return the _node_ attribute, not the single value attribute"
+            )
+
+            with self.assertRaises(AttributeError):
+                svn.doesnt_exists_anywhere
+
+            self.assertEqual(
+                svn[0],
+                True,
+                msg="Should fall back to looking on the single value"
+            )
+
+            self.assertEqual(
+                svn["some other key"],
+                False,
+                msg="Should fall back to looking on the single value"
+            )

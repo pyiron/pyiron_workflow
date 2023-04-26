@@ -469,6 +469,16 @@ class SingleValueNode(FastNode):
                 f"multiple output labels: {output_labels}"
             )
 
+    @property
+    def single_value(self):
+        return self.outputs[self.outputs.labels[0]].value
+
+    def __getitem__(self, item):
+        return self.single_value.__getitem__(item)
+
+    def __getattr__(self, item):
+        return getattr(self.single_value, item)
+
 
 def node(*output_labels: str):
     """
