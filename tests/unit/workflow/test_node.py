@@ -2,7 +2,7 @@ from unittest import TestCase, skipUnless
 from sys import version_info
 from typing import Optional, Union
 
-from pyiron_contrib.workflow.node import Node, node
+from pyiron_contrib.workflow.node import FastNode, Node, node
 
 
 def throw_error(x: Optional[int] = None):
@@ -88,3 +88,9 @@ class TestNode(TestCase):
             t2.outputs.z.value, 2,
             msg="Running the upstream node should trigger a run here"
         )
+
+    def test_fast_node(self):
+        has_defaults_is_ok = FastNode(plus_one, "y")
+
+        with self.assertRaises(ValueError):
+            missing_defaults_should_fail = FastNode(no_default, "z")
