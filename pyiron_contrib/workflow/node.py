@@ -428,8 +428,8 @@ class FastNode(Node):
             for param in inspect.signature(fnc).parameters.values()
         ):
             raise ValueError(
-                f"Fast nodes require all function parameters to have defaults, but "
-                f"{fnc.__name__} has the parameters "
+                f"{cls.__name__} requires all function parameters to have defaults, "
+                f"but {fnc.__name__} has the parameters "
                 f"{inspect.signature(fnc).parameters.values()}"
             )
 
@@ -465,7 +465,7 @@ class SingleValueNode(FastNode):
     def ensure_there_is_only_one_return_value(cls, output_labels):
         if len(output_labels) > 1:
             raise ValueError(
-                f"SingleValueNode must only have a single return value, but got "
+                f"{cls.__name__} must only have a single return value, but got "
                 f"multiple output labels: {output_labels}"
             )
 
