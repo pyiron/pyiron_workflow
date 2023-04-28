@@ -49,7 +49,7 @@ class Node(HasToDict):
         node_function (callable): The function determining the behaviour of the node.
         output_labels (tuple[str]): A name for each return value of the node function.
         label (str): The node's label. (Defaults to the node function's name.)
-        run_automatically (bool): Whether to run when you are updated and all your
+        run_on_updates (bool): Whether to run when you are updated and all your
             input is ready. (Default is True).
         update_on_instantiation (bool): Whether to force an update at the end of instantiation.
             (Default is False.)
@@ -64,7 +64,7 @@ class Node(HasToDict):
         fully_connected (bool): Every IO channel has at least one connection.
 
     Methods:
-        update: If `run_automatically` is true and all your input is ready, will
+        update: If `run_on_updates` is true and all your input is ready, will
             run the engine.
         run: Parse and process the input, execute the engine, process the results and
             update the output.
@@ -100,7 +100,7 @@ class Node(HasToDict):
         type error comes from our `y - 1` term in the function, which is `None - 1`.
 
         There are three ways to resolve this: First, we could set
-        `run_automatically = False`, then the node would not execute until we
+        `run_on_updates = False`, then the node would not execute until we
         manually call the `run()` method.
         This impacts the long-term behaviour of the node though, so let's keep
         searching.
@@ -162,7 +162,7 @@ class Node(HasToDict):
         ...         label: Optional[str] = None,
         ...         input_storage_priority: Optional[dict[str, int]] = None,
         ...         output_storage_priority: Optional[dict[str, int]] = None,
-        ...         run_automatically: bool = True,
+        ...         run_on_updates: bool = True,
         ...         update_on_instantiation: bool = False,
         ...         **kwargs
         ...     ):
@@ -172,7 +172,7 @@ class Node(HasToDict):
         ...             labe=label,
         ...             input_storage_priority=input_storage_priority,
         ...             output_storage_priority=output_storage_priority,
-        ...             run_automatically=run_automatically,
+        ...             run_on_updates=run_on_updates,
         ...             update_on_instantiation=update_on_instantiation,
         ...             **kwargs
         ...         )
@@ -225,7 +225,7 @@ class Node(HasToDict):
             label: Optional[str] = None,
             input_storage_priority: Optional[dict[str, int]] = None,
             output_storage_priority: Optional[dict[str, int]] = None,
-            run_automatically: bool = True,
+            run_on_updates: bool = True,
             update_on_instantiation: bool = True,
             workflow: Optional[Workflow] = None,
             **kwargs
@@ -247,14 +247,14 @@ class Node(HasToDict):
 
         self.signals = self._build_signal_channels()
 
-        self.run_automatically = False
+        self.run_on_updates = False
         for k, v in kwargs.items():
             if k in self.inputs.labels:
                 if isinstance(v, OutputData):
                     self.inputs[k] = v
                 else:
                     self.inputs[k].update(v)
-        self.run_automatically = run_automatically
+        self.run_on_updates = run_on_updates
 
         if update_on_instantiation:
             self.update()
@@ -339,7 +339,7 @@ class Node(HasToDict):
         return signals
 
     def update(self) -> None:
-        if self.run_automatically and self.ready:
+        if self.run_on_updates and self.ready:
             self.run()
 
     def run(self) -> None:
@@ -414,7 +414,7 @@ class FastNode(Node):
             label=label,
             input_storage_priority=input_storage_priority,
             output_storage_priority=output_storage_priority,
-            run_automatically=True,
+            run_on_updates=True,
             update_on_instantiation=True,
             workflow=workflow,
             ** kwargs
