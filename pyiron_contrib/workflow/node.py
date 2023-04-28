@@ -225,8 +225,8 @@ class Node(HasToDict):
             label: Optional[str] = None,
             input_storage_priority: Optional[dict[str, int]] = None,
             output_storage_priority: Optional[dict[str, int]] = None,
-            run_on_updates: bool = True,
-            update_on_instantiation: bool = True,
+            run_on_updates: bool = False,
+            update_on_instantiation: bool = False,
             workflow: Optional[Workflow] = None,
             **kwargs
     ):
