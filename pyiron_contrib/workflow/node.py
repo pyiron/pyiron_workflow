@@ -480,7 +480,7 @@ class SingleValueNode(FastNode):
         return getattr(self.single_value, item)
 
 
-def node(*output_labels: str):
+def node(*output_labels: str, **node_class_kwargs):
     """
     A decorator for dynamically creating node classes from functions.
 
@@ -495,13 +495,18 @@ def node(*output_labels: str):
         return type(
             node_function.__name__.title().replace("_", ""),  # fnc_name to CamelCase
             (Node,),  # Define parentage
-            {'__init__': partialmethod(Node.__init__, node_function, *output_labels)}
+            {'__init__': partialmethod(
+                Node.__init__,
+                node_function,
+                *output_labels,
+                **node_class_kwargs,
+            )}
         )
 
     return as_node
 
 
-def fast_node(*output_labels: str):
+def fast_node(*output_labels: str, **node_class_kwargs):
     """
     A decorator for dynamically creating fast node classes from functions.
 
@@ -516,7 +521,8 @@ def fast_node(*output_labels: str):
                 '__init__': partialmethod(
                     FastNode.__init__,
                     node_function,
-                    *output_labels
+                    *output_labels,
+                    **node_class_kwargs
                 )
             }
         )
@@ -524,7 +530,7 @@ def fast_node(*output_labels: str):
     return as_fast_node
 
 
-def single_value_node(*output_labels: str):
+def single_value_node(*output_labels: str, **node_class_kwargs):
     """
     A decorator for dynamically creating fast node classes from functions.
 
@@ -540,7 +546,8 @@ def single_value_node(*output_labels: str):
                 '__init__': partialmethod(
                     SingleValueNode.__init__,
                     node_function,
-                    *output_labels
+                    *output_labels,
+                    **node_class_kwargs
                 )
             }
         )
