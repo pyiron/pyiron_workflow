@@ -16,23 +16,36 @@ if TYPE_CHECKING:
 
 class Node(HasToDict):
     """
-    Nodes have input and output channels that interface with the outside world, and
+    Nodes have input and output data channels that interface with the outside world, and
     a callable that determines what they actually compute. After running, their output
     channels are updated with the results of the node's computation, which
     triggers downstream node updates if those output channels are connected to other
     input channels.
 
-    Nodes can be forced to run, or more gently "updated", which will trigger a
-    calculation only if all of the input is ready.
+    An "update" is gentle and will only trigger the node to run if its run-on-update
+    flag is set to true and if its input is all ready -- i.e. having values matching
+    the type hints.
+
+    They also have input and output signal channels -- a run input and a ran output,
+    although these are extensible in child classes. Calling the run input signal
+    triggers the run method, and after running a signal is sent out on the ran output
+    signal channel. In this way, execution flow can be managed manually by connecting
+    signal channels. Be careful as the run input signal bypasses the checks for an
+    update and really forces a node to run with whatever data it currently has.
+
+    Signal channels cannot be connected to data channels.
 
     Nodes won't update themselves while setting inputs to initial values, but can
     optionally update themselves at the end instantiation.
 
-    Nodes must be instantiated with a callable to deterimine their function, and a tuple
-    of strings to name each returned value of that callable.
+    Nodes must be instantiated with a callable to deterimine their function, and an
+    strings to name each returned value of that callable. (If you really want to return
+    a tuple, just have multiple return values but only one output label -- there is
+    currently no way to mix-and-match, i.e. to have multiple return values at least one
+    of which is a tuple.)
 
     The node label (unless otherwise provided), IO types, and input defaults for the
-    _automatically_ from introspection of the node function.
+    node are produced _automatically_ from introspection of the node function.
     Additional properties like storage priority (present but doesn't do anything yet)
     and ontological type (not yet present) can be set using kwarg dictionaries with
     keys corresponding to the channel labels (i.e. the node arguments of the node
@@ -47,18 +60,19 @@ class Node(HasToDict):
 
     Args:
         node_function (callable): The function determining the behaviour of the node.
-        output_labels (tuple[str]): A name for each return value of the node function.
+        *output_labels (str): A name for each return value of the node function.
         label (str): The node's label. (Defaults to the node function's name.)
         run_on_updates (bool): Whether to run when you are updated and all your
-            input is ready. (Default is True).
+            input is ready. (Default is False).
         update_on_instantiation (bool): Whether to force an update at the end of instantiation.
             (Default is False.)
         **kwargs: Any additional keyword arguments whose keyword matches the label of an
             input channel will have their value assigned to that channel.
 
     Attributes:
-        inputs (Inputs): A collection of input channels.
-        outputs (Outputs): A collection of output channels.
+        inputs (Inputs): A collection of input data channels.
+        outputs (Outputs): A collection of output data channels.
+        signals (Signals): A holder for input and output collections of signal channels.
         ready (bool): All input reports ready.
         connected (bool): Any IO channel has at least one connection.
         fully_connected (bool): Every IO channel has at least one connection.
@@ -68,11 +82,7 @@ class Node(HasToDict):
             run the engine.
         run: Parse and process the input, execute the engine, process the results and
             update the output.
-        disconnect: Disconnect all IO connections.
-
-    Note:
-        The number of return values for the node function, and the number of output
-        labels provided must be consistent!
+        disconnect: Disconnect all data and signal IO connections.
 
     Examples:
         At the most basic level, to use nodes all we need to do is provide the `Node`
@@ -87,23 +97,53 @@ class Node(HasToDict):
         >>> print(plus_minus_1.outputs.p1)
         None
 
-        There is no output because we haven't given our function any input, and it has
-        no defaults!
-        However, we'll run into a hiccup if we try to update one of the inputs...
+        There is no output because we haven't given our function any input, it has
+        no defaults, and we never ran it!
+
+        We'll run into a hiccup if we try to set only one of the inputs and update
         >>> plus_minus_1.inputs.x = 1
+        >>> plus_minus_1.run()
         TypeError
 
-        This is because updating an input value triggers the node to update -- i.e. it
-        checks if all it's input is of a valid type, and if so attempts to execute its
-        node function.
-        In this case, our input is untyped -- so it's always considered valid -- and the
-        type error comes from our `y - 1` term in the function, which is `None - 1`.
+        This is because the second input (y) still has no input value so we can't do the
+        sum.
+        Let's set the node to run automatically when its inputs are updated, then update
+        x and y.
+        >>> plus_minus_1.run_on_updates = True
+        >>> plus_minus_1.inputs.x = 2
+        TypeError
 
-        There are three ways to resolve this: First, we could set
-        `run_on_updates = False`, then the node would not execute until we
-        manually call the `run()` method.
-        This impacts the long-term behaviour of the node though, so let's keep
-        searching.
+        What happened here? Well, since we didn't offer any type hints for the function,
+        when updating the `x` value triggered the node update, it didn't see any
+        trouble with the other inputs and tried to run! First, let's provide a y-value
+        as well, then go back and see how to avoid this.
+        >>> plus_minus_1.inputs.y = 3
+        >>> plus_minus_1.outputs.to_value_dict()
+        {'p1': 3, 'm1': 2}
+
+        We can also, optionally, provide initial values for some or all of the input
+        >>> plus_minus_1 = Node(
+        ...     mwe, "p1", "m1",
+        ...     x=1,
+        ...     run_on_updates=True
+        )
+        >>> plus_minus_1.inputs.y = 2  # Automatically triggers an update call now
+        >>> plus_minus_1.outputs.to_value_dict()
+        {'p1': 2, 'm1': 1}
+
+        Finally, we might want the node to be ready-to-go right after instantiation.
+        To do this, we need to provide initial values for everything and set two flags:
+        >>> plus_minus_1 = Node(
+        ...     mwe, "p1", "m1",
+        ...     x=0, y=0,
+        ...     run_on_updates=True, update_on_instantiation=True
+        ... )
+        >>> plus_minus_1.outputs.to_value_dict()
+        {'p1': 1, 'm1': -1}
+
+        Another way to stop the node from running with bad input is to provide type
+        hints (and, optionally, default values) when defining the function the node
+        wraps. All of these get determined by inspection.
 
         We can provide initial values for our node function at instantiation using our
         kwargs.
@@ -133,16 +173,25 @@ class Node(HasToDict):
         ... ) -> tuple[int, int | float]:
         ...     return x+1, y-1
         >>>
-        >>> plus_minus_1 = Node(hinted_example, "p1", "m1")
-        >>>
+        >>> plus_minus_1 = Node(
+        ...     hinted_example, "p1", "m1",
+        ...     run_on_updates=True, update_on_instantiation=True
+        ... )
+        >>> plus_minus_1.outputs.to_value_dict()
+        {'p1': None, 'm1': None}
+
+        Here we got an update automatically at the end of instantiation, but because
+        both values are type hinted this didn't result in any errors!
+        Still, we need to provide the rest of the input data in order to get results:
+
         >>> plus_minus_1.inputs.x = 1
-        >>> print(plus_minus_1.outputs.to_value_dict())
+        >>> plus_minus_1.outputs.to_value_dict()
         {'p1': 2, 'm1': 0}
 
-        In this case, we're able to use the default value for `y`, but you can
-        experiment with updating `y` first (when `x` still has the invalid value of
-        `None`) to verify that the update is not triggered until _both_ inputs have
-        valid values.
+        Note: the `FastNode(Node)` child class will enforce all function arguments to
+        be type-hinted and have defaults, and will automatically set the updating and
+        instantiation flags to `True` for nodes that execute quickly and are meant to
+        _always_ have good output data.
 
         In these examples, we've instantiated nodes directly from the base `Node` class,
         and populated their input directly with data.
@@ -152,7 +201,32 @@ class Node(HasToDict):
 
         For reusable nodes, we want to create a sub-class of `Node` that fixes some of
         the node behaviour -- usually the `node_function` and `output_labels`.
-        There are two straightforward ways to accomplish this.
+
+        This can be done most easily with the `node` decorator, which takes a function
+        and returns a node class:
+        >>> from pyiron_contrib.workflow.node import node
+        >>>
+        >>> @node(
+        ...     "p1", "m1",
+        ...     run_on_updates=True, update_on_instantiation=True
+        ... )
+        ... def my_mwe_node(
+        ...     x: int | float, y: int | float = 1
+        ... ) -> tuple[int | float, int | float]:
+        ...     return x+1, y-1
+        >>>
+        >>> node_instance = my_mwe_node(x=0)
+        >>> node_instance.outputs.to_value_dict()
+        {'p1': 1, 'm1': 0}
+
+        Where we've passed the output labels and class arguments to the decorator,
+        and inital values to the newly-created node class (`my_mwe_node`) at
+        instantiation.
+        Because we told it to run on updates and to update on instantation _and_ we
+        provided a good initial value for `x`, we get our result right away.
+
+        Using the decorator is the recommended way to create new node classes, but this
+        magic is just equivalent to these two more verbose ways of defining a new class.
         The first is to override the `__init__` method directly:
         >>> from typing import Literal, Optional
         >>>
@@ -195,11 +269,14 @@ class Node(HasToDict):
         ...
         ...     __init__ = partialmethod(
         ...         Node.__init__,
-        ...         node_function=adder,
-        ...         output_labels="sum",
+        ...         adder,
+        ...         "sum",
+        ...         run_on_updates=True,
+        ...         update_on_instantiation=True
         ...     )
 
-        Finally, instead of setting input to a particular data value, we'll set it to
+        Finally, let's put it all together by using both of these nodes at once.
+        Instead of setting input to a particular data value, we'll set it to
         be another node's output channel, thus forming a connection.
         When we update the upstream node, we'll see the result passed downstream:
         >>> adder = Adder()
@@ -216,7 +293,8 @@ class Node(HasToDict):
         >>> print(alpha.outputs.letter)
         "a"
 
-        To see how to use many nodes together, look at the `Workflow` class.
+        To see more details on how to use many nodes together, look at the
+        `Workflow` class.
     """
     def __init__(
             self,
@@ -332,7 +410,7 @@ class Node(HasToDict):
 
         return channels
 
-    def _build_signal_channels(self):
+    def _build_signal_channels(self) -> Signals:
         signals = Signals()
         signals.input.run = InputSignal("run", self, self.run)
         signals.output.ran = OutputSignal("ran", self)
