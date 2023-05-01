@@ -170,7 +170,10 @@ class TestSingleValueNode(TestCase):
 
     def test_repr(self):
         svn = SingleValueNode(plus_one, "y")
-        self.assertEqual(svn.__repr__(), svn.outputs.y.value.__repr__())
+        self.assertEqual(
+            svn.__repr__(), svn.outputs.y.value.__repr__(),
+            msg="SingleValueNodes should have their output as their representation"
+        )
 
     def test_str(self):
         svn = SingleValueNode(plus_one, "y")
