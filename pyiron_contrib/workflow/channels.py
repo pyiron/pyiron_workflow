@@ -4,6 +4,7 @@ import typing
 from abc import ABC, abstractmethod
 from warnings import warn
 
+from pyiron_contrib.workflow.has_channel import HasChannel
 from pyiron_contrib.workflow.has_to_dict import HasToDict
 from pyiron_contrib.workflow.type_hinting import (
     valid_value, type_hint_is_as_or_more_specific_than
@@ -13,7 +14,7 @@ if typing.TYPE_CHECKING:
     from pyiron_contrib.workflow.node import Node
 
 
-class Channel(HasToDict, ABC):
+class Channel(HasChannel, HasToDict, ABC):
     """
     Channels facilitate the flow of information (data or control signals) into and
     out of nodes.
@@ -61,6 +62,10 @@ class Channel(HasToDict, ABC):
 
     def __len__(self):
         return len(self.connections)
+
+    @property
+    def channel(self) -> Channel:
+        return self
 
     def to_dict(self):
         return {

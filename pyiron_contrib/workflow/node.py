@@ -7,6 +7,7 @@ from typing import get_args, get_type_hints, Optional, TYPE_CHECKING
 from pyiron_contrib.workflow.channels import (
     InputData, OutputData, InputSignal, OutputSignal
 )
+from pyiron_contrib.workflow.has_channel import HasChannel
 from pyiron_contrib.workflow.has_to_dict import HasToDict
 from pyiron_contrib.workflow.io import Inputs, Outputs, Signals
 
@@ -509,7 +510,7 @@ class FastNode(Node):
             )
 
 
-class SingleValueNode(FastNode):
+class SingleValueNode(FastNode, HasChannel):
     """
     A fast node that _must_ return only a single value.
 
@@ -547,6 +548,11 @@ class SingleValueNode(FastNode):
     @property
     def single_value(self):
         return self.outputs[self.outputs.labels[0]].value
+
+    @property
+    def channel(self) -> OutputData:
+        """The channel for the single output"""
+        return list(self.outputs.channel_dict.values())[0]
 
     def __getitem__(self, item):
         return self.single_value.__getitem__(item)
