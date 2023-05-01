@@ -4,7 +4,7 @@ from functools import partial
 from warnings import warn
 
 from pyiron_contrib.workflow.has_to_dict import HasToDict
-from pyiron_contrib.workflow.node import Node, node
+from pyiron_contrib.workflow.node import Node, node, fast_node, single_value_node
 from pyiron_contrib.workflow.util import DotDict
 
 
@@ -63,6 +63,8 @@ class _NodeAdder:
 class _NodeDecoratorAccess:
     """An intermediate container to store node-creating decorators as class methods."""
     node = node
+    fast_node = fast_node
+    single_value_node = single_value_node
 
 
 class Workflow(HasToDict):

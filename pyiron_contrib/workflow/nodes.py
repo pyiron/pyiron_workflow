@@ -1,5 +1,7 @@
 from __future__ import annotations
 
+from typing import Optional
+
 import matplotlib.pyplot as plt
 import numpy as np
 from pyiron_atomistics import Project, _StructureFactory
@@ -7,19 +9,19 @@ from pyiron_atomistics.atomistics.job.atomistic import AtomisticGenericJob
 from pyiron_atomistics.atomistics.structure.atoms import Atoms
 from pyiron_atomistics.lammps.lammps import Lammps as LammpsJob
 
-from pyiron_contrib.workflow.node import node
+from pyiron_contrib.workflow.node import node, single_value_node
 
 
-@node("structure")
+@single_value_node("structure")
 def bulk_structure(element: str = "Fe", cubic: bool = False, repeat: int = 1) -> Atoms:
     return _StructureFactory().bulk(element, cubic=cubic).repeat(repeat)
 
 
-@node("job")
-def lammps(structure: Atoms) -> LammpsJob:
+@single_value_node("job")
+def lammps(structure: Optional[Atoms] = None) -> LammpsJob:
     pr = Project(".")
     job = pr.atomistics.job.Lammps("NOTAREALNAME")
-    job.structure = structure
+    job.structure = structure if structure is not None else _StructureFactory().bulk()
     job.potential = job.list_potentials()[0]
     return job
 
@@ -94,6 +96,8 @@ def calc_md(
     )
 
 
-@node("fig")
-def scatter(x: list | np.ndarray, y: list | np.ndarray):
+@single_value_node("fig")
+def scatter(
+        x: Optional[list | np.ndarray] = None, y: Optional[list | np.ndarray] = None
+):
     return plt.scatter(x, y)
