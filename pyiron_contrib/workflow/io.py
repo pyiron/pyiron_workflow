@@ -4,9 +4,10 @@ from abc import ABC, abstractmethod
 
 from pyiron_contrib.workflow.channels import (
     Channel,
-    DataChannel, InputData, OutputData,
-    SignalChannel, InputSignal, OutputSignal
+    InputData, OutputData,
+    InputSignal, OutputSignal
 )
+from pyiron_contrib.workflow.has_channel import HasChannel
 from pyiron_contrib.workflow.has_to_dict import HasToDict
 from pyiron_contrib.workflow.util import DotDict
 
@@ -118,8 +119,8 @@ class DataIO(IO, ABC):
     def _set_existing(self, key, value):
         from pyiron_contrib.workflow.node import SingleValueNode
 
-        if isinstance(value, DataChannel):
-            self.channel_dict[key].connect(value)
+        if isinstance(value, HasChannel):
+            self.channel_dict[key].connect(value.channel)
         elif isinstance(value, SingleValueNode):
             self.channel_dict[key].connect(list(value.outputs.channel_dict.values())[0])
         else:
@@ -162,8 +163,8 @@ class Outputs(DataIO):
 
 class SignalIO(IO, ABC):
     def _set_existing(self, key, value):
-        if isinstance(value, SignalChannel):
-            self.channel_dict[key].connect(value)
+        if isinstance(value, HasChannel):
+            self.channel_dict[key].connect(value.channel)
         else:
             raise TypeError(
                 f"Tried to assign {value} ({type(value)} to the {key}, which is already"
