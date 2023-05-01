@@ -202,3 +202,10 @@ class TestSingleValueNode(TestCase):
             msg="SingleValueNode connections should pass data just like usual; in this "
                 "case default->plus_one->plus_one = 1 + 1 +1 = 3"
         )
+
+        at_instantiation = Node(plus_one, "y", x=svn)
+        self.assertIn(
+            svn.outputs.y, at_instantiation.inputs.x.connections,
+            msg="The parsing of SingleValueNode output as a connection should also work"
+                "from assignment at instantiation"
+        )
