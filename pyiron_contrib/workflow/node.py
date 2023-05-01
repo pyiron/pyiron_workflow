@@ -328,10 +328,7 @@ class Node(HasToDict):
         self.run_on_updates = False
         for k, v in kwargs.items():
             if k in self.inputs.labels:
-                if isinstance(v, OutputData):
-                    self.inputs[k] = v
-                else:
-                    self.inputs[k].update(v)
+                self.inputs[k] = v
         self.run_on_updates = run_on_updates
 
         if update_on_instantiation:
