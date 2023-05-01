@@ -111,14 +111,14 @@ class Workflow(HasToDict):
         0, 1, 2
 
         We can also use pre-built nodes, e.g.
-        >>> from pyiron_contrib.workflow import nodes
+        >>> from pyiron_contrib.workflow.node_library import atomistics, standard
         >>>
         >>> wf = Workflow("with_prebuilt")
         >>>
-        >>> wf.structure = nodes.BulkStructure(repeat=3, cubic=True, element="Al")
-        >>> wf.engine = nodes.Lammps(structure=wf.structure.outputs.structure)
-        >>> wf.calc = nodes.CalcMD(job=wf.engine.outputs.job)
-        >>> wf.plot = nodes.Scatter(
+        >>> wf.structure = atomistics.BulkStructure(repeat=3, cubic=True, element="Al")
+        >>> wf.engine = atomistics.Lammps(structure=wf.structure)
+        >>> wf.calc = atomistics.CalcMD(job=wf.engine)
+        >>> wf.plot = standard.Scatter(
         ...     x=wf.calc.outputs.steps,
         ...     y=wf.calc.outputs.temperature
         ... )
