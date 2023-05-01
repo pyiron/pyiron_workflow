@@ -328,10 +328,7 @@ class Node(HasToDict):
         self.run_on_updates = False
         for k, v in kwargs.items():
             if k in self.inputs.labels:
-                if isinstance(v, OutputData):
-                    self.inputs[k] = v
-                else:
-                    self.inputs[k].update(v)
+                self.inputs[k] = v
         self.run_on_updates = run_on_updates
 
         if update_on_instantiation:
@@ -556,6 +553,13 @@ class SingleValueNode(FastNode):
 
     def __getattr__(self, item):
         return getattr(self.single_value, item)
+
+    def __repr__(self):
+        return self.single_value.__repr__()
+
+    def __str__(self):
+        return f"{self.label} ({self.__class__.__name__}) output single-value: " \
+            + str(self.single_value)
 
 
 def node(*output_labels: str, **node_class_kwargs):

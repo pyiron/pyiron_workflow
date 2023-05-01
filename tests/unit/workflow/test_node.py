@@ -108,58 +108,104 @@ class TestNode(TestCase):
             msg="Running the upstream node should trigger a run here"
         )
 
-    def test_fast_node(self):
+
+@skipUnless(version_info[0] == 3 and version_info[1] >= 10, "Only supported for 3.10+")
+class TestFastNode(TestCase):
+    def test_instantiation(self):
         has_defaults_is_ok = FastNode(plus_one, "y")
 
         with self.assertRaises(ValueError):
             missing_defaults_should_fail = FastNode(no_default, "z")
 
-    def test_single_value_node(self):
-        with self.subTest("Test creation"):
-            has_defaults_and_one_return = SingleValueNode(plus_one, "y")
+@skipUnless(version_info[0] == 3 and version_info[1] >= 10, "Only supported for 3.10+")
+class TestSingleValueNode(TestCase):
+    def test_instantiation(self):
+        has_defaults_and_one_return = SingleValueNode(plus_one, "y")
 
-            with self.assertRaises(ValueError):
-                too_many_labels = SingleValueNode(plus_one, "z", "excess_label")
+        with self.assertRaises(ValueError):
+            too_many_labels = SingleValueNode(plus_one, "z", "excess_label")
 
-        with self.subTest("Test output attribute access as a fallback"):
-            class Foo:
-                some_attribute = "exists"
-                connected = True  # Overlaps with an attribute of the node
+    def test_item_and_attribute_access(self):
+        class Foo:
+            some_attribute = "exists"
+            connected = True  # Overlaps with an attribute of the node
 
-                def __getitem__(self, item):
-                    if item == 0:
-                        return True
-                    else:
-                        return False
+            def __getitem__(self, item):
+                if item == 0:
+                    return True
+                else:
+                    return False
 
-            def returns_foo() -> Foo:
-                return Foo()
+        def returns_foo() -> Foo:
+            return Foo()
 
-            svn = SingleValueNode(returns_foo, "foo")
+        svn = SingleValueNode(returns_foo, "foo")
 
-            self.assertEqual(
-                svn.some_attribute,
-                "exists",
-                msg="Should fall back to looking on the single value"
-            )
+        self.assertEqual(
+            svn.some_attribute,
+            "exists",
+            msg="Should fall back to looking on the single value"
+        )
 
-            self.assertEqual(
-                svn.connected,
-                False,
-                msg="Should return the _node_ attribute, not the single value attribute"
-            )
+        self.assertEqual(
+            svn.connected,
+            False,
+            msg="Should return the _node_ attribute, not the single value attribute"
+        )
 
-            with self.assertRaises(AttributeError):
-                svn.doesnt_exists_anywhere
+        with self.assertRaises(AttributeError):
+            svn.doesnt_exists_anywhere
 
-            self.assertEqual(
-                svn[0],
-                True,
-                msg="Should fall back to looking on the single value"
-            )
+        self.assertEqual(
+            svn[0],
+            True,
+            msg="Should fall back to looking on the single value"
+        )
 
-            self.assertEqual(
-                svn["some other key"],
-                False,
-                msg="Should fall back to looking on the single value"
-            )
+        self.assertEqual(
+            svn["some other key"],
+            False,
+            msg="Should fall back to looking on the single value"
+        )
+
+    def test_repr(self):
+        svn = SingleValueNode(plus_one, "y")
+        self.assertEqual(
+            svn.__repr__(), svn.outputs.y.value.__repr__(),
+            msg="SingleValueNodes should have their output as their representation"
+        )
+
+    def test_str(self):
+        svn = SingleValueNode(plus_one, "y")
+        self.assertTrue(
+            str(svn).endswith(str(svn.single_value)),
+            msg="SingleValueNodes should have their output as a string in their string "
+                "representation (e.g., perhaps with a reminder note that this is "
+                "actually still a Node and not just the value you're seeing.)"
+        )
+
+    def test_easy_output_connection(self):
+        svn = SingleValueNode(plus_one, "y")
+        regular = Node(plus_one, "y")
+
+        regular.inputs.x = svn
+
+        self.assertIn(
+            svn.outputs.y, regular.inputs.x.connections,
+            msg="SingleValueNodes should be able to make connections between their "
+                "output and another node's input by passing themselves"
+        )
+
+        regular.run()
+        self.assertEqual(
+            regular.outputs.y.value, 3,
+            msg="SingleValueNode connections should pass data just like usual; in this "
+                "case default->plus_one->plus_one = 1 + 1 +1 = 3"
+        )
+
+        at_instantiation = Node(plus_one, "y", x=svn)
+        self.assertIn(
+            svn.outputs.y, at_instantiation.inputs.x.connections,
+            msg="The parsing of SingleValueNode output as a connection should also work"
+                "from assignment at instantiation"
+        )

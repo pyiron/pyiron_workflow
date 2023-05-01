@@ -116,8 +116,12 @@ class IO(HasToDict, ABC):
 
 class DataIO(IO, ABC):
     def _set_existing(self, key, value):
+        from pyiron_contrib.workflow.node import SingleValueNode
+
         if isinstance(value, DataChannel):
             self.channel_dict[key].connect(value)
+        elif isinstance(value, SingleValueNode):
+            self.channel_dict[key].connect(list(value.outputs.channel_dict.values())[0])
         else:
             self.channel_dict[key].update(value)
 
