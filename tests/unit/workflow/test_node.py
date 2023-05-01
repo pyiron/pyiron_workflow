@@ -177,8 +177,8 @@ class TestSingleValueNode(TestCase):
 
     def test_str(self):
         svn = SingleValueNode(plus_one, "y")
-        self.assertTrue(
-            str(svn.outputs.y.value) in str(svn),
+        self.assertIn(
+            str(svn.outputs.y.value), str(svn),
             msg="SingleValueNodes should have their output as a string in their string "
                 "representation (e.g., perhaps with a reminder note that this is "
                 "actually still a Node and not just the value you're seeing.)"
