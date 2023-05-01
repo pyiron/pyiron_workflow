@@ -560,6 +560,10 @@ class SingleValueNode(FastNode):
     def __repr__(self):
         return self.single_value.__repr__()
 
+    def __str__(self):
+        return f"{self.label} ({self.__class__.__name__}) output single-value: " \
+            + str(self.single_value)
+
 
 def node(*output_labels: str, **node_class_kwargs):
     """
