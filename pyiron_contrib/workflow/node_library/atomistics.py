@@ -2,8 +2,6 @@ from __future__ import annotations
 
 from typing import Optional
 
-import matplotlib.pyplot as plt
-import numpy as np
 from pyiron_atomistics import Project, _StructureFactory
 from pyiron_atomistics.atomistics.job.atomistic import AtomisticGenericJob
 from pyiron_atomistics.atomistics.structure.atoms import Atoms
@@ -94,10 +92,3 @@ def calc_md(
         unwrapped_positions,
         volume,
     )
-
-
-@single_value_node("fig")
-def scatter(
-        x: Optional[list | np.ndarray] = None, y: Optional[list | np.ndarray] = None
-):
-    return plt.scatter(x, y)
