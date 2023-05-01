@@ -108,58 +108,62 @@ class TestNode(TestCase):
             msg="Running the upstream node should trigger a run here"
         )
 
-    def test_fast_node(self):
+
+@skipUnless(version_info[0] == 3 and version_info[1] >= 10, "Only supported for 3.10+")
+class TestFastNode(TestCase):
+    def test_instantiation(self):
         has_defaults_is_ok = FastNode(plus_one, "y")
 
         with self.assertRaises(ValueError):
             missing_defaults_should_fail = FastNode(no_default, "z")
 
-    def test_single_value_node(self):
-        with self.subTest("Test creation"):
-            has_defaults_and_one_return = SingleValueNode(plus_one, "y")
+@skipUnless(version_info[0] == 3 and version_info[1] >= 10, "Only supported for 3.10+")
+class TestSingleValueNode(TestCase):
+    def test_instantiation(self):
+        has_defaults_and_one_return = SingleValueNode(plus_one, "y")
 
-            with self.assertRaises(ValueError):
-                too_many_labels = SingleValueNode(plus_one, "z", "excess_label")
+        with self.assertRaises(ValueError):
+            too_many_labels = SingleValueNode(plus_one, "z", "excess_label")
 
-        with self.subTest("Test output attribute access as a fallback"):
-            class Foo:
-                some_attribute = "exists"
-                connected = True  # Overlaps with an attribute of the node
+    def test_item_and_attribute_access(self):
+        class Foo:
+            some_attribute = "exists"
+            connected = True  # Overlaps with an attribute of the node
 
-                def __getitem__(self, item):
-                    if item == 0:
-                        return True
-                    else:
-                        return False
+            def __getitem__(self, item):
+                if item == 0:
+                    return True
+                else:
+                    return False
 
-            def returns_foo() -> Foo:
-                return Foo()
+        def returns_foo() -> Foo:
+            return Foo()
 
-            svn = SingleValueNode(returns_foo, "foo")
+        svn = SingleValueNode(returns_foo, "foo")
 
-            self.assertEqual(
-                svn.some_attribute,
-                "exists",
-                msg="Should fall back to looking on the single value"
-            )
+        self.assertEqual(
+            svn.some_attribute,
+            "exists",
+            msg="Should fall back to looking on the single value"
+        )
 
-            self.assertEqual(
-                svn.connected,
-                False,
-                msg="Should return the _node_ attribute, not the single value attribute"
-            )
+        self.assertEqual(
+            svn.connected,
+            False,
+            msg="Should return the _node_ attribute, not the single value attribute"
+        )
 
-            with self.assertRaises(AttributeError):
-                svn.doesnt_exists_anywhere
+        with self.assertRaises(AttributeError):
+            svn.doesnt_exists_anywhere
 
-            self.assertEqual(
-                svn[0],
-                True,
-                msg="Should fall back to looking on the single value"
-            )
+        self.assertEqual(
+            svn[0],
+            True,
+            msg="Should fall back to looking on the single value"
+        )
 
-            self.assertEqual(
-                svn["some other key"],
-                False,
-                msg="Should fall back to looking on the single value"
-            )
+        self.assertEqual(
+            svn["some other key"],
+            False,
+            msg="Should fall back to looking on the single value"
+        )
