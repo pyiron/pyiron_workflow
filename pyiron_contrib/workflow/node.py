@@ -557,6 +557,9 @@ class SingleValueNode(FastNode):
     def __getattr__(self, item):
         return getattr(self.single_value, item)
 
+    def __repr__(self):
+        return self.single_value.__repr__()
+
 
 def node(*output_labels: str, **node_class_kwargs):
     """
