@@ -9,7 +9,7 @@ if TYPE_CHECKING:
     from pyiron_contrib.workflow.channels import Channel
 
 
-class HasConnection(ABC):
+class HasChannel(ABC):
     """
     A mix-in class for use with the `Channel` class.
     A `Channel` is able to (attempt to) connect to any child instance of `HasConnection`
@@ -20,5 +20,5 @@ class HasConnection(ABC):
     """
     @property
     @abstractmethod
-    def connection(self) -> Channel:
+    def channel(self) -> Channel:
         pass
