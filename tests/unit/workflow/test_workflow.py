@@ -79,3 +79,10 @@ class TestWorkflow(TestCase):
 
         self.assertEqual(len(wf.input), 1)
         self.assertEqual(len(wf.output), 1)
+
+    def test_node_decorators(self):
+        @Workflow.wrap_as.node("y")
+        def plus_one(x: int = 0) -> int:
+            return x + 1
+
+        self.assertEqual(plus_one().outputs.y.value, 1)

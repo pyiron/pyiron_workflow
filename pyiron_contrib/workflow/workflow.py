@@ -4,7 +4,7 @@ from functools import partial
 from warnings import warn
 
 from pyiron_contrib.workflow.has_to_dict import HasToDict
-from pyiron_contrib.workflow.node import Node
+from pyiron_contrib.workflow.node import Node, node
 from pyiron_contrib.workflow.util import DotDict
 
 
@@ -58,6 +58,11 @@ class _NodeAdder:
 
         self._workflow.nodes[node.label] = node
         node.workflow = self._workflow
+
+
+class _NodeDecoratorAccess:
+    """An intermediate container to store node-creating decorators as class methods."""
+    node = node
 
 
 class Workflow(HasToDict):
@@ -129,6 +134,8 @@ class Workflow(HasToDict):
         apply that falls short of a full export, but still guarantees the internal
         integrity of workflows when they're used somewhere else?
     """
+    wrap_as = _NodeDecoratorAccess
+
     def __init__(self, label: str, *nodes: Node, strict_naming=True):
         self.__dict__['label'] = label
         self.__dict__['nodes'] = DotDict()
