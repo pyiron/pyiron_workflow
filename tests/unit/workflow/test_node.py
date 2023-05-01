@@ -167,3 +167,7 @@ class TestSingleValueNode(TestCase):
             False,
             msg="Should fall back to looking on the single value"
         )
+
+    def test_repr(self):
+        svn = SingleValueNode(plus_one, "y")
+        self.assertEqual(svn.__repr__(), svn.outputs.y.value.__repr__())
