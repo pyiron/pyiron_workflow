@@ -23,21 +23,34 @@ class TestNode(TestCase):
         node = Node(plus_one, "y")
 
     def test_instantiation_update(self):
-        no_update = Node(plus_one, "y", update_on_instantiation=False)
+        no_update = Node(
+            plus_one,
+            "y",
+            run_on_updates=True,
+            update_on_instantiation=False
+        )
         self.assertIsNone(no_update.outputs.y.value)
 
-        update = Node(plus_one, "y", update_on_instantiation=True)
+        update = Node(
+            plus_one,
+            "y",
+            run_on_updates=True,
+            update_on_instantiation=True
+        )
         self.assertEqual(2, update.outputs.y.value)
 
         with self.assertRaises(TypeError):
-            Node(no_default, "z")
+            run_without_value = Node(no_default, "z")
+            run_without_value.run()
             # None + None + 1 -> error
 
         with self.assertRaises(TypeError):
-            Node(no_default, "z", x=1)
+            run_without_value = Node(no_default, "z", x=1)
+            run_without_value.run()
             # 1 + None + 1 -> error
 
         deferred_update = Node(no_default, "z", x=1, y=1)
+        deferred_update.run()
         self.assertEqual(
             deferred_update.outputs.z.value,
             3,
@@ -46,15 +59,21 @@ class TestNode(TestCase):
         )
 
     def test_input_kwargs(self):
-        node = Node(plus_one, "y", x=2)
+        node = Node(
+            plus_one,
+            "y",
+            x=2,
+            run_on_updates=True,
+            update_on_instantiation=True
+        )
         self.assertEqual(3, node.outputs.y.value, msg="Initialize from value")
 
-        node2 = Node(plus_one, "y", x=node.outputs.y)
+        node2 = Node(plus_one, "y", x=node.outputs.y, run_on_updates=True)
         node.update()
         self.assertEqual(4, node2.outputs.y.value, msg="Initialize from connection")
 
     def test_automatic_updates(self):
-        node = Node(throw_error, update_on_instantiation=False)
+        node = Node(throw_error, run_on_updates=True)
 
         with self.subTest("Shouldn't run for invalid input on update"):
             node.inputs.x.update("not an int")
