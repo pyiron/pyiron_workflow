@@ -191,7 +191,7 @@ class TestSingleValueNode(TestCase):
         regular.inputs.x = svn
 
         self.assertIn(
-            svn, regular.inputs.x.connections,
+            svn.outputs.y, regular.inputs.x.connections,
             msg="SingleValueNodes should be able to make connections between their "
                 "output and another node's input by passing themselves"
         )
