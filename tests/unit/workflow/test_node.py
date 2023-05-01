@@ -183,3 +183,22 @@ class TestSingleValueNode(TestCase):
                 "representation (e.g., perhaps with a reminder note that this is "
                 "actually still a Node and not just the value you're seeing.)"
         )
+
+    def test_easy_output_connection(self):
+        svn = SingleValueNode(plus_one, "y")
+        regular = Node(plus_one, "y")
+
+        regular.inputs.x = svn
+
+        self.assertIn(
+            svn, regular.inputs.x.connections,
+            msg="SingleValueNodes should be able to make connections between their "
+                "output and another node's input by passing themselves"
+        )
+
+        regular.run()
+        self.assertEqual(
+            regular.outputs.y.value, 3,
+            msg="SingleValueNode connections should pass data just like usual; in this "
+                "case default->plus_one->plus_one = 1 + 1 +1 = 3"
+        )
