@@ -200,6 +200,7 @@ class DataChannel(Channel, ABC):
         d = super().to_dict()
         d["value"] = self.value
         d["ready"] = self.ready
+        return d
 
 
 class InputData(DataChannel):
