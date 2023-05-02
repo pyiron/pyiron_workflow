@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import inspect
+import warnings
 from functools import partialmethod
 from typing import get_args, get_type_hints, Optional, TYPE_CHECKING
 
@@ -330,6 +331,8 @@ class Node(HasToDict):
         for k, v in kwargs.items():
             if k in self.inputs.labels:
                 self.inputs[k] = v
+            elif k not in self._init_keywords:
+                warnings.warn(f"The keyword '{k}' was received but not used.")
         self.run_on_updates = run_on_updates
 
         if update_on_instantiation:
@@ -341,6 +344,14 @@ class Node(HasToDict):
         parameters = inspect.signature(self.node_function).parameters
 
         for label, value in parameters.items():
+            if label in self._init_keywords:
+                # We allow users to parse arbitrary kwargs as channel initialization
+                # So don't let them choose bad channel names
+                raise ValueError(
+                    f"The Input channel name {label} is not valid. Please choose a "
+                    f"name _not_ among {self._init_keywords}"
+                )
+
             try:
                 priority = storage_priority[label]
             except (KeyError, TypeError):
@@ -364,6 +375,10 @@ class Node(HasToDict):
                 storage_priority=priority,
             ))
         return channels
+
+    @property
+    def _init_keywords(self):
+        return list(inspect.signature(self.__init__).parameters.keys())
 
     def _build_output_channels(
             self, *return_labels: str, storage_priority: dict[str:int] = None
