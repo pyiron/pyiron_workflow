@@ -50,6 +50,21 @@ class TestWorkflow(TestCase):
         with self.assertRaises(AttributeError):
             Node(fnc, "x", label="boa", workflow=wf)
 
+    def test_node_packages(self):
+        wf = Workflow("my_workflow")
+
+        # Test invocation
+        wf.add.atomistics.BulkStructure(repeat=3, cubic=True, element="Al")
+        # Test invocation with attribute assignment
+        wf.engine = wf.add.atomistics.Lammps(structure=wf.bulk_structure)
+
+        self.assertSetEqual(
+            set(wf.nodes.keys()),
+            set(["bulk_structure", "engine"]),
+            msg=f"Expected one node label generated automatically from the class and "
+                f"the other from the attribute assignment, but got {wf.nodes.keys()}"
+        )
+
     def test_double_workfloage_and_node_removal(self):
         wf1 = Workflow("one")
         wf1.add.Node(fnc, "y", label="node1")
