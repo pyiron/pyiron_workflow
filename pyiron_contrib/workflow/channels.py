@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import typing
 from abc import ABC, abstractmethod
+from json import dumps
 from warnings import warn
 
 from pyiron_contrib.workflow.has_channel import HasChannel
@@ -198,7 +199,7 @@ class DataChannel(Channel, ABC):
 
     def to_dict(self):
         d = super().to_dict()
-        d["value"] = self.value
+        d["value"] = repr(self.value)
         d["ready"] = self.ready
         return d
 
