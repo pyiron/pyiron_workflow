@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import inspect
+import warnings
 from functools import partialmethod
 from typing import get_args, get_type_hints, Optional, TYPE_CHECKING
 
@@ -330,6 +331,8 @@ class Node(HasToDict):
         for k, v in kwargs.items():
             if k in self.inputs.labels:
                 self.inputs[k] = v
+            elif k not in self._init_keywords:
+                warnings.warn(f"The keyword '{k}' was received but not used.")
         self.run_on_updates = run_on_updates
 
         if update_on_instantiation:
