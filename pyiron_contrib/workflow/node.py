@@ -341,6 +341,14 @@ class Node(HasToDict):
         parameters = inspect.signature(self.node_function).parameters
 
         for label, value in parameters.items():
+            if label in self._init_keywords:
+                # We allow users to parse arbitrary kwargs as channel initialization
+                # So don't let them choose bad channel names
+                raise ValueError(
+                    f"The Input channel name {label} is not valid. Please choose a "
+                    f"name _not_ among {self._init_keywords}"
+                )
+
             try:
                 priority = storage_priority[label]
             except (KeyError, TypeError):
@@ -364,6 +372,10 @@ class Node(HasToDict):
                 storage_priority=priority,
             ))
         return channels
+
+    @property
+    def _init_keywords(self):
+        return list(inspect.signature(self.__init__).parameters.keys())
 
     def _build_output_channels(
             self, *return_labels: str, storage_priority: dict[str:int] = None
