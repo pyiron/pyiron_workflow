@@ -5,6 +5,7 @@ from warnings import warn
 
 from pyiron_contrib.workflow.has_to_dict import HasToDict
 from pyiron_contrib.workflow.node import Node, node, fast_node, single_value_node
+from pyiron_contrib.workflow.node_library import atomistics, package, standard
 from pyiron_contrib.workflow.util import DotDict
 
 
@@ -17,6 +18,8 @@ class _NodeAdder:
     """
     def __init__(self, workflow: Workflow):
         self._workflow = workflow
+        self.atomistics = package.NodePackage(self._workflow, *atomistics.nodes)
+        self.standard = package.NodePackage(self._workflow, *standard.nodes)
 
     Node = Node
 
@@ -163,29 +166,35 @@ class Workflow(HasToDict):
             del self.nodes[node]
 
     def __setattr__(self, label: str, node: Node):
-        if label in self.__dir__() and not isinstance(getattr(self, label), Node):
-            raise AttributeError(
-                f"{label} is already an attribute of {self.label} and cannot be "
-                f"reassigned. If this is a node, you can remove the existing node "
-                f"first to free the namespace."
+        if not isinstance(node, Node):
+            raise TypeError(
+                "Only new node instances may be assigned as attributes. This is "
+                "syntacic sugar for adding new nodes to the .nodes collection"
             )
-        elif not isinstance(node, Node):
-            raise TypeError(f"Can only assign nodes, but got {type(node)}")
-        else:
+        elif label in self.__dir__():
+            if isinstance(getattr(self, label), Node):
+                raise AttributeError(
+                    f"{label} holds an existing node. Either choose a different name, "
+                    f"or remove this node from the workflow to free up this name."
+                )
+            else:
+                raise AttributeError(
+                    f"{label} is a non-node attribute of the workflow; you cannot "
+                    f"assign a node to this name."
+                )
+        else:  # node _is_ a Node, and label _isn't_ occupied
             if node.label != label:
                 warn(
                     f"Reassigning the node {node.label} to the label {label} when "
                     f"adding it to the workflow {self.label}."
                 )
-            old_label = node.label
-            old_workflow = node.workflow
-            try:
+                old_label = node.label
                 node.label = label
-                self.add(node)
-            except:
-                node.label = old_label
-                node.workflow = old_workflow
-                raise
+                self.nodes[label] = node
+                if old_label in self.nodes.keys():
+                    del self.nodes[old_label]
+            else:
+                self.nodes[label] = node
 
     def __getattr__(self, key):
         return self.nodes[key]
