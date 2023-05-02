@@ -92,3 +92,10 @@ def calc_md(
         unwrapped_positions,
         volume,
     )
+
+
+nodes = [
+    bulk_structure,
+    calc_md,
+    lammps,
+]

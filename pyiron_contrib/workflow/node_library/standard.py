@@ -13,3 +13,8 @@ def scatter(
         x: Optional[list | np.ndarray] = None, y: Optional[list | np.ndarray] = None
 ):
     return plt.scatter(x, y)
+
+
+nodes = [
+    scatter,
+]

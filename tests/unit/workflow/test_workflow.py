@@ -26,13 +26,18 @@ class TestWorkflow(TestCase):
         # Validate name incrementation
         wf.add(Node(fnc, "x", label="foo"))
         wf.add.Node(fnc, "y", label="bar")
-        wf.baz = Node(fnc, "y", label="whatever_baz_gets_used")
+        with self.assertRaises(AttributeError):
+            wf.baz = Node(
+                fnc,
+                "y",
+                label="even_without_strict_you_still_cant_override_by_assignment"
+            )
         Node(fnc, "x", label="boa", workflow=wf)
         self.assertListEqual(
             list(wf.nodes.keys()),
             [
                 "foo", "bar", "baz", "boa",
-                "foo0", "bar0", "baz0", "boa0",
+                "foo0", "bar0", "boa0",
             ]
         )
 
@@ -49,6 +54,21 @@ class TestWorkflow(TestCase):
 
         with self.assertRaises(AttributeError):
             Node(fnc, "x", label="boa", workflow=wf)
+
+    def test_node_packages(self):
+        wf = Workflow("my_workflow")
+
+        # Test invocation
+        wf.add.atomistics.BulkStructure(repeat=3, cubic=True, element="Al")
+        # Test invocation with attribute assignment
+        wf.engine = wf.add.atomistics.Lammps(structure=wf.bulk_structure)
+
+        self.assertSetEqual(
+            set(wf.nodes.keys()),
+            set(["bulk_structure", "engine"]),
+            msg=f"Expected one node label generated automatically from the class and "
+                f"the other from the attribute assignment, but got {wf.nodes.keys()}"
+        )
 
     def test_double_workfloage_and_node_removal(self):
         wf1 = Workflow("one")

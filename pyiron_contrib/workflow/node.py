@@ -470,7 +470,8 @@ class Node(HasToDict):
 class FastNode(Node):
     """
     Like a regular node, but _all_ input channels _must_ have default values provided,
-    and the initialization signature forces `` and `` to be `True`.
+    and the initialization signature forces `run_on_updates` and
+    `update_on_instantiation` to be `True`.
     """
 
     def __init__(
