@@ -2,7 +2,9 @@ from unittest import TestCase, skipUnless
 from sys import version_info
 from typing import Optional, Union
 
-from pyiron_contrib.workflow.node import FastNode, Node, SingleValueNode, node
+from pyiron_contrib.workflow.node import (
+    FastNode, Node, SingleValueNode, node, single_value_node
+)
 
 
 def throw_error(x: Optional[int] = None):
@@ -208,4 +210,56 @@ class TestSingleValueNode(TestCase):
             svn.outputs.y, at_instantiation.inputs.x.connections,
             msg="The parsing of SingleValueNode output as a connection should also work"
                 "from assignment at instantiation"
+        )
+
+    def test_channels_requiring_update_after_run(self):
+        @single_value_node("sum")
+        def my_node(x: int = 0, y: int = 0, z: int = 0):
+            return x + y + z
+
+        n = my_node(channels_requiring_update_after_run=["x"])
+        n.inputs.y.require_update_after_node_runs()
+        n.inputs.z.require_update_after_node_runs(wait_now=True)
+
+        self.assertTrue(
+            n.inputs.x.waiting_for_update,
+            msg="Should have to wait because it was passed at init"
+        )
+        self.assertFalse(
+            n.inputs.y.waiting_for_update,
+            msg="Should not have to wait, because the node has not run since it was set "
+                "as requiring updates after runs."
+        )
+        self.assertTrue(
+            n.inputs.z.waiting_for_update,
+            msg="Should have to wait because it was told to wait now"
+        )
+
+        n.inputs.y.wait_for_update()
+
+        n.inputs.x = 1
+        self.assertFalse(
+            n.inputs.x.waiting_for_update,
+            msg="It got updated",
+        )
+        self.assertTrue(
+            n.inputs.y.waiting_for_update and n.inputs.z.waiting_for_update,
+            msg="They did not get updated"
+        )
+        self.assertFalse(
+            n.ready,
+            msg="Should still be waiting for y and z to get updated"
+        )
+
+        n.inputs.y = 2
+        n.inputs.z = 3
+        self.assertEqual(
+            n.outputs.sum.value, 6,
+            msg="Should have run after all inputs got updated"
+        )
+        self.assertTrue(
+            n.inputs.x.waiting_for_update and
+            n.inputs.y.waiting_for_update and
+            n.inputs.z.waiting_for_update,
+            msg="After the run, all three should now be waiting for updates again"
         )
