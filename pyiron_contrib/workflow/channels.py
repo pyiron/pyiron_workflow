@@ -229,21 +229,17 @@ class InputData(DataChannel):
             storage_priority=storage_priority,
             strict_connections=strict_connections
         )
-        self._waiting_for_update = False
-
-    @property
-    def waiting_for_update(self):
-        return self._waiting_for_update
+        self.waiting_for_update = False
 
     def wait_for_update(self):
-        self._waiting_for_update = True
+        self.waiting_for_update = True
 
     @property
     def ready(self):
         return not self.waiting_for_update and super().ready
 
     def _after_update(self):
-        self._waiting_for_update = False
+        self.waiting_for_update = False
         self.node.update()
 
     def require_update_after_node_runs(self, wait_now=False):
