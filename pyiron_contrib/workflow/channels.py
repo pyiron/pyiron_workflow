@@ -134,14 +134,12 @@ class DataChannel(Channel, ABC):
             default: typing.Optional[typing.Any] = None,
             type_hint: typing.Optional[typing.Any] = None,
             storage_priority: int = 0,
-            strict_connections: bool = True,
     ):
         super().__init__(label=label, node=node)
         self.default = default
         self.value = default
         self.type_hint = type_hint
         self.storage_priority = storage_priority
-        self.strict_connections = strict_connections
 
     @property
     def ready(self):
@@ -149,6 +147,13 @@ class DataChannel(Channel, ABC):
             return valid_value(self.value, self.type_hint)
         else:
             return True
+
+    def update(self, value):
+        self.value = value
+        self._after_update()
+
+    def _after_update(self):
+        pass
 
     def connect(self, *others: DataChannel):
         for other in others:
@@ -205,9 +210,51 @@ class DataChannel(Channel, ABC):
 
 
 class InputData(DataChannel):
-    def update(self, value):
-        self.value = value
+    """
+    `InputData` channels may be set to `wait_for_update()`, and they are only `ready`
+    when they are not `waiting_for_update`. Their parent node can be told to always set
+    them to wait for an update after the node runs using
+    `require_update_after_node_runs()`.
+
+    They may also set their `strict_connections` to `False` (`True` -- default) at
+    instantiation or later with `(de)activate_strict_connections()` to prevent (enable)
+    data type checking when making connections with `OutputData` channels.
+    """
+    def __init__(
+            self,
+            label: str,
+            node: Node,
+            default: typing.Optional[typing.Any] = None,
+            type_hint: typing.Optional[typing.Any] = None,
+            storage_priority: int = 0,
+            strict_connections: bool = True,
+    ):
+        super().__init__(
+            label=label,
+            node=node,
+            default=default,
+            type_hint=type_hint,
+            storage_priority=storage_priority,
+        )
+        self.strict_connections = strict_connections
+        self.waiting_for_update = False
+
+    def wait_for_update(self):
+        self.waiting_for_update = True
+
+    @property
+    def ready(self):
+        return not self.waiting_for_update and super().ready
+
+    def _after_update(self):
+        self.waiting_for_update = False
         self.node.update()
+
+    def require_update_after_node_runs(self, wait_now=False):
+        if self.label not in self.node.channels_requiring_update_after_run:
+            self.node.channels_requiring_update_after_run.append(self.label)
+        if wait_now:
+            self.wait_for_update()
 
     def activate_strict_connections(self):
         self.strict_connections = True
@@ -217,8 +264,7 @@ class InputData(DataChannel):
 
 
 class OutputData(DataChannel):
-    def update(self, value):
-        self.value = value
+    def _after_update(self):
         for inp in self.connections:
             inp.update(self.value)
 

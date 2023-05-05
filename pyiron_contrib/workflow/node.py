@@ -66,8 +66,14 @@ class Node(HasToDict):
         label (str): The node's label. (Defaults to the node function's name.)
         run_on_updates (bool): Whether to run when you are updated and all your
             input is ready. (Default is False).
-        update_on_instantiation (bool): Whether to force an update at the end of instantiation.
-            (Default is False.)
+        update_on_instantiation (bool): Whether to force an update at the end of
+            instantiation. (Default is False.)
+        channels_requiring_update_after_run (list[str]): All the input channels named
+            here will be set to `wait_for_update()` at the end of each node run, such
+            that they are not `ready` again until they have had their `.update` method
+            called. This can be used to create sets of input data _all_ of which must
+            be updated before the node is ready to produce output again. (Default is
+            None, which makes the list empty.)
         **kwargs: Any additional keyword arguments whose keyword matches the label of an
             input channel will have their value assigned to that channel.
 
@@ -307,6 +313,7 @@ class Node(HasToDict):
             output_storage_priority: Optional[dict[str, int]] = None,
             run_on_updates: bool = False,
             update_on_instantiation: bool = False,
+            channels_requiring_update_after_run: Optional[list[str]] = None,
             workflow: Optional[Workflow] = None,
             **kwargs
     ):
@@ -326,6 +333,11 @@ class Node(HasToDict):
         self.outputs = Outputs(*output_channels)
 
         self.signals = self._build_signal_channels()
+
+        self.channels_requiring_update_after_run = [] \
+            if channels_requiring_update_after_run is None \
+            else channels_requiring_update_after_run
+        self._verify_that_channels_requiring_update_all_exist()
 
         self.run_on_updates = False
         for k, v in kwargs.items():
@@ -429,6 +441,17 @@ class Node(HasToDict):
         signals.output.ran = OutputSignal("ran", self)
         return signals
 
+    def _verify_that_channels_requiring_update_all_exist(self):
+        if not all(
+            channel_name in self.inputs.labels
+            for channel_name in self.channels_requiring_update_after_run
+        ):
+            raise ValueError(
+                f"On or more channel name among those listed as requiring updates "
+                f"after the node runs ({self.channels_requiring_update_after_run}) was "
+                f"not found among the input channels ({self.inputs.labels})"
+            )
+
     def update(self) -> None:
         if self.run_on_updates and self.ready:
             self.run()
@@ -443,6 +466,9 @@ class Node(HasToDict):
             out.update(value)
 
         self.signals.output.ran()
+
+        for channel_name in self.channels_requiring_update_after_run:
+            self.inputs[channel_name].wait_for_update()
 
     def __call__(self) -> None:
         self.run()
