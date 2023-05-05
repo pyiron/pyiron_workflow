@@ -142,13 +142,31 @@ class DataChannel(Channel, ABC):
         self.type_hint = type_hint
         self.storage_priority = storage_priority
         self.strict_connections = strict_connections
+        self._waiting_for_update = False
 
     @property
     def ready(self):
         if self.type_hint is not None:
-            return valid_value(self.value, self.type_hint)
+            return not self.waiting_for_update and valid_value(
+                self.value, self.type_hint
+            )
         else:
-            return True
+            return not self.waiting_for_update
+
+    @property
+    def waiting_for_update(self):
+        return self._waiting_for_update
+
+    def wait_for_update(self):
+        self._waiting_for_update = True
+
+    def update(self, value):
+        self.waiting_for_update = False
+        self.value = value
+        self._after_update()
+
+    def _after_update(self):
+        pass
 
     def connect(self, *others: DataChannel):
         for other in others:
@@ -205,8 +223,7 @@ class DataChannel(Channel, ABC):
 
 
 class InputData(DataChannel):
-    def update(self, value):
-        self.value = value
+    def _after_update(self):
         self.node.update()
 
     def activate_strict_connections(self):
@@ -217,8 +234,7 @@ class InputData(DataChannel):
 
 
 class OutputData(DataChannel):
-    def update(self, value):
-        self.value = value
+    def _after_update(self):
         for inp in self.connections:
             inp.update(self.value)
 

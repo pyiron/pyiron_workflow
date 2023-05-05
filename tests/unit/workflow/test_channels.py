@@ -100,6 +100,15 @@ class TestDataChannels(TestCase):
     def test_ready(self):
         self.no.value = 1
         self.assertTrue(self.no.ready)
+
+        with self.subTest("Test the waiting mechanism"):
+            self.no.wait_for_update()
+            self.assertTrue(self.no.waiting_for_update)
+            self.assertFalse(self.no.ready)
+            self.no.update(2)
+            self.assertFalse(self.no.waiting_for_update)
+            self.assertTrue(self.no.ready)
+
         self.no.value = "Not numeric at all"
         self.assertFalse(self.no.ready)
 
