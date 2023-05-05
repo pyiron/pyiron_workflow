@@ -168,6 +168,12 @@ class DataChannel(Channel, ABC):
     def _after_update(self):
         pass
 
+    def require_update_after_node_runs(self, wait_now=False):
+        if self.label not in self.node.channels_requiring_update_after_run:
+            self.node.channels_requiring_update_after_run.append(self.label)
+        if wait_now:
+            self.wait_for_update()
+
     def connect(self, *others: DataChannel):
         for other in others:
             if self._valid_connection(other):
