@@ -161,7 +161,7 @@ class DataChannel(Channel, ABC):
         self._waiting_for_update = True
 
     def update(self, value):
-        self.waiting_for_update = False
+        self._waiting_for_update = False
         self.value = value
         self._after_update()
 
