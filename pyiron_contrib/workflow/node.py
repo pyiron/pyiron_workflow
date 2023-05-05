@@ -307,6 +307,7 @@ class Node(HasToDict):
             output_storage_priority: Optional[dict[str, int]] = None,
             run_on_updates: bool = False,
             update_on_instantiation: bool = False,
+            channels_requiring_update_after_run: Optional[list[str]] = None,
             workflow: Optional[Workflow] = None,
             **kwargs
     ):
@@ -326,6 +327,11 @@ class Node(HasToDict):
         self.outputs = Outputs(*output_channels)
 
         self.signals = self._build_signal_channels()
+
+        self.channels_requiring_update_after_run = [] \
+            if channels_requiring_update_after_run is None \
+            else channels_requiring_update_after_run
+        self._verify_that_channels_requiring_update_all_exist()
 
         self.run_on_updates = False
         for k, v in kwargs.items():
@@ -428,6 +434,17 @@ class Node(HasToDict):
         signals.input.run = InputSignal("run", self, self.run)
         signals.output.ran = OutputSignal("ran", self)
         return signals
+
+    def _verify_that_channels_requiring_update_all_exist(self):
+        if not all(
+            channel_name in self.inputs.labels
+            for channel_name in self.channels_requiring_update_after_run
+        ):
+            raise ValueError(
+                f"On or more channel name among those listed as requiring updates "
+                f"after the node runs ({self.channels_requiring_update_after_run}) was "
+                f"not found among the input channels ({self.inputs.labels})"
+            )
 
     def update(self) -> None:
         if self.run_on_updates and self.ready:
