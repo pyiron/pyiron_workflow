@@ -212,7 +212,7 @@ class Workflow(HasToDict):
         return len(self.nodes)
 
     @property
-    def input(self):
+    def inputs(self):
         return DotDict(
             {
                 f"{node.label}_{channel.label}": channel
@@ -223,7 +223,7 @@ class Workflow(HasToDict):
         )
 
     @property
-    def output(self):
+    def outputs(self):
         return DotDict(
             {
                 f"{node.label}_{channel.label}": channel

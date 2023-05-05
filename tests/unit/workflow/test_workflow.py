@@ -92,15 +92,15 @@ class TestWorkflow(TestCase):
         wf.add.Node(fnc, "y", label="n3")
 
         with self.subTest("Workflow IO should be drawn from its nodes"):
-            self.assertEqual(len(wf.input), 3)
-            self.assertEqual(len(wf.output), 3)
+            self.assertEqual(len(wf.inputs), 3)
+            self.assertEqual(len(wf.outputs), 3)
 
         wf.n3.inputs.x = wf.n2.outputs.y
         wf.n2.inputs.x = wf.n1.outputs.y
 
         with self.subTest("Only unconnected channels should count"):
-            self.assertEqual(len(wf.input), 1)
-            self.assertEqual(len(wf.output), 1)
+            self.assertEqual(len(wf.inputs), 1)
+            self.assertEqual(len(wf.outputs), 1)
 
     def test_node_decorator_access(self):
         @Workflow.wrap_as.fast_node("y")
