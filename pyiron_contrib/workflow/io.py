@@ -54,7 +54,7 @@ class IO(HasToDict, ABC):
     def _set_existing(self, key, value):
         pass
 
-    def __getattr__(self, item):
+    def __getattr__(self, item) -> Channel:
         return self.channel_dict[item]
 
     def __setattr__(self, key, value):
@@ -75,7 +75,7 @@ class IO(HasToDict, ABC):
                 f"attribute {key} got assigned {value} of type {type(value)}"
             )
 
-    def __getitem__(self, item):
+    def __getitem__(self, item) -> Channel:
         return self.__getattr__(item)
 
     def __setitem__(self, key, value):
