@@ -98,19 +98,19 @@ class TestDataChannels(TestCase):
         )
 
     def test_ready(self):
-        self.no.value = 1
-        self.assertTrue(self.no.ready)
+        self.ni1.value = 1
+        self.assertTrue(self.ni1.ready)
 
         with self.subTest("Test the waiting mechanism"):
-            self.no.wait_for_update()
-            self.assertTrue(self.no.waiting_for_update)
-            self.assertFalse(self.no.ready)
-            self.no.update(2)
-            self.assertFalse(self.no.waiting_for_update)
-            self.assertTrue(self.no.ready)
+            self.ni1.wait_for_update()
+            self.assertTrue(self.ni1.waiting_for_update)
+            self.assertFalse(self.ni1.ready)
+            self.ni1.update(2)
+            self.assertFalse(self.ni1.waiting_for_update)
+            self.assertTrue(self.ni1.ready)
 
-        self.no.value = "Not numeric at all"
-        self.assertFalse(self.no.ready)
+        self.ni1.value = "Not numeric at all"
+        self.assertFalse(self.ni1.ready)
 
     def test_update(self):
         self.no.connect(self.ni1, self.ni2)

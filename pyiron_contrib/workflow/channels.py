@@ -142,37 +142,20 @@ class DataChannel(Channel, ABC):
         self.type_hint = type_hint
         self.storage_priority = storage_priority
         self.strict_connections = strict_connections
-        self._waiting_for_update = False
 
     @property
     def ready(self):
         if self.type_hint is not None:
-            return not self.waiting_for_update and valid_value(
-                self.value, self.type_hint
-            )
+            return valid_value(self.value, self.type_hint)
         else:
-            return not self.waiting_for_update
-
-    @property
-    def waiting_for_update(self):
-        return self._waiting_for_update
-
-    def wait_for_update(self):
-        self._waiting_for_update = True
+            return True
 
     def update(self, value):
-        self._waiting_for_update = False
         self.value = value
         self._after_update()
 
     def _after_update(self):
         pass
-
-    def require_update_after_node_runs(self, wait_now=False):
-        if self.label not in self.node.channels_requiring_update_after_run:
-            self.node.channels_requiring_update_after_run.append(self.label)
-        if wait_now:
-            self.wait_for_update()
 
     def connect(self, *others: DataChannel):
         for other in others:
@@ -229,8 +212,45 @@ class DataChannel(Channel, ABC):
 
 
 class InputData(DataChannel):
+    def __init__(
+            self,
+            label: str,
+            node: Node,
+            default: typing.Optional[typing.Any] = None,
+            type_hint: typing.Optional[typing.Any] = None,
+            storage_priority: int = 0,
+            strict_connections: bool = True,
+    ):
+        super().__init__(
+            label=label,
+            node=node,
+            default=default,
+            type_hint=type_hint,
+            storage_priority=storage_priority,
+            strict_connections=strict_connections
+        )
+        self._waiting_for_update = False
+
+    @property
+    def waiting_for_update(self):
+        return self._waiting_for_update
+
+    def wait_for_update(self):
+        self._waiting_for_update = True
+
+    @property
+    def ready(self):
+        return not self.waiting_for_update and super().ready
+
     def _after_update(self):
+        self._waiting_for_update = False
         self.node.update()
+
+    def require_update_after_node_runs(self, wait_now=False):
+        if self.label not in self.node.channels_requiring_update_after_run:
+            self.node.channels_requiring_update_after_run.append(self.label)
+        if wait_now:
+            self.wait_for_update()
 
     def activate_strict_connections(self):
         self.strict_connections = True
