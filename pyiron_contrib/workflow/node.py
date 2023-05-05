@@ -496,6 +496,8 @@ class FastNode(Node):
             label: Optional[str] = None,
             input_storage_priority: Optional[dict[str, int]] = None,
             output_storage_priority: Optional[dict[str, int]] = None,
+            run_on_updates=True,
+            update_on_instantiation=True,
             workflow: Optional[Workflow] = None,
             **kwargs
     ):
@@ -506,8 +508,8 @@ class FastNode(Node):
             label=label,
             input_storage_priority=input_storage_priority,
             output_storage_priority=output_storage_priority,
-            run_on_updates=True,
-            update_on_instantiation=True,
+            run_on_updates=run_on_updates,
+            update_on_instantiation=update_on_instantiation,
             workflow=workflow,
             ** kwargs
         )
@@ -539,6 +541,8 @@ class SingleValueNode(FastNode, HasChannel):
             label: Optional[str] = None,
             input_storage_priority: Optional[dict[str, int]] = None,
             output_storage_priority: Optional[dict[str, int]] = None,
+            run_on_updates=True,
+            update_on_instantiation=True,
             workflow: Optional[Workflow] = None,
             **kwargs
     ):
@@ -549,6 +553,8 @@ class SingleValueNode(FastNode, HasChannel):
             label=label,
             input_storage_priority=input_storage_priority,
             output_storage_priority=output_storage_priority,
+            run_on_updates=run_on_updates,
+            update_on_instantiation=update_on_instantiation,
             workflow=workflow,
             **kwargs
         )
