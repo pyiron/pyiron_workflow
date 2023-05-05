@@ -210,6 +210,16 @@ class DataChannel(Channel, ABC):
 
 
 class InputData(DataChannel):
+    """
+    `InputData` channels may be set to `wait_for_update()`, and they are only `ready`
+    when they are not `waiting_for_update`. Their parent node can be told to always set
+    them to wait for an update after the node runs using
+    `require_update_after_node_runs()`.
+
+    They may also set their `strict_connections` to `False` (`True` -- default) at
+    instantiation or later with `(de)activate_strict_connections()` to prevent (enable)
+    data type checking when making connections with `OutputData` channels.
+    """
     def __init__(
             self,
             label: str,
