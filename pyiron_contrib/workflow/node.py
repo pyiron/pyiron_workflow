@@ -461,6 +461,9 @@ class Node(HasToDict):
 
         self.signals.output.ran()
 
+        for channel_name in self.channels_requiring_update_after_run:
+            self.inputs[channel_name].wait_for_update()
+
     def __call__(self) -> None:
         self.run()
 
