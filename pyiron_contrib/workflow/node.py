@@ -66,8 +66,14 @@ class Node(HasToDict):
         label (str): The node's label. (Defaults to the node function's name.)
         run_on_updates (bool): Whether to run when you are updated and all your
             input is ready. (Default is False).
-        update_on_instantiation (bool): Whether to force an update at the end of instantiation.
-            (Default is False.)
+        update_on_instantiation (bool): Whether to force an update at the end of
+            instantiation. (Default is False.)
+        channels_requiring_update_after_run (list[str]): All the input channels named
+            here will be set to `wait_for_update()` at the end of each node run, such
+            that they are not `ready` again until they have had their `.update` method
+            called. This can be used to create sets of input data _all_ of which must
+            be updated before the node is ready to produce output again. (Default is
+            None, which makes the list empty.)
         **kwargs: Any additional keyword arguments whose keyword matches the label of an
             input channel will have their value assigned to that channel.
 
