@@ -317,6 +317,9 @@ class Node(HasToDict):
             workflow: Optional[Workflow] = None,
             **kwargs
     ):
+        if len(output_labels) == 0:
+            raise ValueError("Nodes must have at least one output label.")
+
         self.running = False
         self.failed = False
         self.node_function = node_function

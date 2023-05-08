@@ -24,6 +24,13 @@ class TestNode(TestCase):
     def test_defaults(self):
         node = Node(plus_one, "y")
 
+    def test_failure_without_output_labels(self):
+        with self.assertRaises(
+                ValueError,
+                msg="Instantiated nodes should demand at least one output label"
+        ):
+            Node(plus_one)
+
     def test_instantiation_update(self):
         no_update = Node(
             plus_one,
