@@ -143,6 +143,7 @@ class TestNode(TestCase):
         # self.assertFalse(n.running)
         self.assertFalse(n.failed, msg="Re-running should reset failed status")
 
+
 @skipUnless(version_info[0] == 3 and version_info[1] >= 10, "Only supported for 3.10+")
 class TestFastNode(TestCase):
     def test_instantiation(self):
@@ -150,6 +151,7 @@ class TestFastNode(TestCase):
 
         with self.assertRaises(ValueError):
             missing_defaults_should_fail = FastNode(no_default, "z")
+
 
 @skipUnless(version_info[0] == 3 and version_info[1] >= 10, "Only supported for 3.10+")
 class TestSingleValueNode(TestCase):
