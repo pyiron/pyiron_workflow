@@ -114,8 +114,14 @@ class TestNode(TestCase):
         n = Node(plus_one, "p1")
         self.assertTrue(n.ready)
         self.assertFalse(n.running)
-        # Can't really test "running" until we have a background executor
         self.assertFalse(n.failed)
+
+        # Can't really test "running" until we have a background executor, so fake a bit
+        n.running = True
+        with self.assertRaises(RuntimeError):
+            # Running nodes can't be run
+            n.run()
+        n.running = False
 
         n.inputs.x = "Can't be added together with an int"
         with self.assertRaises(TypeError):
