@@ -459,6 +459,9 @@ class Node(HasToDict):
             self.run()
 
     def run(self) -> None:
+        if self.running:
+            raise RuntimeError(f"{self.label} is already running")
+
         self.running = True
         self.failed = False
 
