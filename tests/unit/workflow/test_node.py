@@ -22,7 +22,7 @@ def no_default(x, y):
 @skipUnless(version_info[0] == 3 and version_info[1] >= 10, "Only supported for 3.10+")
 class TestNode(TestCase):
     def test_defaults(self):
-        node = Node(plus_one, "y")
+        Node(plus_one, "y")
 
     def test_failure_without_output_labels(self):
         with self.assertRaises(
