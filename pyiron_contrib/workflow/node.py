@@ -26,7 +26,7 @@ class Node(HasToDict):
 
     An "update" is gentle and will only trigger the node to run if its run-on-update
     flag is set to true and if its input is all ready -- i.e. having values matching
-    the type hints.
+    the type hints, and if it is not either already running or already failed.
 
     They also have input and output signal channels -- a run input and a ran output,
     although these are extensible in child classes. Calling the run input signal
@@ -81,7 +81,9 @@ class Node(HasToDict):
         inputs (Inputs): A collection of input data channels.
         outputs (Outputs): A collection of output data channels.
         signals (Signals): A holder for input and output collections of signal channels.
-        ready (bool): All input reports ready.
+        ready (bool): All input reports ready, not running or failed.
+        running (bool): Currently running.
+        failed (bool): An exception was thrown when executing the node function.
         connected (bool): Any IO channel has at least one connection.
         fully_connected (bool): Every IO channel has at least one connection.
 
