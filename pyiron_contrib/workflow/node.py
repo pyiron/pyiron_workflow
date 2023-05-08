@@ -317,6 +317,8 @@ class Node(HasToDict):
             workflow: Optional[Workflow] = None,
             **kwargs
     ):
+        self.running = False
+        self.failed = False
         self.node_function = node_function
         self.label = label if label is not None else node_function.__name__
 
@@ -457,6 +459,9 @@ class Node(HasToDict):
             self.run()
 
     def run(self) -> None:
+        self.running = True
+        self.failed = False
+
         function_output = self.node_function(**self.inputs.to_value_dict())
 
         if len(self.outputs) == 1:
@@ -469,6 +474,8 @@ class Node(HasToDict):
 
         for channel_name in self.channels_requiring_update_after_run:
             self.inputs[channel_name].wait_for_update()
+
+        self.running = False
 
     def __call__(self) -> None:
         self.run()
