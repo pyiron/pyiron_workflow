@@ -82,7 +82,7 @@ class TestNode(TestCase):
         self.assertEqual(4, node2.outputs.y.value, msg="Initialize from connection")
 
     def test_automatic_updates(self):
-        node = Node(throw_error, run_on_updates=True)
+        node = Node(throw_error, "no_return", run_on_updates=True)
 
         with self.subTest("Shouldn't run for invalid input on update"):
             node.inputs.x.update("not an int")
