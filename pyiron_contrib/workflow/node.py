@@ -465,7 +465,12 @@ class Node(HasToDict):
         self.running = True
         self.failed = False
 
-        function_output = self.node_function(**self.inputs.to_value_dict())
+        try:
+            function_output = self.node_function(**self.inputs.to_value_dict())
+        except Exception as e:
+            self.running = False
+            self.failed = True
+            raise e
 
         if len(self.outputs) == 1:
             function_output = (function_output,)
