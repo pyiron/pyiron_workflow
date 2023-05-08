@@ -487,7 +487,7 @@ class Node(HasToDict):
 
     @property
     def ready(self) -> bool:
-        return self.inputs.ready
+        return not (self.running or self.failed) and self.inputs.ready
 
     @property
     def connected(self) -> bool:
