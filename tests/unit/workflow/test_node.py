@@ -110,6 +110,45 @@ class TestNode(TestCase):
             msg="Running the upstream node should trigger a run here"
         )
 
+    def test_statuses(self):
+        n = Node(plus_one, "p1")
+        self.assertTrue(n.ready)
+        self.assertFalse(n.running)
+        self.assertFalse(n.failed)
+
+        # Can't really test "running" until we have a background executor, so fake a bit
+        n.running = True
+        with self.assertRaises(RuntimeError):
+            # Running nodes can't be run
+            n.run()
+        n.running = False
+
+        n.inputs.x = "Can't be added together with an int"
+        with self.assertRaises(TypeError):
+            # The function error should get passed up
+            n.run()
+        self.assertFalse(n.ready)
+        # self.assertFalse(n.running)
+        self.assertTrue(n.failed)
+
+        n.inputs.x = 1
+        n.update()
+        self.assertFalse(
+            n.ready,
+            msg="Update _checks_ for ready, so should still have failed status"
+        )
+        # self.assertFalse(n.running)
+        self.assertTrue(n.failed)
+
+        n.run()
+        self.assertTrue(
+            n.ready,
+            msg="A manual run() call bypasses checks, so readiness should reset"
+        )
+        self.assertTrue(n.ready)
+        # self.assertFalse(n.running)
+        self.assertFalse(n.failed, msg="Re-running should reset failed status")
+
 
 @skipUnless(version_info[0] == 3 and version_info[1] >= 10, "Only supported for 3.10+")
 class TestFastNode(TestCase):
@@ -118,6 +157,7 @@ class TestFastNode(TestCase):
 
         with self.assertRaises(ValueError):
             missing_defaults_should_fail = FastNode(no_default, "z")
+
 
 @skipUnless(version_info[0] == 3 and version_info[1] >= 10, "Only supported for 3.10+")
 class TestSingleValueNode(TestCase):

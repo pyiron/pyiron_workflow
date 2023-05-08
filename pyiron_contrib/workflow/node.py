@@ -317,6 +317,8 @@ class Node(HasToDict):
             workflow: Optional[Workflow] = None,
             **kwargs
     ):
+        self.running = False
+        self.failed = False
         self.node_function = node_function
         self.label = label if label is not None else node_function.__name__
 
@@ -457,7 +459,18 @@ class Node(HasToDict):
             self.run()
 
     def run(self) -> None:
-        function_output = self.node_function(**self.inputs.to_value_dict())
+        if self.running:
+            raise RuntimeError(f"{self.label} is already running")
+
+        self.running = True
+        self.failed = False
+
+        try:
+            function_output = self.node_function(**self.inputs.to_value_dict())
+        except Exception as e:
+            self.running = False
+            self.failed = True
+            raise e
 
         if len(self.outputs) == 1:
             function_output = (function_output,)
@@ -470,6 +483,8 @@ class Node(HasToDict):
         for channel_name in self.channels_requiring_update_after_run:
             self.inputs[channel_name].wait_for_update()
 
+        self.running = False
+
     def __call__(self) -> None:
         self.run()
 
@@ -480,7 +495,7 @@ class Node(HasToDict):
 
     @property
     def ready(self) -> bool:
-        return self.inputs.ready
+        return not (self.running or self.failed) and self.inputs.ready
 
     @property
     def connected(self) -> bool:

@@ -6,6 +6,10 @@ from pyiron_contrib.workflow.io import Inputs, Outputs
 
 
 class DummyNode:
+    def __init__(self):
+        self.running = False
+        self.label = "node_label"
+
     def update(self):
         pass
 

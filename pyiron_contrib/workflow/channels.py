@@ -149,8 +149,12 @@ class DataChannel(Channel, ABC):
             return True
 
     def update(self, value):
+        self._before_update()
         self.value = value
         self._after_update()
+
+    def _before_update(self):
+        pass
 
     def _after_update(self):
         pass
@@ -245,6 +249,13 @@ class InputData(DataChannel):
     @property
     def ready(self):
         return not self.waiting_for_update and super().ready
+
+    def _before_update(self):
+        if self.node.running:
+            raise RuntimeError(
+                f"Parent node {self.node.label} of {self.label} is running, so value "
+                f"cannot be updated."
+            )
 
     def _after_update(self):
         self.waiting_for_update = False

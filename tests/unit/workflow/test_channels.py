@@ -9,6 +9,8 @@ from pyiron_contrib.workflow.channels import (
 class DummyNode:
     def __init__(self):
         self.foo = [0]
+        self.running = False
+        self.label = "node_label"
 
     def update(self):
         self.foo.append(self.foo[-1] + 1)
@@ -121,6 +123,10 @@ class TestDataChannels(TestCase):
                 inp.value,
                 msg="Value should have been passed downstream"
             )
+
+        self.ni1.node.running = True
+        with self.assertRaises(RuntimeError):
+            self.no.update(42)
 
 
 class TestSignalChannels(TestCase):
