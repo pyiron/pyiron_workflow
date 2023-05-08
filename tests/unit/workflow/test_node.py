@@ -22,7 +22,14 @@ def no_default(x, y):
 @skipUnless(version_info[0] == 3 and version_info[1] >= 10, "Only supported for 3.10+")
 class TestNode(TestCase):
     def test_defaults(self):
-        node = Node(plus_one, "y")
+        Node(plus_one, "y")
+
+    def test_failure_without_output_labels(self):
+        with self.assertRaises(
+                ValueError,
+                msg="Instantiated nodes should demand at least one output label"
+        ):
+            Node(plus_one)
 
     def test_instantiation_update(self):
         no_update = Node(
@@ -75,7 +82,7 @@ class TestNode(TestCase):
         self.assertEqual(4, node2.outputs.y.value, msg="Initialize from connection")
 
     def test_automatic_updates(self):
-        node = Node(throw_error, run_on_updates=True)
+        node = Node(throw_error, "no_return", run_on_updates=True)
 
         with self.subTest("Shouldn't run for invalid input on update"):
             node.inputs.x.update("not an int")
