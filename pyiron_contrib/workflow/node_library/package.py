@@ -23,7 +23,7 @@ class NodePackage(DotDict):
 
     def __init__(self, workflow: Workflow, *node_classes: Node):
         super().__init__()
-        self.__dict__['_workflow'] = workflow  # Avoid the __setattr__ override
+        self.__dict__["_workflow"] = workflow  # Avoid the __setattr__ override
         for node in node_classes:
             self[node.__name__] = node
 

@@ -16,6 +16,7 @@ class _NodeAdder:
 
     TODO: Give access to pre-built fixed nodes under various domain names
     """
+
     def __init__(self, workflow: Workflow):
         self._workflow = workflow
         self.atomistics = package.NodePackage(self._workflow, *atomistics.nodes)
@@ -37,8 +38,9 @@ class _NodeAdder:
                 f"to this workflow ({self._workflow.label})."
             )
 
-        if node.label in self._workflow.__dir__() and \
-                not isinstance(getattr(self._workflow, node.label), Node):
+        if node.label in self._workflow.__dir__() and not isinstance(
+            getattr(self._workflow, node.label), Node
+        ):
             raise AttributeError(
                 f"Cannot add a node with label {node.label}, that is already an "
                 f"attribute"
@@ -65,6 +67,7 @@ class _NodeAdder:
 
 class _NodeDecoratorAccess:
     """An intermediate container to store node-creating decorators as class methods."""
+
     node = node
     fast_node = fast_node
     single_value_node = single_value_node
@@ -139,23 +142,24 @@ class Workflow(HasToDict):
         apply that falls short of a full export, but still guarantees the internal
         integrity of workflows when they're used somewhere else?
     """
+
     wrap_as = _NodeDecoratorAccess
 
     def __init__(self, label: str, *nodes: Node, strict_naming=True):
-        self.__dict__['label'] = label
-        self.__dict__['nodes'] = DotDict()
-        self.__dict__['add'] = _NodeAdder(self)
-        self.__dict__['strict_naming'] = strict_naming
+        self.__dict__["label"] = label
+        self.__dict__["nodes"] = DotDict()
+        self.__dict__["add"] = _NodeAdder(self)
+        self.__dict__["strict_naming"] = strict_naming
         # We directly assign using __dict__ because we override the setattr later
 
         for node in nodes:
             self.add(node)
 
     def activate_strict_naming(self):
-        self.__dict__['strict_naming'] = True
+        self.__dict__["strict_naming"] = True
 
     def deactivate_strict_naming(self):
-        self.__dict__['strict_naming'] = False
+        self.__dict__["strict_naming"] = False
 
     def remove(self, node: Node | str):
         if isinstance(node, Node):

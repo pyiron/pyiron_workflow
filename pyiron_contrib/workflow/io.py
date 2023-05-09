@@ -4,8 +4,10 @@ from abc import ABC, abstractmethod
 
 from pyiron_contrib.workflow.channels import (
     Channel,
-    InputData, OutputData,
-    InputSignal, OutputSignal
+    InputData,
+    OutputData,
+    InputSignal,
+    OutputSignal,
 )
 from pyiron_contrib.workflow.has_channel import HasChannel
 from pyiron_contrib.workflow.has_to_dict import HasToDict
@@ -37,10 +39,12 @@ class IO(HasToDict, ABC):
     is equivalent to
     >>> some_io.some_existing_channel.connect(some_other_channel)
     """
+
     def __init__(self, *channels: Channel):
         self.channel_dict = DotDict(
             {
-                channel.label: channel for channel in channels
+                channel.label: channel
+                for channel in channels
                 if isinstance(channel, self._channel_class)
             }
         )
@@ -111,7 +115,7 @@ class IO(HasToDict, ABC):
             "label": self.__class__.__name__,
             "connected": self.connected,
             "fully_connected": self.fully_connected,
-            "channels": {l: c.to_dict() for l, c in self.channel_dict.items()}
+            "channels": {l: c.to_dict() for l, c in self.channel_dict.items()},
         }
 
 

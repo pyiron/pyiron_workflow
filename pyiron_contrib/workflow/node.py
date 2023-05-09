@@ -6,7 +6,10 @@ from functools import partialmethod
 from typing import get_args, get_type_hints, Optional, TYPE_CHECKING
 
 from pyiron_contrib.workflow.channels import (
-    InputData, OutputData, InputSignal, OutputSignal
+    InputData,
+    OutputData,
+    InputSignal,
+    OutputSignal,
 )
 from pyiron_contrib.workflow.has_channel import HasChannel
 from pyiron_contrib.workflow.has_to_dict import HasToDict
@@ -306,18 +309,19 @@ class Node(HasToDict):
         To see more details on how to use many nodes together, look at the
         `Workflow` class.
     """
+
     def __init__(
-            self,
-            node_function: callable,
-            *output_labels: str,
-            label: Optional[str] = None,
-            input_storage_priority: Optional[dict[str, int]] = None,
-            output_storage_priority: Optional[dict[str, int]] = None,
-            run_on_updates: bool = False,
-            update_on_instantiation: bool = False,
-            channels_requiring_update_after_run: Optional[list[str]] = None,
-            workflow: Optional[Workflow] = None,
-            **kwargs
+        self,
+        node_function: callable,
+        *output_labels: str,
+        label: Optional[str] = None,
+        input_storage_priority: Optional[dict[str, int]] = None,
+        output_storage_priority: Optional[dict[str, int]] = None,
+        run_on_updates: bool = False,
+        update_on_instantiation: bool = False,
+        channels_requiring_update_after_run: Optional[list[str]] = None,
+        workflow: Optional[Workflow] = None,
+        **kwargs,
     ):
         if len(output_labels) == 0:
             raise ValueError("Nodes must have at least one output label.")
@@ -341,9 +345,11 @@ class Node(HasToDict):
 
         self.signals = self._build_signal_channels()
 
-        self.channels_requiring_update_after_run = [] \
-            if channels_requiring_update_after_run is None \
+        self.channels_requiring_update_after_run = (
+            []
+            if channels_requiring_update_after_run is None
             else channels_requiring_update_after_run
+        )
         self._verify_that_channels_requiring_update_all_exist()
 
         self.run_on_updates = False
@@ -386,13 +392,15 @@ class Node(HasToDict):
             else:
                 default = None
 
-            channels.append(InputData(
-                label=label,
-                node=self,
-                default=default,
-                type_hint=type_hint,
-                storage_priority=priority,
-            ))
+            channels.append(
+                InputData(
+                    label=label,
+                    node=self,
+                    default=default,
+                    type_hint=type_hint,
+                    storage_priority=priority,
+                )
+            )
         return channels
 
     @property
@@ -400,7 +408,7 @@ class Node(HasToDict):
         return list(inspect.signature(self.__init__).parameters.keys())
 
     def _build_output_channels(
-            self, *return_labels: str, storage_priority: dict[str:int] = None
+        self, *return_labels: str, storage_priority: dict[str:int] = None
     ):
         try:
             type_hints = get_type_hints(self.node_function)["return"]
@@ -508,9 +516,11 @@ class Node(HasToDict):
 
     @property
     def fully_connected(self):
-        return self.inputs.fully_connected \
-            and self.outputs.fully_connected \
+        return (
+            self.inputs.fully_connected
+            and self.outputs.fully_connected
             and self.signals.fully_connected
+        )
 
     def set_storage_priority(self, priority: int):
         self.inputs.set_storage_priority(priority)
@@ -524,7 +534,7 @@ class Node(HasToDict):
             "fully_connected": self.fully_connected,
             "inputs": self.inputs.to_dict(),
             "outputs": self.outputs.to_dict(),
-            "signals": self.signals.to_dict()
+            "signals": self.signals.to_dict(),
         }
 
 
@@ -536,16 +546,16 @@ class FastNode(Node):
     """
 
     def __init__(
-            self,
-            node_function: callable,
-            *output_labels: str,
-            label: Optional[str] = None,
-            input_storage_priority: Optional[dict[str, int]] = None,
-            output_storage_priority: Optional[dict[str, int]] = None,
-            run_on_updates=True,
-            update_on_instantiation=True,
-            workflow: Optional[Workflow] = None,
-            **kwargs
+        self,
+        node_function: callable,
+        *output_labels: str,
+        label: Optional[str] = None,
+        input_storage_priority: Optional[dict[str, int]] = None,
+        output_storage_priority: Optional[dict[str, int]] = None,
+        run_on_updates=True,
+        update_on_instantiation=True,
+        workflow: Optional[Workflow] = None,
+        **kwargs,
     ):
         self.ensure_params_have_defaults(node_function)
         super().__init__(
@@ -557,7 +567,7 @@ class FastNode(Node):
             run_on_updates=run_on_updates,
             update_on_instantiation=update_on_instantiation,
             workflow=workflow,
-            ** kwargs
+            **kwargs,
         )
 
     @classmethod
@@ -580,17 +590,18 @@ class SingleValueNode(FastNode, HasChannel):
 
     Attribute and item access is modified to finally attempt access on the output value.
     """
+
     def __init__(
-            self,
-            node_function: callable,
-            *output_labels: str,
-            label: Optional[str] = None,
-            input_storage_priority: Optional[dict[str, int]] = None,
-            output_storage_priority: Optional[dict[str, int]] = None,
-            run_on_updates=True,
-            update_on_instantiation=True,
-            workflow: Optional[Workflow] = None,
-            **kwargs
+        self,
+        node_function: callable,
+        *output_labels: str,
+        label: Optional[str] = None,
+        input_storage_priority: Optional[dict[str, int]] = None,
+        output_storage_priority: Optional[dict[str, int]] = None,
+        run_on_updates=True,
+        update_on_instantiation=True,
+        workflow: Optional[Workflow] = None,
+        **kwargs,
     ):
         self.ensure_there_is_only_one_return_value(output_labels)
         super().__init__(
@@ -602,7 +613,7 @@ class SingleValueNode(FastNode, HasChannel):
             run_on_updates=run_on_updates,
             update_on_instantiation=update_on_instantiation,
             workflow=workflow,
-            **kwargs
+            **kwargs,
         )
 
     @classmethod
@@ -632,8 +643,9 @@ class SingleValueNode(FastNode, HasChannel):
         return self.single_value.__repr__()
 
     def __str__(self):
-        return f"{self.label} ({self.__class__.__name__}) output single-value: " \
-            + str(self.single_value)
+        return f"{self.label} ({self.__class__.__name__}) output single-value: " + str(
+            self.single_value
+        )
 
 
 def node(*output_labels: str, **node_class_kwargs):
@@ -651,12 +663,14 @@ def node(*output_labels: str, **node_class_kwargs):
         return type(
             node_function.__name__.title().replace("_", ""),  # fnc_name to CamelCase
             (Node,),  # Define parentage
-            {'__init__': partialmethod(
-                Node.__init__,
-                node_function,
-                *output_labels,
-                **node_class_kwargs,
-            )}
+            {
+                "__init__": partialmethod(
+                    Node.__init__,
+                    node_function,
+                    *output_labels,
+                    **node_class_kwargs,
+                )
+            },
         )
 
     return as_node
@@ -668,19 +682,20 @@ def fast_node(*output_labels: str, **node_class_kwargs):
 
     Unlike normal nodes, fast nodes _must_ have default values set for all their inputs.
     """
+
     def as_fast_node(node_function: callable):
         FastNode.ensure_params_have_defaults(node_function)
         return type(
             node_function.__name__.title().replace("_", ""),  # fnc_name to CamelCase
             (FastNode,),  # Define parentage
             {
-                '__init__': partialmethod(
+                "__init__": partialmethod(
                     FastNode.__init__,
                     node_function,
                     *output_labels,
-                    **node_class_kwargs
+                    **node_class_kwargs,
                 )
-            }
+            },
         )
 
     return as_fast_node
@@ -692,6 +707,7 @@ def single_value_node(*output_labels: str, **node_class_kwargs):
 
     Unlike normal nodes, fast nodes _must_ have default values set for all their inputs.
     """
+
     def as_single_value_node(node_function: callable):
         SingleValueNode.ensure_there_is_only_one_return_value(output_labels)
         SingleValueNode.ensure_params_have_defaults(node_function)
@@ -699,13 +715,13 @@ def single_value_node(*output_labels: str, **node_class_kwargs):
             node_function.__name__.title().replace("_", ""),  # fnc_name to CamelCase
             (SingleValueNode,),  # Define parentage
             {
-                '__init__': partialmethod(
+                "__init__": partialmethod(
                     SingleValueNode.__init__,
                     node_function,
                     *output_labels,
-                    **node_class_kwargs
+                    **node_class_kwargs,
                 )
-            }
+            },
         )
 
     return as_single_value_node
