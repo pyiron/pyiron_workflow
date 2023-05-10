@@ -126,6 +126,14 @@ class Workflow(HasToDict):
         ...     y=wf.calc.outputs.temperature
         ... )
 
+        The unconnected inputs and outputs of nodes belonging to a workflow can be
+        accessed directly via the node, or right from the workflow by combining the
+        node and channel labels thanks to a convenience-wrapper. Continuing the above
+        example, we could write...
+        >>> wf.structure.inputs.element = "Ni"
+        >>> print(type(wf.outputs.plot_fig.value))
+        <class 'matplotlib.collections.PathCollection'>
+
 
     TODO: Workflows can be serialized.
 
