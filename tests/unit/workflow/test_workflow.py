@@ -26,18 +26,17 @@ class TestWorkflow(TestCase):
         # Validate name incrementation
         wf.add(Node(fnc, "x", label="foo"))
         wf.add.Node(fnc, "y", label="bar")
-        with self.assertRaises(AttributeError):
-            wf.baz = Node(
-                fnc,
-                "y",
-                label="even_without_strict_you_still_cant_override_by_assignment"
-            )
+        wf.baz = Node(
+            fnc,
+            "y",
+            label="without_strict_you_can_override_by_assignment"
+        )
         Node(fnc, "x", label="boa", workflow=wf)
         self.assertListEqual(
             list(wf.nodes.keys()),
             [
                 "foo", "bar", "baz", "boa",
-                "foo0", "bar0", "boa0",
+                "foo0", "bar0", "baz0", "boa0",
             ]
         )
 

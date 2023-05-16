@@ -30,37 +30,7 @@ class _NodeAdder:
         return value
 
     def __call__(self, node: Node):
-        if node.workflow is not None:
-            raise ValueError(
-                f"This node ({node.label}) already belongs to the workflow "
-                f"{node.workflow.label}. Please remove it there before trying to add it"
-                f"to this workflow ({self._workflow.label})."
-            )
-
-        if node.label in self._workflow.__dir__() and \
-                not isinstance(getattr(self._workflow, node.label), Node):
-            raise AttributeError(
-                f"Cannot add a node with label {node.label}, that is already an "
-                f"attribute"
-            )
-
-        if self._workflow.strict_naming and node.label in self._workflow.nodes.keys():
-            raise AttributeError(
-                f"Cannot add a node with label {node.label}, that is already a node."
-            )
-
-        # Otherwise, if not strict then iterate on name
-        i = 0
-        label = node.label
-        while label in self._workflow.nodes.keys():
-            warn(f"{label} is already a node; appending an index to the label...")
-            label = f"{node.label}{i}"
-            i += 1
-        node.label = label
-        # Or this while loop just terminates immediately if the name is unique
-
-        self._workflow.nodes[node.label] = node
-        node.workflow = self._workflow
+        self._workflow.add_node(node)
 
 
 class _NodeDecoratorAccess:
@@ -149,7 +119,77 @@ class Workflow(HasToDict):
         # We directly assign using __dict__ because we override the setattr later
 
         for node in nodes:
-            self.add(node)
+            self.add_node(node)
+
+    def add_node(self, node: Node, label: str = None) -> None:
+        """
+        Assign a node to the workflow. Optionally provide a new label for that node.
+
+        Args:
+            node (pyiron_contrib.workflow.node.Node): The node to add.
+            label (Optional[str]): The label for this node.
+
+        Raises:
+
+        """
+        if not isinstance(node, Node):
+            raise TypeError(
+                f"Only new node instances may be added, but got {type(node)}."
+            )
+
+        label = self._ensure_label_is_unique(node.label if label is None else label)
+        self._ensure_node_belongs_to_at_most_this_workflow(node, label)
+
+        self.nodes[label] = node
+        node.label = label
+        node.workflow = self
+
+    def _ensure_node_belongs_to_at_most_this_workflow(self, node: Node, label: str):
+        if (
+                node.workflow is self  # This should guarantee the node is in self.nodes
+                and label != node.label
+        ):
+            assert(self.nodes[node.label] is node)  # Should be unreachable by users
+            warn(
+                f"Reassigning the node {node.label} to the label {label} when "
+                f"adding it to the workflow {self.label}."
+            )
+            del self.nodes[node.label]
+        elif node.workflow is not None:
+            raise ValueError(
+                f"The node ({node.label}) already belongs to the workflow "
+                f"{node.workflow.label}. Please remove it there before trying to "
+                f"add it to this workflow ({self.label})."
+            )
+
+    def _ensure_label_is_unique(self, label):
+        if label in self.__dir__():
+            if isinstance(getattr(self, label), Node):
+                if self.strict_naming:
+                    raise AttributeError(
+                        f"{label} is already the label for a node. Please remove it "
+                        f"before assigning another node to this label."
+                    )
+                else:
+                    label = self._add_suffix_to_label(label)
+            else:
+                raise AttributeError(
+                    f"{label} is an attribute or method of the {self.__class__} class, "
+                    f"and cannot be used as a node label."
+                )
+        return label
+
+    def _add_suffix_to_label(self, label):
+        i = 0
+        new_label = label
+        while new_label in self.nodes.keys():
+            warn(
+                f"{label} is already a node; appending an index to the "
+                f"node label instead: {label}{i}"
+            )
+            new_label = f"{label}{i}"
+            i += 1
+        return new_label
 
     def activate_strict_naming(self):
         self.__dict__['strict_naming'] = True
@@ -171,30 +211,7 @@ class Workflow(HasToDict):
                 "Only new node instances may be assigned as attributes. This is "
                 "syntacic sugar for adding new nodes to the .nodes collection"
             )
-        elif label in self.__dir__():
-            if isinstance(getattr(self, label), Node):
-                raise AttributeError(
-                    f"{label} holds an existing node. Either choose a different name, "
-                    f"or remove this node from the workflow to free up this name."
-                )
-            else:
-                raise AttributeError(
-                    f"{label} is a non-node attribute of the workflow; you cannot "
-                    f"assign a node to this name."
-                )
-        else:  # node _is_ a Node, and label _isn't_ occupied
-            if node.label != label:
-                warn(
-                    f"Reassigning the node {node.label} to the label {label} when "
-                    f"adding it to the workflow {self.label}."
-                )
-                old_label = node.label
-                node.label = label
-                self.nodes[label] = node
-                if old_label in self.nodes.keys():
-                    del self.nodes[old_label]
-            else:
-                self.nodes[label] = node
+        self.add_node(node, label=label)
 
     def __getattr__(self, key):
         return self.nodes[key]
