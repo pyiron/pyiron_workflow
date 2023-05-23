@@ -8,7 +8,8 @@ from warnings import warn
 from pyiron_contrib.workflow.has_channel import HasChannel
 from pyiron_contrib.workflow.has_to_dict import HasToDict
 from pyiron_contrib.workflow.type_hinting import (
-    valid_value, type_hint_is_as_or_more_specific_than
+    valid_value,
+    type_hint_is_as_or_more_specific_than,
 )
 
 if typing.TYPE_CHECKING:
@@ -26,9 +27,9 @@ class Channel(HasChannel, HasToDict, ABC):
     """
 
     def __init__(
-            self,
-            label: str,
-            node: Node,
+        self,
+        label: str,
+        node: Node,
     ):
         self.label = label
         self.node = node
@@ -72,7 +73,7 @@ class Channel(HasChannel, HasToDict, ABC):
         return {
             "label": self.label,
             "connected": self.connected,
-            "connections": [f"{c.node.label}.{c.label}" for c in self.connections]
+            "connections": [f"{c.node.label}.{c.label}" for c in self.connections],
         }
 
 
@@ -127,13 +128,14 @@ class DataChannel(Channel, ABC):
         channels to turn on/off the strict enforcement of type hints when making
         connections.
     """
+
     def __init__(
-            self,
-            label: str,
-            node: Node,
-            default: typing.Optional[typing.Any] = None,
-            type_hint: typing.Optional[typing.Any] = None,
-            storage_priority: int = 0,
+        self,
+        label: str,
+        node: Node,
+        default: typing.Optional[typing.Any] = None,
+        type_hint: typing.Optional[typing.Any] = None,
+        storage_priority: int = 0,
     ):
         super().__init__(label=label, node=node)
         self.default = default
@@ -224,14 +226,15 @@ class InputData(DataChannel):
     instantiation or later with `(de)activate_strict_connections()` to prevent (enable)
     data type checking when making connections with `OutputData` channels.
     """
+
     def __init__(
-            self,
-            label: str,
-            node: Node,
-            default: typing.Optional[typing.Any] = None,
-            type_hint: typing.Optional[typing.Any] = None,
-            storage_priority: int = 0,
-            strict_connections: bool = True,
+        self,
+        label: str,
+        node: Node,
+        default: typing.Optional[typing.Any] = None,
+        type_hint: typing.Optional[typing.Any] = None,
+        storage_priority: int = 0,
+        strict_connections: bool = True,
     ):
         super().__init__(
             label=label,
@@ -314,16 +317,17 @@ class SignalChannel(Channel, ABC):
         return self._is_IO_pair(other) and not self._already_connected(other)
 
     def _is_IO_pair(self, other) -> bool:
-        return isinstance(other, SignalChannel) \
-            and not isinstance(other, self.__class__)
+        return isinstance(other, SignalChannel) and not isinstance(
+            other, self.__class__
+        )
 
 
 class InputSignal(SignalChannel):
     def __init__(
-            self,
-            label: str,
-            node: Node,
-            callback: callable,
+        self,
+        label: str,
+        node: Node,
+        callback: callable,
     ):
         super().__init__(label=label, node=node)
         self.callback: callable = callback
@@ -346,5 +350,7 @@ class OutputSignal(SignalChannel):
             c()
 
     def __str__(self):
-        return f"{self.label} activates " \
-               f"{[f'{c.node.label}.{c.label}' for c in self.connections]}"
+        return (
+            f"{self.label} activates "
+            f"{[f'{c.node.label}.{c.label}' for c in self.connections]}"
+        )

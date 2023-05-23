@@ -16,6 +16,7 @@ class _NodeAdder:
 
     TODO: Give access to pre-built fixed nodes under various domain names
     """
+
     def __init__(self, workflow: Workflow):
         self._workflow = workflow
         self.atomistics = package.NodePackage(self._workflow, *atomistics.nodes)
@@ -35,6 +36,7 @@ class _NodeAdder:
 
 class _NodeDecoratorAccess:
     """An intermediate container to store node-creating decorators as class methods."""
+
     node = node
     fast_node = fast_node
     single_value_node = single_value_node
@@ -117,13 +119,14 @@ class Workflow(HasToDict):
         apply that falls short of a full export, but still guarantees the internal
         integrity of workflows when they're used somewhere else?
     """
+
     wrap_as = _NodeDecoratorAccess
 
     def __init__(self, label: str, *nodes: Node, strict_naming=True):
-        self.__dict__['label'] = label
-        self.__dict__['nodes'] = DotDict()
-        self.__dict__['add'] = _NodeAdder(self)
-        self.__dict__['strict_naming'] = strict_naming
+        self.__dict__["label"] = label
+        self.__dict__["nodes"] = DotDict()
+        self.__dict__["add"] = _NodeAdder(self)
+        self.__dict__["strict_naming"] = strict_naming
         # We directly assign using __dict__ because we override the setattr later
 
         for node in nodes:
@@ -154,10 +157,10 @@ class Workflow(HasToDict):
 
     def _ensure_node_belongs_to_at_most_this_workflow(self, node: Node, label: str):
         if (
-                node.workflow is self  # This should guarantee the node is in self.nodes
-                and label != node.label
+            node.workflow is self  # This should guarantee the node is in self.nodes
+            and label != node.label
         ):
-            assert(self.nodes[node.label] is node)  # Should be unreachable by users
+            assert self.nodes[node.label] is node  # Should be unreachable by users
             warn(
                 f"Reassigning the node {node.label} to the label {label} when "
                 f"adding it to the workflow {self.label}."
@@ -200,10 +203,10 @@ class Workflow(HasToDict):
         return new_label
 
     def activate_strict_naming(self):
-        self.__dict__['strict_naming'] = True
+        self.__dict__["strict_naming"] = True
 
     def deactivate_strict_naming(self):
-        self.__dict__['strict_naming'] = False
+        self.__dict__["strict_naming"] = False
 
     def remove(self, node: Node | str):
         if isinstance(node, Node):

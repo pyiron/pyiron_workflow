@@ -41,14 +41,14 @@ def lammps(structure: Optional[Atoms] = None) -> LammpsJob:
     "volume",
 )
 def calc_md(
-        job: AtomisticGenericJob,
-        n_ionic_steps: int = 1000,
-        n_print: int = 100,
-        temperature: int | float = 300.0,
-        pressure: float
-                  | tuple[float, float, float]
-                  | tuple[float, float, float, float, float, float]
-                  | None = None,
+    job: AtomisticGenericJob,
+    n_ionic_steps: int = 1000,
+    n_print: int = 100,
+    temperature: int | float = 300.0,
+    pressure: float
+    | tuple[float, float, float]
+    | tuple[float, float, float, float, float, float]
+    | None = None,
 ):
     job_name = "JUSTAJOBNAME"
     pr = Project("WORKFLOWNAMEPROJECT")
@@ -57,7 +57,7 @@ def calc_md(
         n_ionic_steps=n_ionic_steps,
         n_print=n_print,
         temperature=temperature,
-        pressure=pressure
+        pressure=pressure,
     )
     job.run()
     cells = job.output.cells

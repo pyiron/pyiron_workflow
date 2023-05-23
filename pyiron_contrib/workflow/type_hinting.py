@@ -28,7 +28,7 @@ def type_hint_to_tuple(type_hint) -> tuple:
     if isinstance(type_hint, (types.UnionType, typing._UnionGenericAlias)):
         return typing.get_args(type_hint)
     else:
-        return type_hint,
+        return (type_hint,)
 
 
 def type_hint_is_as_or_more_specific_than(hint, other) -> bool:
