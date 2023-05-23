@@ -20,6 +20,7 @@ class HasChannel(ABC):
     This is useful for letting channels attempt to connect to non-channel objects
     directly by pointing them to some channel that object holds.
     """
+
     @property
     @abstractmethod
     def channel(self) -> Channel:
