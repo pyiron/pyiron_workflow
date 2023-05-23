@@ -149,10 +149,10 @@ class Workflow(HasToDict):
 
     def _ensure_node_belongs_to_at_most_this_workflow(self, node: Node, label: str):
         if (
-                node.workflow is self  # This should guarantee the node is in self.nodes
-                and label != node.label
+            node.workflow is self  # This should guarantee the node is in self.nodes
+            and label != node.label
         ):
-            assert(self.nodes[node.label] is node)  # Should be unreachable by users
+            assert self.nodes[node.label] is node  # Should be unreachable by users
             warn(
                 f"Reassigning the node {node.label} to the label {label} when "
                 f"adding it to the workflow {self.label}."
