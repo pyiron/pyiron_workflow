@@ -85,6 +85,32 @@ class Workflow(HasToDict):
         >>> print(wf.my_node.inputs.x, wf.my_node0.inputs.x, wf.my_node1.inputs.x)
         0, 1, 2
 
+        The `Workflow` class is designed as a single point of entry for workflows, so
+        you can also access decorators to define new node classes right from the
+        workflow (cf. the `Node` docs for more detail on the node types).
+        Let's use these to explore a workflow's input and output, which are dynamically
+        generated from the unconnected IO of its nodes:
+        >>> @Workflow.wrap_as.fast_node("y")
+        >>> def plus_one(x: int = 0):
+        ...     return x + 1
+        >>>
+        >>> wf = Workflow("io_workflow")
+        >>> wf.first = plus_one()
+        >>> wf.second = plus_one()
+        >>> print(len(wf.inputs), len(wf.outputs))
+        2 2
+
+        If we connect the output of one node to the input of the other, there are fewer
+        dangling channels for the workflow IO to find:
+        >>> wf.second.inputs.x = wf.first.outputs.y
+        >>> print(len(wf.inputs), len(wf.outputs))
+        1 1
+
+        The workflow joins node lavels and channel labels with a `_` character to
+        provide direct access to the output:
+        >>> print(wf.outputs.second_y.value)
+        2
+
         We can also use pre-built nodes, e.g.
         >>> wf = Workflow("with_prebuilt")
         >>>
@@ -103,14 +129,6 @@ class Workflow(HasToDict):
         ...     x=wf.calc.outputs.steps,
         ...     y=wf.calc.outputs.temperature
         ... )
-
-        The unconnected inputs and outputs of nodes belonging to a workflow can be
-        accessed directly via the node, or right from the workflow by combining the
-        node and channel labels thanks to a convenience-wrapper. Continuing the above
-        example, we could write...
-        >>> wf.structure.inputs.element = "Ni"
-        >>> print(type(wf.outputs.plot_fig.value))
-        <class 'matplotlib.collections.PathCollection'>
 
 
     TODO: Workflows can be serialized.
