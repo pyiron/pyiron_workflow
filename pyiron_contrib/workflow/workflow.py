@@ -131,6 +131,7 @@ class Workflow(HasToDict):
         ...     y=wf.calc.outputs.temperature
         ... )
 
+    TODO: Registration of new node packages
 
     TODO: Workflows can be serialized.
 
