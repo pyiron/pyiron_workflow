@@ -111,7 +111,8 @@ class Workflow(HasToDict):
         >>> print(wf.outputs.second_y.value)
         2
 
-        We can also use pre-built nodes, e.g.
+        Workflows also give access to packages of pre-built nodes under different
+        namespaces, e.g.
         >>> wf = Workflow("with_prebuilt")
         >>>
         >>> wf.structure = wf.add.atomistics.BulkStructure(
