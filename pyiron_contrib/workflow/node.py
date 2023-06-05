@@ -485,6 +485,18 @@ class Node(HasToDict):
             self.failed = True
             raise e
 
+        self.process_output(function_output)
+
+    def process_output(self, function_output):
+        """
+        Take the results of the node function, and use them to update the node.
+
+        By extracting this as a separate method, we allow the node to pass the actual
+        execution off to another entity and release the python process to do other
+        things. In such a case, this function should be registered as a callback
+        so that the node can finishing "running" and push its data forward when that
+        execution is finished.
+        """
         if len(self.outputs) == 1:
             function_output = (function_output,)
 
