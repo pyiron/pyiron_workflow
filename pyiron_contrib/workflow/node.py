@@ -328,6 +328,7 @@ class Node(HasToDict):
 
         self.running = False
         self.failed = False
+        self.server = None  # Or "task_manager" or "executor" -- we'll see what's best
         self.node_function = node_function
         self.label = label if label is not None else node_function.__name__
 
