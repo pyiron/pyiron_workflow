@@ -19,6 +19,10 @@ def no_default(x, y):
     return x + y + 1
 
 
+def with_self(self, x: float) -> float:
+    return x + 0.1
+
+
 @skipUnless(version_info[0] == 3 and version_info[1] >= 10, "Only supported for 3.10+")
 class TestNode(TestCase):
     def test_defaults(self):
@@ -155,6 +159,11 @@ class TestNode(TestCase):
         self.assertTrue(n.ready)
         # self.assertFalse(n.running)
         self.assertFalse(n.failed, msg="Re-running should reset failed status")
+
+    def test_with_self(self):
+        node = Node(with_self, "output")
+        self.assertTrue("x" in node.inputs.labels)
+        self.assertFalse("x" in node.inputs.labels)
 
 
 @skipUnless(version_info[0] == 3 and version_info[1] >= 10, "Only supported for 3.10+")
