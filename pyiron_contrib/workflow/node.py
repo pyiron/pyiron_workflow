@@ -328,6 +328,7 @@ class Node(HasToDict):
 
         self.running = False
         self.failed = False
+        self.server = None  # Or "task_manager" or "executor" -- we'll see what's best
         self.node_function = node_function
         self.label = label if label is not None else node_function.__name__
 
@@ -478,13 +479,31 @@ class Node(HasToDict):
         self.running = True
         self.failed = False
 
-        try:
-            function_output = self.node_function(**self.inputs.to_value_dict())
-        except Exception as e:
-            self.running = False
-            self.failed = True
-            raise e
+        if self.server is None:
+            try:
+                function_output = self.node_function(**self.inputs.to_value_dict())
+            except Exception as e:
+                self.running = False
+                self.failed = True
+                raise e
+            self.process_output(function_output)
+        else:
+            raise NotImplementedError(
+                "We currently only support executing the node functionality right on "
+                "the main python process that the node instance lives on. Come back "
+                "later for cool new features."
+            )
 
+    def process_output(self, function_output):
+        """
+        Take the results of the node function, and use them to update the node.
+
+        By extracting this as a separate method, we allow the node to pass the actual
+        execution off to another entity and release the python process to do other
+        things. In such a case, this function should be registered as a callback
+        so that the node can finishing "running" and push its data forward when that
+        execution is finished.
+        """
         if len(self.outputs) == 1:
             function_output = (function_output,)
 
