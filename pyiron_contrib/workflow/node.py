@@ -364,12 +364,17 @@ class Node(HasToDict):
         if update_on_instantiation:
             self.update()
 
+    @property
+    def _input_args(self):
+        return inspect.signature(self.node_function).parameters
+
     def _build_input_channels(self, storage_priority: dict[str:int]):
         channels = []
         type_hints = get_type_hints(self.node_function)
-        parameters = inspect.signature(self.node_function).parameters
 
-        for label, value in parameters.items():
+        for label, value in self._input_args.items():
+            if label == "self":
+                continue
             if label in self._init_keywords:
                 # We allow users to parse arbitrary kwargs as channel initialization
                 # So don't let them choose bad channel names
@@ -481,7 +486,10 @@ class Node(HasToDict):
 
         if self.server is None:
             try:
-                function_output = self.node_function(**self.inputs.to_value_dict())
+                if "self" in self._input_args:
+                    function_output = self.node_function(self=self, **self.inputs.to_value_dict())
+                else:
+                    function_output = self.node_function(**self.inputs.to_value_dict())
             except Exception as e:
                 self.running = False
                 self.failed = True
