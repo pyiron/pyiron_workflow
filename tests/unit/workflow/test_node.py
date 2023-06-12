@@ -1,4 +1,4 @@
-from unittest import TestCase, skipUnless
+import unittest
 from sys import version_info
 from typing import Optional, Union
 
@@ -23,8 +23,8 @@ def with_self(self, x: float) -> float:
     return x + 0.1
 
 
-@skipUnless(version_info[0] == 3 and version_info[1] >= 10, "Only supported for 3.10+")
-class TestNode(TestCase):
+@unittest.skipUnless(version_info[0] == 3 and version_info[1] >= 10, "Only supported for 3.10+")
+class TestNode(unittest.TestCase):
     def test_defaults(self):
         Node(plus_one, "y")
 
@@ -163,11 +163,14 @@ class TestNode(TestCase):
     def test_with_self(self):
         node = Node(with_self, "output")
         self.assertTrue("x" in node.inputs.labels)
-        self.assertFalse("x" in node.inputs.labels)
+        self.assertFalse("self" in node.inputs.labels)
+        node.inputs.x = 1
+        node.run()
+        self.assertEqual(node.outputs.output.value, 1.1)
 
 
-@skipUnless(version_info[0] == 3 and version_info[1] >= 10, "Only supported for 3.10+")
-class TestFastNode(TestCase):
+@unittest.skipUnless(version_info[0] == 3 and version_info[1] >= 10, "Only supported for 3.10+")
+class TestFastNode(unittest.TestCase):
     def test_instantiation(self):
         has_defaults_is_ok = FastNode(plus_one, "y")
 
@@ -175,8 +178,8 @@ class TestFastNode(TestCase):
             missing_defaults_should_fail = FastNode(no_default, "z")
 
 
-@skipUnless(version_info[0] == 3 and version_info[1] >= 10, "Only supported for 3.10+")
-class TestSingleValueNode(TestCase):
+@unittest.skipUnless(version_info[0] == 3 and version_info[1] >= 10, "Only supported for 3.10+")
+class TestSingleValueNode(unittest.TestCase):
     def test_instantiation(self):
         has_defaults_and_one_return = SingleValueNode(plus_one, "y")
 
@@ -319,3 +322,7 @@ class TestSingleValueNode(TestCase):
             n.inputs.z.waiting_for_update,
             msg="After the run, all three should now be waiting for updates again"
         )
+
+
+if __name__ == '__main__':
+    unittest.main()
