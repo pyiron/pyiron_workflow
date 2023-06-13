@@ -165,5 +165,6 @@ def calc_md(
 nodes = [
     bulk_structure,
     calc_md,
+    calc_static,
     lammps,
 ]
