@@ -31,7 +31,7 @@ class _NodeAdder:
         return value
 
     def __call__(self, node: Node):
-        self._workflow.add_node(node)
+        return self._workflow.add_node(node)
 
 
 class _NodeDecoratorAccess:
@@ -180,6 +180,7 @@ class Workflow(HasToDict):
         self.nodes[label] = node
         node.label = label
         node.workflow = self
+        return node
 
     def _ensure_node_belongs_to_at_most_this_workflow(self, node: Node, label: str):
         if (
