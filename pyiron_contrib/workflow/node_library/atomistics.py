@@ -97,6 +97,42 @@ def _run_and_remove_job(job, modifier: Optional[callable] = None, **modifier_kwa
     "unwrapped_positions",
     "volume",
 )
+def calc_static(
+    job: AtomisticGenericJob,
+    n_ionic_steps: int = 1000,
+    n_print: int = 100,
+    temperature: int | float = 300.0,
+    pressure: float
+    | tuple[float, float, float]
+    | tuple[float, float, float, float, float, float]
+    | None = None,
+):
+    return _run_and_remove_job(
+        job=job,
+        modifier=calc_md,
+        n_ionic_steps=n_ionic_steps,
+        n_print=n_print,
+        temperature=temperature,
+        pressure=pressure
+    )
+
+
+@node(
+    "cells",
+    "displacements",
+    "energy_pot",
+    "energy_tot",
+    "force_max",
+    "forces",
+    "indices",
+    "positions",
+    "pressures",
+    "steps",
+    "temperature",
+    "total_displacements",
+    "unwrapped_positions",
+    "volume",
+)
 def calc_md(
     job: AtomisticGenericJob,
     n_ionic_steps: int = 1000,
