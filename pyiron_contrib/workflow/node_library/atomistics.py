@@ -99,22 +99,8 @@ def _run_and_remove_job(job, modifier: Optional[callable] = None, **modifier_kwa
 )
 def calc_static(
     job: AtomisticGenericJob,
-    n_ionic_steps: int = 1000,
-    n_print: int = 100,
-    temperature: int | float = 300.0,
-    pressure: float
-    | tuple[float, float, float]
-    | tuple[float, float, float, float, float, float]
-    | None = None,
 ):
-    return _run_and_remove_job(
-        job=job,
-        modifier=calc_md,
-        n_ionic_steps=n_ionic_steps,
-        n_print=n_print,
-        temperature=temperature,
-        pressure=pressure
-    )
+    return _run_and_remove_job(job=job)
 
 
 @node(
