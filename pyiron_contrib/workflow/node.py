@@ -372,9 +372,17 @@ class Node(HasToDict):
         channels = []
         type_hints = get_type_hints(self.node_function)
 
-        for label, value in self._input_args.items():
+        for ii, (label, value) in enumerate(self._input_args.items()):
             if label == "self":
-                continue
+                if ii == 0:
+                    continue
+                else:
+                    warnings.warn(
+                        "`self` is used as an argument but not in the first"
+                        " position, so it is treated as a normal function"
+                        " argument. If it is to be treated as the node object,"
+                        " use it as a first argument"
+                    )
             if label in self._init_keywords:
                 # We allow users to parse arbitrary kwargs as channel initialization
                 # So don't let them choose bad channel names
