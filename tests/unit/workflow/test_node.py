@@ -1,6 +1,7 @@
 import unittest
 from sys import version_info
 from typing import Optional, Union
+import warnings
 
 from pyiron_contrib.workflow.node import (
     FastNode, Node, SingleValueNode, node, single_value_node
@@ -17,10 +18,6 @@ def plus_one(x=1) -> Union[int, float]:
 
 def no_default(x, y):
     return x + y + 1
-
-
-def with_self(self, x: float) -> float:
-    return x + 0.1
 
 
 @unittest.skipUnless(version_info[0] == 3 and version_info[1] >= 10, "Only supported for 3.10+")
@@ -161,12 +158,21 @@ class TestNode(unittest.TestCase):
         self.assertFalse(n.failed, msg="Re-running should reset failed status")
 
     def test_with_self(self):
+        def with_self(self, x: float) -> float:
+            return x + 0.1
         node = Node(with_self, "output")
         self.assertTrue("x" in node.inputs.labels)
         self.assertFalse("self" in node.inputs.labels)
         node.inputs.x = 1
         node.run()
         self.assertEqual(node.outputs.output.value, 1.1)
+        def with_messed_self(x: float, self) -> float:
+            return x + 0.1
+        with warnings.catch_warnings(record=True) as warning_list:
+            node = Node(with_messed_self, "output")
+            self.assertTrue("self" in node.inputs.labels)
+        self.assertEqual(len(warning_list), 1)
+
 
 
 @unittest.skipUnless(version_info[0] == 3 and version_info[1] >= 10, "Only supported for 3.10+")
