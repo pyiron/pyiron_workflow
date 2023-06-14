@@ -1,6 +1,7 @@
-from unittest import TestCase, skipUnless
+import unittest
 from sys import version_info
 from typing import Optional, Union
+import warnings
 
 from pyiron_contrib.workflow.node import (
     FastNode, Node, SingleValueNode, node, single_value_node
@@ -19,8 +20,8 @@ def no_default(x, y):
     return x + y + 1
 
 
-@skipUnless(version_info[0] == 3 and version_info[1] >= 10, "Only supported for 3.10+")
-class TestNode(TestCase):
+@unittest.skipUnless(version_info[0] == 3 and version_info[1] >= 10, "Only supported for 3.10+")
+class TestNode(unittest.TestCase):
     def test_defaults(self):
         Node(plus_one, "y")
 
@@ -156,9 +157,26 @@ class TestNode(TestCase):
         # self.assertFalse(n.running)
         self.assertFalse(n.failed, msg="Re-running should reset failed status")
 
+    def test_with_self(self):
+        def with_self(self, x: float) -> float:
+            return x + 0.1
+        node = Node(with_self, "output")
+        self.assertTrue("x" in node.inputs.labels)
+        self.assertFalse("self" in node.inputs.labels)
+        node.inputs.x = 1
+        node.run()
+        self.assertEqual(node.outputs.output.value, 1.1)
+        def with_messed_self(x: float, self) -> float:
+            return x + 0.1
+        with warnings.catch_warnings(record=True) as warning_list:
+            node = Node(with_messed_self, "output")
+            self.assertTrue("self" in node.inputs.labels)
+        self.assertEqual(len(warning_list), 1)
 
-@skipUnless(version_info[0] == 3 and version_info[1] >= 10, "Only supported for 3.10+")
-class TestFastNode(TestCase):
+
+
+@unittest.skipUnless(version_info[0] == 3 and version_info[1] >= 10, "Only supported for 3.10+")
+class TestFastNode(unittest.TestCase):
     def test_instantiation(self):
         has_defaults_is_ok = FastNode(plus_one, "y")
 
@@ -166,8 +184,8 @@ class TestFastNode(TestCase):
             missing_defaults_should_fail = FastNode(no_default, "z")
 
 
-@skipUnless(version_info[0] == 3 and version_info[1] >= 10, "Only supported for 3.10+")
-class TestSingleValueNode(TestCase):
+@unittest.skipUnless(version_info[0] == 3 and version_info[1] >= 10, "Only supported for 3.10+")
+class TestSingleValueNode(unittest.TestCase):
     def test_instantiation(self):
         has_defaults_and_one_return = SingleValueNode(plus_one, "y")
 
@@ -310,3 +328,7 @@ class TestSingleValueNode(TestCase):
             n.inputs.z.waiting_for_update,
             msg="After the run, all three should now be waiting for updates again"
         )
+
+
+if __name__ == '__main__':
+    unittest.main()
