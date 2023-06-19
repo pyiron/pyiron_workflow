@@ -1,37 +1,10 @@
 from __future__ import annotations
 
-from functools import partial
-from warnings import warn
-
+from pyiron_contrib.workflow.has_nodes import HasNodes
 from pyiron_contrib.workflow.has_to_dict import HasToDict
 from pyiron_contrib.workflow.node import Node, node, fast_node, single_value_node
-from pyiron_contrib.workflow.node_library import atomistics, package, standard
+from pyiron_contrib.workflow.node_library import atomistics, standard
 from pyiron_contrib.workflow.util import DotDict
-
-
-class _NodeAdder:
-    """
-    This class exists to help with the misdirection required for the syntactic sugar
-    that lets us add nodes to the workflow.
-
-    TODO: Give access to pre-built fixed nodes under various domain names
-    """
-
-    def __init__(self, workflow: Workflow):
-        self._workflow = workflow
-        self.atomistics = package.NodePackage(self._workflow, *atomistics.nodes)
-        self.standard = package.NodePackage(self._workflow, *standard.nodes)
-
-    Node = Node
-
-    def __getattribute__(self, key):
-        value = super().__getattribute__(key)
-        if value == Node:
-            return partial(Node, parent=self._workflow)
-        return value
-
-    def __call__(self, node: Node):
-        return self._workflow.add_node(node)
 
 
 class _NodeDecoratorAccess:
@@ -42,7 +15,7 @@ class _NodeDecoratorAccess:
     single_value_node = single_value_node
 
 
-class Workflow(HasToDict):
+class Workflow(HasToDict, HasNodes):
     """
     Workflows are an abstraction for holding a collection of related nodes.
 
@@ -149,122 +122,12 @@ class Workflow(HasToDict):
     wrap_as = _NodeDecoratorAccess
 
     def __init__(self, label: str, *nodes: Node, strict_naming=True):
+        super().__init__(strict_naming=strict_naming)
         self.__dict__["label"] = label
-        self.__dict__["nodes"] = DotDict()
-        self.__dict__["add"] = _NodeAdder(self)
-        self.__dict__["strict_naming"] = strict_naming
         # We directly assign using __dict__ because we override the setattr later
 
         for node in nodes:
             self.add_node(node)
-
-    def add_node(self, node: Node, label: str = None) -> None:
-        """
-        Assign a node to the workflow. Optionally provide a new label for that node.
-
-        Args:
-            node (pyiron_contrib.workflow.node.Node): The node to add.
-            label (Optional[str]): The label for this node.
-
-        Raises:
-
-        """
-        if not isinstance(node, Node):
-            raise TypeError(
-                f"Only new node instances may be added, but got {type(node)}."
-            )
-
-        label = self._ensure_label_is_unique(node.label if label is None else label)
-        self._ensure_node_belongs_to_at_most_this_workflow(node, label)
-
-        self.nodes[label] = node
-        node.label = label
-        node.parent = self
-        return node
-
-    def _ensure_node_belongs_to_at_most_this_workflow(self, node: Node, label: str):
-        if (
-            node.parent is self  # This should guarantee the node is in self.nodes
-            and label != node.label
-        ):
-            assert self.nodes[node.label] is node  # Should be unreachable by users
-            warn(
-                f"Reassigning the node {node.label} to the label {label} when "
-                f"adding it to the workflow {self.label}."
-            )
-            del self.nodes[node.label]
-        elif node.parent is not None:
-            raise ValueError(
-                f"The node ({node.label}) already belongs to the workflow "
-                f"{node.parent.label}. Please remove it there before trying to "
-                f"add it to this workflow ({self.label})."
-            )
-
-    def _ensure_label_is_unique(self, label):
-        if label in self.__dir__():
-            if isinstance(getattr(self, label), Node):
-                if self.strict_naming:
-                    raise AttributeError(
-                        f"{label} is already the label for a node. Please remove it "
-                        f"before assigning another node to this label."
-                    )
-                else:
-                    label = self._add_suffix_to_label(label)
-            else:
-                raise AttributeError(
-                    f"{label} is an attribute or method of the {self.__class__} class, "
-                    f"and cannot be used as a node label."
-                )
-        return label
-
-    def _add_suffix_to_label(self, label):
-        i = 0
-        new_label = label
-        while new_label in self.nodes.keys():
-            warn(
-                f"{label} is already a node; appending an index to the "
-                f"node label instead: {label}{i}"
-            )
-            new_label = f"{label}{i}"
-            i += 1
-        return new_label
-
-    def activate_strict_naming(self):
-        self.__dict__["strict_naming"] = True
-
-    def deactivate_strict_naming(self):
-        self.__dict__["strict_naming"] = False
-
-    def remove(self, node: Node | str):
-        if isinstance(node, Node):
-            node.parent = None
-            node.disconnect()
-            del self.nodes[node.label]
-        else:
-            del self.nodes[node]
-
-    def __setattr__(self, label: str, node: Node):
-        if not isinstance(node, Node):
-            raise TypeError(
-                "Only new node instances may be assigned as attributes. This is "
-                "syntacic sugar for adding new nodes to the .nodes collection"
-            )
-        self.add_node(node, label=label)
-
-    def __getattr__(self, key):
-        return self.nodes[key]
-
-    def __getitem__(self, item):
-        return self.__getattr__(item)
-
-    def __setitem__(self, key, value):
-        self.__setattr__(key, value)
-
-    def __iter__(self):
-        return self.nodes.values().__iter__()
-
-    def __len__(self):
-        return len(self.nodes)
 
     @property
     def inputs(self):
@@ -316,6 +179,3 @@ class Workflow(HasToDict):
     def run(self):
         # Maybe we need this if workflows can be used as nodes?
         raise NotImplementedError
-
-    def __dir__(self):
-        return set(super().__dir__() + list(self.nodes.keys()))
