@@ -144,7 +144,7 @@ def calc_md(
         n_ionic_steps=n_ionic_steps,
         n_print=n_print,
         temperature=temperature,
-        pressure=pressure
+        pressure=pressure,
     )
 
 
