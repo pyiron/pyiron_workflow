@@ -498,7 +498,9 @@ class Node(HasToDict):
         if self.server is None:
             try:
                 if "self" in self._input_args:
-                    function_output = self.node_function(self=self, **self.inputs.to_value_dict())
+                    function_output = self.node_function(
+                        self=self, **self.inputs.to_value_dict()
+                    )
                 else:
                     function_output = self.node_function(**self.inputs.to_value_dict())
             except Exception as e:
@@ -583,8 +585,8 @@ class Node(HasToDict):
                     "working directory is available only if the node is"
                     " attached to a workflow"
                 )
-            self._working_directory = self.workflow.working_directory.create_subdirectory(
-                self.label
+            self._working_directory = (
+                self.workflow.working_directory.create_subdirectory(self.label)
             )
         return self._working_directory
 
