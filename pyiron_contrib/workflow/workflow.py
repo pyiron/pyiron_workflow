@@ -104,8 +104,6 @@ class Workflow(HasToDict, HasNodes):
         ...     y=wf.calc.outputs.temperature
         ... )
 
-    TODO: Registration of new node packages
-
     TODO: Workflows can be serialized.
 
     TODO: Once you're satisfied with how a workflow is structured, you can export it
