@@ -7,6 +7,7 @@ from pyiron_contrib.workflow.has_to_dict import HasToDict
 from pyiron_contrib.workflow.node import Node, node, fast_node, single_value_node
 from pyiron_contrib.workflow.node_library import atomistics, package, standard
 from pyiron_contrib.workflow.util import DotDict
+from pyiron_contrib.workflow.files import DirectoryObject
 
 
 class _NodeAdder:
@@ -153,10 +154,17 @@ class Workflow(HasToDict):
         self.__dict__["nodes"] = DotDict()
         self.__dict__["add"] = _NodeAdder(self)
         self.__dict__["strict_naming"] = strict_naming
+        self.__dict__["working_directory"] = None
         # We directly assign using __dict__ because we override the setattr later
 
         for node in nodes:
             self.add_node(node)
+
+    @property
+    def working_directory(self):
+        if self.__dict__["working_directory"] is None:
+            self.__dict__["working_directory"] = DirectoryObject(self.label)
+        return self.__dict__["working_directory"]
 
     def add_node(self, node: Node, label: str = None) -> None:
         """

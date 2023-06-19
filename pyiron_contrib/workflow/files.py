@@ -14,7 +14,7 @@ def delete_files_and_directories_recursively(path):
     
 class DirectoryObject:
     def __init__(self, directory):
-        self.path = Path(path)
+        self.path = Path(directory)
         self.create()
 
     def create(self):
@@ -36,6 +36,9 @@ class DirectoryObject:
         path = self.path / Path(file_name)
         with path.open(mode=mode) as f:
             f.write(content)
+
+    def create_subdirectory(self, path):
+        return DirectoryObject(self.path / path)
 
 
 class FileObject:
