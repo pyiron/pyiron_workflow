@@ -19,7 +19,7 @@ class TestWorkflow(TestCase):
         wf.add(Node(fnc, "x", label="foo"))
         wf.add.Node(fnc, "y", label="bar")
         wf.baz = Node(fnc, "y", label="whatever_baz_gets_used")
-        Node(fnc, "x", label="boa", workflow=wf)
+        Node(fnc, "x", label="boa", parent=wf)
         self.assertListEqual(list(wf.nodes.keys()), ["foo", "bar", "baz", "boa"])
 
         wf.deactivate_strict_naming()
@@ -31,7 +31,7 @@ class TestWorkflow(TestCase):
             "y",
             label="without_strict_you_can_override_by_assignment"
         )
-        Node(fnc, "x", label="boa", workflow=wf)
+        Node(fnc, "x", label="boa", parent=wf)
         self.assertListEqual(
             list(wf.nodes.keys()),
             [
@@ -52,7 +52,7 @@ class TestWorkflow(TestCase):
             wf.baz = Node(fnc, "y", label="whatever_baz_gets_used")
 
         with self.assertRaises(AttributeError):
-            Node(fnc, "x", label="boa", workflow=wf)
+            Node(fnc, "x", label="boa", parent=wf)
 
     def test_node_packages(self):
         wf = Workflow("my_workflow")
@@ -72,7 +72,7 @@ class TestWorkflow(TestCase):
     def test_double_workfloage_and_node_removal(self):
         wf1 = Workflow("one")
         wf1.add.Node(fnc, "y", label="node1")
-        node2 = Node(fnc, "y", label="node2", workflow=wf1, x=wf1.node1.outputs.y)
+        node2 = Node(fnc, "y", label="node2", parent=wf1, x=wf1.node1.outputs.y)
         self.assertTrue(node2.connected)
 
         wf2 = Workflow("two")
@@ -81,7 +81,7 @@ class TestWorkflow(TestCase):
             wf2.add(node2)
         wf1.remove(node2)
         wf2.add(node2)
-        self.assertEqual(node2.workflow, wf2)
+        self.assertEqual(node2.parent, wf2)
         self.assertFalse(node2.connected)
 
     def test_workflow_io(self):

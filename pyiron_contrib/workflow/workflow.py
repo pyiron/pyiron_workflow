@@ -27,7 +27,7 @@ class _NodeAdder:
     def __getattribute__(self, key):
         value = super().__getattribute__(key)
         if value == Node:
-            return partial(Node, workflow=self._workflow)
+            return partial(Node, parent=self._workflow)
         return value
 
     def __call__(self, node: Node):
@@ -70,7 +70,7 @@ class Workflow(HasToDict):
         >>> wf.add.Node(fnc, "y", label="n3")  # Instantiating from add
         >>> wf.n4 = Node(fnc, "y", label="whatever_n4_gets_used")
         >>> # By attribute assignment
-        >>> Node(fnc, "x", label="n5", workflow=wf)
+        >>> Node(fnc, "x", label="n5", parent=wf)
         >>> # By instantiating the node with a workflow
 
         By default, the node naming scheme is strict, so if you try to add a node to a
@@ -179,12 +179,12 @@ class Workflow(HasToDict):
 
         self.nodes[label] = node
         node.label = label
-        node.workflow = self
+        node.parent = self
         return node
 
     def _ensure_node_belongs_to_at_most_this_workflow(self, node: Node, label: str):
         if (
-            node.workflow is self  # This should guarantee the node is in self.nodes
+            node.parent is self  # This should guarantee the node is in self.nodes
             and label != node.label
         ):
             assert self.nodes[node.label] is node  # Should be unreachable by users
@@ -193,10 +193,10 @@ class Workflow(HasToDict):
                 f"adding it to the workflow {self.label}."
             )
             del self.nodes[node.label]
-        elif node.workflow is not None:
+        elif node.parent is not None:
             raise ValueError(
                 f"The node ({node.label}) already belongs to the workflow "
-                f"{node.workflow.label}. Please remove it there before trying to "
+                f"{node.parent.label}. Please remove it there before trying to "
                 f"add it to this workflow ({self.label})."
             )
 
@@ -237,7 +237,7 @@ class Workflow(HasToDict):
 
     def remove(self, node: Node | str):
         if isinstance(node, Node):
-            node.workflow = None
+            node.parent = None
             node.disconnect()
             del self.nodes[node.label]
         else:
