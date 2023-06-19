@@ -497,7 +497,9 @@ class Node(HasToDict):
         if self.server is None:
             try:
                 if "self" in self._input_args:
-                    function_output = self.node_function(self=self, **self.inputs.to_value_dict())
+                    function_output = self.node_function(
+                        self=self, **self.inputs.to_value_dict()
+                    )
                 else:
                     function_output = self.node_function(**self.inputs.to_value_dict())
             except Exception as e:
