@@ -168,7 +168,7 @@ class NodeAdder:
         Add a list of node classes to be accessible for creation under the provided
         domain name.
 
-        TODO: multiple dispatch so we can handle registering something other than a 
+        TODO: multiple dispatch so we can handle registering something other than a
               list, e.g. modules or even urls.
         """
         setattr(self, domain, NodePackage(self._parent, *nodes))
