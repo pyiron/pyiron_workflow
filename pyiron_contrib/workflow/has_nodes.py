@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-from abc import ABC, abstractmethod
+from abc import ABC
 from functools import partial
 from typing import Optional, TYPE_CHECKING
 from warnings import warn
@@ -9,9 +9,6 @@ from pyiron_contrib.workflow.node import Node
 from pyiron_contrib.workflow.node_library import atomistics, standard
 from pyiron_contrib.workflow.node_library.package import NodePackage
 from pyiron_contrib.workflow.util import DotDict
-
-if TYPE_CHECKING:
-    from pyiron_contrib.workflow.io import Inputs, Outputs
 
 
 class HasNodes(ABC):
@@ -26,16 +23,6 @@ class HasNodes(ABC):
         self.nodes: DotDict = DotDict()
         self.add: NodeAdder = NodeAdder(self)
         self._strict_naming: bool = strict_naming
-
-    @property
-    @abstractmethod
-    def inputs(self) -> Inputs:
-        pass
-
-    @property
-    @abstractmethod
-    def outputs(self) -> Outputs:
-        pass
 
     def add_node(self, node: Node, label: Optional[str] = None) -> None:
         """
