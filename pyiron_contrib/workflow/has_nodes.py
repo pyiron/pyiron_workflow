@@ -17,13 +17,15 @@ if TYPE_CHECKING:
 class HasNodes(ABC):
     """
     A mixin class for classes which hold a graph of nodes.
+
+    Attribute assignment is overriden such that assignment of a `Node` instance adds
+    it directly to the collection of nodes.
     """
 
     def __init__(self, *args, strict_naming=True, **kwargs):
-        self.__dict__["nodes"]: DotDict = DotDict()
-        self.__dict__["add"]: NodeAdder = NodeAdder(self)
-        self.__dict__["_strict_naming"]: bool = strict_naming
-        # We directly assign using __dict__ because we override the setattr later
+        self.nodes: DotDict = DotDict()
+        self.add: NodeAdder = NodeAdder(self)
+        self._strict_naming: bool = strict_naming
 
     @property
     @abstractmethod
@@ -111,10 +113,10 @@ class HasNodes(ABC):
         return self._strict_naming
 
     def activate_strict_naming(self):
-        self.__dict__["_strict_naming"] = True
+        self._strict_naming = True
 
     def deactivate_strict_naming(self):
-        self.__dict__["_strict_naming"] = False
+        self._strict_naming = False
 
     def remove(self, node: Node | str):
         if isinstance(node, Node):
@@ -125,12 +127,10 @@ class HasNodes(ABC):
             del self.nodes[node]
 
     def __setattr__(self, label: str, node: Node):
-        if not isinstance(node, Node):
-            raise TypeError(
-                "Only new node instances may be assigned as attributes. This is "
-                "syntacic sugar for adding new nodes to the .nodes collection"
-            )
-        self.add_node(node, label=label)
+        if isinstance(node, Node):
+            self.add_node(node, label=label)
+        else:
+            super().__setattr__(label, node)
 
     def __getattr__(self, key):
         return self.nodes[key]
