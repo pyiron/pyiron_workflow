@@ -22,7 +22,7 @@ class HasNodes(ABC):
     def __init__(self, *args, strict_naming=True, **kwargs):
         self.nodes: DotDict = DotDict()
         self.add: NodeAdder = NodeAdder(self)
-        self._strict_naming: bool = strict_naming
+        self.strict_naming: bool = strict_naming
 
     def add_node(self, node: Node, label: Optional[str] = None) -> None:
         """
@@ -69,12 +69,13 @@ class HasNodes(ABC):
         i = 0
         new_label = label
         while new_label in self.nodes.keys():
-            warn(
-                f"{label} is already a node; appending an index to the "
-                f"node label instead: {label}{i}"
-            )
             new_label = f"{label}{i}"
             i += 1
+        if new_label != label:
+            warn(
+                f"{label} is already a node; appending an index to the "
+                f"node label instead: {new_label}"
+            )
         return new_label
 
     def _ensure_node_has_no_other_parent(self, node: Node, label: str):
@@ -94,16 +95,6 @@ class HasNodes(ABC):
                 f"{node.parent.label}. Please remove it there before trying to "
                 f"add it to this parent ({self.label})."
             )
-
-    @property
-    def strict_naming(self) -> bool:
-        return self._strict_naming
-
-    def activate_strict_naming(self):
-        self._strict_naming = True
-
-    def deactivate_strict_naming(self):
-        self._strict_naming = False
 
     def remove(self, node: Node | str):
         if isinstance(node, Node):
@@ -168,7 +159,7 @@ class NodeAdder:
         Add a list of node classes to be accessible for creation under the provided
         domain name.
 
-        TODO: multiple dispatch so we can handle registering something other than a 
+        TODO: multiple dispatch so we can handle registering something other than a
               list, e.g. modules or even urls.
         """
         setattr(self, domain, NodePackage(self._parent, *nodes))
