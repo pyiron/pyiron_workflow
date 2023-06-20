@@ -69,12 +69,13 @@ class HasNodes(ABC):
         i = 0
         new_label = label
         while new_label in self.nodes.keys():
-            warn(
-                f"{label} is already a node; appending an index to the "
-                f"node label instead: {label}{i}"
-            )
             new_label = f"{label}{i}"
             i += 1
+        if new_label != label:
+            warn(
+                f"{label} is already a node; appending an index to the "
+                f"node label instead: {new_label}"
+            )
         return new_label
 
     def _ensure_node_has_no_other_parent(self, node: Node, label: str):
