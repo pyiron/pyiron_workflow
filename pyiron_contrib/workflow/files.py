@@ -13,6 +13,26 @@ def delete_files_and_directories_recursively(path):
     path.rmdir()
 
 
+def categorize_folder_items(folder_path):
+    types = [
+        'dir',
+        'file',
+        'mount',
+        'symlink',
+        'block_device',
+        'char_device',
+        'fifo',
+        'socket',
+    ]
+    results = {t: [] for t in types}
+
+    for item in folder_path.iterdir():
+        for tt in types:
+            if getattr(item, f"is_{tt}")():
+                results[tt].append(str(item))
+    return results
+
+
 class DirectoryObject:
     def __init__(self, directory):
         self.path = Path(directory)
@@ -24,11 +44,11 @@ class DirectoryObject:
     def delete(self):
         delete_files_and_directories_recursively(self.path)
 
-    def list_files(self):
-        return list(self.path.glob("*"))
+    def list_content(self):
+        return categorize_folder_items(self.path)
 
     def __len__(self):
-        return len(self.list_files())
+        return sum([cc for cc in self.list_content()])
 
     def __repr__(self):
         return f"DirectoryObject(directory='{self.path}' with {len(self)} files)"

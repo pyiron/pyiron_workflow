@@ -5,7 +5,7 @@ from pathlib import Path
 
 class TestFiles(unittest.TestCase):
     @classmethod
-    def setUpClass(cls):
+    def setUp(cls):
         cls.directory = DirectoryObject("test")
 
     def test_directory_exists(self):
@@ -13,10 +13,16 @@ class TestFiles(unittest.TestCase):
 
     def test_write(self):
         self.directory.write(file_name="test.txt", content="something")
+        self.assertTrue(self.directory.file_exists("test.txt"))
+        self.assertTrue("test/test.txt" in self.directory.list_files())
         self.assertEqual(len(self.directory), 1)
 
+    def test_create_subdirectory(self):
+        self.directory.create_subdirectory("another_test")
+        self.assertTrue(Path("test/another_test").exists())
+
     @classmethod
-    def tearDownClass(cls):
+    def tearDown(cls):
         cls.directory.delete()
 
 
