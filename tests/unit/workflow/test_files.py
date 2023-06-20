@@ -30,6 +30,14 @@ class TestFiles(unittest.TestCase):
         f.write("something")
         self.assertEqual(f.read(), "something")
 
+    def test_is_file(self):
+        f = FileObject("test.txt", self.directory)
+        self.assertFalse(f.is_file())
+        f.write("something")
+        self.assertTrue(f.is_file())
+        f.delete()
+        self.assertFalse(f.is_file())
+
     @classmethod
     def tearDown(cls):
         cls.directory.delete()
