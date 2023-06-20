@@ -25,7 +25,10 @@ class TestFiles(unittest.TestCase):
         f = FileObject("test.txt", self.directory)
         self.assertEqual(str(f.path), "test/test.txt")
 
-    # def test_read(self):
+    def test_read_and_write(self):
+        f = FileObject("test.txt", self.directory)
+        f.write("something")
+        self.assertEqual(f.read(), "something")
 
     @classmethod
     def tearDown(cls):
