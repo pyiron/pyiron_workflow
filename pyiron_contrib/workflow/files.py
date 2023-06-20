@@ -1,4 +1,5 @@
 from pathlib import Path
+import warnings
 
 
 def delete_files_and_directories_recursively(path):
@@ -32,9 +33,14 @@ class DirectoryObject:
     def __repr__(self):
         return f"DirectoryObject(directory='{self.path}' with {len(self)} files)"
 
+    def get_path(self, file_name):
+        return self.path / file_name
+
+    def file_exists(self, file_name):
+        return self.get_path(file_name).is_file()
+
     def write(self, file_name, content, mode="w"):
-        path = self.path / Path(file_name)
-        with path.open(mode=mode) as f:
+        with self.get_path(file_name).open(mode=mode) as f:
             f.write(content)
 
     def create_subdirectory(self, path):
@@ -55,11 +61,16 @@ class FileObject:
         return self.directory.path / Path(self._file_name)
 
     def write(self, content, mode='w'):
+        if self.is_file():
+            warnings.warn(f"{self.file_name} already exists")
         self.directory.write(file_name=self.file_name, content=content, mode=mode)
 
     def read(self, mode='r'):
         with open(self.path, mode=mode) as f:
             return f.read()
+
+    def is_file(self):
+        return self.directory.file_exists(self.file_name)
 
     def delete(self):
         self.path.unlink()
