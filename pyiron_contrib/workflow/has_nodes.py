@@ -22,7 +22,7 @@ class HasNodes(ABC):
     def __init__(self, *args, strict_naming=True, **kwargs):
         self.nodes: DotDict = DotDict()
         self.add: NodeAdder = NodeAdder(self)
-        self._strict_naming: bool = strict_naming
+        self.strict_naming: bool = strict_naming
 
     def add_node(self, node: Node, label: Optional[str] = None) -> None:
         """
@@ -95,16 +95,6 @@ class HasNodes(ABC):
                 f"{node.parent.label}. Please remove it there before trying to "
                 f"add it to this parent ({self.label})."
             )
-
-    @property
-    def strict_naming(self) -> bool:
-        return self._strict_naming
-
-    def activate_strict_naming(self):
-        self._strict_naming = True
-
-    def deactivate_strict_naming(self):
-        self._strict_naming = False
 
     def remove(self, node: Node | str):
         if isinstance(node, Node):
