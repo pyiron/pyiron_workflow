@@ -155,11 +155,8 @@ class Workflow(HasToDict):
         self.__dict__["nodes"] = DotDict()
         self.__dict__["add"] = _NodeAdder(self)
         self.__dict__["strict_naming"] = strict_naming
-<<<<<<< HEAD
         self.__dict__["working_directory"] = None
-=======
         self.__dict__["server"] = Server()
->>>>>>> submittable_workflow
         # We directly assign using __dict__ because we override the setattr later
 
         for node in nodes:

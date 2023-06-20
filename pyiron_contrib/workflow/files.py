@@ -57,5 +57,9 @@ class FileObject:
     def write(self, content, mode='w'):
         self.directory.write(file_name=self.file_name, content=content, mode=mode)
 
+    def read(self, mode='r'):
+        with open(self.path, mode=mode) as f:
+            return f.read()
+
     def delete(self):
         self.path.unlink()
