@@ -15,6 +15,7 @@ from pyiron_contrib.workflow.has_channel import HasChannel
 from pyiron_contrib.workflow.has_to_dict import HasToDict
 from pyiron_contrib.workflow.io import Inputs, Outputs, Signals
 from pyiron_contrib.workflow.files import FileObject
+from pyiron_base.jobs.job.extension.server.generic import Server
 
 if TYPE_CHECKING:
     from pyiron_contrib.workflow.workflow import Workflow
@@ -361,6 +362,7 @@ class Node(HasToDict):
             elif k not in self._init_keywords:
                 warnings.warn(f"The keyword '{k}' was received but not used.")
         self.run_on_updates = run_on_updates
+        self.server = Server()
 
         if update_on_instantiation:
             self.update()
@@ -498,7 +500,9 @@ class Node(HasToDict):
         if self.server is None:
             try:
                 if "self" in self._input_args:
-                    function_output = self.node_function(self=self, **self.inputs.to_value_dict())
+                    function_output = self.node_function(
+                        self=self, **self.inputs.to_value_dict()
+                    )
                 else:
                     function_output = self.node_function(**self.inputs.to_value_dict())
             except Exception as e:

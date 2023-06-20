@@ -8,6 +8,7 @@ from pyiron_contrib.workflow.node import Node, node, fast_node, single_value_nod
 from pyiron_contrib.workflow.node_library import atomistics, package, standard
 from pyiron_contrib.workflow.util import DotDict
 from pyiron_contrib.workflow.files import DirectoryObject
+from pyiron_base.jobs.job.extension.server.generic import Server
 
 
 class _NodeAdder:
@@ -154,7 +155,11 @@ class Workflow(HasToDict):
         self.__dict__["nodes"] = DotDict()
         self.__dict__["add"] = _NodeAdder(self)
         self.__dict__["strict_naming"] = strict_naming
+<<<<<<< HEAD
         self.__dict__["working_directory"] = None
+=======
+        self.__dict__["server"] = Server()
+>>>>>>> submittable_workflow
         # We directly assign using __dict__ because we override the setattr later
 
         for node in nodes:
