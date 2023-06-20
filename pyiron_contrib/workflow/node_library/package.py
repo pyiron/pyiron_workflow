@@ -21,9 +21,9 @@ class NodePackage(DotDict):
     but to update an existing node the `update` method must be used.
     """
 
-    def __init__(self, workflow: Workflow, *node_classes: Node):
+    def __init__(self, parent: Workflow, *node_classes: Node):
         super().__init__()
-        self.__dict__["_workflow"] = workflow  # Avoid the __setattr__ override
+        self.__dict__["_parent"] = parent  # Avoid the __setattr__ override
         for node in node_classes:
             self[node.__name__] = node
 
@@ -45,7 +45,7 @@ class NodePackage(DotDict):
     def __getitem__(self, item):
         value = super().__getitem__(item)
         if issubclass(value, Node):
-            return partial(value, workflow=self._workflow)
+            return partial(value, parent=self._parent)
         else:
             return value
 
