@@ -121,8 +121,7 @@ class Workflow(HasToDict, HasNodes):
 
     def __init__(self, label: str, *nodes: Node, strict_naming=True):
         super().__init__(strict_naming=strict_naming)
-        self.__dict__["label"] = label
-        # We directly assign using __dict__ because we override the setattr later
+        self.label = label
 
         for node in nodes:
             self.add_node(node)
