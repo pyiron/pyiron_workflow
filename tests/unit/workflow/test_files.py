@@ -11,6 +11,10 @@ class TestFiles(unittest.TestCase):
     def test_directory_exists(self):
         self.assertTrue(Path("test").exists() and Path("test").is_dir())
 
+    def test_write(self):
+        cls.directory.write(file_name="test.txt", content="something")
+        self.assertEqual(len(cls.directory), 1)
+
     @classmethod
     def tearDownClass(cls):
         cls.directory.delete()
