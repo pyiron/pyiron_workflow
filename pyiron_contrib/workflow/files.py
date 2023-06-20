@@ -48,10 +48,10 @@ class DirectoryObject:
         return categorize_folder_items(self.path)
 
     def __len__(self):
-        return sum([cc for cc in self.list_content()])
+        return sum([len(cc) for cc in self.list_content().values()])
 
     def __repr__(self):
-        return f"DirectoryObject(directory='{self.path}' with {len(self)} files)"
+        return f"DirectoryObject(directory='{self.path}')\n{self.list_content()}"
 
     def get_path(self, file_name):
         return self.path / file_name

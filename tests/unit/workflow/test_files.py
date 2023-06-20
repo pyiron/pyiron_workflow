@@ -21,6 +21,12 @@ class TestFiles(unittest.TestCase):
         self.directory.create_subdirectory("another_test")
         self.assertTrue(Path("test/another_test").exists())
 
+    def test_path(self):
+        f = FileObject("test.txt", self.directory)
+        self.assertEqual(str(f.path), "test/test.txt")
+
+    # def test_read(self):
+
     @classmethod
     def tearDown(cls):
         cls.directory.delete()
