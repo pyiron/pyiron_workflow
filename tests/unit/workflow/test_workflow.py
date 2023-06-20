@@ -22,7 +22,7 @@ class TestWorkflow(TestCase):
         Node(fnc, "x", label="boa", parent=wf)
         self.assertListEqual(list(wf.nodes.keys()), ["foo", "bar", "baz", "boa"])
 
-        wf.deactivate_strict_naming()
+        wf.strict_naming = False
         # Validate name incrementation
         wf.add(Node(fnc, "x", label="foo"))
         wf.add.Node(fnc, "y", label="bar")
@@ -40,7 +40,7 @@ class TestWorkflow(TestCase):
             ]
         )
 
-        wf.activate_strict_naming()
+        wf.strict_naming = True
         # Validate name preservation
         with self.assertRaises(AttributeError):
             wf.add(Node(fnc, "x", label="foo"))
