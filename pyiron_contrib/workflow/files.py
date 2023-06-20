@@ -5,14 +5,14 @@ import warnings
 def delete_files_and_directories_recursively(path):
     if not path.exists():
         return
-    for item in path.rglob('*'):
+    for item in path.rglob("*"):
         if item.is_file():
             item.unlink()
         else:
             delete_files_and_directories_recursively(item)
     path.rmdir()
-    
-    
+
+
 class DirectoryObject:
     def __init__(self, directory):
         self.path = Path(directory)
@@ -25,7 +25,7 @@ class DirectoryObject:
         delete_files_and_directories_recursively(self.path)
 
     def list_files(self):
-        return list(self.path.glob('*'))
+        return list(self.path.glob("*"))
 
     def __len__(self):
         return len(self.list_files())
