@@ -2,6 +2,7 @@ from __future__ import annotations
 
 from pyiron_contrib.workflow.has_nodes import HasNodes
 from pyiron_contrib.workflow.has_to_dict import HasToDict
+from pyiron_contrib.workflow.is_nodal import IsNodal
 from pyiron_contrib.workflow.node import Node, node, fast_node, single_value_node
 from pyiron_contrib.workflow.util import DotDict
 
@@ -14,7 +15,7 @@ class _NodeDecoratorAccess:
     single_value_node = single_value_node
 
 
-class Workflow(HasToDict, HasNodes):
+class Workflow(IsNodal, HasToDict, HasNodes):
     """
     Workflows are an abstraction for holding a collection of related nodes.
 
@@ -119,8 +120,7 @@ class Workflow(HasToDict, HasNodes):
     wrap_as = _NodeDecoratorAccess
 
     def __init__(self, label: str, *nodes: Node, strict_naming=True):
-        super().__init__(strict_naming=strict_naming)
-        self.label = label
+        super().__init__(label=label, strict_naming=strict_naming)
 
         for node in nodes:
             self.add_node(node)
