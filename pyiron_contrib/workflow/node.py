@@ -5,12 +5,7 @@ import warnings
 from functools import partialmethod
 from typing import get_args, get_type_hints, Optional, TYPE_CHECKING
 
-from pyiron_contrib.workflow.channels import (
-    InputData,
-    OutputData,
-    InputSignal,
-    OutputSignal,
-)
+from pyiron_contrib.workflow.channels import InputData, OutputData
 from pyiron_contrib.workflow.has_channel import HasChannel
 from pyiron_contrib.workflow.has_to_dict import HasToDict
 from pyiron_contrib.workflow.io import Inputs, Outputs, Signals
