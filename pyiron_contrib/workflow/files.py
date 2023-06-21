@@ -66,6 +66,9 @@ class DirectoryObject:
     def create_subdirectory(self, path):
         return DirectoryObject(self.path / path)
 
+    def create_file(self, file_name):
+        return FileObject(file_name, self)
+
 
 class FileObject:
     def __init__(self, file_name: str, directory: DirectoryObject):

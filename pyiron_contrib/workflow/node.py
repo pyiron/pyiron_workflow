@@ -592,9 +592,6 @@ class Node(HasToDict):
             )
         return self._working_directory
 
-    def create_file(self, file_name):
-        return FileObject(file_name, self.working_directory)
-
 
 class FastNode(Node):
     """
