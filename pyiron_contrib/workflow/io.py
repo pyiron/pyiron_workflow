@@ -56,7 +56,7 @@ class IO(HasToDict, ABC):
 
     @property
     @abstractmethod
-    def _channel_class(self) -> Channel:
+    def _channel_class(self) -> type(Channel):
         pass
 
     @abstractmethod
@@ -152,7 +152,7 @@ class DataIO(IO, ABC):
 
 class Inputs(DataIO):
     @property
-    def _channel_class(self) -> InputData:
+    def _channel_class(self) -> type(InputData):
         return InputData
 
     def activate_strict_connections(self):
@@ -164,7 +164,7 @@ class Inputs(DataIO):
 
 class Outputs(DataIO):
     @property
-    def _channel_class(self) -> OutputData:
+    def _channel_class(self) -> type(OutputData):
         return OutputData
 
 
@@ -181,13 +181,13 @@ class SignalIO(IO, ABC):
 
 class InputSignals(SignalIO):
     @property
-    def _channel_class(self) -> InputSignal:
+    def _channel_class(self) -> type(InputSignal):
         return InputSignal
 
 
 class OutputSignals(SignalIO):
     @property
-    def _channel_class(self) -> OutputSignal:
+    def _channel_class(self) -> type(OutputSignal):
         return OutputSignal
 
 
