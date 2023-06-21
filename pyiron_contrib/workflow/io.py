@@ -169,9 +169,7 @@ class Outputs(DataIO):
 
 
 class SignalIO(IO, ABC):
-    def _assign_a_non_channel_value(
-            self, channel: SignalChannel, value
-    ) -> None:
+    def _assign_a_non_channel_value(self, channel: SignalChannel, value) -> None:
         raise TypeError(
             f"Tried to assign {value} ({type(value)} to the {channel.label}, which is "
             f"already a {type(channel)}. Only other signal channels may be connected "
