@@ -25,6 +25,9 @@ class IO(HasToDict, ABC):
     attribute name matches the channel's label and type (i.e. `OutputChannel` for
     `Outputs` and `InputChannel` for `Inputs`).
 
+    New channels can also be added using the `add` method, which must be implemented in
+    child classes to add channels of the correct type.
+
     When assigning something to an attribute holding an existing channel, if the
     assigned object is a `Channel`, then it is treated like a `connection`, otherwise
     it is treated like a value `update`. I.e.
