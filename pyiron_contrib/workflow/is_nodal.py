@@ -16,18 +16,15 @@ class IsNodal(ABC):
     A mixin class for classes that can represent nodes on a computation graph.
     """
 
-    def __init__(
-            self,
-            label: str,
-            *args,
-            **kwargs
-    ):
+    def __init__(self, label: str, *args, **kwargs):
         super().__init__(*args, **kwargs)
         self.label: str = label
         self.running = False
         self.failed = False
         # TODO: Replace running and failed with a state object
-        self._server: Server | None = None  # Or "task_manager" or "executor" -- we'll see what's best
+        self._server: Server | None = (
+            None  # Or "task_manager" or "executor" -- we'll see what's best
+        )
         self.signals = self._build_signal_channels()
 
     @property

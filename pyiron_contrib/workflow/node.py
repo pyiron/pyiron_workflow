@@ -515,7 +515,6 @@ class Node(IsNodal, HasToDict):
     def __call__(self) -> None:
         self.run()
 
-
     def set_storage_priority(self, priority: int):
         self.inputs.set_storage_priority(priority)
         self.outputs.set_storage_priority(priority)

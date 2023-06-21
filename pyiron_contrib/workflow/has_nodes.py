@@ -89,9 +89,9 @@ class HasNodes(ABC):
 
     def _ensure_node_is_not_duplicated(self, node: Node, label: str):
         if (
-                node.parent is self
-                and label != node.label
-                and self.nodes[node.label] is node
+            node.parent is self
+            and label != node.label
+            and self.nodes[node.label] is node
         ):
             warn(
                 f"Reassigning the node {node.label} to the label {label} when "
