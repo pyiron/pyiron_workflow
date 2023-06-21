@@ -20,6 +20,7 @@ class HasNodes(ABC):
     """
 
     def __init__(self, *args, strict_naming=True, **kwargs):
+        super().__init__(*args, **kwargs)
         self.nodes: DotDict = DotDict()
         self.add: NodeAdder = NodeAdder(self)
         self.strict_naming: bool = strict_naming
