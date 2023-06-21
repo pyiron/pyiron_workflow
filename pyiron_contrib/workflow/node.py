@@ -14,12 +14,13 @@ from pyiron_contrib.workflow.channels import (
 from pyiron_contrib.workflow.has_channel import HasChannel
 from pyiron_contrib.workflow.has_to_dict import HasToDict
 from pyiron_contrib.workflow.io import Inputs, Outputs, Signals
+from pyiron_contrib.workflow.is_nodal import IsNodal
 
 if TYPE_CHECKING:
     from pyiron_contrib.workflow.workflow import Workflow
 
 
-class Node(HasToDict):
+class Node(IsNodal, HasToDict):
     """
     Nodes have input and output data channels that interface with the outside world, and
     a callable that determines what they actually compute. After running, their output
@@ -323,28 +324,27 @@ class Node(HasToDict):
         parent: Optional[Workflow] = None,
         **kwargs,
     ):
+        super().__init__(
+            label=label if label is not None else node_function.__name__,
+            # **kwargs,
+        )
+        self.parent = parent
+        if parent is not None:
+            parent.add(self)
         if len(output_labels) == 0:
             raise ValueError("Nodes must have at least one output label.")
 
-        self.running = False
-        self.failed = False
-        self.server = None  # Or "task_manager" or "executor" -- we'll see what's best
         self.node_function = node_function
-        self.label = label if label is not None else node_function.__name__
-
-        self.parent = None
-        if parent is not None:
-            parent.add(self)
 
         input_channels = self._build_input_channels(input_storage_priority)
-        self.inputs = Inputs(*input_channels)
+        self._inputs = Inputs(*input_channels)
 
         output_channels = self._build_output_channels(
             *output_labels, storage_priority=output_storage_priority
         )
-        self.outputs = Outputs(*output_channels)
+        self._outputs = Outputs(*output_channels)
 
-        self.signals = self._build_signal_channels()
+        self._signals = self._build_signal_channels()
 
         self.channels_requiring_update_after_run = (
             []
@@ -363,6 +363,18 @@ class Node(HasToDict):
 
         if update_on_instantiation:
             self.update()
+
+    @property
+    def inputs(self) -> Inputs:
+        return self._inputs
+
+    @property
+    def outputs(self) -> Outputs:
+        return self._outputs
+
+    @property
+    def signals(self) -> Signals:
+        return self._signals
 
     def _build_input_channels(self, storage_priority: dict[str:int]):
         channels = []
@@ -520,26 +532,6 @@ class Node(HasToDict):
     def __call__(self) -> None:
         self.run()
 
-    def disconnect(self):
-        self.inputs.disconnect()
-        self.outputs.disconnect()
-        self.signals.disconnect()
-
-    @property
-    def ready(self) -> bool:
-        return not (self.running or self.failed) and self.inputs.ready
-
-    @property
-    def connected(self) -> bool:
-        return self.inputs.connected or self.outputs.connected or self.signals.connected
-
-    @property
-    def fully_connected(self):
-        return (
-            self.inputs.fully_connected
-            and self.outputs.fully_connected
-            and self.signals.fully_connected
-        )
 
     def set_storage_priority(self, priority: int):
         self.inputs.set_storage_priority(priority)

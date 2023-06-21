@@ -19,8 +19,14 @@ class TestWorkflow(TestCase):
         wf.add(Node(fnc, "x", label="foo"))
         wf.add.Node(fnc, "y", label="bar")
         wf.baz = Node(fnc, "y", label="whatever_baz_gets_used")
-        Node(fnc, "x", label="boa", parent=wf)
-        self.assertListEqual(list(wf.nodes.keys()), ["foo", "bar", "baz", "boa"])
+        Node(fnc, "x", label="qux", parent=wf)
+        self.assertListEqual(list(wf.nodes.keys()), ["foo", "bar", "baz", "qux"])
+        wf.boa = wf.qux
+        self.assertListEqual(
+            list(wf.nodes.keys()),
+            ["foo", "bar", "baz", "boa"],
+            msg="Reassignment should remove the original instance"
+        )
 
         wf.strict_naming = False
         # Validate name incrementation

@@ -39,16 +39,16 @@ class HasNodes(ABC):
             raise TypeError(
                 f"Only new node instances may be added, but got {type(node)}."
             )
-
-        label = self._ensure_label_is_unique(node.label if label is None else label)
-        self._ensure_node_has_no_other_parent(node, label)
+        self._ensure_node_has_no_other_parent(node)
+        label = self._get_unique_label(node.label if label is None else label)
+        self._ensure_node_is_not_duplicated(node, label)
 
         self.nodes[label] = node
         node.label = label
         node.parent = self
         return node
 
-    def _ensure_label_is_unique(self, label):
+    def _get_unique_label(self, label):
         if label in self.__dir__():
             if isinstance(getattr(self, label), Node):
                 if self.strict_naming:
@@ -78,23 +78,25 @@ class HasNodes(ABC):
             )
         return new_label
 
-    def _ensure_node_has_no_other_parent(self, node: Node, label: str):
-        if (
-            node.parent is self  # This should guarantee the node is in self.nodes
-            and label != node.label
-        ):
-            assert self.nodes[node.label] is node  # Should be unreachable by users
-            warn(
-                f"Reassigning the node {node.label} to the label {label} when "
-                f"adding it to the parent {self.label}."
-            )
-            del self.nodes[node.label]
-        elif node.parent is not None:
+    def _ensure_node_has_no_other_parent(self, node: Node):
+        if node.parent is not None and node.parent is not self:
             raise ValueError(
                 f"The node ({node.label}) already belongs to the parent "
                 f"{node.parent.label}. Please remove it there before trying to "
                 f"add it to this parent ({self.label})."
             )
+
+    def _ensure_node_is_not_duplicated(self, node: Node, label: str):
+        if (
+                node.parent is self
+                and label != node.label
+                and self.nodes[node.label] is node
+        ):
+            warn(
+                f"Reassigning the node {node.label} to the label {label} when "
+                f"adding it to the parent {self.label}."
+            )
+            del self.nodes[node.label]
 
     def remove(self, node: Node | str):
         if isinstance(node, Node):
