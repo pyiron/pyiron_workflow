@@ -2,7 +2,7 @@ from __future__ import annotations
 
 from abc import ABC
 from functools import partial
-from typing import Optional, TYPE_CHECKING
+from typing import Optional
 from warnings import warn
 
 from pyiron_contrib.workflow.node import Node

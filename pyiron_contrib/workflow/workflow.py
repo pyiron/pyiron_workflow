@@ -3,7 +3,6 @@ from __future__ import annotations
 from pyiron_contrib.workflow.has_nodes import HasNodes
 from pyiron_contrib.workflow.has_to_dict import HasToDict
 from pyiron_contrib.workflow.node import Node, node, fast_node, single_value_node
-from pyiron_contrib.workflow.node_library import atomistics, standard
 from pyiron_contrib.workflow.util import DotDict
 
 
@@ -93,13 +92,13 @@ class Workflow(HasToDict, HasNodes):
         ...     cubic=True,
         ...     element="Al"
         ... )
-        >>> wf.engine = atomistics.Lammps(structure=wf.structure)
-        >>> wf.calc = atomistics.CalcMd(
+        >>> wf.engine = wf.add.atomistics.Lammps(structure=wf.structure)
+        >>> wf.calc = wf.add.atomistics.CalcMd(
         ...     job=wf.engine,
         ...     run_on_updates=True,
         ...     update_on_instantiation=True,
         ... )
-        >>> wf.plot = standard.Scatter(
+        >>> wf.plot = wf.add.standard.Scatter(
         ...     x=wf.calc.outputs.steps,
         ...     y=wf.calc.outputs.temperature
         ... )
