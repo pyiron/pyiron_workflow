@@ -4,8 +4,10 @@ from abc import ABC, abstractmethod
 
 from pyiron_contrib.workflow.channels import (
     Channel,
+    DataChannel,
     InputData,
     OutputData,
+    SignalChannel,
     InputSignal,
     OutputSignal,
 )
@@ -58,7 +60,7 @@ class IO(HasToDict, ABC):
         pass
 
     @abstractmethod
-    def _assign_value_to_channel(self, key, value):
+    def _assign_a_non_channel_value(self, channel: Channel, value) -> None:
         """What to do when some non-channel value gets assigned to a channel"""
         pass
 
@@ -67,13 +69,8 @@ class IO(HasToDict, ABC):
 
     def __setattr__(self, key, value):
         if key in self.channel_dict.keys():
-            # Assignment to an existing channel
-            if isinstance(value, HasChannel):
-                self.channel_dict[key].connect(value.channel)
-            else:
-                self._assign_value_to_channel(key, value)
+            self._assign_value_to_existing_channel(self.channel_dict[key], value)
         elif isinstance(value, self._channel_class):
-            # Assigning a channel of the correct type to an unused key
             if key != value.label:
                 raise ValueError(
                     f"Channels can only be assigned to attributes matching their label,"
@@ -85,6 +82,12 @@ class IO(HasToDict, ABC):
                 f"Can only set Channel object or connect to existing channels, but the "
                 f"attribute {key} got assigned {value} of type {type(value)}"
             )
+
+    def _assign_value_to_existing_channel(self, channel: Channel, value) -> None:
+        if isinstance(value, HasChannel):
+            channel.connect(value.channel)
+        else:
+            self._assign_a_non_channel_value(channel, value)
 
     def __getitem__(self, item) -> Channel:
         return self.__getattr__(item)
@@ -127,8 +130,8 @@ class IO(HasToDict, ABC):
 
 
 class DataIO(IO, ABC):
-    def _assign_value_to_channel(self, key, value):
-        self.channel_dict[key].update(value)
+    def _assign_a_non_channel_value(self, channel: DataChannel, value) -> None:
+        channel.update(value)
 
     def to_value_dict(self):
         return {label: channel.value for label, channel in self.channel_dict.items()}
@@ -166,11 +169,13 @@ class Outputs(DataIO):
 
 
 class SignalIO(IO, ABC):
-    def _assign_value_to_channel(self, key, value):
+    def _assign_a_non_channel_value(
+            self, channel: SignalChannel, value
+    ) -> None:
         raise TypeError(
-            f"Tried to assign {value} ({type(value)} to the {key}, which is already"
-            f" a {type(self.channel_dict[key])}. Only other signal channels may be "
-            f"connected in this way."
+            f"Tried to assign {value} ({type(value)} to the {channel.label}, which is "
+            f"already a {type(channel)}. Only other signal channels may be connected "
+            f"in this way."
         )
 
 
