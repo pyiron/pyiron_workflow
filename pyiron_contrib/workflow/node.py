@@ -344,8 +344,6 @@ class Node(IsNodal, HasToDict):
         )
         self._outputs = Outputs(*output_channels)
 
-        self._signals = self._build_signal_channels()
-
         self.channels_requiring_update_after_run = (
             []
             if channels_requiring_update_after_run is None
@@ -371,10 +369,6 @@ class Node(IsNodal, HasToDict):
     @property
     def outputs(self) -> Outputs:
         return self._outputs
-
-    @property
-    def signals(self) -> Signals:
-        return self._signals
 
     def _build_input_channels(self, storage_priority: dict[str:int]):
         channels = []
@@ -462,12 +456,6 @@ class Node(IsNodal, HasToDict):
             )
 
         return channels
-
-    def _build_signal_channels(self) -> Signals:
-        signals = Signals()
-        signals.input.run = InputSignal("run", self, self.run)
-        signals.output.ran = OutputSignal("ran", self)
-        return signals
 
     def _verify_that_channels_requiring_update_all_exist(self):
         if not all(

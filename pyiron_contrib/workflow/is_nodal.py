@@ -3,10 +3,12 @@ from __future__ import annotations
 from abc import ABC, abstractmethod
 from typing import TYPE_CHECKING
 
+from pyiron_contrib.workflow.io import Signals, InputSignal, OutputSignal
+
 if TYPE_CHECKING:
     from pyiron_base.jobs.job.extension.server.generic import Server
 
-    from pyiron_contrib.workflow.io import Inputs, Outputs, Signals
+    from pyiron_contrib.workflow.io import Inputs, Outputs
 
 
 class IsNodal(ABC):
@@ -26,6 +28,7 @@ class IsNodal(ABC):
         self.failed = False
         # TODO: Replace running and failed with a state object
         self._server: Server | None = None  # Or "task_manager" or "executor" -- we'll see what's best
+        self.signals = self._build_signal_channels()
 
     @property
     @abstractmethod
@@ -37,11 +40,6 @@ class IsNodal(ABC):
     def outputs(self) -> Outputs:
         pass
 
-    @property
-    @abstractmethod
-    def signals(self) -> Signals:
-        pass
-
     @abstractmethod
     def update(self):
         pass
@@ -49,6 +47,12 @@ class IsNodal(ABC):
     @abstractmethod
     def run(self):
         pass
+
+    def _build_signal_channels(self) -> Signals:
+        signals = Signals()
+        signals.input.run = InputSignal("run", self, self.run)
+        signals.output.ran = OutputSignal("ran", self)
+        return signals
 
     @property
     def server(self) -> Server | None:
