@@ -58,7 +58,8 @@ class IO(HasToDict, ABC):
         pass
 
     @abstractmethod
-    def _set_existing(self, key, value):
+    def _assign_value_to_channel(self, key, value):
+        """What to do when some non-channel value gets assigned to a channel"""
         pass
 
     def __getattr__(self, item) -> Channel:
@@ -66,8 +67,13 @@ class IO(HasToDict, ABC):
 
     def __setattr__(self, key, value):
         if key in self.channel_dict.keys():
-            self._set_existing(key, value)
+            # Assignment to an existing channel
+            if isinstance(value, HasChannel):
+                self.channel_dict[key].connect(value.channel)
+            else:
+                self._assign_value_to_channel(key, value)
         elif isinstance(value, self._channel_class):
+            # Assigning a channel of the correct type to an unused key
             if key != value.label:
                 raise ValueError(
                     f"Channels can only be assigned to attributes matching their label,"
@@ -121,11 +127,8 @@ class IO(HasToDict, ABC):
 
 
 class DataIO(IO, ABC):
-    def _set_existing(self, key, value):
-        if isinstance(value, HasChannel):
-            self.channel_dict[key].connect(value.channel)
-        else:
-            self.channel_dict[key].update(value)
+    def _assign_value_to_channel(self, key, value):
+        self.channel_dict[key].update(value)
 
     def to_value_dict(self):
         return {label: channel.value for label, channel in self.channel_dict.items()}
@@ -163,15 +166,12 @@ class Outputs(DataIO):
 
 
 class SignalIO(IO, ABC):
-    def _set_existing(self, key, value):
-        if isinstance(value, HasChannel):
-            self.channel_dict[key].connect(value.channel)
-        else:
-            raise TypeError(
-                f"Tried to assign {value} ({type(value)} to the {key}, which is already"
-                f" a {type(self.channel_dict[key])}. Only other signal channels may be "
-                f"connected in this way."
-            )
+    def _assign_value_to_channel(self, key, value):
+        raise TypeError(
+            f"Tried to assign {value} ({type(value)} to the {key}, which is already"
+            f" a {type(self.channel_dict[key])}. Only other signal channels may be "
+            f"connected in this way."
+        )
 
 
 class InputSignals(SignalIO):
