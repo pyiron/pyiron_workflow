@@ -44,7 +44,7 @@ class IO(HasToDict, ABC):
     """
 
     def __init__(self, *channels: Channel):
-        self.channel_dict = DotDict(
+        self.__dict__["channel_dict"] = DotDict(
             {
                 channel.label: channel
                 for channel in channels
@@ -65,9 +65,7 @@ class IO(HasToDict, ABC):
         return self.channel_dict[item]
 
     def __setattr__(self, key, value):
-        if key in ["channel_dict"]:
-            super().__setattr__(key, value)
-        elif key in self.channel_dict.keys():
+        if key in self.channel_dict.keys():
             self._set_existing(key, value)
         elif isinstance(value, self._channel_class):
             if key != value.label:
