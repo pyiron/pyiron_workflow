@@ -330,11 +330,10 @@ class Node(HasToDict):
         if parent is not None:
             parent.add(self)
 
-        input_channels = self._build_input_channels()
-        self.inputs = Inputs(*input_channels)
-
-        output_channels = self._build_output_channels(*output_labels)
-        self.outputs = Outputs(*output_channels)
+        self._inputs = None
+        self._outputs = None
+        self._output_labels = output_labels
+        # TODO: Parse output labels from the node function in case output_labels is None
 
         self.signals = self._build_signal_channels()
 
@@ -355,6 +354,18 @@ class Node(HasToDict):
 
         if update_on_instantiation:
             self.update()
+
+    @property
+    def inputs(self) -> Inputs:
+        if self._inputs is None:
+            self._inputs = Inputs(*self._build_input_channels())
+        return self._inputs
+
+    @property
+    def outputs(self) -> Outputs:
+        if self._outputs is None:
+            self._outputs = Outputs(*self._build_output_channels(*self._output_labels))
+        return self._outputs
 
     def _build_input_channels(self):
         channels = []
