@@ -40,6 +40,13 @@ class TestIO(TestCase):
         with self.assertRaises(TypeError):
             self.input.foo = "not an input channel"
 
+        with self.assertRaises(TypeError):
+            # Right label, and a channel, but wrong type of channel
+            self.input.b = self.post_facto_output
+
+        with self.subTest("Successful channel assignment"):
+            self.output.b = self.post_facto_output
+
         with self.subTest("Can assign to a key that is not the label"):
             label_before_assignment = self.post_facto_output.label
             self.output.not_this_channels_name = self.post_facto_output
@@ -54,13 +61,6 @@ class TestIO(TestCase):
                 msg="Labels should not get updated on assignment of channels to IO "
                     "collections"
             )
-
-        with self.assertRaises(TypeError):
-            # Right label, and a channel, but wrong type of channel
-            self.input.b = self.post_facto_output
-
-        with self.subTest("Successful channel assignment"):
-            self.output.b = self.post_facto_output
 
     def test_connection(self):
         self.input.x = self.input.y
