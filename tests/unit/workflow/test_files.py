@@ -8,6 +8,10 @@ class TestFiles(unittest.TestCase):
     def setUp(cls):
         cls.directory = DirectoryObject("test")
 
+    @classmethod
+    def tearDown(cls):
+        cls.directory.delete()
+
     def test_directory_exists(self):
         self.assertTrue(Path("test").exists() and Path("test").is_dir())
 
@@ -37,10 +41,6 @@ class TestFiles(unittest.TestCase):
         self.assertTrue(f.is_file())
         f.delete()
         self.assertFalse(f.is_file())
-
-    @classmethod
-    def tearDown(cls):
-        cls.directory.delete()
 
 
 if __name__ == '__main__':

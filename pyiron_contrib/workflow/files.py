@@ -83,9 +83,9 @@ class FileObject:
     def path(self):
         return self.directory.path / Path(self._file_name)
 
-    def write(self, content, mode='w'):
-        if self.is_file():
-            warnings.warn(f"{self.file_name} already exists")
+    def write(self, content, mode='x'):
+        #if self.is_file():
+        #    warnings.warn(f"{self.file_name} already exists")
         self.directory.write(file_name=self.file_name, content=content, mode=mode)
 
     def read(self, mode='r'):
