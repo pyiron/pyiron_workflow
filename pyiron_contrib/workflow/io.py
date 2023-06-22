@@ -5,6 +5,7 @@ Collections of channel objects.
 from __future__ import annotations
 
 from abc import ABC, abstractmethod
+from warnings import warn
 
 from pyiron_contrib.workflow.channels import (
     Channel,
@@ -76,9 +77,9 @@ class IO(HasToDict, ABC):
             self._assign_value_to_existing_channel(self.channel_dict[key], value)
         elif isinstance(value, self._channel_class):
             if key != value.label:
-                raise ValueError(
-                    f"Channels can only be assigned to attributes matching their label,"
-                    f"but just tried to assign the channel {value.label} to {key}"
+                warn(
+                    f"Assigning a channel with the label {value.label} to the io key "
+                    f"{key}"
                 )
             self.channel_dict[key] = value
         else:
