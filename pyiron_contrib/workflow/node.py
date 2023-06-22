@@ -311,8 +311,6 @@ class Node(HasToDict):
         node_function: callable,
         *output_labels: str,
         label: Optional[str] = None,
-        input_storage_priority: Optional[dict[str, int]] = None,
-        output_storage_priority: Optional[dict[str, int]] = None,
         run_on_updates: bool = False,
         update_on_instantiation: bool = False,
         channels_requiring_update_after_run: Optional[list[str]] = None,
