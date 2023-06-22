@@ -135,6 +135,10 @@ class IO(HasToDict, ABC):
 
 
 class DataIO(IO, ABC):
+    """
+    Extends the base IO class with helper methods relevant to data channels.
+    """
+
     def _assign_a_non_channel_value(self, channel: DataChannel, value) -> None:
         channel.update(value)
 
@@ -195,6 +199,13 @@ class OutputSignals(SignalIO):
 
 
 class Signals:
+    """
+    A meta-container for input and output signal IO containers.
+
+    Attributes:
+        input (InputSignals): An empty input signals IO container.
+        output (OutputSignals): An empty input signals IO container.
+    """
     def __init__(self):
         self.input = InputSignals()
         self.output = OutputSignals()
