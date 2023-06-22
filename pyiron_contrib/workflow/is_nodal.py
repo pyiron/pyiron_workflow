@@ -1,3 +1,8 @@
+"""
+A base class for objects that can form nodes in the graph representation of a
+computational workflow.
+"""
+
 from __future__ import annotations
 
 from abc import ABC, abstractmethod
