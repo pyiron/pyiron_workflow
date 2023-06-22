@@ -1,11 +1,18 @@
+"""
+Collections of channel objects.
+"""
+
 from __future__ import annotations
 
 from abc import ABC, abstractmethod
+from warnings import warn
 
 from pyiron_contrib.workflow.channels import (
     Channel,
+    DataChannel,
     InputData,
     OutputData,
+    SignalChannel,
     InputSignal,
     OutputSignal,
 )
@@ -17,21 +24,24 @@ from pyiron_contrib.workflow.util import DotDict
 class IO(HasToDict, ABC):
     """
     IO is a convenience layer for holding and accessing multiple input/output channels.
-    It allows key and dot-based access to the underlying channels based on their name.
+    It allows key and dot-based access to the underlying channels.
     Channels can also be iterated over, and there are a number of helper functions to
     alter the properties of or check the status of all the channels at once.
 
-    A new channel can be assigned as an attribute of an IO collection, as long as the
-    attribute name matches the channel's label and type (i.e. `OutputChannel` for
-    `Outputs` and `InputChannel` for `Inputs`).
+    A new channel can be assigned as an attribute of an IO collection, as long as it
+    matches the channel's type (e.g. `OutputChannel` for `Outputs`, `InputChannel`
+    for `Inputs`, etc...).
 
     When assigning something to an attribute holding an existing channel, if the
-    assigned object is a `Channel`, then it is treated like a `connection`, otherwise
-    it is treated like a value `update`. I.e.
+    assigned object is a `Channel`, then an attempt is made to make a `connection`
+    between the two channels, otherwise we fall back on a value assignment that must
+    be defined in child classes under `_assign_value_to_existing_channel`, i.e.
     >>> some_io.some_existing_channel = 5
 
     is equivalent to
-    >>> some_io.some_existing_channel.update(5)
+    >>> some_io._assign_value_to_existing_channel(
+    ...     some_io["some_existing_channel"], 5
+    ... )
 
     and
     >>> some_io.some_existing_channel = some_other_channel
@@ -41,7 +51,7 @@ class IO(HasToDict, ABC):
     """
 
     def __init__(self, *channels: Channel):
-        self.channel_dict = DotDict(
+        self.__dict__["channel_dict"] = DotDict(
             {
                 channel.label: channel
                 for channel in channels
@@ -51,26 +61,25 @@ class IO(HasToDict, ABC):
 
     @property
     @abstractmethod
-    def _channel_class(self) -> Channel:
+    def _channel_class(self) -> type(Channel):
         pass
 
     @abstractmethod
-    def _set_existing(self, key, value):
+    def _assign_a_non_channel_value(self, channel: Channel, value) -> None:
+        """What to do when some non-channel value gets assigned to a channel"""
         pass
 
     def __getattr__(self, item) -> Channel:
         return self.channel_dict[item]
 
     def __setattr__(self, key, value):
-        if key in ["channel_dict"]:
-            super().__setattr__(key, value)
-        elif key in self.channel_dict.keys():
-            self._set_existing(key, value)
+        if key in self.channel_dict.keys():
+            self._assign_value_to_existing_channel(self.channel_dict[key], value)
         elif isinstance(value, self._channel_class):
             if key != value.label:
-                raise ValueError(
-                    f"Channels can only be assigned to attributes matching their label,"
-                    f"but just tried to assign the channel {value.label} to {key}"
+                warn(
+                    f"Assigning a channel with the label {value.label} to the io key "
+                    f"{key}"
                 )
             self.channel_dict[key] = value
         else:
@@ -78,6 +87,12 @@ class IO(HasToDict, ABC):
                 f"Can only set Channel object or connect to existing channels, but the "
                 f"attribute {key} got assigned {value} of type {type(value)}"
             )
+
+    def _assign_value_to_existing_channel(self, channel: Channel, value) -> None:
+        if isinstance(value, HasChannel):
+            channel.connect(value.channel)
+        else:
+            self._assign_a_non_channel_value(channel, value)
 
     def __getitem__(self, item) -> Channel:
         return self.__getattr__(item)
@@ -120,11 +135,12 @@ class IO(HasToDict, ABC):
 
 
 class DataIO(IO, ABC):
-    def _set_existing(self, key, value):
-        if isinstance(value, HasChannel):
-            self.channel_dict[key].connect(value.channel)
-        else:
-            self.channel_dict[key].update(value)
+    """
+    Extends the base IO class with helper methods relevant to data channels.
+    """
+
+    def _assign_a_non_channel_value(self, channel: DataChannel, value) -> None:
+        channel.update(value)
 
     def to_value_dict(self):
         return {label: channel.value for label, channel in self.channel_dict.items()}
@@ -145,7 +161,7 @@ class DataIO(IO, ABC):
 
 class Inputs(DataIO):
     @property
-    def _channel_class(self) -> InputData:
+    def _channel_class(self) -> type(InputData):
         return InputData
 
     def activate_strict_connections(self):
@@ -157,35 +173,40 @@ class Inputs(DataIO):
 
 class Outputs(DataIO):
     @property
-    def _channel_class(self) -> OutputData:
+    def _channel_class(self) -> type(OutputData):
         return OutputData
 
 
 class SignalIO(IO, ABC):
-    def _set_existing(self, key, value):
-        if isinstance(value, HasChannel):
-            self.channel_dict[key].connect(value.channel)
-        else:
-            raise TypeError(
-                f"Tried to assign {value} ({type(value)} to the {key}, which is already"
-                f" a {type(self.channel_dict[key])}. Only other signal channels may be "
-                f"connected in this way."
-            )
+    def _assign_a_non_channel_value(self, channel: SignalChannel, value) -> None:
+        raise TypeError(
+            f"Tried to assign {value} ({type(value)} to the {channel.label}, which is "
+            f"already a {type(channel)}. Only other signal channels may be connected "
+            f"in this way."
+        )
 
 
 class InputSignals(SignalIO):
     @property
-    def _channel_class(self) -> InputSignal:
+    def _channel_class(self) -> type(InputSignal):
         return InputSignal
 
 
 class OutputSignals(SignalIO):
     @property
-    def _channel_class(self) -> OutputSignal:
+    def _channel_class(self) -> type(OutputSignal):
         return OutputSignal
 
 
 class Signals:
+    """
+    A meta-container for input and output signal IO containers.
+
+    Attributes:
+        input (InputSignals): An empty input signals IO container.
+        output (OutputSignals): An empty input signals IO container.
+    """
+
     def __init__(self):
         self.input = InputSignals()
         self.output = OutputSignals()
