@@ -2,9 +2,9 @@ from __future__ import annotations
 
 from pyiron_contrib.workflow.has_nodes import HasNodes
 from pyiron_contrib.workflow.has_to_dict import HasToDict
+from pyiron_contrib.workflow.io import Inputs, Outputs
 from pyiron_contrib.workflow.is_nodal import IsNodal
 from pyiron_contrib.workflow.node import Node, node, fast_node, single_value_node
-from pyiron_contrib.workflow.util import DotDict
 
 
 class _NodeDecoratorAccess:
@@ -126,26 +126,22 @@ class Workflow(IsNodal, HasToDict, HasNodes):
             self.add_node(node)
 
     @property
-    def inputs(self):
-        return DotDict(
-            {
-                f"{node.label}_{channel.label}": channel
-                for node in self.nodes.values()
-                for channel in node.inputs
-                if not channel.connected
-            }
-        )
+    def inputs(self) -> Inputs:
+        inputs = Inputs()
+        for node_label, node in self.nodes.items():
+            for channel in node.inputs:
+                if not channel.connected:
+                    inputs[f"{node_label}_{channel.label}"] = channel
+        return inputs
 
     @property
-    def outputs(self):
-        return DotDict(
-            {
-                f"{node.label}_{channel.label}": channel
-                for node in self.nodes.values()
-                for channel in node.outputs
-                if not channel.connected
-            }
-        )
+    def outputs(self) -> Outputs:
+        outputs = Outputs()
+        for node_label, node in self.nodes.items():
+            for channel in node.outputs:
+                if not channel.connected:
+                    outputs[f"{node_label}_{channel.label}"] = channel
+        return outputs
 
     def to_dict(self):
         return {
