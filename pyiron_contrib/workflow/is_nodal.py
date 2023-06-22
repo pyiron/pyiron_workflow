@@ -103,9 +103,78 @@ class IsNodal(ABC):
     def update(self):
         pass
 
+    @property
     @abstractmethod
-    def run(self):
+    def on_run(self) -> callable[..., tuple]:
+        """
+        What the nodal object actually does!
+        """
         pass
+
+    @property
+    def run_args(self) -> dict:
+        """
+        Any data needed for `on_run`, will be passed as **kwargs.
+        """
+        return {}
+
+    def process_run_result(self, run_output: tuple) -> None:
+        """
+        What to _do_ with the results of `on_run` once you have them.
+
+        Args:
+            run_output (tuple): The results of a `self.on_run(self.run_args)` call.
+        """
+        pass
+
+    def run(self) -> None:
+        """
+        Executes the functionality of the nodal object defined in `on_run`.
+        Handles the status of the nodal object, and communicating with any remote
+        computing resources.
+        """
+        if self.running:
+            raise RuntimeError(f"{self.label} is already running")
+
+        self.running = True
+        self.failed = False
+
+        if self.server is None:
+            try:
+                run_output = self.on_run(**self.run_args)
+            except Exception as e:
+                self.running = False
+                self.failed = True
+                raise e
+            self.finish_run(run_output)
+        else:
+            raise NotImplementedError(
+                "We currently only support executing the node functionality right on "
+                "the main python process that the node instance lives on. Come back "
+                "later for cool new features."
+            )
+            # TODO: Send the `on_run` callable and the `run_args` data off to remote
+            #       resources and register `finish_run` as a callback.
+
+    def finish_run(self, run_output: tuple):
+        """
+        Process the run result, then wrap up statuses etc.
+
+        By extracting this as a separate method, we allow the node to pass the actual
+        execution off to another entity and release the python process to do other
+        things. In such a case, this function should be registered as a callback
+        so that the node can finish "running" and, e.g. push its data forward when that
+        execution is finished.
+        """
+        try:
+            self.process_run_result(run_output)
+        except Exception as e:
+            self.running = False
+            self.failed = True
+            raise e
+
+        self.signals.output.ran()
+        self.running = False
 
     def _build_signal_channels(self) -> Signals:
         signals = Signals()

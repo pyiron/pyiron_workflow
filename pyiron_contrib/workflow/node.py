@@ -467,50 +467,26 @@ class Node(IsNodal, HasToDict):
         if self.run_on_updates and self.ready:
             self.run()
 
-    def run(self) -> None:
-        if self.running:
-            raise RuntimeError(f"{self.label} is already running")
+    @property
+    def on_run(self):
+        return self.node_function
 
-        self.running = True
-        self.failed = False
+    @property
+    def run_args(self) -> dict:
+        return self.inputs.to_value_dict()
 
-        if self.server is None:
-            try:
-                function_output = self.node_function(**self.inputs.to_value_dict())
-            except Exception as e:
-                self.running = False
-                self.failed = True
-                raise e
-            self.process_output(function_output)
-        else:
-            raise NotImplementedError(
-                "We currently only support executing the node functionality right on "
-                "the main python process that the node instance lives on. Come back "
-                "later for cool new features."
-            )
-
-    def process_output(self, function_output):
+    def process_run_result(self, function_output):
         """
-        Take the results of the node function, and use them to update the node.
-
-        By extracting this as a separate method, we allow the node to pass the actual
-        execution off to another entity and release the python process to do other
-        things. In such a case, this function should be registered as a callback
-        so that the node can finishing "running" and push its data forward when that
-        execution is finished.
+        Take the results of the node function, and use them to update the node output.
         """
+        for channel_name in self.channels_requiring_update_after_run:
+            self.inputs[channel_name].wait_for_update()
+
         if len(self.outputs) == 1:
             function_output = (function_output,)
 
         for out, value in zip(self.outputs, function_output):
             out.update(value)
-
-        self.signals.output.ran()
-
-        for channel_name in self.channels_requiring_update_after_run:
-            self.inputs[channel_name].wait_for_update()
-
-        self.running = False
 
     def __call__(self) -> None:
         self.run()

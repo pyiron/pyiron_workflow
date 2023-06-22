@@ -168,6 +168,6 @@ class Workflow(IsNodal, HasToDict, HasNodes):
             if node.outputs.connected and not node.inputs.connected:
                 node.update()
 
-    def run(self):
+    def on_run(self):
         # Maybe we need this if workflows can be used as nodes?
         raise NotImplementedError
