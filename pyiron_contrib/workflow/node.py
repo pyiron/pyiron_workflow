@@ -582,13 +582,13 @@ class Node(HasToDict):
     @property
     def working_directory(self):
         if self._working_directory is None:
-            if self.workflow is None:
+            if self.parent is None:
                 raise ValueError(
                     "working directory is available only if the node is"
                     " attached to a workflow"
                 )
             self._working_directory = (
-                self.workflow.working_directory.create_subdirectory(self.label)
+                self.parent.working_directory.create_subdirectory(self.label)
             )
         return self._working_directory
 

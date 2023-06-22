@@ -108,9 +108,9 @@ class TestWorkflow(unittest.TestCase):
 
         self.assertEqual(plus_one().outputs.y.value, 1)
 
-    # def test_working_directory(self):
-    #     wf = Workflow("wf")
-    #     self.assertTrue(wf.__dict__["working_directory"] is None)
+    def test_working_directory(self):
+        wf = Workflow("wf")
+        self.assertTrue(wf._working_directory is None)
 
 
 if __name__ == '__main__':
