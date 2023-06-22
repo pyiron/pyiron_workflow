@@ -206,6 +206,7 @@ class Signals:
         input (InputSignals): An empty input signals IO container.
         output (OutputSignals): An empty input signals IO container.
     """
+
     def __init__(self):
         self.input = InputSignals()
         self.output = OutputSignals()

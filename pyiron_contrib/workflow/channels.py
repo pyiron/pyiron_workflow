@@ -387,6 +387,7 @@ class OutputData(DataChannel):
     On `update`, Output channels propagate their value to all the input channels to
     which they are connected by invoking their `update` method.
     """
+
     def _after_update(self) -> None:
         for inp in self.connections:
             inp.update(self.value)
@@ -446,6 +447,7 @@ class InputSignal(SignalChannel):
     """
     Invokes a callback when called.
     """
+
     def __init__(
         self,
         label: str,
@@ -481,6 +483,7 @@ class OutputSignal(SignalChannel):
     """
     Calls all the input signal objects in its connections list when called.
     """
+
     def __call__(self) -> None:
         for c in self.connections:
             c()
