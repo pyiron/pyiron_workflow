@@ -1,4 +1,4 @@
-from unittest import TestCase, skipUnless
+import unittest
 from sys import version_info
 
 from pyiron_contrib.workflow.node import Node
@@ -9,8 +9,8 @@ def fnc(x=0):
     return x + 1
 
 
-@skipUnless(version_info[0] == 3 and version_info[1] >= 10, "Only supported for 3.10+")
-class TestWorkflow(TestCase):
+@unittest.skipUnless(version_info[0] == 3 and version_info[1] >= 10, "Only supported for 3.10+")
+class TestWorkflow(unittest.TestCase):
 
     def test_node_addition(self):
         wf = Workflow("my_workflow")
@@ -107,3 +107,11 @@ class TestWorkflow(TestCase):
             return x + 1
 
         self.assertEqual(plus_one().outputs.y.value, 1)
+
+    # def test_working_directory(self):
+    #     wf = Workflow("wf")
+    #     self.assertTrue(wf.__dict__["working_directory"] is None)
+
+
+if __name__ == '__main__':
+    unittest.main()
