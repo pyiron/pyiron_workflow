@@ -1,3 +1,7 @@
+"""
+Collections of channel objects.
+"""
+
 from __future__ import annotations
 
 from abc import ABC, abstractmethod
@@ -19,24 +23,24 @@ from pyiron_contrib.workflow.util import DotDict
 class IO(HasToDict, ABC):
     """
     IO is a convenience layer for holding and accessing multiple input/output channels.
-    It allows key and dot-based access to the underlying channels based on their name.
+    It allows key and dot-based access to the underlying channels.
     Channels can also be iterated over, and there are a number of helper functions to
     alter the properties of or check the status of all the channels at once.
 
-    A new channel can be assigned as an attribute of an IO collection, as long as the
-    attribute name matches the channel's label and type (i.e. `OutputChannel` for
-    `Outputs` and `InputChannel` for `Inputs`).
-
-    New channels can also be added using the `add` method, which must be implemented in
-    child classes to add channels of the correct type.
+    A new channel can be assigned as an attribute of an IO collection, as long as it
+    matches the channel's type (e.g. `OutputChannel` for `Outputs`, `InputChannel`
+    for `Inputs`, etc...).
 
     When assigning something to an attribute holding an existing channel, if the
-    assigned object is a `Channel`, then it is treated like a `connection`, otherwise
-    it is treated like a value `update`. I.e.
+    assigned object is a `Channel`, then an attempt is made to make a `connection`
+    between the two channels, otherwise we fall back on a value assignment that must
+    be defined in child classes under `_assign_value_to_existing_channel`, i.e.
     >>> some_io.some_existing_channel = 5
 
     is equivalent to
-    >>> some_io.some_existing_channel.update(5)
+    >>> some_io._assign_value_to_existing_channel(
+    ...     some_io["some_existing_channel"], 5
+    ... )
 
     and
     >>> some_io.some_existing_channel = some_other_channel
