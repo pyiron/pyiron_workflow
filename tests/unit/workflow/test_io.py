@@ -40,8 +40,20 @@ class TestIO(TestCase):
         with self.assertRaises(TypeError):
             self.input.foo = "not an input channel"
 
-        with self.assertRaises(ValueError):
+        with self.subTest("Can assign to a key that is not the label"):
+            label_before_assignment = self.post_facto_output.label
             self.output.not_this_channels_name = self.post_facto_output
+            self.assertIs(
+                self.output.not_this_channels_name,
+                self.post_facto_output,
+                msg="Expected channel to get assigned"
+            )
+            self.assertEqual(
+                self.post_facto_output.label,
+                label_before_assignment,
+                msg="Labels should not get updated on assignment of channels to IO "
+                    "collections"
+            )
 
         with self.assertRaises(TypeError):
             # Right label, and a channel, but wrong type of channel
