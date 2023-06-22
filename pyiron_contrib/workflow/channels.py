@@ -77,7 +77,7 @@ class Channel(HasChannel, HasToDict, ABC):
         pass
 
     @abstractmethod
-    def connect(self, *others: Channel):
+    def connect(self, *others: Channel) -> None:
         """
         How to handle connections to other channels.
 
@@ -86,7 +86,7 @@ class Channel(HasChannel, HasToDict, ABC):
         """
         pass
 
-    def disconnect(self, *others: Channel):
+    def disconnect(self, *others: Channel) -> None:
         """
         If currently connected to any others, removes this and the other from eachothers
         respective connections lists.
@@ -99,20 +99,20 @@ class Channel(HasChannel, HasToDict, ABC):
                 self.connections.remove(other)
                 other.disconnect(self)
 
-    def disconnect_all(self):
+    def disconnect_all(self) -> None:
         """
         Disconnect from all other channels currently in the connections list.
         """
         self.disconnect(*self.connections)
 
     @property
-    def connected(self):
+    def connected(self) -> bool:
         """
         Has at least one connection.
         """
         return len(self.connections) > 0
 
-    def _already_connected(self, other: Channel):
+    def _already_connected(self, other: Channel) -> bool:
         return other in self.connections
 
     def __iter__(self):
@@ -125,7 +125,7 @@ class Channel(HasChannel, HasToDict, ABC):
     def channel(self) -> Channel:
         return self
 
-    def to_dict(self):
+    def to_dict(self) -> dict:
         return {
             "label": self.label,
             "connected": self.connected,
@@ -192,7 +192,7 @@ class DataChannel(Channel, ABC):
         self.storage_priority = storage_priority
 
     @property
-    def ready(self):
+    def ready(self) -> bool:
         """
         Check if the currently stored value satisfies the channel's type hint.
 
@@ -204,7 +204,7 @@ class DataChannel(Channel, ABC):
         else:
             return True
 
-    def update(self, value):
+    def update(self, value) -> None:
         """
         Store a new value and trigger before- and after-update routines.
 
@@ -215,19 +215,19 @@ class DataChannel(Channel, ABC):
         self.value = value
         self._after_update()
 
-    def _before_update(self):
+    def _before_update(self) -> None:
         """
         A tool for child classes to do things before the value changed during an update.
         """
         pass
 
-    def _after_update(self):
+    def _after_update(self) -> None:
         """
         A tool for child classes to do things after the value changed during an update.
         """
         pass
 
-    def connect(self, *others: DataChannel):
+    def connect(self, *others: DataChannel) -> None:
         """
         For all others for which the connection is valid (one input, one output, both
         data channels), adds this to the other's list of connections and the other to
@@ -258,7 +258,7 @@ class DataChannel(Channel, ABC):
                         f"({self.__class__.__name__}) got a {other} ({type(other)})"
                     )
 
-    def _valid_connection(self, other):
+    def _valid_connection(self, other) -> bool:
         if self._is_IO_pair(other) and not self._already_connected(other):
             if self._both_typed(other):
                 out, inp = self._figure_out_who_is_who(other)
@@ -274,10 +274,10 @@ class DataChannel(Channel, ABC):
         else:
             return False
 
-    def _is_IO_pair(self, other: DataChannel):
+    def _is_IO_pair(self, other: DataChannel) -> bool:
         return isinstance(other, DataChannel) and not isinstance(other, self.__class__)
 
-    def _both_typed(self, other: DataChannel):
+    def _both_typed(self, other: DataChannel) -> bool:
         return self.type_hint is not None and other.type_hint is not None
 
     def _figure_out_who_is_who(self, other: DataChannel) -> (OutputData, InputData):
@@ -286,7 +286,7 @@ class DataChannel(Channel, ABC):
     def __str__(self):
         return str(self.value)
 
-    def to_dict(self):
+    def to_dict(self) -> dict:
         d = super().to_dict()
         d["value"] = repr(self.value)
         d["ready"] = self.ready
@@ -330,7 +330,7 @@ class InputData(DataChannel):
         self.strict_connections = strict_connections
         self.waiting_for_update = False
 
-    def wait_for_update(self):
+    def wait_for_update(self) -> None:
         """
         Sets `waiting_for_update` to `True`, which prevents `ready` from returning
         `True` until `update` is called.
@@ -338,7 +338,7 @@ class InputData(DataChannel):
         self.waiting_for_update = True
 
     @property
-    def ready(self):
+    def ready(self) -> bool:
         """
         Extends the parent class check for whether the value matches the type hint with
         a check for whether the channel has been told to wait for an update (and not
@@ -350,18 +350,18 @@ class InputData(DataChannel):
         """
         return not self.waiting_for_update and super().ready
 
-    def _before_update(self):
+    def _before_update(self) -> None:
         if self.node.running:
             raise RuntimeError(
                 f"Parent node {self.node.label} of {self.label} is running, so value "
                 f"cannot be updated."
             )
 
-    def _after_update(self):
+    def _after_update(self) -> None:
         self.waiting_for_update = False
         self.node.update()
 
-    def require_update_after_node_runs(self, wait_now=False):
+    def require_update_after_node_runs(self, wait_now=False) -> None:
         """
         Registers this channel with its owning node as one that should have
         `wait_for_update()` applied after each time the node runs.
@@ -375,10 +375,10 @@ class InputData(DataChannel):
         if wait_now:
             self.wait_for_update()
 
-    def activate_strict_connections(self):
+    def activate_strict_connections(self) -> None:
         self.strict_connections = True
 
-    def deactivate_strict_connections(self):
+    def deactivate_strict_connections(self) -> None:
         self.strict_connections = False
 
 
@@ -387,7 +387,7 @@ class OutputData(DataChannel):
     On `update`, Output channels propagate their value to all the input channels to
     which they are connected by invoking their `update` method.
     """
-    def _after_update(self):
+    def _after_update(self) -> None:
         for inp in self.connections:
             inp.update(self.value)
 
@@ -402,10 +402,10 @@ class SignalChannel(Channel, ABC):
     """
 
     @abstractmethod
-    def __call__(self):
+    def __call__(self) -> None:
         pass
 
-    def connect(self, *others: Channel):
+    def connect(self, *others: SignalChannel) -> None:
         """
         For all others for which the connection is valid (one input, one output, both
         data channels), adds this to the other's list of connections and the other to
@@ -465,13 +465,13 @@ class InputSignal(SignalChannel):
         super().__init__(label=label, node=node)
         self.callback: callable = callback
 
-    def __call__(self):
+    def __call__(self) -> None:
         self.callback()
 
     def __str__(self):
         return f"{self.label} runs {self.callback.__name__}"
 
-    def to_dict(self):
+    def to_dict(self) -> dict:
         d = super().to_dict()
         d["callback"] = self.callback.__name__
         return d
@@ -481,7 +481,7 @@ class OutputSignal(SignalChannel):
     """
     Calls all the input signal objects in its connections list when called.
     """
-    def __call__(self):
+    def __call__(self) -> None:
         for c in self.connections:
             c()
 
