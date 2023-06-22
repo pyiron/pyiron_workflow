@@ -1,39 +1,11 @@
 from __future__ import annotations
 
-from functools import partial
-from warnings import warn
-
+from pyiron_contrib.workflow.has_nodes import HasNodes
 from pyiron_contrib.workflow.has_to_dict import HasToDict
 from pyiron_contrib.workflow.node import Node, node, fast_node, single_value_node
-from pyiron_contrib.workflow.node_library import atomistics, package, standard
 from pyiron_contrib.workflow.util import DotDict
 from pyiron_contrib.workflow.files import DirectoryObject
 from pyiron_base.jobs.job.extension.server.generic import Server
-
-
-class _NodeAdder:
-    """
-    This class exists to help with the misdirection required for the syntactic sugar
-    that lets us add nodes to the workflow.
-
-    TODO: Give access to pre-built fixed nodes under various domain names
-    """
-
-    def __init__(self, workflow: Workflow):
-        self._workflow = workflow
-        self.atomistics = package.NodePackage(self._workflow, *atomistics.nodes)
-        self.standard = package.NodePackage(self._workflow, *standard.nodes)
-
-    Node = Node
-
-    def __getattribute__(self, key):
-        value = super().__getattribute__(key)
-        if value == Node:
-            return partial(Node, workflow=self._workflow)
-        return value
-
-    def __call__(self, node: Node):
-        return self._workflow.add_node(node)
 
 
 class _NodeDecoratorAccess:
@@ -44,7 +16,7 @@ class _NodeDecoratorAccess:
     single_value_node = single_value_node
 
 
-class Workflow(HasToDict):
+class Workflow(HasToDict, HasNodes):
     """
     Workflows are an abstraction for holding a collection of related nodes.
 
@@ -72,7 +44,7 @@ class Workflow(HasToDict):
         >>> wf.add.Node(fnc, "y", label="n3")  # Instantiating from add
         >>> wf.n4 = Node(fnc, "y", label="whatever_n4_gets_used")
         >>> # By attribute assignment
-        >>> Node(fnc, "x", label="n5", workflow=wf)
+        >>> Node(fnc, "x", label="n5", parent=wf)
         >>> # By instantiating the node with a workflow
 
         By default, the node naming scheme is strict, so if you try to add a node to a
@@ -122,18 +94,16 @@ class Workflow(HasToDict):
         ...     cubic=True,
         ...     element="Al"
         ... )
-        >>> wf.engine = atomistics.Lammps(structure=wf.structure)
-        >>> wf.calc = atomistics.CalcMd(
+        >>> wf.engine = wf.add.atomistics.Lammps(structure=wf.structure)
+        >>> wf.calc = wf.add.atomistics.CalcMd(
         ...     job=wf.engine,
         ...     run_on_updates=True,
         ...     update_on_instantiation=True,
         ... )
-        >>> wf.plot = standard.Scatter(
+        >>> wf.plot = wf.add.standard.Scatter(
         ...     x=wf.calc.outputs.steps,
         ...     y=wf.calc.outputs.temperature
         ... )
-
-    TODO: Registration of new node packages
 
     TODO: Workflows can be serialized.
 
@@ -151,22 +121,19 @@ class Workflow(HasToDict):
     wrap_as = _NodeDecoratorAccess
 
     def __init__(self, label: str, *nodes: Node, strict_naming=True):
-        self.__dict__["label"] = label
-        self.__dict__["nodes"] = DotDict()
-        self.__dict__["add"] = _NodeAdder(self)
-        self.__dict__["strict_naming"] = strict_naming
-        self.__dict__["working_directory"] = None
-        self.__dict__["server"] = Server()
-        # We directly assign using __dict__ because we override the setattr later
+        super().__init__(strict_naming=strict_naming)
+        self.label = label
+        self.server = Server()
+        self._working_directory = None
 
         for node in nodes:
             self.add_node(node)
 
     @property
     def working_directory(self):
-        if self.__dict__["working_directory"] is None:
-            self.__dict__["working_directory"] = DirectoryObject(self.label)
-        return self.__dict__["working_directory"]
+        if self._working_directory is None:
+            self._working_directory = DirectoryObject(self.label)
+        return self._working_directory
 
     def add_node(self, node: Node, label: str = None) -> None:
         """
@@ -326,6 +293,3 @@ class Workflow(HasToDict):
     def run(self):
         # Maybe we need this if workflows can be used as nodes?
         raise NotImplementedError
-
-    def __dir__(self):
-        return set(super().__dir__() + list(self.nodes.keys()))

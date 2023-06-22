@@ -26,8 +26,8 @@ class TestNodePackage(TestCase):
         node = self.package.Dummy()
         self.assertIsInstance(node, dummy)
         self.assertIs(
-            node.workflow,
-            self.package._workflow,
+            node.parent,
+            self.package._parent,
             msg="Package workflow should get assigned to node instances"
         )
 
