@@ -321,7 +321,7 @@ class Node(HasToDict):
         run_on_updates: bool = False,
         update_on_instantiation: bool = False,
         channels_requiring_update_after_run: Optional[list[str]] = None,
-        workflow: Optional[Workflow] = None,
+        parent: Optional[Workflow] = None,
         **kwargs,
     ):
         if len(output_labels) == 0:
@@ -333,9 +333,9 @@ class Node(HasToDict):
         self.node_function = node_function
         self.label = label if label is not None else node_function.__name__
 
-        self.workflow = None
-        if workflow is not None:
-            workflow.add(self)
+        self.parent = None
+        if parent is not None:
+            parent.add(self)
 
         input_channels = self._build_input_channels(input_storage_priority)
         self.inputs = Inputs(*input_channels)
@@ -593,7 +593,7 @@ class FastNode(Node):
         output_storage_priority: Optional[dict[str, int]] = None,
         run_on_updates=True,
         update_on_instantiation=True,
-        workflow: Optional[Workflow] = None,
+        parent: Optional[Workflow] = None,
         **kwargs,
     ):
         self.ensure_params_have_defaults(node_function)
@@ -605,7 +605,7 @@ class FastNode(Node):
             output_storage_priority=output_storage_priority,
             run_on_updates=run_on_updates,
             update_on_instantiation=update_on_instantiation,
-            workflow=workflow,
+            parent=parent,
             **kwargs,
         )
 
@@ -639,7 +639,7 @@ class SingleValueNode(FastNode, HasChannel):
         output_storage_priority: Optional[dict[str, int]] = None,
         run_on_updates=True,
         update_on_instantiation=True,
-        workflow: Optional[Workflow] = None,
+        parent: Optional[Workflow] = None,
         **kwargs,
     ):
         self.ensure_there_is_only_one_return_value(output_labels)
@@ -651,7 +651,7 @@ class SingleValueNode(FastNode, HasChannel):
             output_storage_priority=output_storage_priority,
             run_on_updates=run_on_updates,
             update_on_instantiation=update_on_instantiation,
-            workflow=workflow,
+            parent=parent,
             **kwargs,
         )
 
