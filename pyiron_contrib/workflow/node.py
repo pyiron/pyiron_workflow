@@ -352,7 +352,6 @@ class Node(HasToDict):
             elif k not in self._init_keywords:
                 warnings.warn(f"The keyword '{k}' was received but not used.")
         self.run_on_updates = run_on_updates
-        self.server = Server()
 
         if update_on_instantiation:
             self.update()
