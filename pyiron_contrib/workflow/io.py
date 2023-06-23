@@ -149,10 +149,6 @@ class DataIO(IO, ABC):
     def ready(self):
         return all([c.ready for c in self])
 
-    def set_storage_priority(self, priority: int):
-        for c in self:
-            c.storage_priority = priority
-
     def to_dict(self):
         d = super().to_dict()
         d["ready"] = self.ready
