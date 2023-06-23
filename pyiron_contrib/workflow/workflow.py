@@ -121,7 +121,6 @@ class Workflow(HasToDict, HasNodes):
     def __init__(self, label: str, *nodes: Node, strict_naming=True):
         super().__init__(strict_naming=strict_naming)
         self.label = label
-        self.server = Server()
 
         for node in nodes:
             self.add_node(node)
