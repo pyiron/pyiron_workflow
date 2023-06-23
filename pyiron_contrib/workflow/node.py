@@ -248,8 +248,6 @@ class Node(HasToDict):
         ...     def __init__(
         ...         self,
         ...         label: Optional[str] = None,
-        ...         input_storage_priority: Optional[dict[str, int]] = None,
-        ...         output_storage_priority: Optional[dict[str, int]] = None,
         ...         run_on_updates: bool = True,
         ...         update_on_instantiation: bool = False,
         ...         **kwargs
@@ -258,8 +256,6 @@ class Node(HasToDict):
         ...             self.alphabet_mod_three,
         ...             "letter",
         ...             labe=label,
-        ...             input_storage_priority=input_storage_priority,
-        ...             output_storage_priority=output_storage_priority,
         ...             run_on_updates=run_on_updates,
         ...             update_on_instantiation=update_on_instantiation,
         ...             **kwargs
@@ -316,8 +312,6 @@ class Node(HasToDict):
         node_function: callable,
         *output_labels: str,
         label: Optional[str] = None,
-        input_storage_priority: Optional[dict[str, int]] = None,
-        output_storage_priority: Optional[dict[str, int]] = None,
         run_on_updates: bool = False,
         update_on_instantiation: bool = False,
         channels_requiring_update_after_run: Optional[list[str]] = None,
@@ -337,12 +331,10 @@ class Node(HasToDict):
         if parent is not None:
             parent.add(self)
 
-        input_channels = self._build_input_channels(input_storage_priority)
+        input_channels = self._build_input_channels()
         self.inputs = Inputs(*input_channels)
 
-        output_channels = self._build_output_channels(
-            *output_labels, storage_priority=output_storage_priority
-        )
+        output_channels = self._build_output_channels(*output_labels)
         self.outputs = Outputs(*output_channels)
 
         self.signals = self._build_signal_channels()
@@ -370,7 +362,7 @@ class Node(HasToDict):
     def _input_args(self):
         return inspect.signature(self.node_function).parameters
 
-    def _build_input_channels(self, storage_priority: dict[str:int]):
+    def _build_input_channels(self):
         channels = []
         type_hints = get_type_hints(self.node_function)
 
@@ -394,11 +386,6 @@ class Node(HasToDict):
                 )
 
             try:
-                priority = storage_priority[label]
-            except (KeyError, TypeError):
-                priority = None
-
-            try:
                 type_hint = type_hints[label]
             except KeyError:
                 type_hint = None
@@ -414,7 +401,6 @@ class Node(HasToDict):
                     node=self,
                     default=default,
                     type_hint=type_hint,
-                    storage_priority=priority,
                 )
             )
         return channels
@@ -423,9 +409,7 @@ class Node(HasToDict):
     def _init_keywords(self):
         return list(inspect.signature(self.__init__).parameters.keys())
 
-    def _build_output_channels(
-        self, *return_labels: str, storage_priority: dict[str:int] = None
-    ):
+    def _build_output_channels(self, *return_labels: str):
         try:
             type_hints = get_type_hints(self.node_function)["return"]
             if len(return_labels) > 1:
@@ -450,17 +434,11 @@ class Node(HasToDict):
 
         channels = []
         for label, hint in zip(return_labels, type_hints):
-            try:
-                priority = storage_priority[label]
-            except (KeyError, TypeError):
-                priority = None
-
             channels.append(
                 OutputData(
                     label=label,
                     node=self,
                     type_hint=hint,
-                    storage_priority=priority,
                 )
             )
 
@@ -561,10 +539,6 @@ class Node(HasToDict):
             and self.signals.fully_connected
         )
 
-    def set_storage_priority(self, priority: int):
-        self.inputs.set_storage_priority(priority)
-        self.outputs.set_storage_priority(priority)
-
     def to_dict(self):
         return {
             "label": self.label,
@@ -589,8 +563,6 @@ class FastNode(Node):
         node_function: callable,
         *output_labels: str,
         label: Optional[str] = None,
-        input_storage_priority: Optional[dict[str, int]] = None,
-        output_storage_priority: Optional[dict[str, int]] = None,
         run_on_updates=True,
         update_on_instantiation=True,
         parent: Optional[Workflow] = None,
@@ -601,8 +573,6 @@ class FastNode(Node):
             node_function,
             *output_labels,
             label=label,
-            input_storage_priority=input_storage_priority,
-            output_storage_priority=output_storage_priority,
             run_on_updates=run_on_updates,
             update_on_instantiation=update_on_instantiation,
             parent=parent,
@@ -635,8 +605,6 @@ class SingleValueNode(FastNode, HasChannel):
         node_function: callable,
         *output_labels: str,
         label: Optional[str] = None,
-        input_storage_priority: Optional[dict[str, int]] = None,
-        output_storage_priority: Optional[dict[str, int]] = None,
         run_on_updates=True,
         update_on_instantiation=True,
         parent: Optional[Workflow] = None,
@@ -647,8 +615,6 @@ class SingleValueNode(FastNode, HasChannel):
             node_function,
             *output_labels,
             label=label,
-            input_storage_priority=input_storage_priority,
-            output_storage_priority=output_storage_priority,
             run_on_updates=run_on_updates,
             update_on_instantiation=update_on_instantiation,
             parent=parent,
