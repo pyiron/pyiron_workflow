@@ -4,7 +4,6 @@ from pyiron_contrib.workflow.has_nodes import HasNodes
 from pyiron_contrib.workflow.has_to_dict import HasToDict
 from pyiron_contrib.workflow.node import Node, node, fast_node, single_value_node
 from pyiron_contrib.workflow.util import DotDict
-from pyiron_base.jobs.job.extension.server.generic import Server
 
 
 class _NodeDecoratorAccess:
