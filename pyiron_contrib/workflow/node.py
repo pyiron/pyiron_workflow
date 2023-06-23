@@ -472,25 +472,18 @@ class Node(HasToDict):
         self.running = True
         self.failed = False
 
-        if self.server is None:
-            try:
-                if "self" in self._input_args:
-                    function_output = self.node_function(
-                        self=self, **self.inputs.to_value_dict()
-                    )
-                else:
-                    function_output = self.node_function(**self.inputs.to_value_dict())
-            except Exception as e:
-                self.running = False
-                self.failed = True
-                raise e
-            self.process_output(function_output)
-        else:
-            raise NotImplementedError(
-                "We currently only support executing the node functionality right on "
-                "the main python process that the node instance lives on. Come back "
-                "later for cool new features."
-            )
+        try:
+            if "self" in self._input_args:
+                function_output = self.node_function(
+                    self=self, **self.inputs.to_value_dict()
+                )
+            else:
+                function_output = self.node_function(**self.inputs.to_value_dict())
+        except Exception as e:
+            self.running = False
+            self.failed = True
+            raise e
+        self.process_output(function_output)
 
     def process_output(self, function_output):
         """
