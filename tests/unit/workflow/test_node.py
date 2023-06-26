@@ -159,20 +159,50 @@ class TestNode(unittest.TestCase):
 
     def test_with_self(self):
         def with_self(self, x: float) -> float:
+            # Note: Adding internal state to the node like this goes against the best
+            #  practice of keeping nodes "functional". Following python's paradigm of
+            #  giving users lots of power, we want to guarantee that this behaviour is
+            #  _possible_.
+            # TODO: update this test with a better-conforming example of this power at
+            #  a future date.
+            if hasattr(self, "some_counter"):
+                self.some_counter += 1
+            else:
+                self.some_counter = 1
             return x + 0.1
+
         node = Node(with_self, "output")
-        self.assertTrue("x" in node.inputs.labels)
-        self.assertFalse("self" in node.inputs.labels)
+        self.assertTrue(
+            "x" in node.inputs.labels,
+            msg=f"Expected to find function input 'x' in the node input but got "
+                f"{node.inputs.labels}"
+        )
+        self.assertFalse(
+            "self" in node.inputs.labels,
+            msg="Expected 'self' to be filtered out of node input, but found it in the "
+                "input labels"
+        )
         node.inputs.x = 1
         node.run()
-        self.assertEqual(node.outputs.output.value, 1.1)
+        self.assertEqual(
+            node.outputs.output.value,
+            1.1,
+            msg="Basic node functionality appears to have failed"
+        )
+        self.assertEqual(
+            node.some_counter,
+            1,
+            msg="Node functions should be able to modify attributes on the node object."
+        )
+
         def with_messed_self(x: float, self) -> float:
             return x + 0.1
+
         with warnings.catch_warnings(record=True) as warning_list:
             node = Node(with_messed_self, "output")
             self.assertTrue("self" in node.inputs.labels)
-        self.assertEqual(len(warning_list), 1)
 
+        self.assertEqual(len(warning_list), 1)
 
 
 @unittest.skipUnless(version_info[0] == 3 and version_info[1] >= 10, "Only supported for 3.10+")
