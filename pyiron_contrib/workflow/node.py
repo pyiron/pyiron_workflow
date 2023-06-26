@@ -483,7 +483,10 @@ class Node(IsNodal, HasToDict):
 
     @property
     def run_args(self) -> dict:
-        return self.inputs.to_value_dict()
+        kwargs = self.inputs.to_value_dict()
+        if "self" in self._input_args:
+            kwargs["self"] = self
+        return kwargs
 
     def process_run_result(self, function_output):
         """
