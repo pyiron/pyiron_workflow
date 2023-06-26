@@ -159,13 +159,23 @@ class TestNode(unittest.TestCase):
 
     def test_with_self(self):
         def with_self(self, x: float) -> float:
+            if hasattr(self, "some_counter"):
+                self.some_counter += 1
+            else:
+                self.some_counter = 1
             return x + 0.1
+
         node = Node(with_self, "output")
         self.assertTrue("x" in node.inputs.labels)
         self.assertFalse("self" in node.inputs.labels)
         node.inputs.x = 1
         node.run()
         self.assertEqual(node.outputs.output.value, 1.1)
+        self.assertEqual(
+            node.some_counter,
+            1,
+            msg="Node functions should be able to modify attributes on the node object."
+        )
         def with_messed_self(x: float, self) -> float:
             return x + 0.1
         with warnings.catch_warnings(record=True) as warning_list:
