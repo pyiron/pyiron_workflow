@@ -188,11 +188,14 @@ class TestNode(unittest.TestCase):
             1,
             msg="Node functions should be able to modify attributes on the node object."
         )
+
         def with_messed_self(x: float, self) -> float:
             return x + 0.1
+
         with warnings.catch_warnings(record=True) as warning_list:
             node = Node(with_messed_self, "output")
             self.assertTrue("self" in node.inputs.labels)
+
         self.assertEqual(len(warning_list), 1)
 
 
