@@ -53,7 +53,7 @@ class IsNodal(ABC):
             signals, which are channels for controlling execution flow. By default, has
             a `signals.inputs.run` channel which has a callback to the `run` method,
             and `signals.outputs.ran` which should be called at when the `run` method
-            is finished (TODO: Don't leave this step up to child class developers!).
+            is finished.
             Additional signal channels in derived classes can be added to
             `signals.inputs` and  `signals.outputs` after this mixin class is
             initialized.
