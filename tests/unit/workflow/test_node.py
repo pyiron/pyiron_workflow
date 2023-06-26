@@ -159,6 +159,12 @@ class TestNode(unittest.TestCase):
 
     def test_with_self(self):
         def with_self(self, x: float) -> float:
+            # Note: Adding internal state to the node like this goes against the best
+            #  practice of keeping nodes "functional". Following python's paradigm of
+            #  giving users lots of power, we want to guarantee that this behaviour is
+            #  _possible_.
+            # TODO: update this test with a better-conforming example of this power at
+            #  a future date.
             if hasattr(self, "some_counter"):
                 self.some_counter += 1
             else:
