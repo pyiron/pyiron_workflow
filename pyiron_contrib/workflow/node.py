@@ -306,6 +306,19 @@ class Node(HasToDict):
 
         To see more details on how to use many nodes together, look at the
         `Workflow` class.
+
+    Comments:
+
+        If you use the function argument `self` in the first position, the
+        whole node object is inserted there:
+
+        >>> def with_self(self, x):
+        >>>     ...
+        >>>     return x
+
+        For this function, you don't have a freedom to choose `self`, because
+        pyiron automatically sets the node object there (which is also the
+        reason why you do not see `self` in the list of inputs).
     """
 
     def __init__(
@@ -354,7 +367,6 @@ class Node(HasToDict):
             elif k not in self._init_keywords:
                 warnings.warn(f"The keyword '{k}' was received but not used.")
         self.run_on_updates = run_on_updates
-        self.server = Server()
 
         if update_on_instantiation:
             self.update()
@@ -370,9 +382,10 @@ class Node(HasToDict):
         type_hints = get_type_hints(self.node_function)
 
         for ii, (label, value) in enumerate(self._input_args.items()):
-            if label == "self":
+            is_self = False
+            if label == "self":  # `self` is reserved for the node object
                 if ii == 0:
-                    continue
+                    is_self = True
                 else:
                     warnings.warn(
                         "`self` is used as an argument but not in the first"
@@ -390,22 +403,27 @@ class Node(HasToDict):
 
             try:
                 type_hint = type_hints[label]
+                if is_self:
+                    warnings.warn("type hint for self ignored")
             except KeyError:
                 type_hint = None
 
+            default = None
             if value.default is not inspect.Parameter.empty:
-                default = value.default
-            else:
-                default = None
+                if is_self:
+                    warnings.warn("default value for self ignored")
+                else:
+                    default = value.default
 
-            channels.append(
-                InputData(
-                    label=label,
-                    node=self,
-                    default=default,
-                    type_hint=type_hint,
+            if not is_self:
+                channels.append(
+                    InputData(
+                        label=label,
+                        node=self,
+                        default=default,
+                        type_hint=type_hint,
+                    )
                 )
-            )
         return channels
 
     @property
