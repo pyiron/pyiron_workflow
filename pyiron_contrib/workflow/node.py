@@ -304,6 +304,19 @@ class Node(HasToDict):
 
         To see more details on how to use many nodes together, look at the
         `Workflow` class.
+
+    Comments:
+
+        If you use the function argument `self` in the first position, the
+        whole node object is inserted there:
+
+        >>> def with_self(self, x):
+        >>>     ...
+        >>>     return x
+
+        For this function, you don't have a freedom to choose `self`, because
+        pyiron automatically sets the node object there (which is also the
+        reason why you do not see `self` in the list of inputs).
     """
 
     def __init__(
@@ -356,6 +369,10 @@ class Node(HasToDict):
             self.update()
 
     @property
+    def _input_args(self):
+        return inspect.signature(self.node_function).parameters
+
+    @property
     def inputs(self) -> Inputs:
         if self._inputs is None:
             self._inputs = Inputs(*self._build_input_channels())
@@ -370,9 +387,19 @@ class Node(HasToDict):
     def _build_input_channels(self):
         channels = []
         type_hints = get_type_hints(self.node_function)
-        parameters = inspect.signature(self.node_function).parameters
 
-        for label, value in parameters.items():
+        for ii, (label, value) in enumerate(self._input_args.items()):
+            is_self = False
+            if label == "self":  # `self` is reserved for the node object
+                if ii == 0:
+                    is_self = True
+                else:
+                    warnings.warn(
+                        "`self` is used as an argument but not in the first"
+                        " position, so it is treated as a normal function"
+                        " argument. If it is to be treated as the node object,"
+                        " use it as a first argument"
+                    )
             if label in self._init_keywords:
                 # We allow users to parse arbitrary kwargs as channel initialization
                 # So don't let them choose bad channel names
@@ -383,22 +410,27 @@ class Node(HasToDict):
 
             try:
                 type_hint = type_hints[label]
+                if is_self:
+                    warnings.warn("type hint for self ignored")
             except KeyError:
                 type_hint = None
 
+            default = None
             if value.default is not inspect.Parameter.empty:
-                default = value.default
-            else:
-                default = None
+                if is_self:
+                    warnings.warn("default value for self ignored")
+                else:
+                    default = value.default
 
-            channels.append(
-                InputData(
-                    label=label,
-                    node=self,
-                    default=default,
-                    type_hint=type_hint,
+            if not is_self:
+                channels.append(
+                    InputData(
+                        label=label,
+                        node=self,
+                        default=default,
+                        type_hint=type_hint,
+                    )
                 )
-            )
         return channels
 
     @property
@@ -468,20 +500,18 @@ class Node(HasToDict):
         self.running = True
         self.failed = False
 
-        if self.server is None:
-            try:
+        try:
+            if "self" in self._input_args:
+                function_output = self.node_function(
+                    self=self, **self.inputs.to_value_dict()
+                )
+            else:
                 function_output = self.node_function(**self.inputs.to_value_dict())
-            except Exception as e:
-                self.running = False
-                self.failed = True
-                raise e
-            self.process_output(function_output)
-        else:
-            raise NotImplementedError(
-                "We currently only support executing the node functionality right on "
-                "the main python process that the node instance lives on. Come back "
-                "later for cool new features."
-            )
+        except Exception as e:
+            self.running = False
+            self.failed = True
+            raise e
+        self.process_output(function_output)
 
     def process_output(self, function_output):
         """
