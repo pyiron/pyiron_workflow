@@ -199,7 +199,6 @@ class TestNode(unittest.TestCase):
         self.assertEqual(len(warning_list), 1)
 
 
-
 @unittest.skipUnless(version_info[0] == 3 and version_info[1] >= 10, "Only supported for 3.10+")
 class TestFastNode(unittest.TestCase):
     def test_instantiation(self):
