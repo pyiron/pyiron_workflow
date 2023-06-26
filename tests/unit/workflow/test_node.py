@@ -166,11 +166,23 @@ class TestNode(unittest.TestCase):
             return x + 0.1
 
         node = Node(with_self, "output")
-        self.assertTrue("x" in node.inputs.labels)
-        self.assertFalse("self" in node.inputs.labels)
+        self.assertTrue(
+            "x" in node.inputs.labels,
+            msg=f"Expected to find function input 'x' in the node input but got "
+                f"{node.inputs.labels}"
+        )
+        self.assertFalse(
+            "self" in node.inputs.labels,
+            msg="Expected 'self' to be filtered out of node input, but found it in the "
+                "input labels"
+        )
         node.inputs.x = 1
         node.run()
-        self.assertEqual(node.outputs.output.value, 1.1)
+        self.assertEqual(
+            node.outputs.output.value,
+            1.1,
+            msg="Basic node functionality appears to have failed"
+        )
         self.assertEqual(
             node.some_counter,
             1,
