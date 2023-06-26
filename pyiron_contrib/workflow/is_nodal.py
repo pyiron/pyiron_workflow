@@ -180,10 +180,6 @@ class IsNodal(ABC):
         signals = Signals()
         signals.input.run = InputSignal("run", self, self.run)
         signals.output.ran = OutputSignal("ran", self)
-        # TODO: Build `run` such that developers inheriting from this class don't need
-        #       to remember to invoke `self.signals.output.ran()`! Probably this will
-        #       involve pulling `run` up into this class and exposing `_on_run` as an
-        #       abstract method to developers (or a similar attack).
         return signals
 
     @property
