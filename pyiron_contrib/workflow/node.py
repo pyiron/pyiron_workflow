@@ -411,14 +411,15 @@ class Node(HasToDict):
                 else:
                     default = value.default
 
-            channels.append(
-                InputData(
-                    label=label,
-                    node=self,
-                    default=default,
-                    type_hint=type_hint,
+            if not is_self:
+                channels.append(
+                    InputData(
+                        label=label,
+                        node=self,
+                        default=default,
+                        type_hint=type_hint,
+                    )
                 )
-            )
         return channels
 
     @property
