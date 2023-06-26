@@ -183,13 +183,11 @@ class DataChannel(Channel, ABC):
         node: Node,
         default: typing.Optional[typing.Any] = None,
         type_hint: typing.Optional[typing.Any] = None,
-        storage_priority: int = 0,
     ):
         super().__init__(label=label, node=node)
         self.default = default
         self.value = default
         self.type_hint = type_hint
-        self.storage_priority = storage_priority
 
     @property
     def ready(self) -> bool:
@@ -317,7 +315,6 @@ class InputData(DataChannel):
         node: Node,
         default: typing.Optional[typing.Any] = None,
         type_hint: typing.Optional[typing.Any] = None,
-        storage_priority: int = 0,
         strict_connections: bool = True,
     ):
         super().__init__(
@@ -325,7 +322,6 @@ class InputData(DataChannel):
             node=node,
             default=default,
             type_hint=type_hint,
-            storage_priority=storage_priority,
         )
         self.strict_connections = strict_connections
         self.waiting_for_update = False

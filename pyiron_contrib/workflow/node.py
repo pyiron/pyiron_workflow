@@ -243,8 +243,6 @@ class Node(IsNodal, HasToDict):
         ...     def __init__(
         ...         self,
         ...         label: Optional[str] = None,
-        ...         input_storage_priority: Optional[dict[str, int]] = None,
-        ...         output_storage_priority: Optional[dict[str, int]] = None,
         ...         run_on_updates: bool = True,
         ...         update_on_instantiation: bool = False,
         ...         **kwargs
@@ -253,8 +251,6 @@ class Node(IsNodal, HasToDict):
         ...             self.alphabet_mod_three,
         ...             "letter",
         ...             labe=label,
-        ...             input_storage_priority=input_storage_priority,
-        ...             output_storage_priority=output_storage_priority,
         ...             run_on_updates=run_on_updates,
         ...             update_on_instantiation=update_on_instantiation,
         ...             **kwargs
@@ -311,8 +307,6 @@ class Node(IsNodal, HasToDict):
         node_function: callable,
         *output_labels: str,
         label: Optional[str] = None,
-        input_storage_priority: Optional[dict[str, int]] = None,
-        output_storage_priority: Optional[dict[str, int]] = None,
         run_on_updates: bool = False,
         update_on_instantiation: bool = False,
         channels_requiring_update_after_run: Optional[list[str]] = None,
@@ -331,12 +325,10 @@ class Node(IsNodal, HasToDict):
 
         self.node_function = node_function
 
-        input_channels = self._build_input_channels(input_storage_priority)
+        input_channels = self._build_input_channels()
         self._inputs = Inputs(*input_channels)
 
-        output_channels = self._build_output_channels(
-            *output_labels, storage_priority=output_storage_priority
-        )
+        output_channels = self._build_output_channels(*output_labels)
         self._outputs = Outputs(*output_channels)
 
         self.channels_requiring_update_after_run = (
@@ -365,7 +357,7 @@ class Node(IsNodal, HasToDict):
     def outputs(self) -> Outputs:
         return self._outputs
 
-    def _build_input_channels(self, storage_priority: dict[str:int]):
+    def _build_input_channels(self):
         channels = []
         type_hints = get_type_hints(self.node_function)
         parameters = inspect.signature(self.node_function).parameters
@@ -378,11 +370,6 @@ class Node(IsNodal, HasToDict):
                     f"The Input channel name {label} is not valid. Please choose a "
                     f"name _not_ among {self._init_keywords}"
                 )
-
-            try:
-                priority = storage_priority[label]
-            except (KeyError, TypeError):
-                priority = None
 
             try:
                 type_hint = type_hints[label]
@@ -400,7 +387,6 @@ class Node(IsNodal, HasToDict):
                     node=self,
                     default=default,
                     type_hint=type_hint,
-                    storage_priority=priority,
                 )
             )
         return channels
@@ -409,9 +395,7 @@ class Node(IsNodal, HasToDict):
     def _init_keywords(self):
         return list(inspect.signature(self.__init__).parameters.keys())
 
-    def _build_output_channels(
-        self, *return_labels: str, storage_priority: dict[str:int] = None
-    ):
+    def _build_output_channels(self, *return_labels: str):
         try:
             type_hints = get_type_hints(self.node_function)["return"]
             if len(return_labels) > 1:
@@ -436,17 +420,11 @@ class Node(IsNodal, HasToDict):
 
         channels = []
         for label, hint in zip(return_labels, type_hints):
-            try:
-                priority = storage_priority[label]
-            except (KeyError, TypeError):
-                priority = None
-
             channels.append(
                 OutputData(
                     label=label,
                     node=self,
                     type_hint=hint,
-                    storage_priority=priority,
                 )
             )
 
@@ -478,6 +456,12 @@ class Node(IsNodal, HasToDict):
     def process_run_result(self, function_output):
         """
         Take the results of the node function, and use them to update the node output.
+
+        By extracting this as a separate method, we allow the node to pass the actual
+        execution off to another entity and release the python process to do other
+        things. In such a case, this function should be registered as a callback
+        so that the node can finishing "running" and push its data forward when that
+        execution is finished.
         """
         for channel_name in self.channels_requiring_update_after_run:
             self.inputs[channel_name].wait_for_update()
@@ -490,10 +474,6 @@ class Node(IsNodal, HasToDict):
 
     def __call__(self) -> None:
         self.run()
-
-    def set_storage_priority(self, priority: int):
-        self.inputs.set_storage_priority(priority)
-        self.outputs.set_storage_priority(priority)
 
     def to_dict(self):
         return {
@@ -519,8 +499,6 @@ class FastNode(Node):
         node_function: callable,
         *output_labels: str,
         label: Optional[str] = None,
-        input_storage_priority: Optional[dict[str, int]] = None,
-        output_storage_priority: Optional[dict[str, int]] = None,
         run_on_updates=True,
         update_on_instantiation=True,
         parent: Optional[Workflow] = None,
@@ -531,8 +509,6 @@ class FastNode(Node):
             node_function,
             *output_labels,
             label=label,
-            input_storage_priority=input_storage_priority,
-            output_storage_priority=output_storage_priority,
             run_on_updates=run_on_updates,
             update_on_instantiation=update_on_instantiation,
             parent=parent,
@@ -565,8 +541,6 @@ class SingleValueNode(FastNode, HasChannel):
         node_function: callable,
         *output_labels: str,
         label: Optional[str] = None,
-        input_storage_priority: Optional[dict[str, int]] = None,
-        output_storage_priority: Optional[dict[str, int]] = None,
         run_on_updates=True,
         update_on_instantiation=True,
         parent: Optional[Workflow] = None,
@@ -577,8 +551,6 @@ class SingleValueNode(FastNode, HasChannel):
             node_function,
             *output_labels,
             label=label,
-            input_storage_priority=input_storage_priority,
-            output_storage_priority=output_storage_priority,
             run_on_updates=run_on_updates,
             update_on_instantiation=update_on_instantiation,
             parent=parent,
