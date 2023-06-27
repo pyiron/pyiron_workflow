@@ -572,8 +572,8 @@ class Node(HasToDict):
                     "working directory is available only if the node is"
                     " attached to a workflow"
                 )
-            self._working_directory = (
-                self.parent.working_directory.create_subdirectory(self.label)
+            self._working_directory = self.parent.working_directory.create_subdirectory(
+                self.label
             )
         return self._working_directory
 
