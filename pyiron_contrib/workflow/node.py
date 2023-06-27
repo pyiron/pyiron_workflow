@@ -14,7 +14,6 @@ from pyiron_contrib.workflow.channels import (
 from pyiron_contrib.workflow.has_channel import HasChannel
 from pyiron_contrib.workflow.has_to_dict import HasToDict
 from pyiron_contrib.workflow.io import Inputs, Outputs, Signals
-from pyiron_base.jobs.job.extension.server.generic import Server
 
 if TYPE_CHECKING:
     from pyiron_contrib.workflow.workflow import Workflow
