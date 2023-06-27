@@ -113,9 +113,9 @@ class TestWorkflow(unittest.TestCase):
         wf = Workflow("wf")
         self.assertTrue(wf._working_directory is None)
         self.assertIsInstance(wf.working_directory, DirectoryObject)
-        self.assertTrue(
-            str(wf.working_directory.path.absolute()).endswith(wf.label)
-        )
+        self.assertTrue(str(wf.working_directory.path).endswith(wf.label))
+        wf.add.Node(fnc, "output")
+        self.assertTrue(str(wf.fnc.working_directory.path).endswith(wf.fnc.label))
 
 
 if __name__ == '__main__':
