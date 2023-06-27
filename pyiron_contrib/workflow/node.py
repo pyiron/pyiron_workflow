@@ -338,11 +338,12 @@ class Node(IsNodal, HasToDict):
 
         self.node_function = node_function
 
-        input_channels = self._build_input_channels()
-        self._inputs = Inputs(*input_channels)
+        self._inputs = None
+        self._outputs = None
+        self._output_labels = output_labels
+        # TODO: Parse output labels from the node function in case output_labels is None
 
-        output_channels = self._build_output_channels(*output_labels)
-        self._outputs = Outputs(*output_channels)
+        self.signals = self._build_signal_channels()
 
         self.channels_requiring_update_after_run = (
             []
@@ -362,17 +363,23 @@ class Node(IsNodal, HasToDict):
         if update_on_instantiation:
             self.update()
 
-    @property
-    def inputs(self) -> Inputs:
-        return self._inputs
-
-    @property
-    def outputs(self) -> Outputs:
-        return self._outputs
+        self._working_directory = None
 
     @property
     def _input_args(self):
         return inspect.signature(self.node_function).parameters
+
+    @property
+    def inputs(self) -> Inputs:
+        if self._inputs is None:
+            self._inputs = Inputs(*self._build_input_channels())
+        return self._inputs
+
+    @property
+    def outputs(self) -> Outputs:
+        if self._outputs is None:
+            self._outputs = Outputs(*self._build_output_channels(*self._output_labels))
+        return self._outputs
 
     def _build_input_channels(self):
         channels = []
@@ -520,6 +527,19 @@ class Node(IsNodal, HasToDict):
             "outputs": self.outputs.to_dict(),
             "signals": self.signals.to_dict(),
         }
+
+    @property
+    def working_directory(self):
+        if self._working_directory is None:
+            if self.parent is None:
+                raise ValueError(
+                    "working directory is available only if the node is"
+                    " attached to a workflow"
+                )
+            self._working_directory = self.parent.working_directory.create_subdirectory(
+                self.label
+            )
+        return self._working_directory
 
 
 class FastNode(Node):

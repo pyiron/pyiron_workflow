@@ -5,6 +5,8 @@ from pyiron_contrib.workflow.has_to_dict import HasToDict
 from pyiron_contrib.workflow.io import Inputs, Outputs
 from pyiron_contrib.workflow.is_nodal import IsNodal
 from pyiron_contrib.workflow.node import Node, node, fast_node, single_value_node
+from pyiron_contrib.workflow.util import DotDict
+from pyiron_contrib.workflow.files import DirectoryObject
 
 
 class _NodeDecoratorAccess:
@@ -121,9 +123,16 @@ class Workflow(IsNodal, HasToDict, HasNodes):
 
     def __init__(self, label: str, *nodes: Node, strict_naming=True):
         super().__init__(label=label, strict_naming=strict_naming)
+        self._working_directory = None
 
         for node in nodes:
             self.add_node(node)
+
+    @property
+    def working_directory(self):
+        if self._working_directory is None:
+            self._working_directory = DirectoryObject(self.label)
+        return self._working_directory
 
     @property
     def inputs(self) -> Inputs:
