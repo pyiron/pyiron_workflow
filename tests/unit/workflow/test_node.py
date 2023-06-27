@@ -359,6 +359,10 @@ class TestSingleValueNode(unittest.TestCase):
             msg="After the run, all three should now be waiting for updates again"
         )
 
+    def test_working_directory(self):
+        n_f = Node(plus_one, "output")
+        self.assertRaises(n_f.working_directory, ValueError)
+
 
 if __name__ == '__main__':
     unittest.main()
