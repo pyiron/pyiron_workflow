@@ -116,6 +116,7 @@ class TestWorkflow(unittest.TestCase):
         self.assertTrue(str(wf.working_directory.path).endswith(wf.label))
         wf.add.Node(fnc, "output")
         self.assertTrue(str(wf.fnc.working_directory.path).endswith(wf.fnc.label))
+        wf.working_directory.delete()
 
 
 if __name__ == '__main__':
