@@ -8,6 +8,7 @@ from __future__ import annotations
 from abc import ABC, abstractmethod
 from typing import TYPE_CHECKING
 
+from pyiron_contrib.workflow.files import DirectoryObject
 from pyiron_contrib.workflow.io import Signals, InputSignal, OutputSignal
 
 if TYPE_CHECKING:
@@ -88,6 +89,7 @@ class IsNodal(ABC):
         # TODO: Move from a traditional "sever" to a tinybase "executor"
         # TODO: Provide support for actually computing stuff with the server/executor
         self.signals = self._build_signal_channels()
+        self._working_directory = None
 
     @property
     @abstractmethod
@@ -101,6 +103,11 @@ class IsNodal(ABC):
 
     @abstractmethod
     def update(self):
+        pass
+
+    @property
+    @abstractmethod
+    def working_directory(self) -> DirectoryObject:
         pass
 
     @property

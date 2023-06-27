@@ -363,8 +363,6 @@ class Node(IsNodal, HasToDict):
         if update_on_instantiation:
             self.update()
 
-        self._working_directory = None
-
     @property
     def _input_args(self):
         return inspect.signature(self.node_function).parameters
