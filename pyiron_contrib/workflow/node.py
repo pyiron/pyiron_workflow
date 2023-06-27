@@ -323,16 +323,12 @@ class Node(IsNodal, HasToDict):
         run_on_updates: bool = False,
         update_on_instantiation: bool = False,
         channels_requiring_update_after_run: Optional[list[str]] = None,
-        parent: Optional[Workflow] = None,
         **kwargs,
     ):
         super().__init__(
             label=label if label is not None else node_function.__name__,
             # **kwargs,
         )
-        self.parent = parent
-        if parent is not None:
-            parent.add(self)
         if len(output_labels) == 0:
             raise ValueError("Nodes must have at least one output label.")
 
