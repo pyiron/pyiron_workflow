@@ -15,14 +15,14 @@ def delete_files_and_directories_recursively(path):
 
 def categorize_folder_items(folder_path):
     types = [
-        'dir',
-        'file',
-        'mount',
-        'symlink',
-        'block_device',
-        'char_device',
-        'fifo',
-        'socket',
+        "dir",
+        "file",
+        "mount",
+        "symlink",
+        "block_device",
+        "char_device",
+        "fifo",
+        "socket",
     ]
     results = {t: [] for t in types}
 
@@ -83,12 +83,12 @@ class FileObject:
     def path(self):
         return self.directory.path / Path(self._file_name)
 
-    def write(self, content, mode='x'):
-        #if self.is_file():
+    def write(self, content, mode="x"):
+        # if self.is_file():
         #    warnings.warn(f"{self.file_name} already exists")
         self.directory.write(file_name=self.file_name, content=content, mode=mode)
 
-    def read(self, mode='r'):
+    def read(self, mode="r"):
         with open(self.path, mode=mode) as f:
             return f.read()
 
