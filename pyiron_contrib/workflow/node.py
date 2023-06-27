@@ -12,6 +12,7 @@ from pyiron_contrib.workflow.io import Inputs, Outputs, Signals
 from pyiron_contrib.workflow.is_nodal import IsNodal
 
 if TYPE_CHECKING:
+    from pyiron_contrib.workflow.has_nodes import HasNodes
     from pyiron_contrib.workflow.workflow import Workflow
 
 
@@ -323,10 +324,12 @@ class Node(IsNodal, HasToDict):
         run_on_updates: bool = False,
         update_on_instantiation: bool = False,
         channels_requiring_update_after_run: Optional[list[str]] = None,
+        parent: Optional[HasNodes] = None,
         **kwargs,
     ):
         super().__init__(
             label=label if label is not None else node_function.__name__,
+            parent=parent,
             # **kwargs,
         )
         if len(output_labels) == 0:
