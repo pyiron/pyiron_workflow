@@ -5,7 +5,6 @@ from pyiron_contrib.workflow.has_to_dict import HasToDict
 from pyiron_contrib.workflow.io import Inputs, Outputs
 from pyiron_contrib.workflow.is_nodal import IsNodal
 from pyiron_contrib.workflow.node import Node, node, fast_node, single_value_node
-from pyiron_contrib.workflow.util import DotDict
 from pyiron_contrib.workflow.files import DirectoryObject
 
 
