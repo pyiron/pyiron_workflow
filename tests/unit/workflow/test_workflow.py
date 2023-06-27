@@ -111,6 +111,8 @@ class TestWorkflow(unittest.TestCase):
     def test_working_directory(self):
         wf = Workflow("wf")
         self.assertTrue(wf._working_directory is None)
+self.assertIsInstance(wf.working_directory, DirectoryObject)
+self.assertTrue(wf.working_directory.path.absolute().endswith(wf.label)
 
 
 if __name__ == '__main__':
