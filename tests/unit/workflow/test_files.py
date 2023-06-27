@@ -25,7 +25,7 @@ class TestFiles(unittest.TestCase):
 
     def test_path(self):
         f = FileObject("test.txt", self.directory)
-        self.assertEqual(str(f.path), "test/test.txt")
+        self.assertEqual(str(f.path).replace("\\", "/"), "test/test.txt")
 
     def test_read_and_write(self):
         f = FileObject("test.txt", self.directory)
