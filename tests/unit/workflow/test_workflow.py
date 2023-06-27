@@ -3,6 +3,7 @@ from sys import version_info
 
 from pyiron_contrib.workflow.node import Node
 from pyiron_contrib.workflow.workflow import Workflow
+from pyiron_contrib.workflow.files import DirectoryObject
 
 
 def fnc(x=0):
@@ -111,8 +112,10 @@ class TestWorkflow(unittest.TestCase):
     def test_working_directory(self):
         wf = Workflow("wf")
         self.assertTrue(wf._working_directory is None)
-self.assertIsInstance(wf.working_directory, DirectoryObject)
-self.assertTrue(wf.working_directory.path.absolute().endswith(wf.label)
+        self.assertIsInstance(wf.working_directory, DirectoryObject)
+        self.assertTrue(
+            str(wf.working_directory.path.absolute()).endswith(wf.label)
+        )
 
 
 if __name__ == '__main__':
