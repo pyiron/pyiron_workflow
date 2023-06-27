@@ -4,11 +4,9 @@ from pathlib import Path
 
 
 class TestFiles(unittest.TestCase):
-    @classmethod
     def setUp(cls):
         cls.directory = DirectoryObject("test")
 
-    @classmethod
     def tearDown(cls):
         cls.directory.delete()
 

@@ -362,7 +362,7 @@ class TestSingleValueNode(unittest.TestCase):
     def test_working_directory(self):
         n_f = Node(plus_one, "output")
         with self.assertRaises(ValueError):
-            n_f.working_directory
+            _ = n_f.working_directory
             #  cf. test_workflow.py for the case that it does notraise an error
 
 
