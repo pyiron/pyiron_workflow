@@ -119,11 +119,6 @@ class IsNodal(ABC):
 
     @property
     @abstractmethod
-    def working_directory(self) -> DirectoryObject:
-        pass
-
-    @property
-    @abstractmethod
     def on_run(self) -> callable[..., tuple]:
         """
         What the nodal object actually does!
@@ -200,6 +195,16 @@ class IsNodal(ABC):
         signals.input.run = InputSignal("run", self, self.run)
         signals.output.ran = OutputSignal("ran", self)
         return signals
+
+    @property
+    def working_directory(self):
+        if self._working_directory is None:
+            if self.parent is not None and hasattr(self.parent, "working_directory"):
+                parent_dir = self.parent.working_directory
+                self._working_directory = parent_dir.create_subdirectory(self.label)
+            else:
+                self._working_directory = DirectoryObject(self.label)
+        return self._working_directory
 
     @property
     def server(self) -> Server | None:

@@ -522,19 +522,6 @@ class Node(IsNodal, HasToDict):
             "signals": self.signals.to_dict(),
         }
 
-    @property
-    def working_directory(self):
-        if self._working_directory is None:
-            if self.parent is None:
-                raise ValueError(
-                    "working directory is available only if the node is"
-                    " attached to a workflow"
-                )
-            self._working_directory = self.parent.working_directory.create_subdirectory(
-                self.label
-            )
-        return self._working_directory
-
 
 class FastNode(Node):
     """

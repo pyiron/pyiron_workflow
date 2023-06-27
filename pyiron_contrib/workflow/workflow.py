@@ -1,6 +1,5 @@
 from __future__ import annotations
 
-from pyiron_contrib.workflow.files import DirectoryObject
 from pyiron_contrib.workflow.has_nodes import HasNodes
 from pyiron_contrib.workflow.has_to_dict import HasToDict
 from pyiron_contrib.workflow.io import Inputs, Outputs
@@ -125,12 +124,6 @@ class Workflow(IsNodal, HasToDict, HasNodes):
 
         for node in nodes:
             self.add_node(node)
-
-    @property
-    def working_directory(self):
-        if self._working_directory is None:
-            self._working_directory = DirectoryObject(self.label)
-        return self._working_directory
 
     @property
     def inputs(self) -> Inputs:
