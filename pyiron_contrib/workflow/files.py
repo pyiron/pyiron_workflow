@@ -27,8 +27,11 @@ def categorize_folder_items(folder_path):
 
     for item in folder_path.iterdir():
         for tt in types:
-            if getattr(item, f"is_{tt}")():
-                results[tt].append(str(item))
+            try:
+                if getattr(item, f"is_{tt}")():
+                    results[tt].append(str(item))
+            except NotImplementedError:
+                pass
     return results
 
 

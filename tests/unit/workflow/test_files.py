@@ -16,6 +16,7 @@ class TestFiles(unittest.TestCase):
     def test_write(self):
         self.directory.write(file_name="test.txt", content="something")
         self.assertTrue(self.directory.file_exists("test.txt"))
+        self.assertTrue("test/test.txt" in self.directory.list_content()['file'])
         self.assertEqual(len(self.directory), 1)
 
     def test_create_subdirectory(self):
