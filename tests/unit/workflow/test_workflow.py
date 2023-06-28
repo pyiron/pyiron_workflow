@@ -1,9 +1,10 @@
 import unittest
 from sys import version_info
 
+from pyiron_contrib.workflow.files import DirectoryObject
 from pyiron_contrib.workflow.node import Node
 from pyiron_contrib.workflow.workflow import Workflow
-from pyiron_contrib.workflow.files import DirectoryObject
+
 
 
 def fnc(x=0):
