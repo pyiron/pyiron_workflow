@@ -17,33 +17,17 @@ if TYPE_CHECKING:
 
 class Function(Node):
     """
-    Function nodes have input and output data channels that interface with the outside
-    world, and a callable that determines what they actually compute. After running,
-    their output channels are updated with the results of the node's computation, which
-    triggers downstream node updates if those output channels are connected to other
-    input channels.
+    Function nodes wrap an arbitrary python function.
+    Node IO, including type hints, is generated automatically from the provided function
+    and (in the case of labeling output channels) the provided output labels.
+    On running, the function node executes this wrapped function with its current input
+    and uses the results to populate the node output.
 
-    An "update" is gentle and will only trigger the node to run if its run-on-update
-    flag is set to true and if its input is all ready -- i.e. having values matching
-    the type hints, and if it is not either already running or already failed.
-
-    They also have input and output signal channels -- a run input and a ran output,
-    although these are extensible in child classes. Calling the run input signal
-    triggers the run method, and after running a signal is sent out on the ran output
-    signal channel. In this way, execution flow can be managed manually by connecting
-    signal channels. Be careful as the run input signal bypasses the checks for an
-    update and really forces a node to run with whatever data it currently has.
-
-    Signal channels cannot be connected to data channels.
-
-    Nodes won't update themselves while setting inputs to initial values, but can
-    optionally update themselves at the end instantiation.
-
-    Nodes must be instantiated with a callable to deterimine their function, and a
-    strings to name each returned value of that callable. (If you really want to return
-    a tuple, just have multiple return values but only one output label -- there is
-    currently no way to mix-and-match, i.e. to have multiple return values at least one
-    of which is a tuple.)
+    Function nodes must be instantiated with a callable to deterimine their function,
+    and a string to name each returned value of that callable. (If you really want to
+    return a tuple, just have multiple return values but only one output label -- there
+    is currently no way to mix-and-match, i.e. to have multiple return values at least
+    one of which is a tuple.)
 
     The node label (unless otherwise provided), IO types, and input defaults for the
     node are produced _automatically_ from introspection of the node function.
@@ -52,12 +36,17 @@ class Function(Node):
     keys corresponding to the channel labels (i.e. the node arguments of the node
     function, or the output labels provided).
 
-    Actual node instances can either be instances of the base node class, in which case
-    the callable node function and output labels *must* be provided, in addition to
-    other data, OR they can be instances of children of this class.
+    Actual function node instances can either be instances of the base node class, in
+    which case the callable node function and output labels *must* be provided, in
+    addition to other data, OR they can be instances of children of this class.
     Those children may define some or all of the node behaviour at the class level, and
     modify their signature accordingly so this is not available for alteration by the
     user, e.g. the node function and output labels may be hard-wired.
+
+    Although not strictly enforced, it is a best-practice that where possible, function
+    nodes should be both functional (always returning the same output given the same
+    input) and idempotent (not modifying input data in-place, but creating copies where
+    necessary and returning new objects as output).
 
     Args:
         node_function (callable): The function determining the behaviour of the node.
@@ -94,8 +83,8 @@ class Function(Node):
         disconnect: Disconnect all data and signal IO connections.
 
     Examples:
-        At the most basic level, to use nodes all we need to do is provide the `Node`
-        class with a function and labels for its output, like so:
+        At the most basic level, to use nodes all we need to do is provide the
+        `Function` class with a function and labels for its output, like so:
         >>> from pyiron_contrib.workflow.function import Function
         >>>
         >>> def mwe(x, y):
@@ -202,14 +191,14 @@ class Function(Node):
         instantiation flags to `True` for nodes that execute quickly and are meant to
         _always_ have good output data.
 
-        In these examples, we've instantiated nodes directly from the base `Node` class,
-        and populated their input directly with data.
+        In these examples, we've instantiated nodes directly from the base `Function`
+        class, and populated their input directly with data.
         In practice, these nodes are meant to be part of complex workflows; that means
         both that you are likely to have particular nodes that get heavily re-used, and
         that you need the nodes to pass data to each other.
 
-        For reusable nodes, we want to create a sub-class of `Node` that fixes some of
-        the node behaviour -- usually the `node_function` and `output_labels`.
+        For reusable nodes, we want to create a sub-class of `Function` that fixes some
+        of the node behaviour -- usually the `node_function` and `output_labels`.
 
         This can be done most easily with the `node` decorator, which takes a function
         and returns a node class:
