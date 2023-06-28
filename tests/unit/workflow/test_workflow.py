@@ -131,6 +131,14 @@ class TestWorkflow(unittest.TestCase):
         with self.assertRaises(TypeError):
             # We currently specify workflows shouldn't get parents, this just verifies
             # the spec. If that spec changes, test instead that you _can_ set parents!
+            wf2.parent = "not None"
+
+        with self.assertRaises(AttributeError):
+            # Setting a non-None value to parent raises the type error above
+            # If that value is further a nodal object, the __setattr__ definition
+            # takes over, and we try to add it to the nodes, but there we will run into
+            # the fact you can't add a node to a taken attribute label
+            # In both cases, we satisfy the spec that workflow's can't have parents
             wf2.parent = wf
 
 
