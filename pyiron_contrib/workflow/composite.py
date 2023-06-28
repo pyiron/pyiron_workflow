@@ -48,16 +48,19 @@ class Composite(IsNodal, ABC):
     requirement is still passed on to children.
 
     Attributes:
-        nodes (DotDict[Node]): The owned nodes that form the composite subgraph.
+        nodes (DotDict[pyiron_contrib.workflow.is_nodal,IsNodal]): The owned nodes that
+         form the composite subgraph.
         strict_naming (bool): When true, repeated assignment of a new node to an
          existing node label will raise an error, otherwise the label gets appended
          with an index and the assignment proceeds. (Default is true: disallow assigning
          to existing labels.)
         add (NodeAdder): A tool for adding new nodes to this subgraph.
-        upstream_nodes (list[Node]): All the owned nodes that have output connections
-         but no input connections, i.e. the upstream-most nodes.
-        starting_nodes (None | list[Node]): A subset of the owned nodes to be used on
-         running. (Default is None, running falls back on using the `upstream_nodes`.)
+        upstream_nodes (list[pyiron_contrib.workflow.is_nodal,IsNodal]): All the owned
+         nodes that have output connections but no input connections, i.e. the
+         upstream-most nodes.
+        starting_nodes (None | list[pyiron_contrib.workflow.is_nodal,IsNodal]): A subset
+         of the owned nodes to be used on running. (Default is None, running falls back
+         on using the `upstream_nodes`.)
 
     Methods:
         add(node: Node): Add the node instance to this subgraph.
@@ -106,7 +109,7 @@ class Composite(IsNodal, ABC):
         Assign a node to the parent. Optionally provide a new label for that node.
 
         Args:
-            node (pyiron_contrib.workflow.node.Node): The node to add.
+            node (pyiron_contrib.workflow.is_nodal.IsNodal): The node to add.
             label (Optional[str]): The label for this node.
 
         Raises:
