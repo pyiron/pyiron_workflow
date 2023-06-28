@@ -118,7 +118,6 @@ class Workflow(Composite):
     """
 
     def __init__(self, label: str, *nodes: Node, strict_naming=True):
-        self._parent = None  # Necessary to pre-populate public property/setter var
         super().__init__(label=label, parent=None, strict_naming=strict_naming)
 
         for node in nodes:
