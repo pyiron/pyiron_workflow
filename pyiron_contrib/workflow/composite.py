@@ -33,22 +33,36 @@ class Composite(IsNodal, ABC):
     Adding a node with the `add` functionality or by direct attribute assignment sets
     this object as the parent of that node.
 
+    Guarantees that each owned node is unique, and does not belong to any other parents.
+
     Offers a class method (`wrap_as`) to give easy access to the node-creating
     decorators.
 
     Specifies the required `on_run()` to call `run()` on a subset of owned nodes, i.e.
     to kick-start computation on the owned sub-graph.
-    By default, `run()` will be called on all owned nodes who's input has no
-    connections, but this can be overridden to specify particular nodes to use instead.
+    By default, `run()` will be called on all owned nodes have output connections but no
+    input connections (i.e. the upstream-most nodes), but this can be overridden to
+    specify particular nodes to use instead.
 
     Does not specify `input` and `output` as demanded by the parent class; this
     requirement is still passed on to children.
 
     Attributes:
-        TBA
+        nodes (DotDict[Node]): The owned nodes that form the composite subgraph.
+        strict_naming (bool): When true, repeated assignment of a new node to an
+         existing node label will raise an error, otherwise the label gets appended
+         with an index and the assignment proceeds. (Default is true: disallow assigning
+         to existing labels.)
+        add (NodeAdder): A tool for adding new nodes to this subgraph.
+        upstream_nodes (list[Node]): All the owned nodes that have output connections
+         but no input connections, i.e. the upstream-most nodes.
+        starting_nodes (None | list[Node]): A subset of the owned nodes to be used on
+         running. (Default is None, running falls back on using the `upstream_nodes`.)
 
     Methods:
-        TBA
+        add(node: Node): Add the node instance to this subgraph.
+        remove(node: Node): Break all connections the node has, remove it from this
+         subgraph, and set its parent to `None`.
     """
 
     wrap_as = _NodeDecoratorAccess  # Class method access to decorators

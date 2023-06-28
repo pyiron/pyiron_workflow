@@ -1,3 +1,9 @@
+"""
+Provides the main workhorse class for creating and running workflows.
+
+This class is intended as the single point of entry for users making an import.
+"""
+
 from __future__ import annotations
 
 from typing import TYPE_CHECKING
@@ -12,14 +18,13 @@ if TYPE_CHECKING:
 
 class Workflow(Composite):
     """
-    Workflows are an abstraction for holding a collection of related nodes.
+    Workflows are a dynamic composite node -- i.e. they hold and run a collection of
+    nodes (a subgraph) which can be dynamically modified (adding and removing nodes,
+    and modifying their connections).
 
     Nodes can be added to the workflow at instantiation or with dot-assignment later on.
     They are then accessible either under the `nodes` dot-dictionary, or just directly
     by dot-access on the workflow object itself.
-
-    The workflow guarantees that each node it owns has a unique within the scope of this
-    workflow, and that each node instance appears only once.
 
     Using the `input` and `output` attributes, the workflow gives access to all the
     IO channels among its nodes which are currently unconnected.
@@ -43,9 +48,9 @@ class Workflow(Composite):
 
         By default, the node naming scheme is strict, so if you try to add a node to a
         label that already exists, you will get an error. This behaviour can be changed
-        at instantiation with the `strict_naming` kwarg, or afterwards with the
-        `(de)activate_strict_naming()` method(s). When deactivated, repeated assignments
-        to the same label just get appended with an index:
+        at instantiation with the `strict_naming` kwarg, or afterwards by assigning a
+        bool to this property. When deactivated, repeated assignments to the same label
+        just get appended with an index:
         >>> wf.deactivate_strict_naming()
         >>> wf.my_node = Node(fnc, "y", x=0)
         >>> wf.my_node = Node(fnc, "y", x=1)
