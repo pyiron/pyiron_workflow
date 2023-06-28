@@ -151,15 +151,6 @@ class Workflow(Composite):
     def deserialize(self, source):
         raise NotImplementedError
 
-    def update(self):
-        for node in self.nodes.values():
-            if node.outputs.connected and not node.inputs.connected:
-                node.update()
-
-    def on_run(self):
-        # Maybe we need this if workflows can be used as nodes?
-        raise NotImplementedError
-
     @property
     def parent(self) -> None:
         return None
