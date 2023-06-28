@@ -13,7 +13,7 @@ from pyiron_contrib.workflow.io import Inputs, Outputs
 
 
 if TYPE_CHECKING:
-    from pyiron_contrib.workflow.is_nodal import IsNodal
+    from pyiron_contrib.workflow.node import Node
 
 
 class Workflow(Composite):
@@ -117,7 +117,7 @@ class Workflow(Composite):
         integrity of workflows when they're used somewhere else?
     """
 
-    def __init__(self, label: str, *nodes: IsNodal, strict_naming=True):
+    def __init__(self, label: str, *nodes: Node, strict_naming=True):
         super().__init__(label=label, parent=None, strict_naming=strict_naming)
 
         for node in nodes:

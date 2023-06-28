@@ -8,14 +8,14 @@ from typing import get_args, get_type_hints, Optional, TYPE_CHECKING
 from pyiron_contrib.workflow.channels import InputData, OutputData
 from pyiron_contrib.workflow.has_channel import HasChannel
 from pyiron_contrib.workflow.io import Inputs, Outputs, Signals
-from pyiron_contrib.workflow.is_nodal import IsNodal
+from pyiron_contrib.workflow.node import Node
 
 if TYPE_CHECKING:
     from pyiron_contrib.workflow.composite import Composite
     from pyiron_contrib.workflow.workflow import Workflow
 
 
-class Function(IsNodal):
+class Function(Node):
     """
     Function nodes have input and output data channels that interface with the outside
     world, and a callable that determines what they actually compute. After running,

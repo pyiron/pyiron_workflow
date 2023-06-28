@@ -19,7 +19,7 @@ if TYPE_CHECKING:
     from pyiron_contrib.workflow.io import Inputs, Outputs
 
 
-class IsNodal(HasToDict, ABC):
+class Node(HasToDict, ABC):
     """
     A mixin class for objects that can form nodes in the graph representation of a
     computational workflow.
