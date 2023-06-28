@@ -207,7 +207,7 @@ class TestFunction(unittest.TestCase):
 
 
 @unittest.skipUnless(version_info[0] == 3 and version_info[1] >= 10, "Only supported for 3.10+")
-class TestFastNode(unittest.TestCase):
+class TestFast(unittest.TestCase):
     def test_instantiation(self):
         has_defaults_is_ok = Fast(plus_one, "y")
 
@@ -216,7 +216,7 @@ class TestFastNode(unittest.TestCase):
 
 
 @unittest.skipUnless(version_info[0] == 3 and version_info[1] >= 10, "Only supported for 3.10+")
-class TestSingleValueNode(unittest.TestCase):
+class TestSingleValue(unittest.TestCase):
     def test_instantiation(self):
         has_defaults_and_one_return = SingleValue(plus_one, "y")
 
