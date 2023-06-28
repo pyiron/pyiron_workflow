@@ -75,6 +75,7 @@ class IsNodal(HasToDict, ABC):
             label: str,
             *args,
             parent: Optional[HasNodes] = None,
+            run_on_updates: bool = False,
             **kwargs
     ):
         """
@@ -103,6 +104,7 @@ class IsNodal(HasToDict, ABC):
         # TODO: Provide support for actually computing stuff with the server/executor
         self.signals = self._build_signal_channels()
         self._working_directory = None
+        self.run_on_updates: bool = run_on_updates
 
     @property
     @abstractmethod
@@ -112,10 +114,6 @@ class IsNodal(HasToDict, ABC):
     @property
     @abstractmethod
     def outputs(self) -> Outputs:
-        pass
-
-    @abstractmethod
-    def update(self):
         pass
 
     @property
@@ -196,6 +194,10 @@ class IsNodal(HasToDict, ABC):
         signals.input.run = InputSignal("run", self, self.run)
         signals.output.ran = OutputSignal("ran", self)
         return signals
+
+    def update(self) -> None:
+        if self.run_on_updates and self.ready:
+            self.run()
 
     @property
     def working_directory(self):

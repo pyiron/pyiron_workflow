@@ -351,12 +351,13 @@ class Node(IsNodal):
         self._verify_that_channels_requiring_update_all_exist()
 
         self.run_on_updates = False
+        # Temporarily disable running on updates to set all initial values at once
         for k, v in kwargs.items():
             if k in self.inputs.labels:
                 self.inputs[k] = v
             elif k not in self._init_keywords:
                 warnings.warn(f"The keyword '{k}' was received but not used.")
-        self.run_on_updates = run_on_updates
+        self.run_on_updates = run_on_updates  # Restore provided value
 
         if update_on_instantiation:
             self.update()
@@ -475,10 +476,6 @@ class Node(IsNodal):
                 f"after the node runs ({self.channels_requiring_update_after_run}) was "
                 f"not found among the input channels ({self.inputs.labels})"
             )
-
-    def update(self) -> None:
-        if self.run_on_updates and self.ready:
-            self.run()
 
     @property
     def on_run(self):
