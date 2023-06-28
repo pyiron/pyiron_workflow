@@ -63,7 +63,7 @@ class Composite(IsNodal, ABC):
             **kwargs
     ):
         super().__init__(*args, label=label, parent=parent, **kwargs)
-        self.stict_naming: bool = strict_naming
+        self.strict_naming: bool = strict_naming
         self.nodes: DotDict[str: IsNodal] = DotDict()
         self.add: NodeAdder = NodeAdder(self)
 
