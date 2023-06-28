@@ -71,12 +71,12 @@ class IsNodal(HasToDict, ABC):
     """
 
     def __init__(
-            self,
-            label: str,
-            *args,
-            parent: Optional[HasNodes] = None,
-            run_on_updates: bool = False,
-            **kwargs
+        self,
+        label: str,
+        *args,
+        parent: Optional[HasNodes] = None,
+        run_on_updates: bool = False,
+        **kwargs,
     ):
         """
         A mixin class for objects that can form nodes in the graph representation of a
