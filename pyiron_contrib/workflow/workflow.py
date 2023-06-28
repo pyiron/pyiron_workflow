@@ -120,6 +120,7 @@ class Workflow(IsNodal, HasToDict, HasNodes):
     wrap_as = _NodeDecoratorAccess
 
     def __init__(self, label: str, *nodes: Node, strict_naming=True):
+        self._parent = None
         super().__init__(label=label, strict_naming=strict_naming)
 
         for node in nodes:
@@ -171,3 +172,17 @@ class Workflow(IsNodal, HasToDict, HasNodes):
     def on_run(self):
         # Maybe we need this if workflows can be used as nodes?
         raise NotImplementedError
+
+    @property
+    def parent(self) -> None:
+        return self._parent
+
+    @parent.setter
+    def parent(self, new_parent: None):
+        # Currently workflows are not allowed to have a parent -- maybe we want to
+        # change our minds on this in the future?
+        if new_parent is not None:
+            raise TypeError(
+                f"{self.__class__} may only take None as a parent but got "
+                f"{type(new_parent)}"
+            )

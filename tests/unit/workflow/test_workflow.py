@@ -124,6 +124,15 @@ class TestWorkflow(unittest.TestCase):
         self.assertTrue(str(wf.fnc.working_directory.path).endswith(wf.fnc.label))
         wf.working_directory.delete()
 
+    def test_no_parents(self):
+        wf = Workflow("wf")
+        wf2 = Workflow("wf2")
+        wf2.parent = None  # Is already the value and should ignore this
+        with self.assertRaises(TypeError):
+            # We currently specify workflows shouldn't get parents, this just verifies
+            # the spec. If that spec changes, test instead that you _can_ set parents!
+            wf2.parent = wf
+
 
 if __name__ == '__main__':
     unittest.main()
