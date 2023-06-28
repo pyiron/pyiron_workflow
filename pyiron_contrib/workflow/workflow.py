@@ -1,20 +1,16 @@
 from __future__ import annotations
 
-from pyiron_contrib.workflow.has_nodes import HasNodes
+from typing import TYPE_CHECKING
+
+from pyiron_contrib.workflow.composite import Composite
 from pyiron_contrib.workflow.io import Inputs, Outputs
-from pyiron_contrib.workflow.is_nodal import IsNodal
-from pyiron_contrib.workflow.node import Node, node, fast_node, single_value_node
 
 
-class _NodeDecoratorAccess:
-    """An intermediate container to store node-creating decorators as class methods."""
-
-    node = node
-    fast_node = fast_node
-    single_value_node = single_value_node
+if TYPE_CHECKING:
+    from pyiron_contrib.workflow.node import Node
 
 
-class Workflow(IsNodal, HasNodes):
+class Workflow(Composite):
     """
     Workflows are an abstraction for holding a collection of related nodes.
 
@@ -116,11 +112,9 @@ class Workflow(IsNodal, HasNodes):
         integrity of workflows when they're used somewhere else?
     """
 
-    wrap_as = _NodeDecoratorAccess
-
     def __init__(self, label: str, *nodes: Node, strict_naming=True):
         self._parent = None  # Necessary to pre-populate public property/setter var
-        super().__init__(label=label, strict_naming=strict_naming)
+        super().__init__(label=label, parent=None, strict_naming=strict_naming)
 
         for node in nodes:
             self.add_node(node)
@@ -142,12 +136,6 @@ class Workflow(IsNodal, HasNodes):
                 if not channel.connected:
                     outputs[f"{node_label}_{channel.label}"] = channel
         return outputs
-
-    def to_dict(self):
-        return {
-            "label": self.label,
-            "nodes": {n.label: n.to_dict() for n in self.nodes.values()},
-        }
 
     def to_node(self):
         """

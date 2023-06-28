@@ -11,7 +11,7 @@ from pyiron_contrib.workflow.io import Inputs, Outputs, Signals
 from pyiron_contrib.workflow.is_nodal import IsNodal
 
 if TYPE_CHECKING:
-    from pyiron_contrib.workflow.has_nodes import HasNodes
+    from pyiron_contrib.workflow.composite import Composite
     from pyiron_contrib.workflow.workflow import Workflow
 
 
@@ -323,7 +323,7 @@ class Node(IsNodal):
         run_on_updates: bool = False,
         update_on_instantiation: bool = False,
         channels_requiring_update_after_run: Optional[list[str]] = None,
-        parent: Optional[HasNodes] = None,
+        parent: Optional[Composite] = None,
         **kwargs,
     ):
         super().__init__(

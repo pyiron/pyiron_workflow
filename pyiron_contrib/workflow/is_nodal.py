@@ -15,7 +15,7 @@ from pyiron_contrib.workflow.io import Signals, InputSignal, OutputSignal
 if TYPE_CHECKING:
     from pyiron_base.jobs.job.extension.server.generic import Server
 
-    from pyiron_contrib.workflow.has_nodes import HasNodes
+    from pyiron_contrib.workflow.composite import Composite
     from pyiron_contrib.workflow.io import Inputs, Outputs
 
 
@@ -44,7 +44,7 @@ class IsNodal(HasToDict, ABC):
         label (str): A name for the nodal object.
         output (pyiron_contrib.workflow.io.Outputs): **Abstract.** Children must define
             a property returning an `Outputs` object.
-        parent (pyiron_contrib.workflow.has_nodes.HasNodes | None): The parent object
+        parent (pyiron_contrib.workflow.composite.Composite | None): The parent object
             owning this, if any.
         ready (bool): Whether the inputs are all ready and the nodal object is neither
             already running nor already failed.
@@ -74,7 +74,7 @@ class IsNodal(HasToDict, ABC):
             self,
             label: str,
             *args,
-            parent: Optional[HasNodes] = None,
+            parent: Optional[Composite] = None,
             run_on_updates: bool = False,
             **kwargs
     ):
