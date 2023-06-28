@@ -5,7 +5,7 @@ import warnings
 
 from pyiron_contrib.workflow.files import DirectoryObject
 from pyiron_contrib.workflow.function import (
-    Fast, Function, SingleValueNode, node, single_value_node
+    Fast, Function, SingleValue, node, single_value_node
 )
 
 
@@ -218,10 +218,10 @@ class TestFastNode(unittest.TestCase):
 @unittest.skipUnless(version_info[0] == 3 and version_info[1] >= 10, "Only supported for 3.10+")
 class TestSingleValueNode(unittest.TestCase):
     def test_instantiation(self):
-        has_defaults_and_one_return = SingleValueNode(plus_one, "y")
+        has_defaults_and_one_return = SingleValue(plus_one, "y")
 
         with self.assertRaises(ValueError):
-            too_many_labels = SingleValueNode(plus_one, "z", "excess_label")
+            too_many_labels = SingleValue(plus_one, "z", "excess_label")
 
     def test_item_and_attribute_access(self):
         class Foo:
@@ -237,7 +237,7 @@ class TestSingleValueNode(unittest.TestCase):
         def returns_foo() -> Foo:
             return Foo()
 
-        svn = SingleValueNode(returns_foo, "foo")
+        svn = SingleValue(returns_foo, "foo")
 
         self.assertEqual(
             svn.some_attribute,
@@ -267,14 +267,14 @@ class TestSingleValueNode(unittest.TestCase):
         )
 
     def test_repr(self):
-        svn = SingleValueNode(plus_one, "y")
+        svn = SingleValue(plus_one, "y")
         self.assertEqual(
             svn.__repr__(), svn.outputs.y.value.__repr__(),
             msg="SingleValueNodes should have their output as their representation"
         )
 
     def test_str(self):
-        svn = SingleValueNode(plus_one, "y")
+        svn = SingleValue(plus_one, "y")
         self.assertTrue(
             str(svn).endswith(str(svn.single_value)),
             msg="SingleValueNodes should have their output as a string in their string "
@@ -283,7 +283,7 @@ class TestSingleValueNode(unittest.TestCase):
         )
 
     def test_easy_output_connection(self):
-        svn = SingleValueNode(plus_one, "y")
+        svn = SingleValue(plus_one, "y")
         regular = Function(plus_one, "y")
 
         regular.inputs.x = svn
@@ -297,14 +297,14 @@ class TestSingleValueNode(unittest.TestCase):
         regular.run()
         self.assertEqual(
             regular.outputs.y.value, 3,
-            msg="SingleValueNode connections should pass data just like usual; in this "
+            msg="SingleValue connections should pass data just like usual; in this "
                 "case default->plus_one->plus_one = 1 + 1 +1 = 3"
         )
 
         at_instantiation = Function(plus_one, "y", x=svn)
         self.assertIn(
             svn.outputs.y, at_instantiation.inputs.x.connections,
-            msg="The parsing of SingleValueNode output as a connection should also work"
+            msg="The parsing of SingleValue output as a connection should also work"
                 "from assignment at instantiation"
         )
 
