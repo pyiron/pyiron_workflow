@@ -119,7 +119,6 @@ class Workflow(IsNodal, HasNodes):
     wrap_as = _NodeDecoratorAccess
 
     def __init__(self, label: str, *nodes: Node, strict_naming=True):
-        self._parent = None  # Necessary to pre-populate public property/setter var
         super().__init__(label=label, strict_naming=strict_naming)
 
         for node in nodes:
