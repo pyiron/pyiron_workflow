@@ -120,7 +120,7 @@ class Workflow(IsNodal, HasToDict, HasNodes):
     wrap_as = _NodeDecoratorAccess
 
     def __init__(self, label: str, *nodes: Node, strict_naming=True):
-        self._parent = None
+        self._parent = None  # Necessary to pre-populate public property/setter var
         super().__init__(label=label, strict_naming=strict_naming)
 
         for node in nodes:
@@ -180,7 +180,9 @@ class Workflow(IsNodal, HasToDict, HasNodes):
     @parent.setter
     def parent(self, new_parent: None):
         # Currently workflows are not allowed to have a parent -- maybe we want to
-        # change our minds on this in the future?
+        # change our minds on this in the future? If we do, we can just expose `parent`
+        # as a kwarg and roll back this private var/property/setter protection and let
+        # the super call in init handle everything
         if new_parent is not None:
             raise TypeError(
                 f"{self.__class__} may only take None as a parent but got "
