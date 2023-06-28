@@ -175,7 +175,7 @@ class Workflow(IsNodal, HasToDict, HasNodes):
 
     @property
     def parent(self) -> None:
-        return self._parent
+        return None
 
     @parent.setter
     def parent(self, new_parent: None):
