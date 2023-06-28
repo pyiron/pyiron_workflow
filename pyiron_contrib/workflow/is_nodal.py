@@ -48,6 +48,8 @@ class IsNodal(HasToDict, ABC):
             owning this, if any.
         ready (bool): Whether the inputs are all ready and the nodal object is neither
             already running nor already failed.
+        run_on_updates (bool): Whether to run when you are updated and all your input
+            is ready and your status does not prohibit running. (Default is False).
         running (bool): Whether the nodal object has called `run` and has not yet
             received output from from this call. (Default is False.)
         server (Optional[pyiron_base.jobs.job.extension.server.generic.Server]): A
