@@ -32,18 +32,18 @@ class Workflow(Composite):
     Examples:
         We allow adding nodes to workflows in five equivalent ways:
         >>> from pyiron_contrib.workflow.workflow import Workflow
-        >>> from pyiron_contrib.workflow.node import Node
+        >>> from pyiron_contrib.workflow.node import Function
         >>>
         >>> def fnc(x=0): return x + 1
         >>>
-        >>> n1 = Node(fnc, "x", label="n1")
+        >>> n1 = Function(fnc, "x", label="n1")
         >>>
         >>> wf = Workflow("my_workflow", n1)  # As *args at instantiation
-        >>> wf.add(Node(fnc, "x", label="n2"))  # Passing a node to the add caller
-        >>> wf.add.Node(fnc, "y", label="n3")  # Instantiating from add
-        >>> wf.n4 = Node(fnc, "y", label="whatever_n4_gets_used")
+        >>> wf.add(Function(fnc, "x", label="n2"))  # Passing a node to the add caller
+        >>> wf.add.Function(fnc, "y", label="n3")  # Instantiating from add
+        >>> wf.n4 = Function(fnc, "y", label="whatever_n4_gets_used")
         >>> # By attribute assignment
-        >>> Node(fnc, "x", label="n5", parent=wf)
+        >>> Function(fnc, "x", label="n5", parent=wf)
         >>> # By instantiating the node with a workflow
 
         By default, the node naming scheme is strict, so if you try to add a node to a
@@ -52,9 +52,9 @@ class Workflow(Composite):
         bool to this property. When deactivated, repeated assignments to the same label
         just get appended with an index:
         >>> wf.deactivate_strict_naming()
-        >>> wf.my_node = Node(fnc, "y", x=0)
-        >>> wf.my_node = Node(fnc, "y", x=1)
-        >>> wf.my_node = Node(fnc, "y", x=2)
+        >>> wf.my_node = Function(fnc, "y", x=0)
+        >>> wf.my_node = Function(fnc, "y", x=1)
+        >>> wf.my_node = Function(fnc, "y", x=2)
         >>> print(wf.my_node.inputs.x, wf.my_node0.inputs.x, wf.my_node1.inputs.x)
         0, 1, 2
 

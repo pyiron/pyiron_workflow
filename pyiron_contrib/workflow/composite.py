@@ -11,7 +11,7 @@ from typing import Optional
 from warnings import warn
 
 from pyiron_contrib.workflow.is_nodal import IsNodal
-from pyiron_contrib.workflow.node import Node, node, fast_node, single_value_node
+from pyiron_contrib.workflow.function import Function, node, fast_node, single_value_node
 from pyiron_contrib.workflow.node_library import atomistics, standard
 from pyiron_contrib.workflow.node_library.package import NodePackage
 from pyiron_contrib.workflow.util import DotDict
@@ -225,12 +225,12 @@ class NodeAdder:
         self.register_nodes("atomistics", *atomistics.nodes)
         self.register_nodes("standard", *standard.nodes)
 
-    Node = Node
+    Function = Function
 
     def __getattribute__(self, key):
         value = super().__getattribute__(key)
-        if value == Node:
-            return partial(Node, parent=self._parent)
+        if value == Function:
+            return partial(Function, parent=self._parent)
         return value
 
     def __call__(self, node: IsNodal):

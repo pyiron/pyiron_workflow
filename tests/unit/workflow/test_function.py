@@ -4,8 +4,8 @@ from typing import Optional, Union
 import warnings
 
 from pyiron_contrib.workflow.files import DirectoryObject
-from pyiron_contrib.workflow.node import (
-    FastNode, Node, SingleValueNode, node, single_value_node
+from pyiron_contrib.workflow.function import (
+    FastNode, Function, SingleValueNode, node, single_value_node
 )
 
 
@@ -22,19 +22,19 @@ def no_default(x, y):
 
 
 @unittest.skipUnless(version_info[0] == 3 and version_info[1] >= 10, "Only supported for 3.10+")
-class TestNode(unittest.TestCase):
+class TestFunction(unittest.TestCase):
     def test_defaults(self):
-        Node(plus_one, "y")
+        Function(plus_one, "y")
 
     def test_failure_without_output_labels(self):
         with self.assertRaises(
                 ValueError,
                 msg="Instantiated nodes should demand at least one output label"
         ):
-            Node(plus_one)
+            Function(plus_one)
 
     def test_instantiation_update(self):
-        no_update = Node(
+        no_update = Function(
             plus_one,
             "y",
             run_on_updates=True,
@@ -42,7 +42,7 @@ class TestNode(unittest.TestCase):
         )
         self.assertIsNone(no_update.outputs.y.value)
 
-        update = Node(
+        update = Function(
             plus_one,
             "y",
             run_on_updates=True,
@@ -51,16 +51,16 @@ class TestNode(unittest.TestCase):
         self.assertEqual(2, update.outputs.y.value)
 
         with self.assertRaises(TypeError):
-            run_without_value = Node(no_default, "z")
+            run_without_value = Function(no_default, "z")
             run_without_value.run()
             # None + None + 1 -> error
 
         with self.assertRaises(TypeError):
-            run_without_value = Node(no_default, "z", x=1)
+            run_without_value = Function(no_default, "z", x=1)
             run_without_value.run()
             # 1 + None + 1 -> error
 
-        deferred_update = Node(no_default, "z", x=1, y=1)
+        deferred_update = Function(no_default, "z", x=1, y=1)
         deferred_update.run()
         self.assertEqual(
             deferred_update.outputs.z.value,
@@ -70,7 +70,7 @@ class TestNode(unittest.TestCase):
         )
 
     def test_input_kwargs(self):
-        node = Node(
+        node = Function(
             plus_one,
             "y",
             x=2,
@@ -79,12 +79,12 @@ class TestNode(unittest.TestCase):
         )
         self.assertEqual(3, node.outputs.y.value, msg="Initialize from value")
 
-        node2 = Node(plus_one, "y", x=node.outputs.y, run_on_updates=True)
+        node2 = Function(plus_one, "y", x=node.outputs.y, run_on_updates=True)
         node.update()
         self.assertEqual(4, node2.outputs.y.value, msg="Initialize from connection")
 
     def test_automatic_updates(self):
-        node = Node(throw_error, "no_return", run_on_updates=True)
+        node = Function(throw_error, "no_return", run_on_updates=True)
 
         with self.subTest("Shouldn't run for invalid input on update"):
             node.inputs.x.update("not an int")
@@ -120,7 +120,7 @@ class TestNode(unittest.TestCase):
         )
 
     def test_statuses(self):
-        n = Node(plus_one, "p1")
+        n = Function(plus_one, "p1")
         self.assertTrue(n.ready)
         self.assertFalse(n.running)
         self.assertFalse(n.failed)
@@ -172,7 +172,7 @@ class TestNode(unittest.TestCase):
                 self.some_counter = 1
             return x + 0.1
 
-        node = Node(with_self, "output")
+        node = Function(with_self, "output")
         self.assertTrue(
             "x" in node.inputs.labels,
             msg=f"Expected to find function input 'x' in the node input but got "
@@ -193,14 +193,14 @@ class TestNode(unittest.TestCase):
         self.assertEqual(
             node.some_counter,
             1,
-            msg="Node functions should be able to modify attributes on the node object."
+            msg="Function functions should be able to modify attributes on the node object."
         )
 
         def with_messed_self(x: float, self) -> float:
             return x + 0.1
 
         with warnings.catch_warnings(record=True) as warning_list:
-            node = Node(with_messed_self, "output")
+            node = Function(with_messed_self, "output")
             self.assertTrue("self" in node.inputs.labels)
 
         self.assertEqual(len(warning_list), 1)
@@ -279,12 +279,12 @@ class TestSingleValueNode(unittest.TestCase):
             str(svn).endswith(str(svn.single_value)),
             msg="SingleValueNodes should have their output as a string in their string "
                 "representation (e.g., perhaps with a reminder note that this is "
-                "actually still a Node and not just the value you're seeing.)"
+                "actually still a Function and not just the value you're seeing.)"
         )
 
     def test_easy_output_connection(self):
         svn = SingleValueNode(plus_one, "y")
-        regular = Node(plus_one, "y")
+        regular = Function(plus_one, "y")
 
         regular.inputs.x = svn
 
@@ -301,7 +301,7 @@ class TestSingleValueNode(unittest.TestCase):
                 "case default->plus_one->plus_one = 1 + 1 +1 = 3"
         )
 
-        at_instantiation = Node(plus_one, "y", x=svn)
+        at_instantiation = Function(plus_one, "y", x=svn)
         self.assertIn(
             svn.outputs.y, at_instantiation.inputs.x.connections,
             msg="The parsing of SingleValueNode output as a connection should also work"
@@ -361,7 +361,7 @@ class TestSingleValueNode(unittest.TestCase):
         )
 
     def test_working_directory(self):
-        n_f = Node(plus_one, "output")
+        n_f = Function(plus_one, "output")
         self.assertTrue(n_f._working_directory is None)
         self.assertIsInstance(n_f.working_directory, DirectoryObject)
         self.assertTrue(str(n_f.working_directory.path).endswith(n_f.label))

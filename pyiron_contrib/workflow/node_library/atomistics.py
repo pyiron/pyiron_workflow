@@ -7,7 +7,7 @@ from pyiron_atomistics.atomistics.job.atomistic import AtomisticGenericJob
 from pyiron_atomistics.atomistics.structure.atoms import Atoms
 from pyiron_atomistics.lammps.lammps import Lammps as LammpsJob
 
-from pyiron_contrib.workflow.node import node, single_value_node
+from pyiron_contrib.workflow.function import node, single_value_node
 
 
 @single_value_node("structure")

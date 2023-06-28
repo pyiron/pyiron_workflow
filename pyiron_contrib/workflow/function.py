@@ -15,7 +15,7 @@ if TYPE_CHECKING:
     from pyiron_contrib.workflow.workflow import Workflow
 
 
-class Node(IsNodal):
+class Function(IsNodal):
     """
     Nodes have input and output data channels that interface with the outside world, and
     a callable that determines what they actually compute. After running, their output
@@ -96,12 +96,12 @@ class Node(IsNodal):
     Examples:
         At the most basic level, to use nodes all we need to do is provide the `Node`
         class with a function and labels for its output, like so:
-        >>> from pyiron_contrib.workflow.node import Node
+        >>> from pyiron_contrib.workflow.node import Function
         >>>
         >>> def mwe(x, y):
         ...     return x+1, y-1
         >>>
-        >>> plus_minus_1 = Node(mwe, "p1", "m1")
+        >>> plus_minus_1 = Function(mwe, "p1", "m1")
         >>>
         >>> print(plus_minus_1.outputs.p1)
         None
@@ -131,7 +131,7 @@ class Node(IsNodal):
         {'p1': 3, 'm1': 2}
 
         We can also, optionally, provide initial values for some or all of the input
-        >>> plus_minus_1 = Node(
+        >>> plus_minus_1 = Function(
         ...     mwe, "p1", "m1",
         ...     x=1,
         ...     run_on_updates=True
@@ -142,7 +142,7 @@ class Node(IsNodal):
 
         Finally, we might want the node to be ready-to-go right after instantiation.
         To do this, we need to provide initial values for everything and set two flags:
-        >>> plus_minus_1 = Node(
+        >>> plus_minus_1 = Function(
         ...     mwe, "p1", "m1",
         ...     x=0, y=0,
         ...     run_on_updates=True, update_on_instantiation=True
@@ -160,7 +160,7 @@ class Node(IsNodal):
         Thus, the second solution is to ensure that _all_ the arguments of our function
         are receiving good enough initial values to facilitate an execution of the node
         function at the end of instantiation:
-        >>> plus_minus_1 = Node(mwe, "p1", "m1", x=1, y=2)
+        >>> plus_minus_1 = Function(mwe, "p1", "m1", x=1, y=2)
         >>>
         >>> print(plus_minus_1.outputs.to_value_dict())
         {'p1': 2, 'm1': 1}
@@ -182,7 +182,7 @@ class Node(IsNodal):
         ... ) -> tuple[int, int | float]:
         ...     return x+1, y-1
         >>>
-        >>> plus_minus_1 = Node(
+        >>> plus_minus_1 = Function(
         ...     hinted_example, "p1", "m1",
         ...     run_on_updates=True, update_on_instantiation=True
         ... )
@@ -239,7 +239,7 @@ class Node(IsNodal):
         The first is to override the `__init__` method directly:
         >>> from typing import Literal, Optional
         >>>
-        >>> class AlphabetModThree(Node):
+        >>> class AlphabetModThree(Function):
         ...     def __init__(
         ...         self,
         ...         label: Optional[str] = None,
@@ -267,13 +267,13 @@ class Node(IsNodal):
         afterwards because we were accessing it through self).
         >>> from functools import partialmethod
         >>>
-        >>> class Adder(Node):
+        >>> class Adder(Function):
         ...     @staticmethod
         ...     def adder(x: int = 0, y: int = 0) -> int:
         ...         return x + y
         ...
         ...     __init__ = partialmethod(
-        ...         Node.__init__,
+        ...         Function.__init__,
         ...         adder,
         ...         "sum",
         ...         run_on_updates=True,
@@ -522,7 +522,7 @@ class Node(IsNodal):
         }
 
 
-class FastNode(Node):
+class FastNode(Function):
     """
     Like a regular node, but _all_ input channels _must_ have default values provided,
     and the initialization signature forces `run_on_updates` and
@@ -630,7 +630,7 @@ def node(*output_labels: str, **node_class_kwargs):
 
     Decorates a function.
     Takes an output label for each returned value of the function.
-    Returns a `Node` subclass whose name is the camel-case version of the function node,
+    Returns a `Function` subclass whose name is the camel-case version of the function node,
     and whose signature is modified to exclude the node function and output labels
     (which are explicitly defined in the process of using the decorator).
     """
@@ -638,10 +638,10 @@ def node(*output_labels: str, **node_class_kwargs):
     def as_node(node_function: callable):
         return type(
             node_function.__name__.title().replace("_", ""),  # fnc_name to CamelCase
-            (Node,),  # Define parentage
+            (Function,),  # Define parentage
             {
                 "__init__": partialmethod(
-                    Node.__init__,
+                    Function.__init__,
                     node_function,
                     *output_labels,
                     **node_class_kwargs,
