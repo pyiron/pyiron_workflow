@@ -233,10 +233,10 @@ class NodeAdder:
             return partial(Node, parent=self._parent)
         return value
 
-    def __call__(self, node: Node):
+    def __call__(self, node: IsNodal):
         return self._parent.add_node(node)
 
-    def register_nodes(self, domain: str, *nodes: list[type[Node]]):
+    def register_nodes(self, domain: str, *nodes: list[type[IsNodal]]):
         """
         Add a list of node classes to be accessible for creation under the provided
         domain name.
