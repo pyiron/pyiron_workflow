@@ -3,7 +3,7 @@ from __future__ import annotations
 from functools import partial
 from typing import TYPE_CHECKING
 
-from pyiron_contrib.workflow.node import Node
+from pyiron_contrib.workflow.is_nodal import IsNodal
 from pyiron_contrib.workflow.util import DotDict
 
 if TYPE_CHECKING:
@@ -21,7 +21,7 @@ class NodePackage(DotDict):
     but to update an existing node the `update` method must be used.
     """
 
-    def __init__(self, parent: Composite, *node_classes: Node):
+    def __init__(self, parent: Composite, *node_classes: IsNodal):
         super().__init__()
         self.__dict__["_parent"] = parent  # Avoid the __setattr__ override
         for node in node_classes:
@@ -35,16 +35,16 @@ class NodePackage(DotDict):
                 f"The name {key} is already an attribute of this "
                 f"{self.__class__.__name__} instance."
             )
-        if not isinstance(value, type) or not issubclass(value, Node):
+        if not isinstance(value, type) or not issubclass(value, IsNodal):
             raise TypeError(
-                f"Can only set members that are (sub)classes of  {Node.__name__}, but "
-                f"got {type(value)}"
+                f"Can only set members that are (sub)classes of  {IsNodal.__name__}, "
+                f"but got {type(value)}"
             )
         super().__setitem__(key, value)
 
     def __getitem__(self, item):
         value = super().__getitem__(item)
-        if issubclass(value, Node):
+        if issubclass(value, IsNodal):
             return partial(value, parent=self._parent)
         else:
             return value

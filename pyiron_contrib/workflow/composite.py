@@ -80,7 +80,7 @@ class Composite(IsNodal, ABC):
         self.strict_naming: bool = strict_naming
         self.nodes: DotDict[str: IsNodal] = DotDict()
         self.add: NodeAdder = NodeAdder(self)
-        self.starting_nodes: None | list[Node] = None
+        self.starting_nodes: None | list[IsNodal] = None
 
     def to_dict(self):
         return {
@@ -101,7 +101,7 @@ class Composite(IsNodal, ABC):
         for node in starting_nodes:
             node.run()
 
-    def add_node(self, node: Node, label: Optional[str] = None) -> None:
+    def add_node(self, node: IsNodal, label: Optional[str] = None) -> None:
         """
         Assign a node to the parent. Optionally provide a new label for that node.
 
@@ -112,7 +112,7 @@ class Composite(IsNodal, ABC):
         Raises:
             TypeError: If the
         """
-        if not isinstance(node, Node):
+        if not isinstance(node, IsNodal):
             raise TypeError(
                 f"Only new node instances may be added, but got {type(node)}."
             )
@@ -127,7 +127,7 @@ class Composite(IsNodal, ABC):
 
     def _get_unique_label(self, label):
         if label in self.__dir__():
-            if isinstance(getattr(self, label), Node):
+            if isinstance(getattr(self, label), IsNodal):
                 if self.strict_naming:
                     raise AttributeError(
                         f"{label} is already the label for a node. Please remove it "
@@ -155,7 +155,7 @@ class Composite(IsNodal, ABC):
             )
         return new_label
 
-    def _ensure_node_has_no_other_parent(self, node: Node):
+    def _ensure_node_has_no_other_parent(self, node: IsNodal):
         if node.parent is not None and node.parent is not self:
             raise ValueError(
                 f"The node ({node.label}) already belongs to the parent "
@@ -163,7 +163,7 @@ class Composite(IsNodal, ABC):
                 f"add it to this parent ({self.label})."
             )
 
-    def _ensure_node_is_not_duplicated(self, node: Node, label: str):
+    def _ensure_node_is_not_duplicated(self, node: IsNodal, label: str):
         if (
             node.parent is self
             and label != node.label
@@ -175,16 +175,16 @@ class Composite(IsNodal, ABC):
             )
             del self.nodes[node.label]
 
-    def remove(self, node: Node | str):
-        if isinstance(node, Node):
+    def remove(self, node: IsNodal | str):
+        if isinstance(node, IsNodal):
             node.parent = None
             node.disconnect()
             del self.nodes[node.label]
         else:
             del self.nodes[node]
 
-    def __setattr__(self, label: str, node: Node):
-        if isinstance(node, Node):
+    def __setattr__(self, label: str, node: IsNodal):
+        if isinstance(node, IsNodal):
             self.add_node(node, label=label)
         else:
             super().__setattr__(label, node)

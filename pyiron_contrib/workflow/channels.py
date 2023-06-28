@@ -32,7 +32,7 @@ from pyiron_contrib.workflow.type_hinting import (
 )
 
 if typing.TYPE_CHECKING:
-    from pyiron_contrib.workflow.node import Node
+    from pyiron_contrib.workflow.is_nodal import IsNodal
 
 
 class Channel(HasChannel, HasToDict, ABC):
@@ -51,25 +51,26 @@ class Channel(HasChannel, HasToDict, ABC):
 
     Attributes:
         label (str): The name of the channel.
-        node (pyiron_contrib.workflow.node.Node): The node to which the channel belongs.
+        node (pyiron_contrib.workflow.is_nodal.IsNodal): The node to which the channel
+         belongs.
         connections (list[Channel]): Other channels to which this channel is connected.
     """
 
     def __init__(
         self,
         label: str,
-        node: Node,
+        node: IsNodal,
     ):
         """
         Make a new channel.
 
         Args:
             label (str): A name for the channel.
-            node (pyiron_contrib.workflow.node.Node): The node to which the channel
-                belongs.
+            node (pyiron_contrib.workflow.is_nodal.IsNodal): The node to which the
+             channel belongs.
         """
         self.label: str = label
-        self.node: Node = node
+        self.node: IsNodal = node
         self.connections: list[Channel] = []
 
     @abstractmethod
@@ -180,7 +181,7 @@ class DataChannel(Channel, ABC):
     def __init__(
         self,
         label: str,
-        node: Node,
+        node: IsNodal,
         default: typing.Optional[typing.Any] = None,
         type_hint: typing.Optional[typing.Any] = None,
     ):
@@ -312,7 +313,7 @@ class InputData(DataChannel):
     def __init__(
         self,
         label: str,
-        node: Node,
+        node: IsNodal,
         default: typing.Optional[typing.Any] = None,
         type_hint: typing.Optional[typing.Any] = None,
         strict_connections: bool = True,
@@ -447,7 +448,7 @@ class InputSignal(SignalChannel):
     def __init__(
         self,
         label: str,
-        node: Node,
+        node: IsNodal,
         callback: callable,
     ):
         """
@@ -455,8 +456,8 @@ class InputSignal(SignalChannel):
 
         Args:
             label (str): A name for the channel.
-            node (pyiron_contrib.workflow.node.Node): The node to which the channel
-                belongs.
+            node (pyiron_contrib.workflow.is_nodal.IsNodal): The node to which the
+             channel belongs.
             callback (callable): An argument-free callback to invoke when calling this
                 object.
         """
