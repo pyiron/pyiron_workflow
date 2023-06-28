@@ -5,7 +5,7 @@ import warnings
 
 from pyiron_contrib.workflow.files import DirectoryObject
 from pyiron_contrib.workflow.function import (
-    FastNode, Function, SingleValueNode, node, single_value_node
+    Fast, Function, SingleValueNode, node, single_value_node
 )
 
 
@@ -209,10 +209,10 @@ class TestFunction(unittest.TestCase):
 @unittest.skipUnless(version_info[0] == 3 and version_info[1] >= 10, "Only supported for 3.10+")
 class TestFastNode(unittest.TestCase):
     def test_instantiation(self):
-        has_defaults_is_ok = FastNode(plus_one, "y")
+        has_defaults_is_ok = Fast(plus_one, "y")
 
         with self.assertRaises(ValueError):
-            missing_defaults_should_fail = FastNode(no_default, "z")
+            missing_defaults_should_fail = Fast(no_default, "z")
 
 
 @unittest.skipUnless(version_info[0] == 3 and version_info[1] >= 10, "Only supported for 3.10+")

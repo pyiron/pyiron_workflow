@@ -197,7 +197,7 @@ class Function(IsNodal):
         >>> plus_minus_1.outputs.to_value_dict()
         {'p1': 2, 'm1': 0}
 
-        Note: the `FastNode(Node)` child class will enforce all function arguments to
+        Note: the `Fast(Node)` child class will enforce all function arguments to
         be type-hinted and have defaults, and will automatically set the updating and
         instantiation flags to `True` for nodes that execute quickly and are meant to
         _always_ have good output data.
@@ -522,7 +522,7 @@ class Function(IsNodal):
         }
 
 
-class FastNode(Function):
+class Fast(Function):
     """
     Like a regular node, but _all_ input channels _must_ have default values provided,
     and the initialization signature forces `run_on_updates` and
@@ -564,7 +564,7 @@ class FastNode(Function):
             )
 
 
-class SingleValueNode(FastNode, HasChannel):
+class SingleValueNode(Fast, HasChannel):
     """
     A fast node that _must_ return only a single value.
 
@@ -660,13 +660,13 @@ def fast_node(*output_labels: str, **node_class_kwargs):
     """
 
     def as_fast_node(node_function: callable):
-        FastNode.ensure_params_have_defaults(node_function)
+        Fast.ensure_params_have_defaults(node_function)
         return type(
             node_function.__name__.title().replace("_", ""),  # fnc_name to CamelCase
-            (FastNode,),  # Define parentage
+            (Fast,),  # Define parentage
             {
                 "__init__": partialmethod(
-                    FastNode.__init__,
+                    Fast.__init__,
                     node_function,
                     *output_labels,
                     **node_class_kwargs,
