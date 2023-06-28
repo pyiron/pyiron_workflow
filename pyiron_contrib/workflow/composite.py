@@ -66,6 +66,7 @@ class Composite(IsNodal, ABC):
         self.strict_naming: bool = strict_naming
         self.nodes: DotDict[str: IsNodal] = DotDict()
         self.add: NodeAdder = NodeAdder(self)
+        self.starting_nodes: None | list[Node] = None
 
     def to_dict(self):
         return {
@@ -74,14 +75,16 @@ class Composite(IsNodal, ABC):
         }
 
     @property
-    def starting_nodes(self) -> list[IsNodal]:
+    def upstream_nodes(self) -> list[IsNodal]:
         return [
             node for node in self.nodes.values()
             if node.outputs.connected and not node.inputs.connected
         ]
 
     def on_run(self):
-        for node in self.starting_nodes:
+        starting_nodes = self.upstream_nodes if self.starting_nodes is None \
+            else self.starting_nodes
+        for node in starting_nodes:
             node.run()
 
     def add_node(self, node: Node, label: Optional[str] = None) -> None:
