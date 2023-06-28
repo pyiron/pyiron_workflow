@@ -32,7 +32,7 @@ class Workflow(Composite):
     Examples:
         We allow adding nodes to workflows in five equivalent ways:
         >>> from pyiron_contrib.workflow.workflow import Workflow
-        >>> from pyiron_contrib.workflow.node import Function
+        >>> from pyiron_contrib.workflow.function import Function
         >>>
         >>> def fnc(x=0): return x + 1
         >>>

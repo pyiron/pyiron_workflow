@@ -17,9 +17,9 @@ if TYPE_CHECKING:
 
 class Function(IsNodal):
     """
-    Nodes have input and output data channels that interface with the outside world, and
-    a callable that determines what they actually compute. After running, their output
-    channels are updated with the results of the node's computation, which
+    Function nodes have input and output data channels that interface with the outside
+    world, and a callable that determines what they actually compute. After running,
+    their output channels are updated with the results of the node's computation, which
     triggers downstream node updates if those output channels are connected to other
     input channels.
 
@@ -39,7 +39,7 @@ class Function(IsNodal):
     Nodes won't update themselves while setting inputs to initial values, but can
     optionally update themselves at the end instantiation.
 
-    Nodes must be instantiated with a callable to deterimine their function, and an
+    Nodes must be instantiated with a callable to deterimine their function, and a
     strings to name each returned value of that callable. (If you really want to return
     a tuple, just have multiple return values but only one output label -- there is
     currently no way to mix-and-match, i.e. to have multiple return values at least one
@@ -96,7 +96,7 @@ class Function(IsNodal):
     Examples:
         At the most basic level, to use nodes all we need to do is provide the `Node`
         class with a function and labels for its output, like so:
-        >>> from pyiron_contrib.workflow.node import Function
+        >>> from pyiron_contrib.workflow.function import Function
         >>>
         >>> def mwe(x, y):
         ...     return x+1, y-1
@@ -213,9 +213,9 @@ class Function(IsNodal):
 
         This can be done most easily with the `node` decorator, which takes a function
         and returns a node class:
-        >>> from pyiron_contrib.workflow.node import node
+        >>> from pyiron_contrib.workflow.function import function_node
         >>>
-        >>> @node(
+        >>> @function_node(
         ...     "p1", "m1",
         ...     run_on_updates=True, update_on_instantiation=True
         ... )
