@@ -1,6 +1,5 @@
 from __future__ import annotations
 
-from pyiron_contrib.workflow.files import DirectoryObject
 from pyiron_contrib.workflow.has_nodes import HasNodes
 from pyiron_contrib.workflow.has_to_dict import HasToDict
 from pyiron_contrib.workflow.io import Inputs, Outputs
@@ -121,16 +120,11 @@ class Workflow(IsNodal, HasToDict, HasNodes):
     wrap_as = _NodeDecoratorAccess
 
     def __init__(self, label: str, *nodes: Node, strict_naming=True):
+        self._parent = None  # Necessary to pre-populate public property/setter var
         super().__init__(label=label, strict_naming=strict_naming)
 
         for node in nodes:
             self.add_node(node)
-
-    @property
-    def working_directory(self):
-        if self._working_directory is None:
-            self._working_directory = DirectoryObject(self.label)
-        return self._working_directory
 
     @property
     def inputs(self) -> Inputs:
@@ -178,3 +172,19 @@ class Workflow(IsNodal, HasToDict, HasNodes):
     def on_run(self):
         # Maybe we need this if workflows can be used as nodes?
         raise NotImplementedError
+
+    @property
+    def parent(self) -> None:
+        return None
+
+    @parent.setter
+    def parent(self, new_parent: None):
+        # Currently workflows are not allowed to have a parent -- maybe we want to
+        # change our minds on this in the future? If we do, we can just expose `parent`
+        # as a kwarg and roll back this private var/property/setter protection and let
+        # the super call in init handle everything
+        if new_parent is not None:
+            raise TypeError(
+                f"{self.__class__} may only take None as a parent but got "
+                f"{type(new_parent)}"
+            )

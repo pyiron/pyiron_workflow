@@ -12,6 +12,7 @@ from pyiron_contrib.workflow.io import Inputs, Outputs, Signals
 from pyiron_contrib.workflow.is_nodal import IsNodal
 
 if TYPE_CHECKING:
+    from pyiron_contrib.workflow.has_nodes import HasNodes
     from pyiron_contrib.workflow.workflow import Workflow
 
 
@@ -323,16 +324,14 @@ class Node(IsNodal, HasToDict):
         run_on_updates: bool = False,
         update_on_instantiation: bool = False,
         channels_requiring_update_after_run: Optional[list[str]] = None,
-        parent: Optional[Workflow] = None,
+        parent: Optional[HasNodes] = None,
         **kwargs,
     ):
         super().__init__(
             label=label if label is not None else node_function.__name__,
+            parent=parent,
             # **kwargs,
         )
-        self.parent = parent
-        if parent is not None:
-            parent.add(self)
         if len(output_labels) == 0:
             raise ValueError("Nodes must have at least one output label.")
 
@@ -525,19 +524,6 @@ class Node(IsNodal, HasToDict):
             "outputs": self.outputs.to_dict(),
             "signals": self.signals.to_dict(),
         }
-
-    @property
-    def working_directory(self):
-        if self._working_directory is None:
-            if self.parent is None:
-                raise ValueError(
-                    "working directory is available only if the node is"
-                    " attached to a workflow"
-                )
-            self._working_directory = self.parent.working_directory.create_subdirectory(
-                self.label
-            )
-        return self._working_directory
 
 
 class FastNode(Node):

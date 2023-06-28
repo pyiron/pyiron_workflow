@@ -6,7 +6,7 @@ computational workflow.
 from __future__ import annotations
 
 from abc import ABC, abstractmethod
-from typing import TYPE_CHECKING
+from typing import Optional, TYPE_CHECKING
 
 from pyiron_contrib.workflow.files import DirectoryObject
 from pyiron_contrib.workflow.io import Signals, InputSignal, OutputSignal
@@ -14,6 +14,7 @@ from pyiron_contrib.workflow.io import Signals, InputSignal, OutputSignal
 if TYPE_CHECKING:
     from pyiron_base.jobs.job.extension.server.generic import Server
 
+    from pyiron_contrib.workflow.has_nodes import HasNodes
     from pyiron_contrib.workflow.io import Inputs, Outputs
 
 
@@ -42,6 +43,8 @@ class IsNodal(ABC):
         label (str): A name for the nodal object.
         output (pyiron_contrib.workflow.io.Outputs): **Abstract.** Children must define
             a property returning an `Outputs` object.
+        parent (pyiron_contrib.workflow.has_nodes.HasNodes | None): The parent object
+            owning this, if any.
         ready (bool): Whether the inputs are all ready and the nodal object is neither
             already running nor already failed.
         running (bool): Whether the nodal object has called `run` and has not yet
@@ -66,7 +69,13 @@ class IsNodal(ABC):
             TODO: Once `run_on_updates` is in this class, we can un-abstract this.
     """
 
-    def __init__(self, label: str, *args, **kwargs):
+    def __init__(
+            self,
+            label: str,
+            *args,
+            parent: Optional[HasNodes] = None,
+            **kwargs
+    ):
         """
         A mixin class for objects that can form nodes in the graph representation of a
         computational workflow.
@@ -80,6 +89,9 @@ class IsNodal(ABC):
         """
         super().__init__(*args, **kwargs)
         self.label: str = label
+        self.parent = parent
+        if parent is not None:
+            parent.add(self)
         self.running = False
         self.failed = False
         # TODO: Replace running and failed with a state object
@@ -103,11 +115,6 @@ class IsNodal(ABC):
 
     @abstractmethod
     def update(self):
-        pass
-
-    @property
-    @abstractmethod
-    def working_directory(self) -> DirectoryObject:
         pass
 
     @property
@@ -188,6 +195,16 @@ class IsNodal(ABC):
         signals.input.run = InputSignal("run", self, self.run)
         signals.output.ran = OutputSignal("ran", self)
         return signals
+
+    @property
+    def working_directory(self):
+        if self._working_directory is None:
+            if self.parent is not None and hasattr(self.parent, "working_directory"):
+                parent_dir = self.parent.working_directory
+                self._working_directory = parent_dir.create_subdirectory(self.label)
+            else:
+                self._working_directory = DirectoryObject(self.label)
+        return self._working_directory
 
     @property
     def server(self) -> Server | None:

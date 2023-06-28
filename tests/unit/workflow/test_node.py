@@ -3,6 +3,7 @@ from sys import version_info
 from typing import Optional, Union
 import warnings
 
+from pyiron_contrib.workflow.files import DirectoryObject
 from pyiron_contrib.workflow.node import (
     FastNode, Node, SingleValueNode, node, single_value_node
 )
@@ -361,9 +362,10 @@ class TestSingleValueNode(unittest.TestCase):
 
     def test_working_directory(self):
         n_f = Node(plus_one, "output")
-        with self.assertRaises(ValueError):
-            _ = n_f.working_directory
-            #  cf. test_workflow.py for the case that it does notraise an error
+        self.assertTrue(n_f._working_directory is None)
+        self.assertIsInstance(n_f.working_directory, DirectoryObject)
+        self.assertTrue(str(n_f.working_directory.path).endswith(n_f.label))
+        n_f.working_directory.delete()
 
 
 if __name__ == '__main__':

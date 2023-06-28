@@ -1,9 +1,9 @@
 import unittest
 from sys import version_info
 
+from pyiron_contrib.workflow.files import DirectoryObject
 from pyiron_contrib.workflow.node import Node
 from pyiron_contrib.workflow.workflow import Workflow
-from pyiron_contrib.workflow.files import DirectoryObject
 
 
 def fnc(x=0):
@@ -123,6 +123,15 @@ class TestWorkflow(unittest.TestCase):
         wf.add.Node(fnc, "output")
         self.assertTrue(str(wf.fnc.working_directory.path).endswith(wf.fnc.label))
         wf.working_directory.delete()
+
+    def test_no_parents(self):
+        wf = Workflow("wf")
+        wf2 = Workflow("wf2")
+        wf2.parent = None  # Is already the value and should ignore this
+        with self.assertRaises(TypeError):
+            # We currently specify workflows shouldn't get parents, this just verifies
+            # the spec. If that spec changes, test instead that you _can_ set parents!
+            wf2.parent = wf
 
 
 if __name__ == '__main__':
