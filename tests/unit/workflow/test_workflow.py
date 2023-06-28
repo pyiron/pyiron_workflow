@@ -6,7 +6,6 @@ from pyiron_contrib.workflow.node import Node
 from pyiron_contrib.workflow.workflow import Workflow
 
 
-
 def fnc(x=0):
     return x + 1
 
