@@ -78,7 +78,7 @@ class IsNodal(HasToDict, ABC):
             *args,
             parent: Optional[Composite] = None,
             run_on_updates: bool = False,
-            **kwargs
+            **kwargs,
     ):
         """
         A mixin class for objects that can form nodes in the graph representation of a
