@@ -1,7 +1,6 @@
 from __future__ import annotations
 
 from pyiron_contrib.workflow.has_nodes import HasNodes
-from pyiron_contrib.workflow.has_to_dict import HasToDict
 from pyiron_contrib.workflow.io import Inputs, Outputs
 from pyiron_contrib.workflow.is_nodal import IsNodal
 from pyiron_contrib.workflow.node import Node, node, fast_node, single_value_node
@@ -15,7 +14,7 @@ class _NodeDecoratorAccess:
     single_value_node = single_value_node
 
 
-class Workflow(IsNodal, HasToDict, HasNodes):
+class Workflow(IsNodal, HasNodes):
     """
     Workflows are an abstraction for holding a collection of related nodes.
 

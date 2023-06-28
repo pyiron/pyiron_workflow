@@ -7,7 +7,6 @@ from typing import get_args, get_type_hints, Optional, TYPE_CHECKING
 
 from pyiron_contrib.workflow.channels import InputData, OutputData
 from pyiron_contrib.workflow.has_channel import HasChannel
-from pyiron_contrib.workflow.has_to_dict import HasToDict
 from pyiron_contrib.workflow.io import Inputs, Outputs, Signals
 from pyiron_contrib.workflow.is_nodal import IsNodal
 
@@ -16,7 +15,7 @@ if TYPE_CHECKING:
     from pyiron_contrib.workflow.workflow import Workflow
 
 
-class Node(IsNodal, HasToDict):
+class Node(IsNodal):
     """
     Nodes have input and output data channels that interface with the outside world, and
     a callable that determines what they actually compute. After running, their output

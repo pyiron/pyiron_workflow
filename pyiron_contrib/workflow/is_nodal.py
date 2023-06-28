@@ -9,6 +9,7 @@ from abc import ABC, abstractmethod
 from typing import Optional, TYPE_CHECKING
 
 from pyiron_contrib.workflow.files import DirectoryObject
+from pyiron_contrib.workflow.has_to_dict import HasToDict
 from pyiron_contrib.workflow.io import Signals, InputSignal, OutputSignal
 
 if TYPE_CHECKING:
@@ -18,7 +19,7 @@ if TYPE_CHECKING:
     from pyiron_contrib.workflow.io import Inputs, Outputs
 
 
-class IsNodal(ABC):
+class IsNodal(HasToDict, ABC):
     """
     A mixin class for objects that can form nodes in the graph representation of a
     computational workflow.
