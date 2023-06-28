@@ -5,7 +5,7 @@ import warnings
 
 from pyiron_contrib.workflow.files import DirectoryObject
 from pyiron_contrib.workflow.function import (
-    Fast, Function, SingleValue, node, single_value_node
+    Fast, Function, SingleValue, function_node, single_value_node
 )
 
 
@@ -94,11 +94,11 @@ class TestFunction(unittest.TestCase):
                 node.inputs.x.update(1)
 
     def test_signals(self):
-        @node("y")
+        @function_node("y")
         def linear(x):
             return x
 
-        @node("z")
+        @function_node("z")
         def times_two(y):
             return 2 * y
 

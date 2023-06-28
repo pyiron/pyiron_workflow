@@ -624,7 +624,7 @@ class SingleValue(Fast, HasChannel):
         )
 
 
-def node(*output_labels: str, **node_class_kwargs):
+def function_node(*output_labels: str, **node_class_kwargs):
     """
     A decorator for dynamically creating node classes from functions.
 

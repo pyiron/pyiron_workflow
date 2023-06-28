@@ -11,7 +11,7 @@ from typing import Optional
 from warnings import warn
 
 from pyiron_contrib.workflow.is_nodal import IsNodal
-from pyiron_contrib.workflow.function import Function, node, fast_node, single_value_node
+from pyiron_contrib.workflow.function import Function, function_node, fast_node, single_value_node
 from pyiron_contrib.workflow.node_library import atomistics, standard
 from pyiron_contrib.workflow.node_library.package import NodePackage
 from pyiron_contrib.workflow.util import DotDict
@@ -20,7 +20,7 @@ from pyiron_contrib.workflow.util import DotDict
 class _NodeDecoratorAccess:
     """An intermediate container to store node-creating decorators as class methods."""
 
-    node = node
+    function_node = function_node
     fast_node = fast_node
     single_value_node = single_value_node
 
