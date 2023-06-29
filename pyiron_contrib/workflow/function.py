@@ -550,9 +550,9 @@ class Fast(Function):
             )
 
 
-class SingleValue(Fast, HasChannel):
+class SingleValue(Function, HasChannel):
     """
-    A fast node that _must_ return only a single value.
+    A node that _must_ return only a single value.
 
     Attribute and item access is modified to finally attempt access on the output value.
     """
@@ -672,7 +672,6 @@ def single_value_node(*output_labels: str, **node_class_kwargs):
 
     def as_single_value_node(node_function: callable):
         SingleValue.ensure_there_is_only_one_return_value(output_labels)
-        SingleValue.ensure_params_have_defaults(node_function)
         return type(
             node_function.__name__.title().replace("_", ""),  # fnc_name to CamelCase
             (SingleValue,),  # Define parentage
