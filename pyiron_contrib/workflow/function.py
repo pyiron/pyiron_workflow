@@ -93,31 +93,37 @@ class Function(Node):
         >>> plus_minus_1 = Function(mwe, "p1", "m1")
         >>>
         >>> print(plus_minus_1.outputs.p1)
-        None
+        <class 'pyiron_contrib.workflow.channels.NotData'>
 
         There is no output because we haven't given our function any input, it has
-        no defaults, and we never ran it!
+        no defaults, and we never ran it! So it has the channel default value of
+        `NotData` -- a special non-data class (since `None` is sometimes a meaningful
+        value in python).
 
         We'll run into a hiccup if we try to set only one of the inputs and update
         >>> plus_minus_1.inputs.x = 1
         >>> plus_minus_1.run()
         TypeError
 
-        This is because the second input (y) still has no input value so we can't do the
-        sum.
+        This is because the second input (y) still has no input value, so we can't do
+        the sum.
         Let's set the node to run automatically when its inputs are updated, then update
         x and y.
         >>> plus_minus_1.run_on_updates = True
         >>> plus_minus_1.inputs.x = 2
-        TypeError
+        >>> print(plus_minus_1.outputs.p1.value)
+        <class 'pyiron_contrib.workflow.channels.NotData'>
 
-        What happened here? Well, since we didn't offer any type hints for the function,
-        when updating the `x` value triggered the node update, it didn't see any
-        trouble with the other inputs and tried to run! First, let's provide a y-value
-        as well, then go back and see how to avoid this.
+        The gentler `update()` call sees that the `y` input is still `NotData`, so it
+        does not proceed to the `run()` and the output is not yet updated.
+
+        Let's provide a y-value as well:
         >>> plus_minus_1.inputs.y = 3
         >>> plus_minus_1.outputs.to_value_dict()
         {'p1': 3, 'm1': 2}
+
+        Now that both inputs have been provided, the node update triggers a run and we
+        get the expected output.
 
         We can also, optionally, provide initial values for some or all of the input
         >>> plus_minus_1 = Function(
@@ -146,16 +152,24 @@ class Function(Node):
         We can provide initial values for our node function at instantiation using our
         kwargs.
         The node update is deferred until _all_ of these initial values are processed.
-        Thus, the second solution is to ensure that _all_ the arguments of our function
-        are receiving good enough initial values to facilitate an execution of the node
-        function at the end of instantiation:
-        >>> plus_minus_1 = Function(mwe, "p1", "m1", x=1, y=2)
+        Thus, if  _all_ the arguments of our function are receiving good enough initial
+        values to facilitate an execution of the node function at the end of
+        instantiation, the output gets updated right away:
+        >>> plus_minus_1 = Function(
+        ...     mwe, "p1", "m1",
+        ...     x=1, y=2,
+        ...     run_on_updates=True, update_on_instantiation=True
+        ... )
         >>>
         >>> print(plus_minus_1.outputs.to_value_dict())
         {'p1': 2, 'm1': 1}
 
         Second, we could add type hints/defaults to our function so that it knows better
         than to try to evaluate itself with bad data.
+        You can always force the node to run with its current input using `run()`, but
+        `update()` will always check if the node is `ready` -- i.e. if none of its
+        inputs are `NotData` and all of them obey any type hints that have been
+        provided.
         Let's make a new node following the second path.
 
         In this example, note the mixture of old-school (`typing.Union`) and new (`|`)
@@ -176,7 +190,8 @@ class Function(Node):
         ...     run_on_updates=True, update_on_instantiation=True
         ... )
         >>> plus_minus_1.outputs.to_value_dict()
-        {'p1': None, 'm1': None}
+        {'p1': <class 'pyiron_contrib.workflow.channels.NotData'>, 'm1': <class
+        'pyiron_contrib.workflow.channels.NotData'>}
 
         Here we got an update automatically at the end of instantiation, but because
         both values are type hinted this didn't result in any errors!
