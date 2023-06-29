@@ -3,6 +3,7 @@ from sys import version_info
 from typing import Optional, Union
 import warnings
 
+from pyiron_contrib.workflow.channels import NotData
 from pyiron_contrib.workflow.files import DirectoryObject
 from pyiron_contrib.workflow.function import (
     Fast, Function, SingleValue, function_node, single_value_node
@@ -40,7 +41,12 @@ class TestFunction(unittest.TestCase):
             run_on_updates=True,
             update_on_instantiation=False
         )
-        self.assertIsNone(no_update.outputs.y.value)
+        self.assertIs(
+            no_update.outputs.y.value,
+            NotData,
+            msg=f"Expected the output to be in its initialized and not-updated NotData "
+                f"state, but got {no_update.outputs.y.value}"
+        )
 
         update = Function(
             plus_one,
@@ -106,9 +112,11 @@ class TestFunction(unittest.TestCase):
         t2 = times_two(
             update_on_instantiation=False, run_automatically=False, y=l.outputs.y
         )
-        self.assertIsNone(
+        self.assertIs(
             t2.outputs.z.value,
-            msg="Without updates, the output should initially be None"
+            NotData,
+            msg=f"Without updates, expected the output to be {NotData} but got "
+                f"{t2.outputs.z.value}"
         )
 
         # Nodes should _all_ have the run and ran signals
