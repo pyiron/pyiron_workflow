@@ -74,6 +74,14 @@ class TestFunction(unittest.TestCase):
         )
         self.assertEqual(2, update.outputs.y.value)
 
+        default = Function(plus_one, "y")
+        self.assertEqual(
+            2,
+            default.outputs.y.value,
+            msg="Default behaviour should be to run on updates and update on "
+                "instantiation",
+        )
+
         with self.assertRaises(TypeError):
             run_without_value = Function(no_default, "z")
             run_without_value.run()
@@ -108,7 +116,7 @@ class TestFunction(unittest.TestCase):
         self.assertEqual(4, node2.outputs.y.value, msg="Initialize from connection")
 
     def test_automatic_updates(self):
-        node = Function(throw_error, "no_return", run_on_updates=True)
+        node = Function(throw_error, "no_return", update_on_instantiation=False)
 
         with self.subTest("Shouldn't run for invalid input on update"):
             node.inputs.x.update("not an int")
@@ -146,7 +154,7 @@ class TestFunction(unittest.TestCase):
         )
 
     def test_statuses(self):
-        n = Function(plus_one, "p1")
+        n = Function(plus_one, "p1", run_on_updates=False)
         self.assertTrue(n.ready)
         self.assertFalse(n.running)
         self.assertFalse(n.failed)
