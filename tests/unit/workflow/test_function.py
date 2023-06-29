@@ -25,7 +25,20 @@ def no_default(x, y):
 @unittest.skipUnless(version_info[0] == 3 and version_info[1] >= 10, "Only supported for 3.10+")
 class TestFunction(unittest.TestCase):
     def test_defaults(self):
-        Function(plus_one, "y")
+        with_defaults = Function(plus_one, "y")
+        self.assertEqual(
+            with_defaults.inputs.x.value,
+            1,
+            msg=f"Expected to get the default provided in the underlying function but "
+                f"got {with_defaults.inputs.x.value}",
+        )
+        without_defaults = Function(no_default, "sum_plus_one")
+        self.assertIs(
+            without_defaults.inputs.x.value,
+            NotData,
+            msg=f"Expected values with no default specified to start as {NotData} but "
+                f"got {without_defaults.inputs.x.value}",
+        )
 
     def test_failure_without_output_labels(self):
         with self.assertRaises(
