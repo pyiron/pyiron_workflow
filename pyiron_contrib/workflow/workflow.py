@@ -63,7 +63,7 @@ class Workflow(Composite):
         workflow (cf. the `Node` docs for more detail on the node types).
         Let's use these to explore a workflow's input and output, which are dynamically
         generated from the unconnected IO of its nodes:
-        >>> @Workflow.wrap_as.fast_node("y")
+        >>> @Workflow.wrap_as.function_node("y")
         >>> def plus_one(x: int = 0):
         ...     return x + 1
         >>>

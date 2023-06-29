@@ -6,7 +6,7 @@ import warnings
 from pyiron_contrib.workflow.channels import NotData
 from pyiron_contrib.workflow.files import DirectoryObject
 from pyiron_contrib.workflow.function import (
-    Fast, Function, SingleValue, function_node, single_value_node
+    Slow, Function, SingleValue, function_node, single_value_node
 )
 
 
@@ -235,12 +235,27 @@ class TestFunction(unittest.TestCase):
 
 
 @unittest.skipUnless(version_info[0] == 3 and version_info[1] >= 10, "Only supported for 3.10+")
-class TestFast(unittest.TestCase):
+class TestSlow(unittest.TestCase):
     def test_instantiation(self):
-        has_defaults_is_ok = Fast(plus_one, "y")
-
-        with self.assertRaises(ValueError):
-            missing_defaults_should_fail = Fast(no_default, "z")
+        slow = Slow(plus_one, "y")
+        self.assertIs(
+            slow.outputs.y.value,
+            NotData,
+            msg="Slow nodes should not run at instantiation",
+        )
+        slow.inputs.x = 10
+        self.assertIs(
+            slow.outputs.y.value,
+            NotData,
+            msg="Slow nodes should not run on updates",
+        )
+        slow.run()
+        self.assertEqual(
+            slow.outputs.y.value,
+            11,
+            msg=f"Slow nodes should still run when asked! Expected 11 but got "
+                f"{slow.outputs.y.value}"
+        )
 
 
 @unittest.skipUnless(version_info[0] == 3 and version_info[1] >= 10, "Only supported for 3.10+")

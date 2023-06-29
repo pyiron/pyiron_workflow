@@ -508,11 +508,12 @@ class Function(Node):
         }
 
 
-class Fast(Function):
+class Slow(Function):
     """
-    Like a regular node, but _all_ input channels _must_ have default values provided,
-    and the initialization signature forces `run_on_updates` and
-    `update_on_instantiation` to be `True`.
+    Like a regular node, but `run_on_updates` and `update_on_instantiation` default to
+    `False`.
+    This is intended for wrapping function which are potentially expensive to call,
+    where you don't want the output recomputed unless `run()` is _explicitly_ called.
     """
 
     def __init__(
@@ -520,12 +521,11 @@ class Fast(Function):
         node_function: callable,
         *output_labels: str,
         label: Optional[str] = None,
-        run_on_updates=True,
-        update_on_instantiation=True,
+        run_on_updates=False,
+        update_on_instantiation=False,
         parent: Optional[Workflow] = None,
         **kwargs,
     ):
-        self.ensure_params_have_defaults(node_function)
         super().__init__(
             node_function,
             *output_labels,
@@ -535,19 +535,6 @@ class Fast(Function):
             parent=parent,
             **kwargs,
         )
-
-    @classmethod
-    def ensure_params_have_defaults(cls, fnc: callable) -> None:
-        """Raise a `ValueError` if any parameters of the callable lack defaults."""
-        if any(
-            param.default == inspect._empty
-            for param in inspect.signature(fnc).parameters.values()
-        ):
-            raise ValueError(
-                f"{cls.__name__} requires all function parameters to have defaults, "
-                f"but {fnc.__name__} has the parameters "
-                f"{inspect.signature(fnc).parameters.values()}"
-            )
 
 
 class SingleValue(Function, HasChannel):
@@ -638,21 +625,22 @@ def function_node(*output_labels: str, **node_class_kwargs):
     return as_node
 
 
-def fast_node(*output_labels: str, **node_class_kwargs):
+def slow_node(*output_labels: str, **node_class_kwargs):
     """
-    A decorator for dynamically creating fast node classes from functions.
+    A decorator for dynamically creating slow node classes from functions.
 
-    Unlike normal nodes, fast nodes _must_ have default values set for all their inputs.
+    Unlike normal nodes, slow nodes do update themselves on initialization and do not
+    run themselves when they get updated -- i.e. they will not run when their input
+    changes, `run()` must be explicitly called.
     """
 
-    def as_fast_node(node_function: callable):
-        Fast.ensure_params_have_defaults(node_function)
+    def as_slow_node(node_function: callable):
         return type(
             node_function.__name__.title().replace("_", ""),  # fnc_name to CamelCase
-            (Fast,),  # Define parentage
+            (Slow,),  # Define parentage
             {
                 "__init__": partialmethod(
-                    Fast.__init__,
+                    Slow.__init__,
                     node_function,
                     *output_labels,
                     **node_class_kwargs,
@@ -660,7 +648,7 @@ def fast_node(*output_labels: str, **node_class_kwargs):
             },
         )
 
-    return as_fast_node
+    return as_slow_node
 
 
 def single_value_node(*output_labels: str, **node_class_kwargs):
