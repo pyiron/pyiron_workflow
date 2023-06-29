@@ -39,6 +39,11 @@ class TestFunction(unittest.TestCase):
             msg=f"Expected values with no default specified to start as {NotData} but "
                 f"got {without_defaults.inputs.x.value}",
         )
+        self.assertFalse(
+            without_defaults.ready,
+            msg="I guess we should test for behaviour and not implementation... Without"
+                "defaults, the node should not be ready!"
+        )
 
     def test_failure_without_output_labels(self):
         with self.assertRaises(
