@@ -314,7 +314,7 @@ class Function(Node):
         >>>     ...
         >>>     return x
 
-        For this function, you don't have a freedom to choose `self`, because
+        For this function, you don't have the freedom to choose `self`, because
         pyiron automatically sets the node object there (which is also the
         reason why you do not see `self` in the list of inputs).
     """
