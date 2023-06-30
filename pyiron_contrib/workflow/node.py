@@ -1,703 +1,263 @@
+"""
+A base class for objects that can form nodes in the graph representation of a
+computational workflow.
+"""
+
 from __future__ import annotations
 
-import inspect
-import warnings
-from functools import partialmethod
-from typing import get_args, get_type_hints, Optional, TYPE_CHECKING
+from abc import ABC, abstractmethod
+from typing import Optional, TYPE_CHECKING
 
-from pyiron_contrib.workflow.channels import InputData, OutputData
-from pyiron_contrib.workflow.has_channel import HasChannel
-from pyiron_contrib.workflow.io import Inputs, Outputs, Signals
-from pyiron_contrib.workflow.is_nodal import IsNodal
+from pyiron_contrib.workflow.files import DirectoryObject
+from pyiron_contrib.workflow.has_to_dict import HasToDict
+from pyiron_contrib.workflow.io import Signals, InputSignal, OutputSignal
 
 if TYPE_CHECKING:
+    from pyiron_base.jobs.job.extension.server.generic import Server
+
     from pyiron_contrib.workflow.composite import Composite
-    from pyiron_contrib.workflow.workflow import Workflow
+    from pyiron_contrib.workflow.io import Inputs, Outputs
 
 
-class Node(IsNodal):
+class Node(HasToDict, ABC):
     """
-    Nodes have input and output data channels that interface with the outside world, and
-    a callable that determines what they actually compute. After running, their output
-    channels are updated with the results of the node's computation, which
-    triggers downstream node updates if those output channels are connected to other
-    input channels.
+    Nodes are elements of a computational graph.
+    They have input and output data channels that interface with the outside
+    world, and a callable that determines what they actually compute, and input and 
+    output signal channels that can be used to customize the execution flow of the 
+    graph; 
+    Together these channels represent edges on the computational graph.
+    
+    Nodes can be run to force their computation, or more gently updated, which will 
+    trigger a run only if the `run_on_update` flag is set to true and all of the input
+    is ready (i.e. channel values conform to any type hints provided).
+    
+    Nodes may have a `parent` node that owns them as part of a sub-graph.  
+    
+    Every node must be named with a `label`, and may use this label to attempt to create
+    a working directory in memory for itself if requested.
+    These labels also help to identify nodes in the wider context of (potentially 
+    nested) computational graphs.
+    
+    By default, nodes' signals input comes with `run` and `ran` IO ports which force 
+    the `run()` method and which emit after `finish_run()` is completed, respectfully. 
+    
+    Nodes have a status, which is currently represented by the `running` and `failed` 
+    boolean flags.
+    Their value is controlled automatically in the defined `run` and `finish_run` 
+    methods.
 
-    An "update" is gentle and will only trigger the node to run if its run-on-update
-    flag is set to true and if its input is all ready -- i.e. having values matching
-    the type hints, and if it is not either already running or already failed.
+    This is an abstract class.
+    Children *must* define how `inputs` and `outputs` are constructed, and what will
+    happen `on_run`.
+    They may also override the `run_args` property to specify input passed to the
+    defined `on_run` method, and may add additional signal channels to the signals IO.
 
-    They also have input and output signal channels -- a run input and a ran output,
-    although these are extensible in child classes. Calling the run input signal
-    triggers the run method, and after running a signal is sent out on the ran output
-    signal channel. In this way, execution flow can be managed manually by connecting
-    signal channels. Be careful as the run input signal bypasses the checks for an
-    update and really forces a node to run with whatever data it currently has.
-
-    Signal channels cannot be connected to data channels.
-
-    Nodes won't update themselves while setting inputs to initial values, but can
-    optionally update themselves at the end instantiation.
-
-    Nodes must be instantiated with a callable to deterimine their function, and an
-    strings to name each returned value of that callable. (If you really want to return
-    a tuple, just have multiple return values but only one output label -- there is
-    currently no way to mix-and-match, i.e. to have multiple return values at least one
-    of which is a tuple.)
-
-    The node label (unless otherwise provided), IO types, and input defaults for the
-    node are produced _automatically_ from introspection of the node function.
-    Additional properties like storage priority (present but doesn't do anything yet)
-    and ontological type (not yet present) can be set using kwarg dictionaries with
-    keys corresponding to the channel labels (i.e. the node arguments of the node
-    function, or the output labels provided).
-
-    Actual node instances can either be instances of the base node class, in which case
-    the callable node function and output labels *must* be provided, in addition to
-    other data, OR they can be instances of children of this class.
-    Those children may define some or all of the node behaviour at the class level, and
-    modify their signature accordingly so this is not available for alteration by the
-    user, e.g. the node function and output labels may be hard-wired.
-
-    Args:
-        node_function (callable): The function determining the behaviour of the node.
-        *output_labels (str): A name for each return value of the node function.
-        label (str): The node's label. (Defaults to the node function's name.)
-        run_on_updates (bool): Whether to run when you are updated and all your
-            input is ready. (Default is False).
-        update_on_instantiation (bool): Whether to force an update at the end of
-            instantiation. (Default is False.)
-        channels_requiring_update_after_run (list[str]): All the input channels named
-            here will be set to `wait_for_update()` at the end of each node run, such
-            that they are not `ready` again until they have had their `.update` method
-            called. This can be used to create sets of input data _all_ of which must
-            be updated before the node is ready to produce output again. (Default is
-            None, which makes the list empty.)
-        **kwargs: Any additional keyword arguments whose keyword matches the label of an
-            input channel will have their value assigned to that channel.
+    # TODO: Everything with (de)serialization and executors for running on something
+    #       other than the main python process.
 
     Attributes:
-        inputs (Inputs): A collection of input data channels.
-        outputs (Outputs): A collection of output data channels.
-        signals (Signals): A holder for input and output collections of signal channels.
-        ready (bool): All input reports ready, not running or failed.
-        running (bool): Currently running.
-        failed (bool): An exception was thrown when executing the node function.
-        connected (bool): Any IO channel has at least one connection.
-        fully_connected (bool): Every IO channel has at least one connection.
+        connected (bool): Whether _any_ of the IO (including signals) are connected.
+        failed (bool): Whether the node raised an error calling `run`. (Default
+            is False.)
+        fully_connected (bool): whether _all_ of the IO (including signals) are
+            connected.
+        inputs (pyiron_contrib.workflow.io.Inputs): **Abstract.** Children must define
+            a property returning an `Inputs` object.
+        label (str): A name for the node.
+        outputs (pyiron_contrib.workflow.io.Outputs): **Abstract.** Children must define
+            a property returning an `Outputs` object.
+        parent (pyiron_contrib.workflow.composite.Composite | None): The parent object
+            owning this, if any.
+        ready (bool): Whether the inputs are all ready and the node is neither
+            already running nor already failed.
+        run_on_updates (bool): Whether to run when you are updated and all your input
+            is ready and your status does not prohibit running. (Default is False).
+        running (bool): Whether the node has called `run` and has not yet
+            received output from this call. (Default is False.)
+        server (Optional[pyiron_base.jobs.job.extension.server.generic.Server]): A
+            server object for computing things somewhere else. Default (and currently
+            _only_) behaviour is to compute things on the main python process owning
+            the node.
+        signals (pyiron_contrib.workflow.io.Signals): A container for input and output
+            signals, which are channels for controlling execution flow. By default, has
+            a `signals.inputs.run` channel which has a callback to the `run` method,
+            and `signals.outputs.ran` which should be called at when the `run` method
+            is finished.
+            Additional signal channels in derived classes can be added to
+            `signals.inputs` and  `signals.outputs` after this mixin class is
+            initialized.
 
     Methods:
-        update: If `run_on_updates` is true and all your input is ready, will
-            run the engine.
-        run: Parse and process the input, execute the engine, process the results and
-            update the output.
-        disconnect: Disconnect all data and signal IO connections.
-
-    Examples:
-        At the most basic level, to use nodes all we need to do is provide the `Node`
-        class with a function and labels for its output, like so:
-        >>> from pyiron_contrib.workflow.node import Node
-        >>>
-        >>> def mwe(x, y):
-        ...     return x+1, y-1
-        >>>
-        >>> plus_minus_1 = Node(mwe, "p1", "m1")
-        >>>
-        >>> print(plus_minus_1.outputs.p1)
-        None
-
-        There is no output because we haven't given our function any input, it has
-        no defaults, and we never ran it!
-
-        We'll run into a hiccup if we try to set only one of the inputs and update
-        >>> plus_minus_1.inputs.x = 1
-        >>> plus_minus_1.run()
-        TypeError
-
-        This is because the second input (y) still has no input value so we can't do the
-        sum.
-        Let's set the node to run automatically when its inputs are updated, then update
-        x and y.
-        >>> plus_minus_1.run_on_updates = True
-        >>> plus_minus_1.inputs.x = 2
-        TypeError
-
-        What happened here? Well, since we didn't offer any type hints for the function,
-        when updating the `x` value triggered the node update, it didn't see any
-        trouble with the other inputs and tried to run! First, let's provide a y-value
-        as well, then go back and see how to avoid this.
-        >>> plus_minus_1.inputs.y = 3
-        >>> plus_minus_1.outputs.to_value_dict()
-        {'p1': 3, 'm1': 2}
-
-        We can also, optionally, provide initial values for some or all of the input
-        >>> plus_minus_1 = Node(
-        ...     mwe, "p1", "m1",
-        ...     x=1,
-        ...     run_on_updates=True
-        )
-        >>> plus_minus_1.inputs.y = 2  # Automatically triggers an update call now
-        >>> plus_minus_1.outputs.to_value_dict()
-        {'p1': 2, 'm1': 1}
-
-        Finally, we might want the node to be ready-to-go right after instantiation.
-        To do this, we need to provide initial values for everything and set two flags:
-        >>> plus_minus_1 = Node(
-        ...     mwe, "p1", "m1",
-        ...     x=0, y=0,
-        ...     run_on_updates=True, update_on_instantiation=True
-        ... )
-        >>> plus_minus_1.outputs.to_value_dict()
-        {'p1': 1, 'm1': -1}
-
-        Another way to stop the node from running with bad input is to provide type
-        hints (and, optionally, default values) when defining the function the node
-        wraps. All of these get determined by inspection.
-
-        We can provide initial values for our node function at instantiation using our
-        kwargs.
-        The node update is deferred until _all_ of these initial values are processed.
-        Thus, the second solution is to ensure that _all_ the arguments of our function
-        are receiving good enough initial values to facilitate an execution of the node
-        function at the end of instantiation:
-        >>> plus_minus_1 = Node(mwe, "p1", "m1", x=1, y=2)
-        >>>
-        >>> print(plus_minus_1.outputs.to_value_dict())
-        {'p1': 2, 'm1': 1}
-
-        Second, we could add type hints/defaults to our function so that it knows better
-        than to try to evaluate itself with bad data.
-        Let's make a new node following the second path.
-
-        In this example, note the mixture of old-school (`typing.Union`) and new (`|`)
-        type hints as well as nested hinting with a union-type inside the tuple for the
-        return hint.
-        Our treatment of type hints is **not infinitely robust**, but covers a wide
-        variety of common use cases.
-        >>> from typing import Union
-        >>>
-        >>> def hinted_example(
-        ...     x: Union[int, float],
-        ...     y: int | float = 1
-        ... ) -> tuple[int, int | float]:
-        ...     return x+1, y-1
-        >>>
-        >>> plus_minus_1 = Node(
-        ...     hinted_example, "p1", "m1",
-        ...     run_on_updates=True, update_on_instantiation=True
-        ... )
-        >>> plus_minus_1.outputs.to_value_dict()
-        {'p1': None, 'm1': None}
-
-        Here we got an update automatically at the end of instantiation, but because
-        both values are type hinted this didn't result in any errors!
-        Still, we need to provide the rest of the input data in order to get results:
-
-        >>> plus_minus_1.inputs.x = 1
-        >>> plus_minus_1.outputs.to_value_dict()
-        {'p1': 2, 'm1': 0}
-
-        Note: the `FastNode(Node)` child class will enforce all function arguments to
-        be type-hinted and have defaults, and will automatically set the updating and
-        instantiation flags to `True` for nodes that execute quickly and are meant to
-        _always_ have good output data.
-
-        In these examples, we've instantiated nodes directly from the base `Node` class,
-        and populated their input directly with data.
-        In practice, these nodes are meant to be part of complex workflows; that means
-        both that you are likely to have particular nodes that get heavily re-used, and
-        that you need the nodes to pass data to each other.
-
-        For reusable nodes, we want to create a sub-class of `Node` that fixes some of
-        the node behaviour -- usually the `node_function` and `output_labels`.
-
-        This can be done most easily with the `node` decorator, which takes a function
-        and returns a node class:
-        >>> from pyiron_contrib.workflow.node import node
-        >>>
-        >>> @node(
-        ...     "p1", "m1",
-        ...     run_on_updates=True, update_on_instantiation=True
-        ... )
-        ... def my_mwe_node(
-        ...     x: int | float, y: int | float = 1
-        ... ) -> tuple[int | float, int | float]:
-        ...     return x+1, y-1
-        >>>
-        >>> node_instance = my_mwe_node(x=0)
-        >>> node_instance.outputs.to_value_dict()
-        {'p1': 1, 'm1': 0}
-
-        Where we've passed the output labels and class arguments to the decorator,
-        and inital values to the newly-created node class (`my_mwe_node`) at
-        instantiation.
-        Because we told it to run on updates and to update on instantation _and_ we
-        provided a good initial value for `x`, we get our result right away.
-
-        Using the decorator is the recommended way to create new node classes, but this
-        magic is just equivalent to these two more verbose ways of defining a new class.
-        The first is to override the `__init__` method directly:
-        >>> from typing import Literal, Optional
-        >>>
-        >>> class AlphabetModThree(Node):
-        ...     def __init__(
-        ...         self,
-        ...         label: Optional[str] = None,
-        ...         run_on_updates: bool = True,
-        ...         update_on_instantiation: bool = False,
-        ...         **kwargs
-        ...     ):
-        ...         super().__init__(
-        ...             self.alphabet_mod_three,
-        ...             "letter",
-        ...             labe=label,
-        ...             run_on_updates=run_on_updates,
-        ...             update_on_instantiation=update_on_instantiation,
-        ...             **kwargs
-        ...         )
-        ...
-        ...     @staticmethod
-        ...     def alphabet_mod_three(i: int) -> Literal["a", "b", "c"]:
-        ...         return ["a", "b", "c"][i % 3]
-
-        The second effectively does the same thing, but leverages python's
-        `functools.partialmethod` to do so much more succinctly.
-        In this example, note that the function is declared _before_ `__init__` is set,
-        so that it is available in the correct scope (above, we could place it
-        afterwards because we were accessing it through self).
-        >>> from functools import partialmethod
-        >>>
-        >>> class Adder(Node):
-        ...     @staticmethod
-        ...     def adder(x: int = 0, y: int = 0) -> int:
-        ...         return x + y
-        ...
-        ...     __init__ = partialmethod(
-        ...         Node.__init__,
-        ...         adder,
-        ...         "sum",
-        ...         run_on_updates=True,
-        ...         update_on_instantiation=True
-        ...     )
-
-        Finally, let's put it all together by using both of these nodes at once.
-        Instead of setting input to a particular data value, we'll set it to
-        be another node's output channel, thus forming a connection.
-        When we update the upstream node, we'll see the result passed downstream:
-        >>> adder = Adder()
-        >>> alpha = AlphabetModThree(i=adder.outputs.sum)
-        >>>
-        >>> adder.inputs.x = 1
-        >>> print(alpha.outputs.letter)
-        "b"
-        >>> adder.inputs.y = 1
-        >>> print(alpha.outputs.letter)
-        "c"
-        >>> adder.inputs.x = 0
-        >>> adder.inputs.y = 0
-        >>> print(alpha.outputs.letter)
-        "a"
-
-        To see more details on how to use many nodes together, look at the
-        `Workflow` class.
-
-    Comments:
-
-        If you use the function argument `self` in the first position, the
-        whole node object is inserted there:
-
-        >>> def with_self(self, x):
-        >>>     ...
-        >>>     return x
-
-        For this function, you don't have a freedom to choose `self`, because
-        pyiron automatically sets the node object there (which is also the
-        reason why you do not see `self` in the list of inputs).
+        disconnect: Remove all connections, including signals.
+        on_run: **Abstract.** Do the thing.
+        run: A wrapper to handle all the infrastructure around executing `on_run`.
     """
 
     def __init__(
-        self,
-        node_function: callable,
-        *output_labels: str,
-        label: Optional[str] = None,
-        run_on_updates: bool = False,
-        update_on_instantiation: bool = False,
-        channels_requiring_update_after_run: Optional[list[str]] = None,
-        parent: Optional[Composite] = None,
-        **kwargs,
+            self,
+            label: str,
+            *args,
+            parent: Optional[Composite] = None,
+            run_on_updates: bool = False,
+            **kwargs,
     ):
-        super().__init__(
-            label=label if label is not None else node_function.__name__,
-            parent=parent,
-            # **kwargs,
+        """
+        A mixin class for objects that can form nodes in the graph representation of a
+        computational workflow.
+
+        Args:
+            label (str): A name for this node.
+            *args: Arguments passed on with `super`.
+            **kwargs: Keyword arguments passed on with `super`.
+
+        TODO: Shouldn't `update_on_instantiation` and `run_on_updates` both live here??
+        """
+        super().__init__(*args, **kwargs)
+        self.label: str = label
+        self.parent = parent
+        if parent is not None:
+            parent.add(self)
+        self.running = False
+        self.failed = False
+        # TODO: Replace running and failed with a state object
+        self._server: Server | None = (
+            None  # Or "task_manager" or "executor" -- we'll see what's best
         )
-        if len(output_labels) == 0:
-            raise ValueError("Nodes must have at least one output label.")
-
-        self.node_function = node_function
-
-        self._inputs = None
-        self._outputs = None
-        self._output_labels = output_labels
-        # TODO: Parse output labels from the node function in case output_labels is None
-
+        # TODO: Move from a traditional "sever" to a tinybase "executor"
+        # TODO: Provide support for actually computing stuff with the server/executor
         self.signals = self._build_signal_channels()
-
-        self.channels_requiring_update_after_run = (
-            []
-            if channels_requiring_update_after_run is None
-            else channels_requiring_update_after_run
-        )
-        self._verify_that_channels_requiring_update_all_exist()
-
-        self.run_on_updates = False
-        # Temporarily disable running on updates to set all initial values at once
-        for k, v in kwargs.items():
-            if k in self.inputs.labels:
-                self.inputs[k] = v
-            elif k not in self._init_keywords:
-                warnings.warn(f"The keyword '{k}' was received but not used.")
-        self.run_on_updates = run_on_updates  # Restore provided value
-
-        if update_on_instantiation:
-            self.update()
+        self._working_directory = None
+        self.run_on_updates: bool = run_on_updates
 
     @property
-    def _input_args(self):
-        return inspect.signature(self.node_function).parameters
-
-    @property
+    @abstractmethod
     def inputs(self) -> Inputs:
-        if self._inputs is None:
-            self._inputs = Inputs(*self._build_input_channels())
-        return self._inputs
+        pass
 
     @property
+    @abstractmethod
     def outputs(self) -> Outputs:
-        if self._outputs is None:
-            self._outputs = Outputs(*self._build_output_channels(*self._output_labels))
-        return self._outputs
-
-    def _build_input_channels(self):
-        channels = []
-        type_hints = get_type_hints(self.node_function)
-
-        for ii, (label, value) in enumerate(self._input_args.items()):
-            is_self = False
-            if label == "self":  # `self` is reserved for the node object
-                if ii == 0:
-                    is_self = True
-                else:
-                    warnings.warn(
-                        "`self` is used as an argument but not in the first"
-                        " position, so it is treated as a normal function"
-                        " argument. If it is to be treated as the node object,"
-                        " use it as a first argument"
-                    )
-            if label in self._init_keywords:
-                # We allow users to parse arbitrary kwargs as channel initialization
-                # So don't let them choose bad channel names
-                raise ValueError(
-                    f"The Input channel name {label} is not valid. Please choose a "
-                    f"name _not_ among {self._init_keywords}"
-                )
-
-            try:
-                type_hint = type_hints[label]
-                if is_self:
-                    warnings.warn("type hint for self ignored")
-            except KeyError:
-                type_hint = None
-
-            default = None
-            if value.default is not inspect.Parameter.empty:
-                if is_self:
-                    warnings.warn("default value for self ignored")
-                else:
-                    default = value.default
-
-            if not is_self:
-                channels.append(
-                    InputData(
-                        label=label,
-                        node=self,
-                        default=default,
-                        type_hint=type_hint,
-                    )
-                )
-        return channels
+        pass
 
     @property
-    def _init_keywords(self):
-        return list(inspect.signature(self.__init__).parameters.keys())
-
-    def _build_output_channels(self, *return_labels: str):
-        try:
-            type_hints = get_type_hints(self.node_function)["return"]
-            if len(return_labels) > 1:
-                type_hints = get_args(type_hints)
-                if not isinstance(type_hints, tuple):
-                    raise TypeError(
-                        f"With multiple return labels expected to get a tuple of type "
-                        f"hints, but got type {type(type_hints)}"
-                    )
-                if len(type_hints) != len(return_labels):
-                    raise ValueError(
-                        f"Expected type hints and return labels to have matching "
-                        f"lengths, but got {len(type_hints)} hints and "
-                        f"{len(return_labels)} labels: {type_hints}, {return_labels}"
-                    )
-            else:
-                # If there's only one hint, wrap it in a tuple so we can zip it with
-                # *return_labels and iterate over both at once
-                type_hints = (type_hints,)
-        except KeyError:
-            type_hints = [None] * len(return_labels)
-
-        channels = []
-        for label, hint in zip(return_labels, type_hints):
-            channels.append(
-                OutputData(
-                    label=label,
-                    node=self,
-                    type_hint=hint,
-                )
-            )
-
-        return channels
-
-    def _verify_that_channels_requiring_update_all_exist(self):
-        if not all(
-            channel_name in self.inputs.labels
-            for channel_name in self.channels_requiring_update_after_run
-        ):
-            raise ValueError(
-                f"On or more channel name among those listed as requiring updates "
-                f"after the node runs ({self.channels_requiring_update_after_run}) was "
-                f"not found among the input channels ({self.inputs.labels})"
-            )
-
-    @property
-    def on_run(self):
-        return self.node_function
+    @abstractmethod
+    def on_run(self) -> callable[..., tuple]:
+        """
+        What the node actually does!
+        """
+        pass
 
     @property
     def run_args(self) -> dict:
-        kwargs = self.inputs.to_value_dict()
-        if "self" in self._input_args:
-            kwargs["self"] = self
-        return kwargs
-
-    def process_run_result(self, function_output):
         """
-        Take the results of the node function, and use them to update the node output.
+        Any data needed for `on_run`, will be passed as **kwargs.
+        """
+        return {}
+
+    def process_run_result(self, run_output: tuple) -> None:
+        """
+        What to _do_ with the results of `on_run` once you have them.
+
+        Args:
+            run_output (tuple): The results of a `self.on_run(self.run_args)` call.
+        """
+        pass
+
+    def run(self) -> None:
+        """
+        Executes the functionality of the node defined in `on_run`.
+        Handles the status of the node, and communicating with any remote
+        computing resources.
+        """
+        if self.running:
+            raise RuntimeError(f"{self.label} is already running")
+
+        self.running = True
+        self.failed = False
+
+        if self.server is None:
+            try:
+                run_output = self.on_run(**self.run_args)
+            except Exception as e:
+                self.running = False
+                self.failed = True
+                raise e
+            self.finish_run(run_output)
+        else:
+            raise NotImplementedError(
+                "We currently only support executing the node functionality right on "
+                "the main python process that the node instance lives on. Come back "
+                "later for cool new features."
+            )
+            # TODO: Send the `on_run` callable and the `run_args` data off to remote
+            #       resources and register `finish_run` as a callback.
+
+    def finish_run(self, run_output: tuple):
+        """
+        Process the run result, then wrap up statuses etc.
 
         By extracting this as a separate method, we allow the node to pass the actual
         execution off to another entity and release the python process to do other
         things. In such a case, this function should be registered as a callback
-        so that the node can finishing "running" and push its data forward when that
+        so that the node can finish "running" and, e.g. push its data forward when that
         execution is finished.
         """
-        for channel_name in self.channels_requiring_update_after_run:
-            self.inputs[channel_name].wait_for_update()
+        try:
+            self.process_run_result(run_output)
+        except Exception as e:
+            self.running = False
+            self.failed = True
+            raise e
 
-        if len(self.outputs) == 1:
-            function_output = (function_output,)
+        self.signals.output.ran()
+        self.running = False
 
-        for out, value in zip(self.outputs, function_output):
-            out.update(value)
+    def _build_signal_channels(self) -> Signals:
+        signals = Signals()
+        signals.input.run = InputSignal("run", self, self.run)
+        signals.output.ran = OutputSignal("ran", self)
+        return signals
 
-    def __call__(self) -> None:
-        self.run()
-
-    def to_dict(self):
-        return {
-            "label": self.label,
-            "ready": self.ready,
-            "connected": self.connected,
-            "fully_connected": self.fully_connected,
-            "inputs": self.inputs.to_dict(),
-            "outputs": self.outputs.to_dict(),
-            "signals": self.signals.to_dict(),
-        }
-
-
-class FastNode(Node):
-    """
-    Like a regular node, but _all_ input channels _must_ have default values provided,
-    and the initialization signature forces `run_on_updates` and
-    `update_on_instantiation` to be `True`.
-    """
-
-    def __init__(
-        self,
-        node_function: callable,
-        *output_labels: str,
-        label: Optional[str] = None,
-        run_on_updates=True,
-        update_on_instantiation=True,
-        parent: Optional[Workflow] = None,
-        **kwargs,
-    ):
-        self.ensure_params_have_defaults(node_function)
-        super().__init__(
-            node_function,
-            *output_labels,
-            label=label,
-            run_on_updates=run_on_updates,
-            update_on_instantiation=update_on_instantiation,
-            parent=parent,
-            **kwargs,
-        )
-
-    @classmethod
-    def ensure_params_have_defaults(cls, fnc: callable) -> None:
-        """Raise a `ValueError` if any parameters of the callable lack defaults."""
-        if any(
-            param.default == inspect._empty
-            for param in inspect.signature(fnc).parameters.values()
-        ):
-            raise ValueError(
-                f"{cls.__name__} requires all function parameters to have defaults, "
-                f"but {fnc.__name__} has the parameters "
-                f"{inspect.signature(fnc).parameters.values()}"
-            )
-
-
-class SingleValueNode(FastNode, HasChannel):
-    """
-    A fast node that _must_ return only a single value.
-
-    Attribute and item access is modified to finally attempt access on the output value.
-    """
-
-    def __init__(
-        self,
-        node_function: callable,
-        *output_labels: str,
-        label: Optional[str] = None,
-        run_on_updates=True,
-        update_on_instantiation=True,
-        parent: Optional[Workflow] = None,
-        **kwargs,
-    ):
-        self.ensure_there_is_only_one_return_value(output_labels)
-        super().__init__(
-            node_function,
-            *output_labels,
-            label=label,
-            run_on_updates=run_on_updates,
-            update_on_instantiation=update_on_instantiation,
-            parent=parent,
-            **kwargs,
-        )
-
-    @classmethod
-    def ensure_there_is_only_one_return_value(cls, output_labels):
-        if len(output_labels) > 1:
-            raise ValueError(
-                f"{cls.__name__} must only have a single return value, but got "
-                f"multiple output labels: {output_labels}"
-            )
+    def update(self) -> None:
+        if self.run_on_updates and self.ready:
+            self.run()
 
     @property
-    def single_value(self):
-        return self.outputs[self.outputs.labels[0]].value
+    def working_directory(self):
+        if self._working_directory is None:
+            if self.parent is not None and hasattr(self.parent, "working_directory"):
+                parent_dir = self.parent.working_directory
+                self._working_directory = parent_dir.create_subdirectory(self.label)
+            else:
+                self._working_directory = DirectoryObject(self.label)
+        return self._working_directory
 
     @property
-    def channel(self) -> OutputData:
-        """The channel for the single output"""
-        return list(self.outputs.channel_dict.values())[0]
+    def server(self) -> Server | None:
+        return self._server
 
-    def __getitem__(self, item):
-        return self.single_value.__getitem__(item)
+    @server.setter
+    def server(self, server: Server | None):
+        self._server = server
 
-    def __getattr__(self, item):
-        return getattr(self.single_value, item)
+    def disconnect(self):
+        self.inputs.disconnect()
+        self.outputs.disconnect()
+        self.signals.disconnect()
 
-    def __repr__(self):
-        return self.single_value.__repr__()
+    @property
+    def ready(self) -> bool:
+        return not (self.running or self.failed) and self.inputs.ready
 
-    def __str__(self):
-        return f"{self.label} ({self.__class__.__name__}) output single-value: " + str(
-            self.single_value
+    @property
+    def connected(self) -> bool:
+        return self.inputs.connected or self.outputs.connected or self.signals.connected
+
+    @property
+    def fully_connected(self):
+        return (
+            self.inputs.fully_connected
+            and self.outputs.fully_connected
+            and self.signals.fully_connected
         )
-
-
-def node(*output_labels: str, **node_class_kwargs):
-    """
-    A decorator for dynamically creating node classes from functions.
-
-    Decorates a function.
-    Takes an output label for each returned value of the function.
-    Returns a `Node` subclass whose name is the camel-case version of the function node,
-    and whose signature is modified to exclude the node function and output labels
-    (which are explicitly defined in the process of using the decorator).
-    """
-
-    def as_node(node_function: callable):
-        return type(
-            node_function.__name__.title().replace("_", ""),  # fnc_name to CamelCase
-            (Node,),  # Define parentage
-            {
-                "__init__": partialmethod(
-                    Node.__init__,
-                    node_function,
-                    *output_labels,
-                    **node_class_kwargs,
-                )
-            },
-        )
-
-    return as_node
-
-
-def fast_node(*output_labels: str, **node_class_kwargs):
-    """
-    A decorator for dynamically creating fast node classes from functions.
-
-    Unlike normal nodes, fast nodes _must_ have default values set for all their inputs.
-    """
-
-    def as_fast_node(node_function: callable):
-        FastNode.ensure_params_have_defaults(node_function)
-        return type(
-            node_function.__name__.title().replace("_", ""),  # fnc_name to CamelCase
-            (FastNode,),  # Define parentage
-            {
-                "__init__": partialmethod(
-                    FastNode.__init__,
-                    node_function,
-                    *output_labels,
-                    **node_class_kwargs,
-                )
-            },
-        )
-
-    return as_fast_node
-
-
-def single_value_node(*output_labels: str, **node_class_kwargs):
-    """
-    A decorator for dynamically creating fast node classes from functions.
-
-    Unlike normal nodes, fast nodes _must_ have default values set for all their inputs.
-    """
-
-    def as_single_value_node(node_function: callable):
-        SingleValueNode.ensure_there_is_only_one_return_value(output_labels)
-        SingleValueNode.ensure_params_have_defaults(node_function)
-        return type(
-            node_function.__name__.title().replace("_", ""),  # fnc_name to CamelCase
-            (SingleValueNode,),  # Define parentage
-            {
-                "__init__": partialmethod(
-                    SingleValueNode.__init__,
-                    node_function,
-                    *output_labels,
-                    **node_class_kwargs,
-                )
-            },
-        )
-
-    return as_single_value_node

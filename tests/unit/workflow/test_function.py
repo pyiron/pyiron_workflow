@@ -3,9 +3,10 @@ from sys import version_info
 from typing import Optional, Union
 import warnings
 
+from pyiron_contrib.workflow.channels import NotData
 from pyiron_contrib.workflow.files import DirectoryObject
-from pyiron_contrib.workflow.node import (
-    FastNode, Node, SingleValueNode, node, single_value_node
+from pyiron_contrib.workflow.function import (
+    Slow, Function, SingleValue, function_node, single_value_node
 )
 
 
@@ -22,27 +23,50 @@ def no_default(x, y):
 
 
 @unittest.skipUnless(version_info[0] == 3 and version_info[1] >= 10, "Only supported for 3.10+")
-class TestNode(unittest.TestCase):
+class TestFunction(unittest.TestCase):
     def test_defaults(self):
-        Node(plus_one, "y")
+        with_defaults = Function(plus_one, "y")
+        self.assertEqual(
+            with_defaults.inputs.x.value,
+            1,
+            msg=f"Expected to get the default provided in the underlying function but "
+                f"got {with_defaults.inputs.x.value}",
+        )
+        without_defaults = Function(no_default, "sum_plus_one")
+        self.assertIs(
+            without_defaults.inputs.x.value,
+            NotData,
+            msg=f"Expected values with no default specified to start as {NotData} but "
+                f"got {without_defaults.inputs.x.value}",
+        )
+        self.assertFalse(
+            without_defaults.ready,
+            msg="I guess we should test for behaviour and not implementation... Without"
+                "defaults, the node should not be ready!"
+        )
 
     def test_failure_without_output_labels(self):
         with self.assertRaises(
                 ValueError,
                 msg="Instantiated nodes should demand at least one output label"
         ):
-            Node(plus_one)
+            Function(plus_one)
 
     def test_instantiation_update(self):
-        no_update = Node(
+        no_update = Function(
             plus_one,
             "y",
             run_on_updates=True,
             update_on_instantiation=False
         )
-        self.assertIsNone(no_update.outputs.y.value)
+        self.assertIs(
+            no_update.outputs.y.value,
+            NotData,
+            msg=f"Expected the output to be in its initialized and not-updated NotData "
+                f"state, but got {no_update.outputs.y.value}"
+        )
 
-        update = Node(
+        update = Function(
             plus_one,
             "y",
             run_on_updates=True,
@@ -50,17 +74,25 @@ class TestNode(unittest.TestCase):
         )
         self.assertEqual(2, update.outputs.y.value)
 
+        default = Function(plus_one, "y")
+        self.assertEqual(
+            2,
+            default.outputs.y.value,
+            msg="Default behaviour should be to run on updates and update on "
+                "instantiation",
+        )
+
         with self.assertRaises(TypeError):
-            run_without_value = Node(no_default, "z")
+            run_without_value = Function(no_default, "z")
             run_without_value.run()
             # None + None + 1 -> error
 
         with self.assertRaises(TypeError):
-            run_without_value = Node(no_default, "z", x=1)
+            run_without_value = Function(no_default, "z", x=1)
             run_without_value.run()
             # 1 + None + 1 -> error
 
-        deferred_update = Node(no_default, "z", x=1, y=1)
+        deferred_update = Function(no_default, "z", x=1, y=1)
         deferred_update.run()
         self.assertEqual(
             deferred_update.outputs.z.value,
@@ -70,21 +102,15 @@ class TestNode(unittest.TestCase):
         )
 
     def test_input_kwargs(self):
-        node = Node(
-            plus_one,
-            "y",
-            x=2,
-            run_on_updates=True,
-            update_on_instantiation=True
-        )
+        node = Function(plus_one, "y", x=2)
         self.assertEqual(3, node.outputs.y.value, msg="Initialize from value")
 
-        node2 = Node(plus_one, "y", x=node.outputs.y, run_on_updates=True)
+        node2 = Function(plus_one, "y", x=node.outputs.y)
         node.update()
         self.assertEqual(4, node2.outputs.y.value, msg="Initialize from connection")
 
     def test_automatic_updates(self):
-        node = Node(throw_error, "no_return", run_on_updates=True)
+        node = Function(throw_error, "no_return", update_on_instantiation=False)
 
         with self.subTest("Shouldn't run for invalid input on update"):
             node.inputs.x.update("not an int")
@@ -94,11 +120,11 @@ class TestNode(unittest.TestCase):
                 node.inputs.x.update(1)
 
     def test_signals(self):
-        @node("y")
+        @function_node("y")
         def linear(x):
             return x
 
-        @node("z")
+        @function_node("z")
         def times_two(y):
             return 2 * y
 
@@ -106,9 +132,11 @@ class TestNode(unittest.TestCase):
         t2 = times_two(
             update_on_instantiation=False, run_automatically=False, y=l.outputs.y
         )
-        self.assertIsNone(
+        self.assertIs(
             t2.outputs.z.value,
-            msg="Without updates, the output should initially be None"
+            NotData,
+            msg=f"Without updates, expected the output to be {NotData} but got "
+                f"{t2.outputs.z.value}"
         )
 
         # Nodes should _all_ have the run and ran signals
@@ -120,7 +148,7 @@ class TestNode(unittest.TestCase):
         )
 
     def test_statuses(self):
-        n = Node(plus_one, "p1")
+        n = Function(plus_one, "p1", run_on_updates=False)
         self.assertTrue(n.ready)
         self.assertFalse(n.running)
         self.assertFalse(n.failed)
@@ -172,7 +200,7 @@ class TestNode(unittest.TestCase):
                 self.some_counter = 1
             return x + 0.1
 
-        node = Node(with_self, "output")
+        node = Function(with_self, "output")
         self.assertTrue(
             "x" in node.inputs.labels,
             msg=f"Expected to find function input 'x' in the node input but got "
@@ -193,35 +221,50 @@ class TestNode(unittest.TestCase):
         self.assertEqual(
             node.some_counter,
             1,
-            msg="Node functions should be able to modify attributes on the node object."
+            msg="Function functions should be able to modify attributes on the node object."
         )
 
         def with_messed_self(x: float, self) -> float:
             return x + 0.1
 
         with warnings.catch_warnings(record=True) as warning_list:
-            node = Node(with_messed_self, "output")
+            node = Function(with_messed_self, "output")
             self.assertTrue("self" in node.inputs.labels)
 
         self.assertEqual(len(warning_list), 1)
 
 
 @unittest.skipUnless(version_info[0] == 3 and version_info[1] >= 10, "Only supported for 3.10+")
-class TestFastNode(unittest.TestCase):
+class TestSlow(unittest.TestCase):
     def test_instantiation(self):
-        has_defaults_is_ok = FastNode(plus_one, "y")
-
-        with self.assertRaises(ValueError):
-            missing_defaults_should_fail = FastNode(no_default, "z")
+        slow = Slow(plus_one, "y")
+        self.assertIs(
+            slow.outputs.y.value,
+            NotData,
+            msg="Slow nodes should not run at instantiation",
+        )
+        slow.inputs.x = 10
+        self.assertIs(
+            slow.outputs.y.value,
+            NotData,
+            msg="Slow nodes should not run on updates",
+        )
+        slow.run()
+        self.assertEqual(
+            slow.outputs.y.value,
+            11,
+            msg=f"Slow nodes should still run when asked! Expected 11 but got "
+                f"{slow.outputs.y.value}"
+        )
 
 
 @unittest.skipUnless(version_info[0] == 3 and version_info[1] >= 10, "Only supported for 3.10+")
-class TestSingleValueNode(unittest.TestCase):
+class TestSingleValue(unittest.TestCase):
     def test_instantiation(self):
-        has_defaults_and_one_return = SingleValueNode(plus_one, "y")
+        has_defaults_and_one_return = SingleValue(plus_one, "y")
 
         with self.assertRaises(ValueError):
-            too_many_labels = SingleValueNode(plus_one, "z", "excess_label")
+            too_many_labels = SingleValue(plus_one, "z", "excess_label")
 
     def test_item_and_attribute_access(self):
         class Foo:
@@ -237,7 +280,7 @@ class TestSingleValueNode(unittest.TestCase):
         def returns_foo() -> Foo:
             return Foo()
 
-        svn = SingleValueNode(returns_foo, "foo")
+        svn = SingleValue(returns_foo, "foo")
 
         self.assertEqual(
             svn.some_attribute,
@@ -267,24 +310,24 @@ class TestSingleValueNode(unittest.TestCase):
         )
 
     def test_repr(self):
-        svn = SingleValueNode(plus_one, "y")
+        svn = SingleValue(plus_one, "y")
         self.assertEqual(
             svn.__repr__(), svn.outputs.y.value.__repr__(),
             msg="SingleValueNodes should have their output as their representation"
         )
 
     def test_str(self):
-        svn = SingleValueNode(plus_one, "y")
+        svn = SingleValue(plus_one, "y")
         self.assertTrue(
             str(svn).endswith(str(svn.single_value)),
             msg="SingleValueNodes should have their output as a string in their string "
                 "representation (e.g., perhaps with a reminder note that this is "
-                "actually still a Node and not just the value you're seeing.)"
+                "actually still a Function and not just the value you're seeing.)"
         )
 
     def test_easy_output_connection(self):
-        svn = SingleValueNode(plus_one, "y")
-        regular = Node(plus_one, "y")
+        svn = SingleValue(plus_one, "y")
+        regular = Function(plus_one, "y")
 
         regular.inputs.x = svn
 
@@ -297,14 +340,14 @@ class TestSingleValueNode(unittest.TestCase):
         regular.run()
         self.assertEqual(
             regular.outputs.y.value, 3,
-            msg="SingleValueNode connections should pass data just like usual; in this "
+            msg="SingleValue connections should pass data just like usual; in this "
                 "case default->plus_one->plus_one = 1 + 1 +1 = 3"
         )
 
-        at_instantiation = Node(plus_one, "y", x=svn)
+        at_instantiation = Function(plus_one, "y", x=svn)
         self.assertIn(
             svn.outputs.y, at_instantiation.inputs.x.connections,
-            msg="The parsing of SingleValueNode output as a connection should also work"
+            msg="The parsing of SingleValue output as a connection should also work"
                 "from assignment at instantiation"
         )
 
@@ -361,7 +404,7 @@ class TestSingleValueNode(unittest.TestCase):
         )
 
     def test_working_directory(self):
-        n_f = Node(plus_one, "output")
+        n_f = Function(plus_one, "output")
         self.assertTrue(n_f._working_directory is None)
         self.assertIsInstance(n_f.working_directory, DirectoryObject)
         self.assertTrue(str(n_f.working_directory.path).endswith(n_f.label))

@@ -37,8 +37,8 @@ class NodePackage(DotDict):
             )
         if not isinstance(value, type) or not issubclass(value, Node):
             raise TypeError(
-                f"Can only set members that are (sub)classes of  {Node.__name__}, but "
-                f"got {type(value)}"
+                f"Can only set members that are (sub)classes of  {Node.__name__}, "
+                f"but got {type(value)}"
             )
         super().__setitem__(key, value)
 

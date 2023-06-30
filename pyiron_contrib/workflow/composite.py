@@ -10,8 +10,10 @@ from functools import partial
 from typing import Optional
 from warnings import warn
 
-from pyiron_contrib.workflow.is_nodal import IsNodal
-from pyiron_contrib.workflow.node import Node, node, fast_node, single_value_node
+from pyiron_contrib.workflow.node import Node
+from pyiron_contrib.workflow.function import (
+    Function, SingleValue, Slow, function_node, slow_node, single_value_node
+)
 from pyiron_contrib.workflow.node_library import atomistics, standard
 from pyiron_contrib.workflow.node_library.package import NodePackage
 from pyiron_contrib.workflow.util import DotDict
@@ -20,12 +22,12 @@ from pyiron_contrib.workflow.util import DotDict
 class _NodeDecoratorAccess:
     """An intermediate container to store node-creating decorators as class methods."""
 
-    node = node
-    fast_node = fast_node
+    function_node = function_node
+    slow_node = slow_node
     single_value_node = single_value_node
 
 
-class Composite(IsNodal, ABC):
+class Composite(Node, ABC):
     """
     A base class for nodes that have internal structure -- i.e. they hold a sub-graph.
 
@@ -48,16 +50,19 @@ class Composite(IsNodal, ABC):
     requirement is still passed on to children.
 
     Attributes:
-        nodes (DotDict[Node]): The owned nodes that form the composite subgraph.
+        nodes (DotDict[pyiron_contrib.workflow.node,Node]): The owned nodes that
+         form the composite subgraph.
         strict_naming (bool): When true, repeated assignment of a new node to an
          existing node label will raise an error, otherwise the label gets appended
          with an index and the assignment proceeds. (Default is true: disallow assigning
          to existing labels.)
         add (NodeAdder): A tool for adding new nodes to this subgraph.
-        upstream_nodes (list[Node]): All the owned nodes that have output connections
-         but no input connections, i.e. the upstream-most nodes.
-        starting_nodes (None | list[Node]): A subset of the owned nodes to be used on
-         running. (Default is None, running falls back on using the `upstream_nodes`.)
+        upstream_nodes (list[pyiron_contrib.workflow.node,Node]): All the owned
+         nodes that have output connections but no input connections, i.e. the
+         upstream-most nodes.
+        starting_nodes (None | list[pyiron_contrib.workflow.node,Node]): A subset
+         of the owned nodes to be used on running. (Default is None, running falls back
+         on using the `upstream_nodes`.)
 
     Methods:
         add(node: Node): Add the node instance to this subgraph.
@@ -78,7 +83,7 @@ class Composite(IsNodal, ABC):
     ):
         super().__init__(*args, label=label, parent=parent, **kwargs)
         self.strict_naming: bool = strict_naming
-        self.nodes: DotDict[str: IsNodal] = DotDict()
+        self.nodes: DotDict[str: Node] = DotDict()
         self.add: NodeAdder = NodeAdder(self)
         self.starting_nodes: None | list[Node] = None
 
@@ -89,7 +94,7 @@ class Composite(IsNodal, ABC):
         }
 
     @property
-    def upstream_nodes(self) -> list[IsNodal]:
+    def upstream_nodes(self) -> list[Node]:
         return [
             node for node in self.nodes.values()
             if node.outputs.connected and not node.inputs.connected
@@ -222,12 +227,14 @@ class NodeAdder:
         self.register_nodes("atomistics", *atomistics.nodes)
         self.register_nodes("standard", *standard.nodes)
 
-    Node = Node
+    Function = Function
+    Slow = Slow
+    SingleValue = SingleValue
 
     def __getattribute__(self, key):
         value = super().__getattribute__(key)
-        if value == Node:
-            return partial(Node, parent=self._parent)
+        if value == Function:
+            return partial(Function, parent=self._parent)
         return value
 
     def __call__(self, node: Node):
