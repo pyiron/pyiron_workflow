@@ -3,9 +3,10 @@ from sys import version_info
 from typing import Optional, Union
 import warnings
 
+from pyiron_contrib.workflow.channels import NotData
 from pyiron_contrib.workflow.files import DirectoryObject
 from pyiron_contrib.workflow.function import (
-    Fast, Function, SingleValue, function_node, single_value_node
+    Slow, Function, SingleValue, function_node, single_value_node
 )
 
 
@@ -24,7 +25,25 @@ def no_default(x, y):
 @unittest.skipUnless(version_info[0] == 3 and version_info[1] >= 10, "Only supported for 3.10+")
 class TestFunction(unittest.TestCase):
     def test_defaults(self):
-        Function(plus_one, "y")
+        with_defaults = Function(plus_one, "y")
+        self.assertEqual(
+            with_defaults.inputs.x.value,
+            1,
+            msg=f"Expected to get the default provided in the underlying function but "
+                f"got {with_defaults.inputs.x.value}",
+        )
+        without_defaults = Function(no_default, "sum_plus_one")
+        self.assertIs(
+            without_defaults.inputs.x.value,
+            NotData,
+            msg=f"Expected values with no default specified to start as {NotData} but "
+                f"got {without_defaults.inputs.x.value}",
+        )
+        self.assertFalse(
+            without_defaults.ready,
+            msg="I guess we should test for behaviour and not implementation... Without"
+                "defaults, the node should not be ready!"
+        )
 
     def test_failure_without_output_labels(self):
         with self.assertRaises(
@@ -40,7 +59,12 @@ class TestFunction(unittest.TestCase):
             run_on_updates=True,
             update_on_instantiation=False
         )
-        self.assertIsNone(no_update.outputs.y.value)
+        self.assertIs(
+            no_update.outputs.y.value,
+            NotData,
+            msg=f"Expected the output to be in its initialized and not-updated NotData "
+                f"state, but got {no_update.outputs.y.value}"
+        )
 
         update = Function(
             plus_one,
@@ -49,6 +73,14 @@ class TestFunction(unittest.TestCase):
             update_on_instantiation=True
         )
         self.assertEqual(2, update.outputs.y.value)
+
+        default = Function(plus_one, "y")
+        self.assertEqual(
+            2,
+            default.outputs.y.value,
+            msg="Default behaviour should be to run on updates and update on "
+                "instantiation",
+        )
 
         with self.assertRaises(TypeError):
             run_without_value = Function(no_default, "z")
@@ -70,21 +102,15 @@ class TestFunction(unittest.TestCase):
         )
 
     def test_input_kwargs(self):
-        node = Function(
-            plus_one,
-            "y",
-            x=2,
-            run_on_updates=True,
-            update_on_instantiation=True
-        )
+        node = Function(plus_one, "y", x=2)
         self.assertEqual(3, node.outputs.y.value, msg="Initialize from value")
 
-        node2 = Function(plus_one, "y", x=node.outputs.y, run_on_updates=True)
+        node2 = Function(plus_one, "y", x=node.outputs.y)
         node.update()
         self.assertEqual(4, node2.outputs.y.value, msg="Initialize from connection")
 
     def test_automatic_updates(self):
-        node = Function(throw_error, "no_return", run_on_updates=True)
+        node = Function(throw_error, "no_return", update_on_instantiation=False)
 
         with self.subTest("Shouldn't run for invalid input on update"):
             node.inputs.x.update("not an int")
@@ -106,9 +132,11 @@ class TestFunction(unittest.TestCase):
         t2 = times_two(
             update_on_instantiation=False, run_automatically=False, y=l.outputs.y
         )
-        self.assertIsNone(
+        self.assertIs(
             t2.outputs.z.value,
-            msg="Without updates, the output should initially be None"
+            NotData,
+            msg=f"Without updates, expected the output to be {NotData} but got "
+                f"{t2.outputs.z.value}"
         )
 
         # Nodes should _all_ have the run and ran signals
@@ -120,7 +148,7 @@ class TestFunction(unittest.TestCase):
         )
 
     def test_statuses(self):
-        n = Function(plus_one, "p1")
+        n = Function(plus_one, "p1", run_on_updates=False)
         self.assertTrue(n.ready)
         self.assertFalse(n.running)
         self.assertFalse(n.failed)
@@ -207,12 +235,27 @@ class TestFunction(unittest.TestCase):
 
 
 @unittest.skipUnless(version_info[0] == 3 and version_info[1] >= 10, "Only supported for 3.10+")
-class TestFast(unittest.TestCase):
+class TestSlow(unittest.TestCase):
     def test_instantiation(self):
-        has_defaults_is_ok = Fast(plus_one, "y")
-
-        with self.assertRaises(ValueError):
-            missing_defaults_should_fail = Fast(no_default, "z")
+        slow = Slow(plus_one, "y")
+        self.assertIs(
+            slow.outputs.y.value,
+            NotData,
+            msg="Slow nodes should not run at instantiation",
+        )
+        slow.inputs.x = 10
+        self.assertIs(
+            slow.outputs.y.value,
+            NotData,
+            msg="Slow nodes should not run on updates",
+        )
+        slow.run()
+        self.assertEqual(
+            slow.outputs.y.value,
+            11,
+            msg=f"Slow nodes should still run when asked! Expected 11 but got "
+                f"{slow.outputs.y.value}"
+        )
 
 
 @unittest.skipUnless(version_info[0] == 3 and version_info[1] >= 10, "Only supported for 3.10+")

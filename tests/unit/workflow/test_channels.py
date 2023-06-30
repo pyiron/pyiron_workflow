@@ -2,7 +2,7 @@ from unittest import TestCase, skipUnless
 from sys import version_info
 
 from pyiron_contrib.workflow.channels import (
-    InputData, OutputData, InputSignal, OutputSignal
+    InputData, OutputData, InputSignal, OutputSignal, NotData
 )
 
 
@@ -100,6 +100,20 @@ class TestDataChannels(TestCase):
         )
 
     def test_ready(self):
+        with self.subTest("Test defaults and not-data"):
+            without_default = InputData(label="without_default", node=DummyNode())
+            self.assertIs(
+                without_default.value,
+                NotData,
+                msg=f"Without a default, spec is to have a NotData value but got "
+                    f"{type(without_default.value)}"
+            )
+            self.assertFalse(
+                without_default.ready,
+                msg="Even without type hints, readiness should be false when the value"
+                    "is NotData"
+            )
+
         self.ni1.value = 1
         self.assertTrue(self.ni1.ready)
 

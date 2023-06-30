@@ -109,7 +109,7 @@ class TestWorkflow(unittest.TestCase):
             self.assertEqual(len(wf.outputs), 1)
 
     def test_node_decorator_access(self):
-        @Workflow.wrap_as.fast_node("y")
+        @Workflow.wrap_as.function_node("y")
         def plus_one(x: int = 0) -> int:
             return x + 1
 
