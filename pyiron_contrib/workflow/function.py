@@ -48,14 +48,18 @@ class Function(Node):
     input) and idempotent (not modifying input data in-place, but creating copies where
     necessary and returning new objects as output).
 
+    By default, function nodes will attempt to run whenever one or more inputs is
+    updated, and will attempt to update on initialization (after setting _all_ initial
+    input values).
+
     Args:
         node_function (callable): The function determining the behaviour of the node.
         *output_labels (str): A name for each return value of the node function.
         label (str): The node's label. (Defaults to the node function's name.)
         run_on_updates (bool): Whether to run when you are updated and all your
-            input is ready. (Default is False).
+            input is ready. (Default is True).
         update_on_instantiation (bool): Whether to force an update at the end of
-            instantiation. (Default is False.)
+            instantiation. (Default is True.)
         channels_requiring_update_after_run (list[str]): All the input channels named
             here will be set to `wait_for_update()` at the end of each node run, such
             that they are not `ready` again until they have had their `.update` method
@@ -96,81 +100,63 @@ class Function(Node):
         <class 'pyiron_contrib.workflow.channels.NotData'>
 
         There is no output because we haven't given our function any input, it has
-        no defaults, and we never ran it! So it has the channel default value of
+        no defaults, and we never ran it! It tried to `update()` on instantiation, but
+        the update never got to `run()` because the node could see that some its input
+        had never been specified. So outputs have the channel default value of
         `NotData` -- a special non-data class (since `None` is sometimes a meaningful
         value in python).
 
-        We'll run into a hiccup if we try to set only one of the inputs and update
-        >>> plus_minus_1.inputs.x = 1
+        We'll run into a hiccup if we try to set only one of the inputs and force the
+        run:
+        >>> plus_minus_1.inputs.x = 2
         >>> plus_minus_1.run()
         TypeError
 
-        This is because the second input (y) still has no input value, so we can't do
+        This is because the second input (`y`) still has no input value, so we can't do
         the sum.
-        Let's set the node to run automatically when its inputs are updated, then update
-        x and y.
-        >>> plus_minus_1.run_on_updates = True
-        >>> plus_minus_1.inputs.x = 2
-        >>> print(plus_minus_1.outputs.p1.value)
-        <class 'pyiron_contrib.workflow.channels.NotData'>
 
-        The gentler `update()` call sees that the `y` input is still `NotData`, so it
-        does not proceed to the `run()` and the output is not yet updated.
-
-        Let's provide a y-value as well:
-        >>> plus_minus_1.inputs.y = 3
+        Once we update `y`, all the input is ready and the automatic `update()` call
+        will be allowed to proceed to a `run()` call, which succeeds and updates the
+        output:
+        >>> plus_minus_1.inputs.x = 3
         >>> plus_minus_1.outputs.to_value_dict()
         {'p1': 3, 'm1': 2}
 
-        Now that both inputs have been provided, the node update triggers a run and we
-        get the expected output.
-
         We can also, optionally, provide initial values for some or all of the input
-        >>> plus_minus_1 = Function(
-        ...     mwe, "p1", "m1",
-        ...     x=1,
-        ...     run_on_updates=True
-        )
+        >>> plus_minus_1 = Function(mwe, "p1", "m1",  x=1)
         >>> plus_minus_1.inputs.y = 2  # Automatically triggers an update call now
         >>> plus_minus_1.outputs.to_value_dict()
         {'p1': 2, 'm1': 1}
 
-        Finally, we might want the node to be ready-to-go right after instantiation.
-        To do this, we need to provide initial values for everything and set two flags:
+        Finally, we might stop these updates from happening automatically, even when
+        all the input data is present and available:
         >>> plus_minus_1 = Function(
         ...     mwe, "p1", "m1",
         ...     x=0, y=0,
-        ...     run_on_updates=True, update_on_instantiation=True
+        ...     run_on_updates=False, update_on_instantiation=False
         ... )
+        >>> plus_minus_1.outputs.p1.value
+        <class 'pyiron_contrib.workflow.channels.NotData'>
+
+        With these flags set, the node requires us to manually call a run:
+        >>> plus_minus_1.run()
         >>> plus_minus_1.outputs.to_value_dict()
         {'p1': 1, 'm1': -1}
 
-        Another way to stop the node from running with bad input is to provide type
-        hints (and, optionally, default values) when defining the function the node
-        wraps. All of these get determined by inspection.
+        So function nodes have the most basic level of protection that they won't run
+        if they haven't seen any input data.
+        However, we could still get them to raise an error by providing the _wrong_
+        data:
+        >>> plus_minus_1 = Function(mwe, "p1", "m1", x=1, y="can't add to an int")
+        TypeError
 
-        We can provide initial values for our node function at instantiation using our
-        kwargs.
-        The node update is deferred until _all_ of these initial values are processed.
-        Thus, if  _all_ the arguments of our function are receiving good enough initial
-        values to facilitate an execution of the node function at the end of
-        instantiation, the output gets updated right away:
-        >>> plus_minus_1 = Function(
-        ...     mwe, "p1", "m1",
-        ...     x=1, y=2,
-        ...     run_on_updates=True, update_on_instantiation=True
-        ... )
-        >>>
-        >>> print(plus_minus_1.outputs.to_value_dict())
-        {'p1': 2, 'm1': 1}
-
-        Second, we could add type hints/defaults to our function so that it knows better
-        than to try to evaluate itself with bad data.
-        You can always force the node to run with its current input using `run()`, but
-        `update()` will always check if the node is `ready` -- i.e. if none of its
-        inputs are `NotData` and all of them obey any type hints that have been
-        provided.
-        Let's make a new node following the second path.
+        Here everything tries to run automatically, but we get an error from adding the
+        integer and string!
+        We can make our node even more sensible by adding type
+        hints (and, optionally, default values) when defining the function that the node
+        wraps.
+        The node will automatically figure out defaults and type hints for the IO
+        channels from inspection of the wrapped function.
 
         In this example, note the mixture of old-school (`typing.Union`) and new (`|`)
         type hints as well as nested hinting with a union-type inside the tuple for the
@@ -185,26 +171,23 @@ class Function(Node):
         ... ) -> tuple[int, int | float]:
         ...     return x+1, y-1
         >>>
-        >>> plus_minus_1 = Function(
-        ...     hinted_example, "p1", "m1",
-        ...     run_on_updates=True, update_on_instantiation=True
-        ... )
+        >>> plus_minus_1 = Function(hinted_example, "p1", "m1", x="not an int")
         >>> plus_minus_1.outputs.to_value_dict()
         {'p1': <class 'pyiron_contrib.workflow.channels.NotData'>, 'm1': <class
         'pyiron_contrib.workflow.channels.NotData'>}
 
-        Here we got an update automatically at the end of instantiation, but because
-        both values are type hinted this didn't result in any errors!
-        Still, we need to provide the rest of the input data in order to get results:
+        Here, even though all the input has data, the node sees that some of it is the
+        wrong type and so the automatic updates don't proceed all the way to a run.
+        Note that the type hinting doesn't actually prevent us from assigning bad values
+        directly to the channel (although it will, by default, prevent connections
+        _between_ type-hinted channels with incompatible hints), but it _does_ stop the
+        node from running and throwing an error because it sees that the channel (and
+        thus node) is not ready
+        >>> plus_minus_1.inputs.x.value
+        'not an int'
 
-        >>> plus_minus_1.inputs.x = 1
-        >>> plus_minus_1.outputs.to_value_dict()
-        {'p1': 2, 'm1': 0}
-
-        Note: the `Fast(Node)` child class will enforce all function arguments to
-        be type-hinted and have defaults, and will automatically set the updating and
-        instantiation flags to `True` for nodes that execute quickly and are meant to
-        _always_ have good output data.
+        >>> plus_minus_1.ready, plus_minus_1.inputs.x.ready, plus_minus_1.inputs.y.ready
+        (False, False, True)
 
         In these examples, we've instantiated nodes directly from the base `Function`
         class, and populated their input directly with data.
@@ -219,10 +202,7 @@ class Function(Node):
         and returns a node class:
         >>> from pyiron_contrib.workflow.function import function_node
         >>>
-        >>> @function_node(
-        ...     "p1", "m1",
-        ...     run_on_updates=True, update_on_instantiation=True
-        ... )
+        >>> @function_node("p1", "m1")
         ... def my_mwe_node(
         ...     x: int | float, y: int | float = 1
         ... ) -> tuple[int | float, int | float]:
@@ -235,8 +215,7 @@ class Function(Node):
         Where we've passed the output labels and class arguments to the decorator,
         and inital values to the newly-created node class (`my_mwe_node`) at
         instantiation.
-        Because we told it to run on updates and to update on instantation _and_ we
-        provided a good initial value for `x`, we get our result right away.
+        Because we provided a good initial value for `x`, we get our result right away.
 
         Using the decorator is the recommended way to create new node classes, but this
         magic is just equivalent to these two more verbose ways of defining a new class.
@@ -254,7 +233,7 @@ class Function(Node):
         ...         super().__init__(
         ...             self.alphabet_mod_three,
         ...             "letter",
-        ...             labe=label,
+        ...             label=label,
         ...             run_on_updates=run_on_updates,
         ...             update_on_instantiation=update_on_instantiation,
         ...             **kwargs
@@ -263,6 +242,11 @@ class Function(Node):
         ...     @staticmethod
         ...     def alphabet_mod_three(i: int) -> Literal["a", "b", "c"]:
         ...         return ["a", "b", "c"][i % 3]
+
+        Note that we've overridden the default value for `update_on_instantiation`
+        above.
+        We can also provide different defaults for these flags as kwargs in the
+        decorator.
 
         The second effectively does the same thing, but leverages python's
         `functools.partialmethod` to do so much more succinctly.
@@ -280,8 +264,6 @@ class Function(Node):
         ...         Function.__init__,
         ...         adder,
         ...         "sum",
-        ...         run_on_updates=True,
-        ...         update_on_instantiation=True
         ...     )
 
         Finally, let's put it all together by using both of these nodes at once.
@@ -324,8 +306,8 @@ class Function(Node):
         node_function: callable,
         *output_labels: str,
         label: Optional[str] = None,
-        run_on_updates: bool = False,
-        update_on_instantiation: bool = False,
+        run_on_updates: bool = True,
+        update_on_instantiation: bool = True,
         channels_requiring_update_after_run: Optional[list[str]] = None,
         parent: Optional[Composite] = None,
         **kwargs,
@@ -526,11 +508,12 @@ class Function(Node):
         }
 
 
-class Fast(Function):
+class Slow(Function):
     """
-    Like a regular node, but _all_ input channels _must_ have default values provided,
-    and the initialization signature forces `run_on_updates` and
-    `update_on_instantiation` to be `True`.
+    Like a regular node, but `run_on_updates` and `update_on_instantiation` default to
+    `False`.
+    This is intended for wrapping function which are potentially expensive to call,
+    where you don't want the output recomputed unless `run()` is _explicitly_ called.
     """
 
     def __init__(
@@ -538,12 +521,11 @@ class Fast(Function):
         node_function: callable,
         *output_labels: str,
         label: Optional[str] = None,
-        run_on_updates=True,
-        update_on_instantiation=True,
+        run_on_updates=False,
+        update_on_instantiation=False,
         parent: Optional[Workflow] = None,
         **kwargs,
     ):
-        self.ensure_params_have_defaults(node_function)
         super().__init__(
             node_function,
             *output_labels,
@@ -554,23 +536,10 @@ class Fast(Function):
             **kwargs,
         )
 
-    @classmethod
-    def ensure_params_have_defaults(cls, fnc: callable) -> None:
-        """Raise a `ValueError` if any parameters of the callable lack defaults."""
-        if any(
-            param.default == inspect._empty
-            for param in inspect.signature(fnc).parameters.values()
-        ):
-            raise ValueError(
-                f"{cls.__name__} requires all function parameters to have defaults, "
-                f"but {fnc.__name__} has the parameters "
-                f"{inspect.signature(fnc).parameters.values()}"
-            )
 
-
-class SingleValue(Fast, HasChannel):
+class SingleValue(Function, HasChannel):
     """
-    A fast node that _must_ return only a single value.
+    A node that _must_ return only a single value.
 
     Attribute and item access is modified to finally attempt access on the output value.
     """
@@ -656,21 +625,22 @@ def function_node(*output_labels: str, **node_class_kwargs):
     return as_node
 
 
-def fast_node(*output_labels: str, **node_class_kwargs):
+def slow_node(*output_labels: str, **node_class_kwargs):
     """
-    A decorator for dynamically creating fast node classes from functions.
+    A decorator for dynamically creating slow node classes from functions.
 
-    Unlike normal nodes, fast nodes _must_ have default values set for all their inputs.
+    Unlike normal nodes, slow nodes do update themselves on initialization and do not
+    run themselves when they get updated -- i.e. they will not run when their input
+    changes, `run()` must be explicitly called.
     """
 
-    def as_fast_node(node_function: callable):
-        Fast.ensure_params_have_defaults(node_function)
+    def as_slow_node(node_function: callable):
         return type(
             node_function.__name__.title().replace("_", ""),  # fnc_name to CamelCase
-            (Fast,),  # Define parentage
+            (Slow,),  # Define parentage
             {
                 "__init__": partialmethod(
-                    Fast.__init__,
+                    Slow.__init__,
                     node_function,
                     *output_labels,
                     **node_class_kwargs,
@@ -678,7 +648,7 @@ def fast_node(*output_labels: str, **node_class_kwargs):
             },
         )
 
-    return as_fast_node
+    return as_slow_node
 
 
 def single_value_node(*output_labels: str, **node_class_kwargs):
@@ -690,7 +660,6 @@ def single_value_node(*output_labels: str, **node_class_kwargs):
 
     def as_single_value_node(node_function: callable):
         SingleValue.ensure_there_is_only_one_return_value(output_labels)
-        SingleValue.ensure_params_have_defaults(node_function)
         return type(
             node_function.__name__.title().replace("_", ""),  # fnc_name to CamelCase
             (SingleValue,),  # Define parentage

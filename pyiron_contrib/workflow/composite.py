@@ -11,7 +11,9 @@ from typing import Optional
 from warnings import warn
 
 from pyiron_contrib.workflow.node import Node
-from pyiron_contrib.workflow.function import Function, function_node, fast_node, single_value_node
+from pyiron_contrib.workflow.function import (
+    Function, SingleValue, Slow, function_node, slow_node, single_value_node
+)
 from pyiron_contrib.workflow.node_library import atomistics, standard
 from pyiron_contrib.workflow.node_library.package import NodePackage
 from pyiron_contrib.workflow.util import DotDict
@@ -21,7 +23,7 @@ class _NodeDecoratorAccess:
     """An intermediate container to store node-creating decorators as class methods."""
 
     function_node = function_node
-    fast_node = fast_node
+    slow_node = slow_node
     single_value_node = single_value_node
 
 
@@ -226,6 +228,8 @@ class NodeAdder:
         self.register_nodes("standard", *standard.nodes)
 
     Function = Function
+    Slow = Slow
+    SingleValue = SingleValue
 
     def __getattribute__(self, key):
         value = super().__getattribute__(key)
