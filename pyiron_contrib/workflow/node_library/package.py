@@ -7,7 +7,7 @@ from pyiron_contrib.workflow.node import Node
 from pyiron_contrib.workflow.util import DotDict
 
 if TYPE_CHECKING:
-    from pyiron_contrib.workflow.workflow import Workflow
+    from pyiron_contrib.workflow.composite import Composite
 
 
 class NodePackage(DotDict):
@@ -21,7 +21,7 @@ class NodePackage(DotDict):
     but to update an existing node the `update` method must be used.
     """
 
-    def __init__(self, parent: Workflow, *node_classes: Node):
+    def __init__(self, parent: Composite, *node_classes: Node):
         super().__init__()
         self.__dict__["_parent"] = parent  # Avoid the __setattr__ override
         for node in node_classes:
@@ -37,8 +37,8 @@ class NodePackage(DotDict):
             )
         if not isinstance(value, type) or not issubclass(value, Node):
             raise TypeError(
-                f"Can only set members that are (sub)classes of  {Node.__name__}, but "
-                f"got {type(value)}"
+                f"Can only set members that are (sub)classes of  {Node.__name__}, "
+                f"but got {type(value)}"
             )
         super().__setitem__(key, value)
 

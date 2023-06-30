@@ -7,7 +7,7 @@ from pyiron_atomistics.atomistics.job.atomistic import AtomisticGenericJob
 from pyiron_atomistics.atomistics.structure.atoms import Atoms
 from pyiron_atomistics.lammps.lammps import Lammps as LammpsJob
 
-from pyiron_contrib.workflow.node import node, single_value_node
+from pyiron_contrib.workflow.function import single_value_node, slow_node
 
 
 @single_value_node("structure")
@@ -81,7 +81,7 @@ def _run_and_remove_job(job, modifier: Optional[callable] = None, **modifier_kwa
     )
 
 
-@node(
+@slow_node(
     "cells",
     "displacements",
     "energy_pot",
@@ -103,7 +103,7 @@ def calc_static(
     return _run_and_remove_job(job=job)
 
 
-@node(
+@slow_node(
     "cells",
     "displacements",
     "energy_pot",

@@ -1,3 +1,8 @@
+"""
+A base class for nodal objects that have internal structure -- i.e. they hold a
+sub-graph
+"""
+
 from __future__ import annotations
 
 from abc import ABC
@@ -6,24 +11,100 @@ from typing import Optional
 from warnings import warn
 
 from pyiron_contrib.workflow.node import Node
+from pyiron_contrib.workflow.function import (
+    Function, SingleValue, Slow, function_node, slow_node, single_value_node
+)
 from pyiron_contrib.workflow.node_library import atomistics, standard
 from pyiron_contrib.workflow.node_library.package import NodePackage
 from pyiron_contrib.workflow.util import DotDict
 
 
-class HasNodes(ABC):
-    """
-    A mixin class for classes which hold a graph of nodes.
+class _NodeDecoratorAccess:
+    """An intermediate container to store node-creating decorators as class methods."""
 
-    Attribute assignment is overriden such that assignment of a `Node` instance adds
-    it directly to the collection of nodes.
+    function_node = function_node
+    slow_node = slow_node
+    single_value_node = single_value_node
+
+
+class Composite(Node, ABC):
+    """
+    A base class for nodes that have internal structure -- i.e. they hold a sub-graph.
+
+    Item and attribute access is modified to give access to owned nodes.
+    Adding a node with the `add` functionality or by direct attribute assignment sets
+    this object as the parent of that node.
+
+    Guarantees that each owned node is unique, and does not belong to any other parents.
+
+    Offers a class method (`wrap_as`) to give easy access to the node-creating
+    decorators.
+
+    Specifies the required `on_run()` to call `run()` on a subset of owned nodes, i.e.
+    to kick-start computation on the owned sub-graph.
+    By default, `run()` will be called on all owned nodes have output connections but no
+    input connections (i.e. the upstream-most nodes), but this can be overridden to
+    specify particular nodes to use instead.
+
+    Does not specify `input` and `output` as demanded by the parent class; this
+    requirement is still passed on to children.
+
+    Attributes:
+        nodes (DotDict[pyiron_contrib.workflow.node,Node]): The owned nodes that
+         form the composite subgraph.
+        strict_naming (bool): When true, repeated assignment of a new node to an
+         existing node label will raise an error, otherwise the label gets appended
+         with an index and the assignment proceeds. (Default is true: disallow assigning
+         to existing labels.)
+        add (NodeAdder): A tool for adding new nodes to this subgraph.
+        upstream_nodes (list[pyiron_contrib.workflow.node,Node]): All the owned
+         nodes that have output connections but no input connections, i.e. the
+         upstream-most nodes.
+        starting_nodes (None | list[pyiron_contrib.workflow.node,Node]): A subset
+         of the owned nodes to be used on running. (Default is None, running falls back
+         on using the `upstream_nodes`.)
+
+    Methods:
+        add(node: Node): Add the node instance to this subgraph.
+        remove(node: Node): Break all connections the node has, remove it from this
+         subgraph, and set its parent to `None`.
     """
 
-    def __init__(self, *args, strict_naming=True, **kwargs):
-        super().__init__(*args, **kwargs)
-        self.nodes: DotDict = DotDict()
-        self.add: NodeAdder = NodeAdder(self)
+    wrap_as = _NodeDecoratorAccess  # Class method access to decorators
+    # Allows users/devs to easily create new nodes when using children of this class
+
+    def __init__(
+            self,
+            label: str,
+            *args,
+            parent: Optional[Composite] = None,
+            strict_naming: bool = True,
+            **kwargs
+    ):
+        super().__init__(*args, label=label, parent=parent, **kwargs)
         self.strict_naming: bool = strict_naming
+        self.nodes: DotDict[str: Node] = DotDict()
+        self.add: NodeAdder = NodeAdder(self)
+        self.starting_nodes: None | list[Node] = None
+
+    def to_dict(self):
+        return {
+            "label": self.label,
+            "nodes": {n.label: n.to_dict() for n in self.nodes.values()},
+        }
+
+    @property
+    def upstream_nodes(self) -> list[Node]:
+        return [
+            node for node in self.nodes.values()
+            if node.outputs.connected and not node.inputs.connected
+        ]
+
+    def on_run(self):
+        starting_nodes = self.upstream_nodes if self.starting_nodes is None \
+            else self.starting_nodes
+        for node in starting_nodes:
+            node.run()
 
     def add_node(self, node: Node, label: Optional[str] = None) -> None:
         """
@@ -134,24 +215,26 @@ class HasNodes(ABC):
 
 class NodeAdder:
     """
-    This class provides a layer of misdirection so that `HasNodes` objects can set
+    This class provides a layer of misdirection so that `Composite` objects can set
     themselves as the parent of owned nodes.
 
     It also provides access to packages of nodes and the ability to register new
     packages.
     """
 
-    def __init__(self, parent: HasNodes):
-        self._parent: HasNodes = parent
+    def __init__(self, parent: Composite):
+        self._parent: Composite = parent
         self.register_nodes("atomistics", *atomistics.nodes)
         self.register_nodes("standard", *standard.nodes)
 
-    Node = Node
+    Function = Function
+    Slow = Slow
+    SingleValue = SingleValue
 
     def __getattribute__(self, key):
         value = super().__getattribute__(key)
-        if value == Node:
-            return partial(Node, parent=self._parent)
+        if value == Function:
+            return partial(Function, parent=self._parent)
         return value
 
     def __call__(self, node: Node):

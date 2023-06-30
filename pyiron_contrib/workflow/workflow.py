@@ -1,29 +1,30 @@
+"""
+Provides the main workhorse class for creating and running workflows.
+
+This class is intended as the single point of entry for users making an import.
+"""
+
 from __future__ import annotations
 
-from pyiron_contrib.workflow.has_nodes import HasNodes
+from typing import TYPE_CHECKING
+
+from pyiron_contrib.workflow.composite import Composite
 from pyiron_contrib.workflow.io import Inputs, Outputs
-from pyiron_contrib.workflow.is_nodal import IsNodal
-from pyiron_contrib.workflow.node import Node, node, fast_node, single_value_node
 
 
-class _NodeDecoratorAccess:
-    """An intermediate container to store node-creating decorators as class methods."""
-
-    node = node
-    fast_node = fast_node
-    single_value_node = single_value_node
+if TYPE_CHECKING:
+    from pyiron_contrib.workflow.node import Node
 
 
-class Workflow(IsNodal, HasNodes):
+class Workflow(Composite):
     """
-    Workflows are an abstraction for holding a collection of related nodes.
+    Workflows are a dynamic composite node -- i.e. they hold and run a collection of
+    nodes (a subgraph) which can be dynamically modified (adding and removing nodes,
+    and modifying their connections).
 
     Nodes can be added to the workflow at instantiation or with dot-assignment later on.
     They are then accessible either under the `nodes` dot-dictionary, or just directly
     by dot-access on the workflow object itself.
-
-    The workflow guarantees that each node it owns has a unique within the scope of this
-    workflow, and that each node instance appears only once.
 
     Using the `input` and `output` attributes, the workflow gives access to all the
     IO channels among its nodes which are currently unconnected.
@@ -31,29 +32,29 @@ class Workflow(IsNodal, HasNodes):
     Examples:
         We allow adding nodes to workflows in five equivalent ways:
         >>> from pyiron_contrib.workflow.workflow import Workflow
-        >>> from pyiron_contrib.workflow.node import Node
+        >>> from pyiron_contrib.workflow.function import Function
         >>>
         >>> def fnc(x=0): return x + 1
         >>>
-        >>> n1 = Node(fnc, "x", label="n1")
+        >>> n1 = Function(fnc, "x", label="n1")
         >>>
         >>> wf = Workflow("my_workflow", n1)  # As *args at instantiation
-        >>> wf.add(Node(fnc, "x", label="n2"))  # Passing a node to the add caller
-        >>> wf.add.Node(fnc, "y", label="n3")  # Instantiating from add
-        >>> wf.n4 = Node(fnc, "y", label="whatever_n4_gets_used")
+        >>> wf.add(Function(fnc, "x", label="n2"))  # Passing a node to the add caller
+        >>> wf.add.Function(fnc, "y", label="n3")  # Instantiating from add
+        >>> wf.n4 = Function(fnc, "y", label="whatever_n4_gets_used")
         >>> # By attribute assignment
-        >>> Node(fnc, "x", label="n5", parent=wf)
+        >>> Function(fnc, "x", label="n5", parent=wf)
         >>> # By instantiating the node with a workflow
 
         By default, the node naming scheme is strict, so if you try to add a node to a
         label that already exists, you will get an error. This behaviour can be changed
-        at instantiation with the `strict_naming` kwarg, or afterwards with the
-        `(de)activate_strict_naming()` method(s). When deactivated, repeated assignments
-        to the same label just get appended with an index:
+        at instantiation with the `strict_naming` kwarg, or afterwards by assigning a
+        bool to this property. When deactivated, repeated assignments to the same label
+        just get appended with an index:
         >>> wf.deactivate_strict_naming()
-        >>> wf.my_node = Node(fnc, "y", x=0)
-        >>> wf.my_node = Node(fnc, "y", x=1)
-        >>> wf.my_node = Node(fnc, "y", x=2)
+        >>> wf.my_node = Function(fnc, "y", x=0)
+        >>> wf.my_node = Function(fnc, "y", x=1)
+        >>> wf.my_node = Function(fnc, "y", x=2)
         >>> print(wf.my_node.inputs.x, wf.my_node0.inputs.x, wf.my_node1.inputs.x)
         0, 1, 2
 
@@ -62,7 +63,7 @@ class Workflow(IsNodal, HasNodes):
         workflow (cf. the `Node` docs for more detail on the node types).
         Let's use these to explore a workflow's input and output, which are dynamically
         generated from the unconnected IO of its nodes:
-        >>> @Workflow.wrap_as.fast_node("y")
+        >>> @Workflow.wrap_as.function_node("y")
         >>> def plus_one(x: int = 0):
         ...     return x + 1
         >>>
@@ -116,10 +117,8 @@ class Workflow(IsNodal, HasNodes):
         integrity of workflows when they're used somewhere else?
     """
 
-    wrap_as = _NodeDecoratorAccess
-
     def __init__(self, label: str, *nodes: Node, strict_naming=True):
-        super().__init__(label=label, strict_naming=strict_naming)
+        super().__init__(label=label, parent=None, strict_naming=strict_naming)
 
         for node in nodes:
             self.add_node(node)
@@ -142,12 +141,6 @@ class Workflow(IsNodal, HasNodes):
                     outputs[f"{node_label}_{channel.label}"] = channel
         return outputs
 
-    def to_dict(self):
-        return {
-            "label": self.label,
-            "nodes": {n.label: n.to_dict() for n in self.nodes.values()},
-        }
-
     def to_node(self):
         """
         Export the workflow to a macro node, with the currently exposed IO mapped to
@@ -160,15 +153,6 @@ class Workflow(IsNodal, HasNodes):
         raise NotImplementedError
 
     def deserialize(self, source):
-        raise NotImplementedError
-
-    def update(self):
-        for node in self.nodes.values():
-            if node.outputs.connected and not node.inputs.connected:
-                node.update()
-
-    def on_run(self):
-        # Maybe we need this if workflows can be used as nodes?
         raise NotImplementedError
 
     @property

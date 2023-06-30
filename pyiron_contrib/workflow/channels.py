@@ -51,7 +51,8 @@ class Channel(HasChannel, HasToDict, ABC):
 
     Attributes:
         label (str): The name of the channel.
-        node (pyiron_contrib.workflow.node.Node): The node to which the channel belongs.
+        node (pyiron_contrib.workflow.node.Node): The node to which the channel
+         belongs.
         connections (list[Channel]): Other channels to which this channel is connected.
     """
 
@@ -65,8 +66,8 @@ class Channel(HasChannel, HasToDict, ABC):
 
         Args:
             label (str): A name for the channel.
-            node (pyiron_contrib.workflow.node.Node): The node to which the channel
-                belongs.
+            node (pyiron_contrib.workflow.node.Node): The node to which the
+             channel belongs.
         """
         self.label: str = label
         self.node: Node = node
@@ -133,6 +134,15 @@ class Channel(HasChannel, HasToDict, ABC):
         }
 
 
+class NotData:
+    """
+    This class exists purely to initialize data channel values where no default value
+    is provided; it lets the channel know that it has _no data in it_ and thus should
+    not identify as ready.
+    """
+    pass
+
+
 class DataChannel(Channel, ABC):
     """
     Data channels control the flow of data on the graph.
@@ -169,6 +179,10 @@ class DataChannel(Channel, ABC):
     E.g. `Literal[1, 2]` is as or more specific that both `Literal[1, 2]` and
     `Literal[1, 2, "three"]`.
 
+    The data `value` will initialize to an instance of `NotData` by default.
+    The channel will identify as `ready` when the value is _not_ an instance of
+    `NotData`, and when the value conforms to type hints (if any).
+
     Warning:
         Type hinting in python is quite complex, and determining when a hint is
         "more specific" can be tricky. For instance, in python 3.11 you can now type
@@ -181,7 +195,7 @@ class DataChannel(Channel, ABC):
         self,
         label: str,
         node: Node,
-        default: typing.Optional[typing.Any] = None,
+        default: typing.Optional[typing.Any] = NotData,
         type_hint: typing.Optional[typing.Any] = None,
     ):
         super().__init__(label=label, node=node)
@@ -198,9 +212,13 @@ class DataChannel(Channel, ABC):
             (bool): Whether the value matches the type hint.
         """
         if self.type_hint is not None:
-            return valid_value(self.value, self.type_hint)
+            return self._value_is_data and valid_value(self.value, self.type_hint)
         else:
-            return True
+            return self._value_is_data
+
+    @property
+    def _value_is_data(self):
+        return self.value is not NotData
 
     def update(self, value) -> None:
         """
@@ -313,7 +331,7 @@ class InputData(DataChannel):
         self,
         label: str,
         node: Node,
-        default: typing.Optional[typing.Any] = None,
+        default: typing.Optional[typing.Any] = NotData,
         type_hint: typing.Optional[typing.Any] = None,
         strict_connections: bool = True,
     ):
@@ -455,8 +473,8 @@ class InputSignal(SignalChannel):
 
         Args:
             label (str): A name for the channel.
-            node (pyiron_contrib.workflow.node.Node): The node to which the channel
-                belongs.
+            node (pyiron_contrib.workflow.node.Node): The node to which the
+             channel belongs.
             callback (callable): An argument-free callback to invoke when calling this
                 object.
         """

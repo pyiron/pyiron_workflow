@@ -5,7 +5,7 @@ from pyiron_contrib.workflow.node_library.package import NodePackage
 from pyiron_contrib.workflow.workflow import Workflow
 
 
-@Workflow.wrap_as.fast_node("x")
+@Workflow.wrap_as.function_node("x")
 def dummy(x: int = 0):
     return x
 
@@ -41,7 +41,7 @@ class TestNodePackage(TestCase):
         with self.assertRaises(TypeError):
             self.package.available_name = "But we can still only assign node classes"
 
-        @Workflow.wrap_as.node("y")
+        @Workflow.wrap_as.function_node("y")
         def add(x: int = 0):
             return x + 1
 
@@ -53,7 +53,7 @@ class TestNodePackage(TestCase):
 
         old_dummy_instance = self.package.Dummy(label="old_dummy_instance")
 
-        @Workflow.wrap_as.fast_node("y")
+        @Workflow.wrap_as.function_node("y")
         def dummy(x: int = 0):
             return x + 1
 
