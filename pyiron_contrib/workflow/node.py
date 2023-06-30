@@ -23,28 +23,28 @@ class Node(HasToDict, ABC):
     """
     Nodes are elements of a computational graph.
     They have input and output data channels that interface with the outside
-    world, and a callable that determines what they actually compute, and input and 
-    output signal channels that can be used to customize the execution flow of the 
-    graph; 
+    world, and a callable that determines what they actually compute, and input and
+    output signal channels that can be used to customize the execution flow of the
+    graph;
     Together these channels represent edges on the computational graph.
-    
-    Nodes can be run to force their computation, or more gently updated, which will 
+
+    Nodes can be run to force their computation, or more gently updated, which will
     trigger a run only if the `run_on_update` flag is set to true and all of the input
     is ready (i.e. channel values conform to any type hints provided).
-    
-    Nodes may have a `parent` node that owns them as part of a sub-graph.  
-    
+
+    Nodes may have a `parent` node that owns them as part of a sub-graph.
+
     Every node must be named with a `label`, and may use this label to attempt to create
     a working directory in memory for itself if requested.
-    These labels also help to identify nodes in the wider context of (potentially 
+    These labels also help to identify nodes in the wider context of (potentially
     nested) computational graphs.
-    
-    By default, nodes' signals input comes with `run` and `ran` IO ports which force 
-    the `run()` method and which emit after `finish_run()` is completed, respectfully. 
-    
-    Nodes have a status, which is currently represented by the `running` and `failed` 
+
+    By default, nodes' signals input comes with `run` and `ran` IO ports which force
+    the `run()` method and which emit after `finish_run()` is completed, respectfully.
+
+    Nodes have a status, which is currently represented by the `running` and `failed`
     boolean flags.
-    Their value is controlled automatically in the defined `run` and `finish_run` 
+    Their value is controlled automatically in the defined `run` and `finish_run`
     methods.
 
     This is an abstract class.
@@ -95,12 +95,12 @@ class Node(HasToDict, ABC):
     """
 
     def __init__(
-            self,
-            label: str,
-            *args,
-            parent: Optional[Composite] = None,
-            run_on_updates: bool = False,
-            **kwargs,
+        self,
+        label: str,
+        *args,
+        parent: Optional[Composite] = None,
+        run_on_updates: bool = False,
+        **kwargs,
     ):
         """
         A mixin class for objects that can form nodes in the graph representation of a

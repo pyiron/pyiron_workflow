@@ -12,7 +12,12 @@ from warnings import warn
 
 from pyiron_contrib.workflow.node import Node
 from pyiron_contrib.workflow.function import (
-    Function, SingleValue, Slow, function_node, slow_node, single_value_node
+    Function,
+    SingleValue,
+    Slow,
+    function_node,
+    slow_node,
+    single_value_node,
 )
 from pyiron_contrib.workflow.node_library import atomistics, standard
 from pyiron_contrib.workflow.node_library.package import NodePackage
@@ -74,16 +79,16 @@ class Composite(Node, ABC):
     # Allows users/devs to easily create new nodes when using children of this class
 
     def __init__(
-            self,
-            label: str,
-            *args,
-            parent: Optional[Composite] = None,
-            strict_naming: bool = True,
-            **kwargs
+        self,
+        label: str,
+        *args,
+        parent: Optional[Composite] = None,
+        strict_naming: bool = True,
+        **kwargs,
     ):
         super().__init__(*args, label=label, parent=parent, **kwargs)
         self.strict_naming: bool = strict_naming
-        self.nodes: DotDict[str: Node] = DotDict()
+        self.nodes: DotDict[str:Node] = DotDict()
         self.add: NodeAdder = NodeAdder(self)
         self.starting_nodes: None | list[Node] = None
 
@@ -96,13 +101,15 @@ class Composite(Node, ABC):
     @property
     def upstream_nodes(self) -> list[Node]:
         return [
-            node for node in self.nodes.values()
+            node
+            for node in self.nodes.values()
             if node.outputs.connected and not node.inputs.connected
         ]
 
     def on_run(self):
-        starting_nodes = self.upstream_nodes if self.starting_nodes is None \
-            else self.starting_nodes
+        starting_nodes = (
+            self.upstream_nodes if self.starting_nodes is None else self.starting_nodes
+        )
         for node in starting_nodes:
             node.run()
 

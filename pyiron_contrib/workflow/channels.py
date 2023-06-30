@@ -140,6 +140,7 @@ class NotData:
     is provided; it lets the channel know that it has _no data in it_ and thus should
     not identify as ready.
     """
+
     pass
 
 
