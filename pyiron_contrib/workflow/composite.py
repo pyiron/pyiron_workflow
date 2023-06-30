@@ -10,8 +10,10 @@ from functools import partial
 from typing import Optional
 from warnings import warn
 
-from pyiron_contrib.workflow.is_nodal import IsNodal
-from pyiron_contrib.workflow.node import Node, node, fast_node, single_value_node
+from pyiron_contrib.workflow.node import Node
+from pyiron_contrib.workflow.function import (
+    Function, SingleValue, Slow, function_node, slow_node, single_value_node
+)
 from pyiron_contrib.workflow.node_library import atomistics, standard
 from pyiron_contrib.workflow.node_library.package import NodePackage
 from pyiron_contrib.workflow.util import DotDict
@@ -20,12 +22,12 @@ from pyiron_contrib.workflow.util import DotDict
 class _NodeDecoratorAccess:
     """An intermediate container to store node-creating decorators as class methods."""
 
-    node = node
-    fast_node = fast_node
+    function_node = function_node
+    slow_node = slow_node
     single_value_node = single_value_node
 
 
-class Composite(IsNodal, ABC):
+class Composite(Node, ABC):
     """
     A base class for nodes that have internal structure -- i.e. they hold a sub-graph.
 
@@ -48,17 +50,17 @@ class Composite(IsNodal, ABC):
     requirement is still passed on to children.
 
     Attributes:
-        nodes (DotDict[pyiron_contrib.workflow.is_nodal,IsNodal]): The owned nodes that
+        nodes (DotDict[pyiron_contrib.workflow.node,Node]): The owned nodes that
          form the composite subgraph.
         strict_naming (bool): When true, repeated assignment of a new node to an
          existing node label will raise an error, otherwise the label gets appended
          with an index and the assignment proceeds. (Default is true: disallow assigning
          to existing labels.)
         add (NodeAdder): A tool for adding new nodes to this subgraph.
-        upstream_nodes (list[pyiron_contrib.workflow.is_nodal,IsNodal]): All the owned
+        upstream_nodes (list[pyiron_contrib.workflow.node,Node]): All the owned
          nodes that have output connections but no input connections, i.e. the
          upstream-most nodes.
-        starting_nodes (None | list[pyiron_contrib.workflow.is_nodal,IsNodal]): A subset
+        starting_nodes (None | list[pyiron_contrib.workflow.node,Node]): A subset
          of the owned nodes to be used on running. (Default is None, running falls back
          on using the `upstream_nodes`.)
 
@@ -81,9 +83,9 @@ class Composite(IsNodal, ABC):
     ):
         super().__init__(*args, label=label, parent=parent, **kwargs)
         self.strict_naming: bool = strict_naming
-        self.nodes: DotDict[str: IsNodal] = DotDict()
+        self.nodes: DotDict[str: Node] = DotDict()
         self.add: NodeAdder = NodeAdder(self)
-        self.starting_nodes: None | list[IsNodal] = None
+        self.starting_nodes: None | list[Node] = None
 
     def to_dict(self):
         return {
@@ -92,7 +94,7 @@ class Composite(IsNodal, ABC):
         }
 
     @property
-    def upstream_nodes(self) -> list[IsNodal]:
+    def upstream_nodes(self) -> list[Node]:
         return [
             node for node in self.nodes.values()
             if node.outputs.connected and not node.inputs.connected
@@ -104,18 +106,18 @@ class Composite(IsNodal, ABC):
         for node in starting_nodes:
             node.run()
 
-    def add_node(self, node: IsNodal, label: Optional[str] = None) -> None:
+    def add_node(self, node: Node, label: Optional[str] = None) -> None:
         """
         Assign a node to the parent. Optionally provide a new label for that node.
 
         Args:
-            node (pyiron_contrib.workflow.is_nodal.IsNodal): The node to add.
+            node (pyiron_contrib.workflow.node.Node): The node to add.
             label (Optional[str]): The label for this node.
 
         Raises:
             TypeError: If the
         """
-        if not isinstance(node, IsNodal):
+        if not isinstance(node, Node):
             raise TypeError(
                 f"Only new node instances may be added, but got {type(node)}."
             )
@@ -130,7 +132,7 @@ class Composite(IsNodal, ABC):
 
     def _get_unique_label(self, label):
         if label in self.__dir__():
-            if isinstance(getattr(self, label), IsNodal):
+            if isinstance(getattr(self, label), Node):
                 if self.strict_naming:
                     raise AttributeError(
                         f"{label} is already the label for a node. Please remove it "
@@ -158,7 +160,7 @@ class Composite(IsNodal, ABC):
             )
         return new_label
 
-    def _ensure_node_has_no_other_parent(self, node: IsNodal):
+    def _ensure_node_has_no_other_parent(self, node: Node):
         if node.parent is not None and node.parent is not self:
             raise ValueError(
                 f"The node ({node.label}) already belongs to the parent "
@@ -166,7 +168,7 @@ class Composite(IsNodal, ABC):
                 f"add it to this parent ({self.label})."
             )
 
-    def _ensure_node_is_not_duplicated(self, node: IsNodal, label: str):
+    def _ensure_node_is_not_duplicated(self, node: Node, label: str):
         if (
             node.parent is self
             and label != node.label
@@ -178,16 +180,16 @@ class Composite(IsNodal, ABC):
             )
             del self.nodes[node.label]
 
-    def remove(self, node: IsNodal | str):
-        if isinstance(node, IsNodal):
+    def remove(self, node: Node | str):
+        if isinstance(node, Node):
             node.parent = None
             node.disconnect()
             del self.nodes[node.label]
         else:
             del self.nodes[node]
 
-    def __setattr__(self, label: str, node: IsNodal):
-        if isinstance(node, IsNodal):
+    def __setattr__(self, label: str, node: Node):
+        if isinstance(node, Node):
             self.add_node(node, label=label)
         else:
             super().__setattr__(label, node)
@@ -225,18 +227,20 @@ class NodeAdder:
         self.register_nodes("atomistics", *atomistics.nodes)
         self.register_nodes("standard", *standard.nodes)
 
-    Node = Node
+    Function = Function
+    Slow = Slow
+    SingleValue = SingleValue
 
     def __getattribute__(self, key):
         value = super().__getattribute__(key)
-        if value == Node:
-            return partial(Node, parent=self._parent)
+        if value == Function:
+            return partial(Function, parent=self._parent)
         return value
 
-    def __call__(self, node: IsNodal):
+    def __call__(self, node: Node):
         return self._parent.add_node(node)
 
-    def register_nodes(self, domain: str, *nodes: list[type[IsNodal]]):
+    def register_nodes(self, domain: str, *nodes: list[type[Node]]):
         """
         Add a list of node classes to be accessible for creation under the provided
         domain name.
