@@ -21,41 +21,64 @@ if TYPE_CHECKING:
 
 class Node(HasToDict, ABC):
     """
-    A mixin class for objects that can form nodes in the graph representation of a
-    computational workflow.
+    Nodes are elements of a computational graph.
+    They have input and output data channels that interface with the outside
+    world, and a callable that determines what they actually compute, and input and 
+    output signal channels that can be used to customize the execution flow of the 
+    graph; 
+    Together these channels represent edges on the computational graph.
+    
+    Nodes can be run to force their computation, or more gently updated, which will 
+    trigger a run only if the `run_on_update` flag is set to true and all of the input
+    is ready (i.e. channel values conform to any type hints provided).
+    
+    Nodes may have a `parent` node that owns them as part of a sub-graph.  
+    
+    Every node must be named with a `label`, and may use this label to attempt to create
+    a working directory in memory for itself if requested.
+    These labels also help to identify nodes in the wider context of (potentially 
+    nested) computational graphs.
+    
+    By default, nodes' signals input comes with `run` and `ran` IO ports which force 
+    the `run()` method and which emit after `finish_run()` is completed, respectfully. 
+    
+    Nodes have a status, which is currently represented by the `running` and `failed` 
+    boolean flags.
+    Their value is controlled automatically in the defined `run` and `finish_run` 
+    methods.
 
-    Nodal objects have `inputs` and `outputs` channels for passing data, and `signals`
-    channels for making callbacks on the class (input) and controlling execution flow
-    (output) when connected to other nodal objects.
+    This is an abstract class.
+    Children *must* define how `inputs` and `outputs` are constructed, and what will
+    happen `on_run`.
+    They may also override the `run_args` property to specify input passed to the
+    defined `on_run` method, and may add additional signal channels to the signals IO.
 
-    Nodal objects can `run` to complete some computational task, or call a softer
-    `update` which will run the task only if it is `ready` -- i.e. it is not currently
-    running, has not previously tried to run and failed, and all of its inputs are ready
-    (i.e. populated with data that passes type requirements, if any).
+    # TODO: Everything with (de)serialization and executors for running on something
+    #       other than the main python process.
 
     Attributes:
         connected (bool): Whether _any_ of the IO (including signals) are connected.
-        failed (bool): Whether the nodal object raised an error calling `run`. (Default
+        failed (bool): Whether the node raised an error calling `run`. (Default
             is False.)
         fully_connected (bool): whether _all_ of the IO (including signals) are
             connected.
         inputs (pyiron_contrib.workflow.io.Inputs): **Abstract.** Children must define
             a property returning an `Inputs` object.
-        label (str): A name for the nodal object.
-        output (pyiron_contrib.workflow.io.Outputs): **Abstract.** Children must define
+        label (str): A name for the node.
+        outputs (pyiron_contrib.workflow.io.Outputs): **Abstract.** Children must define
             a property returning an `Outputs` object.
         parent (pyiron_contrib.workflow.composite.Composite | None): The parent object
             owning this, if any.
-        ready (bool): Whether the inputs are all ready and the nodal object is neither
+        ready (bool): Whether the inputs are all ready and the node is neither
             already running nor already failed.
         run_on_updates (bool): Whether to run when you are updated and all your input
             is ready and your status does not prohibit running. (Default is False).
-        running (bool): Whether the nodal object has called `run` and has not yet
-            received output from from this call. (Default is False.)
+        running (bool): Whether the node has called `run` and has not yet
+            received output from this call. (Default is False.)
         server (Optional[pyiron_base.jobs.job.extension.server.generic.Server]): A
             server object for computing things somewhere else. Default (and currently
             _only_) behaviour is to compute things on the main python process owning
-            the nodal object.
+            the node.
         signals (pyiron_contrib.workflow.io.Signals): A container for input and output
             signals, which are channels for controlling execution flow. By default, has
             a `signals.inputs.run` channel which has a callback to the `run` method,
@@ -67,9 +90,8 @@ class Node(HasToDict, ABC):
 
     Methods:
         disconnect: Remove all connections, including signals.
-        run: **Abstract.** Do the thing.
-        update: **Abstract.** Do the thing if you're ready and you run on updates.
-            TODO: Once `run_on_updates` is in this class, we can un-abstract this.
+        on_run: **Abstract.** Do the thing.
+        run: A wrapper to handle all the infrastructure around executing `on_run`.
     """
 
     def __init__(
@@ -85,7 +107,7 @@ class Node(HasToDict, ABC):
         computational workflow.
 
         Args:
-            label (str): A name for this nodal object.
+            label (str): A name for this node.
             *args: Arguments passed on with `super`.
             **kwargs: Keyword arguments passed on with `super`.
 
@@ -122,7 +144,7 @@ class Node(HasToDict, ABC):
     @abstractmethod
     def on_run(self) -> callable[..., tuple]:
         """
-        What the nodal object actually does!
+        What the node actually does!
         """
         pass
 
@@ -144,8 +166,8 @@ class Node(HasToDict, ABC):
 
     def run(self) -> None:
         """
-        Executes the functionality of the nodal object defined in `on_run`.
-        Handles the status of the nodal object, and communicating with any remote
+        Executes the functionality of the node defined in `on_run`.
+        Handles the status of the node, and communicating with any remote
         computing resources.
         """
         if self.running:
