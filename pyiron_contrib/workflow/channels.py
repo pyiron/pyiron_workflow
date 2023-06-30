@@ -212,12 +212,12 @@ class DataChannel(Channel, ABC):
             (bool): Whether the value matches the type hint.
         """
         if self.type_hint is not None:
-            return self.value_is_data and valid_value(self.value, self.type_hint)
+            return self._value_is_data and valid_value(self.value, self.type_hint)
         else:
-            return self.value_is_data
+            return self._value_is_data
 
     @property
-    def value_is_data(self):
+    def _value_is_data(self):
         return self.value is not NotData
 
     def update(self, value) -> None:
