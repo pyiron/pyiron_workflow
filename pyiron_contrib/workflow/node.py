@@ -6,11 +6,13 @@ computational workflow.
 from __future__ import annotations
 
 from abc import ABC, abstractmethod
+from concurrent.futures import Future
 from typing import Optional, TYPE_CHECKING
 
 from pyiron_contrib.workflow.files import DirectoryObject
 from pyiron_contrib.workflow.has_to_dict import HasToDict
 from pyiron_contrib.workflow.io import Signals, InputSignal, OutputSignal
+from pyiron_contrib.workflow.util import CloudpickleProcessPoolExecutor
 
 if TYPE_CHECKING:
     from pyiron_base.jobs.job.extension.server.generic import Server
@@ -62,6 +64,8 @@ class Node(HasToDict, ABC):
             is False.)
         fully_connected (bool): whether _all_ of the IO (including signals) are
             connected.
+        future (concurrent.futures.Future | None): A futures object, if the node is
+            currently running or has already run using an executor.
         inputs (pyiron_contrib.workflow.io.Inputs): **Abstract.** Children must define
             a property returning an `Inputs` object.
         label (str): A name for the node.
@@ -129,6 +133,8 @@ class Node(HasToDict, ABC):
         self.signals = self._build_signal_channels()
         self._working_directory = None
         self.run_on_updates: bool = run_on_updates
+        self.executor: None | CloudpickleProcessPoolExecutor = None
+        self.future: None | Future = None
 
     @property
     @abstractmethod
@@ -176,7 +182,7 @@ class Node(HasToDict, ABC):
         self.running = True
         self.failed = False
 
-        if self.server is None:
+        if self.executor is None:
             try:
                 run_output = self.on_run(**self.run_args)
             except Exception as e:
@@ -184,16 +190,17 @@ class Node(HasToDict, ABC):
                 self.failed = True
                 raise e
             self.finish_run(run_output)
+        elif isinstance(self.executor, CloudpickleProcessPoolExecutor):
+            self.future = self.executor.submit(self.on_run, **self.run_args)
+            self.future.add_done_callback(self.finish_run)
         else:
             raise NotImplementedError(
                 "We currently only support executing the node functionality right on "
-                "the main python process that the node instance lives on. Come back "
-                "later for cool new features."
+                "the main python process or with a "
+                "pyiron_contrib.workflow.util.CloudpickleProcessPoolExecutor."
             )
-            # TODO: Send the `on_run` callable and the `run_args` data off to remote
-            #       resources and register `finish_run` as a callback.
 
-    def finish_run(self, run_output: tuple):
+    def finish_run(self, run_output: tuple | Future):
         """
         Process the run result, then wrap up statuses etc.
 
@@ -201,8 +208,12 @@ class Node(HasToDict, ABC):
         execution off to another entity and release the python process to do other
         things. In such a case, this function should be registered as a callback
         so that the node can finish "running" and, e.g. push its data forward when that
-        execution is finished.
+        execution is finished. In such a case, a `concurrent.futures.Future` object is
+        expected back and must be unpacked.
         """
+        if isinstance(run_output, Future):
+            run_output = run_output.result()
+
         try:
             self.process_run_result(run_output)
         except Exception as e:
