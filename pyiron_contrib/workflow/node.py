@@ -204,14 +204,13 @@ class Node(HasToDict, ABC):
         execution is finished.
         """
         try:
+            self.running = False
             self.process_run_result(run_output)
+            self.signals.output.ran()
         except Exception as e:
             self.running = False
             self.failed = True
             raise e
-
-        self.signals.output.ran()
-        self.running = False
 
     def _build_signal_channels(self) -> Signals:
         signals = Signals()
