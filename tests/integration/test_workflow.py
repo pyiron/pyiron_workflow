@@ -58,7 +58,7 @@ class TestNothing(unittest.TestCase):
 
         wf = Workflow("rand_until_big_then_sqrt")
 
-        wf.rand = numpy_randint()
+        wf.rand = numpy_randint(update_on_instantiation=False)
 
         wf.gt_switch = GreaterThanLimitSwitch(run_on_updates=False)
         wf.gt_switch.inputs.value = wf.rand
