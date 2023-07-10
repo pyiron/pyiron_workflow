@@ -203,6 +203,7 @@ class Node(HasToDict, ABC):
         so that the node can finish "running" and, e.g. push its data forward when that
         execution is finished.
         """
+        self.running = False
         try:
             self.running = False
             self.process_run_result(run_output)
