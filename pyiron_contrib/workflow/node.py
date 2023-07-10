@@ -208,7 +208,6 @@ class Node(HasToDict, ABC):
             self.process_run_result(run_output)
             self.signals.output.ran()
         except Exception as e:
-            self.running = False
             self.failed = True
             raise e
 
