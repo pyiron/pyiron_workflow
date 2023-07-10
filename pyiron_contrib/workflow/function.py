@@ -52,6 +52,10 @@ class Function(Node):
     updated, and will attempt to update on initialization (after setting _all_ initial
     input values).
 
+    Output is updated in the `process_run_result` inside the parent class `finish_run`
+    call, such that output data gets pushed after the node stops running but before
+    then `ran` signal fires.
+
     Args:
         node_function (callable): The function determining the behaviour of the node.
         *output_labels (str): A name for each return value of the node function.

@@ -195,7 +195,7 @@ class Node(HasToDict, ABC):
 
     def finish_run(self, run_output: tuple):
         """
-        Process the run result, then wrap up statuses etc.
+        Switch the node status, process the run result, then fire the ran signal.
 
         By extracting this as a separate method, we allow the node to pass the actual
         execution off to another entity and release the python process to do other
