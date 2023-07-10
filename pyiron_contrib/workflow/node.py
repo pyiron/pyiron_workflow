@@ -205,7 +205,6 @@ class Node(HasToDict, ABC):
         """
         self.running = False
         try:
-            self.running = False
             self.process_run_result(run_output)
             self.signals.output.ran()
         except Exception as e:
