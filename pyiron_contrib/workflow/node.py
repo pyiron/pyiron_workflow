@@ -9,10 +9,10 @@ from abc import ABC, abstractmethod
 from concurrent.futures import Future
 from typing import Optional, TYPE_CHECKING
 
+from pyiron_contrib.executors import CloudpickleProcessPoolExecutor
 from pyiron_contrib.workflow.files import DirectoryObject
 from pyiron_contrib.workflow.has_to_dict import HasToDict
 from pyiron_contrib.workflow.io import Signals, InputSignal, OutputSignal
-from pyiron_contrib.workflow.util import CloudpickleProcessPoolExecutor
 
 if TYPE_CHECKING:
     from pyiron_base.jobs.job.extension.server.generic import Server
