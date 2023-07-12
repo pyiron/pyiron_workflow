@@ -340,17 +340,27 @@ class Function(Node):
         )
         self._verify_that_channels_requiring_update_all_exist()
 
-        self.run_on_updates = False
-        # Temporarily disable running on updates to set all initial values at once
-        for k, v in kwargs.items():
-            if k in self.inputs.labels:
-                self.inputs[k] = v
-            elif k not in self._init_keywords:
-                warnings.warn(f"The keyword '{k}' was received but not used.")
-        self.run_on_updates = run_on_updates  # Restore provided value
+        self.run_on_updates = run_on_updates
+        self._batch_update_input(**kwargs)
 
         if update_on_instantiation:
             self.update()
+
+    def _batch_update_input(self, **kwargs):
+        """
+        Temporarily disable running on updates to set all input values at once.
+
+        Args:
+            **kwargs: input label - input value (including channels for connection)
+             pairs.
+        """
+        run_on_updates, self.run_on_updates = self.run_on_updates, False
+        for k, v in kwargs.items():
+            if k in self.inputs.labels:
+                self.inputs[k] = v
+            elif k not in self._input_args.keys():
+                warnings.warn(f"The keyword '{k}' was not found among input labels.")
+        self.run_on_updates = run_on_updates  # Restore provided value
 
     @property
     def _input_args(self):
