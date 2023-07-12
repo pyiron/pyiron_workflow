@@ -202,7 +202,7 @@ class Node(HasToDict, ABC):
 
     def finish_run(self, run_output: tuple | Future):
         """
-        Process the run result, then wrap up statuses etc.
+        Switch the node status, process the run result, then fire the ran signal.
 
         By extracting this as a separate method, we allow the node to pass the actual
         execution off to another entity and release the python process to do other
@@ -214,15 +214,13 @@ class Node(HasToDict, ABC):
         if isinstance(run_output, Future):
             run_output = run_output.result()
 
+        self.running = False
         try:
             self.process_run_result(run_output)
+            self.signals.output.ran()
         except Exception as e:
-            self.running = False
             self.failed = True
             raise e
-
-        self.signals.output.ran()
-        self.running = False
 
     def _build_signal_channels(self) -> Signals:
         signals = Signals()
