@@ -49,6 +49,11 @@ class Node(HasToDict, ABC):
     Their value is controlled automatically in the defined `run` and `finish_run`
     methods.
 
+    Nodes can be run on the main python process that owns them, or by assigning an
+    appropriate executor to their `executor` attribute.
+    In case they are run with an executor, their `future` attribute will be populated
+    with the resulting future object.
+
     This is an abstract class.
     Children *must* define how `inputs` and `outputs` are constructed, and what will
     happen `on_run`.
