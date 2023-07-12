@@ -109,12 +109,14 @@ class CloudpickleProcessPoolExecutor(ProcessPoolExecutor):
         >>> print(instance.result.result)
         This was an arg
     """
+
     def submit(self, fn, /, *args, **kwargs):
         return self._submit(
             _CloudPickledCallable(fn),
             _CloudPickledCallable.dumps(args),
-            _CloudPickledCallable.dumps(kwargs)
+            _CloudPickledCallable.dumps(kwargs),
         )
+
     submit.__doc__ = ProcessPoolExecutor.submit.__doc__
 
     def _submit(self, fn, /, *args, **kwargs):
@@ -147,10 +149,11 @@ class CloudpickleProcessPoolExecutor(ProcessPoolExecutor):
             if self._broken:
                 raise BrokenProcessPool(self._broken)
             if self._shutdown_thread:
-                raise RuntimeError('cannot schedule new futures after shutdown')
+                raise RuntimeError("cannot schedule new futures after shutdown")
             if _global_shutdown:
-                raise RuntimeError('cannot schedule new futures after '
-                                   'interpreter shutdown')
+                raise RuntimeError(
+                    "cannot schedule new futures after " "interpreter shutdown"
+                )
 
             f = CloudLoadsFuture()
             w = _WorkItem(f, fn, args, kwargs)
@@ -170,26 +173,35 @@ class CloudpickleProcessPoolExecutor(ProcessPoolExecutor):
         if len(args) >= 2:
             self, fn, *args = args
         elif not args:
-            raise TypeError("descriptor 'submit' of 'ProcessPoolExecutor' object "
-                            "needs an argument")
-        elif 'fn' in kwargs:
-            fn = kwargs.pop('fn')
+            raise TypeError(
+                "descriptor 'submit' of 'ProcessPoolExecutor' object "
+                "needs an argument"
+            )
+        elif "fn" in kwargs:
+            fn = kwargs.pop("fn")
             self, *args = args
             import warnings
-            warnings.warn("Passing 'fn' as keyword argument is deprecated",
-                          DeprecationWarning, stacklevel=2)
+
+            warnings.warn(
+                "Passing 'fn' as keyword argument is deprecated",
+                DeprecationWarning,
+                stacklevel=2,
+            )
         else:
-            raise TypeError('submit expected at least 1 positional argument, '
-                            'got %d' % (len(args) - 1))
+            raise TypeError(
+                "submit expected at least 1 positional argument, "
+                "got %d" % (len(args) - 1)
+            )
 
         with self._shutdown_lock:
             if self._broken:
                 raise BrokenProcessPool(self._broken)
             if self._shutdown_thread:
-                raise RuntimeError('cannot schedule new futures after shutdown')
+                raise RuntimeError("cannot schedule new futures after shutdown")
             if _global_shutdown:
-                raise RuntimeError('cannot schedule new futures after '
-                                   'interpreter shutdown')
+                raise RuntimeError(
+                    "cannot schedule new futures after " "interpreter shutdown"
+                )
 
             f = CloudLoadsFuture()
             w = _WorkItem(f, fn, args, kwargs)
