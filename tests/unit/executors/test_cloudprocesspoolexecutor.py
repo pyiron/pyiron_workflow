@@ -3,7 +3,9 @@ from concurrent.futures import TimeoutError
 from time import sleep
 import unittest
 
-from pyiron_contrib.executors.executors import CloudpickleProcessPoolExecutor
+from pyiron_contrib.executors.cloudpickleprocesspool import (
+    CloudpickleProcessPoolExecutor
+)
 
 
 class Foo:
