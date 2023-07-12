@@ -10,6 +10,7 @@ from functools import partial
 from typing import Optional
 from warnings import warn
 
+from pyiron_contrib.executors import CloudpickleProcessPoolExecutor
 from pyiron_contrib.workflow.node import Node
 from pyiron_contrib.workflow.function import (
     Function,
@@ -30,6 +31,12 @@ class _NodeDecoratorAccess:
     function_node = function_node
     slow_node = slow_node
     single_value_node = single_value_node
+
+
+class Creator:
+    """A shortcut interface for creating non-Node objects from the workflow class."""
+
+    CloudpickleProcessPoolExecutor = CloudpickleProcessPoolExecutor
 
 
 class Composite(Node, ABC):
@@ -77,6 +84,8 @@ class Composite(Node, ABC):
 
     wrap_as = _NodeDecoratorAccess  # Class method access to decorators
     # Allows users/devs to easily create new nodes when using children of this class
+
+    create = Creator
 
     def __init__(
         self,
