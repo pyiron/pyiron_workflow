@@ -111,7 +111,7 @@ class CloudProcessPoolExecutor(ProcessPoolExecutor):
             self._start_executor_manager_thread()
             return f
 
-    def _submit_3_8(self, *args, **kwargs):
+    def _submit_3_8(*args, **kwargs):
         if len(args) >= 2:
             self, fn, *args = args
         elif not args:
