@@ -48,7 +48,7 @@ class CloudpickleProcessPoolExecutor(ProcessPoolExecutor):
         normal.
         >>> from functools import partialmethod
         >>>
-        >>> from pyiron_contrib.executors.executors import CloudpickleProcessPoolExecutor
+        >>> from pyiron_contrib.executors import CloudpickleProcessPoolExecutor
         >>>
         >>> class Foo:
         ...     '''
