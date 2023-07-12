@@ -5,7 +5,7 @@ from typing import Optional
 import numpy as np
 from matplotlib import pyplot as plt
 
-from pyiron_contrib.workflow.node import single_value_node
+from pyiron_contrib.workflow.function import single_value_node
 
 
 @single_value_node("fig")
