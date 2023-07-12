@@ -1,6 +1,8 @@
 import unittest
 from sys import version_info
+from time import sleep
 
+from pyiron_contrib.workflow.channels import NotData
 from pyiron_contrib.workflow.files import DirectoryObject
 from pyiron_contrib.workflow.function import Function
 from pyiron_contrib.workflow.workflow import Workflow
@@ -140,6 +142,51 @@ class TestWorkflow(unittest.TestCase):
             # the fact you can't add a node to a taken attribute label
             # In both cases, we satisfy the spec that workflow's can't have parents
             wf2.parent = wf
+
+    def test_parallel_execution(self):
+        wf = Workflow("wf")
+
+        @Workflow.wrap_as.single_value_node("five", run_on_updates=False)
+        def five(sleep_time=0.):
+            sleep(sleep_time)
+            return 5
+
+        @Workflow.wrap_as.single_value_node("sum")
+        def sum(a, b):
+            return a + b
+
+        wf.slow = five(sleep_time=1)
+        wf.fast = five()
+        wf.sum = sum(a=wf.fast, b=wf.slow)
+
+        wf.slow.executor = wf.create.CloudpickleProcessPoolExecutor()
+
+        wf.slow.run()
+        wf.fast.run()
+        self.assertTrue(
+            wf.slow.running,
+            msg="The slow node should still be running"
+        )
+        self.assertEqual(
+            wf.fast.outputs.five.value,
+            5,
+            msg="The slow node should not prohibit the completion of the fast node"
+        )
+        self.assertEqual(
+            wf.sum.outputs.sum.value,
+            NotData,
+            msg="The slow node _should_ hold up the downstream node to which it inputs"
+        )
+
+        while wf.slow.future.running():
+            sleep(0.1)
+
+        self.assertEqual(
+            wf.sum.outputs.sum.value,
+            5 + 5,
+            msg="After the slow node completes, its output should be updated as a "
+                "callback, and downstream nodes should proceed"
+        )
 
 
 if __name__ == '__main__':
