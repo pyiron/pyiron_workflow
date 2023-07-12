@@ -55,12 +55,93 @@ class CloudPickledCallable:
 
 
 class CloudProcessPoolExecutor(ProcessPoolExecutor):
+    """
+    This class wraps `concurrent.futures.ProcessPoolExecutor` such that the submitted
+    callable, its arguments, and its return value are all pickled using `cloudpickle`.
+    In this way, the executor extends support to all objects which are cloud-pickleable,
+    e.g. dynamically defined or decorated classes.
+
+    To accomplish this, the underlying `concurrent.futures.Future` class used is
+    replaced with our `CloudLoadsFuture`, which is identical except that calls to
+    `result()` will first try to `cloudpickle.loads` and `bytes` results found.
+
+    Examples:
+        Consider a class created from a function dynamically with a decorator.
+        These are not normally pickleable, so in this example we should how this class
+        allows us to submit a method from such a class, that both takes as an argument
+        and returns such an unpickleable class.
+        Actions such as registering callbacks and waiting for results behave just like
+        normal.
+        >>> from functools import partialmethod
+        >>>
+        >>> from pyiron_contrib.executors.executors import CloudProcessPoolExecutor
+        >>>
+        >>> class Foo:
+        ...     '''
+        ...     A base class to be dynamically modified for testing our executor.
+        ...     '''
+        ...     def __init__(self, fnc: callable):
+        ...         self.fnc = fnc
+        ...         self.result = None
+        ...
+        ...     @property
+        ...     def run(self):
+        ...         return self.fnc
+        ...
+        ...     def process_result(self, future):
+        ...         self.result = future.result()
+        >>>
+        >>>
+        >>> def dynamic_foo():
+        ...     '''
+        ...     A decorator for dynamically modifying the Foo class.
+        ...
+        ...     Overrides the `fnc` input of `Foo` with the decorated function.
+        ...     '''
+        ...     def as_dynamic_foo(fnc: callable):
+        ...         return type(
+        ...             "DynamicFoo",
+        ...             (Foo,),  # Define parentage
+        ...             {
+        ...                 "__init__": partialmethod(
+        ...                     Foo.__init__,
+        ...                     fnc
+        ...                 )
+        ...             },
+        ...         )
+        ...
+        ...     return as_dynamic_foo
+        >>>
+        >>> @dynamic_foo()
+        >>> def UnpicklableCallable(unpicklable_arg):
+        ...     unpicklable_arg.result = "This was an arg"
+        ...     return unpicklable_arg
+        >>>
+        >>>
+        >>> instance = UnpicklableCallable()
+        >>> arg = UnpicklableCallable()
+        >>> executor = CloudProcessPoolExecutor()
+        >>> fs = executor.submit(instance.run, arg)
+        >>> fs.add_done_callback(instance.process_result)
+        >>> print(fs.done())
+        False
+
+        >>> print(fs.result().__class__.__name__)
+        DynamicFoo
+
+        >>> print(fs.done())
+        True
+
+        >>> print(instance.result.result)
+        This was an arg
+    """
     def submit(self, fn, /, *args, **kwargs):
         return self._submit(
             CloudPickledCallable(fn),
             CloudPickledCallable.dumps(args),
             CloudPickledCallable.dumps(kwargs)
         )
+    submit.__doc__ = ProcessPoolExecutor.submit.__doc__
 
     def _submit(self, fn, /, *args, **kwargs):
         """
