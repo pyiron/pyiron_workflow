@@ -13,7 +13,7 @@ class CloudLoadsFuture(Future):
         return result
 
 
-class CloudPickledCallable:
+class _CloudPickledCallable:
     def __init__(self, fnc: callable):
         self.fnc_serial = cloudpickle.dumps(fnc)
 
@@ -111,9 +111,9 @@ class CloudpickleProcessPoolExecutor(ProcessPoolExecutor):
     """
     def submit(self, fn, /, *args, **kwargs):
         return self._submit(
-            CloudPickledCallable(fn),
-            CloudPickledCallable.dumps(args),
-            CloudPickledCallable.dumps(kwargs)
+            _CloudPickledCallable(fn),
+            _CloudPickledCallable.dumps(args),
+            _CloudPickledCallable.dumps(kwargs)
         )
     submit.__doc__ = ProcessPoolExecutor.submit.__doc__
 
