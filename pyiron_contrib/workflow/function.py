@@ -56,6 +56,11 @@ class Function(Node):
     call, such that output data gets pushed after the node stops running but before
     then `ran` signal fires.
 
+    After a node is instantiated, its input can be updated as `*args` and/or `**kwargs`
+    on call.
+    This invokes an `update()` call, which can in turn invoke `run()` if
+    `run_on_updates` is set to `True`.
+
     Args:
         node_function (callable): The function determining the behaviour of the node.
         *output_labels (str): A name for each return value of the node function.
@@ -507,8 +512,32 @@ class Function(Node):
         for out, value in zip(self.outputs, function_output):
             out.update(value)
 
-    def __call__(self) -> None:
-        self.run()
+    def _convert_input_args_and_kwargs_to_input_kwargs(self, *args, **kwargs):
+        reverse_keys = list(self._input_args.keys())[::-1]
+        if len(args) > len(reverse_keys):
+            raise ValueError(
+                f"Received {len(args)} positional arguments, but the node {self.label}"
+                f"only accepts {len(reverse_keys)} inputs."
+            )
+
+        positional_keywords = reverse_keys[-len(args):]
+        if len(set(positional_keywords).intersection(kwargs.keys())) > 0:
+            raise ValueError(
+                f"Cannot use {set(positional_keywords).intersection(kwargs.keys())} "
+                f"as both positional _and_ keyword arguments"
+            )
+
+        for arg in args:
+            key = positional_keywords.pop()
+            kwargs[key] = arg
+
+        return kwargs
+
+    def __call__(self, *args, **kwargs) -> None:
+        kwargs = self._convert_input_args_and_kwargs_to_input_kwargs(*args, **kwargs)
+        self._batch_update_input(**kwargs)
+        if self.run_on_updates:
+            self.run()
 
     def to_dict(self):
         return {
