@@ -28,7 +28,7 @@ class CloudPickledCallable:
         return cloudpickle.dumps(stuff)
 
 
-class CloudProcessPoolExecutor(ProcessPoolExecutor):
+class CloudpickleProcessPoolExecutor(ProcessPoolExecutor):
     """
     This class wraps `concurrent.futures.ProcessPoolExecutor` such that the submitted
     callable, its arguments, and its return value are all pickled using `cloudpickle`.
@@ -48,7 +48,7 @@ class CloudProcessPoolExecutor(ProcessPoolExecutor):
         normal.
         >>> from functools import partialmethod
         >>>
-        >>> from pyiron_contrib.executors.executors import CloudProcessPoolExecutor
+        >>> from pyiron_contrib.executors.executors import CloudpickleProcessPoolExecutor
         >>>
         >>> class Foo:
         ...     '''
@@ -94,7 +94,7 @@ class CloudProcessPoolExecutor(ProcessPoolExecutor):
         >>>
         >>> instance = UnpicklableCallable()
         >>> arg = UnpicklableCallable()
-        >>> executor = CloudProcessPoolExecutor()
+        >>> executor = CloudpickleProcessPoolExecutor()
         >>> fs = executor.submit(instance.run, arg)
         >>> fs.add_done_callback(instance.process_result)
         >>> print(fs.done())
