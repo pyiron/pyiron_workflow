@@ -271,6 +271,35 @@ class TestFunction(unittest.TestCase):
 
         self.assertEqual(len(warning_list), 1)
 
+    def test_call(self):
+        node = Function(no_default, "output", run_on_updates=False)
+
+        with self.assertRaises(ValueError):
+            # More input args than there are input channels
+            node(1, 2, 3)
+
+        with self.assertRaises(ValueError):
+            # Using input as an arg _and_ a kwarg
+            node(1, y=2, x=3)
+
+        node(1, y=2)
+        self.assertEqual(
+            node.inputs.x.value, 1, msg="__call__ should accept args to update input"
+        )
+        self.assertEqual(
+            node.inputs.y.value, 2, msg="__call__ should accept kwargs to update input"
+        )
+        self.assertEqual(
+            node.outputs.output.value, NotData, msg="__call__ should not run things"
+        )
+        node.run_on_updates = True
+        node(3)  # Implicitly test partial update
+        self.assertEqual(
+            no_default(3, 2),
+            node.outputs.output.value,
+            msg="__call__ should invoke update s.t. run gets called if run_on_updates"
+        )
+
 
 @unittest.skipUnless(version_info[0] == 3 and version_info[1] >= 10, "Only supported for 3.10+")
 class TestSlow(unittest.TestCase):
