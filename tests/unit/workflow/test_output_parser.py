@@ -29,7 +29,10 @@ class TestParseOutput(unittest.TestCase):
         with self.subTest("Multiple expressions"):
             def add_and_subtract(x, y):
                 return x + y, x - y
-            self.assertListEqual(ParseOutput(add).output, ["x + y", "x - y"])
+            self.assertListEqual(
+                ParseOutput(add_and_subtract).output,
+                ["x + y", "x - y"]
+            )
 
         with self.subTest("Best-practice (well-named return vars)"):
             def md(job):
