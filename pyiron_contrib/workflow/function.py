@@ -59,7 +59,6 @@ class Function(Node):
 
     Args:
         node_function (callable): The function determining the behaviour of the node.
-        *output_labels (str): A name for each return value of the node function.
         label (str): The node's label. (Defaults to the node function's name.)
         run_on_updates (bool): Whether to run when you are updated and all your
             input is ready. (Default is True).
@@ -71,6 +70,15 @@ class Function(Node):
             called. This can be used to create sets of input data _all_ of which must
             be updated before the node is ready to produce output again. (Default is
             None, which makes the list empty.)
+        output_labels (Optional[str | list[str] | tuple[str]]): A name for each return
+            value of the node function OR a single label. (Default is None, which
+            scrapes output labels automatically from the source code of the wrapped
+            function.) This can be useful when returned values are not well named, e.g.
+            to make the output channel dot-accessible if it would otherwise have a label
+            that requires item-string-based access. Additionally, specifying a _single_
+            label for a wrapped function that returns a tuple of values ensures that a
+            _single_ output channel (holding the tuple) is created, instead of one
+            channel for each return value.
         **kwargs: Any additional keyword arguments whose keyword matches the label of an
             input channel will have their value assigned to that channel.
 
