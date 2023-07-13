@@ -9,6 +9,7 @@ from pyiron_contrib.workflow.channels import InputData, OutputData, NotData
 from pyiron_contrib.workflow.has_channel import HasChannel
 from pyiron_contrib.workflow.io import Inputs, Outputs, Signals
 from pyiron_contrib.workflow.node import Node
+from pyiron_contrib.workflow.output_parser import ParseOutput
 
 if TYPE_CHECKING:
     from pyiron_contrib.workflow.composite import Composite
@@ -322,7 +323,7 @@ class Function(Node):
             # **kwargs,
         )
         if len(output_labels) == 0:
-            raise ValueError("Nodes must have at least one output label.")
+            output_labels = ParseOutput(node_function).output
 
         self.node_function = node_function
 

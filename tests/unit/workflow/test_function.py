@@ -46,10 +46,7 @@ class TestFunction(unittest.TestCase):
         )
 
     def test_failure_without_output_labels(self):
-        with self.assertRaises(
-                ValueError,
-                msg="Instantiated nodes should demand at least one output label"
-        ):
+        with self.subTest("Automatically scrape output labels"):
             Function(plus_one)
 
     def test_instantiation_update(self):
