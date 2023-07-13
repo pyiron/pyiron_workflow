@@ -63,6 +63,7 @@ class ParseOutput:
     def output(self):
         if self.node_return is None:
             return
-        if isinstance(self.node_return.value, ast.Tuple):
+        elif isinstance(self.node_return.value, ast.Tuple):
             return [self.get_string(s) for s in self.node_return.value.dims]
-        return [self.get_string(self.node_return.value)]
+        else:
+            return [self.get_string(self.node_return.value)]
