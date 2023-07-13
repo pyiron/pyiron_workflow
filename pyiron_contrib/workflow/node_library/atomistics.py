@@ -10,12 +10,12 @@ from pyiron_atomistics.lammps.lammps import Lammps as LammpsJob
 from pyiron_contrib.workflow.function import single_value_node, slow_node
 
 
-@single_value_node("structure")
+@single_value_node(output_labels="structure")
 def bulk_structure(element: str = "Fe", cubic: bool = False, repeat: int = 1) -> Atoms:
     return _StructureFactory().bulk(element, cubic=cubic).repeat(repeat)
 
 
-@single_value_node("job")
+@single_value_node(output_labels="job")
 def lammps(structure: Optional[Atoms] = None) -> LammpsJob:
     pr = Project(".")
     job = pr.atomistics.job.Lammps("NOTAREALNAME")
@@ -82,20 +82,22 @@ def _run_and_remove_job(job, modifier: Optional[callable] = None, **modifier_kwa
 
 
 @slow_node(
-    "cells",
-    "displacements",
-    "energy_pot",
-    "energy_tot",
-    "force_max",
-    "forces",
-    "indices",
-    "positions",
-    "pressures",
-    "steps",
-    "temperature",
-    "total_displacements",
-    "unwrapped_positions",
-    "volume",
+    output_labels=[
+        "cells",
+        "displacements",
+        "energy_pot",
+        "energy_tot",
+        "force_max",
+        "forces",
+        "indices",
+        "positions",
+        "pressures",
+        "steps",
+        "temperature",
+        "total_displacements",
+        "unwrapped_positions",
+        "volume",
+    ]
 )
 def calc_static(
     job: AtomisticGenericJob,
@@ -104,20 +106,22 @@ def calc_static(
 
 
 @slow_node(
-    "cells",
-    "displacements",
-    "energy_pot",
-    "energy_tot",
-    "force_max",
-    "forces",
-    "indices",
-    "positions",
-    "pressures",
-    "steps",
-    "temperature",
-    "total_displacements",
-    "unwrapped_positions",
-    "volume",
+    output_labels= [
+        "cells",
+        "displacements",
+        "energy_pot",
+        "energy_tot",
+        "force_max",
+        "forces",
+        "indices",
+        "positions",
+        "pressures",
+        "steps",
+        "temperature",
+        "total_displacements",
+        "unwrapped_positions",
+        "volume",
+    ]
 )
 def calc_md(
     job: AtomisticGenericJob,

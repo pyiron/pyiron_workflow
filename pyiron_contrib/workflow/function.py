@@ -553,20 +553,20 @@ class Slow(Function):
     def __init__(
         self,
         node_function: callable,
-        *output_labels: str,
         label: Optional[str] = None,
         run_on_updates=False,
         update_on_instantiation=False,
         parent: Optional[Workflow] = None,
+        output_labels: Optional[str | list[str] | tuple[str]] = None,
         **kwargs,
     ):
         super().__init__(
             node_function,
-            *output_labels,
             label=label,
             run_on_updates=run_on_updates,
             update_on_instantiation=update_on_instantiation,
             parent=parent,
+            output_labels=output_labels,
             **kwargs,
         )
 
@@ -581,31 +581,31 @@ class SingleValue(Function, HasChannel):
     def __init__(
         self,
         node_function: callable,
-        *output_labels: str,
         label: Optional[str] = None,
         run_on_updates=True,
         update_on_instantiation=True,
         parent: Optional[Workflow] = None,
+        output_labels: Optional[str | list[str] | tuple[str]] = None,
         **kwargs,
     ):
-        self.ensure_there_is_only_one_return_value(output_labels)
         super().__init__(
             node_function,
-            *output_labels,
             label=label,
             run_on_updates=run_on_updates,
             update_on_instantiation=update_on_instantiation,
             parent=parent,
+            output_labels=output_labels,
             **kwargs,
         )
 
-    @classmethod
-    def ensure_there_is_only_one_return_value(cls, output_labels):
+    def _get_output_labels(self, output_labels: str | list[str] | tuple[str] | None):
+        output_labels = super()._get_output_labels(output_labels)
         if len(output_labels) > 1:
             raise ValueError(
-                f"{cls.__name__} must only have a single return value, but got "
-                f"multiple output labels: {output_labels}"
+                f"{self.__class__.__name__} must only have a single return value, but "
+                f"got multiple output labels: {output_labels}"
             )
+        return output_labels
 
     @property
     def single_value(self):
@@ -631,7 +631,7 @@ class SingleValue(Function, HasChannel):
         )
 
 
-def function_node(*output_labels: str, **node_class_kwargs):
+def function_node(**node_class_kwargs):
     """
     A decorator for dynamically creating node classes from functions.
 
@@ -650,7 +650,6 @@ def function_node(*output_labels: str, **node_class_kwargs):
                 "__init__": partialmethod(
                     Function.__init__,
                     node_function,
-                    *output_labels,
                     **node_class_kwargs,
                 )
             },
@@ -659,7 +658,7 @@ def function_node(*output_labels: str, **node_class_kwargs):
     return as_node
 
 
-def slow_node(*output_labels: str, **node_class_kwargs):
+def slow_node(**node_class_kwargs):
     """
     A decorator for dynamically creating slow node classes from functions.
 
@@ -676,7 +675,6 @@ def slow_node(*output_labels: str, **node_class_kwargs):
                 "__init__": partialmethod(
                     Slow.__init__,
                     node_function,
-                    *output_labels,
                     **node_class_kwargs,
                 )
             },
@@ -685,7 +683,7 @@ def slow_node(*output_labels: str, **node_class_kwargs):
     return as_slow_node
 
 
-def single_value_node(*output_labels: str, **node_class_kwargs):
+def single_value_node(**node_class_kwargs):
     """
     A decorator for dynamically creating fast node classes from functions.
 
@@ -693,7 +691,6 @@ def single_value_node(*output_labels: str, **node_class_kwargs):
     """
 
     def as_single_value_node(node_function: callable):
-        SingleValue.ensure_there_is_only_one_return_value(output_labels)
         return type(
             node_function.__name__.title().replace("_", ""),  # fnc_name to CamelCase
             (SingleValue,),  # Define parentage
@@ -701,7 +698,6 @@ def single_value_node(*output_labels: str, **node_class_kwargs):
                 "__init__": partialmethod(
                     SingleValue.__init__,
                     node_function,
-                    *output_labels,
                     **node_class_kwargs,
                 )
             },

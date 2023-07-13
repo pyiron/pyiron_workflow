@@ -8,7 +8,7 @@ from matplotlib import pyplot as plt
 from pyiron_contrib.workflow.function import single_value_node
 
 
-@single_value_node("fig")
+@single_value_node(output_labels="fig")
 def scatter(
     x: Optional[list | np.ndarray] = None, y: Optional[list | np.ndarray] = None
 ):

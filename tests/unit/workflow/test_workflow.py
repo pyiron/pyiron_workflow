@@ -9,7 +9,8 @@ from pyiron_contrib.workflow.workflow import Workflow
 
 
 def fnc(x=0):
-    return x + 1
+    y = x + 1
+    return y
 
 
 @unittest.skipUnless(version_info[0] == 3 and version_info[1] >= 10, "Only supported for 3.10+")
@@ -19,10 +20,10 @@ class TestWorkflow(unittest.TestCase):
         wf = Workflow("my_workflow")
 
         # Validate the four ways to add a node
-        wf.add(Function(fnc, "x", label="foo"))
-        wf.add.Function(fnc, "y", label="bar")
-        wf.baz = Function(fnc, "y", label="whatever_baz_gets_used")
-        Function(fnc, "x", label="qux", parent=wf)
+        wf.add(Function(fnc, label="foo"))
+        wf.add.Function(fnc, label="bar")
+        wf.baz = Function(fnc, label="whatever_baz_gets_used")
+        Function(fnc, label="qux", parent=wf)
         self.assertListEqual(list(wf.nodes.keys()), ["foo", "bar", "baz", "qux"])
         wf.boa = wf.qux
         self.assertListEqual(
@@ -33,14 +34,13 @@ class TestWorkflow(unittest.TestCase):
 
         wf.strict_naming = False
         # Validate name incrementation
-        wf.add(Function(fnc, "x", label="foo"))
-        wf.add.Function(fnc, "y", label="bar")
+        wf.add(Function(fnc, label="foo"))
+        wf.add.Function(fnc, label="bar")
         wf.baz = Function(
             fnc,
-            "y",
             label="without_strict_you_can_override_by_assignment"
         )
-        Function(fnc, "x", label="boa", parent=wf)
+        Function(fnc, label="boa", parent=wf)
         self.assertListEqual(
             list(wf.nodes.keys()),
             [
@@ -52,16 +52,16 @@ class TestWorkflow(unittest.TestCase):
         wf.strict_naming = True
         # Validate name preservation
         with self.assertRaises(AttributeError):
-            wf.add(Function(fnc, "x", label="foo"))
+            wf.add(Function(fnc, label="foo"))
 
         with self.assertRaises(AttributeError):
-            wf.add.Function(fnc, "y", label="bar")
+            wf.add.Function(fnc, label="bar")
 
         with self.assertRaises(AttributeError):
-            wf.baz = Function(fnc, "y", label="whatever_baz_gets_used")
+            wf.baz = Function(fnc, label="whatever_baz_gets_used")
 
         with self.assertRaises(AttributeError):
-            Function(fnc, "x", label="boa", parent=wf)
+            Function(fnc, label="boa", parent=wf)
 
     def test_node_packages(self):
         wf = Workflow("my_workflow")
@@ -80,8 +80,8 @@ class TestWorkflow(unittest.TestCase):
 
     def test_double_workfloage_and_node_removal(self):
         wf1 = Workflow("one")
-        wf1.add.Function(fnc, "y", label="node1")
-        node2 = Function(fnc, "y", label="node2", parent=wf1, x=wf1.node1.outputs.y)
+        wf1.add.Function(fnc, label="node1")
+        node2 = Function(fnc, label="node2", parent=wf1, x=wf1.node1.outputs.y)
         self.assertTrue(node2.connected)
 
         wf2 = Workflow("two")
@@ -95,9 +95,9 @@ class TestWorkflow(unittest.TestCase):
 
     def test_workflow_io(self):
         wf = Workflow("wf")
-        wf.add.Function(fnc, "y", label="n1")
-        wf.add.Function(fnc, "y", label="n2")
-        wf.add.Function(fnc, "y", label="n3")
+        wf.add.Function(fnc, label="n1")
+        wf.add.Function(fnc, label="n2")
+        wf.add.Function(fnc, label="n3")
 
         with self.subTest("Workflow IO should be drawn from its nodes"):
             self.assertEqual(len(wf.inputs), 3)
@@ -111,7 +111,7 @@ class TestWorkflow(unittest.TestCase):
             self.assertEqual(len(wf.outputs), 1)
 
     def test_node_decorator_access(self):
-        @Workflow.wrap_as.function_node("y")
+        @Workflow.wrap_as.function_node(output_labels="y")
         def plus_one(x: int = 0) -> int:
             return x + 1
 
@@ -122,7 +122,7 @@ class TestWorkflow(unittest.TestCase):
         self.assertTrue(wf._working_directory is None)
         self.assertIsInstance(wf.working_directory, DirectoryObject)
         self.assertTrue(str(wf.working_directory.path).endswith(wf.label))
-        wf.add.Function(fnc, "output")
+        wf.add.Function(fnc)
         self.assertTrue(str(wf.fnc.working_directory.path).endswith(wf.fnc.label))
         wf.working_directory.delete()
 
@@ -146,12 +146,13 @@ class TestWorkflow(unittest.TestCase):
     def test_parallel_execution(self):
         wf = Workflow("wf")
 
-        @Workflow.wrap_as.single_value_node("five", run_on_updates=False)
+        @Workflow.wrap_as.single_value_node(run_on_updates=False)
         def five(sleep_time=0.):
             sleep(sleep_time)
-            return 5
+            five = 5
+            return five
 
-        @Workflow.wrap_as.single_value_node("sum")
+        @Workflow.wrap_as.single_value_node(output_labels="sum")
         def sum(a, b):
             return a + b
 
