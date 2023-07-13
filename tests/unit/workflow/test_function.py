@@ -15,24 +15,29 @@ def throw_error(x: Optional[int] = None):
 
 
 def plus_one(x=1) -> Union[int, float]:
-    return x + 1
+    y = x + 1
+    return y
 
 
 def no_default(x, y):
     return x + y + 1
 
 
+def returns_multiple(x, y):
+    return x, y, x + y
+
+
 @unittest.skipUnless(version_info[0] == 3 and version_info[1] >= 10, "Only supported for 3.10+")
 class TestFunction(unittest.TestCase):
     def test_defaults(self):
-        with_defaults = Function(plus_one, "y")
+        with_defaults = Function(plus_one)
         self.assertEqual(
             with_defaults.inputs.x.value,
             1,
             msg=f"Expected to get the default provided in the underlying function but "
                 f"got {with_defaults.inputs.x.value}",
         )
-        without_defaults = Function(no_default, "sum_plus_one")
+        without_defaults = Function(no_default)
         self.assertIs(
             without_defaults.inputs.x.value,
             NotData,
@@ -45,14 +50,26 @@ class TestFunction(unittest.TestCase):
                 "defaults, the node should not be ready!"
         )
 
-    def test_failure_without_output_labels(self):
+    def test_label_choices(self):
         with self.subTest("Automatically scrape output labels"):
-            Function(plus_one)
+            n = Function(plus_one)
+            self.assertListEqual(n.outputs.labels, ["y"])
+
+        with self.subTest("Allow overriding them"):
+            n = Function(no_default, output_labels=("sum_plus_one",))
+            self.assertListEqual(n.outputs.labels, ["sum_plus_one"])
+
+        with self.subTest("Allow forcing _one_ output channel"):
+            n = Function(returns_multiple, output_labels="its_a_tuple")
+            self.assertListEqual(n.outputs.labels, ["its_a_tuple"])
+
+        with self.subTest("Force matching lengths"):
+            with self.assertRaises(ValueError):
+                Function(returns_multiple, output_labels=["one", "two"])
 
     def test_instantiation_update(self):
         no_update = Function(
             plus_one,
-            "y",
             run_on_updates=True,
             update_on_instantiation=False
         )
@@ -65,13 +82,12 @@ class TestFunction(unittest.TestCase):
 
         update = Function(
             plus_one,
-            "y",
             run_on_updates=True,
             update_on_instantiation=True
         )
         self.assertEqual(2, update.outputs.y.value)
 
-        default = Function(plus_one, "y")
+        default = Function(plus_one)
         self.assertEqual(
             2,
             default.outputs.y.value,
@@ -80,19 +96,19 @@ class TestFunction(unittest.TestCase):
         )
 
         with self.assertRaises(TypeError):
-            run_without_value = Function(no_default, "z")
+            run_without_value = Function(no_default)
             run_without_value.run()
             # None + None + 1 -> error
 
         with self.assertRaises(TypeError):
-            run_without_value = Function(no_default, "z", x=1)
+            run_without_value = Function(no_default, x=1)
             run_without_value.run()
             # 1 + None + 1 -> error
 
-        deferred_update = Function(no_default, "z", x=1, y=1)
+        deferred_update = Function(no_default, x=1, y=1)
         deferred_update.run()
         self.assertEqual(
-            deferred_update.outputs.z.value,
+            deferred_update.outputs["x + y + 1"].value,
             3,
             msg="By default, all initial values should be parsed before triggering "
                 "an update"
@@ -117,35 +133,38 @@ class TestFunction(unittest.TestCase):
                 node.inputs.x.update(1)
 
     def test_signals(self):
-        @function_node("y")
+        @function_node()
         def linear(x):
             return x
 
-        @function_node("z")
+        @function_node()
         def times_two(y):
             return 2 * y
 
         l = linear(x=1)
         t2 = times_two(
-            update_on_instantiation=False, run_automatically=False, y=l.outputs.y
+            update_on_instantiation=False,
+            run_automatically=False,
+            output_labels=["double"],
+            y=l.outputs.x
         )
         self.assertIs(
-            t2.outputs.z.value,
+            t2.outputs.double.value,
             NotData,
             msg=f"Without updates, expected the output to be {NotData} but got "
-                f"{t2.outputs.z.value}"
+                f"{t2.outputs.double.value}"
         )
 
         # Nodes should _all_ have the run and ran signals
         t2.signals.input.run = l.signals.output.ran
         l.run()
         self.assertEqual(
-            t2.outputs.z.value, 2,
+            t2.outputs.double.value, 2,
             msg="Running the upstream node should trigger a run here"
         )
 
     def test_statuses(self):
-        n = Function(plus_one, "p1", run_on_updates=False)
+        n = Function(plus_one, run_on_updates=False)
         self.assertTrue(n.ready)
         self.assertFalse(n.running)
         self.assertFalse(n.failed)
@@ -197,7 +216,7 @@ class TestFunction(unittest.TestCase):
                 self.some_counter = 1
             return x + 0.1
 
-        node = Function(with_self, "output")
+        node = Function(with_self, output_labels="output")
         self.assertTrue(
             "x" in node.inputs.labels,
             msg=f"Expected to find function input 'x' in the node input but got "
@@ -225,7 +244,7 @@ class TestFunction(unittest.TestCase):
             return x + 0.1
 
         with warnings.catch_warnings(record=True) as warning_list:
-            node = Function(with_messed_self, "output")
+            node = Function(with_messed_self)
             self.assertTrue("self" in node.inputs.labels)
 
         self.assertEqual(len(warning_list), 1)
@@ -234,7 +253,7 @@ class TestFunction(unittest.TestCase):
 @unittest.skipUnless(version_info[0] == 3 and version_info[1] >= 10, "Only supported for 3.10+")
 class TestSlow(unittest.TestCase):
     def test_instantiation(self):
-        slow = Slow(plus_one, "y")
+        slow = Slow(plus_one)
         self.assertIs(
             slow.outputs.y.value,
             NotData,

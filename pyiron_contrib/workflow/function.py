@@ -317,12 +317,12 @@ class Function(Node):
     def __init__(
         self,
         node_function: callable,
-        *output_labels: str,
         label: Optional[str] = None,
         run_on_updates: bool = True,
         update_on_instantiation: bool = True,
         channels_requiring_update_after_run: Optional[list[str]] = None,
         parent: Optional[Composite] = None,
+        output_labels: Optional[str | list[str] | tuple[str]] = None,
         **kwargs,
     ):
         super().__init__(
@@ -330,14 +330,12 @@ class Function(Node):
             parent=parent,
             # **kwargs,
         )
-        if len(output_labels) == 0:
-            output_labels = ParseOutput(node_function).output
 
         self.node_function = node_function
 
         self._inputs = None
         self._outputs = None
-        self._output_labels = output_labels
+        self._output_labels = self._get_output_labels(output_labels)
         # TODO: Parse output labels from the node function in case output_labels is None
 
         self.signals = self._build_signal_channels()
@@ -360,6 +358,29 @@ class Function(Node):
 
         if update_on_instantiation:
             self.update()
+
+    def _get_output_labels(self, output_labels: str | list[str] | tuple[str] | None):
+        """
+        Explicitly passed output labels can be used to rename awkward parsed labels, or
+        to force the creation of a _single_ output channel when wrapped functions return
+        a tuple of values.
+        """
+        parsed_labels = ParseOutput(self.node_function).output
+        if output_labels is None:
+            return parsed_labels
+        else:
+            if isinstance(output_labels, str):
+                output_labels = (output_labels,)
+
+            if len(output_labels) != 1 and len(output_labels) != len(parsed_labels):
+                raise ValueError(
+                    f"When output labels are explicitly provided they must either be a "
+                    f"_single_ label, or match the length of the parsed labels. In "
+                    f"this case, {output_labels} were received while {parsed_labels} "
+                    f"were parsed."
+                )
+
+            return output_labels
 
     @property
     def _input_args(self):
