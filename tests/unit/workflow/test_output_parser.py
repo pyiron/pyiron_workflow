@@ -54,6 +54,12 @@ class TestParseOutput(unittest.TestCase):
                 ["np.arange( i, dtype=int )", "np.shape(i, j)"]
             )
 
+        with self.subTest("Methods too"):
+            class Foo:
+                def add(self, x, y):
+                    return x + y
+            self.assertListEqual(ParseOutput(Foo.add).output, ["x + y"])
+
 
 if __name__ == '__main__':
     unittest.main()
