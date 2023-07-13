@@ -76,6 +76,15 @@ class TestParseOutput(unittest.TestCase):
                 return None
             self.assertIsNone(ParseOutput(none_return).output)
 
+    def test_multiple_branches(self):
+        def bifurcating(x):
+            if x > 5:
+                return True
+            else:
+                return False
+        with self.assertRaises(ValueError):
+            ParseOutput(bifurcating).output
+
 
 if __name__ == '__main__':
     unittest.main()

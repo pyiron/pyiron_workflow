@@ -30,9 +30,21 @@ class ParseOutput:
     @property
     def node_return(self):
         tree = ast.parse(self.dedented_source_string)
+        returns = []
         for node in ast.walk(tree):
             if isinstance(node, ast.Return):
-                return node
+                returns.append(node)
+
+        if len(returns) > 1:
+            raise ValueError(
+                f"{self.__class__.__name__} can only parse callables with at most one "
+                f"return value, but ast.walk found {len(returns)}."
+            )
+
+        try:
+            return returns[0]
+        except IndexError:
+            return None
 
     @property
     def source(self):
