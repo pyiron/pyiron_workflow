@@ -61,9 +61,13 @@ class ParseOutput:
 
     @property
     def output(self):
-        if self.node_return is None:
+        if self.node_return is None or self.node_return.value is None:
             return
         elif isinstance(self.node_return.value, ast.Tuple):
             return [self.get_string(s) for s in self.node_return.value.dims]
         else:
-            return [self.get_string(self.node_return.value)]
+            out = [self.get_string(self.node_return.value)]
+            if out == ["None"]:
+                return
+            else:
+                return out

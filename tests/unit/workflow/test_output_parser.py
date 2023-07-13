@@ -60,6 +60,22 @@ class TestParseOutput(unittest.TestCase):
                     return x + y
             self.assertListEqual(ParseOutput(Foo.add).output, ["x + y"])
 
+    def test_void(self):
+        with self.subTest("No return"):
+            def no_return():
+                pass
+            self.assertIsNone(ParseOutput(no_return).output)
+
+        with self.subTest("Empty return"):
+            def empty_return():
+                return
+            self.assertIsNone(ParseOutput(empty_return).output)
+
+        with self.subTest("Return None explicitly"):
+            def none_return():
+                return None
+            self.assertIsNone(ParseOutput(none_return).output)
+
 
 if __name__ == '__main__':
     unittest.main()
