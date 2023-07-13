@@ -18,6 +18,7 @@ class ParseOutput:
     def __init__(self, function):
         self._func = function
         self._source = None
+        self._output = self.get_parsed_output()
 
     @property
     def func(self):
@@ -73,6 +74,9 @@ class ParseOutput:
 
     @property
     def output(self):
+        return self._output
+
+    def get_parsed_output(self):
         if self.node_return is None or self.node_return.value is None:
             return
         elif isinstance(self.node_return.value, ast.Tuple):

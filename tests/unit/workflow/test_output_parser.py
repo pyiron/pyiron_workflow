@@ -83,7 +83,7 @@ class TestParseOutput(unittest.TestCase):
             else:
                 return False
         with self.assertRaises(ValueError):
-            ParseOutput(bifurcating).output
+            ParseOutput(bifurcating)
 
 
 if __name__ == '__main__':
