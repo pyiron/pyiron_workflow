@@ -277,10 +277,10 @@ class TestSlow(unittest.TestCase):
 @unittest.skipUnless(version_info[0] == 3 and version_info[1] >= 10, "Only supported for 3.10+")
 class TestSingleValue(unittest.TestCase):
     def test_instantiation(self):
-        has_defaults_and_one_return = SingleValue(plus_one, "y")
+        has_defaults_and_one_return = SingleValue(plus_one)
 
         with self.assertRaises(ValueError):
-            too_many_labels = SingleValue(plus_one, "z", "excess_label")
+            too_many_labels = SingleValue(plus_one, output_labels=["z", "excess_label"])
 
     def test_item_and_attribute_access(self):
         class Foo:
@@ -296,7 +296,7 @@ class TestSingleValue(unittest.TestCase):
         def returns_foo() -> Foo:
             return Foo()
 
-        svn = SingleValue(returns_foo, "foo")
+        svn = SingleValue(returns_foo, output_labels="foo")
 
         self.assertEqual(
             svn.some_attribute,
@@ -326,14 +326,14 @@ class TestSingleValue(unittest.TestCase):
         )
 
     def test_repr(self):
-        svn = SingleValue(plus_one, "y")
+        svn = SingleValue(plus_one)
         self.assertEqual(
             svn.__repr__(), svn.outputs.y.value.__repr__(),
             msg="SingleValueNodes should have their output as their representation"
         )
 
     def test_str(self):
-        svn = SingleValue(plus_one, "y")
+        svn = SingleValue(plus_one)
         self.assertTrue(
             str(svn).endswith(str(svn.single_value)),
             msg="SingleValueNodes should have their output as a string in their string "
@@ -342,8 +342,8 @@ class TestSingleValue(unittest.TestCase):
         )
 
     def test_easy_output_connection(self):
-        svn = SingleValue(plus_one, "y")
-        regular = Function(plus_one, "y")
+        svn = SingleValue(plus_one)
+        regular = Function(plus_one)
 
         regular.inputs.x = svn
 
@@ -360,7 +360,7 @@ class TestSingleValue(unittest.TestCase):
                 "case default->plus_one->plus_one = 1 + 1 +1 = 3"
         )
 
-        at_instantiation = Function(plus_one, "y", x=svn)
+        at_instantiation = Function(plus_one, x=svn)
         self.assertIn(
             svn.outputs.y, at_instantiation.inputs.x.connections,
             msg="The parsing of SingleValue output as a connection should also work"
@@ -368,7 +368,7 @@ class TestSingleValue(unittest.TestCase):
         )
 
     def test_channels_requiring_update_after_run(self):
-        @single_value_node("sum")
+        @single_value_node(output_labels="sum")
         def my_node(x: int = 0, y: int = 0, z: int = 0):
             return x + y + z
 
@@ -420,7 +420,7 @@ class TestSingleValue(unittest.TestCase):
         )
 
     def test_working_directory(self):
-        n_f = Function(plus_one, "output")
+        n_f = Function(plus_one)
         self.assertTrue(n_f._working_directory is None)
         self.assertIsInstance(n_f.working_directory, DirectoryObject)
         self.assertTrue(str(n_f.working_directory.path).endswith(n_f.label))
