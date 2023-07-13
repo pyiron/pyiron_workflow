@@ -5,6 +5,7 @@ Inspects code to automatically parse return values as strings
 import ast
 import inspect
 import re
+from textwrap import dedent
 
 
 def _remove_spaces_until_character(string):
@@ -23,8 +24,12 @@ class ParseOutput:
         return self._func
 
     @property
+    def dedented_source_string(self):
+        return dedent(inspect.getsource(self.func))
+
+    @property
     def node_return(self):
-        tree = ast.parse(inspect.getsource(self.func))
+        tree = ast.parse(self.dedented_source_string)
         for node in ast.walk(tree):
             if isinstance(node, ast.Return):
                 return node
@@ -32,9 +37,7 @@ class ParseOutput:
     @property
     def source(self):
         if self._source is None:
-            self._source = [
-                line.rsplit("\n", 1)[0] for line in inspect.getsourcelines(self.func)[0]
-            ]
+            self._source = self.dedented_source_string.split("\n")[:-1]
         return self._source
 
     def get_string(self, node):
