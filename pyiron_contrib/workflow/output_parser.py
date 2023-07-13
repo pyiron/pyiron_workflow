@@ -15,6 +15,15 @@ def _remove_spaces_until_character(string):
 
 
 class ParseOutput:
+    """
+    Given a function with at most one `return` expression, inspects the source code and
+    parses a list of strings containing the returned values.
+    If the function returns `None`, the parsed value is also `None`.
+    This parsed value is evaluated at instantiation and stored in the `output`
+    attribute.
+    In case more than one `return` expression is found, a `ValueError` is raised.
+    """
+
     def __init__(self, function):
         self._func = function
         self._source = None
