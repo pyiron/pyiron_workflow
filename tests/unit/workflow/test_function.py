@@ -26,9 +26,17 @@ def no_default(x, y):
 def returns_multiple(x, y):
     return x, y, x + y
 
+def void():
+    pass
+
 
 @unittest.skipUnless(version_info[0] == 3 and version_info[1] >= 10, "Only supported for 3.10+")
 class TestFunction(unittest.TestCase):
+    def test_instantiation(self):
+        with self.subTest("Void function"):
+            void_node = Function(void)
+            self.assertEqual(len(void_node.outputs), 0)
+
     def test_defaults(self):
         with_defaults = Function(plus_one)
         self.assertEqual(

@@ -367,7 +367,7 @@ class Function(Node):
         """
         parsed_labels = ParseOutput(self.node_function).output
         if output_labels is None:
-            return parsed_labels
+            return parsed_labels if parsed_labels is not None else []
         else:
             if isinstance(output_labels, str):
                 output_labels = (output_labels,)
@@ -521,7 +521,9 @@ class Function(Node):
         for channel_name in self.channels_requiring_update_after_run:
             self.inputs[channel_name].wait_for_update()
 
-        if len(self.outputs) == 1:
+        if len(self.outputs) == 0:
+            return
+        elif len(self.outputs) == 1:
             function_output = (function_output,)
 
         for out, value in zip(self.outputs, function_output):
