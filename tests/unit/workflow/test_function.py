@@ -299,10 +299,11 @@ class TestSlow(unittest.TestCase):
 @unittest.skipUnless(version_info[0] == 3 and version_info[1] >= 10, "Only supported for 3.10+")
 class TestSingleValue(unittest.TestCase):
     def test_instantiation(self):
-        has_defaults_and_one_return = SingleValue(plus_one)
+        SingleValue(plus_one)
 
         with self.assertRaises(ValueError):
-            too_many_labels = SingleValue(plus_one, output_labels=["z", "excess_label"])
+            # Too many labels
+            SingleValue(plus_one, output_labels=["z", "excess_label"])
 
     def test_item_and_attribute_access(self):
         class Foo:

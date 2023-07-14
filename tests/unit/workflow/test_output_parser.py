@@ -22,9 +22,9 @@ class TestParseOutput(unittest.TestCase):
             self.assertListEqual(ParseOutput(add).output, ["x + y"])
 
         with self.subTest("Weird whitespace"):
-            def add(x, y):
+            def add_with_whitespace(x, y):
                 return   x  +  y
-            self.assertListEqual(ParseOutput(add).output, ["x + y"])
+            self.assertListEqual(ParseOutput(add_with_whitespace).output, ["x + y"])
 
         with self.subTest("Multiple expressions"):
             def add_and_subtract(x, y):
