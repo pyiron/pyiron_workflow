@@ -106,7 +106,7 @@ def calc_static(
 
 
 @slow_node(
-    output_labels= [
+    output_labels=[
         "cells",
         "displacements",
         "energy_pot",
