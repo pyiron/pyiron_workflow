@@ -34,16 +34,17 @@ class Workflow(Composite):
         >>> from pyiron_contrib.workflow.workflow import Workflow
         >>> from pyiron_contrib.workflow.function import Function
         >>>
-        >>> def fnc(x=0): return x + 1
+        >>> def fnc(x=0):
+        ...     return x + 1
         >>>
-        >>> n1 = Function(fnc, "x", label="n1")
+        >>> n1 = Function(fnc, label="n1")
         >>>
         >>> wf = Workflow("my_workflow", n1)  # As *args at instantiation
-        >>> wf.add(Function(fnc, "x", label="n2"))  # Passing a node to the add caller
-        >>> wf.add.Function(fnc, "y", label="n3")  # Instantiating from add
-        >>> wf.n4 = Function(fnc, "y", label="whatever_n4_gets_used")
+        >>> wf.add(Function(fnc, label="n2"))  # Passing a node to the add caller
+        >>> wf.add.Function(fnc, label="n3")  # Instantiating from add
+        >>> wf.n4 = Function(fnc, label="whatever_n4_gets_used")
         >>> # By attribute assignment
-        >>> Function(fnc, "x", label="n5", parent=wf)
+        >>> Function(fnc, label="n5", parent=wf)
         >>> # By instantiating the node with a workflow
 
         By default, the node naming scheme is strict, so if you try to add a node to a
@@ -51,10 +52,10 @@ class Workflow(Composite):
         at instantiation with the `strict_naming` kwarg, or afterwards by assigning a
         bool to this property. When deactivated, repeated assignments to the same label
         just get appended with an index:
-        >>> wf.deactivate_strict_naming()
-        >>> wf.my_node = Function(fnc, "y", x=0)
-        >>> wf.my_node = Function(fnc, "y", x=1)
-        >>> wf.my_node = Function(fnc, "y", x=2)
+        >>> wf.strict_naming = False
+        >>> wf.my_node = Function(fnc, x=0)
+        >>> wf.my_node = Function(fnc, x=1)
+        >>> wf.my_node = Function(fnc, x=2)
         >>> print(wf.my_node.inputs.x, wf.my_node0.inputs.x, wf.my_node1.inputs.x)
         0, 1, 2
 
@@ -63,7 +64,7 @@ class Workflow(Composite):
         workflow (cf. the `Node` docs for more detail on the node types).
         Let's use these to explore a workflow's input and output, which are dynamically
         generated from the unconnected IO of its nodes:
-        >>> @Workflow.wrap_as.function_node("y")
+        >>> @Workflow.wrap_as.function_node(output_labels="y")
         >>> def plus_one(x: int = 0):
         ...     return x + 1
         >>>
