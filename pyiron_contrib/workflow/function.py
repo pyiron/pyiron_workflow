@@ -19,8 +19,9 @@ if TYPE_CHECKING:
 class Function(Node):
     """
     Function nodes wrap an arbitrary python function.
-    Node IO, including type hints, is generated automatically from the provided function
-    and (in the case of labeling output channels) the provided output labels.
+    Node IO, including type hints, is generated automatically from the provided
+    function.
+
     On running, the function node executes this wrapped function with its current input
     and uses the results to populate the node output.
 
@@ -30,16 +31,20 @@ class Function(Node):
     is currently no way to mix-and-match, i.e. to have multiple return values at least
     one of which is a tuple.)
 
-    The node label (unless otherwise provided), IO types, and input defaults for the
-    node are produced _automatically_ from introspection of the node function.
-    Additional properties like storage priority (present but doesn't do anything yet)
-    and ontological type (not yet present) can be set using kwarg dictionaries with
-    keys corresponding to the channel labels (i.e. the node arguments of the node
-    function, or the output labels provided).
+    The node label (unless otherwise provided), IO channel names, IO types, and input
+    defaults for the node are produced _automatically_ from introspection of the node
+    function.
+    Explicit output labels can be provided to modify the number of return values (from
+    $N$ to 1 in case you _want_ a tuple returned) and to dodge constraints on the
+    automatic scraping routine (namely, that there be _at most_ one `return`
+    expression).
+    (Additional properties like storage priority and ontological type are forthcoming
+    as kwarg dictionaries with keys corresponding to the channel labels (i.e. the node
+    arguments of the node function, or the output labels provided).)
 
     Actual function node instances can either be instances of the base node class, in
-    which case the callable node function and output labels *must* be provided, in
-    addition to other data, OR they can be instances of children of this class.
+    which case the callable node function *must* be provided OR they can be instances
+    of children of this class.
     Those children may define some or all of the node behaviour at the class level, and
     modify their signature accordingly so this is not available for alteration by the
     user, e.g. the node function and output labels may be hard-wired.
@@ -48,6 +53,8 @@ class Function(Node):
     nodes should be both functional (always returning the same output given the same
     input) and idempotent (not modifying input data in-place, but creating copies where
     necessary and returning new objects as output).
+    Further, functions with multiple return branches that return different types or
+    numbers of return values may or may not work smoothly, depending on the details.
 
     By default, function nodes will attempt to run whenever one or more inputs is
     updated, and will attempt to update on initialization (after setting _all_ initial
@@ -55,7 +62,7 @@ class Function(Node):
 
     Output is updated in the `process_run_result` inside the parent class `finish_run`
     call, such that output data gets pushed after the node stops running but before
-    then `ran` signal fires.
+    then `ran` signal fires: run, process and push result, ran.
 
     Args:
         node_function (callable): The function determining the behaviour of the node.
@@ -110,9 +117,9 @@ class Function(Node):
         >>> def mwe(x, y):
         ...     return x+1, y-1
         >>>
-        >>> plus_minus_1 = Function(mwe, "p1", "m1")
+        >>> plus_minus_1 = Function(mwe)
         >>>
-        >>> print(plus_minus_1.outputs.p1)
+        >>> print(plus_minus_1.outputs["x+1"])
         <class 'pyiron_contrib.workflow.channels.NotData'>
 
         There is no output because we haven't given our function any input, it has
@@ -133,13 +140,17 @@ class Function(Node):
 
         Once we update `y`, all the input is ready and the automatic `update()` call
         will be allowed to proceed to a `run()` call, which succeeds and updates the
-        output:
-        >>> plus_minus_1.inputs.x = 3
+        output.
+        The final thing we need to do is disable the `failed` status we got from our
+        last run call
+        >>> plus_minus_1.failed = False
+        >>> plus_minus_1.inputs.y = 3
         >>> plus_minus_1.outputs.to_value_dict()
-        {'p1': 3, 'm1': 2}
+        {'x+1': 3, 'y-1': 2}
 
-        We can also, optionally, provide initial values for some or all of the input
-        >>> plus_minus_1 = Function(mwe, "p1", "m1",  x=1)
+        We can also, optionally, provide initial values for some or all of the input and
+        labels for the output:
+        >>> plus_minus_1 = Function(mwe, output_labels=("p1", "m1"),  x=1)
         >>> plus_minus_1.inputs.y = 2  # Automatically triggers an update call now
         >>> plus_minus_1.outputs.to_value_dict()
         {'p1': 2, 'm1': 1}
@@ -147,7 +158,7 @@ class Function(Node):
         Finally, we might stop these updates from happening automatically, even when
         all the input data is present and available:
         >>> plus_minus_1 = Function(
-        ...     mwe, "p1", "m1",
+        ...     mwe, output_labels=("p1", "m1"),
         ...     x=0, y=0,
         ...     run_on_updates=False, update_on_instantiation=False
         ... )
@@ -163,7 +174,7 @@ class Function(Node):
         if they haven't seen any input data.
         However, we could still get them to raise an error by providing the _wrong_
         data:
-        >>> plus_minus_1 = Function(mwe, "p1", "m1", x=1, y="can't add to an int")
+        >>> plus_minus_1 = Function(mwe, x=1, y="can't add to an int")
         TypeError
 
         Here everything tries to run automatically, but we get an error from adding the
@@ -179,15 +190,19 @@ class Function(Node):
         return hint.
         Our treatment of type hints is **not infinitely robust**, but covers a wide
         variety of common use cases.
+        Note that getting "good" (i.e. dot-accessible) output labels can be achieved by
+        using good variable names and returning those variables instead of using
+        `output_labels`:
         >>> from typing import Union
         >>>
         >>> def hinted_example(
         ...     x: Union[int, float],
         ...     y: int | float = 1
         ... ) -> tuple[int, int | float]:
-        ...     return x+1, y-1
+        ...     p1, m1 = x+1, y-1
+        ...     return p1, m1
         >>>
-        >>> plus_minus_1 = Function(hinted_example, "p1", "m1", x="not an int")
+        >>> plus_minus_1 = Function(hinted_example, x="not an int")
         >>> plus_minus_1.outputs.to_value_dict()
         {'p1': <class 'pyiron_contrib.workflow.channels.NotData'>, 'm1': <class
         'pyiron_contrib.workflow.channels.NotData'>}
@@ -218,7 +233,7 @@ class Function(Node):
         and returns a node class:
         >>> from pyiron_contrib.workflow.function import function_node
         >>>
-        >>> @function_node("p1", "m1")
+        >>> @function_node(output_labels=("p1", "m1"))
         ... def my_mwe_node(
         ...     x: int | float, y: int | float = 1
         ... ) -> tuple[int | float, int | float]:
@@ -248,7 +263,6 @@ class Function(Node):
         ...     ):
         ...         super().__init__(
         ...             self.alphabet_mod_three,
-        ...             "letter",
         ...             label=label,
         ...             run_on_updates=run_on_updates,
         ...             update_on_instantiation=update_on_instantiation,
@@ -257,7 +271,8 @@ class Function(Node):
         ...
         ...     @staticmethod
         ...     def alphabet_mod_three(i: int) -> Literal["a", "b", "c"]:
-        ...         return ["a", "b", "c"][i % 3]
+        ...         letter = ["a", "b", "c"][i % 3]
+        ...         return letter
 
         Note that we've overridden the default value for `update_on_instantiation`
         above.
@@ -274,12 +289,12 @@ class Function(Node):
         >>> class Adder(Function):
         ...     @staticmethod
         ...     def adder(x: int = 0, y: int = 0) -> int:
-        ...         return x + y
+        ...         sum = x + y
+        ...         return sum
         ...
         ...     __init__ = partialmethod(
         ...         Function.__init__,
         ...         adder,
-        ...         "sum",
         ...     )
 
         Finally, let's put it all together by using both of these nodes at once.
@@ -585,6 +600,9 @@ class SingleValue(Function, HasChannel):
     A node that _must_ return only a single value.
 
     Attribute and item access is modified to finally attempt access on the output value.
+    Note that this means any attributes/method available on the output value become
+    available directly at the node level (at least those which don't conflict with the
+    existing node namespace).
     """
 
     def __init__(
@@ -645,10 +663,11 @@ def function_node(**node_class_kwargs):
     A decorator for dynamically creating node classes from functions.
 
     Decorates a function.
-    Takes an output label for each returned value of the function.
-    Returns a `Function` subclass whose name is the camel-case version of the function node,
-    and whose signature is modified to exclude the node function and output labels
+    Returns a `Function` subclass whose name is the camel-case version of the function
+    node, and whose signature is modified to exclude the node function and output labels
     (which are explicitly defined in the process of using the decorator).
+
+    Optionally takes any keyword arguments of `Function`.
     """
 
     def as_node(node_function: callable):
@@ -674,6 +693,8 @@ def slow_node(**node_class_kwargs):
     Unlike normal nodes, slow nodes do update themselves on initialization and do not
     run themselves when they get updated -- i.e. they will not run when their input
     changes, `run()` must be explicitly called.
+
+    Optionally takes any keyword arguments of `Slow`.
     """
 
     def as_slow_node(node_function: callable):
@@ -697,6 +718,8 @@ def single_value_node(**node_class_kwargs):
     A decorator for dynamically creating fast node classes from functions.
 
     Unlike normal nodes, fast nodes _must_ have default values set for all their inputs.
+
+    Optionally takes any keyword arguments of `SingleValueNode`.
     """
 
     def as_single_value_node(node_function: callable):
