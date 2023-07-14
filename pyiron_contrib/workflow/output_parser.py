@@ -9,8 +9,8 @@ from textwrap import dedent
 
 
 def _remove_spaces_until_character(string):
-    pattern = r'\s+(?=\s)'
-    modified_string = re.sub(pattern, '', string)
+    pattern = r"\s+(?=\s)"
+    modified_string = re.sub(pattern, "", string)
     return modified_string
 
 
@@ -67,15 +67,15 @@ class ParseOutput:
         for ll in range(node.lineno - 1, node.end_lineno):
             if ll == node.lineno - 1 == node.end_lineno - 1:
                 string += _remove_spaces_until_character(
-                    self.source[ll][node.col_offset:node.end_col_offset]
+                    self.source[ll][node.col_offset : node.end_col_offset]
                 )
             elif ll == node.lineno - 1:
                 string += _remove_spaces_until_character(
-                    self.source[ll][node.col_offset:]
+                    self.source[ll][node.col_offset :]
                 )
             elif ll == node.end_lineno - 1:
                 string += _remove_spaces_until_character(
-                    self.source[ll][:node.end_col_offset]
+                    self.source[ll][: node.end_col_offset]
                 )
             else:
                 string += _remove_spaces_until_character(self.source[ll])
