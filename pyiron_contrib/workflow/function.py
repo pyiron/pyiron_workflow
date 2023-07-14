@@ -78,7 +78,10 @@ class Function(Node):
             that requires item-string-based access. Additionally, specifying a _single_
             label for a wrapped function that returns a tuple of values ensures that a
             _single_ output channel (holding the tuple) is created, instead of one
-            channel for each return value.
+            channel for each return value. The default approach of extracting labels
+            from the function source code also requires that the function body contain
+            _at most_ one `return` expression, so providing explicit labels can be used
+            to circumvent this (at your own risk).
         **kwargs: Any additional keyword arguments whose keyword matches the label of an
             input channel will have their value assigned to that channel.
 
@@ -361,26 +364,30 @@ class Function(Node):
 
     def _get_output_labels(self, output_labels: str | list[str] | tuple[str] | None):
         """
-        Explicitly passed output labels can be used to rename awkward parsed labels, or
-        to force the creation of a _single_ output channel when wrapped functions return
-        a tuple of values.
+        If output labels are provided, turn convert them to a list if passed as a
+        string and return them, else scrape them from the source channel.
+
+        Note: When the user explicitly provides output channels, they are taking
+        responsibility that these are correct, e.g. in terms of quantity, order, etc.
         """
-        parsed_labels = ParseOutput(self.node_function).output
         if output_labels is None:
-            return parsed_labels if parsed_labels is not None else []
+            return self._scrape_output_labels()
+        elif isinstance(output_labels, str):
+            return [output_labels]
         else:
-            if isinstance(output_labels, str):
-                output_labels = (output_labels,)
-
-            if len(output_labels) != 1 and len(output_labels) != len(parsed_labels):
-                raise ValueError(
-                    f"When output labels are explicitly provided they must either be a "
-                    f"_single_ label, or match the length of the parsed labels. In "
-                    f"this case, {output_labels} were received while {parsed_labels} "
-                    f"were parsed."
-                )
-
             return output_labels
+
+    def _scrape_output_labels(self):
+        """
+        Inspect the source code to scrape out strings representing the returned values.
+        _Only_ works for functions with a single `return` expression in their body.
+
+        Will return expressions and function calls just fine, thus best practice is to
+        create well-named variables and return those so that the output labels stay
+        dot-accessible.
+        """
+        parsed_outputs = ParseOutput(self.node_function).output
+        return [] if parsed_outputs is None else parsed_outputs
 
     @property
     def _input_args(self):

@@ -26,14 +26,22 @@ def no_default(x, y):
 def returns_multiple(x, y):
     return x, y, x + y
 
+
 def void():
     pass
+
+
+def multiple_branches(x):
+    if x < 10:
+        return True
+    else:
+        return False
 
 
 @unittest.skipUnless(version_info[0] == 3 and version_info[1] >= 10, "Only supported for 3.10+")
 class TestFunction(unittest.TestCase):
     def test_instantiation(self):
-        with self.subTest("Void function"):
+        with self.subTest("Void function is allowable"):
             void_node = Function(void)
             self.assertEqual(len(void_node.outputs), 0)
 
@@ -71,9 +79,15 @@ class TestFunction(unittest.TestCase):
             n = Function(returns_multiple, output_labels="its_a_tuple")
             self.assertListEqual(n.outputs.labels, ["its_a_tuple"])
 
-        with self.subTest("Force matching lengths"):
+        with self.subTest("Fail on multiple return values"):
             with self.assertRaises(ValueError):
-                Function(returns_multiple, output_labels=["one", "two"])
+                # Can't automatically parse output labels from a function with multiple
+                # return expressions
+                Function(multiple_branches)
+
+        with self.subTest("Override output label scraping"):
+            switch = Function(multiple_branches, output_labels="bool")
+            self.assertListEqual(switch.outputs.labels, ["bool"])
 
     def test_instantiation_update(self):
         no_update = Function(
