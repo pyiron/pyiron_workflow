@@ -376,27 +376,6 @@ class Function(Node):
         if update_on_instantiation:
             self.update()
 
-    def _batch_update_input(self, **kwargs):
-        """
-        Temporarily disable running on updates to set all input values at once.
-
-        Args:
-            **kwargs: input label - input value (including channels for connection)
-             pairs.
-        """
-        run_on_updates, self.run_on_updates = self.run_on_updates, False
-        for k, v in kwargs.items():
-            if k in self.inputs.labels:
-                self.inputs[k] = v
-            else:
-                warnings.warn(
-                    f"The keyword '{k}' was not found among input labels. If you are "
-                    f"trying to update a node keyword, please use attribute assignment "
-                    f"directly instead of calling, e.g. "
-                    f"`my_node_instance.run_on_updates = False`."
-                )
-        self.run_on_updates = run_on_updates  # Restore provided value
-
     def _get_output_labels(self, output_labels: str | list[str] | tuple[str] | None):
         """
         If output labels are provided, turn convert them to a list if passed as a
