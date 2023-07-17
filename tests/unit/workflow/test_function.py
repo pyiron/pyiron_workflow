@@ -45,6 +45,23 @@ class TestFunction(unittest.TestCase):
             void_node = Function(void)
             self.assertEqual(len(void_node.outputs), 0)
 
+        with self.subTest("Args and kwargs at initialization"):
+            node = Function(returns_multiple, 1, y=2)
+            self.assertEqual(
+                node.inputs.x.value,
+                1,
+                msg="Should be able to set function input as args"
+            )
+            self.assertEqual(
+                node.inputs.y.value,
+                2,
+                msg="Should be able to set function input as kwargs"
+            )
+
+            with self.assertRaises(ValueError):
+                # Can't pass more args than the function takes
+                Function(returns_multiple, 1, 2, 3)
+
     def test_defaults(self):
         with_defaults = Function(plus_one)
         self.assertEqual(

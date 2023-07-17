@@ -340,6 +340,7 @@ class Function(Node):
     def __init__(
         self,
         node_function: callable,
+        *args,
         label: Optional[str] = None,
         run_on_updates: bool = True,
         update_on_instantiation: bool = True,
@@ -371,7 +372,7 @@ class Function(Node):
         self._verify_that_channels_requiring_update_all_exist()
 
         self.run_on_updates = run_on_updates
-        self._batch_update_input(**kwargs)
+        self._batch_update_input(*args, **kwargs)
 
         if update_on_instantiation:
             self.update()
@@ -570,6 +571,10 @@ class Function(Node):
             kwargs[key] = arg
 
         return kwargs
+
+    def _batch_update_input(self, *args, **kwargs):
+        kwargs = self._convert_input_args_and_kwargs_to_input_kwargs(*args, **kwargs)
+        return super()._batch_update_input(**kwargs)
 
     def __call__(self, *args, **kwargs) -> None:
         kwargs = self._convert_input_args_and_kwargs_to_input_kwargs(*args, **kwargs)
