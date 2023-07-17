@@ -559,11 +559,11 @@ class Function(Node):
                 f"only accepts {len(reverse_keys)} inputs."
             )
 
-        positional_keywords = reverse_keys[-len(args):]
+        positional_keywords = reverse_keys[-len(args):] if len(args) > 0 else []  # -0:
         if len(set(positional_keywords).intersection(kwargs.keys())) > 0:
             raise ValueError(
                 f"Cannot use {set(positional_keywords).intersection(kwargs.keys())} "
-                f"as both positional _and_ keyword arguments"
+                f"as both positional _and_ keyword arguments; args {args}, kwargs {kwargs}, reverse_keys {reverse_keys}, positional_keyworkds {positional_keywords}"
             )
 
         for arg in args:
@@ -603,6 +603,7 @@ class Slow(Function):
     def __init__(
         self,
         node_function: callable,
+        *args,
         label: Optional[str] = None,
         run_on_updates=False,
         update_on_instantiation=False,
@@ -612,6 +613,7 @@ class Slow(Function):
     ):
         super().__init__(
             node_function,
+            *args,
             label=label,
             run_on_updates=run_on_updates,
             update_on_instantiation=update_on_instantiation,
@@ -634,6 +636,7 @@ class SingleValue(Function, HasChannel):
     def __init__(
         self,
         node_function: callable,
+        *args,
         label: Optional[str] = None,
         run_on_updates=True,
         update_on_instantiation=True,
@@ -643,6 +646,7 @@ class SingleValue(Function, HasChannel):
     ):
         super().__init__(
             node_function,
+            *args,
             label=label,
             run_on_updates=run_on_updates,
             update_on_instantiation=update_on_instantiation,

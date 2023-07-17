@@ -358,11 +358,31 @@ class TestSlow(unittest.TestCase):
                 f"{slow.outputs.y.value}"
         )
 
+        node = Slow(no_default, 1, y=2, output_labels="output")
+        node.run()
+        self.assertEqual(
+            no_default(1, 2),
+            node.outputs.output.value,
+            msg="Slow nodes should allow input initialization by arg and kwarg"
+        )
+        node(2, y=3)
+        node.run()
+        self.assertEqual(
+            no_default(2, 3),
+            node.outputs.output.value,
+            msg="Slow nodes should allow input update on call by arg and kwarg"
+        )
+
 
 @unittest.skipUnless(version_info[0] == 3 and version_info[1] >= 10, "Only supported for 3.10+")
 class TestSingleValue(unittest.TestCase):
     def test_instantiation(self):
-        SingleValue(plus_one)
+        node = SingleValue(no_default, 1, y=2, output_labels="output")
+        self.assertEqual(
+            no_default(1, 2),
+            node.outputs.output.value,
+            msg="Single value node should allow function input by arg and kwarg"
+        )
 
         with self.assertRaises(ValueError):
             # Too many labels
