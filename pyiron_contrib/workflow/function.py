@@ -21,6 +21,8 @@ class Function(Node):
     Function nodes wrap an arbitrary python function.
     Node IO, including type hints, is generated automatically from the provided
     function.
+    Input data for the wrapped function can be provided as any valid combination of
+    `*arg` and `**kwarg` at both initialization and on calling the node.
 
     On running, the function node executes this wrapped function with its current input
     and uses the results to populate the node output.
@@ -159,6 +161,12 @@ class Function(Node):
         >>> plus_minus_1.inputs.y = 2  # Automatically triggers an update call now
         >>> plus_minus_1.outputs.to_value_dict()
         {'p1': 2, 'm1': 1}
+
+        Input data can be provided to both initialization and on call as ordered args
+        or keyword kwargs, e.g.:
+        >>> plus_minus_1(2, y=3)
+        >>> plus_minus_1.outputs.to_value_dict()
+        {'p1': 3, 'm1': 2}
 
         Finally, we might stop these updates from happening automatically, even when
         all the input data is present and available:
