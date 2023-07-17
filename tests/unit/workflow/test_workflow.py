@@ -189,6 +189,36 @@ class TestWorkflow(unittest.TestCase):
                 "callback, and downstream nodes should proceed"
         )
 
+    def test_call(self):
+        wf = Workflow("wf")
+
+        wf.a = wf.add.SingleValue(fnc)
+        wf.b = wf.add.SingleValue(fnc)
+
+        @Workflow.wrap_as.single_value_node(output_labels="sum")
+        def sum_(a, b):
+            return a + b
+
+        wf.sum = sum_(wf.a, wf.b)
+        self.assertEqual(
+            wf.a.outputs.y.value + wf.b.outputs.y.value,
+            wf.sum.outputs.sum.value,
+            msg="Sanity check"
+        )
+        wf(a_x=42, b_x=42)
+        self.assertEqual(
+            fnc(42) + fnc(42),
+            wf.sum.outputs.sum.value,
+            msg="Workflow should accept input channel kwargs and update inputs "
+                "accordingly"
+            # Since the nodes run automatically, there is no need for wf.run() here
+        )
+
+        with self.assertRaises(TypeError):
+            # IO is not ordered, so args make no sense for a workflow call
+            # We _must_ use kwargs
+            wf(42, 42)
+
 
 if __name__ == '__main__':
     unittest.main()
