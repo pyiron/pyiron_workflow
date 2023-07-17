@@ -395,11 +395,21 @@ class TestSingleValue(unittest.TestCase):
         )
 
     def test_repr(self):
-        svn = SingleValue(plus_one)
-        self.assertEqual(
-            svn.__repr__(), svn.outputs.y.value.__repr__(),
-            msg="SingleValueNodes should have their output as their representation"
-        )
+        with self.subTest("Filled data"):
+            svn = SingleValue(plus_one)
+            self.assertEqual(
+                svn.__repr__(), svn.outputs.y.value.__repr__(),
+                msg="SingleValueNodes should have their output as their representation"
+            )
+
+        with self.subTest("Not data"):
+            svn = SingleValue(no_default, output_labels="output")
+            self.assertIs(svn.outputs.output.value, NotData)
+            self.assertTrue(
+                svn.__repr__().endswith(NotData.__name__),
+                msg="When the output is still not data, the representation should "
+                    "indicate this"
+            )
 
     def test_str(self):
         svn = SingleValue(plus_one)
