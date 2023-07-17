@@ -272,7 +272,7 @@ class TestFunction(unittest.TestCase):
         self.assertEqual(len(warning_list), 1)
 
     def test_call(self):
-        node = Function(no_default, "output", run_on_updates=False)
+        node = Function(no_default, output_labels="output", run_on_updates=False)
 
         with self.assertRaises(ValueError):
             # More input args than there are input channels
