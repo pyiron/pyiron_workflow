@@ -573,9 +573,7 @@ class Function(Node):
 
     def __call__(self, *args, **kwargs) -> None:
         kwargs = self._convert_input_args_and_kwargs_to_input_kwargs(*args, **kwargs)
-        self._batch_update_input(**kwargs)
-        if self.run_on_updates:
-            self.run()
+        return super().__call__(**kwargs)
 
     def to_dict(self):
         return {

@@ -297,3 +297,8 @@ class Node(HasToDict, ABC):
                     f"`my_node_instance.run_on_updates = False`."
                 )
         self.run_on_updates = run_on_updates  # Restore provided value
+
+    def __call__(self, **kwargs) -> None:
+        self._batch_update_input(**kwargs)
+        if self.run_on_updates:
+            self.run()
