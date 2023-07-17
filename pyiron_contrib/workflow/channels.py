@@ -145,7 +145,7 @@ class NotData:
     def __repr__(cls):
         # We use the class directly (not instances of it) where there is not yet data
         # So give it a decent repr, even as just a class
-        return cls
+        return cls.__name__
 
 
 class DataChannel(Channel, ABC):
