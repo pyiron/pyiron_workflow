@@ -154,10 +154,10 @@ class TestFunction(unittest.TestCase):
         )
 
     def test_input_kwargs(self):
-        node = Function(plus_one, "y", x=2)
+        node = Function(plus_one, x=2)
         self.assertEqual(3, node.outputs.y.value, msg="Initialize from value")
 
-        node2 = Function(plus_one, "y", x=node.outputs.y)
+        node2 = Function(plus_one, x=node.outputs.y)
         node.update()
         self.assertEqual(4, node2.outputs.y.value, msg="Initialize from connection")
 
