@@ -303,7 +303,19 @@ class TestFunction(unittest.TestCase):
             )
 
         with self.subTest("Check that node kwargs can also be updated"):
-            pass
+            with self.assertWarns(Warning):
+                node(4, run_on_updates=False, y=5)
+
+                self.assertTupleEqual(
+                    (node.inputs.x.value, node.inputs.y.value),
+                    (4, 5),
+                    msg="The warning should not prevent other data from being parsed"
+                )
+
+            with self.assertWarns(Warning):
+                # It's also fine if you just have a typo in your kwarg or whatever,
+                # there should just be a warning that the data didn't get updated
+                node(some_randome_kwaaaaarg="foo")
 
 
 @unittest.skipUnless(version_info[0] == 3 and version_info[1] >= 10, "Only supported for 3.10+")
