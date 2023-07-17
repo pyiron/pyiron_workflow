@@ -389,7 +389,12 @@ class Function(Node):
             if k in self.inputs.labels:
                 self.inputs[k] = v
             else:
-                warnings.warn(f"The keyword '{k}' was not found among input labels.")
+                warnings.warn(
+                    f"The keyword '{k}' was not found among input labels. If you are "
+                    f"trying to update a node keyword, please use attribute assignment "
+                    f"directly instead of calling, e.g. "
+                    f"`my_node_instance.run_on_updates = False`."
+                )
         self.run_on_updates = run_on_updates  # Restore provided value
 
     def _get_output_labels(self, output_labels: str | list[str] | tuple[str] | None):
