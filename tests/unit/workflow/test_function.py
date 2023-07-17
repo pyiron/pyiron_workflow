@@ -325,6 +325,15 @@ class TestSingleValue(unittest.TestCase):
                 "actually still a Function and not just the value you're seeing.)"
         )
 
+    def test_repr(self):
+        svn = SingleValue(no_default, "output")
+        self.assertIs(svn.outputs.output.value, NotData)
+        self.assertTrue(
+            svn.__repr__().endswith(NotData.__name__),
+            msg="When the output is still not data, the representation should indicate "
+                "this"
+        )
+
     def test_easy_output_connection(self):
         svn = SingleValue(plus_one, "y")
         regular = Function(plus_one, "y")
