@@ -388,7 +388,7 @@ class Function(Node):
         for k, v in kwargs.items():
             if k in self.inputs.labels:
                 self.inputs[k] = v
-            elif k not in self._input_args.keys():
+            else:
                 warnings.warn(f"The keyword '{k}' was not found among input labels.")
         self.run_on_updates = run_on_updates  # Restore provided value
 
