@@ -141,7 +141,11 @@ class NotData:
     not identify as ready.
     """
 
-    pass
+    @classmethod
+    def __repr__(cls):
+        # We use the class directly (not instances of it) where there is not yet data
+        # So give it a decent repr, even as just a class
+        return cls
 
 
 class DataChannel(Channel, ABC):
