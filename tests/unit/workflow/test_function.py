@@ -3,6 +3,7 @@ from sys import version_info
 from typing import Optional, Union
 import warnings
 
+from pyiron_contrib.executors import CloudpickleProcessPoolExecutor
 from pyiron_contrib.workflow.channels import NotData
 from pyiron_contrib.workflow.files import DirectoryObject
 from pyiron_contrib.workflow.function import (
@@ -278,6 +279,13 @@ class TestFunction(unittest.TestCase):
             1,
             msg="Function functions should be able to modify attributes on the node object."
         )
+
+        node.executor = CloudpickleProcessPoolExecutor
+        with self.assertRaises(NotImplementedError):
+            # Submitting node_functions that use self is still raising
+            # TypeError: cannot pickle '_thread.lock' object
+            # For now we just fail cleanly
+            node.run()
 
         def with_messed_self(x: float, self) -> float:
             return x + 0.1

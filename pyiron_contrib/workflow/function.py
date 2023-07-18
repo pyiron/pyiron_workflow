@@ -535,6 +535,12 @@ class Function(Node):
     def run_args(self) -> dict:
         kwargs = self.inputs.to_value_dict()
         if "self" in self._input_args:
+            if self.executor is not None:
+                raise NotImplementedError(
+                    f"The node {self.label} cannot be run on an executor because it "
+                    f"uses the `self` argument and this functionality is not yet "
+                    f"implemented"
+                )
             kwargs["self"] = self
         return kwargs
 
