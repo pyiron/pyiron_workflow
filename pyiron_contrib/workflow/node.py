@@ -8,7 +8,7 @@ from __future__ import annotations
 import warnings
 from abc import ABC, abstractmethod
 from concurrent.futures import Future
-from typing import Optional, TYPE_CHECKING
+from typing import Any, Optional, TYPE_CHECKING
 
 from pyiron_contrib.executors import CloudpickleProcessPoolExecutor
 from pyiron_contrib.workflow.files import DirectoryObject
@@ -154,7 +154,7 @@ class Node(HasToDict, ABC):
 
     @property
     @abstractmethod
-    def on_run(self) -> callable[..., tuple]:
+    def on_run(self) -> callable[..., Any | tuple]:
         """
         What the node actually does!
         """
@@ -167,7 +167,7 @@ class Node(HasToDict, ABC):
         """
         return {}
 
-    def process_run_result(self, run_output: tuple) -> None:
+    def process_run_result(self, run_output: Any | tuple) -> None:
         """
         What to _do_ with the results of `on_run` once you have them.
 
@@ -176,7 +176,7 @@ class Node(HasToDict, ABC):
         """
         pass
 
-    def run(self) -> None:
+    def run(self) -> Any | tuple | Future:
         """
         Executes the functionality of the node defined in `on_run`.
         Handles the status of the node, and communicating with any remote
@@ -195,10 +195,11 @@ class Node(HasToDict, ABC):
                 self.running = False
                 self.failed = True
                 raise e
-            self.finish_run(run_output)
+            return self.finish_run(run_output)
         elif isinstance(self.executor, CloudpickleProcessPoolExecutor):
             self.future = self.executor.submit(self.on_run, **self.run_args)
             self.future.add_done_callback(self.finish_run)
+            return self.future
         else:
             raise NotImplementedError(
                 "We currently only support executing the node functionality right on "
@@ -206,7 +207,7 @@ class Node(HasToDict, ABC):
                 "pyiron_contrib.workflow.util.CloudpickleProcessPoolExecutor."
             )
 
-    def finish_run(self, run_output: tuple | Future):
+    def finish_run(self, run_output: tuple | Future) -> Any | tuple:
         """
         Switch the node status, process the run result, then fire the ran signal.
 
@@ -224,6 +225,7 @@ class Node(HasToDict, ABC):
         try:
             self.process_run_result(run_output)
             self.signals.output.ran()
+            return run_output
         except Exception as e:
             self.failed = True
             raise e
@@ -234,9 +236,9 @@ class Node(HasToDict, ABC):
         signals.output.ran = OutputSignal("ran", self)
         return signals
 
-    def update(self) -> None:
+    def update(self) -> Any | tuple | Future | None:
         if self.run_on_updates and self.ready:
-            self.run()
+            return self.run()
 
     @property
     def working_directory(self):
@@ -300,4 +302,4 @@ class Node(HasToDict, ABC):
 
     def __call__(self, **kwargs) -> None:
         self._batch_update_input(**kwargs)
-        self.update()
+        return self.update()

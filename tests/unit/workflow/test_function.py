@@ -1,6 +1,7 @@
-import unittest
+from concurrent.futures import Future
 from sys import version_info
 from typing import Optional, Union
+import unittest
 import warnings
 
 from pyiron_contrib.executors import CloudpickleProcessPoolExecutor
@@ -342,6 +343,75 @@ class TestFunction(unittest.TestCase):
                 # there should just be a warning that the data didn't get updated
                 node(some_randome_kwaaaaarg="foo")
 
+    def test_return_value(self):
+        node = Function(plus_one)
+
+        with self.subTest("Run on main process"):
+            return_on_call = node(1)
+            self.assertEqual(
+                return_on_call,
+                plus_one(1),
+                msg="Run output should be returned on call"
+            )
+
+            return_on_update = node.update()
+            self.assertEqual(
+                return_on_update,
+                plus_one(1),
+                msg="Run output should be returned on update"
+            )
+
+            node.run_on_updates = False
+            return_on_update_without_run = node.update()
+            self.assertIsNone(
+                return_on_update_without_run,
+                msg="When not running on updates, the update should not return anything"
+            )
+            return_on_call_without_run = node(2)
+            self.assertIsNone(
+                return_on_call_without_run,
+                msg="When not running on updates, the call should not return anything"
+            )
+            return_on_explicit_run = node.run()
+            self.assertEqual(
+                return_on_explicit_run,
+                plus_one(2),
+                msg="On explicit run, the most recent input data should be used and the "
+                    "result should be returned"
+            )
+
+        with self.subTest("Run on executor"):
+            node.executor = CloudpickleProcessPoolExecutor()
+            node.run_on_updates = False
+
+            return_on_update_without_run = node.update()
+            self.assertIsNone(
+                return_on_update_without_run,
+                msg="When not running on updates, the update should not return "
+                    "anything whether there is an executor or not"
+            )
+            return_on_explicit_run = node.run()
+            self.assertIsInstance(
+                return_on_explicit_run,
+                Future,
+                msg="Running with an executor should return the future"
+            )
+            with self.assertRaises(RuntimeError):
+                # The executor run should take a second
+                # So we can double check that attempting to run while already running
+                # raises an error
+                node.run()
+            node.future.result()  # Wait for the remote execution to finish
+
+            node.run_on_updates = True
+            return_on_update_with_run = node.update()
+            self.assertIsInstance(
+                return_on_update_with_run,
+                Future,
+                msg="Updating should return the same as run when we get a run from the "
+                    "update, obviously..."
+            )
+            node.future.result()  # Wait for the remote execution to finish
 
 @unittest.skipUnless(version_info[0] == 3 and version_info[1] >= 10, "Only supported for 3.10+")
 class TestSlow(unittest.TestCase):
