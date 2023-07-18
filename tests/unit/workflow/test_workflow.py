@@ -123,7 +123,9 @@ class TestWorkflow(unittest.TestCase):
         self.assertIsInstance(wf.working_directory, DirectoryObject)
         self.assertTrue(str(wf.working_directory.path).endswith(wf.label))
         wf.add.Function(plus_one)
-        self.assertTrue(str(wf.fnc.working_directory.path).endswith(wf.fnc.label))
+        self.assertTrue(
+            str(wf.plus_one.working_directory.path).endswith(wf.plus_one.label)
+        )
         wf.working_directory.delete()
 
     def test_no_parents(self):
