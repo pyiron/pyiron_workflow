@@ -143,6 +143,11 @@ class TestWorkflow(unittest.TestCase):
             # In both cases, we satisfy the spec that workflow's can't have parents
             wf2.parent = wf
 
+    def test_executor(self):
+        wf = Workflow("wf")
+        with self.assertRaises(NotImplementedError):
+            wf.executor = "literally anything other than None should raise the error"
+
     def test_parallel_execution(self):
         wf = Workflow("wf")
 
