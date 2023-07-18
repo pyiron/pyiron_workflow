@@ -125,8 +125,19 @@ class Workflow(Composite):
         integrity of workflows when they're used somewhere else?
     """
 
-    def __init__(self, label: str, *nodes: Node, strict_naming=True):
-        super().__init__(label=label, parent=None, strict_naming=strict_naming)
+    def __init__(
+            self,
+            label: str,
+            *nodes: Node,
+            run_on_updates: bool = False,
+            strict_naming=True
+    ):
+        super().__init__(
+            label=label,
+            parent=None,
+            run_on_updates=run_on_updates,
+            strict_naming=strict_naming,
+        )
 
         for node in nodes:
             self.add_node(node)

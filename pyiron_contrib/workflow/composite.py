@@ -92,10 +92,17 @@ class Composite(Node, ABC):
         label: str,
         *args,
         parent: Optional[Composite] = None,
+        run_on_updates: bool = False,
         strict_naming: bool = True,
         **kwargs,
     ):
-        super().__init__(*args, label=label, parent=parent, **kwargs)
+        super().__init__(
+            *args,
+            label=label,
+            parent=parent,
+            run_on_updates=run_on_updates,
+            **kwargs
+        )
         self.strict_naming: bool = strict_naming
         self.nodes: DotDict[str:Node] = DotDict()
         self.add: NodeAdder = NodeAdder(self)

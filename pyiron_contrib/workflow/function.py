@@ -360,6 +360,7 @@ class Function(Node):
         super().__init__(
             label=label if label is not None else node_function.__name__,
             parent=parent,
+            run_on_updates=run_on_updates,
             # **kwargs,
         )
 
@@ -379,7 +380,6 @@ class Function(Node):
         )
         self._verify_that_channels_requiring_update_all_exist()
 
-        self.run_on_updates = run_on_updates
         self._batch_update_input(*args, **kwargs)
 
         if update_on_instantiation:
