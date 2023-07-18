@@ -146,6 +146,9 @@ class TestWorkflow(unittest.TestCase):
     def test_executor(self):
         wf = Workflow("wf")
         with self.assertRaises(NotImplementedError):
+            # Submitting callables that use self is still raising
+            # TypeError: cannot pickle '_thread.lock' object
+            # For now we just fail cleanly
             wf.executor = "literally anything other than None should raise the error"
 
     def test_parallel_execution(self):
