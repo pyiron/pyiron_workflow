@@ -115,12 +115,22 @@ class Composite(Node, ABC):
             if node.outputs.connected and not node.inputs.connected
         ]
 
+    @property
     def on_run(self):
+        return self.run_graph
+
+    @staticmethod
+    def run_graph(self):
         starting_nodes = (
             self.upstream_nodes if self.starting_nodes is None else self.starting_nodes
         )
         for node in starting_nodes:
             node.run()
+        return DotDict(self.outputs.to_value_dict())
+
+    @property
+    def run_args(self) -> dict:
+        return {"self": self}
 
     def add_node(self, node: Node, label: Optional[str] = None) -> None:
         """
