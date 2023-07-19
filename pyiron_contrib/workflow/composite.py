@@ -95,7 +95,7 @@ class Composite(Node, ABC):
         label: str,
         *args,
         parent: Optional[Composite] = None,
-        run_on_updates: bool = False,
+        run_on_updates: bool = True,
         strict_naming: bool = True,
         **kwargs,
     ):

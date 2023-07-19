@@ -129,7 +129,7 @@ class Workflow(Composite):
             self,
             label: str,
             *nodes: Node,
-            run_on_updates: bool = False,
+            run_on_updates: bool = True,
             strict_naming=True
     ):
         super().__init__(
