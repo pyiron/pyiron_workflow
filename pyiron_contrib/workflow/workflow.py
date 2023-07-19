@@ -88,8 +88,13 @@ class Workflow(Composite):
         These input keys can be used when calling the workflow to update the input. In
         our example, the nodes update automatically when their input gets updated, so
         all we need to do to see updated workflow output is update the input:
-        >>> wf(first_x=10)
-        >>> wf.outputs.second_y.value
+        >>> out = wf(first_x=10)
+        >>> out
+        {'second_y': 12}
+
+        Note: this _looks_ like a dictionary, but has some extra convenience that we
+        can dot-access data:
+        >>> out.second_y
         12
 
         Workflows also give access to packages of pre-built nodes under different
