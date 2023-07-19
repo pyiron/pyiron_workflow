@@ -45,6 +45,16 @@ class Node(HasToDict, ABC):
     By default, nodes' signals input comes with `run` and `ran` IO ports which force
     the `run()` method and which emit after `finish_run()` is completed, respectfully.
 
+    The `run()` method returns a representation of the node output (possible a futures
+    object, if the node is running on an executor), and consequently `update()` also
+    returns this output if the node is `ready` and has `run_on_updates = True`.
+
+    Calling an already instantiated node allows its input channels to be updated using
+    keyword arguments corresponding to the channel labels, performing a batch-update of
+    all supplied input and then calling `update()`.
+    As such, calling the node _also_ returns a representation of the output (or `None`
+    if the node is not set to run on updates, or is otherwise unready to run).
+
     Nodes have a status, which is currently represented by the `running` and `failed`
     boolean flags.
     Their value is controlled automatically in the defined `run` and `finish_run`
