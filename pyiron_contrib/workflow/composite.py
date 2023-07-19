@@ -57,6 +57,9 @@ class Composite(Node, ABC):
     By default, `run()` will be called on all owned nodes have output connections but no
     input connections (i.e. the upstream-most nodes), but this can be overridden to
     specify particular nodes to use instead.
+    The `run()` method (and `update()`, and calling the workflow, when these result in
+    a run), return a new dot-accessible dictionary of keys and values created from the
+    composite output IO panel.
 
     Does not specify `input` and `output` as demanded by the parent class; this
     requirement is still passed on to children.
