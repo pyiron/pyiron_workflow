@@ -10,11 +10,14 @@ from concurrent.futures import Future
 from typing import Optional, TYPE_CHECKING
 
 from pyiron_contrib.executors import CloudpickleProcessPoolExecutor
+from pyiron_contrib.workflow.draw import draw_node
 from pyiron_contrib.workflow.files import DirectoryObject
 from pyiron_contrib.workflow.has_to_dict import HasToDict
 from pyiron_contrib.workflow.io import Signals, InputSignal, OutputSignal
 
 if TYPE_CHECKING:
+    import graphviz
+
     from pyiron_base.jobs.job.extension.server.generic import Server
 
     from pyiron_contrib.workflow.composite import Composite
@@ -275,3 +278,6 @@ class Node(HasToDict, ABC):
             and self.outputs.fully_connected
             and self.signals.fully_connected
         )
+
+    def draw(self, parent_graph: Optional[graphviz.graphs.Digraph] = None):
+        return draw_node(self, parent_graph)
