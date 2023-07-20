@@ -141,7 +141,7 @@ class Node(WorkflowGraphvizMap):
             self,
             node: WorkflowNode,
             parent: Optional[Node] = None,
-            granularity: int = 0,
+            granularity: int = 1,
     ):
         self.node = node
         self._parent = parent

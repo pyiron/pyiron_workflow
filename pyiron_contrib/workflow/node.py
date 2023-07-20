@@ -279,5 +279,5 @@ class Node(HasToDict, ABC):
             and self.signals.fully_connected
         )
 
-    def draw(self, granularity=0) -> graphviz.graphs.Digraph:
+    def draw(self, granularity=1) -> graphviz.graphs.Digraph:
         return GraphvizNode(self, granularity=granularity).graph
