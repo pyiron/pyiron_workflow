@@ -48,8 +48,13 @@ def _make_io_panel(parent_graph, node, data_io, signals_io):
     return io_graph
 
 
-def _node_name(node):
-    return "cluster" + node.label
+def _node_name(node, suffix=""):
+    if node.parent is not None:
+        # Recursively prepend parent labels to get a totally unique label string
+        # (inside the scope of this graph)
+        return _node_name(node.parent, suffix=suffix + node.label)
+    else:
+        return "cluster" + node.label + suffix
 
 
 def _node_label(node):
