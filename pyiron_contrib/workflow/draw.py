@@ -4,82 +4,196 @@ Functions for drawing the graph.
 
 from __future__ import annotations
 
+from abc import ABC, abstractmethod
 from typing import Optional, TYPE_CHECKING
 
 import graphviz
 
 if TYPE_CHECKING:
-    from pyiron_contrib.workflow.node import Node
+    from pyiron_contrib.workflow.channels import Channel as WorkflowChannel
+    from pyiron_contrib.workflow.io import DataIO, SignalIO
+    from pyiron_contrib.workflow.node import Node as WorkflowNode
 
 
-def _channel_name(node, channel):
-    return node.label + channel.label
+def directed_graph(name, label, rankdir="TB"):
+    """A shortcut method for instantiating the type of graphviz graph we want"""
+    digraph = graphviz.graphs.Digraph(name=name)
+    digraph.attr(label=label, compound="true", rankdir=rankdir)
+    return digraph
 
 
-def _channel_label(channel):
-    label = channel.label
-    try:
-        if channel.type_hint is not None:
-            label += ": " + channel.type_hint.__name__
-    except AttributeError:
-        pass  # Signals have no type
-    return label
+class WorkflowGraphvizMap(ABC):
+    @property
+    @abstractmethod
+    def parent(self) -> WorkflowGraphvizMap | None:
+        pass
+
+    @property
+    @abstractmethod
+    def name(self) -> str:
+        pass
+
+    @property
+    @abstractmethod
+    def label(self) -> str:
+        pass
+
+    @property
+    @abstractmethod
+    def graph(self) -> graphviz.graphs.Digraph:
+        pass
 
 
-def _make_channel_node(parent_graph, node, channel, shape="oval"):
-    parent_graph.node(
-        _channel_name(node, channel),
-        _channel_label(channel),
-        shape=shape
-    )
+class Channel(WorkflowGraphvizMap):
+    def __init__(
+            self,
+            parent: _IO,
+            channel: WorkflowChannel,
+            shape: str = "oval",
+    ):
+        self.channel = channel
+        self._parent = parent
+        self._name = self.parent.name + self.channel.label
+        self._label = self._build_label()
+        self.channel: WorkflowChannel = channel
+
+        self.graph.node(name=self.name, label=self.label, shape=shape)
+
+    def _build_label(self):
+        label = self.channel.label
+        try:
+            if self.channel.type_hint is not None:
+                label += ": " + self.channel.type_hint.__name__
+        except AttributeError:
+            pass  # Signals have no type
+        return label
+
+    @property
+    def parent(self) -> _IO | None:
+        return self._parent
+
+    @property
+    def name(self) -> str:
+        return self._name
+
+    @property
+    def label(self) -> str:
+        return self._label
+
+    @property
+    def graph(self) -> graphviz.graphs.Digraph:
+        return self.parent.graph
 
 
-def _io_name(node, io):
-    return "cluster" + node.label + io.__class__.__name__
+class _IO(WorkflowGraphvizMap, ABC):
+    def __init__(self, parent: Node):
+        self._parent = parent
+        self.node = self.parent.node
+        self.data_io, self.signals_io = self._get_node_io()
+        self._name = self.parent.name + self.data_io.__class__.__name__
+        self._label = self.data_io.__class__.__name__
+        self._graph = directed_graph(self.name, self.label, rankdir="TB")
+
+        self.channels = [
+            Channel(self, channel, shape="cds") for channel in self.signals_io
+        ] + [
+            Channel(self, channel, shape="oval") for channel in self.data_io
+        ]
+
+        self.parent.graph.subgraph(self.graph)
+
+    @abstractmethod
+    def _get_node_io(self) -> tuple[DataIO, SignalIO]:
+        pass
+
+    @property
+    def parent(self) -> Node:
+        return self._parent
+
+    @property
+    def name(self) -> str:
+        return self._name
+
+    @property
+    def label(self) -> str:
+        return self._label
+
+    @property
+    def graph(self) -> graphviz.graphs.Digraph:
+        return self._graph
+
+    def __len__(self):
+        return len(self.channels)
 
 
-def _make_io_panel(parent_graph, node, data_io, signals_io):
-    with parent_graph.subgraph(name=_io_name(node, data_io)) as io_graph:
-        io_graph.attr(compound="true", label=data_io.__class__.__name__, rankdir="TB")
-        for data_channel in data_io:
-            _make_channel_node(io_graph, node, data_channel)
-        for signal_channel in signals_io:
-            _make_channel_node(io_graph, node, signal_channel, shape="cds")
-    return io_graph
+class Inputs(_IO):
+    def _get_node_io(self) -> tuple[DataIO, SignalIO]:
+        return self.node.inputs, self.node.signals.input
 
 
-def _node_name(node, suffix=""):
-    if node.parent is not None:
-        # Recursively prepend parent labels to get a totally unique label string
-        # (inside the scope of this graph)
-        return _node_name(node.parent, suffix=suffix + node.label)
-    else:
-        return "cluster" + node.label + suffix
+class Outputs(_IO):
+    def _get_node_io(self) -> tuple[DataIO, SignalIO]:
+        return self.node.outputs, self.node.signals.output
 
 
-def _node_label(node):
-    return node.label + ": " + node.__class__.__name__
+class Node(WorkflowGraphvizMap):
+    def __init__(
+            self,
+            node: WorkflowNode,
+            parent: Optional[Node] = None,
+            granularity: int = 0,
+    ):
+        self.node = node
+        self._parent = parent
+        self._name = self.build_node_name()
+        self._label = self.node.label + ": " + self.node.__class__.__name__
+        self._graph = directed_graph(self.name, self.label, rankdir="LR")
 
-
-def draw_node(node: Node, parent_graph: Optional[graphviz.graphs.Digraph] = None):
-    if parent_graph is None:
-        parent_graph = graphviz.graphs.Digraph(node.label)
-        parent_graph.attr(compound="true", rankdir="TB")
-
-    with parent_graph.subgraph(name=_node_name(node)) as node_graph:
-        node_graph.attr(compount="true", label=_node_label(node), rankdir="LR")
-
-        _make_io_panel(node_graph, node, node.inputs, node.signals.input)
-        _make_io_panel(node_graph, node, node.outputs, node.signals.output)
-
-        # Make inputs and outputs groups ordered by (invisibly) drawing a connection
-        # Exploit the fact that all nodes have `run` and `ran` signal channels
-        node_graph.edge(
-            _channel_name(node, node.signals.input[node.signals.input.labels[0]]),
-            _channel_name(node, node.signals.output[node.signals.output.labels[0]]),
-            ltail=_io_name(node, node.inputs),
-            lhead=_io_name(node, node.outputs),
+        self.inputs = Inputs(self)
+        self.outputs = Outputs(self)
+        self.graph.edge(
+            self.inputs.channels[0].name,
+            self.outputs.channels[0].name,
             style="invis"
         )
 
-    return parent_graph
+        if granularity > 0:
+            try:
+                self.nodes = [
+                    Node(node, self, granularity - 1)
+                    for node in self.node.nodes.values()
+                ]
+            except AttributeError:
+                # Only composite nodes have their own nodes attribute
+                self.nodes = []
+
+        # TODO: Connect nodes
+        # Nodes have channels, channels have channel, channel has connections
+        # TODO: Map nodes IO to IO
+
+        if self.parent is not None:
+            self.parent.graph.subgraph(self.graph)
+
+    def build_node_name(self, suffix=""):
+        if self.parent is not None:
+            # Recursively prepend parent labels to get a totally unique label string
+            # (inside the scope of this graph)
+            return self.parent.build_node_name(suffix=suffix + self.node.label)
+        else:
+            return "cluster" + self.node.label + suffix
+
+    @property
+    def parent(self) -> Node | None:
+        return self._parent
+
+    @property
+    def name(self) -> str:
+        return self._name
+
+    @property
+    def label(self) -> str:
+        return self._label
+
+    @property
+    def graph(self) -> graphviz.graphs.Digraph:
+        return self._graph

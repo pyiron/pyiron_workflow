@@ -11,7 +11,6 @@ from typing import Optional, TYPE_CHECKING
 from warnings import warn
 
 from pyiron_contrib.executors import CloudpickleProcessPoolExecutor
-from pyiron_contrib.workflow.draw import _node_name
 from pyiron_contrib.workflow.node import Node
 from pyiron_contrib.workflow.function import (
     Function,
@@ -208,33 +207,8 @@ class Composite(Node, ABC):
         else:
             del self.nodes[node]
 
-    def draw(
-            self,
-            parent_graph: Optional[graphviz.graphs.Digraph] = None,
-            granularity: int = 1
-    ):
-        parent_graph = super().draw(parent_graph)
-        if granularity > 0:
-            with parent_graph.subgraph(name=_node_name(self)) as workflow_graph:
-                self._draw_children(workflow_graph, granularity)
-        return parent_graph
-
-    def _draw_children(
-            self,
-            workflow_graph: graphviz.graphs.Digraph,
-            granularity: int
-    ):
-        for node in self.nodes.values():
-            try:
-                workflow_graph = node.draw(
-                    parent_graph=workflow_graph,
-                    granularity=granularity - 1
-                )
-            except TypeError:
-                # Non-composite nodes don't take the granularity argument
-                workflow_graph = node.draw(parent_graph=workflow_graph)
-        # TODO: Connect child outputs to parent's IO panels
-        return workflow_graph
+    def draw(self, granularity=1) -> graphviz.graphs.Digraph:
+        return super().draw(granularity=granularity)
 
     def __setattr__(self, label: str, node: Node):
         if isinstance(node, Node):
