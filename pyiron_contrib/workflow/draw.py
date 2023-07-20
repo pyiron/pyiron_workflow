@@ -159,20 +159,30 @@ class Node(WorkflowGraphvizMap):
 
         if granularity > 0:
             try:
-                self.nodes = [
-                    Node(node, self, granularity - 1)
-                    for node in self.node.nodes.values()
-                ]
+                self._connect_owned_nodes(granularity)
             except AttributeError:
                 # Only composite nodes have their own nodes attribute
-                self.nodes = []
-
-        # TODO: Connect nodes
-        # Nodes have channels, channels have channel, channel has connections
-        # TODO: Map nodes IO to IO
+                pass
 
         if self.parent is not None:
             self.parent.graph.subgraph(self.graph)
+
+    def _connect_owned_nodes(self, granularity):
+        nodes = [
+            Node(node, self, granularity - 1)
+            for node in self.node.nodes.values()
+        ]
+        for source_node in nodes:
+            for source_channel in source_node.outputs.channels:
+                for inp in source_channel.channel.connections:
+                    for destination_node in nodes:
+                        for destination_channel in destination_node.inputs.channels:
+                            if inp is destination_channel.channel:
+                                self.graph.edge(
+                                    source_channel.name,
+                                    destination_channel.name
+                                )
+        # TODO: Map nodes IO to IO
 
     def build_node_name(self, suffix=""):
         if self.parent is not None:
