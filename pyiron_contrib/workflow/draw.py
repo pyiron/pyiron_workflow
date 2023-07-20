@@ -172,17 +172,42 @@ class Node(WorkflowGraphvizMap):
             Node(node, self, granularity - 1)
             for node in self.node.nodes.values()
         ]
-        for source_node in nodes:
-            for source_channel in source_node.outputs.channels:
-                for inp in source_channel.channel.connections:
-                    for destination_node in nodes:
-                        for destination_channel in destination_node.inputs.channels:
-                            if inp is destination_channel.channel:
-                                self.graph.edge(
-                                    source_channel.name,
-                                    destination_channel.name
-                                )
-        # TODO: Map nodes IO to IO
+        internal_inputs = [
+            channel for node in nodes for channel in node.inputs.channels
+        ]
+        internal_outputs = [
+            channel for node in nodes for channel in node.outputs.channels
+        ]
+
+        # Loop to check for internal node output --> internal node input connections
+        for output_channel in internal_outputs:
+            for input_channel in internal_inputs:
+                if input_channel.channel in output_channel.channel.connections:
+                    self.graph.edge(
+                        output_channel.name,
+                        input_channel.name
+                    )
+
+        # Loop to check for macro input --> internal node input connections
+        self._connect_matching(self.inputs.channels, internal_inputs)
+        # Loop to check for macro input --> internal node input connections
+        self._connect_matching(internal_outputs, self.outputs.channels)
+
+    def _connect_matching(
+            self,
+            sources: list[Channel],
+            destinations: list[Channel]
+    ):
+        """
+        Draw an edge between two graph channels whose workflow channels are the same
+        """
+        for source in sources:
+            for destination in destinations:
+                if source.channel is destination.channel:
+                    self.graph.edge(
+                        source.name,
+                        destination.name
+                    )
 
     def build_node_name(self, suffix=""):
         if self.parent is not None:
