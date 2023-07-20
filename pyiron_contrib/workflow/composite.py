@@ -7,10 +7,11 @@ from __future__ import annotations
 
 from abc import ABC
 from functools import partial
-from typing import Optional
+from typing import Optional, TYPE_CHECKING
 from warnings import warn
 
 from pyiron_contrib.executors import CloudpickleProcessPoolExecutor
+from pyiron_contrib.workflow.draw import _node_name
 from pyiron_contrib.workflow.node import Node
 from pyiron_contrib.workflow.function import (
     Function,
@@ -23,6 +24,9 @@ from pyiron_contrib.workflow.function import (
 from pyiron_contrib.workflow.node_library import atomistics, standard
 from pyiron_contrib.workflow.node_library.package import NodePackage
 from pyiron_contrib.workflow.util import DotDict
+
+if TYPE_CHECKING:
+    import graphviz
 
 
 class _NodeDecoratorAccess:
@@ -203,6 +207,34 @@ class Composite(Node, ABC):
             del self.nodes[node.label]
         else:
             del self.nodes[node]
+
+    def draw(
+            self,
+            parent_graph: Optional[graphviz.graphs.Digraph] = None,
+            granularity: int = 1
+    ):
+        parent_graph = super().draw(parent_graph)
+        if granularity > 0:
+            with parent_graph.subgraph(name=_node_name(self)) as workflow_graph:
+                self._draw_children(workflow_graph, granularity)
+        return parent_graph
+
+    def _draw_children(
+            self,
+            workflow_graph: graphviz.graphs.Digraph,
+            granularity: int
+    ):
+        for node in self.nodes.values():
+            try:
+                workflow_graph = node.draw(
+                    parent_graph=workflow_graph,
+                    granularity=granularity - 1
+                )
+            except TypeError:
+                # Non-composite nodes don't take the granularity argument
+                workflow_graph = node.draw(parent_graph=workflow_graph)
+        # TODO: Connect child outputs to parent's IO panels
+        return workflow_graph
 
     def __setattr__(self, label: str, node: Node):
         if isinstance(node, Node):
