@@ -25,7 +25,7 @@ def directed_graph(name, label, rankdir, color_start, color_end, gradient_angle)
         rankdir=rankdir,
         style="filled",
         fillcolor=f"{color_start}:{color_end}",
-        gradientangle=gradient_angle
+        gradientangle=gradient_angle,
     )
     return digraph
 
@@ -59,6 +59,7 @@ class WorkflowGraphvizMap(ABC):
     A parent class defining the interface for the graphviz representation of all our
     workflow objects.
     """
+
     @property
     @abstractmethod
     def parent(self) -> WorkflowGraphvizMap | None:
@@ -90,6 +91,7 @@ class _Channel(WorkflowGraphvizMap, ABC):
     An abstract representation for channel objects, which are "nodes" in graphviz
     parlance.
     """
+
     def __init__(self, parent: _IO, channel: WorkflowChannel):
         self.channel = channel
         self._parent = parent
@@ -102,7 +104,7 @@ class _Channel(WorkflowGraphvizMap, ABC):
             label=self.label,
             shape=self.shape,
             color=self.color,
-            style="filled"
+            style="filled",
         )
 
     @property
@@ -161,6 +163,7 @@ class _IO(WorkflowGraphvizMap, ABC):
     An abstract class for IO panels, which are represented as a "subgraph" in graphviz
     parlance.
     """
+
     def __init__(self, parent: Node):
         self._parent = parent
         self.node: WorkflowNode = self.parent.node
@@ -173,14 +176,12 @@ class _IO(WorkflowGraphvizMap, ABC):
             rankdir=reverse_rankdir(self.parent.rankdir),
             color_start=self.color,
             color_end=lighten_hex_color(self.color),
-            gradient_angle=self.gradient_angle
+            gradient_angle=self.gradient_angle,
         )
 
         self.channels = [
             SignalChannel(self, channel) for channel in self.signals_io
-        ] + [
-            DataChannel(self, channel) for channel in self.data_io
-        ]
+        ] + [DataChannel(self, channel) for channel in self.data_io]
 
         self.parent.graph.subgraph(self.graph)
 
@@ -257,12 +258,13 @@ class Node(WorkflowGraphvizMap):
         depth (int): How deeply to decompose any child nodes beyond showing their IO.
         rankdir ("LR" | "TB"): Use left-right or top-bottom graphviz `rankdir`.
     """
+
     def __init__(
-            self,
-            node: WorkflowNode,
-            parent: Optional[Node] = None,
-            depth: int = 1,
-            rankdir: Literal["LR", "TB"] = "LR"
+        self,
+        node: WorkflowNode,
+        parent: Optional[Node] = None,
+        depth: int = 1,
+        rankdir: Literal["LR", "TB"] = "LR",
     ):
         self.node = node
         self._parent = parent
@@ -275,15 +277,13 @@ class Node(WorkflowGraphvizMap):
             rankdir=self.rankdir,
             color_start=self.color,
             color_end=lighten_hex_color(self.color),
-            gradient_angle="90"
+            gradient_angle="90",
         )
 
         self.inputs = Inputs(self)
         self.outputs = Outputs(self)
         self.graph.edge(
-            self.inputs.channels[0].name,
-            self.outputs.channels[0].name,
-            style="invis"
+            self.inputs.channels[0].name, self.outputs.channels[0].name, style="invis"
         )
 
         if depth > 0:
@@ -300,10 +300,7 @@ class Node(WorkflowGraphvizMap):
         return f"{start_channel.color};0.5:{end_channel.color};0.5"
 
     def _connect_owned_nodes(self, depth):
-        nodes = [
-            Node(node, self, depth - 1)
-            for node in self.node.nodes.values()
-        ]
+        nodes = [Node(node, self, depth - 1) for node in self.node.nodes.values()]
         internal_inputs = [
             channel for node in nodes for channel in node.inputs.channels
         ]
@@ -318,7 +315,7 @@ class Node(WorkflowGraphvizMap):
                     self.graph.edge(
                         output_channel.name,
                         input_channel.name,
-                        color=self._channel_bicolor(output_channel, input_channel)
+                        color=self._channel_bicolor(output_channel, input_channel),
                     )
 
         # Loop to check for macro input --> internal node input connections
@@ -326,11 +323,7 @@ class Node(WorkflowGraphvizMap):
         # Loop to check for macro input --> internal node input connections
         self._connect_matching(internal_outputs, self.outputs.channels)
 
-    def _connect_matching(
-            self,
-            sources: list[_Channel],
-            destinations: list[_Channel]
-    ):
+    def _connect_matching(self, sources: list[_Channel], destinations: list[_Channel]):
         """
         Draw an edge between two graph channels whose workflow channels are the same
         """
@@ -340,7 +333,7 @@ class Node(WorkflowGraphvizMap):
                     self.graph.edge(
                         source.name,
                         destination.name,
-                        color=self._channel_bicolor(source, destination)
+                        color=self._channel_bicolor(source, destination),
                     )
 
     def build_node_name(self, suffix=""):
