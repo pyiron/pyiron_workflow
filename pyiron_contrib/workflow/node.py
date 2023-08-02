@@ -113,6 +113,8 @@ class Node(HasToDict, ABC):
 
     Methods:
         disconnect: Remove all connections, including signals.
+        draw: Use graphviz to visualize the node, its IO and, if composite in nature,
+            its internal structure.
         on_run: **Abstract.** Do the thing.
         run: A wrapper to handle all the infrastructure around executing `on_run`.
     """

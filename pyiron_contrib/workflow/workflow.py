@@ -117,6 +117,12 @@ class Workflow(Composite):
         ...     y=wf.calc.outputs.temperature
         ... )
 
+        Workflows can be visualized in the notebook using graphviz:
+        >>> wf.draw()
+
+        The resulting object can be saved as an image, e.g.
+        >>> wf.draw().render(filename="demo", format="png")
+
     TODO: Workflows can be serialized.
 
     TODO: Once you're satisfied with how a workflow is structured, you can export it
