@@ -322,5 +322,5 @@ class Node(HasToDict, ABC):
         """A hex code color for use in drawing."""
         return "#ffffff"
 
-    def draw(self, granularity=1) -> graphviz.graphs.Digraph:
-        return GraphvizNode(self, granularity=granularity).graph
+    def draw(self, depth=1) -> graphviz.graphs.Digraph:
+        return GraphvizNode(self, depth=depth).graph

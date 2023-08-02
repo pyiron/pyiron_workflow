@@ -220,7 +220,7 @@ class Node(WorkflowGraphvizMap):
             self,
             node: WorkflowNode,
             parent: Optional[Node] = None,
-            granularity: int = 1
+            depth: int = 1
     ):
         self.node = node
         self._parent = parent
@@ -243,9 +243,9 @@ class Node(WorkflowGraphvizMap):
             style="invis"
         )
 
-        if granularity > 0:
+        if depth > 0:
             try:
-                self._connect_owned_nodes(granularity)
+                self._connect_owned_nodes(depth)
             except AttributeError:
                 # Only composite nodes have their own nodes attribute
                 pass
@@ -256,9 +256,9 @@ class Node(WorkflowGraphvizMap):
     def _gradient_channel_color(self, start_channel, end_channel):
         return f"{start_channel.color};0.5:{end_channel.color};0.5"
 
-    def _connect_owned_nodes(self, granularity):
+    def _connect_owned_nodes(self, depth):
         nodes = [
-            Node(node, self, granularity - 1)
+            Node(node, self, depth - 1)
             for node in self.node.nodes.values()
         ]
         internal_inputs = [
