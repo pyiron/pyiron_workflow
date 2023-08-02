@@ -192,7 +192,6 @@ class _IO(WorkflowGraphvizMap, ABC):
     @abstractmethod
     def gradient_angle(self) -> str:
         """Background fill colour angle in degrees"""
-        pass
 
     @property
     def parent(self) -> Node:
