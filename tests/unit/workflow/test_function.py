@@ -1,8 +1,10 @@
-import unittest
+from concurrent.futures import Future
 from sys import version_info
 from typing import Optional, Union
+import unittest
 import warnings
 
+from pyiron_contrib.executors import CloudpickleProcessPoolExecutor
 from pyiron_contrib.workflow.channels import NotData
 from pyiron_contrib.workflow.files import DirectoryObject
 from pyiron_contrib.workflow.function import (
@@ -15,24 +17,62 @@ def throw_error(x: Optional[int] = None):
 
 
 def plus_one(x=1) -> Union[int, float]:
-    return x + 1
+    y = x + 1
+    return y
 
 
 def no_default(x, y):
     return x + y + 1
 
 
+def returns_multiple(x, y):
+    return x, y, x + y
+
+
+def void():
+    pass
+
+
+def multiple_branches(x):
+    if x < 10:
+        return True
+    else:
+        return False
+
+
 @unittest.skipUnless(version_info[0] == 3 and version_info[1] >= 10, "Only supported for 3.10+")
 class TestFunction(unittest.TestCase):
+    def test_instantiation(self):
+        with self.subTest("Void function is allowable"):
+            void_node = Function(void)
+            self.assertEqual(len(void_node.outputs), 0)
+
+        with self.subTest("Args and kwargs at initialization"):
+            node = Function(returns_multiple, 1, y=2)
+            self.assertEqual(
+                node.inputs.x.value,
+                1,
+                msg="Should be able to set function input as args"
+            )
+            self.assertEqual(
+                node.inputs.y.value,
+                2,
+                msg="Should be able to set function input as kwargs"
+            )
+
+            with self.assertRaises(ValueError):
+                # Can't pass more args than the function takes
+                Function(returns_multiple, 1, 2, 3)
+
     def test_defaults(self):
-        with_defaults = Function(plus_one, "y")
+        with_defaults = Function(plus_one)
         self.assertEqual(
             with_defaults.inputs.x.value,
             1,
             msg=f"Expected to get the default provided in the underlying function but "
                 f"got {with_defaults.inputs.x.value}",
         )
-        without_defaults = Function(no_default, "sum_plus_one")
+        without_defaults = Function(no_default)
         self.assertIs(
             without_defaults.inputs.x.value,
             NotData,
@@ -45,17 +85,32 @@ class TestFunction(unittest.TestCase):
                 "defaults, the node should not be ready!"
         )
 
-    def test_failure_without_output_labels(self):
-        with self.assertRaises(
-                ValueError,
-                msg="Instantiated nodes should demand at least one output label"
-        ):
-            Function(plus_one)
+    def test_label_choices(self):
+        with self.subTest("Automatically scrape output labels"):
+            n = Function(plus_one)
+            self.assertListEqual(n.outputs.labels, ["y"])
+
+        with self.subTest("Allow overriding them"):
+            n = Function(no_default, output_labels=("sum_plus_one",))
+            self.assertListEqual(n.outputs.labels, ["sum_plus_one"])
+
+        with self.subTest("Allow forcing _one_ output channel"):
+            n = Function(returns_multiple, output_labels="its_a_tuple")
+            self.assertListEqual(n.outputs.labels, ["its_a_tuple"])
+
+        with self.subTest("Fail on multiple return values"):
+            with self.assertRaises(ValueError):
+                # Can't automatically parse output labels from a function with multiple
+                # return expressions
+                Function(multiple_branches)
+
+        with self.subTest("Override output label scraping"):
+            switch = Function(multiple_branches, output_labels="bool")
+            self.assertListEqual(switch.outputs.labels, ["bool"])
 
     def test_instantiation_update(self):
         no_update = Function(
             plus_one,
-            "y",
             run_on_updates=True,
             update_on_instantiation=False
         )
@@ -68,13 +123,12 @@ class TestFunction(unittest.TestCase):
 
         update = Function(
             plus_one,
-            "y",
             run_on_updates=True,
             update_on_instantiation=True
         )
         self.assertEqual(2, update.outputs.y.value)
 
-        default = Function(plus_one, "y")
+        default = Function(plus_one)
         self.assertEqual(
             2,
             default.outputs.y.value,
@@ -83,29 +137,29 @@ class TestFunction(unittest.TestCase):
         )
 
         with self.assertRaises(TypeError):
-            run_without_value = Function(no_default, "z")
+            run_without_value = Function(no_default)
             run_without_value.run()
             # None + None + 1 -> error
 
         with self.assertRaises(TypeError):
-            run_without_value = Function(no_default, "z", x=1)
+            run_without_value = Function(no_default, x=1)
             run_without_value.run()
             # 1 + None + 1 -> error
 
-        deferred_update = Function(no_default, "z", x=1, y=1)
+        deferred_update = Function(no_default, x=1, y=1)
         deferred_update.run()
         self.assertEqual(
-            deferred_update.outputs.z.value,
+            deferred_update.outputs["x + y + 1"].value,
             3,
             msg="By default, all initial values should be parsed before triggering "
                 "an update"
         )
 
     def test_input_kwargs(self):
-        node = Function(plus_one, "y", x=2)
+        node = Function(plus_one, x=2)
         self.assertEqual(3, node.outputs.y.value, msg="Initialize from value")
 
-        node2 = Function(plus_one, "y", x=node.outputs.y)
+        node2 = Function(plus_one, x=node.outputs.y)
         node.update()
         self.assertEqual(4, node2.outputs.y.value, msg="Initialize from connection")
 
@@ -120,35 +174,38 @@ class TestFunction(unittest.TestCase):
                 node.inputs.x.update(1)
 
     def test_signals(self):
-        @function_node("y")
+        @function_node()
         def linear(x):
             return x
 
-        @function_node("z")
+        @function_node()
         def times_two(y):
             return 2 * y
 
         l = linear(x=1)
         t2 = times_two(
-            update_on_instantiation=False, run_automatically=False, y=l.outputs.y
+            update_on_instantiation=False,
+            run_automatically=False,
+            output_labels=["double"],
+            y=l.outputs.x
         )
         self.assertIs(
-            t2.outputs.z.value,
+            t2.outputs.double.value,
             NotData,
             msg=f"Without updates, expected the output to be {NotData} but got "
-                f"{t2.outputs.z.value}"
+                f"{t2.outputs.double.value}"
         )
 
         # Nodes should _all_ have the run and ran signals
         t2.signals.input.run = l.signals.output.ran
         l.run()
         self.assertEqual(
-            t2.outputs.z.value, 2,
+            t2.outputs.double.value, 2,
             msg="Running the upstream node should trigger a run here"
         )
 
     def test_statuses(self):
-        n = Function(plus_one, "p1", run_on_updates=False)
+        n = Function(plus_one, run_on_updates=False)
         self.assertTrue(n.ready)
         self.assertFalse(n.running)
         self.assertFalse(n.failed)
@@ -200,7 +257,7 @@ class TestFunction(unittest.TestCase):
                 self.some_counter = 1
             return x + 0.1
 
-        node = Function(with_self, "output")
+        node = Function(with_self, output_labels="output")
         self.assertTrue(
             "x" in node.inputs.labels,
             msg=f"Expected to find function input 'x' in the node input but got "
@@ -224,20 +281,142 @@ class TestFunction(unittest.TestCase):
             msg="Function functions should be able to modify attributes on the node object."
         )
 
+        node.executor = CloudpickleProcessPoolExecutor
+        with self.assertRaises(NotImplementedError):
+            # Submitting node_functions that use self is still raising
+            # TypeError: cannot pickle '_thread.lock' object
+            # For now we just fail cleanly
+            node.run()
+
         def with_messed_self(x: float, self) -> float:
             return x + 0.1
 
         with warnings.catch_warnings(record=True) as warning_list:
-            node = Function(with_messed_self, "output")
+            node = Function(with_messed_self)
             self.assertTrue("self" in node.inputs.labels)
 
         self.assertEqual(len(warning_list), 1)
 
+    def test_call(self):
+        node = Function(no_default, output_labels="output", run_on_updates=False)
+
+        with self.subTest("Ensure desired failures occur"):
+            with self.assertRaises(ValueError):
+                # More input args than there are input channels
+                node(1, 2, 3)
+
+            with self.assertRaises(ValueError):
+                # Using input as an arg _and_ a kwarg
+                node(1, y=2, x=3)
+
+        with self.subTest("Make sure data updates work as planned"):
+            node(1, y=2)
+            self.assertEqual(
+                node.inputs.x.value, 1, msg="__call__ should accept args to update input"
+            )
+            self.assertEqual(
+                node.inputs.y.value, 2, msg="__call__ should accept kwargs to update input"
+            )
+            self.assertEqual(
+                node.outputs.output.value, NotData, msg="__call__ should not run things"
+            )
+            node.run_on_updates = True
+            node(3)  # Implicitly test partial update
+            self.assertEqual(
+                no_default(3, 2),
+                node.outputs.output.value,
+                msg="__call__ should invoke update s.t. run gets called if run_on_updates"
+            )
+
+        with self.subTest("Check that node kwargs can also be updated"):
+            with self.assertWarns(Warning):
+                node(4, run_on_updates=False, y=5)
+
+                self.assertTupleEqual(
+                    (node.inputs.x.value, node.inputs.y.value),
+                    (4, 5),
+                    msg="The warning should not prevent other data from being parsed"
+                )
+
+            with self.assertWarns(Warning):
+                # It's also fine if you just have a typo in your kwarg or whatever,
+                # there should just be a warning that the data didn't get updated
+                node(some_randome_kwaaaaarg="foo")
+
+    def test_return_value(self):
+        node = Function(plus_one)
+
+        with self.subTest("Run on main process"):
+            return_on_call = node(1)
+            self.assertEqual(
+                return_on_call,
+                plus_one(1),
+                msg="Run output should be returned on call"
+            )
+
+            return_on_update = node.update()
+            self.assertEqual(
+                return_on_update,
+                plus_one(1),
+                msg="Run output should be returned on update"
+            )
+
+            node.run_on_updates = False
+            return_on_update_without_run = node.update()
+            self.assertIsNone(
+                return_on_update_without_run,
+                msg="When not running on updates, the update should not return anything"
+            )
+            return_on_call_without_run = node(2)
+            self.assertIsNone(
+                return_on_call_without_run,
+                msg="When not running on updates, the call should not return anything"
+            )
+            return_on_explicit_run = node.run()
+            self.assertEqual(
+                return_on_explicit_run,
+                plus_one(2),
+                msg="On explicit run, the most recent input data should be used and the "
+                    "result should be returned"
+            )
+
+        with self.subTest("Run on executor"):
+            node.executor = CloudpickleProcessPoolExecutor()
+            node.run_on_updates = False
+
+            return_on_update_without_run = node.update()
+            self.assertIsNone(
+                return_on_update_without_run,
+                msg="When not running on updates, the update should not return "
+                    "anything whether there is an executor or not"
+            )
+            return_on_explicit_run = node.run()
+            self.assertIsInstance(
+                return_on_explicit_run,
+                Future,
+                msg="Running with an executor should return the future"
+            )
+            with self.assertRaises(RuntimeError):
+                # The executor run should take a second
+                # So we can double check that attempting to run while already running
+                # raises an error
+                node.run()
+            node.future.result()  # Wait for the remote execution to finish
+
+            node.run_on_updates = True
+            return_on_update_with_run = node.update()
+            self.assertIsInstance(
+                return_on_update_with_run,
+                Future,
+                msg="Updating should return the same as run when we get a run from the "
+                    "update, obviously..."
+            )
+            node.future.result()  # Wait for the remote execution to finish
 
 @unittest.skipUnless(version_info[0] == 3 and version_info[1] >= 10, "Only supported for 3.10+")
 class TestSlow(unittest.TestCase):
     def test_instantiation(self):
-        slow = Slow(plus_one, "y")
+        slow = Slow(plus_one)
         self.assertIs(
             slow.outputs.y.value,
             NotData,
@@ -257,14 +436,35 @@ class TestSlow(unittest.TestCase):
                 f"{slow.outputs.y.value}"
         )
 
+        node = Slow(no_default, 1, y=2, output_labels="output")
+        node.run()
+        self.assertEqual(
+            no_default(1, 2),
+            node.outputs.output.value,
+            msg="Slow nodes should allow input initialization by arg and kwarg"
+        )
+        node(2, y=3)
+        node.run()
+        self.assertEqual(
+            no_default(2, 3),
+            node.outputs.output.value,
+            msg="Slow nodes should allow input update on call by arg and kwarg"
+        )
+
 
 @unittest.skipUnless(version_info[0] == 3 and version_info[1] >= 10, "Only supported for 3.10+")
 class TestSingleValue(unittest.TestCase):
     def test_instantiation(self):
-        has_defaults_and_one_return = SingleValue(plus_one, "y")
+        node = SingleValue(no_default, 1, y=2, output_labels="output")
+        self.assertEqual(
+            no_default(1, 2),
+            node.outputs.output.value,
+            msg="Single value node should allow function input by arg and kwarg"
+        )
 
         with self.assertRaises(ValueError):
-            too_many_labels = SingleValue(plus_one, "z", "excess_label")
+            # Too many labels
+            SingleValue(plus_one, output_labels=["z", "excess_label"])
 
     def test_item_and_attribute_access(self):
         class Foo:
@@ -280,7 +480,7 @@ class TestSingleValue(unittest.TestCase):
         def returns_foo() -> Foo:
             return Foo()
 
-        svn = SingleValue(returns_foo, "foo")
+        svn = SingleValue(returns_foo, output_labels="foo")
 
         self.assertEqual(
             svn.some_attribute,
@@ -310,14 +510,24 @@ class TestSingleValue(unittest.TestCase):
         )
 
     def test_repr(self):
-        svn = SingleValue(plus_one, "y")
-        self.assertEqual(
-            svn.__repr__(), svn.outputs.y.value.__repr__(),
-            msg="SingleValueNodes should have their output as their representation"
-        )
+        with self.subTest("Filled data"):
+            svn = SingleValue(plus_one)
+            self.assertEqual(
+                svn.__repr__(), svn.outputs.y.value.__repr__(),
+                msg="SingleValueNodes should have their output as their representation"
+            )
+
+        with self.subTest("Not data"):
+            svn = SingleValue(no_default, output_labels="output")
+            self.assertIs(svn.outputs.output.value, NotData)
+            self.assertTrue(
+                svn.__repr__().endswith(NotData.__name__),
+                msg="When the output is still not data, the representation should "
+                    "indicate this"
+            )
 
     def test_str(self):
-        svn = SingleValue(plus_one, "y")
+        svn = SingleValue(plus_one)
         self.assertTrue(
             str(svn).endswith(str(svn.single_value)),
             msg="SingleValueNodes should have their output as a string in their string "
@@ -325,18 +535,9 @@ class TestSingleValue(unittest.TestCase):
                 "actually still a Function and not just the value you're seeing.)"
         )
 
-    def test_repr(self):
-        svn = SingleValue(no_default, "output")
-        self.assertIs(svn.outputs.output.value, NotData)
-        self.assertTrue(
-            svn.__repr__().endswith(NotData.__name__),
-            msg="When the output is still not data, the representation should indicate "
-                "this"
-        )
-
     def test_easy_output_connection(self):
-        svn = SingleValue(plus_one, "y")
-        regular = Function(plus_one, "y")
+        svn = SingleValue(plus_one)
+        regular = Function(plus_one)
 
         regular.inputs.x = svn
 
@@ -353,7 +554,7 @@ class TestSingleValue(unittest.TestCase):
                 "case default->plus_one->plus_one = 1 + 1 +1 = 3"
         )
 
-        at_instantiation = Function(plus_one, "y", x=svn)
+        at_instantiation = Function(plus_one, x=svn)
         self.assertIn(
             svn.outputs.y, at_instantiation.inputs.x.connections,
             msg="The parsing of SingleValue output as a connection should also work"
@@ -361,7 +562,7 @@ class TestSingleValue(unittest.TestCase):
         )
 
     def test_channels_requiring_update_after_run(self):
-        @single_value_node("sum")
+        @single_value_node(output_labels="sum")
         def my_node(x: int = 0, y: int = 0, z: int = 0):
             return x + y + z
 
@@ -413,7 +614,7 @@ class TestSingleValue(unittest.TestCase):
         )
 
     def test_working_directory(self):
-        n_f = Function(plus_one, "output")
+        n_f = Function(plus_one)
         self.assertTrue(n_f._working_directory is None)
         self.assertIsInstance(n_f.working_directory, DirectoryObject)
         self.assertTrue(str(n_f.working_directory.path).endswith(n_f.label))

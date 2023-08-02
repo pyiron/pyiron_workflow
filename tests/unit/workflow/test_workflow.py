@@ -5,11 +5,13 @@ from time import sleep
 from pyiron_contrib.workflow.channels import NotData
 from pyiron_contrib.workflow.files import DirectoryObject
 from pyiron_contrib.workflow.function import Function
+from pyiron_contrib.workflow.util import DotDict
 from pyiron_contrib.workflow.workflow import Workflow
 
 
-def fnc(x=0):
-    return x + 1
+def plus_one(x=0):
+    y = x + 1
+    return y
 
 
 @unittest.skipUnless(version_info[0] == 3 and version_info[1] >= 10, "Only supported for 3.10+")
@@ -19,10 +21,10 @@ class TestWorkflow(unittest.TestCase):
         wf = Workflow("my_workflow")
 
         # Validate the four ways to add a node
-        wf.add(Function(fnc, "x", label="foo"))
-        wf.add.Function(fnc, "y", label="bar")
-        wf.baz = Function(fnc, "y", label="whatever_baz_gets_used")
-        Function(fnc, "x", label="qux", parent=wf)
+        wf.add(Function(plus_one, label="foo"))
+        wf.add.Function(plus_one, label="bar")
+        wf.baz = Function(plus_one, label="whatever_baz_gets_used")
+        Function(plus_one, label="qux", parent=wf)
         self.assertListEqual(list(wf.nodes.keys()), ["foo", "bar", "baz", "qux"])
         wf.boa = wf.qux
         self.assertListEqual(
@@ -33,14 +35,13 @@ class TestWorkflow(unittest.TestCase):
 
         wf.strict_naming = False
         # Validate name incrementation
-        wf.add(Function(fnc, "x", label="foo"))
-        wf.add.Function(fnc, "y", label="bar")
+        wf.add(Function(plus_one, label="foo"))
+        wf.add.Function(plus_one, label="bar")
         wf.baz = Function(
-            fnc,
-            "y",
+            plus_one,
             label="without_strict_you_can_override_by_assignment"
         )
-        Function(fnc, "x", label="boa", parent=wf)
+        Function(plus_one, label="boa", parent=wf)
         self.assertListEqual(
             list(wf.nodes.keys()),
             [
@@ -52,16 +53,16 @@ class TestWorkflow(unittest.TestCase):
         wf.strict_naming = True
         # Validate name preservation
         with self.assertRaises(AttributeError):
-            wf.add(Function(fnc, "x", label="foo"))
+            wf.add(Function(plus_one, label="foo"))
 
         with self.assertRaises(AttributeError):
-            wf.add.Function(fnc, "y", label="bar")
+            wf.add.Function(plus_one, label="bar")
 
         with self.assertRaises(AttributeError):
-            wf.baz = Function(fnc, "y", label="whatever_baz_gets_used")
+            wf.baz = Function(plus_one, label="whatever_baz_gets_used")
 
         with self.assertRaises(AttributeError):
-            Function(fnc, "x", label="boa", parent=wf)
+            Function(plus_one, label="boa", parent=wf)
 
     def test_node_packages(self):
         wf = Workflow("my_workflow")
@@ -80,8 +81,8 @@ class TestWorkflow(unittest.TestCase):
 
     def test_double_workfloage_and_node_removal(self):
         wf1 = Workflow("one")
-        wf1.add.Function(fnc, "y", label="node1")
-        node2 = Function(fnc, "y", label="node2", parent=wf1, x=wf1.node1.outputs.y)
+        wf1.add.Function(plus_one, label="node1")
+        node2 = Function(plus_one, label="node2", parent=wf1, x=wf1.node1.outputs.y)
         self.assertTrue(node2.connected)
 
         wf2 = Workflow("two")
@@ -95,9 +96,9 @@ class TestWorkflow(unittest.TestCase):
 
     def test_workflow_io(self):
         wf = Workflow("wf")
-        wf.add.Function(fnc, "y", label="n1")
-        wf.add.Function(fnc, "y", label="n2")
-        wf.add.Function(fnc, "y", label="n3")
+        wf.add.Function(plus_one, label="n1")
+        wf.add.Function(plus_one, label="n2")
+        wf.add.Function(plus_one, label="n3")
 
         with self.subTest("Workflow IO should be drawn from its nodes"):
             self.assertEqual(len(wf.inputs), 3)
@@ -111,7 +112,7 @@ class TestWorkflow(unittest.TestCase):
             self.assertEqual(len(wf.outputs), 1)
 
     def test_node_decorator_access(self):
-        @Workflow.wrap_as.function_node("y")
+        @Workflow.wrap_as.function_node(output_labels="y")
         def plus_one(x: int = 0) -> int:
             return x + 1
 
@@ -122,8 +123,10 @@ class TestWorkflow(unittest.TestCase):
         self.assertTrue(wf._working_directory is None)
         self.assertIsInstance(wf.working_directory, DirectoryObject)
         self.assertTrue(str(wf.working_directory.path).endswith(wf.label))
-        wf.add.Function(fnc, "output")
-        self.assertTrue(str(wf.fnc.working_directory.path).endswith(wf.fnc.label))
+        wf.add.Function(plus_one)
+        self.assertTrue(
+            str(wf.plus_one.working_directory.path).endswith(wf.plus_one.label)
+        )
         wf.working_directory.delete()
 
     def test_no_parents(self):
@@ -143,15 +146,24 @@ class TestWorkflow(unittest.TestCase):
             # In both cases, we satisfy the spec that workflow's can't have parents
             wf2.parent = wf
 
+    def test_executor(self):
+        wf = Workflow("wf")
+        with self.assertRaises(NotImplementedError):
+            # Submitting callables that use self is still raising
+            # TypeError: cannot pickle '_thread.lock' object
+            # For now we just fail cleanly
+            wf.executor = "literally anything other than None should raise the error"
+
     def test_parallel_execution(self):
         wf = Workflow("wf")
 
-        @Workflow.wrap_as.single_value_node("five", run_on_updates=False)
+        @Workflow.wrap_as.single_value_node(run_on_updates=False)
         def five(sleep_time=0.):
             sleep(sleep_time)
-            return 5
+            five = 5
+            return five
 
-        @Workflow.wrap_as.single_value_node("sum")
+        @Workflow.wrap_as.single_value_node(output_labels="sum")
         def sum(a, b):
             return a + b
 
@@ -187,6 +199,80 @@ class TestWorkflow(unittest.TestCase):
             msg="After the slow node completes, its output should be updated as a "
                 "callback, and downstream nodes should proceed"
         )
+
+    def test_call(self):
+        wf = Workflow("wf")
+
+        wf.a = wf.add.SingleValue(plus_one)
+        wf.b = wf.add.SingleValue(plus_one)
+
+        @Workflow.wrap_as.single_value_node(output_labels="sum")
+        def sum_(a, b):
+            return a + b
+
+        wf.sum = sum_(wf.a, wf.b)
+        self.assertEqual(
+            wf.a.outputs.y.value + wf.b.outputs.y.value,
+            wf.sum.outputs.sum.value,
+            msg="Sanity check"
+        )
+        wf(a_x=42, b_x=42)
+        self.assertEqual(
+            plus_one(42) + plus_one(42),
+            wf.sum.outputs.sum.value,
+            msg="Workflow should accept input channel kwargs and update inputs "
+                "accordingly"
+            # Since the nodes run automatically, there is no need for wf.run() here
+        )
+
+        with self.assertRaises(TypeError):
+            # IO is not ordered, so args make no sense for a workflow call
+            # We _must_ use kwargs
+            wf(42, 42)
+
+    def test_return_value(self):
+        wf = Workflow("wf")
+        wf.run_on_updates = True
+        wf.a = wf.add.SingleValue(plus_one)
+        wf.b = wf.add.SingleValue(plus_one, x=wf.a)
+
+        with self.subTest("Run on main process"):
+            return_on_call = wf(a_x=1)
+            self.assertEqual(
+                return_on_call,
+                DotDict({"b_y": 1 + 2}),
+                msg="Run output should be returned on call. Expecting a DotDict of "
+                    "output values"
+            )
+
+            return_on_update = wf.update()
+            self.assertEqual(
+                return_on_update.b_y,
+                1 + 2,
+                msg="Run output should be returned on update"
+            )
+
+            wf.run_on_updates = False
+            return_on_update_without_run = wf.update()
+            self.assertIsNone(
+                return_on_update_without_run,
+                msg="When not running on updates, the update should not return anything"
+            )
+            return_on_call_without_run = wf(a_x=2)
+            self.assertIsNone(
+                return_on_call_without_run,
+                msg="When not running on updates, the call should not return anything"
+            )
+            return_on_explicit_run = wf.run()
+            self.assertEqual(
+                return_on_explicit_run["b_y"],
+                2 + 2,
+                msg="On explicit run, the most recent input data should be used and the "
+                    "result should be returned"
+            )
+
+        # Note: We don't need to test running on an executor, because Workflows can't
+        #       do that yet
 
 
 if __name__ == '__main__':

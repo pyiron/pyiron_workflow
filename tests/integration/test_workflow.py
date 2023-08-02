@@ -16,7 +16,7 @@ class TestNothing(unittest.TestCase):
         TODO: Update once logical switches are included in the node library
         """
 
-        @Workflow.wrap_as.single_value_node("rand")
+        @Workflow.wrap_as.single_value_node()
         def numpy_randint(low=0, high=20):
             rand = np.random.randint(low=low, high=high)
             print(f"Generating random number between {low} and {high}...{rand}!")
@@ -29,7 +29,11 @@ class TestNothing(unittest.TestCase):
             """
 
             def __init__(self, **kwargs):
-                super().__init__(self.greater_than, "value_gt_limit", **kwargs)
+                super().__init__(
+                    self.greater_than,
+                    output_labels="value_gt_limit",
+                    **kwargs
+                )
                 self.signals.output.true = OutputSignal("true", self)
                 self.signals.output.false = OutputSignal("false", self)
 
@@ -50,7 +54,7 @@ class TestNothing(unittest.TestCase):
                     print(f"{self.inputs.value.value} <= {self.inputs.limit.value}")
                     self.signals.output.false()
 
-        @Workflow.wrap_as.single_value_node("sqrt")
+        @Workflow.wrap_as.single_value_node()
         def numpy_sqrt(value=0):
             sqrt = np.sqrt(value)
             print(f"sqrt({value}) = {sqrt}")

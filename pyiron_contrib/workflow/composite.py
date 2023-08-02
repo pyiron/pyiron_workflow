@@ -57,6 +57,9 @@ class Composite(Node, ABC):
     By default, `run()` will be called on all owned nodes have output connections but no
     input connections (i.e. the upstream-most nodes), but this can be overridden to
     specify particular nodes to use instead.
+    The `run()` method (and `update()`, and calling the workflow, when these result in
+    a run), return a new dot-accessible dictionary of keys and values created from the
+    composite output IO panel.
 
     Does not specify `input` and `output` as demanded by the parent class; this
     requirement is still passed on to children.
@@ -92,14 +95,28 @@ class Composite(Node, ABC):
         label: str,
         *args,
         parent: Optional[Composite] = None,
+        run_on_updates: bool = True,
         strict_naming: bool = True,
         **kwargs,
     ):
-        super().__init__(*args, label=label, parent=parent, **kwargs)
+        super().__init__(
+            *args, label=label, parent=parent, run_on_updates=run_on_updates, **kwargs
+        )
         self.strict_naming: bool = strict_naming
         self.nodes: DotDict[str:Node] = DotDict()
         self.add: NodeAdder = NodeAdder(self)
         self.starting_nodes: None | list[Node] = None
+
+    @property
+    def executor(self) -> None:
+        return None
+
+    @executor.setter
+    def executor(self, new_executor):
+        if new_executor is not None:
+            raise NotImplementedError(
+                "Running composite nodes with an executor is not yet supported"
+            )
 
     def to_dict(self):
         return {
@@ -115,12 +132,22 @@ class Composite(Node, ABC):
             if node.outputs.connected and not node.inputs.connected
         ]
 
+    @property
     def on_run(self):
+        return self.run_graph
+
+    @staticmethod
+    def run_graph(self):
         starting_nodes = (
             self.upstream_nodes if self.starting_nodes is None else self.starting_nodes
         )
         for node in starting_nodes:
             node.run()
+        return DotDict(self.outputs.to_value_dict())
+
+    @property
+    def run_args(self) -> dict:
+        return {"self": self}
 
     def add_node(self, node: Node, label: Optional[str] = None) -> None:
         """
