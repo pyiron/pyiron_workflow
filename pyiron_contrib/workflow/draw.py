@@ -25,11 +25,26 @@ SIGNAL_COLOR = {
 DATA_SHAPE = "oval"
 SIGNAL_SHAPE = "cds"
 
+IO_COLOR_OUTSIDE = "gray"
+IO_COLOR_INSIDE = "white"
+IO_GRADIENT_ANGLE = "0"
 
-def directed_graph(name, label, rankdir="TB"):
+NODE_COLOR_START = "blue"
+NODE_COLOR_END = "white"
+NODE_GRADIENT_ANGLE = "90"
+
+
+def directed_graph(name, label, rankdir, color_start, color_end, gradient_angle):
     """A shortcut method for instantiating the type of graphviz graph we want"""
     digraph = graphviz.graphs.Digraph(name=name)
-    digraph.attr(label=label, compound="true", rankdir=rankdir)
+    digraph.attr(
+        label=label,
+        compound="true",
+        rankdir=rankdir,
+        style="filled",
+        fillcolor=f"{color_start}:{color_end}",
+        gradientangle=gradient_angle
+    )
     return digraph
 
 
@@ -115,7 +130,14 @@ class _IO(WorkflowGraphvizMap, ABC):
         self.data_io, self.signals_io = self._get_node_io()
         self._name = self.parent.name + self.data_io.__class__.__name__
         self._label = self.data_io.__class__.__name__
-        self._graph = directed_graph(self.name, self.label, rankdir="TB")
+        self._graph = directed_graph(
+            self.name,
+            self.label,
+            rankdir="TB",
+            color_start=self.color_start,
+            color_end=self.color_end,
+            gradient_angle=IO_GRADIENT_ANGLE
+        )
 
         self.channels = [
             Channel(
@@ -142,6 +164,16 @@ class _IO(WorkflowGraphvizMap, ABC):
     @property
     @abstractmethod
     def in_or_out(self) -> Literal["in", "out"]:
+        pass
+
+    @property
+    @abstractmethod
+    def color_start(self) -> str:
+        pass
+
+    @property
+    @abstractmethod
+    def color_end(self) -> str:
         pass
 
     @property
@@ -172,6 +204,14 @@ class Inputs(_IO):
     def in_or_out(self) -> Literal["in"]:
         return "in"
 
+    @property
+    def color_start(self) -> str:
+        return IO_COLOR_OUTSIDE
+
+    @property
+    def color_end(self) -> str:
+        return IO_COLOR_INSIDE
+
 
 class Outputs(_IO):
     def _get_node_io(self) -> tuple[DataIO, SignalIO]:
@@ -181,19 +221,34 @@ class Outputs(_IO):
     def in_or_out(self) -> Literal["out"]:
         return "out"
 
+    @property
+    def color_start(self) -> str:
+        return IO_COLOR_INSIDE
+
+    @property
+    def color_end(self) -> str:
+        return IO_COLOR_OUTSIDE
+
 
 class Node(WorkflowGraphvizMap):
     def __init__(
             self,
             node: WorkflowNode,
             parent: Optional[Node] = None,
-            granularity: int = 1,
+            granularity: int = 1
     ):
         self.node = node
         self._parent = parent
         self._name = self.build_node_name()
         self._label = self.node.label + ": " + self.node.__class__.__name__
-        self._graph = directed_graph(self.name, self.label, rankdir="LR")
+        self._graph = directed_graph(
+            self.name,
+            self.label,
+            rankdir="LR",
+            color_start=NODE_COLOR_START,
+            color_end=NODE_COLOR_END,
+            gradient_angle=NODE_GRADIENT_ANGLE
+        )
 
         self.inputs = Inputs(self)
         self.outputs = Outputs(self)
