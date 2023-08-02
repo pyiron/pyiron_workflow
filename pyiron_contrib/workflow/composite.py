@@ -57,6 +57,9 @@ class Composite(Node, ABC):
     By default, `run()` will be called on all owned nodes have output connections but no
     input connections (i.e. the upstream-most nodes), but this can be overridden to
     specify particular nodes to use instead.
+    The `run()` method (and `update()`, and calling the workflow, when these result in
+    a run), return a new dot-accessible dictionary of keys and values created from the
+    composite output IO panel.
 
     Does not specify `input` and `output` as demanded by the parent class; this
     requirement is still passed on to children.
@@ -92,10 +95,17 @@ class Composite(Node, ABC):
         label: str,
         *args,
         parent: Optional[Composite] = None,
+        run_on_updates: bool = True,
         strict_naming: bool = True,
         **kwargs,
     ):
-        super().__init__(*args, label=label, parent=parent, **kwargs)
+        super().__init__(
+            *args,
+            label=label,
+            parent=parent,
+            run_on_updates=run_on_updates,
+            **kwargs
+        )
         self.strict_naming: bool = strict_naming
         self.nodes: DotDict[str:Node] = DotDict()
         self.add: NodeAdder = NodeAdder(self)

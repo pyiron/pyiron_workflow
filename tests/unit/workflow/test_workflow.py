@@ -5,6 +5,7 @@ from time import sleep
 from pyiron_contrib.workflow.channels import NotData
 from pyiron_contrib.workflow.files import DirectoryObject
 from pyiron_contrib.workflow.function import Function
+from pyiron_contrib.workflow.util import DotDict
 from pyiron_contrib.workflow.workflow import Workflow
 
 
@@ -228,6 +229,50 @@ class TestWorkflow(unittest.TestCase):
             # IO is not ordered, so args make no sense for a workflow call
             # We _must_ use kwargs
             wf(42, 42)
+
+    def test_return_value(self):
+        wf = Workflow("wf")
+        wf.run_on_updates = True
+        wf.a = wf.add.SingleValue(plus_one)
+        wf.b = wf.add.SingleValue(plus_one, x=wf.a)
+
+        with self.subTest("Run on main process"):
+            return_on_call = wf(a_x=1)
+            self.assertEqual(
+                return_on_call,
+                DotDict({"b_y": 1 + 2}),
+                msg="Run output should be returned on call. Expecting a DotDict of "
+                    "output values"
+            )
+
+            return_on_update = wf.update()
+            self.assertEqual(
+                return_on_update.b_y,
+                1 + 2,
+                msg="Run output should be returned on update"
+            )
+
+            wf.run_on_updates = False
+            return_on_update_without_run = wf.update()
+            self.assertIsNone(
+                return_on_update_without_run,
+                msg="When not running on updates, the update should not return anything"
+            )
+            return_on_call_without_run = wf(a_x=2)
+            self.assertIsNone(
+                return_on_call_without_run,
+                msg="When not running on updates, the call should not return anything"
+            )
+            return_on_explicit_run = wf.run()
+            self.assertEqual(
+                return_on_explicit_run["b_y"],
+                2 + 2,
+                msg="On explicit run, the most recent input data should be used and the "
+                    "result should be returned"
+            )
+
+        # Note: We don't need to test running on an executor, because Workflows can't
+        #       do that yet
 
 
 if __name__ == '__main__':
