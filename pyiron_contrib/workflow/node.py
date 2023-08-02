@@ -323,4 +323,23 @@ class Node(HasToDict, ABC):
         return "#ffffff"
 
     def draw(self, depth=1) -> graphviz.graphs.Digraph:
+        """
+        Draw the node structure.
+
+        Args:
+            depth (int): How deeply to decompose the representation of composite nodes
+                to reveal their inner structure. (Default is 1, which will show owned
+                nodes if _this_ is a composite node, but all children will be drawn
+                at the level of showing their IO only.) A depth value greater than the
+                max depth of the node will have no adverse side effects.
+
+        Returns:
+            (graphviz.graphs.Digraph): The resulting graph object.
+
+        Note:
+            The graphviz docs will elucidate all the possibilities of what to do with
+            the returned object, but the thing you are most likely to need is the
+            `render` method, which allows you to save the resulting graph as an image.
+            E.g. `self.draw().render(filename="my_node", format="png")`.
+        """
         return GraphvizNode(self, depth=depth).graph

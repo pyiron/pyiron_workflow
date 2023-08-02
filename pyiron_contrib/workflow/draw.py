@@ -46,6 +46,10 @@ def lighten_hex_color(color, lightness=0.7):
 
 
 class WorkflowGraphvizMap(ABC):
+    """
+    A parent class defining the interface for the graphviz representation of all our
+    workflow objects.
+    """
     @property
     @abstractmethod
     def parent(self) -> WorkflowGraphvizMap | None:
@@ -73,6 +77,10 @@ class WorkflowGraphvizMap(ABC):
 
 
 class _Channel(WorkflowGraphvizMap, ABC):
+    """
+    An abstract representation for channel objects, which are "nodes" in graphviz
+    parlance.
+    """
     def __init__(self, parent: _IO, channel: WorkflowChannel):
         self.channel = channel
         self._parent = parent
@@ -140,9 +148,13 @@ class SignalChannel(_Channel):
 
 
 class _IO(WorkflowGraphvizMap, ABC):
+    """
+    An abstract class for IO panels, which are represented as a "subgraph" in graphviz
+    parlance.
+    """
     def __init__(self, parent: Node):
         self._parent = parent
-        self.node = self.parent.node
+        self.node: WorkflowNode = self.parent.node
         self.data_io, self.signals_io = self._get_node_io()
         self._name = self.parent.name + self.data_io.__class__.__name__
         self._label = self.data_io.__class__.__name__
@@ -216,6 +228,25 @@ class Outputs(_IO):
 
 
 class Node(WorkflowGraphvizMap):
+    """
+    A wrapper class to connect graphviz to our workflow nodes. The nodes are
+    represented by a "graph" or "subgraph" in graphviz parlance (depending on whether
+    the node being visualized is the top-most node or not).
+
+    Visualized nodes show their label and type, and IO panels with label and type.
+    Colors and shapes are exploited to differentiate various node classes, input/output,
+    and data/signal channels.
+
+    If the node is composite in nature and the `depth` argument is at least `1`, owned
+    children are also visualized (recursively with `depth = depth - 1`) inside the scope
+    of this node.
+
+    Args:
+        node (pyiron_contrib.workflow.node.Node): The node to visualize.
+        parent (Optional[pyiron_contrib.workflow.draw.Node]): The visualization that
+            owns this visualization (if any).
+        depth (int): How deeply to decompose any child nodes beyond showing their IO.
+    """
     def __init__(
             self,
             node: WorkflowNode,
