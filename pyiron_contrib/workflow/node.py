@@ -317,5 +317,10 @@ class Node(HasToDict, ABC):
         self._batch_update_input(**kwargs)
         return self.update()
 
+    @property
+    def color(self) -> str:
+        """For drawing the graph"""
+        return "blue"
+
     def draw(self, granularity=1) -> graphviz.graphs.Digraph:
         return GraphvizNode(self, granularity=granularity).graph

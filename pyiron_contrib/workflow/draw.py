@@ -5,7 +5,7 @@ Functions for drawing the graph.
 from __future__ import annotations
 
 from abc import ABC, abstractmethod
-from typing import Literal, Optional, TYPE_CHECKING
+from typing import Optional, TYPE_CHECKING
 
 import graphviz
 
@@ -13,19 +13,6 @@ if TYPE_CHECKING:
     from pyiron_contrib.workflow.channels import Channel as WorkflowChannel
     from pyiron_contrib.workflow.io import DataIO, SignalIO
     from pyiron_contrib.workflow.node import Node as WorkflowNode
-
-DATA_COLOR = "#ebba34"
-SIGNAL_COLOR = "#3452ed"
-DATA_SHAPE = "oval"
-SIGNAL_SHAPE = "cds"
-
-IO_COLOR_OUTSIDE = "gray"
-IO_COLOR_INSIDE = "white"
-IO_GRADIENT_ANGLE = "0"
-
-NODE_COLOR_START = "blue"
-NODE_COLOR_END = "white"
-NODE_GRADIENT_ANGLE = "90"
 
 
 def directed_graph(name, label, rankdir, color_start, color_end, gradient_angle):
@@ -40,6 +27,10 @@ def directed_graph(name, label, rankdir, color_start, color_end, gradient_angle)
         gradientangle=gradient_angle
     )
     return digraph
+
+
+def lighten_hex_color(color):
+    return "white"
 
 
 class WorkflowGraphvizMap(ABC):
@@ -63,29 +54,32 @@ class WorkflowGraphvizMap(ABC):
     def graph(self) -> graphviz.graphs.Digraph:
         pass
 
+    @property
+    @abstractmethod
+    def color(self) -> str:
+        pass
 
-class Channel(WorkflowGraphvizMap):
-    def __init__(
-            self,
-            parent: _IO,
-            channel: WorkflowChannel,
-            shape: str,
-            color: str = "white",
-    ):
+
+class _Channel(WorkflowGraphvizMap, ABC):
+    def __init__(self, parent: _IO, channel: WorkflowChannel):
         self.channel = channel
         self._parent = parent
         self._name = self.parent.name + self.channel.label
         self._label = self._build_label()
         self.channel: WorkflowChannel = channel
-        self._color = color
 
         self.graph.node(
             name=self.name,
             label=self.label,
-            shape=shape,
+            shape=self.shape,
             color=self.color,
             style="filled"
         )
+
+    @property
+    @abstractmethod
+    def shape(self) -> str:
+        pass
 
     def _build_label(self):
         label = self.channel.label
@@ -112,9 +106,25 @@ class Channel(WorkflowGraphvizMap):
     def graph(self) -> graphviz.graphs.Digraph:
         return self.parent.graph
 
+
+class DataChannel(_Channel):
     @property
-    def color(self):
-        return self._color
+    def color(self) -> str:
+        return "#ebba34"
+
+    @property
+    def shape(self) -> str:
+        return "oval"
+
+
+class SignalChannel(_Channel):
+    @property
+    def color(self) -> str:
+        return "#3452ed"
+
+    @property
+    def shape(self) -> str:
+        return "cds"
 
 
 class _IO(WorkflowGraphvizMap, ABC):
@@ -128,16 +138,15 @@ class _IO(WorkflowGraphvizMap, ABC):
             self.name,
             self.label,
             rankdir="TB",
-            color_start=self.color_start,
-            color_end=self.color_end,
-            gradient_angle=IO_GRADIENT_ANGLE
+            color_start=self.color,
+            color_end=lighten_hex_color(self.color),
+            gradient_angle=self.gradient_angle
         )
 
         self.channels = [
-            Channel(self, channel, SIGNAL_SHAPE, SIGNAL_COLOR)
-            for channel in self.signals_io
+            SignalChannel(self, channel) for channel in self.signals_io
         ] + [
-            Channel(self, channel, DATA_SHAPE, DATA_COLOR) for channel in self.data_io
+            DataChannel(self, channel) for channel in self.data_io
         ]
 
         self.parent.graph.subgraph(self.graph)
@@ -148,17 +157,8 @@ class _IO(WorkflowGraphvizMap, ABC):
 
     @property
     @abstractmethod
-    def in_or_out(self) -> Literal["in", "out"]:
-        pass
-
-    @property
-    @abstractmethod
-    def color_start(self) -> str:
-        pass
-
-    @property
-    @abstractmethod
-    def color_end(self) -> str:
+    def gradient_angle(self) -> str:
+        """Background fill colour angle in degrees"""
         pass
 
     @property
@@ -177,6 +177,10 @@ class _IO(WorkflowGraphvizMap, ABC):
     def graph(self) -> graphviz.graphs.Digraph:
         return self._graph
 
+    @property
+    def color(self) -> str:
+        return "gray"
+
     def __len__(self):
         return len(self.channels)
 
@@ -186,16 +190,8 @@ class Inputs(_IO):
         return self.node.inputs, self.node.signals.input
 
     @property
-    def in_or_out(self) -> Literal["in"]:
-        return "in"
-
-    @property
-    def color_start(self) -> str:
-        return IO_COLOR_OUTSIDE
-
-    @property
-    def color_end(self) -> str:
-        return IO_COLOR_INSIDE
+    def gradient_angle(self) -> str:
+        return "0"
 
 
 class Outputs(_IO):
@@ -203,16 +199,8 @@ class Outputs(_IO):
         return self.node.outputs, self.node.signals.output
 
     @property
-    def in_or_out(self) -> Literal["out"]:
-        return "out"
-
-    @property
-    def color_start(self) -> str:
-        return IO_COLOR_INSIDE
-
-    @property
-    def color_end(self) -> str:
-        return IO_COLOR_OUTSIDE
+    def gradient_angle(self) -> str:
+        return "180"
 
 
 class Node(WorkflowGraphvizMap):
@@ -230,9 +218,9 @@ class Node(WorkflowGraphvizMap):
             self.name,
             self.label,
             rankdir="LR",
-            color_start=NODE_COLOR_START,
-            color_end=NODE_COLOR_END,
-            gradient_angle=NODE_GRADIENT_ANGLE
+            color_start=self.color,
+            color_end=lighten_hex_color(self.color),
+            gradient_angle="90"
         )
 
         self.inputs = Inputs(self)
@@ -287,8 +275,8 @@ class Node(WorkflowGraphvizMap):
 
     def _connect_matching(
             self,
-            sources: list[Channel],
-            destinations: list[Channel]
+            sources: list[_Channel],
+            destinations: list[_Channel]
     ):
         """
         Draw an edge between two graph channels whose workflow channels are the same
@@ -325,3 +313,7 @@ class Node(WorkflowGraphvizMap):
     @property
     def graph(self) -> graphviz.graphs.Digraph:
         return self._graph
+
+    @property
+    def color(self) -> str:
+        return self.node.color
