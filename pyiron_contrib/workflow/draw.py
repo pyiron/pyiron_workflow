@@ -5,7 +5,7 @@ Functions for drawing the graph.
 from __future__ import annotations
 
 from abc import ABC, abstractmethod
-from typing import Optional, TYPE_CHECKING
+from typing import Literal, Optional, TYPE_CHECKING
 
 import graphviz
 from matplotlib.colors import to_hex, to_rgb
@@ -28,6 +28,15 @@ def directed_graph(name, label, rankdir, color_start, color_end, gradient_angle)
         gradientangle=gradient_angle
     )
     return digraph
+
+
+def reverse_rankdir(rankdir: Literal["LR", "TB"]):
+    if rankdir == "LR":
+        return "TB"
+    elif rankdir == "TB":
+        return "LR"
+    else:
+        raise ValueError(f"Expected rankdir of 'LR' or 'TB' but got {rankdir}")
 
 
 def blend_colours(color_a, color_b, fraction_a=0.5):
@@ -161,7 +170,7 @@ class _IO(WorkflowGraphvizMap, ABC):
         self._graph = directed_graph(
             self.name,
             self.label,
-            rankdir="TB",
+            rankdir=reverse_rankdir(self.parent.rankdir),
             color_start=self.color,
             color_end=lighten_hex_color(self.color),
             gradient_angle=self.gradient_angle
@@ -246,21 +255,24 @@ class Node(WorkflowGraphvizMap):
         parent (Optional[pyiron_contrib.workflow.draw.Node]): The visualization that
             owns this visualization (if any).
         depth (int): How deeply to decompose any child nodes beyond showing their IO.
+        rankdir ("LR" | "TB"): Use left-right or top-bottom graphviz `rankdir`.
     """
     def __init__(
             self,
             node: WorkflowNode,
             parent: Optional[Node] = None,
-            depth: int = 1
+            depth: int = 1,
+            rankdir: Literal["LR", "TB"] = "LR"
     ):
         self.node = node
         self._parent = parent
         self._name = self.build_node_name()
         self._label = self.node.label + ": " + self.node.__class__.__name__
+        self.rankdir: Literal["LR", "TB"] = rankdir
         self._graph = directed_graph(
             self.name,
             self.label,
-            rankdir="LR",
+            rankdir=self.rankdir,
             color_start=self.color,
             color_end=lighten_hex_color(self.color),
             gradient_angle="90"

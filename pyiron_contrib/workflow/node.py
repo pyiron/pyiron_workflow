@@ -8,7 +8,7 @@ from __future__ import annotations
 import warnings
 from abc import ABC, abstractmethod
 from concurrent.futures import Future
-from typing import Any, Optional, TYPE_CHECKING
+from typing import Any, Literal, Optional, TYPE_CHECKING
 
 from pyiron_contrib.executors import CloudpickleProcessPoolExecutor
 from pyiron_contrib.workflow.draw import Node as GraphvizNode
@@ -324,7 +324,9 @@ class Node(HasToDict, ABC):
         """A hex code color for use in drawing."""
         return "#ffffff"
 
-    def draw(self, depth=1) -> graphviz.graphs.Digraph:
+    def draw(
+            self, depth: int = 1, rankdir: Literal["LR", "TB"] = "LR"
+    ) -> graphviz.graphs.Digraph:
         """
         Draw the node structure.
 
@@ -334,6 +336,8 @@ class Node(HasToDict, ABC):
                 nodes if _this_ is a composite node, but all children will be drawn
                 at the level of showing their IO only.) A depth value greater than the
                 max depth of the node will have no adverse side effects.
+            rankdir ("LR" | "TB"): Use left-right or top-bottom graphviz `rankdir` to
+                orient the flow of the graph.
 
         Returns:
             (graphviz.graphs.Digraph): The resulting graph object.
@@ -344,4 +348,4 @@ class Node(HasToDict, ABC):
             `render` method, which allows you to save the resulting graph as an image.
             E.g. `self.draw().render(filename="my_node", format="png")`.
         """
-        return GraphvizNode(self, depth=depth).graph
+        return GraphvizNode(self, depth=depth, rankdir=rankdir).graph
