@@ -284,7 +284,7 @@ class Node(WorkflowGraphvizMap):
         if self.parent is not None:
             self.parent.graph.subgraph(self.graph)
 
-    def _gradient_channel_color(self, start_channel, end_channel):
+    def _channel_bicolor(self, start_channel, end_channel):
         return f"{start_channel.color};0.5:{end_channel.color};0.5"
 
     def _connect_owned_nodes(self, depth):
@@ -306,9 +306,7 @@ class Node(WorkflowGraphvizMap):
                     self.graph.edge(
                         output_channel.name,
                         input_channel.name,
-                        color=self._gradient_channel_color(
-                            output_channel, input_channel
-                        )
+                        color=self._channel_bicolor(output_channel, input_channel)
                     )
 
         # Loop to check for macro input --> internal node input connections
@@ -330,7 +328,7 @@ class Node(WorkflowGraphvizMap):
                     self.graph.edge(
                         source.name,
                         destination.name,
-                        color=self._gradient_channel_color(source, destination)
+                        color=self._channel_bicolor(source, destination)
                     )
 
     def build_node_name(self, suffix=""):
