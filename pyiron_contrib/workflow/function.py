@@ -21,6 +21,8 @@ class Function(Node):
     Function nodes wrap an arbitrary python function.
     Node IO, including type hints, is generated automatically from the provided
     function.
+    Input data for the wrapped function can be provided as any valid combination of
+    `*arg` and `**kwarg` at both initialization and on calling the node.
 
     On running, the function node executes this wrapped function with its current input
     and uses the results to populate the node output.
@@ -63,6 +65,15 @@ class Function(Node):
     Output is updated in the `process_run_result` inside the parent class `finish_run`
     call, such that output data gets pushed after the node stops running but before
     then `ran` signal fires: run, process and push result, ran.
+
+    After a node is instantiated, its input can be updated as `*args` and/or `**kwargs`
+    on call.
+    This invokes an `update()` call, which can in turn invoke `run()` if
+    `run_on_updates` is set to `True`.
+    `run()` returns the output of the executed function, or a futures object if the
+    node is set to use an executor.
+    Calling the node or executing an `update()` returns the same thing as running, if
+    the node is run, or `None` if it is not set to run on updates or not ready to run.
 
     Args:
         node_function (callable): The function determining the behaviour of the node.
@@ -155,6 +166,14 @@ class Function(Node):
         >>> plus_minus_1.outputs.to_value_dict()
         {'p1': 2, 'm1': 1}
 
+        Input data can be provided to both initialization and on call as ordered args
+        or keyword kwargs.
+        When running, updating, or calling the node, the output of the wrapped function
+        (if it winds up getting run in the conditional cases of updating and calling) is
+        returned:
+        >>> plus_minus_1(2, y=3)
+        (3, 2)
+
         Finally, we might stop these updates from happening automatically, even when
         all the input data is present and available:
         >>> plus_minus_1 = Function(
@@ -167,8 +186,7 @@ class Function(Node):
 
         With these flags set, the node requires us to manually call a run:
         >>> plus_minus_1.run()
-        >>> plus_minus_1.outputs.to_value_dict()
-        {'p1': 1, 'm1': -1}
+        (-1, 1)
 
         So function nodes have the most basic level of protection that they won't run
         if they haven't seen any input data.
@@ -335,6 +353,7 @@ class Function(Node):
     def __init__(
         self,
         node_function: callable,
+        *args,
         label: Optional[str] = None,
         run_on_updates: bool = True,
         update_on_instantiation: bool = True,
@@ -346,6 +365,7 @@ class Function(Node):
         super().__init__(
             label=label if label is not None else node_function.__name__,
             parent=parent,
+            run_on_updates=run_on_updates,
             # **kwargs,
         )
 
@@ -365,14 +385,7 @@ class Function(Node):
         )
         self._verify_that_channels_requiring_update_all_exist()
 
-        self.run_on_updates = False
-        # Temporarily disable running on updates to set all initial values at once
-        for k, v in kwargs.items():
-            if k in self.inputs.labels:
-                self.inputs[k] = v
-            elif k not in self._init_keywords:
-                warnings.warn(f"The keyword '{k}' was received but not used.")
-        self.run_on_updates = run_on_updates  # Restore provided value
+        self._batch_update_input(*args, **kwargs)
 
         if update_on_instantiation:
             self.update()
@@ -527,6 +540,12 @@ class Function(Node):
     def run_args(self) -> dict:
         kwargs = self.inputs.to_value_dict()
         if "self" in self._input_args:
+            if self.executor is not None:
+                raise NotImplementedError(
+                    f"The node {self.label} cannot be run on an executor because it "
+                    f"uses the `self` argument and this functionality is not yet "
+                    f"implemented"
+                )
             kwargs["self"] = self
         return kwargs
 
@@ -551,8 +570,34 @@ class Function(Node):
         for out, value in zip(self.outputs, function_output):
             out.update(value)
 
-    def __call__(self) -> None:
-        self.run()
+    def _convert_input_args_and_kwargs_to_input_kwargs(self, *args, **kwargs):
+        reverse_keys = list(self._input_args.keys())[::-1]
+        if len(args) > len(reverse_keys):
+            raise ValueError(
+                f"Received {len(args)} positional arguments, but the node {self.label}"
+                f"only accepts {len(reverse_keys)} inputs."
+            )
+
+        positional_keywords = reverse_keys[-len(args):] if len(args) > 0 else []  # -0:
+        if len(set(positional_keywords).intersection(kwargs.keys())) > 0:
+            raise ValueError(
+                f"Cannot use {set(positional_keywords).intersection(kwargs.keys())} "
+                f"as both positional _and_ keyword arguments; args {args}, kwargs {kwargs}, reverse_keys {reverse_keys}, positional_keyworkds {positional_keywords}"
+            )
+
+        for arg in args:
+            key = positional_keywords.pop()
+            kwargs[key] = arg
+
+        return kwargs
+
+    def _batch_update_input(self, *args, **kwargs):
+        kwargs = self._convert_input_args_and_kwargs_to_input_kwargs(*args, **kwargs)
+        return super()._batch_update_input(**kwargs)
+
+    def __call__(self, *args, **kwargs) -> None:
+        kwargs = self._convert_input_args_and_kwargs_to_input_kwargs(*args, **kwargs)
+        return super().__call__(**kwargs)
 
     def to_dict(self):
         return {
@@ -577,6 +622,7 @@ class Slow(Function):
     def __init__(
         self,
         node_function: callable,
+        *args,
         label: Optional[str] = None,
         run_on_updates=False,
         update_on_instantiation=False,
@@ -586,6 +632,7 @@ class Slow(Function):
     ):
         super().__init__(
             node_function,
+            *args,
             label=label,
             run_on_updates=run_on_updates,
             update_on_instantiation=update_on_instantiation,
@@ -608,6 +655,7 @@ class SingleValue(Function, HasChannel):
     def __init__(
         self,
         node_function: callable,
+        *args,
         label: Optional[str] = None,
         run_on_updates=True,
         update_on_instantiation=True,
@@ -617,6 +665,7 @@ class SingleValue(Function, HasChannel):
     ):
         super().__init__(
             node_function,
+            *args,
             label=label,
             run_on_updates=run_on_updates,
             update_on_instantiation=update_on_instantiation,

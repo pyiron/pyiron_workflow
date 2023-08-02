@@ -1,8 +1,10 @@
-import unittest
+from concurrent.futures import Future
 from sys import version_info
 from typing import Optional, Union
+import unittest
 import warnings
 
+from pyiron_contrib.executors import CloudpickleProcessPoolExecutor
 from pyiron_contrib.workflow.channels import NotData
 from pyiron_contrib.workflow.files import DirectoryObject
 from pyiron_contrib.workflow.function import (
@@ -44,6 +46,23 @@ class TestFunction(unittest.TestCase):
         with self.subTest("Void function is allowable"):
             void_node = Function(void)
             self.assertEqual(len(void_node.outputs), 0)
+
+        with self.subTest("Args and kwargs at initialization"):
+            node = Function(returns_multiple, 1, y=2)
+            self.assertEqual(
+                node.inputs.x.value,
+                1,
+                msg="Should be able to set function input as args"
+            )
+            self.assertEqual(
+                node.inputs.y.value,
+                2,
+                msg="Should be able to set function input as kwargs"
+            )
+
+            with self.assertRaises(ValueError):
+                # Can't pass more args than the function takes
+                Function(returns_multiple, 1, 2, 3)
 
     def test_defaults(self):
         with_defaults = Function(plus_one)
@@ -137,10 +156,10 @@ class TestFunction(unittest.TestCase):
         )
 
     def test_input_kwargs(self):
-        node = Function(plus_one, "y", x=2)
+        node = Function(plus_one, x=2)
         self.assertEqual(3, node.outputs.y.value, msg="Initialize from value")
 
-        node2 = Function(plus_one, "y", x=node.outputs.y)
+        node2 = Function(plus_one, x=node.outputs.y)
         node.update()
         self.assertEqual(4, node2.outputs.y.value, msg="Initialize from connection")
 
@@ -262,6 +281,13 @@ class TestFunction(unittest.TestCase):
             msg="Function functions should be able to modify attributes on the node object."
         )
 
+        node.executor = CloudpickleProcessPoolExecutor
+        with self.assertRaises(NotImplementedError):
+            # Submitting node_functions that use self is still raising
+            # TypeError: cannot pickle '_thread.lock' object
+            # For now we just fail cleanly
+            node.run()
+
         def with_messed_self(x: float, self) -> float:
             return x + 0.1
 
@@ -271,6 +297,121 @@ class TestFunction(unittest.TestCase):
 
         self.assertEqual(len(warning_list), 1)
 
+    def test_call(self):
+        node = Function(no_default, output_labels="output", run_on_updates=False)
+
+        with self.subTest("Ensure desired failures occur"):
+            with self.assertRaises(ValueError):
+                # More input args than there are input channels
+                node(1, 2, 3)
+
+            with self.assertRaises(ValueError):
+                # Using input as an arg _and_ a kwarg
+                node(1, y=2, x=3)
+
+        with self.subTest("Make sure data updates work as planned"):
+            node(1, y=2)
+            self.assertEqual(
+                node.inputs.x.value, 1, msg="__call__ should accept args to update input"
+            )
+            self.assertEqual(
+                node.inputs.y.value, 2, msg="__call__ should accept kwargs to update input"
+            )
+            self.assertEqual(
+                node.outputs.output.value, NotData, msg="__call__ should not run things"
+            )
+            node.run_on_updates = True
+            node(3)  # Implicitly test partial update
+            self.assertEqual(
+                no_default(3, 2),
+                node.outputs.output.value,
+                msg="__call__ should invoke update s.t. run gets called if run_on_updates"
+            )
+
+        with self.subTest("Check that node kwargs can also be updated"):
+            with self.assertWarns(Warning):
+                node(4, run_on_updates=False, y=5)
+
+                self.assertTupleEqual(
+                    (node.inputs.x.value, node.inputs.y.value),
+                    (4, 5),
+                    msg="The warning should not prevent other data from being parsed"
+                )
+
+            with self.assertWarns(Warning):
+                # It's also fine if you just have a typo in your kwarg or whatever,
+                # there should just be a warning that the data didn't get updated
+                node(some_randome_kwaaaaarg="foo")
+
+    def test_return_value(self):
+        node = Function(plus_one)
+
+        with self.subTest("Run on main process"):
+            return_on_call = node(1)
+            self.assertEqual(
+                return_on_call,
+                plus_one(1),
+                msg="Run output should be returned on call"
+            )
+
+            return_on_update = node.update()
+            self.assertEqual(
+                return_on_update,
+                plus_one(1),
+                msg="Run output should be returned on update"
+            )
+
+            node.run_on_updates = False
+            return_on_update_without_run = node.update()
+            self.assertIsNone(
+                return_on_update_without_run,
+                msg="When not running on updates, the update should not return anything"
+            )
+            return_on_call_without_run = node(2)
+            self.assertIsNone(
+                return_on_call_without_run,
+                msg="When not running on updates, the call should not return anything"
+            )
+            return_on_explicit_run = node.run()
+            self.assertEqual(
+                return_on_explicit_run,
+                plus_one(2),
+                msg="On explicit run, the most recent input data should be used and the "
+                    "result should be returned"
+            )
+
+        with self.subTest("Run on executor"):
+            node.executor = CloudpickleProcessPoolExecutor()
+            node.run_on_updates = False
+
+            return_on_update_without_run = node.update()
+            self.assertIsNone(
+                return_on_update_without_run,
+                msg="When not running on updates, the update should not return "
+                    "anything whether there is an executor or not"
+            )
+            return_on_explicit_run = node.run()
+            self.assertIsInstance(
+                return_on_explicit_run,
+                Future,
+                msg="Running with an executor should return the future"
+            )
+            with self.assertRaises(RuntimeError):
+                # The executor run should take a second
+                # So we can double check that attempting to run while already running
+                # raises an error
+                node.run()
+            node.future.result()  # Wait for the remote execution to finish
+
+            node.run_on_updates = True
+            return_on_update_with_run = node.update()
+            self.assertIsInstance(
+                return_on_update_with_run,
+                Future,
+                msg="Updating should return the same as run when we get a run from the "
+                    "update, obviously..."
+            )
+            node.future.result()  # Wait for the remote execution to finish
 
 @unittest.skipUnless(version_info[0] == 3 and version_info[1] >= 10, "Only supported for 3.10+")
 class TestSlow(unittest.TestCase):
@@ -295,11 +436,31 @@ class TestSlow(unittest.TestCase):
                 f"{slow.outputs.y.value}"
         )
 
+        node = Slow(no_default, 1, y=2, output_labels="output")
+        node.run()
+        self.assertEqual(
+            no_default(1, 2),
+            node.outputs.output.value,
+            msg="Slow nodes should allow input initialization by arg and kwarg"
+        )
+        node(2, y=3)
+        node.run()
+        self.assertEqual(
+            no_default(2, 3),
+            node.outputs.output.value,
+            msg="Slow nodes should allow input update on call by arg and kwarg"
+        )
+
 
 @unittest.skipUnless(version_info[0] == 3 and version_info[1] >= 10, "Only supported for 3.10+")
 class TestSingleValue(unittest.TestCase):
     def test_instantiation(self):
-        SingleValue(plus_one)
+        node = SingleValue(no_default, 1, y=2, output_labels="output")
+        self.assertEqual(
+            no_default(1, 2),
+            node.outputs.output.value,
+            msg="Single value node should allow function input by arg and kwarg"
+        )
 
         with self.assertRaises(ValueError):
             # Too many labels

@@ -85,6 +85,18 @@ class Workflow(Composite):
         >>> print(wf.outputs.second_y.value)
         2
 
+        These input keys can be used when calling the workflow to update the input. In
+        our example, the nodes update automatically when their input gets updated, so
+        all we need to do to see updated workflow output is update the input:
+        >>> out = wf(first_x=10)
+        >>> out
+        {'second_y': 12}
+
+        Note: this _looks_ like a dictionary, but has some extra convenience that we
+        can dot-access data:
+        >>> out.second_y
+        12
+
         Workflows also give access to packages of pre-built nodes under different
         namespaces, e.g.
         >>> wf = Workflow("with_prebuilt")
@@ -118,8 +130,19 @@ class Workflow(Composite):
         integrity of workflows when they're used somewhere else?
     """
 
-    def __init__(self, label: str, *nodes: Node, strict_naming=True):
-        super().__init__(label=label, parent=None, strict_naming=strict_naming)
+    def __init__(
+            self,
+            label: str,
+            *nodes: Node,
+            run_on_updates: bool = True,
+            strict_naming=True
+    ):
+        super().__init__(
+            label=label,
+            parent=None,
+            run_on_updates=run_on_updates,
+            strict_naming=strict_naming,
+        )
 
         for node in nodes:
             self.add_node(node)
