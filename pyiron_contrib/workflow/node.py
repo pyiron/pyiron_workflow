@@ -325,7 +325,7 @@ class Node(HasToDict, ABC):
         return "#ffffff"
 
     def draw(
-            self, depth: int = 1, rankdir: Literal["LR", "TB"] = "LR"
+        self, depth: int = 1, rankdir: Literal["LR", "TB"] = "LR"
     ) -> graphviz.graphs.Digraph:
         """
         Draw the node structure.
