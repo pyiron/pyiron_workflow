@@ -8,6 +8,7 @@ from abc import ABC, abstractmethod
 from typing import Optional, TYPE_CHECKING
 
 import graphviz
+from matplotlib.colors import to_hex, to_rgb
 
 if TYPE_CHECKING:
     from pyiron_contrib.workflow.channels import Channel as WorkflowChannel
@@ -29,8 +30,19 @@ def directed_graph(name, label, rankdir, color_start, color_end, gradient_angle)
     return digraph
 
 
-def lighten_hex_color(color):
-    return "white"
+def blend_colours(color_a, color_b, fraction_a=0.5):
+    """Blends two hex code colours together"""
+    return to_hex(
+        tuple(
+            fraction_a * a + (1 - fraction_a) * b
+            for (a, b) in zip(to_rgb(color_a), to_rgb(color_b))
+        )
+    )
+
+
+def lighten_hex_color(color, lightness=0.7):
+    """Blends the given hex code color with pure white."""
+    return blend_colours("#ffffff", color, fraction_a=lightness)
 
 
 class WorkflowGraphvizMap(ABC):
