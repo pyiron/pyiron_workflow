@@ -14,14 +14,8 @@ if TYPE_CHECKING:
     from pyiron_contrib.workflow.io import DataIO, SignalIO
     from pyiron_contrib.workflow.node import Node as WorkflowNode
 
-IN_ALPHA = "66"
-OUT_ALPHA = "aa"
-DATA_COLOR_BASE = "#ebba34"
-DATA_COLOR = {"in": DATA_COLOR_BASE + IN_ALPHA, "out": DATA_COLOR_BASE + OUT_ALPHA}
-SIGNAL_COLOR_BASE = "#3452ed"
-SIGNAL_COLOR = {
-    "in": SIGNAL_COLOR_BASE + IN_ALPHA, "out": SIGNAL_COLOR_BASE + OUT_ALPHA
-}
+DATA_COLOR = "#ebba34"
+SIGNAL_COLOR = "#3452ed"
 DATA_SHAPE = "oval"
 SIGNAL_SHAPE = "cds"
 
@@ -140,19 +134,10 @@ class _IO(WorkflowGraphvizMap, ABC):
         )
 
         self.channels = [
-            Channel(
-                self,
-                channel,
-                SIGNAL_SHAPE,
-                SIGNAL_COLOR[self.in_or_out]
-            ) for channel in self.signals_io
+            Channel(self, channel, SIGNAL_SHAPE, SIGNAL_COLOR)
+            for channel in self.signals_io
         ] + [
-            Channel(
-                self,
-                channel,
-                DATA_SHAPE,
-                DATA_COLOR[self.in_or_out]
-            ) for channel in self.data_io
+            Channel(self, channel, DATA_SHAPE, DATA_COLOR) for channel in self.data_io
         ]
 
         self.parent.graph.subgraph(self.graph)
