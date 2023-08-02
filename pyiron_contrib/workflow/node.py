@@ -319,8 +319,8 @@ class Node(HasToDict, ABC):
 
     @property
     def color(self) -> str:
-        """For drawing the graph"""
-        return "blue"
+        """A hex code color for use in drawing."""
+        return "#ffffff"
 
     def draw(self, granularity=1) -> graphviz.graphs.Digraph:
         return GraphvizNode(self, granularity=granularity).graph

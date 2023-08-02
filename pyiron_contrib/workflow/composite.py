@@ -292,3 +292,8 @@ class NodeAdder:
               list, e.g. modules or even urls.
         """
         setattr(self, domain, NodePackage(self._parent, *nodes))
+
+    @property
+    def color(self) -> str:
+        """For drawing the graph"""
+        return "#8c564b"

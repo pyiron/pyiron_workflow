@@ -110,7 +110,7 @@ class _Channel(WorkflowGraphvizMap, ABC):
 class DataChannel(_Channel):
     @property
     def color(self) -> str:
-        return "#ebba34"
+        return "#ff7f0e"
 
     @property
     def shape(self) -> str:
@@ -120,7 +120,7 @@ class DataChannel(_Channel):
 class SignalChannel(_Channel):
     @property
     def color(self) -> str:
-        return "#3452ed"
+        return "#1f77b4"
 
     @property
     def shape(self) -> str:
@@ -179,7 +179,7 @@ class _IO(WorkflowGraphvizMap, ABC):
 
     @property
     def color(self) -> str:
-        return "gray"
+        return "#7f7f7f"
 
     def __len__(self):
         return len(self.channels)

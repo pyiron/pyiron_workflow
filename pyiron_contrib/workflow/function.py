@@ -610,6 +610,11 @@ class Function(Node):
             "signals": self.signals.to_dict(),
         }
 
+    @property
+    def color(self) -> str:
+        """For drawing the graph"""
+        return "#2ca02c"
+
 
 class Slow(Function):
     """
@@ -640,6 +645,11 @@ class Slow(Function):
             output_labels=output_labels,
             **kwargs,
         )
+
+    @property
+    def color(self) -> str:
+        """For drawing the graph"""
+        return "#d62728"
 
 
 class SingleValue(Function, HasChannel):
@@ -691,6 +701,11 @@ class SingleValue(Function, HasChannel):
     def channel(self) -> OutputData:
         """The channel for the single output"""
         return list(self.outputs.channel_dict.values())[0]
+
+    @property
+    def color(self) -> str:
+        """For drawing the graph"""
+        return "#17becf"
 
     def __getitem__(self, item):
         return self.single_value.__getitem__(item)
