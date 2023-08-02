@@ -5,7 +5,7 @@ Functions for drawing the graph.
 from __future__ import annotations
 
 from abc import ABC, abstractmethod
-from typing import Optional, TYPE_CHECKING
+from typing import Literal, Optional, TYPE_CHECKING
 
 import graphviz
 
@@ -13,6 +13,17 @@ if TYPE_CHECKING:
     from pyiron_contrib.workflow.channels import Channel as WorkflowChannel
     from pyiron_contrib.workflow.io import DataIO, SignalIO
     from pyiron_contrib.workflow.node import Node as WorkflowNode
+
+IN_ALPHA = "66"
+OUT_ALPHA = "aa"
+DATA_COLOR_BASE = "#ebba34"
+DATA_COLOR = {"in": DATA_COLOR_BASE + IN_ALPHA, "out": DATA_COLOR_BASE + OUT_ALPHA}
+SIGNAL_COLOR_BASE = "#3452ed"
+SIGNAL_COLOR = {
+    "in": SIGNAL_COLOR_BASE + IN_ALPHA, "out": SIGNAL_COLOR_BASE + OUT_ALPHA
+}
+DATA_SHAPE = "oval"
+SIGNAL_SHAPE = "cds"
 
 
 def directed_graph(name, label, rankdir="TB"):
@@ -49,15 +60,23 @@ class Channel(WorkflowGraphvizMap):
             self,
             parent: _IO,
             channel: WorkflowChannel,
-            shape: str = "oval",
+            shape: str,
+            color: str = "white",
     ):
         self.channel = channel
         self._parent = parent
         self._name = self.parent.name + self.channel.label
         self._label = self._build_label()
         self.channel: WorkflowChannel = channel
+        self._color = color
 
-        self.graph.node(name=self.name, label=self.label, shape=shape)
+        self.graph.node(
+            name=self.name,
+            label=self.label,
+            shape=shape,
+            color=self.color,
+            style="filled"
+        )
 
     def _build_label(self):
         label = self.channel.label
@@ -84,6 +103,10 @@ class Channel(WorkflowGraphvizMap):
     def graph(self) -> graphviz.graphs.Digraph:
         return self.parent.graph
 
+    @property
+    def color(self):
+        return self._color
+
 
 class _IO(WorkflowGraphvizMap, ABC):
     def __init__(self, parent: Node):
@@ -95,15 +118,30 @@ class _IO(WorkflowGraphvizMap, ABC):
         self._graph = directed_graph(self.name, self.label, rankdir="TB")
 
         self.channels = [
-            Channel(self, channel, shape="cds") for channel in self.signals_io
+            Channel(
+                self,
+                channel,
+                SIGNAL_SHAPE,
+                SIGNAL_COLOR[self.in_or_out]
+            ) for channel in self.signals_io
         ] + [
-            Channel(self, channel, shape="oval") for channel in self.data_io
+            Channel(
+                self,
+                channel,
+                DATA_SHAPE,
+                DATA_COLOR[self.in_or_out]
+            ) for channel in self.data_io
         ]
 
         self.parent.graph.subgraph(self.graph)
 
     @abstractmethod
     def _get_node_io(self) -> tuple[DataIO, SignalIO]:
+        pass
+
+    @property
+    @abstractmethod
+    def in_or_out(self) -> Literal["in", "out"]:
         pass
 
     @property
@@ -130,10 +168,18 @@ class Inputs(_IO):
     def _get_node_io(self) -> tuple[DataIO, SignalIO]:
         return self.node.inputs, self.node.signals.input
 
+    @property
+    def in_or_out(self) -> Literal["in"]:
+        return "in"
+
 
 class Outputs(_IO):
     def _get_node_io(self) -> tuple[DataIO, SignalIO]:
         return self.node.outputs, self.node.signals.output
+
+    @property
+    def in_or_out(self) -> Literal["out"]:
+        return "out"
 
 
 class Node(WorkflowGraphvizMap):
@@ -167,6 +213,9 @@ class Node(WorkflowGraphvizMap):
         if self.parent is not None:
             self.parent.graph.subgraph(self.graph)
 
+    def _gradient_channel_color(self, start_channel, end_channel):
+        return f"{start_channel.color};0.5:{end_channel.color};0.5"
+
     def _connect_owned_nodes(self, granularity):
         nodes = [
             Node(node, self, granularity - 1)
@@ -185,7 +234,10 @@ class Node(WorkflowGraphvizMap):
                 if input_channel.channel in output_channel.channel.connections:
                     self.graph.edge(
                         output_channel.name,
-                        input_channel.name
+                        input_channel.name,
+                        color=self._gradient_channel_color(
+                            output_channel, input_channel
+                        )
                     )
 
         # Loop to check for macro input --> internal node input connections
@@ -206,7 +258,8 @@ class Node(WorkflowGraphvizMap):
                 if source.channel is destination.channel:
                     self.graph.edge(
                         source.name,
-                        destination.name
+                        destination.name,
+                        color=self._gradient_channel_color(source, destination)
                     )
 
     def build_node_name(self, suffix=""):
