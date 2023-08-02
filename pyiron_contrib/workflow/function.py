@@ -578,7 +578,7 @@ class Function(Node):
                 f"only accepts {len(reverse_keys)} inputs."
             )
 
-        positional_keywords = reverse_keys[-len(args):] if len(args) > 0 else []  # -0:
+        positional_keywords = reverse_keys[-len(args) :] if len(args) > 0 else []  # -0:
         if len(set(positional_keywords).intersection(kwargs.keys())) > 0:
             raise ValueError(
                 f"Cannot use {set(positional_keywords).intersection(kwargs.keys())} "

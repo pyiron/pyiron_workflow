@@ -100,11 +100,7 @@ class Composite(Node, ABC):
         **kwargs,
     ):
         super().__init__(
-            *args,
-            label=label,
-            parent=parent,
-            run_on_updates=run_on_updates,
-            **kwargs
+            *args, label=label, parent=parent, run_on_updates=run_on_updates, **kwargs
         )
         self.strict_naming: bool = strict_naming
         self.nodes: DotDict[str:Node] = DotDict()

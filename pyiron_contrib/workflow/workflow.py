@@ -131,11 +131,7 @@ class Workflow(Composite):
     """
 
     def __init__(
-            self,
-            label: str,
-            *nodes: Node,
-            run_on_updates: bool = True,
-            strict_naming=True
+        self, label: str, *nodes: Node, run_on_updates: bool = True, strict_naming=True
     ):
         super().__init__(
             label=label,
