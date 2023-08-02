@@ -70,6 +70,10 @@ class Function(Node):
     on call.
     This invokes an `update()` call, which can in turn invoke `run()` if
     `run_on_updates` is set to `True`.
+    `run()` returns the output of the executed function, or a futures object if the
+    node is set to use an executor.
+    Calling the node or executing an `update()` returns the same thing as running, if
+    the node is run, or `None` if it is not set to run on updates or not ready to run.
 
     Args:
         node_function (callable): The function determining the behaviour of the node.
@@ -163,10 +167,12 @@ class Function(Node):
         {'p1': 2, 'm1': 1}
 
         Input data can be provided to both initialization and on call as ordered args
-        or keyword kwargs, e.g.:
+        or keyword kwargs.
+        When running, updating, or calling the node, the output of the wrapped function
+        (if it winds up getting run in the conditional cases of updating and calling) is
+        returned:
         >>> plus_minus_1(2, y=3)
-        >>> plus_minus_1.outputs.to_value_dict()
-        {'p1': 3, 'm1': 2}
+        (3, 2)
 
         Finally, we might stop these updates from happening automatically, even when
         all the input data is present and available:
@@ -180,8 +186,7 @@ class Function(Node):
 
         With these flags set, the node requires us to manually call a run:
         >>> plus_minus_1.run()
-        >>> plus_minus_1.outputs.to_value_dict()
-        {'p1': 1, 'm1': -1}
+        (-1, 1)
 
         So function nodes have the most basic level of protection that they won't run
         if they haven't seen any input data.
@@ -360,6 +365,7 @@ class Function(Node):
         super().__init__(
             label=label if label is not None else node_function.__name__,
             parent=parent,
+            run_on_updates=run_on_updates,
             # **kwargs,
         )
 
@@ -379,7 +385,6 @@ class Function(Node):
         )
         self._verify_that_channels_requiring_update_all_exist()
 
-        self.run_on_updates = run_on_updates
         self._batch_update_input(*args, **kwargs)
 
         if update_on_instantiation:
@@ -535,6 +540,12 @@ class Function(Node):
     def run_args(self) -> dict:
         kwargs = self.inputs.to_value_dict()
         if "self" in self._input_args:
+            if self.executor is not None:
+                raise NotImplementedError(
+                    f"The node {self.label} cannot be run on an executor because it "
+                    f"uses the `self` argument and this functionality is not yet "
+                    f"implemented"
+                )
             kwargs["self"] = self
         return kwargs
 
