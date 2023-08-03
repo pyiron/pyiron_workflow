@@ -313,3 +313,11 @@ class Node(HasToDict, ABC):
     def __call__(self, **kwargs) -> None:
         self._batch_update_input(**kwargs)
         return self.update()
+
+    def __str__(self):
+        return (
+            f"{self.label} ({self.__class__.__name__}):\n"
+            f"{str(self.inputs)}\n"
+            f"{str(self.outputs)}\n"
+            f"{str(self.signals)}"
+        )

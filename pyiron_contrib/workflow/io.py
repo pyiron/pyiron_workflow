@@ -70,7 +70,14 @@ class IO(HasToDict, ABC):
         pass
 
     def __getattr__(self, item) -> Channel:
-        return self.channel_dict[item]
+        try:
+            return self.channel_dict[item]
+        except KeyError:
+            # Raise an attribute error from getattr to make sure hasattr works well!
+            raise AttributeError(
+                f"Could not find attribute {item} on {self.__class__.__name__} object "
+                f"nor in its channels ({self.labels})"
+            )
 
     def __setattr__(self, key, value):
         if key in self.channel_dict.keys():
@@ -124,6 +131,9 @@ class IO(HasToDict, ABC):
 
     def __dir__(self):
         return set(super().__dir__() + self.labels)
+
+    def __str__(self):
+        return f"{self.__class__.__name__} {self.labels}"
 
     def to_dict(self):
         return {
@@ -224,3 +234,6 @@ class Signals:
             "input": self.input.to_dict(),
             "output": self.output.to_dict(),
         }
+
+    def __str__(self):
+        return f"{str(self.input)}\n{str(self.output)}"
