@@ -315,7 +315,9 @@ class Node(HasToDict, ABC):
         return self.update()
 
     def __str__(self):
-        return f"{self.label} ({self.__class__.__name__}):\n" \
-               f"{str(self.inputs)}\n" \
-               f"{str(self.outputs)}\n" \
-               f"{str(self.signals)}"
+        return (
+            f"{self.label} ({self.__class__.__name__}):\n"
+            f"{str(self.inputs)}\n"
+            f"{str(self.outputs)}\n"
+            f"{str(self.signals)}"
+        )
