@@ -125,6 +125,9 @@ class IO(HasToDict, ABC):
     def __dir__(self):
         return set(super().__dir__() + self.labels)
 
+    def __str__(self):
+        return f"{self.__class__.__name__} {self.labels}"
+
     def to_dict(self):
         return {
             "label": self.__class__.__name__,
@@ -224,3 +227,6 @@ class Signals:
             "input": self.input.to_dict(),
             "output": self.output.to_dict(),
         }
+
+    def __str__(self):
+        return f"{str(self.input)}\n{str(self.output)}"

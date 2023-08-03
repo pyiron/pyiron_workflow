@@ -17,3 +17,6 @@ class HasToDict(ABC):
 
     def repr_json(self):
         return JSON(self.to_dict())
+
+    def __str__(self):
+        return str(self.to_dict())
