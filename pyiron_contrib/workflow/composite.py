@@ -170,6 +170,11 @@ class Composite(Node, ABC):
 
         self.nodes[label] = node
         node.label = label
+        print(
+            f"{self.label} ({type(self)}) "
+            f"adding {node.label} ({type(node)}) "
+            f"that has parent {node.parent.label if node.parent is not None else None} ({type(node.parent)})"
+        )
         node.parent = self
         return node
 
@@ -232,7 +237,7 @@ class Composite(Node, ABC):
             del self.nodes[node]
 
     def __setattr__(self, label: str, node: Node):
-        if isinstance(node, Node):
+        if isinstance(node, Node) and label != "parent":
             self.add_node(node, label=label)
         else:
             super().__setattr__(label, node)
