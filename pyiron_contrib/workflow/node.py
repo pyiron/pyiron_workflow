@@ -349,3 +349,11 @@ class Node(HasToDict, ABC):
             E.g. `self.draw().render(filename="my_node", format="png")`.
         """
         return GraphvizNode(self, depth=depth, rankdir=rankdir).graph
+
+    def __str__(self):
+        return (
+            f"{self.label} ({self.__class__.__name__}):\n"
+            f"{str(self.inputs)}\n"
+            f"{str(self.outputs)}\n"
+            f"{str(self.signals)}"
+        )

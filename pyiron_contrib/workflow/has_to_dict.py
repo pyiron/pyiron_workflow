@@ -1,8 +1,6 @@
 from abc import ABC, abstractmethod
 from json import dumps
 
-from IPython.display import JSON
-
 
 class HasToDict(ABC):
     @abstractmethod
@@ -15,5 +13,5 @@ class HasToDict(ABC):
     def info(self):
         print(dumps(self.to_dict(), indent=2))
 
-    def repr_json(self):
-        return JSON(self.to_dict())
+    def __str__(self):
+        return str(self.to_dict())

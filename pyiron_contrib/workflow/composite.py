@@ -238,7 +238,14 @@ class Composite(Node, ABC):
             super().__setattr__(label, node)
 
     def __getattr__(self, key):
-        return self.nodes[key]
+        try:
+            return self.nodes[key]
+        except KeyError:
+            # Raise an attribute error from getattr to make sure hasattr works well!
+            raise AttributeError(
+                f"Could not find attribute {key} on {self.label} "
+                f"({self.__class__.__name__}) or in its nodes ({self.nodes.keys()})"
+            )
 
     def __getitem__(self, item):
         return self.__getattr__(item)
