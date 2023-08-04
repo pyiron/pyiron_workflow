@@ -33,6 +33,19 @@ class _NodeDecoratorAccess:
     slow_node = slow_node
     single_value_node = single_value_node
 
+    _macro_node = None
+
+    @classmethod
+    @property
+    def macro_node(cls):
+        # This jankiness is to avoid circular imports
+        # Chaining classmethod and property like this got deprecated in python 3.11,
+        # but it does what I want, so I'm going to use it anyhow
+        if cls._macro_node is None:
+            from pyiron_contrib.workflow.macro import macro_node
+            cls._macro_node = macro_node
+        return cls._macro_node
+
 
 class Creator:
     """A shortcut interface for creating non-Node objects from the workflow class."""

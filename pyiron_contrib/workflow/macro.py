@@ -5,6 +5,7 @@ interface and are not intended to be internally modified after instantiation.
 
 from __future__ import annotations
 
+from functools import partialmethod
 from typing import Optional
 
 from pyiron_contrib.workflow.composite import Composite
@@ -149,3 +150,31 @@ class Macro(Composite):
 
     def to_workfow(self):
         raise NotImplementedError
+
+
+def macro_node(**node_class_kwargs):
+    """
+    A decorator for dynamically creating macro classes from graph-creating functions.
+
+    Decorates a function.
+    Returns a `Macro` subclass whose name is the camel-case version of the
+    graph-creating function, and whose signature is modified to exclude this function
+    and provided kwargs.
+
+    Optionally takes any keyword arguments of `Macro`.
+    """
+
+    def as_node(graph_creator: callable[[Macro], None]):
+        return type(
+            graph_creator.__name__.title().replace("_", ""),  # fnc_name to CamelCase
+            (Macro,),  # Define parentage
+            {
+                "__init__": partialmethod(
+                    Macro.__init__,
+                    graph_creator,
+                    **node_class_kwargs,
+                )
+            },
+        )
+
+    return as_node
