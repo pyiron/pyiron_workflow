@@ -10,21 +10,7 @@ from pyiron_atomistics.lammps.lammps import Lammps as LammpsJob
 from pyiron_contrib.workflow.function import single_value_node, slow_node
 
 
-@single_value_node(output_labels="structure")
-def bulk_structure(
-        element: str = "Fe",
-        cubic: bool = False,
-        crystalstructure: Optional[
-            Literal[
-                "sc", "fcc", "bcc", "hcp", "diamond", "zincblende", "rocksalt",
-                "cesiumchloride", "fluorite", "wurtzite"
-            ]
-        ] = None,
-        repeat: int = 1,
-) -> Atoms:
-    return _StructureFactory().bulk(
-        element, cubic=cubic, crystalstructure=crystalstructure
-    ).repeat(repeat)
+Bulk = single_value_node(output_labels="structure")(_StructureFactory().bulk)
 
 
 @single_value_node(output_labels="job")
@@ -208,7 +194,7 @@ def calc_min(
 
 
 nodes = [
-    bulk_structure,
+    Bulk,
     calc_md,
     calc_min,
     calc_static,

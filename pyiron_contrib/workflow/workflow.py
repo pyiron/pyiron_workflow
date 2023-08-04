@@ -101,8 +101,7 @@ class Workflow(Composite):
         namespaces, e.g.
         >>> wf = Workflow("with_prebuilt")
         >>>
-        >>> wf.structure = wf.add.atomistics.BulkStructure(
-        ...     repeat=3,
+        >>> wf.structure = wf.add.atomistics.Bulk(
         ...     cubic=True,
         ...     element="Al"
         ... )
