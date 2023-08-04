@@ -43,6 +43,7 @@ class _NodeDecoratorAccess:
         # but it does what I want, so I'm going to use it anyhow
         if cls._macro_node is None:
             from pyiron_contrib.workflow.macro import macro_node
+
             cls._macro_node = macro_node
         return cls._macro_node
 
@@ -168,10 +169,10 @@ class Composite(Node, ABC):
         return {"self": self}
 
     def _build_io(
-            self,
-            io: Inputs | Outputs,
-            target: Literal["inputs", "outputs"],
-            key_map: dict[str, str] | None
+        self,
+        io: Inputs | Outputs,
+        target: Literal["inputs", "outputs"],
+        key_map: dict[str, str] | None,
     ) -> Inputs | Outputs:
         key_map = {} if key_map is None else key_map
         for node in self.nodes.values():

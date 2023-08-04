@@ -110,16 +110,16 @@ class Macro(Composite):
     """
 
     def __init__(
-            self,
-            graph_creator: callable[[Macro], None],
-            label: Optional[str] = None,
-            run_on_updates: bool = True,
-            update_on_instantiation: bool = True,
-            parent: Optional[Composite] = None,
-            strict_naming: bool = True,
-            inputs_map: Optional[dict] = None,
-            outputs_map: Optional[dict] = None,
-            **kwargs,
+        self,
+        graph_creator: callable[[Macro], None],
+        label: Optional[str] = None,
+        run_on_updates: bool = True,
+        update_on_instantiation: bool = True,
+        parent: Optional[Composite] = None,
+        strict_naming: bool = True,
+        inputs_map: Optional[dict] = None,
+        outputs_map: Optional[dict] = None,
+        **kwargs,
     ):
         self._parent = None
         super().__init__(
