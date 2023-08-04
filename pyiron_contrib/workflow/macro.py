@@ -5,7 +5,7 @@ interface and are not intended to be internally modified after instantiation.
 
 from __future__ import annotations
 
-from typing import Literal, Optional
+from typing import Optional
 
 from pyiron_contrib.workflow.composite import Composite
 from pyiron_contrib.workflow.io import Outputs, Inputs
@@ -112,12 +112,12 @@ class Macro(Composite):
             self,
             graph_creator: callable[[Macro], None],
             label: Optional[str] = None,
-            inputs_map: Optional[dict] = None,
-            outputs_map: Optional[dict] = None,
             run_on_updates: bool = True,
             update_on_instantiation: bool = True,
             parent: Optional[Composite] = None,
             strict_naming: bool = True,
+            inputs_map: Optional[dict] = None,
+            outputs_map: Optional[dict] = None,
             **kwargs,
     ):
         self._parent = None
@@ -126,39 +126,18 @@ class Macro(Composite):
             parent=parent,
             run_on_updates=run_on_updates,
             strict_naming=strict_naming,
+            inputs_map=inputs_map,
+            outputs_map=outputs_map,
         )
         graph_creator(self)
 
-        self._inputs: Inputs = self._build_inputs(inputs_map)
-        self._outputs: Outputs = self._build_outputs(outputs_map)
+        self._inputs: Inputs = self._build_inputs()
+        self._outputs: Outputs = self._build_outputs()
 
         self._batch_update_input(**kwargs)
 
         if update_on_instantiation:
             self.update()
-
-    def _build_io(
-            self,
-            io: Inputs | Outputs,
-            target: Literal["inputs", "outputs"],
-            key_map: dict[str, str] | None
-    ) -> Inputs | Outputs:
-        key_map = {} if key_map is None else key_map
-        for node in self.nodes.values():
-            for channel in getattr(node, target):
-                default_key = f"{node.label}_{channel.label}"
-                try:
-                    io[key_map[default_key]] = channel
-                except KeyError:
-                    if not channel.connected:
-                        io[default_key] = channel
-        return io
-
-    def _build_inputs(self, key_map: dict[str, str] | None) -> Inputs:
-        return self._build_io(Inputs(), "inputs", key_map)
-
-    def _build_outputs(self, key_map: dict[str, str] | None) -> Outputs:
-        return self._build_io(Outputs(), "outputs", key_map)
 
     @property
     def inputs(self) -> Inputs:

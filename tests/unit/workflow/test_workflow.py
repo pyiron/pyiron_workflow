@@ -111,6 +111,16 @@ class TestWorkflow(unittest.TestCase):
             self.assertEqual(len(wf.inputs), 1)
             self.assertEqual(len(wf.outputs), 1)
 
+        with self.subTest(
+                "IO should be re-mappable, including exposing internally connected "
+                "channels"
+        ):
+            wf.inputs_map = {"n1_x": "inp"}
+            wf.outputs_map = {"n3_y": "out", "n2_y": "intermediate"}
+            out = wf(inp=0)
+            self.assertEqual(out.out, 3)
+            self.assertEqual(out.intermediate, 2)
+
     def test_node_decorator_access(self):
         @Workflow.wrap_as.function_node(output_labels="y")
         def plus_one(x: int = 0) -> int:

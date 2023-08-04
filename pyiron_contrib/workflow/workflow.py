@@ -6,7 +6,7 @@ This class is intended as the single point of entry for users making an import.
 
 from __future__ import annotations
 
-from typing import TYPE_CHECKING
+from typing import Optional, TYPE_CHECKING
 
 from pyiron_contrib.workflow.composite import Composite
 from pyiron_contrib.workflow.io import Inputs, Outputs
@@ -137,13 +137,21 @@ class Workflow(Composite):
     """
 
     def __init__(
-        self, label: str, *nodes: Node, run_on_updates: bool = True, strict_naming=True
+        self,
+        label: str,
+        *nodes: Node,
+        run_on_updates: bool = True,
+        strict_naming: bool = True,
+        inputs_map: Optional[dict] = None,
+        outputs_map: Optional[dict] = None,
     ):
         super().__init__(
             label=label,
             parent=None,
             run_on_updates=run_on_updates,
             strict_naming=strict_naming,
+            inputs_map=inputs_map,
+            outputs_map=outputs_map,
         )
 
         for node in nodes:
@@ -151,21 +159,11 @@ class Workflow(Composite):
 
     @property
     def inputs(self) -> Inputs:
-        inputs = Inputs()
-        for node_label, node in self.nodes.items():
-            for channel in node.inputs:
-                if not channel.connected:
-                    inputs[f"{node_label}_{channel.label}"] = channel
-        return inputs
+        return self._build_inputs()
 
     @property
     def outputs(self) -> Outputs:
-        outputs = Outputs()
-        for node_label, node in self.nodes.items():
-            for channel in node.outputs:
-                if not channel.connected:
-                    outputs[f"{node_label}_{channel.label}"] = channel
-        return outputs
+        return self._build_outputs()
 
     def to_node(self):
         """
