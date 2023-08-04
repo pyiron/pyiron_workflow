@@ -175,8 +175,10 @@ class Composite(Node, ABC):
     ) -> Inputs | Outputs:
         key_map = {} if key_map is None else key_map
         for node in self.nodes.values():
-            for channel in getattr(node, target):
-                default_key = f"{node.label}_{channel.label}"
+            panel = getattr(node, target)
+            for channel_label in panel.labels:
+                channel = panel[channel_label]
+                default_key = f"{node.label}_{channel_label}"
                 try:
                     io[key_map[default_key]] = channel
                 except KeyError:
