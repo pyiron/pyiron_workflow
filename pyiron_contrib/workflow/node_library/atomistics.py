@@ -164,9 +164,53 @@ def calc_md(
     )
 
 
+@slow_node(
+    output_labels=[
+        "cells",
+        "displacements",
+        "energy_pot",
+        "energy_tot",
+        "force_max",
+        "forces",
+        "indices",
+        "positions",
+        "pressures",
+        "steps",
+        "total_displacements",
+        "unwrapped_positions",
+        "volume",
+    ]
+)
+def calc_min(
+    job: AtomisticGenericJob,
+    n_ionic_steps: int = 1000,
+    n_print: int = 100,
+    pressure: float
+    | tuple[float, float, float]
+    | tuple[float, float, float, float, float, float]
+    | None = None,
+):
+    def calc_min(job, n_ionic_steps, n_print, pressure):
+        job.calc_minimize(
+            max_iter=n_ionic_steps,  # Calc minimize uses a different var than MD
+            n_print=n_print,
+            pressure=pressure,
+        )
+        return job
+
+    return _run_and_remove_job(
+        job=job,
+        modifier=calc_min,
+        n_ionic_steps=n_ionic_steps,
+        n_print=n_print,
+        pressure=pressure,
+    )
+
+
 nodes = [
     bulk_structure,
     calc_md,
+    calc_min,
     calc_static,
     lammps,
 ]
