@@ -68,13 +68,13 @@ class TestWorkflow(unittest.TestCase):
         wf = Workflow("my_workflow")
 
         # Test invocation
-        wf.add.atomistics.BulkStructure(repeat=3, cubic=True, element="Al")
+        wf.add.atomistics.Bulk(cubic=True, element="Al")
         # Test invocation with attribute assignment
-        wf.engine = wf.add.atomistics.Lammps(structure=wf.bulk_structure)
+        wf.engine = wf.add.atomistics.Lammps(structure=wf.bulk)
 
         self.assertSetEqual(
             set(wf.nodes.keys()),
-            set(["bulk_structure", "engine"]),
+            set(["bulk", "engine"]),
             msg=f"Expected one node label generated automatically from the class and "
                 f"the other from the attribute assignment, but got {wf.nodes.keys()}"
         )
