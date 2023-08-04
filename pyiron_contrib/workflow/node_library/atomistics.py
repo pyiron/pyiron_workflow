@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-from typing import Optional
+from typing import Literal, Optional
 
 from pyiron_atomistics import Project, _StructureFactory
 from pyiron_atomistics.atomistics.job.atomistic import AtomisticGenericJob
@@ -11,8 +11,20 @@ from pyiron_contrib.workflow.function import single_value_node, slow_node
 
 
 @single_value_node(output_labels="structure")
-def bulk_structure(element: str = "Fe", cubic: bool = False, repeat: int = 1) -> Atoms:
-    return _StructureFactory().bulk(element, cubic=cubic).repeat(repeat)
+def bulk_structure(
+        element: str = "Fe",
+        cubic: bool = False,
+        crystalstructure: Optional[
+            Literal[
+                "sc", "fcc", "bcc", "hcp", "diamond", "zincblende", "rocksalt",
+                "cesiumchloride", "fluorite", "wurtzite"
+            ]
+        ] = None,
+        repeat: int = 1,
+) -> Atoms:
+    return _StructureFactory().bulk(
+        element, cubic=cubic, crystalstructure=crystalstructure
+    ).repeat(repeat)
 
 
 @single_value_node(output_labels="job")
