@@ -146,3 +146,7 @@ class TestMacro(unittest.TestCase):
             1,
             msg="Was included in starting nodes, should have run"
         )
+
+
+if __name__ == '__main__':
+    unittest.main()
