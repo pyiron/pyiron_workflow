@@ -22,7 +22,7 @@ from pyiron_contrib.workflow.function import (
 )
 from pyiron_contrib.workflow.node_library import atomistics, standard
 from pyiron_contrib.workflow.node_library.package import NodePackage
-from pyiron_contrib.workflow.util import DotDict
+from pyiron_contrib.workflow.util import DotDict, SeabornColors
 
 
 class _NodeDecoratorAccess:
@@ -303,4 +303,4 @@ class NodeAdder:
     @property
     def color(self) -> str:
         """For drawing the graph"""
-        return "#8c564b"
+        return SeabornColors.brown
