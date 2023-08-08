@@ -318,11 +318,11 @@ class Composite(Node, ABC):
         else:
             del self.nodes[node]
 
-    def __setattr__(self, label: str, node: Node):
-        if isinstance(node, Node) and label != "parent":
-            self.add_node(node, label=label)
+    def __setattr__(self, key: str, node: Node):
+        if isinstance(node, Node) and key != "parent":
+            self.add_node(node, label=key)
         else:
-            super().__setattr__(label, node)
+            super().__setattr__(key, node)
 
     def __getattr__(self, key):
         try:
