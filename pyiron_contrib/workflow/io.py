@@ -110,9 +110,9 @@ class IO(HasToDict, ABC):
     @property
     def connections(self) -> list[Channel]:
         """All the unique connections across all channels"""
-        return list(set(
-            [connection for channel in self for connection in channel.connections]
-        ))
+        return list(
+            set([connection for channel in self for connection in channel.connections])
+        )
 
     @property
     def connected(self):

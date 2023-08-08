@@ -152,9 +152,7 @@ class Composite(Node, ABC):
         A list of owned nodes that receive no input from any other owned nodes.
         """
         return [
-            node
-            for node in self.nodes.values()
-            if not self.connects_to_input_of(node)
+            node for node in self.nodes.values() if not self.connects_to_input_of(node)
         ]
 
     def has_locally_scoped_connection(self, node_connections: list[Channel]) -> bool:
@@ -169,9 +167,7 @@ class Composite(Node, ABC):
                 nodes owned by this composite node.
         """
         return len(
-            set(
-                [connection.node for connection in node_connections]
-            ).intersection(
+            set([connection.node for connection in node_connections]).intersection(
                 self.nodes.values()
             )
         ) > 0 or any(
