@@ -108,6 +108,13 @@ class IO(HasToDict, ABC):
         self.__setattr__(key, value)
 
     @property
+    def connections(self) -> list[Channel]:
+        """All the unique connections across all channels"""
+        return list(set(
+            [connection for channel in self for connection in channel.connections]
+        ))
+
+    @property
     def connected(self):
         return any([c.connected for c in self])
 
