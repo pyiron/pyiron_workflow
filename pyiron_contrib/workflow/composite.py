@@ -12,6 +12,7 @@ from warnings import warn
 
 from pyiron_contrib.executors import CloudpickleProcessPoolExecutor
 from pyiron_contrib.workflow.io import Outputs, Inputs
+from pyiron_contrib.workflow.meta import MetaNodes
 from pyiron_contrib.workflow.node import Node
 from pyiron_contrib.workflow.function import (
     Function,
@@ -55,6 +56,7 @@ class Creator:
     """A shortcut interface for creating non-Node objects from the workflow class."""
 
     CloudpickleProcessPoolExecutor = CloudpickleProcessPoolExecutor
+    meta = MetaNodes
 
 
 class Composite(Node, ABC):
