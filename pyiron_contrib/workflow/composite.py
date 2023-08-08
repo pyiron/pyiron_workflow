@@ -23,7 +23,7 @@ from pyiron_contrib.workflow.function import (
 )
 from pyiron_contrib.workflow.node_library import atomistics, standard
 from pyiron_contrib.workflow.node_library.package import NodePackage
-from pyiron_contrib.workflow.util import DotDict
+from pyiron_contrib.workflow.util import DotDict, SeabornColors
 
 
 class _NodeDecoratorAccess:
@@ -306,6 +306,11 @@ class Composite(Node, ABC):
     def __dir__(self):
         return set(super().__dir__() + list(self.nodes.keys()))
 
+    @property
+    def color(self) -> str:
+        """For drawing the graph"""
+        return SeabornColors.brown
+
 
 class NodeAdder:
     """
@@ -343,8 +348,3 @@ class NodeAdder:
               list, e.g. modules or even urls.
         """
         setattr(self, domain, NodePackage(self._parent, *nodes))
-
-    @property
-    def color(self) -> str:
-        """For drawing the graph"""
-        return "#8c564b"

@@ -10,6 +10,7 @@ from pyiron_contrib.workflow.has_channel import HasChannel
 from pyiron_contrib.workflow.io import Inputs, Outputs, Signals
 from pyiron_contrib.workflow.node import Node
 from pyiron_contrib.workflow.output_parser import ParseOutput
+from pyiron_contrib.workflow.util import SeabornColors
 
 if TYPE_CHECKING:
     from pyiron_contrib.workflow.composite import Composite
@@ -613,7 +614,7 @@ class Function(Node):
     @property
     def color(self) -> str:
         """For drawing the graph"""
-        return "#2ca02c"
+        return SeabornColors.green
 
 
 class Slow(Function):
@@ -649,7 +650,7 @@ class Slow(Function):
     @property
     def color(self) -> str:
         """For drawing the graph"""
-        return "#d62728"
+        return SeabornColors.red
 
 
 class SingleValue(Function, HasChannel):
@@ -705,7 +706,7 @@ class SingleValue(Function, HasChannel):
     @property
     def color(self) -> str:
         """For drawing the graph"""
-        return "#17becf"
+        return SeabornColors.cyan
 
     def __getitem__(self, item):
         return self.single_value.__getitem__(item)

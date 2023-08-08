@@ -15,6 +15,7 @@ from pyiron_contrib.workflow.draw import Node as GraphvizNode
 from pyiron_contrib.workflow.files import DirectoryObject
 from pyiron_contrib.workflow.has_to_dict import HasToDict
 from pyiron_contrib.workflow.io import Signals, InputSignal, OutputSignal
+from pyiron_contrib.workflow.util import SeabornColors
 
 if TYPE_CHECKING:
     import graphviz
@@ -322,7 +323,7 @@ class Node(HasToDict, ABC):
     @property
     def color(self) -> str:
         """A hex code color for use in drawing."""
-        return "#ffffff"
+        return SeabornColors.white
 
     def draw(
         self, depth: int = 1, rankdir: Literal["LR", "TB"] = "LR"

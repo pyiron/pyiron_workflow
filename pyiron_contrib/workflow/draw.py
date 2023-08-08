@@ -10,6 +10,8 @@ from typing import Literal, Optional, TYPE_CHECKING
 import graphviz
 from matplotlib.colors import to_hex, to_rgb
 
+from pyiron_contrib.workflow.util import SeabornColors
+
 if TYPE_CHECKING:
     from pyiron_contrib.workflow.channels import Channel as WorkflowChannel
     from pyiron_contrib.workflow.io import DataIO, SignalIO
@@ -51,7 +53,7 @@ def blend_colours(color_a, color_b, fraction_a=0.5):
 
 def lighten_hex_color(color, lightness=0.7):
     """Blends the given hex code color with pure white."""
-    return blend_colours("#ffffff", color, fraction_a=lightness)
+    return blend_colours(SeabornColors.white, color, fraction_a=lightness)
 
 
 class WorkflowGraphvizMap(ABC):
@@ -141,7 +143,7 @@ class _Channel(WorkflowGraphvizMap, ABC):
 class DataChannel(_Channel):
     @property
     def color(self) -> str:
-        return "#ff7f0e"
+        return SeabornColors.orange
 
     @property
     def shape(self) -> str:
@@ -151,7 +153,7 @@ class DataChannel(_Channel):
 class SignalChannel(_Channel):
     @property
     def color(self) -> str:
-        return "#1f77b4"
+        return SeabornColors.blue
 
     @property
     def shape(self) -> str:
@@ -212,7 +214,7 @@ class _IO(WorkflowGraphvizMap, ABC):
 
     @property
     def color(self) -> str:
-        return "#7f7f7f"
+        return SeabornColors.gray
 
     def __len__(self):
         return len(self.channels)
