@@ -7,7 +7,7 @@ from __future__ import annotations
 
 from abc import ABC
 from functools import partial
-from typing import Literal, Optional
+from typing import Literal, Optional, TYPE_CHECKING
 from warnings import warn
 
 from pyiron_contrib.executors import CloudpickleProcessPoolExecutor
@@ -24,6 +24,9 @@ from pyiron_contrib.workflow.function import (
 from pyiron_contrib.workflow.node_library import atomistics, standard
 from pyiron_contrib.workflow.node_library.package import NodePackage
 from pyiron_contrib.workflow.util import DotDict, SeabornColors
+
+if TYPE_CHECKING:
+    from pyiron_contrib.workflow.channels import Channel
 
 
 class _NodeDecoratorAccess:
@@ -145,11 +148,55 @@ class Composite(Node, ABC):
 
     @property
     def upstream_nodes(self) -> list[Node]:
+        """
+        A list of owned nodes that receive no input from any other owned nodes.
+        """
         return [
             node
             for node in self.nodes.values()
-            if node.outputs.connected and not node.inputs.connected
+            if not self.connects_to_input_of(node)
         ]
+
+    def has_locally_scoped_connection(self, node_connections: list[Channel]) -> bool:
+        """
+        Check whether connections are made to any (recursively) owned nodes.
+
+        Args:
+            node_connections [list[Channel]]: A list of connections.
+
+        Returns:
+            (bool): Whether or not any of those connections are locally scoped to the
+                nodes owned by this composite node.
+        """
+        return len(
+            set(
+                [connection.node for connection in node_connections]
+            ).intersection(
+                self.nodes.values()
+            )
+        ) > 0 or any(
+            node.has_locally_scoped_connection(node_connections)
+            for node in self.nodes.values()
+            if isinstance(node, Composite)
+        )
+
+    def connects_to_output_of(self, node: Node) -> bool:
+        """
+        Checks whether the passed node receives output from any of this composite node's
+        (recursively) owned nodes.
+        """
+        return self.has_locally_scoped_connection(
+            node.outputs.connections + node.signals.output.connections
+        )
+
+    def connects_to_input_of(self, node: Node) -> bool:
+        """
+        Checks whether the passed node receives input from any of this composite node's
+        (recursively) owned nodes.
+        """
+        return self.has_locally_scoped_connection(
+            node.inputs.connections + node.signals.input.connections
+        )
 
     @property
     def on_run(self):
