@@ -70,6 +70,10 @@ class Composite(Node, ABC):
         add(node: Node): Add the node instance to this subgraph.
         remove(node: Node): Break all connections the node has, remove it from this
          subgraph, and set its parent to `None`.
+
+    TODO:
+        Wrap node registration at the class level so we don't need to do
+        `X.create.register` but can just do `X.register`
     """
 
     wrap_as = Wrappers()

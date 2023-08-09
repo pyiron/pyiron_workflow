@@ -29,23 +29,35 @@ class Workflow(Composite):
     Using the `input` and `output` attributes, the workflow gives access to all the
     IO channels among its nodes which are currently unconnected.
 
+    The `Workflow` class acts as a single-point-of-import for us;
+    Directly from the class we can use the `create` method to instantiate workflow
+    objects.
+    When called from a workflow _instance_, any created nodes get their parent set to
+    the workflow instance being used.
+
     Examples:
         We allow adding nodes to workflows in five equivalent ways:
         >>> from pyiron_contrib.workflow.workflow import Workflow
-        >>> from pyiron_contrib.workflow.function import Function
         >>>
         >>> def fnc(x=0):
         ...     return x + 1
         >>>
-        >>> n1 = Function(fnc, label="n1")
+        >>> # (1) As *args at instantiation
+        >>> n1 = Workflow.create.Function(fnc, label="n1")
+        >>> wf = Workflow("my_workflow", n1)
         >>>
-        >>> wf = Workflow("my_workflow", n1)  # As *args at instantiation
-        >>> wf.add(Function(fnc, label="n2"))  # Passing a node to the add caller
-        >>> wf.add.Function(fnc, label="n3")  # Instantiating from add
-        >>> wf.n4 = Function(fnc, label="whatever_n4_gets_used")
-        >>> # By attribute assignment
-        >>> Function(fnc, label="n5", parent=wf)
-        >>> # By instantiating the node with a workflow
+        >>> # (2) Being passed to the `add` method
+        >>> wf.add(Workflow.create.Function(fnc, label="n2"))
+        >>>
+        >>> # (3) Calling `create` from the _workflow instance_ that will own the node
+        >>> wf.create.Function(fnc, label="n3")  # Instantiating from add
+        >>>
+        >>> # (4) By attribute assignment (here the node can be created from the
+        >>> # workflow class or instance and the end result is the same
+        >>> wf.n4 = wf.create.Function(fnc, label="anyhow_n4_gets_used")
+        >>>
+        >>> # (5) By creating from the workflow class but specifying the parent kwarg
+        >>> Workflow.create.Function(fnc, label="n5", parent=wf)
 
         By default, the node naming scheme is strict, so if you try to add a node to a
         label that already exists, you will get an error. This behaviour can be changed
@@ -53,9 +65,9 @@ class Workflow(Composite):
         bool to this property. When deactivated, repeated assignments to the same label
         just get appended with an index:
         >>> wf.strict_naming = False
-        >>> wf.my_node = Function(fnc, x=0)
-        >>> wf.my_node = Function(fnc, x=1)
-        >>> wf.my_node = Function(fnc, x=2)
+        >>> wf.my_node = wf.create.Function(fnc, x=0)
+        >>> wf.my_node = wf.create.Function(fnc, x=1)
+        >>> wf.my_node = wf.create.Function(fnc, x=2)
         >>> print(wf.my_node.inputs.x, wf.my_node0.inputs.x, wf.my_node1.inputs.x)
         0, 1, 2
 
@@ -101,17 +113,17 @@ class Workflow(Composite):
         namespaces, e.g.
         >>> wf = Workflow("with_prebuilt")
         >>>
-        >>> wf.structure = wf.add.atomistics.Bulk(
+        >>> wf.structure = wf.create.atomistics.Bulk(
         ...     cubic=True,
         ...     element="Al"
         ... )
-        >>> wf.engine = wf.add.atomistics.Lammps(structure=wf.structure)
-        >>> wf.calc = wf.add.atomistics.CalcMd(
+        >>> wf.engine = wf.create.atomistics.Lammps(structure=wf.structure)
+        >>> wf.calc = wf.create.atomistics.CalcMd(
         ...     job=wf.engine,
         ...     run_on_updates=True,
         ...     update_on_instantiation=True,
         ... )
-        >>> wf.plot = wf.add.standard.Scatter(
+        >>> wf.plot = wf.create.standard.Scatter(
         ...     x=wf.calc.outputs.steps,
         ...     y=wf.calc.outputs.temperature
         ... )
