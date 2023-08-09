@@ -19,23 +19,8 @@ class Creator(metaclass=Singleton):
     makes them available to all composite nodes holding a creator.
     """
     def __init__(self):
-        self._nodes = Nodes()
-        self.executor = Executors
+        self.CloudpickleProcessPoolExecutor = CloudpickleProcessPoolExecutor
 
-    @property
-    def node(self) -> Nodes:
-        return self._nodes
-
-
-class Executors:
-    CloudpickleProcessPoolExecutor = CloudpickleProcessPoolExecutor
-
-
-class Nodes(metaclass=Singleton):
-    """
-    A container class for giving access to the basic node classes.
-    """
-    def __init__(self):
         self.Function = Function
         self.SingleValue = SingleValue
         self.Slow = Slow

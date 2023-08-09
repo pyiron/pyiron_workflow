@@ -20,10 +20,10 @@ class TestWorkflow(unittest.TestCase):
         wf = Workflow("my_workflow")
 
         # Validate the four ways to add a node
-        wf.add(wf.create.node.Function(plus_one, label="foo"))
+        wf.add(wf.create.Function(plus_one, label="foo"))
         wf.add.Function(plus_one, label="bar")
-        wf.baz = wf.create.node.Function(plus_one, label="whatever_baz_gets_used")
-        wf.create.node.Function(plus_one, label="qux", parent=wf)
+        wf.baz = wf.create.Function(plus_one, label="whatever_baz_gets_used")
+        wf.create.Function(plus_one, label="qux", parent=wf)
         self.assertListEqual(list(wf.nodes.keys()), ["foo", "bar", "baz", "qux"])
         wf.boa = wf.qux
         self.assertListEqual(
@@ -34,13 +34,13 @@ class TestWorkflow(unittest.TestCase):
 
         wf.strict_naming = False
         # Validate name incrementation
-        wf.add(wf.create.node.Function(plus_one, label="foo"))
+        wf.add(wf.create.Function(plus_one, label="foo"))
         wf.add.Function(plus_one, label="bar")
-        wf.baz = wf.create.node.Function(
+        wf.baz = wf.create.Function(
             plus_one,
             label="without_strict_you_can_override_by_assignment"
         )
-        wf.create.node.Function(plus_one, label="boa", parent=wf)
+        wf.create.Function(plus_one, label="boa", parent=wf)
         self.assertListEqual(
             list(wf.nodes.keys()),
             [
@@ -53,16 +53,16 @@ class TestWorkflow(unittest.TestCase):
             wf.strict_naming = True
             # Validate name preservation
             with self.assertRaises(AttributeError):
-                wf.add(wf.create.node.Function(plus_one, label="foo"))
+                wf.add(wf.create.Function(plus_one, label="foo"))
 
             with self.assertRaises(AttributeError):
                 wf.add.Function(plus_one, label="bar")
 
             with self.assertRaises(AttributeError):
-                wf.baz = wf.create.node.Function(plus_one, label="whatever_baz_gets_used")
+                wf.baz = wf.create.Function(plus_one, label="whatever_baz_gets_used")
 
             with self.assertRaises(AttributeError):
-                wf.create.node.Function(plus_one, label="boa", parent=wf)
+                wf.create.Function(plus_one, label="boa", parent=wf)
 
     def test_node_packages(self):
         wf = Workflow("my_workflow")
@@ -82,7 +82,7 @@ class TestWorkflow(unittest.TestCase):
     def test_double_workfloage_and_node_removal(self):
         wf1 = Workflow("one")
         wf1.add.Function(plus_one, label="node1")
-        node2 = wf1.create.node.Function(
+        node2 = wf1.create.Function(
             plus_one, label="node2", parent=wf1, x=wf1.node1.outputs.y
         )
         self.assertTrue(node2.connected)
@@ -179,7 +179,7 @@ class TestWorkflow(unittest.TestCase):
         wf.fast = five()
         wf.sum = sum(a=wf.fast, b=wf.slow)
 
-        wf.slow.executor = wf.create.executor.CloudpickleProcessPoolExecutor()
+        wf.slow.executor = wf.create.CloudpickleProcessPoolExecutor()
 
         wf.slow.run()
         wf.fast.run()
