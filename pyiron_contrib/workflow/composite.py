@@ -10,14 +10,9 @@ from functools import partial
 from typing import Literal, Optional, TYPE_CHECKING
 from warnings import warn
 
-from pyiron_contrib.workflow.interfaces import Creator, Wrappers
+from pyiron_contrib.workflow.interfaces import Creator, Nodes as NodeCreator, Wrappers
 from pyiron_contrib.workflow.io import Outputs, Inputs
 from pyiron_contrib.workflow.node import Node
-from pyiron_contrib.workflow.function import (
-    Function,
-    SingleValue,
-    Slow,
-)
 from pyiron_contrib.workflow.node_library import atomistics, standard
 from pyiron_contrib.workflow.node_library.package import NodePackage
 from pyiron_contrib.workflow.util import DotDict, SeabornColors
@@ -333,17 +328,14 @@ class NodeAdder:
 
     def __init__(self, parent: Composite):
         self._parent: Composite = parent
+        self._node_creator: NodeCreator = NodeCreator()
         self.register_nodes("atomistics", *atomistics.nodes)
         self.register_nodes("standard", *standard.nodes)
 
-    Function = Function
-    Slow = Slow
-    SingleValue = SingleValue
-
-    def __getattribute__(self, key):
-        value = super().__getattribute__(key)
-        if value == Function:
-            return partial(Function, parent=self._parent)
+    def __getattr__(self, key):
+        value = getattr(self._node_creator, key)
+        if issubclass(value, Node):
+            return partial(value, parent=self._parent)
         return value
 
     def __call__(self, node: Node):
