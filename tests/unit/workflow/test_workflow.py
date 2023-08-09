@@ -20,10 +20,10 @@ class TestWorkflow(unittest.TestCase):
         wf = Workflow("my_workflow")
 
         # Validate the four ways to add a node
-        wf.add(wf.create.Function(plus_one, label="foo"))
-        wf.add.Function(plus_one, label="bar")
+        wf.add(Workflow.create.Function(plus_one, label="foo"))
+        wf.create.Function(plus_one, label="bar")
         wf.baz = wf.create.Function(plus_one, label="whatever_baz_gets_used")
-        wf.create.Function(plus_one, label="qux", parent=wf)
+        Workflow.create.Function(plus_one, label="qux", parent=wf)
         self.assertListEqual(list(wf.nodes.keys()), ["foo", "bar", "baz", "qux"])
         wf.boa = wf.qux
         self.assertListEqual(
@@ -34,13 +34,13 @@ class TestWorkflow(unittest.TestCase):
 
         wf.strict_naming = False
         # Validate name incrementation
-        wf.add(wf.create.Function(plus_one, label="foo"))
-        wf.add.Function(plus_one, label="bar")
+        wf.add(Workflow.create.Function(plus_one, label="foo"))
+        wf.create.Function(plus_one, label="bar")
         wf.baz = wf.create.Function(
             plus_one,
             label="without_strict_you_can_override_by_assignment"
         )
-        wf.create.Function(plus_one, label="boa", parent=wf)
+        Workflow.create.Function(plus_one, label="boa", parent=wf)
         self.assertListEqual(
             list(wf.nodes.keys()),
             [
@@ -56,21 +56,21 @@ class TestWorkflow(unittest.TestCase):
                 wf.add(wf.create.Function(plus_one, label="foo"))
 
             with self.assertRaises(AttributeError):
-                wf.add.Function(plus_one, label="bar")
+                wf.create.Function(plus_one, label="bar")
 
             with self.assertRaises(AttributeError):
                 wf.baz = wf.create.Function(plus_one, label="whatever_baz_gets_used")
 
             with self.assertRaises(AttributeError):
-                wf.create.Function(plus_one, label="boa", parent=wf)
+                Workflow.create.Function(plus_one, label="boa", parent=wf)
 
     def test_node_packages(self):
         wf = Workflow("my_workflow")
 
         # Test invocation
-        wf.add.atomistics.Bulk(cubic=True, element="Al")
+        wf.create.atomistics.Bulk(cubic=True, element="Al")
         # Test invocation with attribute assignment
-        wf.engine = wf.add.atomistics.Lammps(structure=wf.bulk)
+        wf.engine = wf.create.atomistics.Lammps(structure=wf.bulk)
 
         self.assertSetEqual(
             set(wf.nodes.keys()),
@@ -81,8 +81,8 @@ class TestWorkflow(unittest.TestCase):
 
     def test_double_workfloage_and_node_removal(self):
         wf1 = Workflow("one")
-        wf1.add.Function(plus_one, label="node1")
-        node2 = wf1.create.Function(
+        wf1.create.Function(plus_one, label="node1")
+        node2 = Workflow.create.Function(
             plus_one, label="node2", parent=wf1, x=wf1.node1.outputs.y
         )
         self.assertTrue(node2.connected)
@@ -98,9 +98,9 @@ class TestWorkflow(unittest.TestCase):
 
     def test_workflow_io(self):
         wf = Workflow("wf")
-        wf.add.Function(plus_one, label="n1")
-        wf.add.Function(plus_one, label="n2")
-        wf.add.Function(plus_one, label="n3")
+        wf.create.Function(plus_one, label="n1")
+        wf.create.Function(plus_one, label="n2")
+        wf.create.Function(plus_one, label="n3")
 
         with self.subTest("Workflow IO should be drawn from its nodes"):
             self.assertEqual(len(wf.inputs), 3)
@@ -135,7 +135,7 @@ class TestWorkflow(unittest.TestCase):
         self.assertTrue(wf._working_directory is None)
         self.assertIsInstance(wf.working_directory, DirectoryObject)
         self.assertTrue(str(wf.working_directory.path).endswith(wf.label))
-        wf.add.Function(plus_one)
+        wf.create.Function(plus_one)
         self.assertTrue(
             str(wf.plus_one.working_directory.path).endswith(wf.plus_one.label)
         )
@@ -211,8 +211,8 @@ class TestWorkflow(unittest.TestCase):
     def test_call(self):
         wf = Workflow("wf")
 
-        wf.a = wf.add.SingleValue(plus_one)
-        wf.b = wf.add.SingleValue(plus_one)
+        wf.a = wf.create.SingleValue(plus_one)
+        wf.b = wf.create.SingleValue(plus_one)
 
         @Workflow.wrap_as.single_value_node(output_labels="sum")
         def sum_(a, b):
@@ -241,8 +241,8 @@ class TestWorkflow(unittest.TestCase):
     def test_return_value(self):
         wf = Workflow("wf")
         wf.run_on_updates = True
-        wf.a = wf.add.SingleValue(plus_one)
-        wf.b = wf.add.SingleValue(plus_one, x=wf.a)
+        wf.a = wf.create.SingleValue(plus_one)
+        wf.b = wf.create.SingleValue(plus_one, x=wf.a)
 
         with self.subTest("Run on main process"):
             return_on_call = wf(a_x=1)

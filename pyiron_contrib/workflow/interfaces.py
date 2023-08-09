@@ -4,12 +4,18 @@ Container classes for giving access to various workflow objects and tools
 
 from __future__ import annotations
 
+from typing import TYPE_CHECKING
+
 from pyiron_base.interfaces.singleton import Singleton
 
 from pyiron_contrib.executors import CloudpickleProcessPoolExecutor
 from pyiron_contrib.workflow.function import (
     Function, SingleValue, Slow, function_node, single_value_node, slow_node
 )
+
+if TYPE_CHECKING:
+    from pyiron_contrib.workflow.composite import Composite
+    from pyiron_contrib.workflow.node import Node
 
 
 class Creator(metaclass=Singleton):
@@ -42,6 +48,30 @@ class Creator(metaclass=Singleton):
             from pyiron_contrib.workflow.workflow import Workflow
             self._workflow = Workflow
         return self._workflow
+
+    @property
+    def standard(self):
+        try:
+            return self._standard
+        except AttributeError:
+            from pyiron_contrib.workflow.node_library.standard import nodes
+            self.register("_standard", *nodes)
+            return self._standard
+
+    @property
+    def atomistics(self):
+        try:
+            return self._atomistics
+        except AttributeError:
+            from pyiron_contrib.workflow.node_library.atomistics import nodes
+            self.register("_atomistics", *nodes)
+            return self._atomistics
+
+    def register(self, domain: str, *nodes: list[type[Node]]):
+        if domain in self.__dir__():
+            raise AttributeError(f"{domain} is already an attribute of {self}")
+        from pyiron_contrib.workflow.node_package import NodePackage
+        setattr(self, domain, NodePackage(*nodes))
 
 
 class Wrappers(metaclass=Singleton):

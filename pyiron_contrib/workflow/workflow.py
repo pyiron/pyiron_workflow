@@ -154,7 +154,7 @@ class Workflow(Composite):
         )
 
         for node in nodes:
-            self.add_node(node)
+            self.add(node)
 
     @property
     def inputs(self) -> Inputs:

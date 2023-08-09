@@ -1,11 +1,11 @@
 from unittest import TestCase, skipUnless
 from sys import version_info
 
-from pyiron_contrib.workflow.node_library.package import NodePackage
-from pyiron_contrib.workflow.workflow import Workflow
+from pyiron_contrib.workflow.node_package import NodePackage
+from pyiron_contrib.workflow.function import function_node
 
 
-@Workflow.wrap_as.function_node()
+@function_node()
 def dummy(x: int = 0):
     return x
 
@@ -13,8 +13,7 @@ def dummy(x: int = 0):
 @skipUnless(version_info[0] == 3 and version_info[1] >= 10, "Only supported for 3.10+")
 class TestNodePackage(TestCase):
     def setUp(self) -> None:
-        self.wf = Workflow("test_workflow")
-        self.package = NodePackage(self.wf, dummy)
+        self.package = NodePackage(dummy)
 
     def test_init(self):
         self.assertTrue(
@@ -25,11 +24,6 @@ class TestNodePackage(TestCase):
     def test_access(self):
         node = self.package.Dummy()
         self.assertIsInstance(node, dummy)
-        self.assertIs(
-            node.parent,
-            self.package._parent,
-            msg="Package workflow should get assigned to node instances"
-        )
 
     def test_update(self):
         with self.assertRaises(KeyError):
@@ -41,7 +35,7 @@ class TestNodePackage(TestCase):
         with self.assertRaises(TypeError):
             self.package.available_name = "But we can still only assign node classes"
 
-        @Workflow.wrap_as.function_node(output_label="y")
+        @function_node(output_label="y")
         def add(x: int = 0):
             return x + 1
 
@@ -53,7 +47,7 @@ class TestNodePackage(TestCase):
 
         old_dummy_instance = self.package.Dummy(label="old_dummy_instance")
 
-        @Workflow.wrap_as.function_node()
+        @function_node()
         def dummy(x: int = 0):
             y = x + 1
             return y
