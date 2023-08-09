@@ -371,6 +371,7 @@ class OwnedNodePackage:
     A wrapper for node packages so that accessed node classes can have their parent
     value automatically filled.
     """
+
     def __init__(self, parent: Composite, node_package: NodePackage):
         self._parent = parent
         self._node_package = node_package

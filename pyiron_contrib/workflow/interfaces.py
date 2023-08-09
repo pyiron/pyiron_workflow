@@ -10,7 +10,12 @@ from pyiron_base.interfaces.singleton import Singleton
 
 from pyiron_contrib.executors import CloudpickleProcessPoolExecutor
 from pyiron_contrib.workflow.function import (
-    Function, SingleValue, Slow, function_node, single_value_node, slow_node
+    Function,
+    SingleValue,
+    Slow,
+    function_node,
+    single_value_node,
+    slow_node,
 )
 
 if TYPE_CHECKING:
@@ -24,6 +29,7 @@ class Creator(metaclass=Singleton):
     Handles the registration of new node packages and, by virtue of being a singleton,
     makes them available to all composite nodes holding a creator.
     """
+
     def __init__(self):
         self.CloudpickleProcessPoolExecutor = CloudpickleProcessPoolExecutor
 
@@ -39,6 +45,7 @@ class Creator(metaclass=Singleton):
     def Macro(self):
         if self._macro is None:
             from pyiron_contrib.workflow.macro import Macro
+
             self._macro = Macro
         return self._macro
 
@@ -46,6 +53,7 @@ class Creator(metaclass=Singleton):
     def Workflow(self):
         if self._workflow is None:
             from pyiron_contrib.workflow.workflow import Workflow
+
             self._workflow = Workflow
         return self._workflow
 
@@ -55,6 +63,7 @@ class Creator(metaclass=Singleton):
             return self._standard
         except AttributeError:
             from pyiron_contrib.workflow.node_library.standard import nodes
+
             self.register("_standard", *nodes)
             return self._standard
 
@@ -64,6 +73,7 @@ class Creator(metaclass=Singleton):
             return self._atomistics
         except AttributeError:
             from pyiron_contrib.workflow.node_library.atomistics import nodes
+
             self.register("_atomistics", *nodes)
             return self._atomistics
 
@@ -71,6 +81,7 @@ class Creator(metaclass=Singleton):
         if domain in self.__dir__():
             raise AttributeError(f"{domain} is already an attribute of {self}")
         from pyiron_contrib.workflow.node_package import NodePackage
+
         setattr(self, domain, NodePackage(*nodes))
 
 
@@ -78,6 +89,7 @@ class Wrappers(metaclass=Singleton):
     """
     A container class giving access to the decorators that transform functions to nodes.
     """
+
     def __init__(self):
         self.function_node = function_node
         self.single_value_node = single_value_node
@@ -90,5 +102,6 @@ class Wrappers(metaclass=Singleton):
     def macro_node(self):
         if self._macro_node is None:
             from pyiron_contrib.workflow.macro import macro_node
+
             self._macro_node = macro_node
         return self._macro_node
