@@ -177,7 +177,7 @@ class TestWorkflow(unittest.TestCase):
         wf.fast = five()
         wf.sum = sum(a=wf.fast, b=wf.slow)
 
-        wf.slow.executor = wf.create.CloudpickleProcessPoolExecutor()
+        wf.slow.executor = wf.create.executor.CloudpickleProcessPoolExecutor()
 
         wf.slow.run()
         wf.fast.run()

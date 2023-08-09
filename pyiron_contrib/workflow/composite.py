@@ -10,16 +10,13 @@ from functools import partial
 from typing import Literal, Optional, TYPE_CHECKING
 from warnings import warn
 
-from pyiron_contrib.executors import CloudpickleProcessPoolExecutor
+from pyiron_contrib.workflow.interfaces import Creator, Wrappers
 from pyiron_contrib.workflow.io import Outputs, Inputs
 from pyiron_contrib.workflow.node import Node
 from pyiron_contrib.workflow.function import (
     Function,
     SingleValue,
     Slow,
-    function_node,
-    slow_node,
-    single_value_node,
 )
 from pyiron_contrib.workflow.node_library import atomistics, standard
 from pyiron_contrib.workflow.node_library.package import NodePackage
@@ -27,34 +24,6 @@ from pyiron_contrib.workflow.util import DotDict, SeabornColors
 
 if TYPE_CHECKING:
     from pyiron_contrib.workflow.channels import Channel
-
-
-class _NodeDecoratorAccess:
-    """An intermediate container to store node-creating decorators as class methods."""
-
-    function_node = function_node
-    slow_node = slow_node
-    single_value_node = single_value_node
-
-    _macro_node = None
-
-    @classmethod
-    @property
-    def macro_node(cls):
-        # This jankiness is to avoid circular imports
-        # Chaining classmethod and property like this got deprecated in python 3.11,
-        # but it does what I want, so I'm going to use it anyhow
-        if cls._macro_node is None:
-            from pyiron_contrib.workflow.macro import macro_node
-
-            cls._macro_node = macro_node
-        return cls._macro_node
-
-
-class Creator:
-    """A shortcut interface for creating non-Node objects from the workflow class."""
-
-    CloudpickleProcessPoolExecutor = CloudpickleProcessPoolExecutor
 
 
 class Composite(Node, ABC):
@@ -103,10 +72,8 @@ class Composite(Node, ABC):
          subgraph, and set its parent to `None`.
     """
 
-    wrap_as = _NodeDecoratorAccess  # Class method access to decorators
-    # Allows users/devs to easily create new nodes when using children of this class
-
-    create = Creator
+    wrap_as = Wrappers()
+    create = Creator()
 
     def __init__(
         self,
