@@ -5,7 +5,6 @@ Collections of channel objects.
 from __future__ import annotations
 
 from abc import ABC, abstractmethod
-from warnings import warn
 
 from pyiron_contrib.workflow.channels import (
     Channel,
@@ -18,7 +17,7 @@ from pyiron_contrib.workflow.channels import (
 )
 from pyiron_contrib.workflow.has_channel import HasChannel
 from pyiron_contrib.workflow.has_to_dict import HasToDict
-from pyiron_contrib.workflow.util import DotDict
+from pyiron_contrib.workflow.util import DotDict, logger
 
 
 class IO(HasToDict, ABC):
@@ -84,7 +83,7 @@ class IO(HasToDict, ABC):
             self._assign_value_to_existing_channel(self.channel_dict[key], value)
         elif isinstance(value, self._channel_class):
             if key != value.label:
-                warn(
+                logger.info(
                     f"Assigning a channel with the label {value.label} to the io key "
                     f"{key}"
                 )
