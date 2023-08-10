@@ -40,6 +40,7 @@ class Creator(metaclass=Singleton):
         # Avoid circular imports by delaying import for children of Composite
         self._macro = None
         self._workflow = None
+        self._meta = None
 
     @property
     def Macro(self):
@@ -76,6 +77,13 @@ class Creator(metaclass=Singleton):
 
             self.register("_atomistics", *nodes)
             return self._atomistics
+
+    @property
+    def meta(self):
+        if self._meta is None:
+            from pyiron_contrib.workflow.meta import MetaNodes
+            self._meta = MetaNodes
+        return self._meta
 
     def register(self, domain: str, *nodes: list[type[Node]]):
         if domain in self.__dir__():
