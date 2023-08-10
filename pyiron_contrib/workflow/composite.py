@@ -8,13 +8,12 @@ from __future__ import annotations
 from abc import ABC
 from functools import partial
 from typing import Literal, Optional, TYPE_CHECKING
-from warnings import warn
 
 from pyiron_contrib.workflow.interfaces import Creator, Wrappers
 from pyiron_contrib.workflow.io import Outputs, Inputs
 from pyiron_contrib.workflow.node import Node
 from pyiron_contrib.workflow.node_package import NodePackage
-from pyiron_contrib.workflow.util import DotDict, SeabornColors
+from pyiron_contrib.workflow.util import logger, DotDict, SeabornColors
 
 if TYPE_CHECKING:
     from pyiron_contrib.workflow.channels import Channel
@@ -265,7 +264,7 @@ class Composite(Node, ABC):
             new_label = f"{label}{i}"
             i += 1
         if new_label != label:
-            warn(
+            logger.info(
                 f"{label} is already a node; appending an index to the "
                 f"node label instead: {new_label}"
             )
@@ -285,7 +284,7 @@ class Composite(Node, ABC):
             and label != node.label
             and self.nodes[node.label] is node
         ):
-            warn(
+            logger.info(
                 f"Reassigning the node {node.label} to the label {label} when "
                 f"adding it to the parent {self.label}."
             )
