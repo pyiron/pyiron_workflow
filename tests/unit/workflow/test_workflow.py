@@ -68,13 +68,13 @@ class TestWorkflow(unittest.TestCase):
         wf = Workflow("my_workflow")
 
         # Test invocation
-        wf.add.atomistics.BulkStructure(repeat=3, cubic=True, element="Al")
+        wf.add.atomistics.Bulk(cubic=True, element="Al")
         # Test invocation with attribute assignment
-        wf.engine = wf.add.atomistics.Lammps(structure=wf.bulk_structure)
+        wf.engine = wf.add.atomistics.Lammps(structure=wf.bulk)
 
         self.assertSetEqual(
             set(wf.nodes.keys()),
-            set(["bulk_structure", "engine"]),
+            set(["bulk", "engine"]),
             msg=f"Expected one node label generated automatically from the class and "
                 f"the other from the attribute assignment, but got {wf.nodes.keys()}"
         )
@@ -111,6 +111,16 @@ class TestWorkflow(unittest.TestCase):
             self.assertEqual(len(wf.inputs), 1)
             self.assertEqual(len(wf.outputs), 1)
 
+        with self.subTest(
+                "IO should be re-mappable, including exposing internally connected "
+                "channels"
+        ):
+            wf.inputs_map = {"n1_x": "inp"}
+            wf.outputs_map = {"n3_y": "out", "n2_y": "intermediate"}
+            out = wf(inp=0)
+            self.assertEqual(out.out, 3)
+            self.assertEqual(out.intermediate, 2)
+
     def test_node_decorator_access(self):
         @Workflow.wrap_as.function_node(output_labels="y")
         def plus_one(x: int = 0) -> int:
@@ -138,12 +148,8 @@ class TestWorkflow(unittest.TestCase):
             # the spec. If that spec changes, test instead that you _can_ set parents!
             wf2.parent = "not None"
 
-        with self.assertRaises(AttributeError):
-            # Setting a non-None value to parent raises the type error above
-            # If that value is further a nodal object, the __setattr__ definition
-            # takes over, and we try to add it to the nodes, but there we will run into
-            # the fact you can't add a node to a taken attribute label
-            # In both cases, we satisfy the spec that workflow's can't have parents
+        with self.assertRaises(TypeError):
+            # Setting a non-None value to parent raises the type error from the setter
             wf2.parent = wf
 
     def test_executor(self):

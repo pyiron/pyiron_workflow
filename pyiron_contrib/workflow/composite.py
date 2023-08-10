@@ -7,10 +7,11 @@ from __future__ import annotations
 
 from abc import ABC
 from functools import partial
-from typing import Optional
+from typing import Literal, Optional
 from warnings import warn
 
 from pyiron_contrib.executors import CloudpickleProcessPoolExecutor
+from pyiron_contrib.workflow.io import Outputs, Inputs
 from pyiron_contrib.workflow.node import Node
 from pyiron_contrib.workflow.function import (
     Function,
@@ -31,6 +32,20 @@ class _NodeDecoratorAccess:
     function_node = function_node
     slow_node = slow_node
     single_value_node = single_value_node
+
+    _macro_node = None
+
+    @classmethod
+    @property
+    def macro_node(cls):
+        # This jankiness is to avoid circular imports
+        # Chaining classmethod and property like this got deprecated in python 3.11,
+        # but it does what I want, so I'm going to use it anyhow
+        if cls._macro_node is None:
+            from pyiron_contrib.workflow.macro import macro_node
+
+            cls._macro_node = macro_node
+        return cls._macro_node
 
 
 class Creator:
@@ -97,12 +112,16 @@ class Composite(Node, ABC):
         parent: Optional[Composite] = None,
         run_on_updates: bool = True,
         strict_naming: bool = True,
+        inputs_map: Optional[dict] = None,
+        outputs_map: Optional[dict] = None,
         **kwargs,
     ):
         super().__init__(
             *args, label=label, parent=parent, run_on_updates=run_on_updates, **kwargs
         )
         self.strict_naming: bool = strict_naming
+        self.inputs_map = inputs_map
+        self.outputs_map = outputs_map
         self.nodes: DotDict[str:Node] = DotDict()
         self.add: NodeAdder = NodeAdder(self)
         self.starting_nodes: None | list[Node] = None
@@ -148,6 +167,31 @@ class Composite(Node, ABC):
     @property
     def run_args(self) -> dict:
         return {"self": self}
+
+    def _build_io(
+        self,
+        io: Inputs | Outputs,
+        target: Literal["inputs", "outputs"],
+        key_map: dict[str, str] | None,
+    ) -> Inputs | Outputs:
+        key_map = {} if key_map is None else key_map
+        for node in self.nodes.values():
+            panel = getattr(node, target)
+            for channel_label in panel.labels:
+                channel = panel[channel_label]
+                default_key = f"{node.label}_{channel_label}"
+                try:
+                    io[key_map[default_key]] = channel
+                except KeyError:
+                    if not channel.connected:
+                        io[default_key] = channel
+        return io
+
+    def _build_inputs(self) -> Inputs:
+        return self._build_io(Inputs(), "inputs", self.inputs_map)
+
+    def _build_outputs(self) -> Outputs:
+        return self._build_io(Outputs(), "outputs", self.outputs_map)
 
     def add_node(self, node: Node, label: Optional[str] = None) -> None:
         """
@@ -232,7 +276,7 @@ class Composite(Node, ABC):
             del self.nodes[node]
 
     def __setattr__(self, label: str, node: Node):
-        if isinstance(node, Node):
+        if isinstance(node, Node) and label != "parent":
             self.add_node(node, label=label)
         else:
             super().__setattr__(label, node)

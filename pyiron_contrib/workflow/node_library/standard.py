@@ -15,6 +15,12 @@ def scatter(
     return plt.scatter(x, y)
 
 
+@single_value_node()
+def user_input(user_input):
+    return user_input
+
+
 nodes = [
     scatter,
+    user_input,
 ]
