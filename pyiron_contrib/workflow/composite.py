@@ -10,51 +10,14 @@ from functools import partial
 from typing import Literal, Optional, TYPE_CHECKING
 from warnings import warn
 
-from pyiron_contrib.executors import CloudpickleProcessPoolExecutor
+from pyiron_contrib.workflow.interfaces import Creator, Wrappers
 from pyiron_contrib.workflow.io import Outputs, Inputs
 from pyiron_contrib.workflow.node import Node
-from pyiron_contrib.workflow.function import (
-    Function,
-    SingleValue,
-    Slow,
-    function_node,
-    slow_node,
-    single_value_node,
-)
-from pyiron_contrib.workflow.node_library import atomistics, standard
-from pyiron_contrib.workflow.node_library.package import NodePackage
+from pyiron_contrib.workflow.node_package import NodePackage
 from pyiron_contrib.workflow.util import DotDict, SeabornColors
 
 if TYPE_CHECKING:
     from pyiron_contrib.workflow.channels import Channel
-
-
-class _NodeDecoratorAccess:
-    """An intermediate container to store node-creating decorators as class methods."""
-
-    function_node = function_node
-    slow_node = slow_node
-    single_value_node = single_value_node
-
-    _macro_node = None
-
-    @classmethod
-    @property
-    def macro_node(cls):
-        # This jankiness is to avoid circular imports
-        # Chaining classmethod and property like this got deprecated in python 3.11,
-        # but it does what I want, so I'm going to use it anyhow
-        if cls._macro_node is None:
-            from pyiron_contrib.workflow.macro import macro_node
-
-            cls._macro_node = macro_node
-        return cls._macro_node
-
-
-class Creator:
-    """A shortcut interface for creating non-Node objects from the workflow class."""
-
-    CloudpickleProcessPoolExecutor = CloudpickleProcessPoolExecutor
 
 
 class Composite(Node, ABC):
@@ -69,6 +32,12 @@ class Composite(Node, ABC):
 
     Offers a class method (`wrap_as`) to give easy access to the node-creating
     decorators.
+
+    Offers a creator (the `create` method) which allows instantiation of other workflow
+    objects.
+    This method behaves _differently_ on the composite class and its instances -- on
+    instances, any created nodes get their `parent` attribute automatically set to the
+    composite instance being used.
 
     Specifies the required `on_run()` to call `run()` on a subset of owned nodes, i.e.
     to kick-start computation on the owned sub-graph.
@@ -101,12 +70,14 @@ class Composite(Node, ABC):
         add(node: Node): Add the node instance to this subgraph.
         remove(node: Node): Break all connections the node has, remove it from this
          subgraph, and set its parent to `None`.
+
+    TODO:
+        Wrap node registration at the class level so we don't need to do
+        `X.create.register` but can just do `X.register`
     """
 
-    wrap_as = _NodeDecoratorAccess  # Class method access to decorators
-    # Allows users/devs to easily create new nodes when using children of this class
-
-    create = Creator
+    wrap_as = Wrappers()
+    create = Creator()
 
     def __init__(
         self,
@@ -126,8 +97,18 @@ class Composite(Node, ABC):
         self.inputs_map = inputs_map
         self.outputs_map = outputs_map
         self.nodes: DotDict[str:Node] = DotDict()
-        self.add: NodeAdder = NodeAdder(self)
         self.starting_nodes: None | list[Node] = None
+        self._creator = self.create
+        self.create = self._owned_creator  # Override the create method from the class
+
+    @property
+    def _owned_creator(self):
+        """
+        A misdirection so that the `create` method behaves differently on the class
+        and on instances (in the latter case, created nodes should get the instance as
+        their parent).
+        """
+        return OwnedCreator(self, self._creator)
 
     @property
     def executor(self) -> None:
@@ -236,7 +217,7 @@ class Composite(Node, ABC):
     def _build_outputs(self) -> Outputs:
         return self._build_io(Outputs(), "outputs", self.outputs_map)
 
-    def add_node(self, node: Node, label: Optional[str] = None) -> None:
+    def add(self, node: Node, label: Optional[str] = None) -> None:
         """
         Assign a node to the parent. Optionally provide a new label for that node.
 
@@ -318,11 +299,11 @@ class Composite(Node, ABC):
         else:
             del self.nodes[node]
 
-    def __setattr__(self, label: str, node: Node):
-        if isinstance(node, Node) and label != "parent":
-            self.add_node(node, label=label)
+    def __setattr__(self, key: str, node: Node):
+        if isinstance(node, Node) and key != "parent":
+            self.add(node, label=key)
         else:
-            super().__setattr__(label, node)
+            super().__setattr__(key, node)
 
     def __getattr__(self, key):
         try:
@@ -355,39 +336,48 @@ class Composite(Node, ABC):
         return SeabornColors.brown
 
 
-class NodeAdder:
+class OwnedCreator:
     """
-    This class provides a layer of misdirection so that `Composite` objects can set
-    themselves as the parent of owned nodes.
+    A creator that overrides the `parent` arg of all accessed nodes to its own parent.
 
-    It also provides access to packages of nodes and the ability to register new
-    packages.
+    Necessary so that `Workflow.create.Function(...)` returns an unowned function node,
+    while `some_workflow_instance.create.Function(...)` returns a function node owned
+    by the workflow instance.
     """
 
-    def __init__(self, parent: Composite):
-        self._parent: Composite = parent
-        self.register_nodes("atomistics", *atomistics.nodes)
-        self.register_nodes("standard", *standard.nodes)
+    def __init__(self, parent: Composite, creator: Creator):
+        self._parent = parent
+        self._creator = creator
 
-    Function = Function
-    Slow = Slow
-    SingleValue = SingleValue
+    def __getattr__(self, item):
+        value = getattr(self._creator, item)
 
-    def __getattribute__(self, key):
-        value = super().__getattribute__(key)
-        if value == Function:
-            return partial(Function, parent=self._parent)
+        try:
+            is_node_class = issubclass(value, Node)
+        except TypeError:
+            # issubclass complains if the value isn't even a class
+            is_node_class = False
+
+        if is_node_class:
+            value = partial(value, parent=self._parent)
+        elif isinstance(value, NodePackage):
+            value = OwnedNodePackage(self._parent, value)
+
         return value
 
-    def __call__(self, node: Node):
-        return self._parent.add_node(node)
 
-    def register_nodes(self, domain: str, *nodes: list[type[Node]]):
-        """
-        Add a list of node classes to be accessible for creation under the provided
-        domain name.
+class OwnedNodePackage:
+    """
+    A wrapper for node packages so that accessed node classes can have their parent
+    value automatically filled.
+    """
 
-        TODO: multiple dispatch so we can handle registering something other than a
-              list, e.g. modules or even urls.
-        """
-        setattr(self, domain, NodePackage(self._parent, *nodes))
+    def __init__(self, parent: Composite, node_package: NodePackage):
+        self._parent = parent
+        self._node_package = node_package
+
+    def __getattr__(self, item):
+        value = getattr(self._node_package, item)
+        if issubclass(value, Node):
+            value = partial(value, parent=self._parent)
+        return value
