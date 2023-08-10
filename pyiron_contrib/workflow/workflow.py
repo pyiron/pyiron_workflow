@@ -94,19 +94,19 @@ class Workflow(Composite):
 
         The workflow joins node lavels and channel labels with a `_` character to
         provide direct access to the output:
-        >>> print(wf.outputs.second_y.value)
+        >>> print(wf.outputs.second__y.value)
         2
 
         These input keys can be used when calling the workflow to update the input. In
         our example, the nodes update automatically when their input gets updated, so
         all we need to do to see updated workflow output is update the input:
-        >>> out = wf(first_x=10)
+        >>> out = wf(first__x=10)
         >>> out
-        {'second_y': 12}
+        {'second__y': 12}
 
         Note: this _looks_ like a dictionary, but has some extra convenience that we
         can dot-access data:
-        >>> out.second_y
+        >>> out.second__y
         12
 
         Workflows also give access to packages of pre-built nodes under different
