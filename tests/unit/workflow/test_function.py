@@ -328,10 +328,16 @@ class TestFunction(unittest.TestCase):
                 msg="__call__ should invoke update s.t. run gets called if run_on_updates"
             )
 
-        with self.subTest("Check that node kwargs can also be updated"):
+        with self.subTest("Check that bad kwargs don't stop good ones"):
             with self.assertWarns(Warning):
-                node(4, run_on_updates=False, y=5)
+                node.run_on_updates = True
+                node(4, run_on_updates=False, y=5, foobar="not a kwarg of any sort")
 
+                self.assertTrue(
+                    node.run_on_updates,
+                    msg="You should only be able to update input on a call, that's "
+                        "what the warning is for!"
+                )
                 self.assertTupleEqual(
                     (node.inputs.x.value, node.inputs.y.value),
                     (4, 5),
