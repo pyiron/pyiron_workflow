@@ -203,7 +203,7 @@ class Composite(Node, ABC):
             panel = getattr(node, target)
             for channel_label in panel.labels:
                 channel = panel[channel_label]
-                default_key = f"{node.label}_{channel_label}"
+                default_key = f"{node.label}__{channel_label}"
                 try:
                     io[key_map[default_key]] = channel
                 except KeyError:
