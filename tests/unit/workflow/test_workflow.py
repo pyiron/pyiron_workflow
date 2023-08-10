@@ -117,8 +117,8 @@ class TestWorkflow(unittest.TestCase):
                 "IO should be re-mappable, including exposing internally connected "
                 "channels"
         ):
-            wf.inputs_map = {"n1_x": "inp"}
-            wf.outputs_map = {"n3_y": "out", "n2_y": "intermediate"}
+            wf.inputs_map = {"n1__x": "inp"}
+            wf.outputs_map = {"n3__y": "out", "n2__y": "intermediate"}
             out = wf(inp=0)
             self.assertEqual(out.out, 3)
             self.assertEqual(out.intermediate, 2)
@@ -224,7 +224,7 @@ class TestWorkflow(unittest.TestCase):
             wf.sum.outputs.sum.value,
             msg="Sanity check"
         )
-        wf(a_x=42, b_x=42)
+        wf(a__x=42, b__x=42)
         self.assertEqual(
             plus_one(42) + plus_one(42),
             wf.sum.outputs.sum.value,
@@ -245,17 +245,17 @@ class TestWorkflow(unittest.TestCase):
         wf.b = wf.create.SingleValue(plus_one, x=wf.a)
 
         with self.subTest("Run on main process"):
-            return_on_call = wf(a_x=1)
+            return_on_call = wf(a__x=1)
             self.assertEqual(
                 return_on_call,
-                DotDict({"b_y": 1 + 2}),
+                DotDict({"b__y": 1 + 2}),
                 msg="Run output should be returned on call. Expecting a DotDict of "
                     "output values"
             )
 
             return_on_update = wf.update()
             self.assertEqual(
-                return_on_update.b_y,
+                return_on_update.b__y,
                 1 + 2,
                 msg="Run output should be returned on update"
             )
@@ -266,14 +266,14 @@ class TestWorkflow(unittest.TestCase):
                 return_on_update_without_run,
                 msg="When not running on updates, the update should not return anything"
             )
-            return_on_call_without_run = wf(a_x=2)
+            return_on_call_without_run = wf(a__x=2)
             self.assertIsNone(
                 return_on_call_without_run,
                 msg="When not running on updates, the call should not return anything"
             )
             return_on_explicit_run = wf.run()
             self.assertEqual(
-                return_on_explicit_run["b_y"],
+                return_on_explicit_run["b__y"],
                 2 + 2,
                 msg="On explicit run, the most recent input data should be used and the "
                     "result should be returned"
