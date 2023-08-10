@@ -92,3 +92,35 @@ class TestIO(TestCase):
 
     def test_iteration(self):
         self.assertTrue(all([c.label in self.input.labels for c in self.input]))
+
+    def test_connections_property(self):
+        self.assertEqual(
+            len(self.input.connections),
+            0,
+            msg="Sanity check expectations about self.input"
+        )
+        self.assertEqual(
+            len(self.output.connections),
+            0,
+            msg="Sanity check expectations about self.input"
+        )
+
+        for inp in self.input:
+            inp.connect(self.output.a)
+
+        self.assertEqual(
+            len(self.output.connections),
+            len(self.input),
+            msg="Expected to find all the channels in the input"
+        )
+        self.assertEqual(
+            len(self.input.connections),
+            1,
+            msg="Each unique connection should appear only once"
+        )
+        self.assertIs(
+            self.input.connections[0],
+            self.input.x.connections[0],
+            msg="The IO connection found should be the same object as the channel "
+                "connection"
+        )
