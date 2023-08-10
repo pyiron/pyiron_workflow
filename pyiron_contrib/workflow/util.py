@@ -1,3 +1,8 @@
+from pyiron_base import state
+
+logger = state.logger
+
+
 class DotDict(dict):
     def __getattr__(self, item):
         return self.__getitem__(item)

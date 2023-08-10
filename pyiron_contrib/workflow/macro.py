@@ -32,7 +32,6 @@ class Macro(Composite):
     Examples:
         Let's consider the simplest case of macros that just consecutively add 1 to
         their input:
-        >>> from pyiron_contrib.workflow.function import SingleValue
         >>> from pyiron_contrib.workflow.macro import Macro
         >>>
         >>> def add_one(x):
@@ -40,9 +39,9 @@ class Macro(Composite):
         ...     return result
         >>>
         >>> def add_three_macro(macro):
-        ...     macro.one = SingleValue(add_one)
-        ...     macro.two = SingleValue(add_one, macro.one)
-        ...     macro.three = SingleValue(add_one, macro.two)
+        ...     macro.one = macro.create.SingleValue(add_one)
+        ...     macro.two = macro.create.SingleValue(add_one, macro.one)
+        ...     macro.three = macro.create.SingleValue(add_one, macro.two)
 
         We can make a macro by passing this graph-building function (that takes a macro
         as its first argument, i.e. `self` from the macro's perspective) to the `Macro`
@@ -50,8 +49,8 @@ class Macro(Composite):
         io is constructed from unconnected owned-node IO by combining node and channel
         labels.
         >>> macro = Macro(add_three_macro)
-        >>> out = macro(one_x=3)
-        >>> out.three_result
+        >>> out = macro(one__x=3)
+        >>> out.three__result
         6
 
         If there's a particular macro we're going to use again and again, we might want
@@ -70,20 +69,22 @@ class Macro(Composite):
         ...     )
         >>>
         >>> macro = AddThreeMacro()
-        >>> macro(one_x=0).three_result
+        >>> macro(one__x=0).three__result
         3
 
         We can also nest macros, rename their IO, and provide access to
         internally-connected IO:
         >>> def nested_macro(macro):
-        ...     macro.a = SingleValue(add_one)
-        ...     macro.b = Macro(add_three_macro, one_x=macro.a)
-        ...     macro.c = SingleValue(add_one, x=macro.b.outputs.three_result)
+        ...     macro.a = macro.create.SingleValue(add_one)
+        ...     macro.b = macro.create.Macro(add_three_macro, one__x=macro.a)
+        ...     macro.c = macro.create.SingleValue(
+        ...         add_one, x=macro.b.outputs.three__result
+        ...     )
         >>>
         >>> macro = Macro(
         ...     nested_macro,
-        ...     inputs_map={"a_x": "inp"},
-        ...     outputs_map={"c_result": "out", "b_result": "intermediate"},
+        ...     inputs_map={"a__x": "inp"},
+        ...     outputs_map={"c__result": "out", "b__three__result": "intermediate"},
         ... )
         >>> macro(inp=1)
         {'intermediate': 5, 'out': 6}
@@ -96,17 +97,17 @@ class Macro(Composite):
         running when they get their values updated, just so we can see that one of them
         is really not doing anything on the run command):
         >>> def modified_start_macro(macro):
-        ...     macro.a = SingleValue(add_one, x=0, run_on_updates=False)
-        ...     macro.b = SingleValue(add_one, x=0, run_on_updates=False)
+        ...     macro.a = macro.create.SingleValue(add_one, x=0, run_on_updates=False)
+        ...     macro.b = macro.create.SingleValue(add_one, x=0, run_on_updates=False)
         ...     macro.starting_nodes = [macro.b]
         >>>
         >>> m = Macro(modified_start_macro, update_on_instantiation=False)
         >>> m.outputs.to_value_dict()
-        {'a_result': pyiron_contrib.workflow.channels.NotData,
-        'b_result': pyiron_contrib.workflow.channels.NotData}
+        {'a__result': pyiron_contrib.workflow.channels.NotData,
+        'b__result': pyiron_contrib.workflow.channels.NotData}
 
-        >>> m(a_x=1, b_x=2)
-        {'a_result': pyiron_contrib.workflow.channels.NotData, 'b_result': 3}
+        >>> m(a__x=1, b__x=2)
+        {'a__result': pyiron_contrib.workflow.channels.NotData, 'b__result': 3}
     """
 
     def __init__(

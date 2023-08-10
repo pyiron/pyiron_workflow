@@ -38,7 +38,7 @@ class TestMacro(unittest.TestCase):
         m = Macro(add_three_macro)
 
         self.assertIs(
-            m.outputs.three_result.value,
+            m.outputs.three__result.value,
             NotData,
             msg="Output should be accessible with the usual naming convention, but we "
                 "asked the node not to run yet so there shouldn't be any data"
@@ -46,15 +46,15 @@ class TestMacro(unittest.TestCase):
 
         input_x = 1
         expected_value = add_one(add_one(add_one(input_x)))
-        out = m(one_x=input_x)  # Take kwargs to set input at runtime
+        out = m(one__x=input_x)  # Take kwargs to set input at runtime
 
         self.assertEqual(
-            out.three_result,
+            out.three__result,
             expected_value,
             msg="Macros should return the output, just like other nodes"
         )
         self.assertEqual(
-            m.outputs.three_result.value,
+            m.outputs.three__result.value,
             expected_value,
             msg="Macros should get output updated, just like other nodes"
         )
@@ -70,9 +70,9 @@ class TestMacro(unittest.TestCase):
             )
 
         x = 0
-        m = MyMacro(one_x=x)
+        m = MyMacro(one__x=x)
         self.assertEqual(
-            m.outputs.three_result.value,
+            m.outputs.three__result.value,
             add_one(add_one(add_one(x))),
             msg="Subclasses should be able to simply override the graph_creator arg"
         )
@@ -80,8 +80,8 @@ class TestMacro(unittest.TestCase):
     def test_key_map(self):
         m = Macro(
             add_three_macro,
-            inputs_map={"one_x": "my_input"},
-            outputs_map={"three_result": "my_output", "two_result": "intermediate"},
+            inputs_map={"one__x": "my_input"},
+            outputs_map={"three__result": "my_output", "two__result": "intermediate"},
         )
         self.assertSetEqual(
             set(m.inputs.labels),
@@ -112,11 +112,11 @@ class TestMacro(unittest.TestCase):
     def test_nesting(self):
         def nested_macro(macro):
             macro.a = SingleValue(add_one)
-            macro.b = Macro(add_three_macro, one_x=macro.a)
-            macro.c = SingleValue(add_one, x=macro.b.outputs.three_result)
+            macro.b = Macro(add_three_macro, one__x=macro.a)
+            macro.c = SingleValue(add_one, x=macro.b.outputs.three__result)
 
         m = Macro(nested_macro)
-        self.assertEqual(m(a_x=0).c_result, 5)
+        self.assertEqual(m(a__x=0).c__result, 5)
 
     def test_upstream_detection(self):
         def my_macro(macro):
@@ -148,7 +148,7 @@ class TestMacro(unittest.TestCase):
         self.assertIs(m.upstream_nodes[0], m.a)
 
         m2 = Macro(my_macro)
-        m.inputs.a_x = m2.outputs.b_result
+        m.inputs.a__x = m2.outputs.b__result
         self.assertIs(
             m.upstream_nodes[0],
             m.a,
@@ -159,7 +159,7 @@ class TestMacro(unittest.TestCase):
             msg="Should be able to check if external nodes have local connections"
         )
 
-        m.inputs.a_x = m.outputs.b_result  # Infinite loop self-connection
+        m.inputs.a__x = m.outputs.b__result  # Infinite loop self-connection
         self.assertEqual(
             len(m.upstream_nodes),
             0,
@@ -179,17 +179,18 @@ class TestMacro(unittest.TestCase):
         def deep_macro(macro):
             macro.a = SingleValue(add_one, x=0, run_on_updates=False)
             macro.m = Macro(my_macro)
-            macro.m.inputs.a_x = macro.a
+            macro.m.inputs.a__x = macro.a
 
         nested = Macro(deep_macro)
         plain = Macro(my_macro)
-        # plain.inputs.a_x = nested.m.outputs.a_result
-        # self.assertTrue(
-        #     nested.connects_to_input_of(plain),
-        #     msg="A child of the nested macro has a connection to the plain macros"
-        #         "input, so the entire nested macro should count as having a "
-        #         "connection to the plain macro's input."
-        # )
+        plain.inputs.a__x = nested.m.outputs.b__result
+        print(nested.m.outputs.labels)
+        self.assertTrue(
+            nested.connects_to_input_of(plain),
+            msg="A child of the nested macro has a connection to the plain macros"
+                "input, so the entire nested macro should count as having a "
+                "connection to the plain macro's input."
+        )
 
     def test_custom_start(self):
         def modified_start_macro(macro):
@@ -199,23 +200,23 @@ class TestMacro(unittest.TestCase):
 
         m = Macro(modified_start_macro, update_on_instantiation=False)
         self.assertIs(
-            m.outputs.a_result.value,
+            m.outputs.a__result.value,
             NotData,
             msg="Node should not have run when the macro batch updated input"
         )
         self.assertIs(
-            m.outputs.b_result.value,
+            m.outputs.b__result.value,
             NotData,
             msg="Node should not have run when the macro batch updated input"
         )
         m.run()
         self.assertIs(
-            m.outputs.a_result.value,
+            m.outputs.a__result.value,
             NotData,
             msg="Was not included in starting nodes, should not have run"
         )
         self.assertEqual(
-            m.outputs.b_result.value,
+            m.outputs.b__result.value,
             1,
             msg="Was included in starting nodes, should have run"
         )
