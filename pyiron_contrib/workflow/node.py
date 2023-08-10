@@ -8,14 +8,18 @@ from __future__ import annotations
 import warnings
 from abc import ABC, abstractmethod
 from concurrent.futures import Future
-from typing import Any, Optional, TYPE_CHECKING
+from typing import Any, Literal, Optional, TYPE_CHECKING
 
 from pyiron_contrib.executors import CloudpickleProcessPoolExecutor
+from pyiron_contrib.workflow.draw import Node as GraphvizNode
 from pyiron_contrib.workflow.files import DirectoryObject
 from pyiron_contrib.workflow.has_to_dict import HasToDict
 from pyiron_contrib.workflow.io import Signals, InputSignal, OutputSignal
+from pyiron_contrib.workflow.util import SeabornColors
 
 if TYPE_CHECKING:
+    import graphviz
+
     from pyiron_base.jobs.job.extension.server.generic import Server
 
     from pyiron_contrib.workflow.composite import Composite
@@ -110,6 +114,8 @@ class Node(HasToDict, ABC):
 
     Methods:
         disconnect: Remove all connections, including signals.
+        draw: Use graphviz to visualize the node, its IO and, if composite in nature,
+            its internal structure.
         on_run: **Abstract.** Do the thing.
         run: A wrapper to handle all the infrastructure around executing `on_run`.
     """
@@ -313,6 +319,37 @@ class Node(HasToDict, ABC):
     def __call__(self, **kwargs) -> None:
         self._batch_update_input(**kwargs)
         return self.update()
+
+    @property
+    def color(self) -> str:
+        """A hex code color for use in drawing."""
+        return SeabornColors.white
+
+    def draw(
+        self, depth: int = 1, rankdir: Literal["LR", "TB"] = "LR"
+    ) -> graphviz.graphs.Digraph:
+        """
+        Draw the node structure.
+
+        Args:
+            depth (int): How deeply to decompose the representation of composite nodes
+                to reveal their inner structure. (Default is 1, which will show owned
+                nodes if _this_ is a composite node, but all children will be drawn
+                at the level of showing their IO only.) A depth value greater than the
+                max depth of the node will have no adverse side effects.
+            rankdir ("LR" | "TB"): Use left-right or top-bottom graphviz `rankdir` to
+                orient the flow of the graph.
+
+        Returns:
+            (graphviz.graphs.Digraph): The resulting graph object.
+
+        Note:
+            The graphviz docs will elucidate all the possibilities of what to do with
+            the returned object, but the thing you are most likely to need is the
+            `render` method, which allows you to save the resulting graph as an image.
+            E.g. `self.draw().render(filename="my_node", format="png")`.
+        """
+        return GraphvizNode(self, depth=depth, rankdir=rankdir).graph
 
     def __str__(self):
         return (
