@@ -183,13 +183,14 @@ class TestMacro(unittest.TestCase):
 
         nested = Macro(deep_macro)
         plain = Macro(my_macro)
-        # plain.inputs.a__x = nested.m.outputs.a__result
-        # self.assertTrue(
-        #     nested.connects_to_input_of(plain),
-        #     msg="A child of the nested macro has a connection to the plain macros"
-        #         "input, so the entire nested macro should count as having a "
-        #         "connection to the plain macro's input."
-        # )
+        plain.inputs.a__x = nested.m.outputs.b__result
+        print(nested.m.outputs.labels)
+        self.assertTrue(
+            nested.connects_to_input_of(plain),
+            msg="A child of the nested macro has a connection to the plain macros"
+                "input, so the entire nested macro should count as having a "
+                "connection to the plain macro's input."
+        )
 
     def test_custom_start(self):
         def modified_start_macro(macro):
