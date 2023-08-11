@@ -19,7 +19,6 @@ from pyiron_contrib.workflow.function import (
 )
 
 if TYPE_CHECKING:
-    from pyiron_contrib.workflow.composite import Composite
     from pyiron_contrib.workflow.node import Node
 
 
@@ -81,8 +80,8 @@ class Creator(metaclass=Singleton):
     @property
     def meta(self):
         if self._meta is None:
-            from pyiron_contrib.workflow.meta import MetaNodes
-            self._meta = MetaNodes
+            from pyiron_contrib.workflow.meta import meta_nodes
+            self._meta = meta_nodes
         return self._meta
 
     def register(self, domain: str, *nodes: list[type[Node]]):
