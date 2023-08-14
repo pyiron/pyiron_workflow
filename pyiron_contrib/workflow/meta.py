@@ -111,45 +111,48 @@ def for_loop(
             )
 
         # Make input interface
-        for inp in body_nodes[0].inputs:
+        for label, inp in body_nodes[0].inputs.items():
+            # Don't rely on inp.label directly, since inputs may be a Composite IO
+            # panel that has a different key for this input channel than its label
+
             # Scatter a list of inputs to each node separately
-            if inp.label in iterate_on:
+            if label in iterate_on:
                 interface = list_to_output(length)(
                     parent=macro,
-                    label=inp.label.upper(),
+                    label=label.upper(),
                     output_labels=[f"{node_class.__name__}__{inp.label}_{i}" for i in
                                    range(length)],
                     l=[inp.default] * length
                 )
                 # Connect each body node input to the input interface's respective output
                 for body_node, out in zip(body_nodes, interface.outputs):
-                    body_node.inputs[inp.label] = out
+                    body_node.inputs[label] = out
                 macro.inputs_map[f"{interface.label}__l"] = interface.label
                 # TODO: Don't hardcode __l
             # Or distribute the same input to each node equally
             else:
                 interface = macro.create.standard.UserInput(
-                    label=inp.label,
-                    output_labels=inp.label,
+                    label=label,
+                    output_labels=label,
                     user_input=inp.default
                 )
                 for body_node in body_nodes:
-                    body_node.inputs[inp.label] = interface
+                    body_node.inputs[label] = interface
                 macro.inputs_map[f"{interface.label}__user_input"] = interface.label
                 # TODO: Don't hardcode __user_input
 
         # Make output interface: outputs to lists
-        for out in body_nodes[0].outputs:
+        for label, out in body_nodes[0].outputs.items():
             interface = input_to_list(length)(
                 parent=macro,
-                label=out.label.upper(),
-                output_labels=f"{node_class.__name__}__{out.label}"
+                label=label.upper(),
+                output_labels=f"{node_class.__name__}__{label}"
             )
             # Connect each body node output to the output interface's respective input
             for body_node, inp in zip(body_nodes, interface.inputs):
-                inp.connect(body_node.outputs[out.label])
+                inp.connect(body_node.outputs[label])
             macro.outputs_map[
-                f"{interface.label}__{node_class.__name__}__{out.label}"] = interface.label
+                f"{interface.label}__{node_class.__name__}__{label}"] = interface.label
             # TODO: Don't manually copy the output label construction
 
     return macro_node()(make_loop)
