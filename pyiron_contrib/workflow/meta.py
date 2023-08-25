@@ -158,9 +158,104 @@ def for_loop(
     return macro_node()(make_loop)
 
 
+def while_loop(
+        loop_body_class: type[Node],
+) -> type[Macro]:
+    """
+    An _extremely rough_ first draft of a for-loop meta-node.
+
+    Takes a node class and builds a macro that makes a cyclic signal connection between
+    that body node and an "if" node, i.e. when the body node finishes it runs the
+    if-node, and when the if-node finishes and evaluates `True` then it runs the body
+    node.
+    The if-node condition is exposed as input on the resulting macro with the label
+    "condition", but it is left to the user to connect...
+    - The condition to some output of another node, either an internal node of the body
+        node (if it's a macro) or any other node in the workflow
+    - The (sub)input of the body node to the (sub)output of the body node, so it
+      actually does something different at each iteration
+
+    Args:
+        loop_body_class (type[pyiron_contrib.workflow.node.Node]): The class for the
+            body of the while-loop.
+
+    Examples:
+        >>> import numpy as np
+        >>> np.random.seed(0)  # Just for docstring tests, so the output is predictable
+        >>>
+        >>> from pyiron_contrib.workflow import Workflow
+        >>>
+        >>> # Build tools
+        >>>
+        >>> @Workflow.wrap_as.single_value_node()
+        >>> def random(length: int | None = None):
+        ...     random = np.random.random(length)
+        ...     return random
+        >>>
+        >>> @Workflow.wrap_as.single_value_node()
+        >>> def greater_than(x: float, threshold: float):
+        ...     gt = x > threshold
+        ...     symbol = ">" if gt else "<="
+        ...     print(f"{x:.3f} {symbol} {threshold}")
+        ...     return gt
+        >>>
+        >>> RandomWhile = Workflow.create.meta.while_loop(random)
+        >>>
+        >>> # Define workflow
+        >>>
+        >>> wf = Workflow("random_until_small_enough")
+        >>>
+        >>> ## Wire together the while loop and its condition
+        >>>
+        >>> wf.gt = greater_than()
+        >>> wf.random_while = RandomWhile(condition=wf.gt)
+        >>> wf.gt.inputs.x = wf.random_while.Random
+        >>>
+        >>> wf.starting_nodes = [wf.random_while]
+        >>>
+        >>> ## Give convenient labels
+        >>> wf.inputs_map = {"gt__threshold": "threshold"}
+        >>> wf.outputs_map = {"random_while__Random__random": "capped_value"}
+        >>> # Set a threshold and run
+        >>>
+        >>> print(f"Finally {wf(threshold=0.1).capped_value:.3f}")
+        0.549 > 0.1
+        0.715 > 0.1
+        0.603 > 0.1
+        0.545 > 0.1
+        0.424 > 0.1
+        0.646 > 0.1
+        0.438 > 0.1
+        0.892 > 0.1
+        0.964 > 0.1
+        0.383 > 0.1
+        0.792 > 0.1
+        0.529 > 0.1
+        0.568 > 0.1
+        0.926 > 0.1
+        0.071 <= 0.1
+        Finally 0.071
+    """
+    def make_loop(macro):
+        body_node = macro.add(loop_body_class(label=loop_body_class.__name__))
+        macro.create.standard.If(label="if_", run_on_updates=False)
+
+        # Create a cyclic loop between body and if nodes, so that they will keep
+        # triggering themselves until the if evaluates false
+        body_node.signals.input.run = macro.if_.signals.output.true
+        macro.if_.signals.input.run = body_node.signals.output.ran
+        macro.starting_nodes = [body_node]
+
+        # Just for convenience:
+        macro.inputs_map = {"if___condition": "condition"}
+
+    return macro_node()(make_loop)
+
+
 meta_nodes = DotDict({
     for_loop.__name__: for_loop,
     input_to_list.__name__: input_to_list,
     list_to_output.__name__: list_to_output,
+    while_loop.__name__: while_loop,
 })
 
