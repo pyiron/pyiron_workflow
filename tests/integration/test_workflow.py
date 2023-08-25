@@ -75,3 +75,43 @@ class TestTopology(unittest.TestCase):
         self.assertAlmostEqual(
             np.sqrt(wf.rand.outputs.rand.value), wf.sqrt.outputs.sqrt.value, 6
         )
+
+    def test_while_loop(self):
+        np.random.seed(0)
+
+        # Build tools
+
+        @Workflow.wrap_as.single_value_node()
+        def random(length: int | None = None):
+            random = np.random.random(length)
+            return random
+
+        @Workflow.wrap_as.single_value_node()
+        def greater_than(x: float, threshold: float):
+            gt = x > threshold
+            symbol = ">" if gt else "<="
+            # print(f"{x:.3f} {symbol} {threshold}")
+            return gt
+
+        RandomWhile = Workflow.create.meta.while_loop(random)
+
+        # Define workflow
+
+        wf = Workflow("random_until_small_enough")
+
+        ## Wire together the while loop and its condition
+
+        wf.gt = greater_than()
+        wf.random_while = RandomWhile(condition=wf.gt)
+        wf.gt.inputs.x = wf.random_while.Random
+
+        wf.starting_nodes = [wf.random_while]
+
+        ## Give convenient labels
+        wf.inputs_map = {"gt__threshold": "threshold"}
+        wf.outputs_map = {"random_while__Random__random": "capped_value"}
+
+        self.assertAlmostEqual(
+            wf(threshold=0.1).capped_value,
+            0.07103605819788694,  # For this reason we set the random seed
+        )
