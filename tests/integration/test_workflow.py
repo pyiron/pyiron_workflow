@@ -76,6 +76,33 @@ class TestTopology(unittest.TestCase):
             np.sqrt(wf.rand.outputs.rand.value), wf.sqrt.outputs.sqrt.value, 6
         )
 
+    def test_for_loop(self):
+        n = 5
+
+        bulk_loop = Workflow.create.meta.for_loop(
+            Workflow.create.atomistics.Bulk,
+            n,
+            iterate_on=("a",),
+        )()
+
+        out = bulk_loop(
+            name="Al",  # Sent equally to each body node
+            A=np.linspace(3.9, 4.1, n).tolist(),  # Distributed across body nodes
+        )
+
+        self.assertTrue(
+            np.allclose(
+                [struct.cell.volume for struct in out.STRUCTURE],
+                [
+                    14.829749999999995,
+                    15.407468749999998,
+                    15.999999999999998,
+                    16.60753125,
+                    17.230249999999995
+                ]
+            )
+        )
+
     def test_while_loop(self):
         np.random.seed(0)
 
