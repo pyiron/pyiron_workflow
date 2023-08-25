@@ -1,4 +1,3 @@
-import time
 import unittest
 
 import numpy as np
@@ -8,12 +7,10 @@ from pyiron_contrib.workflow.function import Function
 from pyiron_contrib.workflow.workflow import Workflow
 
 
-class TestNothing(unittest.TestCase):
-    def test_cyclic_graphs(self):
+class TestTopology(unittest.TestCase):
+    def test_manually_constructed_cyclic_graph(self):
         """
         Check that cyclic graphs run.
-
-        TODO: Update once logical switches are included in the node library
         """
 
         @Workflow.wrap_as.single_value_node()
