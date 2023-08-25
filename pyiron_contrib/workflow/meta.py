@@ -48,7 +48,7 @@ def __many_to_list({", ".join([f"inp{i}=None" for i in range(length)])}):
 
 
 def for_loop(
-        node_class: type[Node],
+        loop_body_class: type[Node],
         length: int,
         iterate_on: str | tuple[str] | list[str],
         # TODO:
@@ -107,7 +107,7 @@ def for_loop(
         # Parallelize over body nodes
         for n in range(length):
             body_nodes.append(
-                macro.add(node_class(label=f"{node_class.__name__}_{n}"))
+                macro.add(loop_body_class(label=f"{loop_body_class.__name__}_{n}"))
             )
 
         # Make input interface
@@ -120,7 +120,7 @@ def for_loop(
                 interface = list_to_output(length)(
                     parent=macro,
                     label=label.upper(),
-                    output_labels=[f"{node_class.__name__}__{inp.label}_{i}" for i in
+                    output_labels=[f"{loop_body_class.__name__}__{inp.label}_{i}" for i in
                                    range(length)],
                     l=[inp.default] * length
                 )
@@ -146,13 +146,13 @@ def for_loop(
             interface = input_to_list(length)(
                 parent=macro,
                 label=label.upper(),
-                output_labels=f"{node_class.__name__}__{label}"
+                output_labels=f"{loop_body_class.__name__}__{label}"
             )
             # Connect each body node output to the output interface's respective input
             for body_node, inp in zip(body_nodes, interface.inputs):
                 inp.connect(body_node.outputs[label])
             macro.outputs_map[
-                f"{interface.label}__{node_class.__name__}__{label}"] = interface.label
+                f"{interface.label}__{loop_body_class.__name__}__{label}"] = interface.label
             # TODO: Don't manually copy the output label construction
 
     return macro_node()(make_loop)
