@@ -29,11 +29,7 @@ class If(SingleValue):
     """
 
     def __init__(self, **kwargs):
-        super().__init__(
-            self.if_,
-            output_labels="truth",
-            **kwargs
-        )
+        super().__init__(self.if_, output_labels="truth", **kwargs)
         self.signals.output.true = OutputSignal("true", self)
         self.signals.output.false = OutputSignal("false", self)
 

@@ -81,6 +81,7 @@ class Creator(metaclass=Singleton):
     def meta(self):
         if self._meta is None:
             from pyiron_contrib.workflow.meta import meta_nodes
+
             self._meta = meta_nodes
         return self._meta
 
