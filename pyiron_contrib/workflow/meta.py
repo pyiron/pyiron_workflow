@@ -235,6 +235,44 @@ def while_loop(
         0.926 > 0.1
         0.071 <= 0.1
         Finally 0.071
+
+        We can also loop data _internally_ in the body node.
+        In such cases, we can still _initialize_ the data to some other value, because
+        this has no impact on the connections -- so for the first run of the body node
+        we wind up using to initial value, but then the body node pushes elements of its
+        own output back to its own input for future runs.
+        E.g.)
+        >>> @Workflow.wrap_as.single_value_node(run_on_updates=False)
+        >>> def add(a, b):
+        ...     print(f"Adding {a} + {b}")
+        ...     return a + b
+        >>>
+        >>> @Workflow.wrap_as.single_value_node()
+        >>> def less_than_ten(value):
+        ...     return value < 10
+        >>>
+        >>> AddWhile = Workflow.create.meta.while_loop(add)
+        >>>
+        >>> wf = Workflow("do_while")
+        >>> wf.lt10 = less_than_ten()
+        >>> wf.add_while = AddWhile(condition=wf.lt10)
+        >>>
+        >>> wf.lt10.inputs.value = wf.add_while.Add
+        >>> wf.add_while.Add.inputs.a = wf.add_while.Add
+        >>>
+        >>> wf.starting_nodes = [wf.add_while]
+        >>> wf.inputs_map = {
+        ...     "add_while__Add__a": "a",
+        ...     "add_while__Add__b": "b"
+        ... }
+        >>> wf.outputs_map = {"add_while__Add__a + b": "total"}
+        >>> response = wf(a=1, b=2)
+        >>> print(response.total)
+        11
+
+        Note that we needed to specify a starting node because in this case our
+        graph is cyclic and _all_ our nodes have connected input! We obviously cannot
+        automatically detect the "upstream-most" node in a circle!
     """
     def make_loop(macro):
         body_node = macro.add(loop_body_class(label=loop_body_class.__name__))
