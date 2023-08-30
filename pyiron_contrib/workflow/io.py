@@ -129,6 +129,9 @@ class IO(HasToDict, ABC):
     def labels(self):
         return list(self.channel_dict.keys())
 
+    def items(self):
+        return self.channel_dict.items()
+
     def __iter__(self):
         return self.channel_dict.values().__iter__()
 
