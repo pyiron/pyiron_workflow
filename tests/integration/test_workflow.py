@@ -107,8 +107,6 @@ class TestTopology(unittest.TestCase):
         with self.subTest("Random"):
             np.random.seed(0)
 
-            # Build tools
-
             @Workflow.wrap_as.single_value_node()
             def random(length: int | None = None):
                 random = np.random.random(length)
@@ -145,7 +143,6 @@ class TestTopology(unittest.TestCase):
             )
 
         with self.subTest("Self-data-loop"):
-            from pyiron_contrib.workflow import Workflow
 
             @Workflow.wrap_as.single_value_node(run_on_updates=False)
             def add(a, b):
