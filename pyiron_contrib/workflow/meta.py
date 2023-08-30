@@ -5,7 +5,10 @@ Meta nodes are callables that create a node class instead of a node instance.
 from __future__ import annotations
 
 from pyiron_contrib.workflow.function import (
-    Function, SingleValue, function_node, single_value_node
+    Function,
+    SingleValue,
+    function_node,
+    single_value_node,
 )
 from pyiron_contrib.workflow.macro import Macro, macro_node
 from pyiron_contrib.workflow.node import Node
@@ -48,10 +51,10 @@ def __many_to_list({", ".join([f"inp{i}=None" for i in range(length)])}):
 
 
 def for_loop(
-        loop_body_class: type[Node],
-        length: int,
-        iterate_on: str | tuple[str] | list[str],
-        # TODO:
+    loop_body_class: type[Node],
+    length: int,
+    iterate_on: str | tuple[str] | list[str],
+    # TODO:
 ) -> type[Macro]:
     """
     An _extremely rough_ first draft of a for-loop meta-node.
@@ -120,9 +123,11 @@ def for_loop(
                 interface = list_to_output(length)(
                     parent=macro,
                     label=label.upper(),
-                    output_labels=[f"{loop_body_class.__name__}__{inp.label}_{i}" for i in
-                                   range(length)],
-                    l=[inp.default] * length
+                    output_labels=[
+                        f"{loop_body_class.__name__}__{inp.label}_{i}"
+                        for i in range(length)
+                    ],
+                    l=[inp.default] * length,
                 )
                 # Connect each body node input to the input interface's respective output
                 for body_node, out in zip(body_nodes, interface.outputs):
@@ -132,9 +137,7 @@ def for_loop(
             # Or distribute the same input to each node equally
             else:
                 interface = macro.create.standard.UserInput(
-                    label=label,
-                    output_labels=label,
-                    user_input=inp.default
+                    label=label, output_labels=label, user_input=inp.default
                 )
                 for body_node in body_nodes:
                     body_node.inputs[label] = interface
@@ -146,20 +149,21 @@ def for_loop(
             interface = input_to_list(length)(
                 parent=macro,
                 label=label.upper(),
-                output_labels=f"{loop_body_class.__name__}__{label}"
+                output_labels=f"{loop_body_class.__name__}__{label}",
             )
             # Connect each body node output to the output interface's respective input
             for body_node, inp in zip(body_nodes, interface.inputs):
                 inp.connect(body_node.outputs[label])
             macro.outputs_map[
-                f"{interface.label}__{loop_body_class.__name__}__{label}"] = interface.label
+                f"{interface.label}__{loop_body_class.__name__}__{label}"
+            ] = interface.label
             # TODO: Don't manually copy the output label construction
 
     return macro_node()(make_loop)
 
 
 def while_loop(
-        loop_body_class: type[Node],
+    loop_body_class: type[Node],
 ) -> type[Macro]:
     """
     An _extremely rough_ first draft of a for-loop meta-node.
@@ -274,6 +278,7 @@ def while_loop(
         graph is cyclic and _all_ our nodes have connected input! We obviously cannot
         automatically detect the "upstream-most" node in a circle!
     """
+
     def make_loop(macro):
         body_node = macro.add(loop_body_class(label=loop_body_class.__name__))
         macro.create.standard.If(label="if_", run_on_updates=False)
@@ -290,10 +295,11 @@ def while_loop(
     return macro_node()(make_loop)
 
 
-meta_nodes = DotDict({
-    for_loop.__name__: for_loop,
-    input_to_list.__name__: input_to_list,
-    list_to_output.__name__: list_to_output,
-    while_loop.__name__: while_loop,
-})
-
+meta_nodes = DotDict(
+    {
+        for_loop.__name__: for_loop,
+        input_to_list.__name__: input_to_list,
+        list_to_output.__name__: list_to_output,
+        while_loop.__name__: while_loop,
+    }
+)
