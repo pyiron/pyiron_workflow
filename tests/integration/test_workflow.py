@@ -104,41 +104,72 @@ class TestTopology(unittest.TestCase):
         )
 
     def test_while_loop(self):
-        np.random.seed(0)
+        with self.subTest("Random")
+            np.random.seed(0)
 
-        # Build tools
+            # Build tools
 
-        @Workflow.wrap_as.single_value_node()
-        def random(length: int | None = None):
-            random = np.random.random(length)
-            return random
+            @Workflow.wrap_as.single_value_node()
+            def random(length: int | None = None):
+                random = np.random.random(length)
+                return random
 
-        @Workflow.wrap_as.single_value_node()
-        def greater_than(x: float, threshold: float):
-            gt = x > threshold
-            symbol = ">" if gt else "<="
-            # print(f"{x:.3f} {symbol} {threshold}")
-            return gt
+            @Workflow.wrap_as.single_value_node()
+            def greater_than(x: float, threshold: float):
+                gt = x > threshold
+                symbol = ">" if gt else "<="
+                # print(f"{x:.3f} {symbol} {threshold}")
+                return gt
 
-        RandomWhile = Workflow.create.meta.while_loop(random)
+            RandomWhile = Workflow.create.meta.while_loop(random)
 
-        # Define workflow
+            # Define workflow
 
-        wf = Workflow("random_until_small_enough")
+            wf = Workflow("random_until_small_enough")
 
-        ## Wire together the while loop and its condition
+            ## Wire together the while loop and its condition
 
-        wf.gt = greater_than()
-        wf.random_while = RandomWhile(condition=wf.gt)
-        wf.gt.inputs.x = wf.random_while.Random
+            wf.gt = greater_than()
+            wf.random_while = RandomWhile(condition=wf.gt)
+            wf.gt.inputs.x = wf.random_while.Random
 
-        wf.starting_nodes = [wf.random_while]
+            wf.starting_nodes = [wf.random_while]
 
-        ## Give convenient labels
-        wf.inputs_map = {"gt__threshold": "threshold"}
-        wf.outputs_map = {"random_while__Random__random": "capped_value"}
+            ## Give convenient labels
+            wf.inputs_map = {"gt__threshold": "threshold"}
+            wf.outputs_map = {"random_while__Random__random": "capped_value"}
 
-        self.assertAlmostEqual(
-            wf(threshold=0.1).capped_value,
-            0.07103605819788694,  # For this reason we set the random seed
-        )
+            self.assertAlmostEqual(
+                wf(threshold=0.1).capped_value,
+                0.07103605819788694,  # For this reason we set the random seed
+            )
+
+        with self.subTest("Self-data-loop"):
+            from pyiron_contrib.workflow import Workflow
+
+            @Workflow.wrap_as.single_value_node(run_on_updates=False)
+            def add(a, b):
+                return a + b
+
+            @Workflow.wrap_as.single_value_node()
+            def less_than_ten(value):
+                return value < 10
+
+            AddWhile = Workflow.create.meta.while_loop(add)
+
+            wf = Workflow("do_while")
+            wf.lt10 = less_than_ten()
+            wf.add_while = AddWhile(condition=wf.lt10)
+
+            wf.lt10.inputs.value = wf.add_while.Add
+            wf.add_while.Add.inputs.a = wf.add_while.Add
+
+            wf.starting_nodes = [wf.add_while]
+            wf.inputs_map = {
+                "add_while__Add__a": "a",
+                "add_while__Add__b": "b"
+            }
+            wf.outputs_map = {"add_while__Add__a + b": "total"}
+
+            out = wf(a=1, b=2)
+            self.assertEqual(out.total, 11)
