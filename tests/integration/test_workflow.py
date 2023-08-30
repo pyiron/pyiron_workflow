@@ -104,7 +104,7 @@ class TestTopology(unittest.TestCase):
         )
 
     def test_while_loop(self):
-        with self.subTest("Random")
+        with self.subTest("Random"):
             np.random.seed(0)
 
             # Build tools
