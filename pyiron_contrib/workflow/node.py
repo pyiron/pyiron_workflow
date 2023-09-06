@@ -48,6 +48,11 @@ class Node(HasToDict, ABC):
 
     By default, nodes' signals input comes with `run` and `ran` IO ports which force
     the `run()` method and which emit after `finish_run()` is completed, respectfully.
+    These signal connections can be made manually by reference to the node signals
+    channel, or with the `>` symbol to indicate a flow of execution. This syntactic
+    sugar can be mixed between actual signal channels (output signal > input signal),
+    or nodes, but when refering to nodes it is always a shortcut to the `run`/`ran`
+    channels.
 
     The `run()` method returns a representation of the node output (possible a futures
     object, if the node is running on an executor), and consequently `update()` also

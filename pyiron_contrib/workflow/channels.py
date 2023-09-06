@@ -419,6 +419,10 @@ class SignalChannel(Channel, ABC):
 
     Output channels can be called to trigger the callback functions of all input
     channels to which they are connected.
+
+    Signal channels support `>` as syntactic sugar for their connections, i.e.
+    `some_output > some_input` is equivalent to `some_input.connect(some_output)`.
+    (This is also interoperable with `Node` objects, cf. the `Node` docs.)
     """
 
     @abstractmethod
