@@ -204,6 +204,31 @@ class TestFunction(unittest.TestCase):
             msg="Running the upstream node should trigger a run here"
         )
 
+        with self.subTest("Test syntactic sugar"):
+            t2.signals.input.run.disconnect_all()
+            l > t2
+            self.assertIn(
+                l.signals.output.ran,
+                t2.signals.input.run.connections,
+                msg="> should be equivalent to run/ran connection"
+            )
+
+            t2.signals.input.run.disconnect_all()
+            l > t2.signals.input.run
+            self.assertIn(
+                l.signals.output.ran,
+                t2.signals.input.run.connections,
+                msg="> should allow us to mix and match nodes and signal channels"
+            )
+
+            t2.signals.input.run.disconnect_all()
+            l.signals.output.ran > t2
+            self.assertIn(
+                l.signals.output.ran,
+                t2.signals.input.run.connections,
+                msg="Mixing and matching should work both directions"
+            )
+
     def test_statuses(self):
         n = Function(plus_one, run_on_updates=False)
         self.assertTrue(n.ready)

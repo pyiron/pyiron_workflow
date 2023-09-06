@@ -170,6 +170,11 @@ class TestSignalChannels(TestCase):
             with self.assertRaises(TypeError):
                 self.inp.connect(bad)
 
+        with self.subTest("Test syntactic sugar"):
+            self.out.disconnect_all()
+            self.out > self.inp
+            self.assertIn(self.out, self.inp.connections)
+
     def test_calls(self):
         self.out.connect(self.inp)
         self.out()
