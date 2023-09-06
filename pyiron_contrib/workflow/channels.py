@@ -461,6 +461,9 @@ class SignalChannel(Channel, ABC):
             other, self.__class__
         )
 
+    def connect_output_signal(self, signal: OutputSignal):
+        self.connect(signal)
+
 
 class InputSignal(SignalChannel):
     """
@@ -512,3 +515,6 @@ class OutputSignal(SignalChannel):
             f"{self.label} activates "
             f"{[f'{c.node.label}.{c.label}' for c in self.connections]}"
         )
+
+    def __gt__(self, other: InputSignal | Node):
+        other.connect_output_signal(self)
