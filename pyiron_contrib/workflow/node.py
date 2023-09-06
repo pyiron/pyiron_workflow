@@ -372,3 +372,4 @@ class Node(HasToDict, ABC):
         Allows users to connect run and ran signals like: `first_node > second_node`.
         """
         other.connect_output_signal(self.signals.output.ran)
+        return True

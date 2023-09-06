@@ -522,3 +522,4 @@ class OutputSignal(SignalChannel):
 
     def __gt__(self, other: InputSignal | Node):
         other.connect_output_signal(self)
+        return True

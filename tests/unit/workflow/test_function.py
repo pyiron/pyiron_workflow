@@ -229,6 +229,14 @@ class TestFunction(unittest.TestCase):
                 msg="Mixing and matching should work both directions"
             )
 
+            t2.signals.input.run.disconnect_all()
+            l > t2 > l
+            self.assertTrue(
+                l.signals.input.run.connections[0] is t2.signals.output.ran
+                and t2.signals.input.run.connections[0] is l.signals.output.ran,
+                msg="> should allow chaining signal connections"
+            )
+
     def test_statuses(self):
         n = Function(plus_one, run_on_updates=False)
         self.assertTrue(n.ready)
