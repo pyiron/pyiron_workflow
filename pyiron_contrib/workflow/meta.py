@@ -283,10 +283,7 @@ def while_loop(
         body_node = macro.add(loop_body_class(label=loop_body_class.__name__))
         macro.create.standard.If(label="if_", run_on_updates=False)
 
-        # Create a cyclic loop between body and if nodes, so that they will keep
-        # triggering themselves until the if evaluates false
-        body_node.signals.input.run = macro.if_.signals.output.true
-        macro.if_.signals.input.run = body_node.signals.output.ran
+        macro.if_.signals.output.true > body_node > macro.if_  # Loop until false
         macro.starting_nodes = [body_node]
 
         # Just for convenience:
