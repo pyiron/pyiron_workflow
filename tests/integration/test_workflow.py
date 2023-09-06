@@ -67,9 +67,8 @@ class TestTopology(unittest.TestCase):
         wf.sqrt = numpy_sqrt(run_on_updates=False)
         wf.sqrt.inputs.value = wf.rand
 
-        wf.gt_switch.signals.input.run = wf.rand.signals.output.ran
-        wf.sqrt.signals.input.run = wf.gt_switch.signals.output.true
-        wf.rand.signals.input.run = wf.gt_switch.signals.output.false
+        wf.gt_switch.signals.output.false > wf.rand > wf.gt_switch  # Loop on false
+        wf.gt_switch.signals.output.true > wf.sqrt  # On true break to sqrt node
 
         wf.rand.update()
         self.assertAlmostEqual(
