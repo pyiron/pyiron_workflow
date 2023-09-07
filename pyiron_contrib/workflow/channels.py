@@ -379,7 +379,6 @@ class InputData(DataChannel):
 
     def _after_update(self) -> None:
         self.waiting_for_update = False
-        self.node.update()
 
     def require_update_after_node_runs(self, wait_now=False) -> None:
         """
@@ -409,7 +408,7 @@ class OutputData(DataChannel):
     """
 
     def _after_update(self) -> None:
-        if self.value is not NotData:
+        if self._value_is_data:
             for inp in self.connections:
                 inp.update(self.value)
 
