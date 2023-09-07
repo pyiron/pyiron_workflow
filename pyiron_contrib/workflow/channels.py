@@ -2,9 +2,9 @@
 Channels are access points for information to flow into and out of nodes.
 
 Data channels carry, unsurprisingly, data.
-Input data channels force an update on their owning node when they are updated with new
-data, and output data channels update all the input data channels to which they are
-connected.
+Output data channels will attempt to push their new value to all their connected input
+data channels on update, while input data channels will reject any updates if their
+parent node is running.
 In this way, data channels facilitate forward propagation of data through a graph.
 They hold data persistently.
 
@@ -155,7 +155,8 @@ class DataChannel(Channel, ABC):
     They may optionally have a type hint.
     They have a `ready` attribute which tells whether their value matches their type
     hint (if one is provided, else `True`).
-    They may optionally have a storage priority (but this doesn't do anything yet).
+    (In the future they may optionally have a storage priority.)
+    (In the future they may optionally have a storage history limit.)
     (In the future they may optionally have an ontological type.)
 
     The `value` held by a channel can be manually assigned, but should normally be set
@@ -317,12 +318,8 @@ class DataChannel(Channel, ABC):
 
 class InputData(DataChannel):
     """
-    On `update`, Input channels will then propagate their value along to their owning
-    node by invoking its `update` method.
-
-    Their parent node can be told to always set them to wait for an update after the
-    node runs using `require_update_after_node_runs()`.
-    This allows nodes to complete the update of multiple channels before running again.
+    On `update`, Input channels will only `update` if their parent node is not
+    `running`.
 
     The `strict_connections` parameter controls whether connections are subject to
     type checking requirements.
@@ -363,8 +360,9 @@ class InputData(DataChannel):
 
 class OutputData(DataChannel):
     """
-    On `update`, Output channels propagate their value to all the input channels to
-    which they are connected by invoking their `update` method.
+    On `update`, Output channels propagate their value (as long as it's actually data)
+    to all the input channels to which they are connected by invoking their `update`
+    method.
     """
 
     def _after_update(self) -> None:
