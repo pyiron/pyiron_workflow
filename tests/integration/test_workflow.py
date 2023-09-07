@@ -70,7 +70,7 @@ class TestTopology(unittest.TestCase):
         wf.gt_switch.signals.output.false > wf.rand > wf.gt_switch  # Loop on false
         wf.gt_switch.signals.output.true > wf.sqrt  # On true break to sqrt node
 
-        wf.rand.update()
+        wf.rand.run()
         self.assertAlmostEqual(
             np.sqrt(wf.rand.outputs.rand.value), wf.sqrt.outputs.sqrt.value, 6
         )
@@ -118,7 +118,12 @@ class TestTopology(unittest.TestCase):
                 # print(f"{x:.3f} {symbol} {threshold}")
                 return gt
 
-            RandomWhile = Workflow.create.meta.while_loop(random)
+            RandomWhile = Workflow.create.meta.while_loop(
+                loop_body_class=random,
+                condition_class=greater_than,
+                internal_connection_map=[("Random", "random", "GreaterThan", "x")],
+                outputs_map={"Random__random": "capped_result"}
+            )
 
             # Define workflow
 
@@ -126,18 +131,16 @@ class TestTopology(unittest.TestCase):
 
             ## Wire together the while loop and its condition
 
-            wf.gt = greater_than()
-            wf.random_while = RandomWhile(condition=wf.gt)
-            wf.gt.inputs.x = wf.random_while.Random
+            wf.random_while = RandomWhile()
 
             wf.starting_nodes = [wf.random_while]
 
             ## Give convenient labels
-            wf.inputs_map = {"gt__threshold": "threshold"}
-            wf.outputs_map = {"random_while__Random__random": "capped_value"}
+            wf.inputs_map = {"random_while__GreaterThan__threshold": "threshold"}
+            wf.outputs_map = {"random_while__capped_result": "capped_result"}
 
             self.assertAlmostEqual(
-                wf(threshold=0.1).capped_value,
+                wf(threshold=0.1).capped_result,
                 0.07103605819788694,  # For this reason we set the random seed
             )
 
@@ -151,21 +154,26 @@ class TestTopology(unittest.TestCase):
             def less_than_ten(value):
                 return value < 10
 
-            AddWhile = Workflow.create.meta.while_loop(add)
+            AddWhile = Workflow.create.meta.while_loop(
+                loop_body_class=add,
+                condition_class=less_than_ten,
+                internal_connection_map=[
+                    ("Add", "a + b", "LessThanTen", "value"),
+                    ("Add", "a + b", "Add", "a")
+                ],
+                inputs_map={"Add__a": "a", "Add__b": "b"},
+                outputs_map={"Add__a + b": "total"}
+            )
 
             wf = Workflow("do_while")
-            wf.lt10 = less_than_ten()
-            wf.add_while = AddWhile(condition=wf.lt10)
-
-            wf.lt10.inputs.value = wf.add_while.Add
-            wf.add_while.Add.inputs.a = wf.add_while.Add
+            wf.add_while = AddWhile()
 
             wf.starting_nodes = [wf.add_while]
             wf.inputs_map = {
-                "add_while__Add__a": "a",
-                "add_while__Add__b": "b"
+                "add_while__a": "a",
+                "add_while__b": "b"
             }
-            wf.outputs_map = {"add_while__Add__a + b": "total"}
+            wf.outputs_map = {"add_while__total": "total"}
 
             out = wf(a=1, b=2)
             self.assertEqual(out.total, 11)

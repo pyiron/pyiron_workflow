@@ -200,8 +200,9 @@ def while_loop(
         condition_class (type[pyiron_contrib.workflow.function.SingleValue]): A single
             value node returning a `bool` controlling the while loop exit condition
             (exits on False)
-        internal_connection_map (dict[str, str]): String names of internal connections
-            between the body node outputs and condition node inputs.
+        internal_connection_map (list[tuple[str, str, str, str]]): String tuples
+            giving (input node, input channel, output node, output channel) labels
+            connecting channel pairs inside the macro.
     Examples:
         >>> import numpy as np
         >>> np.random.seed(0)  # Just for docstring tests, so the output is predictable
@@ -304,8 +305,8 @@ def while_loop(
         switch = macro.create.standard.If(label="switch")
 
         switch.inputs.condition = condition_node
-        for body_channel, condition_channel in internal_connection_map.items():
-            condition_node.inputs[condition_channel] = body_node.outputs[body_channel]
+        for (out_n, out_c, in_n, in_c) in internal_connection_map:
+            macro.nodes[in_n].inputs[in_c] = macro.nodes[out_n].outputs[out_c]
 
         switch.signals.output.true > body_node > condition_node > switch
         macro.starting_nodes = [body_node]
