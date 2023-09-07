@@ -4,6 +4,8 @@ Meta nodes are callables that create a node class instead of a node instance.
 
 from __future__ import annotations
 
+from typing import Optional
+
 from pyiron_contrib.workflow.function import (
     Function,
     SingleValue,
@@ -132,6 +134,7 @@ def for_loop(
                 # Connect each body node input to the input interface's respective output
                 for body_node, out in zip(body_nodes, interface.outputs):
                     body_node.inputs[label] = out
+                    interface > body_node
                 macro.inputs_map[f"{interface.label}__l"] = interface.label
                 # TODO: Don't hardcode __l
             # Or distribute the same input to each node equally
@@ -141,6 +144,7 @@ def for_loop(
                 )
                 for body_node in body_nodes:
                     body_node.inputs[label] = interface
+                    interface > body_node
                 macro.inputs_map[f"{interface.label}__user_input"] = interface.label
                 # TODO: Don't hardcode __user_input
 
@@ -154,6 +158,13 @@ def for_loop(
             # Connect each body node output to the output interface's respective input
             for body_node, inp in zip(body_nodes, interface.inputs):
                 inp.connect(body_node.outputs[label])
+                if body_node.executor is not None:
+                    raise NotImplementedError(
+                        "Right now the output interface gets run after each body node,"
+                        "if the body nodes can run asynchronously we need something "
+                        "more clever than that!"
+                    )
+                body_node > interface
             macro.outputs_map[
                 f"{interface.label}__{loop_body_class.__name__}__{label}"
             ] = interface.label
@@ -164,6 +175,10 @@ def for_loop(
 
 def while_loop(
     loop_body_class: type[Node],
+    condition_class: type[SingleValue],
+    internal_connection_map: dict[str, str],
+    inputs_map: Optional[dict[str, str]] = None,
+    outputs_map: Optional[dict[str, str]] = None,
 ) -> type[Macro]:
     """
     An _extremely rough_ first draft of a for-loop meta-node.
@@ -182,7 +197,11 @@ def while_loop(
     Args:
         loop_body_class (type[pyiron_contrib.workflow.node.Node]): The class for the
             body of the while-loop.
-
+        condition_class (type[pyiron_contrib.workflow.function.SingleValue]): A single
+            value node returning a `bool` controlling the while loop exit condition
+            (exits on False)
+        internal_connection_map (dict[str, str]): String names of internal connections
+            between the body node outputs and condition node inputs.
     Examples:
         >>> import numpy as np
         >>> np.random.seed(0)  # Just for docstring tests, so the output is predictable
@@ -281,13 +300,18 @@ def while_loop(
 
     def make_loop(macro):
         body_node = macro.add(loop_body_class(label=loop_body_class.__name__))
-        macro.create.standard.If(label="if_", run_on_updates=False)
+        condition_node = macro.add(condition_class(label=condition_class.__name__))
+        switch = macro.create.standard.If(label="switch")
 
-        macro.if_.signals.output.true > body_node > macro.if_  # Loop until false
+        switch.inputs.condition = condition_node
+        for body_channel, condition_channel in internal_connection_map.items():
+            condition_node.inputs[condition_channel] = body_node.outputs[body_channel]
+
+        switch.signals.output.true > body_node > condition_node > switch
         macro.starting_nodes = [body_node]
 
-        # Just for convenience:
-        macro.inputs_map = {"if___condition": "condition"}
+        macro.inputs_map = {} if inputs_map is None else inputs_map
+        macro.outputs_map = {} if outputs_map is None else outputs_map
 
     return macro_node()(make_loop)
 
