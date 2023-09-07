@@ -56,7 +56,7 @@ class Node(HasToDict, ABC):
 
     The `run()` method returns a representation of the node output (possible a futures
     object, if the node is running on an executor), and consequently `update()` also
-    returns this output if the node is `ready` and has `run_on_updates = True`.
+    returns this output if the node is `ready`.
 
     Calling an already instantiated node allows its input channels to be updated using
     keyword arguments corresponding to the channel labels, performing a batch-update of
@@ -100,8 +100,6 @@ class Node(HasToDict, ABC):
             owning this, if any.
         ready (bool): Whether the inputs are all ready and the node is neither
             already running nor already failed.
-        run_on_updates (bool): Whether to run when you are updated and all your input
-            is ready and your status does not prohibit running. (Default is False).
         running (bool): Whether the node has called `run` and has not yet
             received output from this call. (Default is False.)
         server (Optional[pyiron_base.jobs.job.extension.server.generic.Server]): A
@@ -130,7 +128,6 @@ class Node(HasToDict, ABC):
         label: str,
         *args,
         parent: Optional[Composite] = None,
-        run_on_updates: bool = False,
         **kwargs,
     ):
         """
@@ -141,8 +138,6 @@ class Node(HasToDict, ABC):
             label (str): A name for this node.
             *args: Arguments passed on with `super`.
             **kwargs: Keyword arguments passed on with `super`.
-
-        TODO: Shouldn't `update_on_instantiation` and `run_on_updates` both live here??
         """
         super().__init__(*args, **kwargs)
         self.label: str = label
@@ -159,7 +154,6 @@ class Node(HasToDict, ABC):
         # TODO: Provide support for actually computing stuff with the server/executor
         self.signals = self._build_signal_channels()
         self._working_directory = None
-        self.run_on_updates: bool = run_on_updates
         self.executor: None | CloudpickleProcessPoolExecutor = None
         self.future: None | Future = None
 
@@ -258,7 +252,7 @@ class Node(HasToDict, ABC):
         return signals
 
     def update(self) -> Any | tuple | Future | None:
-        if self.run_on_updates and self.ready:
+        if self.ready:
             return self.run()
 
     @property
@@ -308,7 +302,6 @@ class Node(HasToDict, ABC):
             **kwargs: input label - input value (including channels for connection)
              pairs.
         """
-        run_on_updates, self.run_on_updates = self.run_on_updates, False
         for k, v in kwargs.items():
             if k in self.inputs.labels:
                 self.inputs[k] = v
@@ -316,10 +309,8 @@ class Node(HasToDict, ABC):
                 warnings.warn(
                     f"The keyword '{k}' was not found among input labels. If you are "
                     f"trying to update a node keyword, please use attribute assignment "
-                    f"directly instead of calling, e.g. "
-                    f"`my_node_instance.run_on_updates = False`."
+                    f"directly instead of calling"
                 )
-        self.run_on_updates = run_on_updates  # Restore provided value
 
     def __call__(self, **kwargs) -> None:
         self._batch_update_input(**kwargs)

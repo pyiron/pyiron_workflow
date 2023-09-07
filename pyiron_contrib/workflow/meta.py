@@ -266,7 +266,7 @@ def while_loop(
         we wind up using to initial value, but then the body node pushes elements of its
         own output back to its own input for future runs.
         E.g.)
-        >>> @Workflow.wrap_as.single_value_node(run_on_updates=False)
+        >>> @Workflow.wrap_as.single_value_node()
         >>> def add(a, b):
         ...     print(f"Adding {a} + {b}")
         ...     return a + b

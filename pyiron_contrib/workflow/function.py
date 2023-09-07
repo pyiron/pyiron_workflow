@@ -69,8 +69,6 @@ class Function(Node):
 
     After a node is instantiated, its input can be updated as `*args` and/or `**kwargs`
     on call.
-    This invokes an `update()` call, which can in turn invoke `run()` if
-    `run_on_updates` is set to `True`.
     `run()` returns the output of the executed function, or a futures object if the
     node is set to use an executor.
     Calling the node or executing an `update()` returns the same thing as running, if
@@ -79,10 +77,6 @@ class Function(Node):
     Args:
         node_function (callable): The function determining the behaviour of the node.
         label (str): The node's label. (Defaults to the node function's name.)
-        run_on_updates (bool): Whether to run when you are updated and all your
-            input is ready. (Default is True).
-        update_on_instantiation (bool): Whether to force an update at the end of
-            instantiation. (Default is True.)
         channels_requiring_update_after_run (list[str]): All the input channels named
             here will be set to `wait_for_update()` at the end of each node run, such
             that they are not `ready` again until they have had their `.update` method
@@ -115,8 +109,7 @@ class Function(Node):
         fully_connected (bool): Every IO channel has at least one connection.
 
     Methods:
-        update: If `run_on_updates` is true and all your input is ready, will
-            run the engine.
+        update: If your input is ready, will run the engine.
         run: Parse and process the input, execute the engine, process the results and
             update the output.
         disconnect: Disconnect all data and signal IO connections.
@@ -180,7 +173,6 @@ class Function(Node):
         >>> plus_minus_1 = Function(
         ...     mwe, output_labels=("p1", "m1"),
         ...     x=0, y=0,
-        ...     run_on_updates=False, update_on_instantiation=False
         ... )
         >>> plus_minus_1.outputs.p1.value
         <class 'pyiron_contrib.workflow.channels.NotData'>
@@ -276,15 +268,11 @@ class Function(Node):
         ...     def __init__(
         ...         self,
         ...         label: Optional[str] = None,
-        ...         run_on_updates: bool = True,
-        ...         update_on_instantiation: bool = False,
         ...         **kwargs
         ...     ):
         ...         super().__init__(
         ...             self.alphabet_mod_three,
         ...             label=label,
-        ...             run_on_updates=run_on_updates,
-        ...             update_on_instantiation=update_on_instantiation,
         ...             **kwargs
         ...         )
         ...
@@ -292,11 +280,6 @@ class Function(Node):
         ...     def alphabet_mod_three(i: int) -> Literal["a", "b", "c"]:
         ...         letter = ["a", "b", "c"][i % 3]
         ...         return letter
-
-        Note that we've overridden the default value for `update_on_instantiation`
-        above.
-        We can also provide different defaults for these flags as kwargs in the
-        decorator.
 
         The second effectively does the same thing, but leverages python's
         `functools.partialmethod` to do so much more succinctly.
@@ -356,8 +339,6 @@ class Function(Node):
         node_function: callable,
         *args,
         label: Optional[str] = None,
-        run_on_updates: bool = False,
-        update_on_instantiation: bool = False,
         channels_requiring_update_after_run: Optional[list[str]] = None,
         parent: Optional[Composite] = None,
         output_labels: Optional[str | list[str] | tuple[str]] = None,
@@ -366,7 +347,6 @@ class Function(Node):
         super().__init__(
             label=label if label is not None else node_function.__name__,
             parent=parent,
-            run_on_updates=run_on_updates,
             # **kwargs,
         )
 
@@ -388,8 +368,6 @@ class Function(Node):
 
         self._batch_update_input(*args, **kwargs)
 
-        if update_on_instantiation:
-            self.update()
 
     def _get_output_labels(self, output_labels: str | list[str] | tuple[str] | None):
         """
@@ -632,8 +610,6 @@ class SingleValue(Function, HasChannel):
         node_function: callable,
         *args,
         label: Optional[str] = None,
-        run_on_updates=False,
-        update_on_instantiation=False,
         parent: Optional[Workflow] = None,
         output_labels: Optional[str | list[str] | tuple[str]] = None,
         **kwargs,
@@ -642,8 +618,6 @@ class SingleValue(Function, HasChannel):
             node_function,
             *args,
             label=label,
-            run_on_updates=run_on_updates,
-            update_on_instantiation=update_on_instantiation,
             parent=parent,
             output_labels=output_labels,
             **kwargs,

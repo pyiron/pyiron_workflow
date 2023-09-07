@@ -97,11 +97,11 @@ class Macro(Composite):
         running when they get their values updated, just so we can see that one of them
         is really not doing anything on the run command):
         >>> def modified_start_macro(macro):
-        ...     macro.a = macro.create.SingleValue(add_one, x=0, run_on_updates=False)
-        ...     macro.b = macro.create.SingleValue(add_one, x=0, run_on_updates=False)
+        ...     macro.a = macro.create.SingleValue(add_one, x=0)
+        ...     macro.b = macro.create.SingleValue(add_one, x=0)
         ...     macro.starting_nodes = [macro.b]
         >>>
-        >>> m = Macro(modified_start_macro, update_on_instantiation=False)
+        >>> m = Macro(modified_start_macro)
         >>> m.outputs.to_value_dict()
         {'a__result': pyiron_contrib.workflow.channels.NotData,
         'b__result': pyiron_contrib.workflow.channels.NotData}
@@ -114,8 +114,6 @@ class Macro(Composite):
         self,
         graph_creator: callable[[Macro], None],
         label: Optional[str] = None,
-        run_on_updates: bool = True,
-        update_on_instantiation: bool = True,
         parent: Optional[Composite] = None,
         strict_naming: bool = True,
         inputs_map: Optional[dict] = None,
@@ -126,7 +124,6 @@ class Macro(Composite):
         super().__init__(
             label=label if label is not None else graph_creator.__name__,
             parent=parent,
-            run_on_updates=run_on_updates,
             strict_naming=strict_naming,
             inputs_map=inputs_map,
             outputs_map=outputs_map,
@@ -137,9 +134,6 @@ class Macro(Composite):
         self._outputs: Outputs = self._build_outputs()
 
         self._batch_update_input(**kwargs)
-
-        if update_on_instantiation:
-            self.update()
 
     @property
     def inputs(self) -> Inputs:

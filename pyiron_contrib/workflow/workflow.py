@@ -120,8 +120,6 @@ class Workflow(Composite):
         >>> wf.engine = wf.create.atomistics.Lammps(structure=wf.structure)
         >>> wf.calc = wf.create.atomistics.CalcMd(
         ...     job=wf.engine,
-        ...     run_on_updates=True,
-        ...     update_on_instantiation=True,
         ... )
         >>> wf.plot = wf.create.standard.Scatter(
         ...     x=wf.calc.outputs.steps,
@@ -151,7 +149,6 @@ class Workflow(Composite):
         self,
         label: str,
         *nodes: Node,
-        run_on_updates: bool = True,
         strict_naming: bool = True,
         inputs_map: Optional[dict] = None,
         outputs_map: Optional[dict] = None,
@@ -159,7 +156,6 @@ class Workflow(Composite):
         super().__init__(
             label=label,
             parent=None,
-            run_on_updates=run_on_updates,
             strict_naming=strict_naming,
             inputs_map=inputs_map,
             outputs_map=outputs_map,
