@@ -531,7 +531,9 @@ class Function(Node):
         if len(set(positional_keywords).intersection(kwargs.keys())) > 0:
             raise ValueError(
                 f"Cannot use {set(positional_keywords).intersection(kwargs.keys())} "
-                f"as both positional _and_ keyword arguments; args {args}, kwargs {kwargs}, reverse_keys {reverse_keys}, positional_keyworkds {positional_keywords}"
+                f"as both positional _and_ keyword arguments; args {args}, kwargs "
+                f"{kwargs}, reverse_keys {reverse_keys}, positional_keyworkds "
+                f"{positional_keywords}"
             )
 
         for arg in args:
