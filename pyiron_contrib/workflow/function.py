@@ -59,10 +59,6 @@ class Function(Node):
     Further, functions with multiple return branches that return different types or
     numbers of return values may or may not work smoothly, depending on the details.
 
-    By default, function nodes will attempt to run whenever one or more inputs is
-    updated, and will attempt to update on initialization (after setting _all_ initial
-    input values).
-
     Output is updated in the `process_run_result` inside the parent class `finish_run`
     call, such that output data gets pushed after the node stops running but before
     then `ran` signal fires: run, process and push result, ran.
@@ -72,7 +68,7 @@ class Function(Node):
     `run()` returns the output of the executed function, or a futures object if the
     node is set to use an executor.
     Calling the node or executing an `update()` returns the same thing as running, if
-    the node is run, or `None` if it is not set to run on updates or not ready to run.
+    the node is run, or, in the case of `update()`, `None` if it is not `ready` to run.
 
     Args:
         node_function (callable): The function determining the behaviour of the node.
@@ -122,9 +118,7 @@ class Function(Node):
         <class 'pyiron_contrib.workflow.channels.NotData'>
 
         There is no output because we haven't given our function any input, it has
-        no defaults, and we never ran it! It tried to `update()` on instantiation, but
-        the update never got to `run()` because the node could see that some its input
-        had never been specified. So outputs have the channel default value of
+        no defaults, and we never ran it! So outputs have the channel default value of
         `NotData` -- a special non-data class (since `None` is sometimes a meaningful
         value in python).
 
@@ -132,27 +126,28 @@ class Function(Node):
         run:
         >>> plus_minus_1.inputs.x = 2
         >>> plus_minus_1.run()
-        TypeError
+        TypeError: unsupported operand type(s) for -: 'type' and 'int'
 
         This is because the second input (`y`) still has no input value, so we can't do
-        the sum.
+        the sum between `NotData` and `2`.
 
-        Once we update `y`, all the input is ready and the automatic `update()` call
-        will be allowed to proceed to a `run()` call, which succeeds and updates the
-        output.
+        Once we update `y`, all the input is ready we will be allowed to proceed to a
+        `run()` call, which succeeds and updates the output.
         The final thing we need to do is disable the `failed` status we got from our
         last run call
         >>> plus_minus_1.failed = False
         >>> plus_minus_1.inputs.y = 3
+        >>> plus_minus_1.run()
         >>> plus_minus_1.outputs.to_value_dict()
         {'x+1': 3, 'y-1': 2}
 
         We can also, optionally, provide initial values for some or all of the input and
         labels for the output:
         >>> plus_minus_1 = Function(mwe, output_labels=("p1", "m1"),  x=1)
-        >>> plus_minus_1.inputs.y = 2  # Automatically triggers an update call now
-        >>> plus_minus_1.outputs.to_value_dict()
-        {'p1': 2, 'm1': 1}
+        >>> plus_minus_1.inputs.y = 2
+        >>> out = plus_minus_1.run()
+        >>> out
+        (2, 1)
 
         Input data can be provided to both initialization and on call as ordered args
         or keyword kwargs.
@@ -162,28 +157,6 @@ class Function(Node):
         >>> plus_minus_1(2, y=3)
         (3, 2)
 
-        Finally, we might stop these updates from happening automatically, even when
-        all the input data is present and available:
-        >>> plus_minus_1 = Function(
-        ...     mwe, output_labels=("p1", "m1"),
-        ...     x=0, y=0,
-        ... )
-        >>> plus_minus_1.outputs.p1.value
-        <class 'pyiron_contrib.workflow.channels.NotData'>
-
-        With these flags set, the node requires us to manually call a run:
-        >>> plus_minus_1.run()
-        (-1, 1)
-
-        So function nodes have the most basic level of protection that they won't run
-        if they haven't seen any input data.
-        However, we could still get them to raise an error by providing the _wrong_
-        data:
-        >>> plus_minus_1 = Function(mwe, x=1, y="can't add to an int")
-        TypeError
-
-        Here everything tries to run automatically, but we get an error from adding the
-        integer and string!
         We can make our node even more sensible by adding type
         hints (and, optionally, default values) when defining the function that the node
         wraps.
@@ -197,7 +170,11 @@ class Function(Node):
         variety of common use cases.
         Note that getting "good" (i.e. dot-accessible) output labels can be achieved by
         using good variable names and returning those variables instead of using
-        `output_labels`:
+        `output_labels`.
+        If we force the node to `run()` (or call it) with bad types, it will raise an
+        error.
+        But, if we use the gentler `update()`, it will check types first and simply
+        return `None` if the input is not all `ready`.
         >>> from typing import Union
         >>>
         >>> def hinted_example(
@@ -208,9 +185,10 @@ class Function(Node):
         ...     return p1, m1
         >>>
         >>> plus_minus_1 = Function(hinted_example, x="not an int")
+        >>> plus_minus_1.update()
         >>> plus_minus_1.outputs.to_value_dict()
-        {'p1': <class 'pyiron_contrib.workflow.channels.NotData'>, 'm1': <class
-        'pyiron_contrib.workflow.channels.NotData'>}
+        {'p1': <class 'pyiron_contrib.workflow.channels.NotData'>,
+        'm1': <class 'pyiron_contrib.workflow.channels.NotData'>}
 
         Here, even though all the input has data, the node sees that some of it is the
         wrong type and so the automatic updates don't proceed all the way to a run.
@@ -245,8 +223,8 @@ class Function(Node):
         ...     return x+1, y-1
         >>>
         >>> node_instance = my_mwe_node(x=0)
-        >>> node_instance.outputs.to_value_dict()
-        {'p1': 1, 'm1': 0}
+        >>> node_instance(y=0)
+        (1, -1)
 
         Where we've passed the output labels and class arguments to the decorator,
         and inital values to the newly-created node class (`my_mwe_node`) at
@@ -296,18 +274,24 @@ class Function(Node):
         Finally, let's put it all together by using both of these nodes at once.
         Instead of setting input to a particular data value, we'll set it to
         be another node's output channel, thus forming a connection.
+        Then we need to define the corresponding execution flow, which can be done
+        by directly connecting `.signals.input.run` and `.signals.output.ran` channels
+        just like we connect data channels, but can also be accomplished with some
+        syntactic sugar using the `>` operator.
         When we update the upstream node, we'll see the result passed downstream:
         >>> adder = Adder()
         >>> alpha = AlphabetModThree(i=adder.outputs.sum)
+        >>> adder > alpha
         >>>
-        >>> adder.inputs.x = 1
+        >>> adder(x=1)
         >>> print(alpha.outputs.letter)
         "b"
-        >>> adder.inputs.y = 1
+        >>> adder(y=1)
         >>> print(alpha.outputs.letter)
         "c"
         >>> adder.inputs.x = 0
         >>> adder.inputs.y = 0
+        >>> adder()
         >>> print(alpha.outputs.letter)
         "a"
 

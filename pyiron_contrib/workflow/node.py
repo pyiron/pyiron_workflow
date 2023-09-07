@@ -31,13 +31,14 @@ class Node(HasToDict, ABC):
     Nodes are elements of a computational graph.
     They have input and output data channels that interface with the outside
     world, and a callable that determines what they actually compute, and input and
-    output signal channels that can be used to customize the execution flow of the
+    output signal channels that can be used to customize the execution flow of their
     graph;
-    Together these channels represent edges on the computational graph.
+    Together these channels represent edges on the dual data and execution computational
+    graphs.
 
     Nodes can be run to force their computation, or more gently updated, which will
-    trigger a run only if the `run_on_update` flag is set to true and all of the input
-    is ready (i.e. channel values conform to any type hints provided).
+    trigger a run only if all of the input is ready (i.e. channel values conform to
+    any type hints provided).
 
     Nodes may have a `parent` node that owns them as part of a sub-graph.
 
@@ -51,7 +52,7 @@ class Node(HasToDict, ABC):
     These signal connections can be made manually by reference to the node signals
     channel, or with the `>` symbol to indicate a flow of execution. This syntactic
     sugar can be mixed between actual signal channels (output signal > input signal),
-    or nodes, but when refering to nodes it is always a shortcut to the `run`/`ran`
+    or nodes, but when referring to nodes it is always a shortcut to the `run`/`ran`
     channels.
 
     The `run()` method returns a representation of the node output (possible a futures
@@ -60,12 +61,12 @@ class Node(HasToDict, ABC):
 
     Calling an already instantiated node allows its input channels to be updated using
     keyword arguments corresponding to the channel labels, performing a batch-update of
-    all supplied input and then calling `update()`.
+    all supplied input and then calling `run()`.
     As such, calling the node _also_ returns a representation of the output (or `None`
     if the node is not set to run on updates, or is otherwise unready to run).
 
     Nodes have a status, which is currently represented by the `running` and `failed`
-    boolean flags.
+    boolean flag attributes.
     Their value is controlled automatically in the defined `run` and `finish_run`
     methods.
 
@@ -73,6 +74,8 @@ class Node(HasToDict, ABC):
     appropriate executor to their `executor` attribute.
     In case they are run with an executor, their `future` attribute will be populated
     with the resulting future object.
+    WARNING: Executors are currently only working when the node executable function does
+        not use `self`.
 
     This is an abstract class.
     Children *must* define how `inputs` and `outputs` are constructed, and what will
@@ -296,7 +299,7 @@ class Node(HasToDict, ABC):
 
     def _batch_update_input(self, **kwargs):
         """
-        Temporarily disable running on updates to set all input values at once.
+        Match keywords to input channel labels and update input values.
 
         Args:
             **kwargs: input label - input value (including channels for connection)
