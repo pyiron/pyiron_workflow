@@ -73,6 +73,9 @@ def for_loop(
       (i.e. the specified input and all output) is all caps
 
     Examples:
+        >>> import numpy as np
+        >>> from pyiron_contrib.workflow.meta import for_loop
+        >>>
         >>> bulk_loop = for_loop(
         ...     Workflow.create.atomistics.Bulk,
         ...     5,
@@ -183,16 +186,14 @@ def while_loop(
     """
     An _extremely rough_ first draft of a for-loop meta-node.
 
-    Takes a node class and builds a macro that makes a cyclic signal connection between
-    that body node and an "if" node, i.e. when the body node finishes it runs the
-    if-node, and when the if-node finishes and evaluates `True` then it runs the body
-    node.
-    The if-node condition is exposed as input on the resulting macro with the label
-    "condition", but it is left to the user to connect...
-    - The condition to some output of another node, either an internal node of the body
-        node (if it's a macro) or any other node in the workflow
-    - The (sub)input of the body node to the (sub)output of the body node, so it
-      actually does something different at each iteration
+    Takes body and condition node classes and builds a macro that makes a cyclic signal
+    connection between them and an "if" switch, i.e. when the body node finishes it
+    runs the condtion, which runs the switch, and as long as the condition result was
+    `True`, the switch loops back to run the body again.
+    We additionally allow four-tuples of (input node, input channel, output node,
+    output channel) labels to wire data connections inside the macro, e.g. to pass data
+    from the body to the condition. This is beastly syntax, but it will suffice for now.
+    Finally, you can set input and output maps as normal.
 
     Args:
         loop_body_class (type[pyiron_contrib.workflow.node.Node]): The class for the
@@ -204,6 +205,46 @@ def while_loop(
             giving (input node, input channel, output node, output channel) labels
             connecting channel pairs inside the macro.
     Examples:
+        >>> from pyiron_contrib.workflow import Workflow
+        >>>
+        >>> @Workflow.wrap_as.single_value_node()
+        >>> def add(a, b):
+        ...     print(f"{a} + {b} = {a + b}")
+        ...     return a + b
+        >>>
+        >>> @Workflow.wrap_as.single_value_node()
+        >>> def less_than_ten(value):
+        ...     return value < 10
+        >>>
+        >>> AddWhile = Workflow.create.meta.while_loop(
+        ...     loop_body_class=add,
+        ...     condition_class=less_than_ten,
+        ...     internal_connection_map=[
+        ...         ("Add", "a + b", "LessThanTen", "value"),
+        ...         ("Add", "a + b", "Add", "a")
+        ...     ],
+        ...     inputs_map={"Add__a": "a", "Add__b": "b"},
+        ...     outputs_map={"Add__a + b": "total"}
+        ... )
+        >>>
+        >>> wf = Workflow("do_while")
+        >>> wf.add_while = AddWhile()
+
+        >>> wf.starting_nodes = [wf.add_while]
+        >>> wf.inputs_map = {
+        ...     "add_while__a": "a",
+        ...     "add_while__b": "b"
+        ... }
+        >>> wf.outputs_map = {"add_while__total": "total"}
+        >>>
+        >>> print(f"Finally, {wf(a=1, b=2).total}")
+        1 + 2 = 3
+        3 + 2 = 5
+        5 + 2 = 7
+        7 + 2 = 9
+        9 + 2 = 11
+        Finally, 11
+
         >>> import numpy as np
         >>> np.random.seed(0)  # Just for docstring tests, so the output is predictable
         >>>
@@ -243,60 +284,10 @@ def while_loop(
         >>> # Set a threshold and run
         >>>
         >>> print(f"Finally {wf(threshold=0.1).capped_value:.3f}")
-        0.549 > 0.1
-        0.715 > 0.1
-        0.603 > 0.1
-        0.545 > 0.1
-        0.424 > 0.1
-        0.646 > 0.1
-        0.438 > 0.1
-        0.892 > 0.1
-        0.964 > 0.1
-        0.383 > 0.1
-        0.792 > 0.1
-        0.529 > 0.1
-        0.568 > 0.1
-        0.926 > 0.1
-        0.071 <= 0.1
-        Finally 0.071
 
-        We can also loop data _internally_ in the body node.
-        In such cases, we can still _initialize_ the data to some other value, because
-        this has no impact on the connections -- so for the first run of the body node
-        we wind up using to initial value, but then the body node pushes elements of its
-        own output back to its own input for future runs.
-        E.g.)
-        >>> @Workflow.wrap_as.single_value_node()
-        >>> def add(a, b):
-        ...     print(f"Adding {a} + {b}")
-        ...     return a + b
-        >>>
-        >>> @Workflow.wrap_as.single_value_node()
-        >>> def less_than_ten(value):
-        ...     return value < 10
-        >>>
-        >>> AddWhile = Workflow.create.meta.while_loop(add)
-        >>>
-        >>> wf = Workflow("do_while")
-        >>> wf.lt10 = less_than_ten()
-        >>> wf.add_while = AddWhile(condition=wf.lt10)
-        >>>
-        >>> wf.lt10.inputs.value = wf.add_while.Add
-        >>> wf.add_while.Add.inputs.a = wf.add_while.Add
-        >>>
-        >>> wf.starting_nodes = [wf.add_while]
-        >>> wf.inputs_map = {
-        ...     "add_while__Add__a": "a",
-        ...     "add_while__Add__b": "b"
-        ... }
-        >>> wf.outputs_map = {"add_while__Add__a + b": "total"}
-        >>> response = wf(a=1, b=2)
-        >>> print(response.total)
-        11
-
-        Note that we needed to specify a starting node because in this case our
-        graph is cyclic and _all_ our nodes have connected input! We obviously cannot
-        automatically detect the "upstream-most" node in a circle!
+        Note that we _need_ to specify a starting node whenever our graph is cyclic and
+        _all_ our nodes have connected input! We obviously cannot automatically detect
+        the "upstream-most" node in a circle!
     """
 
     def make_loop(macro):
