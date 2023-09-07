@@ -356,8 +356,8 @@ class Function(Node):
         node_function: callable,
         *args,
         label: Optional[str] = None,
-        run_on_updates: bool = True,
-        update_on_instantiation: bool = True,
+        run_on_updates: bool = False,
+        update_on_instantiation: bool = False,
         channels_requiring_update_after_run: Optional[list[str]] = None,
         parent: Optional[Composite] = None,
         output_labels: Optional[str | list[str] | tuple[str]] = None,
@@ -617,42 +617,6 @@ class Function(Node):
         return SeabornColors.green
 
 
-class Slow(Function):
-    """
-    Like a regular node, but `run_on_updates` and `update_on_instantiation` default to
-    `False`.
-    This is intended for wrapping function which are potentially expensive to call,
-    where you don't want the output recomputed unless `run()` is _explicitly_ called.
-    """
-
-    def __init__(
-        self,
-        node_function: callable,
-        *args,
-        label: Optional[str] = None,
-        run_on_updates=False,
-        update_on_instantiation=False,
-        parent: Optional[Workflow] = None,
-        output_labels: Optional[str | list[str] | tuple[str]] = None,
-        **kwargs,
-    ):
-        super().__init__(
-            node_function,
-            *args,
-            label=label,
-            run_on_updates=run_on_updates,
-            update_on_instantiation=update_on_instantiation,
-            parent=parent,
-            output_labels=output_labels,
-            **kwargs,
-        )
-
-    @property
-    def color(self) -> str:
-        """For drawing the graph"""
-        return SeabornColors.red
-
-
 class SingleValue(Function, HasChannel):
     """
     A node that _must_ return only a single value.
@@ -668,8 +632,8 @@ class SingleValue(Function, HasChannel):
         node_function: callable,
         *args,
         label: Optional[str] = None,
-        run_on_updates=True,
-        update_on_instantiation=True,
+        run_on_updates=False,
+        update_on_instantiation=False,
         parent: Optional[Workflow] = None,
         output_labels: Optional[str | list[str] | tuple[str]] = None,
         **kwargs,
@@ -749,33 +713,6 @@ def function_node(**node_class_kwargs):
         )
 
     return as_node
-
-
-def slow_node(**node_class_kwargs):
-    """
-    A decorator for dynamically creating slow node classes from functions.
-
-    Unlike normal nodes, slow nodes do update themselves on initialization and do not
-    run themselves when they get updated -- i.e. they will not run when their input
-    changes, `run()` must be explicitly called.
-
-    Optionally takes any keyword arguments of `Slow`.
-    """
-
-    def as_slow_node(node_function: callable):
-        return type(
-            node_function.__name__.title().replace("_", ""),  # fnc_name to CamelCase
-            (Slow,),  # Define parentage
-            {
-                "__init__": partialmethod(
-                    Slow.__init__,
-                    node_function,
-                    **node_class_kwargs,
-                )
-            },
-        )
-
-    return as_slow_node
 
 
 def single_value_node(**node_class_kwargs):
