@@ -92,6 +92,11 @@ class Workflow(Composite):
         >>> print(len(wf.inputs), len(wf.outputs))
         1 1
 
+        We can define the execution flow by making connections between channels held
+        in the `signals` panels, but it's easier to use the `>` syntactic sugar:
+        >>> wf.first > wf.second
+        >>> out = wf.run()
+
         The workflow joins node lavels and channel labels with a `_` character to
         provide direct access to the output:
         >>> print(wf.outputs.second__y.value)
@@ -125,6 +130,8 @@ class Workflow(Composite):
         ...     x=wf.calc.outputs.steps,
         ...     y=wf.calc.outputs.temperature
         ... )
+        >>>
+        >>> wf.structure > wf.engine > wf.calc > wf.plot
 
         Workflows can be visualized in the notebook using graphviz:
         >>> wf.draw()

@@ -42,6 +42,7 @@ class Macro(Composite):
         ...     macro.one = macro.create.SingleValue(add_one)
         ...     macro.two = macro.create.SingleValue(add_one, macro.one)
         ...     macro.three = macro.create.SingleValue(add_one, macro.two)
+        ...     macro.one > macro.two > macro.three
 
         We can make a macro by passing this graph-building function (that takes a macro
         as its first argument, i.e. `self` from the macro's perspective) to the `Macro`
@@ -80,6 +81,7 @@ class Macro(Composite):
         ...     macro.c = macro.create.SingleValue(
         ...         add_one, x=macro.b.outputs.three__result
         ...     )
+        ...     macro.a > macro.b > macro.c
         >>>
         >>> macro = Macro(
         ...     nested_macro,
@@ -89,25 +91,24 @@ class Macro(Composite):
         >>> macro(inp=1)
         {'intermediate': 5, 'out': 6}
 
-        Since the graph builder has access to the macro being instantiated, we can also
-        do things like override the starting nodes to be used when invoking a run. E.g.
-        consider this two-track graph, where we would normally run both nodes on a `run`
-        call (since they are both head-most nodes), but we override the default behavior
-        to only run _one_ of the two tracks (note that we stop the child nodes from
-        running when they get their values updated, just so we can see that one of them
-        is really not doing anything on the run command):
+        Macros and workflows automatically look for the upstream-most data nodes and use
+        those to start calculations when run.
+        Let's build a simple macro with two independent tracks:
         >>> def modified_start_macro(macro):
         ...     macro.a = macro.create.SingleValue(add_one, x=0)
         ...     macro.b = macro.create.SingleValue(add_one, x=0)
-        ...     macro.starting_nodes = [macro.b]
         >>>
         >>> m = Macro(modified_start_macro)
         >>> m.outputs.to_value_dict()
-        {'a__result': pyiron_contrib.workflow.channels.NotData,
-        'b__result': pyiron_contrib.workflow.channels.NotData}
-
         >>> m(a__x=1, b__x=2)
-        {'a__result': pyiron_contrib.workflow.channels.NotData, 'b__result': 3}
+        {'a__result': 2, 'b__result': 3}
+
+        We can override which nodes get used to start by specifying the `starting_nodes`
+        property.
+        Let's use this and then observe how the `a` sub-node no longer gets run:
+        >>> m.starting_nodes = [m.b]
+        >>> m(a__x=1000, b__x=2000)
+        {'a__result': 2, 'b__result': 2001}
     """
 
     def __init__(

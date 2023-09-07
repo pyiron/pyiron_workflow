@@ -43,9 +43,9 @@ class Composite(Node, ABC):
     By default, `run()` will be called on all owned nodes have output connections but no
     input connections (i.e. the upstream-most nodes), but this can be overridden to
     specify particular nodes to use instead.
-    The `run()` method (and `update()`, and calling the workflow, when these result in
-    a run), return a new dot-accessible dictionary of keys and values created from the
-    composite output IO panel.
+    The `run()` method (and `update()`, and calling the workflow) return a new
+    dot-accessible dictionary of keys and values created from the composite output IO
+    panel.
 
     Does not specify `input` and `output` as demanded by the parent class; this
     requirement is still passed on to children.
@@ -57,13 +57,14 @@ class Composite(Node, ABC):
          existing node label will raise an error, otherwise the label gets appended
          with an index and the assignment proceeds. (Default is true: disallow assigning
          to existing labels.)
-        add (NodeAdder): A tool for adding new nodes to this subgraph.
+        create (Creator): A tool for adding new nodes to this subgraph.
         upstream_nodes (list[pyiron_contrib.workflow.node,Node]): All the owned
          nodes that have output connections but no input connections, i.e. the
          upstream-most nodes.
         starting_nodes (None | list[pyiron_contrib.workflow.node,Node]): A subset
          of the owned nodes to be used on running. (Default is None, running falls back
          on using the `upstream_nodes`.)
+        wrap_as (Wrappers): A tool for accessing node-creating decorators
 
     Methods:
         add(node: Node): Add the node instance to this subgraph.
