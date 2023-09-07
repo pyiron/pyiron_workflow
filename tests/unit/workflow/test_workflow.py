@@ -108,6 +108,7 @@ class TestWorkflow(unittest.TestCase):
 
         wf.n3.inputs.x = wf.n2.outputs.y
         wf.n2.inputs.x = wf.n1.outputs.y
+        wf.n1 > wf.n2 > wf.n3
 
         with self.subTest("Only unconnected channels should count"):
             self.assertEqual(len(wf.inputs), 1)
@@ -128,7 +129,7 @@ class TestWorkflow(unittest.TestCase):
         def plus_one(x: int = 0) -> int:
             return x + 1
 
-        self.assertEqual(plus_one().outputs.y.value, 1)
+        self.assertEqual(plus_one().run(), 1)
 
     def test_working_directory(self):
         wf = Workflow("wf")
@@ -165,7 +166,7 @@ class TestWorkflow(unittest.TestCase):
     def test_parallel_execution(self):
         wf = Workflow("wf")
 
-        @Workflow.wrap_as.single_value_node(run_on_updates=False)
+        @Workflow.wrap_as.single_value_node()
         def five(sleep_time=0.):
             sleep(sleep_time)
             five = 5
@@ -201,6 +202,7 @@ class TestWorkflow(unittest.TestCase):
         while wf.slow.future.running():
             sleep(0.1)
 
+        wf.sum.run()
         self.assertEqual(
             wf.sum.outputs.sum.value,
             5 + 5,
@@ -219,6 +221,9 @@ class TestWorkflow(unittest.TestCase):
             return a + b
 
         wf.sum = sum_(wf.a, wf.b)
+        wf.a > wf.b > wf.sum
+        wf.starting_nodes = [wf.a]
+        wf.run()
         self.assertEqual(
             wf.a.outputs.y.value + wf.b.outputs.y.value,
             wf.sum.outputs.sum.value,
@@ -240,9 +245,9 @@ class TestWorkflow(unittest.TestCase):
 
     def test_return_value(self):
         wf = Workflow("wf")
-        wf.run_on_updates = True
         wf.a = wf.create.SingleValue(plus_one)
         wf.b = wf.create.SingleValue(plus_one, x=wf.a)
+        wf.a > wf.b
 
         with self.subTest("Run on main process"):
             return_on_call = wf(a__x=1)
@@ -253,24 +258,7 @@ class TestWorkflow(unittest.TestCase):
                     "output values"
             )
 
-            return_on_update = wf.update()
-            self.assertEqual(
-                return_on_update.b__y,
-                1 + 2,
-                msg="Run output should be returned on update"
-            )
-
-            wf.run_on_updates = False
-            return_on_update_without_run = wf.update()
-            self.assertIsNone(
-                return_on_update_without_run,
-                msg="When not running on updates, the update should not return anything"
-            )
-            return_on_call_without_run = wf(a__x=2)
-            self.assertIsNone(
-                return_on_call_without_run,
-                msg="When not running on updates, the call should not return anything"
-            )
+            wf.inputs.a__x = 2
             return_on_explicit_run = wf.run()
             self.assertEqual(
                 return_on_explicit_run["b__y"],

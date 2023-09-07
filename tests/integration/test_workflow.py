@@ -59,12 +59,12 @@ class TestTopology(unittest.TestCase):
 
         wf = Workflow("rand_until_big_then_sqrt")
 
-        wf.rand = numpy_randint(update_on_instantiation=False)
+        wf.rand = numpy_randint()
 
-        wf.gt_switch = GreaterThanLimitSwitch(run_on_updates=False)
+        wf.gt_switch = GreaterThanLimitSwitch()
         wf.gt_switch.inputs.value = wf.rand
 
-        wf.sqrt = numpy_sqrt(run_on_updates=False)
+        wf.sqrt = numpy_sqrt()
         wf.sqrt.inputs.value = wf.rand
 
         wf.gt_switch.signals.output.false > wf.rand > wf.gt_switch  # Loop on false
@@ -146,7 +146,7 @@ class TestTopology(unittest.TestCase):
 
         with self.subTest("Self-data-loop"):
 
-            @Workflow.wrap_as.single_value_node(run_on_updates=False)
+            @Workflow.wrap_as.single_value_node()
             def add(a, b):
                 return a + b
 

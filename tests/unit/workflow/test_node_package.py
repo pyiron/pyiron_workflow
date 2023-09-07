@@ -58,6 +58,8 @@ class TestNodePackage(TestCase):
 
         new_dummy_instance = self.package.Dummy(label="new_dummy_instance")
 
+        old_dummy_instance.run()
+        new_dummy_instance.run()
         self.assertEqual(
             old_dummy_instance.outputs.x.value, 0, msg="Should have old functionality"
         )

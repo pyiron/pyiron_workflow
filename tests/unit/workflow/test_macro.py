@@ -18,6 +18,7 @@ def add_three_macro(macro):
     macro.add(SingleValue(add_one, macro.two, label="three"))
     # Cover a handful of addition methods,
     # although these are more thoroughly tested in Workflow tests
+    macro.one > macro.two > macro.three
 
 
 @unittest.skipUnless(version_info[0] == 3 and version_info[1] >= 10, "Only supported for 3.10+")
@@ -71,6 +72,7 @@ class TestMacro(unittest.TestCase):
 
         x = 0
         m = MyMacro(one__x=x)
+        m.run()
         self.assertEqual(
             m.outputs.three__result.value,
             add_one(add_one(add_one(x))),
@@ -114,14 +116,15 @@ class TestMacro(unittest.TestCase):
             macro.a = SingleValue(add_one)
             macro.b = Macro(add_three_macro, one__x=macro.a)
             macro.c = SingleValue(add_one, x=macro.b.outputs.three__result)
+            macro.a > macro.b > macro.c
 
         m = Macro(nested_macro)
         self.assertEqual(m(a__x=0).c__result, 5)
 
     def test_upstream_detection(self):
         def my_macro(macro):
-            macro.a = SingleValue(add_one, x=0, run_on_updates=False)
-            macro.b = SingleValue(add_one, x=macro.a, run_on_updates=False)
+            macro.a = SingleValue(add_one, x=0)
+            macro.b = SingleValue(add_one, x=macro.a)
 
         m = Macro(my_macro)
         self.assertTrue(
@@ -177,7 +180,7 @@ class TestMacro(unittest.TestCase):
         )
 
         def deep_macro(macro):
-            macro.a = SingleValue(add_one, x=0, run_on_updates=False)
+            macro.a = SingleValue(add_one, x=0)
             macro.m = Macro(my_macro)
             macro.m.inputs.a__x = macro.a
 
@@ -194,11 +197,11 @@ class TestMacro(unittest.TestCase):
 
     def test_custom_start(self):
         def modified_start_macro(macro):
-            macro.a = SingleValue(add_one, x=0, run_on_updates=False)
-            macro.b = SingleValue(add_one, x=0, run_on_updates=False)
+            macro.a = SingleValue(add_one, x=0)
+            macro.b = SingleValue(add_one, x=0)
             macro.starting_nodes = [macro.b]
 
-        m = Macro(modified_start_macro, update_on_instantiation=False)
+        m = Macro(modified_start_macro)
         self.assertIs(
             m.outputs.a__result.value,
             NotData,
