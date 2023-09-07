@@ -266,7 +266,8 @@ class DataChannel(Channel, ABC):
                 self.connections.append(other)
                 other.connections.append(self)
                 out, inp = self._figure_out_who_is_who(other)
-                inp.update(out.value)
+                if out.value is not NotData:
+                    inp.update(out.value)
             else:
                 if isinstance(other, DataChannel):
                     warn(
@@ -408,8 +409,9 @@ class OutputData(DataChannel):
     """
 
     def _after_update(self) -> None:
-        for inp in self.connections:
-            inp.update(self.value)
+        if self.value is not NotData:
+            for inp in self.connections:
+                inp.update(self.value)
 
 
 class SignalChannel(Channel, ABC):

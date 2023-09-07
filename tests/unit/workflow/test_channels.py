@@ -63,6 +63,31 @@ class TestDataChannels(TestCase):
         with self.subTest("Test iteration"):
             self.assertTrue(all([con in self.no.connections for con in self.no]))
 
+        with self.subTest("Don't push NotData"):
+            self.no.disconnect_all()
+            self.no.value = NotData
+            self.ni1.value = 1
+            self.ni1.connect(self.no)
+            self.assertEqual(
+                self.ni1.value,
+                1,
+                msg="NotData should not be getting pushed on connection"
+            )
+            self.ni2.value = 2
+            self.no.value = 3
+            self.ni2.connect(self.no)
+            self.assertEqual(
+                self.ni2.value,
+                3,
+                msg="Actual data should be getting pushed"
+            )
+            self.no.update(NotData)
+            self.assertEqual(
+                self.ni2.value,
+                3,
+                msg="NotData should not be getting pushed on updates"
+            )
+
     def test_connection_validity_tests(self):
         self.ni1.type_hint = int | float | bool  # Override with a larger set
         self.ni2.type_hint = int  # Override with a smaller set
