@@ -323,7 +323,7 @@ class Node(HasToDict, ABC):
 
     def __call__(self, **kwargs) -> None:
         self._batch_update_input(**kwargs)
-        return self.update()
+        return self.run()
 
     @property
     def color(self) -> str:
