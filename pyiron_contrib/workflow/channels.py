@@ -320,8 +320,6 @@ class InputData(DataChannel):
     On `update`, Input channels will then propagate their value along to their owning
     node by invoking its `update` method.
 
-    `InputData` channels may be set to `wait_for_update()`, and they are only `ready`
-    when they are not `waiting_for_update`.
     Their parent node can be told to always set them to wait for an update after the
     node runs using `require_update_after_node_runs()`.
     This allows nodes to complete the update of multiple channels before running again.
@@ -348,27 +346,6 @@ class InputData(DataChannel):
             type_hint=type_hint,
         )
         self.strict_connections = strict_connections
-        self.waiting_for_update = False
-
-    def wait_for_update(self) -> None:
-        """
-        Sets `waiting_for_update` to `True`, which prevents `ready` from returning
-        `True` until `update` is called.
-        """
-        self.waiting_for_update = True
-
-    @property
-    def ready(self) -> bool:
-        """
-        Extends the parent class check for whether the value matches the type hint with
-        a check for whether the channel has been told to wait for an update (and not
-        been updated since then).
-
-        Returns:
-            (bool): True when the stored value matches the type hint and the channel
-                has not been told to wait for an update.
-        """
-        return not self.waiting_for_update and super().ready
 
     def _before_update(self) -> None:
         if self.node.running:
@@ -376,23 +353,6 @@ class InputData(DataChannel):
                 f"Parent node {self.node.label} of {self.label} is running, so value "
                 f"cannot be updated."
             )
-
-    def _after_update(self) -> None:
-        self.waiting_for_update = False
-
-    def require_update_after_node_runs(self, wait_now=False) -> None:
-        """
-        Registers this channel with its owning node as one that should have
-        `wait_for_update()` applied after each time the node runs.
-
-        Args:
-            wait_now (bool): Also call `wait_for_update()` right now. (Default is
-                False.)
-        """
-        if self.label not in self.node.channels_requiring_update_after_run:
-            self.node.channels_requiring_update_after_run.append(self.label)
-        if wait_now:
-            self.wait_for_update()
 
     def activate_strict_connections(self) -> None:
         self.strict_connections = True

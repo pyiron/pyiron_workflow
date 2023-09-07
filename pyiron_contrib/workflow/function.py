@@ -77,12 +77,6 @@ class Function(Node):
     Args:
         node_function (callable): The function determining the behaviour of the node.
         label (str): The node's label. (Defaults to the node function's name.)
-        channels_requiring_update_after_run (list[str]): All the input channels named
-            here will be set to `wait_for_update()` at the end of each node run, such
-            that they are not `ready` again until they have had their `.update` method
-            called. This can be used to create sets of input data _all_ of which must
-            be updated before the node is ready to produce output again. (Default is
-            None, which makes the list empty.)
         output_labels (Optional[str | list[str] | tuple[str]]): A name for each return
             value of the node function OR a single label. (Default is None, which
             scrapes output labels automatically from the source code of the wrapped
@@ -339,7 +333,6 @@ class Function(Node):
         node_function: callable,
         *args,
         label: Optional[str] = None,
-        channels_requiring_update_after_run: Optional[list[str]] = None,
         parent: Optional[Composite] = None,
         output_labels: Optional[str | list[str] | tuple[str]] = None,
         **kwargs,
@@ -358,16 +351,7 @@ class Function(Node):
         # TODO: Parse output labels from the node function in case output_labels is None
 
         self.signals = self._build_signal_channels()
-
-        self.channels_requiring_update_after_run = (
-            []
-            if channels_requiring_update_after_run is None
-            else channels_requiring_update_after_run
-        )
-        self._verify_that_channels_requiring_update_all_exist()
-
         self._batch_update_input(*args, **kwargs)
-
 
     def _get_output_labels(self, output_labels: str | list[str] | tuple[str] | None):
         """
@@ -500,17 +484,6 @@ class Function(Node):
 
         return channels
 
-    def _verify_that_channels_requiring_update_all_exist(self):
-        if not all(
-            channel_name in self.inputs.labels
-            for channel_name in self.channels_requiring_update_after_run
-        ):
-            raise ValueError(
-                f"On or more channel name among those listed as requiring updates "
-                f"after the node runs ({self.channels_requiring_update_after_run}) was "
-                f"not found among the input channels ({self.inputs.labels})"
-            )
-
     @property
     def on_run(self):
         return self.node_function
@@ -538,9 +511,6 @@ class Function(Node):
         so that the node can finishing "running" and push its data forward when that
         execution is finished.
         """
-        for channel_name in self.channels_requiring_update_after_run:
-            self.inputs[channel_name].wait_for_update()
-
         if len(self.outputs) == 0:
             return
         elif len(self.outputs) == 1:
