@@ -125,7 +125,7 @@ class TestWorkflow(unittest.TestCase):
             self.assertEqual(out.intermediate, 2)
 
     def test_node_decorator_access(self):
-        @Workflow.wrap_as.function_node(output_labels="y")
+        @Workflow.wrap_as.function_node("y")
         def plus_one(x: int = 0) -> int:
             return x + 1
 
@@ -172,7 +172,7 @@ class TestWorkflow(unittest.TestCase):
             five = 5
             return five
 
-        @Workflow.wrap_as.single_value_node(output_labels="sum")
+        @Workflow.wrap_as.single_value_node("sum")
         def sum(a, b):
             return a + b
 
@@ -216,7 +216,7 @@ class TestWorkflow(unittest.TestCase):
         wf.a = wf.create.SingleValue(plus_one)
         wf.b = wf.create.SingleValue(plus_one)
 
-        @Workflow.wrap_as.single_value_node(output_labels="sum")
+        @Workflow.wrap_as.single_value_node("sum")
         def sum_(a, b):
             return a + b
 

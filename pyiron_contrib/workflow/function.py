@@ -626,7 +626,7 @@ class SingleValue(Function, HasChannel):
         )
 
 
-def function_node(**node_class_kwargs):
+def function_node(output_labels=None):
     """
     A decorator for dynamically creating node classes from functions.
 
@@ -646,7 +646,7 @@ def function_node(**node_class_kwargs):
                 "__init__": partialmethod(
                     Function.__init__,
                     node_function,
-                    **node_class_kwargs,
+                    output_labels=output_labels,
                 )
             },
         )
@@ -654,7 +654,7 @@ def function_node(**node_class_kwargs):
     return as_node
 
 
-def single_value_node(**node_class_kwargs):
+def single_value_node(output_labels=None):
     """
     A decorator for dynamically creating fast node classes from functions.
 
@@ -671,7 +671,7 @@ def single_value_node(**node_class_kwargs):
                 "__init__": partialmethod(
                     SingleValue.__init__,
                     node_function,
-                    **node_class_kwargs,
+                    output_labels=output_labels,
                 )
             },
         )

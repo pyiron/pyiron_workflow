@@ -106,17 +106,13 @@ class TestTopology(unittest.TestCase):
         with self.subTest("Random"):
             np.random.seed(0)
 
-            @Workflow.wrap_as.single_value_node()
+            @Workflow.wrap_as.single_value_node("random")
             def random(length: int | None = None):
-                random = np.random.random(length)
-                return random
+                return np.random.random(length)
 
-            @Workflow.wrap_as.single_value_node()
+            @Workflow.wrap_as.single_value_node("gt")
             def greater_than(x: float, threshold: float):
-                gt = x > threshold
-                symbol = ">" if gt else "<="
-                # print(f"{x:.3f} {symbol} {threshold}")
-                return gt
+                return x > threshold
 
             RandomWhile = Workflow.create.meta.while_loop(
                 loop_body_class=random,
