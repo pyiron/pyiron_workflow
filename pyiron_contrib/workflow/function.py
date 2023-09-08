@@ -335,7 +335,7 @@ class Function(Node):
         # TODO: Parse output labels from the node function in case output_labels is None
 
         self.signals = self._build_signal_channels()
-        self._batch_update_input(*args, **kwargs)
+        self.update_input(*args, **kwargs)
 
     def _get_output_labels(self, output_labels: str | list[str] | tuple[str] | None):
         """
@@ -526,9 +526,9 @@ class Function(Node):
 
         return kwargs
 
-    def _batch_update_input(self, *args, **kwargs):
+    def update_input(self, *args, **kwargs):
         kwargs = self._convert_input_args_and_kwargs_to_input_kwargs(*args, **kwargs)
-        return super()._batch_update_input(**kwargs)
+        return super().update_input(**kwargs)
 
     def __call__(self, *args, **kwargs) -> None:
         kwargs = self._convert_input_args_and_kwargs_to_input_kwargs(*args, **kwargs)

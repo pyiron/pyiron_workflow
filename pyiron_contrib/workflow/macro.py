@@ -134,7 +134,7 @@ class Macro(Composite):
         self._inputs: Inputs = self._build_inputs()
         self._outputs: Outputs = self._build_outputs()
 
-        self._batch_update_input(**kwargs)
+        self.update_input(**kwargs)
 
     @property
     def inputs(self) -> Inputs:

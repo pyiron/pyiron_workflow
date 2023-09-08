@@ -297,7 +297,7 @@ class Node(HasToDict, ABC):
             and self.signals.fully_connected
         )
 
-    def _batch_update_input(self, **kwargs):
+    def update_input(self, **kwargs):
         """
         Match keywords to input channel labels and update input values.
 
@@ -316,7 +316,7 @@ class Node(HasToDict, ABC):
                 )
 
     def __call__(self, **kwargs) -> None:
-        self._batch_update_input(**kwargs)
+        self.update_input(**kwargs)
         return self.run()
 
     @property
