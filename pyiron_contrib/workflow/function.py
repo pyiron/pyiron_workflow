@@ -526,7 +526,16 @@ class Function(Node):
 
         return kwargs
 
-    def update_input(self, *args, **kwargs):
+    def update_input(self, *args, **kwargs) -> None:
+        """
+        Match positional and keyword arguments to input channels and update input
+        values.
+
+        Args:
+            *args: Interpreted in the same order as node function arguments.
+            **kwargs: input label - input value (including channels for connection)
+             pairs.
+        """
         kwargs = self._convert_input_args_and_kwargs_to_input_kwargs(*args, **kwargs)
         return super().update_input(**kwargs)
 
