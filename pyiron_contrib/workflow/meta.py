@@ -296,7 +296,7 @@ def while_loop(
         switch = macro.create.standard.If(label="switch")
 
         switch.inputs.condition = condition_node
-        for (out_n, out_c, in_n, in_c) in internal_connection_map:
+        for out_n, out_c, in_n, in_c in internal_connection_map:
             macro.nodes[in_n].inputs[in_c] = macro.nodes[out_n].outputs[out_c]
 
         switch.signals.output.true > body_node > condition_node > switch
