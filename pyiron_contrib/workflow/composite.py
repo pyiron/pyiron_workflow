@@ -9,6 +9,8 @@ from abc import ABC
 from functools import partial
 from typing import Literal, Optional, TYPE_CHECKING
 
+from toposort import toposort_flatten, CircularDependencyError
+
 from pyiron_contrib.workflow.interfaces import Creator, Wrappers
 from pyiron_contrib.workflow.io import Outputs, Inputs
 from pyiron_contrib.workflow.node import Node
@@ -87,12 +89,14 @@ class Composite(Node, ABC):
         strict_naming: bool = True,
         inputs_map: Optional[dict] = None,
         outputs_map: Optional[dict] = None,
+        automate_execution: bool = True,
         **kwargs,
     ):
         super().__init__(*args, label=label, parent=parent, **kwargs)
         self.strict_naming: bool = strict_naming
         self.inputs_map = inputs_map
         self.outputs_map = outputs_map
+        self.automate_execution = automate_execution
         self.nodes: DotDict[str:Node] = DotDict()
         self.starting_nodes: None | list[Node] = None
         self._creator = self.create
@@ -178,12 +182,85 @@ class Composite(Node, ABC):
 
     @staticmethod
     def run_graph(self):
-        starting_nodes = (
-            self.upstream_nodes if self.starting_nodes is None else self.starting_nodes
-        )
-        for node in starting_nodes:
-            node.run()
+        if self.automate_execution:
+            self._run_linearly_through_dag()
+        else:
+            starting_nodes = (
+                self.upstream_nodes if self.starting_nodes is None
+                else self.starting_nodes
+            )
+            for node in starting_nodes:
+                node.run()
+
         return DotDict(self.outputs.to_value_dict())
+
+    def _run_linearly_through_dag(self):
+        disconnected_pairs = self._purge_existing_run_signals()
+        digraph = self._data_flow_as_node_digraph()
+        execution_order = self._digraph_to_linear_order(digraph)
+        self._order_run_signals_linearly(execution_order)
+        self.nodes[execution_order[0]].run()
+        self._restore_run_signals(disconnected_pairs)
+
+    def _purge_existing_run_signals(self) -> list[tuple[Channel, Channel]]:
+        disconnected_pairs = []
+        for node in self.nodes.values():
+            disconnected_pairs.extend(node.signals.input.run.disconnect())
+        return disconnected_pairs
+
+    def _data_flow_as_node_digraph(self) -> dict[int, set[int]]:
+        """
+        A dictionary of node indices and its data input dependencies as indices, where
+        the indices are drawn from order of appearance in `self.nodes`.
+
+        Raises:
+            RuntimeError: When a node appears in its own input.
+        """
+        digraph = {}
+        label_index_map = {n.label: i for i, n in enumerate(self.nodes.values())}
+
+        for label, i in label_index_map.items():
+            node = self.nodes[label]
+            node_dependencies = []
+            for channel in node.inputs:
+                node_dependencies.extend(
+                    [upstream.node.label for upstream in channel.connections])
+            node_dependencies = set(node_dependencies)
+            if node.label in node_dependencies:
+                raise RuntimeError(
+                    "Detected a cycle in the data flow topology, unable to automate "
+                    "the execution of non-DAGs."
+                )
+            digraph[i] = {label_index_map[l] for l in node_dependencies}
+
+        return digraph
+
+    def _digraph_to_linear_order(self, digraph):
+        try:
+            # Topological sorting ensures that all input dependencies have been
+            # executed before the node depending on them gets run
+            # The flattened part is just that we don't care about topological
+            # generations that are mutually independent (inefficient but easier for now)
+            execution_order = toposort_flatten(digraph)
+            nodes = list(self.nodes.values())
+            as_labels = [nodes[i].label for i in execution_order]
+            # Do dictionaries guarantee this to be in the same order as our earlier map?
+            return as_labels
+        except CircularDependencyError:
+            raise RuntimeError(
+                "Detected a cycle in the data flow topology, unable to automate the "
+                "execution of non-DAGs."
+            )
+
+    def _order_run_signals_linearly(self, execution_order: list[int]):
+        for i, label in enumerate(execution_order[:-1]):
+            next_node = execution_order[i + 1]
+            self.nodes[label] > self.nodes[next_node]
+
+    def _restore_run_signals(self, run_signal_pairs_to_restore):
+        self._purge_existing_run_signals()
+        for pairs in run_signal_pairs_to_restore:
+            pairs[0].connect(pairs[1])
 
     @property
     def run_args(self) -> dict:
