@@ -87,24 +87,31 @@ class Channel(HasChannel, HasToDict, ABC):
         """
         pass
 
-    def disconnect(self, *others: Channel) -> None:
+    def disconnect(self, *others: Channel) -> list[tuple[Channel, Channel]]:
         """
         If currently connected to any others, removes this and the other from eachothers
         respective connections lists.
 
         Args:
             *others (Channel): The other channels to disconnect from.
+
+        Returns:
+            [list[tuple[Channel, Channel]]]: A list of the pairs of channels that no
+                longer participate in a connection.
         """
+        destroyed_connections = []
         for other in others:
             if other in self.connections:
                 self.connections.remove(other)
                 other.disconnect(self)
+                destroyed_connections.append((self, other))
+        return destroyed_connections
 
-    def disconnect_all(self) -> None:
+    def disconnect_all(self) -> list[tuple[Channel, Channel]]:
         """
         Disconnect from all other channels currently in the connections list.
         """
-        self.disconnect(*self.connections)
+        return self.disconnect(*self.connections)
 
     @property
     def connected(self) -> bool:

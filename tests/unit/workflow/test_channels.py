@@ -45,8 +45,13 @@ class TestDataChannels(TestCase):
             self.assertEqual(self.no.value, self.ni1.value)
 
         with self.subTest("Test disconnection"):
-            self.ni2.disconnect(self.no)  # Should do nothing
-            self.ni1.disconnect(self.no)
+            disconnected = self.ni2.disconnect(self.no)
+            self.assertEqual(
+                len(disconnected),
+                0,
+                msg="There were no connections to begin with, nothing should be there"
+            )
+            disconnected = self.ni1.disconnect(self.no)
             self.assertEqual(
                 [], self.ni1.connections, msg="No connections should be left"
             )
@@ -54,6 +59,11 @@ class TestDataChannels(TestCase):
                 [],
                 self.no.connections,
                 msg="Disconnection should also have been reflexive"
+            )
+            self.assertListEqual(
+                disconnected,
+                [(self.ni1, self.no)],
+                msg="Expected a list of the disconnected pairs."
             )
 
         with self.subTest("Test multiple connections"):

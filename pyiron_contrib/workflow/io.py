@@ -121,9 +121,18 @@ class IO(HasToDict, ABC):
     def fully_connected(self):
         return all([c.connected for c in self])
 
-    def disconnect(self):
+    def disconnect(self) -> list[tuple[Channel, Channel]]:
+        """
+        Disconnect all connections that owned channels have.
+
+        Returns:
+            [list[tuple[Channel, Channel]]]: A list of the pairs of channels that no
+                longer participate in a connection.
+        """
+        destroyed_connections = []
         for c in self:
-            c.disconnect_all()
+            destroyed_connections.extend(c.disconnect_all())
+        return destroyed_connections
 
     @property
     def labels(self):
@@ -226,9 +235,18 @@ class Signals:
         self.input = InputSignals()
         self.output = OutputSignals()
 
-    def disconnect(self):
-        self.input.disconnect()
-        self.output.disconnect()
+    def disconnect(self) -> list[tuple[Channel, Channel]]:
+        """
+        Disconnect all connections in input and output signals.
+
+        Returns:
+            [list[tuple[Channel, Channel]]]: A list of the pairs of channels that no
+                longer participate in a connection.
+        """
+        destroyed_connections = []
+        destroyed_connections.extend(self.input.disconnect())
+        destroyed_connections.extend(self.output.disconnect())
+        return destroyed_connections
 
     @property
     def connected(self):

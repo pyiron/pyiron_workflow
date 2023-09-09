@@ -80,6 +80,17 @@ class TestIO(TestCase):
         self.input.x = 7
         self.assertEqual(self.input.x.value, 7)
 
+        self.input.y = self.output.a
+        disconnected = self.input.disconnect()
+        self.assertListEqual(
+            disconnected,
+            [
+                (self.input.x, self.output.a),
+                (self.input.y, self.output.a)
+            ],
+            msg="Disconnecting the panel should disconnect all children"
+        )
+
     def test_conversion(self):
         converted = self.input.to_value_dict()
         for template in self.inputs:

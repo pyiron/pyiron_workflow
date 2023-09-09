@@ -277,9 +277,18 @@ class Node(HasToDict, ABC):
         self._server = server
 
     def disconnect(self):
-        self.inputs.disconnect()
-        self.outputs.disconnect()
-        self.signals.disconnect()
+        """
+        Disconnect all connections belonging to inputs, outputs, and signals channels.
+
+        Returns:
+            [list[tuple[Channel, Channel]]]: A list of the pairs of channels that no
+                longer participate in a connection.
+        """
+        destroyed_connections = []
+        destroyed_connections.extend(self.inputs.disconnect())
+        destroyed_connections.extend(self.outputs.disconnect())
+        destroyed_connections.extend(self.signals.disconnect())
+        return destroyed_connections
 
     @property
     def ready(self) -> bool:
