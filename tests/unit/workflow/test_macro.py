@@ -202,6 +202,7 @@ class TestMacro(unittest.TestCase):
             macro.starting_nodes = [macro.b]
 
         m = Macro(modified_start_macro)
+        m.automate_execution = False
         self.assertIs(
             m.outputs.a__result.value,
             NotData,
