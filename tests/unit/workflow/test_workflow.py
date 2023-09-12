@@ -108,7 +108,6 @@ class TestWorkflow(unittest.TestCase):
 
         wf.n3.inputs.x = wf.n2.outputs.y
         wf.n2.inputs.x = wf.n1.outputs.y
-        wf.n1 > wf.n2 > wf.n3
 
         with self.subTest("Only unconnected channels should count"):
             self.assertEqual(len(wf.inputs), 1)
@@ -221,8 +220,6 @@ class TestWorkflow(unittest.TestCase):
             return a + b
 
         wf.sum = sum_(wf.a, wf.b)
-        wf.a > wf.b > wf.sum
-        wf.starting_nodes = [wf.a]
         wf.run()
         self.assertEqual(
             wf.a.outputs.y.value + wf.b.outputs.y.value,
@@ -247,7 +244,6 @@ class TestWorkflow(unittest.TestCase):
         wf = Workflow("wf")
         wf.a = wf.create.SingleValue(plus_one)
         wf.b = wf.create.SingleValue(plus_one, x=wf.a)
-        wf.a > wf.b
 
         with self.subTest("Run on main process"):
             return_on_call = wf(a__x=1)
