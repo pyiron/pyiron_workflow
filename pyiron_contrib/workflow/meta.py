@@ -137,7 +137,6 @@ def for_loop(
                 # Connect each body node input to the input interface's respective output
                 for body_node, out in zip(body_nodes, interface.outputs):
                     body_node.inputs[label] = out
-                    interface > body_node
                 macro.inputs_map[f"{interface.label}__l"] = interface.label
                 # TODO: Don't hardcode __l
             # Or distribute the same input to each node equally
@@ -147,7 +146,6 @@ def for_loop(
                 )
                 for body_node in body_nodes:
                     body_node.inputs[label] = interface
-                    interface > body_node
                 macro.inputs_map[f"{interface.label}__user_input"] = interface.label
                 # TODO: Don't hardcode __user_input
 
@@ -167,7 +165,6 @@ def for_loop(
                         "if the body nodes can run asynchronously we need something "
                         "more clever than that!"
                     )
-                body_node > interface
             macro.outputs_map[
                 f"{interface.label}__{loop_body_class.__name__}__{label}"
             ] = interface.label
