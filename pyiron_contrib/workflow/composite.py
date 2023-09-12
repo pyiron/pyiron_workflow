@@ -181,12 +181,13 @@ class Composite(Node, ABC):
             disconnected_pairs.extend(node.signals.disconnect_run())
         return disconnected_pairs
 
-    def _set_run_signals_to_linear(self) -> Node:
+    def _set_run_signals_to_linear(self):
+        self._disconnect_run()
         execution_order = self._sort_nodes_linearly_by_data_digraph()
         for i, label in enumerate(execution_order[:-1]):
             next_node = execution_order[i + 1]
             self.nodes[label] > self.nodes[next_node]
-        return self.nodes[execution_order[0]]
+        self.starting_nodes = [self.nodes[execution_order[0]]]
 
     def _get_data_digraph(self) -> dict[int, set[int]]:
         """

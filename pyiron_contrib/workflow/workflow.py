@@ -185,17 +185,8 @@ class Workflow(Composite):
     @staticmethod
     def run_graph(self):
         if self.automate_execution:
-            self._run_linearly_through_dag()
-            output_dict = DotDict(self.outputs.to_value_dict())
-        else:
-            output_dict = super().run_graph()
-        return output_dict
-
-    def _run_linearly_through_dag(self):
-        disconnected_pairs = self._disconnect_run()
-        starting_node = self._set_run_signals_to_linear()
-        starting_node.run()
-        self._reconnect_run(disconnected_pairs)
+            self._set_run_signals_to_linear()
+        return super().run_graph(self)
 
     def to_node(self):
         """
