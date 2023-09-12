@@ -215,6 +215,12 @@ class InputSignals(SignalIO):
     def _channel_class(self) -> type(InputSignal):
         return InputSignal
 
+    def disconnect_run(self) -> list[tuple[Channel, Channel]]:
+        try:
+            return self.run.disconnect_all()
+        except AttributeError:
+            return []
+
 
 class OutputSignals(SignalIO):
     @property
@@ -247,6 +253,9 @@ class Signals:
         destroyed_connections.extend(self.input.disconnect())
         destroyed_connections.extend(self.output.disconnect())
         return destroyed_connections
+
+    def disconnect_run(self) -> list[tuple[Channel, Channel]]:
+        return self.input.disconnect_run()
 
     @property
     def connected(self):
