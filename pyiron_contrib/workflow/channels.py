@@ -32,6 +32,7 @@ from pyiron_contrib.workflow.type_hinting import (
 )
 
 if typing.TYPE_CHECKING:
+    from pyiron_contrib.workflow.composite import Composite
     from pyiron_contrib.workflow.node import Node
 
 
@@ -139,6 +140,39 @@ class Channel(HasChannel, HasToDict, ABC):
             "connected": self.connected,
             "connections": [f"{c.node.label}.{c.label}" for c in self.connections],
         }
+
+    def get_node_belonging_to(self, composite):
+        """
+        Composite nodes directly expose the channels of their children. This happens
+        recursively such that `my_composite.inputs.foo` might belong to the deeply
+        nested node `my_composite.child.grandchild` etc.
+
+        This method allows you to find the node from which this channel can be accessed
+        that is a direct child of a provided composite node.
+
+        Args:
+            composite [Composite]: The node relative to which to search for access
+                to this channel.
+
+        Returns:
+            Node: The direct child of the provided composite node that gives access to
+                this channel.
+
+        Raises:
+            if the provided composite is not in this channel's parentage.
+        """
+        node = self.node
+        parent = self.node.parent
+        while composite is not parent:
+            try:
+                node = parent
+                parent = node.parent
+            except AttributeError:
+                raise ValueError(
+                    f"The channel {self.node.label}:{self.label} could not find the "
+                    f"composite node {composite.label} in its parentage."
+                )
+        return node
 
 
 class NotData:

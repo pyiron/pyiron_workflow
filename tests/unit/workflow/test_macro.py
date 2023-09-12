@@ -117,9 +117,28 @@ class TestMacro(unittest.TestCase):
             macro.b = Macro(add_three_macro, one__x=macro.a)
             macro.c = SingleValue(add_one, x=macro.b.outputs.three__result)
             macro.a > macro.b > macro.c
+            macro.starting_nodes = [macro.a]
+            macro.outputs_map = {"b__two__result": "deep_output"}
 
         m = Macro(nested_macro)
         self.assertEqual(m(a__x=0).c__result, 5)
+
+        print(m.inputs, m.outputs)
+        with self.subTest("Test Channel.get_node_belonging_to"):
+            deep_channel = m.outputs.deep_output
+            self.assertIs(
+                m.b.three,
+                deep_channel.node,
+                msg="Channel node should be the node that holds it directly."
+            )
+            self.assertIs(
+                m.b,
+                deep_channel.get_node_belonging_to(m)
+            )
+
+            with self.assertRaises(ValueError):
+                m2 = Macro(nested_macro)  # Not in deep_channel's parentage!
+                deep_channel.get_node_belonging_to(m2)
 
     def test_custom_start(self):
         def modified_start_macro(macro):
