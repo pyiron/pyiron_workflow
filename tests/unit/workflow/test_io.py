@@ -1,8 +1,10 @@
 from unittest import TestCase, skipUnless
 from sys import version_info
 
-from pyiron_contrib.workflow.channels import InputData, OutputData
-from pyiron_contrib.workflow.io import Inputs, Outputs
+from pyiron_contrib.workflow.channels import (
+    InputData, InputSignal, OutputData, OutputSignal
+)
+from pyiron_contrib.workflow.io import Inputs, Outputs, Signals
 
 
 class DummyNode:
@@ -15,7 +17,7 @@ class DummyNode:
 
 
 @skipUnless(version_info[0] == 3 and version_info[1] >= 10, "Only supported for 3.10+")
-class TestIO(TestCase):
+class TestDataIO(TestCase):
 
     @classmethod
     def setUp(self) -> None:
@@ -134,4 +136,46 @@ class TestIO(TestCase):
             self.input.x.connections[0],
             msg="The IO connection found should be the same object as the channel "
                 "connection"
+        )
+
+@skipUnless(version_info[0] == 3 and version_info[1] >= 10, "Only supported for 3.10+")
+class TestDataIO(TestCase):
+    def setUp(self) -> None:
+        node = DummyNode()
+
+        def do_nothing():
+            pass
+
+        signals = Signals()
+        signals.input.run = InputSignal("run", node, do_nothing)
+        signals.input.foo = InputSignal("foo", node, do_nothing)
+        signals.output.ran = OutputSignal("ran", node)
+        signals.output.bar = OutputSignal("bar", node)
+
+        signals.output.ran > signals.input.run
+        signals.output.ran > signals.input.foo
+        signals.output.bar > signals.input.run
+        signals.output.bar > signals.input.foo
+
+        self.signals = signals
+
+    def test_disconnect(self):
+        self.assertEqual(
+            4,
+            len(self.signals.disconnect()),
+            msg="Disconnect should disconnect all on panels and the Signals super-panel"
+        )
+
+    def test_disconnect_run(self):
+        self.assertEqual(
+            2,
+            len(self.signals.disconnect_run()),
+            msg="Should disconnect exactly everything connected to run"
+        )
+
+        no_run_signals = Signals()
+        self.assertEqual(
+            0,
+            len(no_run_signals.disconnect_run()),
+            msg="If there is no run channel, the list of disconnections should be empty"
         )
