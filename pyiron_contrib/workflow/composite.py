@@ -195,17 +195,17 @@ class Composite(Node, ABC):
         return DotDict(self.outputs.to_value_dict())
 
     def _run_linearly_through_dag(self):
-        disconnected_pairs = self._purge_existing_run_signals()
+        disconnected_pairs = self._disconnect_run()
         digraph = self._data_flow_as_node_digraph()
         execution_order = self._digraph_to_linear_order(digraph)
         self._order_run_signals_linearly(execution_order)
         self.nodes[execution_order[0]].run()
         self._restore_run_signals(disconnected_pairs)
 
-    def _purge_existing_run_signals(self) -> list[tuple[Channel, Channel]]:
+    def _disconnect_run(self) -> list[tuple[Channel, Channel]]:
         disconnected_pairs = []
         for node in self.nodes.values():
-            disconnected_pairs.extend(node.signals.input.run.disconnect())
+            disconnected_pairs.extend(node.signals.disconnect_run())
         return disconnected_pairs
 
     def _data_flow_as_node_digraph(self) -> dict[int, set[int]]:
@@ -258,7 +258,7 @@ class Composite(Node, ABC):
             self.nodes[label] > self.nodes[next_node]
 
     def _restore_run_signals(self, run_signal_pairs_to_restore):
-        self._purge_existing_run_signals()
+        self._disconnect_run()
         for pairs in run_signal_pairs_to_restore:
             pairs[0].connect(pairs[1])
 
