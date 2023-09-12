@@ -266,6 +266,78 @@ class TestWorkflow(unittest.TestCase):
         # Note: We don't need to test running on an executor, because Workflows can't
         #       do that yet
 
+    def test_execution_automation(self):
+        @Workflow.wrap_as.single_value_node("out")
+        def foo(x, y):
+            return x + y
+
+        def make_workflow():
+            wf = Workflow("dag")
+            wf.n1l = foo(0, 1)
+            wf.n1r = foo(2, 0)
+            wf.n2l = foo(-10, wf.n1l)
+            wf.n2m = foo(wf.n1l, wf.n1r)
+            wf.n2r = foo(wf.n1r, 10)
+            return wf
+
+        def matches_expectations(results):
+            expected = {'n2l__out': -9, 'n2m__out': 3, 'n2r__out': 12}
+            return all(expected[k] == v for k, v in results.items())
+
+        auto = make_workflow()
+        self.assertTrue(
+            matches_expectations(auto()),
+            msg="DAGs should run automatically"
+        )
+
+        user = make_workflow()
+        user.automate_execution = False
+        user.n1l > user.n1r > user.n2l
+        user.n1r > user.n2m
+        user.n1r > user.n2r
+        user.starting_nodes = [user.n1l]
+        self.assertTrue(
+            matches_expectations(user()),
+            msg="Users shoudl be allowed to ask to run things manually"
+        )
+
+        self.assertIn(
+            user.n1r.signals.output.ran,
+            user.n2r.signals.input.run.connections,
+            msg="Expected execution signals as manually defined"
+        )
+        user.automate_execution = True
+        self.assertTrue(
+            matches_expectations(user()),
+            msg="Users should be able to switch back to automatic execution"
+        )
+        self.assertNotIn(
+            user.n1r.signals.output.ran,
+            user.n2r.signals.input.run.connections,
+            msg="Expected old execution signals to be overwritten"
+        )
+        self.assertIn(
+            user.n2m.signals.output.ran,
+            user.n2r.signals.input.run.connections,
+            msg="At time of writing tests, automation makes a linear execution flow "
+                "based on node topology and initialized by the order of appearance in "
+                "the nodes list, so for a simple DAG like this the final node should "
+                "be getting triggered by the penultimate node."
+                "If this test failed, maybe you've written more sophisticated "
+                "automation."
+        )
+
+        with self.subTest("Make sure automated cyclic graphs throw an error"):
+            trivially_cyclic = make_workflow()
+            trivially_cyclic.n1l.inputs.y = trivially_cyclic.n1l
+            with self.assertRaises(ValueError):
+                trivially_cyclic()
+
+            cyclic = make_workflow()
+            cyclic.n1l.inputs.y = cyclic.n2l
+            with self.assertRaises(ValueError):
+                cyclic()
+
 
 if __name__ == '__main__':
     unittest.main()
