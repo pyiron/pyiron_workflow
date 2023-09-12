@@ -196,10 +196,8 @@ class Composite(Node, ABC):
 
     def _run_linearly_through_dag(self):
         disconnected_pairs = self._disconnect_run()
-        digraph = self._data_flow_as_node_digraph()
-        execution_order = self._digraph_to_linear_order(digraph)
-        self._order_run_signals_linearly(execution_order)
-        self.nodes[execution_order[0]].run()
+        starting_node = self._set_run_signals_to_linear()
+        starting_node.run()
         self._reconnect_run(disconnected_pairs)
 
     def _disconnect_run(self) -> list[tuple[Channel, Channel]]:
@@ -208,7 +206,14 @@ class Composite(Node, ABC):
             disconnected_pairs.extend(node.signals.disconnect_run())
         return disconnected_pairs
 
-    def _data_flow_as_node_digraph(self) -> dict[int, set[int]]:
+    def _set_run_signals_to_linear(self) -> Node:
+        execution_order = self._sort_nodes_linearly_by_data_digraph()
+        for i, label in enumerate(execution_order[:-1]):
+            next_node = execution_order[i + 1]
+            self.nodes[label] > self.nodes[next_node]
+        return self.nodes[execution_order[0]]
+
+    def _get_data_digraph(self) -> dict[int, set[int]]:
         """
         A dictionary of node indices and its data input dependencies as indices, where
         the indices are drawn from order of appearance in `self.nodes`.
@@ -235,12 +240,13 @@ class Composite(Node, ABC):
 
         return digraph
 
-    def _digraph_to_linear_order(self, digraph):
+    def _sort_nodes_linearly_by_data_digraph(self) -> list[str]:
         try:
             # Topological sorting ensures that all input dependencies have been
             # executed before the node depending on them gets run
             # The flattened part is just that we don't care about topological
             # generations that are mutually independent (inefficient but easier for now)
+            digraph = self._get_data_digraph()
             execution_order = toposort_flatten(digraph)
             nodes = list(self.nodes.values())
             as_labels = [nodes[i].label for i in execution_order]
@@ -251,11 +257,6 @@ class Composite(Node, ABC):
                 "Detected a cycle in the data flow topology, unable to automate the "
                 "execution of non-DAGs."
             )
-
-    def _order_run_signals_linearly(self, execution_order: list[int]):
-        for i, label in enumerate(execution_order[:-1]):
-            next_node = execution_order[i + 1]
-            self.nodes[label] > self.nodes[next_node]
 
     def _reconnect_run(self, run_signal_pairs_to_restore):
         self._disconnect_run()
