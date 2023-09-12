@@ -192,7 +192,7 @@ class Composite(Node, ABC):
         the indices are drawn from order of appearance in `self.nodes`.
 
         Raises:
-            RuntimeError: When a node appears in its own input.
+            ValueError: When a node appears in its own input.
         """
         digraph = {}
         label_index_map = {n.label: i for i, n in enumerate(self.nodes.values())}
@@ -212,9 +212,9 @@ class Composite(Node, ABC):
                 node_dependencies.extend(locally_scoped_upstream_node_labels)
             node_dependencies = set(node_dependencies)
             if node.label in node_dependencies:
-                raise RuntimeError(
-                    "Detected a cycle in the data flow topology, unable to automate "
-                    "the execution of non-DAGs."
+                raise ValueError(
+                    f"Detected a cycle in the data flow topology, unable to automate "
+                    f"the execution of non-DAGs: {node.label} appears in its own input."
                 )
             digraph[i] = {label_index_map[l] for l in node_dependencies}
 
@@ -233,7 +233,7 @@ class Composite(Node, ABC):
             # Do dictionaries guarantee this to be in the same order as our earlier map?
             return as_labels
         except CircularDependencyError:
-            raise RuntimeError(
+            raise ValueError(
                 "Detected a cycle in the data flow topology, unable to automate the "
                 "execution of non-DAGs."
             )
