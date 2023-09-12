@@ -121,6 +121,9 @@ class TestMacro(unittest.TestCase):
             macro.c = SingleValue(add_one, x=macro.b.outputs.three__result)
             macro.a > macro.b > macro.c
             macro.starting_nodes = [macro.a]
+            # This definition of the execution graph is not strictly necessary in this
+            # simple DAG case; we just do it to make sure nesting definied/automatic
+            # macros works ok
             macro.outputs_map = {"b__intermediate_result": "deep_output"}
 
         m = Macro(nested_macro)
