@@ -18,7 +18,6 @@ def add_three_macro(macro):
     macro.add(SingleValue(add_one, macro.two, label="three"))
     # Cover a handful of addition methods,
     # although these are more thoroughly tested in Workflow tests
-    macro.one > macro.two > macro.three
 
 
 @unittest.skipUnless(version_info[0] == 3 and version_info[1] >= 10, "Only supported for 3.10+")
@@ -35,14 +34,14 @@ class TestMacro(unittest.TestCase):
         m2 = Macro(add_three_macro, label=label)
         self.assertEqual(m2.label, label, msg="Should be able to specify a label")
 
-    def test_by_function(self):
+    def test_wrapper_function(self):
         m = Macro(add_three_macro)
 
         self.assertIs(
             m.outputs.three__result.value,
             NotData,
             msg="Output should be accessible with the usual naming convention, but we "
-                "asked the node not to run yet so there shouldn't be any data"
+                "have not run yet so there shouldn't be any data"
         )
 
         input_x = 1
@@ -60,7 +59,7 @@ class TestMacro(unittest.TestCase):
             msg="Macros should get output updated, just like other nodes"
         )
 
-    def test_by_subclass(self):
+    def test_subclass(self):
         class MyMacro(Macro):
             def build_graph(self):
                 add_three_macro(self)
@@ -114,20 +113,23 @@ class TestMacro(unittest.TestCase):
     def test_nesting(self):
         def nested_macro(macro):
             macro.a = SingleValue(add_one)
-            macro.b = Macro(add_three_macro, one__x=macro.a)
+            macro.b = Macro(
+                add_three_macro,
+                one__x=macro.a,
+                outputs_map={"two__result": "intermediate_result"}
+            )
             macro.c = SingleValue(add_one, x=macro.b.outputs.three__result)
             macro.a > macro.b > macro.c
             macro.starting_nodes = [macro.a]
-            macro.outputs_map = {"b__two__result": "deep_output"}
+            macro.outputs_map = {"b__intermediate_result": "deep_output"}
 
         m = Macro(nested_macro)
         self.assertEqual(m(a__x=0).c__result, 5)
 
-        print(m.inputs, m.outputs)
         with self.subTest("Test Channel.get_node_belonging_to"):
             deep_channel = m.outputs.deep_output
             self.assertIs(
-                m.b.three,
+                m.b.two,
                 deep_channel.node,
                 msg="Channel node should be the node that holds it directly."
             )
@@ -140,35 +142,46 @@ class TestMacro(unittest.TestCase):
                 m2 = Macro(nested_macro)  # Not in deep_channel's parentage!
                 deep_channel.get_node_belonging_to(m2)
 
-    def test_custom_start(self):
-        def modified_start_macro(macro):
-            macro.a = SingleValue(add_one, x=0)
-            macro.b = SingleValue(add_one, x=0)
-            macro.starting_nodes = [macro.b]
+    def test_execution_automation(self):
+        fully_automatic = add_three_macro
 
-        m = Macro(modified_start_macro)
-        m.automate_execution = False
-        self.assertIs(
-            m.outputs.a__result.value,
-            NotData,
-            msg="Node should not have run when the macro batch updated input"
-        )
-        self.assertIs(
-            m.outputs.b__result.value,
-            NotData,
-            msg="Node should not have run when the macro batch updated input"
-        )
-        m.run()
-        self.assertIs(
-            m.outputs.a__result.value,
-            NotData,
-            msg="Was not included in starting nodes, should not have run"
+        def fully_defined(macro):
+            add_three_macro(macro)
+            macro.one > macro.two > macro.three
+            macro.starting_nodes = [macro.one]
+
+        def only_order(macro):
+            add_three_macro(macro)
+            macro.two > macro.three
+
+        def only_starting(macro):
+            add_three_macro(macro)
+            macro.starting_nodes = [macro.one]
+
+        m_auto = Macro(fully_automatic)
+        m_user = Macro(fully_defined)
+
+        x = 0
+        expected = add_one(add_one(add_one(x)))
+        self.assertEqual(
+            m_auto(one__x=x).three__result,
+            expected,
+            "DAG macros should run fine without user specification of execution."
         )
         self.assertEqual(
-            m.outputs.b__result.value,
-            1,
-            msg="Was included in starting nodes, should have run"
+            m_user(one__x=x).three__result,
+            expected,
+            "Macros should run fine if the user nicely specifies the exeuction graph."
         )
+
+        with self.subTest("Partially specified execution should fail"):
+            # We don't yet check for _crappy_ user-defined execution,
+            # But we should make sure it's at least valid in principle
+            with self.assertRaises(ValueError):
+                Macro(only_order)
+
+            with self.assertRaises(ValueError):
+                Macro(only_starting)
 
 
 if __name__ == '__main__':
