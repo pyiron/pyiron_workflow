@@ -200,7 +200,7 @@ class Composite(Node, ABC):
         execution_order = self._digraph_to_linear_order(digraph)
         self._order_run_signals_linearly(execution_order)
         self.nodes[execution_order[0]].run()
-        self._restore_run_signals(disconnected_pairs)
+        self._reconnect_run(disconnected_pairs)
 
     def _disconnect_run(self) -> list[tuple[Channel, Channel]]:
         disconnected_pairs = []
@@ -257,7 +257,7 @@ class Composite(Node, ABC):
             next_node = execution_order[i + 1]
             self.nodes[label] > self.nodes[next_node]
 
-    def _restore_run_signals(self, run_signal_pairs_to_restore):
+    def _reconnect_run(self, run_signal_pairs_to_restore):
         self._disconnect_run()
         for pairs in run_signal_pairs_to_restore:
             pairs[0].connect(pairs[1])
