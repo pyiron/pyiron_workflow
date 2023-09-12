@@ -232,10 +232,15 @@ class Composite(Node, ABC):
             as_labels = [nodes[i].label for i in execution_order]
             # Do dictionaries guarantee this to be in the same order as our earlier map?
             return as_labels
-        except CircularDependencyError:
+        except CircularDependencyError as e:
+            nodes = list(self.nodes.values())
+            cyclic_node_labels = {
+                nodes[k].label: " ".join([nodes[i].label for i in v])
+                for k, v in e.data.items()
+            }
             raise ValueError(
-                "Detected a cycle in the data flow topology, unable to automate the "
-                "execution of non-DAGs."
+                f"Detected a cycle in the data flow topology, unable to automate the "
+                f"execution of non-DAGs: cycles found among {cyclic_node_labels}"
             )
 
     def _reconnect_run(self, run_signal_pairs_to_restore):
