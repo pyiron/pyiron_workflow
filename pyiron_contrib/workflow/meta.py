@@ -301,7 +301,6 @@ def while_loop(
 
         macro.inputs_map = {} if inputs_map is None else inputs_map
         macro.outputs_map = {} if outputs_map is None else outputs_map
-        macro.automate_execution = False
 
     return macro_node()(make_loop)
 
