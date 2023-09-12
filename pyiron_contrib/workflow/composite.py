@@ -128,15 +128,6 @@ class Composite(Node, ABC):
             "nodes": {n.label: n.to_dict() for n in self.nodes.values()},
         }
 
-    @property
-    def upstream_nodes(self) -> list[Node]:
-        """
-        A list of owned nodes that receive no input from any other owned nodes.
-        """
-        return [
-            node for node in self.nodes.values() if not self.connects_to_input_of(node)
-        ]
-
     def has_locally_scoped_connection(self, node_connections: list[Channel]) -> bool:
         """
         Check whether connections are made to any (recursively) owned nodes.
@@ -185,11 +176,7 @@ class Composite(Node, ABC):
         if self.automate_execution:
             self._run_linearly_through_dag()
         else:
-            starting_nodes = (
-                self.upstream_nodes if self.starting_nodes is None
-                else self.starting_nodes
-            )
-            for node in starting_nodes:
+            for node in self.starting_nodes:
                 node.run()
 
         return DotDict(self.outputs.to_value_dict())
