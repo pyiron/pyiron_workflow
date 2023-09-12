@@ -130,6 +130,7 @@ class Macro(Composite):
             outputs_map=outputs_map,
         )
         graph_creator(self)
+        self._configure_graph_execution()
 
         self._inputs: Inputs = self._build_inputs()
         self._outputs: Outputs = self._build_outputs()
@@ -143,6 +144,27 @@ class Macro(Composite):
     @property
     def outputs(self) -> Outputs:
         return self._outputs
+
+    def _configure_graph_execution(self):
+        run_signals = self._disconnect_run()
+
+        has_signals = len(run_signals) > 0
+        has_starters = len(self.starting_nodes) > 0
+
+        if has_signals and has_starters:
+            # Assume the user knows what they're doing
+            self._reconnect_run(run_signals)
+        elif not has_signals and not has_starters:
+            # Automate construction of the execution graph
+            self._set_run_signals_to_linear()
+        else:
+            raise ValueError(
+                f"The macro '{self.label}' has {len(run_signals)} run signals "
+                f"internally and {len(self.starting_nodes)} starting nodes. Either "
+                f"the entire execution graph must be specified manually, or both run "
+                f"signals and starting nodes must be left entirely unspecified for "
+                f"automatic construction of the execution graph."
+            )
 
     def to_workfow(self):
         raise NotImplementedError
