@@ -53,19 +53,16 @@ class Composite(Node, ABC):
     requirement is still passed on to children.
 
     Attributes:
-        nodes (DotDict[pyiron_contrib.workflow.node,Node]): The owned nodes that
+        nodes (DotDict[pyiron_contrib.workflow.node.Node]): The owned nodes that
          form the composite subgraph.
         strict_naming (bool): When true, repeated assignment of a new node to an
          existing node label will raise an error, otherwise the label gets appended
          with an index and the assignment proceeds. (Default is true: disallow assigning
          to existing labels.)
         create (Creator): A tool for adding new nodes to this subgraph.
-        upstream_nodes (list[pyiron_contrib.workflow.node,Node]): All the owned
-         nodes that have output connections but no input connections, i.e. the
-         upstream-most nodes.
-        starting_nodes (None | list[pyiron_contrib.workflow.node,Node]): A subset
-         of the owned nodes to be used on running. (Default is None, running falls back
-         on using the `upstream_nodes`.)
+        starting_nodes (None | list[pyiron_contrib.workflow.node.Node]): A subset
+         of the owned nodes to be used on running. Only necessary if the execution graph
+         has been manually specified with `run` signals. (Default is an empty list.)
         wrap_as (Wrappers): A tool for accessing node-creating decorators
 
     Methods:
@@ -96,7 +93,7 @@ class Composite(Node, ABC):
         self.inputs_map = inputs_map
         self.outputs_map = outputs_map
         self.nodes: DotDict[str:Node] = DotDict()
-        self.starting_nodes: None | list[Node] = None
+        self.starting_nodes: list[Node] = []
         self._creator = self.create
         self.create = self._owned_creator  # Override the create method from the class
 
