@@ -89,14 +89,12 @@ class Composite(Node, ABC):
         strict_naming: bool = True,
         inputs_map: Optional[dict] = None,
         outputs_map: Optional[dict] = None,
-        automate_execution: bool = True,
         **kwargs,
     ):
         super().__init__(*args, label=label, parent=parent, **kwargs)
         self.strict_naming: bool = strict_naming
         self.inputs_map = inputs_map
         self.outputs_map = outputs_map
-        self.automate_execution = automate_execution
         self.nodes: DotDict[str:Node] = DotDict()
         self.starting_nodes: None | list[Node] = None
         self._creator = self.create
@@ -173,19 +171,9 @@ class Composite(Node, ABC):
 
     @staticmethod
     def run_graph(self):
-        if self.automate_execution:
-            self._run_linearly_through_dag()
-        else:
-            for node in self.starting_nodes:
-                node.run()
-
+        for node in self.starting_nodes:
+            node.run()
         return DotDict(self.outputs.to_value_dict())
-
-    def _run_linearly_through_dag(self):
-        disconnected_pairs = self._disconnect_run()
-        starting_node = self._set_run_signals_to_linear()
-        starting_node.run()
-        self._reconnect_run(disconnected_pairs)
 
     def _disconnect_run(self) -> list[tuple[Channel, Channel]]:
         disconnected_pairs = []

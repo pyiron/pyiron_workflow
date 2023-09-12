@@ -10,6 +10,7 @@ from typing import Optional, TYPE_CHECKING
 
 from pyiron_contrib.workflow.composite import Composite
 from pyiron_contrib.workflow.io import Inputs, Outputs
+from pyiron_contrib.workflow.util import DotDict
 
 
 if TYPE_CHECKING:
@@ -159,6 +160,7 @@ class Workflow(Composite):
         strict_naming: bool = True,
         inputs_map: Optional[dict] = None,
         outputs_map: Optional[dict] = None,
+        automate_execution: bool = True,
     ):
         super().__init__(
             label=label,
@@ -167,6 +169,7 @@ class Workflow(Composite):
             inputs_map=inputs_map,
             outputs_map=outputs_map,
         )
+        self.automate_execution = automate_execution
 
         for node in nodes:
             self.add(node)
@@ -178,6 +181,21 @@ class Workflow(Composite):
     @property
     def outputs(self) -> Outputs:
         return self._build_outputs()
+
+    @staticmethod
+    def run_graph(self):
+        if self.automate_execution:
+            self._run_linearly_through_dag()
+            output_dict = DotDict(self.outputs.to_value_dict())
+        else:
+            output_dict = super().run_graph()
+        return output_dict
+
+    def _run_linearly_through_dag(self):
+        disconnected_pairs = self._disconnect_run()
+        starting_node = self._set_run_signals_to_linear()
+        starting_node.run()
+        self._reconnect_run(disconnected_pairs)
 
     def to_node(self):
         """
