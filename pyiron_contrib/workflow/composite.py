@@ -229,7 +229,8 @@ class Composite(Node, ABC):
             node_dependencies = []
             for channel in node.inputs:
                 node_dependencies.extend(
-                    [upstream.node.label for upstream in channel.connections])
+                    [upstream.node.label for upstream in channel.connections]
+                )
             node_dependencies = set(node_dependencies)
             if node.label in node_dependencies:
                 raise RuntimeError(
