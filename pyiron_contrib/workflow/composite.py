@@ -201,9 +201,15 @@ class Composite(Node, ABC):
             node = self.nodes[label]
             node_dependencies = []
             for channel in node.inputs:
-                node_dependencies.extend(
-                    [upstream.node.label for upstream in channel.connections]
-                )
+                locally_scoped_upstream_node_labels = []
+                for upstream in channel.connections:
+                    try:
+                        locally_scoped_upstream_node_labels.append(
+                            upstream.get_node_belonging_to(self).label
+                        )
+                    except ValueError:
+                        pass
+                node_dependencies.extend(locally_scoped_upstream_node_labels)
             node_dependencies = set(node_dependencies)
             if node.label in node_dependencies:
                 raise RuntimeError(
