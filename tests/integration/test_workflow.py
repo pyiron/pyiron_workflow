@@ -169,11 +169,5 @@ class TestTopology(unittest.TestCase):
             }
             wf.outputs_map = {"add_while__total": "total"}
 
-            # add_while has cyclic data connection at the level of the workflow
-            # we could go back and hide this cyclicity in a macro
-            # or we can just specify the execution flow for the workflow:
-            wf.automate_execution = False
-            wf.starting_nodes = [wf.add_while]
-
             out = wf(a=1, b=2)
             self.assertEqual(out.total, 11)
