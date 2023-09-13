@@ -10,7 +10,6 @@ from typing import Optional, TYPE_CHECKING
 
 from pyiron_contrib.workflow.composite import Composite
 from pyiron_contrib.workflow.io import Inputs, Outputs
-from pyiron_contrib.workflow.util import DotDict
 
 
 if TYPE_CHECKING:
@@ -93,9 +92,7 @@ class Workflow(Composite):
         >>> print(len(wf.inputs), len(wf.outputs))
         1 1
 
-        We can define the execution flow by making connections between channels held
-        in the `signals` panels, but it's easier to use the `>` syntactic sugar:
-        >>> wf.first > wf.second
+        Then we just run the workflow
         >>> out = wf.run()
 
         The workflow joins node lavels and channel labels with a `_` character to
@@ -121,7 +118,7 @@ class Workflow(Composite):
         >>>
         >>> wf.structure = wf.create.atomistics.Bulk(
         ...     cubic=True,
-        ...     element="Al"
+        ...     name="Al"
         ... )
         >>> wf.engine = wf.create.atomistics.Lammps(structure=wf.structure)
         >>> wf.calc = wf.create.atomistics.CalcMd(
@@ -131,14 +128,25 @@ class Workflow(Composite):
         ...     x=wf.calc.outputs.steps,
         ...     y=wf.calc.outputs.temperature
         ... )
-        >>>
-        >>> wf.structure > wf.engine > wf.calc > wf.plot
+
+        We can give more convenient names to IO, and even access IO that would normally
+        be hidden (because it's connected) by specifying an `inputs_map` and/or
+        `outputs_map`. In the example above, let's make the resulting figure a bit
+        easier to find:
+        >>> wf.outputs_map = {"plot__fig": "fig"}
+        >>> wf().fig
 
         Workflows can be visualized in the notebook using graphviz:
         >>> wf.draw()
 
         The resulting object can be saved as an image, e.g.
         >>> wf.draw().render(filename="demo", format="png")
+
+        When your workflow's data follows a directed-acyclic pattern, it will determine
+        the execution flow automatically.
+        If you want or need more control, you can set the `automate_execution` flag to
+        `False` and manually specify an execution flow.
+        Cf. the
 
     TODO: Workflows can be serialized.
 
@@ -185,7 +193,7 @@ class Workflow(Composite):
     @staticmethod
     def run_graph(self):
         if self.automate_execution:
-            self._set_run_signals_to_linear()
+            self.set_run_signals_to_dag_execution()
         return super().run_graph(self)
 
     def to_node(self):

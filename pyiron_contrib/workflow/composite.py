@@ -40,11 +40,13 @@ class Composite(Node, ABC):
     instances, any created nodes get their `parent` attribute automatically set to the
     composite instance being used.
 
-    Specifies the required `on_run()` to call `run()` on a subset of owned nodes, i.e.
-    to kick-start computation on the owned sub-graph.
-    By default, `run()` will be called on all owned nodes have output connections but no
-    input connections (i.e. the upstream-most nodes), but this can be overridden to
-    specify particular nodes to use instead.
+    Specifies the required `on_run()` to call `run()` on a subset of owned
+    `starting_nodes`nodes to kick-start computation on the owned sub-graph.
+    Both the specification of these starting nodes and specifying execution signals to
+    propagate execution through the graph is left to the user/child classes.
+    In the case of non-cyclic workflows (i.e. DAGs in terms of data flow), both
+    starting nodes and execution flow can be specified by invoking ``
+
     The `run()` method (and `update()`, and calling the workflow) return a new
     dot-accessible dictionary of keys and values created from the composite output IO
     panel.
@@ -178,18 +180,47 @@ class Composite(Node, ABC):
             disconnected_pairs.extend(node.signals.disconnect_run())
         return disconnected_pairs
 
-    def _set_run_signals_to_linear(self):
+    def set_run_signals_to_dag_execution(self):
+        """
+        Disconnects all `signals.input.run` connections among children and attempts to
+        reconnect these according to the DAG flow of the data.
+
+        Raises:
+            ValueError: When the data connections do not form a DAG.
+        """
         self._disconnect_run()
-        execution_order = self._sort_nodes_linearly_by_data_digraph()
+        self._set_run_connections_and_starting_nodes_according_to_linear_dag()
+        # TODO: Replace this linear setup with something more powerful
+
+    def _set_run_connections_and_starting_nodes_according_to_linear_dag(self):
+        # This is the most primitive sort of topological exploitation we can do
+        # It is not efficient if the nodes have executors and can run in parallel
+        try:
+            # Topological sorting ensures that all input dependencies have been
+            # executed before the node depending on them gets run
+            # The flattened part is just that we don't care about topological
+            # generations that are mutually independent (inefficient but easier for now)
+            execution_order = toposort_flatten(self.get_data_digraph())
+        except CircularDependencyError as e:
+            raise ValueError(
+                f"Detected a cycle in the data flow topology, unable to automate the "
+                f"execution of non-DAGs: cycles found among {e.data}"
+            )
+
         for i, label in enumerate(execution_order[:-1]):
             next_node = execution_order[i + 1]
             self.nodes[label] > self.nodes[next_node]
         self.starting_nodes = [self.nodes[execution_order[0]]]
 
-    def _get_data_digraph(self) -> dict[int, set[int]]:
+    def get_data_digraph(self) -> dict[str, set[str]]:
         """
-        A dictionary of node indices and its data input dependencies as indices, where
-        the indices are drawn from order of appearance in `self.nodes`.
+        Builds a directed graph of node labels based on data connections between nodes
+        directly owned by this composite -- i.e. does not worry about data connections
+        which are entirely internal to an owned sub-graph.
+
+        Returns:
+            dict[str, set[str]]: A dictionary of nodes and the nodes they depend on for
+                data.
 
         Raises:
             ValueError: When a node appears in its own input.
@@ -220,24 +251,6 @@ class Composite(Node, ABC):
             digraph[node.label] = node_dependencies
 
         return digraph
-
-    def _sort_nodes_linearly_by_data_digraph(self) -> list[str]:
-        try:
-            # Topological sorting ensures that all input dependencies have been
-            # executed before the node depending on them gets run
-            # The flattened part is just that we don't care about topological
-            # generations that are mutually independent (inefficient but easier for now)
-            return toposort_flatten(self._get_data_digraph())
-        except CircularDependencyError as e:
-            raise ValueError(
-                f"Detected a cycle in the data flow topology, unable to automate the "
-                f"execution of non-DAGs: cycles found among {e.data}"
-            )
-
-    def _reconnect_run(self, run_signal_pairs_to_restore):
-        self._disconnect_run()
-        for pairs in run_signal_pairs_to_restore:
-            pairs[0].connect(pairs[1])
 
     @property
     def run_args(self) -> dict:
