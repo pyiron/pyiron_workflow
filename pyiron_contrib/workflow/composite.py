@@ -195,21 +195,19 @@ class Composite(Node, ABC):
             ValueError: When a node appears in its own input.
         """
         digraph = {}
-        label_index_map = {n.label: i for i, n in enumerate(self.nodes.values())}
 
-        for label, i in label_index_map.items():
-            node = self.nodes[label]
+        for node in self.nodes.values():
             node_dependencies = []
             for channel in node.inputs:
-                locally_scoped_upstream_node_labels = []
+                locally_scoped_dependencies = []
                 for upstream in channel.connections:
-                    try:
-                        locally_scoped_upstream_node_labels.append(
-                            upstream.get_node_belonging_to(self).label
+                    if upstream.node.parent is self:
+                        locally_scoped_dependencies.append(upstream.node.label)
+                    elif channel.node.get_first_shared_parent(upstream.node) is self:
+                        locally_scoped_dependencies.append(
+                            upstream.node.get_parent_proximate_to(self).label
                         )
-                    except ValueError:
-                        pass
-                node_dependencies.extend(locally_scoped_upstream_node_labels)
+                node_dependencies.extend(locally_scoped_dependencies)
             node_dependencies = set(node_dependencies)
             if node.label in node_dependencies:
                 # the toposort library has a
@@ -219,7 +217,7 @@ class Composite(Node, ABC):
                     f"Detected a cycle in the data flow topology, unable to automate "
                     f"the execution of non-DAGs: {node.label} appears in its own input."
                 )
-            digraph[i] = {label_index_map[l] for l in node_dependencies}
+            digraph[node.label] = node_dependencies
 
         return digraph
 
@@ -229,21 +227,11 @@ class Composite(Node, ABC):
             # executed before the node depending on them gets run
             # The flattened part is just that we don't care about topological
             # generations that are mutually independent (inefficient but easier for now)
-            digraph = self._get_data_digraph()
-            execution_order = toposort_flatten(digraph)
-            nodes = list(self.nodes.values())
-            as_labels = [nodes[i].label for i in execution_order]
-            # Do dictionaries guarantee this to be in the same order as our earlier map?
-            return as_labels
+            return toposort_flatten(self._get_data_digraph())
         except CircularDependencyError as e:
-            nodes = list(self.nodes.values())
-            cyclic_node_labels = {
-                nodes[k].label: " ".join([nodes[i].label for i in v])
-                for k, v in e.data.items()
-            }
             raise ValueError(
                 f"Detected a cycle in the data flow topology, unable to automate the "
-                f"execution of non-DAGs: cycles found among {cyclic_node_labels}"
+                f"execution of non-DAGs: cycles found among {e.data}"
             )
 
     def _reconnect_run(self, run_signal_pairs_to_restore):
