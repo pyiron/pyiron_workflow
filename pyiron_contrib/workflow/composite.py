@@ -125,45 +125,6 @@ class Composite(Node, ABC):
             "nodes": {n.label: n.to_dict() for n in self.nodes.values()},
         }
 
-    def has_locally_scoped_connection(self, node_connections: list[Channel]) -> bool:
-        """
-        Check whether connections are made to any (recursively) owned nodes.
-
-        Args:
-            node_connections [list[Channel]]: A list of connections.
-
-        Returns:
-            (bool): Whether or not any of those connections are locally scoped to the
-                nodes owned by this composite node.
-        """
-        return len(
-            set([connection.node for connection in node_connections]).intersection(
-                self.nodes.values()
-            )
-        ) > 0 or any(
-            node.has_locally_scoped_connection(node_connections)
-            for node in self.nodes.values()
-            if isinstance(node, Composite)
-        )
-
-    def connects_to_output_of(self, node: Node) -> bool:
-        """
-        Checks whether the passed node receives output from any of this composite node's
-        (recursively) owned nodes.
-        """
-        return self.has_locally_scoped_connection(
-            node.outputs.connections + node.signals.output.connections
-        )
-
-    def connects_to_input_of(self, node: Node) -> bool:
-        """
-        Checks whether the passed node receives input from any of this composite node's
-        (recursively) owned nodes.
-        """
-        return self.has_locally_scoped_connection(
-            node.inputs.connections + node.signals.input.connections
-        )
-
     @property
     def on_run(self):
         return self.run_graph
