@@ -74,9 +74,9 @@ def for_loop(
 
     Examples:
         >>> import numpy as np
-        >>> from pyiron_contrib.workflow.meta import for_loop
+        >>> from pyiron_contrib.workflow import Workflow
         >>>
-        >>> bulk_loop = for_loop(
+        >>> bulk_loop = Workflow.create.meta.for_loop(
         ...     Workflow.create.atomistics.Bulk,
         ...     5,
         ...     iterate_on = ("a",),
@@ -201,6 +201,8 @@ def while_loop(
         internal_connection_map (list[tuple[str, str, str, str]]): String tuples
             giving (input node, input channel, output node, output channel) labels
             connecting channel pairs inside the macro.
+        inputs_map Optional[dict[str, str]]: The inputs map as usual for a macro.
+        outputs_map Optional[dict[str, str]]: The outputs map as usual for a macro.
     Examples:
         >>> from pyiron_contrib.workflow import Workflow
         >>>
@@ -226,8 +228,7 @@ def while_loop(
         >>>
         >>> wf = Workflow("do_while")
         >>> wf.add_while = AddWhile()
-
-        >>> wf.starting_nodes = [wf.add_while]
+        >>>
         >>> wf.inputs_map = {
         ...     "add_while__a": "a",
         ...     "add_while__b": "b"
@@ -243,16 +244,13 @@ def while_loop(
         Finally, 11
 
         >>> import numpy as np
-        >>> np.random.seed(0)  # Just for docstring tests, so the output is predictable
-        >>>
         >>> from pyiron_contrib.workflow import Workflow
         >>>
-        >>> # Build tools
+        >>> np.random.seed(0)
         >>>
-        >>> @Workflow.wrap_as.single_value_node()
+        >>> @Workflow.wrap_as.single_value_node("random")
         >>> def random(length: int | None = None):
-        ...     random = np.random.random(length)
-        ...     return random
+        ...     return np.random.random(length)
         >>>
         >>> @Workflow.wrap_as.single_value_node()
         >>> def greater_than(x: float, threshold: float):
@@ -261,7 +259,12 @@ def while_loop(
         ...     print(f"{x:.3f} {symbol} {threshold}")
         ...     return gt
         >>>
-        >>> RandomWhile = Workflow.create.meta.while_loop(random)
+        >>> RandomWhile = Workflow.create.meta.while_loop(
+        ...     loop_body_class=random,
+        ...     condition_class=greater_than,
+        ...     internal_connection_map=[("Random", "random", "GreaterThan", "x")],
+        ...     outputs_map={"Random__random": "capped_result"}
+        ... )
         >>>
         >>> # Define workflow
         >>>
@@ -269,22 +272,30 @@ def while_loop(
         >>>
         >>> ## Wire together the while loop and its condition
         >>>
-        >>> wf.gt = greater_than()
-        >>> wf.random_while = RandomWhile(condition=wf.gt)
-        >>> wf.gt.inputs.x = wf.random_while.Random
-        >>>
-        >>> wf.starting_nodes = [wf.random_while]
+        >>> wf.random_while = RandomWhile()
         >>>
         >>> ## Give convenient labels
-        >>> wf.inputs_map = {"gt__threshold": "threshold"}
-        >>> wf.outputs_map = {"random_while__Random__random": "capped_value"}
+        >>> wf.inputs_map = {"random_while__GreaterThan__threshold": "threshold"}
+        >>> wf.outputs_map = {"random_while__capped_result": "capped_result"}
+        >>> 
         >>> # Set a threshold and run
-        >>>
-        >>> print(f"Finally {wf(threshold=0.1).capped_value:.3f}")
-
-        Note that we _need_ to specify a starting node whenever our graph is cyclic and
-        _all_ our nodes have connected input! We obviously cannot automatically detect
-        the "upstream-most" node in a circle!
+        >>> print(f"Finally {wf(threshold=0.1).capped_result:.3f}")
+        0.549 > 0.1
+        0.715 > 0.1
+        0.603 > 0.1
+        0.545 > 0.1
+        0.424 > 0.1
+        0.646 > 0.1
+        0.438 > 0.1
+        0.892 > 0.1
+        0.964 > 0.1
+        0.383 > 0.1
+        0.792 > 0.1
+        0.529 > 0.1
+        0.568 > 0.1
+        0.926 > 0.1
+        0.071 <= 0.1
+        Finally 0.071
     """
 
     def make_loop(macro):
