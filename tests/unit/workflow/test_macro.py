@@ -82,7 +82,10 @@ class TestMacro(unittest.TestCase):
         m = Macro(
             add_three_macro,
             inputs_map={"one__x": "my_input"},
-            outputs_map={"three__result": "my_output", "two__result": "intermediate"},
+            outputs_map={
+                "three__result": "my_output",
+                "two__result": "intermediate"
+            },
         )
         self.assertSetEqual(
             set(m.inputs.labels),
@@ -108,6 +111,23 @@ class TestMacro(unittest.TestCase):
                 add_one(add_one(x)),
                 msg="New, internally connected output that was specifically requested "
                     "should be accessible"
+            )
+
+        with self.subTest("IO can be disabled"):
+            m = Macro(
+                add_three_macro,
+                inputs_map={"one__x": None},
+                outputs_map={"three__result": None},
+            )
+            self.assertEqual(
+                len(m.inputs.labels),
+                0,
+                msg="Only inputs should have been disabled"
+            )
+            self.assertEqual(
+                len(m.outputs.labels),
+                0,
+                msg="Only outputs should have been disabled"
             )
 
     def test_nesting(self):

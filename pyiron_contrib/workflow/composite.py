@@ -269,7 +269,8 @@ class Composite(Node, ABC):
                 channel = panel[channel_label]
                 default_key = f"{node.label}__{channel_label}"
                 try:
-                    io[key_map[default_key]] = channel
+                    if key_map[default_key] is not None:
+                        io[key_map[default_key]] = channel
                 except KeyError:
                     if not channel.connected:
                         io[default_key] = channel
