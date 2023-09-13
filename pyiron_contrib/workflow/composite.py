@@ -212,6 +212,9 @@ class Composite(Node, ABC):
                 node_dependencies.extend(locally_scoped_upstream_node_labels)
             node_dependencies = set(node_dependencies)
             if node.label in node_dependencies:
+                # the toposort library has a
+                # [known issue](https://gitlab.com/ericvsmith/toposort/-/issues/3)
+                # That self-dependency isn't caught, so we catch it manually here.
                 raise ValueError(
                     f"Detected a cycle in the data flow topology, unable to automate "
                     f"the execution of non-DAGs: {node.label} appears in its own input."
