@@ -277,7 +277,7 @@ def while_loop(
         >>> ## Give convenient labels
         >>> wf.inputs_map = {"random_while__GreaterThan__threshold": "threshold"}
         >>> wf.outputs_map = {"random_while__capped_result": "capped_result"}
-        >>> 
+        >>>
         >>> # Set a threshold and run
         >>> print(f"Finally {wf(threshold=0.1).capped_result:.3f}")
         0.549 > 0.1
