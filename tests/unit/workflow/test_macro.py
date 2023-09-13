@@ -118,8 +118,16 @@ class TestMacro(unittest.TestCase):
                 one__x=macro.a,
                 outputs_map={"two__result": "intermediate_result"}
             )
-            macro.c = SingleValue(add_one, x=macro.b.outputs.three__result)
-            macro.a > macro.b > macro.c
+            macro.c = Macro(
+                add_three_macro,
+                one__x=macro.b.outputs.three__result,
+                outputs_map={"two__result": "intermediate_result"}
+            )
+            macro.d = SingleValue(
+                add_one,
+                x=macro.c.outputs.three__result,
+            )
+            macro.a > macro.b > macro.c > macro.d
             macro.starting_nodes = [macro.a]
             # This definition of the execution graph is not strictly necessary in this
             # simple DAG case; we just do it to make sure nesting definied/automatic
@@ -127,23 +135,46 @@ class TestMacro(unittest.TestCase):
             macro.outputs_map = {"b__intermediate_result": "deep_output"}
 
         m = Macro(nested_macro)
-        self.assertEqual(m(a__x=0).c__result, 5)
+        self.assertEqual(m(a__x=0).d__result, 8)
 
-        with self.subTest("Test Channel.get_node_belonging_to"):
-            deep_channel = m.outputs.deep_output
-            self.assertIs(
-                m.b.two,
-                deep_channel.node,
-                msg="Channel node should be the node that holds it directly."
-            )
+        m2 = Macro(nested_macro)
+
+        with self.subTest("Test Node.get_parent_proximate_to"):
             self.assertIs(
                 m.b,
-                deep_channel.get_node_belonging_to(m)
+                m.b.two.get_parent_proximate_to(m),
+                msg="Should return parent closest to the passed composite"
             )
 
-            with self.assertRaises(ValueError):
-                m2 = Macro(nested_macro)  # Not in deep_channel's parentage!
-                deep_channel.get_node_belonging_to(m2)
+            self.assertIsNone(
+                m.b.two.get_parent_proximate_to(m2),
+                msg="Should return None when composite is not in parentage"
+            )
+
+        with self.subTest("Test Node.get_first_shared_parent"):
+            self.assertIs(
+                m.b,
+                m.b.two.get_first_shared_parent(m.b.three),
+                msg="Should get the parent when parents are the same"
+            )
+            self.assertIs(
+                m,
+                m.b.two.get_first_shared_parent(m.c.two),
+                msg="Should find first matching object in parentage"
+            )
+            self.assertIs(
+                m,
+                m.b.two.get_first_shared_parent(m.d),
+                msg="Should work when depth is not equal"
+            )
+            self.assertIsNone(
+                m.b.two.get_first_shared_parent(m2.b.two),
+                msg="Should return None when no shared parent exists"
+            )
+            self.assertIsNone(
+                m.get_first_shared_parent(m.b),
+                msg="Should return None when parent is None"
+            )
 
     def test_execution_automation(self):
         fully_automatic = add_three_macro
