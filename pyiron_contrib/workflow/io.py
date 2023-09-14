@@ -249,10 +249,7 @@ class Signals:
             [list[tuple[Channel, Channel]]]: A list of the pairs of channels that no
                 longer participate in a connection.
         """
-        destroyed_connections = []
-        destroyed_connections.extend(self.input.disconnect())
-        destroyed_connections.extend(self.output.disconnect())
-        return destroyed_connections
+        return self.input.disconnect() + self.output.disconnect()
 
     def disconnect_run(self) -> list[tuple[Channel, Channel]]:
         return self.input.disconnect_run()
