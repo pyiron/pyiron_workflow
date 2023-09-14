@@ -106,6 +106,11 @@ class Channel(HasChannel, HasToDict, ABC):
                 self.connections.remove(other)
                 other.disconnect(self)
                 destroyed_connections.append((self, other))
+            else:
+                warn(
+                    f"The channel {self.label} was not connected to {other.label}, and"
+                    f"thus could not disconnect from it."
+                )
         return destroyed_connections
 
     def disconnect_all(self) -> list[tuple[Channel, Channel]]:
