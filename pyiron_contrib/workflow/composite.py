@@ -9,6 +9,8 @@ from abc import ABC
 from functools import partial
 from typing import Literal, Optional, TYPE_CHECKING
 
+from toposort import toposort_flatten, CircularDependencyError
+
 from pyiron_contrib.workflow.interfaces import Creator, Wrappers
 from pyiron_contrib.workflow.io import Outputs, Inputs
 from pyiron_contrib.workflow.node import Node
@@ -38,11 +40,13 @@ class Composite(Node, ABC):
     instances, any created nodes get their `parent` attribute automatically set to the
     composite instance being used.
 
-    Specifies the required `on_run()` to call `run()` on a subset of owned nodes, i.e.
-    to kick-start computation on the owned sub-graph.
-    By default, `run()` will be called on all owned nodes have output connections but no
-    input connections (i.e. the upstream-most nodes), but this can be overridden to
-    specify particular nodes to use instead.
+    Specifies the required `on_run()` to call `run()` on a subset of owned
+    `starting_nodes`nodes to kick-start computation on the owned sub-graph.
+    Both the specification of these starting nodes and specifying execution signals to
+    propagate execution through the graph is left to the user/child classes.
+    In the case of non-cyclic workflows (i.e. DAGs in terms of data flow), both
+    starting nodes and execution flow can be specified by invoking ``
+
     The `run()` method (and `update()`, and calling the workflow) return a new
     dot-accessible dictionary of keys and values created from the composite output IO
     panel.
@@ -51,19 +55,16 @@ class Composite(Node, ABC):
     requirement is still passed on to children.
 
     Attributes:
-        nodes (DotDict[pyiron_contrib.workflow.node,Node]): The owned nodes that
+        nodes (DotDict[pyiron_contrib.workflow.node.Node]): The owned nodes that
          form the composite subgraph.
         strict_naming (bool): When true, repeated assignment of a new node to an
          existing node label will raise an error, otherwise the label gets appended
          with an index and the assignment proceeds. (Default is true: disallow assigning
          to existing labels.)
         create (Creator): A tool for adding new nodes to this subgraph.
-        upstream_nodes (list[pyiron_contrib.workflow.node,Node]): All the owned
-         nodes that have output connections but no input connections, i.e. the
-         upstream-most nodes.
-        starting_nodes (None | list[pyiron_contrib.workflow.node,Node]): A subset
-         of the owned nodes to be used on running. (Default is None, running falls back
-         on using the `upstream_nodes`.)
+        starting_nodes (None | list[pyiron_contrib.workflow.node.Node]): A subset
+         of the owned nodes to be used on running. Only necessary if the execution graph
+         has been manually specified with `run` signals. (Default is an empty list.)
         wrap_as (Wrappers): A tool for accessing node-creating decorators
 
     Methods:
@@ -94,7 +95,7 @@ class Composite(Node, ABC):
         self.inputs_map = inputs_map
         self.outputs_map = outputs_map
         self.nodes: DotDict[str:Node] = DotDict()
-        self.starting_nodes: None | list[Node] = None
+        self.starting_nodes: list[Node] = []
         self._creator = self.create
         self.create = self._owned_creator  # Override the create method from the class
 
@@ -125,65 +126,92 @@ class Composite(Node, ABC):
         }
 
     @property
-    def upstream_nodes(self) -> list[Node]:
-        """
-        A list of owned nodes that receive no input from any other owned nodes.
-        """
-        return [
-            node for node in self.nodes.values() if not self.connects_to_input_of(node)
-        ]
-
-    def has_locally_scoped_connection(self, node_connections: list[Channel]) -> bool:
-        """
-        Check whether connections are made to any (recursively) owned nodes.
-
-        Args:
-            node_connections [list[Channel]]: A list of connections.
-
-        Returns:
-            (bool): Whether or not any of those connections are locally scoped to the
-                nodes owned by this composite node.
-        """
-        return len(
-            set([connection.node for connection in node_connections]).intersection(
-                self.nodes.values()
-            )
-        ) > 0 or any(
-            node.has_locally_scoped_connection(node_connections)
-            for node in self.nodes.values()
-            if isinstance(node, Composite)
-        )
-
-    def connects_to_output_of(self, node: Node) -> bool:
-        """
-        Checks whether the passed node receives output from any of this composite node's
-        (recursively) owned nodes.
-        """
-        return self.has_locally_scoped_connection(
-            node.outputs.connections + node.signals.output.connections
-        )
-
-    def connects_to_input_of(self, node: Node) -> bool:
-        """
-        Checks whether the passed node receives input from any of this composite node's
-        (recursively) owned nodes.
-        """
-        return self.has_locally_scoped_connection(
-            node.inputs.connections + node.signals.input.connections
-        )
-
-    @property
     def on_run(self):
         return self.run_graph
 
     @staticmethod
     def run_graph(self):
-        starting_nodes = (
-            self.upstream_nodes if self.starting_nodes is None else self.starting_nodes
-        )
-        for node in starting_nodes:
+        for node in self.starting_nodes:
             node.run()
         return DotDict(self.outputs.to_value_dict())
+
+    def _disconnect_run(self) -> list[tuple[Channel, Channel]]:
+        disconnected_pairs = []
+        for node in self.nodes.values():
+            disconnected_pairs.extend(node.signals.disconnect_run())
+        return disconnected_pairs
+
+    def set_run_signals_to_dag_execution(self):
+        """
+        Disconnects all `signals.input.run` connections among children and attempts to
+        reconnect these according to the DAG flow of the data.
+
+        Raises:
+            ValueError: When the data connections do not form a DAG.
+        """
+        self._disconnect_run()
+        self._set_run_connections_and_starting_nodes_according_to_linear_dag()
+        # TODO: Replace this linear setup with something more powerful
+
+    def _set_run_connections_and_starting_nodes_according_to_linear_dag(self):
+        # This is the most primitive sort of topological exploitation we can do
+        # It is not efficient if the nodes have executors and can run in parallel
+        try:
+            # Topological sorting ensures that all input dependencies have been
+            # executed before the node depending on them gets run
+            # The flattened part is just that we don't care about topological
+            # generations that are mutually independent (inefficient but easier for now)
+            execution_order = toposort_flatten(self.get_data_digraph())
+        except CircularDependencyError as e:
+            raise ValueError(
+                f"Detected a cycle in the data flow topology, unable to automate the "
+                f"execution of non-DAGs: cycles found among {e.data}"
+            )
+
+        for i, label in enumerate(execution_order[:-1]):
+            next_node = execution_order[i + 1]
+            self.nodes[label] > self.nodes[next_node]
+        self.starting_nodes = [self.nodes[execution_order[0]]]
+
+    def get_data_digraph(self) -> dict[str, set[str]]:
+        """
+        Builds a directed graph of node labels based on data connections between nodes
+        directly owned by this composite -- i.e. does not worry about data connections
+        which are entirely internal to an owned sub-graph.
+
+        Returns:
+            dict[str, set[str]]: A dictionary of nodes and the nodes they depend on for
+                data.
+
+        Raises:
+            ValueError: When a node appears in its own input.
+        """
+        digraph = {}
+
+        for node in self.nodes.values():
+            node_dependencies = []
+            for channel in node.inputs:
+                locally_scoped_dependencies = []
+                for upstream in channel.connections:
+                    if upstream.node.parent is self:
+                        locally_scoped_dependencies.append(upstream.node.label)
+                    elif channel.node.get_first_shared_parent(upstream.node) is self:
+                        locally_scoped_dependencies.append(
+                            upstream.node.get_parent_proximate_to(self).label
+                        )
+                node_dependencies.extend(locally_scoped_dependencies)
+            node_dependencies = set(node_dependencies)
+            if node.label in node_dependencies:
+                # the toposort library has a
+                # [known issue](https://gitlab.com/ericvsmith/toposort/-/issues/3)
+                # That self-dependency isn't caught, so we catch it manually here.
+                raise ValueError(
+                    f"Detected a cycle in the data flow topology, unable to automate "
+                    f"the execution of non-DAGs: {node.label} appears in its own input."
+                )
+            digraph[node.label] = node_dependencies
+
+        return digraph
 
     @property
     def run_args(self) -> dict:
@@ -202,7 +230,8 @@ class Composite(Node, ABC):
                 channel = panel[channel_label]
                 default_key = f"{node.label}__{channel_label}"
                 try:
-                    io[key_map[default_key]] = channel
+                    if key_map[default_key] is not None:
+                        io[key_map[default_key]] = channel
                 except KeyError:
                     if not channel.connected:
                         io[default_key] = channel

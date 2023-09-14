@@ -510,6 +510,33 @@ class TestSingleValue(unittest.TestCase):
         self.assertTrue(str(n_f.working_directory.path).endswith(n_f.label))
         n_f.working_directory.delete()
 
+    def test_disconnection(self):
+        n1 = Function(no_default, output_labels="out")
+        n2 = Function(no_default, output_labels="out")
+        n3 = Function(no_default, output_labels="out")
+        n4 = Function(plus_one)
+
+        n3.inputs.x = n1.outputs.out
+        n3.inputs.y = n2.outputs.out
+        n4.inputs.x = n3.outputs.out
+        n2 > n3 > n4
+        disconnected = n3.disconnect()
+        self.assertListEqual(
+            disconnected,
+            [
+                # Inputs
+                (n3.inputs.x, n1.outputs.out),
+                (n3.inputs.y, n2.outputs.out),
+                # Outputs
+                (n3.outputs.out, n4.inputs.x),
+                # Signals (inputs, then output)
+                (n3.signals.input.run, n2.signals.output.ran),
+                (n3.signals.output.ran, n4.signals.input.run),
+            ],
+            msg="Expected to find pairs (starting with the node disconnect was called "
+                "on) of all broken connections among input, output, and signals."
+        )
+
 
 if __name__ == '__main__':
     unittest.main()
