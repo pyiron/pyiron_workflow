@@ -376,3 +376,20 @@ class Node(HasToDict, ABC):
         """
         other.connect_output_signal(self.signals.output.ran)
         return True
+
+    def get_parent_proximate_to(self, composite: Composite) -> Composite | None:
+        parent = self.parent
+        while parent is not None and parent.parent is not composite:
+            parent = parent.parent
+        return parent
+
+    def get_first_shared_parent(self, other: Node) -> Composite | None:
+        our, their = self, other
+        while our.parent is not None:
+            while their.parent is not None:
+                if our.parent is their.parent:
+                    return our.parent
+                their = their.parent
+            our = our.parent
+            their = other
+        return None

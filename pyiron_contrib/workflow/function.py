@@ -92,7 +92,7 @@ class Function(Node):
         inputs (Inputs): A collection of input data channels.
         outputs (Outputs): A collection of output data channels.
         signals (Signals): A holder for input and output collections of signal channels.
-        ready (bool): All input reports ready, not running or failed.
+        ready (bool): All input reports ready, node is not running or failed.
         running (bool): Currently running.
         failed (bool): An exception was thrown when executing the node function.
         connected (bool): Any IO channel has at least one connection.
@@ -103,6 +103,7 @@ class Function(Node):
         run: Parse and process the input, execute the engine, process the results and
             update the output.
         disconnect: Disconnect all data and signal IO connections.
+        update_input: Allows input channels' values to be updated without any running.
 
     Examples:
         At the most basic level, to use nodes all we need to do is provide the

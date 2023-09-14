@@ -18,7 +18,6 @@ def add_three_macro(macro):
     macro.add(SingleValue(add_one, macro.two, label="three"))
     # Cover a handful of addition methods,
     # although these are more thoroughly tested in Workflow tests
-    macro.one > macro.two > macro.three
 
 
 @unittest.skipUnless(version_info[0] == 3 and version_info[1] >= 10, "Only supported for 3.10+")
@@ -35,14 +34,14 @@ class TestMacro(unittest.TestCase):
         m2 = Macro(add_three_macro, label=label)
         self.assertEqual(m2.label, label, msg="Should be able to specify a label")
 
-    def test_by_function(self):
+    def test_wrapper_function(self):
         m = Macro(add_three_macro)
 
         self.assertIs(
             m.outputs.three__result.value,
             NotData,
             msg="Output should be accessible with the usual naming convention, but we "
-                "asked the node not to run yet so there shouldn't be any data"
+                "have not run yet so there shouldn't be any data"
         )
 
         input_x = 1
@@ -60,7 +59,7 @@ class TestMacro(unittest.TestCase):
             msg="Macros should get output updated, just like other nodes"
         )
 
-    def test_by_subclass(self):
+    def test_subclass(self):
         class MyMacro(Macro):
             def build_graph(self):
                 add_three_macro(self)
@@ -83,7 +82,10 @@ class TestMacro(unittest.TestCase):
         m = Macro(
             add_three_macro,
             inputs_map={"one__x": "my_input"},
-            outputs_map={"three__result": "my_output", "two__result": "intermediate"},
+            outputs_map={
+                "three__result": "my_output",
+                "two__result": "intermediate"
+            },
         )
         self.assertSetEqual(
             set(m.inputs.labels),
@@ -111,118 +113,129 @@ class TestMacro(unittest.TestCase):
                     "should be accessible"
             )
 
+        with self.subTest("IO can be disabled"):
+            m = Macro(
+                add_three_macro,
+                inputs_map={"one__x": None},
+                outputs_map={"three__result": None},
+            )
+            self.assertEqual(
+                len(m.inputs.labels),
+                0,
+                msg="Only inputs should have been disabled"
+            )
+            self.assertEqual(
+                len(m.outputs.labels),
+                0,
+                msg="Only outputs should have been disabled"
+            )
+
     def test_nesting(self):
         def nested_macro(macro):
             macro.a = SingleValue(add_one)
-            macro.b = Macro(add_three_macro, one__x=macro.a)
-            macro.c = SingleValue(add_one, x=macro.b.outputs.three__result)
-            macro.a > macro.b > macro.c
+            macro.b = Macro(
+                add_three_macro,
+                one__x=macro.a,
+                outputs_map={"two__result": "intermediate_result"}
+            )
+            macro.c = Macro(
+                add_three_macro,
+                one__x=macro.b.outputs.three__result,
+                outputs_map={"two__result": "intermediate_result"}
+            )
+            macro.d = SingleValue(
+                add_one,
+                x=macro.c.outputs.three__result,
+            )
+            macro.a > macro.b > macro.c > macro.d
+            macro.starting_nodes = [macro.a]
+            # This definition of the execution graph is not strictly necessary in this
+            # simple DAG case; we just do it to make sure nesting definied/automatic
+            # macros works ok
+            macro.outputs_map = {"b__intermediate_result": "deep_output"}
 
         m = Macro(nested_macro)
-        self.assertEqual(m(a__x=0).c__result, 5)
+        self.assertEqual(m(a__x=0).d__result, 8)
 
-    def test_upstream_detection(self):
-        def my_macro(macro):
-            macro.a = SingleValue(add_one, x=0)
-            macro.b = SingleValue(add_one, x=macro.a)
+        m2 = Macro(nested_macro)
 
-        m = Macro(my_macro)
-        self.assertTrue(
-            m.connects_to_input_of(m.b),
-            msg="b should have input from a"
-        )
-        self.assertFalse(
-            m.connects_to_output_of(m.b),
-            msg="b should not show any local output connections"
-        )
-        self.assertFalse(
-            m.connects_to_input_of(m.a),
-            msg="a should not show any local input connections"
-        )
-        self.assertTrue(
-            m.connects_to_output_of(m.a),
-            msg="b should have input from a"
+        with self.subTest("Test Node.get_parent_proximate_to"):
+            self.assertIs(
+                m.b,
+                m.b.two.get_parent_proximate_to(m),
+                msg="Should return parent closest to the passed composite"
+            )
+
+            self.assertIsNone(
+                m.b.two.get_parent_proximate_to(m2),
+                msg="Should return None when composite is not in parentage"
+            )
+
+        with self.subTest("Test Node.get_first_shared_parent"):
+            self.assertIs(
+                m.b,
+                m.b.two.get_first_shared_parent(m.b.three),
+                msg="Should get the parent when parents are the same"
+            )
+            self.assertIs(
+                m,
+                m.b.two.get_first_shared_parent(m.c.two),
+                msg="Should find first matching object in parentage"
+            )
+            self.assertIs(
+                m,
+                m.b.two.get_first_shared_parent(m.d),
+                msg="Should work when depth is not equal"
+            )
+            self.assertIsNone(
+                m.b.two.get_first_shared_parent(m2.b.two),
+                msg="Should return None when no shared parent exists"
+            )
+            self.assertIsNone(
+                m.get_first_shared_parent(m.b),
+                msg="Should return None when parent is None"
+            )
+
+    def test_execution_automation(self):
+        fully_automatic = add_three_macro
+
+        def fully_defined(macro):
+            add_three_macro(macro)
+            macro.one > macro.two > macro.three
+            macro.starting_nodes = [macro.one]
+
+        def only_order(macro):
+            add_three_macro(macro)
+            macro.two > macro.three
+
+        def only_starting(macro):
+            add_three_macro(macro)
+            macro.starting_nodes = [macro.one]
+
+        m_auto = Macro(fully_automatic)
+        m_user = Macro(fully_defined)
+
+        x = 0
+        expected = add_one(add_one(add_one(x)))
+        self.assertEqual(
+            m_auto(one__x=x).three__result,
+            expected,
+            "DAG macros should run fine without user specification of execution."
         )
         self.assertEqual(
-            len(m.upstream_nodes),
-            1,
-            msg="Only the a-node should have connected output but no connected input"
-        )
-        self.assertIs(m.upstream_nodes[0], m.a)
-
-        m2 = Macro(my_macro)
-        m.inputs.a__x = m2.outputs.b__result
-        self.assertIs(
-            m.upstream_nodes[0],
-            m.a,
-            msg="External connections should not impact upstream-ness"
-        )
-        self.assertTrue(
-            m.connects_to_output_of(m2.b),
-            msg="Should be able to check if external nodes have local connections"
+            m_user(one__x=x).three__result,
+            expected,
+            "Macros should run fine if the user nicely specifies the exeuction graph."
         )
 
-        m.inputs.a__x = m.outputs.b__result  # Infinite loop self-connection
-        self.assertEqual(
-            len(m.upstream_nodes),
-            0,
-            msg="Internal connections _should_ impact upstream-ness"
-        )
+        with self.subTest("Partially specified execution should fail"):
+            # We don't yet check for _crappy_ user-defined execution,
+            # But we should make sure it's at least valid in principle
+            with self.assertRaises(ValueError):
+                Macro(only_order)
 
-        m.b.disconnect()
-        self.assertEqual(
-            m.upstream_nodes[0],
-            m.a,
-            msg="After disconnecting the b-node, the a-node no longer has internal "
-                "input and should register as upstream again, regardless of whether its "
-                "output is connected to anything (which it isn't, since we fully "
-                "disconnected m.b)"
-        )
-
-        def deep_macro(macro):
-            macro.a = SingleValue(add_one, x=0)
-            macro.m = Macro(my_macro)
-            macro.m.inputs.a__x = macro.a
-
-        nested = Macro(deep_macro)
-        plain = Macro(my_macro)
-        plain.inputs.a__x = nested.m.outputs.b__result
-        print(nested.m.outputs.labels)
-        self.assertTrue(
-            nested.connects_to_input_of(plain),
-            msg="A child of the nested macro has a connection to the plain macros"
-                "input, so the entire nested macro should count as having a "
-                "connection to the plain macro's input."
-        )
-
-    def test_custom_start(self):
-        def modified_start_macro(macro):
-            macro.a = SingleValue(add_one, x=0)
-            macro.b = SingleValue(add_one, x=0)
-            macro.starting_nodes = [macro.b]
-
-        m = Macro(modified_start_macro)
-        self.assertIs(
-            m.outputs.a__result.value,
-            NotData,
-            msg="Node should not have run when the macro batch updated input"
-        )
-        self.assertIs(
-            m.outputs.b__result.value,
-            NotData,
-            msg="Node should not have run when the macro batch updated input"
-        )
-        m.run()
-        self.assertIs(
-            m.outputs.a__result.value,
-            NotData,
-            msg="Was not included in starting nodes, should not have run"
-        )
-        self.assertEqual(
-            m.outputs.b__result.value,
-            1,
-            msg="Was included in starting nodes, should have run"
-        )
+            with self.assertRaises(ValueError):
+                Macro(only_starting)
 
 
 if __name__ == '__main__':

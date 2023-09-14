@@ -57,7 +57,7 @@ class TestTopology(unittest.TestCase):
             print(f"sqrt({value}) = {sqrt}")
             return sqrt
 
-        wf = Workflow("rand_until_big_then_sqrt")
+        wf = Workflow("rand_until_big_then_sqrt", automate_execution=False)
 
         wf.rand = numpy_randint()
 
@@ -69,8 +69,9 @@ class TestTopology(unittest.TestCase):
 
         wf.gt_switch.signals.output.false > wf.rand > wf.gt_switch  # Loop on false
         wf.gt_switch.signals.output.true > wf.sqrt  # On true break to sqrt node
+        wf.starting_nodes = [wf.rand]
 
-        wf.rand.run()
+        wf.run()
         self.assertAlmostEqual(
             np.sqrt(wf.rand.outputs.rand.value), wf.sqrt.outputs.sqrt.value, 6
         )
@@ -129,8 +130,6 @@ class TestTopology(unittest.TestCase):
 
             wf.random_while = RandomWhile()
 
-            wf.starting_nodes = [wf.random_while]
-
             ## Give convenient labels
             wf.inputs_map = {"random_while__GreaterThan__threshold": "threshold"}
             wf.outputs_map = {"random_while__capped_result": "capped_result"}
@@ -164,7 +163,6 @@ class TestTopology(unittest.TestCase):
             wf = Workflow("do_while")
             wf.add_while = AddWhile()
 
-            wf.starting_nodes = [wf.add_while]
             wf.inputs_map = {
                 "add_while__a": "a",
                 "add_while__b": "b"
