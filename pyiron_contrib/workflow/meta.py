@@ -4,6 +4,8 @@ Meta nodes are callables that create a node class instead of a node instance.
 
 from __future__ import annotations
 
+from typing import Optional
+
 from pyiron_contrib.workflow.function import (
     Function,
     SingleValue,
@@ -71,7 +73,10 @@ def for_loop(
       (i.e. the specified input and all output) is all caps
 
     Examples:
-        >>> bulk_loop = for_loop(
+        >>> import numpy as np
+        >>> from pyiron_contrib.workflow import Workflow
+        >>>
+        >>> bulk_loop = Workflow.create.meta.for_loop(
         ...     Workflow.create.atomistics.Bulk,
         ...     5,
         ...     iterate_on = ("a",),
@@ -154,6 +159,12 @@ def for_loop(
             # Connect each body node output to the output interface's respective input
             for body_node, inp in zip(body_nodes, interface.inputs):
                 inp.connect(body_node.outputs[label])
+                if body_node.executor is not None:
+                    raise NotImplementedError(
+                        "Right now the output interface gets run after each body node,"
+                        "if the body nodes can run asynchronously we need something "
+                        "more clever than that!"
+                    )
             macro.outputs_map[
                 f"{interface.label}__{loop_body_class.__name__}__{label}"
             ] = interface.label
@@ -164,37 +175,82 @@ def for_loop(
 
 def while_loop(
     loop_body_class: type[Node],
+    condition_class: type[SingleValue],
+    internal_connection_map: dict[str, str],
+    inputs_map: Optional[dict[str, str]] = None,
+    outputs_map: Optional[dict[str, str]] = None,
 ) -> type[Macro]:
     """
     An _extremely rough_ first draft of a for-loop meta-node.
 
-    Takes a node class and builds a macro that makes a cyclic signal connection between
-    that body node and an "if" node, i.e. when the body node finishes it runs the
-    if-node, and when the if-node finishes and evaluates `True` then it runs the body
-    node.
-    The if-node condition is exposed as input on the resulting macro with the label
-    "condition", but it is left to the user to connect...
-    - The condition to some output of another node, either an internal node of the body
-        node (if it's a macro) or any other node in the workflow
-    - The (sub)input of the body node to the (sub)output of the body node, so it
-      actually does something different at each iteration
+    Takes body and condition node classes and builds a macro that makes a cyclic signal
+    connection between them and an "if" switch, i.e. when the body node finishes it
+    runs the condtion, which runs the switch, and as long as the condition result was
+    `True`, the switch loops back to run the body again.
+    We additionally allow four-tuples of (input node, input channel, output node,
+    output channel) labels to wire data connections inside the macro, e.g. to pass data
+    from the body to the condition. This is beastly syntax, but it will suffice for now.
+    Finally, you can set input and output maps as normal.
 
     Args:
         loop_body_class (type[pyiron_contrib.workflow.node.Node]): The class for the
             body of the while-loop.
-
+        condition_class (type[pyiron_contrib.workflow.function.SingleValue]): A single
+            value node returning a `bool` controlling the while loop exit condition
+            (exits on False)
+        internal_connection_map (list[tuple[str, str, str, str]]): String tuples
+            giving (input node, input channel, output node, output channel) labels
+            connecting channel pairs inside the macro.
+        inputs_map Optional[dict[str, str]]: The inputs map as usual for a macro.
+        outputs_map Optional[dict[str, str]]: The outputs map as usual for a macro.
     Examples:
-        >>> import numpy as np
-        >>> np.random.seed(0)  # Just for docstring tests, so the output is predictable
-        >>>
         >>> from pyiron_contrib.workflow import Workflow
         >>>
-        >>> # Build tools
+        >>> @Workflow.wrap_as.single_value_node()
+        >>> def add(a, b):
+        ...     print(f"{a} + {b} = {a + b}")
+        ...     return a + b
         >>>
         >>> @Workflow.wrap_as.single_value_node()
+        >>> def less_than_ten(value):
+        ...     return value < 10
+        >>>
+        >>> AddWhile = Workflow.create.meta.while_loop(
+        ...     loop_body_class=add,
+        ...     condition_class=less_than_ten,
+        ...     internal_connection_map=[
+        ...         ("Add", "a + b", "LessThanTen", "value"),
+        ...         ("Add", "a + b", "Add", "a")
+        ...     ],
+        ...     inputs_map={"Add__a": "a", "Add__b": "b"},
+        ...     outputs_map={"Add__a + b": "total"}
+        ... )
+        >>>
+        >>> wf = Workflow("do_while")
+        >>> wf.add_while = AddWhile()
+        >>>
+        >>> wf.inputs_map = {
+        ...     "add_while__a": "a",
+        ...     "add_while__b": "b"
+        ... }
+        >>> wf.outputs_map = {"add_while__total": "total"}
+        >>>
+        >>> print(f"Finally, {wf(a=1, b=2).total}")
+        1 + 2 = 3
+        3 + 2 = 5
+        5 + 2 = 7
+        7 + 2 = 9
+        9 + 2 = 11
+        Finally, 11
+
+        >>> import numpy as np
+        >>> from pyiron_contrib.workflow import Workflow
+        >>>
+        >>> np.random.seed(0)
+        >>>
+        >>> @Workflow.wrap_as.single_value_node("random")
         >>> def random(length: int | None = None):
-        ...     random = np.random.random(length)
-        ...     return random
+        ...     return np.random.random(length)
         >>>
         >>> @Workflow.wrap_as.single_value_node()
         >>> def greater_than(x: float, threshold: float):
@@ -203,7 +259,12 @@ def while_loop(
         ...     print(f"{x:.3f} {symbol} {threshold}")
         ...     return gt
         >>>
-        >>> RandomWhile = Workflow.create.meta.while_loop(random)
+        >>> RandomWhile = Workflow.create.meta.while_loop(
+        ...     loop_body_class=random,
+        ...     condition_class=greater_than,
+        ...     internal_connection_map=[("Random", "random", "GreaterThan", "x")],
+        ...     outputs_map={"Random__random": "capped_result"}
+        ... )
         >>>
         >>> # Define workflow
         >>>
@@ -211,18 +272,14 @@ def while_loop(
         >>>
         >>> ## Wire together the while loop and its condition
         >>>
-        >>> wf.gt = greater_than()
-        >>> wf.random_while = RandomWhile(condition=wf.gt)
-        >>> wf.gt.inputs.x = wf.random_while.Random
-        >>>
-        >>> wf.starting_nodes = [wf.random_while]
+        >>> wf.random_while = RandomWhile()
         >>>
         >>> ## Give convenient labels
-        >>> wf.inputs_map = {"gt__threshold": "threshold"}
-        >>> wf.outputs_map = {"random_while__Random__random": "capped_value"}
-        >>> # Set a threshold and run
+        >>> wf.inputs_map = {"random_while__GreaterThan__threshold": "threshold"}
+        >>> wf.outputs_map = {"random_while__capped_result": "capped_result"}
         >>>
-        >>> print(f"Finally {wf(threshold=0.1).capped_value:.3f}")
+        >>> # Set a threshold and run
+        >>> print(f"Finally {wf(threshold=0.1).capped_result:.3f}")
         0.549 > 0.1
         0.715 > 0.1
         0.603 > 0.1
@@ -239,55 +296,22 @@ def while_loop(
         0.926 > 0.1
         0.071 <= 0.1
         Finally 0.071
-
-        We can also loop data _internally_ in the body node.
-        In such cases, we can still _initialize_ the data to some other value, because
-        this has no impact on the connections -- so for the first run of the body node
-        we wind up using to initial value, but then the body node pushes elements of its
-        own output back to its own input for future runs.
-        E.g.)
-        >>> @Workflow.wrap_as.single_value_node(run_on_updates=False)
-        >>> def add(a, b):
-        ...     print(f"Adding {a} + {b}")
-        ...     return a + b
-        >>>
-        >>> @Workflow.wrap_as.single_value_node()
-        >>> def less_than_ten(value):
-        ...     return value < 10
-        >>>
-        >>> AddWhile = Workflow.create.meta.while_loop(add)
-        >>>
-        >>> wf = Workflow("do_while")
-        >>> wf.lt10 = less_than_ten()
-        >>> wf.add_while = AddWhile(condition=wf.lt10)
-        >>>
-        >>> wf.lt10.inputs.value = wf.add_while.Add
-        >>> wf.add_while.Add.inputs.a = wf.add_while.Add
-        >>>
-        >>> wf.starting_nodes = [wf.add_while]
-        >>> wf.inputs_map = {
-        ...     "add_while__Add__a": "a",
-        ...     "add_while__Add__b": "b"
-        ... }
-        >>> wf.outputs_map = {"add_while__Add__a + b": "total"}
-        >>> response = wf(a=1, b=2)
-        >>> print(response.total)
-        11
-
-        Note that we needed to specify a starting node because in this case our
-        graph is cyclic and _all_ our nodes have connected input! We obviously cannot
-        automatically detect the "upstream-most" node in a circle!
     """
 
     def make_loop(macro):
         body_node = macro.add(loop_body_class(label=loop_body_class.__name__))
-        macro.create.standard.If(label="if_", run_on_updates=False)
+        condition_node = macro.add(condition_class(label=condition_class.__name__))
+        switch = macro.create.standard.If(label="switch")
 
-        macro.if_.signals.output.true > body_node > macro.if_  # Loop until false
+        switch.inputs.condition = condition_node
+        for out_n, out_c, in_n, in_c in internal_connection_map:
+            macro.nodes[in_n].inputs[in_c] = macro.nodes[out_n].outputs[out_c]
+
+        switch.signals.output.true > body_node > condition_node > switch
         macro.starting_nodes = [body_node]
 
-        # Just for convenience:
-        macro.inputs_map = {"if___condition": "condition"}
+        macro.inputs_map = {} if inputs_map is None else inputs_map
+        macro.outputs_map = {} if outputs_map is None else outputs_map
 
     return macro_node()(make_loop)
 

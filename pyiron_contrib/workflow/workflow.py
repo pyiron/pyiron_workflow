@@ -76,7 +76,7 @@ class Workflow(Composite):
         workflow (cf. the `Node` docs for more detail on the node types).
         Let's use these to explore a workflow's input and output, which are dynamically
         generated from the unconnected IO of its nodes:
-        >>> @Workflow.wrap_as.function_node(output_labels="y")
+        >>> @Workflow.wrap_as.function_node("y")
         >>> def plus_one(x: int = 0):
         ...     return x + 1
         >>>
@@ -91,6 +91,9 @@ class Workflow(Composite):
         >>> wf.second.inputs.x = wf.first.outputs.y
         >>> print(len(wf.inputs), len(wf.outputs))
         1 1
+
+        Then we just run the workflow
+        >>> out = wf.run()
 
         The workflow joins node lavels and channel labels with a `_` character to
         provide direct access to the output:
@@ -115,24 +118,35 @@ class Workflow(Composite):
         >>>
         >>> wf.structure = wf.create.atomistics.Bulk(
         ...     cubic=True,
-        ...     element="Al"
+        ...     name="Al"
         ... )
         >>> wf.engine = wf.create.atomistics.Lammps(structure=wf.structure)
         >>> wf.calc = wf.create.atomistics.CalcMd(
         ...     job=wf.engine,
-        ...     run_on_updates=True,
-        ...     update_on_instantiation=True,
         ... )
         >>> wf.plot = wf.create.standard.Scatter(
         ...     x=wf.calc.outputs.steps,
         ...     y=wf.calc.outputs.temperature
         ... )
 
+        We can give more convenient names to IO, and even access IO that would normally
+        be hidden (because it's connected) by specifying an `inputs_map` and/or
+        `outputs_map`. In the example above, let's make the resulting figure a bit
+        easier to find:
+        >>> wf.outputs_map = {"plot__fig": "fig"}
+        >>> wf().fig
+
         Workflows can be visualized in the notebook using graphviz:
         >>> wf.draw()
 
         The resulting object can be saved as an image, e.g.
         >>> wf.draw().render(filename="demo", format="png")
+
+        When your workflow's data follows a directed-acyclic pattern, it will determine
+        the execution flow automatically.
+        If you want or need more control, you can set the `automate_execution` flag to
+        `False` and manually specify an execution flow.
+        Cf. the
 
     TODO: Workflows can be serialized.
 
@@ -151,19 +165,19 @@ class Workflow(Composite):
         self,
         label: str,
         *nodes: Node,
-        run_on_updates: bool = True,
         strict_naming: bool = True,
         inputs_map: Optional[dict] = None,
         outputs_map: Optional[dict] = None,
+        automate_execution: bool = True,
     ):
         super().__init__(
             label=label,
             parent=None,
-            run_on_updates=run_on_updates,
             strict_naming=strict_naming,
             inputs_map=inputs_map,
             outputs_map=outputs_map,
         )
+        self.automate_execution = automate_execution
 
         for node in nodes:
             self.add(node)
@@ -175,6 +189,12 @@ class Workflow(Composite):
     @property
     def outputs(self) -> Outputs:
         return self._build_outputs()
+
+    @staticmethod
+    def run_graph(self):
+        if self.automate_execution:
+            self.set_run_signals_to_dag_execution()
+        return super().run_graph(self)
 
     def to_node(self):
         """

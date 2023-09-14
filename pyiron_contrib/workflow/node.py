@@ -31,13 +31,14 @@ class Node(HasToDict, ABC):
     Nodes are elements of a computational graph.
     They have input and output data channels that interface with the outside
     world, and a callable that determines what they actually compute, and input and
-    output signal channels that can be used to customize the execution flow of the
+    output signal channels that can be used to customize the execution flow of their
     graph;
-    Together these channels represent edges on the computational graph.
+    Together these channels represent edges on the dual data and execution computational
+    graphs.
 
     Nodes can be run to force their computation, or more gently updated, which will
-    trigger a run only if the `run_on_update` flag is set to true and all of the input
-    is ready (i.e. channel values conform to any type hints provided).
+    trigger a run only if all of the input is ready (i.e. channel values conform to
+    any type hints provided).
 
     Nodes may have a `parent` node that owns them as part of a sub-graph.
 
@@ -51,21 +52,21 @@ class Node(HasToDict, ABC):
     These signal connections can be made manually by reference to the node signals
     channel, or with the `>` symbol to indicate a flow of execution. This syntactic
     sugar can be mixed between actual signal channels (output signal > input signal),
-    or nodes, but when refering to nodes it is always a shortcut to the `run`/`ran`
+    or nodes, but when referring to nodes it is always a shortcut to the `run`/`ran`
     channels.
 
     The `run()` method returns a representation of the node output (possible a futures
     object, if the node is running on an executor), and consequently `update()` also
-    returns this output if the node is `ready` and has `run_on_updates = True`.
+    returns this output if the node is `ready`.
 
     Calling an already instantiated node allows its input channels to be updated using
     keyword arguments corresponding to the channel labels, performing a batch-update of
-    all supplied input and then calling `update()`.
+    all supplied input and then calling `run()`.
     As such, calling the node _also_ returns a representation of the output (or `None`
     if the node is not set to run on updates, or is otherwise unready to run).
 
     Nodes have a status, which is currently represented by the `running` and `failed`
-    boolean flags.
+    boolean flag attributes.
     Their value is controlled automatically in the defined `run` and `finish_run`
     methods.
 
@@ -73,6 +74,8 @@ class Node(HasToDict, ABC):
     appropriate executor to their `executor` attribute.
     In case they are run with an executor, their `future` attribute will be populated
     with the resulting future object.
+    WARNING: Executors are currently only working when the node executable function does
+        not use `self`.
 
     This is an abstract class.
     Children *must* define how `inputs` and `outputs` are constructed, and what will
@@ -100,8 +103,6 @@ class Node(HasToDict, ABC):
             owning this, if any.
         ready (bool): Whether the inputs are all ready and the node is neither
             already running nor already failed.
-        run_on_updates (bool): Whether to run when you are updated and all your input
-            is ready and your status does not prohibit running. (Default is False).
         running (bool): Whether the node has called `run` and has not yet
             received output from this call. (Default is False.)
         server (Optional[pyiron_base.jobs.job.extension.server.generic.Server]): A
@@ -130,7 +131,6 @@ class Node(HasToDict, ABC):
         label: str,
         *args,
         parent: Optional[Composite] = None,
-        run_on_updates: bool = False,
         **kwargs,
     ):
         """
@@ -141,8 +141,6 @@ class Node(HasToDict, ABC):
             label (str): A name for this node.
             *args: Arguments passed on with `super`.
             **kwargs: Keyword arguments passed on with `super`.
-
-        TODO: Shouldn't `update_on_instantiation` and `run_on_updates` both live here??
         """
         super().__init__(*args, **kwargs)
         self.label: str = label
@@ -159,7 +157,6 @@ class Node(HasToDict, ABC):
         # TODO: Provide support for actually computing stuff with the server/executor
         self.signals = self._build_signal_channels()
         self._working_directory = None
-        self.run_on_updates: bool = run_on_updates
         self.executor: None | CloudpickleProcessPoolExecutor = None
         self.future: None | Future = None
 
@@ -258,7 +255,7 @@ class Node(HasToDict, ABC):
         return signals
 
     def update(self) -> Any | tuple | Future | None:
-        if self.run_on_updates and self.ready:
+        if self.ready:
             return self.run()
 
     @property
@@ -280,9 +277,18 @@ class Node(HasToDict, ABC):
         self._server = server
 
     def disconnect(self):
-        self.inputs.disconnect()
-        self.outputs.disconnect()
-        self.signals.disconnect()
+        """
+        Disconnect all connections belonging to inputs, outputs, and signals channels.
+
+        Returns:
+            [list[tuple[Channel, Channel]]]: A list of the pairs of channels that no
+                longer participate in a connection.
+        """
+        destroyed_connections = []
+        destroyed_connections.extend(self.inputs.disconnect())
+        destroyed_connections.extend(self.outputs.disconnect())
+        destroyed_connections.extend(self.signals.disconnect())
+        return destroyed_connections
 
     @property
     def ready(self) -> bool:
@@ -300,15 +306,14 @@ class Node(HasToDict, ABC):
             and self.signals.fully_connected
         )
 
-    def _batch_update_input(self, **kwargs):
+    def update_input(self, **kwargs) -> None:
         """
-        Temporarily disable running on updates to set all input values at once.
+        Match keywords to input channel labels and update input values.
 
         Args:
             **kwargs: input label - input value (including channels for connection)
              pairs.
         """
-        run_on_updates, self.run_on_updates = self.run_on_updates, False
         for k, v in kwargs.items():
             if k in self.inputs.labels:
                 self.inputs[k] = v
@@ -316,14 +321,12 @@ class Node(HasToDict, ABC):
                 warnings.warn(
                     f"The keyword '{k}' was not found among input labels. If you are "
                     f"trying to update a node keyword, please use attribute assignment "
-                    f"directly instead of calling, e.g. "
-                    f"`my_node_instance.run_on_updates = False`."
+                    f"directly instead of calling"
                 )
-        self.run_on_updates = run_on_updates  # Restore provided value
 
     def __call__(self, **kwargs) -> None:
-        self._batch_update_input(**kwargs)
-        return self.update()
+        self.update_input(**kwargs)
+        return self.run()
 
     @property
     def color(self) -> str:
@@ -373,3 +376,20 @@ class Node(HasToDict, ABC):
         """
         other.connect_output_signal(self.signals.output.ran)
         return True
+
+    def get_parent_proximate_to(self, composite: Composite) -> Composite | None:
+        parent = self.parent
+        while parent is not None and parent.parent is not composite:
+            parent = parent.parent
+        return parent
+
+    def get_first_shared_parent(self, other: Node) -> Composite | None:
+        our, their = self, other
+        while our.parent is not None:
+            while their.parent is not None:
+                if our.parent is their.parent:
+                    return our.parent
+                their = their.parent
+            our = our.parent
+            their = other
+        return None

@@ -2,9 +2,9 @@
 Channels are access points for information to flow into and out of nodes.
 
 Data channels carry, unsurprisingly, data.
-Input data channels force an update on their owning node when they are updated with new
-data, and output data channels update all the input data channels to which they are
-connected.
+Output data channels will attempt to push their new value to all their connected input
+data channels on update, while input data channels will reject any updates if their
+parent node is running.
 In this way, data channels facilitate forward propagation of data through a graph.
 They hold data persistently.
 
@@ -32,6 +32,7 @@ from pyiron_contrib.workflow.type_hinting import (
 )
 
 if typing.TYPE_CHECKING:
+    from pyiron_contrib.workflow.composite import Composite
     from pyiron_contrib.workflow.node import Node
 
 
@@ -87,24 +88,36 @@ class Channel(HasChannel, HasToDict, ABC):
         """
         pass
 
-    def disconnect(self, *others: Channel) -> None:
+    def disconnect(self, *others: Channel) -> list[tuple[Channel, Channel]]:
         """
         If currently connected to any others, removes this and the other from eachothers
         respective connections lists.
 
         Args:
             *others (Channel): The other channels to disconnect from.
+
+        Returns:
+            [list[tuple[Channel, Channel]]]: A list of the pairs of channels that no
+                longer participate in a connection.
         """
+        destroyed_connections = []
         for other in others:
             if other in self.connections:
                 self.connections.remove(other)
                 other.disconnect(self)
+                destroyed_connections.append((self, other))
+            else:
+                warn(
+                    f"The channel {self.label} was not connected to {other.label}, and"
+                    f"thus could not disconnect from it."
+                )
+        return destroyed_connections
 
-    def disconnect_all(self) -> None:
+    def disconnect_all(self) -> list[tuple[Channel, Channel]]:
         """
         Disconnect from all other channels currently in the connections list.
         """
-        self.disconnect(*self.connections)
+        return self.disconnect(*self.connections)
 
     @property
     def connected(self) -> bool:
@@ -155,7 +168,8 @@ class DataChannel(Channel, ABC):
     They may optionally have a type hint.
     They have a `ready` attribute which tells whether their value matches their type
     hint (if one is provided, else `True`).
-    They may optionally have a storage priority (but this doesn't do anything yet).
+    (In the future they may optionally have a storage priority.)
+    (In the future they may optionally have a storage history limit.)
     (In the future they may optionally have an ontological type.)
 
     The `value` held by a channel can be manually assigned, but should normally be set
@@ -266,7 +280,8 @@ class DataChannel(Channel, ABC):
                 self.connections.append(other)
                 other.connections.append(self)
                 out, inp = self._figure_out_who_is_who(other)
-                inp.update(out.value)
+                if out.value is not NotData:
+                    inp.update(out.value)
             else:
                 if isinstance(other, DataChannel):
                     warn(
@@ -316,14 +331,8 @@ class DataChannel(Channel, ABC):
 
 class InputData(DataChannel):
     """
-    On `update`, Input channels will then propagate their value along to their owning
-    node by invoking its `update` method.
-
-    `InputData` channels may be set to `wait_for_update()`, and they are only `ready`
-    when they are not `waiting_for_update`.
-    Their parent node can be told to always set them to wait for an update after the
-    node runs using `require_update_after_node_runs()`.
-    This allows nodes to complete the update of multiple channels before running again.
+    On `update`, Input channels will only `update` if their parent node is not
+    `running`.
 
     The `strict_connections` parameter controls whether connections are subject to
     type checking requirements.
@@ -347,27 +356,6 @@ class InputData(DataChannel):
             type_hint=type_hint,
         )
         self.strict_connections = strict_connections
-        self.waiting_for_update = False
-
-    def wait_for_update(self) -> None:
-        """
-        Sets `waiting_for_update` to `True`, which prevents `ready` from returning
-        `True` until `update` is called.
-        """
-        self.waiting_for_update = True
-
-    @property
-    def ready(self) -> bool:
-        """
-        Extends the parent class check for whether the value matches the type hint with
-        a check for whether the channel has been told to wait for an update (and not
-        been updated since then).
-
-        Returns:
-            (bool): True when the stored value matches the type hint and the channel
-                has not been told to wait for an update.
-        """
-        return not self.waiting_for_update and super().ready
 
     def _before_update(self) -> None:
         if self.node.running:
@@ -375,24 +363,6 @@ class InputData(DataChannel):
                 f"Parent node {self.node.label} of {self.label} is running, so value "
                 f"cannot be updated."
             )
-
-    def _after_update(self) -> None:
-        self.waiting_for_update = False
-        self.node.update()
-
-    def require_update_after_node_runs(self, wait_now=False) -> None:
-        """
-        Registers this channel with its owning node as one that should have
-        `wait_for_update()` applied after each time the node runs.
-
-        Args:
-            wait_now (bool): Also call `wait_for_update()` right now. (Default is
-                False.)
-        """
-        if self.label not in self.node.channels_requiring_update_after_run:
-            self.node.channels_requiring_update_after_run.append(self.label)
-        if wait_now:
-            self.wait_for_update()
 
     def activate_strict_connections(self) -> None:
         self.strict_connections = True
@@ -403,13 +373,15 @@ class InputData(DataChannel):
 
 class OutputData(DataChannel):
     """
-    On `update`, Output channels propagate their value to all the input channels to
-    which they are connected by invoking their `update` method.
+    On `update`, Output channels propagate their value (as long as it's actually data)
+    to all the input channels to which they are connected by invoking their `update`
+    method.
     """
 
     def _after_update(self) -> None:
-        for inp in self.connections:
-            inp.update(self.value)
+        if self._value_is_data:
+            for inp in self.connections:
+                inp.update(self.value)
 
 
 class SignalChannel(Channel, ABC):

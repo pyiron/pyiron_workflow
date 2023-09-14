@@ -35,7 +35,7 @@ class TestNodePackage(TestCase):
         with self.assertRaises(TypeError):
             self.package.available_name = "But we can still only assign node classes"
 
-        @function_node(output_label="y")
+        @function_node("y")
         def add(x: int = 0):
             return x + 1
 
@@ -58,6 +58,8 @@ class TestNodePackage(TestCase):
 
         new_dummy_instance = self.package.Dummy(label="new_dummy_instance")
 
+        old_dummy_instance.run()
+        new_dummy_instance.run()
         self.assertEqual(
             old_dummy_instance.outputs.x.value, 0, msg="Should have old functionality"
         )

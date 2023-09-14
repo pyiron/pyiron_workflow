@@ -45,8 +45,13 @@ class TestDataChannels(TestCase):
             self.assertEqual(self.no.value, self.ni1.value)
 
         with self.subTest("Test disconnection"):
-            self.ni2.disconnect(self.no)  # Should do nothing
-            self.ni1.disconnect(self.no)
+            disconnected = self.ni2.disconnect(self.no)
+            self.assertEqual(
+                len(disconnected),
+                0,
+                msg="There were no connections to begin with, nothing should be there"
+            )
+            disconnected = self.ni1.disconnect(self.no)
             self.assertEqual(
                 [], self.ni1.connections, msg="No connections should be left"
             )
@@ -55,6 +60,11 @@ class TestDataChannels(TestCase):
                 self.no.connections,
                 msg="Disconnection should also have been reflexive"
             )
+            self.assertListEqual(
+                disconnected,
+                [(self.ni1, self.no)],
+                msg="Expected a list of the disconnected pairs."
+            )
 
         with self.subTest("Test multiple connections"):
             self.no.connect(self.ni1, self.ni2)
@@ -62,6 +72,31 @@ class TestDataChannels(TestCase):
 
         with self.subTest("Test iteration"):
             self.assertTrue(all([con in self.no.connections for con in self.no]))
+
+        with self.subTest("Don't push NotData"):
+            self.no.disconnect_all()
+            self.no.value = NotData
+            self.ni1.value = 1
+            self.ni1.connect(self.no)
+            self.assertEqual(
+                self.ni1.value,
+                1,
+                msg="NotData should not be getting pushed on connection"
+            )
+            self.ni2.value = 2
+            self.no.value = 3
+            self.ni2.connect(self.no)
+            self.assertEqual(
+                self.ni2.value,
+                3,
+                msg="Actual data should be getting pushed"
+            )
+            self.no.update(NotData)
+            self.assertEqual(
+                self.ni2.value,
+                3,
+                msg="NotData should not be getting pushed on updates"
+            )
 
     def test_connection_validity_tests(self):
         self.ni1.type_hint = int | float | bool  # Override with a larger set
@@ -116,14 +151,6 @@ class TestDataChannels(TestCase):
 
         self.ni1.value = 1
         self.assertTrue(self.ni1.ready)
-
-        with self.subTest("Test the waiting mechanism"):
-            self.ni1.wait_for_update()
-            self.assertTrue(self.ni1.waiting_for_update)
-            self.assertFalse(self.ni1.ready)
-            self.ni1.update(2)
-            self.assertFalse(self.ni1.waiting_for_update)
-            self.assertTrue(self.ni1.ready)
 
         self.ni1.value = "Not numeric at all"
         self.assertFalse(self.ni1.ready)
