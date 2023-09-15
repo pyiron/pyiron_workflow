@@ -135,7 +135,13 @@ class Composite(Node, ABC):
             node.run()
         return DotDict(self.outputs.to_value_dict())
 
-    def _disconnect_run(self) -> list[tuple[Channel, Channel]]:
+    def disconnect_run(self) -> list[tuple[Channel, Channel]]:
+        """
+        Disconnect all `signals.input.run` connections on all child nodes.
+
+        Returns:
+            list[tuple[Channel, Channel]]: Any disconnected pairs.
+        """
         disconnected_pairs = []
         for node in self.nodes.values():
             disconnected_pairs.extend(node.signals.disconnect_run())
@@ -149,7 +155,7 @@ class Composite(Node, ABC):
         Raises:
             ValueError: When the data connections do not form a DAG.
         """
-        self._disconnect_run()
+        self.disconnect_run()
         self._set_run_connections_and_starting_nodes_according_to_linear_dag()
         # TODO: Replace this linear setup with something more powerful
 

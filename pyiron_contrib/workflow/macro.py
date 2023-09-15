@@ -167,7 +167,7 @@ class Macro(Composite):
         return self._outputs
 
     def _configure_graph_execution(self):
-        run_signals = self._disconnect_run()
+        run_signals = self.disconnect_run()
 
         has_signals = len(run_signals) > 0
         has_starters = len(self.starting_nodes) > 0
@@ -188,7 +188,7 @@ class Macro(Composite):
             )
 
     def _reconnect_run(self, run_signal_pairs_to_restore):
-        self._disconnect_run()
+        self.disconnect_run()
         for pairs in run_signal_pairs_to_restore:
             pairs[0].connect(pairs[1])
 
