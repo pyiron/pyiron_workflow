@@ -7,12 +7,12 @@ import versioneer
 setup(
     name='pyiron_workflow',
     version=versioneer.get_version(),
-    description='pyiron_workflow - module extension to pyiron.',
+    description='Graph-and-node based workflow tools.',
     long_description='http://pyiron.org',
 
     url='https://github.com/pyiron/pyiron_workflow',
     author='Max-Planck-Institut für Eisenforschung GmbH - Computational Materials Design (CM) Department',
-    author_email='@mpie.de',
+    author_email='liamhuber@greyhavensolutions.com',
     license='BSD',
 
     classifiers=[
@@ -21,7 +21,6 @@ setup(
         'License :: OSI Approved :: BSD License',
         'Intended Audience :: Science/Research',
         'Operating System :: OS Independent',
-        'Programming Language :: Python :: 3.9',
         'Programming Language :: Python :: 3.10',
         'Programming Language :: Python :: 3.11',
     ],
@@ -29,7 +28,13 @@ setup(
     keywords='pyiron',
     packages=find_packages(exclude=["*tests*", "*docs*", "*binder*", "*conda*", "*notebooks*", "*.ci_support*"]),
     install_requires=[
-        'pyiron_base'
+        'graphviz==8.1.0',
+        'matplotlib==3.7.2',
+        'numpy==1.24.3',
+        'pyiron_base==0.6.6',
+        'pyiron_atomistics==0.3.4',
+        'toposort==1.1.0',
+        'typeguard==4.1.0',
     ],
     cmdclass=versioneer.get_cmdclass(),
 
