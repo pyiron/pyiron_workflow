@@ -3,4 +3,12 @@ channels:
 dependencies:
 - ipykernel
 - nbsphinx
-- pyiron_base
+- coveralls
+- coverage
+- graphviz =8.1.0
+- matplotlib =3.7.2
+- numpy =1.24.3
+- pyiron_base =0.6.6
+- pyiron_atomistics =0.3.4
+- toposort =1.1.0
+- typeguard =4.1.0
