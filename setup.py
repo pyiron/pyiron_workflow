@@ -33,7 +33,7 @@ setup(
         'numpy==1.24.3',
         'pyiron_base==0.6.7',
         'pyiron_atomistics==0.3.4',
-        'toposort==1.1.0',
+        'toposort==1.10',
         'typeguard==4.1.0',
     ],
     cmdclass=versioneer.get_cmdclass(),
