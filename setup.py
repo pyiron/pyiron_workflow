@@ -29,12 +29,12 @@ setup(
     packages=find_packages(exclude=["*tests*", "*docs*", "*binder*", "*conda*", "*notebooks*", "*.ci_support*"]),
     install_requires=[
         'graphviz==8.1.0',
-        'matplotlib==3.7.2',
-        'numpy==1.24.3',
+        'matplotlib==3.8.0',
+        'numpy==1.26.0',
         'pyiron_base==0.6.7',
         'pyiron_atomistics==0.3.4',
         'toposort==1.10',
-        'typeguard==4.1.0',
+        'typeguard==4.1.5',
     ],
     cmdclass=versioneer.get_cmdclass(),
 
