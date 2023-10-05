@@ -1,5 +1,5 @@
 # .coveragerc to control coverage.py
 [run]
-source = pyiron_module_template
-omit = pyiron_module_template/_version.py
+source = pyiron_workflow
+omit = pyiron_workflow/_version.py
 concurrency = multiprocessing

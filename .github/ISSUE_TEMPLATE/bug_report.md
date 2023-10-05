@@ -1,6 +1,6 @@
 ---
 name: Bug report
-about: Create a bug report to help us eliminate issues and improve pyiron_module_template
+about: Create a bug report to help us eliminate issues and improve pyiron_workflow
 title: ''
 labels: bug
 assignees: ''

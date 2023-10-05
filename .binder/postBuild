@@ -1,20 +1,20 @@
 # pip install master
 pip install --no-deps .
-# Note: This produces build and pyiron_module_template.egg-info directories
+# Note: This produces build and pyiron_workflow.egg-info directories
 
 # clean up
 if [ -d "notebooks" ]; then
     mv notebooks/* .
 fi
-if [ -d "${HOME}/pyiron_module_template" ]; then
+if [ -d "${HOME}/pyiron_workflow" ]; then
     rm -r   ${HOME}/.binder \
             ${HOME}/.ci_support \
             ${HOME}/.github \
             ${HOME}/build \
             ${HOME}/docs \
             ${HOME}/notebooks \
-            ${HOME}/pyiron_module_template \
-            ${HOME}/pyiron_module_template.egg-info \
+            ${HOME}/pyiron_workflow \
+            ${HOME}/pyiron_workflow.egg-info \
             ${HOME}/tests \
             ${HOME}/.gitattributes \
             ${HOME}/.gitignore \
