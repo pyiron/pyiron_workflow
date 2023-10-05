@@ -28,7 +28,7 @@ setup(
     keywords='pyiron',
     packages=find_packages(exclude=["*tests*", "*docs*", "*binder*", "*conda*", "*notebooks*", "*.ci_support*"]),
     install_requires=[
-        'graphviz',
+        'graphviz==0.20.1',
         'matplotlib==3.8.0',
         'numpy==1.26.0',
         'pyiron_atomistics==0.3.4',
