@@ -24,16 +24,16 @@ import typing
 from abc import ABC, abstractmethod
 from warnings import warn
 
-from pyiron_contrib.workflow.has_channel import HasChannel
-from pyiron_contrib.workflow.has_to_dict import HasToDict
-from pyiron_contrib.workflow.type_hinting import (
+from pyiron_workflow.workflow.has_channel import HasChannel
+from pyiron_workflow.workflow.has_to_dict import HasToDict
+from pyiron_workflow.workflow.type_hinting import (
     valid_value,
     type_hint_is_as_or_more_specific_than,
 )
 
 if typing.TYPE_CHECKING:
-    from pyiron_contrib.workflow.composite import Composite
-    from pyiron_contrib.workflow.node import Node
+    from pyiron_workflow.workflow.composite import Composite
+    from pyiron_workflow.workflow.node import Node
 
 
 class Channel(HasChannel, HasToDict, ABC):
@@ -52,7 +52,7 @@ class Channel(HasChannel, HasToDict, ABC):
 
     Attributes:
         label (str): The name of the channel.
-        node (pyiron_contrib.workflow.node.Node): The node to which the channel
+        node (pyiron_workflow.workflow.node.Node): The node to which the channel
          belongs.
         connections (list[Channel]): Other channels to which this channel is connected.
     """
@@ -67,7 +67,7 @@ class Channel(HasChannel, HasToDict, ABC):
 
         Args:
             label (str): A name for the channel.
-            node (pyiron_contrib.workflow.node.Node): The node to which the
+            node (pyiron_workflow.workflow.node.Node): The node to which the
              channel belongs.
         """
         self.label: str = label
@@ -457,7 +457,7 @@ class InputSignal(SignalChannel):
 
         Args:
             label (str): A name for the channel.
-            node (pyiron_contrib.workflow.node.Node): The node to which the
+            node (pyiron_workflow.workflow.node.Node): The node to which the
              channel belongs.
             callback (callable): An argument-free callback to invoke when calling this
                 object.

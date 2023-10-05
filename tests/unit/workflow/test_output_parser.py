@@ -3,7 +3,7 @@ import unittest
 
 import numpy as np
 
-from pyiron_contrib.workflow.output_parser import ParseOutput
+from pyiron_workflow.workflow.output_parser import ParseOutput
 
 
 @unittest.skipUnless(

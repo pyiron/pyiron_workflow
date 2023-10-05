@@ -10,20 +10,20 @@ from abc import ABC, abstractmethod
 from concurrent.futures import Future
 from typing import Any, Literal, Optional, TYPE_CHECKING
 
-from pyiron_contrib.executors import CloudpickleProcessPoolExecutor
-from pyiron_contrib.workflow.draw import Node as GraphvizNode
-from pyiron_contrib.workflow.files import DirectoryObject
-from pyiron_contrib.workflow.has_to_dict import HasToDict
-from pyiron_contrib.workflow.io import Signals, InputSignal, OutputSignal
-from pyiron_contrib.workflow.util import SeabornColors
+from pyiron_workflow.executors import CloudpickleProcessPoolExecutor
+from pyiron_workflow.workflow.draw import Node as GraphvizNode
+from pyiron_workflow.workflow.files import DirectoryObject
+from pyiron_workflow.workflow.has_to_dict import HasToDict
+from pyiron_workflow.workflow.io import Signals, InputSignal, OutputSignal
+from pyiron_workflow.workflow.util import SeabornColors
 
 if TYPE_CHECKING:
     import graphviz
 
     from pyiron_base.jobs.job.extension.server.generic import Server
 
-    from pyiron_contrib.workflow.composite import Composite
-    from pyiron_contrib.workflow.io import Inputs, Outputs
+    from pyiron_workflow.workflow.composite import Composite
+    from pyiron_workflow.workflow.io import Inputs, Outputs
 
 
 class Node(HasToDict, ABC):
@@ -94,12 +94,12 @@ class Node(HasToDict, ABC):
             connected.
         future (concurrent.futures.Future | None): A futures object, if the node is
             currently running or has already run using an executor.
-        inputs (pyiron_contrib.workflow.io.Inputs): **Abstract.** Children must define
+        inputs (pyiron_workflow.workflow.io.Inputs): **Abstract.** Children must define
             a property returning an `Inputs` object.
         label (str): A name for the node.
-        outputs (pyiron_contrib.workflow.io.Outputs): **Abstract.** Children must define
+        outputs (pyiron_workflow.workflow.io.Outputs): **Abstract.** Children must define
             a property returning an `Outputs` object.
-        parent (pyiron_contrib.workflow.composite.Composite | None): The parent object
+        parent (pyiron_workflow.workflow.composite.Composite | None): The parent object
             owning this, if any.
         ready (bool): Whether the inputs are all ready and the node is neither
             already running nor already failed.
@@ -109,7 +109,7 @@ class Node(HasToDict, ABC):
             server object for computing things somewhere else. Default (and currently
             _only_) behaviour is to compute things on the main python process owning
             the node.
-        signals (pyiron_contrib.workflow.io.Signals): A container for input and output
+        signals (pyiron_workflow.workflow.io.Signals): A container for input and output
             signals, which are channels for controlling execution flow. By default, has
             a `signals.inputs.run` channel which has a callback to the `run` method,
             and `signals.outputs.ran` which should be called at when the `run` method
@@ -222,7 +222,7 @@ class Node(HasToDict, ABC):
             raise NotImplementedError(
                 "We currently only support executing the node functionality right on "
                 "the main python process or with a "
-                "pyiron_contrib.workflow.util.CloudpickleProcessPoolExecutor."
+                "pyiron_workflow.workflow.util.CloudpickleProcessPoolExecutor."
             )
 
     def finish_run(self, run_output: tuple | Future) -> Any | tuple:

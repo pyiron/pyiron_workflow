@@ -1,5 +1,5 @@
 import unittest
-from pyiron_contrib.workflow.files import DirectoryObject, FileObject
+from pyiron_workflow.workflow.files import DirectoryObject, FileObject
 from pathlib import Path
 
 

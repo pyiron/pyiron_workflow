@@ -8,8 +8,8 @@ from __future__ import annotations
 from functools import partialmethod
 from typing import Optional
 
-from pyiron_contrib.workflow.composite import Composite
-from pyiron_contrib.workflow.io import Outputs, Inputs
+from pyiron_workflow.workflow.composite import Composite
+from pyiron_workflow.workflow.io import Outputs, Inputs
 
 
 class Macro(Composite):
@@ -40,7 +40,7 @@ class Macro(Composite):
     Examples:
         Let's consider the simplest case of macros that just consecutively add 1 to
         their input:
-        >>> from pyiron_contrib.workflow.macro import Macro
+        >>> from pyiron_workflow.workflow.macro import Macro
         >>>
         >>> def add_one(x):
         ...     result = x + 1

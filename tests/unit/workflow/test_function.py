@@ -4,10 +4,10 @@ from typing import Optional, Union
 import unittest
 import warnings
 
-from pyiron_contrib.executors import CloudpickleProcessPoolExecutor
-from pyiron_contrib.workflow.channels import NotData
-from pyiron_contrib.workflow.files import DirectoryObject
-from pyiron_contrib.workflow.function import (
+from pyiron_workflow.executors import CloudpickleProcessPoolExecutor
+from pyiron_workflow.workflow.channels import NotData
+from pyiron_workflow.workflow.files import DirectoryObject
+from pyiron_workflow.workflow.function import (
     Function, SingleValue, function_node, single_value_node
 )
 

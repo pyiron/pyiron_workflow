@@ -11,14 +11,14 @@ from typing import Literal, Optional, TYPE_CHECKING
 
 from toposort import toposort_flatten, CircularDependencyError
 
-from pyiron_contrib.workflow.interfaces import Creator, Wrappers
-from pyiron_contrib.workflow.io import Outputs, Inputs
-from pyiron_contrib.workflow.node import Node
-from pyiron_contrib.workflow.node_package import NodePackage
-from pyiron_contrib.workflow.util import logger, DotDict, SeabornColors
+from pyiron_workflow.workflow.interfaces import Creator, Wrappers
+from pyiron_workflow.workflow.io import Outputs, Inputs
+from pyiron_workflow.workflow.node import Node
+from pyiron_workflow.workflow.node_package import NodePackage
+from pyiron_workflow.workflow.util import logger, DotDict, SeabornColors
 
 if TYPE_CHECKING:
-    from pyiron_contrib.workflow.channels import Channel
+    from pyiron_workflow.workflow.channels import Channel
 
 
 class Composite(Node, ABC):
@@ -55,14 +55,14 @@ class Composite(Node, ABC):
     requirement is still passed on to children.
 
     Attributes:
-        nodes (DotDict[pyiron_contrib.workflow.node.Node]): The owned nodes that
+        nodes (DotDict[pyiron_workflow.workflow.node.Node]): The owned nodes that
          form the composite subgraph.
         strict_naming (bool): When true, repeated assignment of a new node to an
          existing node label will raise an error, otherwise the label gets appended
          with an index and the assignment proceeds. (Default is true: disallow assigning
          to existing labels.)
         create (Creator): A tool for adding new nodes to this subgraph.
-        starting_nodes (None | list[pyiron_contrib.workflow.node.Node]): A subset
+        starting_nodes (None | list[pyiron_workflow.workflow.node.Node]): A subset
          of the owned nodes to be used on running. Only necessary if the execution graph
          has been manually specified with `run` signals. (Default is an empty list.)
         wrap_as (Wrappers): A tool for accessing node-creating decorators
@@ -254,7 +254,7 @@ class Composite(Node, ABC):
         Assign a node to the parent. Optionally provide a new label for that node.
 
         Args:
-            node (pyiron_contrib.workflow.node.Node): The node to add.
+            node (pyiron_workflow.workflow.node.Node): The node to add.
             label (Optional[str]): The label for this node.
 
         Raises:

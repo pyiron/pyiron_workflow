@@ -2,10 +2,10 @@ import unittest
 from sys import version_info
 from time import sleep
 
-from pyiron_contrib.workflow.channels import NotData
-from pyiron_contrib.workflow.files import DirectoryObject
-from pyiron_contrib.workflow.util import DotDict
-from pyiron_contrib.workflow.workflow import Workflow
+from pyiron_workflow.workflow.channels import NotData
+from pyiron_workflow.workflow.files import DirectoryObject
+from pyiron_workflow.workflow.util import DotDict
+from pyiron_workflow.workflow.workflow import Workflow
 
 
 def plus_one(x=0):

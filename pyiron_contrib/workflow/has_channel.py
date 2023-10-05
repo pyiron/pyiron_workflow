@@ -8,7 +8,7 @@ from abc import ABC, abstractmethod
 from typing import TYPE_CHECKING
 
 if TYPE_CHECKING:
-    from pyiron_contrib.workflow.channels import Channel
+    from pyiron_workflow.workflow.channels import Channel
 
 
 class HasChannel(ABC):

@@ -1,7 +1,7 @@
 from unittest import TestCase, skipUnless
 from sys import version_info
 
-from pyiron_contrib.workflow.channels import (
+from pyiron_workflow.workflow.channels import (
     InputData, OutputData, InputSignal, OutputSignal, NotData
 )
 

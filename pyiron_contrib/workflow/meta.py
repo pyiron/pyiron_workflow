@@ -6,15 +6,15 @@ from __future__ import annotations
 
 from typing import Optional
 
-from pyiron_contrib.workflow.function import (
+from pyiron_workflow.workflow.function import (
     Function,
     SingleValue,
     function_node,
     single_value_node,
 )
-from pyiron_contrib.workflow.macro import Macro, macro_node
-from pyiron_contrib.workflow.node import Node
-from pyiron_contrib.workflow.util import DotDict
+from pyiron_workflow.workflow.macro import Macro, macro_node
+from pyiron_workflow.workflow.node import Node
+from pyiron_workflow.workflow.util import DotDict
 
 
 def list_to_output(length: int, **node_class_kwargs) -> type[Function]:
@@ -74,7 +74,7 @@ def for_loop(
 
     Examples:
         >>> import numpy as np
-        >>> from pyiron_contrib.workflow import Workflow
+        >>> from pyiron_workflow.workflow import Workflow
         >>>
         >>> bulk_loop = Workflow.create.meta.for_loop(
         ...     Workflow.create.atomistics.Bulk,
@@ -193,9 +193,9 @@ def while_loop(
     Finally, you can set input and output maps as normal.
 
     Args:
-        loop_body_class (type[pyiron_contrib.workflow.node.Node]): The class for the
+        loop_body_class (type[pyiron_workflow.workflow.node.Node]): The class for the
             body of the while-loop.
-        condition_class (type[pyiron_contrib.workflow.function.SingleValue]): A single
+        condition_class (type[pyiron_workflow.workflow.function.SingleValue]): A single
             value node returning a `bool` controlling the while loop exit condition
             (exits on False)
         internal_connection_map (list[tuple[str, str, str, str]]): String tuples
@@ -204,7 +204,7 @@ def while_loop(
         inputs_map Optional[dict[str, str]]: The inputs map as usual for a macro.
         outputs_map Optional[dict[str, str]]: The outputs map as usual for a macro.
     Examples:
-        >>> from pyiron_contrib.workflow import Workflow
+        >>> from pyiron_workflow.workflow import Workflow
         >>>
         >>> @Workflow.wrap_as.single_value_node()
         >>> def add(a, b):
@@ -244,7 +244,7 @@ def while_loop(
         Finally, 11
 
         >>> import numpy as np
-        >>> from pyiron_contrib.workflow import Workflow
+        >>> from pyiron_workflow.workflow import Workflow
         >>>
         >>> np.random.seed(0)
         >>>

@@ -10,12 +10,12 @@ from typing import Literal, Optional, TYPE_CHECKING
 import graphviz
 from matplotlib.colors import to_hex, to_rgb
 
-from pyiron_contrib.workflow.util import SeabornColors
+from pyiron_workflow.workflow.util import SeabornColors
 
 if TYPE_CHECKING:
-    from pyiron_contrib.workflow.channels import Channel as WorkflowChannel
-    from pyiron_contrib.workflow.io import DataIO, SignalIO
-    from pyiron_contrib.workflow.node import Node as WorkflowNode
+    from pyiron_workflow.workflow.channels import Channel as WorkflowChannel
+    from pyiron_workflow.workflow.io import DataIO, SignalIO
+    from pyiron_workflow.workflow.node import Node as WorkflowNode
 
 
 def directed_graph(name, label, rankdir, color_start, color_end, gradient_angle):
@@ -253,8 +253,8 @@ class Node(WorkflowGraphvizMap):
     of this node.
 
     Args:
-        node (pyiron_contrib.workflow.node.Node): The node to visualize.
-        parent (Optional[pyiron_contrib.workflow.draw.Node]): The visualization that
+        node (pyiron_workflow.workflow.node.Node): The node to visualize.
+        parent (Optional[pyiron_workflow.workflow.draw.Node]): The visualization that
             owns this visualization (if any).
         depth (int): How deeply to decompose any child nodes beyond showing their IO.
         rankdir ("LR" | "TB"): Use left-right or top-bottom graphviz `rankdir`.

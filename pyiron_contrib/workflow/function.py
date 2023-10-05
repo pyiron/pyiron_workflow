@@ -5,16 +5,16 @@ import warnings
 from functools import partialmethod
 from typing import get_args, get_type_hints, Optional, TYPE_CHECKING
 
-from pyiron_contrib.workflow.channels import InputData, OutputData, NotData
-from pyiron_contrib.workflow.has_channel import HasChannel
-from pyiron_contrib.workflow.io import Inputs, Outputs, Signals
-from pyiron_contrib.workflow.node import Node
-from pyiron_contrib.workflow.output_parser import ParseOutput
-from pyiron_contrib.workflow.util import SeabornColors
+from pyiron_workflow.workflow.channels import InputData, OutputData, NotData
+from pyiron_workflow.workflow.has_channel import HasChannel
+from pyiron_workflow.workflow.io import Inputs, Outputs, Signals
+from pyiron_workflow.workflow.node import Node
+from pyiron_workflow.workflow.output_parser import ParseOutput
+from pyiron_workflow.workflow.util import SeabornColors
 
 if TYPE_CHECKING:
-    from pyiron_contrib.workflow.composite import Composite
-    from pyiron_contrib.workflow.workflow import Workflow
+    from pyiron_workflow.workflow.composite import Composite
+    from pyiron_workflow.workflow.workflow import Workflow
 
 
 class Function(Node):
@@ -108,7 +108,7 @@ class Function(Node):
     Examples:
         At the most basic level, to use nodes all we need to do is provide the
         `Function` class with a function and labels for its output, like so:
-        >>> from pyiron_contrib.workflow.function import Function
+        >>> from pyiron_workflow.workflow.function import Function
         >>>
         >>> def mwe(x, y):
         ...     return x+1, y-1
@@ -116,7 +116,7 @@ class Function(Node):
         >>> plus_minus_1 = Function(mwe)
         >>>
         >>> print(plus_minus_1.outputs["x+1"])
-        <class 'pyiron_contrib.workflow.channels.NotData'>
+        <class 'pyiron_workflow.workflow.channels.NotData'>
 
         There is no output because we haven't given our function any input, it has
         no defaults, and we never ran it! So outputs have the channel default value of
@@ -188,8 +188,8 @@ class Function(Node):
         >>> plus_minus_1 = Function(hinted_example, x="not an int")
         >>> plus_minus_1.update()
         >>> plus_minus_1.outputs.to_value_dict()
-        {'p1': <class 'pyiron_contrib.workflow.channels.NotData'>,
-        'm1': <class 'pyiron_contrib.workflow.channels.NotData'>}
+        {'p1': <class 'pyiron_workflow.workflow.channels.NotData'>,
+        'm1': <class 'pyiron_workflow.workflow.channels.NotData'>}
 
         Here, even though all the input has data, the node sees that some of it is the
         wrong type and so the automatic updates don't proceed all the way to a run.
@@ -215,7 +215,7 @@ class Function(Node):
 
         This can be done most easily with the `node` decorator, which takes a function
         and returns a node class:
-        >>> from pyiron_contrib.workflow.function import function_node
+        >>> from pyiron_workflow.workflow.function import function_node
         >>>
         >>> @function_node(output_labels=("p1", "m1"))
         ... def my_mwe_node(
