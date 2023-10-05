@@ -1,7 +1,6 @@
 channels:
   - conda-forge
 dependencies:
-  - python >=3.10
   - coveralls
   - coverage
   - graphviz =8.1.0
