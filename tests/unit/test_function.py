@@ -4,6 +4,8 @@ from typing import Optional, Union
 import unittest
 import warnings
 
+from pympipool.mpi.executor import PyMPISingleTaskExecutor
+
 from pyiron_workflow.channels import NotData
 from pyiron_workflow.files import DirectoryObject
 from pyiron_workflow.function import (
@@ -278,6 +280,13 @@ class TestFunction(unittest.TestCase):
             msg="Function functions should be able to modify attributes on the node object."
         )
 
+        node.executor = PyMPISingleTaskExecutor
+        with self.assertRaises(NotImplementedError):
+            # Submitting node_functions that use self is still raising
+            # TypeError: cannot pickle '_thread.lock' object
+            # For now we just fail cleanly
+            node.run()
+
         def with_messed_self(x: float, self) -> float:
             return x + 0.1
 
@@ -363,6 +372,22 @@ class TestFunction(unittest.TestCase):
                 msg="On explicit run, the most recent input data should be used and the "
                     "result should be returned"
             )
+
+        with self.subTest("Run on executor"):
+            node.executor = PyMPISingleTaskExecutor()
+
+            return_on_explicit_run = node.run()
+            self.assertIsInstance(
+                return_on_explicit_run,
+                Future,
+                msg="Running with an executor should return the future"
+            )
+            with self.assertRaises(RuntimeError):
+                # The executor run should take a second
+                # So we can double check that attempting to run while already running
+                # raises an error
+                node.run()
+            node.future.result()  # Wait for the remote execution to finish
 
 
 @unittest.skipUnless(version_info[0] == 3 and version_info[1] >= 10, "Only supported for 3.10+")

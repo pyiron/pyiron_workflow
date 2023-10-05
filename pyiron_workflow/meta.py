@@ -159,6 +159,12 @@ def for_loop(
             # Connect each body node output to the output interface's respective input
             for body_node, inp in zip(body_nodes, interface.inputs):
                 inp.connect(body_node.outputs[label])
+                if body_node.executor is not None:
+                    raise NotImplementedError(
+                        "Right now the output interface gets run after each body node,"
+                        "if the body nodes can run asynchronously we need something "
+                        "more clever than that!"
+                    )
             macro.outputs_map[
                 f"{interface.label}__{loop_body_class.__name__}__{label}"
             ] = interface.label

@@ -154,6 +154,61 @@ class TestWorkflow(unittest.TestCase):
             # Setting a non-None value to parent raises the type error from the setter
             wf2.parent = wf
 
+    def test_executor(self):
+        wf = Workflow("wf")
+        with self.assertRaises(NotImplementedError):
+            # Submitting callables that use self is still raising
+            # TypeError: cannot pickle '_thread.lock' object
+            # For now we just fail cleanly
+            wf.executor = "literally anything other than None should raise the error"
+
+    def test_parallel_execution(self):
+        wf = Workflow("wf")
+
+        @Workflow.wrap_as.single_value_node()
+        def five(sleep_time=0.):
+            sleep(sleep_time)
+            five = 5
+            return five
+
+        @Workflow.wrap_as.single_value_node("sum")
+        def sum(a, b):
+            return a + b
+
+        wf.slow = five(sleep_time=1)
+        wf.fast = five()
+        wf.sum = sum(a=wf.fast, b=wf.slow)
+
+        wf.slow.executor = wf.create.PyMPISingleTaskExecutor()
+
+        wf.slow.run()
+        wf.fast.run()
+        self.assertTrue(
+            wf.slow.running,
+            msg="The slow node should still be running"
+        )
+        self.assertEqual(
+            wf.fast.outputs.five.value,
+            5,
+            msg="The slow node should not prohibit the completion of the fast node"
+        )
+        self.assertEqual(
+            wf.sum.outputs.sum.value,
+            NotData,
+            msg="The slow node _should_ hold up the downstream node to which it inputs"
+        )
+
+        while wf.slow.future.running():
+            sleep(0.1)
+
+        wf.sum.run()
+        self.assertEqual(
+            wf.sum.outputs.sum.value,
+            5 + 5,
+            msg="After the slow node completes, its output should be updated as a "
+                "callback, and downstream nodes should proceed"
+        )
+
     def test_call(self):
         wf = Workflow("wf")
 
@@ -207,6 +262,9 @@ class TestWorkflow(unittest.TestCase):
                 msg="On explicit run, the most recent input data should be used and the "
                     "result should be returned"
             )
+
+        # Note: We don't need to test running on an executor, because Workflows can't
+        #       do that yet
 
     def test_execution_automation(self):
         @Workflow.wrap_as.single_value_node("out")
