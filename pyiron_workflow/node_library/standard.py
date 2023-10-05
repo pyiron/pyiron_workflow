@@ -6,8 +6,8 @@ from typing import Optional
 import numpy as np
 from matplotlib import pyplot as plt
 
-from pyiron_workflow.workflow.channels import NotData, OutputSignal
-from pyiron_workflow.workflow.function import SingleValue, single_value_node
+from pyiron_workflow.channels import NotData, OutputSignal
+from pyiron_workflow.function import SingleValue, single_value_node
 
 
 @single_value_node(output_labels="fig")

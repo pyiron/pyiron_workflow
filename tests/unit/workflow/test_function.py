@@ -5,9 +5,9 @@ import unittest
 import warnings
 
 from pyiron_workflow.executors import CloudpickleProcessPoolExecutor
-from pyiron_workflow.workflow.channels import NotData
-from pyiron_workflow.workflow.files import DirectoryObject
-from pyiron_workflow.workflow.function import (
+from pyiron_workflow.channels import NotData
+from pyiron_workflow.files import DirectoryObject
+from pyiron_workflow.function import (
     Function, SingleValue, function_node, single_value_node
 )
 

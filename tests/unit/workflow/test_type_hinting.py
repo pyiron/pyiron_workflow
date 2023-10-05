@@ -2,7 +2,7 @@ import typing
 from unittest import TestCase, skipUnless
 from sys import version_info
 
-from pyiron_workflow.workflow.type_hinting import (
+from pyiron_workflow.type_hinting import (
     type_hint_is_as_or_more_specific_than, valid_value
 )
 

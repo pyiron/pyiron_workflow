@@ -1,8 +1,8 @@
 from unittest import TestCase, skipUnless
 from sys import version_info
 
-from pyiron_workflow.workflow.node_package import NodePackage
-from pyiron_workflow.workflow.function import function_node
+from pyiron_workflow.node_package import NodePackage
+from pyiron_workflow.function import function_node
 
 
 @function_node()

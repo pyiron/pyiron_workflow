@@ -9,7 +9,7 @@ from typing import TYPE_CHECKING
 from pyiron_base.interfaces.singleton import Singleton
 
 from pyiron_contrib.executors import CloudpickleProcessPoolExecutor
-from pyiron_workflow.workflow.function import (
+from pyiron_workflow.function import (
     Function,
     SingleValue,
     function_node,
@@ -17,7 +17,7 @@ from pyiron_workflow.workflow.function import (
 )
 
 if TYPE_CHECKING:
-    from pyiron_workflow.workflow.node import Node
+    from pyiron_workflow.node import Node
 
 
 class Creator(metaclass=Singleton):
@@ -41,7 +41,7 @@ class Creator(metaclass=Singleton):
     @property
     def Macro(self):
         if self._macro is None:
-            from pyiron_workflow.workflow.macro import Macro
+            from pyiron_workflow.macro import Macro
 
             self._macro = Macro
         return self._macro
@@ -49,7 +49,7 @@ class Creator(metaclass=Singleton):
     @property
     def Workflow(self):
         if self._workflow is None:
-            from pyiron_workflow.workflow.workflow import Workflow
+            from pyiron_workflow.workflow import Workflow
 
             self._workflow = Workflow
         return self._workflow
@@ -59,7 +59,7 @@ class Creator(metaclass=Singleton):
         try:
             return self._standard
         except AttributeError:
-            from pyiron_workflow.workflow.node_library.standard import nodes
+            from pyiron_workflow.node_library.standard import nodes
 
             self.register("_standard", *nodes)
             return self._standard
@@ -69,7 +69,7 @@ class Creator(metaclass=Singleton):
         try:
             return self._atomistics
         except AttributeError:
-            from pyiron_workflow.workflow.node_library.atomistics import nodes
+            from pyiron_workflow.node_library.atomistics import nodes
 
             self.register("_atomistics", *nodes)
             return self._atomistics
@@ -77,7 +77,7 @@ class Creator(metaclass=Singleton):
     @property
     def meta(self):
         if self._meta is None:
-            from pyiron_workflow.workflow.meta import meta_nodes
+            from pyiron_workflow.meta import meta_nodes
 
             self._meta = meta_nodes
         return self._meta
@@ -85,7 +85,7 @@ class Creator(metaclass=Singleton):
     def register(self, domain: str, *nodes: list[type[Node]]):
         if domain in self.__dir__():
             raise AttributeError(f"{domain} is already an attribute of {self}")
-        from pyiron_workflow.workflow.node_package import NodePackage
+        from pyiron_workflow.node_package import NodePackage
 
         setattr(self, domain, NodePackage(*nodes))
 
@@ -105,7 +105,7 @@ class Wrappers(metaclass=Singleton):
     @property
     def macro_node(self):
         if self._macro_node is None:
-            from pyiron_workflow.workflow.macro import macro_node
+            from pyiron_workflow.macro import macro_node
 
             self._macro_node = macro_node
         return self._macro_node

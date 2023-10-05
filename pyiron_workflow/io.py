@@ -6,7 +6,7 @@ from __future__ import annotations
 
 from abc import ABC, abstractmethod
 
-from pyiron_workflow.workflow.channels import (
+from pyiron_workflow.channels import (
     Channel,
     DataChannel,
     InputData,
@@ -15,9 +15,9 @@ from pyiron_workflow.workflow.channels import (
     InputSignal,
     OutputSignal,
 )
-from pyiron_workflow.workflow.has_channel import HasChannel
-from pyiron_workflow.workflow.has_to_dict import HasToDict
-from pyiron_workflow.workflow.util import DotDict, logger
+from pyiron_workflow.has_channel import HasChannel
+from pyiron_workflow.has_to_dict import HasToDict
+from pyiron_workflow.util import DotDict, logger
 
 
 class IO(HasToDict, ABC):

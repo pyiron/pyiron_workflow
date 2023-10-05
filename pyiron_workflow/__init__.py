@@ -1,1 +1,1 @@
-from pyiron_workflow.workflow.workflow import Workflow
+from pyiron_workflow.workflow import Workflow

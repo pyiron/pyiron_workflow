@@ -2,9 +2,9 @@ import unittest
 
 import numpy as np
 
-from pyiron_workflow.workflow.channels import OutputSignal
-from pyiron_workflow.workflow.function import Function
-from pyiron_workflow.workflow.workflow import Workflow
+from pyiron_workflow.channels import OutputSignal
+from pyiron_workflow.function import Function
+from pyiron_workflow.workflow import Workflow
 
 
 class TestTopology(unittest.TestCase):

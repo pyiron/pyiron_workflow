@@ -7,7 +7,7 @@ from pyiron_atomistics.atomistics.job.atomistic import AtomisticGenericJob
 from pyiron_atomistics.atomistics.structure.atoms import Atoms
 from pyiron_atomistics.lammps.lammps import Lammps as LammpsJob
 
-from pyiron_workflow.workflow.function import function_node, single_value_node
+from pyiron_workflow.function import function_node, single_value_node
 
 
 Bulk = single_value_node(output_labels="structure")(_StructureFactory().bulk)

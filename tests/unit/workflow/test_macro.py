@@ -2,9 +2,9 @@ from functools import partialmethod
 import unittest
 from sys import version_info
 
-from pyiron_workflow.workflow.channels import NotData
-from pyiron_workflow.workflow.function import SingleValue
-from pyiron_workflow.workflow.macro import Macro
+from pyiron_workflow.channels import NotData
+from pyiron_workflow.function import SingleValue
+from pyiron_workflow.macro import Macro
 
 
 def add_one(x):

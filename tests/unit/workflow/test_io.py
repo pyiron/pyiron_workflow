@@ -1,10 +1,10 @@
 from unittest import TestCase, skipUnless
 from sys import version_info
 
-from pyiron_workflow.workflow.channels import (
+from pyiron_workflow.channels import (
     InputData, InputSignal, OutputData, OutputSignal
 )
-from pyiron_workflow.workflow.io import Inputs, Outputs, Signals
+from pyiron_workflow.io import Inputs, Outputs, Signals
 
 
 class DummyNode:

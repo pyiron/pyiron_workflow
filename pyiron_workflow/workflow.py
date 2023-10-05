@@ -8,12 +8,12 @@ from __future__ import annotations
 
 from typing import Optional, TYPE_CHECKING
 
-from pyiron_workflow.workflow.composite import Composite
-from pyiron_workflow.workflow.io import Inputs, Outputs
+from pyiron_workflow.composite import Composite
+from pyiron_workflow.io import Inputs, Outputs
 
 
 if TYPE_CHECKING:
-    from pyiron_workflow.workflow.node import Node
+    from pyiron_workflow.node import Node
 
 
 class Workflow(Composite):
@@ -37,7 +37,7 @@ class Workflow(Composite):
 
     Examples:
         We allow adding nodes to workflows in five equivalent ways:
-        >>> from pyiron_workflow.workflow.workflow import Workflow
+        >>> from pyiron_workflow.workflow import Workflow
         >>>
         >>> def fnc(x=0):
         ...     return x + 1
