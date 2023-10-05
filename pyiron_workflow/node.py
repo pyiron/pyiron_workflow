@@ -10,7 +10,7 @@ from abc import ABC, abstractmethod
 from concurrent.futures import Future
 from typing import Any, Literal, Optional, TYPE_CHECKING
 
-from pyiron_contrib.executors import CloudpickleProcessPoolExecutor
+from pympipool.mpi.executor import PyMPISingleTaskExecutor
 
 from pyiron_workflow.draw import Node as GraphvizNode
 from pyiron_workflow.files import DirectoryObject
@@ -158,7 +158,7 @@ class Node(HasToDict, ABC):
         # TODO: Provide support for actually computing stuff with the server/executor
         self.signals = self._build_signal_channels()
         self._working_directory = None
-        self.executor: None | CloudpickleProcessPoolExecutor = None
+        self.executor: None | PyMPISingleTaskExecutor = None
         self.future: None | Future = None
 
     @property
@@ -215,7 +215,7 @@ class Node(HasToDict, ABC):
                 self.failed = True
                 raise e
             return self.finish_run(run_output)
-        elif isinstance(self.executor, CloudpickleProcessPoolExecutor):
+        elif isinstance(self.executor, PyMPISingleTaskExecutor):
             self.future = self.executor.submit(self.on_run, **self.run_args)
             self.future.add_done_callback(self.finish_run)
             return self.future
@@ -223,7 +223,7 @@ class Node(HasToDict, ABC):
             raise NotImplementedError(
                 "We currently only support executing the node functionality right on "
                 "the main python process or with a "
-                "pyiron_workflow.util.CloudpickleProcessPoolExecutor."
+                "pympipool.mpi.executor.PyMPISingleTaskExecutor."
             )
 
     def finish_run(self, run_output: tuple | Future) -> Any | tuple:

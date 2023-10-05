@@ -33,6 +33,7 @@ setup(
         'numpy==1.26.0',
         'pyiron_base==0.6.7',
         'pyiron_atomistics==0.3.4',
+        'pympipool==0.7.1',
         'toposort==1.10',
         'typeguard==4.1.5',
     ],

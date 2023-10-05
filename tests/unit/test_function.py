@@ -4,7 +4,7 @@ from typing import Optional, Union
 import unittest
 import warnings
 
-from pyiron_contrib.executors import CloudpickleProcessPoolExecutor
+from pympipool.mpi.executor import PyMPISingleTaskExecutor
 
 from pyiron_workflow.channels import NotData
 from pyiron_workflow.files import DirectoryObject
@@ -280,7 +280,7 @@ class TestFunction(unittest.TestCase):
             msg="Function functions should be able to modify attributes on the node object."
         )
 
-        node.executor = CloudpickleProcessPoolExecutor
+        node.executor = PyMPISingleTaskExecutor
         with self.assertRaises(NotImplementedError):
             # Submitting node_functions that use self is still raising
             # TypeError: cannot pickle '_thread.lock' object
@@ -374,7 +374,7 @@ class TestFunction(unittest.TestCase):
             )
 
         with self.subTest("Run on executor"):
-            node.executor = CloudpickleProcessPoolExecutor()
+            node.executor = PyMPISingleTaskExecutor()
 
             return_on_explicit_run = node.run()
             self.assertIsInstance(
