@@ -10,7 +10,8 @@ from abc import ABC, abstractmethod
 from concurrent.futures import Future
 from typing import Any, Literal, Optional, TYPE_CHECKING
 
-from pyiron_workflow.executors import CloudpickleProcessPoolExecutor
+from pyiron_contrib.executors import CloudpickleProcessPoolExecutor
+
 from pyiron_workflow.draw import Node as GraphvizNode
 from pyiron_workflow.files import DirectoryObject
 from pyiron_workflow.has_to_dict import HasToDict
