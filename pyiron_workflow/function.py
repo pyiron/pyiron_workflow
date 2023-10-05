@@ -65,8 +65,8 @@ class Function(Node):
 
     After a node is instantiated, its input can be updated as `*args` and/or `**kwargs`
     on call.
-    `run()` returns the output of the executed function, or a futures object if the
-    node is set to use an executor.
+    `run()` returns the output of the executed function, (TODO: or a futures object if
+    the node is set to use an executor.
     Calling the node or executing an `update()` returns the same thing as running, if
     the node is run, or, in the case of `update()`, `None` if it is not `ready` to run.
 
@@ -477,12 +477,6 @@ class Function(Node):
     def run_args(self) -> dict:
         kwargs = self.inputs.to_value_dict()
         if "self" in self._input_args:
-            if self.executor is not None:
-                raise NotImplementedError(
-                    f"The node {self.label} cannot be run on an executor because it "
-                    f"uses the `self` argument and this functionality is not yet "
-                    f"implemented"
-                )
             kwargs["self"] = self
         return kwargs
 

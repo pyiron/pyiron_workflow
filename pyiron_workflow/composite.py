@@ -108,17 +108,6 @@ class Composite(Node, ABC):
         """
         return OwnedCreator(self, self._creator)
 
-    @property
-    def executor(self) -> None:
-        return None
-
-    @executor.setter
-    def executor(self, new_executor):
-        if new_executor is not None:
-            raise NotImplementedError(
-                "Running composite nodes with an executor is not yet supported"
-            )
-
     def to_dict(self):
         return {
             "label": self.label,

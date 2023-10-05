@@ -10,8 +10,6 @@ from abc import ABC, abstractmethod
 from concurrent.futures import Future
 from typing import Any, Literal, Optional, TYPE_CHECKING
 
-from pympipool.mpi.executor import PyMPISingleTaskExecutor
-
 from pyiron_workflow.draw import Node as GraphvizNode
 from pyiron_workflow.files import DirectoryObject
 from pyiron_workflow.has_to_dict import HasToDict
@@ -20,8 +18,6 @@ from pyiron_workflow.util import SeabornColors
 
 if TYPE_CHECKING:
     import graphviz
-
-    from pyiron_base.jobs.job.extension.server.generic import Server
 
     from pyiron_workflow.composite import Composite
     from pyiron_workflow.io import Inputs, Outputs
@@ -56,9 +52,9 @@ class Node(HasToDict, ABC):
     or nodes, but when referring to nodes it is always a shortcut to the `run`/`ran`
     channels.
 
-    The `run()` method returns a representation of the node output (possible a futures
-    object, if the node is running on an executor), and consequently `update()` also
-    returns this output if the node is `ready`.
+    The `run()` method returns a representation of the node output (TODO: possible a
+    futures object, if the node is running on an executor), and consequently `update()`
+    also returns this output if the node is `ready`.
 
     Calling an already instantiated node allows its input channels to be updated using
     keyword arguments corresponding to the channel labels, performing a batch-update of
@@ -71,13 +67,9 @@ class Node(HasToDict, ABC):
     Their value is controlled automatically in the defined `run` and `finish_run`
     methods.
 
-    Nodes can be run on the main python process that owns them, or by assigning an
-    appropriate executor to their `executor` attribute.
-    In case they are run with an executor, their `future` attribute will be populated
-    with the resulting future object.
-    WARNING: Executors are currently only working when the node executable function does
-        not use `self`.
-
+    Nodes can be run on the main python process that owns them.
+    (TODO: In case they are run with an executor, their `future` attribute will be
+    populated with the resulting future object.)
     This is an abstract class.
     Children *must* define how `inputs` and `outputs` are constructed, and what will
     happen `on_run`.
@@ -94,7 +86,7 @@ class Node(HasToDict, ABC):
         fully_connected (bool): whether _all_ of the IO (including signals) are
             connected.
         future (concurrent.futures.Future | None): A futures object, if the node is
-            currently running or has already run using an executor.
+            currently running or has already run using an executor. (Not currently used)
         inputs (pyiron_workflow.io.Inputs): **Abstract.** Children must define
             a property returning an `Inputs` object.
         label (str): A name for the node.
@@ -106,10 +98,6 @@ class Node(HasToDict, ABC):
             already running nor already failed.
         running (bool): Whether the node has called `run` and has not yet
             received output from this call. (Default is False.)
-        server (Optional[pyiron_base.jobs.job.extension.server.generic.Server]): A
-            server object for computing things somewhere else. Default (and currently
-            _only_) behaviour is to compute things on the main python process owning
-            the node.
         signals (pyiron_workflow.io.Signals): A container for input and output
             signals, which are channels for controlling execution flow. By default, has
             a `signals.inputs.run` channel which has a callback to the `run` method,
@@ -151,14 +139,8 @@ class Node(HasToDict, ABC):
         self.running = False
         self.failed = False
         # TODO: Replace running and failed with a state object
-        self._server: Server | None = (
-            None  # Or "task_manager" or "executor" -- we'll see what's best
-        )
-        # TODO: Move from a traditional "sever" to a tinybase "executor"
-        # TODO: Provide support for actually computing stuff with the server/executor
         self.signals = self._build_signal_channels()
         self._working_directory = None
-        self.executor: None | PyMPISingleTaskExecutor = None
         self.future: None | Future = None
 
     @property
@@ -207,24 +189,13 @@ class Node(HasToDict, ABC):
         self.running = True
         self.failed = False
 
-        if self.executor is None:
-            try:
-                run_output = self.on_run(**self.run_args)
-            except Exception as e:
-                self.running = False
-                self.failed = True
-                raise e
-            return self.finish_run(run_output)
-        elif isinstance(self.executor, PyMPISingleTaskExecutor):
-            self.future = self.executor.submit(self.on_run, **self.run_args)
-            self.future.add_done_callback(self.finish_run)
-            return self.future
-        else:
-            raise NotImplementedError(
-                "We currently only support executing the node functionality right on "
-                "the main python process or with a "
-                "pympipool.mpi.executor.PyMPISingleTaskExecutor."
-            )
+        try:
+            run_output = self.on_run(**self.run_args)
+        except Exception as e:
+            self.running = False
+            self.failed = True
+            raise e
+        return self.finish_run(run_output)
 
     def finish_run(self, run_output: tuple | Future) -> Any | tuple:
         """
@@ -268,14 +239,6 @@ class Node(HasToDict, ABC):
             else:
                 self._working_directory = DirectoryObject(self.label)
         return self._working_directory
-
-    @property
-    def server(self) -> Server | None:
-        return self._server
-
-    @server.setter
-    def server(self, server: Server | None):
-        self._server = server
 
     def disconnect(self):
         """
