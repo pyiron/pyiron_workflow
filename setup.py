@@ -28,7 +28,7 @@ setup(
     keywords='pyiron',
     packages=find_packages(exclude=["*tests*", "*docs*", "*binder*", "*conda*", "*notebooks*", "*.ci_support*"]),
     install_requires=[
-        'cloudpickle==0.4.0',
+        'cloudpickle==2.2.1',
         'graphviz==0.20.1',
         'maggma==0.57.1',
         'matplotlib==3.8.0',
