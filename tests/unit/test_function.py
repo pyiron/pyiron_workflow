@@ -4,8 +4,10 @@ from typing import Optional, Union
 import unittest
 import warnings
 
-from pyiron_contrib.executors import CloudpickleProcessPoolExecutor as Executor
+# from pyiron_contrib.executors import CloudpickleProcessPoolExecutor as Executor
 # from pympipool.mpi.executor import PyMPISingleTaskExecutor as Executor
+
+from pyiron_workflow.executors import CloudpickleProcessPoolExecutor as Executor
 
 from pyiron_workflow.channels import NotData
 from pyiron_workflow.files import DirectoryObject
