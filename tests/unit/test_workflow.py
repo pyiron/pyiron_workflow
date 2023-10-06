@@ -2,6 +2,8 @@ import unittest
 from sys import version_info
 from time import sleep
 
+from bidict import ValueDuplicationError
+
 from pyiron_workflow.channels import NotData
 from pyiron_workflow.files import DirectoryObject
 from pyiron_workflow.util import DotDict
@@ -337,6 +339,52 @@ class TestWorkflow(unittest.TestCase):
             cyclic.n1l.inputs.y = cyclic.n2l
             with self.assertRaises(ValueError):
                 cyclic()
+
+    def test_io_label_maps_are_bijective(self):
+
+        with self.subTest("Null case"):
+            Workflow(
+                "my_workflow",
+                Workflow.create.Function(plus_one, label="foo1"),
+                Workflow.create.Function(plus_one, label="foo2"),
+                inputs_map={
+                    "foo1__x": "x1",
+                    "foo2__x": "x2"
+                },
+                outputs_map=None
+            )
+
+        with self.subTest("At instantiation"):
+            with self.assertRaises(ValueDuplicationError):
+                Workflow(
+                    "my_workflow",
+                    Workflow.create.Function(plus_one, label="foo1"),
+                    Workflow.create.Function(plus_one, label="foo2"),
+                    inputs_map={
+                        "foo1__x": "x",
+                        "foo2__x": "x"
+                    }
+                )
+
+        with self.subTest("Post-facto assignment"):
+            wf = Workflow(
+                "my_workflow",
+                Workflow.create.Function(plus_one, label="foo1"),
+                Workflow.create.Function(plus_one, label="foo2"),
+            )
+            wf.outputs_map = None
+            with self.assertRaises(ValueDuplicationError):
+                wf.inputs_map = {"foo1__x": "x", "foo2__x": "x"}
+
+        with self.subTest("Post-facto update"):
+            wf = Workflow(
+                "my_workflow",
+                Workflow.create.Function(plus_one, label="foo1"),
+                Workflow.create.Function(plus_one, label="foo2"),
+            )
+            wf.inputs_map = {"foo1__x": "x1", "foo2__x": "x2"}
+            with self.assertRaises(ValueDuplicationError):
+                wf.inputs_map["foo2__x"] = "x1"
 
 
 if __name__ == '__main__':

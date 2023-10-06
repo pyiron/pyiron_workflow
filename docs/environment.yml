@@ -5,6 +5,7 @@ dependencies:
 - nbsphinx
 - coveralls
 - coverage
+- bidict =0.22.1
 - cloudpickle =2.2.1
 - graphviz =8.1.0
 - maggma =0.57.1

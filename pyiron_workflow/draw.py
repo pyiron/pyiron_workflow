@@ -94,11 +94,11 @@ class _Channel(WorkflowGraphvizMap, ABC):
     parlance.
     """
 
-    def __init__(self, parent: _IO, channel: WorkflowChannel):
+    def __init__(self, parent: _IO, channel: WorkflowChannel, local_name: str):
         self.channel = channel
         self._parent = parent
-        self._name = self.parent.name + self.channel.label
-        self._label = self._build_label()
+        self._name = self.parent.name + local_name
+        self._label = local_name + self._build_label_suffix()
         self.channel: WorkflowChannel = channel
 
         self.graph.node(
@@ -114,14 +114,14 @@ class _Channel(WorkflowGraphvizMap, ABC):
     def shape(self) -> str:
         pass
 
-    def _build_label(self):
-        label = self.channel.label
+    def _build_label_suffix(self):
+        suffix = ""
         try:
             if self.channel.type_hint is not None:
-                label += ": " + self.channel.type_hint.__name__
+                suffix += ": " + self.channel.type_hint.__name__
         except AttributeError:
             pass  # Signals have no type
-        return label
+        return suffix
 
     @property
     def parent(self) -> _IO | None:
@@ -182,8 +182,12 @@ class _IO(WorkflowGraphvizMap, ABC):
         )
 
         self.channels = [
-            SignalChannel(self, channel) for channel in self.signals_io
-        ] + [DataChannel(self, channel) for channel in self.data_io]
+            SignalChannel(self, channel, panel_label)
+            for panel_label, channel in self.signals_io.items()
+        ] + [
+            DataChannel(self, channel, panel_label)
+            for panel_label, channel in self.data_io.items()
+        ]
 
         self.parent.graph.subgraph(self.graph)
 

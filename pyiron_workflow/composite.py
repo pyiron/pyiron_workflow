@@ -9,6 +9,7 @@ from abc import ABC
 from functools import partial
 from typing import Literal, Optional, TYPE_CHECKING
 
+from bidict import bidict
 from toposort import toposort_flatten, CircularDependencyError
 
 from pyiron_workflow.interfaces import Creator, Wrappers
@@ -55,6 +56,15 @@ class Composite(Node, ABC):
     requirement is still passed on to children.
 
     Attributes:
+        inputs/outputs_map (bidict|None): Maps in the form
+         `{"node_label__channel_label": "some_better_name"}` that expose canonically
+         named channels of child nodes under a new name. This can be used both for re-
+         naming regular IO (i.e. unconnected child channels), as well as forcing the
+         exposure of irregular IO (i.e. child channels that are already internally
+         connected to some other child channel). Non-`None` values provided at input
+         can be in regular dictionary form, but get re-cast as a clean bidict to ensure
+         the bijective nature of the maps (i.e. there is a 1:1 connection between any
+         IO exposed at the `Composite` level and the underlying channels).
         nodes (DotDict[pyiron_workflow.node.Node]): The owned nodes that
          form the composite subgraph.
         strict_naming (bool): When true, repeated assignment of a new node to an
@@ -86,18 +96,39 @@ class Composite(Node, ABC):
         *args,
         parent: Optional[Composite] = None,
         strict_naming: bool = True,
-        inputs_map: Optional[dict] = None,
-        outputs_map: Optional[dict] = None,
+        inputs_map: Optional[dict | bidict] = None,
+        outputs_map: Optional[dict | bidict] = None,
         **kwargs,
     ):
         super().__init__(*args, label=label, parent=parent, **kwargs)
         self.strict_naming: bool = strict_naming
+        self._inputs_map = None
+        self._outputs_map = None
         self.inputs_map = inputs_map
         self.outputs_map = outputs_map
         self.nodes: DotDict[str:Node] = DotDict()
         self.starting_nodes: list[Node] = []
         self._creator = self.create
         self.create = self._owned_creator  # Override the create method from the class
+
+    @property
+    def inputs_map(self) -> bidict | None:
+        return self._inputs_map
+
+    @inputs_map.setter
+    def inputs_map(self, new_map: dict | bidict | None):
+        new_map = new_map if new_map is None else bidict(new_map)
+        self._inputs_map = new_map
+
+    @property
+    def outputs_map(self) -> bidict | None:
+        return self._outputs_map
+
+    @outputs_map.setter
+    def outputs_map(self, new_map: dict | bidict | None):
+        new_map = new_map if new_map is None else bidict(new_map)
+        self._outputs_map = new_map
+
 
     @property
     def _owned_creator(self):
