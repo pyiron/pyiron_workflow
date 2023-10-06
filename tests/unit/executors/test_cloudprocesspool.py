@@ -3,7 +3,7 @@ from concurrent.futures import TimeoutError
 from time import sleep
 import unittest
 
-from pyiron_contrib.executors.cloudpickleprocesspool import (
+from pyiron_workflow.executors.cloudpickleprocesspool import (
     CloudpickleProcessPoolExecutor
 )
 
