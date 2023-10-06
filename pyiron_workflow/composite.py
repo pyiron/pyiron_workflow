@@ -129,7 +129,6 @@ class Composite(Node, ABC):
         new_map = new_map if new_map is None else bidict(new_map)
         self._outputs_map = new_map
 
-
     @property
     def _owned_creator(self):
         """
