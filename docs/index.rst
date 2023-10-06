@@ -1,11 +1,11 @@
-.. pyiron_module_template documentation master file
+.. pyiron_workflow documentation master file
 
 .. _index:
 
 
-======================
-pyiron_module_template
-======================
+===============
+pyiron_workflow
+===============
 
 .. toctree::
    :hidden:

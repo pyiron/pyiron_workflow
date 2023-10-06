@@ -275,10 +275,10 @@ man_pages = [
 #  dir menu entry, description, category)
 texinfo_documents = [
   ('index',
-   'pyiron_module_template',
+   'pyiron_workflow',
    u'pyiron Documentation',
    u'Max-Planck-Institut für Eisenforschung GmbH - Computational Materials Design (CM) Department',
-   'pyiron_module_template',
+   'pyiron_workflow',
    'One line description of project.',
    'Miscellaneous'),
 ]
@@ -295,7 +295,7 @@ texinfo_documents = [
 # If true, do not generate a @detailmenu in the "Top" node's menu.
 # texinfo_no_detailmenu = False
 
-main(['-e', '-o', 'apidoc', '../pyiron_module_template', '--force'])
+main(['-e', '-o', 'apidoc', '../pyiron_workflow', '--force'])
 
 curdir = os.path.dirname(os.path.abspath(__file__))
 if os.path.exists(os.path.join(curdir, 'source/notebooks')):
