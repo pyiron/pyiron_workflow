@@ -7,8 +7,10 @@ from __future__ import annotations
 from typing import TYPE_CHECKING
 
 from pyiron_base.interfaces.singleton import Singleton
-from pyiron_contrib.executors import CloudpickleProcessPoolExecutor as Executor
+# from pyiron_contrib.executors import CloudpickleProcessPoolExecutor as Executor
 # from pympipool.mpi.executor import PyMPISingleTaskExecutor as Executor
+
+from pyiron_workflow.executors import CloudpickleProcessPoolExecutor as Executor
 
 from pyiron_workflow.function import (
     Function,
