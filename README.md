@@ -24,4 +24,8 @@ wf.b = x_plus_y(x=wf.a1.outputs.sum, y=wf.a2.outputs.sum)
 out = wf(a1__x=0, a1__y=1, a2__x=2, a2__y=3)
 out.b__sum
 >>> 6
+
+wf.draw()
 ```
+
+![](docs/_static/demo.png)
