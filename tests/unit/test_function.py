@@ -280,7 +280,7 @@ class TestFunction(unittest.TestCase):
             msg="Function functions should be able to modify attributes on the node object."
         )
 
-        node.executor = PyMPISingleTaskExecutor
+        node.executor = PyMPISingleTaskExecutor()
         with self.assertRaises(NotImplementedError):
             # Submitting node_functions that use self is still raising
             # TypeError: cannot pickle '_thread.lock' object
