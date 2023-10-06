@@ -5,7 +5,7 @@ dependencies:
 - nbsphinx
 - coveralls
 - coverage
-- cloudpickle =0.4.0
+- cloudpickle =2.2.1
 - graphviz =8.1.0
 - maggma =0.57.1
 - matplotlib =3.8.0
