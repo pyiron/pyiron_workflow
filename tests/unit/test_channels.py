@@ -23,6 +23,7 @@ class TestDataChannels(TestCase):
         self.ni1 = InputData(label="numeric", node=DummyNode(), default=1, type_hint=int | float)
         self.ni2 = InputData(label="numeric", node=DummyNode(), default=1, type_hint=int | float)
         self.no = OutputData(label="numeric", node=DummyNode(), default=0, type_hint=int | float)
+        self.no_empty = OutputData(label="not_data", node=DummyNode(), type_hint=int | float)
 
         self.so1 = OutputData(label="list", node=DummyNode(), default=["foo"], type_hint=list)
         self.so2 = OutputData(label="list", node=DummyNode(), default=["foo"], type_hint=list)
@@ -42,6 +43,8 @@ class TestDataChannels(TestCase):
             self.ni1.connect(self.no)
             self.assertIn(self.no, self.ni1.connections)
             self.assertIn(self.ni1, self.no.connections)
+            self.assertNotEqual(self.no.value, self.ni1.value)
+            self.ni1.pull()
             self.assertEqual(self.no.value, self.ni1.value)
 
         with self.subTest("Test disconnection"):
@@ -73,29 +76,40 @@ class TestDataChannels(TestCase):
         with self.subTest("Test iteration"):
             self.assertTrue(all([con in self.no.connections for con in self.no]))
 
-        with self.subTest("Don't push NotData"):
-            self.no.disconnect_all()
+        with self.subTest("Data should update on pull"):
+            self.ni1.disconnect_all()
+
             self.no.value = NotData
             self.ni1.value = 1
+
+            self.ni1.connect(self.no_empty)
             self.ni1.connect(self.no)
             self.assertEqual(
                 self.ni1.value,
                 1,
-                msg="NotData should not be getting pushed on connection"
+                msg="Data should not be getting pushed on connection"
             )
-            self.ni2.value = 2
+            self.ni1.pull()
+            self.assertEqual(
+                self.ni1.value,
+                1,
+                msg="NotData values should not be getting pulled"
+            )
             self.no.value = 3
-            self.ni2.connect(self.no)
+            self.ni1.pull()
             self.assertEqual(
-                self.ni2.value,
+                self.ni1.value,
                 3,
-                msg="Actual data should be getting pushed"
+                msg="Data pull should to first connected value that's actually data,"
+                    "in this case skipping over no_empty"
             )
-            self.no.update(NotData)
+            self.no_empty.value = 4
+            self.ni1.pull()
             self.assertEqual(
-                self.ni2.value,
-                3,
-                msg="NotData should not be getting pushed on updates"
+                self.ni1.value,
+                4,
+                msg="As soon as no_empty actually has data, it's position as 0th "
+                    "element in the connections list should give it priority"
             )
 
     def test_connection_validity_tests(self):
@@ -154,20 +168,6 @@ class TestDataChannels(TestCase):
 
         self.ni1.value = "Not numeric at all"
         self.assertFalse(self.ni1.ready)
-
-    def test_update(self):
-        self.no.connect(self.ni1, self.ni2)
-        self.no.update(42)
-        for inp in self.no.connections:
-            self.assertEqual(
-                self.no.value,
-                inp.value,
-                msg="Value should have been passed downstream"
-            )
-
-        self.ni1.node.running = True
-        with self.assertRaises(RuntimeError):
-            self.no.update(42)
 
 
 class TestSignalChannels(TestCase):

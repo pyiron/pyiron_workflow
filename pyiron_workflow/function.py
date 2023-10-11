@@ -494,7 +494,7 @@ class Function(Node):
             self.outputs,
             (function_output,) if len(self.outputs) == 1 else function_output
         ):
-            out.update(value)
+            out.value = value
         return function_output
 
     def _convert_input_args_and_kwargs_to_input_kwargs(self, *args, **kwargs):
