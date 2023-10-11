@@ -496,12 +496,10 @@ class Function(Node):
         so that the node can finishing "running" and push its data forward when that
         execution is finished.
         """
-        if len(self.outputs) == 0:
-            return
-        elif len(self.outputs) == 1:
-            function_output = (function_output,)
-
-        for out, value in zip(self.outputs, function_output):
+        for out, value in zip(
+            self.outputs,
+            (function_output,) if len(self.outputs) == 1 else function_output
+        ):
             out.update(value)
 
     def _convert_input_args_and_kwargs_to_input_kwargs(self, *args, **kwargs):
