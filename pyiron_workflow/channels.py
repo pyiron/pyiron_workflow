@@ -2,20 +2,21 @@
 Channels are access points for information to flow into and out of nodes.
 
 Data channels carry, unsurprisingly, data.
-Output data channels will attempt to push their new value to all their connected input
-data channels on update, while input data channels will reject any updates if their
-parent node is running.
-In this way, data channels facilitate forward propagation of data through a graph.
-They hold data persistently.
+Connections are only permissible between opposite sub-types, i.e. input-output.
+When input channels `pull()` data in, they set their `value` to the first available
+data value among their connections -- i.e. the `value` of the first output channel in
+their connections who has something other than `NotData`.
+Input data channels will raise an error if a `pull()` is attempted while their parent
+ node is running.
 
 Signal channels are tools for procedurally exposing functionality on nodes.
 Input signal channels are connected to a callback function which gets invoked when the
-channel is updated.
-Output signal channels must be accessed by the owning node directly, and then trigger
-all the input signal channels to which they are connected.
+channel is called.
+Output signal channels call all the input channels they are connected to when they get
+ called themselves.
 In this way, signal channels can force behaviour (node method calls) to propagate
 forwards through a graph.
-They do not hold any data, but rather fire for an effect.
+They do not hold any data and have no `value` attribute, but rather fire for an effect.
 """
 
 from __future__ import annotations
@@ -32,7 +33,6 @@ from pyiron_workflow.type_hinting import (
 )
 
 if typing.TYPE_CHECKING:
-    from pyiron_workflow.composite import Composite
     from pyiron_workflow.node import Node
 
 
@@ -239,29 +239,6 @@ class DataChannel(Channel, ABC):
     def _value_is_data(self):
         return self.value is not NotData
 
-    def update(self, value) -> None:
-        """
-        Store a new value and trigger before- and after-update routines.
-
-        Args:
-            value: The value to store.
-        """
-        self._before_update()
-        self.value = value
-        self._after_update()
-
-    def _before_update(self) -> None:
-        """
-        A tool for child classes to do things before the value changed during an update.
-        """
-        pass
-
-    def _after_update(self) -> None:
-        """
-        A tool for child classes to do things after the value changed during an update.
-        """
-        pass
-
     def connect(self, *others: DataChannel) -> None:
         """
         For all others for which the connection is valid (one input, one output, both
@@ -279,9 +256,6 @@ class DataChannel(Channel, ABC):
             if self._valid_connection(other):
                 self.connections.append(other)
                 other.connections.append(self)
-                out, inp = self._figure_out_who_is_who(other)
-                if out.value is not NotData:
-                    inp.update(out.value)
             else:
                 if isinstance(other, DataChannel):
                     warn(
@@ -331,8 +305,7 @@ class DataChannel(Channel, ABC):
 
 class InputData(DataChannel):
     """
-    On `update`, Input channels will only `update` if their parent node is not
-    `running`.
+    `pull()` updates input data value to the first available data among connections.
 
     The `strict_connections` parameter controls whether connections are subject to
     type checking requirements.
@@ -357,12 +330,25 @@ class InputData(DataChannel):
         )
         self.strict_connections = strict_connections
 
-    def _before_update(self) -> None:
+    def pull(self) -> None:
+        """
+        Sets `value` to the first value among connections that is something other than
+        `NotData`; if no such value exists (e.g. because there are no connections or
+        because all the connected output channels have `NotData` as their value),
+        `value` remains unchanged.
+
+        Raises:
+            RuntimeError: If the parent node is `running`.
+        """
         if self.node.running:
             raise RuntimeError(
                 f"Parent node {self.node.label} of {self.label} is running, so value "
                 f"cannot be updated."
             )
+        for out in self.connections:
+            if out.value is not NotData:
+                self.value = out.value
+                break
 
     def activate_strict_connections(self) -> None:
         self.strict_connections = True
@@ -372,16 +358,7 @@ class InputData(DataChannel):
 
 
 class OutputData(DataChannel):
-    """
-    On `update`, Output channels propagate their value (as long as it's actually data)
-    to all the input channels to which they are connected by invoking their `update`
-    method.
-    """
-
-    def _after_update(self) -> None:
-        if self._value_is_data:
-            for inp in self.connections:
-                inp.update(self.value)
+    pass
 
 
 class SignalChannel(Channel, ABC):

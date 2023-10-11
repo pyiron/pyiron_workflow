@@ -220,8 +220,13 @@ class Node(HasToDict, ABC):
             run_output: The results of a `self.on_run(self.run_args)` call.
         """
 
+    def run(self):
+        for inp in self.inputs:
+            inp.pull()
+        return self._run()
+
     @manage_status
-    def run(self) -> Any | tuple | Future:
+    def _run(self) -> Any | tuple | Future:
         """
         Executes the functionality of the node defined in `on_run`.
         Handles the status of the node, and communicating with any remote
