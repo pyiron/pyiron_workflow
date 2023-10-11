@@ -19,8 +19,6 @@ from pyiron_workflow.util import SeabornColors
 if TYPE_CHECKING:
     import graphviz
 
-    from pyiron_base.jobs.job.extension.server.generic import Server
-
     from pyiron_workflow.composite import Composite
     from pyiron_workflow.io import Inputs, Outputs
 
@@ -104,10 +102,6 @@ class Node(HasToDict, ABC):
             already running nor already failed.
         running (bool): Whether the node has called `run` and has not yet
             received output from this call. (Default is False.)
-        server (Optional[pyiron_base.jobs.job.extension.server.generic.Server]): A
-            server object for computing things somewhere else. Default (and currently
-            _only_) behaviour is to compute things on the main python process owning
-            the node.
         signals (pyiron_workflow.io.Signals): A container for input and output
             signals, which are channels for controlling execution flow. By default, has
             a `signals.inputs.run` channel which has a callback to the `run` method,
@@ -148,12 +142,8 @@ class Node(HasToDict, ABC):
             parent.add(self)
         self.running = False
         self.failed = False
-        # TODO: Replace running and failed with a state object
-        self._server: Server | None = (
-            None  # Or "task_manager" or "executor" -- we'll see what's best
-        )
         # TODO: Move from a traditional "sever" to a tinybase "executor"
-        # TODO: Provide support for actually computing stuff with the server/executor
+        # TODO: Provide support for actually computing stuff with the executor
         self.signals = self._build_signal_channels()
         self._working_directory = None
         self.executor = None
@@ -262,14 +252,6 @@ class Node(HasToDict, ABC):
             else:
                 self._working_directory = DirectoryObject(self.label)
         return self._working_directory
-
-    @property
-    def server(self) -> Server | None:
-        return self._server
-
-    @server.setter
-    def server(self, server: Server | None):
-        self._server = server
 
     def disconnect(self):
         """
