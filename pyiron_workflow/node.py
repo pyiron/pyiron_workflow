@@ -23,6 +23,37 @@ if TYPE_CHECKING:
     from pyiron_workflow.io import Inputs, Outputs
 
 
+def manage_status(node_method):
+    """
+    Decorates methods of nodes that might be time-consuming, i.e. their main run
+    functionality.
+
+    Sets `running` to true until the method completes and either fails or returns
+    something other than a `concurrent.futures.Future` instance; sets `failed` to true
+    if the method raises an exception; raises a `RuntimeError` if the node is already
+    `running` or `failed`.
+    """
+    def wrapped_method(node: Node, *args, **kwargs):  # rather node:Node
+        if node.running:
+            raise RuntimeError(f"{node.label} is already running")
+        elif node.failed:
+            raise RuntimeError(f"{node.label} has a failed status")
+
+        node.running = True
+        try:
+            out = node_method(node, *args, **kwargs)
+            return out
+        except Exception as e:
+            node.failed = True
+            out = None
+            raise e
+        finally:
+            # Leave the status as running if the method returns a future
+            node.running = isinstance(out, Future)
+
+    return wrapped_method
+
+
 class Node(HasToDict, ABC):
     """
     Nodes are elements of a computational graph.
