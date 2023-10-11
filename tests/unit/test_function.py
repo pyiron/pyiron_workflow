@@ -227,7 +227,7 @@ class TestFunction(unittest.TestCase):
             # The function error should get passed up
             n.run()
         self.assertFalse(n.ready)
-        # self.assertFalse(n.running)
+        self.assertFalse(n.running)
         self.assertTrue(n.failed)
 
         n.inputs.x = 1
@@ -236,14 +236,18 @@ class TestFunction(unittest.TestCase):
             msg="Should not be ready while it has failed status"
         )
 
-        n.run()
+        n.failed = False  # Manually reset the failed status
         self.assertTrue(
             n.ready,
-            msg="A manual run() call bypasses checks, so readiness should reset"
+            msg="Input is ok, not running, not failed -- should be ready!"
         )
+        n.run()
         self.assertTrue(n.ready)
-        # self.assertFalse(n.running)
-        self.assertFalse(n.failed, msg="Re-running should reset failed status")
+        self.assertFalse(n.running)
+        self.assertFalse(
+            n.failed,
+            msg="Should be back to a good state and ready to run again"
+        )
 
     def test_with_self(self):
         def with_self(self, x: float) -> float:

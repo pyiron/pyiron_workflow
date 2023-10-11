@@ -85,7 +85,8 @@ class Node(HasToDict, ABC):
 
     The `run()` method returns a representation of the node output (possible a futures
     object, if the node is running on an executor), and consequently `update()` also
-    returns this output if the node is `ready`.
+    returns this output if the node is `ready`. Both `run()` and `update()` will raise
+    errors if the node is already running or has a failed status.
 
     Calling an already instantiated node allows its input channels to be updated using
     keyword arguments corresponding to the channel labels, performing a batch-update of
@@ -214,25 +215,15 @@ class Node(HasToDict, ABC):
         """
         pass
 
+    @manage_status
     def run(self) -> Any | tuple | Future:
         """
         Executes the functionality of the node defined in `on_run`.
         Handles the status of the node, and communicating with any remote
         computing resources.
         """
-        if self.running:
-            raise RuntimeError(f"{self.label} is already running")
-
-        self.running = True
-        self.failed = False
-
         if self.executor is None:
-            try:
-                run_output = self.on_run(**self.run_args)
-            except Exception as e:
-                self.running = False
-                self.failed = True
-                raise e
+            run_output = self.on_run(**self.run_args)
             return self.finish_run(run_output)
         else:
             # Just blindly try to execute -- as we nail down the executor interaction
