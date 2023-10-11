@@ -3,7 +3,7 @@ from __future__ import annotations
 import inspect
 import warnings
 from functools import partialmethod
-from typing import get_args, get_type_hints, Optional, TYPE_CHECKING
+from typing import Any, get_args, get_type_hints, Optional, TYPE_CHECKING
 
 from pyiron_workflow.channels import InputData, OutputData, NotData
 from pyiron_workflow.has_channel import HasChannel
@@ -486,21 +486,16 @@ class Function(Node):
             kwargs["self"] = self
         return kwargs
 
-    def process_run_result(self, function_output):
+    def process_run_result(self, function_output: Any | tuple) -> Any | tuple:
         """
         Take the results of the node function, and use them to update the node output.
-
-        By extracting this as a separate method, we allow the node to pass the actual
-        execution off to another entity and release the python process to do other
-        things. In such a case, this function should be registered as a callback
-        so that the node can finishing "running" and push its data forward when that
-        execution is finished.
         """
         for out, value in zip(
             self.outputs,
             (function_output,) if len(self.outputs) == 1 else function_output
         ):
             out.update(value)
+        return function_output
 
     def _convert_input_args_and_kwargs_to_input_kwargs(self, *args, **kwargs):
         reverse_keys = list(self._input_args.keys())[::-1]

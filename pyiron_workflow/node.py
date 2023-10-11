@@ -206,14 +206,19 @@ class Node(HasToDict, ABC):
         """
         return {}
 
-    def process_run_result(self, run_output: Any | tuple) -> None:
+    @abstractmethod
+    def process_run_result(self, run_output):
         """
         What to _do_ with the results of `on_run` once you have them.
 
+        By extracting this as a separate method, we allow the node to pass the actual
+        execution off to another entity and release the python process to do other
+        things. In such a case, this function should be registered as a callback
+        so that the node can process the result of that process.
+
         Args:
-            run_output (tuple): The results of a `self.on_run(self.run_args)` call.
+            run_output: The results of a `self.on_run(self.run_args)` call.
         """
-        pass
 
     @manage_status
     def run(self) -> Any | tuple | Future:
@@ -239,18 +244,18 @@ class Node(HasToDict, ABC):
         By extracting this as a separate method, we allow the node to pass the actual
         execution off to another entity and release the python process to do other
         things. In such a case, this function should be registered as a callback
-        so that the node can finish "running" and, e.g. push its data forward when that
-        execution is finished. In such a case, a `concurrent.futures.Future` object is
-        expected back and must be unpacked.
+        so that the node can process the results, e.g. by unpacking the futures object,
+        formatting the results nicely, and/or updating its attributes (like output
+        channels).
         """
         if isinstance(run_output, Future):
             run_output = run_output.result()
 
         self.running = False
         try:
-            self.process_run_result(run_output)
+            processed_output = self.process_run_result(run_output)
             self.signals.output.ran()
-            return run_output
+            return processed_output
         except Exception as e:
             self.failed = True
             raise e

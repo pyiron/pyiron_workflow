@@ -165,6 +165,9 @@ class Composite(Node, ABC):
             node.run()
         return DotDict(self.outputs.to_value_dict())
 
+    def process_run_result(self, run_output):
+        return run_output
+
     def disconnect_run(self) -> list[tuple[Channel, Channel]]:
         """
         Disconnect all `signals.input.run` connections on all child nodes.
