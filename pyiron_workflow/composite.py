@@ -367,13 +367,50 @@ class Composite(Node, ABC):
             node (Node|str): The node (or its label) to remove.
 
         Returns:
-            [list[tuple[Channel, Channel]]]: Any connections that node had.
+            (list[tuple[Channel, Channel]]): Any connections that node had.
         """
         node = self.nodes[node] if isinstance(node, str) else node
         node.parent = None
         disconnected = node.disconnect()
         del self.nodes[node.label]
         return disconnected
+
+    def replace(self, owned_node: Node | str, replacement: Node):
+        """
+        Replaces a node currently owned with a new node instance.
+        The replacement must not belong to any other parent or have any connections.
+        The IO of the new node must be a perfect superset of the replaced node, i.e.
+        channel labels need to match precisely, but additional channels may be present.
+        After replacement, the new node will have the old node's connections, label,
+        and belong to this composite.
+
+        Args:
+            owned_node (Node|str): The node to replace or its label.
+            replacement (Node): The node to replace it with.
+
+        Returns:
+            (Node): The node that got removed
+        """
+        if replacement.parent is not None:
+            raise ValueError(
+                f"Replacement node must have no parent, but got {replacement.parent}"
+            )
+        if replacement.connected:
+            raise ValueError("Replacement node must not have any connections")
+
+        if isinstance(owned_node, str):
+            owned_node = self.nodes[owned_node]
+
+        if owned_node.parent is not self:
+            raise ValueError(
+                f"The node being replaced should be a child of this composite, but "
+                f"another parent was found: {owned_node.parent}"
+            )
+
+        replacement.copy_connections(owned_node)
+        replacement.label = owned_node.label
+        self.remove(owned_node)
+        self.add(replacement)
 
     def __setattr__(self, key: str, node: Node):
         if isinstance(node, Node) and key != "parent":

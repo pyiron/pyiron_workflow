@@ -237,6 +237,64 @@ class TestMacro(unittest.TestCase):
             with self.assertRaises(ValueError):
                 Macro(only_starting)
 
+    def test_replace_node(self):
+        macro = Macro(add_three_macro)
+
+        replacement = Macro(
+            add_three_macro,
+            inputs_map={"one__x": "x"},
+            outputs_map={"three__result": "result"}
+        )
+
+        self.assertEqual(
+            macro(one__x=0).three__result,
+            3,
+            msg="Sanity check"
+        )
+
+        to_replace = macro.two
+
+        macro.replace(to_replace, replacement)
+        self.assertEqual(
+            macro(one__x=0).three__result,
+            5,
+            msg="Result should be bigger after replacing an add_one node with an "
+                "add_three macro"
+        )
+        self.assertFalse(
+            to_replace.connected,
+            msg="Replaced node should get disconnected"
+        )
+        self.assertIsNone(
+            to_replace.parent,
+            msg="Replaced node should get orphaned"
+        )
+
+        another_macro = Macro(add_three_macro)
+        with self.subTest("Should fail when replacement is connected"):
+            to_replace.inputs.x = another_macro.outputs.three__result
+            with self.assertRaises(ValueError):
+                macro.replace(replacement, to_replace)
+        to_replace.disconnect()
+
+        with self.subTest("Should fail when replacement has a parent"):
+            another_macro.add(to_replace, label="extra")
+            with self.assertRaises(ValueError):
+                macro.replace(replacement, to_replace)
+        another_macro.remove(to_replace)
+
+        with self.subTest("Should fail if the node being replaced isn't a child"):
+            with self.assertRaises(ValueError):
+                macro.replace(another_macro, to_replace)
+
+        with self.subTest("Should be possible to replace by label too"):
+            macro.replace("two", to_replace)
+            self.assertEqual(
+                macro(one__x=0).three__result,
+                3,
+                msg="Original node should be back in place now"
+            )
+
 
 if __name__ == '__main__':
     unittest.main()
