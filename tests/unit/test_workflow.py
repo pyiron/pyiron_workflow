@@ -93,10 +93,15 @@ class TestWorkflow(unittest.TestCase):
         with self.assertRaises(ValueError):
             # Can't belong to two workflows at once
             wf2.add(node2)
-        wf1.remove(node2)
+        disconnections = wf1.remove(node2)
+        self.assertFalse(node2.connected, msg="Removal should first disconnect")
+        self.assertListEqual(
+            disconnections,
+            [(node2.inputs.x, wf1.node1.outputs.y)],
+            msg="Disconnections should be returned by removal"
+        )
         wf2.add(node2)
         self.assertEqual(node2.parent, wf2)
-        self.assertFalse(node2.connected)
 
     def test_workflow_io(self):
         wf = Workflow("wf")

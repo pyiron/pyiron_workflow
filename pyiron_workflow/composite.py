@@ -361,8 +361,9 @@ class Composite(Node, ABC):
     def remove(self, node: Node | str):
         if isinstance(node, Node):
             node.parent = None
-            node.disconnect()
+            disconnected = node.disconnect()
             del self.nodes[node.label]
+            return disconnected
         else:
             del self.nodes[node]
 
