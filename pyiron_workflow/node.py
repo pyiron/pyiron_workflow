@@ -220,6 +220,15 @@ class Node(HasToDict, ABC):
             run_output: The results of a `self.on_run(self.run_args)` call.
         """
 
+    @manage_status
+    def execute(self):
+        """
+        Perform the node's operation with its current data.
+
+        Execution happens directly on this python process.
+        """
+        return self.process_run_result(self.on_run(**self.run_args))
+
     def run(self):
         self.fetch_input()
         return self._run(finished_callback=self.finish_run_and_emit_ran)
