@@ -160,13 +160,19 @@ class Composite(Node, ABC):
         return self.run_graph
 
     @staticmethod
-    def run_graph(self):
-        for node in self.starting_nodes:
+    def run_graph(_nodes: dict[Node], _starting_nodes: list[Node]):
+        for node in _starting_nodes:
             node.run()
-        return DotDict(self.outputs.to_value_dict())
+        return _nodes
+
+    @property
+    def run_args(self) -> dict:
+        return {"_nodes": self.nodes, "_starting_nodes": self.starting_nodes}
 
     def process_run_result(self, run_output):
-        return run_output
+        # self.nodes = run_output
+        # Running on an executor will require a more sophisticated idea than above
+        return DotDict(self.outputs.to_value_dict())
 
     def disconnect_run(self) -> list[tuple[Channel, Channel]]:
         """
@@ -251,10 +257,6 @@ class Composite(Node, ABC):
             digraph[node.label] = node_dependencies
 
         return digraph
-
-    @property
-    def run_args(self) -> dict:
-        return {"self": self}
 
     def _build_io(
         self,

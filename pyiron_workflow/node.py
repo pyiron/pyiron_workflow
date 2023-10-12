@@ -200,11 +200,11 @@ class Node(HasToDict, ABC):
         pass
 
     @property
+    @abstractmethod
     def run_args(self) -> dict:
         """
         Any data needed for `on_run`, will be passed as **kwargs.
         """
-        return {}
 
     @abstractmethod
     def process_run_result(self, run_output):
