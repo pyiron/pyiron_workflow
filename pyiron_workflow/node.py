@@ -241,7 +241,7 @@ class Node(HasToDict, ABC):
         Once complete, fire `ran` signal to propagate execution in the computation graph
         that owns this node (if any).
         """
-        self.fetch_input()
+        self.update_input()
         return self._run(finished_callback=self.finish_run_and_emit_ran)
 
     def pull(self):
@@ -249,15 +249,37 @@ class Node(HasToDict, ABC):
         # Need to implement everything for on-the-fly construction of the upstream
         # graph and its execution
         # Then,
-        self.fetch_input()
+        self.update_input()
         return self._run(finished_callback=self.finish_run)
 
-    def fetch_input(self):
+    def update_input(self, **kwargs) -> None:
         """
-        Update input channel values with their current most-prioritized connection's
-        value.
+        Fetch the latest and highest-priority input values from connections, then
+        overwrite values with keywords arguments matching input channel labels.
+
+        Any channel that has neither a connection nor a kwarg update at time of call is
+        left unchanged.
+
+        Throws a warning if a keyword is provided that cannot be found among the input
+        keys.
+
+        If you really want to update just a single value without any other side-effects,
+        this can always be accomplished by following the full semantic path to the
+        channel's value: `my_node.input.my_channel.value = "foo"`.
+
+        Args:
+            **kwargs: input key - input value (including channels for connection) pairs.
         """
         self.inputs.fetch()
+        for k, v in kwargs.items():
+            if k in self.inputs.labels:
+                self.inputs[k] = v
+            else:
+                warnings.warn(
+                    f"The keyword '{k}' was not found among input labels. If you are "
+                    f"trying to update a node keyword, please use attribute assignment "
+                    f"directly instead of calling"
+                )
 
     @manage_status
     def _run(self, finished_callback: callable) -> Any | tuple | Future:
@@ -355,24 +377,6 @@ class Node(HasToDict, ABC):
             and self.outputs.fully_connected
             and self.signals.fully_connected
         )
-
-    def update_input(self, **kwargs) -> None:
-        """
-        Match keywords to input channel labels and update input values.
-
-        Args:
-            **kwargs: input label - input value (including channels for connection)
-             pairs.
-        """
-        for k, v in kwargs.items():
-            if k in self.inputs.labels:
-                self.inputs[k] = v
-            else:
-                warnings.warn(
-                    f"The keyword '{k}' was not found among input labels. If you are "
-                    f"trying to update a node keyword, please use attribute assignment "
-                    f"directly instead of calling"
-                )
 
     def __call__(self, **kwargs) -> None:
         self.update_input(**kwargs)
