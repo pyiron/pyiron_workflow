@@ -194,6 +194,10 @@ class Inputs(DataIO):
     def deactivate_strict_connections(self):
         [c.deactivate_strict_connections() for c in self]
 
+    def fetch(self):
+        for c in self:
+            c.fetch()
+
 
 class Outputs(DataIO):
     @property

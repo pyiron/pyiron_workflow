@@ -221,9 +221,15 @@ class Node(HasToDict, ABC):
         """
 
     def run(self):
-        for inp in self.inputs:
-            inp.fetch()
+        self.fetch_input()
         return self._run()
+
+    def fetch_input(self):
+        """
+        Update input channel values with their current most-prioritized connection's
+        value.
+        """
+        self.inputs.fetch()
 
     @manage_status
     def _run(self) -> Any | tuple | Future:
