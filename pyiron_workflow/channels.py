@@ -3,10 +3,10 @@ Channels are access points for information to flow into and out of nodes.
 
 Data channels carry, unsurprisingly, data.
 Connections are only permissible between opposite sub-types, i.e. input-output.
-When input channels `pull()` data in, they set their `value` to the first available
+When input channels `fetch()` data in, they set their `value` to the first available
 data value among their connections -- i.e. the `value` of the first output channel in
 their connections who has something other than `NotData`.
-Input data channels will raise an error if a `pull()` is attempted while their parent
+Input data channels will raise an error if a `fetch()` is attempted while their parent
  node is running.
 
 Signal channels are tools for procedurally exposing functionality on nodes.
@@ -305,7 +305,7 @@ class DataChannel(Channel, ABC):
 
 class InputData(DataChannel):
     """
-    `pull()` updates input data value to the first available data among connections.
+    `fetch()` updates input data value to the first available data among connections.
 
     The `strict_connections` parameter controls whether connections are subject to
     type checking requirements.
@@ -330,7 +330,7 @@ class InputData(DataChannel):
         )
         self.strict_connections = strict_connections
 
-    def pull(self) -> None:
+    def fetch(self) -> None:
         """
         Sets `value` to the first value among connections that is something other than
         `NotData`; if no such value exists (e.g. because there are no connections or

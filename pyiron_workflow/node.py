@@ -222,7 +222,7 @@ class Node(HasToDict, ABC):
 
     def run(self):
         for inp in self.inputs:
-            inp.pull()
+            inp.fetch()
         return self._run()
 
     @manage_status

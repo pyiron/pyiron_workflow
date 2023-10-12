@@ -44,7 +44,7 @@ class TestDataChannels(TestCase):
             self.assertIn(self.no, self.ni1.connections)
             self.assertIn(self.ni1, self.no.connections)
             self.assertNotEqual(self.no.value, self.ni1.value)
-            self.ni1.pull()
+            self.ni1.fetch()
             self.assertEqual(self.no.value, self.ni1.value)
 
         with self.subTest("Test disconnection"):
@@ -76,7 +76,7 @@ class TestDataChannels(TestCase):
         with self.subTest("Test iteration"):
             self.assertTrue(all([con in self.no.connections for con in self.no]))
 
-        with self.subTest("Data should update on pull"):
+        with self.subTest("Data should update on fetch"):
             self.ni1.disconnect_all()
 
             self.no.value = NotData
@@ -89,22 +89,22 @@ class TestDataChannels(TestCase):
                 1,
                 msg="Data should not be getting pushed on connection"
             )
-            self.ni1.pull()
+            self.ni1.fetch()
             self.assertEqual(
                 self.ni1.value,
                 1,
                 msg="NotData values should not be getting pulled"
             )
             self.no.value = 3
-            self.ni1.pull()
+            self.ni1.fetch()
             self.assertEqual(
                 self.ni1.value,
                 3,
-                msg="Data pull should to first connected value that's actually data,"
+                msg="Data fetch should to first connected value that's actually data,"
                     "in this case skipping over no_empty"
             )
             self.no_empty.value = 4
-            self.ni1.pull()
+            self.ni1.fetch()
             self.assertEqual(
                 self.ni1.value,
                 4,
