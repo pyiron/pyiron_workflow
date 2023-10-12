@@ -259,6 +259,24 @@ class Node(HasToDict, ABC):
         """
         self.inputs.fetch()
 
+    def update_input(self, **kwargs) -> None:
+        """
+        Match keywords to input channel labels and update input values.
+
+        Args:
+            **kwargs: input label - input value (including channels for connection)
+             pairs.
+        """
+        for k, v in kwargs.items():
+            if k in self.inputs.labels:
+                self.inputs[k] = v
+            else:
+                warnings.warn(
+                    f"The keyword '{k}' was not found among input labels. If you are "
+                    f"trying to update a node keyword, please use attribute assignment "
+                    f"directly instead of calling"
+                )
+
     @manage_status
     def _run(self, finished_callback: callable) -> Any | tuple | Future:
         """
@@ -355,24 +373,6 @@ class Node(HasToDict, ABC):
             and self.outputs.fully_connected
             and self.signals.fully_connected
         )
-
-    def update_input(self, **kwargs) -> None:
-        """
-        Match keywords to input channel labels and update input values.
-
-        Args:
-            **kwargs: input label - input value (including channels for connection)
-             pairs.
-        """
-        for k, v in kwargs.items():
-            if k in self.inputs.labels:
-                self.inputs[k] = v
-            else:
-                warnings.warn(
-                    f"The keyword '{k}' was not found among input labels. If you are "
-                    f"trying to update a node keyword, please use attribute assignment "
-                    f"directly instead of calling"
-                )
 
     def __call__(self, **kwargs) -> None:
         self.update_input(**kwargs)
