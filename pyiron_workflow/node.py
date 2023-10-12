@@ -222,7 +222,7 @@ class Node(HasToDict, ABC):
 
     def run(self):
         self.fetch_input()
-        return self._run()
+        return self._run(finished_callback=self.finish_run)
 
     def fetch_input(self):
         """
@@ -232,7 +232,7 @@ class Node(HasToDict, ABC):
         self.inputs.fetch()
 
     @manage_status
-    def _run(self) -> Any | tuple | Future:
+    def _run(self, finished_callback: callable) -> Any | tuple | Future:
         """
         Executes the functionality of the node defined in `on_run`.
         Handles the status of the node, and communicating with any remote
@@ -240,12 +240,12 @@ class Node(HasToDict, ABC):
         """
         if self.executor is None:
             run_output = self.on_run(**self.run_args)
-            return self.finish_run(run_output)
+            return finished_callback(run_output)
         else:
             # Just blindly try to execute -- as we nail down the executor interaction
             # we'll want to fail more cleanly here.
             self.future = self.executor.submit(self.on_run, **self.run_args)
-            self.future.add_done_callback(self.finish_run)
+            self.future.add_done_callback(finished_callback)
             return self.future
 
     def finish_run(self, run_output: tuple | Future) -> Any | tuple:
