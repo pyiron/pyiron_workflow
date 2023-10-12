@@ -33,6 +33,7 @@ def manage_status(node_method):
     if the method raises an exception; raises a `RuntimeError` if the node is already
     `running` or `failed`.
     """
+
     def wrapped_method(node: Node, *args, **kwargs):  # rather node:Node
         if node.running:
             raise RuntimeError(f"{node.label} is already running")
@@ -296,10 +297,14 @@ class Node(HasToDict, ABC):
         processed_output = self.finish_run(run_output)
         self.signals.output.ran()
         return processed_output
-    finish_run_and_emit_ran.__doc__ = finish_run.__doc__ + """
+
+    finish_run_and_emit_ran.__doc__ = (
+        finish_run.__doc__
+        + """
     
     Finally, fire the `ran` signal.
     """
+    )
 
     def _build_signal_channels(self) -> Signals:
         signals = Signals()

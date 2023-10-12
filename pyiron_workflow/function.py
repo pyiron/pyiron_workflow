@@ -492,7 +492,7 @@ class Function(Node):
         """
         for out, value in zip(
             self.outputs,
-            (function_output,) if len(self.outputs) == 1 else function_output
+            (function_output,) if len(self.outputs) == 1 else function_output,
         ):
             out.value = value
         return function_output
