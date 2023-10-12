@@ -468,10 +468,10 @@ class Node(HasToDict, ABC):
                 (self.signals.input, other.signals.input),
                 (self.signals.output, other.signals.output),
             ]:
-                for channel in other_panel:
+                for key, channel in other_panel.items():
                     for target in channel.connections:
-                        my_panel[channel.label].connect(target)
-                        new_connections.append((my_panel[channel.label], target))
+                        my_panel[key].connect(target)
+                        new_connections.append((my_panel[key], target))
         except Exception as e:
             # If you run into trouble, unwind what you've done
             for connection in new_connections:
