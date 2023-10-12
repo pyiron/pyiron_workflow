@@ -258,14 +258,9 @@ class Node(HasToDict, ABC):
 
     def finish_run(self, run_output: tuple | Future) -> Any | tuple:
         """
-        Switch the node status, process the run result, then fire the ran signal.
+        Switch the node status, then process and return the run result.
 
-        By extracting this as a separate method, we allow the node to pass the actual
-        execution off to another entity and release the python process to do other
-        things. In such a case, this function should be registered as a callback
-        so that the node can process the results, e.g. by unpacking the futures object,
-        formatting the results nicely, and/or updating its attributes (like output
-        channels).
+        Sets the `failed` status to true if an exception is encountered.
         """
         if isinstance(run_output, Future):
             run_output = run_output.result()
@@ -282,6 +277,10 @@ class Node(HasToDict, ABC):
         processed_output = self.finish_run(run_output)
         self.signals.output.ran()
         return processed_output
+    finish_run_and_emit_ran.__doc__ = finish_run.__doc__ + """
+    
+    Finally, fire the `ran` signal.
+    """
 
     def _build_signal_channels(self) -> Signals:
         signals = Signals()
