@@ -222,6 +222,14 @@ class Node(HasToDict, ABC):
 
     def run(self):
         self.fetch_input()
+        return self._run(finished_callback=self.finish_run_and_emit_ran)
+
+    def pull(self):
+        raise NotImplementedError
+        # Need to implement everything for on-the-fly construction of the upstream
+        # graph and its execution
+        # Then,
+        self.fetch_input()
         return self._run(finished_callback=self.finish_run)
 
     def fetch_input(self):
@@ -265,11 +273,15 @@ class Node(HasToDict, ABC):
         self.running = False
         try:
             processed_output = self.process_run_result(run_output)
-            self.signals.output.ran()
             return processed_output
         except Exception as e:
             self.failed = True
             raise e
+
+    def finish_run_and_emit_ran(self, run_output: tuple | Future) -> Any | tuple:
+        processed_output = self.finish_run(run_output)
+        self.signals.output.ran()
+        return processed_output
 
     def _build_signal_channels(self) -> Signals:
         signals = Signals()
