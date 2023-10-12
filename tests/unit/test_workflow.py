@@ -103,6 +103,19 @@ class TestWorkflow(unittest.TestCase):
         wf2.add(node2)
         self.assertEqual(node2.parent, wf2)
 
+        node1 = wf1.node1
+        disconnections = wf1.remove(node1.label)
+        self.assertEqual(
+            node1.parent,
+            None,
+            msg="Should be able to remove nodes by label as well as by object"
+        )
+        self.assertListEqual(
+            [],
+            disconnections,
+            msg="node1 should have no connections left"
+        )
+
     def test_workflow_io(self):
         wf = Workflow("wf")
         wf.create.Function(plus_one, label="n1")

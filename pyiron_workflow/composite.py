@@ -358,14 +358,22 @@ class Composite(Node, ABC):
             )
             del self.nodes[node.label]
 
-    def remove(self, node: Node | str):
-        if isinstance(node, Node):
-            node.parent = None
-            disconnected = node.disconnect()
-            del self.nodes[node.label]
-            return disconnected
-        else:
-            del self.nodes[node]
+    def remove(self, node: Node | str) -> list[tuple[Channel, Channel]]:
+        """
+        Remove a node from the `nodes` collection, disconnecting it and setting its
+        `parent` to None.
+
+        Args:
+            node (Node|str): The node (or its label) to remove.
+
+        Returns:
+            [list[tuple[Channel, Channel]]]: Any connections that node had.
+        """
+        node = self.nodes[node] if isinstance(node, str) else node
+        node.parent = None
+        disconnected = node.disconnect()
+        del self.nodes[node.label]
+        return disconnected
 
     def __setattr__(self, key: str, node: Node):
         if isinstance(node, Node) and key != "parent":
