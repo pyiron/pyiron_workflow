@@ -230,6 +230,16 @@ class Node(HasToDict, ABC):
         return self.process_run_result(self.on_run(**self.run_args))
 
     def run(self):
+        """
+        Update the input (with whatever is currently available -- does _not_ trigger
+        any other nodes to run) and use it to perform the node's operation.
+
+        If executor information is specified, execution happens on that process, a
+        callback is registered, and futures object is returned.
+
+        Once complete, fire `ran` signal to propagate execution in the computation graph
+        that owns this node (if any).
+        """
         self.fetch_input()
         return self._run(finished_callback=self.finish_run_and_emit_ran)
 
