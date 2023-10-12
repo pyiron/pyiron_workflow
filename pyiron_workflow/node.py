@@ -20,7 +20,7 @@ if TYPE_CHECKING:
     import graphviz
 
     from pyiron_workflow.composite import Composite
-    from pyiron_workflow.io import Inputs, Outputs
+    from pyiron_workflow.io import IO, Inputs, Outputs
 
 
 def manage_status(node_method):
@@ -447,3 +447,34 @@ class Node(HasToDict, ABC):
             our = our.parent
             their = other
         return None
+
+    def copy_connections(self, other: Node) -> None:
+        """
+        Copies all the connections in another node to this one.
+        Expects the channels available on this node to be commensurate to those on the
+        other, i.e. same label, compatible type hint for the connections that exist.
+        This node may freely have additional channels not present in the other node.
+
+        If an exception is encountered, any connections copied so far are disconnected
+
+        Args:
+            other (Node): the node whose connections should be copied.
+        """
+        new_connections = []
+        try:
+            for (my_panel, other_panel) in [
+                (self.inputs, other.inputs),
+                (self.outputs, other.outputs),
+                (self.signals.input, other.signals.input),
+                (self.signals.output, other.signals.output),
+            ]:
+                for channel in other_panel:
+                    for target in channel.connections:
+                        my_panel[channel.label].connect(target)
+                        new_connections.append((my_panel[channel.label], target))
+        except Exception as e:
+            # If you run into trouble, unwind what you've done
+            for connection in new_connections:
+                connection[0].disconnect(connection[1])
+            raise e
+

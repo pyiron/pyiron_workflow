@@ -396,6 +396,34 @@ class TestFunction(unittest.TestCase):
                 node.run()
             node.future.result()  # Wait for the remote execution to finish
 
+    def test_copy_connections(self):
+        node = Function(plus_one)
+
+        upstream = Function(plus_one)
+        to_copy = Function(plus_one, x=upstream.outputs.y)
+        downstream = Function(plus_one, x=to_copy.outputs.y)
+        upstream > to_copy > downstream
+
+        wrong_io = Function(no_default, x=upstream.outputs.y)
+        downstream.inputs.x.connect(wrong_io.outputs["x + y + 1"])
+
+        with self.subTest("Ensure failed copies fail cleanly"):
+            with self.assertRaises(AttributeError):
+                node.copy_connections(wrong_io)
+            self.assertFalse(
+                node.connected,
+                msg="The x-input connection should have been copied, but should be "
+                    "removed when the copy fails."
+            )
+        node.disconnect()  # Make sure you've got a clean slate
+
+        with self.subTest("Successful copy"):
+            node.copy_connections(to_copy)
+            self.assertIn(upstream.outputs.y, node.inputs.x.connections)
+            self.assertIn(upstream.signals.output.ran, node.signals.input.run)
+            self.assertIn(downstream.inputs.x, node.outputs.y.connections)
+            self.assertIn(downstream.signals.input.run, node.signals.output.ran)
+
 
 @unittest.skipUnless(version_info[0] == 3 and version_info[1] >= 10, "Only supported for 3.10+")
 class TestSingleValue(unittest.TestCase):
