@@ -263,6 +263,10 @@ class Node(HasToDict, ABC):
         Throws a warning if a keyword is provided that cannot be found among the input
         keys.
 
+        If you really want to update just a single value without any other side-effects,
+        this can always be accomplished by following the full semantic path to the
+        channel's value: `my_node.input.my_channel.value = "foo"`.
+
         Args:
             **kwargs: input key - input value (including channels for connection) pairs.
         """
