@@ -147,6 +147,23 @@ class TestFunction(unittest.TestCase):
             switch = Function(multiple_branches, output_labels="bool")
             self.assertListEqual(switch.outputs.labels, ["bool"])
 
+    def test_availability_of_node_function(self):
+        @function_node()
+        def linear(x):
+            return x
+
+        @function_node()
+        def bilinear(x, y):
+            xy = linear.node_function(x) * linear.node_function(y)
+            return xy
+
+        self.assertEqual(
+            bilinear(2, 3).run(),
+            2 * 3,
+            msg="Children of `Function` should have their `node_function` exposed for "
+                "use at the class level"
+        )
+
     def test_signals(self):
         @function_node()
         def linear(x):
