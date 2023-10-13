@@ -240,11 +240,12 @@ class TestMacro(unittest.TestCase):
     def test_replace_node(self):
         macro = Macro(add_three_macro)
 
-        replacement = Macro(
+        adds_three_node = Macro(
             add_three_macro,
             inputs_map={"one__x": "x"},
             outputs_map={"three__result": "result"}
         )
+        adds_one_node = macro.two
 
         self.assertEqual(
             macro(one__x=0).three__result,
@@ -252,60 +253,71 @@ class TestMacro(unittest.TestCase):
             msg="Sanity check"
         )
 
-        to_replace = macro.two
+        with self.subTest("Verify successful cases"):
 
-        macro.replace(to_replace, replacement)
-        self.assertEqual(
-            macro(one__x=0).three__result,
-            5,
-            msg="Result should be bigger after replacing an add_one node with an "
-                "add_three macro"
-        )
-        self.assertFalse(
-            to_replace.connected,
-            msg="Replaced node should get disconnected"
-        )
-        self.assertIsNone(
-            to_replace.parent,
-            msg="Replaced node should get orphaned"
-        )
+            macro.replace(adds_one_node, adds_three_node)
+            self.assertEqual(
+                macro(one__x=0).three__result,
+                5,
+                msg="Result should be bigger after replacing an add_one node with an "
+                    "add_three macro"
+            )
+            self.assertFalse(
+                adds_one_node.connected,
+                msg="Replaced node should get disconnected"
+            )
+            self.assertIsNone(
+                adds_one_node.parent,
+                msg="Replaced node should get orphaned"
+            )
 
-        another_macro = Macro(add_three_macro)
-        with self.subTest("Should fail when replacement is connected"):
-            to_replace.inputs.x = another_macro.outputs.three__result
-            with self.assertRaises(ValueError):
-                macro.replace(replacement, to_replace)
-        to_replace.disconnect()
-
-        with self.subTest("Should fail when replacement has a parent"):
-            another_macro.add(to_replace, label="extra")
-            with self.assertRaises(ValueError):
-                macro.replace(replacement, to_replace)
-        another_macro.remove(to_replace)
-
-        with self.subTest("Should fail if the node being replaced isn't a child"):
-            with self.assertRaises(ValueError):
-                macro.replace(another_macro, to_replace)
-
-        with self.subTest(
-            "Should be possible to replace with a class instead of an instance"
-        ):
             add_one_class = macro.wrap_as.single_value_node()(add_one)
             self.assertTrue(issubclass(add_one_class, SingleValue), msg="Sanity check")
-            macro.replace(macro.two, add_one_class)
+            macro.replace(adds_three_node, add_one_class)
             self.assertEqual(
                 macro(one__x=0).three__result,
                 3,
                 msg="Should be possible to replace with a class instead of an instance"
             )
 
-        with self.subTest("Should be possible to replace by label too"):
-            macro.replace("two", replacement)
+            macro.replace("two", adds_three_node)
             self.assertEqual(
                 macro(one__x=0).three__result,
                 5,
-                msg="Original node should be back in place now"
+                msg="Should be possible to replace by label"
             )
+
+        with self.subTest("Verify failure cases"):
+            another_macro = Macro(add_three_macro)
+            another_node = Macro(
+                add_three_macro,
+                inputs_map={"one__x": "x"},
+                outputs_map={"three__result": "result"},
+            )
+            another_macro.now_its_a_child = another_node
+
+            with self.assertRaises(
+                ValueError,
+                msg="Should fail when replacement has a parent"
+            ):
+                macro.replace(macro.two, another_node)
+
+            another_macro.remove(another_node)
+            another_node.inputs.x = another_macro.outputs.three__result
+            with self.assertRaises(
+                ValueError,
+                msg="Should fail when replacement is connected"
+            ):
+                macro.replace(macro.two, another_node)
+
+            another_node.disconnect()
+            an_ok_replacement = another_macro.two
+            another_macro.remove(an_ok_replacement)
+            with self.assertRaises(
+                ValueError,
+                msg="Should fail if the node being replaced isn't a child"
+            ):
+                macro.replace(another_node, an_ok_replacement)
 
 
 if __name__ == '__main__':
