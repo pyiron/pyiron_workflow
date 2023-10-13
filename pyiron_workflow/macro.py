@@ -14,6 +14,8 @@ from pyiron_workflow.io import Outputs, Inputs
 if TYPE_CHECKING:
     from bidict import bidict
 
+    from pyiron_workflow.node import Node
+
 
 class Macro(Composite):
     """
@@ -169,6 +171,10 @@ class Macro(Composite):
     def outputs(self) -> Outputs:
         return self._outputs
 
+    def _rebuild_data_io(self):
+        self._inputs = self._build_inputs()
+        self._outputs = self._build_outputs()
+
     def _configure_graph_execution(self):
         run_signals = self.disconnect_run()
 
@@ -194,6 +200,13 @@ class Macro(Composite):
         self.disconnect_run()
         for pairs in run_signal_pairs_to_restore:
             pairs[0].connect(pairs[1])
+
+    def replace(self, owned_node: Node | str, replacement: Node | type[Node]):
+        super().replace(owned_node=owned_node, replacement=replacement)
+        # Make sure node-level IO is pointing to the new node
+        self._rebuild_data_io()
+        # This is brute-force overkill since only the replaced node needs to be updated
+        # but it's not particularly expensive
 
     def to_workfow(self):
         raise NotImplementedError

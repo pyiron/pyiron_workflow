@@ -317,6 +317,11 @@ class TestMacro(unittest.TestCase):
                 [new_starter],
                 msg="Replacement should be reflected in the starting nodes"
             )
+            self.assertIs(
+                macro.inputs.one__x,
+                new_starter.inputs.x,
+                msg="Replacement should be reflected in composite IO"
+            )
 
         with self.subTest("Verify failure cases"):
             another_macro = Macro(add_three_macro)
