@@ -386,7 +386,9 @@ class Composite(Node, ABC):
 
         Args:
             owned_node (Node|str): The node to replace or its label.
-            replacement (Node): The node to replace it with.
+            replacement (Node | type[Node]): The node or class to replace it with. (If
+                a class is passed, it has all the same requirements on IO compatibility
+                and simply gets instantiated.)
 
         Returns:
             (Node): The node that got removed
