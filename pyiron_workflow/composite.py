@@ -358,17 +358,86 @@ class Composite(Node, ABC):
             )
             del self.nodes[node.label]
 
-    def remove(self, node: Node | str):
-        if isinstance(node, Node):
-            node.parent = None
-            node.disconnect()
-            del self.nodes[node.label]
+    def remove(self, node: Node | str) -> list[tuple[Channel, Channel]]:
+        """
+        Remove a node from the `nodes` collection, disconnecting it and setting its
+        `parent` to None.
+
+        Args:
+            node (Node|str): The node (or its label) to remove.
+
+        Returns:
+            (list[tuple[Channel, Channel]]): Any connections that node had.
+        """
+        node = self.nodes[node] if isinstance(node, str) else node
+        node.parent = None
+        disconnected = node.disconnect()
+        if node in self.starting_nodes:
+            self.starting_nodes.remove(node)
+        del self.nodes[node.label]
+        return disconnected
+
+    def replace(self, owned_node: Node | str, replacement: Node | type[Node]):
+        """
+        Replaces a node currently owned with a new node instance.
+        The replacement must not belong to any other parent or have any connections.
+        The IO of the new node must be a perfect superset of the replaced node, i.e.
+        channel labels need to match precisely, but additional channels may be present.
+        After replacement, the new node will have the old node's connections, label,
+        and belong to this composite.
+
+        Args:
+            owned_node (Node|str): The node to replace or its label.
+            replacement (Node | type[Node]): The node or class to replace it with. (If
+                a class is passed, it has all the same requirements on IO compatibility
+                and simply gets instantiated.)
+
+        Returns:
+            (Node): The node that got removed
+        """
+        if isinstance(owned_node, str):
+            owned_node = self.nodes[owned_node]
+
+        if owned_node.parent is not self:
+            raise ValueError(
+                f"The node being replaced should be a child of this composite, but "
+                f"another parent was found: {owned_node.parent}"
+            )
+
+        if isinstance(replacement, Node):
+            if replacement.parent is not None:
+                raise ValueError(
+                    f"Replacement node must have no parent, but got "
+                    f"{replacement.parent}"
+                )
+            if replacement.connected:
+                raise ValueError("Replacement node must not have any connections")
+        elif issubclass(replacement, Node):
+            replacement = replacement(label=owned_node.label)
         else:
-            del self.nodes[node]
+            raise TypeError(
+                f"Expected replacement node to be a node instance or node subclass, but "
+                f"got {replacement}"
+            )
+
+        replacement.copy_connections(owned_node)
+        replacement.label = owned_node.label
+        is_starting_node = owned_node in self.starting_nodes
+        self.remove(owned_node)
+        self.add(replacement)
+        if is_starting_node:
+            self.starting_nodes.append(replacement)
 
     def __setattr__(self, key: str, node: Node):
         if isinstance(node, Node) and key != "parent":
             self.add(node, label=key)
+        elif (
+            isinstance(node, type)
+            and issubclass(node, Node)
+            and key in self.nodes.keys()
+        ):
+            # When a class is assigned to an existing node, try a replacement
+            self.replace(key, node)
         else:
             super().__setattr__(key, node)
 

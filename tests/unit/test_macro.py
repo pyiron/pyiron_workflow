@@ -237,6 +237,136 @@ class TestMacro(unittest.TestCase):
             with self.assertRaises(ValueError):
                 Macro(only_starting)
 
+    def test_replace_node(self):
+        macro = Macro(add_three_macro)
+
+        adds_three_node = Macro(
+            add_three_macro,
+            inputs_map={"one__x": "x"},
+            outputs_map={"three__result": "result"}
+        )
+        adds_one_node = macro.two
+
+        self.assertEqual(
+            macro(one__x=0).three__result,
+            3,
+            msg="Sanity check"
+        )
+
+        with self.subTest("Verify successful cases"):
+
+            macro.replace(adds_one_node, adds_three_node)
+            self.assertEqual(
+                macro(one__x=0).three__result,
+                5,
+                msg="Result should be bigger after replacing an add_one node with an "
+                    "add_three macro"
+            )
+            self.assertFalse(
+                adds_one_node.connected,
+                msg="Replaced node should get disconnected"
+            )
+            self.assertIsNone(
+                adds_one_node.parent,
+                msg="Replaced node should get orphaned"
+            )
+
+            add_one_class = macro.wrap_as.single_value_node()(add_one)
+            self.assertTrue(issubclass(add_one_class, SingleValue), msg="Sanity check")
+            macro.replace(adds_three_node, add_one_class)
+            self.assertEqual(
+                macro(one__x=0).three__result,
+                3,
+                msg="Should be possible to replace with a class instead of an instance"
+            )
+
+            macro.replace("two", adds_three_node)
+            self.assertEqual(
+                macro(one__x=0).three__result,
+                5,
+                msg="Should be possible to replace by label"
+            )
+
+            macro.two.replace_with(adds_one_node)
+            self.assertEqual(
+                macro(one__x=0).three__result,
+                3,
+                msg="Nodes should have syntactic sugar for invoking replacement"
+            )
+
+            @Macro.wrap_as.function_node()
+            def add_two(x):
+                result = x + 2
+                return result
+            macro.two = add_two
+            self.assertEqual(
+                macro(one__x=0).three__result,
+                4,
+                msg="Composite should allow replacement when a class is assigned"
+            )
+
+            self.assertListEqual(
+                macro.starting_nodes,
+                [macro.one],
+                msg="Sanity check"
+            )
+            new_starter = add_two()
+            macro.one.replace_with(new_starter)
+            self.assertListEqual(
+                macro.starting_nodes,
+                [new_starter],
+                msg="Replacement should be reflected in the starting nodes"
+            )
+            self.assertIs(
+                macro.inputs.one__x,
+                new_starter.inputs.x,
+                msg="Replacement should be reflected in composite IO"
+            )
+
+        with self.subTest("Verify failure cases"):
+            another_macro = Macro(add_three_macro)
+            another_node = Macro(
+                add_three_macro,
+                inputs_map={"one__x": "x"},
+                outputs_map={"three__result": "result"},
+            )
+            another_macro.now_its_a_child = another_node
+
+            with self.assertRaises(
+                ValueError,
+                msg="Should fail when replacement has a parent"
+            ):
+                macro.replace(macro.two, another_node)
+
+            another_macro.remove(another_node)
+            another_node.inputs.x = another_macro.outputs.three__result
+            with self.assertRaises(
+                ValueError,
+                msg="Should fail when replacement is connected"
+            ):
+                macro.replace(macro.two, another_node)
+
+            another_node.disconnect()
+            an_ok_replacement = another_macro.two
+            another_macro.remove(an_ok_replacement)
+            with self.assertRaises(
+                ValueError,
+                msg="Should fail if the node being replaced isn't a child"
+            ):
+                macro.replace(another_node, an_ok_replacement)
+
+            @Macro.wrap_as.function_node()
+            def add_two_incompatible_io(not_x):
+                result_is_not_my_name = not_x + 2
+                return result_is_not_my_name
+
+            with self.assertRaises(
+                AttributeError,
+                msg="Replacing via class assignment should fail if the class has "
+                    "incompatible IO"
+            ):
+                macro.two = add_two_incompatible_io
+
 
 if __name__ == '__main__':
     unittest.main()
