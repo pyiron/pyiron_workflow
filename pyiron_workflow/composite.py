@@ -375,7 +375,7 @@ class Composite(Node, ABC):
         del self.nodes[node.label]
         return disconnected
 
-    def replace(self, owned_node: Node | str, replacement: Node):
+    def replace(self, owned_node: Node | str, replacement: Node | type[Node]):
         """
         Replaces a node currently owned with a new node instance.
         The replacement must not belong to any other parent or have any connections.
@@ -391,13 +391,6 @@ class Composite(Node, ABC):
         Returns:
             (Node): The node that got removed
         """
-        if replacement.parent is not None:
-            raise ValueError(
-                f"Replacement node must have no parent, but got {replacement.parent}"
-            )
-        if replacement.connected:
-            raise ValueError("Replacement node must not have any connections")
-
         if isinstance(owned_node, str):
             owned_node = self.nodes[owned_node]
 
@@ -405,6 +398,22 @@ class Composite(Node, ABC):
             raise ValueError(
                 f"The node being replaced should be a child of this composite, but "
                 f"another parent was found: {owned_node.parent}"
+            )
+
+        if isinstance(replacement, Node):
+            if replacement.parent is not None:
+                raise ValueError(
+                    f"Replacement node must have no parent, but got "
+                    f"{replacement.parent}"
+                )
+            if replacement.connected:
+                raise ValueError("Replacement node must not have any connections")
+        elif issubclass(replacement, Node):
+            replacement = replacement(label=owned_node.label)
+        else:
+            raise TypeError(
+                f"Expected replacement node to be a node instance or node subclass, but "
+                f"got {replacement}"
             )
 
         replacement.copy_connections(owned_node)

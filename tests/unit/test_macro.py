@@ -287,11 +287,23 @@ class TestMacro(unittest.TestCase):
             with self.assertRaises(ValueError):
                 macro.replace(another_macro, to_replace)
 
-        with self.subTest("Should be possible to replace by label too"):
-            macro.replace("two", to_replace)
+        with self.subTest(
+            "Should be possible to replace with a class instead of an instance"
+        ):
+            add_one_class = macro.wrap_as.single_value_node()(add_one)
+            self.assertTrue(issubclass(add_one_class, SingleValue), msg="Sanity check")
+            macro.replace(macro.two, add_one_class)
             self.assertEqual(
                 macro(one__x=0).three__result,
                 3,
+                msg="Should be possible to replace with a class instead of an instance"
+            )
+
+        with self.subTest("Should be possible to replace by label too"):
+            macro.replace("two", replacement)
+            self.assertEqual(
+                macro(one__x=0).three__result,
+                5,
                 msg="Original node should be back in place now"
             )
 
