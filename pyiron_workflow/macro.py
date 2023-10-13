@@ -114,7 +114,7 @@ class Macro(Composite):
         ...     macro.b = macro.create.SingleValue(add_one, x=0)
         ...     macro.c = macro.create.SingleValue(add_one, x=0)
         >>>
-        >>> m = Macro(modified_start_macro)
+        >>> m = Macro(modified_flow_macro)
         >>> m.outputs.to_value_dict()
         >>> m(a__x=1, b__x=2, c__x=3)
         {'a__result': 2, 'b__result': 3, 'c__result': 4}
