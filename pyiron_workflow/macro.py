@@ -135,6 +135,27 @@ class Macro(Composite):
         Manually controlling execution flow is necessary for cyclic graphs (cf. the
         while loop meta-node), but best to avoid when possible as it's easy to miss
         intended connections in complex graphs.
+
+        We can also modify an existing macro at runtime by replacing nodes within it, as
+        long as the replacement has fully compatible IO. There are three syntacic ways
+        to do this. Let's explore these by going back to our `add_three_macro` and
+        replacing each of its children with a node that adds 2 instead of 1.
+        >>> @Macro.wrap_as.single_value_node()
+        ... def add_two(x):
+        ...     result = x + 2
+        ...     return result
+        >>>
+        >>> adds_six_macro = Macro(add_three_macro)
+        >>> # With the replace method
+        >>> # (replacement target can be specified by label or instance,
+        >>> # the replacing node can be specified by instance or class)
+        >>> adds_six_macro.replace(adds_six_macro.one, add_two())
+        >>> # With the replace_with method
+        >>> adds_six_macro.two.replace_with(add_two())
+        >>> # And by assignment of a compatible class to an occupied node label
+        >>> adds_six_macro.three = add_two
+        >>> adds_six_macro(inp=1)
+        {'three__result': 7}
     """
 
     def __init__(
