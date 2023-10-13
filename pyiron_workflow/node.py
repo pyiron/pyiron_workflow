@@ -462,7 +462,7 @@ class Node(HasToDict, ABC):
         """
         new_connections = []
         try:
-            for (my_panel, other_panel) in [
+            for my_panel, other_panel in [
                 (self.inputs, other.inputs),
                 (self.outputs, other.outputs),
                 (self.signals.input, other.signals.input),
@@ -477,4 +477,3 @@ class Node(HasToDict, ABC):
             for connection in new_connections:
                 connection[0].disconnect(connection[1])
             raise e
-
