@@ -305,6 +305,19 @@ class TestMacro(unittest.TestCase):
                 msg="Composite should allow replacement when a class is assigned"
             )
 
+            self.assertListEqual(
+                macro.starting_nodes,
+                [macro.one],
+                msg="Sanity check"
+            )
+            new_starter = add_two()
+            macro.one.replace_with(new_starter)
+            self.assertListEqual(
+                macro.starting_nodes,
+                [new_starter],
+                msg="Replacement should be reflected in the starting nodes"
+            )
+
         with self.subTest("Verify failure cases"):
             another_macro = Macro(add_three_macro)
             another_node = Macro(

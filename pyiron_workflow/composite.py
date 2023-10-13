@@ -422,8 +422,11 @@ class Composite(Node, ABC):
 
         replacement.copy_connections(owned_node)
         replacement.label = owned_node.label
+        is_starting_node = owned_node in self.starting_nodes
         self.remove(owned_node)
         self.add(replacement)
+        if is_starting_node:
+            self.starting_nodes.append(replacement)
 
     def __setattr__(self, key: str, node: Node):
         if isinstance(node, Node) and key != "parent":
