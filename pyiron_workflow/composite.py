@@ -372,6 +372,8 @@ class Composite(Node, ABC):
         node = self.nodes[node] if isinstance(node, str) else node
         node.parent = None
         disconnected = node.disconnect()
+        if node in self.starting_nodes:
+            self.starting_nodes.remove(node)
         del self.nodes[node.label]
         return disconnected
 

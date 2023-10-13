@@ -66,6 +66,26 @@ class TestWorkflow(unittest.TestCase):
             with self.assertRaises(AttributeError):
                 Workflow.create.Function(plus_one, label="boa", parent=wf)
 
+    def test_node_removal(self):
+        wf = Workflow("my_workflow")
+        wf.owned = Workflow.create.Function(plus_one)
+        node = Workflow.create.Function(plus_one)
+        wf.foo = node
+        # Add it to starting nodes manually, otherwise it's only there at run time
+        wf.starting_nodes = [wf.foo]
+        # Connect it inside the workflow
+        wf.foo.inputs.x = wf.owned.outputs.y
+
+        wf.remove(node)
+        self.assertIsNone(node.parent, msg="Removal should de-parent")
+        self.assertFalse(node.connected, msg="Removal should disconnect")
+        self.assertListEqual(
+            wf.starting_nodes,
+            [],
+            msg="Removal should also remove from starting nodes"
+        )
+
+
     def test_node_packages(self):
         wf = Workflow("my_workflow")
 
