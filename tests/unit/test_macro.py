@@ -287,6 +287,13 @@ class TestMacro(unittest.TestCase):
                 msg="Should be possible to replace by label"
             )
 
+            macro.two.replace_with(adds_one_node)
+            self.assertEqual(
+                macro(one__x=0).three__result,
+                3,
+                msg="Nodes should have syntactic sugar for invoking replacement"
+            )
+
         with self.subTest("Verify failure cases"):
             another_macro = Macro(add_three_macro)
             another_node = Macro(
