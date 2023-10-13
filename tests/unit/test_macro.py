@@ -294,6 +294,17 @@ class TestMacro(unittest.TestCase):
                 msg="Nodes should have syntactic sugar for invoking replacement"
             )
 
+            @Macro.wrap_as.function_node()
+            def add_two(x):
+                result = x + 2
+                return result
+            macro.two = add_two
+            self.assertEqual(
+                macro(one__x=0).three__result,
+                4,
+                msg="Composite should allow replacement when a class is assigned"
+            )
+
         with self.subTest("Verify failure cases"):
             another_macro = Macro(add_three_macro)
             another_node = Macro(
@@ -325,6 +336,18 @@ class TestMacro(unittest.TestCase):
                 msg="Should fail if the node being replaced isn't a child"
             ):
                 macro.replace(another_node, an_ok_replacement)
+
+            @Macro.wrap_as.function_node()
+            def add_two_incompatible_io(not_x):
+                result_is_not_my_name = not_x + 2
+                return result_is_not_my_name
+
+            with self.assertRaises(
+                AttributeError,
+                msg="Replacing via class assignment should fail if the class has "
+                    "incompatible IO"
+            ):
+                macro.two = add_two_incompatible_io
 
 
 if __name__ == '__main__':

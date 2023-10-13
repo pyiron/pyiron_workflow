@@ -426,6 +426,13 @@ class Composite(Node, ABC):
     def __setattr__(self, key: str, node: Node):
         if isinstance(node, Node) and key != "parent":
             self.add(node, label=key)
+        elif (
+            isinstance(node, type)
+            and issubclass(node, Node)
+            and key in self.nodes.keys()
+        ):
+            # When a class is assigned to an existing node, try a replacement
+            self.replace(key, node)
         else:
             super().__setattr__(key, node)
 
