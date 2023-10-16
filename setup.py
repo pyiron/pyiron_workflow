@@ -31,7 +31,7 @@ setup(
         'bidict==0.22.1',
         'cloudpickle==2.2.1',
         'graphviz==0.20.1',
-        'maggma==0.57.1',
+        'maggma==0.57.4',
         'matplotlib==3.8.0',
         'numpy==1.26.0',
         'pyiron_atomistics==0.3.4',
