@@ -448,35 +448,54 @@ class Node(HasToDict, ABC):
             their = other
         return None
 
-    def copy_connections(self, other: Node) -> None:
+    def copy_connections(
+        self,
+        other: Node,
+        fail_hard: bool = True,
+    ) -> None:
         """
         Copies all the connections in another node to this one.
         Expects the channels available on this node to be commensurate to those on the
         other, i.e. same label, compatible type hint for the connections that exist.
         This node may freely have additional channels not present in the other node.
+        The other node may have additional channels not present here as long as they are
+        not connected.
+        This final condition can optionally be relaxed, such that as many connections as
+        possible are copied, and any failures are simply overlooked.
 
-        If an exception is encountered, any connections copied so far are disconnected
+        If an exception is going to be raised, any connections copied so far are
+        disconnected first.
 
         Args:
             other (Node): the node whose connections should be copied.
+            fail_hard (bool): Whether to raise an error an exception is encountered
+                when trying to reproduce a connection.
+
+        Raises:
+            (Exception): Any exception encountered when a connection is attempted and
+                fails (only when `fail_hard` is True, otherwise we `continue` past any
+                and all exceptions encountered).
         """
         new_connections = []
-        try:
-            for my_panel, other_panel in [
-                (self.inputs, other.inputs),
-                (self.outputs, other.outputs),
-                (self.signals.input, other.signals.input),
-                (self.signals.output, other.signals.output),
-            ]:
-                for key, channel in other_panel.items():
-                    for target in channel.connections:
+        for my_panel, other_panel in [
+            (self.inputs, other.inputs),
+            (self.outputs, other.outputs),
+            (self.signals.input, other.signals.input),
+            (self.signals.output, other.signals.output),
+        ]:
+            for key, channel in other_panel.items():
+                for target in channel.connections:
+                    try:
                         my_panel[key].connect(target)
                         new_connections.append((my_panel[key], target))
-        except Exception as e:
-            # If you run into trouble, unwind what you've done
-            for connection in new_connections:
-                connection[0].disconnect(connection[1])
-            raise e
+                    except Exception as e:
+                        if fail_hard:
+                            # If you run into trouble, unwind what you've done
+                            for connection in new_connections:
+                                connection[0].disconnect(connection[1])
+                            raise e
+                        else:
+                            continue
 
     def replace_with(self, other: Node | type[Node]):
         """

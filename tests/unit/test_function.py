@@ -421,8 +421,18 @@ class TestFunction(unittest.TestCase):
         downstream = Function(plus_one, x=to_copy.outputs.y)
         upstream > to_copy > downstream
 
-        wrong_io = Function(no_default, x=upstream.outputs.y)
-        downstream.inputs.x.connect(wrong_io.outputs["x + y + 1"])
+        wrong_io = Function(
+            returns_multiple, x=upstream.outputs.y, y=upstream.outputs.y
+        )
+        downstream.inputs.x.connect(wrong_io.outputs.y)
+
+        with self.subTest("Successful copy"):
+            node.copy_connections(to_copy)
+            self.assertIn(upstream.outputs.y, node.inputs.x.connections)
+            self.assertIn(upstream.signals.output.ran, node.signals.input.run)
+            self.assertIn(downstream.inputs.x, node.outputs.y.connections)
+            self.assertIn(downstream.signals.input.run, node.signals.output.ran)
+        node.disconnect()  # Make sure you've got a clean slate
 
         with self.subTest("Ensure failed copies fail cleanly"):
             with self.assertRaises(AttributeError):
@@ -434,12 +444,10 @@ class TestFunction(unittest.TestCase):
             )
         node.disconnect()  # Make sure you've got a clean slate
 
-        with self.subTest("Successful copy"):
-            node.copy_connections(to_copy)
+        with self.subTest("Ensure that failures can be continued past"):
+            node.copy_connections(wrong_io, hard_connections=False)
             self.assertIn(upstream.outputs.y, node.inputs.x.connections)
-            self.assertIn(upstream.signals.output.ran, node.signals.input.run)
             self.assertIn(downstream.inputs.x, node.outputs.y.connections)
-            self.assertIn(downstream.signals.input.run, node.signals.output.ran)
 
 
 @unittest.skipUnless(version_info[0] == 3 and version_info[1] >= 10, "Only supported for 3.10+")
