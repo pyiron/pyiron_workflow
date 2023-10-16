@@ -3,9 +3,9 @@ from __future__ import annotations
 from typing import Optional
 from pyiron_atomistics.atomistics.structure.atoms import Atoms
 
-from pyiron_contrib.workflow.function import single_value_node
-from pyiron_contrib.workflow.function import function_node
-from pyiron_contrib.workflow.macro import Macro, macro_node
+from pyiron_workflow.function import single_value_node
+from pyiron_workflow.function import function_node
+from pyiron_workflow.macro import Macro, macro_node
 from ase.io import write
 
 class VarType:
