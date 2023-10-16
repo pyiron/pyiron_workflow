@@ -10,10 +10,12 @@ from abc import ABC, abstractmethod
 from concurrent.futures import Future
 from typing import Any, Literal, Optional, TYPE_CHECKING
 
+from pyiron_workflow.channels import NotData
 from pyiron_workflow.draw import Node as GraphvizNode
 from pyiron_workflow.files import DirectoryObject
 from pyiron_workflow.has_to_dict import HasToDict
 from pyiron_workflow.io import Signals, InputSignal, OutputSignal
+from pyiron_workflow.type_hinting import valid_value
 from pyiron_workflow.util import SeabornColors
 
 if TYPE_CHECKING:
@@ -493,6 +495,62 @@ class Node(HasToDict, ABC):
                             # If you run into trouble, unwind what you've done
                             for connection in new_connections:
                                 connection[0].disconnect(connection[1])
+                            raise e
+                        else:
+                            continue
+
+    def copy_values(
+        self,
+        other: Node,
+        fail_hard: bool = False,
+    ) -> None:
+        """
+        Copies all the input and output data channel values in another node to this one
+        wherever this a channel with a matching label and compatible type hint.
+        Can be made more strict, so that failures to find a channel with the expected
+        label or finding a value not matching the type hint raise exceptions.
+
+        If an exception is going to be raised, any values updated so far are
+        reverted first.
+
+        Args:
+            other (Node): the node whose data values should be copied.
+            fail_hard (bool): Whether to raise an error an exception is encountered
+                when trying to duplicate a value. (Default is False, just keep going
+                past other's channels with no compatible label here and past values
+                that don't match type hints here.)
+
+        Raises:
+            (Exception): Any exception encountered when copying values fails (only when
+                `fail_hard` is True, otherwise we `continue` past any and all
+                exceptions encountered).
+        """
+        old_values = []
+        for my_panel, other_panel in [
+            (self.inputs, other.inputs),
+            (self.outputs, other.outputs),
+        ]:
+            for key, channel in other_panel.items():
+                if channel.value is not NotData:
+                    try:
+                        hint = my_panel[key].type_hint
+                        if hint is not None and not valid_value(channel.value, hint):
+                            # We can be more relaxed than what we're copying,
+                            # but not more specific else the value might be bad
+                            raise TypeError(
+                                f"Cannot copy value {channel.value} to {self.label}  "
+                                f"from {other.label} -- it does not match the type "
+                                f"hint on channel {key}: {hint}."
+                            )
+
+                        old_value = my_panel[key].value
+                        my_panel[key].value = channel.value
+                        old_values.append((my_panel, key, old_value))
+                    except Exception as e:
+                        if fail_hard:
+                            # If you run into trouble, unwind what you've done
+                            for panel, key, value in old_values:
+                                panel[key].value = value
                             raise e
                         else:
                             continue
