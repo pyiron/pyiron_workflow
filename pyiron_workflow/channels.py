@@ -178,10 +178,11 @@ class DataChannel(Channel, ABC):
 
     Type hinting is strictly enforced in one situation: when making connections to
     other channels and at least one data channel has a non-None value for its type hint.
-    In this case, we insist that the output type hint be _as or more more specific_ than
+    In this case, we insist that the output type hint be _as or more specific_ than
     the input type hint, to ensure that the input always receives output of a type it
     expects. This behaviour can be disabled and all connections allowed by setting
     `strict_connections = False` on the relevant input channel.
+    Attempting to make a connection breaking type hints will raise an exception.
 
     For simple type hints like `int` or `str`, type hint comparison is trivial.
     However, some hints take arguments, e.g. `dict[str, int]` to specify key and value
@@ -258,9 +259,10 @@ class DataChannel(Channel, ABC):
                 other.connections.append(self)
             else:
                 if isinstance(other, DataChannel):
-                    warn(
+                    raise ValueError(
                         f"{self.label} ({self.__class__.__name__}) and {other.label} "
-                        f"({other.__class__.__name__}) were not a valid connection"
+                        f"({other.__class__.__name__}) were not a valid connection. "
+                        f"Check channel classes, type hints, etc."
                     )
                 else:
                     raise TypeError(

@@ -126,19 +126,17 @@ class TestDataChannels(TestCase):
             "Input types should be allowed to be a super-set of output types"
         )
 
-        self.no.connect(self.ni2)
-        self.assertNotIn(
-            self.no,
-            self.ni2.connections,
-            "Input types should not be allowed to be a sub-set of output types"
-        )
+        with self.assertRaises(
+            ValueError,
+            msg="Input types should not be allowed to be a sub-set of output types"
+        ):
+            self.no.connect(self.ni2)
 
-        self.so1.connect(self.ni2)
-        self.assertNotIn(
-            self.so1,
-            self.ni2.connections,
-            "Totally different types should not allow connections"
-        )
+        with self.assertRaises(
+            ValueError,
+            msg="Totally different types should not allow connections"
+        ):
+            self.so1.connect(self.ni2)
 
         self.ni2.strict_connections = False
         self.so1.connect(self.ni2)
