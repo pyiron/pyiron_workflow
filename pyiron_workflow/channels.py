@@ -139,6 +139,24 @@ class Channel(HasChannel, HasToDict, ABC):
     def channel(self) -> Channel:
         return self
 
+    def copy_connections(self, other: Channel) -> None:
+        """
+        Adds all the connections in another channel to this channel's connections.
+
+        If an exception is encountered, all the new connections are disconnected before
+        the exception is raised.
+        """
+        new_connections = []
+        try:
+            for connect_to in other.connections:
+                # We do them one at a time in case any fail, so we can undo those that
+                # worked
+                self.connect(connect_to)
+                new_connections.append(connect_to)
+        except Exception as e:
+            self.disconnect(*new_connections)
+            raise e
+
     def to_dict(self) -> dict:
         return {
             "label": self.label,
@@ -240,6 +258,10 @@ class DataChannel(Channel, ABC):
     def _value_is_data(self):
         return self.value is not NotData
 
+    @property
+    def _has_hint(self):
+        return self.type_hint is not None
+
     def connect(self, *others: DataChannel) -> None:
         """
         For all others for which the connection is valid (one input, one output, both
@@ -290,13 +312,29 @@ class DataChannel(Channel, ABC):
         return isinstance(other, DataChannel) and not isinstance(other, self.__class__)
 
     def _both_typed(self, other: DataChannel) -> bool:
-        return self.type_hint is not None and other.type_hint is not None
+        return self._has_hint and other._has_hint
 
     def _figure_out_who_is_who(self, other: DataChannel) -> (OutputData, InputData):
         return (self, other) if isinstance(self, OutputData) else (other, self)
 
     def __str__(self):
         return str(self.value)
+
+    def copy_value(self, other: DataChannel) -> None:
+        """
+        Copies the other channel's value. Unlike normal value assignment, the new value
+        (if it is data) must comply with this channel's type hint (if any).
+        """
+        if (
+            self._has_hint
+            and other._value_is_data
+            and not valid_value(other.value, self.type_hint)
+        ):
+            raise TypeError(
+                f"Channel{self.label} cannot copy value from {other.label} because "
+                f"value {other.value} does not match type hint {self.type_hint}"
+            )
+        self.value = other.value
 
     def to_dict(self) -> dict:
         d = super().to_dict()

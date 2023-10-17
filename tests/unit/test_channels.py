@@ -146,6 +146,73 @@ class TestDataChannels(TestCase):
             "With strict connections turned off, we should allow type-violations"
         )
 
+    def test_copy_connections(self):
+        self.ni1.connect(self.no)
+        self.ni2.connect(self.no_empty)
+        self.ni2.copy_connections(self.ni1)
+        self.assertListEqual(
+            self.ni2.connections,
+            [self.no_empty, *self.ni1.connections],
+            msg="Copying should be additive, existing connections should still be there"
+        )
+
+        self.ni2.disconnect(*self.ni1.connections)
+        self.ni1.connections.append(self.so1)  # Manually include a poorly-typed conn
+        with self.assertRaises(
+            ValueError,
+            msg="Should not be able to connect to so1 because of type hint "
+                "incompatibility"
+        ):
+            self.ni2.copy_connections(self.ni1)
+        self.assertListEqual(
+            self.ni2.connections,
+            [self.no_empty],
+            msg="On failing, copy should revert the copying channel to its orignial "
+                "state"
+        )
+
+    def test_copy_value(self):
+        self.ni1.value = 2
+        self.ni2.copy_value(self.ni1)
+        self.assertEqual(
+            self.ni2.value,
+            self.ni1.value,
+            msg="Should be able to copy values matching type hints"
+        )
+
+        self.ni2.copy_value(self.no_empty)
+        self.assertIs(
+            self.ni2.value,
+            NotData,
+            msg="Should be able to copy values that are not-data"
+        )
+
+        with self.assertRaises(
+            TypeError,
+            msg="Should not be able to copy values of the wrong type"
+        ):
+            self.ni2.copy_value(self.so1)
+
+        self.ni2.type_hint = None
+        self.ni2.copy_value(self.ni1)
+        self.assertEqual(
+            self.ni2.value,
+            self.ni1.value,
+            msg="Should be able to copy any data if we have no type hint"
+        )
+        self.ni2.copy_value(self.so1)
+        self.assertEqual(
+            self.ni2.value,
+            self.so1.value,
+            msg="Should be able to copy any data if we have no type hint"
+        )
+        self.ni2.copy_value(self.no_empty)
+        self.assertEqual(
+            self.ni2.value,
+            NotData,
+            msg="Should be able to copy not-data if we have no type hint"
+        )
+
     def test_ready(self):
         with self.subTest("Test defaults and not-data"):
             without_default = InputData(label="without_default", node=DummyNode())
