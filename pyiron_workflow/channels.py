@@ -95,9 +95,8 @@ class Channel(HasChannel, HasToDict, ABC):
         Connections should have the same generic type, but not the same type -- i.e.
         they should be an input/output pair of some connection type.
         """
-        return (
-            isinstance(other, self.generic_type)
-            and not isinstance(other, self.__class__)
+        return isinstance(other, self.generic_type) and not isinstance(
+            other, self.__class__
         )
 
     def connect(self, *others: Channel) -> None:
