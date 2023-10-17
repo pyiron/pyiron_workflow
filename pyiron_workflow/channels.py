@@ -36,6 +36,10 @@ if typing.TYPE_CHECKING:
     from pyiron_workflow.node import Node
 
 
+class ChannelConnectionError(Exception):
+    pass
+
+
 class Channel(HasChannel, HasToDict, ABC):
     """
     Channels facilitate the flow of information (data or control signals) into and
@@ -79,14 +83,41 @@ class Channel(HasChannel, HasToDict, ABC):
         pass
 
     @abstractmethod
-    def connect(self, *others: Channel) -> None:
+    def connect(self, expected_type: type[Channel], *others: Channel) -> None:
         """
         How to handle connections to other channels.
 
+        Children should override this method to remove `expected_type` from the
+        signature.
+
         Args:
+            expected_type (type[Channel]): The generic type of channel expected among
+                others; used in raising sensible errors.
             *others (Channel): The other channel objects to attempt to connect with.
         """
-        pass
+        for other in others:
+            if other in self.connections:
+                continue
+            elif self._valid_connection(other):
+                self.connections.append(other)
+                other.connections.append(self)
+            else:
+                if isinstance(other, DataChannel):
+                    raise ChannelConnectionError(
+                        f"{self.label} ({self.__class__.__name__}) and {other.label} "
+                        f"({other.__class__.__name__}) were not a valid connection. "
+                        f"Check channel classes, type hints, etc."
+                    )
+                else:
+                    raise TypeError(
+                        f"Can only connect two {expected_type.__name__} objects, but"
+                        f"{self.label} ({self.__class__.__name__}) got {other} "
+                        f"({type(other)})"
+                    )
+
+    @abstractmethod
+    def _valid_connection(self, other: Channel) -> bool:
+        """Logic for determining if a connection is valid"""
 
     def disconnect(self, *others: Channel) -> list[tuple[Channel, Channel]]:
         """
@@ -267,33 +298,19 @@ class DataChannel(Channel, ABC):
         For all others for which the connection is valid (one input, one output, both
         data channels), adds this to the other's list of connections and the other to
         this list of connections.
-        Then the input channel gets updated with the output channel's current value.
 
         Args:
             *others (DataChannel):
 
         Raises:
             TypeError: When one of others is not a `DataChannel`
+            ChannelConnectionError: When the connection is deemed invalid (e.g. because
+                of incompatible type hints).
         """
-        for other in others:
-            if self._valid_connection(other):
-                self.connections.append(other)
-                other.connections.append(self)
-            else:
-                if isinstance(other, DataChannel):
-                    raise ValueError(
-                        f"{self.label} ({self.__class__.__name__}) and {other.label} "
-                        f"({other.__class__.__name__}) were not a valid connection. "
-                        f"Check channel classes, type hints, etc."
-                    )
-                else:
-                    raise TypeError(
-                        f"Can only connect two channels, but {self.label} "
-                        f"({self.__class__.__name__}) got a {other} ({type(other)})"
-                    )
+        super().connect(DataChannel, *others)
 
     def _valid_connection(self, other) -> bool:
-        if self._is_IO_pair(other) and not self._already_connected(other):
+        if self._is_IO_pair(other):
             if self._both_typed(other):
                 out, inp = self._figure_out_who_is_who(other)
                 if not inp.strict_connections:
@@ -421,33 +438,21 @@ class SignalChannel(Channel, ABC):
     def connect(self, *others: SignalChannel) -> None:
         """
         For all others for which the connection is valid (one input, one output, both
-        data channels), adds this to the other's list of connections and the other to
-        this list of connections.
+        signal channels), adds this to the other's list of connections and the other to
+        this list of connections. Ignore others that are already in connections.
 
         Args:
             *others (SignalChannel): The other channels to attempt a connection to
 
         Raises:
             TypeError: When one of others is not a `SignalChannel`
+            ChannelConnectionError: When the connection is deemed invalid (e.g. because
+                both are output signals).
         """
-        for other in others:
-            if self._valid_connection(other):
-                self.connections.append(other)
-                other.connections.append(self)
-            else:
-                if isinstance(other, SignalChannel):
-                    warn(
-                        f"{self.label} ({self.__class__.__name__}) and {other.label} "
-                        f"({other.__class__.__name__}) were not a valid connection"
-                    )
-                else:
-                    raise TypeError(
-                        f"Can only connect two signal channels, but {self.label} "
-                        f"({self.__class__.__name__}) got a {other} ({type(other)})"
-                    )
+        super().connect(SignalChannel, *others)
 
     def _valid_connection(self, other) -> bool:
-        return self._is_IO_pair(other) and not self._already_connected(other)
+        return self._is_IO_pair(other)
 
     def _is_IO_pair(self, other) -> bool:
         return isinstance(other, SignalChannel) and not isinstance(

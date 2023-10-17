@@ -2,7 +2,7 @@ from unittest import TestCase, skipUnless
 from sys import version_info
 
 from pyiron_workflow.channels import (
-    InputData, OutputData, InputSignal, OutputSignal, NotData
+    InputData, OutputData, InputSignal, OutputSignal, NotData, ChannelConnectionError
 )
 
 
@@ -127,14 +127,14 @@ class TestDataChannels(TestCase):
         )
 
         with self.assertRaises(
-            ValueError,
+            ChannelConnectionError,
             msg="Input types should not be allowed to be a sub-set of output types"
         ):
             self.no.connect(self.ni2)
 
         with self.assertRaises(
-            ValueError,
-            msg="Totally different types should not allow connections"
+            ChannelConnectionError,
+            msg="Totally different type hints should not allow connections"
         ):
             self.so1.connect(self.ni2)
 
@@ -159,7 +159,7 @@ class TestDataChannels(TestCase):
         self.ni2.disconnect(*self.ni1.connections)
         self.ni1.connections.append(self.so1)  # Manually include a poorly-typed conn
         with self.assertRaises(
-            ValueError,
+            ChannelConnectionError,
             msg="Should not be able to connect to so1 because of type hint "
                 "incompatibility"
         ):
@@ -259,7 +259,7 @@ class TestSignalChannels(TestCase):
 
         with self.subTest("No connections to non-SignalChannels"):
             bad = InputData(label="numeric", node=DummyNode(), default=1, type_hint=int)
-            with self.assertRaises(TypeError):
+            with self.assertRaises(ChannelConnectionError):
                 self.inp.connect(bad)
 
         with self.subTest("Test syntactic sugar"):
