@@ -46,13 +46,14 @@ class Channel(HasChannel, HasToDict, ABC):
     out of nodes.
     They must have a label and belong to a node.
 
-    Input/output channels can be (dis)connected from other output/input channels, and
-    store all of their current connections in a list.
-    This connection information is duplicated in that it is stored on _both_ channels
-    that form the connection.
+    Input/output channels can be (dis)connected from other output/input channels of the
+    same generic type (i.e. data or signal), and store all of their current connections
+    in a list.
+    This connection information is reflexive, and is duplicated to be stored on _both_
+    channels in the form of a reference to their counterpart in the connection.
 
-    Child classes must define a string representation, `__str__`, and what to do on an
-    attempted connection, `connect`.
+    Child classes must define a string representation, `__str__`, and their
+    `generic_type` which is a parent of both themselves and their output/input partner.
 
     Attributes:
         label (str): The name of the channel.
@@ -82,18 +83,38 @@ class Channel(HasChannel, HasToDict, ABC):
     def __str__(self):
         pass
 
+    @property
     @abstractmethod
-    def connect(self, expected_type: type[Channel], *others: Channel) -> None:
-        """
-        How to handle connections to other channels.
+    def generic_type(self) -> type[Channel]:
+        """Input and output class pairs should share this parent class"""
 
-        Children should override this method to remove `expected_type` from the
-        signature.
+    def _valid_connection(self, other: Channel) -> bool:
+        """
+        Logic for determining if a connection is valid.
+
+        Connections should have the same generic type, but not the same type -- i.e.
+        they should be an input/output pair of some connection type.
+        """
+        return (
+            isinstance(other, self.generic_type)
+            and not isinstance(other, self.__class__)
+        )
+
+    def connect(self, *others: Channel) -> None:
+        """
+        Form a connection between this and one or more other channels.
+        Connections are reflexive, and must occur between input and output channels of
+        the same `generic_type` (i.e. data or signal).
+
 
         Args:
-            expected_type (type[Channel]): The generic type of channel expected among
-                others; used in raising sensible errors.
             *others (Channel): The other channel objects to attempt to connect with.
+
+        Raises:
+            (ChannelConnectionError): If the other channel is of the correct generic
+                type, but nonetheless not a valid connection.
+            (TypeError): If the other channel is not an instance of this channel's
+                generic type.
         """
         for other in others:
             if other in self.connections:
@@ -102,22 +123,19 @@ class Channel(HasChannel, HasToDict, ABC):
                 self.connections.append(other)
                 other.connections.append(self)
             else:
-                if isinstance(other, DataChannel):
+                if isinstance(other, self.generic_type):
                     raise ChannelConnectionError(
                         f"{self.label} ({self.__class__.__name__}) and {other.label} "
-                        f"({other.__class__.__name__}) were not a valid connection. "
-                        f"Check channel classes, type hints, etc."
+                        f"({other.__class__.__name__}) share a generic type but were "
+                        f"not a valid connection. Check channel classes, type hints, "
+                        f"etc."
                     )
                 else:
                     raise TypeError(
-                        f"Can only connect two {expected_type.__name__} objects, but"
-                        f"{self.label} ({self.__class__.__name__}) got {other} "
+                        f"Can only connect two {self.generic_type.__name__} objects, "
+                        f"but {self.label} ({self.__class__.__name__}) got {other} "
                         f"({type(other)})"
                     )
-
-    @abstractmethod
-    def _valid_connection(self, other: Channel) -> bool:
-        """Logic for determining if a connection is valid"""
 
     def disconnect(self, *others: Channel) -> list[tuple[Channel, Channel]]:
         """
@@ -156,9 +174,6 @@ class Channel(HasChannel, HasToDict, ABC):
         Has at least one connection.
         """
         return len(self.connections) > 0
-
-    def _already_connected(self, other: Channel) -> bool:
-        return other in self.connections
 
     def __iter__(self):
         return self.connections.__iter__()
@@ -221,17 +236,16 @@ class DataChannel(Channel, ABC):
     (In the future they may optionally have a storage history limit.)
     (In the future they may optionally have an ontological type.)
 
-    The `value` held by a channel can be manually assigned, but should normally be set
-    by the `update` method.
-    In neither case is the type hint strictly enforced.
+    Note that for the sake of computational efficiency, assignments to the `value`
+    property are not type-checked; type-checking occurs only for connections where both
+    channels have a type hint, and when a value is being copied from another channel
+    with the `copy_value` method.
 
-    Type hinting is strictly enforced in one situation: when making connections to
-    other channels and at least one data channel has a non-None value for its type hint.
-    In this case, we insist that the output type hint be _as or more specific_ than
-    the input type hint, to ensure that the input always receives output of a type it
-    expects. This behaviour can be disabled and all connections allowed by setting
-    `strict_connections = False` on the relevant input channel.
-    Attempting to make a connection breaking type hints will raise an exception.
+    When type checking channel connections, we insist that the output type hint be
+    _as or more specific_ than the input type hint, to ensure that the input always
+    receives output of a type it expects. This behaviour can be disabled and all
+    connections allowed by setting `strict_connections = False` on the relevant input
+    channel.
 
     For simple type hints like `int` or `str`, type hint comparison is trivial.
     However, some hints take arguments, e.g. `dict[str, int]` to specify key and value
@@ -273,6 +287,10 @@ class DataChannel(Channel, ABC):
         self.type_hint = type_hint
 
     @property
+    def generic_type(self) -> type[Channel]:
+        return DataChannel
+
+    @property
     def ready(self) -> bool:
         """
         Check if the currently stored value satisfies the channel's type hint.
@@ -293,24 +311,8 @@ class DataChannel(Channel, ABC):
     def _has_hint(self):
         return self.type_hint is not None
 
-    def connect(self, *others: DataChannel) -> None:
-        """
-        For all others for which the connection is valid (one input, one output, both
-        data channels), adds this to the other's list of connections and the other to
-        this list of connections.
-
-        Args:
-            *others (DataChannel):
-
-        Raises:
-            TypeError: When one of others is not a `DataChannel`
-            ChannelConnectionError: When the connection is deemed invalid (e.g. because
-                of incompatible type hints).
-        """
-        super().connect(DataChannel, *others)
-
     def _valid_connection(self, other) -> bool:
-        if self._is_IO_pair(other):
+        if super()._valid_connection(other):
             if self._both_typed(other):
                 out, inp = self._figure_out_who_is_who(other)
                 if not inp.strict_connections:
@@ -324,9 +326,6 @@ class DataChannel(Channel, ABC):
                 return True
         else:
             return False
-
-    def _is_IO_pair(self, other: DataChannel) -> bool:
-        return isinstance(other, DataChannel) and not isinstance(other, self.__class__)
 
     def _both_typed(self, other: DataChannel) -> bool:
         return self._has_hint and other._has_hint
@@ -435,29 +434,9 @@ class SignalChannel(Channel, ABC):
     def __call__(self) -> None:
         pass
 
-    def connect(self, *others: SignalChannel) -> None:
-        """
-        For all others for which the connection is valid (one input, one output, both
-        signal channels), adds this to the other's list of connections and the other to
-        this list of connections. Ignore others that are already in connections.
-
-        Args:
-            *others (SignalChannel): The other channels to attempt a connection to
-
-        Raises:
-            TypeError: When one of others is not a `SignalChannel`
-            ChannelConnectionError: When the connection is deemed invalid (e.g. because
-                both are output signals).
-        """
-        super().connect(SignalChannel, *others)
-
-    def _valid_connection(self, other) -> bool:
-        return self._is_IO_pair(other)
-
-    def _is_IO_pair(self, other) -> bool:
-        return isinstance(other, SignalChannel) and not isinstance(
-            other, self.__class__
-        )
+    @property
+    def generic_type(self) -> type[Channel]:
+        return SignalChannel
 
     def connect_output_signal(self, signal: OutputSignal):
         self.connect(signal)

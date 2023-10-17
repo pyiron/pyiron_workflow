@@ -259,7 +259,7 @@ class TestSignalChannels(TestCase):
 
         with self.subTest("No connections to non-SignalChannels"):
             bad = InputData(label="numeric", node=DummyNode(), default=1, type_hint=int)
-            with self.assertRaises(ChannelConnectionError):
+            with self.assertRaises(TypeError):
                 self.inp.connect(bad)
 
         with self.subTest("Test syntactic sugar"):
