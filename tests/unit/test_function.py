@@ -477,6 +477,74 @@ class TestFunction(unittest.TestCase):
                     "is a-ok"
             )
 
+    def test_copy_values(self):
+        @function_node()
+        def reference(x=0, y: int = 0, z: int | float = 0, omega=None, extra_here=None):
+            out = 42
+            return out
+
+        @function_node()
+        def all_floats(x=1.1, y=1.1, z=1.1, omega=NotData, extra_there=None) -> float:
+            out = 42.1
+            return out
+
+        # Instantiate the nodes and run them (so they have output data too)
+        ref = reference()
+        floats = all_floats()
+        ref()
+        floats()
+
+        ref.copy_values(floats)
+        self.assertEqual(
+            ref.inputs.x.value,
+            1.1,
+            msg="Untyped channels should copy freely"
+        )
+        self.assertEqual(
+            ref.inputs.y.value,
+            0,
+            msg="Typed channels should ignore values where the type check fails"
+        )
+        self.assertEqual(
+            ref.inputs.z.value,
+            1.1,
+            msg="Typed channels should copy values that conform to their hint"
+        )
+        self.assertEqual(
+            ref.inputs.omega.value,
+            None,
+            msg="NotData should be ignored when copying"
+        )
+        self.assertEqual(
+            ref.outputs.out.value,
+            42.1,
+            msg="Output data should also get copied"
+        )
+        # Note also that these nodes each have extra channels the other doesn't that
+        # are simply ignored
+
+        @function_node()
+        def extra_channel(x=1, y=1, z=1, not_present=42):
+            out = 42
+            return out
+
+        extra = extra_channel()
+        extra()
+
+        ref.inputs.x = 0  # Revert the value
+        with self.assertRaises(
+            TypeError,
+            msg="Type hint should prevent update when we fail hard"
+        ):
+            ref.copy_values(floats, fail_hard=True)
+
+        ref.copy_values(extra)  # No problem
+        with self.assertRaises(
+            AttributeError,
+            msg="Missing a channel that holds data is also grounds for failure"
+        ):
+            ref.copy_values(extra, fail_hard=True)
+
 
 @unittest.skipUnless(version_info[0] == 3 and version_info[1] >= 10, "Only supported for 3.10+")
 class TestSingleValue(unittest.TestCase):
