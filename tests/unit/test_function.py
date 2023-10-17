@@ -9,7 +9,7 @@ import warnings
 
 from pyiron_workflow.executors import CloudpickleProcessPoolExecutor as Executor
 
-from pyiron_workflow.channels import NotData
+from pyiron_workflow.channels import NotData, ChannelConnectionError
 from pyiron_workflow.files import DirectoryObject
 from pyiron_workflow.function import (
     Function, SingleValue, function_node, single_value_node
@@ -450,7 +450,7 @@ class TestFunction(unittest.TestCase):
             )
 
             with self.assertRaises(
-                ValueError,
+                ChannelConnectionError,
                 msg="An unhinted channel is not a valid connection for a hinted "
                     "channel, and should raise and exception"
             ):
