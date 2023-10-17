@@ -427,7 +427,7 @@ class TestFunction(unittest.TestCase):
         downstream.inputs.x.connect(wrong_io.outputs.y)
 
         with self.subTest("Successful copy"):
-            node.copy_connections(to_copy)
+            node._copy_connections(to_copy)
             self.assertIn(upstream.outputs.y, node.inputs.x.connections)
             self.assertIn(upstream.signals.output.ran, node.signals.input.run)
             self.assertIn(downstream.inputs.x, node.outputs.y.connections)
@@ -442,7 +442,7 @@ class TestFunction(unittest.TestCase):
 
         with self.subTest("Ensure failed copies fail cleanly"):
             with self.assertRaises(AttributeError, msg="Wrong labels"):
-                node.copy_connections(wrong_io)
+                node._copy_connections(wrong_io)
             self.assertFalse(
                 node.connected,
                 msg="The x-input connection should have been copied, but should be "
@@ -454,16 +454,16 @@ class TestFunction(unittest.TestCase):
                 msg="An unhinted channel is not a valid connection for a hinted "
                     "channel, and should raise and exception"
             ):
-                hinted_node.copy_connections(to_copy)
+                hinted_node._copy_connections(to_copy)
         hinted_node.disconnect()# Make sure you've got a clean slate
         node.disconnect()  # Make sure you've got a clean slate
 
         with self.subTest("Ensure that failures can be continued past"):
-            node.copy_connections(wrong_io, fail_hard=False)
+            node._copy_connections(wrong_io, fail_hard=False)
             self.assertIn(upstream.outputs.y, node.inputs.x.connections)
             self.assertIn(downstream.inputs.x, node.outputs.y.connections)
 
-            hinted_node.copy_connections(to_copy, fail_hard=False)
+            hinted_node._copy_connections(to_copy, fail_hard=False)
             self.assertFalse(
                 hinted_node.inputs.connected,
                 msg="Without hard failure the copy should be allowed to proceed, but "
@@ -494,7 +494,7 @@ class TestFunction(unittest.TestCase):
         ref()
         floats()
 
-        ref.copy_values(floats)
+        ref._copy_values(floats)
         self.assertEqual(
             ref.inputs.x.value,
             1.1,
@@ -536,14 +536,14 @@ class TestFunction(unittest.TestCase):
             TypeError,
             msg="Type hint should prevent update when we fail hard"
         ):
-            ref.copy_values(floats, fail_hard=True)
+            ref._copy_values(floats, fail_hard=True)
 
-        ref.copy_values(extra)  # No problem
+        ref._copy_values(extra)  # No problem
         with self.assertRaises(
             AttributeError,
             msg="Missing a channel that holds data is also grounds for failure"
         ):
-            ref.copy_values(extra, fail_hard=True)
+            ref._copy_values(extra, fail_hard=True)
 
 
 @unittest.skipUnless(version_info[0] == 3 and version_info[1] >= 10, "Only supported for 3.10+")

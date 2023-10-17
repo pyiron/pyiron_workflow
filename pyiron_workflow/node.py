@@ -451,7 +451,42 @@ class Node(HasToDict, ABC):
             their = other
         return None
 
-    def copy_connections(
+    def copy_io(
+        self,
+        other: Node,
+        connections_fail_hard: bool = True,
+        values_fail_hard: bool = False,
+    ) -> None:
+        """
+        Copies connections and values from another node's IO onto this node's IO.
+        Other channels with no connections are ignored for copying connections, and all
+        data channels without data are ignored for copying data.
+        Otherwise, default behaviour is to throw an exception if any of the other node's
+        connections fail to copy, but failed value copies are simply ignored (e.g.
+        because this node does not have a channel with a commensurate label or the
+        value breaks a type hint).
+        This error throwing/passing behaviour can be controlled with boolean flags.
+
+        In the case that an exception is thrown, all newly formed connections are broken
+        and any new values are reverted to their old state before the exception is
+        raised.
+
+        Args:
+            other (Node): The other node whose IO to copy.
+            connections_fail_hard: Whether to raise exceptions encountered when copying
+                connections. (Default is True.)
+            values_fail_hard (bool): Whether to raise exceptions encountered when
+                copying values. (Default is False.)
+        """
+        new_connections = self._copy_connections(other, fail_hard=connections_fail_hard)
+        try:
+            self._copy_values(other, fail_hard=values_fail_hard)
+        except Exception as e:
+            for this, other in new_connections:
+                this.disconnect(other)
+            raise e
+
+    def _copy_connections(
         self,
         other: Node,
         fail_hard: bool = True,
@@ -499,14 +534,14 @@ class Node(HasToDict, ABC):
                     except Exception as e:
                         if fail_hard:
                             # If you run into trouble, unwind what you've done
-                            for connection in new_connections:
-                                connection[0].disconnect(connection[1])
+                            for this, other in new_connections:
+                                this.disconnect(other)
                             raise e
                         else:
                             continue
         return new_connections
 
-    def copy_values(
+    def _copy_values(
         self,
         other: Node,
         fail_hard: bool = False,
