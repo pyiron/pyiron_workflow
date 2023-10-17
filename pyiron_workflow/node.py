@@ -21,6 +21,7 @@ from pyiron_workflow.util import SeabornColors
 if TYPE_CHECKING:
     import graphviz
 
+    from pyiron_workflow.channels import Channel
     from pyiron_workflow.composite import Composite
     from pyiron_workflow.io import IO, Inputs, Outputs
 
@@ -454,11 +455,18 @@ class Node(HasToDict, ABC):
         self,
         other: Node,
         fail_hard: bool = True,
-    ) -> None:
+    ) -> list[tuple[Channel, Channel]]:
         """
         Copies all the connections in another node to this one.
-        Expects the channels available on this node to be commensurate to those on the
-        other, i.e. same label, compatible type hint for the connections that exist.
+        Expects all connected channels on the other node to have a counterpart on this
+        node -- i.e. the same label, type, and (for data) a type hint compatible with
+        all the existing connections being copied.
+        This requirement can be optionally relaxed such that any failures encountered
+        when attempting to make a connection (i.e. this node has no channel with a
+        corresponding label as the other node, or the new connection fails its validity
+        check), such that we simply continue past these errors and make as many
+        connections as we can while ignoring errors.
+
         This node may freely have additional channels not present in the other node.
         The other node may have additional channels not present here as long as they are
         not connected.
@@ -469,12 +477,12 @@ class Node(HasToDict, ABC):
         Args:
             other (Node): the node whose connections should be copied.
             fail_hard (bool): Whether to raise an error an exception is encountered
-                when trying to reproduce a connection.
+                when trying to reproduce a connection. (Default is True; revert new
+                connections then raise the exception.)
 
-        Raises:
-            (Exception): Any exception encountered when a connection is attempted and
-                fails (only when `fail_hard` is True, otherwise we `continue` past any
-                and all exceptions encountered).
+        Returns:
+            list[tuple[Channel, Channel]]: A list of all the newly created connection
+                pairs (for reverting changes).
         """
         new_connections = []
         for my_panel, other_panel in [
@@ -496,17 +504,19 @@ class Node(HasToDict, ABC):
                             raise e
                         else:
                             continue
+        return new_connections
 
     def copy_values(
         self,
         other: Node,
         fail_hard: bool = False,
-    ) -> None:
+    ) -> list[tuple[Channel, Any]]:
         """
-        Copies all the input and output data channel values in another node to this one
-        wherever this a channel with a matching label and compatible type hint.
-        Can be made more strict, so that failures to find a channel with the expected
-        label or finding a value not matching the type hint raise exceptions.
+        Copies all data from input and output channels in the other node onto this one.
+        Ignores other channels that hold non-data.
+        Failures to find a corresponding channel on this node (matching label, type, and
+        compatible type hint) are ignored by default, but can optionally be made to
+        raise an exception.
 
         If an exception is going to be raised, any values updated so far are
         reverted first.
@@ -518,10 +528,9 @@ class Node(HasToDict, ABC):
                 past other's channels with no compatible label here and past values
                 that don't match type hints here.)
 
-        Raises:
-            (Exception): Any exception encountered when copying values fails (only when
-                `fail_hard` is True, otherwise we `continue` past any and all
-                exceptions encountered).
+        Returns:
+            list[tuple[Channel, Any]]: A list of tuples giving channels whose value has
+                been updated and what it used to be (for reverting changes).
         """
         old_values = []
         for my_panel, other_panel in [
@@ -542,6 +551,7 @@ class Node(HasToDict, ABC):
                             raise e
                         else:
                             continue
+        return old_values
 
     def replace_with(self, other: Node | type[Node]):
         """
