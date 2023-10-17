@@ -462,8 +462,6 @@ class Node(HasToDict, ABC):
         This node may freely have additional channels not present in the other node.
         The other node may have additional channels not present here as long as they are
         not connected.
-        This final condition can optionally be relaxed, such that as many connections as
-        possible are copied, and any failures are simply overlooked.
 
         If an exception is going to be raised, any connections copied so far are
         disconnected first.
@@ -530,27 +528,17 @@ class Node(HasToDict, ABC):
             (self.inputs, other.inputs),
             (self.outputs, other.outputs),
         ]:
-            for key, channel in other_panel.items():
-                if channel.value is not NotData:
+            for key, to_copy in other_panel.items():
+                if to_copy.value is not NotData:
                     try:
-                        hint = my_panel[key].type_hint
-                        if hint is not None and not valid_value(channel.value, hint):
-                            # We can be more relaxed than what we're copying,
-                            # but not more specific else the value might be bad
-                            raise TypeError(
-                                f"Cannot copy value {channel.value} to {self.label}  "
-                                f"from {other.label} -- it does not match the type "
-                                f"hint on channel {key}: {hint}."
-                            )
-
                         old_value = my_panel[key].value
-                        my_panel[key].value = channel.value
-                        old_values.append((my_panel, key, old_value))
+                        my_panel[key].copy_value(to_copy.value)
+                        old_values.append((my_panel[key], old_value))
                     except Exception as e:
                         if fail_hard:
                             # If you run into trouble, unwind what you've done
-                            for panel, key, value in old_values:
-                                panel[key].value = value
+                            for channel, value in old_values:
+                                channel.value = value
                             raise e
                         else:
                             continue
