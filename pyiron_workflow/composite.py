@@ -289,11 +289,14 @@ class Composite(Node, ABC):
                 default_key = f"{node.label}__{channel_label}"
                 try:
                     io_panel_key = key_map[default_key]
+                    io[io_panel_key] = self._get_linking_channel(
+                        channel, io_panel_key
+                    )
                 except KeyError:
-                    io_panel_key = default_key
-                io[io_panel_key] = self._get_linking_channel(
-                    channel, io_panel_key
-                )
+                    if not channel.connected:
+                        io[default_key] = self._get_linking_channel(
+                            channel, default_key
+                        )
         return io
 
     @abstractmethod
