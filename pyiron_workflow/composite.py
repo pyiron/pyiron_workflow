@@ -262,8 +262,26 @@ class Composite(Node, ABC):
         self,
         io: Inputs | Outputs,
         target: Literal["inputs", "outputs"],
-        key_map: dict[str, str] | None,
+        key_map: dict[str, str | None] | None,
     ) -> Inputs | Outputs:
+        """
+        Build an IO panel for exposing child node IO to the outside world at the level
+        of the composite node's IO.
+
+        Args:
+            io [Inputs|Outputs]: The IO panel object to populate
+            target [Literal["inputs", "outputs"]]: Whether this is I or O.
+            key_map [dict[str, str]|None]: A map between the default convention for
+                mapping child IO to composite IO (`"{node.label}__{channel.label}"`) and
+                whatever label you actually want to expose to the composite user. Also
+                allows non-standards channel exposure, i.e. exposing
+                internally-connected channels (which would not normally be exposed) by
+                providing a string-to-string map, or suppressing unconnected channels
+                (which normally would be exposed) by providing a string-None map.
+
+        Returns:
+            (Inputs|Outputs): The populated panel.
+        """
         key_map = {} if key_map is None else key_map
         for node in self.nodes.values():
             panel = getattr(node, target)
