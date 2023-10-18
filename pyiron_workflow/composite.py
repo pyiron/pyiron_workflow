@@ -5,7 +5,7 @@ sub-graph
 
 from __future__ import annotations
 
-from abc import ABC
+from abc import ABC, abstractmethod
 from functools import partial
 from typing import Literal, Optional, TYPE_CHECKING
 
@@ -19,7 +19,7 @@ from pyiron_workflow.node_package import NodePackage
 from pyiron_workflow.util import logger, DotDict, SeabornColors
 
 if TYPE_CHECKING:
-    from pyiron_workflow.channels import Channel
+    from pyiron_workflow.channels import Channel, InputData, OutputData
 
 
 class Composite(Node, ABC):
@@ -289,11 +289,38 @@ class Composite(Node, ABC):
                 default_key = f"{node.label}__{channel_label}"
                 try:
                     if key_map[default_key] is not None:
-                        io[key_map[default_key]] = channel
+                        io[key_map[default_key]] = self._get_linking_channel(
+                            channel, key_map[default_key]
+                        )
                 except KeyError:
                     if not channel.connected:
                         io[default_key] = channel
         return io
+
+    @abstractmethod
+    def _get_linking_channel(
+        self,
+        child_reference_channel: InputData | OutputData,
+        composite_io_key: str,
+    ) -> InputData | OutputData:
+        """
+        Returns the channel that will be the link between the provided child channel,
+        and the composite's IO at the given key.
+
+        The returned channel should be fully compatible with the provided child channel,
+        i.e. same type, same type hint... (For instance, the child channel itself is a
+        valid return, which would create a composite IO panel that works by reference.)
+
+        Args:
+            child_reference_channel (InputData | OutputData): The child channel
+            composite_io_key (str): The key under which this channel will be stored on
+                the composite's IO.
+
+        Returns:
+            (Channel): A channel with the same type, type hint, etc. as the reference
+                channel passed in.
+        """
+        pass
 
     def _build_inputs(self) -> Inputs:
         return self._build_io("inputs", self.inputs_map)
