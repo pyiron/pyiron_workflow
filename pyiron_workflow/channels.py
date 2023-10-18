@@ -376,7 +376,7 @@ class InputData(DataChannel):
         default: typing.Optional[typing.Any] = NotData,
         type_hint: typing.Optional[typing.Any] = None,
         strict_connections: bool = True,
-        value_receiver: typing.Optional[InputData] = None
+        value_receiver: typing.Optional[InputData] = None,
     ):
         self._value = NotData
         self._value_receiver = None
@@ -433,7 +433,6 @@ class InputData(DataChannel):
     @value_receiver.setter
     def value_receiver(self, new_partner: InputData):
         if new_partner is not None:
-
             if not isinstance(new_partner, InputData):
                 raise TypeError(
                     f"The {self.__class__.__name__} {self.label} got a coupling "
