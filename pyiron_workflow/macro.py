@@ -227,8 +227,9 @@ class Macro(Composite):
 
     def process_run_result(self, run_output):
         if run_output is not self.nodes:
-            # TODO: Set the nodes to the returned nodes, rebuild IO, and reconnect
-            #       composite IO (just hard copy, no need to repeat type hint checks)
+            # self.nodes = run_output
+            # self._rebuild_data_io()
+            # TODO: I think it should be that simple, but needs tests
             raise NotImplementedError
         return super().process_run_result(run_output)
 
