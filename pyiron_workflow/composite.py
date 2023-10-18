@@ -260,7 +260,6 @@ class Composite(Node, ABC):
 
     def _build_io(
         self,
-        io: Inputs | Outputs,
         target: Literal["inputs", "outputs"],
         key_map: dict[str, str | None] | None,
     ) -> Inputs | Outputs:
@@ -269,7 +268,6 @@ class Composite(Node, ABC):
         of the composite node's IO.
 
         Args:
-            io [Inputs|Outputs]: The IO panel object to populate
             target [Literal["inputs", "outputs"]]: Whether this is I or O.
             key_map [dict[str, str]|None]: A map between the default convention for
                 mapping child IO to composite IO (`"{node.label}__{channel.label}"`) and
@@ -283,6 +281,7 @@ class Composite(Node, ABC):
             (Inputs|Outputs): The populated panel.
         """
         key_map = {} if key_map is None else key_map
+        io = Inputs() if target == "inputs" else Outputs()
         for node in self.nodes.values():
             panel = getattr(node, target)
             for channel_label in panel.labels:
@@ -297,10 +296,10 @@ class Composite(Node, ABC):
         return io
 
     def _build_inputs(self) -> Inputs:
-        return self._build_io(Inputs(), "inputs", self.inputs_map)
+        return self._build_io("inputs", self.inputs_map)
 
     def _build_outputs(self) -> Outputs:
-        return self._build_io(Outputs(), "outputs", self.outputs_map)
+        return self._build_io("outputs", self.outputs_map)
 
     def add(self, node: Node, label: Optional[str] = None) -> None:
         """
