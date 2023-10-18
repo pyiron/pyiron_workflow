@@ -233,8 +233,19 @@ class Macro(Composite):
         return super().process_run_result(run_output)
 
     def _rebuild_data_io(self):
+        old_inputs = self.inputs
+        old_outputs = self.outputs
         self._inputs = self._build_inputs()
         self._outputs = self._build_outputs()
+        for old, new in [(old_inputs, self.inputs), (old_outputs, self.outputs)]:
+            for old_channel in old:
+                try:
+                    new[old_channel.label].copy_connections(old_channel)
+                except AttributeError:
+                    # It looks like a key error if `old_channel.label` is not an item,
+                    # but we're actually having __getitem__ fall back on __getattr__
+                    pass
+                old_channel.disconnect_all()
 
     def _configure_graph_execution(self):
         run_signals = self.disconnect_run()
