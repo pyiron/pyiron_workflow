@@ -10,15 +10,18 @@ from abc import ABC, abstractmethod
 from concurrent.futures import Future
 from typing import Any, Literal, Optional, TYPE_CHECKING
 
+from pyiron_workflow.channels import NotData
 from pyiron_workflow.draw import Node as GraphvizNode
 from pyiron_workflow.files import DirectoryObject
 from pyiron_workflow.has_to_dict import HasToDict
 from pyiron_workflow.io import Signals, InputSignal, OutputSignal
+from pyiron_workflow.type_hinting import valid_value
 from pyiron_workflow.util import SeabornColors
 
 if TYPE_CHECKING:
     import graphviz
 
+    from pyiron_workflow.channels import Channel
     from pyiron_workflow.composite import Composite
     from pyiron_workflow.io import IO, Inputs, Outputs
 
@@ -448,35 +451,142 @@ class Node(HasToDict, ABC):
             their = other
         return None
 
-    def copy_connections(self, other: Node) -> None:
+    def copy_io(
+        self,
+        other: Node,
+        connections_fail_hard: bool = True,
+        values_fail_hard: bool = False,
+    ) -> None:
+        """
+        Copies connections and values from another node's IO onto this node's IO.
+        Other channels with no connections are ignored for copying connections, and all
+        data channels without data are ignored for copying data.
+        Otherwise, default behaviour is to throw an exception if any of the other node's
+        connections fail to copy, but failed value copies are simply ignored (e.g.
+        because this node does not have a channel with a commensurate label or the
+        value breaks a type hint).
+        This error throwing/passing behaviour can be controlled with boolean flags.
+
+        In the case that an exception is thrown, all newly formed connections are broken
+        and any new values are reverted to their old state before the exception is
+        raised.
+
+        Args:
+            other (Node): The other node whose IO to copy.
+            connections_fail_hard: Whether to raise exceptions encountered when copying
+                connections. (Default is True.)
+            values_fail_hard (bool): Whether to raise exceptions encountered when
+                copying values. (Default is False.)
+        """
+        new_connections = self._copy_connections(other, fail_hard=connections_fail_hard)
+        try:
+            self._copy_values(other, fail_hard=values_fail_hard)
+        except Exception as e:
+            for this, other in new_connections:
+                this.disconnect(other)
+            raise e
+
+    def _copy_connections(
+        self,
+        other: Node,
+        fail_hard: bool = True,
+    ) -> list[tuple[Channel, Channel]]:
         """
         Copies all the connections in another node to this one.
-        Expects the channels available on this node to be commensurate to those on the
-        other, i.e. same label, compatible type hint for the connections that exist.
-        This node may freely have additional channels not present in the other node.
+        Expects all connected channels on the other node to have a counterpart on this
+        node -- i.e. the same label, type, and (for data) a type hint compatible with
+        all the existing connections being copied.
+        This requirement can be optionally relaxed such that any failures encountered
+        when attempting to make a connection (i.e. this node has no channel with a
+        corresponding label as the other node, or the new connection fails its validity
+        check), such that we simply continue past these errors and make as many
+        connections as we can while ignoring errors.
 
-        If an exception is encountered, any connections copied so far are disconnected
+        This node may freely have additional channels not present in the other node.
+        The other node may have additional channels not present here as long as they are
+        not connected.
+
+        If an exception is going to be raised, any connections copied so far are
+        disconnected first.
 
         Args:
             other (Node): the node whose connections should be copied.
+            fail_hard (bool): Whether to raise an error an exception is encountered
+                when trying to reproduce a connection. (Default is True; revert new
+                connections then raise the exception.)
+
+        Returns:
+            list[tuple[Channel, Channel]]: A list of all the newly created connection
+                pairs (for reverting changes).
         """
         new_connections = []
-        try:
-            for my_panel, other_panel in [
-                (self.inputs, other.inputs),
-                (self.outputs, other.outputs),
-                (self.signals.input, other.signals.input),
-                (self.signals.output, other.signals.output),
-            ]:
-                for key, channel in other_panel.items():
-                    for target in channel.connections:
+        for my_panel, other_panel in [
+            (self.inputs, other.inputs),
+            (self.outputs, other.outputs),
+            (self.signals.input, other.signals.input),
+            (self.signals.output, other.signals.output),
+        ]:
+            for key, channel in other_panel.items():
+                for target in channel.connections:
+                    try:
                         my_panel[key].connect(target)
                         new_connections.append((my_panel[key], target))
-        except Exception as e:
-            # If you run into trouble, unwind what you've done
-            for connection in new_connections:
-                connection[0].disconnect(connection[1])
-            raise e
+                    except Exception as e:
+                        if fail_hard:
+                            # If you run into trouble, unwind what you've done
+                            for this, other in new_connections:
+                                this.disconnect(other)
+                            raise e
+                        else:
+                            continue
+        return new_connections
+
+    def _copy_values(
+        self,
+        other: Node,
+        fail_hard: bool = False,
+    ) -> list[tuple[Channel, Any]]:
+        """
+        Copies all data from input and output channels in the other node onto this one.
+        Ignores other channels that hold non-data.
+        Failures to find a corresponding channel on this node (matching label, type, and
+        compatible type hint) are ignored by default, but can optionally be made to
+        raise an exception.
+
+        If an exception is going to be raised, any values updated so far are
+        reverted first.
+
+        Args:
+            other (Node): the node whose data values should be copied.
+            fail_hard (bool): Whether to raise an error an exception is encountered
+                when trying to duplicate a value. (Default is False, just keep going
+                past other's channels with no compatible label here and past values
+                that don't match type hints here.)
+
+        Returns:
+            list[tuple[Channel, Any]]: A list of tuples giving channels whose value has
+                been updated and what it used to be (for reverting changes).
+        """
+        old_values = []
+        for my_panel, other_panel in [
+            (self.inputs, other.inputs),
+            (self.outputs, other.outputs),
+        ]:
+            for key, to_copy in other_panel.items():
+                if to_copy.value is not NotData:
+                    try:
+                        old_value = my_panel[key].value
+                        my_panel[key].copy_value(to_copy)
+                        old_values.append((my_panel[key], old_value))
+                    except Exception as e:
+                        if fail_hard:
+                            # If you run into trouble, unwind what you've done
+                            for channel, value in old_values:
+                                channel.value = value
+                            raise e
+                        else:
+                            continue
+        return old_values
 
     def replace_with(self, other: Node | type[Node]):
         """

@@ -420,7 +420,7 @@ class Composite(Node, ABC):
                 f"got {replacement}"
             )
 
-        replacement.copy_connections(owned_node)
+        replacement.copy_io(owned_node)
         replacement.label = owned_node.label
         is_starting_node = owned_node in self.starting_nodes
         self.remove(owned_node)
