@@ -8,14 +8,13 @@ from __future__ import annotations
 from functools import partialmethod
 from typing import Optional, TYPE_CHECKING
 
-from pyiron_workflow.channels import InputData
+from pyiron_workflow.channels import InputData, OutputData
 from pyiron_workflow.composite import Composite
 from pyiron_workflow.io import Outputs, Inputs
 
 if TYPE_CHECKING:
     from bidict import bidict
 
-    from pyiron_workflow.channels import OutputData
     from pyiron_workflow.node import Node
 
 
@@ -209,6 +208,12 @@ class Macro(Composite):
             composite_channel.strict_connections = \
                 child_reference_channel.strict_connections
             composite_channel.value_receiver = child_reference_channel
+        elif isinstance(composite_channel, OutputData):
+            child_reference_channel.value_receiver = composite_channel
+        else:
+            raise TypeError(
+                "This should not be an accessible state, please contact the developers"
+            )
 
         return composite_channel
 
@@ -222,25 +227,10 @@ class Macro(Composite):
 
     def process_run_result(self, run_output):
         if run_output is not self.nodes:
-            # TODO: Set the nodes to the returned nodes, rebuild IO, and rebuild
-            #       composite IO connections (just hard copy, no need to repeat type
-            #       hint checks)
+            # TODO: Set the nodes to the returned nodes, rebuild IO, and reconnect
+            #       composite IO (just hard copy, no need to repeat type hint checks)
             raise NotImplementedError
-        self._update_output_channels_from_children()
         return super().process_run_result(run_output)
-
-    def _update_output_channels_from_children(self):
-        for composite_key, composite_channel in self.outputs.items():
-            try:
-                default_key = self.outputs_map.inverse[composite_key]
-            except (AttributeError, KeyError):
-                # AttributeError: self.outputs_map is None, has no invers
-                # KeyError: this channel was not specially mapped
-                default_key = composite_key
-            node_label = default_key.split("__")[0]
-            channel_label = default_key.removeprefix(node_label + "__")
-            composite_channel.value = \
-                self.nodes[node_label].outputs[channel_label].value
 
     def _rebuild_data_io(self):
         self._inputs = self._build_inputs()
