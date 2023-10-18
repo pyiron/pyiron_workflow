@@ -191,7 +191,7 @@ class Workflow(Composite):
         composite_io_key: str,
     ) -> InputData | OutputData:
         """
-        Build IO by providing direct references to child channels
+        Build IO by reference: just return the child's channel itself.
         """
         return child_reference_channel
 
