@@ -318,7 +318,7 @@ class TestMacro(unittest.TestCase):
                 msg="Replacement should be reflected in the starting nodes"
             )
             self.assertIs(
-                macro.inputs.one__x,
+                macro.inputs.one__x.value_receiver,
                 new_starter.inputs.x,
                 msg="Replacement should be reflected in composite IO"
             )
