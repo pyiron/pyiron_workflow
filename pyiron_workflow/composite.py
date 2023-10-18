@@ -260,7 +260,7 @@ class Composite(Node, ABC):
 
     def _build_io(
         self,
-        target: Literal["inputs", "outputs"],
+        i_or_o: Literal["inputs", "outputs"],
         key_map: dict[str, str | None] | None,
     ) -> Inputs | Outputs:
         """
@@ -281,9 +281,9 @@ class Composite(Node, ABC):
             (Inputs|Outputs): The populated panel.
         """
         key_map = {} if key_map is None else key_map
-        io = Inputs() if target == "inputs" else Outputs()
+        io = Inputs() if i_or_o == "inputs" else Outputs()
         for node in self.nodes.values():
-            panel = getattr(node, target)
+            panel = getattr(node, i_or_o)
             for channel_label in panel.labels:
                 channel = panel[channel_label]
                 default_key = f"{node.label}__{channel_label}"
