@@ -291,7 +291,7 @@ class Composite(Node, ABC):
                     io_panel_key = key_map[default_key]
                 except KeyError:
                     io_panel_key = default_key
-                io[key_map[default_key]] = self._get_linking_channel(
+                io[io_panel_key] = self._get_linking_channel(
                     channel, io_panel_key
                 )
         return io
