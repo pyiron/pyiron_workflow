@@ -499,6 +499,7 @@ class Composite(Node, ABC):
             super().__setattr__(key, node)
 
     def __getattr__(self, key):
+        print(f"{self.__class__.__name__} is trying to get", key)
         try:
             return self.nodes[key]
         except KeyError:
@@ -557,6 +558,12 @@ class OwnedCreator:
             value = OwnedNodePackage(self._parent, value)
 
         return value
+
+    def __setstate__(self, state):
+        # Because we override getattr, we need to use __dict__ assignment directly in
+        # __setstate__
+        self.__dict__["_parent"] = state["_parent"]
+        self.__dict__["_creator"] = state["_creator"]
 
 
 class OwnedNodePackage:

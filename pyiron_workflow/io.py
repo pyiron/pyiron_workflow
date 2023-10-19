@@ -161,6 +161,11 @@ class IO(HasToDict, ABC):
             "channels": {l: c.to_dict() for l, c in self.channel_dict.items()},
         }
 
+    def __setstate__(self, state):
+        # Because we override getattr, we need to use __dict__ assignment directly in
+        # __setstate__ the same way we need it in __init__
+        self.__dict__["channel_dict"] = state["channel_dict"]
+
 
 class DataIO(IO, ABC):
     """
