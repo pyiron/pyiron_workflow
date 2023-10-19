@@ -200,7 +200,8 @@ class TestWorkflow(unittest.TestCase):
             # Submitting callables that use self is still raising
             # TypeError: cannot pickle '_thread.lock' object
             # For now we just fail cleanly
-            wf.executor = "literally anything other than None should raise the error"
+            # TODO: This should actually work now, test it
+            wf.executor = True
 
     def test_parallel_execution(self):
         wf = Workflow("wf")

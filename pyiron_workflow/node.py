@@ -12,6 +12,7 @@ from typing import Any, Literal, Optional, TYPE_CHECKING
 
 from pyiron_workflow.channels import NotData
 from pyiron_workflow.draw import Node as GraphvizNode
+from pyiron_workflow.executors import CloudpickleProcessPoolExecutor as Executor
 from pyiron_workflow.files import DirectoryObject
 from pyiron_workflow.has_to_dict import HasToDict
 from pyiron_workflow.io import Signals, InputSignal, OutputSignal
@@ -182,7 +183,10 @@ class Node(HasToDict, ABC):
         # TODO: Provide support for actually computing stuff with the executor
         self.signals = self._build_signal_channels()
         self._working_directory = None
-        self.executor = None
+        self.executor = False
+        # We call it an executor, but it's just whether to use one.
+        # This is a simply stop-gap as we work out more sophisticated ways to reference
+        # (or create) an executor process without ever trying to pickle a `_thread.lock`
         self.future: None | Future = None
 
     @property
@@ -291,13 +295,14 @@ class Node(HasToDict, ABC):
         Handles the status of the node, and communicating with any remote
         computing resources.
         """
-        if self.executor is None:
+        if not self.executor:
             run_output = self.on_run(**self.run_args)
             return finished_callback(run_output)
         else:
             # Just blindly try to execute -- as we nail down the executor interaction
             # we'll want to fail more cleanly here.
-            self.future = self.executor.submit(self.on_run, **self.run_args)
+            executor = Executor()
+            self.future = executor.submit(self.on_run, **self.run_args)
             self.future.add_done_callback(finished_callback)
             return self.future
 
