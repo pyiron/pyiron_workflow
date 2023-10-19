@@ -367,6 +367,118 @@ class TestMacro(unittest.TestCase):
             ):
                 macro.two = add_two_incompatible_io
 
+    def test_macro_connections_after_replace(self):
+        # If the macro-level IO is going to change after replacing a child,
+        # it had better still be able to recreate all the macro-level IO connections
+        # For macro IO channels that weren't connected, we don't really care
+        # If it fails to replace, it had better revert to its original state
+
+        macro = Macro(add_three_macro)
+        downstream = SingleValue(add_one, x=macro.outputs.three__result)
+        macro > downstream
+        macro(one__x=0)
+        # Or once pull exists: macro.one__x = 0; downstream.pull()
+        self.assertEqual(
+            0 + (1 + 1 + 1) + 1,
+            downstream.outputs.result.value,
+            msg="Sanity check that our test setup is what we want: macro->single"
+        )
+
+        def add_two(x):
+            result = x + 2
+            return result
+        compatible_replacement = SingleValue(add_two)
+
+        macro.replace(macro.three, compatible_replacement)
+        macro(one__x=0)
+        self.assertEqual(
+            len(downstream.inputs.x.connections),
+            1,
+            msg="After replacement, the downstream node should still have exactly one "
+                "connection to the macro"
+        )
+        self.assertIs(
+            downstream.inputs.x.connections[0],
+            macro.outputs.three__result,
+            msg="The one connection should be the living, updated macro IO channel"
+        )
+        self.assertEqual(
+            0 + (1 + 1 + 2) + 1,
+            downstream.outputs.result.value,
+            msg="The whole flow should still function after replacement, but with the "
+                "new behaviour (and extra 1 added)"
+        )
+
+        def different_signature(x):
+            # When replacing the final node of add_three_macro, the rebuilt IO will
+            # no longer have three__result, but rather three__changed_output_label,
+            # which will break existing macro-level IO if the macro output is connected
+            changed_output_label = x + 3
+            return changed_output_label
+
+        incompatible_replacement = SingleValue(
+            different_signature,
+            label="original_label"
+        )
+        with self.assertRaises(
+            AttributeError,
+            msg="macro.three__result is connected output, but can't be found in the "
+                "rebuilt IO, so an exception is expected"
+        ):
+            macro.replace(macro.three, incompatible_replacement)
+        self.assertIs(
+            macro.three,
+            compatible_replacement,
+            msg="Failed replacements should get reverted, putting the original node "
+                "back"
+        )
+        self.assertIs(
+            macro.three.outputs.result.value_receiver,
+            macro.outputs.three__result,
+            msg="Failed replacements should get reverted, restoring the link between "
+                "child IO and macro IO"
+        )
+        self.assertIs(
+            downstream.inputs.x.connections[0],
+            macro.outputs.three__result,
+            msg="Failed replacements should get reverted, and macro IO should be as "
+                "it was before"
+        )
+        self.assertFalse(
+            incompatible_replacement.connected,
+            msg="Failed replacements should get reverted, leaving the replacement in "
+                "its original state"
+        )
+        self.assertEqual(
+            "original_label",
+            incompatible_replacement.label,
+            msg="Failed replacements should get reverted, leaving the replacement in "
+                "its original state"
+        )
+        macro(one__x=1)  # Fresh input to make sure updates are actually going through
+        self.assertEqual(
+            1 + (1 + 1 + 2) + 1,
+            downstream.outputs.result.value,
+            msg="Final integration test that replacements get reverted, the macro "
+                "function and downstream results should be the same as before"
+        )
+
+        downstream.disconnect()
+        macro.replace(macro.three, incompatible_replacement)
+        self.assertIs(
+            macro.three,
+            incompatible_replacement,
+            msg="Since it is only incompatible with the external connections and we "
+                "broke those first, replacement is expected to work fine now"
+        )
+        macro(one__x=2)
+        self.assertEqual(
+            2 + (1 + 1 + 3),
+            macro.outputs.three__changed_output_label.value,
+            msg="For all to be working, we need the result with the new behaviour "
+                "at its new location"
+        )
+
 
 if __name__ == '__main__':
     unittest.main()
