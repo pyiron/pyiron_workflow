@@ -1,6 +1,8 @@
+from concurrent.futures import Future
 from functools import partialmethod
-import unittest
 from sys import version_info
+from time import sleep
+import unittest
 
 from pyiron_workflow.channels import NotData
 from pyiron_workflow.function import SingleValue
@@ -477,6 +479,74 @@ class TestMacro(unittest.TestCase):
             macro.outputs.three__changed_output_label.value,
             msg="For all to be working, we need the result with the new behaviour "
                 "at its new location"
+        )
+
+    def test_with_executor(self):
+        macro = Macro(add_three_macro)
+        downstream = SingleValue(add_one, x=macro.outputs.three__result)
+        macro > downstream  # Later we can just pull() instead
+
+        original_one = macro.one
+        macro.executor = True
+
+        self.assertIs(
+            NotData,
+            macro.outputs.three__result.value,
+            msg="Sanity check that test is in right starting condition"
+        )
+
+        result = macro(one__x=0)
+        self.assertIsInstance(
+            result,
+            Future,
+            msg="Should be running as a parallel process"
+        )
+        self.assertIs(
+            NotData,
+            downstream.outputs.result.value,
+            msg="Downstream events should not yet have triggered either, we should wait"
+                "for the callback when the result is ready"
+        )
+
+        returned_nodes = result.result()  # Wait for the process to finish
+        self.assertIsNot(
+            original_one,
+            returned_nodes.one,
+            msg="Executing in a parallel process should be returning new instances"
+        )
+        self.assertIsNot(
+            returned_nodes.one,
+            macro.nodes.one,
+            msg="Returned nodes should be taken as children"
+        )
+        self.assertIs(
+            macro,
+            macro.nodes.one.parent,
+            msg="Returned nodes should get the macro as their parent"
+        )
+        self.assertIsNone(
+            original_one.parent,
+            msg="Original nodes should be orphaned"
+            # Note: At time of writing, this is accomplished in Node.__getstate__,
+            #       which feels a bit dangerous...
+        )
+        self.assertEqual(
+            0 + 3,
+            macro.outputs.three__result.value,
+            msg="And of course we expect the calculation to actually run"
+        )
+        self.assertIs(
+            downstream.inputs.x.connections[0],
+            macro.outputs.three__result,
+            msg="The macro should still be connected to "
+        )
+        sleep(0.2)  # Give a moment for the ran signal to emit and downstream to run
+        # I'm a bit surprised this sleep is necessary
+        self.assertEqual(
+            0 + 3 + 1,
+            downstream.outputs.result.value,
+            msg="The finishing callback should also fire off the ran signal triggering"
+                "downstream execution"
         )
 
 
