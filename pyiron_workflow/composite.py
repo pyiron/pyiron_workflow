@@ -106,7 +106,7 @@ class Composite(Node, ABC):
         self._outputs_map = None
         self.inputs_map = inputs_map
         self.outputs_map = outputs_map
-        self.nodes: DotDict[str:Node] = DotDict()
+        self.nodes: DotDict[str, Node] = DotDict()
         self.starting_nodes: list[Node] = []
         self._creator = self.create
         self.create = self._owned_creator  # Override the create method from the class
