@@ -104,12 +104,13 @@ class Node(HasToDict, ABC):
     Their value is controlled automatically in the defined `run` and `finish_run`
     methods.
 
-    Nodes can be run on the main python process that owns them, or by assigning an
-    appropriate executor to their `executor` attribute.
+    Nodes can be run on the main python process that owns them, or by setting their
+    `executor` attribute to `True`, in which case a
+    `pyiron_workflow.executors.CloudPickleExecutor` will be used to run the node on a
+    new process on a single core (in the future, the interface will look a little
+    different and you'll have more options than that).
     In case they are run with an executor, their `future` attribute will be populated
     with the resulting future object.
-    WARNING: Executors are currently only working when the node executable function does
-        not use `self`.
 
     This is an abstract class.
     Children *must* define how `inputs` and `outputs` are constructed, and what will
