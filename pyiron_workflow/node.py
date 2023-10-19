@@ -111,6 +111,8 @@ class Node(HasToDict, ABC):
     different and you'll have more options than that).
     In case they are run with an executor, their `future` attribute will be populated
     with the resulting future object.
+    WARNING: Executors are currently only working when the node executable function does
+        not use `self`.
 
     This is an abstract class.
     Children *must* define how `inputs` and `outputs` are constructed, and what will
