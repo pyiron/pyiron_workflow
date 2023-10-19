@@ -300,11 +300,13 @@ class TestFunction(unittest.TestCase):
         )
 
         node.executor = True
-        with self.assertRaises(NotImplementedError):
-            # Submitting node_functions that use self is still raising
-            # TypeError: cannot pickle '_thread.lock' object
-            # For now we just fail cleanly
+        with self.assertRaises(
+            ValueError,
+            msg="We haven't implemented any way to update a function node's `self` when"
+                "it runs on an executor, so trying to do so should fail hard"
+        ):
             node.run()
+        node.executor = False
 
         def with_messed_self(x: float, self) -> float:
             return x + 0.1

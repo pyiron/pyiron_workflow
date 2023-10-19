@@ -474,6 +474,11 @@ class Function(Node):
     def run_args(self) -> dict:
         kwargs = self.inputs.to_value_dict()
         if "self" in self._input_args:
+            if self.executor:
+                raise ValueError(
+                    f"Function node {self.label} uses the `self` argument, but this "
+                    f"can't yet be run with executors"
+                )
             kwargs["self"] = self
         return kwargs
 
