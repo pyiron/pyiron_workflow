@@ -297,11 +297,17 @@ class Macro(Composite):
             pairs[0].connect(pairs[1])
 
     def replace(self, owned_node: Node | str, replacement: Node | type[Node]):
-        super().replace(owned_node=owned_node, replacement=replacement)
-        # Make sure node-level IO is pointing to the new node
-        self._rebuild_data_io()
-        # This is brute-force overkill since only the replaced node needs to be updated
-        # but it's not particularly expensive
+        replaced_node = super().replace(owned_node=owned_node, replacement=replacement)
+        try:
+            # Make sure node-level IO is pointing to the new node and that macro-level
+            # IO gets safely reconstructed
+            self._rebuild_data_io()
+        except Exception as e:
+            # If IO can't be successfully rebuilt using this node, revert changes and
+            # raise the exception
+            self.replace(replacement, replaced_node)  # Guaranteed to work since
+            # replacement in the other direction was already a success
+            raise e
 
     def to_workfow(self):
         raise NotImplementedError
