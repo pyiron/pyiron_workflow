@@ -170,9 +170,20 @@ class Composite(Node, ABC):
         return {"_nodes": self.nodes, "_starting_nodes": self.starting_nodes}
 
     def process_run_result(self, run_output):
-        # self.nodes = run_output
-        # Running on an executor will require a more sophisticated idea than above
+        if run_output is not self.nodes:
+            # Then we probably ran on a parallel process and have an unpacked future
+            self._update_children(run_output)
         return DotDict(self.outputs.to_value_dict())
+
+    def _update_children(self, children_from_another_process: DotDict[str, Node]):
+        """
+        If you receive a new dictionary of children, e.g. from unpacking a futures
+        object of your own children you sent off to another process for computation,
+        replace your own nodes with them, and set yourself as their parent.
+        """
+        for child in children_from_another_process.values():
+            child.parent = self
+        self.nodes = children_from_another_process
 
     def disconnect_run(self) -> list[tuple[Channel, Channel]]:
         """

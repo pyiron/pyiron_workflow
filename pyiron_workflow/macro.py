@@ -226,13 +226,9 @@ class Macro(Composite):
     def outputs(self) -> Outputs:
         return self._outputs
 
-    def process_run_result(self, run_output):
-        if run_output is not self.nodes:
-            # self.nodes = run_output
-            # self._rebuild_data_io()
-            # TODO: I think it should be that simple, but needs tests
-            raise NotImplementedError
-        return super().process_run_result(run_output)
+    def _update_children(self, children_from_another_process):
+        super()._update_children(children_from_another_process)
+        self._rebuild_data_io()
 
     def _rebuild_data_io(self):
         """
