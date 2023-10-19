@@ -499,7 +499,6 @@ class Composite(Node, ABC):
             super().__setattr__(key, node)
 
     def __getattr__(self, key):
-        print(f"{self.__class__.__name__} is trying to get", key)
         try:
             return self.nodes[key]
         except KeyError:
