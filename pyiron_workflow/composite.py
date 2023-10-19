@@ -424,7 +424,7 @@ class Composite(Node, ABC):
         del self.nodes[node.label]
         return disconnected
 
-    def replace(self, owned_node: Node | str, replacement: Node | type[Node]):
+    def replace(self, owned_node: Node | str, replacement: Node | type[Node]) -> Node:
         """
         Replaces a node currently owned with a new node instance.
         The replacement must not belong to any other parent or have any connections.
@@ -432,6 +432,12 @@ class Composite(Node, ABC):
         channel labels need to match precisely, but additional channels may be present.
         After replacement, the new node will have the old node's connections, label,
         and belong to this composite.
+        The labels are swapped, such that the replaced node gets the name of its
+        replacement (which might be silly, but is useful in case you want to revert the
+        change and swap the replaced node back in!)
+
+        If replacement fails for some reason, the replacement and replacing node are
+        both returned to their original state, and the composite is left unchanged.
 
         Args:
             owned_node (Node|str): The node to replace or its label.
@@ -467,13 +473,17 @@ class Composite(Node, ABC):
                 f"got {replacement}"
             )
 
-        replacement.copy_io(owned_node)
-        replacement.label = owned_node.label
+        replacement.copy_io(owned_node)  # If the replacement is incompatible, we'll
+        # fail here before we've changed the parent at all. Since the replacement was
+        # first guaranteed to be an unconnected orphan, there is not yet any permanent
+        # damage
         is_starting_node = owned_node in self.starting_nodes
         self.remove(owned_node)
+        replacement.label, owned_node.label = owned_node.label, replacement.label
         self.add(replacement)
         if is_starting_node:
             self.starting_nodes.append(replacement)
+        return owned_node
 
     def __setattr__(self, key: str, node: Node):
         if isinstance(node, Node) and key != "parent":
