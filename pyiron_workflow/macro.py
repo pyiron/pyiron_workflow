@@ -200,13 +200,14 @@ class Macro(Composite):
             label=composite_io_key,
             node=self,
             default=child_reference_channel.default,
-            type_hint=child_reference_channel.type_hint
+            type_hint=child_reference_channel.type_hint,
         )
         composite_channel.value = child_reference_channel.value
 
         if isinstance(composite_channel, InputData):
-            composite_channel.strict_connections = \
+            composite_channel.strict_connections = (
                 child_reference_channel.strict_connections
+            )
             composite_channel.value_receiver = child_reference_channel
         elif isinstance(composite_channel, OutputData):
             child_reference_channel.value_receiver = composite_channel
@@ -265,10 +266,11 @@ class Macro(Composite):
                 old_channel.connect(*swapped_conenctions)
             self._inputs = old_inputs
             self._outputs = old_outputs
-            e.message = f"Unable to rebuild IO for {self.label}; reverting to old IO." \
-                        f"{e.message}"
+            e.message = (
+                f"Unable to rebuild IO for {self.label}; reverting to old IO."
+                f"{e.message}"
+            )
             raise e
-
 
     def _configure_graph_execution(self):
         run_signals = self.disconnect_run()

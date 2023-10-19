@@ -426,7 +426,7 @@ class InputData(DataChannel):
             node=node,
             default=default,
             type_hint=type_hint,
-            value_receiver=value_receiver
+            value_receiver=value_receiver,
         )
         self.strict_connections = strict_connections
 
