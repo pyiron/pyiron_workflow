@@ -1,6 +1,7 @@
-import unittest
+from concurrent.futures import Future
 from sys import version_info
 from time import sleep
+import unittest
 
 from bidict import ValueDuplicationError
 
@@ -194,13 +195,50 @@ class TestWorkflow(unittest.TestCase):
             # Setting a non-None value to parent raises the type error from the setter
             wf2.parent = wf
 
-    def test_executor(self):
+    def test_with_executor(self):
+
         wf = Workflow("wf")
-        with self.assertRaises(NotImplementedError):
-            # Submitting callables that use self is still raising
-            # TypeError: cannot pickle '_thread.lock' object
-            # For now we just fail cleanly
-            wf.executor = "literally anything other than None should raise the error"
+        wf.a = wf.create.SingleValue(plus_one)
+        wf.b = wf.create.SingleValue(plus_one, x=wf.a)
+
+        original_a = wf.a
+        wf.executor = True
+
+        self.assertIs(
+            NotData,
+            wf.outputs.b__y.value,
+            msg="Sanity check that test is in right starting condition"
+        )
+
+        result = wf(a__x=0)
+        self.assertIsInstance(
+            result,
+            Future,
+            msg="Should be running as a parallel process"
+        )
+
+        returned_nodes = result.result()  # Wait for the process to finish
+        self.assertIsNot(
+            original_a,
+            returned_nodes.a,
+            msg="Executing in a parallel process should be returning new instances"
+        )
+        self.assertIs(
+            wf,
+            wf.nodes.a.parent,
+            msg="Returned nodes should get the macro as their parent"
+        )
+        self.assertIsNone(
+            original_a.parent,
+            msg="Original nodes should be orphaned"
+            # Note: At time of writing, this is accomplished in Node.__getstate__,
+            #       which feels a bit dangerous...
+        )
+        self.assertEqual(
+            0 + 1 + 1,
+            wf.outputs.b__y.value,
+            msg="And of course we expect the calculation to actually run"
+        )
 
     def test_parallel_execution(self):
         wf = Workflow("wf")

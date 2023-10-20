@@ -106,7 +106,7 @@ class Composite(Node, ABC):
         self._outputs_map = None
         self.inputs_map = inputs_map
         self.outputs_map = outputs_map
-        self.nodes: DotDict[str:Node] = DotDict()
+        self.nodes: DotDict[str, Node] = DotDict()
         self.starting_nodes: list[Node] = []
         self._creator = self.create
         self.create = self._owned_creator  # Override the create method from the class
@@ -138,17 +138,6 @@ class Composite(Node, ABC):
         """
         return OwnedCreator(self, self._creator)
 
-    @property
-    def executor(self) -> None:
-        return None
-
-    @executor.setter
-    def executor(self, new_executor):
-        if new_executor is not None:
-            raise NotImplementedError(
-                "Running composite nodes with an executor is not yet supported"
-            )
-
     def to_dict(self):
         return {
             "label": self.label,
@@ -170,9 +159,20 @@ class Composite(Node, ABC):
         return {"_nodes": self.nodes, "_starting_nodes": self.starting_nodes}
 
     def process_run_result(self, run_output):
-        # self.nodes = run_output
-        # Running on an executor will require a more sophisticated idea than above
+        if run_output is not self.nodes:
+            # Then we probably ran on a parallel process and have an unpacked future
+            self._update_children(run_output)
         return DotDict(self.outputs.to_value_dict())
+
+    def _update_children(self, children_from_another_process: DotDict[str, Node]):
+        """
+        If you receive a new dictionary of children, e.g. from unpacking a futures
+        object of your own children you sent off to another process for computation,
+        replace your own nodes with them, and set yourself as their parent.
+        """
+        for child in children_from_another_process.values():
+            child.parent = self
+        self.nodes = children_from_another_process
 
     def disconnect_run(self) -> list[tuple[Channel, Channel]]:
         """
@@ -557,6 +557,16 @@ class OwnedCreator:
             value = OwnedNodePackage(self._parent, value)
 
         return value
+
+    def __getstate__(self):
+        # Compatibility with python <3.11
+        return self.__dict__
+
+    def __setstate__(self, state):
+        # Because we override getattr, we need to use __dict__ assignment directly in
+        # __setstate__
+        self.__dict__["_parent"] = state["_parent"]
+        self.__dict__["_creator"] = state["_creator"]
 
 
 class OwnedNodePackage:

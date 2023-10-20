@@ -12,6 +12,7 @@ from typing import Any, Literal, Optional, TYPE_CHECKING
 
 from pyiron_workflow.channels import NotData
 from pyiron_workflow.draw import Node as GraphvizNode
+from pyiron_workflow.executors import CloudpickleProcessPoolExecutor as Executor
 from pyiron_workflow.files import DirectoryObject
 from pyiron_workflow.has_to_dict import HasToDict
 from pyiron_workflow.io import Signals, InputSignal, OutputSignal
@@ -103,8 +104,11 @@ class Node(HasToDict, ABC):
     Their value is controlled automatically in the defined `run` and `finish_run`
     methods.
 
-    Nodes can be run on the main python process that owns them, or by assigning an
-    appropriate executor to their `executor` attribute.
+    Nodes can be run on the main python process that owns them, or by setting their
+    `executor` attribute to `True`, in which case a
+    `pyiron_workflow.executors.CloudPickleExecutor` will be used to run the node on a
+    new process on a single core (in the future, the interface will look a little
+    different and you'll have more options than that).
     In case they are run with an executor, their `future` attribute will be populated
     with the resulting future object.
     WARNING: Executors are currently only working when the node executable function does
@@ -182,7 +186,10 @@ class Node(HasToDict, ABC):
         # TODO: Provide support for actually computing stuff with the executor
         self.signals = self._build_signal_channels()
         self._working_directory = None
-        self.executor = None
+        self.executor = False
+        # We call it an executor, but it's just whether to use one.
+        # This is a simply stop-gap as we work out more sophisticated ways to reference
+        # (or create) an executor process without ever trying to pickle a `_thread.lock`
         self.future: None | Future = None
 
     @property
@@ -291,13 +298,14 @@ class Node(HasToDict, ABC):
         Handles the status of the node, and communicating with any remote
         computing resources.
         """
-        if self.executor is None:
+        if not self.executor:
             run_output = self.on_run(**self.run_args)
             return finished_callback(run_output)
         else:
             # Just blindly try to execute -- as we nail down the executor interaction
             # we'll want to fail more cleanly here.
-            self.future = self.executor.submit(self.on_run, **self.run_args)
+            executor = Executor()
+            self.future = executor.submit(self.on_run, **self.run_args)
             self.future.add_done_callback(finished_callback)
             return self.future
 
@@ -605,3 +613,31 @@ class Node(HasToDict, ABC):
             self.parent.replace(self, other)
         else:
             warnings.warn(f"Could not replace {self.label}, as it has no parent.")
+
+    def __getstate__(self):
+        state = self.__dict__
+        state["parent"] = None
+        # I am not at all confident that removing the parent here is the _right_
+        # solution.
+        # In order to run composites on a parallel process, we ship off just the nodes
+        # and starting nodes.
+        # When the parallel process returns these, they're obviously different
+        # instances, so we re-parent them back to the receiving composite.
+        # At the same time, we want to make sure that the _old_ children get orphaned.
+        # Of course, we could do that directly in the composite method, but it also
+        # works to do it here.
+        # Something I like about this, is it also means that when we ship groups of
+        # nodes off to another process with cloudpickle, they're definitely not lugging
+        # along their parent, its connections, etc. with them!
+        # This is all working nicely as demonstrated over in the macro test suite.
+        # However, I have a bit of concern that when we start thinking about
+        # serialization for storage instead of serialization to another process, this
+        # might introduce a hard-to-track-down bug.
+        # For now, it works and I'm going to be super pragmatic and go for it, but
+        # for the record I am admitting that the current shallowness of my understanding
+        # may cause me/us headaches in the future.
+        # -Liam
+        return self.__dict__
+
+    def __setstate__(self, state):
+        self.__dict__ = state
