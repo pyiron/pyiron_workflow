@@ -523,6 +523,9 @@ class TestMacro(unittest.TestCase):
             macro,
             macro.nodes.one.parent,
             msg="Returned nodes should get the macro as their parent"
+            # Once upon a time there was some evidence that this test was failing
+            # stochastically, but I just ran the whole test suite 6 times and this test
+            # 8 times and it always passed fine, so maybe the issue is resolved...
         )
         self.assertIsNone(
             original_one.parent,
