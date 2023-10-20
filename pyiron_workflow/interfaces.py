@@ -60,12 +60,14 @@ class Creator(metaclass=Singleton):
     def standard(self):
         from pyiron_workflow.node_package import NodePackage
         from pyiron_workflow.node_library.standard import nodes
+
         return NodePackage(*nodes)
 
     @property
     def atomistics(self):
         from pyiron_workflow.node_package import NodePackage
         from pyiron_workflow.node_library.atomistics import nodes
+
         return NodePackage(*nodes)
 
     @property
