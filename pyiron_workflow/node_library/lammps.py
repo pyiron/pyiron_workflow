@@ -10,14 +10,15 @@ from pathlib import Path
 
 
 class VarType:
-    def __init__(self, 
-                 value=None, 
-                 dat_type=None, 
-                 label: str = None, 
-                 store: int = 0,
-                 generic: bool = None, 
-                 doc: str = None
-                 ):
+    def __init__(
+        self,
+        value=None,
+        dat_type=None,
+        label: str = None,
+        store: int = 0,
+        generic: bool = None,
+        doc: str = None,
+    ):
         self.value = value
         self.type = dat_type
         self.label = label
@@ -34,7 +35,7 @@ class FileObject:
             self._path = Path(directory) / Path(path)
 
     def __repr__(self):
-        return f'FileObject: {self._path} {self.is_file}'
+        return f"FileObject: {self._path} {self.is_file}"
 
     @property
     def path(self):
@@ -50,25 +51,23 @@ class FileObject:
         return self._path.name
 
 
-@single_value_node(
-    output_labels=['calculator']
-)
-def calc_md(temperature: VarType(dat_type=float, store=10) = 300,
-            n_ionic_steps=1000,
-            n_print=100):
+@single_value_node(output_labels=["calculator"])
+def calc_md(
+    temperature: VarType(dat_type=float, store=10) = 300,
+    n_ionic_steps=1000,
+    n_print=100,
+):
     from pyiron_atomistics.lammps.control import LammpsControl
 
     calculator = LammpsControl()
-    print('calc: T=', temperature)
-    calculator.calc_md(temperature=temperature,
-                       n_ionic_steps=n_ionic_steps,
-                       n_print=n_print)
+    print("calc: T=", temperature)
+    calculator.calc_md(
+        temperature=temperature, n_ionic_steps=n_ionic_steps, n_print=n_print
+    )
     return calculator
 
 
-@single_value_node(
-    output_labels=['calculator']
-)
+@single_value_node(output_labels=["calculator"])
 def calc_static():
     from pyiron_atomistics.lammps.control import LammpsControl
 
@@ -78,32 +77,26 @@ def calc_static():
 
 
 # TODO: The following function has been only introduced to mimic input variables for a macro
-@single_value_node(
-    output_labels=['structure']
-)
+@single_value_node(output_labels=["structure"])
 def structure_node(structure):
     return structure
 
 
-@single_value_node(
-    output_labels=['path']
-)
-def init_lammps(structure=None, potential=None, calculator=None, working_directory=None):
+@single_value_node(output_labels=["path"])
+def init_lammps(
+    structure=None, potential=None, calculator=None, working_directory=None
+):
     import os
     from pyiron_atomistics.lammps.potential import LammpsPotential, LammpsPotentialFile
 
-    assert os.path.isdir(working_directory), 'working directory missing'
+    assert os.path.isdir(working_directory), "working directory missing"
 
     pot = LammpsPotential()
     pot.df = LammpsPotentialFile().find_by_name(potential)
-    pot.write_file(
-        file_name="potential.inp", cwd=working_directory
-    )
+    pot.write_file(file_name="potential.inp", cwd=working_directory)
     pot.copy_pot_files(working_directory)
 
-    with open(
-            os.path.join(working_directory, "structure.inp"), "w"
-    ) as f:
+    with open(os.path.join(working_directory, "structure.inp"), "w") as f:
         structure.write(f, format="lammps-data", specorder=pot.get_element_lst())
 
     # control = LammpsControl()
@@ -115,27 +108,24 @@ def init_lammps(structure=None, potential=None, calculator=None, working_directo
     return os.path.abspath(working_directory)
 
 
-@single_value_node(
-    output_labels=['log']
-)
+@single_value_node(output_labels=["log"])
 def lammps_log_parser(log_file):
     from pymatgen.io.lammps.outputs import parse_lammps_log
 
-    print('parse log file')
+    print("parse log file")
     log = parse_lammps_log(log_file.path)
     if len(log) == 0:
-        print(f'check {log_file.path}')
-        raise ValueError('lammps_log_parser: failed')
+        print(f"check {log_file.path}")
+        raise ValueError("lammps_log_parser: failed")
 
     return log
 
 
-@single_value_node(
-    output_labels=['dump']
-)
+@single_value_node(output_labels=["dump"])
 def lammps_dump_parser(dump_file):
     from pymatgen.io.lammps.outputs import parse_lammps_dumps
-    print('parse dump file')
+
+    print("parse dump file")
     dump = list(parse_lammps_dumps(dump_file.path))
     return dump
 
@@ -148,15 +138,14 @@ class ShellOutput:
     log: FileObject
 
 
-@function_node(
-    output_labels=['output', 'dump', 'log']
-)
-def shell(command: str,
-          environment: dict = None,
-          arguments: list = None,
-          working_directory: str = '.',
-          # allowed_return_code:list=[]
-          ):
+@function_node(output_labels=["output", "dump", "log"])
+def shell(
+    command: str,
+    environment: dict = None,
+    arguments: list = None,
+    working_directory: str = ".",
+    # allowed_return_code:list=[]
+):
     # -> (ShellOutput, FileObject, FileObject):  TODO: fails -> why
     import os
     import subprocess
@@ -169,7 +158,7 @@ def shell(command: str,
     environ = dict(os.environ)
     environ.update({k: str(v) for k, v in environment.items()})
     # print ([str(command), *map(str, arguments)], working_directory, environment)
-    print('start shell')
+    print("start shell")
     proc = subprocess.run(
         [str(command), *map(str, arguments)],
         capture_output=True,
@@ -177,14 +166,14 @@ def shell(command: str,
         encoding="utf8",
         env=environ,
     )
-    print('end shell')
+    print("end shell")
 
     output = ShellOutput()
     output.stdout = proc.stdout
     output.stderr = proc.stderr
     output.return_code = proc.returncode
-    dump = FileObject('dump.out', working_directory)
-    log = FileObject('log.lammps', working_directory)
+    dump = FileObject("dump.out", working_directory)
+    log = FileObject("log.lammps", working_directory)
 
     return output, dump, log
 
@@ -195,11 +184,10 @@ class GenericOutput:
     forces: []
 
 
-@single_value_node(
-    output_labels=['generic']
-)
+@single_value_node(output_labels=["generic"])
 def collect(out_dump, out_log):
     import numpy as np
+
     log = out_log[0]
 
     output = GenericOutput()
@@ -212,9 +200,7 @@ def collect(out_dump, out_log):
     return output
 
 
-@single_value_node(
-    output_labels=['potential']
-)
+@single_value_node(output_labels=["potential"])
 def potential_node(structure, name=None, index=0):
     from pyiron_atomistics.lammps.potential import list_potentials
 
@@ -225,13 +211,11 @@ def potential_node(structure, name=None, index=0):
         if name in potentials:
             potential = name
         else:
-            raise ValueError('Unknown potential')
+            raise ValueError("Unknown potential")
     return potential
 
 
-@single_value_node(
-    output_labels=['potentials']
-)
+@single_value_node(output_labels=["potentials"])
 def list_potentials_node(structure):
     from pyiron_atomistics.lammps.potential import list_potentials
 
@@ -242,9 +226,9 @@ def list_potentials_node(structure):
 @macro_node()
 def repeat_node(wf: Macro) -> None:
     wf.structure = wf.create.atomistics.Bulk(cubic=True, name="Al")
-    wf.repeat_structure = wf.create.lammps.Repeat(structure=wf.structure,
-                                                  repeat_scalar=3
-                                                  )
+    wf.repeat_structure = wf.create.lammps.Repeat(
+        structure=wf.structure, repeat_scalar=3
+    )
 
     wf.inputs_map = {"repeat_structure__repeat_scalar": "n"}
     wf.outputs_map = {"repeat_structure__structure": "repeated_structure"}
@@ -264,19 +248,23 @@ def lammps_static_node(wf: Macro) -> None:
         structure=wf.structure,
         potential=wf.potential,
         calculator=wf.calc.outputs.calculator,
-        working_directory='test2'
+        working_directory="test2",
     )
-    wf.engine = wf.create.lammps.Shell(command=ExecutablePathResolver(module="lammps", code="lammps"),
-                                       working_directory=wf.init.outputs.path
-                                       )
+    wf.engine = wf.create.lammps.Shell(
+        command=ExecutablePathResolver(module="lammps", code="lammps"),
+        working_directory=wf.init.outputs.path,
+    )
 
     wf.parser_log = wf.create.lammps.LammpsLogParser(log_file=wf.engine.outputs.log)
     wf.parser_dump = wf.create.lammps.LammpsDumpParser(dump_file=wf.engine.outputs.dump)
-    wf.collect_output = wf.create.lammps.Collect(out_dump=wf.parser_dump.outputs.dump,
-                                                 out_log=wf.parser_log.outputs.log)
+    wf.collect_output = wf.create.lammps.Collect(
+        out_dump=wf.parser_dump.outputs.dump, out_log=wf.parser_log.outputs.log
+    )
 
-    wf.inputs_map = {"structure__structure": "structure",
-                     "potential__name": "potential"}
+    wf.inputs_map = {
+        "structure__structure": "structure",
+        "potential__name": "potential",
+    }
     wf.outputs_map = {"energy_pot__select": "energy_pot"}
 
 
@@ -285,41 +273,57 @@ def lammps_md_node(wf: Macro) -> None:
     from pyiron_contrib.tinybase.shell import ExecutablePathResolver
 
     wf.structure = wf.create.atomistics.Bulk(cubic=True, name="Al")
-    wf.repeat_structure = wf.create.atomistics.Repeat(structure=wf.structure,
-                                                      repeat_scalar=3)
-    wf.strain = wf.create.atomistics.ApplyStrain(structure=wf.repeat_structure,
-                                                 strain=1)
+    wf.repeat_structure = wf.create.atomistics.Repeat(
+        structure=wf.structure, repeat_scalar=3
+    )
+    wf.strain = wf.create.atomistics.ApplyStrain(
+        structure=wf.repeat_structure, strain=1
+    )
 
     wf.potential = wf.create.lammps.PotentialNode(structure=wf.strain)
     wf.calc = wf.create.lammps.CalcMd(temperature=1000, n_ionic_steps=10_000)
 
-    wf.init = wf.create.lammps.InitLammps(structure=wf.strain,
-                                          potential=wf.potential,
-                                          calculator=wf.calc.outputs.calculator,
-                                          working_directory='test2')
-    wf.engine = wf.create.lammps.Shell(command=ExecutablePathResolver(module="lammps", code="lammps"),
-                                       working_directory=wf.init.outputs.path)
+    wf.init = wf.create.lammps.InitLammps(
+        structure=wf.strain,
+        potential=wf.potential,
+        calculator=wf.calc.outputs.calculator,
+        working_directory="test2",
+    )
+    wf.engine = wf.create.lammps.Shell(
+        command=ExecutablePathResolver(module="lammps", code="lammps"),
+        working_directory=wf.init.outputs.path,
+    )
 
     wf.parser_log = wf.create.lammps.LammpsLogParser(log_file=wf.engine.outputs.log)
     wf.parser_dump = wf.create.lammps.LammpsDumpParser(dump_file=wf.engine.outputs.dump)
-    wf.collect_output = wf.create.lammps.Collect(out_dump=wf.parser_dump.outputs.dump,
-                                                 out_log=wf.parser_log.outputs.log)
-    wf.energy_pot = wf.create.standard.Select(data=wf.collect_output.outputs.generic, key='energy_pot')
-    wf.energy_kin = wf.create.standard.Select(data=wf.collect_output.outputs.generic, key='energy_kin')
+    wf.collect_output = wf.create.lammps.Collect(
+        out_dump=wf.parser_dump.outputs.dump, out_log=wf.parser_log.outputs.log
+    )
+    wf.energy_pot = wf.create.standard.Select(
+        data=wf.collect_output.outputs.generic, key="energy_pot"
+    )
+    wf.energy_kin = wf.create.standard.Select(
+        data=wf.collect_output.outputs.generic, key="energy_kin"
+    )
 
     wf.inputs_map = {  # "structure__name": "element",
-        "calc__temperature": "temperature"}
+        "calc__temperature": "temperature"
+    }
     wf.outputs_map = {"energy_pot__select": "energy_pot"}
 
 
 @single_value_node(output_labels="structure")
-def repeat(structure: Optional[Atoms] = None, repeat_scalar: int = 1) -> Optional[Atoms]:
+def repeat(
+    structure: Optional[Atoms] = None, repeat_scalar: int = 1
+) -> Optional[Atoms]:
     return structure.repeat(repeat_scalar)
 
 
 @single_value_node(output_labels="structure")
-def apply_strain(structure: Optional[Atoms] = None, strain: float = 1) -> Optional[Atoms]:
-    print('apply strain: ', strain)
+def apply_strain(
+    structure: Optional[Atoms] = None, strain: float = 1
+) -> Optional[Atoms]:
+    print("apply strain: ", strain)
     struct = structure.copy()
     struct.cell *= strain
     return struct
@@ -340,5 +344,5 @@ nodes = [
     lammps_md_node,
     lammps_static_node,
     repeat,
-    apply_strain
+    apply_strain,
 ]
