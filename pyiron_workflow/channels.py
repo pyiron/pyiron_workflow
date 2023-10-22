@@ -279,11 +279,54 @@ class DataChannel(Channel, ABC):
         node: Node,
         default: typing.Optional[typing.Any] = NotData,
         type_hint: typing.Optional[typing.Any] = None,
+        value_receiver: typing.Optional[InputData] = None,
     ):
         super().__init__(label=label, node=node)
+        self._value = NotData
+        self._value_receiver = None
         self.default = default
         self.value = default
         self.type_hint = type_hint
+        self.value_receiver = value_receiver
+
+    @property
+    def value(self):
+        return self._value
+
+    @value.setter
+    def value(self, new_value):
+        if self.value_receiver is not None:
+            self.value_receiver.value = new_value
+        self._value = new_value
+
+    @property
+    def value_receiver(self) -> InputData | OutputData | None:
+        """
+        Another data channel of the same type to whom new values are always pushed
+        (without type checking of any sort, not even when forming the couple!)
+
+        Useful for macros, so that the IO of owned nodes and IO at the macro level can
+        be kept synchronized.
+        """
+        return self._value_receiver
+
+    @value_receiver.setter
+    def value_receiver(self, new_partner: InputData | OutputData | None):
+        if new_partner is not None:
+            if not isinstance(new_partner, self.__class__):
+                raise TypeError(
+                    f"The {self.__class__.__name__} {self.label} got a coupling "
+                    f"partner {new_partner} but requires something of the same type"
+                )
+
+            if new_partner is self:
+                raise ValueError(
+                    f"{self.__class__.__name__} {self.label} cannot couple to itself"
+                )
+
+            new_partner.value = self.value
+
+        self._value_receiver = new_partner
 
     @property
     def generic_type(self) -> type[Channel]:
@@ -375,29 +418,17 @@ class InputData(DataChannel):
         node: Node,
         default: typing.Optional[typing.Any] = NotData,
         type_hint: typing.Optional[typing.Any] = None,
-        strict_connections: bool = True,
         value_receiver: typing.Optional[InputData] = None,
+        strict_connections: bool = True,
     ):
-        self._value = NotData
-        self._value_receiver = None
         super().__init__(
             label=label,
             node=node,
             default=default,
             type_hint=type_hint,
+            value_receiver=value_receiver,
         )
         self.strict_connections = strict_connections
-        self.value_receiver = value_receiver
-
-    @property
-    def value(self):
-        return self._value
-
-    @value.setter
-    def value(self, new_value):
-        if self.value_receiver is not None:
-            self.value_receiver.value = new_value
-        self._value = new_value
 
     def fetch(self) -> None:
         """
@@ -418,36 +449,6 @@ class InputData(DataChannel):
             if out.value is not NotData:
                 self.value = out.value
                 break
-
-    @property
-    def value_receiver(self) -> InputData:
-        """
-        Another input data channel to whom new values are always pushed (without type
-        checking of any sort, not even when forming the couple!)
-
-        Useful for macros, so that the input of owned nodes can be kept up-to-date with
-        the new data values assigned to the macro input.
-        """
-        return self._value_receiver
-
-    @value_receiver.setter
-    def value_receiver(self, new_partner: InputData):
-        if new_partner is not None:
-            if not isinstance(new_partner, InputData):
-                raise TypeError(
-                    f"The {self.__class__.__name__} {self.label} got a coupling "
-                    f"partner {new_partner} but requires something of type "
-                    f"{InputData.__name__}"
-                )
-
-            if new_partner is self:
-                raise ValueError(
-                    f"{self.__class__.__name__} {self.label} cannot couple to itself"
-                )
-
-            new_partner.value = self.value
-
-        self._value_receiver = new_partner
 
     def activate_strict_connections(self) -> None:
         self.strict_connections = True
