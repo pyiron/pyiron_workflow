@@ -147,6 +147,23 @@ class TestFunction(unittest.TestCase):
             switch = Function(multiple_branches, output_labels="bool")
             self.assertListEqual(switch.outputs.labels, ["bool"])
 
+    def test_availability_of_node_function(self):
+        @function_node()
+        def linear(x):
+            return x
+
+        @function_node()
+        def bilinear(x, y):
+            xy = linear.node_function(x) * linear.node_function(y)
+            return xy
+
+        self.assertEqual(
+            bilinear(2, 3).run(),
+            2 * 3,
+            msg="Children of `Function` should have their `node_function` exposed for "
+                "use at the class level"
+        )
+
     def test_signals(self):
         @function_node()
         def linear(x):
@@ -227,7 +244,7 @@ class TestFunction(unittest.TestCase):
             # The function error should get passed up
             n.run()
         self.assertFalse(n.ready)
-        # self.assertFalse(n.running)
+        self.assertFalse(n.running)
         self.assertTrue(n.failed)
 
         n.inputs.x = 1
@@ -236,14 +253,18 @@ class TestFunction(unittest.TestCase):
             msg="Should not be ready while it has failed status"
         )
 
-        n.run()
+        n.failed = False  # Manually reset the failed status
         self.assertTrue(
             n.ready,
-            msg="A manual run() call bypasses checks, so readiness should reset"
+            msg="Input is ok, not running, not failed -- should be ready!"
         )
+        n.run()
         self.assertTrue(n.ready)
-        # self.assertFalse(n.running)
-        self.assertFalse(n.failed, msg="Re-running should reset failed status")
+        self.assertFalse(n.running)
+        self.assertFalse(
+            n.failed,
+            msg="Should be back to a good state and ready to run again"
+        )
 
     def test_with_self(self):
         def with_self(self, x: float) -> float:
@@ -391,6 +412,34 @@ class TestFunction(unittest.TestCase):
                 # raises an error
                 node.run()
             node.future.result()  # Wait for the remote execution to finish
+
+    def test_copy_connections(self):
+        node = Function(plus_one)
+
+        upstream = Function(plus_one)
+        to_copy = Function(plus_one, x=upstream.outputs.y)
+        downstream = Function(plus_one, x=to_copy.outputs.y)
+        upstream > to_copy > downstream
+
+        wrong_io = Function(no_default, x=upstream.outputs.y)
+        downstream.inputs.x.connect(wrong_io.outputs["x + y + 1"])
+
+        with self.subTest("Ensure failed copies fail cleanly"):
+            with self.assertRaises(AttributeError):
+                node.copy_connections(wrong_io)
+            self.assertFalse(
+                node.connected,
+                msg="The x-input connection should have been copied, but should be "
+                    "removed when the copy fails."
+            )
+        node.disconnect()  # Make sure you've got a clean slate
+
+        with self.subTest("Successful copy"):
+            node.copy_connections(to_copy)
+            self.assertIn(upstream.outputs.y, node.inputs.x.connections)
+            self.assertIn(upstream.signals.output.ran, node.signals.input.run)
+            self.assertIn(downstream.inputs.x, node.outputs.y.connections)
+            self.assertIn(downstream.signals.input.run, node.signals.output.ran)
 
 
 @unittest.skipUnless(version_info[0] == 3 and version_info[1] >= 10, "Only supported for 3.10+")

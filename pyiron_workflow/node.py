@@ -20,7 +20,39 @@ if TYPE_CHECKING:
     import graphviz
 
     from pyiron_workflow.composite import Composite
-    from pyiron_workflow.io import Inputs, Outputs
+    from pyiron_workflow.io import IO, Inputs, Outputs
+
+
+def manage_status(node_method):
+    """
+    Decorates methods of nodes that might be time-consuming, i.e. their main run
+    functionality.
+
+    Sets `running` to true until the method completes and either fails or returns
+    something other than a `concurrent.futures.Future` instance; sets `failed` to true
+    if the method raises an exception; raises a `RuntimeError` if the node is already
+    `running` or `failed`.
+    """
+
+    def wrapped_method(node: Node, *args, **kwargs):  # rather node:Node
+        if node.running:
+            raise RuntimeError(f"{node.label} is already running")
+        elif node.failed:
+            raise RuntimeError(f"{node.label} has a failed status")
+
+        node.running = True
+        try:
+            out = node_method(node, *args, **kwargs)
+            return out
+        except Exception as e:
+            node.failed = True
+            out = None
+            raise e
+        finally:
+            # Leave the status as running if the method returns a future
+            node.running = isinstance(out, Future)
+
+    return wrapped_method
 
 
 class Node(HasToDict, ABC):
@@ -54,7 +86,8 @@ class Node(HasToDict, ABC):
 
     The `run()` method returns a representation of the node output (possible a futures
     object, if the node is running on an executor), and consequently `update()` also
-    returns this output if the node is `ready`.
+    returns this output if the node is `ready`. Both `run()` and `update()` will raise
+    errors if the node is already running or has a failed status.
 
     Calling an already instantiated node allows its input channels to be updated using
     keyword arguments corresponding to the channel labels, performing a batch-update of
@@ -168,70 +201,132 @@ class Node(HasToDict, ABC):
         pass
 
     @property
+    @abstractmethod
     def run_args(self) -> dict:
         """
         Any data needed for `on_run`, will be passed as **kwargs.
         """
-        return {}
 
-    def process_run_result(self, run_output: Any | tuple) -> None:
+    @abstractmethod
+    def process_run_result(self, run_output):
         """
         What to _do_ with the results of `on_run` once you have them.
 
-        Args:
-            run_output (tuple): The results of a `self.on_run(self.run_args)` call.
-        """
-        pass
+        By extracting this as a separate method, we allow the node to pass the actual
+        execution off to another entity and release the python process to do other
+        things. In such a case, this function should be registered as a callback
+        so that the node can process the result of that process.
 
-    def run(self) -> Any | tuple | Future:
+        Args:
+            run_output: The results of a `self.on_run(self.run_args)` call.
+        """
+
+    @manage_status
+    def execute(self):
+        """
+        Perform the node's operation with its current data.
+
+        Execution happens directly on this python process.
+        """
+        return self.process_run_result(self.on_run(**self.run_args))
+
+    def run(self):
+        """
+        Update the input (with whatever is currently available -- does _not_ trigger
+        any other nodes to run) and use it to perform the node's operation.
+
+        If executor information is specified, execution happens on that process, a
+        callback is registered, and futures object is returned.
+
+        Once complete, fire `ran` signal to propagate execution in the computation graph
+        that owns this node (if any).
+        """
+        self.update_input()
+        return self._run(finished_callback=self.finish_run_and_emit_ran)
+
+    def pull(self):
+        raise NotImplementedError
+        # Need to implement everything for on-the-fly construction of the upstream
+        # graph and its execution
+        # Then,
+        self.update_input()
+        return self._run(finished_callback=self.finish_run)
+
+    def update_input(self, **kwargs) -> None:
+        """
+        Fetch the latest and highest-priority input values from connections, then
+        overwrite values with keywords arguments matching input channel labels.
+
+        Any channel that has neither a connection nor a kwarg update at time of call is
+        left unchanged.
+
+        Throws a warning if a keyword is provided that cannot be found among the input
+        keys.
+
+        If you really want to update just a single value without any other side-effects,
+        this can always be accomplished by following the full semantic path to the
+        channel's value: `my_node.input.my_channel.value = "foo"`.
+
+        Args:
+            **kwargs: input key - input value (including channels for connection) pairs.
+        """
+        self.inputs.fetch()
+        for k, v in kwargs.items():
+            if k in self.inputs.labels:
+                self.inputs[k] = v
+            else:
+                warnings.warn(
+                    f"The keyword '{k}' was not found among input labels. If you are "
+                    f"trying to update a node keyword, please use attribute assignment "
+                    f"directly instead of calling"
+                )
+
+    @manage_status
+    def _run(self, finished_callback: callable) -> Any | tuple | Future:
         """
         Executes the functionality of the node defined in `on_run`.
         Handles the status of the node, and communicating with any remote
         computing resources.
         """
-        if self.running:
-            raise RuntimeError(f"{self.label} is already running")
-
-        self.running = True
-        self.failed = False
-
         if self.executor is None:
-            try:
-                run_output = self.on_run(**self.run_args)
-            except Exception as e:
-                self.running = False
-                self.failed = True
-                raise e
-            return self.finish_run(run_output)
+            run_output = self.on_run(**self.run_args)
+            return finished_callback(run_output)
         else:
             # Just blindly try to execute -- as we nail down the executor interaction
             # we'll want to fail more cleanly here.
             self.future = self.executor.submit(self.on_run, **self.run_args)
-            self.future.add_done_callback(self.finish_run)
+            self.future.add_done_callback(finished_callback)
             return self.future
 
     def finish_run(self, run_output: tuple | Future) -> Any | tuple:
         """
-        Switch the node status, process the run result, then fire the ran signal.
+        Switch the node status, then process and return the run result.
 
-        By extracting this as a separate method, we allow the node to pass the actual
-        execution off to another entity and release the python process to do other
-        things. In such a case, this function should be registered as a callback
-        so that the node can finish "running" and, e.g. push its data forward when that
-        execution is finished. In such a case, a `concurrent.futures.Future` object is
-        expected back and must be unpacked.
+        Sets the `failed` status to true if an exception is encountered.
         """
         if isinstance(run_output, Future):
             run_output = run_output.result()
 
         self.running = False
         try:
-            self.process_run_result(run_output)
-            self.signals.output.ran()
-            return run_output
+            processed_output = self.process_run_result(run_output)
+            return processed_output
         except Exception as e:
             self.failed = True
             raise e
+
+    def finish_run_and_emit_ran(self, run_output: tuple | Future) -> Any | tuple:
+        processed_output = self.finish_run(run_output)
+        self.signals.output.ran()
+        return processed_output
+
+    finish_run_and_emit_ran.__doc__ = (
+        finish_run.__doc__
+        + """
+    
+    Finally, fire the `ran` signal.
+    """
+    )
 
     def _build_signal_channels(self) -> Signals:
         signals = Signals()
@@ -282,24 +377,6 @@ class Node(HasToDict, ABC):
             and self.outputs.fully_connected
             and self.signals.fully_connected
         )
-
-    def update_input(self, **kwargs) -> None:
-        """
-        Match keywords to input channel labels and update input values.
-
-        Args:
-            **kwargs: input label - input value (including channels for connection)
-             pairs.
-        """
-        for k, v in kwargs.items():
-            if k in self.inputs.labels:
-                self.inputs[k] = v
-            else:
-                warnings.warn(
-                    f"The keyword '{k}' was not found among input labels. If you are "
-                    f"trying to update a node keyword, please use attribute assignment "
-                    f"directly instead of calling"
-                )
 
     def __call__(self, **kwargs) -> None:
         self.update_input(**kwargs)
@@ -370,3 +447,51 @@ class Node(HasToDict, ABC):
             our = our.parent
             their = other
         return None
+
+    def copy_connections(self, other: Node) -> None:
+        """
+        Copies all the connections in another node to this one.
+        Expects the channels available on this node to be commensurate to those on the
+        other, i.e. same label, compatible type hint for the connections that exist.
+        This node may freely have additional channels not present in the other node.
+
+        If an exception is encountered, any connections copied so far are disconnected
+
+        Args:
+            other (Node): the node whose connections should be copied.
+        """
+        new_connections = []
+        try:
+            for my_panel, other_panel in [
+                (self.inputs, other.inputs),
+                (self.outputs, other.outputs),
+                (self.signals.input, other.signals.input),
+                (self.signals.output, other.signals.output),
+            ]:
+                for key, channel in other_panel.items():
+                    for target in channel.connections:
+                        my_panel[key].connect(target)
+                        new_connections.append((my_panel[key], target))
+        except Exception as e:
+            # If you run into trouble, unwind what you've done
+            for connection in new_connections:
+                connection[0].disconnect(connection[1])
+            raise e
+
+    def replace_with(self, other: Node | type[Node]):
+        """
+        If this node has a parent, invokes `self.parent.replace(self, other)` to swap
+        out this node for the other node in the parent graph.
+
+        The replacement must have fully compatible IO, i.e. its IO must be a superset of
+        this node's IO with all the same labels and type hints (although the latter is
+        not strictly enforced and will only cause trouble if there is an incompatibility
+        that causes trouble in the process of copying over connections)
+
+        Args:
+            other (Node|type[Node]): The replacement.
+        """
+        if self.parent is not None:
+            self.parent.replace(self, other)
+        else:
+            warnings.warn(f"Could not replace {self.label}, as it has no parent.")

@@ -66,6 +66,26 @@ class TestWorkflow(unittest.TestCase):
             with self.assertRaises(AttributeError):
                 Workflow.create.Function(plus_one, label="boa", parent=wf)
 
+    def test_node_removal(self):
+        wf = Workflow("my_workflow")
+        wf.owned = Workflow.create.Function(plus_one)
+        node = Workflow.create.Function(plus_one)
+        wf.foo = node
+        # Add it to starting nodes manually, otherwise it's only there at run time
+        wf.starting_nodes = [wf.foo]
+        # Connect it inside the workflow
+        wf.foo.inputs.x = wf.owned.outputs.y
+
+        wf.remove(node)
+        self.assertIsNone(node.parent, msg="Removal should de-parent")
+        self.assertFalse(node.connected, msg="Removal should disconnect")
+        self.assertListEqual(
+            wf.starting_nodes,
+            [],
+            msg="Removal should also remove from starting nodes"
+        )
+
+
     def test_node_packages(self):
         wf = Workflow("my_workflow")
 
@@ -93,10 +113,28 @@ class TestWorkflow(unittest.TestCase):
         with self.assertRaises(ValueError):
             # Can't belong to two workflows at once
             wf2.add(node2)
-        wf1.remove(node2)
+        disconnections = wf1.remove(node2)
+        self.assertFalse(node2.connected, msg="Removal should first disconnect")
+        self.assertListEqual(
+            disconnections,
+            [(node2.inputs.x, wf1.node1.outputs.y)],
+            msg="Disconnections should be returned by removal"
+        )
         wf2.add(node2)
         self.assertEqual(node2.parent, wf2)
-        self.assertFalse(node2.connected)
+
+        node1 = wf1.node1
+        disconnections = wf1.remove(node1.label)
+        self.assertEqual(
+            node1.parent,
+            None,
+            msg="Should be able to remove nodes by label as well as by object"
+        )
+        self.assertListEqual(
+            [],
+            disconnections,
+            msg="node1 should have no connections left"
+        )
 
     def test_workflow_io(self):
         wf = Workflow("wf")

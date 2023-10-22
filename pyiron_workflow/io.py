@@ -168,7 +168,7 @@ class DataIO(IO, ABC):
     """
 
     def _assign_a_non_channel_value(self, channel: DataChannel, value) -> None:
-        channel.update(value)
+        channel.value = value
 
     def to_value_dict(self):
         return {label: channel.value for label, channel in self.channel_dict.items()}
@@ -193,6 +193,10 @@ class Inputs(DataIO):
 
     def deactivate_strict_connections(self):
         [c.deactivate_strict_connections() for c in self]
+
+    def fetch(self):
+        for c in self:
+            c.fetch()
 
 
 class Outputs(DataIO):

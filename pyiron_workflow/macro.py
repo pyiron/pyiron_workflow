@@ -14,6 +14,8 @@ from pyiron_workflow.io import Outputs, Inputs
 if TYPE_CHECKING:
     from bidict import bidict
 
+    from pyiron_workflow.node import Node
+
 
 class Macro(Composite):
     """
@@ -114,7 +116,7 @@ class Macro(Composite):
         ...     macro.b = macro.create.SingleValue(add_one, x=0)
         ...     macro.c = macro.create.SingleValue(add_one, x=0)
         >>>
-        >>> m = Macro(modified_start_macro)
+        >>> m = Macro(modified_flow_macro)
         >>> m.outputs.to_value_dict()
         >>> m(a__x=1, b__x=2, c__x=3)
         {'a__result': 2, 'b__result': 3, 'c__result': 4}
@@ -133,6 +135,27 @@ class Macro(Composite):
         Manually controlling execution flow is necessary for cyclic graphs (cf. the
         while loop meta-node), but best to avoid when possible as it's easy to miss
         intended connections in complex graphs.
+
+        We can also modify an existing macro at runtime by replacing nodes within it, as
+        long as the replacement has fully compatible IO. There are three syntacic ways
+        to do this. Let's explore these by going back to our `add_three_macro` and
+        replacing each of its children with a node that adds 2 instead of 1.
+        >>> @Macro.wrap_as.single_value_node()
+        ... def add_two(x):
+        ...     result = x + 2
+        ...     return result
+        >>>
+        >>> adds_six_macro = Macro(add_three_macro)
+        >>> # With the replace method
+        >>> # (replacement target can be specified by label or instance,
+        >>> # the replacing node can be specified by instance or class)
+        >>> adds_six_macro.replace(adds_six_macro.one, add_two())
+        >>> # With the replace_with method
+        >>> adds_six_macro.two.replace_with(add_two())
+        >>> # And by assignment of a compatible class to an occupied node label
+        >>> adds_six_macro.three = add_two
+        >>> adds_six_macro(inp=1)
+        {'three__result': 7}
     """
 
     def __init__(
@@ -169,6 +192,10 @@ class Macro(Composite):
     def outputs(self) -> Outputs:
         return self._outputs
 
+    def _rebuild_data_io(self):
+        self._inputs = self._build_inputs()
+        self._outputs = self._build_outputs()
+
     def _configure_graph_execution(self):
         run_signals = self.disconnect_run()
 
@@ -194,6 +221,13 @@ class Macro(Composite):
         self.disconnect_run()
         for pairs in run_signal_pairs_to_restore:
             pairs[0].connect(pairs[1])
+
+    def replace(self, owned_node: Node | str, replacement: Node | type[Node]):
+        super().replace(owned_node=owned_node, replacement=replacement)
+        # Make sure node-level IO is pointing to the new node
+        self._rebuild_data_io()
+        # This is brute-force overkill since only the replaced node needs to be updated
+        # but it's not particularly expensive
 
     def to_workfow(self):
         raise NotImplementedError

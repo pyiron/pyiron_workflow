@@ -3,7 +3,7 @@ from __future__ import annotations
 import inspect
 import warnings
 from functools import partialmethod
-from typing import get_args, get_type_hints, Optional, TYPE_CHECKING
+from typing import Any, get_args, get_type_hints, Optional, TYPE_CHECKING
 
 from pyiron_workflow.channels import InputData, OutputData, NotData
 from pyiron_workflow.has_channel import HasChannel
@@ -233,8 +233,8 @@ class Function(Node):
         Because we provided a good initial value for `x`, we get our result right away.
 
         Using the decorator is the recommended way to create new node classes, but this
-        magic is just equivalent to these two more verbose ways of defining a new class.
-        The first is to override the `__init__` method directly:
+        magic is just equivalent to creating a child class with the `node_function`
+        already defined as a `staticmethod`:
         >>> from typing import Literal, Optional
         >>>
         >>> class AlphabetModThree(Function):
@@ -253,24 +253,6 @@ class Function(Node):
         ...     def alphabet_mod_three(i: int) -> Literal["a", "b", "c"]:
         ...         letter = ["a", "b", "c"][i % 3]
         ...         return letter
-
-        The second effectively does the same thing, but leverages python's
-        `functools.partialmethod` to do so much more succinctly.
-        In this example, note that the function is declared _before_ `__init__` is set,
-        so that it is available in the correct scope (above, we could place it
-        afterwards because we were accessing it through self).
-        >>> from functools import partialmethod
-        >>>
-        >>> class Adder(Function):
-        ...     @staticmethod
-        ...     def adder(x: int = 0, y: int = 0) -> int:
-        ...         sum = x + y
-        ...         return sum
-        ...
-        ...     __init__ = partialmethod(
-        ...         Function.__init__,
-        ...         adder,
-        ...     )
 
         Finally, let's put it all together by using both of these nodes at once.
         Instead of setting input to a particular data value, we'll set it to
@@ -322,13 +304,28 @@ class Function(Node):
         output_labels: Optional[str | list[str] | tuple[str]] = None,
         **kwargs,
     ):
+        if not callable(node_function):
+            # Children of `Function` may explicitly provide a `node_function` static
+            # method so the node has fixed behaviour.
+            # In this case, the `__init__` signature should be changed so that the
+            # `node_function` argument is just always `None` or some other non-callable.
+            # If a callable `node_function` is not received, you'd better have it as an
+            # attribute already!
+            if not hasattr(self, "node_function"):
+                raise AttributeError(
+                    f"If `None` is provided as a `node_function`, a `node_function` "
+                    f"property must be defined instead, e.g. when making child classes"
+                    f"of `Function` with specific behaviour"
+                )
+        else:
+            # If a callable node function is received, use it
+            self.node_function = node_function
+
         super().__init__(
-            label=label if label is not None else node_function.__name__,
+            label=label if label is not None else self.node_function.__name__,
             parent=parent,
             # **kwargs,
         )
-
-        self.node_function = node_function
 
         self._inputs = None
         self._outputs = None
@@ -486,23 +483,16 @@ class Function(Node):
             kwargs["self"] = self
         return kwargs
 
-    def process_run_result(self, function_output):
+    def process_run_result(self, function_output: Any | tuple) -> Any | tuple:
         """
         Take the results of the node function, and use them to update the node output.
-
-        By extracting this as a separate method, we allow the node to pass the actual
-        execution off to another entity and release the python process to do other
-        things. In such a case, this function should be registered as a callback
-        so that the node can finishing "running" and push its data forward when that
-        execution is finished.
         """
-        if len(self.outputs) == 0:
-            return
-        elif len(self.outputs) == 1:
-            function_output = (function_output,)
-
-        for out, value in zip(self.outputs, function_output):
-            out.update(value)
+        for out, value in zip(
+            self.outputs,
+            (function_output,) if len(self.outputs) == 1 else function_output,
+        ):
+            out.value = value
+        return function_output
 
     def _convert_input_args_and_kwargs_to_input_kwargs(self, *args, **kwargs):
         reverse_keys = list(self._input_args.keys())[::-1]
@@ -646,9 +636,10 @@ def function_node(output_labels=None):
             {
                 "__init__": partialmethod(
                     Function.__init__,
-                    node_function,
+                    None,
                     output_labels=output_labels,
-                )
+                ),
+                "node_function": staticmethod(node_function),
             },
         )
 
@@ -671,9 +662,10 @@ def single_value_node(output_labels=None):
             {
                 "__init__": partialmethod(
                     SingleValue.__init__,
-                    node_function,
+                    None,
                     output_labels=output_labels,
-                )
+                ),
+                "node_function": staticmethod(node_function),
             },
         )
 

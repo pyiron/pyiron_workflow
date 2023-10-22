@@ -192,11 +192,10 @@ class Workflow(Composite):
     def outputs(self) -> Outputs:
         return self._build_outputs()
 
-    @staticmethod
-    def run_graph(self):
+    def run(self):
         if self.automate_execution:
             self.set_run_signals_to_dag_execution()
-        return super().run_graph(self)
+        return super().run()
 
     def to_node(self):
         """
