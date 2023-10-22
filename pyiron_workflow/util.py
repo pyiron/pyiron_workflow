@@ -16,7 +16,7 @@ class DotDict(dict):
     def __getstate__(self):
         return self.__dict__
 
-    def __setstate(self, state):
+    def __setstate__(self, state):
         self.__dict__ = state
 
 
