@@ -17,7 +17,8 @@ class DotDict(dict):
         return self.__dict__
 
     def __setstate__(self, state):
-        self.__dict__ = state
+        for k, v in state.items():
+            self.__dict__[k] = v
 
 
 class SeabornColors:
