@@ -17,6 +17,13 @@ def scatter(
     return plt.scatter(x, y)
 
 
+@single_value_node(output_labels="fig")
+def linspace(start: float = 0, stop: float = 1, steps: int = 11):
+    import numpy as np
+
+    return np.linspace(start, stop, steps)
+
+
 @single_value_node()
 def user_input(user_input):
     return user_input
@@ -53,6 +60,7 @@ class If(SingleValue):
 
 nodes = [
     scatter,
+    linspace,
     user_input,
     If,
 ]
