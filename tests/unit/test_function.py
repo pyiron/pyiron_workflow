@@ -4,12 +4,7 @@ from typing import Optional, Union
 import unittest
 import warnings
 
-# from pyiron_contrib.executors import CloudpickleProcessPoolExecutor as Executor
-# from pympipool.mpi.executor import PyMPISingleTaskExecutor as Executor
-
-from pyiron_workflow.executors import CloudpickleProcessPoolExecutor as Executor
-
-from pyiron_workflow.channels import NotData
+from pyiron_workflow.channels import NotData, ChannelConnectionError
 from pyiron_workflow.files import DirectoryObject
 from pyiron_workflow.function import (
     Function, SingleValue, function_node, single_value_node
@@ -147,6 +142,23 @@ class TestFunction(unittest.TestCase):
             switch = Function(multiple_branches, output_labels="bool")
             self.assertListEqual(switch.outputs.labels, ["bool"])
 
+    def test_availability_of_node_function(self):
+        @function_node()
+        def linear(x):
+            return x
+
+        @function_node()
+        def bilinear(x, y):
+            xy = linear.node_function(x) * linear.node_function(y)
+            return xy
+
+        self.assertEqual(
+            bilinear(2, 3).run(),
+            2 * 3,
+            msg="Children of `Function` should have their `node_function` exposed for "
+                "use at the class level"
+        )
+
     def test_signals(self):
         @function_node()
         def linear(x):
@@ -227,7 +239,7 @@ class TestFunction(unittest.TestCase):
             # The function error should get passed up
             n.run()
         self.assertFalse(n.ready)
-        # self.assertFalse(n.running)
+        self.assertFalse(n.running)
         self.assertTrue(n.failed)
 
         n.inputs.x = 1
@@ -236,14 +248,18 @@ class TestFunction(unittest.TestCase):
             msg="Should not be ready while it has failed status"
         )
 
-        n.run()
+        n.failed = False  # Manually reset the failed status
         self.assertTrue(
             n.ready,
-            msg="A manual run() call bypasses checks, so readiness should reset"
+            msg="Input is ok, not running, not failed -- should be ready!"
         )
+        n.run()
         self.assertTrue(n.ready)
-        # self.assertFalse(n.running)
-        self.assertFalse(n.failed, msg="Re-running should reset failed status")
+        self.assertFalse(n.running)
+        self.assertFalse(
+            n.failed,
+            msg="Should be back to a good state and ready to run again"
+        )
 
     def test_with_self(self):
         def with_self(self, x: float) -> float:
@@ -283,12 +299,14 @@ class TestFunction(unittest.TestCase):
             msg="Function functions should be able to modify attributes on the node object."
         )
 
-        node.executor = Executor()
-        with self.assertRaises(NotImplementedError):
-            # Submitting node_functions that use self is still raising
-            # TypeError: cannot pickle '_thread.lock' object
-            # For now we just fail cleanly
+        node.executor = True
+        with self.assertRaises(
+            ValueError,
+            msg="We haven't implemented any way to update a function node's `self` when"
+                "it runs on an executor, so trying to do so should fail hard"
+        ):
             node.run()
+        node.executor = False
 
         def with_messed_self(x: float, self) -> float:
             return x + 0.1
@@ -377,7 +395,7 @@ class TestFunction(unittest.TestCase):
             )
 
         with self.subTest("Run on executor"):
-            node.executor = Executor()
+            node.executor = True
 
             return_on_explicit_run = node.run()
             self.assertIsInstance(
@@ -391,6 +409,138 @@ class TestFunction(unittest.TestCase):
                 # raises an error
                 node.run()
             node.future.result()  # Wait for the remote execution to finish
+
+    def test_copy_connections(self):
+        node = Function(plus_one)
+
+        upstream = Function(plus_one)
+        to_copy = Function(plus_one, x=upstream.outputs.y)
+        downstream = Function(plus_one, x=to_copy.outputs.y)
+        upstream > to_copy > downstream
+
+        wrong_io = Function(
+            returns_multiple, x=upstream.outputs.y, y=upstream.outputs.y
+        )
+        downstream.inputs.x.connect(wrong_io.outputs.y)
+
+        with self.subTest("Successful copy"):
+            node._copy_connections(to_copy)
+            self.assertIn(upstream.outputs.y, node.inputs.x.connections)
+            self.assertIn(upstream.signals.output.ran, node.signals.input.run)
+            self.assertIn(downstream.inputs.x, node.outputs.y.connections)
+            self.assertIn(downstream.signals.input.run, node.signals.output.ran)
+        node.disconnect()  # Make sure you've got a clean slate
+
+        def plus_one_hinted(x: int = 0) -> int:
+            y = x + 1
+            return y
+
+        hinted_node = Function(plus_one_hinted)
+
+        with self.subTest("Ensure failed copies fail cleanly"):
+            with self.assertRaises(AttributeError, msg="Wrong labels"):
+                node._copy_connections(wrong_io)
+            self.assertFalse(
+                node.connected,
+                msg="The x-input connection should have been copied, but should be "
+                    "removed when the copy fails."
+            )
+
+            with self.assertRaises(
+                ChannelConnectionError,
+                msg="An unhinted channel is not a valid connection for a hinted "
+                    "channel, and should raise and exception"
+            ):
+                hinted_node._copy_connections(to_copy)
+        hinted_node.disconnect()# Make sure you've got a clean slate
+        node.disconnect()  # Make sure you've got a clean slate
+
+        with self.subTest("Ensure that failures can be continued past"):
+            node._copy_connections(wrong_io, fail_hard=False)
+            self.assertIn(upstream.outputs.y, node.inputs.x.connections)
+            self.assertIn(downstream.inputs.x, node.outputs.y.connections)
+
+            hinted_node._copy_connections(to_copy, fail_hard=False)
+            self.assertFalse(
+                hinted_node.inputs.connected,
+                msg="Without hard failure the copy should be allowed to proceed, but "
+                    "we don't actually expect any connections to get copied since the "
+                    "only one available had type hint problems"
+            )
+            self.assertTrue(
+                hinted_node.outputs.connected,
+                msg="Without hard failure the copy should be allowed to proceed, so "
+                    "the output should connect fine since feeding hinted to un-hinted "
+                    "is a-ok"
+            )
+
+    def test_copy_values(self):
+        @function_node()
+        def reference(x=0, y: int = 0, z: int | float = 0, omega=None, extra_here=None):
+            out = 42
+            return out
+
+        @function_node()
+        def all_floats(x=1.1, y=1.1, z=1.1, omega=NotData, extra_there=None) -> float:
+            out = 42.1
+            return out
+
+        # Instantiate the nodes and run them (so they have output data too)
+        ref = reference()
+        floats = all_floats()
+        ref()
+        floats()
+
+        ref._copy_values(floats)
+        self.assertEqual(
+            ref.inputs.x.value,
+            1.1,
+            msg="Untyped channels should copy freely"
+        )
+        self.assertEqual(
+            ref.inputs.y.value,
+            0,
+            msg="Typed channels should ignore values where the type check fails"
+        )
+        self.assertEqual(
+            ref.inputs.z.value,
+            1.1,
+            msg="Typed channels should copy values that conform to their hint"
+        )
+        self.assertEqual(
+            ref.inputs.omega.value,
+            None,
+            msg="NotData should be ignored when copying"
+        )
+        self.assertEqual(
+            ref.outputs.out.value,
+            42.1,
+            msg="Output data should also get copied"
+        )
+        # Note also that these nodes each have extra channels the other doesn't that
+        # are simply ignored
+
+        @function_node()
+        def extra_channel(x=1, y=1, z=1, not_present=42):
+            out = 42
+            return out
+
+        extra = extra_channel()
+        extra()
+
+        ref.inputs.x = 0  # Revert the value
+        with self.assertRaises(
+            TypeError,
+            msg="Type hint should prevent update when we fail hard"
+        ):
+            ref._copy_values(floats, fail_hard=True)
+
+        ref._copy_values(extra)  # No problem
+        with self.assertRaises(
+            AttributeError,
+            msg="Missing a channel that holds data is also grounds for failure"
+        ):
+            ref._copy_values(extra, fail_hard=True)
 
 
 @unittest.skipUnless(version_info[0] == 3 and version_info[1] >= 10, "Only supported for 3.10+")

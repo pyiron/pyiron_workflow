@@ -1,6 +1,7 @@
-import unittest
+from concurrent.futures import Future
 from sys import version_info
 from time import sleep
+import unittest
 
 from bidict import ValueDuplicationError
 
@@ -66,6 +67,26 @@ class TestWorkflow(unittest.TestCase):
             with self.assertRaises(AttributeError):
                 Workflow.create.Function(plus_one, label="boa", parent=wf)
 
+    def test_node_removal(self):
+        wf = Workflow("my_workflow")
+        wf.owned = Workflow.create.Function(plus_one)
+        node = Workflow.create.Function(plus_one)
+        wf.foo = node
+        # Add it to starting nodes manually, otherwise it's only there at run time
+        wf.starting_nodes = [wf.foo]
+        # Connect it inside the workflow
+        wf.foo.inputs.x = wf.owned.outputs.y
+
+        wf.remove(node)
+        self.assertIsNone(node.parent, msg="Removal should de-parent")
+        self.assertFalse(node.connected, msg="Removal should disconnect")
+        self.assertListEqual(
+            wf.starting_nodes,
+            [],
+            msg="Removal should also remove from starting nodes"
+        )
+
+
     def test_node_packages(self):
         wf = Workflow("my_workflow")
 
@@ -93,10 +114,28 @@ class TestWorkflow(unittest.TestCase):
         with self.assertRaises(ValueError):
             # Can't belong to two workflows at once
             wf2.add(node2)
-        wf1.remove(node2)
+        disconnections = wf1.remove(node2)
+        self.assertFalse(node2.connected, msg="Removal should first disconnect")
+        self.assertListEqual(
+            disconnections,
+            [(node2.inputs.x, wf1.node1.outputs.y)],
+            msg="Disconnections should be returned by removal"
+        )
         wf2.add(node2)
         self.assertEqual(node2.parent, wf2)
-        self.assertFalse(node2.connected)
+
+        node1 = wf1.node1
+        disconnections = wf1.remove(node1.label)
+        self.assertEqual(
+            node1.parent,
+            None,
+            msg="Should be able to remove nodes by label as well as by object"
+        )
+        self.assertListEqual(
+            [],
+            disconnections,
+            msg="node1 should have no connections left"
+        )
 
     def test_workflow_io(self):
         wf = Workflow("wf")
@@ -156,13 +195,50 @@ class TestWorkflow(unittest.TestCase):
             # Setting a non-None value to parent raises the type error from the setter
             wf2.parent = wf
 
-    def test_executor(self):
+    def test_with_executor(self):
+
         wf = Workflow("wf")
-        with self.assertRaises(NotImplementedError):
-            # Submitting callables that use self is still raising
-            # TypeError: cannot pickle '_thread.lock' object
-            # For now we just fail cleanly
-            wf.executor = "literally anything other than None should raise the error"
+        wf.a = wf.create.SingleValue(plus_one)
+        wf.b = wf.create.SingleValue(plus_one, x=wf.a)
+
+        original_a = wf.a
+        wf.executor = True
+
+        self.assertIs(
+            NotData,
+            wf.outputs.b__y.value,
+            msg="Sanity check that test is in right starting condition"
+        )
+
+        result = wf(a__x=0)
+        self.assertIsInstance(
+            result,
+            Future,
+            msg="Should be running as a parallel process"
+        )
+
+        returned_nodes = result.result()  # Wait for the process to finish
+        self.assertIsNot(
+            original_a,
+            returned_nodes.a,
+            msg="Executing in a parallel process should be returning new instances"
+        )
+        self.assertIs(
+            wf,
+            wf.nodes.a.parent,
+            msg="Returned nodes should get the macro as their parent"
+        )
+        self.assertIsNone(
+            original_a.parent,
+            msg="Original nodes should be orphaned"
+            # Note: At time of writing, this is accomplished in Node.__getstate__,
+            #       which feels a bit dangerous...
+        )
+        self.assertEqual(
+            0 + 1 + 1,
+            wf.outputs.b__y.value,
+            msg="And of course we expect the calculation to actually run"
+        )
 
     def test_parallel_execution(self):
         wf = Workflow("wf")

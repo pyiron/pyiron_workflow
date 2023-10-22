@@ -8,11 +8,14 @@ from __future__ import annotations
 from functools import partialmethod
 from typing import Optional, TYPE_CHECKING
 
+from pyiron_workflow.channels import InputData, OutputData
 from pyiron_workflow.composite import Composite
 from pyiron_workflow.io import Outputs, Inputs
 
 if TYPE_CHECKING:
     from bidict import bidict
+
+    from pyiron_workflow.node import Node
 
 
 class Macro(Composite):
@@ -114,7 +117,7 @@ class Macro(Composite):
         ...     macro.b = macro.create.SingleValue(add_one, x=0)
         ...     macro.c = macro.create.SingleValue(add_one, x=0)
         >>>
-        >>> m = Macro(modified_start_macro)
+        >>> m = Macro(modified_flow_macro)
         >>> m.outputs.to_value_dict()
         >>> m(a__x=1, b__x=2, c__x=3)
         {'a__result': 2, 'b__result': 3, 'c__result': 4}
@@ -133,6 +136,27 @@ class Macro(Composite):
         Manually controlling execution flow is necessary for cyclic graphs (cf. the
         while loop meta-node), but best to avoid when possible as it's easy to miss
         intended connections in complex graphs.
+
+        We can also modify an existing macro at runtime by replacing nodes within it, as
+        long as the replacement has fully compatible IO. There are three syntacic ways
+        to do this. Let's explore these by going back to our `add_three_macro` and
+        replacing each of its children with a node that adds 2 instead of 1.
+        >>> @Macro.wrap_as.single_value_node()
+        ... def add_two(x):
+        ...     result = x + 2
+        ...     return result
+        >>>
+        >>> adds_six_macro = Macro(add_three_macro)
+        >>> # With the replace method
+        >>> # (replacement target can be specified by label or instance,
+        >>> # the replacing node can be specified by instance or class)
+        >>> adds_six_macro.replace(adds_six_macro.one, add_two())
+        >>> # With the replace_with method
+        >>> adds_six_macro.two.replace_with(add_two())
+        >>> # And by assignment of a compatible class to an occupied node label
+        >>> adds_six_macro.three = add_two
+        >>> adds_six_macro(inp=1)
+        {'three__result': 7}
     """
 
     def __init__(
@@ -161,6 +185,39 @@ class Macro(Composite):
 
         self.update_input(**kwargs)
 
+    def _get_linking_channel(
+        self,
+        child_reference_channel: InputData | OutputData,
+        composite_io_key: str,
+    ) -> InputData | OutputData:
+        """
+        Build IO by value: create a new channel just like the child's channel.
+
+        In the case of input data, we also form a value link from the composite channel
+        down to the child channel, so that the child will stay up-to-date.
+        """
+        composite_channel = child_reference_channel.__class__(
+            label=composite_io_key,
+            node=self,
+            default=child_reference_channel.default,
+            type_hint=child_reference_channel.type_hint,
+        )
+        composite_channel.value = child_reference_channel.value
+
+        if isinstance(composite_channel, InputData):
+            composite_channel.strict_connections = (
+                child_reference_channel.strict_connections
+            )
+            composite_channel.value_receiver = child_reference_channel
+        elif isinstance(composite_channel, OutputData):
+            child_reference_channel.value_receiver = composite_channel
+        else:
+            raise TypeError(
+                "This should not be an accessible state, please contact the developers"
+            )
+
+        return composite_channel
+
     @property
     def inputs(self) -> Inputs:
         return self._inputs
@@ -168,6 +225,48 @@ class Macro(Composite):
     @property
     def outputs(self) -> Outputs:
         return self._outputs
+
+    def _update_children(self, children_from_another_process):
+        super()._update_children(children_from_another_process)
+        self._rebuild_data_io()
+
+    def _rebuild_data_io(self):
+        """
+        Try to rebuild the IO.
+
+        If an error is encountered, revert back to the existing IO then raise it.
+        """
+        old_inputs = self.inputs
+        old_outputs = self.outputs
+        connection_changes = []  # For reversion if there's an error
+        try:
+            self._inputs = self._build_inputs()
+            self._outputs = self._build_outputs()
+            for old, new in [(old_inputs, self.inputs), (old_outputs, self.outputs)]:
+                for old_channel in old:
+                    if old_channel.connected:
+                        # If the old channel was connected to stuff, we'd better still
+                        # have a corresponding channel and be able to copy these, or we
+                        # should fail hard.
+                        # But, if it wasn't connected, we don't even care whether or not
+                        # we still have a corresponding channel to copy to
+                        new_channel = new[old_channel.label]
+                        new_channel.copy_connections(old_channel)
+                        swapped_conenctions = old_channel.disconnect_all()  # Purge old
+                        connection_changes.append(
+                            (new_channel, old_channel, swapped_conenctions)
+                        )
+        except Exception as e:
+            for new_channel, old_channel, swapped_conenctions in connection_changes:
+                new_channel.disconnect(*swapped_conenctions)
+                old_channel.connect(*swapped_conenctions)
+            self._inputs = old_inputs
+            self._outputs = old_outputs
+            e.message = (
+                f"Unable to rebuild IO for {self.label}; reverting to old IO."
+                f"{e.message}"
+            )
+            raise e
 
     def _configure_graph_execution(self):
         run_signals = self.disconnect_run()
@@ -194,6 +293,19 @@ class Macro(Composite):
         self.disconnect_run()
         for pairs in run_signal_pairs_to_restore:
             pairs[0].connect(pairs[1])
+
+    def replace(self, owned_node: Node | str, replacement: Node | type[Node]):
+        replaced_node = super().replace(owned_node=owned_node, replacement=replacement)
+        try:
+            # Make sure node-level IO is pointing to the new node and that macro-level
+            # IO gets safely reconstructed
+            self._rebuild_data_io()
+        except Exception as e:
+            # If IO can't be successfully rebuilt using this node, revert changes and
+            # raise the exception
+            self.replace(replacement, replaced_node)  # Guaranteed to work since
+            # replacement in the other direction was already a success
+            raise e
 
     def to_workfow(self):
         raise NotImplementedError

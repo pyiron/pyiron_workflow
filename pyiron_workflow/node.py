@@ -10,17 +10,53 @@ from abc import ABC, abstractmethod
 from concurrent.futures import Future
 from typing import Any, Literal, Optional, TYPE_CHECKING
 
+from pyiron_workflow.channels import NotData
 from pyiron_workflow.draw import Node as GraphvizNode
+from pyiron_workflow.executors import CloudpickleProcessPoolExecutor as Executor
 from pyiron_workflow.files import DirectoryObject
 from pyiron_workflow.has_to_dict import HasToDict
 from pyiron_workflow.io import Signals, InputSignal, OutputSignal
+from pyiron_workflow.type_hinting import valid_value
 from pyiron_workflow.util import SeabornColors
 
 if TYPE_CHECKING:
     import graphviz
 
+    from pyiron_workflow.channels import Channel
     from pyiron_workflow.composite import Composite
-    from pyiron_workflow.io import Inputs, Outputs
+    from pyiron_workflow.io import IO, Inputs, Outputs
+
+
+def manage_status(node_method):
+    """
+    Decorates methods of nodes that might be time-consuming, i.e. their main run
+    functionality.
+
+    Sets `running` to true until the method completes and either fails or returns
+    something other than a `concurrent.futures.Future` instance; sets `failed` to true
+    if the method raises an exception; raises a `RuntimeError` if the node is already
+    `running` or `failed`.
+    """
+
+    def wrapped_method(node: Node, *args, **kwargs):  # rather node:Node
+        if node.running:
+            raise RuntimeError(f"{node.label} is already running")
+        elif node.failed:
+            raise RuntimeError(f"{node.label} has a failed status")
+
+        node.running = True
+        try:
+            out = node_method(node, *args, **kwargs)
+            return out
+        except Exception as e:
+            node.failed = True
+            out = None
+            raise e
+        finally:
+            # Leave the status as running if the method returns a future
+            node.running = isinstance(out, Future)
+
+    return wrapped_method
 
 
 class Node(HasToDict, ABC):
@@ -54,7 +90,8 @@ class Node(HasToDict, ABC):
 
     The `run()` method returns a representation of the node output (possible a futures
     object, if the node is running on an executor), and consequently `update()` also
-    returns this output if the node is `ready`.
+    returns this output if the node is `ready`. Both `run()` and `update()` will raise
+    errors if the node is already running or has a failed status.
 
     Calling an already instantiated node allows its input channels to be updated using
     keyword arguments corresponding to the channel labels, performing a batch-update of
@@ -67,8 +104,11 @@ class Node(HasToDict, ABC):
     Their value is controlled automatically in the defined `run` and `finish_run`
     methods.
 
-    Nodes can be run on the main python process that owns them, or by assigning an
-    appropriate executor to their `executor` attribute.
+    Nodes can be run on the main python process that owns them, or by setting their
+    `executor` attribute to `True`, in which case a
+    `pyiron_workflow.executors.CloudPickleExecutor` will be used to run the node on a
+    new process on a single core (in the future, the interface will look a little
+    different and you'll have more options than that).
     In case they are run with an executor, their `future` attribute will be populated
     with the resulting future object.
     WARNING: Executors are currently only working when the node executable function does
@@ -146,7 +186,10 @@ class Node(HasToDict, ABC):
         # TODO: Provide support for actually computing stuff with the executor
         self.signals = self._build_signal_channels()
         self._working_directory = None
-        self.executor = None
+        self.executor = False
+        # We call it an executor, but it's just whether to use one.
+        # This is a simply stop-gap as we work out more sophisticated ways to reference
+        # (or create) an executor process without ever trying to pickle a `_thread.lock`
         self.future: None | Future = None
 
     @property
@@ -168,70 +211,133 @@ class Node(HasToDict, ABC):
         pass
 
     @property
+    @abstractmethod
     def run_args(self) -> dict:
         """
         Any data needed for `on_run`, will be passed as **kwargs.
         """
-        return {}
 
-    def process_run_result(self, run_output: Any | tuple) -> None:
+    @abstractmethod
+    def process_run_result(self, run_output):
         """
         What to _do_ with the results of `on_run` once you have them.
 
-        Args:
-            run_output (tuple): The results of a `self.on_run(self.run_args)` call.
-        """
-        pass
+        By extracting this as a separate method, we allow the node to pass the actual
+        execution off to another entity and release the python process to do other
+        things. In such a case, this function should be registered as a callback
+        so that the node can process the result of that process.
 
-    def run(self) -> Any | tuple | Future:
+        Args:
+            run_output: The results of a `self.on_run(self.run_args)` call.
+        """
+
+    @manage_status
+    def execute(self):
+        """
+        Perform the node's operation with its current data.
+
+        Execution happens directly on this python process.
+        """
+        return self.process_run_result(self.on_run(**self.run_args))
+
+    def run(self):
+        """
+        Update the input (with whatever is currently available -- does _not_ trigger
+        any other nodes to run) and use it to perform the node's operation.
+
+        If executor information is specified, execution happens on that process, a
+        callback is registered, and futures object is returned.
+
+        Once complete, fire `ran` signal to propagate execution in the computation graph
+        that owns this node (if any).
+        """
+        self.update_input()
+        return self._run(finished_callback=self.finish_run_and_emit_ran)
+
+    def pull(self):
+        raise NotImplementedError
+        # Need to implement everything for on-the-fly construction of the upstream
+        # graph and its execution
+        # Then,
+        self.update_input()
+        return self._run(finished_callback=self.finish_run)
+
+    def update_input(self, **kwargs) -> None:
+        """
+        Fetch the latest and highest-priority input values from connections, then
+        overwrite values with keywords arguments matching input channel labels.
+
+        Any channel that has neither a connection nor a kwarg update at time of call is
+        left unchanged.
+
+        Throws a warning if a keyword is provided that cannot be found among the input
+        keys.
+
+        If you really want to update just a single value without any other side-effects,
+        this can always be accomplished by following the full semantic path to the
+        channel's value: `my_node.input.my_channel.value = "foo"`.
+
+        Args:
+            **kwargs: input key - input value (including channels for connection) pairs.
+        """
+        self.inputs.fetch()
+        for k, v in kwargs.items():
+            if k in self.inputs.labels:
+                self.inputs[k] = v
+            else:
+                warnings.warn(
+                    f"The keyword '{k}' was not found among input labels. If you are "
+                    f"trying to update a node keyword, please use attribute assignment "
+                    f"directly instead of calling"
+                )
+
+    @manage_status
+    def _run(self, finished_callback: callable) -> Any | tuple | Future:
         """
         Executes the functionality of the node defined in `on_run`.
         Handles the status of the node, and communicating with any remote
         computing resources.
         """
-        if self.running:
-            raise RuntimeError(f"{self.label} is already running")
-
-        self.running = True
-        self.failed = False
-
-        if self.executor is None:
-            try:
-                run_output = self.on_run(**self.run_args)
-            except Exception as e:
-                self.running = False
-                self.failed = True
-                raise e
-            return self.finish_run(run_output)
+        if not self.executor:
+            run_output = self.on_run(**self.run_args)
+            return finished_callback(run_output)
         else:
             # Just blindly try to execute -- as we nail down the executor interaction
             # we'll want to fail more cleanly here.
-            self.future = self.executor.submit(self.on_run, **self.run_args)
-            self.future.add_done_callback(self.finish_run)
+            executor = Executor()
+            self.future = executor.submit(self.on_run, **self.run_args)
+            self.future.add_done_callback(finished_callback)
             return self.future
 
     def finish_run(self, run_output: tuple | Future) -> Any | tuple:
         """
-        Switch the node status, process the run result, then fire the ran signal.
+        Switch the node status, then process and return the run result.
 
-        By extracting this as a separate method, we allow the node to pass the actual
-        execution off to another entity and release the python process to do other
-        things. In such a case, this function should be registered as a callback
-        so that the node can finish "running" and, e.g. push its data forward when that
-        execution is finished. In such a case, a `concurrent.futures.Future` object is
-        expected back and must be unpacked.
+        Sets the `failed` status to true if an exception is encountered.
         """
         if isinstance(run_output, Future):
             run_output = run_output.result()
 
         self.running = False
         try:
-            self.process_run_result(run_output)
-            self.signals.output.ran()
-            return run_output
+            processed_output = self.process_run_result(run_output)
+            return processed_output
         except Exception as e:
             self.failed = True
             raise e
+
+    def finish_run_and_emit_ran(self, run_output: tuple | Future) -> Any | tuple:
+        processed_output = self.finish_run(run_output)
+        self.signals.output.ran()
+        return processed_output
+
+    finish_run_and_emit_ran.__doc__ = (
+        finish_run.__doc__
+        + """
+    
+    Finally, fire the `ran` signal.
+    """
+    )
 
     def _build_signal_channels(self) -> Signals:
         signals = Signals()
@@ -282,24 +388,6 @@ class Node(HasToDict, ABC):
             and self.outputs.fully_connected
             and self.signals.fully_connected
         )
-
-    def update_input(self, **kwargs) -> None:
-        """
-        Match keywords to input channel labels and update input values.
-
-        Args:
-            **kwargs: input label - input value (including channels for connection)
-             pairs.
-        """
-        for k, v in kwargs.items():
-            if k in self.inputs.labels:
-                self.inputs[k] = v
-            else:
-                warnings.warn(
-                    f"The keyword '{k}' was not found among input labels. If you are "
-                    f"trying to update a node keyword, please use attribute assignment "
-                    f"directly instead of calling"
-                )
 
     def __call__(self, **kwargs) -> None:
         self.update_input(**kwargs)
@@ -370,3 +458,186 @@ class Node(HasToDict, ABC):
             our = our.parent
             their = other
         return None
+
+    def copy_io(
+        self,
+        other: Node,
+        connections_fail_hard: bool = True,
+        values_fail_hard: bool = False,
+    ) -> None:
+        """
+        Copies connections and values from another node's IO onto this node's IO.
+        Other channels with no connections are ignored for copying connections, and all
+        data channels without data are ignored for copying data.
+        Otherwise, default behaviour is to throw an exception if any of the other node's
+        connections fail to copy, but failed value copies are simply ignored (e.g.
+        because this node does not have a channel with a commensurate label or the
+        value breaks a type hint).
+        This error throwing/passing behaviour can be controlled with boolean flags.
+
+        In the case that an exception is thrown, all newly formed connections are broken
+        and any new values are reverted to their old state before the exception is
+        raised.
+
+        Args:
+            other (Node): The other node whose IO to copy.
+            connections_fail_hard: Whether to raise exceptions encountered when copying
+                connections. (Default is True.)
+            values_fail_hard (bool): Whether to raise exceptions encountered when
+                copying values. (Default is False.)
+        """
+        new_connections = self._copy_connections(other, fail_hard=connections_fail_hard)
+        try:
+            self._copy_values(other, fail_hard=values_fail_hard)
+        except Exception as e:
+            for this, other in new_connections:
+                this.disconnect(other)
+            raise e
+
+    def _copy_connections(
+        self,
+        other: Node,
+        fail_hard: bool = True,
+    ) -> list[tuple[Channel, Channel]]:
+        """
+        Copies all the connections in another node to this one.
+        Expects all connected channels on the other node to have a counterpart on this
+        node -- i.e. the same label, type, and (for data) a type hint compatible with
+        all the existing connections being copied.
+        This requirement can be optionally relaxed such that any failures encountered
+        when attempting to make a connection (i.e. this node has no channel with a
+        corresponding label as the other node, or the new connection fails its validity
+        check), such that we simply continue past these errors and make as many
+        connections as we can while ignoring errors.
+
+        This node may freely have additional channels not present in the other node.
+        The other node may have additional channels not present here as long as they are
+        not connected.
+
+        If an exception is going to be raised, any connections copied so far are
+        disconnected first.
+
+        Args:
+            other (Node): the node whose connections should be copied.
+            fail_hard (bool): Whether to raise an error an exception is encountered
+                when trying to reproduce a connection. (Default is True; revert new
+                connections then raise the exception.)
+
+        Returns:
+            list[tuple[Channel, Channel]]: A list of all the newly created connection
+                pairs (for reverting changes).
+        """
+        new_connections = []
+        for my_panel, other_panel in [
+            (self.inputs, other.inputs),
+            (self.outputs, other.outputs),
+            (self.signals.input, other.signals.input),
+            (self.signals.output, other.signals.output),
+        ]:
+            for key, channel in other_panel.items():
+                for target in channel.connections:
+                    try:
+                        my_panel[key].connect(target)
+                        new_connections.append((my_panel[key], target))
+                    except Exception as e:
+                        if fail_hard:
+                            # If you run into trouble, unwind what you've done
+                            for this, other in new_connections:
+                                this.disconnect(other)
+                            raise e
+                        else:
+                            continue
+        return new_connections
+
+    def _copy_values(
+        self,
+        other: Node,
+        fail_hard: bool = False,
+    ) -> list[tuple[Channel, Any]]:
+        """
+        Copies all data from input and output channels in the other node onto this one.
+        Ignores other channels that hold non-data.
+        Failures to find a corresponding channel on this node (matching label, type, and
+        compatible type hint) are ignored by default, but can optionally be made to
+        raise an exception.
+
+        If an exception is going to be raised, any values updated so far are
+        reverted first.
+
+        Args:
+            other (Node): the node whose data values should be copied.
+            fail_hard (bool): Whether to raise an error an exception is encountered
+                when trying to duplicate a value. (Default is False, just keep going
+                past other's channels with no compatible label here and past values
+                that don't match type hints here.)
+
+        Returns:
+            list[tuple[Channel, Any]]: A list of tuples giving channels whose value has
+                been updated and what it used to be (for reverting changes).
+        """
+        old_values = []
+        for my_panel, other_panel in [
+            (self.inputs, other.inputs),
+            (self.outputs, other.outputs),
+        ]:
+            for key, to_copy in other_panel.items():
+                if to_copy.value is not NotData:
+                    try:
+                        old_value = my_panel[key].value
+                        my_panel[key].copy_value(to_copy)
+                        old_values.append((my_panel[key], old_value))
+                    except Exception as e:
+                        if fail_hard:
+                            # If you run into trouble, unwind what you've done
+                            for channel, value in old_values:
+                                channel.value = value
+                            raise e
+                        else:
+                            continue
+        return old_values
+
+    def replace_with(self, other: Node | type[Node]):
+        """
+        If this node has a parent, invokes `self.parent.replace(self, other)` to swap
+        out this node for the other node in the parent graph.
+
+        The replacement must have fully compatible IO, i.e. its IO must be a superset of
+        this node's IO with all the same labels and type hints (although the latter is
+        not strictly enforced and will only cause trouble if there is an incompatibility
+        that causes trouble in the process of copying over connections)
+
+        Args:
+            other (Node|type[Node]): The replacement.
+        """
+        if self.parent is not None:
+            self.parent.replace(self, other)
+        else:
+            warnings.warn(f"Could not replace {self.label}, as it has no parent.")
+
+    def __getstate__(self):
+        state = self.__dict__
+        state["parent"] = None
+        # I am not at all confident that removing the parent here is the _right_
+        # solution.
+        # In order to run composites on a parallel process, we ship off just the nodes
+        # and starting nodes.
+        # When the parallel process returns these, they're obviously different
+        # instances, so we re-parent them back to the receiving composite.
+        # At the same time, we want to make sure that the _old_ children get orphaned.
+        # Of course, we could do that directly in the composite method, but it also
+        # works to do it here.
+        # Something I like about this, is it also means that when we ship groups of
+        # nodes off to another process with cloudpickle, they're definitely not lugging
+        # along their parent, its connections, etc. with them!
+        # This is all working nicely as demonstrated over in the macro test suite.
+        # However, I have a bit of concern that when we start thinking about
+        # serialization for storage instead of serialization to another process, this
+        # might introduce a hard-to-track-down bug.
+        # For now, it works and I'm going to be super pragmatic and go for it, but
+        # for the record I am admitting that the current shallowness of my understanding
+        # may cause me/us headaches in the future.
+        # -Liam
+        return self.__dict__
+
+    def __setstate__(self, state):
+        self.__dict__ = state

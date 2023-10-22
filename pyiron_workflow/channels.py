@@ -2,20 +2,21 @@
 Channels are access points for information to flow into and out of nodes.
 
 Data channels carry, unsurprisingly, data.
-Output data channels will attempt to push their new value to all their connected input
-data channels on update, while input data channels will reject any updates if their
-parent node is running.
-In this way, data channels facilitate forward propagation of data through a graph.
-They hold data persistently.
+Connections are only permissible between opposite sub-types, i.e. input-output.
+When input channels `fetch()` data in, they set their `value` to the first available
+data value among their connections -- i.e. the `value` of the first output channel in
+their connections who has something other than `NotData`.
+Input data channels will raise an error if a `fetch()` is attempted while their parent
+ node is running.
 
 Signal channels are tools for procedurally exposing functionality on nodes.
 Input signal channels are connected to a callback function which gets invoked when the
-channel is updated.
-Output signal channels must be accessed by the owning node directly, and then trigger
-all the input signal channels to which they are connected.
+channel is called.
+Output signal channels call all the input channels they are connected to when they get
+ called themselves.
 In this way, signal channels can force behaviour (node method calls) to propagate
 forwards through a graph.
-They do not hold any data, but rather fire for an effect.
+They do not hold any data and have no `value` attribute, but rather fire for an effect.
 """
 
 from __future__ import annotations
@@ -32,8 +33,11 @@ from pyiron_workflow.type_hinting import (
 )
 
 if typing.TYPE_CHECKING:
-    from pyiron_workflow.composite import Composite
     from pyiron_workflow.node import Node
+
+
+class ChannelConnectionError(Exception):
+    pass
 
 
 class Channel(HasChannel, HasToDict, ABC):
@@ -42,13 +46,14 @@ class Channel(HasChannel, HasToDict, ABC):
     out of nodes.
     They must have a label and belong to a node.
 
-    Input/output channels can be (dis)connected from other output/input channels, and
-    store all of their current connections in a list.
-    This connection information is duplicated in that it is stored on _both_ channels
-    that form the connection.
+    Input/output channels can be (dis)connected from other output/input channels of the
+    same generic type (i.e. data or signal), and store all of their current connections
+    in a list.
+    This connection information is reflexive, and is duplicated to be stored on _both_
+    channels in the form of a reference to their counterpart in the connection.
 
-    Child classes must define a string representation, `__str__`, and what to do on an
-    attempted connection, `connect`.
+    Child classes must define a string representation, `__str__`, and their
+    `generic_type` which is a parent of both themselves and their output/input partner.
 
     Attributes:
         label (str): The name of the channel.
@@ -78,15 +83,58 @@ class Channel(HasChannel, HasToDict, ABC):
     def __str__(self):
         pass
 
+    @property
     @abstractmethod
+    def generic_type(self) -> type[Channel]:
+        """Input and output class pairs should share this parent class"""
+
+    def _valid_connection(self, other: Channel) -> bool:
+        """
+        Logic for determining if a connection is valid.
+
+        Connections should have the same generic type, but not the same type -- i.e.
+        they should be an input/output pair of some connection type.
+        """
+        return isinstance(other, self.generic_type) and not isinstance(
+            other, self.__class__
+        )
+
     def connect(self, *others: Channel) -> None:
         """
-        How to handle connections to other channels.
+        Form a connection between this and one or more other channels.
+        Connections are reflexive, and must occur between input and output channels of
+        the same `generic_type` (i.e. data or signal).
+
 
         Args:
             *others (Channel): The other channel objects to attempt to connect with.
+
+        Raises:
+            (ChannelConnectionError): If the other channel is of the correct generic
+                type, but nonetheless not a valid connection.
+            (TypeError): If the other channel is not an instance of this channel's
+                generic type.
         """
-        pass
+        for other in others:
+            if other in self.connections:
+                continue
+            elif self._valid_connection(other):
+                self.connections.append(other)
+                other.connections.append(self)
+            else:
+                if isinstance(other, self.generic_type):
+                    raise ChannelConnectionError(
+                        f"{self.label} ({self.__class__.__name__}) and {other.label} "
+                        f"({other.__class__.__name__}) share a generic type but were "
+                        f"not a valid connection. Check channel classes, type hints, "
+                        f"etc."
+                    )
+                else:
+                    raise TypeError(
+                        f"Can only connect two {self.generic_type.__name__} objects, "
+                        f"but {self.label} ({self.__class__.__name__}) got {other} "
+                        f"({type(other)})"
+                    )
 
     def disconnect(self, *others: Channel) -> list[tuple[Channel, Channel]]:
         """
@@ -126,9 +174,6 @@ class Channel(HasChannel, HasToDict, ABC):
         """
         return len(self.connections) > 0
 
-    def _already_connected(self, other: Channel) -> bool:
-        return other in self.connections
-
     def __iter__(self):
         return self.connections.__iter__()
 
@@ -138,6 +183,24 @@ class Channel(HasChannel, HasToDict, ABC):
     @property
     def channel(self) -> Channel:
         return self
+
+    def copy_connections(self, other: Channel) -> None:
+        """
+        Adds all the connections in another channel to this channel's connections.
+
+        If an exception is encountered, all the new connections are disconnected before
+        the exception is raised.
+        """
+        new_connections = []
+        try:
+            for connect_to in other.connections:
+                # We do them one at a time in case any fail, so we can undo those that
+                # worked
+                self.connect(connect_to)
+                new_connections.append(connect_to)
+        except Exception as e:
+            self.disconnect(*new_connections)
+            raise e
 
     def to_dict(self) -> dict:
         return {
@@ -172,16 +235,16 @@ class DataChannel(Channel, ABC):
     (In the future they may optionally have a storage history limit.)
     (In the future they may optionally have an ontological type.)
 
-    The `value` held by a channel can be manually assigned, but should normally be set
-    by the `update` method.
-    In neither case is the type hint strictly enforced.
+    Note that for the sake of computational efficiency, assignments to the `value`
+    property are not type-checked; type-checking occurs only for connections where both
+    channels have a type hint, and when a value is being copied from another channel
+    with the `copy_value` method.
 
-    Type hinting is strictly enforced in one situation: when making connections to
-    other channels and at least one data channel has a non-None value for its type hint.
-    In this case, we insist that the output type hint be _as or more more specific_ than
-    the input type hint, to ensure that the input always receives output of a type it
-    expects. This behaviour can be disabled and all connections allowed by setting
-    `strict_connections = False` on the relevant input channel.
+    When type checking channel connections, we insist that the output type hint be
+    _as or more specific_ than the input type hint, to ensure that the input always
+    receives output of a type it expects. This behaviour can be disabled and all
+    connections allowed by setting `strict_connections = False` on the relevant input
+    channel.
 
     For simple type hints like `int` or `str`, type hint comparison is trivial.
     However, some hints take arguments, e.g. `dict[str, int]` to specify key and value
@@ -216,11 +279,58 @@ class DataChannel(Channel, ABC):
         node: Node,
         default: typing.Optional[typing.Any] = NotData,
         type_hint: typing.Optional[typing.Any] = None,
+        value_receiver: typing.Optional[InputData] = None,
     ):
         super().__init__(label=label, node=node)
+        self._value = NotData
+        self._value_receiver = None
         self.default = default
         self.value = default
         self.type_hint = type_hint
+        self.value_receiver = value_receiver
+
+    @property
+    def value(self):
+        return self._value
+
+    @value.setter
+    def value(self, new_value):
+        if self.value_receiver is not None:
+            self.value_receiver.value = new_value
+        self._value = new_value
+
+    @property
+    def value_receiver(self) -> InputData | OutputData | None:
+        """
+        Another data channel of the same type to whom new values are always pushed
+        (without type checking of any sort, not even when forming the couple!)
+
+        Useful for macros, so that the IO of owned nodes and IO at the macro level can
+        be kept synchronized.
+        """
+        return self._value_receiver
+
+    @value_receiver.setter
+    def value_receiver(self, new_partner: InputData | OutputData | None):
+        if new_partner is not None:
+            if not isinstance(new_partner, self.__class__):
+                raise TypeError(
+                    f"The {self.__class__.__name__} {self.label} got a coupling "
+                    f"partner {new_partner} but requires something of the same type"
+                )
+
+            if new_partner is self:
+                raise ValueError(
+                    f"{self.__class__.__name__} {self.label} cannot couple to itself"
+                )
+
+            new_partner.value = self.value
+
+        self._value_receiver = new_partner
+
+    @property
+    def generic_type(self) -> type[Channel]:
+        return DataChannel
 
     @property
     def ready(self) -> bool:
@@ -239,63 +349,12 @@ class DataChannel(Channel, ABC):
     def _value_is_data(self):
         return self.value is not NotData
 
-    def update(self, value) -> None:
-        """
-        Store a new value and trigger before- and after-update routines.
-
-        Args:
-            value: The value to store.
-        """
-        self._before_update()
-        self.value = value
-        self._after_update()
-
-    def _before_update(self) -> None:
-        """
-        A tool for child classes to do things before the value changed during an update.
-        """
-        pass
-
-    def _after_update(self) -> None:
-        """
-        A tool for child classes to do things after the value changed during an update.
-        """
-        pass
-
-    def connect(self, *others: DataChannel) -> None:
-        """
-        For all others for which the connection is valid (one input, one output, both
-        data channels), adds this to the other's list of connections and the other to
-        this list of connections.
-        Then the input channel gets updated with the output channel's current value.
-
-        Args:
-            *others (DataChannel):
-
-        Raises:
-            TypeError: When one of others is not a `DataChannel`
-        """
-        for other in others:
-            if self._valid_connection(other):
-                self.connections.append(other)
-                other.connections.append(self)
-                out, inp = self._figure_out_who_is_who(other)
-                if out.value is not NotData:
-                    inp.update(out.value)
-            else:
-                if isinstance(other, DataChannel):
-                    warn(
-                        f"{self.label} ({self.__class__.__name__}) and {other.label} "
-                        f"({other.__class__.__name__}) were not a valid connection"
-                    )
-                else:
-                    raise TypeError(
-                        f"Can only connect two channels, but {self.label} "
-                        f"({self.__class__.__name__}) got a {other} ({type(other)})"
-                    )
+    @property
+    def _has_hint(self):
+        return self.type_hint is not None
 
     def _valid_connection(self, other) -> bool:
-        if self._is_IO_pair(other) and not self._already_connected(other):
+        if super()._valid_connection(other):
             if self._both_typed(other):
                 out, inp = self._figure_out_who_is_who(other)
                 if not inp.strict_connections:
@@ -310,17 +369,30 @@ class DataChannel(Channel, ABC):
         else:
             return False
 
-    def _is_IO_pair(self, other: DataChannel) -> bool:
-        return isinstance(other, DataChannel) and not isinstance(other, self.__class__)
-
     def _both_typed(self, other: DataChannel) -> bool:
-        return self.type_hint is not None and other.type_hint is not None
+        return self._has_hint and other._has_hint
 
     def _figure_out_who_is_who(self, other: DataChannel) -> (OutputData, InputData):
         return (self, other) if isinstance(self, OutputData) else (other, self)
 
     def __str__(self):
         return str(self.value)
+
+    def copy_value(self, other: DataChannel) -> None:
+        """
+        Copies the other channel's value. Unlike normal value assignment, the new value
+        (if it is data) must comply with this channel's type hint (if any).
+        """
+        if (
+            self._has_hint
+            and other._value_is_data
+            and not valid_value(other.value, self.type_hint)
+        ):
+            raise TypeError(
+                f"Channel{self.label} cannot copy value from {other.label} because "
+                f"value {other.value} does not match type hint {self.type_hint}"
+            )
+        self.value = other.value
 
     def to_dict(self) -> dict:
         d = super().to_dict()
@@ -331,8 +403,7 @@ class DataChannel(Channel, ABC):
 
 class InputData(DataChannel):
     """
-    On `update`, Input channels will only `update` if their parent node is not
-    `running`.
+    `fetch()` updates input data value to the first available data among connections.
 
     The `strict_connections` parameter controls whether connections are subject to
     type checking requirements.
@@ -347,6 +418,7 @@ class InputData(DataChannel):
         node: Node,
         default: typing.Optional[typing.Any] = NotData,
         type_hint: typing.Optional[typing.Any] = None,
+        value_receiver: typing.Optional[InputData] = None,
         strict_connections: bool = True,
     ):
         super().__init__(
@@ -354,15 +426,29 @@ class InputData(DataChannel):
             node=node,
             default=default,
             type_hint=type_hint,
+            value_receiver=value_receiver,
         )
         self.strict_connections = strict_connections
 
-    def _before_update(self) -> None:
+    def fetch(self) -> None:
+        """
+        Sets `value` to the first value among connections that is something other than
+        `NotData`; if no such value exists (e.g. because there are no connections or
+        because all the connected output channels have `NotData` as their value),
+        `value` remains unchanged.
+
+        Raises:
+            RuntimeError: If the parent node is `running`.
+        """
         if self.node.running:
             raise RuntimeError(
                 f"Parent node {self.node.label} of {self.label} is running, so value "
                 f"cannot be updated."
             )
+        for out in self.connections:
+            if out.value is not NotData:
+                self.value = out.value
+                break
 
     def activate_strict_connections(self) -> None:
         self.strict_connections = True
@@ -372,16 +458,7 @@ class InputData(DataChannel):
 
 
 class OutputData(DataChannel):
-    """
-    On `update`, Output channels propagate their value (as long as it's actually data)
-    to all the input channels to which they are connected by invoking their `update`
-    method.
-    """
-
-    def _after_update(self) -> None:
-        if self._value_is_data:
-            for inp in self.connections:
-                inp.update(self.value)
+    pass
 
 
 class SignalChannel(Channel, ABC):
@@ -401,41 +478,9 @@ class SignalChannel(Channel, ABC):
     def __call__(self) -> None:
         pass
 
-    def connect(self, *others: SignalChannel) -> None:
-        """
-        For all others for which the connection is valid (one input, one output, both
-        data channels), adds this to the other's list of connections and the other to
-        this list of connections.
-
-        Args:
-            *others (SignalChannel): The other channels to attempt a connection to
-
-        Raises:
-            TypeError: When one of others is not a `SignalChannel`
-        """
-        for other in others:
-            if self._valid_connection(other):
-                self.connections.append(other)
-                other.connections.append(self)
-            else:
-                if isinstance(other, SignalChannel):
-                    warn(
-                        f"{self.label} ({self.__class__.__name__}) and {other.label} "
-                        f"({other.__class__.__name__}) were not a valid connection"
-                    )
-                else:
-                    raise TypeError(
-                        f"Can only connect two signal channels, but {self.label} "
-                        f"({self.__class__.__name__}) got a {other} ({type(other)})"
-                    )
-
-    def _valid_connection(self, other) -> bool:
-        return self._is_IO_pair(other) and not self._already_connected(other)
-
-    def _is_IO_pair(self, other) -> bool:
-        return isinstance(other, SignalChannel) and not isinstance(
-            other, self.__class__
-        )
+    @property
+    def generic_type(self) -> type[Channel]:
+        return SignalChannel
 
     def connect_output_signal(self, signal: OutputSignal):
         self.connect(signal)

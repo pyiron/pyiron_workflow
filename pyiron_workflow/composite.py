@@ -5,7 +5,7 @@ sub-graph
 
 from __future__ import annotations
 
-from abc import ABC
+from abc import ABC, abstractmethod
 from functools import partial
 from typing import Literal, Optional, TYPE_CHECKING
 
@@ -19,7 +19,7 @@ from pyiron_workflow.node_package import NodePackage
 from pyiron_workflow.util import logger, DotDict, SeabornColors
 
 if TYPE_CHECKING:
-    from pyiron_workflow.channels import Channel
+    from pyiron_workflow.channels import Channel, InputData, OutputData
 
 
 class Composite(Node, ABC):
@@ -106,7 +106,7 @@ class Composite(Node, ABC):
         self._outputs_map = None
         self.inputs_map = inputs_map
         self.outputs_map = outputs_map
-        self.nodes: DotDict[str:Node] = DotDict()
+        self.nodes: DotDict[str, Node] = DotDict()
         self.starting_nodes: list[Node] = []
         self._creator = self.create
         self.create = self._owned_creator  # Override the create method from the class
@@ -138,17 +138,6 @@ class Composite(Node, ABC):
         """
         return OwnedCreator(self, self._creator)
 
-    @property
-    def executor(self) -> None:
-        return None
-
-    @executor.setter
-    def executor(self, new_executor):
-        if new_executor is not None:
-            raise NotImplementedError(
-                "Running composite nodes with an executor is not yet supported"
-            )
-
     def to_dict(self):
         return {
             "label": self.label,
@@ -160,10 +149,30 @@ class Composite(Node, ABC):
         return self.run_graph
 
     @staticmethod
-    def run_graph(self):
-        for node in self.starting_nodes:
+    def run_graph(_nodes: dict[Node], _starting_nodes: list[Node]):
+        for node in _starting_nodes:
             node.run()
+        return _nodes
+
+    @property
+    def run_args(self) -> dict:
+        return {"_nodes": self.nodes, "_starting_nodes": self.starting_nodes}
+
+    def process_run_result(self, run_output):
+        if run_output is not self.nodes:
+            # Then we probably ran on a parallel process and have an unpacked future
+            self._update_children(run_output)
         return DotDict(self.outputs.to_value_dict())
+
+    def _update_children(self, children_from_another_process: DotDict[str, Node]):
+        """
+        If you receive a new dictionary of children, e.g. from unpacking a futures
+        object of your own children you sent off to another process for computation,
+        replace your own nodes with them, and set yourself as their parent.
+        """
+        for child in children_from_another_process.values():
+            child.parent = self
+        self.nodes = children_from_another_process
 
     def disconnect_run(self) -> list[tuple[Channel, Channel]]:
         """
@@ -249,35 +258,78 @@ class Composite(Node, ABC):
 
         return digraph
 
-    @property
-    def run_args(self) -> dict:
-        return {"self": self}
-
     def _build_io(
         self,
-        io: Inputs | Outputs,
-        target: Literal["inputs", "outputs"],
-        key_map: dict[str, str] | None,
+        i_or_o: Literal["inputs", "outputs"],
+        key_map: dict[str, str | None] | None,
     ) -> Inputs | Outputs:
+        """
+        Build an IO panel for exposing child node IO to the outside world at the level
+        of the composite node's IO.
+
+        Args:
+            target [Literal["inputs", "outputs"]]: Whether this is I or O.
+            key_map [dict[str, str]|None]: A map between the default convention for
+                mapping child IO to composite IO (`"{node.label}__{channel.label}"`) and
+                whatever label you actually want to expose to the composite user. Also
+                allows non-standards channel exposure, i.e. exposing
+                internally-connected channels (which would not normally be exposed) by
+                providing a string-to-string map, or suppressing unconnected channels
+                (which normally would be exposed) by providing a string-None map.
+
+        Returns:
+            (Inputs|Outputs): The populated panel.
+        """
         key_map = {} if key_map is None else key_map
+        io = Inputs() if i_or_o == "inputs" else Outputs()
         for node in self.nodes.values():
-            panel = getattr(node, target)
+            panel = getattr(node, i_or_o)
             for channel_label in panel.labels:
                 channel = panel[channel_label]
                 default_key = f"{node.label}__{channel_label}"
                 try:
-                    if key_map[default_key] is not None:
-                        io[key_map[default_key]] = channel
+                    io_panel_key = key_map[default_key]
+                    if io_panel_key is not None:
+                        io[io_panel_key] = self._get_linking_channel(
+                            channel, io_panel_key
+                        )
                 except KeyError:
                     if not channel.connected:
-                        io[default_key] = channel
+                        io[default_key] = self._get_linking_channel(
+                            channel, default_key
+                        )
         return io
 
+    @abstractmethod
+    def _get_linking_channel(
+        self,
+        child_reference_channel: InputData | OutputData,
+        composite_io_key: str,
+    ) -> InputData | OutputData:
+        """
+        Returns the channel that will be the link between the provided child channel,
+        and the composite's IO at the given key.
+
+        The returned channel should be fully compatible with the provided child channel,
+        i.e. same type, same type hint... (For instance, the child channel itself is a
+        valid return, which would create a composite IO panel that works by reference.)
+
+        Args:
+            child_reference_channel (InputData | OutputData): The child channel
+            composite_io_key (str): The key under which this channel will be stored on
+                the composite's IO.
+
+        Returns:
+            (Channel): A channel with the same type, type hint, etc. as the reference
+                channel passed in.
+        """
+        pass
+
     def _build_inputs(self) -> Inputs:
-        return self._build_io(Inputs(), "inputs", self.inputs_map)
+        return self._build_io("inputs", self.inputs_map)
 
     def _build_outputs(self) -> Outputs:
-        return self._build_io(Outputs(), "outputs", self.outputs_map)
+        return self._build_io("outputs", self.outputs_map)
 
     def add(self, node: Node, label: Optional[str] = None) -> None:
         """
@@ -353,17 +405,96 @@ class Composite(Node, ABC):
             )
             del self.nodes[node.label]
 
-    def remove(self, node: Node | str):
-        if isinstance(node, Node):
-            node.parent = None
-            node.disconnect()
-            del self.nodes[node.label]
+    def remove(self, node: Node | str) -> list[tuple[Channel, Channel]]:
+        """
+        Remove a node from the `nodes` collection, disconnecting it and setting its
+        `parent` to None.
+
+        Args:
+            node (Node|str): The node (or its label) to remove.
+
+        Returns:
+            (list[tuple[Channel, Channel]]): Any connections that node had.
+        """
+        node = self.nodes[node] if isinstance(node, str) else node
+        node.parent = None
+        disconnected = node.disconnect()
+        if node in self.starting_nodes:
+            self.starting_nodes.remove(node)
+        del self.nodes[node.label]
+        return disconnected
+
+    def replace(self, owned_node: Node | str, replacement: Node | type[Node]) -> Node:
+        """
+        Replaces a node currently owned with a new node instance.
+        The replacement must not belong to any other parent or have any connections.
+        The IO of the new node must be a perfect superset of the replaced node, i.e.
+        channel labels need to match precisely, but additional channels may be present.
+        After replacement, the new node will have the old node's connections, label,
+        and belong to this composite.
+        The labels are swapped, such that the replaced node gets the name of its
+        replacement (which might be silly, but is useful in case you want to revert the
+        change and swap the replaced node back in!)
+
+        If replacement fails for some reason, the replacement and replacing node are
+        both returned to their original state, and the composite is left unchanged.
+
+        Args:
+            owned_node (Node|str): The node to replace or its label.
+            replacement (Node | type[Node]): The node or class to replace it with. (If
+                a class is passed, it has all the same requirements on IO compatibility
+                and simply gets instantiated.)
+
+        Returns:
+            (Node): The node that got removed
+        """
+        if isinstance(owned_node, str):
+            owned_node = self.nodes[owned_node]
+
+        if owned_node.parent is not self:
+            raise ValueError(
+                f"The node being replaced should be a child of this composite, but "
+                f"another parent was found: {owned_node.parent}"
+            )
+
+        if isinstance(replacement, Node):
+            if replacement.parent is not None:
+                raise ValueError(
+                    f"Replacement node must have no parent, but got "
+                    f"{replacement.parent}"
+                )
+            if replacement.connected:
+                raise ValueError("Replacement node must not have any connections")
+        elif issubclass(replacement, Node):
+            replacement = replacement(label=owned_node.label)
         else:
-            del self.nodes[node]
+            raise TypeError(
+                f"Expected replacement node to be a node instance or node subclass, but "
+                f"got {replacement}"
+            )
+
+        replacement.copy_io(owned_node)  # If the replacement is incompatible, we'll
+        # fail here before we've changed the parent at all. Since the replacement was
+        # first guaranteed to be an unconnected orphan, there is not yet any permanent
+        # damage
+        is_starting_node = owned_node in self.starting_nodes
+        self.remove(owned_node)
+        replacement.label, owned_node.label = owned_node.label, replacement.label
+        self.add(replacement)
+        if is_starting_node:
+            self.starting_nodes.append(replacement)
+        return owned_node
 
     def __setattr__(self, key: str, node: Node):
         if isinstance(node, Node) and key != "parent":
             self.add(node, label=key)
+        elif (
+            isinstance(node, type)
+            and issubclass(node, Node)
+            and key in self.nodes.keys()
+        ):
+            # When a class is assigned to an existing node, try a replacement
+            self.replace(key, node)
         else:
             super().__setattr__(key, node)
 
@@ -427,6 +558,16 @@ class OwnedCreator:
 
         return value
 
+    def __getstate__(self):
+        # Compatibility with python <3.11
+        return self.__dict__
+
+    def __setstate__(self, state):
+        # Because we override getattr, we need to use __dict__ assignment directly in
+        # __setstate__
+        self.__dict__["_parent"] = state["_parent"]
+        self.__dict__["_creator"] = state["_creator"]
+
 
 class OwnedNodePackage:
     """
@@ -443,3 +584,9 @@ class OwnedNodePackage:
         if issubclass(value, Node):
             value = partial(value, parent=self._parent)
         return value
+
+    def __getstate__(self):
+        return self.__dict__
+
+    def __setstate__(self, state):
+        self.__dict__ = state

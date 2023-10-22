@@ -2,7 +2,7 @@ from unittest import TestCase, skipUnless
 from sys import version_info
 
 from pyiron_workflow.channels import (
-    InputData, OutputData, InputSignal, OutputSignal, NotData
+    InputData, OutputData, InputSignal, OutputSignal, NotData, ChannelConnectionError
 )
 
 
@@ -23,6 +23,7 @@ class TestDataChannels(TestCase):
         self.ni1 = InputData(label="numeric", node=DummyNode(), default=1, type_hint=int | float)
         self.ni2 = InputData(label="numeric", node=DummyNode(), default=1, type_hint=int | float)
         self.no = OutputData(label="numeric", node=DummyNode(), default=0, type_hint=int | float)
+        self.no_empty = OutputData(label="not_data", node=DummyNode(), type_hint=int | float)
 
         self.so1 = OutputData(label="list", node=DummyNode(), default=["foo"], type_hint=list)
         self.so2 = OutputData(label="list", node=DummyNode(), default=["foo"], type_hint=list)
@@ -42,6 +43,8 @@ class TestDataChannels(TestCase):
             self.ni1.connect(self.no)
             self.assertIn(self.no, self.ni1.connections)
             self.assertIn(self.ni1, self.no.connections)
+            self.assertNotEqual(self.no.value, self.ni1.value)
+            self.ni1.fetch()
             self.assertEqual(self.no.value, self.ni1.value)
 
         with self.subTest("Test disconnection"):
@@ -73,29 +76,40 @@ class TestDataChannels(TestCase):
         with self.subTest("Test iteration"):
             self.assertTrue(all([con in self.no.connections for con in self.no]))
 
-        with self.subTest("Don't push NotData"):
-            self.no.disconnect_all()
+        with self.subTest("Data should update on fetch"):
+            self.ni1.disconnect_all()
+
             self.no.value = NotData
             self.ni1.value = 1
+
+            self.ni1.connect(self.no_empty)
             self.ni1.connect(self.no)
             self.assertEqual(
                 self.ni1.value,
                 1,
-                msg="NotData should not be getting pushed on connection"
+                msg="Data should not be getting pushed on connection"
             )
-            self.ni2.value = 2
+            self.ni1.fetch()
+            self.assertEqual(
+                self.ni1.value,
+                1,
+                msg="NotData values should not be getting pulled"
+            )
             self.no.value = 3
-            self.ni2.connect(self.no)
+            self.ni1.fetch()
             self.assertEqual(
-                self.ni2.value,
+                self.ni1.value,
                 3,
-                msg="Actual data should be getting pushed"
+                msg="Data fetch should to first connected value that's actually data,"
+                    "in this case skipping over no_empty"
             )
-            self.no.update(NotData)
+            self.no_empty.value = 4
+            self.ni1.fetch()
             self.assertEqual(
-                self.ni2.value,
-                3,
-                msg="NotData should not be getting pushed on updates"
+                self.ni1.value,
+                4,
+                msg="As soon as no_empty actually has data, it's position as 0th "
+                    "element in the connections list should give it priority"
             )
 
     def test_connection_validity_tests(self):
@@ -112,19 +126,17 @@ class TestDataChannels(TestCase):
             "Input types should be allowed to be a super-set of output types"
         )
 
-        self.no.connect(self.ni2)
-        self.assertNotIn(
-            self.no,
-            self.ni2.connections,
-            "Input types should not be allowed to be a sub-set of output types"
-        )
+        with self.assertRaises(
+            ChannelConnectionError,
+            msg="Input types should not be allowed to be a sub-set of output types"
+        ):
+            self.no.connect(self.ni2)
 
-        self.so1.connect(self.ni2)
-        self.assertNotIn(
-            self.so1,
-            self.ni2.connections,
-            "Totally different types should not allow connections"
-        )
+        with self.assertRaises(
+            ChannelConnectionError,
+            msg="Totally different type hints should not allow connections"
+        ):
+            self.so1.connect(self.ni2)
 
         self.ni2.strict_connections = False
         self.so1.connect(self.ni2)
@@ -132,6 +144,73 @@ class TestDataChannels(TestCase):
             self.so1,
             self.ni2.connections,
             "With strict connections turned off, we should allow type-violations"
+        )
+
+    def test_copy_connections(self):
+        self.ni1.connect(self.no)
+        self.ni2.connect(self.no_empty)
+        self.ni2.copy_connections(self.ni1)
+        self.assertListEqual(
+            self.ni2.connections,
+            [self.no_empty, *self.ni1.connections],
+            msg="Copying should be additive, existing connections should still be there"
+        )
+
+        self.ni2.disconnect(*self.ni1.connections)
+        self.ni1.connections.append(self.so1)  # Manually include a poorly-typed conn
+        with self.assertRaises(
+            ChannelConnectionError,
+            msg="Should not be able to connect to so1 because of type hint "
+                "incompatibility"
+        ):
+            self.ni2.copy_connections(self.ni1)
+        self.assertListEqual(
+            self.ni2.connections,
+            [self.no_empty],
+            msg="On failing, copy should revert the copying channel to its orignial "
+                "state"
+        )
+
+    def test_copy_value(self):
+        self.ni1.value = 2
+        self.ni2.copy_value(self.ni1)
+        self.assertEqual(
+            self.ni2.value,
+            self.ni1.value,
+            msg="Should be able to copy values matching type hints"
+        )
+
+        self.ni2.copy_value(self.no_empty)
+        self.assertIs(
+            self.ni2.value,
+            NotData,
+            msg="Should be able to copy values that are not-data"
+        )
+
+        with self.assertRaises(
+            TypeError,
+            msg="Should not be able to copy values of the wrong type"
+        ):
+            self.ni2.copy_value(self.so1)
+
+        self.ni2.type_hint = None
+        self.ni2.copy_value(self.ni1)
+        self.assertEqual(
+            self.ni2.value,
+            self.ni1.value,
+            msg="Should be able to copy any data if we have no type hint"
+        )
+        self.ni2.copy_value(self.so1)
+        self.assertEqual(
+            self.ni2.value,
+            self.so1.value,
+            msg="Should be able to copy any data if we have no type hint"
+        )
+        self.ni2.copy_value(self.no_empty)
+        self.assertEqual(
+            self.ni2.value,
+            NotData,
+            msg="Should be able to copy not-data if we have no type hint"
         )
 
     def test_ready(self):
@@ -155,19 +234,43 @@ class TestDataChannels(TestCase):
         self.ni1.value = "Not numeric at all"
         self.assertFalse(self.ni1.ready)
 
-    def test_update(self):
-        self.no.connect(self.ni1, self.ni2)
-        self.no.update(42)
-        for inp in self.no.connections:
-            self.assertEqual(
-                self.no.value,
-                inp.value,
-                msg="Value should have been passed downstream"
-            )
+    def test_input_coupling(self):
+        self.assertNotEqual(
+            self.ni2.value,
+            2,
+            msg="Ensure we start from a setup that the next test is meaningful"
+        )
+        self.ni1.value = 2
+        self.ni1.value_receiver = self.ni2
+        self.assertEqual(
+            self.ni2.value,
+            2,
+            msg="Coupled value should get updated on coupling"
+        )
+        self.ni1.value = 3
+        self.assertEqual(
+            self.ni2.value,
+            3,
+            msg="Coupled value should get updated after partner update"
+        )
+        self.ni2.value = 4
+        self.assertEqual(
+            self.ni1.value,
+            3,
+            msg="Coupling is uni-directional, the partner should not push values back"
+        )
 
-        self.ni1.node.running = True
-        with self.assertRaises(RuntimeError):
-            self.no.update(42)
+        with self.assertRaises(
+            TypeError,
+            msg="Only input data channels are valid partners"
+        ):
+            self.ni1.value_receiver = self.no
+
+        with self.assertRaises(
+            ValueError,
+            msg="Must not couple to self to avoid infinite recursion"
+        ):
+            self.ni1.value_receiver = self.ni1
 
 
 class TestSignalChannels(TestCase):

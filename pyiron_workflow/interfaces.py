@@ -8,9 +8,7 @@ from typing import TYPE_CHECKING
 
 from pyiron_base.interfaces.singleton import Singleton
 
-# from pyiron_contrib.executors import CloudpickleProcessPoolExecutor as Executor
 # from pympipool.mpi.executor import PyMPISingleTaskExecutor as Executor
-
 from pyiron_workflow.executors import CloudpickleProcessPoolExecutor as Executor
 
 from pyiron_workflow.function import (
@@ -60,23 +58,17 @@ class Creator(metaclass=Singleton):
 
     @property
     def standard(self):
-        try:
-            return self._standard
-        except AttributeError:
-            from pyiron_workflow.node_library.standard import nodes
+        from pyiron_workflow.node_package import NodePackage
+        from pyiron_workflow.node_library.standard import nodes
 
-            self.register("_standard", *nodes)
-            return self._standard
+        return NodePackage(*nodes)
 
     @property
     def atomistics(self):
-        try:
-            return self._atomistics
-        except AttributeError:
-            from pyiron_workflow.node_library.atomistics import nodes
+        from pyiron_workflow.node_package import NodePackage
+        from pyiron_workflow.node_library.atomistics import nodes
 
-            self.register("_atomistics", *nodes)
-            return self._atomistics
+        return NodePackage(*nodes)
 
     @property
     def meta(self):
@@ -87,11 +79,15 @@ class Creator(metaclass=Singleton):
         return self._meta
 
     def register(self, domain: str, *nodes: list[type[Node]]):
-        if domain in self.__dir__():
-            raise AttributeError(f"{domain} is already an attribute of {self}")
-        from pyiron_workflow.node_package import NodePackage
-
-        setattr(self, domain, NodePackage(*nodes))
+        raise NotImplementedError(
+            "Registering new node packages is currently not playing well with "
+            "executors. We hope to return this feature soon."
+        )
+        # if domain in self.__dir__():
+        #     raise AttributeError(f"{domain} is already an attribute of {self}")
+        # from pyiron_workflow.node_package import NodePackage
+        #
+        # setattr(self, domain, NodePackage(*nodes))
 
 
 class Wrappers(metaclass=Singleton):
