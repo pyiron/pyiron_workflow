@@ -234,6 +234,44 @@ class TestDataChannels(TestCase):
         self.ni1.value = "Not numeric at all"
         self.assertFalse(self.ni1.ready)
 
+    def test_input_coupling(self):
+        self.assertNotEqual(
+            self.ni2.value,
+            2,
+            msg="Ensure we start from a setup that the next test is meaningful"
+        )
+        self.ni1.value = 2
+        self.ni1.value_receiver = self.ni2
+        self.assertEqual(
+            self.ni2.value,
+            2,
+            msg="Coupled value should get updated on coupling"
+        )
+        self.ni1.value = 3
+        self.assertEqual(
+            self.ni2.value,
+            3,
+            msg="Coupled value should get updated after partner update"
+        )
+        self.ni2.value = 4
+        self.assertEqual(
+            self.ni1.value,
+            3,
+            msg="Coupling is uni-directional, the partner should not push values back"
+        )
+
+        with self.assertRaises(
+            TypeError,
+            msg="Only input data channels are valid partners"
+        ):
+            self.ni1.value_receiver = self.no
+
+        with self.assertRaises(
+            ValueError,
+            msg="Must not couple to self to avoid infinite recursion"
+        ):
+            self.ni1.value_receiver = self.ni1
+
 
 class TestSignalChannels(TestCase):
     def setUp(self) -> None:

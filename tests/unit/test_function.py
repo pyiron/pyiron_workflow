@@ -4,11 +4,6 @@ from typing import Optional, Union
 import unittest
 import warnings
 
-# from pyiron_contrib.executors import CloudpickleProcessPoolExecutor as Executor
-# from pympipool.mpi.executor import PyMPISingleTaskExecutor as Executor
-
-from pyiron_workflow.executors import CloudpickleProcessPoolExecutor as Executor
-
 from pyiron_workflow.channels import NotData, ChannelConnectionError
 from pyiron_workflow.files import DirectoryObject
 from pyiron_workflow.function import (
@@ -304,12 +299,14 @@ class TestFunction(unittest.TestCase):
             msg="Function functions should be able to modify attributes on the node object."
         )
 
-        node.executor = Executor()
-        with self.assertRaises(NotImplementedError):
-            # Submitting node_functions that use self is still raising
-            # TypeError: cannot pickle '_thread.lock' object
-            # For now we just fail cleanly
+        node.executor = True
+        with self.assertRaises(
+            ValueError,
+            msg="We haven't implemented any way to update a function node's `self` when"
+                "it runs on an executor, so trying to do so should fail hard"
+        ):
             node.run()
+        node.executor = False
 
         def with_messed_self(x: float, self) -> float:
             return x + 0.1
@@ -398,7 +395,7 @@ class TestFunction(unittest.TestCase):
             )
 
         with self.subTest("Run on executor"):
-            node.executor = Executor()
+            node.executor = True
 
             return_on_explicit_run = node.run()
             self.assertIsInstance(
