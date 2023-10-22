@@ -10,7 +10,7 @@ dependencies:
 - graphviz =8.1.0
 - maggma =0.57.4
 - matplotlib =3.8.0
-- numpy =1.25.2
+- numpy =1.26.0
 - pyiron_atomistics =0.3.4
 - pyiron_base =0.6.7
 - pyiron-data =0.0.24
