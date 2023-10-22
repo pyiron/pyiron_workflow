@@ -584,3 +584,9 @@ class OwnedNodePackage:
         if issubclass(value, Node):
             value = partial(value, parent=self._parent)
         return value
+
+    def __getstate__(self):
+        return self.__dict__
+
+    def __setstate__(self, state):
+        self.__dict__ = state
