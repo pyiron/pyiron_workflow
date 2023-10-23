@@ -247,6 +247,7 @@ class Node(HasToDict, ABC):
         first_fetch_input: bool = True,
         then_emit_output_signals: bool = True,
         force_local_execution: bool = False,
+        check_readiness: bool = True,
     ):
         """
         Update the input (with whatever is currently available -- does _not_ trigger
@@ -263,6 +264,8 @@ class Node(HasToDict, ABC):
                 (e.g. `ran`) afterwards. (Default is True.)
             force_local_execution (bool): Whether to ignore any executor settings and
                 force the computation to run locally. (Default is False.)
+            check_readiness (bool): Whether to raise an exception if the node is not
+                `ready` to run after fetching new input. (Default is True.)
 
         Returns:
             (Any | Future): The result of running the node, or a futures object (if
@@ -270,6 +273,18 @@ class Node(HasToDict, ABC):
         """
         if first_fetch_input:
             self.inputs.fetch()
+        if check_readiness and not self.ready:
+            input_readiness = "\n".join(
+                [f"{k} ready: {v.ready}" for k, v in self.inputs.items()]
+            )
+            raise ValueError(
+                f"{self.label} received a run command but is not ready. The node "
+                f"should be neither running nor failed, and all input values should"
+                f" conform to type hints:\n"
+                f"running: {self.running}\n"
+                f"failed: {self.failed}\n"
+                + input_readiness
+            )
         return self._run(
             finished_callback=self._finish_run_and_emit_ran if then_emit_output_signals
             else self._finish_run,
@@ -397,10 +412,6 @@ class Node(HasToDict, ABC):
         signals.input.run = InputSignal("run", self, self.run)
         signals.output.ran = OutputSignal("ran", self)
         return signals
-
-    def update(self) -> Any | tuple | Future | None:
-        if self.ready:
-            return self.run()
 
     @property
     def working_directory(self):

@@ -173,9 +173,7 @@ class Function(Node):
         using good variable names and returning those variables instead of using
         `output_labels`.
         If we force the node to `run()` (or call it) with bad types, it will raise an
-        error.
-        But, if we use the gentler `update()`, it will check types first and simply
-        return `None` if the input is not all `ready`.
+        error:
         >>> from typing import Union
         >>>
         >>> def hinted_example(
@@ -186,13 +184,17 @@ class Function(Node):
         ...     return p1, m1
         >>>
         >>> plus_minus_1 = Function(hinted_example, x="not an int")
-        >>> plus_minus_1.update()
-        >>> plus_minus_1.outputs.to_value_dict()
-        {'p1': <class 'pyiron_workflow.channels.NotData'>,
-        'm1': <class 'pyiron_workflow.channels.NotData'>}
+        >>> plus_minus_1.run()
+        ValueError: hinted_example received a run command but is not ready. The node
+        should be neither running nor failed, and all input values should conform to
+        type hints:
+        running: False
+        failed: False
+        x ready: False
+        y ready: True
 
         Here, even though all the input has data, the node sees that some of it is the
-        wrong type and so the automatic updates don't proceed all the way to a run.
+        wrong type and so (by default) the run raises an error right away.
         Note that the type hinting doesn't actually prevent us from assigning bad values
         directly to the channel (although it will, by default, prevent connections
         _between_ type-hinted channels with incompatible hints), but it _does_ stop the
