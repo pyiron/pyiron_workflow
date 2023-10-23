@@ -80,8 +80,11 @@ class Node(HasToDict, ABC):
     These labels also help to identify nodes in the wider context of (potentially
     nested) computational graphs.
 
-    By default, nodes' signals input comes with `run` and `ran` IO ports which force
-    the `run()` method and which emit after `finish_run()` is completed, respectfully.
+    By default, nodes' signals input comes with `run` and `ran` IO ports, which invoke
+    the `run()` method and emit after running the node, respectfully.
+    (Whether we get all the way to emitting the `ran` signal depends on how the node
+    was invoked -- it is possible to computing things with the node without sending
+    any more signals downstream.)
     These signal connections can be made manually by reference to the node signals
     channel, or with the `>` symbol to indicate a flow of execution. This syntactic
     sugar can be mixed between actual signal channels (output signal > input signal),
@@ -101,8 +104,8 @@ class Node(HasToDict, ABC):
 
     Nodes have a status, which is currently represented by the `running` and `failed`
     boolean flag attributes.
-    Their value is controlled automatically in the defined `run` and `finish_run`
-    methods.
+    These are updated automatically when the node's operation is invoked, e.g. with
+    `run`, `execute`, `pull`, or by calling the node instance.
 
     Nodes can be run on the main python process that owns them, or by setting their
     `executor` attribute to `True`, in which case a
@@ -261,7 +264,7 @@ class Node(HasToDict, ABC):
             self.inputs.fetch()
         return self._run(
             finished_callback=self.finish_run_and_emit_ran if then_emit_output_signals
-            else self.finish_run,
+            else self._finish_run,
             force_local_execution=force_local_execution,
         )
 
@@ -288,7 +291,7 @@ class Node(HasToDict, ABC):
             self.future.add_done_callback(finished_callback)
             return self.future
 
-    def finish_run(self, run_output: tuple | Future) -> Any | tuple:
+    def _finish_run(self, run_output: tuple | Future) -> Any | tuple:
         """
         Switch the node status, then process and return the run result.
 
@@ -306,12 +309,12 @@ class Node(HasToDict, ABC):
             raise e
 
     def finish_run_and_emit_ran(self, run_output: tuple | Future) -> Any | tuple:
-        processed_output = self.finish_run(run_output)
+        processed_output = self._finish_run(run_output)
         self.signals.output.ran()
         return processed_output
 
     finish_run_and_emit_ran.__doc__ = (
-        finish_run.__doc__
+        _finish_run.__doc__
         + """
 
     Finally, fire the `ran` signal.
@@ -333,7 +336,7 @@ class Node(HasToDict, ABC):
         # graph and its execution
         # Then,
         self.update_input()
-        return self._run(finished_callback=self.finish_run)
+        return self._run(finished_callback=self._finish_run)
 
     def __call__(self, **kwargs) -> None:
         self.update_input(**kwargs)

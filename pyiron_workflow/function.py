@@ -59,9 +59,9 @@ class Function(Node):
     Further, functions with multiple return branches that return different types or
     numbers of return values may or may not work smoothly, depending on the details.
 
-    Output is updated in the `process_run_result` inside the parent class `finish_run`
-    call, such that output data gets pushed after the node stops running but before
-    then `ran` signal fires: run, process and push result, ran.
+    Output is updated according to `process_run_result` -- which gets invoked by the
+    post-run callbacks defined in `Node` -- such that run results are used to populate
+    the output channels.
 
     After a node is instantiated, its input can be updated as `*args` and/or `**kwargs`
     on call.
