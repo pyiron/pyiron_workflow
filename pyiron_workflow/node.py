@@ -185,8 +185,6 @@ class Node(HasToDict, ABC):
             parent.add(self)
         self.running = False
         self.failed = False
-        # TODO: Move from a traditional "sever" to a tinybase "executor"
-        # TODO: Provide support for actually computing stuff with the executor
         self.signals = self._build_signal_channels()
         self._working_directory = None
         self.executor = False
