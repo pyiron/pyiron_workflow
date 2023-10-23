@@ -55,7 +55,8 @@ def nodes_to_data_digraph(nodes: dict[str, Node]) -> dict[str, set[str]]:
                         f"The {channel.label} channel of {node.label} has a connection "
                         f"to {upstream.label} channel of {upstream.node.label}, but "
                         f"{upstream.node.label} was not found among nodes. All nodes "
-                        f"in the data flow dependency tree must be included.")
+                        f"in the data flow dependency tree must be included."
+                    )
                 if upstream_node is not upstream.node:
                     raise ValueError(
                         f"The {channel.label} channel of {node.label} has a connection "
@@ -101,9 +102,7 @@ def nodes_to_execution_order(nodes: dict[str, Node]) -> list[str]:
         # executed before the node depending on them gets run
         # The flattened part is just that we don't care about topological
         # generations that are mutually independent (inefficient but easier for now)
-        execution_order = toposort_flatten(
-            nodes_to_data_digraph(nodes)
-        )
+        execution_order = toposort_flatten(nodes_to_data_digraph(nodes))
     except CircularDependencyError as e:
         raise ValueError(
             f"Detected a cycle in the data flow topology, unable to automate the "
