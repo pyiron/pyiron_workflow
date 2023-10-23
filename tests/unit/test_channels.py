@@ -2,7 +2,7 @@ from unittest import TestCase, skipUnless
 from sys import version_info
 
 from pyiron_workflow.channels import (
-    InputData, OutputData, InputSignal, OutputSignal, NotData
+    InputData, OutputData, InputSignal, OutputSignal, NotData, ChannelConnectionError
 )
 
 
@@ -126,19 +126,17 @@ class TestDataChannels(TestCase):
             "Input types should be allowed to be a super-set of output types"
         )
 
-        self.no.connect(self.ni2)
-        self.assertNotIn(
-            self.no,
-            self.ni2.connections,
-            "Input types should not be allowed to be a sub-set of output types"
-        )
+        with self.assertRaises(
+            ChannelConnectionError,
+            msg="Input types should not be allowed to be a sub-set of output types"
+        ):
+            self.no.connect(self.ni2)
 
-        self.so1.connect(self.ni2)
-        self.assertNotIn(
-            self.so1,
-            self.ni2.connections,
-            "Totally different types should not allow connections"
-        )
+        with self.assertRaises(
+            ChannelConnectionError,
+            msg="Totally different type hints should not allow connections"
+        ):
+            self.so1.connect(self.ni2)
 
         self.ni2.strict_connections = False
         self.so1.connect(self.ni2)
@@ -146,6 +144,73 @@ class TestDataChannels(TestCase):
             self.so1,
             self.ni2.connections,
             "With strict connections turned off, we should allow type-violations"
+        )
+
+    def test_copy_connections(self):
+        self.ni1.connect(self.no)
+        self.ni2.connect(self.no_empty)
+        self.ni2.copy_connections(self.ni1)
+        self.assertListEqual(
+            self.ni2.connections,
+            [self.no_empty, *self.ni1.connections],
+            msg="Copying should be additive, existing connections should still be there"
+        )
+
+        self.ni2.disconnect(*self.ni1.connections)
+        self.ni1.connections.append(self.so1)  # Manually include a poorly-typed conn
+        with self.assertRaises(
+            ChannelConnectionError,
+            msg="Should not be able to connect to so1 because of type hint "
+                "incompatibility"
+        ):
+            self.ni2.copy_connections(self.ni1)
+        self.assertListEqual(
+            self.ni2.connections,
+            [self.no_empty],
+            msg="On failing, copy should revert the copying channel to its orignial "
+                "state"
+        )
+
+    def test_copy_value(self):
+        self.ni1.value = 2
+        self.ni2.copy_value(self.ni1)
+        self.assertEqual(
+            self.ni2.value,
+            self.ni1.value,
+            msg="Should be able to copy values matching type hints"
+        )
+
+        self.ni2.copy_value(self.no_empty)
+        self.assertIs(
+            self.ni2.value,
+            NotData,
+            msg="Should be able to copy values that are not-data"
+        )
+
+        with self.assertRaises(
+            TypeError,
+            msg="Should not be able to copy values of the wrong type"
+        ):
+            self.ni2.copy_value(self.so1)
+
+        self.ni2.type_hint = None
+        self.ni2.copy_value(self.ni1)
+        self.assertEqual(
+            self.ni2.value,
+            self.ni1.value,
+            msg="Should be able to copy any data if we have no type hint"
+        )
+        self.ni2.copy_value(self.so1)
+        self.assertEqual(
+            self.ni2.value,
+            self.so1.value,
+            msg="Should be able to copy any data if we have no type hint"
+        )
+        self.ni2.copy_value(self.no_empty)
+        self.assertEqual(
+            self.ni2.value,
+            NotData,
+            msg="Should be able to copy not-data if we have no type hint"
         )
 
     def test_ready(self):
@@ -168,6 +233,44 @@ class TestDataChannels(TestCase):
 
         self.ni1.value = "Not numeric at all"
         self.assertFalse(self.ni1.ready)
+
+    def test_input_coupling(self):
+        self.assertNotEqual(
+            self.ni2.value,
+            2,
+            msg="Ensure we start from a setup that the next test is meaningful"
+        )
+        self.ni1.value = 2
+        self.ni1.value_receiver = self.ni2
+        self.assertEqual(
+            self.ni2.value,
+            2,
+            msg="Coupled value should get updated on coupling"
+        )
+        self.ni1.value = 3
+        self.assertEqual(
+            self.ni2.value,
+            3,
+            msg="Coupled value should get updated after partner update"
+        )
+        self.ni2.value = 4
+        self.assertEqual(
+            self.ni1.value,
+            3,
+            msg="Coupling is uni-directional, the partner should not push values back"
+        )
+
+        with self.assertRaises(
+            TypeError,
+            msg="Only input data channels are valid partners"
+        ):
+            self.ni1.value_receiver = self.no
+
+        with self.assertRaises(
+            ValueError,
+            msg="Must not couple to self to avoid infinite recursion"
+        ):
+            self.ni1.value_receiver = self.ni1
 
 
 class TestSignalChannels(TestCase):

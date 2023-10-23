@@ -5,7 +5,7 @@ sub-graph
 
 from __future__ import annotations
 
-from abc import ABC
+from abc import ABC, abstractmethod
 from functools import partial
 from typing import Literal, Optional, TYPE_CHECKING
 
@@ -19,7 +19,7 @@ from pyiron_workflow.node_package import NodePackage
 from pyiron_workflow.util import logger, DotDict, SeabornColors
 
 if TYPE_CHECKING:
-    from pyiron_workflow.channels import Channel
+    from pyiron_workflow.channels import Channel, InputData, OutputData
 
 
 class Composite(Node, ABC):
@@ -106,7 +106,7 @@ class Composite(Node, ABC):
         self._outputs_map = None
         self.inputs_map = inputs_map
         self.outputs_map = outputs_map
-        self.nodes: DotDict[str:Node] = DotDict()
+        self.nodes: DotDict[str, Node] = DotDict()
         self.starting_nodes: list[Node] = []
         self._creator = self.create
         self.create = self._owned_creator  # Override the create method from the class
@@ -138,17 +138,6 @@ class Composite(Node, ABC):
         """
         return OwnedCreator(self, self._creator)
 
-    @property
-    def executor(self) -> None:
-        return None
-
-    @executor.setter
-    def executor(self, new_executor):
-        if new_executor is not None:
-            raise NotImplementedError(
-                "Running composite nodes with an executor is not yet supported"
-            )
-
     def to_dict(self):
         return {
             "label": self.label,
@@ -170,9 +159,20 @@ class Composite(Node, ABC):
         return {"_nodes": self.nodes, "_starting_nodes": self.starting_nodes}
 
     def process_run_result(self, run_output):
-        # self.nodes = run_output
-        # Running on an executor will require a more sophisticated idea than above
+        if run_output is not self.nodes:
+            # Then we probably ran on a parallel process and have an unpacked future
+            self._update_children(run_output)
         return DotDict(self.outputs.to_value_dict())
+
+    def _update_children(self, children_from_another_process: DotDict[str, Node]):
+        """
+        If you receive a new dictionary of children, e.g. from unpacking a futures
+        object of your own children you sent off to another process for computation,
+        replace your own nodes with them, and set yourself as their parent.
+        """
+        for child in children_from_another_process.values():
+            child.parent = self
+        self.nodes = children_from_another_process
 
     def disconnect_run(self) -> list[tuple[Channel, Channel]]:
         """
@@ -260,29 +260,76 @@ class Composite(Node, ABC):
 
     def _build_io(
         self,
-        io: Inputs | Outputs,
-        target: Literal["inputs", "outputs"],
-        key_map: dict[str, str] | None,
+        i_or_o: Literal["inputs", "outputs"],
+        key_map: dict[str, str | None] | None,
     ) -> Inputs | Outputs:
+        """
+        Build an IO panel for exposing child node IO to the outside world at the level
+        of the composite node's IO.
+
+        Args:
+            target [Literal["inputs", "outputs"]]: Whether this is I or O.
+            key_map [dict[str, str]|None]: A map between the default convention for
+                mapping child IO to composite IO (`"{node.label}__{channel.label}"`) and
+                whatever label you actually want to expose to the composite user. Also
+                allows non-standards channel exposure, i.e. exposing
+                internally-connected channels (which would not normally be exposed) by
+                providing a string-to-string map, or suppressing unconnected channels
+                (which normally would be exposed) by providing a string-None map.
+
+        Returns:
+            (Inputs|Outputs): The populated panel.
+        """
         key_map = {} if key_map is None else key_map
+        io = Inputs() if i_or_o == "inputs" else Outputs()
         for node in self.nodes.values():
-            panel = getattr(node, target)
+            panel = getattr(node, i_or_o)
             for channel_label in panel.labels:
                 channel = panel[channel_label]
                 default_key = f"{node.label}__{channel_label}"
                 try:
-                    if key_map[default_key] is not None:
-                        io[key_map[default_key]] = channel
+                    io_panel_key = key_map[default_key]
+                    if io_panel_key is not None:
+                        io[io_panel_key] = self._get_linking_channel(
+                            channel, io_panel_key
+                        )
                 except KeyError:
                     if not channel.connected:
-                        io[default_key] = channel
+                        io[default_key] = self._get_linking_channel(
+                            channel, default_key
+                        )
         return io
 
+    @abstractmethod
+    def _get_linking_channel(
+        self,
+        child_reference_channel: InputData | OutputData,
+        composite_io_key: str,
+    ) -> InputData | OutputData:
+        """
+        Returns the channel that will be the link between the provided child channel,
+        and the composite's IO at the given key.
+
+        The returned channel should be fully compatible with the provided child channel,
+        i.e. same type, same type hint... (For instance, the child channel itself is a
+        valid return, which would create a composite IO panel that works by reference.)
+
+        Args:
+            child_reference_channel (InputData | OutputData): The child channel
+            composite_io_key (str): The key under which this channel will be stored on
+                the composite's IO.
+
+        Returns:
+            (Channel): A channel with the same type, type hint, etc. as the reference
+                channel passed in.
+        """
+        pass
+
     def _build_inputs(self) -> Inputs:
-        return self._build_io(Inputs(), "inputs", self.inputs_map)
+        return self._build_io("inputs", self.inputs_map)
 
     def _build_outputs(self) -> Outputs:
-        return self._build_io(Outputs(), "outputs", self.outputs_map)
+        return self._build_io("outputs", self.outputs_map)
 
     def add(self, node: Node, label: Optional[str] = None) -> None:
         """
@@ -377,7 +424,7 @@ class Composite(Node, ABC):
         del self.nodes[node.label]
         return disconnected
 
-    def replace(self, owned_node: Node | str, replacement: Node | type[Node]):
+    def replace(self, owned_node: Node | str, replacement: Node | type[Node]) -> Node:
         """
         Replaces a node currently owned with a new node instance.
         The replacement must not belong to any other parent or have any connections.
@@ -385,6 +432,12 @@ class Composite(Node, ABC):
         channel labels need to match precisely, but additional channels may be present.
         After replacement, the new node will have the old node's connections, label,
         and belong to this composite.
+        The labels are swapped, such that the replaced node gets the name of its
+        replacement (which might be silly, but is useful in case you want to revert the
+        change and swap the replaced node back in!)
+
+        If replacement fails for some reason, the replacement and replacing node are
+        both returned to their original state, and the composite is left unchanged.
 
         Args:
             owned_node (Node|str): The node to replace or its label.
@@ -420,13 +473,17 @@ class Composite(Node, ABC):
                 f"got {replacement}"
             )
 
-        replacement.copy_connections(owned_node)
-        replacement.label = owned_node.label
+        replacement.copy_io(owned_node)  # If the replacement is incompatible, we'll
+        # fail here before we've changed the parent at all. Since the replacement was
+        # first guaranteed to be an unconnected orphan, there is not yet any permanent
+        # damage
         is_starting_node = owned_node in self.starting_nodes
         self.remove(owned_node)
+        replacement.label, owned_node.label = owned_node.label, replacement.label
         self.add(replacement)
         if is_starting_node:
             self.starting_nodes.append(replacement)
+        return owned_node
 
     def __setattr__(self, key: str, node: Node):
         if isinstance(node, Node) and key != "parent":
@@ -501,6 +558,16 @@ class OwnedCreator:
 
         return value
 
+    def __getstate__(self):
+        # Compatibility with python <3.11
+        return self.__dict__
+
+    def __setstate__(self, state):
+        # Because we override getattr, we need to use __dict__ assignment directly in
+        # __setstate__
+        self.__dict__["_parent"] = state["_parent"]
+        self.__dict__["_creator"] = state["_creator"]
+
 
 class OwnedNodePackage:
     """
@@ -517,3 +584,9 @@ class OwnedNodePackage:
         if issubclass(value, Node):
             value = partial(value, parent=self._parent)
         return value
+
+    def __getstate__(self):
+        return self.__dict__
+
+    def __setstate__(self, state):
+        self.__dict__ = state

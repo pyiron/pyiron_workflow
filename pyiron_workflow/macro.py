@@ -8,6 +8,7 @@ from __future__ import annotations
 from functools import partialmethod
 from typing import Optional, TYPE_CHECKING
 
+from pyiron_workflow.channels import InputData, OutputData
 from pyiron_workflow.composite import Composite
 from pyiron_workflow.io import Outputs, Inputs
 
@@ -184,6 +185,39 @@ class Macro(Composite):
 
         self.update_input(**kwargs)
 
+    def _get_linking_channel(
+        self,
+        child_reference_channel: InputData | OutputData,
+        composite_io_key: str,
+    ) -> InputData | OutputData:
+        """
+        Build IO by value: create a new channel just like the child's channel.
+
+        In the case of input data, we also form a value link from the composite channel
+        down to the child channel, so that the child will stay up-to-date.
+        """
+        composite_channel = child_reference_channel.__class__(
+            label=composite_io_key,
+            node=self,
+            default=child_reference_channel.default,
+            type_hint=child_reference_channel.type_hint,
+        )
+        composite_channel.value = child_reference_channel.value
+
+        if isinstance(composite_channel, InputData):
+            composite_channel.strict_connections = (
+                child_reference_channel.strict_connections
+            )
+            composite_channel.value_receiver = child_reference_channel
+        elif isinstance(composite_channel, OutputData):
+            child_reference_channel.value_receiver = composite_channel
+        else:
+            raise TypeError(
+                "This should not be an accessible state, please contact the developers"
+            )
+
+        return composite_channel
+
     @property
     def inputs(self) -> Inputs:
         return self._inputs
@@ -192,9 +226,47 @@ class Macro(Composite):
     def outputs(self) -> Outputs:
         return self._outputs
 
+    def _update_children(self, children_from_another_process):
+        super()._update_children(children_from_another_process)
+        self._rebuild_data_io()
+
     def _rebuild_data_io(self):
-        self._inputs = self._build_inputs()
-        self._outputs = self._build_outputs()
+        """
+        Try to rebuild the IO.
+
+        If an error is encountered, revert back to the existing IO then raise it.
+        """
+        old_inputs = self.inputs
+        old_outputs = self.outputs
+        connection_changes = []  # For reversion if there's an error
+        try:
+            self._inputs = self._build_inputs()
+            self._outputs = self._build_outputs()
+            for old, new in [(old_inputs, self.inputs), (old_outputs, self.outputs)]:
+                for old_channel in old:
+                    if old_channel.connected:
+                        # If the old channel was connected to stuff, we'd better still
+                        # have a corresponding channel and be able to copy these, or we
+                        # should fail hard.
+                        # But, if it wasn't connected, we don't even care whether or not
+                        # we still have a corresponding channel to copy to
+                        new_channel = new[old_channel.label]
+                        new_channel.copy_connections(old_channel)
+                        swapped_conenctions = old_channel.disconnect_all()  # Purge old
+                        connection_changes.append(
+                            (new_channel, old_channel, swapped_conenctions)
+                        )
+        except Exception as e:
+            for new_channel, old_channel, swapped_conenctions in connection_changes:
+                new_channel.disconnect(*swapped_conenctions)
+                old_channel.connect(*swapped_conenctions)
+            self._inputs = old_inputs
+            self._outputs = old_outputs
+            e.message = (
+                f"Unable to rebuild IO for {self.label}; reverting to old IO."
+                f"{e.message}"
+            )
+            raise e
 
     def _configure_graph_execution(self):
         run_signals = self.disconnect_run()
@@ -223,11 +295,17 @@ class Macro(Composite):
             pairs[0].connect(pairs[1])
 
     def replace(self, owned_node: Node | str, replacement: Node | type[Node]):
-        super().replace(owned_node=owned_node, replacement=replacement)
-        # Make sure node-level IO is pointing to the new node
-        self._rebuild_data_io()
-        # This is brute-force overkill since only the replaced node needs to be updated
-        # but it's not particularly expensive
+        replaced_node = super().replace(owned_node=owned_node, replacement=replacement)
+        try:
+            # Make sure node-level IO is pointing to the new node and that macro-level
+            # IO gets safely reconstructed
+            self._rebuild_data_io()
+        except Exception as e:
+            # If IO can't be successfully rebuilt using this node, revert changes and
+            # raise the exception
+            self.replace(replacement, replaced_node)  # Guaranteed to work since
+            # replacement in the other direction was already a success
+            raise e
 
     def to_workfow(self):
         raise NotImplementedError
