@@ -194,9 +194,16 @@ class Composite(Node, ABC):
         Raises:
             ValueError: When the data connections do not form a DAG.
         """
-        self.disconnect_run()
-        self._set_run_connections_and_starting_nodes_according_to_linear_dag()
-        # TODO: Replace this linear setup with something more powerful
+        disconnected = self.disconnect_run()
+        try:
+            self._set_run_connections_and_starting_nodes_according_to_linear_dag()
+            # TODO: Replace this linear setup with something more powerful
+        except Exception as e:
+            # Restore whatever you broke
+            for c1, c2 in disconnected:
+                c1.connect(c2)
+            # Then
+            raise e
 
     def _set_run_connections_and_starting_nodes_according_to_linear_dag(self):
         # This is the most primitive sort of topological exploitation we can do
