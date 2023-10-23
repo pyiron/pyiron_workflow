@@ -355,7 +355,8 @@ class Node(HasToDict, ABC):
         return self.run(
             first_fetch_input=False,
             then_emit_output_signals=False,
-            force_local_execution=True
+            force_local_execution=True,
+            check_readiness=False,
         )
 
     def pull(self):
