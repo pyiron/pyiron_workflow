@@ -336,12 +336,16 @@ class Node(HasToDict, ABC):
         )
 
     def pull(self):
+        """
+        Use topological analysis to build a tree of all upstream dependencies; run them
+        first, then run this node to get an up-to-date result. Does _not_ fire the `ran`
+        signal afterwards.
+        """
         raise NotImplementedError
         # Need to implement everything for on-the-fly construction of the upstream
         # graph and its execution
         # Then,
-        self.update_input()
-        return self._run(finished_callback=self._finish_run)
+        return self.run(then_emit_output_signals=False)
 
     def __call__(self, **kwargs) -> None:
         self.update_input(**kwargs)
