@@ -142,6 +142,8 @@ class Node(HasToDict, ABC):
             owning this, if any.
         ready (bool): Whether the inputs are all ready and the node is neither
             already running nor already failed.
+        run_args (dict): **Abstract** the argmuments to use for actually running the
+            node. Must be specified in child classes.
         running (bool): Whether the node has called `run` and has not yet
             received output from this call. (Default is False.)
         signals (pyiron_workflow.io.Signals): A container for input and output
@@ -154,11 +156,19 @@ class Node(HasToDict, ABC):
             initialized.
 
     Methods:
+        __call__: Update input values (optional) then run the node (without firing off
+            .the `ran` signal, so nothing happens farther downstream).
         disconnect: Remove all connections, including signals.
         draw: Use graphviz to visualize the node, its IO and, if composite in nature,
             its internal structure.
-        on_run: **Abstract.** Do the thing.
-        run: A wrapper to handle all the infrastructure around executing `on_run`.
+        execute: Run the node, but right here, right now, and with the input it
+            currently has.
+        on_run: **Abstract.** Do the thing. What thing must be specified by child
+            classes.
+        pull: Run everything upstream, then run this node (but don't fire off the `ran`
+            signal, so nothing happens farther downstream).
+        run: Run the node function from `on_run`. Handles status, whether to run on an
+            executor, firing the `ran` signal, and callbacks (if an executor is used).
         set_input_values: Allows input channels' values to be updated without any running.
     """
 
@@ -346,6 +356,19 @@ class Node(HasToDict, ABC):
         return self.run(then_emit_output_signals=False)
 
     def __call__(self, **kwargs) -> None:
+        """
+        Update the input, then run without firing the `ran` signal.
+
+        Note that since input fetching happens _after_ the input values are updated,
+        if there is a connected data value it will get used instead of what is specified
+        here. If you really want to set a particular state and then run this can be
+        accomplished with `.inputs.fetch()` then `.set_input_values(...)` then
+        `.execute()` (or `.run(...)` with the flags you want).
+
+        Args:
+            **kwargs: Keyword arguments matching input channel labels; used to update
+                the input before running.
+        """
         self.set_input_values(**kwargs)
         return self.run()
 
