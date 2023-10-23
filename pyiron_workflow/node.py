@@ -321,14 +321,19 @@ class Node(HasToDict, ABC):
     """
     )
 
-    @manage_status
     def execute(self):
         """
-        Perform the node's operation with its current data.
+        Run the node with whatever input it currently has, run it on this python
+        process, and don't emit the `ran` signal afterwards.
 
-        Execution happens directly on this python process.
+        Intended to be useful for debugging by just forcing the node to do its thing
+        right here, right now, and as-is.
         """
-        return self.process_run_result(self.on_run(**self.run_args))
+        return self.run(
+            first_fetch_input=False,
+            then_emit_output_signals=False,
+            force_local_execution=True
+        )
 
     def pull(self):
         raise NotImplementedError
