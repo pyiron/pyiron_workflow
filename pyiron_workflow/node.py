@@ -231,15 +231,6 @@ class Node(HasToDict, ABC):
             run_output: The results of a `self.on_run(self.run_args)` call.
         """
 
-    @manage_status
-    def execute(self):
-        """
-        Perform the node's operation with its current data.
-
-        Execution happens directly on this python process.
-        """
-        return self.process_run_result(self.on_run(**self.run_args))
-
     def run(
         self,
         first_fetch_input: bool = True,
@@ -273,43 +264,6 @@ class Node(HasToDict, ABC):
             else self.finish_run,
             force_local_execution=force_local_execution,
         )
-
-    def pull(self):
-        raise NotImplementedError
-        # Need to implement everything for on-the-fly construction of the upstream
-        # graph and its execution
-        # Then,
-        self.update_input()
-        return self._run(finished_callback=self.finish_run)
-
-    def update_input(self, **kwargs) -> None:
-        """
-        Fetch the latest and highest-priority input values from connections, then
-        overwrite values with keywords arguments matching input channel labels.
-
-        Any channel that has neither a connection nor a kwarg update at time of call is
-        left unchanged.
-
-        Throws a warning if a keyword is provided that cannot be found among the input
-        keys.
-
-        If you really want to update just a single value without any other side-effects,
-        this can always be accomplished by following the full semantic path to the
-        channel's value: `my_node.input.my_channel.value = "foo"`.
-
-        Args:
-            **kwargs: input key - input value (including channels for connection) pairs.
-        """
-        self.inputs.fetch()
-        for k, v in kwargs.items():
-            if k in self.inputs.labels:
-                self.inputs[k] = v
-            else:
-                warnings.warn(
-                    f"The keyword '{k}' was not found among input labels. If you are "
-                    f"trying to update a node keyword, please use attribute assignment "
-                    f"directly instead of calling"
-                )
 
     @manage_status
     def _run(
@@ -359,10 +313,60 @@ class Node(HasToDict, ABC):
     finish_run_and_emit_ran.__doc__ = (
         finish_run.__doc__
         + """
-    
+
     Finally, fire the `ran` signal.
     """
     )
+
+    @manage_status
+    def execute(self):
+        """
+        Perform the node's operation with its current data.
+
+        Execution happens directly on this python process.
+        """
+        return self.process_run_result(self.on_run(**self.run_args))
+
+    def pull(self):
+        raise NotImplementedError
+        # Need to implement everything for on-the-fly construction of the upstream
+        # graph and its execution
+        # Then,
+        self.update_input()
+        return self._run(finished_callback=self.finish_run)
+
+    def __call__(self, **kwargs) -> None:
+        self.update_input(**kwargs)
+        return self.run()
+
+    def update_input(self, **kwargs) -> None:
+        """
+        Fetch the latest and highest-priority input values from connections, then
+        overwrite values with keywords arguments matching input channel labels.
+
+        Any channel that has neither a connection nor a kwarg update at time of call is
+        left unchanged.
+
+        Throws a warning if a keyword is provided that cannot be found among the input
+        keys.
+
+        If you really want to update just a single value without any other side-effects,
+        this can always be accomplished by following the full semantic path to the
+        channel's value: `my_node.input.my_channel.value = "foo"`.
+
+        Args:
+            **kwargs: input key - input value (including channels for connection) pairs.
+        """
+        self.inputs.fetch()
+        for k, v in kwargs.items():
+            if k in self.inputs.labels:
+                self.inputs[k] = v
+            else:
+                warnings.warn(
+                    f"The keyword '{k}' was not found among input labels. If you are "
+                    f"trying to update a node keyword, please use attribute assignment "
+                    f"directly instead of calling"
+                )
 
     def _build_signal_channels(self) -> Signals:
         signals = Signals()
@@ -413,10 +417,6 @@ class Node(HasToDict, ABC):
             and self.outputs.fully_connected
             and self.signals.fully_connected
         )
-
-    def __call__(self, **kwargs) -> None:
-        self.update_input(**kwargs)
-        return self.run()
 
     @property
     def color(self) -> str:
