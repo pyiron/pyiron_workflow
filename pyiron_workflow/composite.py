@@ -15,7 +15,7 @@ from pyiron_workflow.interfaces import Creator, Wrappers
 from pyiron_workflow.io import Outputs, Inputs
 from pyiron_workflow.node import Node
 from pyiron_workflow.node_package import NodePackage
-from pyiron_workflow.topology import nodes_to_execution_order
+from pyiron_workflow.topology import set_run_connections_according_to_linear_dag
 from pyiron_workflow.util import logger, DotDict, SeabornColors
 
 if TYPE_CHECKING:
@@ -189,31 +189,11 @@ class Composite(Node, ABC):
     def set_run_signals_to_dag_execution(self):
         """
         Disconnects all `signals.input.run` connections among children and attempts to
-        reconnect these according to the DAG flow of the data.
-
-        Raises:
-            ValueError: When the data connections do not form a DAG.
+        reconnect these according to the DAG flow of the data. On success, sets the
+        starting nodes to just be the upstream-most node in this linear DAG flow.
         """
-        disconnected = self.disconnect_run()
-        try:
-            self._set_run_connections_and_starting_nodes_according_to_linear_dag()
-            # TODO: Replace this linear setup with something more powerful
-        except Exception as e:
-            # Restore whatever you broke
-            for c1, c2 in disconnected:
-                c1.connect(c2)
-            # Then
-            raise e
-
-    def _set_run_connections_and_starting_nodes_according_to_linear_dag(self):
-        # This is the most primitive sort of topological exploitation we can do
-        # It is not efficient if the nodes have executors and can run in parallel
-        execution_order = nodes_to_execution_order(*self.nodes.values())
-
-        for i, label in enumerate(execution_order[:-1]):
-            next_node = execution_order[i + 1]
-            self.nodes[label] > self.nodes[next_node]
-        self.starting_nodes = [self.nodes[execution_order[0]]]
+        _, upstream_most_node = set_run_connections_according_to_linear_dag(self.nodes)
+        self.starting_nodes = [upstream_most_node]
 
     def _build_io(
         self,

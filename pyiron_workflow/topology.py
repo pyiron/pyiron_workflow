@@ -11,6 +11,7 @@ from typing import TYPE_CHECKING
 from toposort import toposort_flatten, CircularDependencyError
 
 if TYPE_CHECKING:
+    from pyiron_workflow.channels import InputSignal, OutputSignal
     from pyiron_workflow.node import Node
 
 
@@ -97,3 +98,46 @@ def nodes_to_execution_order(*nodes: Node) -> list[str]:
             f"execution of non-DAGs: cycles found among {e.data}"
         )
     return execution_order
+
+
+def set_run_connections_according_to_linear_dag(
+    nodes: dict[str, Node]
+) -> tuple[list[tuple[InputSignal, OutputSignal]], Node]:
+    """
+    Given a set of nodes that all have the same parent, have no upstream data
+    connections outside the nodes provided, and have acyclic data flow, disconnects all
+    their `run` and `ran` signals, then sets these signals to a linear execution that
+    guarantees downstream nodes are always executed after upstream nodes. Returns one
+    of the upstream-most nodes.
+
+    In the event an exception is encountered, any disconnected connections are repaired
+    before it is raised.
+
+    Args:
+        nodes (dict[str, Node]): A dictionary of node labels and the node the label is
+            from, whose connections will be set according to data flow.
+
+    Returns:
+        (list[tuple[Channel, Channel]]): Any `run`/`ran` pairs that were disconnected.
+        (Node): The 0th node in the execution order, i.e. on that has no
+            dependencies.
+    """
+    disconnected_pairs = []
+    for node in nodes.values():
+        disconnected_pairs.extend(node.signals.disconnect_run())
+
+    try:
+        # This is the most primitive sort of topological exploitation we can do
+        # It is not efficient if the nodes have executors and can run in parallel
+        execution_order = nodes_to_execution_order(*nodes.values())
+
+        for i, label in enumerate(execution_order[:-1]):
+            next_node = execution_order[i + 1]
+            nodes[label] > nodes[next_node]
+
+        return disconnected_pairs, nodes[execution_order[0]]
+    except Exception as e:
+        # Restore whatever you broke
+        for c1, c2 in disconnected_pairs:
+            c1.connect(c2)
+        raise e
