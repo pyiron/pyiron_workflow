@@ -2,3 +2,4 @@ channels:
   - conda-forge
 dependencies:
   - lammps
+  - pyiron_contrib =0.1.13
