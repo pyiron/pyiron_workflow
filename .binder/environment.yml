@@ -4,7 +4,7 @@ dependencies:
 - coveralls
 - coverage
 - bidict =0.22.1
-- cloudpickle =2.2.1
+- cloudpickle =3.0.0
 - graphviz =8.1.0
 - maggma =0.57.4
 - matplotlib =3.8.0
