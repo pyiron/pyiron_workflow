@@ -159,6 +159,7 @@ class Node(HasToDict, ABC):
             its internal structure.
         on_run: **Abstract.** Do the thing.
         run: A wrapper to handle all the infrastructure around executing `on_run`.
+        set_input_values: Allows input channels' values to be updated without any running.
     """
 
     def __init__(
@@ -345,10 +346,10 @@ class Node(HasToDict, ABC):
         return self.run(then_emit_output_signals=False)
 
     def __call__(self, **kwargs) -> None:
-        self.update_input(**kwargs)
+        self.set_input_values(**kwargs)
         return self.run()
 
-    def update_input(self, **kwargs) -> None:
+    def set_input_values(self, **kwargs) -> None:
         """
         Match keywords to input channels and update their values.
 

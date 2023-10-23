@@ -103,7 +103,7 @@ class Function(Node):
         run: Parse and process the input, execute the engine, process the results and
             update the output.
         disconnect: Disconnect all data and signal IO connections.
-        update_input: Allows input channels' values to be updated without any running.
+        set_input_values: Allows input channels' values to be updated without any running.
 
     Examples:
         At the most basic level, to use nodes all we need to do is provide the
@@ -333,7 +333,7 @@ class Function(Node):
         # TODO: Parse output labels from the node function in case output_labels is None
 
         self.signals = self._build_signal_channels()
-        self.update_input(*args, **kwargs)
+        self.set_input_values(*args, **kwargs)
 
     def _get_output_labels(self, output_labels: str | list[str] | tuple[str] | None):
         """
@@ -516,7 +516,7 @@ class Function(Node):
 
         return kwargs
 
-    def update_input(self, *args, **kwargs) -> None:
+    def set_input_values(self, *args, **kwargs) -> None:
         """
         Match positional and keyword arguments to input channels and update input
         values.
@@ -527,7 +527,7 @@ class Function(Node):
              pairs.
         """
         kwargs = self._convert_input_args_and_kwargs_to_input_kwargs(*args, **kwargs)
-        return super().update_input(**kwargs)
+        return super().set_input_values(**kwargs)
 
     def __call__(self, *args, **kwargs) -> None:
         kwargs = self._convert_input_args_and_kwargs_to_input_kwargs(*args, **kwargs)
