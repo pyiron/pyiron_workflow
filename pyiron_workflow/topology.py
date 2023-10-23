@@ -11,7 +11,7 @@ from typing import TYPE_CHECKING
 from toposort import toposort_flatten, CircularDependencyError
 
 if TYPE_CHECKING:
-    from pyiron_workflow.channels import InputSignal, OutputSignal
+    from pyiron_workflow.channels import SignalChannel
     from pyiron_workflow.node import Node
 
 
@@ -114,7 +114,7 @@ def nodes_to_execution_order(nodes: dict[str, Node]) -> list[str]:
 
 def set_run_connections_according_to_linear_dag(
     nodes: dict[str, Node]
-) -> tuple[list[tuple[InputSignal, OutputSignal]], Node]:
+) -> tuple[list[tuple[SignalChannel, SignalChannel]], Node]:
     """
     Given a set of nodes that all have the same parent, have no upstream data
     connections outside the nodes provided, and have acyclic data flow, disconnects all
@@ -130,13 +130,15 @@ def set_run_connections_according_to_linear_dag(
             from, whose connections will be set according to data flow.
 
     Returns:
-        (list[tuple[Channel, Channel]]): Any `run`/`ran` pairs that were disconnected.
+        (list[tuple[SignalChannel, SignalChannel]]): Any `run`/`ran` pairs that were
+            disconnected.
         (Node): The 0th node in the execution order, i.e. on that has no
             dependencies.
     """
     disconnected_pairs = []
     for node in nodes.values():
         disconnected_pairs.extend(node.signals.disconnect_run())
+        disconnected_pairs.extend(node.signals.output.ran.disconnect_all())
 
     try:
         # This is the most primitive sort of topological exploitation we can do
