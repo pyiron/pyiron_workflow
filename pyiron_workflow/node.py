@@ -263,7 +263,7 @@ class Node(HasToDict, ABC):
         if first_fetch_input:
             self.inputs.fetch()
         return self._run(
-            finished_callback=self.finish_run_and_emit_ran if then_emit_output_signals
+            finished_callback=self._finish_run_and_emit_ran if then_emit_output_signals
             else self._finish_run,
             force_local_execution=force_local_execution,
         )
@@ -308,12 +308,12 @@ class Node(HasToDict, ABC):
             self.failed = True
             raise e
 
-    def finish_run_and_emit_ran(self, run_output: tuple | Future) -> Any | tuple:
+    def _finish_run_and_emit_ran(self, run_output: tuple | Future) -> Any | tuple:
         processed_output = self._finish_run(run_output)
         self.signals.output.ran()
         return processed_output
 
-    finish_run_and_emit_ran.__doc__ = (
+    _finish_run_and_emit_ran.__doc__ = (
         _finish_run.__doc__
         + """
 
