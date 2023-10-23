@@ -71,6 +71,20 @@ class Creator(metaclass=Singleton):
         return NodePackage(*nodes)
 
     @property
+    def atomistic_codes(self):
+        from pyiron_workflow.node_package import NodePackage
+        from pyiron_workflow.node_library.atomistic_codes import nodes
+
+        return NodePackage(*nodes)
+
+    @property
+    def lammps(self):
+        from pyiron_workflow.node_package import NodePackage
+        from pyiron_workflow.node_library.lammps import nodes
+
+        return NodePackage(*nodes)
+
+    @property
     def meta(self):
         if self._meta is None:
             from pyiron_workflow.meta import meta_nodes
