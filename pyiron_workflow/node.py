@@ -16,6 +16,7 @@ from pyiron_workflow.executors import CloudpickleProcessPoolExecutor as Executor
 from pyiron_workflow.files import DirectoryObject
 from pyiron_workflow.has_to_dict import HasToDict
 from pyiron_workflow.io import Signals, InputSignal, OutputSignal
+from pyiron_workflow.topology import set_run_connections_according_to_linear_dag
 from pyiron_workflow.util import SeabornColors
 
 if TYPE_CHECKING:
@@ -362,14 +363,43 @@ class Node(HasToDict, ABC):
     def pull(self):
         """
         Use topological analysis to build a tree of all upstream dependencies; run them
-        first, then run this node to get an up-to-date result. Does _not_ fire the `ran`
-        signal afterwards.
+        first, then run this node to get an up-to-date result. Does not trigger any
+        downstream executions.
         """
-        raise NotImplementedError
-        # Need to implement everything for on-the-fly construction of the upstream
-        # graph and its execution
-        # Then,
-        return self.run(then_emit_output_signals=False)
+        label_map = {}
+        nodes = {}
+        for node in self.get_nodes_in_data_tree():
+            modified_label = node.label + str(id(node))
+            label_map[modified_label] = node.label
+            node.label = modified_label  # Ensure each node has a unique label
+            # This is necessary when the nodes do not have a workflow and may thus have
+            # arbitrary labels.
+            # This is pretty ugly; it would be nice to not depend so heavily on labels.
+            # Maybe we could switch a bunch of stuff to rely on the unique ID?
+            nodes[modified_label] = node
+        disconnected_pairs, starter = set_run_connections_according_to_linear_dag(nodes)
+        try:
+            self.signals.disconnect_run()  # Don't let anything upstream trigger this
+            starter.run()  # Now push from the top
+            return self.run()  # Finally, run here and return the result
+            # Emitting won't matter since we already disconnected this one
+        finally:
+            # No matter what, restore the original connections and labels afterwards
+            for modified_label, node in nodes.items():
+                node.label = label_map[modified_label]
+                node.signals.disconnect_run()
+            for c1, c2 in disconnected_pairs:
+                c1.connect(c2)
+
+    def get_nodes_in_data_tree(self) -> set[Node]:
+        """
+        Get a set of all nodes from this one and upstream through data connections.
+        """
+        nodes = set([self])
+        for channel in self.inputs:
+            for connection in channel.connections:
+                nodes = nodes.union(connection.node.get_nodes_in_data_tree())
+        return nodes
 
     def __call__(self, **kwargs) -> None:
         """
