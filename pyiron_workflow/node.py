@@ -240,19 +240,39 @@ class Node(HasToDict, ABC):
         """
         return self.process_run_result(self.on_run(**self.run_args))
 
-    def run(self):
+    def run(
+        self,
+        first_fetch_input: bool = True,
+        then_emit_output_signals: bool = True,
+        force_local_execution: bool = False,
+    ):
         """
         Update the input (with whatever is currently available -- does _not_ trigger
-        any other nodes to run) and use it to perform the node's operation.
+        any other nodes to run) and use it to perform the node's operation. After,
+        emit all output signals.
 
         If executor information is specified, execution happens on that process, a
         callback is registered, and futures object is returned.
 
-        Once complete, fire `ran` signal to propagate execution in the computation graph
-        that owns this node (if any).
+        Args:
+            first_fetch_input (bool): Whether to first update inputs with the
+                highest-priority connections holding data. (Default is True.)
+            then_emit_output_signals (bool): Whether to fire off all output signals
+                (e.g. `ran`) afterwards. (Default is True.)
+            force_local_execution (bool): Whether to ignore any executor settings and
+                force the computation to run locally. (Default is False.)
+
+        Returns:
+            (Any | Future): The result of running the node, or a futures object (if
+                running on an executor).
         """
-        self.update_input()
-        return self._run(finished_callback=self.finish_run_and_emit_ran)
+        if first_fetch_input:
+            self.inputs.fetch()
+        return self._run(
+            finished_callback=self.finish_run_and_emit_ran if then_emit_output_signals
+            else self.finish_run,
+            force_local_execution=force_local_execution,
+        )
 
     def pull(self):
         raise NotImplementedError
@@ -292,13 +312,18 @@ class Node(HasToDict, ABC):
                 )
 
     @manage_status
-    def _run(self, finished_callback: callable) -> Any | tuple | Future:
+    def _run(
+        self,
+        finished_callback: callable,
+        force_local_execution: bool,
+    ) -> Any | tuple | Future:
         """
         Executes the functionality of the node defined in `on_run`.
         Handles the status of the node, and communicating with any remote
         computing resources.
         """
-        if not self.executor:
+        if force_local_execution or not self.executor:
+            # Run locally
             run_output = self.on_run(**self.run_args)
             return finished_callback(run_output)
         else:
