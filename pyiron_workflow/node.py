@@ -350,23 +350,14 @@ class Node(HasToDict, ABC):
 
     def update_input(self, **kwargs) -> None:
         """
-        Fetch the latest and highest-priority input values from connections, then
-        overwrite values with keywords arguments matching input channel labels.
-
-        Any channel that has neither a connection nor a kwarg update at time of call is
-        left unchanged.
+        Match keywords to input channels and update their values.
 
         Throws a warning if a keyword is provided that cannot be found among the input
         keys.
 
-        If you really want to update just a single value without any other side-effects,
-        this can always be accomplished by following the full semantic path to the
-        channel's value: `my_node.input.my_channel.value = "foo"`.
-
         Args:
             **kwargs: input key - input value (including channels for connection) pairs.
         """
-        self.inputs.fetch()
         for k, v in kwargs.items():
             if k in self.inputs.labels:
                 self.inputs[k] = v
