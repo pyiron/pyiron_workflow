@@ -282,11 +282,11 @@ class Node(HasToDict, ABC):
                 f"should be neither running nor failed, and all input values should"
                 f" conform to type hints:\n"
                 f"running: {self.running}\n"
-                f"failed: {self.failed}\n"
-                + input_readiness
+                f"failed: {self.failed}\n" + input_readiness
             )
         return self._run(
-            finished_callback=self._finish_run_and_emit_ran if then_emit_output_signals
+            finished_callback=self._finish_run_and_emit_ran
+            if then_emit_output_signals
             else self._finish_run,
             force_local_execution=force_local_execution,
         )
