@@ -16,7 +16,6 @@ from pyiron_workflow.executors import CloudpickleProcessPoolExecutor as Executor
 from pyiron_workflow.files import DirectoryObject
 from pyiron_workflow.has_to_dict import HasToDict
 from pyiron_workflow.io import Signals, InputSignal, OutputSignal
-from pyiron_workflow.type_hinting import valid_value
 from pyiron_workflow.util import SeabornColors
 
 if TYPE_CHECKING:
@@ -24,7 +23,7 @@ if TYPE_CHECKING:
 
     from pyiron_workflow.channels import Channel
     from pyiron_workflow.composite import Composite
-    from pyiron_workflow.io import IO, Inputs, Outputs
+    from pyiron_workflow.io import Inputs, Outputs
 
 
 def manage_status(node_method):
