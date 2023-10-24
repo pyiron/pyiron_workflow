@@ -100,8 +100,8 @@ class ShellOutput:
 @function_node(output_labels=["output", "dump", "log"])
 def shell(
     command: str,
-    environment: dict = None,
-    arguments: list = None,
+    environment: Optional[dict] = None,
+    arguments: Optional[list] = None,
     working_directory: str = ".",
     # allowed_return_code:list=[]
 ):
