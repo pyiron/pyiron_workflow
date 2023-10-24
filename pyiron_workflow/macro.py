@@ -183,7 +183,7 @@ class Macro(Composite):
         self._inputs: Inputs = self._build_inputs()
         self._outputs: Outputs = self._build_outputs()
 
-        self.update_input(**kwargs)
+        self.set_input_values(**kwargs)
 
     def _get_linking_channel(
         self,

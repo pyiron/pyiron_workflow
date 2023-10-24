@@ -59,9 +59,9 @@ class Function(Node):
     Further, functions with multiple return branches that return different types or
     numbers of return values may or may not work smoothly, depending on the details.
 
-    Output is updated in the `process_run_result` inside the parent class `finish_run`
-    call, such that output data gets pushed after the node stops running but before
-    then `ran` signal fires: run, process and push result, ran.
+    Output is updated according to `process_run_result` -- which gets invoked by the
+    post-run callbacks defined in `Node` -- such that run results are used to populate
+    the output channels.
 
     After a node is instantiated, its input can be updated as `*args` and/or `**kwargs`
     on call.
@@ -103,7 +103,7 @@ class Function(Node):
         run: Parse and process the input, execute the engine, process the results and
             update the output.
         disconnect: Disconnect all data and signal IO connections.
-        update_input: Allows input channels' values to be updated without any running.
+        set_input_values: Allows input channels' values to be updated without any running.
 
     Examples:
         At the most basic level, to use nodes all we need to do is provide the
@@ -173,9 +173,7 @@ class Function(Node):
         using good variable names and returning those variables instead of using
         `output_labels`.
         If we force the node to `run()` (or call it) with bad types, it will raise an
-        error.
-        But, if we use the gentler `update()`, it will check types first and simply
-        return `None` if the input is not all `ready`.
+        error:
         >>> from typing import Union
         >>>
         >>> def hinted_example(
@@ -186,13 +184,17 @@ class Function(Node):
         ...     return p1, m1
         >>>
         >>> plus_minus_1 = Function(hinted_example, x="not an int")
-        >>> plus_minus_1.update()
-        >>> plus_minus_1.outputs.to_value_dict()
-        {'p1': <class 'pyiron_workflow.channels.NotData'>,
-        'm1': <class 'pyiron_workflow.channels.NotData'>}
+        >>> plus_minus_1.run()
+        ValueError: hinted_example received a run command but is not ready. The node
+        should be neither running nor failed, and all input values should conform to
+        type hints:
+        running: False
+        failed: False
+        x ready: False
+        y ready: True
 
         Here, even though all the input has data, the node sees that some of it is the
-        wrong type and so the automatic updates don't proceed all the way to a run.
+        wrong type and so (by default) the run raises an error right away.
         Note that the type hinting doesn't actually prevent us from assigning bad values
         directly to the channel (although it will, by default, prevent connections
         _between_ type-hinted channels with incompatible hints), but it _does_ stop the
@@ -333,7 +335,7 @@ class Function(Node):
         # TODO: Parse output labels from the node function in case output_labels is None
 
         self.signals = self._build_signal_channels()
-        self.update_input(*args, **kwargs)
+        self.set_input_values(*args, **kwargs)
 
     def _get_output_labels(self, output_labels: str | list[str] | tuple[str] | None):
         """
@@ -516,7 +518,7 @@ class Function(Node):
 
         return kwargs
 
-    def update_input(self, *args, **kwargs) -> None:
+    def set_input_values(self, *args, **kwargs) -> None:
         """
         Match positional and keyword arguments to input channels and update input
         values.
@@ -527,7 +529,7 @@ class Function(Node):
              pairs.
         """
         kwargs = self._convert_input_args_and_kwargs_to_input_kwargs(*args, **kwargs)
-        return super().update_input(**kwargs)
+        return super().set_input_values(**kwargs)
 
     def __call__(self, *args, **kwargs) -> None:
         kwargs = self._convert_input_args_and_kwargs_to_input_kwargs(*args, **kwargs)

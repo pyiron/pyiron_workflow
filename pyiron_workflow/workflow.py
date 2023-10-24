@@ -203,7 +203,13 @@ class Workflow(Composite):
     def outputs(self) -> Outputs:
         return self._build_outputs()
 
-    def run(self):
+    def run(
+        self,
+        first_fetch_input: bool = True,
+        then_emit_output_signals: bool = True,
+        force_local_execution: bool = False,
+        check_readiness: bool = True,
+    ):
         if self.automate_execution:
             self.set_run_signals_to_dag_execution()
         return super().run()
