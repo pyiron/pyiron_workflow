@@ -16,7 +16,7 @@ from pyiron_workflow.executors import CloudpickleProcessPoolExecutor as Executor
 from pyiron_workflow.files import DirectoryObject
 from pyiron_workflow.has_to_dict import HasToDict
 from pyiron_workflow.io import Signals, InputSignal, OutputSignal
-from pyiron_workflow.type_hinting import valid_value
+from pyiron_workflow.topology import set_run_connections_according_to_linear_dag
 from pyiron_workflow.util import SeabornColors
 
 if TYPE_CHECKING:
@@ -24,7 +24,7 @@ if TYPE_CHECKING:
 
     from pyiron_workflow.channels import Channel
     from pyiron_workflow.composite import Composite
-    from pyiron_workflow.io import IO, Inputs, Outputs
+    from pyiron_workflow.io import Inputs, Outputs
 
 
 def manage_status(node_method):
@@ -80,8 +80,11 @@ class Node(HasToDict, ABC):
     These labels also help to identify nodes in the wider context of (potentially
     nested) computational graphs.
 
-    By default, nodes' signals input comes with `run` and `ran` IO ports which force
-    the `run()` method and which emit after `finish_run()` is completed, respectfully.
+    By default, nodes' signals input comes with `run` and `ran` IO ports, which invoke
+    the `run()` method and emit after running the node, respectfully.
+    (Whether we get all the way to emitting the `ran` signal depends on how the node
+    was invoked -- it is possible to computing things with the node without sending
+    any more signals downstream.)
     These signal connections can be made manually by reference to the node signals
     channel, or with the `>` symbol to indicate a flow of execution. This syntactic
     sugar can be mixed between actual signal channels (output signal > input signal),
@@ -101,8 +104,8 @@ class Node(HasToDict, ABC):
 
     Nodes have a status, which is currently represented by the `running` and `failed`
     boolean flag attributes.
-    Their value is controlled automatically in the defined `run` and `finish_run`
-    methods.
+    These are updated automatically when the node's operation is invoked, e.g. with
+    `run`, `execute`, `pull`, or by calling the node instance.
 
     Nodes can be run on the main python process that owns them, or by setting their
     `executor` attribute to `True`, in which case a
@@ -140,6 +143,8 @@ class Node(HasToDict, ABC):
             owning this, if any.
         ready (bool): Whether the inputs are all ready and the node is neither
             already running nor already failed.
+        run_args (dict): **Abstract** the argmuments to use for actually running the
+            node. Must be specified in child classes.
         running (bool): Whether the node has called `run` and has not yet
             received output from this call. (Default is False.)
         signals (pyiron_workflow.io.Signals): A container for input and output
@@ -152,11 +157,20 @@ class Node(HasToDict, ABC):
             initialized.
 
     Methods:
+        __call__: Update input values (optional) then run the node (without firing off
+            .the `ran` signal, so nothing happens farther downstream).
         disconnect: Remove all connections, including signals.
         draw: Use graphviz to visualize the node, its IO and, if composite in nature,
             its internal structure.
-        on_run: **Abstract.** Do the thing.
-        run: A wrapper to handle all the infrastructure around executing `on_run`.
+        execute: Run the node, but right here, right now, and with the input it
+            currently has.
+        on_run: **Abstract.** Do the thing. What thing must be specified by child
+            classes.
+        pull: Run everything upstream, then run this node (but don't fire off the `ran`
+            signal, so nothing happens farther downstream).
+        run: Run the node function from `on_run`. Handles status, whether to run on an
+            executor, firing the `ran` signal, and callbacks (if an executor is used).
+        set_input_values: Allows input channels' values to be updated without any running.
     """
 
     def __init__(
@@ -182,8 +196,6 @@ class Node(HasToDict, ABC):
             parent.add(self)
         self.running = False
         self.failed = False
-        # TODO: Move from a traditional "sever" to a tinybase "executor"
-        # TODO: Provide support for actually computing stuff with the executor
         self.signals = self._build_signal_channels()
         self._working_directory = None
         self.executor = False
@@ -231,74 +243,68 @@ class Node(HasToDict, ABC):
             run_output: The results of a `self.on_run(self.run_args)` call.
         """
 
-    @manage_status
-    def execute(self):
-        """
-        Perform the node's operation with its current data.
-
-        Execution happens directly on this python process.
-        """
-        return self.process_run_result(self.on_run(**self.run_args))
-
-    def run(self):
+    def run(
+        self,
+        first_fetch_input: bool = True,
+        then_emit_output_signals: bool = True,
+        force_local_execution: bool = False,
+        check_readiness: bool = True,
+    ):
         """
         Update the input (with whatever is currently available -- does _not_ trigger
-        any other nodes to run) and use it to perform the node's operation.
+        any other nodes to run) and use it to perform the node's operation. After,
+        emit all output signals.
 
         If executor information is specified, execution happens on that process, a
         callback is registered, and futures object is returned.
 
-        Once complete, fire `ran` signal to propagate execution in the computation graph
-        that owns this node (if any).
-        """
-        self.update_input()
-        return self._run(finished_callback=self.finish_run_and_emit_ran)
-
-    def pull(self):
-        raise NotImplementedError
-        # Need to implement everything for on-the-fly construction of the upstream
-        # graph and its execution
-        # Then,
-        self.update_input()
-        return self._run(finished_callback=self.finish_run)
-
-    def update_input(self, **kwargs) -> None:
-        """
-        Fetch the latest and highest-priority input values from connections, then
-        overwrite values with keywords arguments matching input channel labels.
-
-        Any channel that has neither a connection nor a kwarg update at time of call is
-        left unchanged.
-
-        Throws a warning if a keyword is provided that cannot be found among the input
-        keys.
-
-        If you really want to update just a single value without any other side-effects,
-        this can always be accomplished by following the full semantic path to the
-        channel's value: `my_node.input.my_channel.value = "foo"`.
-
         Args:
-            **kwargs: input key - input value (including channels for connection) pairs.
+            first_fetch_input (bool): Whether to first update inputs with the
+                highest-priority connections holding data. (Default is True.)
+            then_emit_output_signals (bool): Whether to fire off all output signals
+                (e.g. `ran`) afterwards. (Default is True.)
+            force_local_execution (bool): Whether to ignore any executor settings and
+                force the computation to run locally. (Default is False.)
+            check_readiness (bool): Whether to raise an exception if the node is not
+                `ready` to run after fetching new input. (Default is True.)
+
+        Returns:
+            (Any | Future): The result of running the node, or a futures object (if
+                running on an executor).
         """
-        self.inputs.fetch()
-        for k, v in kwargs.items():
-            if k in self.inputs.labels:
-                self.inputs[k] = v
-            else:
-                warnings.warn(
-                    f"The keyword '{k}' was not found among input labels. If you are "
-                    f"trying to update a node keyword, please use attribute assignment "
-                    f"directly instead of calling"
-                )
+        if first_fetch_input:
+            self.inputs.fetch()
+        if check_readiness and not self.ready:
+            input_readiness = "\n".join(
+                [f"{k} ready: {v.ready}" for k, v in self.inputs.items()]
+            )
+            raise ValueError(
+                f"{self.label} received a run command but is not ready. The node "
+                f"should be neither running nor failed, and all input values should"
+                f" conform to type hints:\n"
+                f"running: {self.running}\n"
+                f"failed: {self.failed}\n" + input_readiness
+            )
+        return self._run(
+            finished_callback=self._finish_run_and_emit_ran
+            if then_emit_output_signals
+            else self._finish_run,
+            force_local_execution=force_local_execution,
+        )
 
     @manage_status
-    def _run(self, finished_callback: callable) -> Any | tuple | Future:
+    def _run(
+        self,
+        finished_callback: callable,
+        force_local_execution: bool,
+    ) -> Any | tuple | Future:
         """
         Executes the functionality of the node defined in `on_run`.
         Handles the status of the node, and communicating with any remote
         computing resources.
         """
-        if not self.executor:
+        if force_local_execution or not self.executor:
+            # Run locally
             run_output = self.on_run(**self.run_args)
             return finished_callback(run_output)
         else:
@@ -309,7 +315,7 @@ class Node(HasToDict, ABC):
             self.future.add_done_callback(finished_callback)
             return self.future
 
-    def finish_run(self, run_output: tuple | Future) -> Any | tuple:
+    def _finish_run(self, run_output: tuple | Future) -> Any | tuple:
         """
         Switch the node status, then process and return the run result.
 
@@ -326,28 +332,117 @@ class Node(HasToDict, ABC):
             self.failed = True
             raise e
 
-    def finish_run_and_emit_ran(self, run_output: tuple | Future) -> Any | tuple:
-        processed_output = self.finish_run(run_output)
+    def _finish_run_and_emit_ran(self, run_output: tuple | Future) -> Any | tuple:
+        processed_output = self._finish_run(run_output)
         self.signals.output.ran()
         return processed_output
 
-    finish_run_and_emit_ran.__doc__ = (
-        finish_run.__doc__
+    _finish_run_and_emit_ran.__doc__ = (
+        _finish_run.__doc__
         + """
-    
+
     Finally, fire the `ran` signal.
     """
     )
+
+    def execute(self):
+        """
+        Run the node with whatever input it currently has, run it on this python
+        process, and don't emit the `ran` signal afterwards.
+
+        Intended to be useful for debugging by just forcing the node to do its thing
+        right here, right now, and as-is.
+        """
+        return self.run(
+            first_fetch_input=False,
+            then_emit_output_signals=False,
+            force_local_execution=True,
+            check_readiness=False,
+        )
+
+    def pull(self):
+        """
+        Use topological analysis to build a tree of all upstream dependencies; run them
+        first, then run this node to get an up-to-date result. Does not trigger any
+        downstream executions.
+        """
+        label_map = {}
+        nodes = {}
+        for node in self.get_nodes_in_data_tree():
+            modified_label = node.label + str(id(node))
+            label_map[modified_label] = node.label
+            node.label = modified_label  # Ensure each node has a unique label
+            # This is necessary when the nodes do not have a workflow and may thus have
+            # arbitrary labels.
+            # This is pretty ugly; it would be nice to not depend so heavily on labels.
+            # Maybe we could switch a bunch of stuff to rely on the unique ID?
+            nodes[modified_label] = node
+        disconnected_pairs, starter = set_run_connections_according_to_linear_dag(nodes)
+        try:
+            self.signals.disconnect_run()  # Don't let anything upstream trigger this
+            starter.run()  # Now push from the top
+            return self.run()  # Finally, run here and return the result
+            # Emitting won't matter since we already disconnected this one
+        finally:
+            # No matter what, restore the original connections and labels afterwards
+            for modified_label, node in nodes.items():
+                node.label = label_map[modified_label]
+                node.signals.disconnect_run()
+            for c1, c2 in disconnected_pairs:
+                c1.connect(c2)
+
+    def get_nodes_in_data_tree(self) -> set[Node]:
+        """
+        Get a set of all nodes from this one and upstream through data connections.
+        """
+        nodes = set([self])
+        for channel in self.inputs:
+            for connection in channel.connections:
+                nodes = nodes.union(connection.node.get_nodes_in_data_tree())
+        return nodes
+
+    def __call__(self, **kwargs) -> None:
+        """
+        Update the input, then run without firing the `ran` signal.
+
+        Note that since input fetching happens _after_ the input values are updated,
+        if there is a connected data value it will get used instead of what is specified
+        here. If you really want to set a particular state and then run this can be
+        accomplished with `.inputs.fetch()` then `.set_input_values(...)` then
+        `.execute()` (or `.run(...)` with the flags you want).
+
+        Args:
+            **kwargs: Keyword arguments matching input channel labels; used to update
+                the input before running.
+        """
+        self.set_input_values(**kwargs)
+        return self.run()
+
+    def set_input_values(self, **kwargs) -> None:
+        """
+        Match keywords to input channels and update their values.
+
+        Throws a warning if a keyword is provided that cannot be found among the input
+        keys.
+
+        Args:
+            **kwargs: input key - input value (including channels for connection) pairs.
+        """
+        for k, v in kwargs.items():
+            if k in self.inputs.labels:
+                self.inputs[k] = v
+            else:
+                warnings.warn(
+                    f"The keyword '{k}' was not found among input labels. If you are "
+                    f"trying to update a node keyword, please use attribute assignment "
+                    f"directly instead of calling"
+                )
 
     def _build_signal_channels(self) -> Signals:
         signals = Signals()
         signals.input.run = InputSignal("run", self, self.run)
         signals.output.ran = OutputSignal("ran", self)
         return signals
-
-    def update(self) -> Any | tuple | Future | None:
-        if self.ready:
-            return self.run()
 
     @property
     def working_directory(self):
@@ -388,10 +483,6 @@ class Node(HasToDict, ABC):
             and self.outputs.fully_connected
             and self.signals.fully_connected
         )
-
-    def __call__(self, **kwargs) -> None:
-        self.update_input(**kwargs)
-        return self.run()
 
     @property
     def color(self) -> str:

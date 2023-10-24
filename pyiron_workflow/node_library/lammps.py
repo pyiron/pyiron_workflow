@@ -100,8 +100,8 @@ class ShellOutput:
 @function_node(output_labels=["output", "dump", "log"])
 def shell(
     command: str,
-    environment: dict = None,
-    arguments: list = None,
+    environment: Optional[dict] = None,
+    arguments: Optional[list] = None,
     working_directory: str = ".",
     # allowed_return_code:list=[]
 ):
@@ -119,7 +119,7 @@ def shell(
     # print ([str(command), *map(str, arguments)], working_directory, environment)
     # print("start shell")
     proc = subprocess.run(
-        [str(command), *map(str, arguments)],
+        [command, *map(str, arguments)],
         capture_output=True,
         cwd=working_directory,
         encoding="utf8",

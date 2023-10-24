@@ -60,7 +60,7 @@ class Replacer:
             self.node.parent.replace(self.node, other)
             # print ('replacer called', self.node.label, other, kwargs) #, other.info, dir(other))
             self.node = self.parent[self.node_label]
-            return self.node.update_input(**kwargs)
+            return self.node.set_input_values(**kwargs)
 
         else:
             import warnings
