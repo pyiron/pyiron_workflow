@@ -25,7 +25,7 @@ def lammps(wf: Macro) -> None:
     )
     init_lammps.inputs.working_directory = init_lammps.working_directory.path
     shell = wf.create.lammps.Shell(
-        command=ExecutablePathResolver(module="lammps", code="lammps"),
+        command=ExecutablePathResolver(module="lammps", code="lammps").path(),
         working_directory=init_lammps.outputs.path,
     )
 
