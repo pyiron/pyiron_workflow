@@ -10,12 +10,12 @@ from functools import partial
 from typing import Literal, Optional, TYPE_CHECKING
 
 from bidict import bidict
-from toposort import toposort_flatten, CircularDependencyError
 
 from pyiron_workflow.interfaces import Creator, Wrappers
 from pyiron_workflow.io import Outputs, Inputs
 from pyiron_workflow.node import Node
 from pyiron_workflow.node_package import NodePackage
+from pyiron_workflow.topology import set_run_connections_according_to_linear_dag
 from pyiron_workflow.util import logger, DotDict, SeabornColors
 
 if TYPE_CHECKING:
@@ -189,74 +189,11 @@ class Composite(Node, ABC):
     def set_run_signals_to_dag_execution(self):
         """
         Disconnects all `signals.input.run` connections among children and attempts to
-        reconnect these according to the DAG flow of the data.
-
-        Raises:
-            ValueError: When the data connections do not form a DAG.
+        reconnect these according to the DAG flow of the data. On success, sets the
+        starting nodes to just be the upstream-most node in this linear DAG flow.
         """
-        self.disconnect_run()
-        self._set_run_connections_and_starting_nodes_according_to_linear_dag()
-        # TODO: Replace this linear setup with something more powerful
-
-    def _set_run_connections_and_starting_nodes_according_to_linear_dag(self):
-        # This is the most primitive sort of topological exploitation we can do
-        # It is not efficient if the nodes have executors and can run in parallel
-        try:
-            # Topological sorting ensures that all input dependencies have been
-            # executed before the node depending on them gets run
-            # The flattened part is just that we don't care about topological
-            # generations that are mutually independent (inefficient but easier for now)
-            execution_order = toposort_flatten(self.get_data_digraph())
-        except CircularDependencyError as e:
-            raise ValueError(
-                f"Detected a cycle in the data flow topology, unable to automate the "
-                f"execution of non-DAGs: cycles found among {e.data}"
-            )
-
-        for i, label in enumerate(execution_order[:-1]):
-            next_node = execution_order[i + 1]
-            self.nodes[label] > self.nodes[next_node]
-        self.starting_nodes = [self.nodes[execution_order[0]]]
-
-    def get_data_digraph(self) -> dict[str, set[str]]:
-        """
-        Builds a directed graph of node labels based on data connections between nodes
-        directly owned by this composite -- i.e. does not worry about data connections
-        which are entirely internal to an owned sub-graph.
-
-        Returns:
-            dict[str, set[str]]: A dictionary of nodes and the nodes they depend on for
-                data.
-
-        Raises:
-            ValueError: When a node appears in its own input.
-        """
-        digraph = {}
-
-        for node in self.nodes.values():
-            node_dependencies = []
-            for channel in node.inputs:
-                locally_scoped_dependencies = []
-                for upstream in channel.connections:
-                    if upstream.node.parent is self:
-                        locally_scoped_dependencies.append(upstream.node.label)
-                    elif channel.node.get_first_shared_parent(upstream.node) is self:
-                        locally_scoped_dependencies.append(
-                            upstream.node.get_parent_proximate_to(self).label
-                        )
-                node_dependencies.extend(locally_scoped_dependencies)
-            node_dependencies = set(node_dependencies)
-            if node.label in node_dependencies:
-                # the toposort library has a
-                # [known issue](https://gitlab.com/ericvsmith/toposort/-/issues/3)
-                # That self-dependency isn't caught, so we catch it manually here.
-                raise ValueError(
-                    f"Detected a cycle in the data flow topology, unable to automate "
-                    f"the execution of non-DAGs: {node.label} appears in its own input."
-                )
-            digraph[node.label] = node_dependencies
-
-        return digraph
+        _, upstream_most_node = set_run_connections_according_to_linear_dag(self.nodes)
+        self.starting_nodes = [upstream_most_node]
 
     def _build_io(
         self,

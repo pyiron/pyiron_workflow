@@ -286,7 +286,7 @@ class TestFunction(unittest.TestCase):
             msg="Expected 'self' to be filtered out of node input, but found it in the "
                 "input labels"
         )
-        node.inputs.x = 1
+        node.inputs.x = 1.0
         node.run()
         self.assertEqual(
             node.outputs.output.value,
@@ -489,7 +489,12 @@ class TestFunction(unittest.TestCase):
         ref = reference()
         floats = all_floats()
         ref()
-        floats()
+        floats.run(
+            check_readiness=False,
+            # We force-skip the readiness check since we are explicitly _trying_ to
+            # have one of the inputs be `NotData` -- a value which triggers the channel
+            # to be "not ready"
+        )
 
         ref._copy_values(floats)
         self.assertEqual(
