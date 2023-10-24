@@ -119,7 +119,7 @@ def shell(
     # print ([str(command), *map(str, arguments)], working_directory, environment)
     # print("start shell")
     proc = subprocess.run(
-        [str(command), *map(str, arguments)],
+        [command, *map(str, arguments)],
         capture_output=True,
         cwd=working_directory,
         encoding="utf8",
