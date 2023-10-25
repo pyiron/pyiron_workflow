@@ -21,10 +21,11 @@ def lammps(wf: Macro) -> None:
         structure=wf.structure,
         potential=potential,
         calculator=wf.calc.outputs.calculator,
-        working_directory="test2",
+        # working_directory="test2",
     )
+    init_lammps.inputs.working_directory = init_lammps.working_directory.path
     shell = wf.create.lammps.Shell(
-        command=ExecutablePathResolver(module="lammps", code="lammps"),
+        command=ExecutablePathResolver(module="lammps", code="lammps").path(),
         working_directory=init_lammps.outputs.path,
     )
 

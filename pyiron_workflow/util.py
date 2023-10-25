@@ -13,6 +13,13 @@ class DotDict(dict):
     def __dir__(self):
         return set(super().__dir__() + list(self.keys()))
 
+    def __getstate__(self):
+        return self.__dict__
+
+    def __setstate__(self, state):
+        for k, v in state.items():
+            self.__dict__[k] = v
+
 
 class SeabornColors:
     """

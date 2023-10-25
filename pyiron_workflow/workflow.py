@@ -15,6 +15,7 @@ from pyiron_workflow.io import Inputs, Outputs
 if TYPE_CHECKING:
     from bidict import bidict
 
+    from pyiron_workflow.channels import InputData, OutputData
     from pyiron_workflow.node import Node
 
 
@@ -184,6 +185,16 @@ class Workflow(Composite):
         for node in nodes:
             self.add(node)
 
+    def _get_linking_channel(
+        self,
+        child_reference_channel: InputData | OutputData,
+        composite_io_key: str,
+    ) -> InputData | OutputData:
+        """
+        Build IO by reference: just return the child's channel itself.
+        """
+        return child_reference_channel
+
     @property
     def inputs(self) -> Inputs:
         return self._build_inputs()
@@ -192,7 +203,13 @@ class Workflow(Composite):
     def outputs(self) -> Outputs:
         return self._build_outputs()
 
-    def run(self):
+    def run(
+        self,
+        first_fetch_input: bool = True,
+        then_emit_output_signals: bool = True,
+        force_local_execution: bool = False,
+        check_readiness: bool = True,
+    ):
         if self.automate_execution:
             self.set_run_signals_to_dag_execution()
         return super().run()
