@@ -4,7 +4,7 @@ Container classes for giving access to various workflow objects and tools
 
 from __future__ import annotations
 
-from typing import TYPE_CHECKING
+from importlib import import_module
 
 from pyiron_base.interfaces.singleton import Singleton
 
@@ -18,9 +18,6 @@ from pyiron_workflow.function import (
     single_value_node,
 )
 
-if TYPE_CHECKING:
-    from pyiron_workflow.node import Node
-
 
 class Creator(metaclass=Singleton):
     """
@@ -30,6 +27,8 @@ class Creator(metaclass=Singleton):
     """
 
     def __init__(self):
+        self._node_packages = {}
+
         self.Executor = Executor
 
         self.Function = Function
@@ -57,20 +56,6 @@ class Creator(metaclass=Singleton):
         return self._workflow
 
     @property
-    def standard(self):
-        from pyiron_workflow.node_package import NodePackage
-        from pyiron_workflow.node_library.standard import nodes
-
-        return NodePackage(*nodes)
-
-    @property
-    def atomistics(self):
-        from pyiron_workflow.node_package import NodePackage
-        from pyiron_workflow.node_library.atomistics import nodes
-
-        return NodePackage(*nodes)
-
-    @property
     def meta(self):
         if self._meta is None:
             from pyiron_workflow.meta import meta_nodes
@@ -78,16 +63,32 @@ class Creator(metaclass=Singleton):
             self._meta = meta_nodes
         return self._meta
 
-    def register(self, domain: str, *nodes: list[type[Node]]):
-        raise NotImplementedError(
-            "Registering new node packages is currently not playing well with "
-            "executors. We hope to return this feature soon."
-        )
-        # if domain in self.__dir__():
-        #     raise AttributeError(f"{domain} is already an attribute of {self}")
-        # from pyiron_workflow.node_package import NodePackage
-        #
-        # setattr(self, domain, NodePackage(*nodes))
+    def __getattr__(self, item):
+        try:
+            module = import_module(self._node_packages[item])
+            from pyiron_workflow.node_package import NodePackage
+            return NodePackage(*module.nodes)
+        except KeyError as e:
+            raise AttributeError(
+                f"{self.__class__.__name__} could not find attribute {item} -- did you "
+                f"forget to register node package to this key?"
+            ) from e
+
+    def __getstate__(self):
+        return self.__dict__
+
+    def __setstate__(self, state):
+        self.__dict__ = state
+
+    def register(self, domain: str, import_path: str):
+        if domain in self.__dir__():
+            raise AttributeError(f"{domain} is already an attribute of {self}")
+        if domain in self._node_packages.keys():
+            raise KeyError(
+                f"{domain} is already a registered node package, please choose a "
+                f"different domain to store these nodes under"
+            )
+        self._node_packages[domain] = import_path
 
 
 class Wrappers(metaclass=Singleton):
