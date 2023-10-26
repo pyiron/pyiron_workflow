@@ -625,25 +625,16 @@ class SingleValue(Function, HasChannel):
         )
 
 
-def function_node(output_labels=None):
-    """
-    A decorator for dynamically creating node classes from functions.
-
-    Decorates a function.
-    Returns a `Function` subclass whose name is the camel-case version of the function
-    node, and whose signature is modified to exclude the node function and output labels
-    (which are explicitly defined in the process of using the decorator).
-
-    Optionally takes any keyword arguments of `Function`.
-    """
-
+def _wrapper_factory(
+    parent_class: type[Function], output_labels: Optional[list[str]]
+) -> callable:
     def as_node(node_function: callable):
         return type(
             node_function.__name__.title().replace("_", ""),  # fnc_name to CamelCase
-            (Function,),  # Define parentage
+            (parent_class,),  # Define parentage
             {
                 "__init__": partialmethod(
-                    Function.__init__,
+                    parent_class.__init__,
                     None,
                     output_labels=output_labels,
                 ),
@@ -655,6 +646,20 @@ def function_node(output_labels=None):
     return as_node
 
 
+def function_node(output_labels=None):
+    """
+    A decorator for dynamically creating node classes from functions.
+
+    Decorates a function.
+    Returns a `Function` subclass whose name is the camel-case version of the function
+    node, and whose signature is modified to exclude the node function and output labels
+    (which are explicitly defined in the process of using the decorator).
+
+    Optionally takes any keyword arguments of `Function`.
+    """
+    return _wrapper_factory(parent_class=Function, output_labels=output_labels)
+
+
 def single_value_node(output_labels=None):
     """
     A decorator for dynamically creating fast node classes from functions.
@@ -663,20 +668,4 @@ def single_value_node(output_labels=None):
 
     Optionally takes any keyword arguments of `SingleValueNode`.
     """
-
-    def as_single_value_node(node_function: callable):
-        return type(
-            node_function.__name__.title().replace("_", ""),  # fnc_name to CamelCase
-            (SingleValue,),  # Define parentage
-            {
-                "__init__": partialmethod(
-                    SingleValue.__init__,
-                    None,
-                    output_labels=output_labels,
-                ),
-                "node_function": staticmethod(node_function),
-                "_type_hints": get_type_hints(node_function),
-            },
-        )
-
-    return as_single_value_node
+    return _wrapper_factory(parent_class=SingleValue, output_labels=output_labels)
