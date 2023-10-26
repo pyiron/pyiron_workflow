@@ -607,7 +607,13 @@ class SingleValue(Function, HasChannel):
         return self.single_value.__getitem__(item)
 
     def __getattr__(self, item):
-        return getattr(self.single_value, item)
+        try:
+            return getattr(self.single_value, item)
+        except Exception as e:
+            raise AttributeError(
+                f"Could not find {item} as an attribute of the single value "
+                f"{self.single_value}"
+            ) from e
 
     def __repr__(self):
         return self.single_value.__repr__()
