@@ -322,6 +322,8 @@ class Function(Node):
         else:
             # If a callable node function is received, use it
             self.node_function = node_function
+            self._input_type_hints = get_type_hints(node_function)
+            self._output_type_hints = get_type_hints(node_function)["return"]
 
         super().__init__(
             label=label if label is not None else self.node_function.__name__,
@@ -382,7 +384,7 @@ class Function(Node):
 
     def _build_input_channels(self):
         channels = []
-        type_hints = get_type_hints(self.node_function)
+        type_hints = self._input_type_hints
 
         for ii, (label, value) in enumerate(self._input_args.items()):
             is_self = False
@@ -435,7 +437,7 @@ class Function(Node):
 
     def _build_output_channels(self, *return_labels: str):
         try:
-            type_hints = get_type_hints(self.node_function)["return"]
+            type_hints = self._output_type_hints
             if len(return_labels) > 1:
                 type_hints = get_args(type_hints)
                 if not isinstance(type_hints, tuple):
@@ -637,6 +639,8 @@ def function_node(output_labels=None):
     """
 
     def as_node(node_function: callable):
+        hints = get_type_hints(node_function)
+        return_hint = hints["return"] if hasattr(hints, "return") else None
         return type(
             node_function.__name__.title().replace("_", ""),  # fnc_name to CamelCase
             (Function,),  # Define parentage
@@ -647,6 +651,8 @@ def function_node(output_labels=None):
                     output_labels=output_labels,
                 ),
                 "node_function": staticmethod(node_function),
+                "_input_type_hints": hints,
+                "_output_type_hints": return_hint,
             },
         )
 
@@ -663,6 +669,8 @@ def single_value_node(output_labels=None):
     """
 
     def as_single_value_node(node_function: callable):
+        hints = get_type_hints(node_function)
+        return_hint = hints["return"] if hasattr(hints, "return") else None
         return type(
             node_function.__name__.title().replace("_", ""),  # fnc_name to CamelCase
             (SingleValue,),  # Define parentage
@@ -673,6 +681,8 @@ def single_value_node(output_labels=None):
                     output_labels=output_labels,
                 ),
                 "node_function": staticmethod(node_function),
+                "_input_type_hints": hints,
+                "_output_type_hints": return_hint,
             },
         )
 
