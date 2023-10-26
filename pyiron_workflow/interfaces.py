@@ -39,6 +39,9 @@ class Creator(metaclass=Singleton):
         self._workflow = None
         self._meta = None
 
+        self.register("standard", "pyiron_workflow.node_library.standard")
+        self.register("atomistics", "pyiron_workflow.node_library.atomistics")
+
     @property
     def Macro(self):
         if self._macro is None:
