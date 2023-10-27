@@ -70,6 +70,7 @@ class Creator(metaclass=Singleton):
         try:
             module = import_module(self._node_packages[item])
             from pyiron_workflow.node_package import NodePackage
+
             return NodePackage(*module.nodes)
         except KeyError as e:
             raise AttributeError(
