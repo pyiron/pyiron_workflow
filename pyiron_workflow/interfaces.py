@@ -154,6 +154,7 @@ class Creator(metaclass=Singleton):
         nodes.
         """
         from pyiron_workflow.node import Node
+
         try:
             module = import_module(package_identifier)
             nodes = module.nodes
