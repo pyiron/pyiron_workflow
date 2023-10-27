@@ -84,7 +84,24 @@ class Creator(metaclass=Singleton):
     def __setstate__(self, state):
         self.__dict__ = state
 
-    def register(self, domain: str, package_identifier: str):
+    def register(self, domain: str, package_identifier: str) -> None:
+        """
+        Add a new package of nodes under the provided attribute, e.g. after adding
+        nodes to the domain `"my_nodes"`, and instance of creator can call things like
+        `creator.my_nodes.some_node_that_is_there()`
+
+        Args:
+            domain (str):
+            package_identifier (str): An identifier for the node package. (Right now
+                that's just a string version of the path to the module, e.g.
+                `pyiron_workflow.node_library.standard`.)
+
+        Raises:
+            KeyError: If the domain already exists, but the identifier doesn't match
+                with the stored identifier.
+            AttributeError: If you try to register at a domain that is already another
+                method or attribute of the creator.
+        """
         if domain in self._node_packages.keys():
             if package_identifier != self._node_packages[domain]:
                 raise KeyError(
