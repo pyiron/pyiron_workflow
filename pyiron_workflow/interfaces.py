@@ -101,6 +101,7 @@ class Creator(metaclass=Singleton):
                 with the stored identifier.
             AttributeError: If you try to register at a domain that is already another
                 method or attribute of the creator.
+            ValueError: If the identifier can't be parsed.
         """
         if domain in self._node_packages.keys():
             if package_identifier != self._node_packages[domain]:
@@ -113,7 +114,34 @@ class Creator(metaclass=Singleton):
         elif domain in self.__dir__():
             raise AttributeError(f"{domain} is already an attribute of {self}")
 
+        self._verify_identifier(package_identifier)
+
         self._node_packages[domain] = package_identifier
+
+    @staticmethod
+    def _verify_identifier(package_identifier: str):
+        """
+        Logic for verifying whether new package identifiers will actually be usable for
+        creating node packages when their domain is called. Lets us fail early in
+        registration.
+
+        Right now, we just make sure it's a string from which we can import a list of
+        nodes.
+        """
+        from pyiron_workflow.node import Node
+        try:
+            module = import_module(package_identifier)
+            nodes = module.nodes
+            if not all(issubclass(node, Node) for node in nodes):
+                raise TypeError(
+                    f"At least one node in {nodes} was not of the type {Node.__name__}"
+                )
+        except Exception as e:
+            raise ValueError(
+                f"The package identifier is {package_identifier} is not valid. Please "
+                f"ensure it is an importable module with a list of {Node.__name__} "
+                f"objects stored in the variable `nodes`."
+            ) from e
 
 
 class Wrappers(metaclass=Singleton):

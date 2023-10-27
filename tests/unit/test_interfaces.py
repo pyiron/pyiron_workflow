@@ -54,3 +54,30 @@ class TestCreator(TestCase):
             ):
                 some_field = self.creator.dir()[0]
                 self.creator.register(some_field, "static.demo_nodes")
+
+        with self.subTest("Test failure cases"):
+            n_initial_packages = len(self.creator._node_packages)
+
+            with self.assertRaises(
+                ValueError,
+                msg="Mustn't allow importing from things that are not node packages"
+            ):
+                self.creator.register("not_even", "static.not_a_node_package")
+
+            with self.assertRaises(
+                ValueError,
+                msg="Must require a `nodes` property in the module"
+            ):
+                self.creator.register("forgetful", "static.forgetful_node_package")
+
+            with self.assertRaises(
+                ValueError,
+                msg="Must have only nodes in the iterable `nodes` property"
+            ):
+                self.creator.register("faulty", "static.faulty_node_package")
+
+            self.assertEqual(
+                n_initial_packages,
+                len(self.creator._node_packages),
+                msg="Packages should not be getting added if exceptions are raised"
+            )
