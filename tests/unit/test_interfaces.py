@@ -34,3 +34,23 @@ class TestCreator(TestCase):
             node(),
             msg="Node should get instantiated from creator and be operable"
         )
+
+        with self.subTest("Test re-registration"):
+            self.creator.register("demo", "static.demo_nodes")
+            # Same thing to the same location should be fine
+
+            self.creator.register("a_key_other_than_demo", "static.demo_nodes")
+            # The same thing to another key is usually dumb, but totally permissible
+
+            with self.assertRaises(
+                KeyError,
+                msg="Should not be able to register a new package to an existing domain"
+            ):
+                self.creator.register("demo", "pyiron_workflow.node_library.standard")
+
+            with self.assertRaises(
+                AttributeError,
+                msg="Should not be able to register to existing fields"
+            ):
+                some_field = self.creator.dir()[0]
+                self.creator.register(some_field, "static.demo_nodes")
