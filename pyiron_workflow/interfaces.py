@@ -84,9 +84,9 @@ class Creator(metaclass=Singleton):
     def __setstate__(self, state):
         self.__dict__ = state
 
-    def register(self, domain: str, import_path: str):
+    def register(self, domain: str, package_identifier: str):
         if domain in self._node_packages.keys():
-            if import_path != self._node_packages[domain]:
+            if package_identifier != self._node_packages[domain]:
                 raise KeyError(
                     f"{domain} is already a registered node package, please choose a "
                     f"different domain to store these nodes under"
@@ -96,7 +96,7 @@ class Creator(metaclass=Singleton):
         elif domain in self.__dir__():
             raise AttributeError(f"{domain} is already an attribute of {self}")
 
-        self._node_packages[domain] = import_path
+        self._node_packages[domain] = package_identifier
 
 
 class Wrappers(metaclass=Singleton):
