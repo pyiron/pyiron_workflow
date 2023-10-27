@@ -91,7 +91,9 @@ class Creator(metaclass=Singleton):
         `creator.my_nodes.some_node_that_is_there()`
 
         Args:
-            domain (str):
+            domain (str): The attribute name at which to register the new package.
+                (Note: no sanitizing is done here, so if you provide a string that
+                won't work as an attribute name, that's your problem.)
             package_identifier (str): An identifier for the node package. (Right now
                 that's just a string version of the path to the module, e.g.
                 `pyiron_workflow.node_library.standard`.)
@@ -103,20 +105,43 @@ class Creator(metaclass=Singleton):
                 method or attribute of the creator.
             ValueError: If the identifier can't be parsed.
         """
-        if domain in self._node_packages.keys():
-            if package_identifier != self._node_packages[domain]:
-                raise KeyError(
-                    f"{domain} is already a registered node package, please choose a "
-                    f"different domain to store these nodes under"
-                )
-            # Else we're just re-registering the same thing to the same place,
-            # which is fine
+
+        if self._package_conflicts_with_existing(domain, package_identifier):
+            raise KeyError(
+                f"{domain} is already a registered node package, please choose a "
+                f"different domain to store these nodes under"
+            )
         elif domain in self.__dir__():
             raise AttributeError(f"{domain} is already an attribute of {self}")
 
         self._verify_identifier(package_identifier)
 
         self._node_packages[domain] = package_identifier
+
+    def _package_conflicts_with_existing(
+        self, domain: str, package_identifier: str
+    ) -> bool:
+        """
+        Check if the new package conflict with an existing package at the requested
+        domain; if there isn't one, or if the new and old packages are identical then
+        there is no conflict!
+
+        Args:
+            domain (str): The domain at which the new package is attempting to register.
+            package_identifier (str): The identifier for the new package.
+
+        Returns:
+            (bool): True iff there is a package already at that domain and it is not
+                the same as the new one.
+        """
+        if domain in self._node_packages.keys():
+            # If it's already here, it had better be the same package
+            return package_identifier != self._node_packages[domain]
+            # We can make "sameness" logic more complex as we allow more sophisticated
+            # identifiers
+        else:
+            # If it's not here already, it can't conflict!
+            return False
 
     @staticmethod
     def _verify_identifier(package_identifier: str):
