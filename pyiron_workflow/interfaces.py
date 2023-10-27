@@ -84,13 +84,17 @@ class Creator(metaclass=Singleton):
         self.__dict__ = state
 
     def register(self, domain: str, import_path: str):
-        if domain in self.__dir__():
-            raise AttributeError(f"{domain} is already an attribute of {self}")
         if domain in self._node_packages.keys():
-            raise KeyError(
-                f"{domain} is already a registered node package, please choose a "
-                f"different domain to store these nodes under"
-            )
+            if import_path != self._node_packages[domain]:
+                raise KeyError(
+                    f"{domain} is already a registered node package, please choose a "
+                    f"different domain to store these nodes under"
+                )
+            # Else we're just re-registering the same thing to the same place,
+            # which is fine
+        elif domain in self.__dir__():
+            raise AttributeError(f"{domain} is already an attribute of {self}")
+
         self._node_packages[domain] = import_path
 
 
