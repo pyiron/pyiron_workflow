@@ -1,8 +1,7 @@
-from pathlib import Path
 import sys
 from unittest import TestCase, skipUnless
 
-
+from pyiron_workflow._tests import ensure_tests_in_python_path
 from pyiron_workflow.interfaces import Creator
 
 
@@ -13,9 +12,7 @@ class TestCreator(TestCase):
     @classmethod
     def setUpClass(cls) -> None:
         cls.creator = Creator()
-        path_to_tests = Path(__file__).parent.parent
-        sys.path.append(str(path_to_tests.resolve()))
-        # Now we can import from `static`
+        ensure_tests_in_python_path()
 
     def test_registration(self):
 
