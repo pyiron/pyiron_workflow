@@ -2,6 +2,7 @@ import unittest
 
 import numpy as np
 
+from pyiron_workflow._tests import ensure_tests_in_python_path
 from pyiron_workflow.channels import OutputSignal
 from pyiron_workflow.function import Function
 from pyiron_workflow.workflow import Workflow
@@ -185,12 +186,13 @@ class TestTopology(unittest.TestCase):
         C.f. `pyiron_workflow.function._wrapper_factory` for more detail.
         """
 
+        ensure_tests_in_python_path()
         wf = Workflow("depickle")
-        wf.create.register("atomistics", "pyiron_workflow.node_library.atomistics")
-        wf.structure = wf.create.atomistics.Bulk(name="Al")
-        wf.structure.executor = True
+        wf.create.register("demo", "static.demo_nodes")
+        wf.before_pickling = wf.create.demo.OptionallyAdd(1)
+        wf.before_pickling.executor = True
         wf()
-        wf.structure.future.result()  # Wait for it to finish
-        wf.structure.executor = False
-        wf.another_structure = wf.create.atomistics.Bulk(name="Cu")
+        wf.before_pickling.future.result()  # Wait for it to finish
+        wf.before_pickling.executor = False
+        wf.after_pickling = wf.create.demo.OptionallyAdd(2, y=3)
         wf()
