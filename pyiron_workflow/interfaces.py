@@ -93,7 +93,12 @@ class Creator(metaclass=Singleton):
         """
         Add a new package of nodes under the provided attribute, e.g. after adding
         nodes to the domain `"my_nodes"`, and instance of creator can call things like
-        `creator.my_nodes.some_node_that_is_there()`
+        `creator.my_nodes.some_node_that_is_there()`.
+
+        Note: If a macro is going to use a creator, the node registration should be
+            _inside_ the macro definition to make sure the node actually has access to
+            those nodes! It also needs to be _able_ to register those nodes, i.e. have
+            import access to that location, but we don't for that check that.
 
         Args:
             domain (str): The attribute name at which to register the new package.
