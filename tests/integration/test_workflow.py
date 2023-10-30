@@ -78,30 +78,27 @@ class TestTopology(unittest.TestCase):
         )
 
     def test_for_loop(self):
+        ensure_tests_in_python_path()
+        Workflow.register("demo", "static.demo_nodes")
+
         n = 5
 
         bulk_loop = Workflow.create.meta.for_loop(
-            Workflow.create.atomistics.Bulk,
+            Workflow.create.demo.OptionallyAdd,
             n,
-            iterate_on=("a",),
+            iterate_on=("y",),
         )()
 
+        base = 42
+        to_add = np.arange(n, dtype=int)
         out = bulk_loop(
-            name="Al",  # Sent equally to each body node
-            A=np.linspace(3.9, 4.1, n).tolist(),  # Distributed across body nodes
+            x=base,  # Sent equally to each body node
+            Y=to_add.tolist(),  # Distributed across body nodes
         )
 
         self.assertTrue(
-            np.allclose(
-                [struct.cell.volume for struct in out.STRUCTURE],
-                [
-                    14.829749999999995,
-                    15.407468749999998,
-                    15.999999999999998,
-                    16.60753125,
-                    17.230249999999995
-                ]
-            )
+            np.allclose([added for added in out.SUM], to_add + base),
+            msg="Output should be list result of each individiual result"
         )
 
     def test_while_loop(self):
