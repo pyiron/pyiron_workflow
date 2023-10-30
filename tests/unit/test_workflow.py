@@ -92,9 +92,9 @@ class TestWorkflow(unittest.TestCase):
         wf.register("demo", "static.demo_nodes")
 
         # Test invocation
-        wf.create.demo.OptionalAdd(label="by_add")
+        wf.create.demo.OptionallyAdd(label="by_add")
         # Test invocation with attribute assignment
-        wf.by_assignment = wf.create.demo.OptionalAdd()
+        wf.by_assignment = wf.create.demo.OptionallyAdd()
 
         self.assertSetEqual(
             set(wf.nodes.keys()),
