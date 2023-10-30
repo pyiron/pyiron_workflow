@@ -34,7 +34,7 @@ setup(
         'maggma==0.57.4',
         'matplotlib==3.8.0',
         'numpy==1.26.0',
-        'pyiron_atomistics==0.3.4',
+        'pyiron_atomistics==0.3.5',
         'pyiron_base==0.6.8',
         'toposort==1.10',
         'typeguard==4.1.5',
