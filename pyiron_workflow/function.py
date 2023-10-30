@@ -632,6 +632,7 @@ def _wrapper_factory(
     An abstract base for making decorators that wrap a function as `Function` or its
     children.
     """
+
     # One really subtle thing is that we manually parse the function type hints right
     # here and include these as a class-level attribute.
     # This is because on (de)(cloud)pickling a function node, somehow the node function
