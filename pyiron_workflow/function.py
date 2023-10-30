@@ -628,6 +628,25 @@ class SingleValue(Function, HasChannel):
 def _wrapper_factory(
     parent_class: type[Function], output_labels: Optional[list[str]]
 ) -> callable:
+    """
+    An abstract base for making decorators that wrap a function as `Function` or its
+    children.
+    """
+    # One really subtle thing is that we manually parse the function type hints right
+    # here and include these as a class-level attribute.
+    # This is because on (de)(cloud)pickling a function node, somehow the node function
+    # method attached to it gets its `__globals__` attribute changed; it retains stuff
+    # _inside_ the function, but loses imports it used from the _outside_ -- i.e. type
+    # hints! I (@liamhuber) don't deeply understand _why_ (de)pickling is modifying the
+    # __globals__ in this way, but the result is that type hints cannot be parsed after
+    # the change.
+    # The final piece of the puzzle here is that because the node function is a _class_
+    # level attribute, if you (de)pickle a node, _new_ instances of that node wind up
+    # having their node function's `__globals__` trimmed down in this way!
+    # So to keep the type hint parsing working, we snag and interpret all the type hints
+    # at wrapping time, when we are guaranteed to have all the globals available, and
+    # also slap them on as a class-level attribute. These get safely packed and returned
+    # when (de)pickling so we can keep processing type hints without trouble.
     def as_node(node_function: callable):
         return type(
             node_function.__name__.title().replace("_", ""),  # fnc_name to CamelCase
