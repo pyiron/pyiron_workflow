@@ -422,9 +422,10 @@ class Composite(Node, ABC):
             self.starting_nodes.append(replacement)
         return owned_node
 
+    @classmethod
     @wraps(Creator.register)
-    def register(self, domain: str, package_identifier: str) -> None:
-        self.create.register(domain=domain, package_identifier=package_identifier)
+    def register(cls, domain: str, package_identifier: str) -> None:
+        cls.create.register(domain=domain, package_identifier=package_identifier)
 
     def __setattr__(self, key: str, node: Node):
         if isinstance(node, Node) and key != "parent":
