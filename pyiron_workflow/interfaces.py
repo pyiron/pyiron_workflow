@@ -46,7 +46,6 @@ class Creator(metaclass=Singleton):
             # If the CI skips testing on 3.9 gets dropped, we can think about removing
             # this if-clause and just letting users of python <3.10 hit an error.
             self.register("standard", "pyiron_workflow.node_library.standard")
-            self.register("atomistics", "pyiron_workflow.node_library.atomistics")
 
     @property
     def Macro(self):
