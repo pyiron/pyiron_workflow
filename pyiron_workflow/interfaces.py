@@ -5,6 +5,7 @@ Container classes for giving access to various workflow objects and tools
 from __future__ import annotations
 
 from importlib import import_module
+from sys import version_info
 
 from pyiron_base.interfaces.singleton import Singleton
 
@@ -39,8 +40,13 @@ class Creator(metaclass=Singleton):
         self._workflow = None
         self._meta = None
 
-        self.register("standard", "pyiron_workflow.node_library.standard")
-        self.register("atomistics", "pyiron_workflow.node_library.atomistics")
+        if version_info[0] == 3 and version_info[1] >= 10:
+            # These modules use syntactic sugar for type hinting that is only supported
+            # in python >=3.10
+            # If the CI skips testing on 3.9 gets dropped, we can think about removing
+            # this if-clause and just letting users of python <3.10 hit an error.
+            self.register("standard", "pyiron_workflow.node_library.standard")
+            self.register("atomistics", "pyiron_workflow.node_library.atomistics")
 
     @property
     def Macro(self):
