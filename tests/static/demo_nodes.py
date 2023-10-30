@@ -8,9 +8,9 @@ from pyiron_workflow import Workflow
 
 
 @Workflow.wrap_as.single_value_node("sum")
-def add(x: int, y: Optional[int] = None) -> int:
+def optionally_add(x: int, y: Optional[int] = None) -> int:
     y = 0 if y is None else y
     return x + y
 
 
-nodes = [add]
+nodes = [optionally_add]

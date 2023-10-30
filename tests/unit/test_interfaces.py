@@ -25,7 +25,7 @@ class TestCreator(TestCase):
 
         self.creator.register("demo", "static.demo_nodes")
 
-        node = self.creator.demo.Add(1, 2)
+        node = self.creator.demo.OptionallyAdd(1, 2)
         self.assertEqual(
             3,
             node(),
