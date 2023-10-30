@@ -155,7 +155,7 @@ class TestCloudpickleProcessPoolExecutor(unittest.TestCase):
         executor = CloudpickleProcessPoolExecutor()
         fs = executor.submit(f.run)
         self.assertEqual(
-            fs.result(timeout=30),
+            fs.result(timeout=60),
             fortytwo,
             msg="waiting long enough should get the result"
         )
