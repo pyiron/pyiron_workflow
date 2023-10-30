@@ -86,7 +86,6 @@ class TestWorkflow(unittest.TestCase):
             msg="Removal should also remove from starting nodes"
         )
 
-
     def test_node_packages(self):
         wf = Workflow("my_workflow")
         wf.register("demo", "static.demo_nodes")
