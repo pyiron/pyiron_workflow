@@ -171,3 +171,26 @@ class TestTopology(unittest.TestCase):
 
             out = wf(a=1, b=2)
             self.assertEqual(out.total, 11)
+
+    def test_executor_and_creator_interaction(self):
+        """
+        Make sure that submitting stuff to a parallel processor doesn't stop us from
+        using the same stuff on the main process. This can happen because the
+        (de)(cloud)pickle process messes with the `__globals__` attribute of the node
+        function, and since the node function is a class attribute the original node
+        gets updated on de-pickling.
+        We code around this, but lets make sure it stays working by adding a test!
+        Critical in this test is that the node used has complex type hints.
+
+        C.f. `pyiron_workflow.function._wrapper_factory` for more detail.
+        """
+
+        wf = Workflow("depickle")
+        wf.create.register("atomistics", "pyiron_workflow.node_library.atomistics")
+        wf.structure = wf.create.atomistics.Bulk(name="Al")
+        wf.structure.executor = True
+        wf()
+        wf.structure.future.result()  # Wait for it to finish
+        wf.structure.executor = False
+        wf.another_structure = wf.create.atomistics.Bulk(name="Cu")
+        wf()
