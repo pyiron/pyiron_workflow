@@ -248,9 +248,9 @@ class Node(HasToDict, ABC):
         run_data_tree: bool = False,
         run_parent_trees_too: bool = False,
         fetch_input: bool = True,
-        emit_ran_signal: bool = True,
-        force_local_execution: bool = False,
         check_readiness: bool = True,
+        force_local_execution: bool = False,
+        emit_ran_signal: bool = True,
     ):
         """
         The master method for running in a variety of ways.
@@ -269,12 +269,12 @@ class Node(HasToDict, ABC):
                 parent nodes (if any). (Default is False.)
             fetch_input (bool): Whether to first update inputs with the
                 highest-priority connections holding data. (Default is True.)
-            emit_ran_signal (bool): Whether to fire off all the output `ran` signal
-                afterwards. (Default is True.)
-            force_local_execution (bool): Whether to ignore any executor settings and
-                force the computation to run locally. (Default is False.)
             check_readiness (bool): Whether to raise an exception if the node is not
                 `ready` to run after fetching new input. (Default is True.)
+            force_local_execution (bool): Whether to ignore any executor settings and
+                force the computation to run locally. (Default is False.)
+            emit_ran_signal (bool): Whether to fire off all the output `ran` signal
+                afterwards. (Default is True.)
 
         Returns:
             (Any | Future): The result of running the node, or a futures object (if
@@ -433,9 +433,9 @@ class Node(HasToDict, ABC):
             run_data_tree=False,
             run_parent_trees_too=False,
             fetch_input=False,
-            emit_ran_signal=False,
-            force_local_execution=True,
             check_readiness=False,
+            force_local_execution=True,
+            emit_ran_signal=False,
         )
 
     def pull(self, run_parent_trees_too=False):
@@ -443,9 +443,9 @@ class Node(HasToDict, ABC):
             run_data_tree=True,
             run_parent_trees_too=run_parent_trees_too,
             fetch_input=True,
-            emit_ran_signal=False,
-            force_local_execution=False,
             check_readiness=True,
+            force_local_execution=False,
+            emit_ran_signal=False,
         )
 
     def __call__(self, **kwargs) -> None:
