@@ -441,6 +441,18 @@ class Node(HasToDict, ABC):
         )
 
     def pull(self, run_parent_trees_too=False):
+        """
+        A shortcut for `run` with particular flags.
+
+        Runs nodes upstream in the data graph, then runs this node without triggering
+        any downstream runs. By default only runs sibling nodes, but can optionally
+        require the parent node to pull in its own upstream runs (this is recursive
+        up to the parent-most object).
+
+        Args:
+            run_parent_trees_too (bool): Whether to (recursively) require the parent to
+                first pull.
+        """
         return self.run(
             run_data_tree=True,
             run_parent_trees_too=run_parent_trees_too,
