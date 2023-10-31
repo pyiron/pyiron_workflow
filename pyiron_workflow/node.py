@@ -309,6 +309,55 @@ class Node(HasToDict, ABC):
             force_local_execution=force_local_execution,
         )
 
+    def run_data_tree(self, run_parent_trees_too=False) -> None:
+        """
+        Use topological analysis to build a tree of all upstream dependencies and run
+        them.
+
+        Args:
+            run_parent_trees_too (bool): First, call the same method on this node's
+                parent (if one exists), and recursively up the parentage tree. (Default
+                is False, only run nodes in this scope, i.e. sharing the same parent.)
+        """
+        if run_parent_trees_too and self.parent is not None:
+            self.parent.run_data_tree(pull_from_parents=True)
+
+        label_map = {}
+        nodes = {}
+        for node in self.get_nodes_in_data_tree():
+            modified_label = node.label + str(id(node))
+            label_map[modified_label] = node.label
+            node.label = modified_label  # Ensure each node has a unique label
+            # This is necessary when the nodes do not have a workflow and may thus have
+            # arbitrary labels.
+            # This is pretty ugly; it would be nice to not depend so heavily on labels.
+            # Maybe we could switch a bunch of stuff to rely on the unique ID?
+            nodes[modified_label] = node
+
+        try:
+            disconnected_pairs, starter = set_run_connections_according_to_linear_dag(
+                nodes
+            )
+        except Exception as e:
+            # If the dag setup fails it will repair any connections it breaks before
+            # raising the error, but we still need to repair our label changes
+            for modified_label, node in nodes.items():
+                node.label = label_map[modified_label]
+            raise e
+
+        self.signals.disconnect_run()
+        # Don't let anything upstream trigger this node
+
+        try:
+            starter.run()  # Now push from the top
+        finally:
+            # No matter what, restore the original connections and labels afterwards
+            for modified_label, node in nodes.items():
+                node.label = label_map[modified_label]
+                node.signals.disconnect_run()
+            for c1, c2 in disconnected_pairs:
+                c1.connect(c2)
+
     @manage_status
     def _run(
         self,
@@ -378,55 +427,6 @@ class Node(HasToDict, ABC):
             force_local_execution=True,
             check_readiness=False,
         )
-
-    def run_data_tree(self, run_parent_trees_too=False) -> None:
-        """
-        Use topological analysis to build a tree of all upstream dependencies and run
-        them.
-
-        Args:
-            run_parent_trees_too (bool): First, call the same method on this node's
-                parent (if one exists), and recursively up the parentage tree. (Default
-                is False, only run nodes in this scope, i.e. sharing the same parent.)
-        """
-        if run_parent_trees_too and self.parent is not None:
-            self.parent.run_data_tree(pull_from_parents=True)
-
-        label_map = {}
-        nodes = {}
-        for node in self.get_nodes_in_data_tree():
-            modified_label = node.label + str(id(node))
-            label_map[modified_label] = node.label
-            node.label = modified_label  # Ensure each node has a unique label
-            # This is necessary when the nodes do not have a workflow and may thus have
-            # arbitrary labels.
-            # This is pretty ugly; it would be nice to not depend so heavily on labels.
-            # Maybe we could switch a bunch of stuff to rely on the unique ID?
-            nodes[modified_label] = node
-
-        try:
-            disconnected_pairs, starter = set_run_connections_according_to_linear_dag(
-                nodes
-            )
-        except Exception as e:
-            # If the dag setup fails it will repair any connections it breaks before
-            # raising the error, but we still need to repair our label changes
-            for modified_label, node in nodes.items():
-                node.label = label_map[modified_label]
-            raise e
-
-        self.signals.disconnect_run()
-        # Don't let anything upstream trigger this node
-
-        try:
-            starter.run()  # Now push from the top
-        finally:
-            # No matter what, restore the original connections and labels afterwards
-            for modified_label, node in nodes.items():
-                node.label = label_map[modified_label]
-                node.signals.disconnect_run()
-            for c1, c2 in disconnected_pairs:
-                c1.connect(c2)
 
     def pull(self, run_parent_trees_too=False):
         return self.run(
