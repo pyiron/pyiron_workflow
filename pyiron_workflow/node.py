@@ -358,6 +358,16 @@ class Node(HasToDict, ABC):
             for c1, c2 in disconnected_pairs:
                 c1.connect(c2)
 
+    def get_nodes_in_data_tree(self) -> set[Node]:
+        """
+        Get a set of all nodes from this one and upstream through data connections.
+        """
+        nodes = set([self])
+        for channel in self.inputs:
+            for connection in channel.connections:
+                nodes = nodes.union(connection.node.get_nodes_in_data_tree())
+        return nodes
+
     @manage_status
     def _run(
         self,
@@ -437,16 +447,6 @@ class Node(HasToDict, ABC):
             force_local_execution=False,
             check_readiness=True,
         )
-
-    def get_nodes_in_data_tree(self) -> set[Node]:
-        """
-        Get a set of all nodes from this one and upstream through data connections.
-        """
-        nodes = set([self])
-        for channel in self.inputs:
-            for connection in channel.connections:
-                nodes = nodes.union(connection.node.get_nodes_in_data_tree())
-        return nodes
 
     def __call__(self, **kwargs) -> None:
         """
