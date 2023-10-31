@@ -360,7 +360,10 @@ class Node(HasToDict, ABC):
         # Don't let anything upstream trigger this node
 
         try:
-            starter.run()  # Now push from the top
+            # If you're the only one in the data tree, there's nothing upstream to run
+            # Otherwise...
+            if starter is not self:
+                starter.run()  # Now push from the top
         finally:
             # No matter what, restore the original connections and labels afterwards
             for modified_label, node in nodes.items():
@@ -479,7 +482,7 @@ class Node(HasToDict, ABC):
         """
         A shortcut for `run`.
         """
-        return self.run(**kwargs)
+        return self.pull(run_parent_tree_too=True, **kwargs)
 
     def set_input_values(self, **kwargs) -> None:
         """

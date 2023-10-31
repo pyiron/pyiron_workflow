@@ -375,11 +375,9 @@ class TestMacro(unittest.TestCase):
         # For macro IO channels that weren't connected, we don't really care
         # If it fails to replace, it had better revert to its original state
 
-        macro = Macro(add_three_macro)
+        macro = Macro(add_three_macro, one__x=0)
         downstream = SingleValue(add_one, x=macro.outputs.three__result)
-        macro > downstream
-        macro(one__x=0)
-        # Or once pull exists: macro.one__x = 0; downstream.pull()
+        downstream.pull()
         self.assertEqual(
             0 + (1 + 1 + 1) + 1,
             downstream.outputs.result.value,
@@ -392,7 +390,7 @@ class TestMacro(unittest.TestCase):
         compatible_replacement = SingleValue(add_two)
 
         macro.replace(macro.three, compatible_replacement)
-        macro(one__x=0)
+        downstream.pull()
         self.assertEqual(
             len(downstream.inputs.x.connections),
             1,
@@ -457,7 +455,10 @@ class TestMacro(unittest.TestCase):
             msg="Failed replacements should get reverted, leaving the replacement in "
                 "its original state"
         )
-        macro(one__x=1)  # Fresh input to make sure updates are actually going through
+        macro > downstream
+        # If we want to push, we need to define a connection formally
+        macro.run(one__x=1)
+        # Fresh input to make sure updates are actually going through
         self.assertEqual(
             1 + (1 + 1 + 2) + 1,
             downstream.outputs.result.value,
@@ -484,7 +485,8 @@ class TestMacro(unittest.TestCase):
     def test_with_executor(self):
         macro = Macro(add_three_macro)
         downstream = SingleValue(add_one, x=macro.outputs.three__result)
-        macro > downstream  # Later we can just pull() instead
+        macro > downstream  # Manually specify since we'll run the macro but look
+        # at the downstream output, and none of this is happening in a workflow
 
         original_one = macro.one
         macro.executor = True
@@ -495,7 +497,7 @@ class TestMacro(unittest.TestCase):
             msg="Sanity check that test is in right starting condition"
         )
 
-        result = macro(one__x=0)
+        result = macro.run(one__x=0)
         self.assertIsInstance(
             result,
             Future,
