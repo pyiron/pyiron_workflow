@@ -248,7 +248,7 @@ class Node(HasToDict, ABC):
         run_data_tree: bool = False,
         run_parent_trees_too: bool = False,
         fetch_input: bool = True,
-        then_emit_output_signals: bool = True,
+        emit_ran_signal: bool = True,
         force_local_execution: bool = False,
         check_readiness: bool = True,
     ):
@@ -269,8 +269,8 @@ class Node(HasToDict, ABC):
                 parent nodes (if any). (Default is False.)
             fetch_input (bool): Whether to first update inputs with the
                 highest-priority connections holding data. (Default is True.)
-            then_emit_output_signals (bool): Whether to fire off all output signals
-                (e.g. `ran`) afterwards. (Default is True.)
+            emit_ran_signal (bool): Whether to fire off all the output `ran` signal
+                afterwards. (Default is True.)
             force_local_execution (bool): Whether to ignore any executor settings and
                 force the computation to run locally. (Default is False.)
             check_readiness (bool): Whether to raise an exception if the node is not
@@ -304,7 +304,7 @@ class Node(HasToDict, ABC):
 
         return self._run(
             finished_callback=self._finish_run_and_emit_ran
-            if then_emit_output_signals
+            if emit_ran_signal
             else self._finish_run,
             force_local_execution=force_local_execution,
         )
@@ -433,7 +433,7 @@ class Node(HasToDict, ABC):
             run_data_tree=False,
             run_parent_trees_too=False,
             fetch_input=False,
-            then_emit_output_signals=False,
+            emit_ran_signal=False,
             force_local_execution=True,
             check_readiness=False,
         )
@@ -443,7 +443,7 @@ class Node(HasToDict, ABC):
             run_data_tree=True,
             run_parent_trees_too=run_parent_trees_too,
             fetch_input=True,
-            then_emit_output_signals=False,
+            emit_ran_signal=False,
             force_local_execution=False,
             check_readiness=True,
         )

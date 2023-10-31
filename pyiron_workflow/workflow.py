@@ -206,7 +206,7 @@ class Workflow(Composite):
     def run(
         self,
         fetch_input: bool = True,
-        then_emit_output_signals: bool = True,
+        emit_ran_signal: bool = True,
         force_local_execution: bool = False,
         check_readiness: bool = True,
     ):
@@ -218,7 +218,7 @@ class Workflow(Composite):
             run_data_tree=False,
             run_parent_trees_too=False,
             fetch_input=fetch_input,
-            then_emit_output_signals=then_emit_output_signals,
+            emit_ran_signal=emit_ran_signal,
             force_local_execution=force_local_execution,
             check_readiness=check_readiness,
         )
