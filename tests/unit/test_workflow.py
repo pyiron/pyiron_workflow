@@ -462,13 +462,8 @@ class TestWorkflow(unittest.TestCase):
             with self.assertRaises(ValueDuplicationError):
                 wf.inputs_map["foo2__x"] = "x1"
 
-    def test_pull(self):
+    def test_run_data_tree(self):
         wf = Workflow("parent_most")
-        with self.assertRaises(
-            NotImplementedError,
-            msg="Workflows are a parent-most object"
-        ):
-            wf.pull()
         with self.assertRaises(
             NotImplementedError,
             msg="Workflows are a parent-most object"

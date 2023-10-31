@@ -223,10 +223,8 @@ class Workflow(Composite):
         )
 
     def pull(self, run_parent_trees_too=False):
-        raise NotImplementedError(
-            f"{self.__class__.__name__} must be a parent-most node, and therefore has "
-            f"no one to pull data from."
-        )
+        """Workflows are a parent-most object, so this simply runs without pulling."""
+        return self.run()
 
     def run_data_tree(self, run_parent_trees_too=False) -> None:
         raise NotImplementedError(
