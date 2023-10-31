@@ -247,7 +247,7 @@ class Node(HasToDict, ABC):
         self,
         run_data_tree: bool = False,
         run_parent_trees_too: bool = False,
-        first_fetch_input: bool = True,
+        fetch_input: bool = True,
         then_emit_output_signals: bool = True,
         force_local_execution: bool = False,
         check_readiness: bool = True,
@@ -267,7 +267,7 @@ class Node(HasToDict, ABC):
                 graph. (Default is False.)
             run_parent_trees_too (bool): Whether to recursively run the data tree in
                 parent nodes (if any). (Default is False.)
-            first_fetch_input (bool): Whether to first update inputs with the
+            fetch_input (bool): Whether to first update inputs with the
                 highest-priority connections holding data. (Default is True.)
             then_emit_output_signals (bool): Whether to fire off all output signals
                 (e.g. `ran`) afterwards. (Default is True.)
@@ -287,7 +287,7 @@ class Node(HasToDict, ABC):
         if run_data_tree:
             self.run_data_tree(run_parent_trees_too=run_parent_trees_too)
 
-        if first_fetch_input:
+        if fetch_input:
             self.inputs.fetch()
 
         if check_readiness and not self.ready:
@@ -432,7 +432,7 @@ class Node(HasToDict, ABC):
         return self.run(
             run_data_tree=False,
             run_parent_trees_too=False,
-            first_fetch_input=False,
+            fetch_input=False,
             then_emit_output_signals=False,
             force_local_execution=True,
             check_readiness=False,
@@ -442,7 +442,7 @@ class Node(HasToDict, ABC):
         return self.run(
             run_data_tree=True,
             run_parent_trees_too=run_parent_trees_too,
-            first_fetch_input=True,
+            fetch_input=True,
             then_emit_output_signals=False,
             force_local_execution=False,
             check_readiness=True,
