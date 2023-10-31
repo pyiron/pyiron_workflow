@@ -423,6 +423,8 @@ class Node(HasToDict, ABC):
 
     def execute(self):
         """
+        A shortcut for `run` with particular flags.
+
         Run the node with whatever input it currently has, run it on this python
         process, and don't emit the `ran` signal afterwards.
 
