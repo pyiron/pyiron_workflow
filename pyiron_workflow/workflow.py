@@ -205,22 +205,21 @@ class Workflow(Composite):
 
     def run(
         self,
-        fetch_input: bool = True,
         check_readiness: bool = True,
         force_local_execution: bool = False,
-        emit_ran_signal: bool = True,
     ):
-        # Note: Workflows may not have parents, so we don't need to worry about running
-        # their data trees first, hence the change in signature from Node.run
+        # Note: Workflows may have neither parents nor siblings, so we don't need to
+        # worry about running their data trees first, fetching their input, nor firing
+        # their `ran` signal, hence the change in signature from Node.run
         if self.automate_execution:
             self.set_run_signals_to_dag_execution()
         return super().run(
             run_data_tree=False,
             run_parent_trees_too=False,
-            fetch_input=fetch_input,
+            fetch_input=False,
             check_readiness=check_readiness,
             force_local_execution=force_local_execution,
-            emit_ran_signal=emit_ran_signal,
+            emit_ran_signal=False,
         )
 
     def pull(self, run_parent_trees_too=False):
