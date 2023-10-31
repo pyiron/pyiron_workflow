@@ -2,6 +2,7 @@ import unittest
 
 import numpy as np
 
+from pyiron_workflow._tests import ensure_tests_in_python_path
 from pyiron_workflow.channels import OutputSignal
 from pyiron_workflow.function import Function
 from pyiron_workflow.workflow import Workflow
@@ -77,30 +78,27 @@ class TestTopology(unittest.TestCase):
         )
 
     def test_for_loop(self):
+        ensure_tests_in_python_path()
+        Workflow.register("demo", "static.demo_nodes")
+
         n = 5
 
         bulk_loop = Workflow.create.meta.for_loop(
-            Workflow.create.atomistics.Bulk,
+            Workflow.create.demo.OptionallyAdd,
             n,
-            iterate_on=("a",),
+            iterate_on=("y",),
         )()
 
+        base = 42
+        to_add = np.arange(n, dtype=int)
         out = bulk_loop(
-            name="Al",  # Sent equally to each body node
-            A=np.linspace(3.9, 4.1, n).tolist(),  # Distributed across body nodes
+            x=base,  # Sent equally to each body node
+            Y=to_add.tolist(),  # Distributed across body nodes
         )
 
         self.assertTrue(
-            np.allclose(
-                [struct.cell.volume for struct in out.STRUCTURE],
-                [
-                    14.829749999999995,
-                    15.407468749999998,
-                    15.999999999999998,
-                    16.60753125,
-                    17.230249999999995
-                ]
-            )
+            np.allclose([added for added in out.SUM], to_add + base),
+            msg="Output should be list result of each individiual result"
         )
 
     def test_while_loop(self):
@@ -171,3 +169,27 @@ class TestTopology(unittest.TestCase):
 
             out = wf(a=1, b=2)
             self.assertEqual(out.total, 11)
+
+    def test_executor_and_creator_interaction(self):
+        """
+        Make sure that submitting stuff to a parallel processor doesn't stop us from
+        using the same stuff on the main process. This can happen because the
+        (de)(cloud)pickle process messes with the `__globals__` attribute of the node
+        function, and since the node function is a class attribute the original node
+        gets updated on de-pickling.
+        We code around this, but lets make sure it stays working by adding a test!
+        Critical in this test is that the node used has complex type hints.
+
+        C.f. `pyiron_workflow.function._wrapper_factory` for more detail.
+        """
+
+        ensure_tests_in_python_path()
+        wf = Workflow("depickle")
+        wf.create.register("demo", "static.demo_nodes")
+        wf.before_pickling = wf.create.demo.OptionallyAdd(1)
+        wf.before_pickling.executor = True
+        wf()
+        wf.before_pickling.future.result()  # Wait for it to finish
+        wf.before_pickling.executor = False
+        wf.after_pickling = wf.create.demo.OptionallyAdd(2, y=3)
+        wf()

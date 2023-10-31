@@ -6,7 +6,7 @@ sub-graph
 from __future__ import annotations
 
 from abc import ABC, abstractmethod
-from functools import partial
+from functools import partial, wraps
 from typing import Literal, Optional, TYPE_CHECKING
 
 from bidict import bidict
@@ -421,6 +421,11 @@ class Composite(Node, ABC):
         if is_starting_node:
             self.starting_nodes.append(replacement)
         return owned_node
+
+    @classmethod
+    @wraps(Creator.register)
+    def register(cls, domain: str, package_identifier: str) -> None:
+        cls.create.register(domain=domain, package_identifier=package_identifier)
 
     def __setattr__(self, key: str, node: Node):
         if isinstance(node, Node) and key != "parent":

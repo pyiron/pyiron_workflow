@@ -1,20 +1,13 @@
+"""
+Common-use nodes relying only on the standard library
+"""
+
 from __future__ import annotations
 
 from inspect import isclass
-from typing import Optional
-
-import numpy as np
-from matplotlib import pyplot as plt
 
 from pyiron_workflow.channels import NotData, OutputSignal
 from pyiron_workflow.function import SingleValue, single_value_node
-
-
-@single_value_node(output_labels="fig")
-def scatter(
-    x: Optional[list | np.ndarray] = None, y: Optional[list | np.ndarray] = None
-):
-    return plt.scatter(x, y)
 
 
 @single_value_node()
@@ -52,7 +45,6 @@ class If(SingleValue):
 
 
 nodes = [
-    scatter,
     user_input,
     If,
 ]

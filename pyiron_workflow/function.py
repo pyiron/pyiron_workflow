@@ -322,6 +322,7 @@ class Function(Node):
         else:
             # If a callable node function is received, use it
             self.node_function = node_function
+            self._type_hints = get_type_hints(node_function)
 
         super().__init__(
             label=label if label is not None else self.node_function.__name__,
@@ -382,7 +383,7 @@ class Function(Node):
 
     def _build_input_channels(self):
         channels = []
-        type_hints = get_type_hints(self.node_function)
+        type_hints = self._type_hints
 
         for ii, (label, value) in enumerate(self._input_args.items()):
             is_self = False
@@ -435,7 +436,7 @@ class Function(Node):
 
     def _build_output_channels(self, *return_labels: str):
         try:
-            type_hints = get_type_hints(self.node_function)["return"]
+            type_hints = self._type_hints["return"]
             if len(return_labels) > 1:
                 type_hints = get_args(type_hints)
                 if not isinstance(type_hints, tuple):
@@ -607,7 +608,13 @@ class SingleValue(Function, HasChannel):
         return self.single_value.__getitem__(item)
 
     def __getattr__(self, item):
-        return getattr(self.single_value, item)
+        try:
+            return getattr(self.single_value, item)
+        except Exception as e:
+            raise AttributeError(
+                f"Could not find {item} as an attribute of the single value "
+                f"{self.single_value}"
+            ) from e
 
     def __repr__(self):
         return self.single_value.__repr__()
@@ -616,6 +623,47 @@ class SingleValue(Function, HasChannel):
         return f"{self.label} ({self.__class__.__name__}) output single-value: " + str(
             self.single_value
         )
+
+
+def _wrapper_factory(
+    parent_class: type[Function], output_labels: Optional[list[str]]
+) -> callable:
+    """
+    An abstract base for making decorators that wrap a function as `Function` or its
+    children.
+    """
+
+    # One really subtle thing is that we manually parse the function type hints right
+    # here and include these as a class-level attribute.
+    # This is because on (de)(cloud)pickling a function node, somehow the node function
+    # method attached to it gets its `__globals__` attribute changed; it retains stuff
+    # _inside_ the function, but loses imports it used from the _outside_ -- i.e. type
+    # hints! I (@liamhuber) don't deeply understand _why_ (de)pickling is modifying the
+    # __globals__ in this way, but the result is that type hints cannot be parsed after
+    # the change.
+    # The final piece of the puzzle here is that because the node function is a _class_
+    # level attribute, if you (de)pickle a node, _new_ instances of that node wind up
+    # having their node function's `__globals__` trimmed down in this way!
+    # So to keep the type hint parsing working, we snag and interpret all the type hints
+    # at wrapping time, when we are guaranteed to have all the globals available, and
+    # also slap them on as a class-level attribute. These get safely packed and returned
+    # when (de)pickling so we can keep processing type hints without trouble.
+    def as_node(node_function: callable):
+        return type(
+            node_function.__name__.title().replace("_", ""),  # fnc_name to CamelCase
+            (parent_class,),  # Define parentage
+            {
+                "__init__": partialmethod(
+                    parent_class.__init__,
+                    None,
+                    output_labels=output_labels,
+                ),
+                "node_function": staticmethod(node_function),
+                "_type_hints": get_type_hints(node_function),
+            },
+        )
+
+    return as_node
 
 
 def function_node(output_labels=None):
@@ -629,22 +677,7 @@ def function_node(output_labels=None):
 
     Optionally takes any keyword arguments of `Function`.
     """
-
-    def as_node(node_function: callable):
-        return type(
-            node_function.__name__.title().replace("_", ""),  # fnc_name to CamelCase
-            (Function,),  # Define parentage
-            {
-                "__init__": partialmethod(
-                    Function.__init__,
-                    None,
-                    output_labels=output_labels,
-                ),
-                "node_function": staticmethod(node_function),
-            },
-        )
-
-    return as_node
+    return _wrapper_factory(parent_class=Function, output_labels=output_labels)
 
 
 def single_value_node(output_labels=None):
@@ -655,19 +688,4 @@ def single_value_node(output_labels=None):
 
     Optionally takes any keyword arguments of `SingleValueNode`.
     """
-
-    def as_single_value_node(node_function: callable):
-        return type(
-            node_function.__name__.title().replace("_", ""),  # fnc_name to CamelCase
-            (SingleValue,),  # Define parentage
-            {
-                "__init__": partialmethod(
-                    SingleValue.__init__,
-                    None,
-                    output_labels=output_labels,
-                ),
-                "node_function": staticmethod(node_function),
-            },
-        )
-
-    return as_single_value_node
+    return _wrapper_factory(parent_class=SingleValue, output_labels=output_labels)
