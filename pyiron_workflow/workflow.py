@@ -207,6 +207,7 @@ class Workflow(Composite):
         self,
         check_readiness: bool = True,
         force_local_execution: bool = False,
+        **kwargs,
     ):
         # Note: Workflows may have neither parents nor siblings, so we don't need to
         # worry about running their data trees first, fetching their input, nor firing
@@ -220,11 +221,12 @@ class Workflow(Composite):
             check_readiness=check_readiness,
             force_local_execution=force_local_execution,
             emit_ran_signal=False,
+            **kwargs,
         )
 
-    def pull(self, run_parent_trees_too=False):
+    def pull(self, run_parent_trees_too=False, **kwargs):
         """Workflows are a parent-most object, so this simply runs without pulling."""
-        return self.run()
+        return self.run(**kwargs)
 
     def run_data_tree(self, run_parent_trees_too=False) -> None:
         raise NotImplementedError(

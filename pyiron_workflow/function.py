@@ -532,6 +532,14 @@ class Function(Node):
         kwargs = self._convert_input_args_and_kwargs_to_input_kwargs(*args, **kwargs)
         return super().set_input_values(**kwargs)
 
+    def execute(self, *args, **kwargs):
+        kwargs = self._convert_input_args_and_kwargs_to_input_kwargs(*args, **kwargs)
+        return super().execute(**kwargs)
+
+    def pull(self, *args, run_parent_trees_too=False, **kwargs):
+        kwargs = self._convert_input_args_and_kwargs_to_input_kwargs(*args, **kwargs)
+        return super().pull(run_parent_trees_too=run_parent_trees_too, **kwargs)
+
     def __call__(self, *args, **kwargs) -> None:
         kwargs = self._convert_input_args_and_kwargs_to_input_kwargs(*args, **kwargs)
         return super().__call__(**kwargs)

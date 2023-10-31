@@ -251,6 +251,7 @@ class Node(HasToDict, ABC):
         check_readiness: bool = True,
         force_local_execution: bool = False,
         emit_ran_signal: bool = True,
+        **kwargs,
     ):
         """
         The master method for running in a variety of ways.
@@ -275,6 +276,8 @@ class Node(HasToDict, ABC):
                 force the computation to run locally. (Default is False.)
             emit_ran_signal (bool): Whether to fire off all the output `ran` signal
                 afterwards. (Default is True.)
+            **kwargs: Keyword arguments matching input channel labels; used to update
+                the input channel values before running anything.
 
         Returns:
             (Any | Future): The result of running the node, or a futures object (if
@@ -283,7 +286,15 @@ class Node(HasToDict, ABC):
         Note:
             Running data trees is a pull-based paradigm and only compatible with graphs
             whose data forms a directed acyclic graph (DAG).
+
+        Note:
+            Kwargs updating input channel values happens _first_ and will get
+            overwritten by any subsequent graph-based data manipulation. If you really
+            want to execute the node with a particular set of input, set it all manually
+            and use `execute` (or `run` with carefully chosen flags).
         """
+        self.set_input_values(**kwargs)
+
         if run_data_tree:
             self.run_data_tree(run_parent_trees_too=run_parent_trees_too)
 
@@ -421,12 +432,12 @@ class Node(HasToDict, ABC):
     """
     )
 
-    def execute(self):
+    def execute(self, **kwargs):
         """
         A shortcut for `run` with particular flags.
 
-        Run the node with whatever input it currently has, run it on this python
-        process, and don't emit the `ran` signal afterwards.
+        Run the node with whatever input it currently has (or is given as kwargs here),
+        run it on this python process, and don't emit the `ran` signal afterwards.
 
         Intended to be useful for debugging by just forcing the node to do its thing
         right here, right now, and as-is.
@@ -438,9 +449,10 @@ class Node(HasToDict, ABC):
             check_readiness=False,
             force_local_execution=True,
             emit_ran_signal=False,
+            **kwargs,
         )
 
-    def pull(self, run_parent_trees_too=False):
+    def pull(self, run_parent_trees_too=False, **kwargs):
         """
         A shortcut for `run` with particular flags.
 
@@ -460,24 +472,14 @@ class Node(HasToDict, ABC):
             check_readiness=True,
             force_local_execution=False,
             emit_ran_signal=False,
+            **kwargs,
         )
 
     def __call__(self, **kwargs) -> None:
         """
-        Update the input, then run without firing the `ran` signal.
-
-        Note that since input fetching happens _after_ the input values are updated,
-        if there is a connected data value it will get used instead of what is specified
-        here. If you really want to set a particular state and then run this can be
-        accomplished with `.inputs.fetch()` then `.set_input_values(...)` then
-        `.execute()` (or `.run(...)` with the flags you want).
-
-        Args:
-            **kwargs: Keyword arguments matching input channel labels; used to update
-                the input before running.
+        A shortcut for `run`.
         """
-        self.set_input_values(**kwargs)
-        return self.run()
+        return self.run(**kwargs)
 
     def set_input_values(self, **kwargs) -> None:
         """
