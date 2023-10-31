@@ -245,20 +245,28 @@ class Node(HasToDict, ABC):
 
     def run(
         self,
+        run_data_tree: bool = False,
+        run_parent_trees_too: bool = False,
         first_fetch_input: bool = True,
         then_emit_output_signals: bool = True,
         force_local_execution: bool = False,
         check_readiness: bool = True,
     ):
         """
-        Update the input (with whatever is currently available -- does _not_ trigger
-        any other nodes to run) and use it to perform the node's operation. After,
-        emit all output signals.
+        The master method for running in a variety of ways.
+        By default, whatever data is currently available in upstream nodes will be
+        fetched, if the input all conforms to type hints then this node will be run
+        (perhaps using an executor), and  finally the `ran` signal will be emitted to
+        trigger downstream runs.
 
         If executor information is specified, execution happens on that process, a
         callback is registered, and futures object is returned.
 
         Args:
+            run_data_tree (bool): Whether to first run all upstream nodes in the data
+                graph. (Default is False.)
+            run_parent_trees_too (bool): Whether to recursively run the data tree in
+                parent nodes (if any). (Default is False.)
             first_fetch_input (bool): Whether to first update inputs with the
                 highest-priority connections holding data. (Default is True.)
             then_emit_output_signals (bool): Whether to fire off all output signals
@@ -271,9 +279,17 @@ class Node(HasToDict, ABC):
         Returns:
             (Any | Future): The result of running the node, or a futures object (if
                 running on an executor).
+
+        Note:
+            Running data trees is a pull-based paradigm and only compatible with graphs
+            whose data forms a directed acyclic graph (DAG).
         """
+        if run_data_tree:
+            self.run_data_tree(run_parent_trees_too=run_parent_trees_too)
+
         if first_fetch_input:
             self.inputs.fetch()
+
         if check_readiness and not self.ready:
             input_readiness = "\n".join(
                 [f"{k} ready: {v.ready}" for k, v in self.inputs.items()]
@@ -285,6 +301,7 @@ class Node(HasToDict, ABC):
                 f"running: {self.running}\n"
                 f"failed: {self.failed}\n" + input_readiness
             )
+
         return self._run(
             finished_callback=self._finish_run_and_emit_ran
             if then_emit_output_signals
@@ -354,18 +371,27 @@ class Node(HasToDict, ABC):
         right here, right now, and as-is.
         """
         return self.run(
+            run_data_tree=False,
+            run_parent_trees_too=False,
             first_fetch_input=False,
             then_emit_output_signals=False,
             force_local_execution=True,
             check_readiness=False,
         )
 
-    def pull(self):
+    def run_data_tree(self, run_parent_trees_too=False) -> None:
         """
-        Use topological analysis to build a tree of all upstream dependencies; run them
-        first, then run this node to get an up-to-date result. Does not trigger any
-        downstream executions.
+        Use topological analysis to build a tree of all upstream dependencies and run
+        them.
+
+        Args:
+            run_parent_trees_too (bool): First, call the same method on this node's
+                parent (if one exists), and recursively up the parentage tree. (Default
+                is False, only run nodes in this scope, i.e. sharing the same parent.)
         """
+        if run_parent_trees_too and self.parent is not None:
+            self.parent.run_data_tree(pull_from_parents=True)
+
         label_map = {}
         nodes = {}
         for node in self.get_nodes_in_data_tree():
@@ -377,12 +403,23 @@ class Node(HasToDict, ABC):
             # This is pretty ugly; it would be nice to not depend so heavily on labels.
             # Maybe we could switch a bunch of stuff to rely on the unique ID?
             nodes[modified_label] = node
-        disconnected_pairs, starter = set_run_connections_according_to_linear_dag(nodes)
+
         try:
-            self.signals.disconnect_run()  # Don't let anything upstream trigger this
+            disconnected_pairs, starter = set_run_connections_according_to_linear_dag(
+                nodes
+            )
+        except Exception as e:
+            # If the dag setup fails it will repair any connections it breaks before
+            # raising the error, but we still need to repair our label changes
+            for modified_label, node in nodes.items():
+                node.label = label_map[modified_label]
+            raise e
+
+        self.signals.disconnect_run()
+        # Don't let anything upstream trigger this node
+
+        try:
             starter.run()  # Now push from the top
-            return self.run()  # Finally, run here and return the result
-            # Emitting won't matter since we already disconnected this one
         finally:
             # No matter what, restore the original connections and labels afterwards
             for modified_label, node in nodes.items():
@@ -390,6 +427,16 @@ class Node(HasToDict, ABC):
                 node.signals.disconnect_run()
             for c1, c2 in disconnected_pairs:
                 c1.connect(c2)
+
+    def pull(self, run_parent_trees_too=False):
+        return self.run(
+            run_data_tree=True,
+            run_parent_trees_too=run_parent_trees_too,
+            first_fetch_input=True,
+            then_emit_output_signals=False,
+            force_local_execution=False,
+            check_readiness=True,
+        )
 
     def get_nodes_in_data_tree(self) -> set[Node]:
         """

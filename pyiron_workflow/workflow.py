@@ -210,9 +210,18 @@ class Workflow(Composite):
         force_local_execution: bool = False,
         check_readiness: bool = True,
     ):
+        # Note: Workflows may not have parents, so we don't need to worry about running
+        # their data trees first, hence the change in signature from Node.run
         if self.automate_execution:
             self.set_run_signals_to_dag_execution()
-        return super().run()
+        return super().run(
+            run_data_tree=False,
+            run_parent_trees_too=False,
+            first_fetch_input=first_fetch_input,
+            then_emit_output_signals=then_emit_output_signals,
+            force_local_execution=force_local_execution,
+            check_readiness=check_readiness,
+        )
 
     def to_node(self):
         """
