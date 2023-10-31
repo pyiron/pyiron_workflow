@@ -462,6 +462,19 @@ class TestWorkflow(unittest.TestCase):
             with self.assertRaises(ValueDuplicationError):
                 wf.inputs_map["foo2__x"] = "x1"
 
+    def test_pull(self):
+        wf = Workflow("parent_most")
+        with self.assertRaises(
+            NotImplementedError,
+            msg="Workflows are a parent-most object"
+        ):
+            wf.pull()
+        with self.assertRaises(
+            NotImplementedError,
+            msg="Workflows are a parent-most object"
+        ):
+            wf.run_data_tree()
+
 
 if __name__ == '__main__':
     unittest.main()
