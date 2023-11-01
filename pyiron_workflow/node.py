@@ -331,7 +331,7 @@ class Node(HasToDict, ABC):
                 is False, only run nodes in this scope, i.e. sharing the same parent.)
         """
         if run_parent_trees_too and self.parent is not None:
-            self.parent.run_data_tree(pull_from_parents=True)
+            self.parent.run_data_tree(run_parent_trees_too=True)
 
         label_map = {}
         nodes = {}
