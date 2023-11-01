@@ -7,6 +7,7 @@ import unittest
 from pyiron_workflow.channels import NotData
 from pyiron_workflow.function import SingleValue
 from pyiron_workflow.macro import Macro
+from pyiron_workflow.topology import CircularDataFlowError
 
 
 def add_one(x):
@@ -575,6 +576,44 @@ class TestMacro(unittest.TestCase):
             macro.two.pull(run_parent_trees_too=True),
             msg="Running with parent trees, the pulling should also run the parents "
                 "data dependencies first"
+        )
+
+    def test_recovery_after_failed_pull(self):
+
+        def cyclic_macro(macro):
+            macro.one = SingleValue(add_one)
+            macro.two = SingleValue(add_one, x=macro.one)
+            macro.one.inputs.x = macro.two
+            macro.one > macro.two
+            macro.starting_nodes = [macro.one]
+            # We need to manually specify execution since the data flow is cyclic
+
+        m = Macro(cyclic_macro)
+
+        initial_labels = list(m.nodes.keys())
+
+        def grab_connections(macro):
+            return macro.one.inputs.x.connections +\
+                macro.two.inputs.x.connections +\
+                macro.one.signals.input.connections +\
+                macro.two.signals.input.connections
+
+        initial_connections = grab_connections(m)
+
+        with self.assertRaises(
+            CircularDataFlowError,
+            msg="Pull should only work for DAG workflows"
+        ):
+            m.two.pull()
+        self.assertListEqual(
+            initial_labels,
+            list(m.nodes.keys()),
+            msg="Labels should be restored after failing to pull because of acyclicity"
+        )
+        self.assertTrue(
+            all(c is ic for (c, ic) in zip(grab_connections(m), initial_connections)),
+            msg="Connections should be restored after failing to pull because of "
+                "acyclicity"
         )
 
 
