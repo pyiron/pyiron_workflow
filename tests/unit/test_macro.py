@@ -554,6 +554,29 @@ class TestMacro(unittest.TestCase):
                 "downstream execution"
         )
 
+    def test_pulling_from_inside_a_macro(self):
+        upstream = SingleValue(add_one, x=2)
+        macro = Macro(add_three_macro, one__x=upstream)
+        macro.inputs.one__x = 0  # Set value
+        # Now macro.one.inputs.x has both value and a connection
+
+        print("MACRO ONE INPUT X", macro.one.inputs.x.value, macro.one.inputs.x.connections)
+
+        self.assertEqual(
+            0 + 1 + 1,
+            macro.two.pull(run_parent_trees_too=False),
+            msg="Without running parent trees, the pulling should only run upstream "
+                "nodes _inside_ the scope of the macro, relying on the explicit input"
+                "value"
+        )
+
+        self.assertEqual(
+            (2 + 1) + 1 + 1,
+            macro.two.pull(run_parent_trees_too=True),
+            msg="Running with parent trees, the pulling should also run the parents "
+                "data dependencies first"
+        )
+
 
 if __name__ == '__main__':
     unittest.main()
