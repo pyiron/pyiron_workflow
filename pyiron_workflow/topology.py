@@ -154,3 +154,20 @@ def set_run_connections_according_to_linear_dag(
         for c1, c2 in disconnected_pairs:
             c1.connect(c2)
         raise e
+
+
+def get_nodes_in_data_tree(node: Node) -> set[Node]:
+    """
+    Get a set of all nodes from this one and upstream through data connections.
+    """
+    try:
+        nodes = set([node])
+        for channel in node.inputs:
+            for connection in channel.connections:
+                nodes = nodes.union(get_nodes_in_data_tree(connection.node))
+        return nodes
+    except RecursionError:
+        raise ValueError(
+            f"Detected a cycle in the data flow topology for {node.label}, unable to "
+            f"extract nodes from here upstream because upstream is not well defined."
+        )

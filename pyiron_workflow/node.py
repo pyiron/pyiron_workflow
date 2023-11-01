@@ -16,7 +16,9 @@ from pyiron_workflow.executors import CloudpickleProcessPoolExecutor as Executor
 from pyiron_workflow.files import DirectoryObject
 from pyiron_workflow.has_to_dict import HasToDict
 from pyiron_workflow.io import Signals, InputSignal, OutputSignal
-from pyiron_workflow.topology import set_run_connections_according_to_linear_dag
+from pyiron_workflow.topology import (
+    get_nodes_in_data_tree, set_run_connections_according_to_linear_dag
+)
 from pyiron_workflow.util import SeabornColors
 
 if TYPE_CHECKING:
@@ -336,7 +338,7 @@ class Node(HasToDict, ABC):
 
         label_map = {}
         nodes = {}
-        for node in self.get_nodes_in_data_tree():
+        for node in get_nodes_in_data_tree(self):
             modified_label = node.label + str(id(node))
             label_map[modified_label] = node.label
             node.label = modified_label  # Ensure each node has a unique label
@@ -372,16 +374,6 @@ class Node(HasToDict, ABC):
                 node.signals.disconnect_run()
             for c1, c2 in disconnected_pairs:
                 c1.connect(c2)
-
-    def get_nodes_in_data_tree(self) -> set[Node]:
-        """
-        Get a set of all nodes from this one and upstream through data connections.
-        """
-        nodes = set([self])
-        for channel in self.inputs:
-            for connection in channel.connections:
-                nodes = nodes.union(connection.node.get_nodes_in_data_tree())
-        return nodes
 
     @manage_status
     def _run(
