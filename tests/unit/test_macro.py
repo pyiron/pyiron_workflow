@@ -579,42 +579,110 @@ class TestMacro(unittest.TestCase):
         )
 
     def test_recovery_after_failed_pull(self):
+        def grab_x_and_run(node):
+            """Grab a couple connections from an add_one-like node"""
+            return node.inputs.x.connections + node.signals.input.run.connections
 
-        def cyclic_macro(macro):
-            macro.one = SingleValue(add_one)
-            macro.two = SingleValue(add_one, x=macro.one)
-            macro.one.inputs.x = macro.two
-            macro.one > macro.two
-            macro.starting_nodes = [macro.one]
-            # We need to manually specify execution since the data flow is cyclic
+        with self.subTest("When the local scope has cyclic data flow"):
+            def cyclic_macro(macro):
+                macro.one = SingleValue(add_one)
+                macro.two = SingleValue(add_one, x=macro.one)
+                macro.one.inputs.x = macro.two
+                macro.one > macro.two
+                macro.starting_nodes = [macro.one]
+                # We need to manually specify execution since the data flow is cyclic
 
-        m = Macro(cyclic_macro)
+            m = Macro(cyclic_macro)
 
-        initial_labels = list(m.nodes.keys())
+            initial_labels = list(m.nodes.keys())
 
-        def grab_connections(macro):
-            return macro.one.inputs.x.connections +\
-                macro.two.inputs.x.connections +\
-                macro.one.signals.input.connections +\
-                macro.two.signals.input.connections
+            def grab_connections(macro):
+                return grab_x_and_run(macro.one) + grab_x_and_run(macro.two)
 
-        initial_connections = grab_connections(m)
+            initial_connections = grab_connections(m)
 
-        with self.assertRaises(
-            CircularDataFlowError,
-            msg="Pull should only work for DAG workflows"
-        ):
-            m.two.pull()
-        self.assertListEqual(
-            initial_labels,
-            list(m.nodes.keys()),
-            msg="Labels should be restored after failing to pull because of acyclicity"
-        )
-        self.assertTrue(
-            all(c is ic for (c, ic) in zip(grab_connections(m), initial_connections)),
-            msg="Connections should be restored after failing to pull because of "
-                "acyclicity"
-        )
+            with self.assertRaises(
+                CircularDataFlowError,
+                msg="Pull should only work for DAG workflows"
+            ):
+                m.two.pull()
+            self.assertListEqual(
+                initial_labels,
+                list(m.nodes.keys()),
+                msg="Labels should be restored after failing to pull because of acyclicity"
+            )
+            self.assertTrue(
+                all(c is ic for (c, ic) in zip(grab_connections(m), initial_connections)),
+                msg="Connections should be restored after failing to pull because of "
+                    "cyclic data flow"
+            )
+
+        with self.subTest("When the parent scope has cyclic data flow"):
+            n1 = SingleValue(add_one, label="n1", x=0)
+            n2 = SingleValue(add_one, label="n2", x=n1)
+            m = Macro(add_three_macro, label="m", one__x=n2)
+
+            self.assertEqual(
+                0 + 1 + 1 + (1 + 1 + 1),
+                m.three.pull(run_parent_trees_too=True),
+                msg="Sanity check, without cyclic data flows pulling here should be ok"
+            )
+
+            n1.inputs.x = n2
+
+            initial_connections = grab_x_and_run(n1) + grab_x_and_run(n2)
+            with self.assertRaises(
+                CircularDataFlowError,
+                msg="Once the outer scope has circular data flows, pulling should fail"
+            ):
+                m.three.pull(run_parent_trees_too=True)
+            self.assertTrue(
+                all(
+                    c is ic
+                    for (c, ic) in zip(
+                        grab_x_and_run(n1) + grab_x_and_run(n2), initial_connections
+                    )
+                ),
+                msg="Connections should be restored after failing to pull because of "
+                    "cyclic data flow in the outer scope"
+            )
+            self.assertEqual(
+                "n1",
+                n1.label,
+                msg="Labels should get restored in the outer scope"
+            )
+            self.assertEqual(
+                "one",
+                m.one.label,
+                msg="Labels should not have even gotten perturbed to start with in the"
+                    "inner scope"
+            )
+
+        with self.subTest("When a node breaks upstream"):
+            def fail_at_zero(x):
+                y = 1 / x
+                return y
+
+            n1 = SingleValue(fail_at_zero, x=0)
+            n2 = SingleValue(add_one, x=n1, label="n1")
+            n_not_used = SingleValue(add_one)
+            n_not_used > n2  # Just here to make sure it gets restored
+
+            with self.assertRaises(
+                ZeroDivisionError,
+                msg="The underlying error should get raised"
+            ):
+                n2.pull()
+            self.assertEqual(
+                "n1",
+                n2.label,
+                msg="Original labels should get restored on upstream failure"
+            )
+            self.assertIs(
+                n_not_used,
+                n2.signals.input.run.connections[0].node,
+                msg="Original connections should get restored on upstream failure"
+            )
 
 
 if __name__ == '__main__':
