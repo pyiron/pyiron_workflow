@@ -17,7 +17,8 @@ from pyiron_workflow.files import DirectoryObject
 from pyiron_workflow.has_to_dict import HasToDict
 from pyiron_workflow.io import Signals, InputSignal, OutputSignal
 from pyiron_workflow.topology import (
-    get_nodes_in_data_tree, set_run_connections_according_to_linear_dag
+    get_nodes_in_data_tree,
+    set_run_connections_according_to_linear_dag,
 )
 from pyiron_workflow.util import SeabornColors
 
@@ -338,7 +339,7 @@ class Node(HasToDict, ABC):
 
         label_map = {}
         nodes = {}
-        
+
         data_tree_nodes = get_nodes_in_data_tree(self)
         for node in data_tree_nodes:
             if node.executor:
