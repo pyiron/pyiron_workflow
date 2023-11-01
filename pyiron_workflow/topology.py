@@ -95,7 +95,7 @@ def nodes_to_execution_order(nodes: dict[str, Node]) -> list[str]:
         (list[str]): The labels in safe execution order.
 
     Raises:
-        CircularDependencyError: If the data dependency is not a Directed Acyclic Graph
+        ValueError: If the data dependency is not a Directed Acyclic Graph
     """
     try:
         # Topological sorting ensures that all input dependencies have been
@@ -107,7 +107,7 @@ def nodes_to_execution_order(nodes: dict[str, Node]) -> list[str]:
         raise ValueError(
             f"Detected a cycle in the data flow topology, unable to automate the "
             f"execution of non-DAGs: cycles found among {e.data}"
-        )
+        ) from e
     return execution_order
 
 
