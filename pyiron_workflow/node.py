@@ -338,7 +338,17 @@ class Node(HasToDict, ABC):
 
         label_map = {}
         nodes = {}
-        for node in get_nodes_in_data_tree(self):
+        
+        data_tree_nodes = get_nodes_in_data_tree(self)
+        for node in data_tree_nodes:
+            if node.executor:
+                raise ValueError(
+                    f"Running the data tree is pull-paradigm action, and is "
+                    f"incompatible with using executors. An executor request was found "
+                    f"on {node.label}"
+                )
+
+        for node in data_tree_nodes:
             modified_label = node.label + str(id(node))
             label_map[modified_label] = node.label
             node.label = modified_label  # Ensure each node has a unique label
