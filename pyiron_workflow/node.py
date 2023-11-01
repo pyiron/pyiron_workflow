@@ -332,6 +332,7 @@ class Node(HasToDict, ABC):
         """
         if run_parent_trees_too and self.parent is not None:
             self.parent.run_data_tree(run_parent_trees_too=True)
+            self.parent.inputs.fetch()
 
         label_map = {}
         nodes = {}
