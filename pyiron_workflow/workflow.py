@@ -228,12 +228,6 @@ class Workflow(Composite):
         """Workflows are a parent-most object, so this simply runs without pulling."""
         return self.run(**kwargs)
 
-    def run_data_tree(self, run_parent_trees_too=False) -> None:
-        raise NotImplementedError(
-            f"{self.__class__.__name__} must be a parent-most node, and therefore has "
-            f"no upstream data tree to run."
-        )
-
     def to_node(self):
         """
         Export the workflow to a macro node, with the currently exposed IO mapped to
