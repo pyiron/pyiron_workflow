@@ -15,6 +15,10 @@ if TYPE_CHECKING:
     from pyiron_workflow.node import Node
 
 
+class CircularDataFlowError(ValueError):
+    pass
+
+
 def nodes_to_data_digraph(nodes: dict[str, Node]) -> dict[str, set[str]]:
     """
     Maps a set of nodes to a digraph of their data dependency in the format of label
@@ -29,7 +33,7 @@ def nodes_to_data_digraph(nodes: dict[str, Node]) -> dict[str, set[str]]:
             data.
 
     Raises:
-        ValueError: When a node appears in its own input.
+        CircularDataFlowError: When a node appears in its own input.
         ValueError: If the nodes do not all have the same parent.
         ValueError: If one of the nodes has an upstream data connection whose node has
             a different parent.
@@ -72,7 +76,7 @@ def nodes_to_data_digraph(nodes: dict[str, Node]) -> dict[str, set[str]]:
             # the toposort library has a
             # [known issue](https://gitlab.com/ericvsmith/toposort/-/issues/3)
             # That self-dependency isn't caught, so we catch it manually here.
-            raise ValueError(
+            raise CircularDataFlowError(
                 f"Detected a cycle in the data flow topology, unable to automate "
                 f"the execution of non-DAGs: {node.label} appears in its own input."
             )
@@ -104,7 +108,7 @@ def nodes_to_execution_order(nodes: dict[str, Node]) -> list[str]:
         # generations that are mutually independent (inefficient but easier for now)
         execution_order = toposort_flatten(nodes_to_data_digraph(nodes))
     except CircularDependencyError as e:
-        raise ValueError(
+        raise CircularDataFlowError(
             f"Detected a cycle in the data flow topology, unable to automate the "
             f"execution of non-DAGs: cycles found among {e.data}"
         ) from e
@@ -167,7 +171,8 @@ def get_nodes_in_data_tree(node: Node) -> set[Node]:
                 nodes = nodes.union(get_nodes_in_data_tree(connection.node))
         return nodes
     except RecursionError:
-        raise ValueError(
-            f"Detected a cycle in the data flow topology for {node.label}, unable to "
-            f"extract nodes from here upstream because upstream is not well defined."
+        raise CircularDataFlowError(
+            f"Detected a cycle in the data flow topology, unable to automate the "
+            f"execution of non-DAGs: finding the upstream nodes for {node.label} hit a "
+            f"recursion error."
         )
