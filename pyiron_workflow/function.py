@@ -301,16 +301,7 @@ class Function(Node):
 
     Comments:
 
-        If you use the function argument `self` in the first position, the
-        whole node object is inserted there:
-
-        >>> def with_self(self, x):
-        >>>     ...
-        >>>     return x
-
-        For this function, you don't have the freedom to choose `self`, because
-        pyiron automatically sets the node object there (which is also the
-        reason why you do not see `self` in the list of inputs).
+        Using the `self` argument for function nodes is not currently supported.
     """
 
     def __init__(
