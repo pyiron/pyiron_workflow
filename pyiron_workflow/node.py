@@ -72,9 +72,14 @@ class Node(HasToDict, ABC):
     Together these channels represent edges on the dual data and execution computational
     graphs.
 
-    Nodes can be run to force their computation, or more gently updated, which will
-    trigger a run only if all of the input is ready (i.e. channel values conform to
-    any type hints provided).
+    Nodes can be run in a variety of ways..
+    Non-exhaustively, they can be run in a "push" paradigm where they do their
+    calculation and then trigger downstream calculations; in a "pull" mode where they
+    first make sure all their upstream dependencies then run themselves (but not
+    anything downstream); or they may be forced to run their calculation with exactly
+    the input they have right now.
+    These and more options are available, and for more information look at the `run`
+    method.
 
     Nodes may have a `parent` node that owns them as part of a sub-graph.
 
@@ -95,15 +100,15 @@ class Node(HasToDict, ABC):
     channels.
 
     The `run()` method returns a representation of the node output (possible a futures
-    object, if the node is running on an executor), and consequently `update()` also
-    returns this output if the node is `ready`. Both `run()` and `update()` will raise
-    errors if the node is already running or has a failed status.
+    object, if the node is running on an executor), and consequently the `pull`,
+    `execute`, and `__call__` shortcuts to `run` also return the same thing.
 
-    Calling an already instantiated node allows its input channels to be updated using
-    keyword arguments corresponding to the channel labels, performing a batch-update of
-    all supplied input and then calling `run()`.
-    As such, calling the node _also_ returns a representation of the output (or `None`
-    if the node is not set to run on updates, or is otherwise unready to run).
+    Invoking the `run` method (or one of its aliases) of an already instantiated node
+    allows its input channels to be updated using keyword arguments corresponding to
+    the channel labels, performing a batch-update of all supplied input and then
+    proceeding.
+    As such, _if_ the run invocation updates the input values some other way, these
+    supplied values will get overwritten.
 
     Nodes have a status, which is currently represented by the `running` and `failed`
     boolean flag attributes.
@@ -119,15 +124,16 @@ class Node(HasToDict, ABC):
     with the resulting future object.
     WARNING: Executors are currently only working when the node executable function does
         not use `self`.
+    NOTE: Executors are only allowed in a "push" paradigm, and you will get an
+    exception if you try to `pull` and one of the upstream nodes uses an executor.
 
     This is an abstract class.
-    Children *must* define how `inputs` and `outputs` are constructed, and what will
-    happen `on_run`.
-    They may also override the `run_args` property to specify input passed to the
-    defined `on_run` method, and may add additional signal channels to the signals IO.
+    Children *must* define how `inputs` and `outputs` are constructed, what will
+    happen `on_run`, the `run_args` that will get passed to `on_run`, and how to
+    `process_run_result` once `on_run` finishes.
+    They may optionally add additional signal channels to the signals IO.
 
-    # TODO: Everything with (de)serialization and executors for running on something
-    #       other than the main python process.
+    # TODO: Everything with (de)serialization for storage
 
     Attributes:
         connected (bool): Whether _any_ of the IO (including signals) are connected.
@@ -160,20 +166,24 @@ class Node(HasToDict, ABC):
             initialized.
 
     Methods:
-        __call__: Update input values (optional) then run the node (without firing off
-            .the `ran` signal, so nothing happens farther downstream).
+        __call__: An alias for `pull` that aggressively runs upstream nodes even
+            _outside_ the local scope (i.e. runs parents' dependencies as well).
         disconnect: Remove all connections, including signals.
         draw: Use graphviz to visualize the node, its IO and, if composite in nature,
             its internal structure.
-        execute: Run the node, but right here, right now, and with the input it
-            currently has.
+        execute: An alias for `run`, but with flags to run right here, right now, and
+            with the input it currently has.
         on_run: **Abstract.** Do the thing. What thing must be specified by child
             classes.
-        pull: Run everything upstream, then run this node (but don't fire off the `ran`
-            signal, so nothing happens farther downstream).
-        run: Run the node function from `on_run`. Handles status, whether to run on an
-            executor, firing the `ran` signal, and callbacks (if an executor is used).
-        set_input_values: Allows input channels' values to be updated without any running.
+        pull: An alias for `run` that runs everything upstream, then runs this node
+            (but doesn't fire off the `ran` signal, so nothing happens farther
+            downstream). "Upstream" may optionally break out of the local scope to run
+            parent nodes' dependencies as well (all the way until the parent-most
+            object is encountered).
+        run: Run the node function from `on_run`. Handles status automatically. Various
+            execution options are available as boolean flags.
+        set_input_values: Allows input channels' values to be updated without any
+            running.
     """
 
     def __init__(
@@ -266,6 +276,12 @@ class Node(HasToDict, ABC):
         If executor information is specified, execution happens on that process, a
         callback is registered, and futures object is returned.
 
+        Input values can be updated at call time with kwargs, but this happens _first_
+        so any input updates that happen as a result of the computation graph will
+        override these by default. If you really want to execute the node with a
+        particular set of input, set it all manually and use `execute` (or `run` with
+        carefully chosen flags).
+
         Args:
             run_data_tree (bool): Whether to first run all upstream nodes in the data
                 graph. (Default is False.)
@@ -292,9 +308,7 @@ class Node(HasToDict, ABC):
 
         Note:
             Kwargs updating input channel values happens _first_ and will get
-            overwritten by any subsequent graph-based data manipulation. If you really
-            want to execute the node with a particular set of input, set it all manually
-            and use `execute` (or `run` with carefully chosen flags).
+            overwritten by any subsequent graph-based data manipulation.
         """
         self.set_input_values(**kwargs)
 
@@ -484,7 +498,8 @@ class Node(HasToDict, ABC):
 
     def __call__(self, **kwargs) -> None:
         """
-        A shortcut for `run`.
+        A shortcut for `pull` that automatically runs the entire set of upstream data
+        dependencies all the way to the parent-most graph object.
         """
         return self.pull(run_parent_tree_too=True, **kwargs)
 
