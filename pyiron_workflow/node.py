@@ -501,7 +501,7 @@ class Node(HasToDict, ABC):
         A shortcut for `pull` that automatically runs the entire set of upstream data
         dependencies all the way to the parent-most graph object.
         """
-        return self.pull(run_parent_tree_too=True, **kwargs)
+        return self.pull(run_parent_trees_too=True, **kwargs)
 
     def set_input_values(self, **kwargs) -> None:
         """
