@@ -585,6 +585,9 @@ class SingleValue(Function, HasChannel):
     Note that this means any attributes/method available on the output value become
     available directly at the node level (at least those which don't conflict with the
     existing node namespace).
+
+    This also allows the entire node to be used as a reference to its output channel
+    when making data connections, e.g. `some_node.input.some_channel = my_svn_instance`.
     """
 
     def __init__(
