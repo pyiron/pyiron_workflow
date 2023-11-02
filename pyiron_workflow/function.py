@@ -47,7 +47,7 @@ class Function(Node):
 
     Actual function node instances can either be instances of the base node class, in
     which case the callable node function *must* be provided OR they can be instances
-    of children of this class.
+    of children of this class which provide the node function as a class-level method.
     Those children may define some or all of the node behaviour at the class level, and
     modify their signature accordingly so this is not available for alteration by the
     user, e.g. the node function and output labels may be hard-wired.
@@ -65,10 +65,8 @@ class Function(Node):
 
     After a node is instantiated, its input can be updated as `*args` and/or `**kwargs`
     on call.
-    `run()` returns the output of the executed function, or a futures object if the
-    node is set to use an executor.
-    Calling the node or executing an `update()` returns the same thing as running, if
-    the node is run, or, in the case of `update()`, `None` if it is not `ready` to run.
+    `run()` and its aliases return the output of the executed function, or a futures
+    object if the node is set to use an executor.
 
     Args:
         node_function (callable): The function determining the behaviour of the node.
@@ -87,23 +85,6 @@ class Function(Node):
             to circumvent this (at your own risk).
         **kwargs: Any additional keyword arguments whose keyword matches the label of an
             input channel will have their value assigned to that channel.
-
-    Attributes:
-        inputs (Inputs): A collection of input data channels.
-        outputs (Outputs): A collection of output data channels.
-        signals (Signals): A holder for input and output collections of signal channels.
-        ready (bool): All input reports ready, node is not running or failed.
-        running (bool): Currently running.
-        failed (bool): An exception was thrown when executing the node function.
-        connected (bool): Any IO channel has at least one connection.
-        fully_connected (bool): Every IO channel has at least one connection.
-
-    Methods:
-        update: If your input is ready, will run the engine.
-        run: Parse and process the input, execute the engine, process the results and
-            update the output.
-        disconnect: Disconnect all data and signal IO connections.
-        set_input_values: Allows input channels' values to be updated without any running.
 
     Examples:
         At the most basic level, to use nodes all we need to do is provide the
@@ -127,10 +108,15 @@ class Function(Node):
         run:
         >>> plus_minus_1.inputs.x = 2
         >>> plus_minus_1.run()
-        TypeError: unsupported operand type(s) for -: 'type' and 'int'
+        ValueError: mwe received a run command but is not ready. The node should be
+        neither running nor failed, and all input values should conform to type hints:
+        running: False
+        failed: False
+        x ready: True
+        y ready: False
 
-        This is because the second input (`y`) still has no input value, so we can't do
-        the sum between `NotData` and `2`.
+        This is because the second input (`y`) still has no input value -- indicated in
+        the error message -- so we can't do the sum between `NotData` and `2`.
 
         Once we update `y`, all the input is ready we will be allowed to proceed to a
         `run()` call, which succeeds and updates the output.
@@ -152,9 +138,8 @@ class Function(Node):
 
         Input data can be provided to both initialization and on call as ordered args
         or keyword kwargs.
-        When running, updating, or calling the node, the output of the wrapped function
-        (if it winds up getting run in the conditional cases of updating and calling) is
-        returned:
+        When running the node (or any alias to run like pull, execute, or just calling
+        the node), the output of the wrapped function is returned:
         >>> plus_minus_1(2, y=3)
         (3, 2)
 
@@ -172,7 +157,7 @@ class Function(Node):
         Note that getting "good" (i.e. dot-accessible) output labels can be achieved by
         using good variable names and returning those variables instead of using
         `output_labels`.
-        If we force the node to `run()` (or call it) with bad types, it will raise an
+        If we force the node to run with bad types, it will raise an
         error:
         >>> from typing import Union
         >>>
@@ -259,24 +244,55 @@ class Function(Node):
         Finally, let's put it all together by using both of these nodes at once.
         Instead of setting input to a particular data value, we'll set it to
         be another node's output channel, thus forming a connection.
-        Then we need to define the corresponding execution flow, which can be done
-        by directly connecting `.signals.input.run` and `.signals.output.ran` channels
-        just like we connect data channels, but can also be accomplished with some
-        syntactic sugar using the `>` operator.
-        When we update the upstream node, we'll see the result passed downstream:
-        >>> adder = Adder()
+        At the end of the day, the graph will also need to know about the execution
+        flow, but in most cases (directed acyclic graphs -- DAGs), this can be worked
+        out automatically by the topology of data connections.
+        Let's put together a couple of nodes and then run in a "pull" paradigm to get
+        the final node to run everything "upstream" then run itself:
+        >>> @function_node()
+        ... def adder_node(x: int = 0, y: int = 0) -> int:
+        ...     sum = x + y
+        ...     return sum
+        >>>
+        >>> adder = adder_node(x=1)
+        >>> alpha = AlphabetModThree(i=adder.outputs.sum)
+        >>> print(alpha())
+        "b"
+        >>> adder.inputs.y = 1
+        >>> print(alpha())
+        "c"
+        >>> adder.inputs.x = 0
+        >>> adder.inputs.y = 0
+        >>> print(alpha())
+        "a"
+
+        Alternatively, execution flows can be specified manualy by connecting
+        `.signals.input.run` and `.signals.output.ran` channels, either by their
+        `.connect` method or by assignment (both cases just like data chanels), or by
+        some syntactic sugar using the `>` operator.
+        Then we can use a "push" paradigm with the `run` command to force execution
+        forwards through the graph to get an end result.
+        This is a bit more verbose, but a necessary tool for more complex situations
+        (like cyclic graphs).
+        Here's our simple example from above using this other paradigm:
+        >>> @function_node()
+        ... def adder_node(x: int = 0, y: int = 0) -> int:
+        ...     sum = x + y
+        ...     return sum
+        >>>
+        >>> adder = adder_node()
         >>> alpha = AlphabetModThree(i=adder.outputs.sum)
         >>> adder > alpha
         >>>
-        >>> adder(x=1)
+        >>> adder.run(x=1)
         >>> print(alpha.outputs.letter)
         "b"
-        >>> adder(y=1)
+        >>> adder.run(y=1)
         >>> print(alpha.outputs.letter)
         "c"
         >>> adder.inputs.x = 0
         >>> adder.inputs.y = 0
-        >>> adder()
+        >>> adder.run()
         >>> print(alpha.outputs.letter)
         "a"
 
@@ -285,16 +301,7 @@ class Function(Node):
 
     Comments:
 
-        If you use the function argument `self` in the first position, the
-        whole node object is inserted there:
-
-        >>> def with_self(self, x):
-        >>>     ...
-        >>>     return x
-
-        For this function, you don't have the freedom to choose `self`, because
-        pyiron automatically sets the node object there (which is also the
-        reason why you do not see `self` in the list of inputs).
+        Using the `self` argument for function nodes is not currently supported.
     """
 
     def __init__(
@@ -532,6 +539,14 @@ class Function(Node):
         kwargs = self._convert_input_args_and_kwargs_to_input_kwargs(*args, **kwargs)
         return super().set_input_values(**kwargs)
 
+    def execute(self, *args, **kwargs):
+        kwargs = self._convert_input_args_and_kwargs_to_input_kwargs(*args, **kwargs)
+        return super().execute(**kwargs)
+
+    def pull(self, *args, run_parent_trees_too=False, **kwargs):
+        kwargs = self._convert_input_args_and_kwargs_to_input_kwargs(*args, **kwargs)
+        return super().pull(run_parent_trees_too=run_parent_trees_too, **kwargs)
+
     def __call__(self, *args, **kwargs) -> None:
         kwargs = self._convert_input_args_and_kwargs_to_input_kwargs(*args, **kwargs)
         return super().__call__(**kwargs)
@@ -561,6 +576,9 @@ class SingleValue(Function, HasChannel):
     Note that this means any attributes/method available on the output value become
     available directly at the node level (at least those which don't conflict with the
     existing node namespace).
+
+    This also allows the entire node to be used as a reference to its output channel
+    when making data connections, e.g. `some_node.input.some_channel = my_svn_instance`.
     """
 
     def __init__(

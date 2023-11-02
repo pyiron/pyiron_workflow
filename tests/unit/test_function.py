@@ -696,6 +696,19 @@ class TestSingleValue(unittest.TestCase):
                 "on) of all broken connections among input, output, and signals."
         )
 
+    def test_pulling_without_any_parents(self):
+        node = SingleValue(
+            plus_one,
+            x=SingleValue(
+                plus_one,
+                x=SingleValue(
+                    plus_one,
+                    x=2
+                )
+            )
+        )
+        self.assertEqual(2 + 1 + 1 + 1, node.pull())
+
 
 if __name__ == '__main__':
     unittest.main()

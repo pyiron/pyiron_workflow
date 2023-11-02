@@ -41,16 +41,17 @@ class Composite(Node, ABC):
     instances, any created nodes get their `parent` attribute automatically set to the
     composite instance being used.
 
-    Specifies the required `on_run()` to call `run()` on a subset of owned
-    `starting_nodes`nodes to kick-start computation on the owned sub-graph.
+    Specifies the required `on_run()` and `run_args` to call `run()` on a subset of
+    owned `starting_nodes`, thus kick-starting computation on the owned sub-graph.
     Both the specification of these starting nodes and specifying execution signals to
     propagate execution through the graph is left to the user/child classes.
     In the case of non-cyclic workflows (i.e. DAGs in terms of data flow), both
-    starting nodes and execution flow can be specified by invoking ``
+    starting nodes and execution flow can be specified by invoking execution flow can
+    be determined automatically.
 
-    The `run()` method (and `update()`, and calling the workflow) return a new
-    dot-accessible dictionary of keys and values created from the composite output IO
-    panel.
+    Also specifies `process_run_result` such that the `run` method (and its aliases)
+    return a new dot-accessible dictionary of keys and values created from the
+    composite output IO panel.
 
     Does not specify `input` and `output` as demanded by the parent class; this
     requirement is still passed on to children.
@@ -81,10 +82,6 @@ class Composite(Node, ABC):
         add(node: Node): Add the node instance to this subgraph.
         remove(node: Node): Break all connections the node has, remove it from this
          subgraph, and set its parent to `None`.
-
-    TODO:
-        Wrap node registration at the class level so we don't need to do
-        `X.create.register` but can just do `X.register`
     """
 
     wrap_as = Wrappers()

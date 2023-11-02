@@ -462,6 +462,42 @@ class TestWorkflow(unittest.TestCase):
             with self.assertRaises(ValueDuplicationError):
                 wf.inputs_map["foo2__x"] = "x1"
 
+    def test_pull_and_executors(self):
+        def add_three_macro(macro):
+            macro.one = Workflow.create.SingleValue(plus_one)
+            macro.two = Workflow.create.SingleValue(plus_one, x=macro.one)
+            macro.three = Workflow.create.SingleValue(plus_one, x=macro.two)
+
+        wf = Workflow("pulling")
+
+        wf.n1 = Workflow.create.SingleValue(plus_one, x=0)
+        wf.m = Workflow.create.Macro(add_three_macro, one__x=wf.n1)
+
+        self.assertEquals(
+            (0 + 1) + (1 + 1),
+            wf.m.two.pull(run_parent_trees_too=True),
+            msg="Sanity check, pulling here should work perfectly fine"
+        )
+
+        wf.m.one.executor = True
+        with self.assertRaises(
+            ValueError,
+            msg="Should not be able to pull with executor in local scope"
+        ):
+            wf.m.two.pull()
+        wf.m.one.executor = False
+
+        wf.n1.executor = True
+        with self.assertRaises(
+            ValueError,
+            msg="Should not be able to pull with executor in parent scope"
+        ):
+            wf.m.two.pull(run_parent_trees_too=True)
+
+        # Pulling in the local scope should be fine with an executor only in the parent
+        # scope
+        wf.m.two.pull(run_parent_trees_too=False)
+
 
 if __name__ == '__main__':
     unittest.main()
