@@ -430,10 +430,6 @@ class DataChannel(Channel, ABC):
 
 
 class InputData(DataChannel):
-    """
-    `fetch()` updates input data value to the first available data among connections.
-    """
-
     def fetch(self) -> None:
         """
         Sets `value` to the first value among connections that is something other than
