@@ -323,9 +323,9 @@ class Node(WorkflowGraphvizMap):
                         color=self._channel_bicolor(output_channel, input_channel),
                     )
 
-        # Loop to check for macro input --> internal node input connections
+        # Connect channels that are by-reference copies of each other
+        # i.e. for Workflow IO to child IO
         self._connect_matching(self.inputs.channels, internal_inputs)
-        # Loop to check for macro input --> internal node input connections
         self._connect_matching(internal_outputs, self.outputs.channels)
 
     def _connect_matching(self, sources: list[_Channel], destinations: list[_Channel]):
