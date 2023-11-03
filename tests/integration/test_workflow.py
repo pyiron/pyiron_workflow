@@ -9,6 +9,11 @@ from pyiron_workflow.workflow import Workflow
 
 
 class TestTopology(unittest.TestCase):
+    @classmethod
+    def setUpClass(cls) -> None:
+        ensure_tests_in_python_path()
+        super().setUpClass()
+
     def test_manually_constructed_cyclic_graph(self):
         """
         Check that cyclic graphs run.
@@ -78,7 +83,6 @@ class TestTopology(unittest.TestCase):
         )
 
     def test_for_loop(self):
-        ensure_tests_in_python_path()
         Workflow.register("demo", "static.demo_nodes")
 
         n = 5
@@ -182,8 +186,6 @@ class TestTopology(unittest.TestCase):
 
         C.f. `pyiron_workflow.function._wrapper_factory` for more detail.
         """
-
-        ensure_tests_in_python_path()
         wf = Workflow("depickle")
         wf.create.register("demo", "static.demo_nodes")
         wf.before_pickling = wf.create.demo.OptionallyAdd(1)

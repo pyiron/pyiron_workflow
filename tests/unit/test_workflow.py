@@ -5,6 +5,7 @@ import unittest
 
 from bidict import ValueDuplicationError
 
+from pyiron_workflow._tests import ensure_tests_in_python_path
 from pyiron_workflow.channels import NotData
 from pyiron_workflow.files import DirectoryObject
 from pyiron_workflow.util import DotDict
@@ -18,6 +19,10 @@ def plus_one(x=0):
 
 @unittest.skipUnless(version_info[0] == 3 and version_info[1] >= 10, "Only supported for 3.10+")
 class TestWorkflow(unittest.TestCase):
+    @classmethod
+    def setUpClass(cls) -> None:
+        ensure_tests_in_python_path()
+        super().setUpClass()
 
     def test_node_addition(self):
         wf = Workflow("my_workflow")
