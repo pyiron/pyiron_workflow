@@ -271,6 +271,20 @@ class DataChannel(Channel, ABC):
         hint a tuple with a mixture of fixed elements of fixed type, followed by an
         arbitrary elements of arbitrary type. This and other complex scenarios are not
         yet included in our test suite and behaviour is not guaranteed.
+
+    Attributes:
+        value: The actual data value held by the node.
+        label (str): The label for the channel.
+        node (pyiron_workflow.node.Node): The node to which this channel belongs.
+        default (typing.Any|None): The default value to initialize to.
+            (Default is the class `NotData`.)
+        type_hint (typing.Any|None): A type hint for values. (Default is None.)
+        strict_hints (bool): Whether to check new values, connections, and partners
+            when this node is a value receiver. This can potentially be expensive, so
+            consider deactivating strict hints everywhere for production runs. (Default
+            is True, raise exceptions when type hints get violated.)
+        value_receiver (pyiron_workflow.node.Node|None): Another node of the same class
+            whose value will always get updated when this node's value gets updated.
     """
 
     def __init__(
