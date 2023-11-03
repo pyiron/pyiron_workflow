@@ -401,22 +401,6 @@ class DataChannel(Channel, ABC):
     def __str__(self):
         return str(self.value)
 
-    def copy_value(self, other: DataChannel) -> None:
-        """
-        Copies the other channel's value. Unlike normal value assignment, the new value
-        (if it is data) must comply with this channel's type hint (if any).
-        """
-        if (
-            self._has_hint
-            and other._value_is_data
-            and not valid_value(other.value, self.type_hint)
-        ):
-            raise TypeError(
-                f"Channel{self.label} cannot copy value from {other.label} because "
-                f"value {other.value} does not match type hint {self.type_hint}"
-            )
-        self.value = other.value
-
     def to_dict(self) -> dict:
         d = super().to_dict()
         d["value"] = repr(self.value)

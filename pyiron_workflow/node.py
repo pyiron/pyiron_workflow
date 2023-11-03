@@ -760,7 +760,7 @@ class Node(HasToDict, ABC):
                 if to_copy.value is not NotData:
                     try:
                         old_value = my_panel[key].value
-                        my_panel[key].copy_value(to_copy)
+                        my_panel[key].value = to_copy.value  # Gets hint-checked
                         old_values.append((my_panel[key], old_value))
                     except Exception as e:
                         if fail_hard:

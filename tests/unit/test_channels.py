@@ -203,47 +203,22 @@ class TestDataChannels(TestCase):
         self.unhinted.value_receiver = self.ni2
         # Should work fine if either is unhinted
 
-    def test_copy_value(self):
-        self.ni1.value = 2
-        self.ni2.copy_value(self.ni1)
-        self.assertEqual(
-            self.ni2.value,
-            self.ni1.value,
-            msg="Should be able to copy values matching type hints"
-        )
-
-        self.ni2.copy_value(self.no_empty)
-        self.assertIs(
-            self.ni2.value,
-            NotData,
-            msg="Should be able to copy values that are not-data"
-        )
+    def test_value_assignment(self):
+        self.ni1.value = 2  # Should be fine when value matches hint
+        self.ni1.value = NotData  # Should be able to clear the data
 
         with self.assertRaises(
             TypeError,
-            msg="Should not be able to copy values of the wrong type"
+            msg="Should not be able to take values of the wrong type"
         ):
-            self.ni2.copy_value(self.so1)
+            self.ni2.value = [2]
+
+        self.ni2.strict_hints = False
+        self.ni2.value = "now we can take any value"
+        self.ni2.strict_hints = True
 
         self.ni2.type_hint = None
-        self.ni2.copy_value(self.ni1)
-        self.assertEqual(
-            self.ni2.value,
-            self.ni1.value,
-            msg="Should be able to copy any data if we have no type hint"
-        )
-        self.ni2.copy_value(self.so1)
-        self.assertEqual(
-            self.ni2.value,
-            self.so1.value,
-            msg="Should be able to copy any data if we have no type hint"
-        )
-        self.ni2.copy_value(self.no_empty)
-        self.assertEqual(
-            self.ni2.value,
-            NotData,
-            msg="Should be able to copy not-data if we have no type hint"
-        )
+        self.ni2.value = "Also if our hint doesn't exist"
 
     def test_ready(self):
         with self.subTest("Test defaults and not-data"):
