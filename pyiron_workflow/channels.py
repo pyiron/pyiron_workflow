@@ -288,7 +288,7 @@ class DataChannel(Channel, ABC):
         self.type_hint = type_hint
         self.strict_hints = strict_hints
         self.default = default
-        self.value = default
+        self.value = default  # Implicitly type check your default by assignment
         self.value_receiver = value_receiver
 
     @property
@@ -308,7 +308,13 @@ class DataChannel(Channel, ABC):
                 f"is not compliant with the type hint {self.type_hint}"
             )
         if self.value_receiver is not None:
-            self.value_receiver._value = new_value  # Bypass type checking
+            self.value_receiver.update_value_without_type_check(new_value)
+        self._value = new_value
+
+    def update_value_without_type_check(self, new_value):
+        if self.value_receiver is not None:
+            self.value_receiver.update_value_without_type_check(new_value)
+            # We assume type checking was done when the value receiver was set
         self._value = new_value
 
     @property
@@ -347,7 +353,8 @@ class DataChannel(Channel, ABC):
                         f"({new_partner.type_hint})."
                     )
 
-            new_partner._value = self.value  # Bypass type hinting since they're linked
+            new_partner.update_value_without_type_check(self.value)
+            # We just did type hinting above
 
         self._value_receiver = new_partner
 
@@ -437,7 +444,8 @@ class InputData(DataChannel):
             )
         for out in self.connections:
             if out.value is not NotData:
-                self.value = out.value
+                self.update_value_without_type_check(out.value)
+                # We assume the type checking was done at connection time
                 break
 
 

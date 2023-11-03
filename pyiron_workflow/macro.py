@@ -202,7 +202,8 @@ class Macro(Composite):
             default=child_reference_channel.default,
             type_hint=child_reference_channel.type_hint,
         )
-        composite_channel.value = child_reference_channel.value
+        composite_channel.update_value_without_type_check(child_reference_channel.value)
+        # Since we're copying the hint already
 
         if isinstance(composite_channel, InputData):
             composite_channel.strict_hints = (

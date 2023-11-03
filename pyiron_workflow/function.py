@@ -500,7 +500,11 @@ class Function(Node):
             self.outputs,
             (function_output,) if len(self.outputs) == 1 else function_output,
         ):
-            out.value = value
+            out.update_value_without_type_check(value)
+            # This is really an act of faith that the node developer is actually
+            # returning a value of the type they are claiming (if they claim anything),
+            # but since type checking is not _trivially_ inexpensive, it's important
+            # for efficiency
         return function_output
 
     def _convert_input_args_and_kwargs_to_input_kwargs(self, *args, **kwargs):

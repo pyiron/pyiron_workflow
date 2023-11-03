@@ -766,7 +766,8 @@ class Node(HasToDict, ABC):
                         if fail_hard:
                             # If you run into trouble, unwind what you've done
                             for channel, value in old_values:
-                                channel.value = value
+                                channel.update_value_without_type_check(value)
+                                # since this is what we had before anyhow!
                             raise e
                         else:
                             continue
