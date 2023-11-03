@@ -600,6 +600,16 @@ class Node(HasToDict, ABC):
         """
         return GraphvizNode(self, depth=depth, rankdir=rankdir).graph
 
+    def activate_strict_hints(self):
+        """Enable type hint checks for all data IO"""
+        self.inputs.activate_strict_hints()
+        self.outputs.activate_strict_hints()
+
+    def deactivate_strict_hints(self):
+        """Disable type hint checks for all data IO"""
+        self.inputs.deactivate_strict_hints()
+        self.outputs.deactivate_strict_hints()
+
     def __str__(self):
         return (
             f"{self.label} ({self.__class__.__name__}):\n"
