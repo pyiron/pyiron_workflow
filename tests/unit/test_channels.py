@@ -231,7 +231,7 @@ class TestDataChannels(TestCase):
         self.ni1.value = 1
         self.assertTrue(self.ni1.ready)
 
-        self.ni1.value = "Not numeric at all"
+        self.ni1._value = "Not numeric at all"  # Bypass type checking
         self.assertFalse(self.ni1.ready)
 
     def test_input_coupling(self):

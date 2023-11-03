@@ -297,8 +297,18 @@ class DataChannel(Channel, ABC):
 
     @value.setter
     def value(self, new_value):
+        if (
+            self.strict_hints
+            and new_value is not NotData
+            and self._has_hint
+            and not valid_value(new_value, self.type_hint)
+        ):
+            raise TypeError(
+                f"The channel {self.label} cannot take the value {new_value} because it"
+                f"is not compliant with the type hint {self.type_hint}"
+            )
         if self.value_receiver is not None:
-            self.value_receiver.value = new_value
+            self.value_receiver._value = new_value  # Bypass type checking
         self._value = new_value
 
     @property
