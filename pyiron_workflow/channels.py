@@ -336,11 +336,7 @@ class DataChannel(Channel, ABC):
                     f"{self.__class__.__name__} {self.label} cannot couple to itself"
                 )
 
-            if (
-                self.type_hint is not None
-                and new_partner.type_hint is not None
-                and new_partner.strict_hints
-            ):
+            if self._both_typed(new_partner) and new_partner.strict_hints:
                 if not type_hint_is_as_or_more_specific_than(
                     self.type_hint, new_partner.type_hint
                 ):
