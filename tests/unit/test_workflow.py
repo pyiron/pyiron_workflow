@@ -5,6 +5,7 @@ import unittest
 
 from bidict import ValueDuplicationError
 
+from pyiron_workflow._tests import ensure_tests_in_python_path
 from pyiron_workflow.channels import NotData
 from pyiron_workflow.files import DirectoryObject
 from pyiron_workflow.util import DotDict
@@ -18,6 +19,10 @@ def plus_one(x=0):
 
 @unittest.skipUnless(version_info[0] == 3 and version_info[1] >= 10, "Only supported for 3.10+")
 class TestWorkflow(unittest.TestCase):
+    @classmethod
+    def setUpClass(cls) -> None:
+        ensure_tests_in_python_path()
+        super().setUpClass()
 
     def test_node_addition(self):
         wf = Workflow("my_workflow")
@@ -51,6 +56,21 @@ class TestWorkflow(unittest.TestCase):
                 "foo0", "bar0", "baz0", "boa0",
             ]
         )
+
+        with self.subTest("Make sure trivial re-assignment has no impact"):
+            original_foo = wf.foo
+            n_nodes = len(wf.nodes)
+            wf.foo = original_foo
+            self.assertIs(
+                original_foo,
+                wf.foo,
+                msg="Reassigning a node to the same name should have no impact",
+            )
+            self.assertEqual(
+                n_nodes,
+                len(wf.nodes),
+                msg="Reassigning a node to the same name should have no impact",
+            )
 
         with self.subTest("Make sure strict naming causes a bunch of attribute errors"):
             wf.strict_naming = True

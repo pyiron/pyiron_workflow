@@ -13,6 +13,7 @@ class TestCreator(TestCase):
     def setUpClass(cls) -> None:
         cls.creator = Creator()
         ensure_tests_in_python_path()
+        super().setUpClass()
 
     def test_registration(self):
 

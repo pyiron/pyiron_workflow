@@ -281,12 +281,16 @@ class Composite(Node, ABC):
                 f"Only new node instances may be added, but got {type(node)}."
             )
         self._ensure_node_has_no_other_parent(node)
-        label = self._get_unique_label(node.label if label is None else label)
-        self._ensure_node_is_not_duplicated(node, label)
 
-        self.nodes[label] = node
-        node.label = label
-        node.parent = self
+        if not (label in self.nodes.keys() and self.nodes[label] is node):
+            # Otherwise you're just passing the same node to the same key!
+
+            label = self._get_unique_label(node.label if label is None else label)
+            self._ensure_node_is_not_duplicated(node, label)
+
+            self.nodes[label] = node
+            node.label = label
+            node.parent = self
         return node
 
     def _get_unique_label(self, label):
