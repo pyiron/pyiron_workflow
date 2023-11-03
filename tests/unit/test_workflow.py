@@ -52,6 +52,21 @@ class TestWorkflow(unittest.TestCase):
             ]
         )
 
+        with self.subTest("Make sure trivial re-assignment has no impact"):
+            original_foo = wf.foo
+            n_nodes = len(wf.nodes)
+            wf.foo = original_foo
+            self.assertIs(
+                original_foo,
+                wf.foo,
+                msg="Reassigning a node to the same name should have no impact",
+            )
+            self.assertEqual(
+                n_nodes,
+                len(wf.nodes),
+                msg="Reassigning a node to the same name should have no impact",
+            )
+
         with self.subTest("Make sure strict naming causes a bunch of attribute errors"):
             wf.strict_naming = True
             # Validate name preservation
