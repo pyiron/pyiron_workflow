@@ -191,17 +191,17 @@ class DataIO(IO, ABC):
         d["ready"] = self.ready
         return d
 
+    def activate_strict_hints(self):
+        [c.activate_strict_hints() for c in self]
+
+    def deactivate_strict_hints(self):
+        [c.deactivate_strict_hints() for c in self]
+
 
 class Inputs(DataIO):
     @property
     def _channel_class(self) -> type(InputData):
         return InputData
-
-    def activate_strict_connections(self):
-        [c.activate_strict_connections() for c in self]
-
-    def deactivate_strict_connections(self):
-        [c.deactivate_strict_connections() for c in self]
 
     def fetch(self):
         for c in self:

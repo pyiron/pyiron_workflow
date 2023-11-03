@@ -205,8 +205,8 @@ class Macro(Composite):
         composite_channel.value = child_reference_channel.value
 
         if isinstance(composite_channel, InputData):
-            composite_channel.strict_connections = (
-                child_reference_channel.strict_connections
+            composite_channel.strict_hints = (
+                child_reference_channel.strict_hints
             )
             composite_channel.value_receiver = child_reference_channel
         elif isinstance(composite_channel, OutputData):

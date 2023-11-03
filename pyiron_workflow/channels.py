@@ -243,7 +243,7 @@ class DataChannel(Channel, ABC):
     When type checking channel connections, we insist that the output type hint be
     _as or more specific_ than the input type hint, to ensure that the input always
     receives output of a type it expects. This behaviour can be disabled and all
-    connections allowed by setting `strict_connections = False` on the relevant input
+    connections allowed by setting `strict_hints = False` on the relevant input
     channel.
 
     For simple type hints like `int` or `str`, type hint comparison is trivial.
@@ -279,14 +279,16 @@ class DataChannel(Channel, ABC):
         node: Node,
         default: typing.Optional[typing.Any] = NotData,
         type_hint: typing.Optional[typing.Any] = None,
+        strict_hints: bool = True,
         value_receiver: typing.Optional[InputData] = None,
     ):
         super().__init__(label=label, node=node)
         self._value = NotData
         self._value_receiver = None
+        self.type_hint = type_hint
+        self.strict_hints = strict_hints
         self.default = default
         self.value = default
-        self.type_hint = type_hint
         self.value_receiver = value_receiver
 
     @property
@@ -357,7 +359,7 @@ class DataChannel(Channel, ABC):
         if super()._valid_connection(other):
             if self._both_typed(other):
                 out, inp = self._figure_out_who_is_who(other)
-                if not inp.strict_connections:
+                if not inp.strict_hints:
                     return True
                 else:
                     return type_hint_is_as_or_more_specific_than(
@@ -401,35 +403,17 @@ class DataChannel(Channel, ABC):
         d["type_hint"] = str(self.type_hint)
         return d
 
+    def activate_strict_hints(self) -> None:
+        self.strict_hints = True
+
+    def deactivate_strict_hints(self) -> None:
+        self.strict_hints = False
+
 
 class InputData(DataChannel):
     """
     `fetch()` updates input data value to the first available data among connections.
-
-    The `strict_connections` parameter controls whether connections are subject to
-    type checking requirements.
-    I.e., they may set `strict_connections` to `False` (`True` -- default) at
-    instantiation or later with `(de)activate_strict_connections()` to prevent (enable)
-    data type checking when making connections with `OutputData` channels.
     """
-
-    def __init__(
-        self,
-        label: str,
-        node: Node,
-        default: typing.Optional[typing.Any] = NotData,
-        type_hint: typing.Optional[typing.Any] = None,
-        value_receiver: typing.Optional[InputData] = None,
-        strict_connections: bool = True,
-    ):
-        super().__init__(
-            label=label,
-            node=node,
-            default=default,
-            type_hint=type_hint,
-            value_receiver=value_receiver,
-        )
-        self.strict_connections = strict_connections
 
     def fetch(self) -> None:
         """
@@ -450,12 +434,6 @@ class InputData(DataChannel):
             if out.value is not NotData:
                 self.value = out.value
                 break
-
-    def activate_strict_connections(self) -> None:
-        self.strict_connections = True
-
-    def deactivate_strict_connections(self) -> None:
-        self.strict_connections = False
 
 
 class OutputData(DataChannel):

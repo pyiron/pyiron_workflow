@@ -138,7 +138,7 @@ class TestDataChannels(TestCase):
         ):
             self.so1.connect(self.ni2)
 
-        self.ni2.strict_connections = False
+        self.ni2.strict_hints = False
         self.so1.connect(self.ni2)
         self.assertIn(
             self.so1,
