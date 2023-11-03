@@ -336,7 +336,22 @@ class DataChannel(Channel, ABC):
                     f"{self.__class__.__name__} {self.label} cannot couple to itself"
                 )
 
-            new_partner.value = self.value
+            if (
+                self.type_hint is not None
+                and new_partner.type_hint is not None
+                and new_partner.strict_hints
+            ):
+                if not type_hint_is_as_or_more_specific_than(
+                    self.type_hint, new_partner.type_hint
+                ):
+                    raise ValueError(
+                        f"The channel {self.label} cannot take {new_partner.label} as "
+                        f"a value receiver because this type hint ({self.type_hint}) "
+                        f"is not as or more specific than the receiving type hint "
+                        f"({new_partner.type_hint})."
+                    )
+
+            new_partner._value = self.value  # Bypass type hinting since they're linked
 
         self._value_receiver = new_partner
 

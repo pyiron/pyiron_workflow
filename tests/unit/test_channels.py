@@ -25,8 +25,11 @@ class TestDataChannels(TestCase):
         self.no = OutputData(label="numeric", node=DummyNode(), default=0, type_hint=int | float)
         self.no_empty = OutputData(label="not_data", node=DummyNode(), type_hint=int | float)
 
+        self.si = InputData(label="list", node=DummyNode(), type_hint=list)
         self.so1 = OutputData(label="list", node=DummyNode(), default=["foo"], type_hint=list)
         self.so2 = OutputData(label="list", node=DummyNode(), default=["foo"], type_hint=list)
+
+        self.unhinted = InputData(label="unhinted", node=DummyNode)
 
     def test_mutable_defaults(self):
         self.so1.default.append("bar")
@@ -170,6 +173,35 @@ class TestDataChannels(TestCase):
             msg="On failing, copy should revert the copying channel to its orignial "
                 "state"
         )
+
+    def test_value_receiver(self):
+        self.ni1.value_receiver = self.ni2
+        new_value = 42
+        self.assertNotEqual(
+            self.ni2.value,
+            42,
+            msg="Sanity check that we're not starting with our target value",
+        )
+        self.ni1.value = new_value
+        self.assertEqual(
+            new_value,
+            self.ni2.value,
+            msg="Value-linked nodes should automatically get new values"
+        )
+
+        with self.assertRaises(
+            ValueError,
+            msg="Linking should obey type hint requirements",
+        ):
+            self.ni1.value_receiver = self.si
+
+        self.si.strict_hints = False
+        self.ni1.value_receiver = self.si  # Should work fine if the receiver is not
+        # strictly checking hints
+
+        self.ni1.value_receiver = self.unhinted
+        self.unhinted.value_receiver = self.ni2
+        # Should work fine if either is unhinted
 
     def test_copy_value(self):
         self.ni1.value = 2
