@@ -318,7 +318,7 @@ class DataChannel(Channel, ABC):
             and not valid_value(new_value, self.type_hint)
         ):
             raise TypeError(
-                f"The channel {self.label} cannot take the value {new_value} because "
+                f"The channel {self.label} cannot take the value `{new_value}` because "
                 f"it is not compliant with the type hint {self.type_hint}"
             )
         if self.value_receiver is not None:
