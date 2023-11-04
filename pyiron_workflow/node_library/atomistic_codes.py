@@ -10,9 +10,8 @@ def lammps(wf: Macro) -> None:
     structure = wf.create.lammps.Structure()
 
     potential = wf.create.lammps.Potential(structure=structure)
-    # wf.list_potentials = wf.create.lammps.ListPotentials(structure=wf.structure)
-    # from pyiron_atomistics.lammps.potential import list_potentials
-    # wf.list_potentials = list_potentials(wf.structure)
+
+    # wf.list_pots = wf.create.lammps.ListPotentials(structure=structure)
 
     wf.calc = wf.create.lammps.CalcStatic()
     wf.calc_select = set_replacer(wf.calc, get_calculators())

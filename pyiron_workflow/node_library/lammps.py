@@ -71,7 +71,6 @@ def init_lammps(
 def parser_log_file(log_file):
     from pymatgen.io.lammps.outputs import parse_lammps_log
 
-    # print("parse log file")
     log = parse_lammps_log(log_file.path)
     if len(log) == 0:
         print(f"check {log_file.path}")
@@ -84,7 +83,6 @@ def parser_log_file(log_file):
 def parser_dump_file(dump_file):
     from pymatgen.io.lammps.outputs import parse_lammps_dumps
 
-    # print("parse dump file")
     dump = list(parse_lammps_dumps(dump_file.path))
     return dump
 
@@ -181,6 +179,9 @@ def list_potentials(structure):
     pot = lp(structure)
     return pot
 
+@single_value_node(output_labels=["empty"])
+def list_empty():
+    return []
 
 @single_value_node(output_labels="structure")
 def repeat(
@@ -191,11 +192,12 @@ def repeat(
 
 @single_value_node(output_labels="structure")
 def apply_strain(
-    structure: Optional[Atoms] = None, strain: float = 1
+    structure: Optional[Atoms] = None, strain: float = 0
 ) -> Optional[Atoms]:
     # print("apply strain: ", strain)
     struct = structure.copy()
-    struct.cell *= strain
+    # struct.cell *= strain
+    struct.apply_strain(strain)
     return struct
 
 
@@ -205,12 +207,12 @@ def get_calculators():
     calc_dict["static"] = Workflow.create.lammps.CalcStatic
     return calc_dict
 
-
 nodes = [
     structure,
     init_lammps,
     potential,
     list_potentials,
+    list_empty,
     calc_md,
     calc_static,
     parser_log_file,
