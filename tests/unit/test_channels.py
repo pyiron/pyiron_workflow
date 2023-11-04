@@ -25,8 +25,11 @@ class TestDataChannels(TestCase):
         self.no = OutputData(label="numeric", node=DummyNode(), default=0, type_hint=int | float)
         self.no_empty = OutputData(label="not_data", node=DummyNode(), type_hint=int | float)
 
+        self.si = InputData(label="list", node=DummyNode(), type_hint=list)
         self.so1 = OutputData(label="list", node=DummyNode(), default=["foo"], type_hint=list)
         self.so2 = OutputData(label="list", node=DummyNode(), default=["foo"], type_hint=list)
+
+        self.unhinted = InputData(label="unhinted", node=DummyNode)
 
     def test_mutable_defaults(self):
         self.so1.default.append("bar")
@@ -138,7 +141,7 @@ class TestDataChannels(TestCase):
         ):
             self.so1.connect(self.ni2)
 
-        self.ni2.strict_connections = False
+        self.ni2.strict_hints = False
         self.so1.connect(self.ni2)
         self.assertIn(
             self.so1,
@@ -171,47 +174,51 @@ class TestDataChannels(TestCase):
                 "state"
         )
 
-    def test_copy_value(self):
-        self.ni1.value = 2
-        self.ni2.copy_value(self.ni1)
-        self.assertEqual(
+    def test_value_receiver(self):
+        self.ni1.value_receiver = self.ni2
+        new_value = 42
+        self.assertNotEqual(
             self.ni2.value,
-            self.ni1.value,
-            msg="Should be able to copy values matching type hints"
+            42,
+            msg="Sanity check that we're not starting with our target value",
         )
-
-        self.ni2.copy_value(self.no_empty)
-        self.assertIs(
+        self.ni1.value = new_value
+        self.assertEqual(
+            new_value,
             self.ni2.value,
-            NotData,
-            msg="Should be able to copy values that are not-data"
+            msg="Value-linked nodes should automatically get new values"
         )
 
         with self.assertRaises(
-            TypeError,
-            msg="Should not be able to copy values of the wrong type"
+            ValueError,
+            msg="Linking should obey type hint requirements",
         ):
-            self.ni2.copy_value(self.so1)
+            self.ni1.value_receiver = self.si
+
+        self.si.strict_hints = False
+        self.ni1.value_receiver = self.si  # Should work fine if the receiver is not
+        # strictly checking hints
+
+        self.ni1.value_receiver = self.unhinted
+        self.unhinted.value_receiver = self.ni2
+        # Should work fine if either is unhinted
+
+    def test_value_assignment(self):
+        self.ni1.value = 2  # Should be fine when value matches hint
+        self.ni1.value = NotData  # Should be able to clear the data
+
+        with self.assertRaises(
+            TypeError,
+            msg="Should not be able to take values of the wrong type"
+        ):
+            self.ni2.value = [2]
+
+        self.ni2.strict_hints = False
+        self.ni2.value = "now we can take any value"
+        self.ni2.strict_hints = True
 
         self.ni2.type_hint = None
-        self.ni2.copy_value(self.ni1)
-        self.assertEqual(
-            self.ni2.value,
-            self.ni1.value,
-            msg="Should be able to copy any data if we have no type hint"
-        )
-        self.ni2.copy_value(self.so1)
-        self.assertEqual(
-            self.ni2.value,
-            self.so1.value,
-            msg="Should be able to copy any data if we have no type hint"
-        )
-        self.ni2.copy_value(self.no_empty)
-        self.assertEqual(
-            self.ni2.value,
-            NotData,
-            msg="Should be able to copy not-data if we have no type hint"
-        )
+        self.ni2.value = "Also if our hint doesn't exist"
 
     def test_ready(self):
         with self.subTest("Test defaults and not-data"):
@@ -231,7 +238,7 @@ class TestDataChannels(TestCase):
         self.ni1.value = 1
         self.assertTrue(self.ni1.ready)
 
-        self.ni1.value = "Not numeric at all"
+        self.ni1._value = "Not numeric at all"  # Bypass type checking
         self.assertFalse(self.ni1.ready)
 
     def test_input_coupling(self):

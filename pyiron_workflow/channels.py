@@ -235,15 +235,15 @@ class DataChannel(Channel, ABC):
     (In the future they may optionally have a storage history limit.)
     (In the future they may optionally have an ontological type.)
 
-    Note that for the sake of computational efficiency, assignments to the `value`
-    property are not type-checked; type-checking occurs only for connections where both
-    channels have a type hint, and when a value is being copied from another channel
-    with the `copy_value` method.
+    Note that type checking is performed on value updates. This is typically not super
+    expensive, but once you have a workflow you're happy with, you may wish to
+    deactivate `strict_hints` throughout the workflow for the sake of computational
+    efficiency during production runs.
 
     When type checking channel connections, we insist that the output type hint be
     _as or more specific_ than the input type hint, to ensure that the input always
     receives output of a type it expects. This behaviour can be disabled and all
-    connections allowed by setting `strict_connections = False` on the relevant input
+    connections allowed by setting `strict_hints = False` on the relevant input
     channel.
 
     For simple type hints like `int` or `str`, type hint comparison is trivial.
@@ -271,6 +271,20 @@ class DataChannel(Channel, ABC):
         hint a tuple with a mixture of fixed elements of fixed type, followed by an
         arbitrary elements of arbitrary type. This and other complex scenarios are not
         yet included in our test suite and behaviour is not guaranteed.
+
+    Attributes:
+        value: The actual data value held by the node.
+        label (str): The label for the channel.
+        node (pyiron_workflow.node.Node): The node to which this channel belongs.
+        default (typing.Any|None): The default value to initialize to.
+            (Default is the class `NotData`.)
+        type_hint (typing.Any|None): A type hint for values. (Default is None.)
+        strict_hints (bool): Whether to check new values, connections, and partners
+            when this node is a value receiver. This can potentially be expensive, so
+            consider deactivating strict hints everywhere for production runs. (Default
+            is True, raise exceptions when type hints get violated.)
+        value_receiver (pyiron_workflow.node.Node|None): Another node of the same class
+            whose value will always get updated when this node's value gets updated.
     """
 
     def __init__(
@@ -279,14 +293,16 @@ class DataChannel(Channel, ABC):
         node: Node,
         default: typing.Optional[typing.Any] = NotData,
         type_hint: typing.Optional[typing.Any] = None,
+        strict_hints: bool = True,
         value_receiver: typing.Optional[InputData] = None,
     ):
         super().__init__(label=label, node=node)
         self._value = NotData
         self._value_receiver = None
-        self.default = default
-        self.value = default
         self.type_hint = type_hint
+        self.strict_hints = strict_hints
+        self.default = default
+        self.value = default  # Implicitly type check your default by assignment
         self.value_receiver = value_receiver
 
     @property
@@ -295,6 +311,16 @@ class DataChannel(Channel, ABC):
 
     @value.setter
     def value(self, new_value):
+        if (
+            self.strict_hints
+            and new_value is not NotData
+            and self._has_hint
+            and not valid_value(new_value, self.type_hint)
+        ):
+            raise TypeError(
+                f"The channel {self.label} cannot take the value `{new_value}` because "
+                f"it is not compliant with the type hint {self.type_hint}"
+            )
         if self.value_receiver is not None:
             self.value_receiver.value = new_value
         self._value = new_value
@@ -323,6 +349,17 @@ class DataChannel(Channel, ABC):
                 raise ValueError(
                     f"{self.__class__.__name__} {self.label} cannot couple to itself"
                 )
+
+            if self._both_typed(new_partner) and new_partner.strict_hints:
+                if not type_hint_is_as_or_more_specific_than(
+                    self.type_hint, new_partner.type_hint
+                ):
+                    raise ValueError(
+                        f"The channel {self.label} cannot take {new_partner.label} as "
+                        f"a value receiver because this type hint ({self.type_hint}) "
+                        f"is not as or more specific than the receiving type hint "
+                        f"({new_partner.type_hint})."
+                    )
 
             new_partner.value = self.value
 
@@ -357,7 +394,7 @@ class DataChannel(Channel, ABC):
         if super()._valid_connection(other):
             if self._both_typed(other):
                 out, inp = self._figure_out_who_is_who(other)
-                if not inp.strict_connections:
+                if not inp.strict_hints:
                     return True
                 else:
                     return type_hint_is_as_or_more_specific_than(
@@ -378,22 +415,6 @@ class DataChannel(Channel, ABC):
     def __str__(self):
         return str(self.value)
 
-    def copy_value(self, other: DataChannel) -> None:
-        """
-        Copies the other channel's value. Unlike normal value assignment, the new value
-        (if it is data) must comply with this channel's type hint (if any).
-        """
-        if (
-            self._has_hint
-            and other._value_is_data
-            and not valid_value(other.value, self.type_hint)
-        ):
-            raise TypeError(
-                f"Channel{self.label} cannot copy value from {other.label} because "
-                f"value {other.value} does not match type hint {self.type_hint}"
-            )
-        self.value = other.value
-
     def to_dict(self) -> dict:
         d = super().to_dict()
         d["value"] = repr(self.value)
@@ -401,36 +422,14 @@ class DataChannel(Channel, ABC):
         d["type_hint"] = str(self.type_hint)
         return d
 
+    def activate_strict_hints(self) -> None:
+        self.strict_hints = True
+
+    def deactivate_strict_hints(self) -> None:
+        self.strict_hints = False
+
 
 class InputData(DataChannel):
-    """
-    `fetch()` updates input data value to the first available data among connections.
-
-    The `strict_connections` parameter controls whether connections are subject to
-    type checking requirements.
-    I.e., they may set `strict_connections` to `False` (`True` -- default) at
-    instantiation or later with `(de)activate_strict_connections()` to prevent (enable)
-    data type checking when making connections with `OutputData` channels.
-    """
-
-    def __init__(
-        self,
-        label: str,
-        node: Node,
-        default: typing.Optional[typing.Any] = NotData,
-        type_hint: typing.Optional[typing.Any] = None,
-        value_receiver: typing.Optional[InputData] = None,
-        strict_connections: bool = True,
-    ):
-        super().__init__(
-            label=label,
-            node=node,
-            default=default,
-            type_hint=type_hint,
-            value_receiver=value_receiver,
-        )
-        self.strict_connections = strict_connections
-
     def fetch(self) -> None:
         """
         Sets `value` to the first value among connections that is something other than
@@ -450,12 +449,6 @@ class InputData(DataChannel):
             if out.value is not NotData:
                 self.value = out.value
                 break
-
-    def activate_strict_connections(self) -> None:
-        self.strict_connections = True
-
-    def deactivate_strict_connections(self) -> None:
-        self.strict_connections = False
 
 
 class OutputData(DataChannel):
