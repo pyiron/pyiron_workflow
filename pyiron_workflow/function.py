@@ -157,8 +157,7 @@ class Function(Node):
         Note that getting "good" (i.e. dot-accessible) output labels can be achieved by
         using good variable names and returning those variables instead of using
         `output_labels`.
-        If we force the node to run with bad types, it will raise an
-        error:
+        If we try to assign a value of the wrong type, it will raise an error:
         >>> from typing import Union
         >>>
         >>> def hinted_example(
@@ -168,7 +167,17 @@ class Function(Node):
         ...     p1, m1 = x+1, y-1
         ...     return p1, m1
         >>>
-        >>> plus_minus_1 = Function(hinted_example, x="not an int")
+        >>> plus_minus_1 = Function(hinted_example)
+        >>> plus_minus_1.inputs.x =  "not an int or float"
+        TypeError: The channel x cannot take the value `not an int or float` because it
+        is not compliant with the type hint typing.Union[int, float]
+
+        We can turn off type hinting with the `strict_hints` boolean property, or just
+        circumvent the type hinting by applying the new data directly to the private
+        `_value` property.
+        In the latter case, we'd still get a readiness error when we try to run and
+        the ready check sees that the data doesn't conform to the type hint:
+        >>> plus_minus_1.inputs.x._value =  "not an int or float"
         >>> plus_minus_1.run()
         ValueError: hinted_example received a run command but is not ready. The node
         should be neither running nor failed, and all input values should conform to
@@ -180,13 +189,9 @@ class Function(Node):
 
         Here, even though all the input has data, the node sees that some of it is the
         wrong type and so (by default) the run raises an error right away.
-        Note that the type hinting doesn't actually prevent us from assigning bad values
-        directly to the channel (although it will, by default, prevent connections
-        _between_ type-hinted channels with incompatible hints), but it _does_ stop the
-        node from running and throwing an error because it sees that the channel (and
-        thus node) is not ready
-        >>> plus_minus_1.inputs.x.value
-        'not an int'
+        This causes the failure to come earlier because we stop the node from running
+        and throwing an error because it sees that the channel (and thus node) is not
+        ready:
 
         >>> plus_minus_1.ready, plus_minus_1.inputs.x.ready, plus_minus_1.inputs.y.ready
         (False, False, True)
