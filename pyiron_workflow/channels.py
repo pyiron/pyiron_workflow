@@ -235,10 +235,10 @@ class DataChannel(Channel, ABC):
     (In the future they may optionally have a storage history limit.)
     (In the future they may optionally have an ontological type.)
 
-    Note that for the sake of computational efficiency, assignments to the `value`
-    property are not type-checked; type-checking occurs only for connections where both
-    channels have a type hint, and when a value is being copied from another channel
-    with the `copy_value` method.
+    Note that type checking is performed on value updates. This is typically not super
+    expensive, but once you have a workflow you're happy with, you may wish to
+    deactivate `strict_hints` throughout the workflow for the sake of computational
+    efficiency during production runs.
 
     When type checking channel connections, we insist that the output type hint be
     _as or more specific_ than the input type hint, to ensure that the input always
