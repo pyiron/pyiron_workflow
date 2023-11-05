@@ -35,7 +35,7 @@ class Macro(Composite):
     It is intended that subclasses override the initialization signature and provide
     the graph creation directly from their own method.
 
-    As with workflows, all DAG macros will determine their execution flow automatically,
+    As with workflows, all DAG macros can determine their execution flow automatically,
     if you have cycles in your data flow, or otherwise want more control over the
     execution, all you need to do is specify the `node.signals.input.run` connections
     and `starting_nodes` list yourself.
@@ -155,7 +155,7 @@ class Macro(Composite):
         >>> adds_six_macro.two.replace_with(add_two())
         >>> # And by assignment of a compatible class to an occupied node label
         >>> adds_six_macro.three = add_two
-        >>> adds_six_macro(inp=1)
+        >>> adds_six_macro(one__x=1)
         {'three__result': 7}
     """
 

@@ -16,7 +16,10 @@ from pyiron_workflow.executors import CloudpickleProcessPoolExecutor as Executor
 from pyiron_workflow.files import DirectoryObject
 from pyiron_workflow.has_to_dict import HasToDict
 from pyiron_workflow.io import Signals, InputSignal, OutputSignal
-from pyiron_workflow.topology import set_run_connections_according_to_linear_dag
+from pyiron_workflow.topology import (
+    get_nodes_in_data_tree,
+    set_run_connections_according_to_linear_dag,
+)
 from pyiron_workflow.util import SeabornColors
 
 if TYPE_CHECKING:
@@ -69,9 +72,14 @@ class Node(HasToDict, ABC):
     Together these channels represent edges on the dual data and execution computational
     graphs.
 
-    Nodes can be run to force their computation, or more gently updated, which will
-    trigger a run only if all of the input is ready (i.e. channel values conform to
-    any type hints provided).
+    Nodes can be run in a variety of ways..
+    Non-exhaustively, they can be run in a "push" paradigm where they do their
+    calculation and then trigger downstream calculations; in a "pull" mode where they
+    first make sure all their upstream dependencies then run themselves (but not
+    anything downstream); or they may be forced to run their calculation with exactly
+    the input they have right now.
+    These and more options are available, and for more information look at the `run`
+    method.
 
     Nodes may have a `parent` node that owns them as part of a sub-graph.
 
@@ -92,15 +100,15 @@ class Node(HasToDict, ABC):
     channels.
 
     The `run()` method returns a representation of the node output (possible a futures
-    object, if the node is running on an executor), and consequently `update()` also
-    returns this output if the node is `ready`. Both `run()` and `update()` will raise
-    errors if the node is already running or has a failed status.
+    object, if the node is running on an executor), and consequently the `pull`,
+    `execute`, and `__call__` shortcuts to `run` also return the same thing.
 
-    Calling an already instantiated node allows its input channels to be updated using
-    keyword arguments corresponding to the channel labels, performing a batch-update of
-    all supplied input and then calling `run()`.
-    As such, calling the node _also_ returns a representation of the output (or `None`
-    if the node is not set to run on updates, or is otherwise unready to run).
+    Invoking the `run` method (or one of its aliases) of an already instantiated node
+    allows its input channels to be updated using keyword arguments corresponding to
+    the channel labels, performing a batch-update of all supplied input and then
+    proceeding.
+    As such, _if_ the run invocation updates the input values some other way, these
+    supplied values will get overwritten.
 
     Nodes have a status, which is currently represented by the `running` and `failed`
     boolean flag attributes.
@@ -116,15 +124,16 @@ class Node(HasToDict, ABC):
     with the resulting future object.
     WARNING: Executors are currently only working when the node executable function does
         not use `self`.
+    NOTE: Executors are only allowed in a "push" paradigm, and you will get an
+    exception if you try to `pull` and one of the upstream nodes uses an executor.
 
     This is an abstract class.
-    Children *must* define how `inputs` and `outputs` are constructed, and what will
-    happen `on_run`.
-    They may also override the `run_args` property to specify input passed to the
-    defined `on_run` method, and may add additional signal channels to the signals IO.
+    Children *must* define how `inputs` and `outputs` are constructed, what will
+    happen `on_run`, the `run_args` that will get passed to `on_run`, and how to
+    `process_run_result` once `on_run` finishes.
+    They may optionally add additional signal channels to the signals IO.
 
-    # TODO: Everything with (de)serialization and executors for running on something
-    #       other than the main python process.
+    # TODO: Everything with (de)serialization for storage
 
     Attributes:
         connected (bool): Whether _any_ of the IO (including signals) are connected.
@@ -157,20 +166,24 @@ class Node(HasToDict, ABC):
             initialized.
 
     Methods:
-        __call__: Update input values (optional) then run the node (without firing off
-            .the `ran` signal, so nothing happens farther downstream).
+        __call__: An alias for `pull` that aggressively runs upstream nodes even
+            _outside_ the local scope (i.e. runs parents' dependencies as well).
         disconnect: Remove all connections, including signals.
         draw: Use graphviz to visualize the node, its IO and, if composite in nature,
             its internal structure.
-        execute: Run the node, but right here, right now, and with the input it
-            currently has.
+        execute: An alias for `run`, but with flags to run right here, right now, and
+            with the input it currently has.
         on_run: **Abstract.** Do the thing. What thing must be specified by child
             classes.
-        pull: Run everything upstream, then run this node (but don't fire off the `ran`
-            signal, so nothing happens farther downstream).
-        run: Run the node function from `on_run`. Handles status, whether to run on an
-            executor, firing the `ran` signal, and callbacks (if an executor is used).
-        set_input_values: Allows input channels' values to be updated without any running.
+        pull: An alias for `run` that runs everything upstream, then runs this node
+            (but doesn't fire off the `ran` signal, so nothing happens farther
+            downstream). "Upstream" may optionally break out of the local scope to run
+            parent nodes' dependencies as well (all the way until the parent-most
+            object is encountered).
+        run: Run the node function from `on_run`. Handles status automatically. Various
+            execution options are available as boolean flags.
+        set_input_values: Allows input channels' values to be updated without any
+            running.
     """
 
     def __init__(
@@ -245,35 +258,66 @@ class Node(HasToDict, ABC):
 
     def run(
         self,
-        first_fetch_input: bool = True,
-        then_emit_output_signals: bool = True,
-        force_local_execution: bool = False,
+        run_data_tree: bool = False,
+        run_parent_trees_too: bool = False,
+        fetch_input: bool = True,
         check_readiness: bool = True,
+        force_local_execution: bool = False,
+        emit_ran_signal: bool = True,
+        **kwargs,
     ):
         """
-        Update the input (with whatever is currently available -- does _not_ trigger
-        any other nodes to run) and use it to perform the node's operation. After,
-        emit all output signals.
+        The master method for running in a variety of ways.
+        By default, whatever data is currently available in upstream nodes will be
+        fetched, if the input all conforms to type hints then this node will be run
+        (perhaps using an executor), and  finally the `ran` signal will be emitted to
+        trigger downstream runs.
 
         If executor information is specified, execution happens on that process, a
         callback is registered, and futures object is returned.
 
+        Input values can be updated at call time with kwargs, but this happens _first_
+        so any input updates that happen as a result of the computation graph will
+        override these by default. If you really want to execute the node with a
+        particular set of input, set it all manually and use `execute` (or `run` with
+        carefully chosen flags).
+
         Args:
-            first_fetch_input (bool): Whether to first update inputs with the
+            run_data_tree (bool): Whether to first run all upstream nodes in the data
+                graph. (Default is False.)
+            run_parent_trees_too (bool): Whether to recursively run the data tree in
+                parent nodes (if any). (Default is False.)
+            fetch_input (bool): Whether to first update inputs with the
                 highest-priority connections holding data. (Default is True.)
-            then_emit_output_signals (bool): Whether to fire off all output signals
-                (e.g. `ran`) afterwards. (Default is True.)
-            force_local_execution (bool): Whether to ignore any executor settings and
-                force the computation to run locally. (Default is False.)
             check_readiness (bool): Whether to raise an exception if the node is not
                 `ready` to run after fetching new input. (Default is True.)
+            force_local_execution (bool): Whether to ignore any executor settings and
+                force the computation to run locally. (Default is False.)
+            emit_ran_signal (bool): Whether to fire off all the output `ran` signal
+                afterwards. (Default is True.)
+            **kwargs: Keyword arguments matching input channel labels; used to update
+                the input channel values before running anything.
 
         Returns:
             (Any | Future): The result of running the node, or a futures object (if
                 running on an executor).
+
+        Note:
+            Running data trees is a pull-based paradigm and only compatible with graphs
+            whose data forms a directed acyclic graph (DAG).
+
+        Note:
+            Kwargs updating input channel values happens _first_ and will get
+            overwritten by any subsequent graph-based data manipulation.
         """
-        if first_fetch_input:
+        self.set_input_values(**kwargs)
+
+        if run_data_tree:
+            self.run_data_tree(run_parent_trees_too=run_parent_trees_too)
+
+        if fetch_input:
             self.inputs.fetch()
+
         if check_readiness and not self.ready:
             input_readiness = "\n".join(
                 [f"{k} ready: {v.ready}" for k, v in self.inputs.items()]
@@ -285,12 +329,76 @@ class Node(HasToDict, ABC):
                 f"running: {self.running}\n"
                 f"failed: {self.failed}\n" + input_readiness
             )
+
         return self._run(
             finished_callback=self._finish_run_and_emit_ran
-            if then_emit_output_signals
+            if emit_ran_signal
             else self._finish_run,
             force_local_execution=force_local_execution,
         )
+
+    def run_data_tree(self, run_parent_trees_too=False) -> None:
+        """
+        Use topological analysis to build a tree of all upstream dependencies and run
+        them.
+
+        Args:
+            run_parent_trees_too (bool): First, call the same method on this node's
+                parent (if one exists), and recursively up the parentage tree. (Default
+                is False, only run nodes in this scope, i.e. sharing the same parent.)
+        """
+        if run_parent_trees_too and self.parent is not None:
+            self.parent.run_data_tree(run_parent_trees_too=True)
+            self.parent.inputs.fetch()
+
+        label_map = {}
+        nodes = {}
+
+        data_tree_nodes = get_nodes_in_data_tree(self)
+        for node in data_tree_nodes:
+            if node.executor:
+                raise ValueError(
+                    f"Running the data tree is pull-paradigm action, and is "
+                    f"incompatible with using executors. An executor request was found "
+                    f"on {node.label}"
+                )
+
+        for node in data_tree_nodes:
+            modified_label = node.label + str(id(node))
+            label_map[modified_label] = node.label
+            node.label = modified_label  # Ensure each node has a unique label
+            # This is necessary when the nodes do not have a workflow and may thus have
+            # arbitrary labels.
+            # This is pretty ugly; it would be nice to not depend so heavily on labels.
+            # Maybe we could switch a bunch of stuff to rely on the unique ID?
+            nodes[modified_label] = node
+
+        try:
+            disconnected_pairs, starter = set_run_connections_according_to_linear_dag(
+                nodes
+            )
+        except Exception as e:
+            # If the dag setup fails it will repair any connections it breaks before
+            # raising the error, but we still need to repair our label changes
+            for modified_label, node in nodes.items():
+                node.label = label_map[modified_label]
+            raise e
+
+        self.signals.disconnect_run()
+        # Don't let anything upstream trigger this node
+
+        try:
+            # If you're the only one in the data tree, there's nothing upstream to run
+            # Otherwise...
+            if starter is not self:
+                starter.run()  # Now push from the top
+        finally:
+            # No matter what, restore the original connections and labels afterwards
+            for modified_label, node in nodes.items():
+                node.label = label_map[modified_label]
+                node.signals.disconnect_run()
+            for c1, c2 in disconnected_pairs:
+                c1.connect(c2)
 
     @manage_status
     def _run(
@@ -345,78 +453,55 @@ class Node(HasToDict, ABC):
     """
     )
 
-    def execute(self):
+    def execute(self, **kwargs):
         """
-        Run the node with whatever input it currently has, run it on this python
-        process, and don't emit the `ran` signal afterwards.
+        A shortcut for `run` with particular flags.
+
+        Run the node with whatever input it currently has (or is given as kwargs here),
+        run it on this python process, and don't emit the `ran` signal afterwards.
 
         Intended to be useful for debugging by just forcing the node to do its thing
         right here, right now, and as-is.
         """
         return self.run(
-            first_fetch_input=False,
-            then_emit_output_signals=False,
-            force_local_execution=True,
+            run_data_tree=False,
+            run_parent_trees_too=False,
+            fetch_input=False,
             check_readiness=False,
+            force_local_execution=True,
+            emit_ran_signal=False,
+            **kwargs,
         )
 
-    def pull(self):
+    def pull(self, run_parent_trees_too=False, **kwargs):
         """
-        Use topological analysis to build a tree of all upstream dependencies; run them
-        first, then run this node to get an up-to-date result. Does not trigger any
-        downstream executions.
-        """
-        label_map = {}
-        nodes = {}
-        for node in self.get_nodes_in_data_tree():
-            modified_label = node.label + str(id(node))
-            label_map[modified_label] = node.label
-            node.label = modified_label  # Ensure each node has a unique label
-            # This is necessary when the nodes do not have a workflow and may thus have
-            # arbitrary labels.
-            # This is pretty ugly; it would be nice to not depend so heavily on labels.
-            # Maybe we could switch a bunch of stuff to rely on the unique ID?
-            nodes[modified_label] = node
-        disconnected_pairs, starter = set_run_connections_according_to_linear_dag(nodes)
-        try:
-            self.signals.disconnect_run()  # Don't let anything upstream trigger this
-            starter.run()  # Now push from the top
-            return self.run()  # Finally, run here and return the result
-            # Emitting won't matter since we already disconnected this one
-        finally:
-            # No matter what, restore the original connections and labels afterwards
-            for modified_label, node in nodes.items():
-                node.label = label_map[modified_label]
-                node.signals.disconnect_run()
-            for c1, c2 in disconnected_pairs:
-                c1.connect(c2)
+        A shortcut for `run` with particular flags.
 
-    def get_nodes_in_data_tree(self) -> set[Node]:
+        Runs nodes upstream in the data graph, then runs this node without triggering
+        any downstream runs. By default only runs sibling nodes, but can optionally
+        require the parent node to pull in its own upstream runs (this is recursive
+        up to the parent-most object).
+
+        Args:
+            run_parent_trees_too (bool): Whether to (recursively) require the parent to
+                first pull.
         """
-        Get a set of all nodes from this one and upstream through data connections.
-        """
-        nodes = set([self])
-        for channel in self.inputs:
-            for connection in channel.connections:
-                nodes = nodes.union(connection.node.get_nodes_in_data_tree())
-        return nodes
+        return self.run(
+            run_data_tree=True,
+            run_parent_trees_too=run_parent_trees_too,
+            fetch_input=True,
+            check_readiness=True,
+            force_local_execution=False,
+            emit_ran_signal=False,
+            **kwargs,
+        )
 
     def __call__(self, **kwargs) -> None:
         """
-        Update the input, then run without firing the `ran` signal.
-
-        Note that since input fetching happens _after_ the input values are updated,
-        if there is a connected data value it will get used instead of what is specified
-        here. If you really want to set a particular state and then run this can be
-        accomplished with `.inputs.fetch()` then `.set_input_values(...)` then
-        `.execute()` (or `.run(...)` with the flags you want).
-
-        Args:
-            **kwargs: Keyword arguments matching input channel labels; used to update
-                the input before running.
+        A shortcut for `pull` that automatically runs the entire set of upstream data
+        dependencies all the way to the parent-most graph object.
         """
-        self.set_input_values(**kwargs)
-        return self.run()
+        return self.pull(run_parent_trees_too=True, **kwargs)
 
     def set_input_values(self, **kwargs) -> None:
         """

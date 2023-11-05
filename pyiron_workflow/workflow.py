@@ -29,14 +29,22 @@ class Workflow(Composite):
     They are then accessible either under the `nodes` dot-dictionary, or just directly
     by dot-access on the workflow object itself.
 
-    Using the `input` and `output` attributes, the workflow gives access to all the
-    IO channels among its nodes which are currently unconnected.
+    Using the `input` and `output` attributes, the workflow gives by-reference access
+    to all the IO channels among its nodes which are currently unconnected.
 
     The `Workflow` class acts as a single-point-of-import for us;
     Directly from the class we can use the `create` method to instantiate workflow
     objects.
     When called from a workflow _instance_, any created nodes get their parent set to
     the workflow instance being used.
+
+    Workflows are "living" -- i.e. their IO is always by reference to their owned nodes
+    and you are meant to add and remove nodes as children -- and "parent-most" -- i.e.
+    they sit at the top of any data dependency tree and may never have a parent of
+    their own.
+    They are flexible and great for development, but once you have a setup you like,
+    you should consider reformulating it as a `Macro`, which operates somewhat more
+    efficiently.
 
     Examples:
         We allow adding nodes to workflows in five equivalent ways:
@@ -116,8 +124,10 @@ class Workflow(Composite):
         12
 
         Workflows also give access to packages of pre-built nodes under different
-        namespaces, e.g.
+        namespaces. These need to be registered first.
         >>> wf = Workflow("with_prebuilt")
+        >>> wf.register("atomistics", "pyiron_workflow.node_library.atomistics")
+        >>> wf.register("plotting", "pyiron_workflow.node_library.plotting")
         >>>
         >>> wf.structure = wf.create.atomistics.Bulk(
         ...     cubic=True,
@@ -127,7 +137,7 @@ class Workflow(Composite):
         >>> wf.calc = wf.create.atomistics.CalcMd(
         ...     job=wf.engine,
         ... )
-        >>> wf.plot = wf.create.standard.Scatter(
+        >>> wf.plot = wf.create.plotting.Scatter(
         ...     x=wf.calc.outputs.steps,
         ...     y=wf.calc.outputs.temperature
         ... )
@@ -205,14 +215,28 @@ class Workflow(Composite):
 
     def run(
         self,
-        first_fetch_input: bool = True,
-        then_emit_output_signals: bool = True,
-        force_local_execution: bool = False,
         check_readiness: bool = True,
+        force_local_execution: bool = False,
+        **kwargs,
     ):
+        # Note: Workflows may have neither parents nor siblings, so we don't need to
+        # worry about running their data trees first, fetching their input, nor firing
+        # their `ran` signal, hence the change in signature from Node.run
         if self.automate_execution:
             self.set_run_signals_to_dag_execution()
-        return super().run()
+        return super().run(
+            run_data_tree=False,
+            run_parent_trees_too=False,
+            fetch_input=False,
+            check_readiness=check_readiness,
+            force_local_execution=force_local_execution,
+            emit_ran_signal=False,
+            **kwargs,
+        )
+
+    def pull(self, run_parent_trees_too=False, **kwargs):
+        """Workflows are a parent-most object, so this simply runs without pulling."""
+        return self.run(**kwargs)
 
     def to_node(self):
         """

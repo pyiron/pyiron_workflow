@@ -11,7 +11,7 @@ def lammps(wf: Macro) -> None:
 
     potential = wf.create.lammps.Potential(structure=structure)
 
-    # wf.list_pots = wf.create.lammps.ListPotentials(structure=structure)
+    wf.list_pots = wf.create.lammps.ListPotentials(structure=structure)
 
     wf.calc = wf.create.lammps.CalcStatic()
     wf.calc_select = set_replacer(wf.calc, get_calculators())

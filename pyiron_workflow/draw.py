@@ -323,10 +323,15 @@ class Node(WorkflowGraphvizMap):
                         color=self._channel_bicolor(output_channel, input_channel),
                     )
 
-        # Loop to check for macro input --> internal node input connections
+        # Connect channels that are by-reference copies of each other
+        # i.e. for Workflow IO to child IO
         self._connect_matching(self.inputs.channels, internal_inputs)
-        # Loop to check for macro input --> internal node input connections
         self._connect_matching(internal_outputs, self.outputs.channels)
+
+        # Connect channels that are value-linked
+        # i.e. for Macro IO to child IO
+        self._connect_linked(self.inputs.channels, internal_inputs)
+        self._connect_linked(internal_outputs, self.outputs.channels)
 
     def _connect_matching(self, sources: list[_Channel], destinations: list[_Channel]):
         """
@@ -339,6 +344,23 @@ class Node(WorkflowGraphvizMap):
                         source.name,
                         destination.name,
                         color=self._channel_bicolor(source, destination),
+                    )
+
+    def _connect_linked(self, sources: list[_Channel], destinations: list[_Channel]):
+        """
+        Draw an edge between two graph channels values are linked
+        """
+        for source in sources:
+            for destination in destinations:
+                if (
+                    hasattr(source.channel, "value_receiver")
+                    and source.channel.value_receiver is destination.channel
+                ):
+                    self.graph.edge(
+                        source.name,
+                        destination.name,
+                        color=self._channel_bicolor(source, destination),
+                        style="dashed",
                     )
 
     def build_node_name(self, suffix=""):

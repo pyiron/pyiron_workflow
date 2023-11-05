@@ -5,6 +5,7 @@ import unittest
 
 from bidict import ValueDuplicationError
 
+from pyiron_workflow._tests import ensure_tests_in_python_path
 from pyiron_workflow.channels import NotData
 from pyiron_workflow.files import DirectoryObject
 from pyiron_workflow.util import DotDict
@@ -18,6 +19,10 @@ def plus_one(x=0):
 
 @unittest.skipUnless(version_info[0] == 3 and version_info[1] >= 10, "Only supported for 3.10+")
 class TestWorkflow(unittest.TestCase):
+    @classmethod
+    def setUpClass(cls) -> None:
+        ensure_tests_in_python_path()
+        super().setUpClass()
 
     def test_node_addition(self):
         wf = Workflow("my_workflow")
@@ -51,6 +56,21 @@ class TestWorkflow(unittest.TestCase):
                 "foo0", "bar0", "baz0", "boa0",
             ]
         )
+
+        with self.subTest("Make sure trivial re-assignment has no impact"):
+            original_foo = wf.foo
+            n_nodes = len(wf.nodes)
+            wf.foo = original_foo
+            self.assertIs(
+                original_foo,
+                wf.foo,
+                msg="Reassigning a node to the same name should have no impact",
+            )
+            self.assertEqual(
+                n_nodes,
+                len(wf.nodes),
+                msg="Reassigning a node to the same name should have no impact",
+            )
 
         with self.subTest("Make sure strict naming causes a bunch of attribute errors"):
             wf.strict_naming = True
@@ -86,18 +106,18 @@ class TestWorkflow(unittest.TestCase):
             msg="Removal should also remove from starting nodes"
         )
 
-
     def test_node_packages(self):
         wf = Workflow("my_workflow")
+        wf.register("demo", "static.demo_nodes")
 
         # Test invocation
-        wf.create.atomistics.Bulk(cubic=True, element="Al")
+        wf.create.demo.OptionallyAdd(label="by_add")
         # Test invocation with attribute assignment
-        wf.engine = wf.create.atomistics.Lammps(structure=wf.bulk)
+        wf.by_assignment = wf.create.demo.OptionallyAdd()
 
         self.assertSetEqual(
             set(wf.nodes.keys()),
-            set(["bulk", "engine"]),
+            set(["by_add", "by_assignment"]),
             msg=f"Expected one node label generated automatically from the class and "
                 f"the other from the attribute assignment, but got {wf.nodes.keys()}"
         )
@@ -461,6 +481,42 @@ class TestWorkflow(unittest.TestCase):
             wf.inputs_map = {"foo1__x": "x1", "foo2__x": "x2"}
             with self.assertRaises(ValueDuplicationError):
                 wf.inputs_map["foo2__x"] = "x1"
+
+    def test_pull_and_executors(self):
+        def add_three_macro(macro):
+            macro.one = Workflow.create.SingleValue(plus_one)
+            macro.two = Workflow.create.SingleValue(plus_one, x=macro.one)
+            macro.three = Workflow.create.SingleValue(plus_one, x=macro.two)
+
+        wf = Workflow("pulling")
+
+        wf.n1 = Workflow.create.SingleValue(plus_one, x=0)
+        wf.m = Workflow.create.Macro(add_three_macro, one__x=wf.n1)
+
+        self.assertEquals(
+            (0 + 1) + (1 + 1),
+            wf.m.two.pull(run_parent_trees_too=True),
+            msg="Sanity check, pulling here should work perfectly fine"
+        )
+
+        wf.m.one.executor = True
+        with self.assertRaises(
+            ValueError,
+            msg="Should not be able to pull with executor in local scope"
+        ):
+            wf.m.two.pull()
+        wf.m.one.executor = False
+
+        wf.n1.executor = True
+        with self.assertRaises(
+            ValueError,
+            msg="Should not be able to pull with executor in parent scope"
+        ):
+            wf.m.two.pull(run_parent_trees_too=True)
+
+        # Pulling in the local scope should be fine with an executor only in the parent
+        # scope
+        wf.m.two.pull(run_parent_trees_too=False)
 
 
 if __name__ == '__main__':

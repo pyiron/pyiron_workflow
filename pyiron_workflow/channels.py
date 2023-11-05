@@ -398,6 +398,7 @@ class DataChannel(Channel, ABC):
         d = super().to_dict()
         d["value"] = repr(self.value)
         d["ready"] = self.ready
+        d["type_hint"] = str(self.type_hint)
         return d
 
 

@@ -6,7 +6,7 @@ sub-graph
 from __future__ import annotations
 
 from abc import ABC, abstractmethod
-from functools import partial
+from functools import partial, wraps
 from typing import Literal, Optional, TYPE_CHECKING
 
 from bidict import bidict
@@ -41,16 +41,17 @@ class Composite(Node, ABC):
     instances, any created nodes get their `parent` attribute automatically set to the
     composite instance being used.
 
-    Specifies the required `on_run()` to call `run()` on a subset of owned
-    `starting_nodes`nodes to kick-start computation on the owned sub-graph.
+    Specifies the required `on_run()` and `run_args` to call `run()` on a subset of
+    owned `starting_nodes`, thus kick-starting computation on the owned sub-graph.
     Both the specification of these starting nodes and specifying execution signals to
     propagate execution through the graph is left to the user/child classes.
     In the case of non-cyclic workflows (i.e. DAGs in terms of data flow), both
-    starting nodes and execution flow can be specified by invoking ``
+    starting nodes and execution flow can be specified by invoking execution flow can
+    be determined automatically.
 
-    The `run()` method (and `update()`, and calling the workflow) return a new
-    dot-accessible dictionary of keys and values created from the composite output IO
-    panel.
+    Also specifies `process_run_result` such that the `run` method (and its aliases)
+    return a new dot-accessible dictionary of keys and values created from the
+    composite output IO panel.
 
     Does not specify `input` and `output` as demanded by the parent class; this
     requirement is still passed on to children.
@@ -81,10 +82,6 @@ class Composite(Node, ABC):
         add(node: Node): Add the node instance to this subgraph.
         remove(node: Node): Break all connections the node has, remove it from this
          subgraph, and set its parent to `None`.
-
-    TODO:
-        Wrap node registration at the class level so we don't need to do
-        `X.create.register` but can just do `X.register`
     """
 
     wrap_as = Wrappers()
@@ -284,12 +281,16 @@ class Composite(Node, ABC):
                 f"Only new node instances may be added, but got {type(node)}."
             )
         self._ensure_node_has_no_other_parent(node)
-        label = self._get_unique_label(node.label if label is None else label)
-        self._ensure_node_is_not_duplicated(node, label)
 
-        self.nodes[label] = node
-        node.label = label
-        node.parent = self
+        if not (label in self.nodes.keys() and self.nodes[label] is node):
+            # Otherwise you're just passing the same node to the same key!
+
+            label = self._get_unique_label(node.label if label is None else label)
+            self._ensure_node_is_not_duplicated(node, label)
+
+            self.nodes[label] = node
+            node.label = label
+            node.parent = self
         return node
 
     def _get_unique_label(self, label):
@@ -421,6 +422,11 @@ class Composite(Node, ABC):
         if is_starting_node:
             self.starting_nodes.append(replacement)
         return owned_node
+
+    @classmethod
+    @wraps(Creator.register)
+    def register(cls, domain: str, package_identifier: str) -> None:
+        cls.create.register(domain=domain, package_identifier=package_identifier)
 
     def __setattr__(self, key: str, node: Node):
         if isinstance(node, Node) and key != "parent":
