@@ -212,6 +212,70 @@ class TestNode(unittest.TestCase):
             msg="Forcing local execution should do just that."
         )
 
+    def test_execute(self):
+        self.n1.outputs.y = 0  # Prime the upstream data source for fetching
+        self.n2 > self.n3
+        self.assertEqual(
+            self.n2.run(fetch_input=False, emit_ran_signal=False, x=10) + 1,
+            self.n2.execute(x=11),
+            msg="Execute should _not_ fetch in the upstream data"
+        )
+        self.assertFalse(
+            self.n3.ready,
+            msg="Executing should not be triggering downstream runs, even though we "
+                "made a ran/run connection"
+        )
+
+        self.n2.inputs.x._value = "manually override the desired int"
+        with self.assertRaises(
+            TypeError,
+            msg="Execute should be running without a readiness check and hitting the "
+                "string + int error"
+        ):
+            self.n2.execute()
+
+    def test_pull(self):
+        self.n2 > self.n3
+        self.n1.inputs.x = 0
+        by_run = self.n2.run(
+                run_data_tree=True,
+                fetch_input=True,
+                emit_ran_signal=False
+            )
+        self.n1.inputs.x = 1
+        self.assertEqual(
+            by_run + 1,
+            self.n2.pull(),
+            msg="Pull should be running the upstream node"
+        )
+        self.assertFalse(
+            self.n3.ready,
+            msg="Pulling should not be triggering downstream runs, even though we "
+                "made a ran/run connection"
+        )
+
+    def test___call__(self):
+        # __call__ is just a pull that punches through macro walls, so we'll need to
+        # test it again over in macro to really make sure it's working
+        self.n2 > self.n3
+        self.n1.inputs.x = 0
+        by_run = self.n2.run(
+            run_data_tree=True,
+            fetch_input=True,
+            emit_ran_signal=False
+        )
+        self.n1.inputs.x = 1
+        self.assertEqual(
+            by_run + 1,
+            self.n2(),
+            msg="A call should be running the upstream node"
+        )
+        self.assertFalse(
+            self.n3.ready,
+            msg="Calling should not be triggering downstream runs, even though we "
+                "made a ran/run connection"
+        )
+
     def test_working_directory(self):
         self.assertFalse(
             os.path.isdir(self.n1.label),
