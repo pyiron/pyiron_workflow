@@ -50,7 +50,7 @@ class TestNode(unittest.TestCase):
         n1 = ANode("start")
         n2 = ANode("middle")
         n3 = ANode("end")
-        n1.inputs.x = 42
+        n1.inputs.x = 0
         n2.inputs.x = n1.outputs.y
         n3.inputs.x = n2.outputs.y
         self.n1 = n1
@@ -151,18 +151,18 @@ class TestNode(unittest.TestCase):
         )
 
     def test_emit_ran_signal(self):
-        self.n1 > self.n2
+        self.n1 > self.n2 > self.n3  # Chained connection declaration
 
         self.n1.run(emit_ran_signal=False)
         self.assertFalse(
-            self.n2.inputs.x.ready,
+            self.n3.inputs.x.ready,
             msg="Without emitting the ran signal, nothing should happen downstream"
         )
 
         self.n1.run(emit_ran_signal=True)
         self.assertEqual(
-            add_one(add_one(self.n1.inputs.x.value)),
-            self.n2.outputs.y.value,
+            add_one(add_one(add_one(self.n1.inputs.x.value))),
+            self.n3.outputs.y.value,
             msg="With the connection and signal, we should have pushed downstream "
                 "execution"
         )
@@ -191,12 +191,24 @@ class TestNode(unittest.TestCase):
                 msg="Running nodes should not be allowed to get their input updated",
             ):
                 self.n1.inputs.x = 42
+            self.assertEqual(
+                1,
+                out.result(),
+                msg="If we wait for the remote execution to finish, it should give us"
+                    "the right thing"
+            )
+            self.assertEqual(
+                1,
+                self.n1.outputs.y.value,
+                msg="The callback on the executor should ensure the output processing "
+                    "happens"
+            )
 
         self.n2.executor = True
         self.n2.inputs.x = 0
         self.assertEqual(
             1,
-            self.n2.run(force_local_execution=True),
+            self.n2.run(fetch_input=False, force_local_execution=True),
             msg="Forcing local execution should do just that."
         )
 
