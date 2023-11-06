@@ -41,9 +41,7 @@ class Function(Node):
     $N$ to 1 in case you _want_ a tuple returned) and to dodge constraints on the
     automatic scraping routine (namely, that there be _at most_ one `return`
     expression).
-    (Additional properties like storage priority and ontological type are forthcoming
-    as kwarg dictionaries with keys corresponding to the channel labels (i.e. the node
-    arguments of the node function, or the output labels provided).)
+    (Additional properties like storage priority and ontological type are forthcoming.)
 
     Actual function node instances can either be instances of the base node class, in
     which case the callable node function *must* be provided OR they can be instances
@@ -63,8 +61,6 @@ class Function(Node):
     post-run callbacks defined in `Node` -- such that run results are used to populate
     the output channels.
 
-    After a node is instantiated, its input can be updated as `*args` and/or `**kwargs`
-    on call.
     `run()` and its aliases return the output of the executed function, or a futures
     object if the node is set to use an executor.
 
@@ -305,8 +301,9 @@ class Function(Node):
         `Workflow` class.
 
     Comments:
-
-        Using the `self` argument for function nodes is not currently supported.
+        Using the `self` argument for function nodes is not fully supported; it will
+        raise an error when combined with an executor, and otherwise behaviour is not
+        guaranteed.
     """
 
     def __init__(
