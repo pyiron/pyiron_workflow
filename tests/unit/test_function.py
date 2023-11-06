@@ -229,8 +229,8 @@ class TestFunction(unittest.TestCase):
 
         # Can't really test "running" until we have a background executor, so fake a bit
         n.running = True
-        with self.assertRaises(RuntimeError):
-            # Running nodes can't be run
+        with self.assertRaises(ValueError):
+            # Running nodes aren't ready and so can't be run
             n.run()
         n.running = False
 
@@ -403,10 +403,10 @@ class TestFunction(unittest.TestCase):
                 Future,
                 msg="Running with an executor should return the future"
             )
-            with self.assertRaises(RuntimeError):
+            with self.assertRaises(ValueError):
                 # The executor run should take a second
                 # So we can double check that attempting to run while already running
-                # raises an error
+                # raises an error since running nodes aren't ready
                 node.run()
             node.future.result()  # Wait for the remote execution to finish
 
