@@ -303,6 +303,14 @@ class TestDataChannels(TestCase):
         self.ni1.value = 2  # Should be fine when value matches hint
         self.ni1.value = NotData  # Should be able to clear the data
 
+        self.ni1.node.running = True
+        with self.assertRaises(
+            RuntimeError,
+            msg="Input data should be locked while its node runs"
+        ):
+            self.ni1.value = 3
+        self.ni1.node.running = False
+
         with self.assertRaises(
             TypeError,
             msg="Should not be able to take values of the wrong type"

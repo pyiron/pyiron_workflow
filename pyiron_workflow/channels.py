@@ -324,6 +324,12 @@ class DataChannel(Channel, ABC):
 
     @value.setter
     def value(self, new_value):
+        self._type_check_new_value(new_value)
+        if self.value_receiver is not None:
+            self.value_receiver.value = new_value
+        self._value = new_value
+
+    def _type_check_new_value(self, new_value):
         if (
             self.strict_hints
             and new_value is not NotData
@@ -334,9 +340,6 @@ class DataChannel(Channel, ABC):
                 f"The channel {self.label} cannot take the value `{new_value}` because "
                 f"it is not compliant with the type hint {self.type_hint}"
             )
-        if self.value_receiver is not None:
-            self.value_receiver.value = new_value
-        self._value = new_value
 
     @property
     def value_receiver(self) -> InputData | OutputData | None:
@@ -455,15 +458,26 @@ class InputData(DataChannel):
         Raises:
             RuntimeError: If the parent node is `running`.
         """
+        for out in self.connections:
+            if out.value is not NotData:
+                self.value = out.value
+                break
+
+    @property
+    def value(self):
+        return self._value
+
+    @value.setter
+    def value(self, new_value):
         if self.node.running:
             raise RuntimeError(
                 f"Parent node {self.node.label} of {self.label} is running, so value "
                 f"cannot be updated."
             )
-        for out in self.connections:
-            if out.value is not NotData:
-                self.value = out.value
-                break
+        self._type_check_new_value(new_value)
+        if self.value_receiver is not None:
+            self.value_receiver.value = new_value
+        self._value = new_value
 
 
 class OutputData(DataChannel):
