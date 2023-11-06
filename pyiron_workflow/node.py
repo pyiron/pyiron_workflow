@@ -1,6 +1,8 @@
 """
 A base class for objects that can form nodes in the graph representation of a
 computational workflow.
+
+The workhorse class for the entire concept.
 """
 
 from __future__ import annotations
@@ -65,39 +67,46 @@ def manage_status(node_method):
 class Node(HasToDict, ABC):
     """
     Nodes are elements of a computational graph.
-    They have input and output data channels that interface with the outside
-    world, and a callable that determines what they actually compute, and input and
-    output signal channels that can be used to customize the execution flow of their
-    graph;
-    Together these channels represent edges on the dual data and execution computational
-    graphs.
+    They have input and output data channels, and input and output signal channels (for
+    running and having ran, by default), and can be connected together via these
+    channels to form computational graphs.
+    When running, they perform some computation (which must be defined in child
+    classes.)
 
-    Nodes can be run in a variety of ways..
-    Non-exhaustively, they can be run in a "push" paradigm where they do their
-    calculation and then trigger downstream calculations; in a "pull" mode where they
-    first make sure all their upstream dependencies then run themselves (but not
-    anything downstream); or they may be forced to run their calculation with exactly
-    the input they have right now.
-    These and more options are available, and for more information look at the `run`
-    method.
+    Running is always delayed, so no computation is performed unless _some form_ of
+    run request given by the user (e.g., obviously, invoking `.run()`).
 
-    Nodes may have a `parent` node that owns them as part of a sub-graph.
+    The options for running a node are enumerated in the `run` method, and convenience
+    shortcuts for particular sets of options are provided in `execute`, `pull`, and by
+    calling an instantiated node.
+    In all cases, the nodes input data can be updated before any running operations
+    by passing keyword-value pairs to the run invocation.
+    Because this happens first, _if_ the run invocation updates the input values some
+    other way, these supplied values will get overwritten.
 
-    Every node must be named with a `label`, and may use this label to attempt to create
-    a working directory in memory for itself if requested.
+    A non-exhaustive summary of running styles is: nodes can be run in a "push"
+    paradigm where they do their calculation and then trigger downstream calculations;
+    in a "pull" mode where they first make sure all their upstream dependencies then
+    run themselves (but not anything downstream); or they may be forced to run their
+    calculation with exactly the input they have right now.
+    For more information look at the documentation of the `run` method.
+
+    Nodes may have a parent node that owns them as part of a sub-graph.
+
+    Every node must be named with a label, and may use this label to attempt to create
+    a working directory in the filesystem for itself if requested.
     These labels also help to identify nodes in the wider context of (potentially
     nested) computational graphs.
 
-    By default, nodes' signals input comes with `run` and `ran` IO ports, which invoke
-    the `run()` method and emit after running the node, respectfully.
-    (Whether we get all the way to emitting the `ran` signal depends on how the node
-    was invoked -- it is possible to computing things with the node without sending
-    any more signals downstream.)
-    These signal connections can be made manually by reference to the node signals
-    channel, or with the `>` symbol to indicate a flow of execution. This syntactic
-    sugar can be mixed between actual signal channels (output signal > input signal),
-    or nodes, but when referring to nodes it is always a shortcut to the `run`/`ran`
-    channels.
+    Execution flow should be automated wherever possible for user convenience (namely
+    when the data graph forms a directed acyclic graph (DAG), of which the acyclic part
+    is the only thing that might fail).
+    Execution flow can also be specified manually using signal connections.
+    These connections can be made using the same syntax as data connections, or with
+    some syntactic sugar where the the `>` symbol is used to indicate a flow of
+    execution from upstream dow. This syntactic sugar can be mixed between actual
+    signal channels (output signal > input signal), or nodes, but when referring to
+    nodes it is always a shortcut to the `run`/`ran` channels.
 
     The `run()` method returns a representation of the node output (possible a futures
     object, if the node is running on an executor), and consequently the `pull`,
@@ -107,8 +116,6 @@ class Node(HasToDict, ABC):
     allows its input channels to be updated using keyword arguments corresponding to
     the channel labels, performing a batch-update of all supplied input and then
     proceeding.
-    As such, _if_ the run invocation updates the input values some other way, these
-    supplied values will get overwritten.
 
     Nodes have a status, which is currently represented by the `running` and `failed`
     boolean flag attributes.
@@ -133,7 +140,12 @@ class Node(HasToDict, ABC):
     `process_run_result` once `on_run` finishes.
     They may optionally add additional signal channels to the signals IO.
 
-    # TODO: Everything with (de)serialization for storage
+    # TODO:
+        - Everything with (de)serialization for storage
+        - Integration with more powerful tools for remote execution (anything obeying
+            the standard interface of a `submit` method taking the callable and
+            arguments and returning a futures object should work, as long as it can
+            handle serializing dynamically defined objects.
 
     Attributes:
         connected (bool): Whether _any_ of the IO (including signals) are connected.
