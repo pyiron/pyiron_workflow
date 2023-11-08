@@ -296,8 +296,7 @@ class TestWorkflow(unittest.TestCase):
             msg="The slow node _should_ hold up the downstream node to which it inputs"
         )
 
-        while wf.slow.future.running():
-            sleep(0.1)
+        wf.slow.future.result()  # Wait for it to finish
 
         wf.sum.run()
         self.assertEqual(
