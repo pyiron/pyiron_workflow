@@ -823,7 +823,14 @@ class Node(HasToDict, ABC):
         # for the record I am admitting that the current shallowness of my understanding
         # may cause me/us headaches in the future.
         # -Liam
+        state["future"] = None
+        # Don't pass the future -- with the future in the state things work fine for
+        # the simple pyiron_workflow.executors.CloudpickleProcessPoolExecutor, but for
+        # the more complex pympipool.Executor we're getting:
+        # TypeError: cannot pickle '_thread.RLock' object
         return self.__dict__
 
     def __setstate__(self, state):
-        self.__dict__ = state
+        # Update instead of overriding in case some other attributes were added on the
+        # main process while a remote process was working away
+        self.__dict__.update(**state)
