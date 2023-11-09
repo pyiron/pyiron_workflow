@@ -297,6 +297,10 @@ class TestWorkflow(unittest.TestCase):
         )
 
         wf.slow.future.result()  # Wait for it to finish
+        self.assertFalse(
+            wf.slow.running,
+            msg="The slow node should be done running"
+        )
 
         wf.sum.run()
         self.assertEqual(
