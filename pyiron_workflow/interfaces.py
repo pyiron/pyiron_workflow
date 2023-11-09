@@ -9,8 +9,21 @@ from sys import version_info
 
 from pyiron_base.interfaces.singleton import Singleton
 
-# from pympipool.mpi.executor import PyMPISingleTaskExecutor as Executor
-from pyiron_workflow.executors import CloudpickleProcessPoolExecutor as Executor
+# Import all the supported executors
+from pympipool import Executor as PyMpiPoolExecutor, PyMPIExecutor
+try:
+    from pympipool import PySlurmExecutor, PyFluxExecutor
+except ImportError:
+    PySlurmExecutor = None
+try:
+    from pympipool import PyFluxExecutor
+except ImportError:
+    PyFluxExecutor = None
+
+from pyiron_workflow.executors import CloudpickleProcessPoolExecutor
+
+# Then choose one executor to be "standard"
+Executor = CloudpickleProcessPoolExecutor
 
 from pyiron_workflow.function import (
     Function,
