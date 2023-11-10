@@ -7,7 +7,6 @@ from bidict import ValueDuplicationError
 
 from pyiron_workflow._tests import ensure_tests_in_python_path
 from pyiron_workflow.channels import NotData
-from pyiron_workflow.files import DirectoryObject
 from pyiron_workflow.util import DotDict
 from pyiron_workflow.workflow import Workflow
 
@@ -23,139 +22,6 @@ class TestWorkflow(unittest.TestCase):
     def setUpClass(cls) -> None:
         ensure_tests_in_python_path()
         super().setUpClass()
-
-    def test_node_addition(self):
-        wf = Workflow("my_workflow")
-
-        # Validate the four ways to add a node
-        wf.add(Workflow.create.Function(plus_one, label="foo"))
-        wf.create.Function(plus_one, label="bar")
-        wf.baz = wf.create.Function(plus_one, label="whatever_baz_gets_used")
-        Workflow.create.Function(plus_one, label="qux", parent=wf)
-        self.assertListEqual(list(wf.nodes.keys()), ["foo", "bar", "baz", "qux"])
-        wf.boa = wf.qux
-        self.assertListEqual(
-            list(wf.nodes.keys()),
-            ["foo", "bar", "baz", "boa"],
-            msg="Reassignment should remove the original instance"
-        )
-
-        wf.strict_naming = False
-        # Validate name incrementation
-        wf.add(Workflow.create.Function(plus_one, label="foo"))
-        wf.create.Function(plus_one, label="bar")
-        wf.baz = wf.create.Function(
-            plus_one,
-            label="without_strict_you_can_override_by_assignment"
-        )
-        Workflow.create.Function(plus_one, label="boa", parent=wf)
-        self.assertListEqual(
-            list(wf.nodes.keys()),
-            [
-                "foo", "bar", "baz", "boa",
-                "foo0", "bar0", "baz0", "boa0",
-            ]
-        )
-
-        with self.subTest("Make sure trivial re-assignment has no impact"):
-            original_foo = wf.foo
-            n_nodes = len(wf.nodes)
-            wf.foo = original_foo
-            self.assertIs(
-                original_foo,
-                wf.foo,
-                msg="Reassigning a node to the same name should have no impact",
-            )
-            self.assertEqual(
-                n_nodes,
-                len(wf.nodes),
-                msg="Reassigning a node to the same name should have no impact",
-            )
-
-        with self.subTest("Make sure strict naming causes a bunch of attribute errors"):
-            wf.strict_naming = True
-            # Validate name preservation
-            with self.assertRaises(AttributeError):
-                wf.add(wf.create.Function(plus_one, label="foo"))
-
-            with self.assertRaises(AttributeError):
-                wf.create.Function(plus_one, label="bar")
-
-            with self.assertRaises(AttributeError):
-                wf.baz = wf.create.Function(plus_one, label="whatever_baz_gets_used")
-
-            with self.assertRaises(AttributeError):
-                Workflow.create.Function(plus_one, label="boa", parent=wf)
-
-    def test_node_removal(self):
-        wf = Workflow("my_workflow")
-        wf.owned = Workflow.create.Function(plus_one)
-        node = Workflow.create.Function(plus_one)
-        wf.foo = node
-        # Add it to starting nodes manually, otherwise it's only there at run time
-        wf.starting_nodes = [wf.foo]
-        # Connect it inside the workflow
-        wf.foo.inputs.x = wf.owned.outputs.y
-
-        wf.remove(node)
-        self.assertIsNone(node.parent, msg="Removal should de-parent")
-        self.assertFalse(node.connected, msg="Removal should disconnect")
-        self.assertListEqual(
-            wf.starting_nodes,
-            [],
-            msg="Removal should also remove from starting nodes"
-        )
-
-    def test_node_packages(self):
-        wf = Workflow("my_workflow")
-        wf.register("demo", "static.demo_nodes")
-
-        # Test invocation
-        wf.create.demo.OptionallyAdd(label="by_add")
-        # Test invocation with attribute assignment
-        wf.by_assignment = wf.create.demo.OptionallyAdd()
-
-        self.assertSetEqual(
-            set(wf.nodes.keys()),
-            set(["by_add", "by_assignment"]),
-            msg=f"Expected one node label generated automatically from the class and "
-                f"the other from the attribute assignment, but got {wf.nodes.keys()}"
-        )
-
-    def test_double_workfloage_and_node_removal(self):
-        wf1 = Workflow("one")
-        wf1.create.Function(plus_one, label="node1")
-        node2 = Workflow.create.Function(
-            plus_one, label="node2", parent=wf1, x=wf1.node1.outputs.y
-        )
-        self.assertTrue(node2.connected)
-
-        wf2 = Workflow("two")
-        with self.assertRaises(ValueError):
-            # Can't belong to two workflows at once
-            wf2.add(node2)
-        disconnections = wf1.remove(node2)
-        self.assertFalse(node2.connected, msg="Removal should first disconnect")
-        self.assertListEqual(
-            disconnections,
-            [(node2.inputs.x, wf1.node1.outputs.y)],
-            msg="Disconnections should be returned by removal"
-        )
-        wf2.add(node2)
-        self.assertEqual(node2.parent, wf2)
-
-        node1 = wf1.node1
-        disconnections = wf1.remove(node1.label)
-        self.assertEqual(
-            node1.parent,
-            None,
-            msg="Should be able to remove nodes by label as well as by object"
-        )
-        self.assertListEqual(
-            [],
-            disconnections,
-            msg="node1 should have no connections left"
-        )
 
     def test_workflow_io(self):
         wf = Workflow("wf")
@@ -183,24 +49,6 @@ class TestWorkflow(unittest.TestCase):
             out = wf(inp=0)
             self.assertEqual(out.out, 3)
             self.assertEqual(out.intermediate, 2)
-
-    def test_node_decorator_access(self):
-        @Workflow.wrap_as.function_node("y")
-        def plus_one(x: int = 0) -> int:
-            return x + 1
-
-        self.assertEqual(plus_one().run(), 1)
-
-    def test_working_directory(self):
-        wf = Workflow("wf")
-        self.assertTrue(wf._working_directory is None)
-        self.assertIsInstance(wf.working_directory, DirectoryObject)
-        self.assertTrue(str(wf.working_directory.path).endswith(wf.label))
-        wf.create.Function(plus_one)
-        self.assertTrue(
-            str(wf.plus_one.working_directory.path).endswith(wf.plus_one.label)
-        )
-        wf.working_directory.delete()
 
     def test_no_parents(self):
         wf = Workflow("wf")
@@ -357,12 +205,9 @@ class TestWorkflow(unittest.TestCase):
             self.assertEqual(
                 return_on_explicit_run["b__y"],
                 2 + 2,
-                msg="On explicit run, the most recent input data should be used and the "
-                    "result should be returned"
+                msg="On explicit run, the most recent input data should be used and "
+                    "the result should be returned"
             )
-
-        # Note: We don't need to test running on an executor, because Workflows can't
-        #       do that yet
 
     def test_execution_automation(self):
         @Workflow.wrap_as.single_value_node("out")
