@@ -23,34 +23,52 @@ class TestWorkflow(unittest.TestCase):
         ensure_tests_in_python_path()
         super().setUpClass()
 
-    def test_workflow_io(self):
+    def test_io(self):
         wf = Workflow("wf")
         wf.create.Function(plus_one, label="n1")
         wf.create.Function(plus_one, label="n2")
         wf.create.Function(plus_one, label="n3")
 
-        with self.subTest("Workflow IO should be drawn from its nodes"):
-            self.assertEqual(len(wf.inputs), 3)
-            self.assertEqual(len(wf.outputs), 3)
+        inp = wf.inputs
+        inp_again = wf.inputs
+        self.assertIsNot(
+            inp, inp_again, msg="Workflow input should always get rebuilt"
+        )
 
+        n_in = len(wf.inputs)
+        n_out = len(wf.outputs)
+        wf.create.Function(plus_one, label="n4")
+        self.assertEqual(
+            n_in + 1, len(wf.inputs), msg="Workflow IO should be drawn from its nodes"
+        )
+        self.assertEqual(
+            n_out + 1, len(wf.outputs), msg="Workflow IO should be drawn from its nodes"
+        )
+
+        n_in = len(wf.inputs)
+        n_out = len(wf.outputs)
         wf.n3.inputs.x = wf.n2.outputs.y
         wf.n2.inputs.x = wf.n1.outputs.y
+        self.assertEqual(
+            n_in -2, len(wf.inputs), msg="New connections should get reflected"
+        )
+        self.assertEqual(
+            n_out - 2, len(wf.outputs), msg="New connections should get reflected"
+        )
 
-        with self.subTest("Only unconnected channels should count"):
-            self.assertEqual(len(wf.inputs), 1)
-            self.assertEqual(len(wf.outputs), 1)
+        wf.inputs_map = {"n1__x": "inp"}
+        self.assertIs(wf.n1.inputs.x, wf.inputs.inp, msg="IO should be renamable")
 
-        with self.subTest(
-                "IO should be re-mappable, including exposing internally connected "
-                "channels"
-        ):
-            wf.inputs_map = {"n1__x": "inp"}
-            wf.outputs_map = {"n3__y": "out", "n2__y": "intermediate"}
-            out = wf(inp=0)
-            self.assertEqual(out.out, 3)
-            self.assertEqual(out.intermediate, 2)
+        self.assertNotIn(wf.n2.outputs.y, wf.outputs, msg="Ensure starting condition")
+        self.assertIn(wf.n3.outputs.y, wf.outputs, msg="Ensure starting condition")
+        wf.outputs_map = {"n3__y": None, "n2__y": "intermediate"}
+        self.assertIn(wf.n2.outputs.y, wf.outputs, msg="IO should be exposable")
+        self.assertIs(
+            wf.n2.outputs.y, wf.outputs.intermediate, msg="IO should be by reference"
+        )
+        self.assertNotIn(wf.n3.outputs.y, wf.outputs, msg="IO should be hidable")
 
-    def test_no_parents(self):
+    def test_is_parentmost(self):
         wf = Workflow("wf")
         wf2 = Workflow("wf2")
         wf2.parent = None  # Is already the value and should ignore this

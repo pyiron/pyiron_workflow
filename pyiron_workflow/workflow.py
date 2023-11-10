@@ -46,6 +46,10 @@ class Workflow(Composite):
     you should consider reformulating it as a `Macro`, which operates somewhat more
     efficiently.
 
+    Promises (in addition parent class promises):
+    - Workflows are living, their IO always reflects their current state of child nodes
+    - Workflows are parent-most objects, they cannot be a sub-graph of a larger graph
+
     Examples:
         We allow adding nodes to workflows in five equivalent ways:
         >>> from pyiron_workflow.workflow import Workflow
