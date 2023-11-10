@@ -24,37 +24,41 @@ if TYPE_CHECKING:
 
 class Composite(Node, ABC):
     """
-    A base class for nodes that have internal structure -- i.e. they hold a sub-graph.
+    A base class for nodes that have internal graph structure -- i.e. they hold a
+    collection of child nodes and their computation is to execute that graph.
 
-    Item and attribute access is modified to give access to owned nodes.
-    Adding a node with the `add` functionality or by direct attribute assignment sets
-    this object as the parent of that node.
-
-    Guarantees that each owned node is unique, and does not belong to any other parents.
-
-    Offers a class method (`wrap_as`) to give easy access to the node-creating
-    decorators.
-
-    Offers a creator (the `create` method) which allows instantiation of other workflow
-    objects.
-    This method behaves _differently_ on the composite class and its instances -- on
-    instances, any created nodes get their `parent` attribute automatically set to the
-    composite instance being used.
-
-    Specifies the required `on_run()` and `run_args` to call `run()` on a subset of
-    owned `starting_nodes`, thus kick-starting computation on the owned sub-graph.
-    Both the specification of these starting nodes and specifying execution signals to
-    propagate execution through the graph is left to the user/child classes.
-    In the case of non-cyclic workflows (i.e. DAGs in terms of data flow), both
-    starting nodes and execution flow can be specified by invoking execution flow can
-    be determined automatically.
-
-    Also specifies `process_run_result` such that the `run` method (and its aliases)
-    return a new dot-accessible dictionary of keys and values created from the
-    composite output IO panel.
-
-    Does not specify `input` and `output` as demanded by the parent class; this
-    requirement is still passed on to children.
+    Promises:
+    - The class offers access...
+        - To the node-izing `pyiron_workflow` decorators
+        - To a creator for other `pyiron_workflow` objects (namely nodes)
+            - From the class level, this simply creates these objects
+            - From the instance level, created nodes get the instance as their parent
+    - Child nodes...
+        - Can be added by...
+            - Creating them from the instance
+            - Passing a node instance to the adding method
+            - Setting the composite instance as the node's parent
+            - Assigning a node instance as an attribute
+        - Can be accessed by...
+            - Attribute access using their node label
+            - Attribute or item access in the child nodes collection
+            - Iterating over the composite instance
+        - Each have a unique label (within the scope of this composite)
+        - Have no other parent
+        - Can be replaced in-place with another node that has commensurate IO
+        - The length of a composite instance is its number of child nodes
+    - Running the composite...
+        - Runs the child nodes (either using manually specified execution signals, or
+            leveraging a helper tool that automates this process for data DAGs --
+            details are left to child classes)
+        - Returns a dot-dictionary of output IO
+    - Composite IO...
+        - Is some subset of the child nodes IO
+            - Default channel labels indicate both child and child's channel labels
+            - Default behaviour is to expose all unconnected child nodes' IO
+        - Can be given new labels
+        - Can force some child node's IO to appear
+        - Can force some child node's IO to _not_ appear
 
     Attributes:
         inputs/outputs_map (bidict|None): Maps in the form
@@ -82,6 +86,11 @@ class Composite(Node, ABC):
         add(node: Node): Add the node instance to this subgraph.
         remove(node: Node): Break all connections the node has, remove it from this
          subgraph, and set its parent to `None`.
+        (de)activate_strict_hints(): Recursively (de)activate strict type hints.
+        replace(owned_node: Node | str, replacement: Node | type[Node]): Replaces an
+            owned node with a new node, as long as the new node's IO is commensurate
+            with the node being replaced.
+        register(): A short-cut to registering a new node package with the node creator.
     """
 
     wrap_as = Wrappers()
