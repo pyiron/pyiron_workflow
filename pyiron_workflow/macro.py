@@ -169,15 +169,32 @@ class Macro(Composite):
         outputs_map: Optional[dict | bidict] = None,
         **kwargs,
     ):
+        if not callable(graph_creator):
+            # Children of `Function` may explicitly provide a `node_function` static
+            # method so the node has fixed behaviour.
+            # In this case, the `__init__` signature should be changed so that the
+            # `node_function` argument is just always `None` or some other non-callable.
+            # If a callable `node_function` is not received, you'd better have it as an
+            # attribute already!
+            if not hasattr(self, "graph_creator"):
+                raise AttributeError(
+                    f"If `None` is provided as a `graph_creator`, a `graph_creator` "
+                    f"property must be defined instead, e.g. when making child classes"
+                    f"of `Macro` with specific behaviour"
+                )
+        else:
+            # If a callable graph creator is received, use it
+            self.graph_creator = graph_creator
+
         self._parent = None
         super().__init__(
-            label=label if label is not None else graph_creator.__name__,
+            label=label if label is not None else self.graph_creator.__name__,
             parent=parent,
             strict_naming=strict_naming,
             inputs_map=inputs_map,
             outputs_map=outputs_map,
         )
-        graph_creator(self)
+        self.graph_creator(self)
         self._configure_graph_execution()
 
         self._inputs: Inputs = self._build_inputs()
@@ -277,9 +294,10 @@ def macro_node(**node_class_kwargs):
             {
                 "__init__": partialmethod(
                     Macro.__init__,
-                    graph_creator,
-                    **node_class_kwargs,
-                )
+                    None,
+                    **node_class_kwargs
+                ),
+                "graph_creator": staticmethod(graph_creator),
             },
         )
 
