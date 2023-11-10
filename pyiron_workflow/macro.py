@@ -15,8 +15,6 @@ from pyiron_workflow.io import Outputs, Inputs
 if TYPE_CHECKING:
     from bidict import bidict
 
-    from pyiron_workflow.node import Node
-
 
 class Macro(Composite):
     """
@@ -24,16 +22,13 @@ class Macro(Composite):
     pre-populated workflow that is the same every time you instantiate it.
 
     At instantiation, the macro uses a provided callable to build and wire the graph,
-    then builds a static IO interface for this graph. (By default, unconnected IO is
-    passed using the same formalism as workflows to combine node and channel names, but
-    this can be overriden to rename the channels in the IO panel and/or to expose
-    channels that already have an internal connection.)
-
-    Like function nodes, initial values for input can be set using kwargs, and the node
-    will (by default) attempt to update at the end of the instantiation process.
-
-    It is intended that subclasses override the initialization signature and provide
-    the graph creation directly from their own method.
+    then builds a static IO interface for this graph. (See the parent class docstring
+    for more details, but by default and as with workflows, unconnected IO is
+    represented by combining node and channel names, but can be controlled in more
+    detail with maps.)
+    This IO is _value linked_ to the child IO, so that their values stay synchronized,
+    but the child nodes of a macro form an isolated sub-graph.
+    As with function nodes, sub-classes may define a method for creating the graph.
 
     As with workflows, all DAG macros can determine their execution flow automatically,
     if you have cycles in your data flow, or otherwise want more control over the
@@ -42,6 +37,22 @@ class Macro(Composite):
     If only _one_ of these is specified, you'll get an error, but if you've provided
     both then no further checks of their validity/reasonableness are performed, so be
     careful.
+
+    Promises (in addition parent class promises):
+    - IO is...
+        - Only built at instantiation, after child node replacement, or at request, so
+            it is "static" for improved efficiency
+        - By value, i.e. the macro has its own IO channel instances and children are
+            duly encapsulated inside their own sub-graph
+        - Value-linked to the values of their corresponding child nodes' IO -- i.e.
+            updating a macro input value changes a child node's input value, and a
+            child node updating its output value changes a macro output value (if that
+            child's output is regularly included in the macro's output, e.g. because it
+            is disconnected or otherwise included in the outputs map)
+    - Macros will attempt to set the execution graph automatically for DAGs, as long as
+        no execution flow is set in the function that builds the sub-graph
+    - A default node label can be generated using the name of the callable that builds
+        the graph.
 
     Examples:
         Let's consider the simplest case of macros that just consecutively add 1 to
