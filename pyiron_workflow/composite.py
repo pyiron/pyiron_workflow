@@ -139,12 +139,12 @@ class Composite(Node, ABC):
 
     def activate_strict_hints(self):
         super().activate_strict_hints()
-        for node in self.nodes:
+        for node in self:
             node.activate_strict_hints()
 
     def deactivate_strict_hints(self):
         super().deactivate_strict_hints()
-        for node in self.nodes:
+        for node in self:
             node.deactivate_strict_hints()
 
     @property
