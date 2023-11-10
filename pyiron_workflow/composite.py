@@ -27,7 +27,7 @@ class Composite(Node, ABC):
     A base class for nodes that have internal graph structure -- i.e. they hold a
     collection of child nodes and their computation is to execute that graph.
 
-    Promises:
+    Promises (in addition parent class promises):
     - The class offers access...
         - To the node-izing `pyiron_workflow` decorators
         - To a creator for other `pyiron_workflow` objects (namely nodes)
@@ -43,10 +43,12 @@ class Composite(Node, ABC):
             - Attribute access using their node label
             - Attribute or item access in the child nodes collection
             - Iterating over the composite instance
+        - Can be removed
         - Each have a unique label (within the scope of this composite)
         - Have no other parent
         - Can be replaced in-place with another node that has commensurate IO
-        - The length of a composite instance is its number of child nodes
+        - Have their working directory nested inside the composite's
+    - The length of a composite instance is its number of child nodes
     - Running the composite...
         - Runs the child nodes (either using manually specified execution signals, or
             leveraging a helper tool that automates this process for data DAGs --
