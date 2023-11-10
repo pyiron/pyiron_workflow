@@ -4,6 +4,7 @@ from sys import version_info
 import unittest
 
 from pyiron_workflow.channels import InputData, OutputData
+from pyiron_workflow.files import DirectoryObject
 from pyiron_workflow.io import Inputs, Outputs
 from pyiron_workflow.node import Node
 
@@ -277,16 +278,28 @@ class TestNode(unittest.TestCase):
         )
 
     def test_working_directory(self):
+        self.assertTrue(
+            self.n1._working_directory is None,
+            msg="Sanity check -- No working directory should be made unless asked for"
+        )
         self.assertFalse(
             os.path.isdir(self.n1.label),
-            msg="No working directory should be made unless asked for"
+            msg="Sanity check -- No working directory should be made unless asked for"
         )
-        wd = self.n1.working_directory
+        self.assertIsInstance(
+            self.n1.working_directory,
+            DirectoryObject,
+            msg="Directory should be created on first access"
+        )
+        self.assertTrue(
+            str(self.n1.working_directory.path).endswith(self.n1.label),
+            msg="Directory name should be based off of label"
+        )
         self.assertTrue(
             os.path.isdir(self.n1.label),
-            msg="Now we asked for it"
+            msg="Now we asked for it, it should be there"
         )
-        wd.delete()
+        self.n1.working_directory.delete()
         self.assertFalse(
             os.path.isdir(self.n1.label),
             msg="Just want to make sure we cleaned up after ourselves"
