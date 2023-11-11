@@ -29,30 +29,66 @@ Once you're happy with a workflow, it can be easily turned it into a macro for u
 
 Nodes (including macros) can be stored in plain text, and registered by future workflows for easy access. This encourages and supports an ecosystem of useful nodes, so you don't need to re-invent the wheel. (This is an alpha-feature, with full support of [FAIR](https://en.wikipedia.org/wiki/FAIR_data) principles for node packages planned.)
 
-## The absolute basics
+## Example
 
 `pyiron_workflow` offers a single-point-of-entry in the form of the `Workflow` object, and uses decorators to make it easy to turn regular python functions into "nodes" that can be put in a computation graph.
+
+Nodes can be used by themselves and -- other than being "delayed" in that their computation needs to be requested after they're instantiated -- they feel an awful lot like the regular python functions they wrap:
 
 ```python
 from pyiron_workflow import Workflow
 
-@Workflow.wrap_as.function_node("sum")
-def x_plus_y(x: int = 0, y: int = 0) -> int:
-    return x + y
+@Workflow.wrap_as.single_value_node()
+def add_one(x):
+    return x + 1
 
-wf = Workflow("my_workflow")
-wf.a1 = x_plus_y()
-wf.a2 = x_plus_y()
-wf.b = x_plus_y(x=wf.a1.outputs.sum, y=wf.a2.outputs.sum)
-
-out = wf(a1__x=0, a1__y=1, a2__x=2, a2__y=3)
-out.b__sum
->>> 6
-
-wf.draw()
+add_one(add_one(add_one(x=0)))()
+>>> 3
 ```
 
-![](docs/_static/demo.png)
+But the intent is to collect them together into a workflow and leverage existing nodes:
+
+```python
+from pyiron_workflow import Workflow
+
+@Workflow.wrap_as.single_value_node()
+def add_one(x):
+    return x + 1
+
+@Workflow.wrap_as.macro_node()
+def add_three_macro(macro):
+    macro.start = add_one()
+    macro.middle = add_one(x=macro.start)
+    macro.end = add_one(x=macro.middle)
+    macro.inputs_map = {"start__x": "x"}
+    macro.outputs_map = {"end__x + 1": "y"}
+
+Workflow.register(
+    "plotting", 
+    "pyiron_workflow.node_library.plotting"
+)
+
+wf = Workflow("add_5_and_plot")
+wf.add_one = add_one()
+wf.add_three = add_three_macro(x=wf.add_one)
+wf.plot = wf.create.plotting.Scatter(
+    x=wf.add_one,
+    y=wf.add_three.outputs.y
+)
+
+diagram = wf.draw()
+
+import numpy as np
+fig = wf(add_one__x=np.arange(5)).plot__fig
+```
+
+Which gives the workflow `diagram`
+
+![](docs/_static/readme_diagram.png)
+
+And the resulting `fig`
+
+![](docs/_static/readme_shifted.png)
 
 ## Installation
 
