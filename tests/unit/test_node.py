@@ -84,6 +84,27 @@ class TestNode(unittest.TestCase):
             msg="It should be possible to deactivate type checking from the node level"
         )
 
+    def test_run_data_tree(self):
+        self.assertEqual(
+            add_one(add_one(add_one(self.n1.inputs.x.value))),
+            self.n3.run(run_data_tree=True),
+            msg="Should pull start down to end, even with no flow defined"
+        )
+
+    def test_fetch_input(self):
+        self.n1.outputs.y.value = 0
+        with self.assertRaises(
+            ValueError,
+            msg="Without input, we should not achieve readiness"
+        ):
+            self.n2.run(run_data_tree=False, fetch_input=False, check_readiness=True)
+
+        self.assertEqual(
+            add_one(self.n1.outputs.y.value),
+            self.n2.run(run_data_tree=False, fetch_input=True),
+            msg="After fetching the upstream data, should run fine"
+        )
+
     def test_check_readiness(self):
         with self.assertRaises(
             ValueError,
@@ -130,44 +151,6 @@ class TestNode(unittest.TestCase):
                 "running should proceed"
         )
 
-    def test_fetch_input(self):
-        self.n1.outputs.y.value = 0
-        with self.assertRaises(
-            ValueError,
-            msg="Without input, we should not achieve readiness"
-        ):
-            self.n2.run(run_data_tree=False, fetch_input=False, check_readiness=True)
-
-        self.assertEqual(
-            add_one(self.n1.outputs.y.value),
-            self.n2.run(run_data_tree=False, fetch_input=True),
-            msg="After fetching the upstream data, should run fine"
-        )
-
-    def test_run_data_tree(self):
-        self.assertEqual(
-            add_one(add_one(add_one(self.n1.inputs.x.value))),
-            self.n3.run(run_data_tree=True),
-            msg="Should pull start down to end, even with no flow defined"
-        )
-
-    def test_emit_ran_signal(self):
-        self.n1 > self.n2 > self.n3  # Chained connection declaration
-
-        self.n1.run(emit_ran_signal=False)
-        self.assertFalse(
-            self.n3.inputs.x.ready,
-            msg="Without emitting the ran signal, nothing should happen downstream"
-        )
-
-        self.n1.run(emit_ran_signal=True)
-        self.assertEqual(
-            add_one(add_one(add_one(self.n1.inputs.x.value))),
-            self.n3.outputs.y.value,
-            msg="With the connection and signal, we should have pushed downstream "
-                "execution"
-        )
-
     def test_force_local_execution(self):
         self.n1.executor = True
         out = self.n1.run(force_local_execution=False)
@@ -211,6 +194,23 @@ class TestNode(unittest.TestCase):
             1,
             self.n2.run(fetch_input=False, force_local_execution=True),
             msg="Forcing local execution should do just that."
+        )
+
+    def test_emit_ran_signal(self):
+        self.n1 > self.n2 > self.n3  # Chained connection declaration
+
+        self.n1.run(emit_ran_signal=False)
+        self.assertFalse(
+            self.n3.inputs.x.ready,
+            msg="Without emitting the ran signal, nothing should happen downstream"
+        )
+
+        self.n1.run(emit_ran_signal=True)
+        self.assertEqual(
+            add_one(add_one(add_one(self.n1.inputs.x.value))),
+            self.n3.outputs.y.value,
+            msg="With the connection and signal, we should have pushed downstream "
+                "execution"
         )
 
     def test_execute(self):
