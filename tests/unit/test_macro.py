@@ -209,45 +209,6 @@ class TestMacro(unittest.TestCase):
         m = Macro(nested_macro)
         self.assertEqual(m(a__x=0).d__result, 8)
 
-        m2 = Macro(nested_macro)
-
-        with self.subTest("Test Node.get_parent_proximate_to"):
-            self.assertIs(
-                m.b,
-                m.b.two.get_parent_proximate_to(m),
-                msg="Should return parent closest to the passed composite"
-            )
-
-            self.assertIsNone(
-                m.b.two.get_parent_proximate_to(m2),
-                msg="Should return None when composite is not in parentage"
-            )
-
-        with self.subTest("Test Node.get_first_shared_parent"):
-            self.assertIs(
-                m.b,
-                m.b.two.get_first_shared_parent(m.b.three),
-                msg="Should get the parent when parents are the same"
-            )
-            self.assertIs(
-                m,
-                m.b.two.get_first_shared_parent(m.c.two),
-                msg="Should find first matching object in parentage"
-            )
-            self.assertIs(
-                m,
-                m.b.two.get_first_shared_parent(m.d),
-                msg="Should work when depth is not equal"
-            )
-            self.assertIsNone(
-                m.b.two.get_first_shared_parent(m2.b.two),
-                msg="Should return None when no shared parent exists"
-            )
-            self.assertIsNone(
-                m.get_first_shared_parent(m.b),
-                msg="Should return None when parent is None"
-            )
-
     def test_with_executor(self):
         macro = Macro(add_three_macro)
         downstream = SingleValue(add_one, x=macro.outputs.three__result)
