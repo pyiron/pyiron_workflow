@@ -630,14 +630,14 @@ class Node(HasToDict, ABC):
             f"{str(self.signals)}"
         )
 
-    def connect_output_signal(self, signal: OutputSignal):
+    def _connect_output_signal(self, signal: OutputSignal):
         self.signals.input.run.connect(signal)
 
     def __gt__(self, other: InputSignal | Node):
         """
         Allows users to connect run and ran signals like: `first_node > second_node`.
         """
-        other.connect_output_signal(self.signals.output.ran)
+        other._connect_output_signal(self.signals.output.ran)
         return True
 
     def copy_io(

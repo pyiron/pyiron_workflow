@@ -504,7 +504,7 @@ class SignalChannel(Channel, ABC):
     def generic_type(self) -> type[Channel]:
         return SignalChannel
 
-    def connect_output_signal(self, signal: OutputSignal):
+    def _connect_output_signal(self, signal: OutputSignal):
         self.connect(signal)
 
 
@@ -552,5 +552,5 @@ class OutputSignal(SignalChannel):
         )
 
     def __gt__(self, other: InputSignal | Node):
-        other.connect_output_signal(self)
+        other._connect_output_signal(self)
         return True
