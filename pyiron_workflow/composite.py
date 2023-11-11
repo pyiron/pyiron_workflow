@@ -122,30 +122,36 @@ class Composite(Node, ABC):
 
     @property
     def inputs_map(self) -> bidict | None:
-        return self._as_bidict_with_deduplicated_nones(self._inputs_map)
+        self._deduplicate_nones(self._inputs_map)
+        return self._inputs_map
 
     @inputs_map.setter
     def inputs_map(self, new_map: dict | bidict | None):
-        self._inputs_map = self._as_bidict_with_deduplicated_nones(new_map)
+        self._deduplicate_nones(new_map)
+        if new_map is not None:
+            new_map = bidict(new_map)
+        self._inputs_map = new_map
 
     @property
     def outputs_map(self) -> bidict | None:
-        return self._as_bidict_with_deduplicated_nones(self._outputs_map)
+        self._deduplicate_nones(self._outputs_map)
+        return self._outputs_map
 
     @outputs_map.setter
     def outputs_map(self, new_map: dict | bidict | None):
-        self._outputs_map = self._as_bidict_with_deduplicated_nones(new_map)
+        self._deduplicate_nones(new_map)
+        if new_map is not None:
+            new_map = bidict(new_map)
+        self._outputs_map = new_map
 
     @staticmethod
-    def _as_bidict_with_deduplicated_nones(
+    def _deduplicate_nones(
         some_map: dict | bidict | None
-    ) -> bidict | None:
+    ) -> dict | bidict | None:
         if some_map is not None:
             for k, v in some_map.items():
                 if v is None:
                     some_map[k] = (None, f"{k} disabled")
-            some_map = bidict(some_map)
-        return some_map
 
     def activate_strict_hints(self):
         super().activate_strict_hints()
