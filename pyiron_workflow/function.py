@@ -20,28 +20,6 @@ if TYPE_CHECKING:
 class Function(Node):
     """
     Function nodes wrap an arbitrary python function.
-    Node IO, including type hints, is generated automatically from the provided
-    function.
-    Input data for the wrapped function can be provided as any valid combination of
-    `*arg` and `**kwarg` at both initialization and on calling the node.
-
-    On running, the function node executes this wrapped function with its current input
-    and uses the results to populate the node output.
-
-    Function nodes must be instantiated with a callable to deterimine their function,
-    and a string to name each returned value of that callable. (If you really want to
-    return a tuple, just have multiple return values but only one output label -- there
-    is currently no way to mix-and-match, i.e. to have multiple return values at least
-    one of which is a tuple.)
-
-    The node label (unless otherwise provided), IO channel names, IO types, and input
-    defaults for the node are produced _automatically_ from introspection of the node
-    function.
-    Explicit output labels can be provided to modify the number of return values (from
-    $N$ to 1 in case you _want_ a tuple returned) and to dodge constraints on the
-    automatic scraping routine (namely, that there be _at most_ one `return`
-    expression).
-    (Additional properties like storage priority and ontological type are forthcoming.)
 
     Actual function node instances can either be instances of the base node class, in
     which case the callable node function *must* be provided OR they can be instances
@@ -57,12 +35,18 @@ class Function(Node):
     Further, functions with multiple return branches that return different types or
     numbers of return values may or may not work smoothly, depending on the details.
 
-    Output is updated according to `process_run_result` -- which gets invoked by the
-    post-run callbacks defined in `Node` -- such that run results are used to populate
-    the output channels.
-
-    `run()` and its aliases return the output of the executed function, or a futures
-    object if the node is set to use an executor.
+    Promises:
+    - IO channels are constructed automatically from the wrapped function
+        - This includes type hints (if any)
+        - This includes defaults (if any)
+        - By default one channel is created for each returned value (from a tuple)...
+        - Output channel labels are taken from the returned value, but may be overriden
+        - A single tuple output channel can be forced by manually providing exactly one
+            output label
+    - Running the node executes the wrapped function and returns its result
+    - Input updates can be made with `*args` as well as the usual `**kwargs`, following
+        the same input order as the wrapped function.
+    - A default label can be scraped from the name of the wrapped function
 
     Args:
         node_function (callable): The function determining the behaviour of the node.
@@ -579,8 +563,10 @@ class SingleValue(Function, HasChannel):
     available directly at the node level (at least those which don't conflict with the
     existing node namespace).
 
-    This also allows the entire node to be used as a reference to its output channel
-    when making data connections, e.g. `some_node.input.some_channel = my_svn_instance`.
+    Promises (in addition parent class promises):
+    - Attribute and item access will finally attempt to access the output value
+    - The entire node can be used in place of its output value for connections, e.g.
+        `some_node.input.some_channel = my_svn_instance`.
     """
 
     def __init__(

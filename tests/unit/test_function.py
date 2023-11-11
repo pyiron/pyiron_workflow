@@ -139,6 +139,10 @@ class TestFunction(unittest.TestCase):
             switch = Function(multiple_branches, output_labels="bool")
             self.assertListEqual(switch.outputs.labels, ["bool"])
 
+    def test_default_label(self):
+        n = Function(plus_one)
+        self.assertEqual(plus_one.__name__, n.label)
+
     def test_availability_of_node_function(self):
         @function_node()
         def linear(x):
