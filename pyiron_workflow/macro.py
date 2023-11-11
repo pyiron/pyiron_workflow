@@ -303,11 +303,7 @@ def macro_node(**node_class_kwargs):
             graph_creator.__name__.title().replace("_", ""),  # fnc_name to CamelCase
             (Macro,),  # Define parentage
             {
-                "__init__": partialmethod(
-                    Macro.__init__,
-                    None,
-                    **node_class_kwargs
-                ),
+                "__init__": partialmethod(Macro.__init__, None, **node_class_kwargs),
                 "graph_creator": staticmethod(graph_creator),
             },
         )
