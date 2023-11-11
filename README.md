@@ -15,11 +15,23 @@
 
 ## Overview
 
-This repository is home to the pyiron code for structuring workflows as graph objects, with different computational elements as nodes and data and execution signals travelling along edges. It is currently in an alpha state, changing quickly, and not yet feature-complete.
+`pyiron_workflow` is a framework for constructing workflows as computational graphs from simple python functions. Its objective is to make it as easy as possible to create reliable, reusable, and sharable workflows, with a special focus on research workflows for HPC environments.
+
+Nodes are formed from python functions with simple decorators, and the resulting nodes can have their data inputs and outputs connected. 
+
+By allowing (but not demanding, in the case of data DAGs) users to specify the execution flow, both cyclic and acyclic graphs are supported. 
+
+By scraping type hints from decorated functions, both new data values and new graph connections are (optionally) required to conform to hints, making workflows strongly typed.
+
+Individual node computations can be shipped off to parallel processes for scalability. (This is an alpha-feature at time of writing and limited to single core parallel python processes; full support of [`pympipool`](https://github.com/pyiron/pympipool) is under active development)
+
+Once you're happy with a workflow, it can be easily turned it into a macro for use in other workflows. This allows the clean construction of increasingly complex computation graphs by composing simpler graphs.
+
+Nodes (including macros) can be stored in plain text, and registered by future workflows for easy access. This encourages and supports an ecosystem of useful nodes, so you don't need to re-invent the wheel. (This is an alpha-feature, with full support of [FAIR](https://en.wikipedia.org/wiki/FAIR_data) principles for node packages planned.)
 
 ## The absolute basics
 
-`pyiron_workflow` offers a single-point-of-entry in the form of the `Workflow` object, and uses decorators to make it easy to turn regular python functions into "nodes" that can be put in a computation graph:
+`pyiron_workflow` offers a single-point-of-entry in the form of the `Workflow` object, and uses decorators to make it easy to turn regular python functions into "nodes" that can be put in a computation graph.
 
 ```python
 from pyiron_workflow import Workflow
