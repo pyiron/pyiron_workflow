@@ -258,7 +258,8 @@ class Composite(Node, ABC):
                 default_key = f"{node.label}__{channel_label}"
                 try:
                     io_panel_key = key_map[default_key]
-                    if io_panel_key is not tuple:
+                    if not isinstance(io_panel_key, tuple):
+                        # Tuples indicate that the channel has been deactivated
                         io[io_panel_key] = self._get_linking_channel(
                             channel, io_panel_key
                         )
