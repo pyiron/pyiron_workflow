@@ -53,3 +53,13 @@ wf.draw()
 ```
 
 ![](docs/_static/demo.png)
+
+## Installation
+
+`conda install -c conda-forge pyiron_workflow`
+
+To unlock the associated node packages and ensure that the demo notebooks run, also make sure your conda environment has the packages listed in our [notebooks dependencies](.ci_support/environment-notebooks.yml)
+
+## Learning more
+
+Check out the demo [notebooks](notebooks), read through the docstrings, and don't be scared to raise an issue on this GitHub repo!
