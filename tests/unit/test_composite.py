@@ -1,6 +1,8 @@
 from sys import version_info
 import unittest
 
+from bidict import ValueDuplicationError
+
 from pyiron_workflow._tests import ensure_tests_in_python_path
 from pyiron_workflow.channels import NotData
 from pyiron_workflow.composite import Composite
@@ -545,6 +547,40 @@ class TestComposite(unittest.TestCase):
             self.comp.outputs.intermediate_y.value,
             msg="IO should be up-to-date post-run"
         )
+
+    def test_io_map_bijectivity(self):
+        with self.assertRaises(
+            ValueDuplicationError,
+            msg="Should not be allowed to map two children's channels to the same label"
+        ):
+            self.comp.inputs_map = {"n1__x": "x", "n2__x": "x"}
+
+        self.comp.inputs_map = {"n1__x": "x"}
+        with self.assertRaises(
+            ValueDuplicationError,
+            msg="Should not be allowed to update a second child's channel onto an "
+                "existing mapped channel"
+        ):
+            self.comp.inputs_map["n2__x"] = "x"
+
+        with self.subTest("Ensure we can use None to turn multiple off"):
+            self.comp.inputs_map = {"n1__x": None, "n2__x": None}  # At once
+            # Or in a row
+            self.comp.inputs_map = {}
+            self.comp.inputs_map["n1__x"] = None
+            self.comp.inputs_map["n2__x"] = None
+            self.comp.inputs_map["n3__x"] = None
+            print("\nMAP", self.comp.inputs_map)
+            self.assertEqual(
+                3,
+                len(self.comp.inputs_map),
+                msg="All entries should be stored"
+            )
+            self.assertEqual(
+                0,
+                len(self.comp.inputs),
+                msg="No IO should be left exposed"
+            )
 
     def test_de_activate_strict_connections(self):
         self.comp.sub_comp = AComposite("sub")
