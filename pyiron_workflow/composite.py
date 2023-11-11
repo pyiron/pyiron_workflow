@@ -58,9 +58,10 @@ class Composite(Node, ABC):
         - Is some subset of the child nodes IO
             - Default channel labels indicate both child and child's channel labels
             - Default behaviour is to expose all unconnected child nodes' IO
-        - Can be given new labels
-        - Can force some child node's IO to appear
-        - Can force some child node's IO to _not_ appear
+        - Bijective maps can be used to...
+            - Rename IO
+            - Force a child node's IO to appear
+            - Force a child node's IO to _not_ appear
 
     Attributes:
         inputs/outputs_map (bidict|None): Maps in the form
@@ -121,12 +122,25 @@ class Composite(Node, ABC):
 
     @property
     def inputs_map(self) -> bidict | None:
+        if self._inputs_map is not None:
+            for k, v in self._inputs_map.items():
+                if v is None:
+                    self._inputs_map[k] = self._deduplicate_none(k)
         return self._inputs_map
 
     @inputs_map.setter
     def inputs_map(self, new_map: dict | bidict | None):
-        new_map = new_map if new_map is None else bidict(new_map)
+        if new_map is not None:
+            new_map = dict(new_map)
+            for k, v in new_map.items():
+                if v is None:
+                    new_map[k] = self._deduplicate_none(k)
+            new_map = bidict(new_map)
         self._inputs_map = new_map
+
+    @staticmethod
+    def _deduplicate_none(k):
+        return (None, f"{k} disabled")
 
     @property
     def outputs_map(self) -> bidict | None:
@@ -244,7 +258,7 @@ class Composite(Node, ABC):
                 default_key = f"{node.label}__{channel_label}"
                 try:
                     io_panel_key = key_map[default_key]
-                    if io_panel_key is not None:
+                    if io_panel_key is not tuple:
                         io[io_panel_key] = self._get_linking_channel(
                             channel, io_panel_key
                         )
