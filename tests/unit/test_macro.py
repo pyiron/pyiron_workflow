@@ -238,6 +238,8 @@ class TestMacro(unittest.TestCase):
         )
 
         returned_nodes = result.result()  # Wait for the process to finish
+        from time import sleep
+        sleep(1)
         self.assertIsNot(
             original_one,
             returned_nodes.one,
