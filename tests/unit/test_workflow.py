@@ -69,15 +69,10 @@ class TestWorkflow(unittest.TestCase):
     def test_is_parentmost(self):
         wf = Workflow("wf")
         wf2 = Workflow("wf2")
-        wf2.parent = None  # Is already the value and should ignore this
-        with self.assertRaises(TypeError):
-            # We currently specify workflows shouldn't get parents, this just verifies
-            # the spec. If that spec changes, test instead that you _can_ set parents!
-            wf2.parent = "not None"
 
         with self.assertRaises(TypeError):
             # Setting a non-None value to parent raises the type error from the setter
-            wf2.parent = wf
+            wf.sub_wf = wf2
 
     def test_with_executor(self):
 

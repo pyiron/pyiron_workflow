@@ -257,11 +257,11 @@ class Workflow(Composite):
         raise NotImplementedError
 
     @property
-    def parent(self) -> None:
+    def _parent(self) -> None:
         return None
 
-    @parent.setter
-    def parent(self, new_parent: None):
+    @_parent.setter
+    def _parent(self, new_parent: None):
         # Currently workflows are not allowed to have a parent -- maybe we want to
         # change our minds on this in the future? If we do, we can just expose `parent`
         # as a kwarg and roll back this private var/property/setter protection and let

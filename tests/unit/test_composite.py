@@ -93,17 +93,15 @@ class TestComposite(unittest.TestCase):
         self.comp.create.Function(plus_one, label="bar")
         self.comp.baz = self.comp.create.Function(plus_one, label="whatever_baz_gets_used")
         Composite.create.Function(plus_one, label="qux", parent=self.comp)
-        # node = Composite.create.Function(plus_one, label="quux")
-        # node.parent = comp
         self.assertListEqual(
             list(self.comp.nodes.keys()),
-            ["foo", "bar", "baz", "qux",], # "quux"],
+            ["foo", "bar", "baz", "qux"],
             msg="Expected every above syntax to add a node OK"
         )
         self.comp.boa = self.comp.qux
         self.assertListEqual(
             list(self.comp.nodes.keys()),
-            ["foo", "bar", "baz", "boa"], # "quux"],
+            ["foo", "bar", "baz", "boa"],
             msg="Reassignment should remove the original instance"
         )
                 
@@ -190,9 +188,9 @@ class TestComposite(unittest.TestCase):
         with self.assertRaises(AttributeError, msg="We have 'foo' at home"):
             Composite.create.Function(plus_one, label="foo", parent=self.comp)
 
-        # with self.assertRaises(AttributeError, msg="We have 'foo' at home"):
-        #     node = Composite.create.Function(plus_one, label="foo")
-        #     node.parent = comp
+        with self.assertRaises(ValueError, msg="Parentage can't be set directly"):
+            node = Composite.create.Function(plus_one, label="foo")
+            node.parent = self.comp
 
         with self.subTest("Make sure trivial re-assignment has no impact"):
             original_foo = self.comp.foo

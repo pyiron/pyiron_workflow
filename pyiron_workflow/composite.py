@@ -35,15 +35,15 @@ class Composite(Node, ABC):
             - From the instance level, created nodes get the instance as their parent
     - Child nodes...
         - Can be added by...
-            - Creating them from the instance
+            - Creating them from the creator on a composite _instance_
             - Passing a node instance to the adding method
-            - Setting the composite instance as the node's parent
+            - Setting the composite instance as the node's parent at node instantiation
             - Assigning a node instance as an attribute
         - Can be accessed by...
             - Attribute access using their node label
             - Attribute or item access in the child nodes collection
             - Iterating over the composite instance
-        - Can be removed
+        - Can be removed by method
         - Each have a unique label (within the scope of this composite)
         - Have no other parent
         - Can be replaced in-place with another node that has commensurate IO
@@ -205,7 +205,7 @@ class Composite(Node, ABC):
         replace your own nodes with them, and set yourself as their parent.
         """
         for child in children_from_another_process.values():
-            child.parent = self
+            child._parent = self
         self.nodes = children_from_another_process
 
     def disconnect_run(self) -> list[tuple[Channel, Channel]]:
@@ -328,7 +328,7 @@ class Composite(Node, ABC):
 
             self.nodes[label] = node
             node.label = label
-            node.parent = self
+            node._parent = self
         return node
 
     def _get_unique_label(self, label):
@@ -393,7 +393,7 @@ class Composite(Node, ABC):
             (list[tuple[Channel, Channel]]): Any connections that node had.
         """
         node = self.nodes[node] if isinstance(node, str) else node
-        node.parent = None
+        node._parent = None
         disconnected = node.disconnect()
         if node in self.starting_nodes:
             self.starting_nodes.remove(node)
@@ -519,7 +519,7 @@ class Composite(Node, ABC):
         cls.create.register(domain=domain, package_identifier=package_identifier)
 
     def __setattr__(self, key: str, node: Node):
-        if isinstance(node, Node) and key != "parent":
+        if isinstance(node, Node) and key != "_parent":
             self.add(node, label=key)
         elif (
             isinstance(node, type)

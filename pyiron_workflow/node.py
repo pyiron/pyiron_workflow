@@ -216,7 +216,7 @@ class Node(HasToDict, ABC):
         """
         super().__init__(*args, **kwargs)
         self.label: str = label
-        self.parent = parent
+        self._parent = None
         if parent is not None:
             parent.add(self)
         self.running = False
@@ -267,6 +267,17 @@ class Node(HasToDict, ABC):
         Args:
             run_output: The results of a `self.on_run(self.run_args)` call.
         """
+
+    @property
+    def parent(self) -> Composite | None:
+        return self._parent
+
+    @parent.setter
+    def parent(self, new_parent: Composite | None) -> None:
+        raise ValueError(
+            "Please change parentage by adding/removing the node to/from the relevant"
+            "parent"
+        )
 
     def run(
         self,
@@ -814,7 +825,7 @@ class Node(HasToDict, ABC):
 
     def __getstate__(self):
         state = self.__dict__
-        state["parent"] = None
+        state["_parent"] = None
         # I am not at all confident that removing the parent here is the _right_
         # solution.
         # In order to run composites on a parallel process, we ship off just the nodes
