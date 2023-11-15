@@ -448,12 +448,9 @@ class Node(HasToDict, ABC):
         """
         if isinstance(executor, StdLibExecutor):
             return executor
-        elif isinstance(executor, bool) and executor:
-            return Executor()
         else:
             raise NotImplementedError(
-                f"Right now we only support `True` (instantiate a new executor of a "
-                f"type specified by pyiron_workflow), or `None`, but got {executor}."
+                f"Expected an instance of {StdLibExecutor}, but got {executor}."
             )
 
     def _finish_run(self, run_output: tuple | Future) -> Any | tuple:

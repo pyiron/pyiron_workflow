@@ -5,6 +5,7 @@ import unittest
 
 from pyiron_workflow.channels import InputData, OutputData
 from pyiron_workflow.files import DirectoryObject
+from pyiron_workflow.interfaces import Executor
 from pyiron_workflow.io import Inputs, Outputs
 from pyiron_workflow.node import Node
 
@@ -152,7 +153,7 @@ class TestNode(unittest.TestCase):
         )
 
     def test_force_local_execution(self):
-        self.n1.executor = True
+        self.n1.executor = Executor()
         out = self.n1.run(force_local_execution=False)
         with self.subTest("Test running with an executor fulfills promises"):
             self.assertIsInstance(

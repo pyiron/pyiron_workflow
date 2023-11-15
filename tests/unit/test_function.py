@@ -6,6 +6,7 @@ import warnings
 
 from pyiron_workflow.channels import NotData, ChannelConnectionError
 from pyiron_workflow.function import Function, SingleValue, function_node
+from pyiron_workflow.interfaces import Executor
 
 
 def throw_error(x: Optional[int] = None):
@@ -216,7 +217,7 @@ class TestFunction(unittest.TestCase):
                 "object."
         )
 
-        node.executor = True
+        node.executor = Executor()
         with self.assertRaises(
             ValueError,
             msg="We haven't implemented any way to update a function node's `self` when"

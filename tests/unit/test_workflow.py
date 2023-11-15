@@ -81,7 +81,7 @@ class TestWorkflow(unittest.TestCase):
         wf.b = wf.create.SingleValue(plus_one, x=wf.a)
 
         original_a = wf.a
-        wf.executor = True
+        wf.executor = wf.create.Executor()
 
         self.assertIs(
             NotData,
@@ -136,7 +136,7 @@ class TestWorkflow(unittest.TestCase):
         wf.fast = five()
         wf.sum = sum(a=wf.fast, b=wf.slow)
 
-        wf.slow.executor = True
+        wf.slow.executor = wf.create.Executor()
 
         wf.slow.run()
         wf.fast.run()
@@ -312,7 +312,7 @@ class TestWorkflow(unittest.TestCase):
             msg="Sanity check, pulling here should work perfectly fine"
         )
 
-        wf.m.one.executor = True
+        wf.m.one.executor = wf.create.Executor()
         with self.assertRaises(
             ValueError,
             msg="Should not be able to pull with executor in local scope"
@@ -320,7 +320,7 @@ class TestWorkflow(unittest.TestCase):
             wf.m.two.pull()
         wf.m.one.executor = None
 
-        wf.n1.executor = True
+        wf.n1.executor = wf.create.Executor()
         with self.assertRaises(
             ValueError,
             msg="Should not be able to pull with executor in parent scope"
