@@ -1,6 +1,8 @@
 """
 A base class for objects that can form nodes in the graph representation of a
 computational workflow.
+
+The workhorse class for the entire concept.
 """
 
 from __future__ import annotations
@@ -65,65 +67,56 @@ def manage_status(node_method):
 class Node(HasToDict, ABC):
     """
     Nodes are elements of a computational graph.
-    They have input and output data channels that interface with the outside
-    world, and a callable that determines what they actually compute, and input and
-    output signal channels that can be used to customize the execution flow of their
-    graph;
-    Together these channels represent edges on the dual data and execution computational
-    graphs.
+    They have inputs and outputs to interface with the wider world, and perform some
+    operation.
+    By connecting multiple nodes' inputs and outputs together, computational graphs can
+    be formed.
+    These can be collected under a parent, such that new graphs can be composed of
+    one or more sub-graphs.
 
-    Nodes can be run in a variety of ways..
-    Non-exhaustively, they can be run in a "push" paradigm where they do their
-    calculation and then trigger downstream calculations; in a "pull" mode where they
-    first make sure all their upstream dependencies then run themselves (but not
-    anything downstream); or they may be forced to run their calculation with exactly
-    the input they have right now.
-    These and more options are available, and for more information look at the `run`
-    method.
+    Promises:
+    - Nodes perform some computation, but this is delayed and won't happen until asked
+        for (the nature of the computation is left to child classes).
+    - Nodes have input and output for interfacing with the outside world
+        - Which can be connected to output/input to form a computation graph
+        - These have a data flavour, to control the flow of information
+        - And a signal flavour, to control the flow of execution
+            - Execution flows can be specified manually, but in the case of data flows
+                which form directed acyclic graphs (DAGs), this can be automated
+    - When running their computation, nodes may or may not:
+        - First update their input data values using kwargs
+            - (Note that since this happens first, if the "fetching" step later occurs,
+                any values provided here will get overwritten by data that is flowing
+                on the data graph)
+        - Then instruct their parent node to ask all of the nodes
+            upstream in its data connections to run (recursively to the parent-most
+            super-graph)
+        - Ask for the nodes upstream of them to run (in the local context of their own
+            parent)
+        - Fetch the latest output data, prioritizing the first actual data among their
+            each of their inputs connections
+        - Check if they are ready to run, i.e.
+            - Status is neither running nor failed
+            - Input is all ready, i.e. each input has data and that data is
+                commensurate with type hints (if any)
+        - Submit their computation to an executor for remote processing, or ignore any
+            executor suggested and force the computation to be local (i.e. in the same
+            python process that owns the node)
+            - If computation is non-local, the node status will stay running and the
+                futures object returned by the executor will be accessible
+        - Emit their run-completed output signal to trigger runs in nodes downstream in
+            the execution flow
+    - Running the node (and all aliases of running) return a representation of data
+        held by the output channels
+    - If an error is encountered _after_ reaching the state of actually computing the
+        node's task, the status will get set to failure
+    - Nodes have a label by which they are identified
+    - Nodes may open a working directory related to their label, their parent(age) and
+        the python process working directory
 
-    Nodes may have a `parent` node that owns them as part of a sub-graph.
+    WARNING: Executors are currently only working when the node executable function
+        does not use `self`.
 
-    Every node must be named with a `label`, and may use this label to attempt to create
-    a working directory in memory for itself if requested.
-    These labels also help to identify nodes in the wider context of (potentially
-    nested) computational graphs.
-
-    By default, nodes' signals input comes with `run` and `ran` IO ports, which invoke
-    the `run()` method and emit after running the node, respectfully.
-    (Whether we get all the way to emitting the `ran` signal depends on how the node
-    was invoked -- it is possible to computing things with the node without sending
-    any more signals downstream.)
-    These signal connections can be made manually by reference to the node signals
-    channel, or with the `>` symbol to indicate a flow of execution. This syntactic
-    sugar can be mixed between actual signal channels (output signal > input signal),
-    or nodes, but when referring to nodes it is always a shortcut to the `run`/`ran`
-    channels.
-
-    The `run()` method returns a representation of the node output (possible a futures
-    object, if the node is running on an executor), and consequently the `pull`,
-    `execute`, and `__call__` shortcuts to `run` also return the same thing.
-
-    Invoking the `run` method (or one of its aliases) of an already instantiated node
-    allows its input channels to be updated using keyword arguments corresponding to
-    the channel labels, performing a batch-update of all supplied input and then
-    proceeding.
-    As such, _if_ the run invocation updates the input values some other way, these
-    supplied values will get overwritten.
-
-    Nodes have a status, which is currently represented by the `running` and `failed`
-    boolean flag attributes.
-    These are updated automatically when the node's operation is invoked, e.g. with
-    `run`, `execute`, `pull`, or by calling the node instance.
-
-    Nodes can be run on the main python process that owns them, or by setting their
-    `executor` attribute to `True`, in which case a
-    `pyiron_workflow.executors.CloudPickleExecutor` will be used to run the node on a
-    new process on a single core (in the future, the interface will look a little
-    different and you'll have more options than that).
-    In case they are run with an executor, their `future` attribute will be populated
-    with the resulting future object.
-    WARNING: Executors are currently only working when the node executable function does
-        not use `self`.
     NOTE: Executors are only allowed in a "push" paradigm, and you will get an
     exception if you try to `pull` and one of the upstream nodes uses an executor.
 
@@ -133,7 +126,12 @@ class Node(HasToDict, ABC):
     `process_run_result` once `on_run` finishes.
     They may optionally add additional signal channels to the signals IO.
 
-    # TODO: Everything with (de)serialization for storage
+    # TODO:
+        - Everything with (de)serialization for storage
+        - Integration with more powerful tools for remote execution (anything obeying
+            the standard interface of a `submit` method taking the callable and
+            arguments and returning a futures object should work, as long as it can
+            handle serializing dynamically defined objects.
 
     Attributes:
         connected (bool): Whether _any_ of the IO (including signals) are connected.
@@ -168,6 +166,7 @@ class Node(HasToDict, ABC):
     Methods:
         __call__: An alias for `pull` that aggressively runs upstream nodes even
             _outside_ the local scope (i.e. runs parents' dependencies as well).
+        (de)activate_strict_hints: Recursively (de)activate strict hints among data IO.
         disconnect: Remove all connections, including signals.
         draw: Use graphviz to visualize the node, its IO and, if composite in nature,
             its internal structure.
@@ -180,6 +179,8 @@ class Node(HasToDict, ABC):
             downstream). "Upstream" may optionally break out of the local scope to run
             parent nodes' dependencies as well (all the way until the parent-most
             object is encountered).
+        replace_with: If the node belongs to a parent, attempts to replace itself in
+            that parent with a new provided node.
         run: Run the node function from `on_run`. Handles status automatically. Various
             execution options are available as boolean flags.
         set_input_values: Allows input channels' values to be updated without any
@@ -204,7 +205,7 @@ class Node(HasToDict, ABC):
         """
         super().__init__(*args, **kwargs)
         self.label: str = label
-        self.parent = parent
+        self._parent = None
         if parent is not None:
             parent.add(self)
         self.running = False
@@ -255,6 +256,17 @@ class Node(HasToDict, ABC):
         Args:
             run_output: The results of a `self.on_run(self.run_args)` call.
         """
+
+    @property
+    def parent(self) -> Composite | None:
+        return self._parent
+
+    @parent.setter
+    def parent(self, new_parent: Composite | None) -> None:
+        raise ValueError(
+            "Please change parentage by adding/removing the node to/from the relevant"
+            "parent"
+        )
 
     def run(
         self,
@@ -618,32 +630,15 @@ class Node(HasToDict, ABC):
             f"{str(self.signals)}"
         )
 
-    def connect_output_signal(self, signal: OutputSignal):
+    def _connect_output_signal(self, signal: OutputSignal):
         self.signals.input.run.connect(signal)
 
     def __gt__(self, other: InputSignal | Node):
         """
         Allows users to connect run and ran signals like: `first_node > second_node`.
         """
-        other.connect_output_signal(self.signals.output.ran)
+        other._connect_output_signal(self.signals.output.ran)
         return True
-
-    def get_parent_proximate_to(self, composite: Composite) -> Composite | None:
-        parent = self.parent
-        while parent is not None and parent.parent is not composite:
-            parent = parent.parent
-        return parent
-
-    def get_first_shared_parent(self, other: Node) -> Composite | None:
-        our, their = self, other
-        while our.parent is not None:
-            while their.parent is not None:
-                if our.parent is their.parent:
-                    return our.parent
-                their = their.parent
-            our = our.parent
-            their = other
-        return None
 
     def copy_io(
         self,
@@ -802,7 +797,7 @@ class Node(HasToDict, ABC):
 
     def __getstate__(self):
         state = self.__dict__
-        state["parent"] = None
+        state["_parent"] = None
         # I am not at all confident that removing the parent here is the _right_
         # solution.
         # In order to run composites on a parallel process, we ship off just the nodes

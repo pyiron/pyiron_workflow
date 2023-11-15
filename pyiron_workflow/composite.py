@@ -24,37 +24,44 @@ if TYPE_CHECKING:
 
 class Composite(Node, ABC):
     """
-    A base class for nodes that have internal structure -- i.e. they hold a sub-graph.
+    A base class for nodes that have internal graph structure -- i.e. they hold a
+    collection of child nodes and their computation is to execute that graph.
 
-    Item and attribute access is modified to give access to owned nodes.
-    Adding a node with the `add` functionality or by direct attribute assignment sets
-    this object as the parent of that node.
-
-    Guarantees that each owned node is unique, and does not belong to any other parents.
-
-    Offers a class method (`wrap_as`) to give easy access to the node-creating
-    decorators.
-
-    Offers a creator (the `create` method) which allows instantiation of other workflow
-    objects.
-    This method behaves _differently_ on the composite class and its instances -- on
-    instances, any created nodes get their `parent` attribute automatically set to the
-    composite instance being used.
-
-    Specifies the required `on_run()` and `run_args` to call `run()` on a subset of
-    owned `starting_nodes`, thus kick-starting computation on the owned sub-graph.
-    Both the specification of these starting nodes and specifying execution signals to
-    propagate execution through the graph is left to the user/child classes.
-    In the case of non-cyclic workflows (i.e. DAGs in terms of data flow), both
-    starting nodes and execution flow can be specified by invoking execution flow can
-    be determined automatically.
-
-    Also specifies `process_run_result` such that the `run` method (and its aliases)
-    return a new dot-accessible dictionary of keys and values created from the
-    composite output IO panel.
-
-    Does not specify `input` and `output` as demanded by the parent class; this
-    requirement is still passed on to children.
+    Promises (in addition parent class promises):
+    - The class offers access...
+        - To the node-izing `pyiron_workflow` decorators
+        - To a creator for other `pyiron_workflow` objects (namely nodes)
+            - From the class level, this simply creates these objects
+            - From the instance level, created nodes get the instance as their parent
+    - Child nodes...
+        - Can be added by...
+            - Creating them from the creator on a composite _instance_
+            - Passing a node instance to the adding method
+            - Setting the composite instance as the node's parent at node instantiation
+            - Assigning a node instance as an attribute
+        - Can be accessed by...
+            - Attribute access using their node label
+            - Attribute or item access in the child nodes collection
+            - Iterating over the composite instance
+        - Can be removed by method
+        - Each have a unique label (within the scope of this composite)
+        - Have no other parent
+        - Can be replaced in-place with another node that has commensurate IO
+        - Have their working directory nested inside the composite's
+    - The length of a composite instance is its number of child nodes
+    - Running the composite...
+        - Runs the child nodes (either using manually specified execution signals, or
+            leveraging a helper tool that automates this process for data DAGs --
+            details are left to child classes)
+        - Returns a dot-dictionary of output IO
+    - Composite IO...
+        - Is some subset of the child nodes IO
+            - Default channel labels indicate both child and child's channel labels
+            - Default behaviour is to expose all unconnected child nodes' IO
+        - Bijective maps can be used to...
+            - Rename IO
+            - Force a child node's IO to appear
+            - Force a child node's IO to _not_ appear
 
     Attributes:
         inputs/outputs_map (bidict|None): Maps in the form
@@ -82,6 +89,11 @@ class Composite(Node, ABC):
         add(node: Node): Add the node instance to this subgraph.
         remove(node: Node): Break all connections the node has, remove it from this
          subgraph, and set its parent to `None`.
+        (de)activate_strict_hints(): Recursively (de)activate strict type hints.
+        replace(owned_node: Node | str, replacement: Node | type[Node]): Replaces an
+            owned node with a new node, as long as the new node's IO is commensurate
+            with the node being replaced.
+        register(): A short-cut to registering a new node package with the node creator.
     """
 
     wrap_as = Wrappers()
@@ -110,30 +122,43 @@ class Composite(Node, ABC):
 
     @property
     def inputs_map(self) -> bidict | None:
+        self._deduplicate_nones(self._inputs_map)
         return self._inputs_map
 
     @inputs_map.setter
     def inputs_map(self, new_map: dict | bidict | None):
-        new_map = new_map if new_map is None else bidict(new_map)
+        self._deduplicate_nones(new_map)
+        if new_map is not None:
+            new_map = bidict(new_map)
         self._inputs_map = new_map
 
     @property
     def outputs_map(self) -> bidict | None:
+        self._deduplicate_nones(self._outputs_map)
         return self._outputs_map
 
     @outputs_map.setter
     def outputs_map(self, new_map: dict | bidict | None):
-        new_map = new_map if new_map is None else bidict(new_map)
+        self._deduplicate_nones(new_map)
+        if new_map is not None:
+            new_map = bidict(new_map)
         self._outputs_map = new_map
+
+    @staticmethod
+    def _deduplicate_nones(some_map: dict | bidict | None) -> dict | bidict | None:
+        if some_map is not None:
+            for k, v in some_map.items():
+                if v is None:
+                    some_map[k] = (None, f"{k} disabled")
 
     def activate_strict_hints(self):
         super().activate_strict_hints()
-        for node in self.nodes:
+        for node in self:
             node.activate_strict_hints()
 
     def deactivate_strict_hints(self):
         super().deactivate_strict_hints()
-        for node in self.nodes:
+        for node in self:
             node.deactivate_strict_hints()
 
     @property
@@ -178,7 +203,7 @@ class Composite(Node, ABC):
         replace your own nodes with them, and set yourself as their parent.
         """
         for child in children_from_another_process.values():
-            child.parent = self
+            child._parent = self
         self.nodes = children_from_another_process
 
     def disconnect_run(self) -> list[tuple[Channel, Channel]]:
@@ -233,7 +258,8 @@ class Composite(Node, ABC):
                 default_key = f"{node.label}__{channel_label}"
                 try:
                     io_panel_key = key_map[default_key]
-                    if io_panel_key is not None:
+                    if not isinstance(io_panel_key, tuple):
+                        # Tuples indicate that the channel has been deactivated
                         io[io_panel_key] = self._get_linking_channel(
                             channel, io_panel_key
                         )
@@ -300,7 +326,7 @@ class Composite(Node, ABC):
 
             self.nodes[label] = node
             node.label = label
-            node.parent = self
+            node._parent = self
         return node
 
     def _get_unique_label(self, label):
@@ -365,7 +391,7 @@ class Composite(Node, ABC):
             (list[tuple[Channel, Channel]]): Any connections that node had.
         """
         node = self.nodes[node] if isinstance(node, str) else node
-        node.parent = None
+        node._parent = None
         disconnected = node.disconnect()
         if node in self.starting_nodes:
             self.starting_nodes.remove(node)
@@ -431,7 +457,59 @@ class Composite(Node, ABC):
         self.add(replacement)
         if is_starting_node:
             self.starting_nodes.append(replacement)
+
+        # Finally, make sure the IO is constructible with this new node, which will
+        # catch things like incompatible IO maps
+        try:
+            # Make sure node-level IO is pointing to the new node and that macro-level
+            # IO gets safely reconstructed
+            self._rebuild_data_io()
+        except Exception as e:
+            # If IO can't be successfully rebuilt using this node, revert changes and
+            # raise the exception
+            self.replace(replacement, owned_node)  # Guaranteed to work since
+            # replacement in the other direction was already a success
+            raise e
+
         return owned_node
+
+    def _rebuild_data_io(self):
+        """
+        Try to rebuild the IO.
+
+        If an error is encountered, revert back to the existing IO then raise it.
+        """
+        old_inputs = self.inputs
+        old_outputs = self.outputs
+        connection_changes = []  # For reversion if there's an error
+        try:
+            self._inputs = self._build_inputs()
+            self._outputs = self._build_outputs()
+            for old, new in [(old_inputs, self.inputs), (old_outputs, self.outputs)]:
+                for old_channel in old:
+                    if old_channel.connected:
+                        # If the old channel was connected to stuff, we'd better still
+                        # have a corresponding channel and be able to copy these, or we
+                        # should fail hard.
+                        # But, if it wasn't connected, we don't even care whether or not
+                        # we still have a corresponding channel to copy to
+                        new_channel = new[old_channel.label]
+                        new_channel.copy_connections(old_channel)
+                        swapped_conenctions = old_channel.disconnect_all()  # Purge old
+                        connection_changes.append(
+                            (new_channel, old_channel, swapped_conenctions)
+                        )
+        except Exception as e:
+            for new_channel, old_channel, swapped_conenctions in connection_changes:
+                new_channel.disconnect(*swapped_conenctions)
+                old_channel.connect(*swapped_conenctions)
+            self._inputs = old_inputs
+            self._outputs = old_outputs
+            e.message = (
+                f"Unable to rebuild IO for {self.label}; reverting to old IO."
+                f"{e.message}"
+            )
+            raise e
 
     @classmethod
     @wraps(Creator.register)
@@ -439,7 +517,7 @@ class Composite(Node, ABC):
         cls.create.register(domain=domain, package_identifier=package_identifier)
 
     def __setattr__(self, key: str, node: Node):
-        if isinstance(node, Node) and key != "parent":
+        if isinstance(node, Node) and key != "_parent":
             self.add(node, label=key)
         elif (
             isinstance(node, type)
