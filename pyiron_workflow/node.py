@@ -9,7 +9,7 @@ from __future__ import annotations
 
 import warnings
 from abc import ABC, abstractmethod
-from concurrent.futures import Future
+from concurrent.futures import Executor as StdLibExecutor, Future
 from typing import Any, Literal, Optional, TYPE_CHECKING
 
 from pyiron_workflow.channels import NotData
@@ -25,8 +25,6 @@ from pyiron_workflow.topology import (
 from pyiron_workflow.util import SeabornColors
 
 if TYPE_CHECKING:
-    from concurrent.futures import Executor as StdLibExecutor
-
     import graphviz
 
     from pyiron_workflow.channels import Channel
@@ -437,8 +435,20 @@ class Node(HasToDict, ABC):
             self.future.add_done_callback(finished_callback)
             return self.future
 
-    def _parse_executor(self, executor) -> StdLibExecutor:
-        if isinstance(executor, bool) and executor:
+    @staticmethod
+    def _parse_executor(executor) -> StdLibExecutor:
+        """
+        We may want to allow users to specify how to build an executor rather than
+        actually providing an executor instance -- so here we can interpret these.
+
+        Note that `concurrent.futures.Executor` _won't_ actually work, because we need
+        stuff with `cloudpickle` support. We're leaning on this for a guaranteed
+        interface (has `submit` and returns a `Future`), and leaving it to the user to
+        provide an executor that will actually work!!!
+        """
+        if isinstance(executor, StdLibExecutor):
+            return executor
+        elif isinstance(executor, bool) and executor:
             return Executor()
         else:
             raise NotImplementedError(
@@ -834,6 +844,12 @@ class Node(HasToDict, ABC):
         # the simple pyiron_workflow.executors.CloudpickleProcessPoolExecutor, but for
         # the more complex pympipool.Executor we're getting:
         # TypeError: cannot pickle '_thread.RLock' object
+        if isinstance(self.executor, StdLibExecutor):
+            state["executor"] = None
+        # Don't pass actual executors, they have an unserializable thread lock on them
+        # _but_ if the user is just passing instructions on how to _build_ an executor,
+        # we'll trust that those serialize OK (this way we can, hopefully, eventually
+        # support nesting executors!)
         return self.__dict__
 
     def __setstate__(self, state):
