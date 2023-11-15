@@ -12,7 +12,7 @@ from pyiron_base.interfaces.singleton import Singleton
 # Import all the supported executors
 from pympipool import Executor as PyMpiPoolExecutor, PyMPIExecutor
 try:
-    from pympipool import PySlurmExecutor, PyFluxExecutor
+    from pympipool import PySlurmExecutor
 except ImportError:
     PySlurmExecutor = None
 try:
@@ -44,6 +44,9 @@ class Creator(metaclass=Singleton):
         self._node_packages = {}
 
         self.Executor = Executor
+        self.CloudpickleProcessPoolExecutor = CloudpickleProcessPoolExecutor
+        self.PyMPIExecutor = PyMPIExecutor
+        self.PyMpiPoolExecutor = PyMpiPoolExecutor
 
         self.Function = Function
         self.SingleValue = SingleValue
@@ -59,6 +62,18 @@ class Creator(metaclass=Singleton):
             # If the CI skips testing on 3.9 gets dropped, we can think about removing
             # this if-clause and just letting users of python <3.10 hit an error.
             self.register("standard", "pyiron_workflow.node_library.standard")
+
+    @property
+    def PyFluxExecutor(self):
+        if PyFluxExecutor is None:
+            raise ImportError(f"{PyFluxExecutor.__name__} is not available")
+        return PyFluxExecutor
+
+    @property
+    def PySlurmExecutor(self):
+        if PySlurmExecutor is None:
+            raise ImportError(f"{PySlurmExecutor.__name__} is not available")
+        return PySlurmExecutor
 
     @property
     def Macro(self):
