@@ -23,7 +23,7 @@ except ImportError:
 from pyiron_workflow.executors import CloudpickleProcessPoolExecutor
 
 # Then choose one executor to be "standard"
-Executor = CloudpickleProcessPoolExecutor
+Executor = PyMpiPoolExecutor
 
 from pyiron_workflow.function import (
     Function,
