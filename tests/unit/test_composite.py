@@ -207,10 +207,8 @@ class TestComposite(unittest.TestCase):
                 msg="Reassigning a node to the same name should have no impact",
             )
 
-        print("\nKEYS", list(self.comp.nodes.keys()))
         self.comp.strict_naming = False
         self.comp.add(Composite.create.Function(plus_one, label="foo"))
-        print("\nKEYS", list(self.comp.nodes.keys()))
         self.assertEqual(
             2,
             len(self.comp),
@@ -568,7 +566,6 @@ class TestComposite(unittest.TestCase):
             self.comp.inputs_map["n1__x"] = None
             self.comp.inputs_map["n2__x"] = None
             self.comp.inputs_map["n3__x"] = None
-            print("\nMAP", self.comp.inputs_map)
             self.assertEqual(
                 3,
                 len(self.comp.inputs_map),
