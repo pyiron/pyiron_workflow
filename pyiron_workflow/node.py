@@ -25,6 +25,8 @@ from pyiron_workflow.topology import (
 from pyiron_workflow.util import SeabornColors
 
 if TYPE_CHECKING:
+    from concurrent.futures import Executor as StdLibExecutor
+
     import graphviz
 
     from pyiron_workflow.channels import Channel
@@ -212,7 +214,7 @@ class Node(HasToDict, ABC):
         self.failed = False
         self.signals = self._build_signal_channels()
         self._working_directory = None
-        self.executor = False
+        self.executor = None
         # We call it an executor, but it's just whether to use one.
         # This is a simply stop-gap as we work out more sophisticated ways to reference
         # (or create) an executor process without ever trying to pickle a `_thread.lock`
@@ -423,17 +425,26 @@ class Node(HasToDict, ABC):
         Handles the status of the node, and communicating with any remote
         computing resources.
         """
-        if force_local_execution or not self.executor:
+        if force_local_execution or self.executor is None:
             # Run locally
             run_output = self.on_run(**self.run_args)
             return finished_callback(run_output)
         else:
             # Just blindly try to execute -- as we nail down the executor interaction
             # we'll want to fail more cleanly here.
-            executor = Executor()
+            executor = self._parse_executor(self.executor)
             self.future = executor.submit(self.on_run, **self.run_args)
             self.future.add_done_callback(finished_callback)
             return self.future
+
+    def _parse_executor(self, executor) -> StdLibExecutor:
+        if isinstance(executor, bool) and executor:
+            return Executor()
+        else:
+            raise NotImplementedError(
+                f"Right now we only support `True` (instantiate a new executor of a "
+                f"type specified by pyiron_workflow), or `None`, but got {executor}."
+            )
 
     def _finish_run(self, run_output: tuple | Future) -> Any | tuple:
         """

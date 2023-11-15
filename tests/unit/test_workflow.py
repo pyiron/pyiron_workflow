@@ -318,7 +318,7 @@ class TestWorkflow(unittest.TestCase):
             msg="Should not be able to pull with executor in local scope"
         ):
             wf.m.two.pull()
-        wf.m.one.executor = False
+        wf.m.one.executor = None
 
         wf.n1.executor = True
         with self.assertRaises(

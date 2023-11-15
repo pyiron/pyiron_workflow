@@ -192,6 +192,6 @@ class TestTopology(unittest.TestCase):
         wf.before_pickling.executor = True
         wf()
         wf.before_pickling.future.result()  # Wait for it to finish
-        wf.before_pickling.executor = False
+        wf.before_pickling.executor = None
         wf.after_pickling = wf.create.demo.OptionallyAdd(2, y=3)
         wf()
