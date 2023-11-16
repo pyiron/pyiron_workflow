@@ -6,7 +6,7 @@ from pyiron_workflow.atomistics_library.tasknodes import (
     get_evcurve_task_generator,
     get_phonons_task_generator,
     analyse_structures,
-    generate_structures
+    generate_structures,
 )
 
 
@@ -20,7 +20,9 @@ def internal_macro(wf: Macro) -> None:
     wf.get_instance = get_instance()
     wf.generate_structures = generate_structures(instance=wf.get_instance)
     wf.calc_with_calculator = calc_with_calculator(task_dict=wf.generate_structures)
-    wf.fit = analyse_structures(instance=wf.get_instance, output_dict=wf.calc_with_calculator)
+    wf.fit = analyse_structures(
+        instance=wf.get_instance, output_dict=wf.calc_with_calculator
+    )
     wf.inputs_map = {
         "get_instance__instance": "instance",
         "calc_with_calculator__calculator": "calculator",

@@ -4,13 +4,10 @@ from pyiron_workflow.function import single_value_node
 
 @single_value_node("task_generator")
 def get_elastic_matrix_task_generator(
-    structure,
-    num_of_point=5,
-    eps_range=0.05,
-    sqrt_eta=True,
-    fit_order=2
+    structure, num_of_point=5, eps_range=0.05, sqrt_eta=True, fit_order=2
 ):
     from atomistics.workflows.elastic.workflow import ElasticMatrixWorkflow
+
     return ElasticMatrixWorkflow(
         structure=structure,
         num_of_point=num_of_point,
@@ -24,13 +21,14 @@ def get_elastic_matrix_task_generator(
 def get_evcurve_task_generator(
     structure,
     num_points=11,
-    fit_type='polynomial',
+    fit_type="polynomial",
     fit_order=3,
     vol_range=0.05,
-    axes=['x', 'y', 'z'],
-    strains=None
+    axes=["x", "y", "z"],
+    strains=None,
 ):
     from atomistics.workflows.evcurve.workflow import EnergyVolumeCurveWorkflow
+
     return EnergyVolumeCurveWorkflow(
         structure=structure,
         num_points=num_points,
@@ -53,6 +51,7 @@ def get_phonons_task_generator(
     number_of_snapshots=None,
 ):
     from atomistics.workflows.phonons.workflow import PhonopyWorkflow
+
     return PhonopyWorkflow(
         structure=structure,
         interaction_range=interaction_range,
@@ -77,4 +76,5 @@ def generate_structures(instance):
 @single_value_node("structure")
 def get_bulk(element):
     from ase.build import bulk
+
     return bulk(element, a=4.00, cubic=True)
