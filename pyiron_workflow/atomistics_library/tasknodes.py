@@ -2,7 +2,7 @@ from phonopy.units import VaspToTHz
 from pyiron_workflow.function import single_value_node
 
 
-@single_value_node(output_labels="task_generator")
+@single_value_node("task_generator")
 def get_elastic_matrix_task_generator(
     structure,
     num_of_point=5,
@@ -20,7 +20,7 @@ def get_elastic_matrix_task_generator(
     )
 
 
-@single_value_node(output_labels="task_generator")
+@single_value_node("task_generator")
 def get_evcurve_task_generator(
     structure,
     num_points=11,
@@ -42,7 +42,7 @@ def get_evcurve_task_generator(
     )
 
 
-@single_value_node(output_labels="task_generator")
+@single_value_node("task_generator")
 def get_phonons_task_generator(
     structure,
     interaction_range=10,
@@ -64,17 +64,17 @@ def get_phonons_task_generator(
     )
 
 
-@single_value_node(output_labels="result_dict")
+@single_value_node("result_dict")
 def analyse_structures(instance, output_dict):
     return instance.analyse_structures(output_dict=output_dict)
 
 
-@single_value_node(output_labels="task_dict")
+@single_value_node("task_dict")
 def generate_structures(instance):
     return instance.generate_structures()
 
 
-@single_value_node(output_labels="structure")
+@single_value_node("structure")
 def get_bulk(element):
     from ase.build import bulk
     return bulk(element, a=4.00, cubic=True)
