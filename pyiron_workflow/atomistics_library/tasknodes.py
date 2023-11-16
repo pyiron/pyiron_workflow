@@ -78,3 +78,13 @@ def get_bulk(element):
     from ase.build import bulk
 
     return bulk(element, a=4.00, cubic=True)
+
+
+nodes = [
+    analyse_structures,
+    generate_structures,
+    get_bulk,
+    get_elastic_matrix_task_generator,
+    get_evcurve_task_generator,
+    get_phonons_task_generator,
+]

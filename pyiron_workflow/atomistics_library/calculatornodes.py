@@ -105,3 +105,15 @@ def get_lammps(task_dict, potential_dataframe):
         task_dict=task_dict,
         potential_dataframe=potential_dataframe,
     )
+
+
+nodes = [
+    calc_with_calculator,
+    get_abinit,
+    get_emt,
+    get_gpaw,
+    get_lammps,
+    get_lammps_potential,
+    get_quantum_espresso,
+    get_siesta,
+]
