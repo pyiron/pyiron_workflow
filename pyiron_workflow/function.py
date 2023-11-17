@@ -20,30 +20,6 @@ if TYPE_CHECKING:
 class Function(Node):
     """
     Function nodes wrap an arbitrary python function.
-    Node IO, including type hints, is generated automatically from the provided
-    function.
-    Input data for the wrapped function can be provided as any valid combination of
-    `*arg` and `**kwarg` at both initialization and on calling the node.
-
-    On running, the function node executes this wrapped function with its current input
-    and uses the results to populate the node output.
-
-    Function nodes must be instantiated with a callable to deterimine their function,
-    and a string to name each returned value of that callable. (If you really want to
-    return a tuple, just have multiple return values but only one output label -- there
-    is currently no way to mix-and-match, i.e. to have multiple return values at least
-    one of which is a tuple.)
-
-    The node label (unless otherwise provided), IO channel names, IO types, and input
-    defaults for the node are produced _automatically_ from introspection of the node
-    function.
-    Explicit output labels can be provided to modify the number of return values (from
-    $N$ to 1 in case you _want_ a tuple returned) and to dodge constraints on the
-    automatic scraping routine (namely, that there be _at most_ one `return`
-    expression).
-    (Additional properties like storage priority and ontological type are forthcoming
-    as kwarg dictionaries with keys corresponding to the channel labels (i.e. the node
-    arguments of the node function, or the output labels provided).)
 
     Actual function node instances can either be instances of the base node class, in
     which case the callable node function *must* be provided OR they can be instances
@@ -59,14 +35,18 @@ class Function(Node):
     Further, functions with multiple return branches that return different types or
     numbers of return values may or may not work smoothly, depending on the details.
 
-    Output is updated according to `process_run_result` -- which gets invoked by the
-    post-run callbacks defined in `Node` -- such that run results are used to populate
-    the output channels.
-
-    After a node is instantiated, its input can be updated as `*args` and/or `**kwargs`
-    on call.
-    `run()` and its aliases return the output of the executed function, or a futures
-    object if the node is set to use an executor.
+    Promises:
+    - IO channels are constructed automatically from the wrapped function
+        - This includes type hints (if any)
+        - This includes defaults (if any)
+        - By default one channel is created for each returned value (from a tuple)...
+        - Output channel labels are taken from the returned value, but may be overriden
+        - A single tuple output channel can be forced by manually providing exactly one
+            output label
+    - Running the node executes the wrapped function and returns its result
+    - Input updates can be made with `*args` as well as the usual `**kwargs`, following
+        the same input order as the wrapped function.
+    - A default label can be scraped from the name of the wrapped function
 
     Args:
         node_function (callable): The function determining the behaviour of the node.
@@ -157,8 +137,7 @@ class Function(Node):
         Note that getting "good" (i.e. dot-accessible) output labels can be achieved by
         using good variable names and returning those variables instead of using
         `output_labels`.
-        If we force the node to run with bad types, it will raise an
-        error:
+        If we try to assign a value of the wrong type, it will raise an error:
         >>> from typing import Union
         >>>
         >>> def hinted_example(
@@ -168,7 +147,17 @@ class Function(Node):
         ...     p1, m1 = x+1, y-1
         ...     return p1, m1
         >>>
-        >>> plus_minus_1 = Function(hinted_example, x="not an int")
+        >>> plus_minus_1 = Function(hinted_example)
+        >>> plus_minus_1.inputs.x =  "not an int or float"
+        TypeError: The channel x cannot take the value `not an int or float` because it
+        is not compliant with the type hint typing.Union[int, float]
+
+        We can turn off type hinting with the `strict_hints` boolean property, or just
+        circumvent the type hinting by applying the new data directly to the private
+        `_value` property.
+        In the latter case, we'd still get a readiness error when we try to run and
+        the ready check sees that the data doesn't conform to the type hint:
+        >>> plus_minus_1.inputs.x._value =  "not an int or float"
         >>> plus_minus_1.run()
         ValueError: hinted_example received a run command but is not ready. The node
         should be neither running nor failed, and all input values should conform to
@@ -180,13 +169,9 @@ class Function(Node):
 
         Here, even though all the input has data, the node sees that some of it is the
         wrong type and so (by default) the run raises an error right away.
-        Note that the type hinting doesn't actually prevent us from assigning bad values
-        directly to the channel (although it will, by default, prevent connections
-        _between_ type-hinted channels with incompatible hints), but it _does_ stop the
-        node from running and throwing an error because it sees that the channel (and
-        thus node) is not ready
-        >>> plus_minus_1.inputs.x.value
-        'not an int'
+        This causes the failure to come earlier because we stop the node from running
+        and throwing an error because it sees that the channel (and thus node) is not
+        ready:
 
         >>> plus_minus_1.ready, plus_minus_1.inputs.x.ready, plus_minus_1.inputs.y.ready
         (False, False, True)
@@ -300,8 +285,9 @@ class Function(Node):
         `Workflow` class.
 
     Comments:
-
-        Using the `self` argument for function nodes is not currently supported.
+        Using the `self` argument for function nodes is not fully supported; it will
+        raise an error when combined with an executor, and otherwise behaviour is not
+        guaranteed.
     """
 
     def __init__(
@@ -577,8 +563,10 @@ class SingleValue(Function, HasChannel):
     available directly at the node level (at least those which don't conflict with the
     existing node namespace).
 
-    This also allows the entire node to be used as a reference to its output channel
-    when making data connections, e.g. `some_node.input.some_channel = my_svn_instance`.
+    Promises (in addition parent class promises):
+    - Attribute and item access will finally attempt to access the output value
+    - The entire node can be used in place of its output value for connections, e.g.
+        `some_node.input.some_channel = my_svn_instance`.
     """
 
     def __init__(

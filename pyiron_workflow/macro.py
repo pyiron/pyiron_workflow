@@ -15,8 +15,6 @@ from pyiron_workflow.io import Outputs, Inputs
 if TYPE_CHECKING:
     from bidict import bidict
 
-    from pyiron_workflow.node import Node
-
 
 class Macro(Composite):
     """
@@ -24,16 +22,13 @@ class Macro(Composite):
     pre-populated workflow that is the same every time you instantiate it.
 
     At instantiation, the macro uses a provided callable to build and wire the graph,
-    then builds a static IO interface for this graph. (By default, unconnected IO is
-    passed using the same formalism as workflows to combine node and channel names, but
-    this can be overriden to rename the channels in the IO panel and/or to expose
-    channels that already have an internal connection.)
-
-    Like function nodes, initial values for input can be set using kwargs, and the node
-    will (by default) attempt to update at the end of the instantiation process.
-
-    It is intended that subclasses override the initialization signature and provide
-    the graph creation directly from their own method.
+    then builds a static IO interface for this graph. (See the parent class docstring
+    for more details, but by default and as with workflows, unconnected IO is
+    represented by combining node and channel names, but can be controlled in more
+    detail with maps.)
+    This IO is _value linked_ to the child IO, so that their values stay synchronized,
+    but the child nodes of a macro form an isolated sub-graph.
+    As with function nodes, sub-classes may define a method for creating the graph.
 
     As with workflows, all DAG macros can determine their execution flow automatically,
     if you have cycles in your data flow, or otherwise want more control over the
@@ -42,6 +37,22 @@ class Macro(Composite):
     If only _one_ of these is specified, you'll get an error, but if you've provided
     both then no further checks of their validity/reasonableness are performed, so be
     careful.
+
+    Promises (in addition parent class promises):
+    - IO is...
+        - Only built at instantiation, after child node replacement, or at request, so
+            it is "static" for improved efficiency
+        - By value, i.e. the macro has its own IO channel instances and children are
+            duly encapsulated inside their own sub-graph
+        - Value-linked to the values of their corresponding child nodes' IO -- i.e.
+            updating a macro input value changes a child node's input value, and a
+            child node updating its output value changes a macro output value (if that
+            child's output is regularly included in the macro's output, e.g. because it
+            is disconnected or otherwise included in the outputs map)
+    - Macros will attempt to set the execution graph automatically for DAGs, as long as
+        no execution flow is set in the function that builds the sub-graph
+    - A default node label can be generated using the name of the callable that builds
+        the graph.
 
     Examples:
         Let's consider the simplest case of macros that just consecutively add 1 to
@@ -169,15 +180,32 @@ class Macro(Composite):
         outputs_map: Optional[dict | bidict] = None,
         **kwargs,
     ):
+        if not callable(graph_creator):
+            # Children of `Function` may explicitly provide a `node_function` static
+            # method so the node has fixed behaviour.
+            # In this case, the `__init__` signature should be changed so that the
+            # `node_function` argument is just always `None` or some other non-callable.
+            # If a callable `node_function` is not received, you'd better have it as an
+            # attribute already!
+            if not hasattr(self, "graph_creator"):
+                raise AttributeError(
+                    f"If `None` is provided as a `graph_creator`, a `graph_creator` "
+                    f"property must be defined instead, e.g. when making child classes"
+                    f"of `Macro` with specific behaviour"
+                )
+        else:
+            # If a callable graph creator is received, use it
+            self.graph_creator = graph_creator
+
         self._parent = None
         super().__init__(
-            label=label if label is not None else graph_creator.__name__,
+            label=label if label is not None else self.graph_creator.__name__,
             parent=parent,
             strict_naming=strict_naming,
             inputs_map=inputs_map,
             outputs_map=outputs_map,
         )
-        graph_creator(self)
+        self.graph_creator(self)
         self._configure_graph_execution()
 
         self._inputs: Inputs = self._build_inputs()
@@ -205,9 +233,7 @@ class Macro(Composite):
         composite_channel.value = child_reference_channel.value
 
         if isinstance(composite_channel, InputData):
-            composite_channel.strict_connections = (
-                child_reference_channel.strict_connections
-            )
+            composite_channel.strict_hints = child_reference_channel.strict_hints
             composite_channel.value_receiver = child_reference_channel
         elif isinstance(composite_channel, OutputData):
             child_reference_channel.value_receiver = composite_channel
@@ -229,44 +255,6 @@ class Macro(Composite):
     def _update_children(self, children_from_another_process):
         super()._update_children(children_from_another_process)
         self._rebuild_data_io()
-
-    def _rebuild_data_io(self):
-        """
-        Try to rebuild the IO.
-
-        If an error is encountered, revert back to the existing IO then raise it.
-        """
-        old_inputs = self.inputs
-        old_outputs = self.outputs
-        connection_changes = []  # For reversion if there's an error
-        try:
-            self._inputs = self._build_inputs()
-            self._outputs = self._build_outputs()
-            for old, new in [(old_inputs, self.inputs), (old_outputs, self.outputs)]:
-                for old_channel in old:
-                    if old_channel.connected:
-                        # If the old channel was connected to stuff, we'd better still
-                        # have a corresponding channel and be able to copy these, or we
-                        # should fail hard.
-                        # But, if it wasn't connected, we don't even care whether or not
-                        # we still have a corresponding channel to copy to
-                        new_channel = new[old_channel.label]
-                        new_channel.copy_connections(old_channel)
-                        swapped_conenctions = old_channel.disconnect_all()  # Purge old
-                        connection_changes.append(
-                            (new_channel, old_channel, swapped_conenctions)
-                        )
-        except Exception as e:
-            for new_channel, old_channel, swapped_conenctions in connection_changes:
-                new_channel.disconnect(*swapped_conenctions)
-                old_channel.connect(*swapped_conenctions)
-            self._inputs = old_inputs
-            self._outputs = old_outputs
-            e.message = (
-                f"Unable to rebuild IO for {self.label}; reverting to old IO."
-                f"{e.message}"
-            )
-            raise e
 
     def _configure_graph_execution(self):
         run_signals = self.disconnect_run()
@@ -294,19 +282,6 @@ class Macro(Composite):
         for pairs in run_signal_pairs_to_restore:
             pairs[0].connect(pairs[1])
 
-    def replace(self, owned_node: Node | str, replacement: Node | type[Node]):
-        replaced_node = super().replace(owned_node=owned_node, replacement=replacement)
-        try:
-            # Make sure node-level IO is pointing to the new node and that macro-level
-            # IO gets safely reconstructed
-            self._rebuild_data_io()
-        except Exception as e:
-            # If IO can't be successfully rebuilt using this node, revert changes and
-            # raise the exception
-            self.replace(replacement, replaced_node)  # Guaranteed to work since
-            # replacement in the other direction was already a success
-            raise e
-
     def to_workfow(self):
         raise NotImplementedError
 
@@ -328,11 +303,8 @@ def macro_node(**node_class_kwargs):
             graph_creator.__name__.title().replace("_", ""),  # fnc_name to CamelCase
             (Macro,),  # Define parentage
             {
-                "__init__": partialmethod(
-                    Macro.__init__,
-                    graph_creator,
-                    **node_class_kwargs,
-                )
+                "__init__": partialmethod(Macro.__init__, None, **node_class_kwargs),
+                "graph_creator": staticmethod(graph_creator),
             },
         )
 
