@@ -77,3 +77,10 @@ def get_phonons(wf: Macro) -> None:
         "internal__calculator": "calculator",
     }
     wf.outputs_map = {"internal__fit_dict": "fit_dict"}
+
+
+nodes = [
+    get_energy_volume_curve,
+    get_elastic_matrix,
+    get_phonons,
+]
