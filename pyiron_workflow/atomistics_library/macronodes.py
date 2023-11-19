@@ -78,6 +78,7 @@ def get_phonons(wf: Macro) -> None:
     }
     wf.outputs_map = {"internal__fit_dict": "fit_dict"}
 
+
 nodes = [
     get_energy_volume_curve,
     get_elastic_matrix,
