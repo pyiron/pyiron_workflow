@@ -32,7 +32,7 @@ setup(
         'cloudpickle==3.0.0',
         'graphviz==0.20.1',
         'matplotlib==3.8.2',
-        'pyiron_base==0.6.8',
+        'pyiron_base==0.6.9',
         'toposort==1.10',
         'typeguard==4.1.5',
     ],
