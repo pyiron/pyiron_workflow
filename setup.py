@@ -39,7 +39,7 @@ setup(
     extras_require={
         "node_library": [
             'numpy==1.26.0',
-            'pyiron_atomistics==0.3.5',
+            'pyiron_atomistics==0.3.7',
         ],
     },
     cmdclass=versioneer.get_cmdclass(),
