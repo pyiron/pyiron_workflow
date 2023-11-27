@@ -13,7 +13,6 @@ dependencies:
 - toposort =1.10
 - typeguard =4.1.5
 - lammps
-- maggma =0.57.4
 - numpy =1.26.0
 - pyiron_atomistics =0.3.5
 - pyiron-data =0.0.24
