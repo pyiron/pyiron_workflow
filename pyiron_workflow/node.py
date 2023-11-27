@@ -112,12 +112,21 @@ class Node(HasToDict, ABC):
     - Nodes have a label by which they are identified
     - Nodes may open a working directory related to their label, their parent(age) and
         the python process working directory
-
-    WARNING: Executors are currently only working when the node executable function
-        does not use `self`.
-
-    NOTE: Executors are only allowed in a "push" paradigm, and you will get an
-    exception if you try to `pull` and one of the upstream nodes uses an executor.
+    - Nodes can run their computation using remote resources by setting an executor
+        - Any executor must have a `submit` method with the same interface as
+            `concurrent.futures.Executor`, must return something that quacks like a
+            `concurrent.futures.Future` object, and must be able to serialize
+            dynamically defined objects
+        - On executing this way, a futures object will be returned instead of the usual
+            result, this future will also be stored as an attribute, and a callback will
+            be registered with the executor
+        - Post-execution processing -- e.g. updating output and firing signals -- will
+            not occur until the futures object is finished and the callback fires.
+        - WARNING: Executors are currently only working when the node executable
+            function does not use `self`
+        - NOTE: Executors are only allowed in a "push" paradigm, and you will get an
+            exception if you try to `pull` and one of the upstream nodes uses an
+            executor
 
     This is an abstract class.
     Children *must* define how `inputs` and `outputs` are constructed, what will

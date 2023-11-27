@@ -39,6 +39,13 @@ class Creator(metaclass=Singleton):
     A container class for providing access to various workflow objects.
     Handles the registration of new node packages and, by virtue of being a singleton,
     makes them available to all composite nodes holding a creator.
+
+    In addition to node objects, the creator also provides workflow-compliant executors
+    for parallel processing.
+    This includes a very simple in-house executor that is useful for learning, but also
+    choices from the `pympipool` packages.
+    Some `pympipool` executors may not be available on your machine (e.g. flux- and/or
+     slurm-based executors), in which case these attributes will return `None` instead.
     """
 
     def __init__(self):
