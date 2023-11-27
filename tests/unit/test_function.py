@@ -1,4 +1,3 @@
-from concurrent.futures import Future
 from sys import version_info
 from typing import Optional, Union
 import unittest
