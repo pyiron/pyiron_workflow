@@ -11,6 +11,7 @@ from pyiron_base.interfaces.singleton import Singleton
 
 # Import all the supported executors
 from pympipool import Executor as PyMpiPoolExecutor, PyMPIExecutor
+
 try:
     from pympipool import PySlurmExecutor
 except ImportError:
