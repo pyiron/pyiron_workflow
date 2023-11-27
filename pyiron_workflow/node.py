@@ -368,7 +368,7 @@ class Node(HasToDict, ABC):
 
         data_tree_nodes = get_nodes_in_data_tree(self)
         for node in data_tree_nodes:
-            if node.executor:
+            if node.executor is not None:
                 raise ValueError(
                     f"Running the data tree is pull-paradigm action, and is "
                     f"incompatible with using executors. An executor request was found "
