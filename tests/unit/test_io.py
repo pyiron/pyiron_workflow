@@ -139,7 +139,7 @@ class TestDataIO(TestCase):
         )
 
 @skipUnless(version_info[0] == 3 and version_info[1] >= 10, "Only supported for 3.10+")
-class TestDataIO(TestCase):
+class TestSignalIO(TestCase):
     def setUp(self) -> None:
         node = DummyNode()
 
