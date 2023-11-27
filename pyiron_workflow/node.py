@@ -114,9 +114,9 @@ class Node(HasToDict, ABC):
         the python process working directory
     - Nodes can run their computation using remote resources by setting an executor
         - Any executor must have a `submit` method with the same interface as
-            `concurrent.futures.Executor`, must return something that quacks like a
-            `concurrent.futures.Future` object, and must be able to serialize
-            dynamically defined objects
+            `concurrent.futures.Executor`, must return a `concurrent.futures.Future`
+            (or child thereof) object, and must be able to serialize dynamically
+            defined objects
         - On executing this way, a futures object will be returned instead of the usual
             result, this future will also be stored as an attribute, and a callback will
             be registered with the executor
