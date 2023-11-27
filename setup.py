@@ -31,8 +31,8 @@ setup(
         'bidict==0.22.1',
         'cloudpickle==3.0.0',
         'graphviz==0.20.1',
-        'matplotlib==3.8.1',
-        'pyiron_base==0.6.8',
+        'matplotlib==3.8.2',
+        'pyiron_base==0.6.9',
         'pympipool==0.7.3',
         'toposort==1.10',
         'typeguard==4.1.5',
@@ -40,7 +40,7 @@ setup(
     extras_require={
         "node_library": [
             'numpy==1.26.0',
-            'pyiron_atomistics==0.3.5',
+            'pyiron_atomistics==0.3.7',
         ],
     },
     cmdclass=versioneer.get_cmdclass(),
