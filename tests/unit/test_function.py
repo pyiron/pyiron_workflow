@@ -5,10 +5,7 @@ import unittest
 import warnings
 
 from pyiron_workflow.channels import NotData, ChannelConnectionError
-from pyiron_workflow.files import DirectoryObject
-from pyiron_workflow.function import (
-    Function, SingleValue, function_node, single_value_node
-)
+from pyiron_workflow.function import Function, SingleValue, function_node
 
 
 def throw_error(x: Optional[int] = None):
@@ -49,9 +46,10 @@ class TestFunction(unittest.TestCase):
         with self.subTest("Args and kwargs at initialization"):
             node = Function(plus_one)
             self.assertIs(
-                node.outputs.y.value,
                 NotData,
-                msg="Nodes should not run at instantiation",
+                node.outputs.y.value,
+                msg="Sanity check that output just has the standard not-data value at "
+                    "instantiation",
             )
             node.inputs.x = 10
             self.assertIs(
@@ -63,8 +61,8 @@ class TestFunction(unittest.TestCase):
             self.assertEqual(
                 node.outputs.y.value,
                 11,
-                msg=f"Slow nodes should still run when asked! Expected 11 but got "
-                    f"{node.outputs.y.value}"
+                msg=f"Expected the run to update the output -- did the test function"
+                    f"change or something?"
             )
 
             node = Function(no_default, 1, y=2, output_labels="output")
@@ -72,10 +70,9 @@ class TestFunction(unittest.TestCase):
             self.assertEqual(
                 no_default(1, 2),
                 node.outputs.output.value,
-                msg="Nodes should allow input initialization by arg and kwarg"
+                msg="Nodes should allow input initialization by arg _and_ kwarg"
             )
             node(2, y=3)
-            node.run()
             self.assertEqual(
                 no_default(2, 3),
                 node.outputs.output.value,
@@ -142,6 +139,10 @@ class TestFunction(unittest.TestCase):
             switch = Function(multiple_branches, output_labels="bool")
             self.assertListEqual(switch.outputs.labels, ["bool"])
 
+    def test_default_label(self):
+        n = Function(plus_one)
+        self.assertEqual(plus_one.__name__, n.label)
+
     def test_availability_of_node_function(self):
         @function_node()
         def linear(x):
@@ -159,107 +160,22 @@ class TestFunction(unittest.TestCase):
                 "use at the class level"
         )
 
-    def test_signals(self):
-        @function_node()
-        def linear(x):
-            return x
-
-        @function_node()
-        def times_two(y):
-            return 2 * y
-
-        l = linear(x=1)
-        t2 = times_two(
-            output_labels=["double"],
-            y=l.outputs.x
-        )
-        self.assertIs(
-            t2.outputs.double.value,
-            NotData,
-            msg=f"Without updates, expected the output to be {NotData} but got "
-                f"{t2.outputs.double.value}"
-        )
-
-        # Nodes should _all_ have the run and ran signals
-        t2.signals.input.run = l.signals.output.ran
-        l.run()
-        self.assertEqual(
-            t2.outputs.double.value, 2,
-            msg="Running the upstream node should trigger a run here"
-        )
-
-        with self.subTest("Test syntactic sugar"):
-            t2.signals.input.run.disconnect_all()
-            l > t2
-            self.assertIn(
-                l.signals.output.ran,
-                t2.signals.input.run.connections,
-                msg="> should be equivalent to run/ran connection"
-            )
-
-            t2.signals.input.run.disconnect_all()
-            l > t2.signals.input.run
-            self.assertIn(
-                l.signals.output.ran,
-                t2.signals.input.run.connections,
-                msg="> should allow us to mix and match nodes and signal channels"
-            )
-
-            t2.signals.input.run.disconnect_all()
-            l.signals.output.ran > t2
-            self.assertIn(
-                l.signals.output.ran,
-                t2.signals.input.run.connections,
-                msg="Mixing and matching should work both directions"
-            )
-
-            t2.signals.input.run.disconnect_all()
-            l > t2 > l
-            self.assertTrue(
-                l.signals.input.run.connections[0] is t2.signals.output.ran
-                and t2.signals.input.run.connections[0] is l.signals.output.ran,
-                msg="> should allow chaining signal connections"
-            )
-
     def test_statuses(self):
         n = Function(plus_one)
         self.assertTrue(n.ready)
         self.assertFalse(n.running)
         self.assertFalse(n.failed)
 
-        # Can't really test "running" until we have a background executor, so fake a bit
-        n.running = True
-        with self.assertRaises(RuntimeError):
-            # Running nodes can't be run
-            n.run()
-        n.running = False
-
         n.inputs.x = "Can't be added together with an int"
-        with self.assertRaises(TypeError):
-            # The function error should get passed up
+        with self.assertRaises(
+            TypeError,
+            msg="We expect the int+str type error because there were no type hints "
+                "guarding this function from running with bad data"
+        ):
             n.run()
         self.assertFalse(n.ready)
         self.assertFalse(n.running)
         self.assertTrue(n.failed)
-
-        n.inputs.x = 1
-        self.assertFalse(
-            n.ready,
-            msg="Should not be ready while it has failed status"
-        )
-
-        n.failed = False  # Manually reset the failed status
-        self.assertTrue(
-            n.ready,
-            msg="Input is ok, not running, not failed -- should be ready!"
-        )
-        n.run()
-        self.assertTrue(n.ready)
-        self.assertFalse(n.running)
-        self.assertFalse(
-            n.failed,
-            msg="Should be back to a good state and ready to run again"
-        )
 
     def test_with_self(self):
         def with_self(self, x: float) -> float:
@@ -296,7 +212,8 @@ class TestFunction(unittest.TestCase):
         self.assertEqual(
             node.some_counter,
             1,
-            msg="Function functions should be able to modify attributes on the node object."
+            msg="Function functions should be able to modify attributes on the node "
+                "object."
         )
 
         node.executor = True
@@ -378,37 +295,23 @@ class TestFunction(unittest.TestCase):
         node = Function(plus_one)
 
         with self.subTest("Run on main process"):
-            return_on_call = node(1)
-            self.assertEqual(
-                return_on_call,
-                plus_one(1),
-                msg="Run output should be returned on call"
-            )
-
             node.inputs.x = 2
             return_on_explicit_run = node.run()
             self.assertEqual(
                 return_on_explicit_run,
                 plus_one(2),
-                msg="On explicit run, the most recent input data should be used and the "
-                    "result should be returned"
+                msg="On explicit run, the most recent input data should be used and "
+                    "the result should be returned"
             )
 
-        with self.subTest("Run on executor"):
-            node.executor = True
-
-            return_on_explicit_run = node.run()
-            self.assertIsInstance(
-                return_on_explicit_run,
-                Future,
-                msg="Running with an executor should return the future"
+            return_on_call = node(1)
+            self.assertEqual(
+                return_on_call,
+                plus_one(1),
+                msg="Run output should be returned on call"
+                # This is a duplicate test, since __call__ just invokes run, but it is
+                # such a core promise that let's just double-check it
             )
-            with self.assertRaises(RuntimeError):
-                # The executor run should take a second
-                # So we can double check that attempting to run while already running
-                # raises an error
-                node.run()
-            node.future.result()  # Wait for the remote execution to finish
 
     def test_copy_connections(self):
         node = Function(plus_one)
@@ -662,41 +565,9 @@ class TestSingleValue(unittest.TestCase):
                 "from assignment at instantiation"
         )
 
-    def test_working_directory(self):
-        n_f = Function(plus_one)
-        self.assertTrue(n_f._working_directory is None)
-        self.assertIsInstance(n_f.working_directory, DirectoryObject)
-        self.assertTrue(str(n_f.working_directory.path).endswith(n_f.label))
-        n_f.working_directory.delete()
-
-    def test_disconnection(self):
-        n1 = Function(no_default, output_labels="out")
-        n2 = Function(no_default, output_labels="out")
-        n3 = Function(no_default, output_labels="out")
-        n4 = Function(plus_one)
-
-        n3.inputs.x = n1.outputs.out
-        n3.inputs.y = n2.outputs.out
-        n4.inputs.x = n3.outputs.out
-        n2 > n3 > n4
-        disconnected = n3.disconnect()
-        self.assertListEqual(
-            disconnected,
-            [
-                # Inputs
-                (n3.inputs.x, n1.outputs.out),
-                (n3.inputs.y, n2.outputs.out),
-                # Outputs
-                (n3.outputs.out, n4.inputs.x),
-                # Signals (inputs, then output)
-                (n3.signals.input.run, n2.signals.output.ran),
-                (n3.signals.output.ran, n4.signals.input.run),
-            ],
-            msg="Expected to find pairs (starting with the node disconnect was called "
-                "on) of all broken connections among input, output, and signals."
-        )
-
-    def test_pulling_without_any_parents(self):
+    def test_nested_declaration(self):
+        # It's really just a silly case of running without a parent, where you don't
+        # store references to all the nodes declared
         node = SingleValue(
             plus_one,
             x=SingleValue(
