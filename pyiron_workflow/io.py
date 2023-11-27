@@ -171,6 +171,10 @@ class DataIO(IO, ABC):
     def to_value_dict(self):
         return {label: channel.value for label, channel in self.channel_dict.items()}
 
+    def to_list(self):
+        """A list of channel values (order not guaranteed)"""
+        return list(channel.value for channel in self.channel_dict.values())
+
     @property
     def ready(self):
         return all([c.ready for c in self])

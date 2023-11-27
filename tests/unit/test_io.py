@@ -23,8 +23,8 @@ class TestDataIO(TestCase):
     def setUp(self) -> None:
         node = DummyNode()
         self.inputs = [
-            InputData(label="x", node=node, default=0, type_hint=float),
-            InputData(label="y", node=node, default=1, type_hint=float)
+            InputData(label="x", node=node, default=0., type_hint=float),
+            InputData(label="y", node=node, default=1., type_hint=float)
         ]
         outputs = [
             OutputData(label="a", node=node, type_hint=float),
@@ -136,6 +136,15 @@ class TestDataIO(TestCase):
             self.input.x.connections[0],
             msg="The IO connection found should be the same object as the channel "
                 "connection"
+        )
+
+    def test_to_list(self):
+        self.assertListEqual(
+            [0., 1.],
+            self.input.to_list(),
+            msg="Expected a shortcut to channel values. Order is explicitly not "
+                "guaranteed in the docstring, but it would be nice to appear in the "
+                "order the channels are added here"
         )
 
 @skipUnless(version_info[0] == 3 and version_info[1] >= 10, "Only supported for 3.10+")
