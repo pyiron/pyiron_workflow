@@ -6,7 +6,6 @@ dependencies:
 - bidict =0.22.1
 - cloudpickle =3.0.0
 - graphviz =8.1.0
-- pyiron_base =0.6.8
 - matplotlib =3.8.2
 - pyiron_base =0.6.9
 - pympipool =0.7.3
