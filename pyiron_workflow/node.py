@@ -431,7 +431,13 @@ class Node(HasToDict, ABC):
             # Just blindly try to execute -- as we nail down the executor interaction
             # we'll want to fail more cleanly here.
             executor = self._parse_executor(self.executor)
-            self.future = executor.submit(self.on_run, **self.run_args)
+            kwargs = self.run_args
+            if "self" in kwargs.keys():
+                raise ValueError(
+                    f"{self.label} got 'self' as a run argument, but self cannot "
+                    f"currently be combined with running on executors."
+                )
+            self.future = executor.submit(self.on_run, **kwargs)
             self.future.add_done_callback(finished_callback)
             return self.future
 
