@@ -9,6 +9,14 @@ from pyiron_workflow.function import SingleValue
 from pyiron_workflow.macro import Macro
 from pyiron_workflow.topology import CircularDataFlowError
 
+from pathlib import Path
+import sys
+
+path_to_tests_unit = Path(__file__).parent
+as_string = str(path_to_tests_unit.resolve())
+
+if as_string not in sys.path:
+    sys.path.insert(1, as_string)
 
 def add_one(x):
     result = x + 1
