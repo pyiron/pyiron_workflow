@@ -192,7 +192,7 @@ def repeat(
 
 @single_value_node(output_labels="structure")
 def apply_strain(
-    structure: Optional[Atoms] = None, strain: float = 0
+    structure: Optional[Atoms] = None, strain: float = 0.
 ) -> Optional[Atoms]:
     # print("apply strain: ", strain)
     struct = structure.copy()

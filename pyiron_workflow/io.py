@@ -1,5 +1,8 @@
 """
 Collections of channel objects.
+
+These also support the syntactic sugar of treating value assignments and new
+connections on the same footing.
 """
 
 from __future__ import annotations
@@ -34,19 +37,9 @@ class IO(HasToDict, ABC):
     When assigning something to an attribute holding an existing channel, if the
     assigned object is a `Channel`, then an attempt is made to make a `connection`
     between the two channels, otherwise we fall back on a value assignment that must
-    be defined in child classes under `_assign_value_to_existing_channel`, i.e.
-    >>> some_io.some_existing_channel = 5
-
-    is equivalent to
-    >>> some_io._assign_value_to_existing_channel(
-    ...     some_io["some_existing_channel"], 5
-    ... )
-
-    and
-    >>> some_io.some_existing_channel = some_other_channel
-
-    is equivalent to
-    >>> some_io.some_existing_channel.connect(some_other_channel)
+    be defined in child classes under `_assign_value_to_existing_channel`.
+    This provides syntactic sugar such that both new connections and new values can
+    be assigned with a simple `=`.
     """
 
     def __init__(self, *channels: Channel):
@@ -172,10 +165,6 @@ class IO(HasToDict, ABC):
 
 
 class DataIO(IO, ABC):
-    """
-    Extends the base IO class with helper methods relevant to data channels.
-    """
-
     def _assign_a_non_channel_value(self, channel: DataChannel, value) -> None:
         channel.value = value
 
@@ -191,17 +180,17 @@ class DataIO(IO, ABC):
         d["ready"] = self.ready
         return d
 
+    def activate_strict_hints(self):
+        [c.activate_strict_hints() for c in self]
+
+    def deactivate_strict_hints(self):
+        [c.deactivate_strict_hints() for c in self]
+
 
 class Inputs(DataIO):
     @property
     def _channel_class(self) -> type(InputData):
         return InputData
-
-    def activate_strict_connections(self):
-        [c.activate_strict_connections() for c in self]
-
-    def deactivate_strict_connections(self):
-        [c.deactivate_strict_connections() for c in self]
 
     def fetch(self):
         for c in self:
