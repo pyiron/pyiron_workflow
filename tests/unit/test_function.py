@@ -223,7 +223,7 @@ class TestFunction(unittest.TestCase):
                 "it runs on an executor, so trying to do so should fail hard"
         ):
             node.run()
-        node.executor = False
+        node.executor = None
 
         def with_messed_self(x: float, self) -> float:
             return x + 0.1
