@@ -20,6 +20,10 @@ class DotDict(dict):
         for k, v in state.items():
             self.__dict__[k] = v
 
+    def to_list(self):
+        """A list of values (order not guaranteed)"""
+        return list(self.values())
+
 
 class SeabornColors:
     """
