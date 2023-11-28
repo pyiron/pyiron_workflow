@@ -178,7 +178,7 @@ class TestNode(unittest.TestCase):
                 self.n1.inputs.x = 42
             self.assertEqual(
                 1,
-                out.result(),
+                out.result(timeout=120),
                 msg="If we wait for the remote execution to finish, it should give us"
                     "the right thing"
             )

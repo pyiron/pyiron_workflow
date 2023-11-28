@@ -21,7 +21,7 @@ class Foo:
         return self.fnc
 
     def process_result(self, future):
-        self.result = future.result()
+        self.result = future.result(timeout=120)
 
 
 def dynamic_foo():
@@ -74,7 +74,7 @@ class TestCloudpickleProcessPoolExecutor(unittest.TestCase):
         fs = executor.submit(dynamic_42.run)
         fs.add_done_callback(dynamic_42.process_result)
         self.assertFalse(fs.done(), msg="Should be running on the executor")
-        self.assertEqual(fortytwo, fs.result(), msg="Future must complete")
+        self.assertEqual(fortytwo, fs.result(timeout=120), msg="Future must complete")
         self.assertEqual(fortytwo, dynamic_42.result, msg="Callback must get called")
 
     def test_unpickleable_return(self):
@@ -101,11 +101,11 @@ class TestCloudpickleProcessPoolExecutor(unittest.TestCase):
         executor = CloudpickleProcessPoolExecutor()
         fs = executor.submit(dynamic_dynamic.run)
         self.assertIsInstance(
-            fs.result(),
+            fs.result(timeout=120),
             Foo,
             msg="The custom future should be unpickling the result"
         )
-        self.assertEqual(fs.result().result, "it was an inside job!")
+        self.assertEqual(fs.result(timeout=120).result, "it was an inside job!")
 
     def test_unpickleable_args(self):
         """
@@ -130,7 +130,7 @@ class TestCloudpickleProcessPoolExecutor(unittest.TestCase):
         executor = CloudpickleProcessPoolExecutor()
         unpicklable_object = does_nothing()
         fs = executor.submit(dynamic_dynamic.run, unpicklable_object)
-        self.assertEqual(fs.result().result, "input updated")
+        self.assertEqual(fs.result(timeout=120).result, "input updated")
 
     def test_exception(self):
         @dynamic_foo()
@@ -141,7 +141,7 @@ class TestCloudpickleProcessPoolExecutor(unittest.TestCase):
         executor = CloudpickleProcessPoolExecutor()
         fs = executor.submit(re.run)
         with self.assertRaises(RuntimeError):
-            fs.result()
+            fs.result(timeout=120)
 
     def test_timeout(self):
         fortytwo = 42

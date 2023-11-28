@@ -237,7 +237,7 @@ class TestMacro(unittest.TestCase):
                 "for the callback when the result is ready"
         )
 
-        returned_nodes = result.result()  # Wait for the process to finish
+        returned_nodes = result.result(timeout=120)  # Wait for the process to finish
         sleep(1)
         self.assertIsNot(
             original_one,

@@ -96,7 +96,7 @@ class TestWorkflow(unittest.TestCase):
             msg="Should be running as a parallel process"
         )
 
-        returned_nodes = result.result()  # Wait for the process to finish
+        returned_nodes = result.result(timeout=120)  # Wait for the process to finish
         self.assertIsNot(
             original_a,
             returned_nodes.a,
@@ -156,7 +156,7 @@ class TestWorkflow(unittest.TestCase):
             msg="The slow node _should_ hold up the downstream node to which it inputs"
         )
 
-        wf.slow.future.result()  # Wait for it to finish
+        wf.slow.future.result(timeout=120)  # Wait for it to finish
         self.assertFalse(
             wf.slow.running,
             msg="The slow node should be done running"
