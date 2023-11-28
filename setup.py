@@ -33,7 +33,7 @@ setup(
         'graphviz==0.20.1',
         'matplotlib==3.8.2',
         'pyiron_base==0.6.9',
-        'pympipool==0.7.3',
+        'pympipool==0.7.9',
         'toposort==1.10',
         'typeguard==4.1.5',
     ],
