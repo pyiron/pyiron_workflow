@@ -189,7 +189,7 @@ class TestNode(unittest.TestCase):
                     "happens"
             )
 
-        self.n2.executor = True
+        self.n2.executor = Executor()
         self.n2.inputs.x = 0
         self.assertEqual(
             1,
