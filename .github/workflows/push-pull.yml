@@ -14,7 +14,9 @@ jobs:
     - name: "Add test dirs to pythonpath (pympipool compliance)"
       run: |
         PWD=$(pwd)
-        echo "PYTHONPATH=$PWD/tests:$PWD/tests/unit:$PWD/tests/integration:$PYTHONPATH" >> $GITHUB_ENV
+        echo "PYTHONPATH=$PWD/tests/benchmark:$PYTHONPATH" >> $GITHUB_ENV
+        echo "PYTHONPATH=$PWD/tests/integration:$PYTHONPATH" >> $GITHUB_ENV
+        echo "PYTHONPATH=$PWD/tests/unit:$PYTHONPATH" >> $GITHUB_ENV
     - uses: pyiron/actions/.github/workflows/push-pull-main.yml@main
       with:
         notebooks-env-files: .ci_support/environment.yml .ci_support/environment-notebooks.yml
