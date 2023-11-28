@@ -2,7 +2,7 @@ from unittest import TestCase, skipUnless
 from sys import version_info
 
 from pyiron_workflow.channels import (
-    InputData, InputSignal, OutputData, OutputSignal
+    InputData, InputSignal, OutputData, OutputSignal, ChannelConnectionError
 )
 from pyiron_workflow.io import Inputs, Outputs, Signals
 
@@ -65,11 +65,15 @@ class TestDataIO(TestCase):
             )
 
     def test_connection(self):
-        self.input.x = self.input.y
+        with self.assertRaises(
+            ChannelConnectionError,
+            msg="Shouldn't be allowed to connect two inputs"
+        ):
+            self.input.x = self.input.y
         self.assertEqual(
             0,
             len(self.input.x.connections),
-            msg="Shouldn't be allowed to connect two inputs, but only passes warning"
+            msg="Sanity check that the above error-raising connection never got made"
         )
 
         self.input.x = self.output.a
@@ -79,8 +83,8 @@ class TestDataIO(TestCase):
             msg="Should be able to create connections by assignment"
         )
 
-        self.input.x = 7
-        self.assertEqual(self.input.x.value, 7)
+        self.input.x = 7.
+        self.assertEqual(self.input.x.value, 7.)
 
         self.input.y = self.output.a
         disconnected = self.input.disconnect()
