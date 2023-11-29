@@ -305,3 +305,33 @@ class TestNode(unittest.TestCase):
             msg="Just want to make sure we cleaned up after ourselves"
         )
 
+    def test_draw(self):
+        try:
+            self.n1.draw()
+            self.assertFalse(
+                any(self.n1.working_directory.path.iterdir())
+            )
+
+            fmt = "pdf"  # This is just so we concretely know the filename suffix
+            self.n1.draw(save=True, format=fmt)
+            expected_name = self.n1.label + "_graph." + fmt
+            # That name is just an implementation detail, update it as needed
+            self.assertTrue(
+                self.n1.working_directory.path.joinpath(expected_name).is_file(),
+                msg="If `save` is called, expect the rendered image to exist in the working"
+                    "directory"
+            )
+
+            user_specified_name = "foo"
+            self.n1.draw(filename=user_specified_name, format=fmt)
+            expected_name = user_specified_name + "." + fmt
+            self.assertTrue(
+                self.n1.working_directory.path.joinpath(expected_name).is_file(),
+                msg="If the user specifies a filename, we should assume they want the "
+                    "thing saved"
+            )
+        finally:
+            # No matter what happens in the tests, clean up after yourself
+            self.n1.working_directory.delete()
+
+
