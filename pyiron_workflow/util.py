@@ -1,3 +1,5 @@
+from abc import ABCMeta
+
 from pyiron_base import state
 
 logger = state.logger
@@ -59,3 +61,8 @@ class HasPost(type):
         if post := getattr(cls, "__post__", False):
             post(instance, *args, **kwargs)
         return instance
+
+
+class AbstractHasPost(HasPost, ABCMeta):
+    # Just for resolving metaclass conflic for ABC classes that have post
+    pass
