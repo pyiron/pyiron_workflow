@@ -594,8 +594,8 @@ class Node(HasToDict, ABC):
         rankdir: Literal["LR", "TB"] = "LR",
         save: bool = False,
         view: bool = False,
-        directory: Optional[Path|str] = None,
-        filename: Optional[Path|str] = None,
+        directory: Optional[Path | str] = None,
+        filename: Optional[Path | str] = None,
         format: Optional[str] = None,
         cleanup: bool = True,
     ) -> graphviz.graphs.Digraph:
