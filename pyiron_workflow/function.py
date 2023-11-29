@@ -296,6 +296,7 @@ class Function(Node):
         *args,
         label: Optional[str] = None,
         parent: Optional[Composite] = None,
+        run_after_init: bool = False,
         output_labels: Optional[str | list[str] | tuple[str]] = None,
         **kwargs,
     ):
@@ -568,24 +569,6 @@ class SingleValue(Function, HasChannel):
     - The entire node can be used in place of its output value for connections, e.g.
         `some_node.input.some_channel = my_svn_instance`.
     """
-
-    def __init__(
-        self,
-        node_function: callable,
-        *args,
-        label: Optional[str] = None,
-        parent: Optional[Workflow] = None,
-        output_labels: Optional[str | list[str] | tuple[str]] = None,
-        **kwargs,
-    ):
-        super().__init__(
-            node_function,
-            *args,
-            label=label,
-            parent=parent,
-            output_labels=output_labels,
-            **kwargs,
-        )
 
     def _get_output_labels(self, output_labels: str | list[str] | tuple[str] | None):
         output_labels = super()._get_output_labels(output_labels)
