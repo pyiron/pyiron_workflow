@@ -282,6 +282,8 @@ class TestMacro(unittest.TestCase):
                 "downstream execution"
         )
 
+        macro.executor_shutdown()
+
     def test_pulling_from_inside_a_macro(self):
         upstream = SingleValue(add_one, x=2)
         macro = Macro(add_three_macro, one__x=upstream)

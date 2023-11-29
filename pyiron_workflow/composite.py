@@ -516,6 +516,15 @@ class Composite(Node, ABC):
     def register(cls, domain: str, package_identifier: str) -> None:
         cls.create.register(domain=domain, package_identifier=package_identifier)
 
+    def executor_shutdown(self, wait=True, *, cancel_futures=False):
+        """
+        Invoke shutdown on the executor (if present), and recursively invoke shutdown
+        for children.
+        """
+        super().executor_shutdown(wait=wait, cancel_futures=cancel_futures)
+        for node in self:
+            node.executor_shutdown(wait=wait, cancel_futures=cancel_futures)
+
     def __setattr__(self, key: str, node: Node):
         if isinstance(node, Node) and key != "_parent":
             self.add(node, label=key)

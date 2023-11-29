@@ -196,8 +196,8 @@ class TestNode(unittest.TestCase):
             self.n2.run(fetch_input=False, force_local_execution=True),
             msg="Forcing local execution should do just that."
         )
-        self.n1.executor.shutdown(wait=True)
-        self.n2.executor.shutdown(wait=True)
+        self.n1.executor_shutdown()
+        self.n2.executor_shutdown()
 
     def test_emit_ran_signal(self):
         self.n1 > self.n2 > self.n3  # Chained connection declaration

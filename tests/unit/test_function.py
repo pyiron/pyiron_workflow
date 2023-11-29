@@ -223,6 +223,7 @@ class TestFunction(unittest.TestCase):
                 "it runs on an executor, so trying to do so should fail hard"
         ):
             node.run()
+            node.executor_shutdown()  # Shouldn't get this far, but if we do shutdown
         node.executor = None
 
         def with_messed_self(x: float, self) -> float:

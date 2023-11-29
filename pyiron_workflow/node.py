@@ -127,6 +127,8 @@ class Node(HasToDict, ABC):
         - NOTE: Executors are only allowed in a "push" paradigm, and you will get an
             exception if you try to `pull` and one of the upstream nodes uses an
             executor
+        - NOTE: Don't forget to `shutdown` any created executors outside of a `with`
+            context when you're done with them; we give a convenience method for this.
 
     This is an abstract class.
     Children *must* define how `inputs` and `outputs` are constructed, what will
@@ -455,10 +457,17 @@ class Node(HasToDict, ABC):
         We may want to allow users to specify how to build an executor rather than
         actually providing an executor instance -- so here we can interpret these.
 
-        Note that `concurrent.futures.Executor` _won't_ actually work, because we need
-        stuff with `cloudpickle` support. We're leaning on this for a guaranteed
-        interface (has `submit` and returns a `Future`), and leaving it to the user to
-        provide an executor that will actually work!!!
+        NOTE:
+            `concurrent.futures.Executor` _won't_ actually work, because we need
+            stuff with `cloudpickle` support. We're leaning on this for a guaranteed
+            interface (has `submit` and returns a `Future`), and leaving it to the user
+            to provide an executor that will actually work!!!
+
+        NOTE:
+            If, in the future, this parser is extended to instantiate new executors from
+            instructions, these new instances may not be caught by the
+            `executor_shutdown` method. This will require some re-engineering to make
+            sure we don't have dangling executors.
         """
         if isinstance(executor, StdLibExecutor):
             return executor
@@ -867,3 +876,10 @@ class Node(HasToDict, ABC):
         # Update instead of overriding in case some other attributes were added on the
         # main process while a remote process was working away
         self.__dict__.update(**state)
+
+    def executor_shutdown(self, wait=True, *, cancel_futures=False):
+        """Invoke shutdown on the executor (if present)."""
+        try:
+            self.executor.shutdown(wait=wait, cancel_futures=cancel_futures)
+        except AttributeError:
+            pass

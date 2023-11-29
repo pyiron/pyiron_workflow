@@ -118,7 +118,7 @@ class TestWorkflow(unittest.TestCase):
             wf.outputs.b__y.value,
             msg="And of course we expect the calculation to actually run"
         )
-        wf.executor.shutdown(wait=True)
+        wf.executor_shutdown()
 
     def test_parallel_execution(self):
         wf = Workflow("wf")
@@ -169,7 +169,8 @@ class TestWorkflow(unittest.TestCase):
             msg="After the slow node completes, its output should be updated as a "
                 "callback, and downstream nodes should proceed"
         )
-        wf.slow.executor.shutdown(wait=True)
+
+        wf.executor_shutdown()
 
     def test_call(self):
         wf = Workflow("wf")
@@ -320,6 +321,7 @@ class TestWorkflow(unittest.TestCase):
             msg="Should not be able to pull with executor in local scope"
         ):
             wf.m.two.pull()
+            wf.m.one.executor_shutdown()  # Shouldn't get this far, but if so, shutdown
         wf.m.one.executor = None
 
         wf.n1.executor = wf.create.Executor()
@@ -332,7 +334,7 @@ class TestWorkflow(unittest.TestCase):
         # Pulling in the local scope should be fine with an executor only in the parent
         # scope
         wf.m.two.pull(run_parent_trees_too=False)
-        wf.n1.executor.shutdown(wait=True)
+        wf.executor_shutdown()
 
 
 if __name__ == '__main__':
