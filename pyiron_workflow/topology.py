@@ -186,9 +186,7 @@ def _set_run_connections_according_to_dag(
         _raise_wrapped_circular_error(e)
 
     for node in nodes.values():
-        upstream_connections = []
-        for inp in node.inputs:
-            upstream_connections += inp.connections
+        upstream_connections = [con for inp in node.inputs for con in inp.connections]
         upstream_nodes = set([c.node for c in upstream_connections])
         upstream_rans = [n.signals.output.ran for n in upstream_nodes]
         node.signals.input.accumulate_and_run.connect(*upstream_rans)
