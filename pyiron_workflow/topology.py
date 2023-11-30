@@ -85,6 +85,25 @@ def nodes_to_data_digraph(nodes: dict[str, Node]) -> dict[str, set[str]]:
     return digraph
 
 
+def _wrap_toposort_for_cleaner_error(
+    toposort_function: callable,
+    nodes: dict[str, Node]
+):
+    """
+    A convenience wrapper that converts our dictionary of nodes into something the
+    toposort library can more easily read, and wraps their circular dependency error
+    in language that makes more sense in our context.
+    """
+    try:
+        toposorted = toposort_function(nodes_to_data_digraph(nodes))
+    except CircularDependencyError as e:
+        raise CircularDataFlowError(
+            f"Detected a cycle in the data flow topology, unable to automate the "
+            f"execution of non-DAGs: cycles found among {e.data}"
+        ) from e
+    return toposorted
+
+
 def nodes_to_linear_execution_order(nodes: dict[str, Node]) -> list[str]:
     """
     Given a set of nodes that all have the same parent, returns a list of corresponding
@@ -101,18 +120,11 @@ def nodes_to_linear_execution_order(nodes: dict[str, Node]) -> list[str]:
     Raises:
         ValueError: If the data dependency is not a Directed Acyclic Graph
     """
-    try:
-        # Topological sorting ensures that all input dependencies have been
-        # executed before the node depending on them gets run
-        # The flattened part is just that we don't care about topological
-        # generations that are mutually independent (inefficient but easier for now)
-        execution_order = toposort_flatten(nodes_to_data_digraph(nodes))
-    except CircularDependencyError as e:
-        raise CircularDataFlowError(
-            f"Detected a cycle in the data flow topology, unable to automate the "
-            f"execution of non-DAGs: cycles found among {e.data}"
-        ) from e
-    return execution_order
+    # Topological sorting ensures that all input dependencies have been
+    # executed before the node depending on them gets run
+    # The flattened part is just that we don't care about topological
+    # generations that are mutually independent (inefficient but easier for now)
+    return _wrap_toposort_for_cleaner_error(toposort_flatten, nodes)
 
 
 def _set_new_run_connections_with_fallback_recovery(
