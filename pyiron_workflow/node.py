@@ -22,7 +22,7 @@ from pyiron_workflow.topology import (
     get_nodes_in_data_tree,
     set_run_connections_according_to_linear_dag,
 )
-from pyiron_workflow.util import SeabornColors
+from pyiron_workflow.util import AbstractHasPost, SeabornColors
 
 if TYPE_CHECKING:
     from pathlib import Path
@@ -66,7 +66,7 @@ def manage_status(node_method):
     return wrapped_method
 
 
-class Node(HasToDict, ABC):
+class Node(HasToDict, ABC, metaclass=AbstractHasPost):
     """
     Nodes are elements of a computational graph.
     They have inputs and outputs to interface with the wider world, and perform some
@@ -194,6 +194,7 @@ class Node(HasToDict, ABC):
         label: str,
         *args,
         parent: Optional[Composite] = None,
+        run_after_init: bool = False,
         **kwargs,
     ):
         """
@@ -203,6 +204,8 @@ class Node(HasToDict, ABC):
         Args:
             label (str): A name for this node.
             *args: Arguments passed on with `super`.
+            parent: (Composite|None): The composite node that owns this as a child.
+            run_after_init (bool): Whether to run at the end of initialization.
             **kwargs: Keyword arguments passed on with `super`.
         """
         super().__init__(*args, **kwargs)
@@ -219,6 +222,10 @@ class Node(HasToDict, ABC):
         # This is a simply stop-gap as we work out more sophisticated ways to reference
         # (or create) an executor process without ever trying to pickle a `_thread.lock`
         self.future: None | Future = None
+
+    def __post__(self, *args, run_after_init: bool = False, **kwargs):
+        if run_after_init:
+            self.run()
 
     @property
     @abstractmethod

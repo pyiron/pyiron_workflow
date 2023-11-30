@@ -3,7 +3,7 @@ import os
 from sys import version_info
 import unittest
 
-from pyiron_workflow.channels import InputData, OutputData
+from pyiron_workflow.channels import InputData, OutputData, NotData
 from pyiron_workflow.files import DirectoryObject
 from pyiron_workflow.io import Inputs, Outputs
 from pyiron_workflow.node import Node
@@ -16,10 +16,12 @@ def add_one(x):
 class ANode(Node):
     """To de-abstract the class"""
 
-    def __init__(self, label):
+    def __init__(self, label, run_after_init=False, x=None):
         super().__init__(label=label)
         self._inputs = Inputs(InputData("x", self, type_hint=int))
         self._outputs = Outputs(OutputData("y", self, type_hint=int))
+        if x is not None:
+            self.inputs.x = x
 
     @property
     def inputs(self) -> Inputs:
@@ -48,15 +50,9 @@ class ANode(Node):
 @unittest.skipUnless(version_info[0] == 3 and version_info[1] >= 10, "Only supported for 3.10+")
 class TestNode(unittest.TestCase):
     def setUp(self):
-        n1 = ANode("start")
-        n2 = ANode("middle")
-        n3 = ANode("end")
-        n1.inputs.x = 0
-        n2.inputs.x = n1.outputs.y
-        n3.inputs.x = n2.outputs.y
-        self.n1 = n1
-        self.n2 = n2
-        self.n3 = n3
+        self.n1 = ANode("start", x=0)
+        self.n2 = ANode("middle", x=self.n1.outputs.y)
+        self.n3 = ANode("end", x=self.n2.outputs.y)
 
     def test_set_input_values(self):
         n = ANode("some_node")
@@ -334,4 +330,14 @@ class TestNode(unittest.TestCase):
             # No matter what happens in the tests, clean up after yourself
             self.n1.working_directory.delete()
 
-
+    def test_run_after_init(self):
+        self.assertIs(
+            self.n1.outputs.y.value,
+            NotData,
+            msg="By default, nodes should not be getting run until asked"
+        )
+        self.assertEqual(
+            1,
+            ANode("right_away", run_after_init=True, x=0).outputs.y.value,
+            msg="With run_after_init, the node should run right away"
+        )
