@@ -149,11 +149,11 @@ def _set_new_run_connections_with_fallback_recovery(
         raise e
 
 
-def _set_run_connections_according_to_linear_dag(
-    nodes: dict[str, Node]
-) -> list[Node]:
-    # This is the most primitive sort of topological exploitation we can do
-    # It is not efficient if the nodes have executors and can run in parallel
+def _set_run_connections_according_to_linear_dag(nodes: dict[str, Node]) -> list[Node]:
+    """
+    This is the most primitive sort of topological exploitation we can do.
+    It is not efficient if the nodes have executors and can run in parallel.
+    """
     execution_order = nodes_to_linear_execution_order(nodes)
 
     for i, label in enumerate(execution_order[:-1]):
