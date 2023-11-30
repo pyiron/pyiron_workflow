@@ -85,48 +85,6 @@ def nodes_to_data_digraph(nodes: dict[str, Node]) -> dict[str, set[str]]:
     return digraph
 
 
-def _wrap_toposort_for_cleaner_error(
-    toposort_function: callable,
-    nodes: dict[str, Node]
-):
-    """
-    A convenience wrapper that converts our dictionary of nodes into something the
-    toposort library can more easily read, and wraps their circular dependency error
-    in language that makes more sense in our context.
-    """
-    try:
-        toposorted = toposort_function(nodes_to_data_digraph(nodes))
-    except CircularDependencyError as e:
-        raise CircularDataFlowError(
-            f"Detected a cycle in the data flow topology, unable to automate the "
-            f"execution of non-DAGs: cycles found among {e.data}"
-        ) from e
-    return toposorted
-
-
-def nodes_to_linear_execution_order(nodes: dict[str, Node]) -> list[str]:
-    """
-    Given a set of nodes that all have the same parent, returns a list of corresponding
-    node labels giving an execution order that guarantees the executing node always has
-    data from all its upstream nodes.
-
-    Args:
-        nodes (dict[str, Node]): A label-keyed dictionary of nodes from whom to build
-            an execution order based on topological analysis of data flow.
-
-    Returns:
-        (list[str]): The labels in safe execution order.
-
-    Raises:
-        ValueError: If the data dependency is not a Directed Acyclic Graph
-    """
-    # Topological sorting ensures that all input dependencies have been
-    # executed before the node depending on them gets run
-    # The flattened part is just that we don't care about topological
-    # generations that are mutually independent (inefficient but easier for now)
-    return _wrap_toposort_for_cleaner_error(toposort_flatten, nodes)
-
-
 def _set_new_run_connections_with_fallback_recovery(
     connection_creator: callable[[dict[str, Node]], list[Node]],
     nodes: dict[str, Node]
@@ -149,12 +107,26 @@ def _set_new_run_connections_with_fallback_recovery(
         raise e
 
 
+def _raise_wrapped_circular_error(e):
+    """
+    A convenience wrapper that converts toposort's circular dependency error into
+    language that makes more sense in our context.
+    """
+    raise CircularDataFlowError(
+        f"Detected a cycle in the data flow topology, unable to automate the "
+        f"execution of non-DAGs: cycles found among {e.data}"
+    ) from e
+
+
 def _set_run_connections_according_to_linear_dag(nodes: dict[str, Node]) -> list[Node]:
     """
     This is the most primitive sort of topological exploitation we can do.
     It is not efficient if the nodes have executors and can run in parallel.
     """
-    execution_order = nodes_to_linear_execution_order(nodes)
+    try:
+        execution_order = toposort_flatten(nodes_to_data_digraph(nodes))
+    except CircularDependencyError as e:
+        _raise_wrapped_circular_error(e)
 
     for i, label in enumerate(execution_order[:-1]):
         next_node = execution_order[i + 1]
@@ -201,10 +173,7 @@ def _set_run_connections_according_to_dag(
         #       everything in the generator, so we need to force the generator into a
         #       list to ensure that we catch these
     except CircularDependencyError as e:
-        raise CircularDataFlowError(
-            f"Detected a cycle in the data flow topology, unable to automate the "
-            f"execution of non-DAGs: cycles found among {e.data}"
-        ) from e
+        _raise_wrapped_circular_error(e)
 
     for node in nodes.values():
         upstream_connections = []
