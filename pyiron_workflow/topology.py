@@ -85,7 +85,7 @@ def nodes_to_data_digraph(nodes: dict[str, Node]) -> dict[str, set[str]]:
     return digraph
 
 
-def nodes_to_execution_order(nodes: dict[str, Node]) -> list[str]:
+def nodes_to_linear_execution_order(nodes: dict[str, Node]) -> list[str]:
     """
     Given a set of nodes that all have the same parent, returns a list of corresponding
     node labels giving an execution order that guarantees the executing node always has
@@ -142,7 +142,7 @@ def _set_run_connections_according_to_linear_dag(
 ) -> list[Node]:
     # This is the most primitive sort of topological exploitation we can do
     # It is not efficient if the nodes have executors and can run in parallel
-    execution_order = nodes_to_execution_order(nodes)
+    execution_order = nodes_to_linear_execution_order(nodes)
 
     for i, label in enumerate(execution_order[:-1]):
         next_node = execution_order[i + 1]
