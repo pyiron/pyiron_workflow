@@ -80,22 +80,20 @@ def _run_and_remove_job(job, modifier: Optional[callable] = None, **modifier_kwa
 
 
 @function_node(
-    output_labels=[
-        "cells",
-        "displacements",
-        "energy_pot",
-        "energy_tot",
-        "force_max",
-        "forces",
-        "indices",
-        "positions",
-        "pressures",
-        "steps",
-        "temperature",
-        "total_displacements",
-        "unwrapped_positions",
-        "volume",
-    ]
+    "cells",
+    "displacements",
+    "energy_pot",
+    "energy_tot",
+    "force_max",
+    "forces",
+    "indices",
+    "positions",
+    "pressures",
+    "steps",
+    "temperature",
+    "total_displacements",
+    "unwrapped_positions",
+    "volume",
 )
 def calc_static(
     job: AtomisticGenericJob,
@@ -104,22 +102,20 @@ def calc_static(
 
 
 @function_node(
-    output_labels=[
-        "cells",
-        "displacements",
-        "energy_pot",
-        "energy_tot",
-        "force_max",
-        "forces",
-        "indices",
-        "positions",
-        "pressures",
-        "steps",
-        "temperature",
-        "total_displacements",
-        "unwrapped_positions",
-        "volume",
-    ]
+    "cells",
+    "displacements",
+    "energy_pot",
+    "energy_tot",
+    "force_max",
+    "forces",
+    "indices",
+    "positions",
+    "pressures",
+    "steps",
+    "temperature",
+    "total_displacements",
+    "unwrapped_positions",
+    "volume",
 )
 def calc_md(
     job: AtomisticGenericJob,
@@ -151,21 +147,19 @@ def calc_md(
 
 
 @function_node(
-    output_labels=[
-        "cells",
-        "displacements",
-        "energy_pot",
-        "energy_tot",
-        "force_max",
-        "forces",
-        "indices",
-        "positions",
-        "pressures",
-        "steps",
-        "total_displacements",
-        "unwrapped_positions",
-        "volume",
-    ]
+    "cells",
+    "displacements",
+    "energy_pot",
+    "energy_tot",
+    "force_max",
+    "forces",
+    "indices",
+    "positions",
+    "pressures",
+    "steps",
+    "total_displacements",
+    "unwrapped_positions",
+    "volume",
 )
 def calc_min(
     job: AtomisticGenericJob,
