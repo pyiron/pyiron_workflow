@@ -247,7 +247,7 @@ class TestComposite(unittest.TestCase):
         n2 = Composite.create.SingleValue(plus_one)
         n3 = Composite.create.SingleValue(plus_one)
 
-        @Composite.wrap_as.function_node(("y", "minus"))
+        @Composite.wrap_as.function_node("y", "minus")
         def x_plus_minus_z(x: int = 0, z=2) -> tuple[int, int]:
             """
             A commensurate but different node: has _more_ than the necessary channels,
