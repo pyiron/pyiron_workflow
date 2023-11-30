@@ -506,9 +506,6 @@ class SignalChannel(Channel, ABC):
     def generic_type(self) -> type[Channel]:
         return SignalChannel
 
-    def _connect_output_signal(self, signal: OutputSignal):
-        self.connect(signal)
-
 
 class InputSignal(SignalChannel):
     def __init__(
@@ -540,6 +537,9 @@ class InputSignal(SignalChannel):
         d = super().to_dict()
         d["callback"] = self.callback.__name__
         return d
+
+    def _connect_output_signal(self, signal: OutputSignal):
+        self.connect(signal)
 
 
 class AccumulatingInputSignal(InputSignal):
