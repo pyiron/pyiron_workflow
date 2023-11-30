@@ -7,14 +7,13 @@ from typing import Any, get_args, get_type_hints, Optional, TYPE_CHECKING
 
 from pyiron_workflow.channels import InputData, OutputData, NotData
 from pyiron_workflow.has_channel import HasChannel
-from pyiron_workflow.io import Inputs, Outputs, Signals
+from pyiron_workflow.io import Inputs, Outputs
 from pyiron_workflow.node import Node
 from pyiron_workflow.output_parser import ParseOutput
 from pyiron_workflow.util import SeabornColors
 
 if TYPE_CHECKING:
     from pyiron_workflow.composite import Composite
-    from pyiron_workflow.workflow import Workflow
 
 
 class Function(Node):
@@ -189,7 +188,7 @@ class Function(Node):
         and returns a node class:
         >>> from pyiron_workflow.function import function_node
         >>>
-        >>> @function_node(output_labels=("p1", "m1"))
+        >>> @function_node("p1", "m1")
         ... def my_mwe_node(
         ...     x: int | float, y: int | float = 1
         ... ) -> tuple[int | float, int | float]:
@@ -615,7 +614,7 @@ class SingleValue(Function, HasChannel):
 
 
 def _wrapper_factory(
-    parent_class: type[Function], output_labels: Optional[list[str]]
+    parent_class: type[Function], output_labels: Optional[list[str] | tuple[str]]
 ) -> callable:
     """
     An abstract base for making decorators that wrap a function as `Function` or its
@@ -655,7 +654,7 @@ def _wrapper_factory(
     return as_node
 
 
-def function_node(output_labels=None):
+def function_node(*output_labels: str):
     """
     A decorator for dynamically creating node classes from functions.
 
@@ -663,18 +662,15 @@ def function_node(output_labels=None):
     Returns a `Function` subclass whose name is the camel-case version of the function
     node, and whose signature is modified to exclude the node function and output labels
     (which are explicitly defined in the process of using the decorator).
-
-    Optionally takes any keyword arguments of `Function`.
     """
+    output_labels = None if len(output_labels) == 0 else output_labels
     return _wrapper_factory(parent_class=Function, output_labels=output_labels)
 
 
-def single_value_node(output_labels=None):
+def single_value_node(output_label: Optional[str] = None):
     """
     A decorator for dynamically creating fast node classes from functions.
 
     Unlike normal nodes, fast nodes _must_ have default values set for all their inputs.
-
-    Optionally takes any keyword arguments of `SingleValueNode`.
     """
-    return _wrapper_factory(parent_class=SingleValue, output_labels=output_labels)
+    return _wrapper_factory(parent_class=SingleValue, output_labels=output_label)
