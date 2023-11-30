@@ -115,6 +115,42 @@ def nodes_to_execution_order(nodes: dict[str, Node]) -> list[str]:
     return execution_order
 
 
+def _set_new_run_connections_with_fallback_recovery(
+    connection_creator: callable[[dict[str, Node]], list[Node]],
+    nodes: dict[str, Node]
+):
+    """
+    Makes sure any broken connections get returned (if wiring new connections works),
+    otherwise that these broken connections get re-instated if an error is encountered.
+    """
+    disconnected_pairs = []
+    for node in nodes.values():
+        disconnected_pairs.extend(node.signals.disconnect_run())
+        disconnected_pairs.extend(node.signals.output.ran.disconnect_all())
+
+    try:
+        return disconnected_pairs, connection_creator(nodes)
+    except Exception as e:
+        # Restore whatever you broke
+        for c1, c2 in disconnected_pairs:
+            c1.connect(c2)
+        raise e
+
+
+def _set_run_connections_according_to_linear_dag(
+    nodes: dict[str, Node]
+) -> list[Node]:
+    # This is the most primitive sort of topological exploitation we can do
+    # It is not efficient if the nodes have executors and can run in parallel
+    execution_order = nodes_to_execution_order(nodes)
+
+    for i, label in enumerate(execution_order[:-1]):
+        next_node = execution_order[i + 1]
+        nodes[label] > nodes[next_node]
+
+    return [nodes[execution_order[0]]]
+
+
 def set_run_connections_according_to_linear_dag(
     nodes: dict[str, Node]
 ) -> tuple[list[tuple[SignalChannel, SignalChannel]], Node]:
@@ -138,26 +174,10 @@ def set_run_connections_according_to_linear_dag(
         (Node): The 0th node in the execution order, i.e. on that has no
             dependencies.
     """
-    disconnected_pairs = []
-    for node in nodes.values():
-        disconnected_pairs.extend(node.signals.disconnect_run())
-        disconnected_pairs.extend(node.signals.output.ran.disconnect_all())
-
-    try:
-        # This is the most primitive sort of topological exploitation we can do
-        # It is not efficient if the nodes have executors and can run in parallel
-        execution_order = nodes_to_execution_order(nodes)
-
-        for i, label in enumerate(execution_order[:-1]):
-            next_node = execution_order[i + 1]
-            nodes[label] > nodes[next_node]
-
-        return disconnected_pairs, nodes[execution_order[0]]
-    except Exception as e:
-        # Restore whatever you broke
-        for c1, c2 in disconnected_pairs:
-            c1.connect(c2)
-        raise e
+    return _set_new_run_connections_with_fallback_recovery(
+        _set_run_connections_according_to_linear_dag,
+        nodes
+    )
 
 
 def get_nodes_in_data_tree(node: Node) -> set[Node]:

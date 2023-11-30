@@ -405,9 +405,10 @@ class Node(HasToDict, ABC, metaclass=AbstractHasPost):
             nodes[modified_label] = node
 
         try:
-            disconnected_pairs, starter = set_run_connections_according_to_linear_dag(
+            disconnected_pairs, starters = set_run_connections_according_to_linear_dag(
                 nodes
             )
+            starter = starters[0]
         except Exception as e:
             # If the dag setup fails it will repair any connections it breaks before
             # raising the error, but we still need to repair our label changes
