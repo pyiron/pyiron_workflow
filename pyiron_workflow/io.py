@@ -222,10 +222,17 @@ class InputSignals(SignalIO):
         return InputSignal
 
     def disconnect_run(self) -> list[tuple[Channel, Channel]]:
+        """Disconnect all `run` and `accumulate_and_run` signals, if they exist."""
+        disconnected = []
         try:
-            return self.run.disconnect_all()
+            disconnected += self.run.disconnect_all()
         except AttributeError:
-            return []
+            pass
+        try:
+            disconnected += self.accumulate_and_run.disconnect_all()
+        except AttributeError:
+            pass
+        return disconnected
 
 
 class OutputSignals(SignalIO):
