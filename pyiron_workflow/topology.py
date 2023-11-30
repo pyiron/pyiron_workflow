@@ -8,7 +8,7 @@ from __future__ import annotations
 
 from typing import TYPE_CHECKING
 
-from toposort import toposort_flatten, CircularDependencyError
+from toposort import toposort, toposort_flatten, CircularDependencyError
 
 if TYPE_CHECKING:
     from pyiron_workflow.channels import SignalChannel
@@ -188,6 +188,61 @@ def set_run_connections_according_to_linear_dag(
     """
     return _set_new_run_connections_with_fallback_recovery(
         _set_run_connections_according_to_linear_dag,
+        nodes
+    )
+
+
+def _set_run_connections_according_to_dag(
+    nodes: dict[str, Node]
+) -> list[Node]:
+    try:
+        execution_layer_sets = list(toposort(nodes_to_data_digraph(nodes)))
+        # Note: toposort only catches circular dependency errors after walking through
+        #       everything in the generator, so we need to force the generator into a
+        #       list to ensure that we catch these
+    except CircularDependencyError as e:
+        raise CircularDataFlowError(
+            f"Detected a cycle in the data flow topology, unable to automate the "
+            f"execution of non-DAGs: cycles found among {e.data}"
+        ) from e
+
+    for node in nodes.values():
+        upstream_connections = []
+        for inp in node.inputs:
+            upstream_connections += inp.connections
+        upstream_nodes = set([c.node for c in upstream_connections])
+        upstream_rans = [n.signals.output.ran for n in upstream_nodes]
+        node.signals.input.accumulate_and_run.connect(*upstream_rans)
+    # Note: We can be super fast-and-loose here because the `nodes_to_data_digraph` call
+    #       above did all our safety checks for us
+
+    return [nodes[label] for label in execution_layer_sets[0]]
+
+
+def set_run_connections_according_to_dag(
+    nodes: dict[str, Node]
+) -> tuple[list[tuple[SignalChannel, SignalChannel]], list[Node]]:
+    """
+    Given a set of nodes that all have the same parent, have no upstream data
+    connections outside the nodes provided, and have acyclic data flow, disconnects all
+    their `run` and `ran` signals, then sets these signals so that each node has its
+    accumulating `and_run` signals connected to all of its up-data-stream dependencies.
+    Returns the upstream-most nodes that have no data dependencies.
+
+    In the event an exception is encountered, any disconnected connections are repaired
+    before it is raised.
+
+    Args:
+        nodes (dict[str, Node]): A dictionary of node labels and the node the label is
+            from, whose connections will be set according to data flow.
+
+    Returns:
+        (list[tuple[SignalChannel, SignalChannel]]): Any `run`/`ran` pairs that were
+            disconnected.
+        (list[Node]): The upstream-most nodes, i.e. those that have no dependencies.
+    """
+    return _set_new_run_connections_with_fallback_recovery(
+        _set_run_connections_according_to_dag,
         nodes
     )
 
