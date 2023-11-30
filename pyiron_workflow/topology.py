@@ -153,7 +153,7 @@ def _set_run_connections_according_to_linear_dag(
 
 def set_run_connections_according_to_linear_dag(
     nodes: dict[str, Node]
-) -> tuple[list[tuple[SignalChannel, SignalChannel]], Node]:
+) -> tuple[list[tuple[SignalChannel, SignalChannel]], list[Node]]:
     """
     Given a set of nodes that all have the same parent, have no upstream data
     connections outside the nodes provided, and have acyclic data flow, disconnects all
@@ -171,8 +171,8 @@ def set_run_connections_according_to_linear_dag(
     Returns:
         (list[tuple[SignalChannel, SignalChannel]]): Any `run`/`ran` pairs that were
             disconnected.
-        (Node): The 0th node in the execution order, i.e. on that has no
-            dependencies.
+        (list[Node]): The 0th node in the execution order, i.e. on that has no
+            dependencies wrapped in a list.
     """
     return _set_new_run_connections_with_fallback_recovery(
         _set_run_connections_according_to_linear_dag,
