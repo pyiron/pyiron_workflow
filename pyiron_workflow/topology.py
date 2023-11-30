@@ -16,6 +16,9 @@ if TYPE_CHECKING:
 
 
 class CircularDataFlowError(ValueError):
+    # Helpful for tests, so we can make sure we're getting exactly the failure we want
+    # Also lets us wrap other libraries circular dependency errors (i.e. toposort's)
+    # in language that makes more sense for us
     pass
 
 
@@ -90,8 +93,11 @@ def _set_new_run_connections_with_fallback_recovery(
     nodes: dict[str, Node]
 ):
     """
-    Makes sure any broken connections get returned (if wiring new connections works),
-    otherwise that these broken connections get re-instated if an error is encountered.
+    Given a function that takes a dictionary of unconnected nodes, connects their
+    execution graph, and returns the new starting nodes, this wrapper makes sure that
+    all the initial connections are broken, that these broken connections get returned
+    (if wiring new connections works) / that these broken connections get re-instated
+    (if an error is encountered).
     """
     disconnected_pairs = []
     for node in nodes.values():
@@ -167,6 +173,10 @@ def set_run_connections_according_to_linear_dag(
 def _set_run_connections_according_to_dag(
     nodes: dict[str, Node]
 ) -> list[Node]:
+    """
+    More sophisticated sorting, so that each node has an "and" execution dependency on
+    all its directly-upstream data dependencies.
+    """
     try:
         execution_layer_sets = list(toposort(nodes_to_data_digraph(nodes)))
         # Note: toposort only catches circular dependency errors after walking through
