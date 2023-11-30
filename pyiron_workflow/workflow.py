@@ -182,6 +182,7 @@ class Workflow(Composite):
         self,
         label: str,
         *nodes: Node,
+        run_after_init: bool = False,
         strict_naming: bool = True,
         inputs_map: Optional[dict | bidict] = None,
         outputs_map: Optional[dict | bidict] = None,

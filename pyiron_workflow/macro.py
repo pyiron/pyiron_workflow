@@ -175,6 +175,7 @@ class Macro(Composite):
         graph_creator: callable[[Macro], None],
         label: Optional[str] = None,
         parent: Optional[Composite] = None,
+        run_after_init: bool = False,
         strict_naming: bool = True,
         inputs_map: Optional[dict | bidict] = None,
         outputs_map: Optional[dict | bidict] = None,
