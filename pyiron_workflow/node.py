@@ -740,6 +740,16 @@ class Node(HasToDict, ABC, metaclass=AbstractHasPost):
         other._connect_output_signal(self.signals.output.ran)
         return True
 
+    def _connect_accumulating_input_signal(self, signal: AccumulatingInputSignal):
+        self.signals.output.ran.connect(signal)
+
+    def __lshift__(self, others):
+        """
+        Connect one or more `ran` signals to `accumulate_and_run` signals like:
+        `this_node << some_node, another_node, or_by_channel.signals.output.ran`
+        """
+        self.signals.input.accumulate_and_run << others
+
     def copy_io(
         self,
         other: Node,

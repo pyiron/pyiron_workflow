@@ -575,6 +575,11 @@ class AccumulatingInputSignal(InputSignal):
         """
         self.received_signals = set()
 
+    def __lshift__(self, others):
+        others = others if isinstance(others, tuple) else (others,)
+        for other in others:
+            other._connect_accumulating_input_signal(self)
+
 
 class OutputSignal(SignalChannel):
     def __call__(self) -> None:
@@ -590,3 +595,6 @@ class OutputSignal(SignalChannel):
     def __gt__(self, other: InputSignal | Node):
         other._connect_output_signal(self)
         return True
+
+    def _connect_accumulating_input_signal(self, signal: AccumulatingInputSignal):
+        self.connect(signal)
