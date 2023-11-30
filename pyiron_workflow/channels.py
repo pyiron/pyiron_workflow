@@ -542,6 +542,40 @@ class InputSignal(SignalChannel):
         return d
 
 
+class AccumulatingInputSignal(InputSignal):
+    """
+    An input signal that only fires after receiving a signal from _all_ its connections
+    instead of after _any_ of its connections.
+    """
+
+    def __init__(
+        self,
+        label: str,
+        node: Node,
+        callback: callable,
+    ):
+        super().__init__(label=label, node=node, callback=callback)
+        self.received_signals: set[OutputSignal] = set()
+
+    def __call__(self, other: OutputSignal) -> None:
+        """
+        Fire callback iff you have received at least one signal from each of your
+        current connections.
+
+        Resets the collection of received signals when firing.
+        """
+        self.received_signals.update([other])
+        if len(set(self.connections).difference(self.received_signals)) == 0:
+            self.reset()
+            self.callback()
+
+    def reset(self) -> None:
+        """
+        Reset the collection of received signals
+        """
+        self.received_signals = set()
+
+
 class OutputSignal(SignalChannel):
     def __call__(self) -> None:
         for c in self.connections:
