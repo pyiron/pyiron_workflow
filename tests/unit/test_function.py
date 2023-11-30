@@ -1,4 +1,3 @@
-from concurrent.futures import Future
 from sys import version_info
 from typing import Optional, Union
 import unittest
@@ -6,6 +5,7 @@ import warnings
 
 from pyiron_workflow.channels import NotData, ChannelConnectionError
 from pyiron_workflow.function import Function, SingleValue, function_node
+from pyiron_workflow.interfaces import Executor
 
 
 def throw_error(x: Optional[int] = None):
@@ -216,14 +216,15 @@ class TestFunction(unittest.TestCase):
                 "object."
         )
 
-        node.executor = True
+        node.executor = Executor()
         with self.assertRaises(
             ValueError,
             msg="We haven't implemented any way to update a function node's `self` when"
                 "it runs on an executor, so trying to do so should fail hard"
         ):
             node.run()
-        node.executor = False
+            node.executor_shutdown()  # Shouldn't get this far, but if we do shutdown
+        node.executor = None
 
         def with_messed_self(x: float, self) -> float:
             return x + 0.1

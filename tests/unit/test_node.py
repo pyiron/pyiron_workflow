@@ -5,6 +5,7 @@ import unittest
 
 from pyiron_workflow.channels import InputData, OutputData, NotData
 from pyiron_workflow.files import DirectoryObject
+from pyiron_workflow.interfaces import Executor
 from pyiron_workflow.io import Inputs, Outputs
 from pyiron_workflow.node import Node
 
@@ -148,7 +149,7 @@ class TestNode(unittest.TestCase):
         )
 
     def test_force_local_execution(self):
-        self.n1.executor = True
+        self.n1.executor = Executor()
         out = self.n1.run(force_local_execution=False)
         with self.subTest("Test running with an executor fulfills promises"):
             self.assertIsInstance(
@@ -173,7 +174,7 @@ class TestNode(unittest.TestCase):
                 self.n1.inputs.x = 42
             self.assertEqual(
                 1,
-                out.result(),
+                out.result(timeout=120),
                 msg="If we wait for the remote execution to finish, it should give us"
                     "the right thing"
             )
@@ -184,13 +185,15 @@ class TestNode(unittest.TestCase):
                     "happens"
             )
 
-        self.n2.executor = True
+        self.n2.executor = Executor()
         self.n2.inputs.x = 0
         self.assertEqual(
             1,
             self.n2.run(fetch_input=False, force_local_execution=True),
             msg="Forcing local execution should do just that."
         )
+        self.n1.executor_shutdown()
+        self.n2.executor_shutdown()
 
     def test_emit_ran_signal(self):
         self.n1 > self.n2 > self.n3  # Chained connection declaration

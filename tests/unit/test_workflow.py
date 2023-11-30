@@ -81,7 +81,7 @@ class TestWorkflow(unittest.TestCase):
         wf.b = wf.create.SingleValue(plus_one, x=wf.a)
 
         original_a = wf.a
-        wf.executor = True
+        wf.executor = wf.create.Executor()
 
         self.assertIs(
             NotData,
@@ -96,7 +96,7 @@ class TestWorkflow(unittest.TestCase):
             msg="Should be running as a parallel process"
         )
 
-        returned_nodes = result.result()  # Wait for the process to finish
+        returned_nodes = result.result(timeout=120)  # Wait for the process to finish
         self.assertIsNot(
             original_a,
             returned_nodes.a,
@@ -118,6 +118,7 @@ class TestWorkflow(unittest.TestCase):
             wf.outputs.b__y.value,
             msg="And of course we expect the calculation to actually run"
         )
+        wf.executor_shutdown()
 
     def test_parallel_execution(self):
         wf = Workflow("wf")
@@ -155,8 +156,11 @@ class TestWorkflow(unittest.TestCase):
             msg="The slow node _should_ hold up the downstream node to which it inputs"
         )
 
-        while wf.slow.future.running():
-            sleep(0.1)
+        wf.slow.future.result(timeout=120)  # Wait for it to finish
+        self.assertFalse(
+            wf.slow.running,
+            msg="The slow node should be done running"
+        )
 
         wf.sum.run()
         self.assertEqual(
@@ -165,6 +169,8 @@ class TestWorkflow(unittest.TestCase):
             msg="After the slow node completes, its output should be updated as a "
                 "callback, and downstream nodes should proceed"
         )
+
+        wf.executor_shutdown()
 
     def test_call(self):
         wf = Workflow("wf")
@@ -309,15 +315,16 @@ class TestWorkflow(unittest.TestCase):
             msg="Sanity check, pulling here should work perfectly fine"
         )
 
-        wf.m.one.executor = True
+        wf.m.one.executor = wf.create.Executor()
         with self.assertRaises(
             ValueError,
             msg="Should not be able to pull with executor in local scope"
         ):
             wf.m.two.pull()
-        wf.m.one.executor = False
+            wf.m.one.executor_shutdown()  # Shouldn't get this far, but if so, shutdown
+        wf.m.one.executor = None
 
-        wf.n1.executor = True
+        wf.n1.executor = wf.create.Executor()
         with self.assertRaises(
             ValueError,
             msg="Should not be able to pull with executor in parent scope"
@@ -327,6 +334,7 @@ class TestWorkflow(unittest.TestCase):
         # Pulling in the local scope should be fine with an executor only in the parent
         # scope
         wf.m.two.pull(run_parent_trees_too=False)
+        wf.executor_shutdown()
 
 
 if __name__ == '__main__':

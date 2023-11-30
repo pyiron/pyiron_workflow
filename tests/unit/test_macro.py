@@ -216,7 +216,7 @@ class TestMacro(unittest.TestCase):
         # at the downstream output, and none of this is happening in a workflow
 
         original_one = macro.one
-        macro.executor = True
+        macro.executor = macro.create.Executor()
 
         self.assertIs(
             NotData,
@@ -237,8 +237,7 @@ class TestMacro(unittest.TestCase):
                 "for the callback when the result is ready"
         )
 
-        returned_nodes = result.result()  # Wait for the process to finish
-        from time import sleep
+        returned_nodes = result.result(timeout=120)  # Wait for the process to finish
         sleep(1)
         self.assertIsNot(
             original_one,
@@ -282,6 +281,8 @@ class TestMacro(unittest.TestCase):
             msg="The finishing callback should also fire off the ran signal triggering"
                 "downstream execution"
         )
+
+        macro.executor_shutdown()
 
     def test_pulling_from_inside_a_macro(self):
         upstream = SingleValue(add_one, x=2)

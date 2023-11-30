@@ -188,10 +188,13 @@ class TestTopology(unittest.TestCase):
         """
         wf = Workflow("depickle")
         wf.create.register("demo", "static.demo_nodes")
+
         wf.before_pickling = wf.create.demo.OptionallyAdd(1)
-        wf.before_pickling.executor = True
+        wf.before_pickling.executor = wf.create.Executor()
         wf()
-        wf.before_pickling.future.result()  # Wait for it to finish
-        wf.before_pickling.executor = False
+        wf.before_pickling.future.result(timeout=120)  # Wait for it to finish
+        wf.executor_shutdown()
+
+        wf.before_pickling.executor = None
         wf.after_pickling = wf.create.demo.OptionallyAdd(2, y=3)
         wf()

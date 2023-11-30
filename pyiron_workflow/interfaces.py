@@ -9,8 +9,22 @@ from sys import version_info
 
 from pyiron_base.interfaces.singleton import Singleton
 
-# from pympipool.mpi.executor import PyMPISingleTaskExecutor as Executor
-from pyiron_workflow.executors import CloudpickleProcessPoolExecutor as Executor
+# Import all the supported executors
+from pympipool import Executor as PyMpiPoolExecutor, PyMPIExecutor
+
+try:
+    from pympipool import PySlurmExecutor
+except ImportError:
+    PySlurmExecutor = None
+try:
+    from pympipool import PyFluxExecutor
+except ImportError:
+    PyFluxExecutor = None
+
+from pyiron_workflow.executors import CloudpickleProcessPoolExecutor
+
+# Then choose one executor to be "standard"
+Executor = PyMpiPoolExecutor
 
 from pyiron_workflow.function import (
     Function,
@@ -25,12 +39,22 @@ class Creator(metaclass=Singleton):
     A container class for providing access to various workflow objects.
     Handles the registration of new node packages and, by virtue of being a singleton,
     makes them available to all composite nodes holding a creator.
+
+    In addition to node objects, the creator also provides workflow-compliant executors
+    for parallel processing.
+    This includes a very simple in-house executor that is useful for learning, but also
+    choices from the `pympipool` packages.
+    Some `pympipool` executors may not be available on your machine (e.g. flux- and/or
+     slurm-based executors), in which case these attributes will return `None` instead.
     """
 
     def __init__(self):
         self._node_packages = {}
 
         self.Executor = Executor
+        self.CloudpickleProcessPoolExecutor = CloudpickleProcessPoolExecutor
+        self.PyMPIExecutor = PyMPIExecutor
+        self.PyMpiPoolExecutor = PyMpiPoolExecutor
 
         self.Function = Function
         self.SingleValue = SingleValue
@@ -46,6 +70,18 @@ class Creator(metaclass=Singleton):
             # If the CI skips testing on 3.9 gets dropped, we can think about removing
             # this if-clause and just letting users of python <3.10 hit an error.
             self.register("standard", "pyiron_workflow.node_library.standard")
+
+    @property
+    def PyFluxExecutor(self):
+        if PyFluxExecutor is None:
+            raise ImportError(f"{PyFluxExecutor.__name__} is not available")
+        return PyFluxExecutor
+
+    @property
+    def PySlurmExecutor(self):
+        if PySlurmExecutor is None:
+            raise ImportError(f"{PySlurmExecutor.__name__} is not available")
+        return PySlurmExecutor
 
     @property
     def Macro(self):

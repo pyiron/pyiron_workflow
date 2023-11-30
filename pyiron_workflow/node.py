@@ -9,12 +9,11 @@ from __future__ import annotations
 
 import warnings
 from abc import ABC, abstractmethod
-from concurrent.futures import Future
+from concurrent.futures import Executor as StdLibExecutor, Future
 from typing import Any, Literal, Optional, TYPE_CHECKING
 
 from pyiron_workflow.channels import NotData
 from pyiron_workflow.draw import Node as GraphvizNode
-from pyiron_workflow.executors import CloudpickleProcessPoolExecutor as Executor
 from pyiron_workflow.files import DirectoryObject
 from pyiron_workflow.has_to_dict import HasToDict
 from pyiron_workflow.io import Signals, InputSignal, OutputSignal
@@ -115,12 +114,23 @@ class Node(HasToDict, ABC, metaclass=AbstractHasPost):
     - Nodes have a label by which they are identified
     - Nodes may open a working directory related to their label, their parent(age) and
         the python process working directory
-
-    WARNING: Executors are currently only working when the node executable function
-        does not use `self`.
-
-    NOTE: Executors are only allowed in a "push" paradigm, and you will get an
-    exception if you try to `pull` and one of the upstream nodes uses an executor.
+    - Nodes can run their computation using remote resources by setting an executor
+        - Any executor must have a `submit` method with the same interface as
+            `concurrent.futures.Executor`, must return a `concurrent.futures.Future`
+            (or child thereof) object, and must be able to serialize dynamically
+            defined objects
+        - On executing this way, a futures object will be returned instead of the usual
+            result, this future will also be stored as an attribute, and a callback will
+            be registered with the executor
+        - Post-execution processing -- e.g. updating output and firing signals -- will
+            not occur until the futures object is finished and the callback fires.
+        - WARNING: Executors are currently only working when the node executable
+            function does not use `self`
+        - NOTE: Executors are only allowed in a "push" paradigm, and you will get an
+            exception if you try to `pull` and one of the upstream nodes uses an
+            executor
+        - NOTE: Don't forget to `shutdown` any created executors outside of a `with`
+            context when you're done with them; we give a convenience method for this.
 
     This is an abstract class.
     Children *must* define how `inputs` and `outputs` are constructed, what will
@@ -217,7 +227,7 @@ class Node(HasToDict, ABC, metaclass=AbstractHasPost):
         self.failed = False
         self.signals = self._build_signal_channels()
         self._working_directory = None
-        self.executor = False
+        self.executor = None
         # We call it an executor, but it's just whether to use one.
         # This is a simply stop-gap as we work out more sophisticated ways to reference
         # (or create) an executor process without ever trying to pickle a `_thread.lock`
@@ -377,7 +387,7 @@ class Node(HasToDict, ABC, metaclass=AbstractHasPost):
 
         data_tree_nodes = get_nodes_in_data_tree(self)
         for node in data_tree_nodes:
-            if node.executor:
+            if node.executor is not None:
                 raise ValueError(
                     f"Running the data tree is pull-paradigm action, and is "
                     f"incompatible with using executors. An executor request was found "
@@ -432,17 +442,48 @@ class Node(HasToDict, ABC, metaclass=AbstractHasPost):
         Handles the status of the node, and communicating with any remote
         computing resources.
         """
-        if force_local_execution or not self.executor:
+        if force_local_execution or self.executor is None:
             # Run locally
             run_output = self.on_run(**self.run_args)
             return finished_callback(run_output)
         else:
             # Just blindly try to execute -- as we nail down the executor interaction
             # we'll want to fail more cleanly here.
-            executor = Executor()
-            self.future = executor.submit(self.on_run, **self.run_args)
+            executor = self._parse_executor(self.executor)
+            kwargs = self.run_args
+            if "self" in kwargs.keys():
+                raise ValueError(
+                    f"{self.label} got 'self' as a run argument, but self cannot "
+                    f"currently be combined with running on executors."
+                )
+            self.future = executor.submit(self.on_run, **kwargs)
             self.future.add_done_callback(finished_callback)
             return self.future
+
+    @staticmethod
+    def _parse_executor(executor) -> StdLibExecutor:
+        """
+        We may want to allow users to specify how to build an executor rather than
+        actually providing an executor instance -- so here we can interpret these.
+
+        NOTE:
+            `concurrent.futures.Executor` _won't_ actually work, because we need
+            stuff with `cloudpickle` support. We're leaning on this for a guaranteed
+            interface (has `submit` and returns a `Future`), and leaving it to the user
+            to provide an executor that will actually work!!!
+
+        NOTE:
+            If, in the future, this parser is extended to instantiate new executors from
+            instructions, these new instances may not be caught by the
+            `executor_shutdown` method. This will require some re-engineering to make
+            sure we don't have dangling executors.
+        """
+        if isinstance(executor, StdLibExecutor):
+            return executor
+        else:
+            raise NotImplementedError(
+                f"Expected an instance of {StdLibExecutor}, but got {executor}."
+            )
 
     def _finish_run(self, run_output: tuple | Future) -> Any | tuple:
         """
@@ -863,7 +904,27 @@ class Node(HasToDict, ABC, metaclass=AbstractHasPost):
         # for the record I am admitting that the current shallowness of my understanding
         # may cause me/us headaches in the future.
         # -Liam
+        state["future"] = None
+        # Don't pass the future -- with the future in the state things work fine for
+        # the simple pyiron_workflow.executors.CloudpickleProcessPoolExecutor, but for
+        # the more complex pympipool.Executor we're getting:
+        # TypeError: cannot pickle '_thread.RLock' object
+        if isinstance(self.executor, StdLibExecutor):
+            state["executor"] = None
+        # Don't pass actual executors, they have an unserializable thread lock on them
+        # _but_ if the user is just passing instructions on how to _build_ an executor,
+        # we'll trust that those serialize OK (this way we can, hopefully, eventually
+        # support nesting executors!)
         return self.__dict__
 
     def __setstate__(self, state):
-        self.__dict__ = state
+        # Update instead of overriding in case some other attributes were added on the
+        # main process while a remote process was working away
+        self.__dict__.update(**state)
+
+    def executor_shutdown(self, wait=True, *, cancel_futures=False):
+        """Invoke shutdown on the executor (if present)."""
+        try:
+            self.executor.shutdown(wait=wait, cancel_futures=cancel_futures)
+        except AttributeError:
+            pass
