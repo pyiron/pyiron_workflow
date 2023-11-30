@@ -662,8 +662,6 @@ def function_node(*output_labels: str):
     Returns a `Function` subclass whose name is the camel-case version of the function
     node, and whose signature is modified to exclude the node function and output labels
     (which are explicitly defined in the process of using the decorator).
-
-    Optionally takes any keyword arguments of `Function`.
     """
     output_labels = None if len(output_labels) == 0 else output_labels
     return _wrapper_factory(parent_class=Function, output_labels=output_labels)
@@ -674,7 +672,5 @@ def single_value_node(output_label: Optional[str] = None):
     A decorator for dynamically creating fast node classes from functions.
 
     Unlike normal nodes, fast nodes _must_ have default values set for all their inputs.
-
-    Optionally takes any keyword arguments of `SingleValueNode`.
     """
     return _wrapper_factory(parent_class=SingleValue, output_labels=output_label)
