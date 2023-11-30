@@ -7,14 +7,13 @@ from typing import Any, get_args, get_type_hints, Optional, TYPE_CHECKING
 
 from pyiron_workflow.channels import InputData, OutputData, NotData
 from pyiron_workflow.has_channel import HasChannel
-from pyiron_workflow.io import Inputs, Outputs, Signals
+from pyiron_workflow.io import Inputs, Outputs
 from pyiron_workflow.node import Node
 from pyiron_workflow.output_parser import ParseOutput
 from pyiron_workflow.util import SeabornColors
 
 if TYPE_CHECKING:
     from pyiron_workflow.composite import Composite
-    from pyiron_workflow.workflow import Workflow
 
 
 class Function(Node):
