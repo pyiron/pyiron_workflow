@@ -488,6 +488,8 @@ class SignalChannel(Channel, ABC):
     """
     Signal channels give the option control execution flow by triggering callback
     functions when the channel is called.
+    Inputs optionally accept an output signal on call, which output signals always
+    send when they call their input connections.
 
     Inputs hold a callback function to call, and outputs call each of their connections.
 
@@ -528,7 +530,7 @@ class InputSignal(SignalChannel):
         super().__init__(label=label, node=node)
         self.callback: callable = callback
 
-    def __call__(self) -> None:
+    def __call__(self, other: typing.Optional[OutputSignal] = None) -> None:
         self.callback()
 
     def __str__(self):
@@ -543,7 +545,7 @@ class InputSignal(SignalChannel):
 class OutputSignal(SignalChannel):
     def __call__(self) -> None:
         for c in self.connections:
-            c()
+            c(self)
 
     def __str__(self):
         return (
