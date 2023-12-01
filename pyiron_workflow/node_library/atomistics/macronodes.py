@@ -1,6 +1,6 @@
 from pyiron_workflow.macro import Macro, macro_node
-from pyiron_workflow.atomistics_library.calculatornodes import calc_with_calculator
-from pyiron_workflow.atomistics_library.tasknodes import (
+from pyiron_workflow.node_library.atomistics.calculatornodes import calc_with_calculator
+from pyiron_workflow.node_library.atomistics.tasknodes import (
     get_elastic_matrix_task_generator,
     get_evcurve_task_generator,
     get_phonons_task_generator,
