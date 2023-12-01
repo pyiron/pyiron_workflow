@@ -13,7 +13,10 @@ from concurrent.futures import Executor as StdLibExecutor, Future
 from typing import Any, Literal, Optional, TYPE_CHECKING
 
 from pyiron_workflow.channels import (
-    InputSignal, AccumulatingInputSignal, OutputSignal, NotData
+    InputSignal,
+    AccumulatingInputSignal,
+    OutputSignal,
+    NotData,
 )
 from pyiron_workflow.draw import Node as GraphvizNode
 from pyiron_workflow.files import DirectoryObject
@@ -598,9 +601,7 @@ class Node(HasToDict, ABC, metaclass=AbstractHasPost):
         signals = Signals()
         signals.input.run = InputSignal("run", self, self.run)
         signals.input.accumulate_and_run = AccumulatingInputSignal(
-            "accumulate_and_run",
-            self,
-            self.run
+            "accumulate_and_run", self, self.run
         )
         signals.output.ran = OutputSignal("ran", self)
         return signals

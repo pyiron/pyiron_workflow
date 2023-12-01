@@ -89,8 +89,7 @@ def nodes_to_data_digraph(nodes: dict[str, Node]) -> dict[str, set[str]]:
 
 
 def _set_new_run_connections_with_fallback_recovery(
-    connection_creator: callable[[dict[str, Node]], list[Node]],
-    nodes: dict[str, Node]
+    connection_creator: callable[[dict[str, Node]], list[Node]], nodes: dict[str, Node]
 ):
     """
     Given a function that takes a dictionary of unconnected nodes, connects their
@@ -165,14 +164,11 @@ def set_run_connections_according_to_linear_dag(
             dependencies wrapped in a list.
     """
     return _set_new_run_connections_with_fallback_recovery(
-        _set_run_connections_according_to_linear_dag,
-        nodes
+        _set_run_connections_according_to_linear_dag, nodes
     )
 
 
-def _set_run_connections_according_to_dag(
-    nodes: dict[str, Node]
-) -> list[Node]:
+def _set_run_connections_according_to_dag(nodes: dict[str, Node]) -> list[Node]:
     """
     More sophisticated sorting, so that each node has an "and" execution dependency on
     all its directly-upstream data dependencies.
@@ -219,8 +215,7 @@ def set_run_connections_according_to_dag(
         (list[Node]): The upstream-most nodes, i.e. those that have no dependencies.
     """
     return _set_new_run_connections_with_fallback_recovery(
-        _set_run_connections_according_to_dag,
-        nodes
+        _set_run_connections_according_to_dag, nodes
     )
 
 
