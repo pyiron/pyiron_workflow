@@ -2,8 +2,8 @@ from unittest import TestCase, skipUnless
 from sys import version_info
 
 from pyiron_workflow.channels import (
-    Channel, InputData, OutputData, InputSignal, OutputSignal, NotData,
-    ChannelConnectionError
+    Channel, InputData, OutputData, InputSignal, AccumulatingInputSignal, OutputSignal,
+    NotData, ChannelConnectionError
 )
 
 
@@ -384,3 +384,84 @@ class TestSignalChannels(TestCase):
         self.assertListEqual(self.inp.node.foo, [0, 1])
         self.inp()
         self.assertListEqual(self.inp.node.foo, [0, 1, 2])
+
+    def test_aggregating_call(self):
+        node = DummyNode()
+        agg = AccumulatingInputSignal(label="agg", node=node, callback=node.update)
+
+        with self.assertRaises(
+            TypeError,
+            msg="For an aggregating input signal, it _matters_ who called it, so "
+                "receiving an output signal is not optional"
+        ):
+            agg()
+
+        out2 = OutputSignal(label="out", node=DummyNode())
+        agg.connect(self.out, out2)
+
+        self.assertEqual(
+            2,
+            len(agg.connections),
+            msg="Sanity check on initial conditions"
+        )
+        self.assertEqual(
+            0,
+            len(agg.received_signals),
+            msg="Sanity check on initial conditions"
+        )
+        self.assertListEqual(
+            [0],
+            node.foo,
+            msg="Sanity check on initial conditions"
+        )
+
+        self.out()
+        self.assertEqual(
+            1,
+            len(agg.received_signals),
+            msg="Signal should be received"
+        )
+        self.assertListEqual(
+            [0],
+            node.foo,
+            msg="Receiving only _one_ of your connections should not fire the callback"
+        )
+
+        self.out()
+        self.assertEqual(
+            1,
+            len(agg.received_signals),
+            msg="Repeatedly receiving the same signal should have no effect"
+        )
+        self.assertListEqual(
+            [0],
+            node.foo,
+            msg="Repeatedly receiving the same signal should have no effect"
+        )
+
+        out2()
+        self.assertListEqual(
+            [0, 1],
+            node.foo,
+            msg="After 2/2 output signals have fired, the callback should fire"
+        )
+        self.assertEqual(
+            0,
+            len(agg.received_signals),
+            msg="Firing the callback should reset the list of received signals"
+        )
+
+        out2()
+        agg.disconnect(out2)
+        self.out()
+        self.assertListEqual(
+            [0, 1, 2],
+            node.foo,
+            msg="Having a vestigial received signal (i.e. one from an output signal "
+                "that is no longer connected) shouldn't hurt anything"
+        )
+        self.assertEqual(
+            0,
+            len(agg.received_signals),
+            msg="All signals, including vestigial ones, should get cleared on call"
+        )

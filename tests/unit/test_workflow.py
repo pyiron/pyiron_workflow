@@ -277,14 +277,10 @@ class TestWorkflow(unittest.TestCase):
             msg="Expected old execution signals to be overwritten"
         )
         self.assertIn(
-            user.n2m.signals.output.ran,
-            user.n2r.signals.input.run.connections,
-            msg="At time of writing tests, automation makes a linear execution flow "
-                "based on node topology and initialized by the order of appearance in "
-                "the nodes list, so for a simple DAG like this the final node should "
-                "be getting triggered by the penultimate node."
-                "If this test failed, maybe you've written more sophisticated "
-                "automation."
+            user.n1r.signals.output.ran,
+            user.n2r.signals.input.accumulate_and_run.connections,
+            msg="The automated flow uses a non-linear accumulating approach, so the "
+                "accumulating run signal is the one that should hold a connection"
         )
 
         with self.subTest("Make sure automated cyclic graphs throw an error"):

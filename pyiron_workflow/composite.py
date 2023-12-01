@@ -15,7 +15,7 @@ from pyiron_workflow.interfaces import Creator, Wrappers
 from pyiron_workflow.io import Outputs, Inputs
 from pyiron_workflow.node import Node
 from pyiron_workflow.node_package import NodePackage
-from pyiron_workflow.topology import set_run_connections_according_to_linear_dag
+from pyiron_workflow.topology import set_run_connections_according_to_dag
 from pyiron_workflow.util import logger, DotDict, SeabornColors
 
 if TYPE_CHECKING:
@@ -225,8 +225,8 @@ class Composite(Node, ABC):
         reconnect these according to the DAG flow of the data. On success, sets the
         starting nodes to just be the upstream-most node in this linear DAG flow.
         """
-        _, upstream_most_node = set_run_connections_according_to_linear_dag(self.nodes)
-        self.starting_nodes = [upstream_most_node]
+        _, upstream_most_nodes = set_run_connections_according_to_dag(self.nodes)
+        self.starting_nodes = upstream_most_nodes
 
     def _build_io(
         self,

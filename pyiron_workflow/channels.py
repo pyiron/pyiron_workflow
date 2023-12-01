@@ -488,6 +488,8 @@ class SignalChannel(Channel, ABC):
     """
     Signal channels give the option control execution flow by triggering callback
     functions when the channel is called.
+    Inputs optionally accept an output signal on call, which output signals always
+    send when they call their input connections.
 
     Inputs hold a callback function to call, and outputs call each of their connections.
 
@@ -503,9 +505,6 @@ class SignalChannel(Channel, ABC):
     @property
     def generic_type(self) -> type[Channel]:
         return SignalChannel
-
-    def _connect_output_signal(self, signal: OutputSignal):
-        self.connect(signal)
 
 
 class InputSignal(SignalChannel):
@@ -528,7 +527,7 @@ class InputSignal(SignalChannel):
         super().__init__(label=label, node=node)
         self.callback: callable = callback
 
-    def __call__(self) -> None:
+    def __call__(self, other: typing.Optional[OutputSignal] = None) -> None:
         self.callback()
 
     def __str__(self):
@@ -539,11 +538,53 @@ class InputSignal(SignalChannel):
         d["callback"] = self.callback.__name__
         return d
 
+    def _connect_output_signal(self, signal: OutputSignal):
+        self.connect(signal)
+
+
+class AccumulatingInputSignal(InputSignal):
+    """
+    An input signal that only fires after receiving a signal from _all_ its connections
+    instead of after _any_ of its connections.
+    """
+
+    def __init__(
+        self,
+        label: str,
+        node: Node,
+        callback: callable,
+    ):
+        super().__init__(label=label, node=node, callback=callback)
+        self.received_signals: set[OutputSignal] = set()
+
+    def __call__(self, other: OutputSignal) -> None:
+        """
+        Fire callback iff you have received at least one signal from each of your
+        current connections.
+
+        Resets the collection of received signals when firing.
+        """
+        self.received_signals.update([other])
+        if len(set(self.connections).difference(self.received_signals)) == 0:
+            self.reset()
+            self.callback()
+
+    def reset(self) -> None:
+        """
+        Reset the collection of received signals
+        """
+        self.received_signals = set()
+
+    def __lshift__(self, others):
+        others = others if isinstance(others, tuple) else (others,)
+        for other in others:
+            other._connect_accumulating_input_signal(self)
+
 
 class OutputSignal(SignalChannel):
     def __call__(self) -> None:
         for c in self.connections:
-            c()
+            c(self)
 
     def __str__(self):
         return (
@@ -554,3 +595,6 @@ class OutputSignal(SignalChannel):
     def __gt__(self, other: InputSignal | Node):
         other._connect_output_signal(self)
         return True
+
+    def _connect_accumulating_input_signal(self, signal: AccumulatingInputSignal):
+        self.connect(signal)

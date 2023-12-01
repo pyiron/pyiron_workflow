@@ -12,11 +12,16 @@ from abc import ABC, abstractmethod
 from concurrent.futures import Executor as StdLibExecutor, Future
 from typing import Any, Literal, Optional, TYPE_CHECKING
 
-from pyiron_workflow.channels import NotData
+from pyiron_workflow.channels import (
+    InputSignal,
+    AccumulatingInputSignal,
+    OutputSignal,
+    NotData,
+)
 from pyiron_workflow.draw import Node as GraphvizNode
 from pyiron_workflow.files import DirectoryObject
 from pyiron_workflow.has_to_dict import HasToDict
-from pyiron_workflow.io import Signals, InputSignal, OutputSignal
+from pyiron_workflow.io import Signals
 from pyiron_workflow.topology import (
     get_nodes_in_data_tree,
     set_run_connections_according_to_linear_dag,
@@ -84,6 +89,9 @@ class Node(HasToDict, ABC, metaclass=AbstractHasPost):
         - And a signal flavour, to control the flow of execution
             - Execution flows can be specified manually, but in the case of data flows
                 which form directed acyclic graphs (DAGs), this can be automated
+            - Running can be triggered in an instantaneous (i.e. "or" applied to
+                incoming signals) or accumulating way (i.e. "and" applied to incoming
+                signals).
     - When running their computation, nodes may or may not:
         - First update their input data values using kwargs
             - (Note that since this happens first, if the "fetching" step later occurs,
@@ -168,9 +176,12 @@ class Node(HasToDict, ABC, metaclass=AbstractHasPost):
             received output from this call. (Default is False.)
         signals (pyiron_workflow.io.Signals): A container for input and output
             signals, which are channels for controlling execution flow. By default, has
-            a `signals.inputs.run` channel which has a callback to the `run` method,
-            and `signals.outputs.ran` which should be called at when the `run` method
-            is finished.
+            a `signals.inputs.run` channel which has a callback to the `run` method
+            that fires whenever _any_ of its connections sends a signal to it, a
+            `signals.inputs.accumulate_and_run` channel which has a callback to the
+            `run` method but only fires after _all_ its connections send at least one
+            signal to it, and `signals.outputs.ran` which gets called when the `run`
+            method is finished.
             Additional signal channels in derived classes can be added to
             `signals.inputs` and  `signals.outputs` after this mixin class is
             initialized.
@@ -405,9 +416,10 @@ class Node(HasToDict, ABC, metaclass=AbstractHasPost):
             nodes[modified_label] = node
 
         try:
-            disconnected_pairs, starter = set_run_connections_according_to_linear_dag(
+            disconnected_pairs, starters = set_run_connections_according_to_linear_dag(
                 nodes
             )
+            starter = starters[0]
         except Exception as e:
             # If the dag setup fails it will repair any connections it breaks before
             # raising the error, but we still need to repair our label changes
@@ -588,6 +600,9 @@ class Node(HasToDict, ABC, metaclass=AbstractHasPost):
     def _build_signal_channels(self) -> Signals:
         signals = Signals()
         signals.input.run = InputSignal("run", self, self.run)
+        signals.input.accumulate_and_run = AccumulatingInputSignal(
+            "accumulate_and_run", self, self.run
+        )
         signals.output.ran = OutputSignal("ran", self)
         return signals
 
@@ -725,6 +740,16 @@ class Node(HasToDict, ABC, metaclass=AbstractHasPost):
         """
         other._connect_output_signal(self.signals.output.ran)
         return True
+
+    def _connect_accumulating_input_signal(self, signal: AccumulatingInputSignal):
+        self.signals.output.ran.connect(signal)
+
+    def __lshift__(self, others):
+        """
+        Connect one or more `ran` signals to `accumulate_and_run` signals like:
+        `this_node << some_node, another_node, or_by_channel.signals.output.ran`
+        """
+        self.signals.input.accumulate_and_run << others
 
     def copy_io(
         self,
