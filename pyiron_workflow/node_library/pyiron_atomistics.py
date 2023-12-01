@@ -1,3 +1,6 @@
+"""
+Nodes wrapping a subset of pyiron_atomistics functionality
+"""
 from __future__ import annotations
 
 from typing import Literal, Optional

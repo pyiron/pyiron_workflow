@@ -1,9 +1,9 @@
 from pyiron_workflow.macro import Macro, macro_node
-from pyiron_workflow.atomistics_library.calculatornodes import calc_with_calculator
-from pyiron_workflow.atomistics_library.tasknodes import (
-    get_elastic_matrix_task_generator,
-    get_evcurve_task_generator,
-    get_phonons_task_generator,
+from pyiron_workflow.node_library.atomistics.calculator import calc_with_calculator
+from pyiron_workflow.node_library.atomistics.task import (
+    elastic_matrix_task_generator,
+    evcurve_task_generator,
+    phonons_task_generator,
     analyse_structures,
     generate_structures,
 )
@@ -29,17 +29,15 @@ def atomistics_meta_macro(task_generator_node_class, macro_name) -> type[Macro]:
     return macro_node()(generic_macro)
 
 
-elastic_matrix = atomistics_meta_macro(
-    get_elastic_matrix_task_generator, "elastic_matrix"
-)
+elastic_matrix = atomistics_meta_macro(elastic_matrix_task_generator, "elastic_matrix")
 
 
 energy_volume_curve = atomistics_meta_macro(
-    get_evcurve_task_generator,
+    evcurve_task_generator,
     "energy_volume_curve",
 )
 
-phonons = atomistics_meta_macro(get_phonons_task_generator, "phonons")
+phonons = atomistics_meta_macro(phonons_task_generator, "phonons")
 
 
 nodes = [

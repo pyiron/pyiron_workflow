@@ -130,15 +130,17 @@ class Workflow(Composite):
         Workflows also give access to packages of pre-built nodes under different
         namespaces. These need to be registered first.
         >>> wf = Workflow("with_prebuilt")
-        >>> wf.register("atomistics", "pyiron_workflow.node_library.atomistics")
+        >>> wf.register(
+        ...     "pyiron_atomistics", "pyiron_workflow.node_library.pyiron_atomistics"
+        ... )
         >>> wf.register("plotting", "pyiron_workflow.node_library.plotting")
         >>>
-        >>> wf.structure = wf.create.atomistics.Bulk(
+        >>> wf.structure = wf.create.pyiron_atomistics.Bulk(
         ...     cubic=True,
         ...     name="Al"
         ... )
-        >>> wf.engine = wf.create.atomistics.Lammps(structure=wf.structure)
-        >>> wf.calc = wf.create.atomistics.CalcMd(
+        >>> wf.engine = wf.create.pyiron_atomistics.Lammps(structure=wf.structure)
+        >>> wf.calc = wf.create.pyiron_atomistics.CalcMd(
         ...     job=wf.engine,
         ... )
         >>> wf.plot = wf.create.plotting.Scatter(
