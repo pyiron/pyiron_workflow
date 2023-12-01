@@ -29,9 +29,7 @@ def atomistics_meta_macro(task_generator_node_class, macro_name) -> type[Macro]:
     return macro_node()(generic_macro)
 
 
-elastic_matrix = atomistics_meta_macro(
-    elastic_matrix_task_generator, "elastic_matrix"
-)
+elastic_matrix = atomistics_meta_macro(elastic_matrix_task_generator, "elastic_matrix")
 
 
 energy_volume_curve = atomistics_meta_macro(
