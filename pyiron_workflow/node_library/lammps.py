@@ -1,7 +1,7 @@
 from __future__ import annotations
 
 
-from typing import Optional
+from typing import Optional, Union
 from pyiron_atomistics.atomistics.structure.atoms import Atoms
 
 from pyiron_workflow.function import single_value_node, function_node
@@ -87,7 +87,20 @@ def parser_dump_file(dump_file):
     return dump
 
 
-class ShellOutput:
+class Storage:
+    def _convert_to_dict(instance):
+        # Get the attributes of the instance
+        attributes = vars(instance)
+
+        # Convert attributes to a dictionary
+        result_dict = {
+            key: value for key, value in attributes.items() if "_" not in key[0]
+        }
+
+        return result_dict
+
+
+class ShellOutput(Storage):
     stdout: str
     stderr: str
     return_code: int
@@ -135,7 +148,7 @@ def shell(
     return output, dump, log
 
 
-class GenericOutput:
+class GenericOutput(Storage):
     energy_pot: []
     energy_kin: []
     forces: []
@@ -148,8 +161,8 @@ def collect(out_dump, out_log):
     log = out_log[0]
 
     output = GenericOutput()
-    output.energy_pot = log["PotEng"]
-    output.energy_kin = log["TotEng"] - output.energy_pot
+    output.energy_pot = log["PotEng"].values
+    output.energy_kin = (log["TotEng"] - output.energy_pot).values
 
     forces = np.array([o.data[["fx", "fy", "fz"]] for o in out_dump])
     output.forces = forces
@@ -179,9 +192,11 @@ def list_potentials(structure):
     pot = lp(structure)
     return pot
 
+
 @single_value_node(output_labels=["empty"])
 def list_empty():
     return []
+
 
 @single_value_node(output_labels="structure")
 def repeat(
@@ -192,7 +207,7 @@ def repeat(
 
 @single_value_node(output_labels="structure")
 def apply_strain(
-    structure: Optional[Atoms] = None, strain: float = 0
+    structure: Optional[Atoms] = None, strain: Union[float, int] = 0
 ) -> Optional[Atoms]:
     # print("apply strain: ", strain)
     struct = structure.copy()
@@ -206,6 +221,7 @@ def get_calculators():
     calc_dict["md"] = Workflow.create.lammps.CalcMd
     calc_dict["static"] = Workflow.create.lammps.CalcStatic
     return calc_dict
+
 
 nodes = [
     structure,

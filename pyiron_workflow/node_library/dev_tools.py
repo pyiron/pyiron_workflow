@@ -85,3 +85,114 @@ def register_libraries(libraries, library_path="pyiron_workflow.node_library"):
     for nodes in libraries:
         module = importlib.import_module(f"{library_path}.{nodes}")
         wf.create.register(nodes, *module.nodes)
+
+
+# storage tools (hdf5 etc.)
+# these tools are meant only for a proof of concept, some parts may be already present in
+# the existing code, others should be moved there
+def extract_value(value):
+    if hasattr(value, "_convert_to_dict"):
+        return value._convert_to_dict()
+    if hasattr(value, "value"):
+        val = value.value
+        if hasattr(val, "_convert_to_dict"):
+            return val._convert_to_dict()
+        return val
+    return value
+
+
+def nested_dict_from_keys(dictionary):
+    result = {}
+
+    for key, value in dictionary.items():
+        keys = key.split("__")
+        current_dict = result
+
+        for k in keys[:-1]:
+            current_dict = current_dict.setdefault(k, {})
+            if (k == "name") or (k == "label"):
+                raise ValueError(
+                    f"Argument name {k} is used internally. Rename function argument!"
+                )
+        # print ('keys: ', keys, keys[:-1], len(keys), current_dict, current_dict is None)
+
+        if current_dict is not None:
+            current_dict[keys[-1]] = extract_value(value)
+
+    return result
+
+
+def to_data_container(data):
+    from pyiron_base.storage.datacontainer import DataContainer
+
+    return DataContainer(nested_dict_from_keys(data))
+
+
+def node_to_data_container(node):
+    from pyiron_base.storage.datacontainer import DataContainer
+
+    i_data = nested_dict_from_keys(node.inputs.channel_dict)
+    o_data = nested_dict_from_keys(node.outputs.channel_dict)
+    dc_dict = {}
+    dc_dict["input"] = i_data
+    dc_dict["output"] = o_data
+    return DataContainer(dc_dict)
+
+
+# project class with minimized functionality
+# idea is to avoid all dependencies that we have in the pyiron project class
+# we should later decide what features from the original project class are needed
+class JobType:
+    job_class_dict = {}
+
+
+class MiniProject:
+    def __init__(self, path):
+        self.path = path
+        self.job_type = JobType()
+
+    def copy(self):
+        new = MiniProject(path=self.path)
+        return new
+
+
+from pyiron_base.storage.hdfio import ProjectHDFio
+import pathlib
+
+
+class DataStore:
+    def __init__(self, path="."):
+        self._path = path
+        self._project = MiniProject(path)
+
+    def get_hdf(self, path, label):
+        p = pathlib.Path(path, label)
+        p = p.resolve()
+
+        return ProjectHDFio(project=self._project, file_name=p.as_posix(), mode="a")
+
+    def remove(self, node_label, path=None):
+        if path is None:
+            path = self._path
+        p = pathlib.Path(path, f'{node_label}.h5')
+        # print (p, p.is_file())
+        if p.is_file():
+            p.unlink()
+            print (f'node {node_label} has been removed from store')
+
+    def store(self, node, overwrite=False):
+        if overwrite:
+            self.remove(node.label)
+        hdf = self.get_hdf(self._path, node.label)
+        dc = node_to_data_container(node)
+        dc.to_hdf(hdf)
+        return True
+
+    def load(self, node_label):
+        from pyiron_base.storage.datacontainer import DataContainer
+
+        hdf = self.get_hdf(self._path, node_label)
+        new_node = DataContainer()
+
+        new_node.from_hdf(hdf)
+        return new_node
