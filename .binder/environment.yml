@@ -7,7 +7,7 @@ dependencies:
 - cloudpickle =3.0.0
 - graphviz =8.1.0
 - matplotlib =3.8.2
-- pyiron_base =0.6.9
+- pyiron_base =0.6.11
 - pympipool =0.7.9
 - pytables =3.9.1
 - python-graphviz =0.20.1
