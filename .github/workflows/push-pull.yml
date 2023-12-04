@@ -9,7 +9,7 @@ on:
 
 jobs:
   pyiron:
-    uses: pyiron/actions/.github/workflows/push-pull-main.yml@flexible_matrix
+    uses: pyiron/actions/.github/workflows/push-pull-main.yml@main
     secrets: inherit
     with:
       notebooks-env-files: .ci_support/environment.yml .ci_support/environment-notebooks.yml
