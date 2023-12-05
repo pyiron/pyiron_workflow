@@ -15,8 +15,9 @@ from pyiron_workflow.interfaces import Creator, Wrappers
 from pyiron_workflow.io import Outputs, Inputs
 from pyiron_workflow.node import Node
 from pyiron_workflow.node_package import NodePackage
+from pyiron_workflow.snippets.logger import logger
 from pyiron_workflow.topology import set_run_connections_according_to_dag
-from pyiron_workflow.util import logger, DotDict, SeabornColors
+from pyiron_workflow.util import DotDict, SeabornColors
 
 if TYPE_CHECKING:
     from pyiron_workflow.channels import Channel, InputData, OutputData

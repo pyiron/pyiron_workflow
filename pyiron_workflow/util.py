@@ -1,7 +1,5 @@
 from abc import ABCMeta
 
-from pyiron_workflow.snippets.logger import logger
-
 
 class DotDict(dict):
     def __getattr__(self, item):
