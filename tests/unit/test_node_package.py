@@ -1,5 +1,4 @@
-from unittest import TestCase, skipUnless
-from sys import version_info
+import unittest
 
 from pyiron_workflow.node_package import NodePackage
 from pyiron_workflow.function import function_node
@@ -10,8 +9,7 @@ def dummy(x: int = 0):
     return x
 
 
-@skipUnless(version_info[0] == 3 and version_info[1] >= 10, "Only supported for 3.10+")
-class TestNodePackage(TestCase):
+class TestNodePackage(unittest.TestCase):
     def setUp(self) -> None:
         self.package = NodePackage(dummy)
 
@@ -66,3 +64,7 @@ class TestNodePackage(TestCase):
         self.assertEqual(
             new_dummy_instance.outputs.y.value, 1, msg="Should have new functionality"
         )
+
+
+if __name__ == '__main__':
+    unittest.main()

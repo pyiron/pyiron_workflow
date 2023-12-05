@@ -1,6 +1,6 @@
 from concurrent.futures import Future
-from sys import version_info
-from unittest import TestCase, skipUnless
+
+import unittest
 
 from pyiron_workflow.node import manage_status
 
@@ -23,8 +23,7 @@ class FauxNode:
         return Future()
 
 
-@skipUnless(version_info[0] == 3 and version_info[1] >= 10, "Only supported for 3.10+")
-class TestStatusManagement(TestCase):
+class TestStatusManagement(unittest.TestCase):
     def setUp(self) -> None:
         self.node = FauxNode()
 
@@ -45,3 +44,7 @@ class TestStatusManagement(TestCase):
         self.assertTrue(self.node.running)
         self.assertFalse(self.node.failed)
         self.assertIsInstance(out, Future)
+
+
+if __name__ == '__main__':
+    unittest.main()

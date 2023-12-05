@@ -1,12 +1,8 @@
-# coding: utf-8
-# Copyright (c) Max-Planck-Institut für Eisenforschung GmbH - Computational Materials Design (CM) Department
-# Distributed under the terms of "New BSD License", see the LICENSE file.
-
-from unittest import TestCase
+import unittest
 from pyiron_workflow.snippets.singleton import Singleton
 
 
-class TestSingleton(TestCase):
+class TestSingleton(unittest.TestCase):
     def test_uniqueness(self):
         class Foo(metaclass=Singleton):
             def __init__(self):
@@ -17,4 +13,8 @@ class TestSingleton(TestCase):
         self.assertIs(f1, f2)
         f2.x = 2
         self.assertEqual(2, f1.x)
+
+
+if __name__ == '__main__':
+    unittest.main()
 

@@ -1,4 +1,3 @@
-from sys import version_info
 from typing import Optional, Union
 import unittest
 import warnings
@@ -36,7 +35,6 @@ def multiple_branches(x):
         return False
 
 
-@unittest.skipUnless(version_info[0] == 3 and version_info[1] >= 10, "Only supported for 3.10+")
 class TestFunction(unittest.TestCase):
     def test_instantiation(self):
         with self.subTest("Void function is allowable"):
@@ -452,7 +450,7 @@ class TestFunction(unittest.TestCase):
             ref._copy_values(extra, fail_hard=True)
 
 
-@unittest.skipUnless(version_info[0] == 3 and version_info[1] >= 10, "Only supported for 3.10+")
+
 class TestSingleValue(unittest.TestCase):
     def test_instantiation(self):
         node = SingleValue(no_default, 1, y=2, output_labels="output")

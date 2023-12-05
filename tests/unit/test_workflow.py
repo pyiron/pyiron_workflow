@@ -1,5 +1,5 @@
 from concurrent.futures import Future
-from sys import version_info
+
 from time import sleep
 import unittest
 
@@ -14,7 +14,6 @@ def plus_one(x=0):
     return y
 
 
-@unittest.skipUnless(version_info[0] == 3 and version_info[1] >= 10, "Only supported for 3.10+")
 class TestWorkflow(unittest.TestCase):
     @classmethod
     def setUpClass(cls) -> None:

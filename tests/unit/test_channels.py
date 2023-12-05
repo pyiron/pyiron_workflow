@@ -1,5 +1,4 @@
-from unittest import TestCase, skipUnless
-from sys import version_info
+import unittest
 
 from pyiron_workflow.channels import (
     Channel, InputData, OutputData, InputSignal, AccumulatingInputSignal, OutputSignal,
@@ -17,8 +16,7 @@ class DummyNode:
         self.foo.append(self.foo[-1] + 1)
 
 
-@skipUnless(version_info[0] == 3 and version_info[1] >= 10, "Only supported for 3.10+")
-class TestChannel(TestCase):
+class TestChannel(unittest.TestCase):
 
     class InputChannel(Channel):
         """Just to de-abstract the base class"""
@@ -122,8 +120,7 @@ class TestChannel(TestCase):
             )
 
 
-@skipUnless(version_info[0] == 3 and version_info[1] >= 10, "Only supported for 3.10+")
-class TestDataChannels(TestCase):
+class TestDataChannels(unittest.TestCase):
 
     def setUp(self) -> None:
         self.ni1 = InputData(
@@ -346,7 +343,7 @@ class TestDataChannels(TestCase):
         self.assertFalse(self.ni1.ready)
 
 
-class TestSignalChannels(TestCase):
+class TestSignalChannels(unittest.TestCase):
     def setUp(self) -> None:
         node = DummyNode()
         self.inp = InputSignal(label="inp", node=node, callback=node.update)
@@ -465,3 +462,7 @@ class TestSignalChannels(TestCase):
             len(agg.received_signals),
             msg="All signals, including vestigial ones, should get cleared on call"
         )
+
+
+if __name__ == '__main__':
+    unittest.main()
