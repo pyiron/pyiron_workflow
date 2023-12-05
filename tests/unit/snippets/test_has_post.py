@@ -1,13 +1,11 @@
-from unittest import TestCase, skipUnless
-from sys import version_info
+from unittest import TestCase
 
-import pyiron_workflow.util as util
+import pyiron_workflow.snippets.has_post
 
 
-@skipUnless(version_info[0] == 3 and version_info[1] >= 10, "Only supported for 3.10+")
-class TestUtil(TestCase):
+class TestHasPost(TestCase):
     def test_has_post_metaclass(self):
-        class Foo(metaclass=util.HasPost):
+        class Foo(metaclass=pyiron_workflow.snippets.has_post.HasPost):
             def __init__(self, x=0):
                 self.x = x
                 self.y = x

@@ -26,7 +26,8 @@ from pyiron_workflow.topology import (
     get_nodes_in_data_tree,
     set_run_connections_according_to_linear_dag,
 )
-from pyiron_workflow.util import AbstractHasPost, SeabornColors
+from pyiron_workflow.util import SeabornColors
+from pyiron_workflow.snippets.has_post import AbstractHasPost
 
 if TYPE_CHECKING:
     from pathlib import Path
