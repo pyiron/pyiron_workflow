@@ -1,4 +1,3 @@
-
 import unittest
 
 from bidict import ValueDuplicationError
@@ -29,7 +28,6 @@ class AComposite(Composite):
     @property
     def outputs(self) -> Outputs:
         return self._build_outputs()  # Dynamic IO reflecting current children
-
 
 
 class TestComposite(unittest.TestCase):

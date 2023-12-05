@@ -48,7 +48,6 @@ class ANode(Node):
         pass
 
 
-
 class TestNode(unittest.TestCase):
     def setUp(self):
         self.n1 = ANode("start", x=0)

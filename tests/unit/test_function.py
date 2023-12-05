@@ -1,4 +1,3 @@
-
 from typing import Optional, Union
 import unittest
 import warnings
@@ -34,7 +33,6 @@ def multiple_branches(x):
         return True
     else:
         return False
-
 
 
 class TestFunction(unittest.TestCase):

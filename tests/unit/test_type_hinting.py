@@ -7,7 +7,6 @@ from pyiron_workflow.type_hinting import (
 )
 
 
-
 class TestTypeHinting(unittest.TestCase):
     def test_value_validation(self):
         class Foo:

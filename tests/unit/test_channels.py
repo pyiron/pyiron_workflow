@@ -1,6 +1,5 @@
 import unittest
 
-
 from pyiron_workflow.channels import (
     Channel, InputData, OutputData, InputSignal, AccumulatingInputSignal, OutputSignal,
     NotData, ChannelConnectionError
@@ -15,7 +14,6 @@ class DummyNode:
 
     def update(self):
         self.foo.append(self.foo[-1] + 1)
-
 
 
 class TestChannel(unittest.TestCase):
@@ -120,7 +118,6 @@ class TestChannel(unittest.TestCase):
                 conn,
                 msg="Promised channels to be iterable over connections"
             )
-
 
 
 class TestDataChannels(unittest.TestCase):

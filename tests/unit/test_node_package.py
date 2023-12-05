@@ -1,6 +1,5 @@
 import unittest
 
-
 from pyiron_workflow.node_package import NodePackage
 from pyiron_workflow.function import function_node
 
@@ -8,7 +7,6 @@ from pyiron_workflow.function import function_node
 @function_node()
 def dummy(x: int = 0):
     return x
-
 
 
 class TestNodePackage(unittest.TestCase):

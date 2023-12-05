@@ -23,7 +23,6 @@ class FauxNode:
         return Future()
 
 
-
 class TestStatusManagement(unittest.TestCase):
     def setUp(self) -> None:
         self.node = FauxNode()

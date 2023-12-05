@@ -1,6 +1,5 @@
 import unittest
 
-
 from pyiron_workflow.channels import (
     InputData, InputSignal, OutputData, OutputSignal, ChannelConnectionError
 )
@@ -14,7 +13,6 @@ class DummyNode:
 
     def update(self):
         pass
-
 
 
 class TestDataIO(unittest.TestCase):

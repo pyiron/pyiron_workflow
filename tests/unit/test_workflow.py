@@ -14,7 +14,6 @@ def plus_one(x=0):
     return y
 
 
-
 class TestWorkflow(unittest.TestCase):
     @classmethod
     def setUpClass(cls) -> None:

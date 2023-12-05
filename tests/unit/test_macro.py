@@ -23,7 +23,6 @@ def add_three_macro(macro):
     # although these are more thoroughly tested in Workflow tests
 
 
-
 class TestMacro(unittest.TestCase):
 
     def test_static_input(self):

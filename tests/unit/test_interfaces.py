@@ -1,4 +1,3 @@
-import sys
 import unittest
 
 from pyiron_workflow._tests import ensure_tests_in_python_path
