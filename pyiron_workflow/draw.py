@@ -10,7 +10,7 @@ from typing import Literal, Optional, TYPE_CHECKING
 import graphviz
 from matplotlib.colors import to_hex, to_rgb
 
-from pyiron_workflow.util import SeabornColors
+from pyiron_workflow.snippets.colors import SeabornColors
 
 if TYPE_CHECKING:
     from pyiron_workflow.channels import Channel as WorkflowChannel

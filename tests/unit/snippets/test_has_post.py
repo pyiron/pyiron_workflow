@@ -1,22 +1,11 @@
-from unittest import TestCase, skipUnless
-from sys import version_info
+from unittest import TestCase
 
-import pyiron_workflow.util as util
+import pyiron_workflow.snippets.has_post
 
 
-@skipUnless(version_info[0] == 3 and version_info[1] >= 10, "Only supported for 3.10+")
-class TestUtil(TestCase):
-    def test_dot_dict(self):
-        dd = util.DotDict({'foo': 42})
-
-        self.assertEqual(dd['foo'], dd.foo, msg="Dot access should be equivalent.")
-        dd.bar = "towel"
-        self.assertEqual("towel", dd["bar"], msg="Dot assignment should be equivalent.")
-
-        self.assertListEqual(dd.to_list(), [42, "towel"])
-
+class TestHasPost(TestCase):
     def test_has_post_metaclass(self):
-        class Foo(metaclass=util.HasPost):
+        class Foo(metaclass=pyiron_workflow.snippets.has_post.HasPost):
             def __init__(self, x=0):
                 self.x = x
                 self.y = x
