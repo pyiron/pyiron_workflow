@@ -3,7 +3,7 @@
 # Distributed under the terms of "New BSD License", see the LICENSE file.
 
 from unittest import TestCase
-from pyiron_base.interfaces.singleton import Singleton
+from pyiron_workflow.snippets.singleton import Singleton
 
 
 class TestSingleton(TestCase):
