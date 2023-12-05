@@ -1,3 +1,8 @@
+"""
+Simple stuff for colors when you don't want matplotlib/seaborn in your dependency stack.
+"""
+
+
 class SeabornColors:
     """
     Hex codes for the ten `seaborn.color_palette()` colors (plus pure white and black),

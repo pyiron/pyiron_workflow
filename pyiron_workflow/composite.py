@@ -17,7 +17,7 @@ from pyiron_workflow.node import Node
 from pyiron_workflow.node_package import NodePackage
 from pyiron_workflow.snippets.logger import logger
 from pyiron_workflow.topology import set_run_connections_according_to_dag
-from pyiron_workflow.util import SeabornColors
+from pyiron_workflow.snippets.colors import SeabornColors
 from pyiron_workflow.snippets.dotdict import DotDict
 
 if TYPE_CHECKING:
