@@ -68,7 +68,11 @@ class PyironTestCase(unittest.TestCase, ABC):
 
         Output capturing adapted from https://stackoverflow.com/a/22434594/12332968
         """
-        docstring_modules = [self.docstring_modules] if isinstance(self.docstring_modules, ModuleType) else self.docstring_modules
+        docstring_modules = (
+            [self.docstring_modules]
+            if isinstance(self.docstring_modules, ModuleType)
+            else self.docstring_modules
+        )
         if docstring_modules is not None:
             for mod in docstring_modules:
                 with self.subTest(f"Testing docs in {mod}"):
