@@ -7,7 +7,7 @@ from __future__ import annotations
 from importlib import import_module
 from sys import version_info
 
-from pyiron_base.interfaces.singleton import Singleton
+from pyiron_workflow.snippets.singleton import Singleton
 
 # Import all the supported executors
 from pympipool import Executor as PyMpiPoolExecutor, PyMPIExecutor
