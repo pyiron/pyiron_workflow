@@ -1,19 +1,20 @@
-# coding: utf-8
-# Copyright (c) Max-Planck-Institut für Eisenforschung GmbH - Computational Materials Design (CM) Department
-# Distributed under the terms of "New BSD License", see the LICENSE file.
+"""
+A test case that encourages you to test your docstrings and makes it easier to test
+numpy arrays (if numpy is available).
+"""
 
-"""A test case that encourages you to test your docstrings."""
 
+from abc import ABC
 from contextlib import redirect_stdout
 import doctest
 from io import StringIO
+from types import ModuleType
 import unittest
-import os
-from pyiron_base import PythonTemplateJob, state
-from pyiron_base.project.generic import Project
-from abc import ABC
-from inspect import getfile
-import numpy as np
+
+try:
+    import numpy as np
+except ModuleNotFoundError:
+    np = None
 
 
 __author__ = "Liam Huber"
@@ -21,11 +22,11 @@ __copyright__ = (
     "Copyright 2020, Max-Planck-Institut für Eisenforschung GmbH - "
     "Computational Materials Design (CM) Department"
 )
-__version__ = "0.0"
+__version__ = "1.0"
 __maintainer__ = "Liam Huber"
-__email__ = "huber@mpie.de"
-__status__ = "development"
-__date__ = "Mar 23, 2021"
+__email__ = "liamhuber@greyhavensolutions.com"
+__status__ = "production"
+__date__ = "Dec 5, 2023"
 
 
 class PyironTestCase(unittest.TestCase, ABC):
@@ -33,15 +34,16 @@ class PyironTestCase(unittest.TestCase, ABC):
     """
     Base class for all pyiron unit tets.
 
-    Registers utility type equality functions:
-        - np.testing.assert_array_equal
+    If numpy is avaiable, registers utility type equality function:
+        - `np.testing.assert_array_equal`
 
-    Optionally includes testing the docstrings in the specified module by
-    overloading :attr:`~.docstring_module`.
+    Demands that you provide information on modules(s) for docstring testing, but
+    allows you to get around this by explicitly setting `None`.
+
+    Remember to call `super()` on `setUp` and `setUpClass`!
     """
 
-    def setUp(self):
-        self.addTypeEqualityFunc(np.ndarray, self._assert_equal_numpy)
+    docstring_modules: list[ModuleType] | tuple[ModuleType] | ModuleType | None = None
 
     def _assert_equal_numpy(self, a, b, msg=None):
         try:
@@ -49,23 +51,16 @@ class PyironTestCase(unittest.TestCase, ABC):
         except AssertionError as e:
             raise self.failureException(*e.args) from None
 
+    def setUp(self) -> None:
+        super().setUp()
+        if np is not None:
+            self.addTypeEqualityFunc(np.ndarray, self._assert_equal_numpy)
+
     @classmethod
     def setUpClass(cls):
-        cls._initial_settings_configuration = state.settings.configuration.copy()
-        if any([cls is c for c in _TO_SKIP]):
-            raise unittest.SkipTest(f"{cls.__name__} tests, it's a base class")
         super().setUpClass()
-
-    @classmethod
-    def tearDownClass(cls) -> None:
-        state.update(cls._initial_settings_configuration)
-
-    @property
-    def docstring_module(self):
-        """
-        Define module whose docstrings will be tested
-        """
-        return None
+        if any([cls is c for c in _TO_SKIP]):
+            raise unittest.SkipTest(f"{cls.__name__} tests, it's a base test class")
 
     def test_docstrings(self):
         """
@@ -73,7 +68,16 @@ class PyironTestCase(unittest.TestCase, ABC):
 
         Output capturing adapted from https://stackoverflow.com/a/22434594/12332968
         """
-        with StringIO() as buf, redirect_stdout(buf):
-            result = doctest.testmod(self.docstring_module)
-            output = buf.getvalue()
-        self.assertFalse(result.failed > 0, msg=output)
+        docstring_modules = [self.docstring_modules] if isinstance(self.docstring_modules, ModuleType) else self.docstring_modules
+        if docstring_modules is not None:
+            for mod in docstring_modules:
+                with self.subTest(f"Testing docs in {mod}"):
+                    with StringIO() as buf, redirect_stdout(buf):
+                        result = doctest.testmod(mod)
+                        output = buf.getvalue()
+                    self.assertFalse(result.failed > 0, msg=output)
+
+
+_TO_SKIP = [
+    PyironTestCase,
+]
