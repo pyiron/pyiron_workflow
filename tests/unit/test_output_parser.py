@@ -1,4 +1,4 @@
-from sys import version_info
+
 import unittest
 
 import numpy as np
@@ -6,9 +6,6 @@ import numpy as np
 from pyiron_workflow.output_parser import ParseOutput
 
 
-@unittest.skipUnless(
-    version_info[0] == 3 and version_info[1] >= 10, "Only supported for 3.10+"
-)
 class TestParseOutput(unittest.TestCase):
     def test_parsing(self):
         with self.subTest("Single return"):

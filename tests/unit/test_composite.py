@@ -1,4 +1,4 @@
-from sys import version_info
+
 import unittest
 
 from bidict import ValueDuplicationError
@@ -31,7 +31,7 @@ class AComposite(Composite):
         return self._build_outputs()  # Dynamic IO reflecting current children
 
 
-@unittest.skipUnless(version_info[0] == 3 and version_info[1] >= 10, "Only supported for 3.10+")
+
 class TestComposite(unittest.TestCase):
     @classmethod
     def setUpClass(cls) -> None:

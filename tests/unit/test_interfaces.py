@@ -1,13 +1,10 @@
 import sys
-from unittest import TestCase, skipUnless
+from unittest import TestCase
 
 from pyiron_workflow._tests import ensure_tests_in_python_path
 from pyiron_workflow.interfaces import Creator
 
 
-@skipUnless(
-    sys.version_info[0] == 3 and sys.version_info[1] >= 10, "Only supported for 3.10+"
-)
 class TestCreator(TestCase):
     @classmethod
     def setUpClass(cls) -> None:

@@ -1,13 +1,13 @@
 
-from sys import version_info
+
 from time import perf_counter, sleep
-from unittest import TestCase, skipUnless
+from unittest import TestCase
 
 from pyiron_workflow import Workflow
 from pyiron_workflow.channels import NotData
 
 
-@skipUnless(version_info[0] == 3 and version_info[1] >= 10, "Only supported for 3.10+")
+
 class TestParallelSpeedup(TestCase):
     def test_speedup(self):
         @Workflow.wrap_as.single_value_node()

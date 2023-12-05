@@ -1,6 +1,6 @@
 from concurrent.futures import Future
 import os
-from sys import version_info
+
 import unittest
 
 from pyiron_workflow.channels import InputData, OutputData, NotData
@@ -48,7 +48,7 @@ class ANode(Node):
         pass
 
 
-@unittest.skipUnless(version_info[0] == 3 and version_info[1] >= 10, "Only supported for 3.10+")
+
 class TestNode(unittest.TestCase):
     def setUp(self):
         self.n1 = ANode("start", x=0)

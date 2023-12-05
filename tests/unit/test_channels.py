@@ -1,5 +1,5 @@
-from unittest import TestCase, skipUnless
-from sys import version_info
+from unittest import TestCase
+
 
 from pyiron_workflow.channels import (
     Channel, InputData, OutputData, InputSignal, AccumulatingInputSignal, OutputSignal,
@@ -17,7 +17,7 @@ class DummyNode:
         self.foo.append(self.foo[-1] + 1)
 
 
-@skipUnless(version_info[0] == 3 and version_info[1] >= 10, "Only supported for 3.10+")
+
 class TestChannel(TestCase):
 
     class InputChannel(Channel):
@@ -122,7 +122,7 @@ class TestChannel(TestCase):
             )
 
 
-@skipUnless(version_info[0] == 3 and version_info[1] >= 10, "Only supported for 3.10+")
+
 class TestDataChannels(TestCase):
 
     def setUp(self) -> None:

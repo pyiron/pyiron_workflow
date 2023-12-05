@@ -1,4 +1,4 @@
-import unittest
+from unittest import TestCase
 
 import numpy as np
 
@@ -8,7 +8,7 @@ from pyiron_workflow.function import Function
 from pyiron_workflow.workflow import Workflow
 
 
-class TestTopology(unittest.TestCase):
+class TestTopology(TestCase):
     @classmethod
     def setUpClass(cls) -> None:
         ensure_tests_in_python_path()
