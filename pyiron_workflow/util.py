@@ -1,8 +1,6 @@
 from abc import ABCMeta
 
-from pyiron_base import state
-
-logger = state.logger
+from pyiron_workflow.snippets.logger import logger
 
 
 class DotDict(dict):
