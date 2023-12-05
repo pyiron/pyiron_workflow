@@ -1,11 +1,11 @@
 import sys
-from unittest import TestCase
+import unittest
 
 from pyiron_workflow._tests import ensure_tests_in_python_path
 from pyiron_workflow.interfaces import Creator
 
 
-class TestCreator(TestCase):
+class TestCreator(unittest.TestCase):
     @classmethod
     def setUpClass(cls) -> None:
         cls.creator = Creator()
@@ -76,3 +76,7 @@ class TestCreator(TestCase):
                 len(self.creator._node_packages),
                 msg="Packages should not be getting added if exceptions are raised"
             )
+
+
+if __name__ == '__main__':
+    unittest.main()

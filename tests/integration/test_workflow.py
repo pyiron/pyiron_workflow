@@ -1,4 +1,4 @@
-from unittest import TestCase
+import unittest
 
 import numpy as np
 
@@ -8,7 +8,7 @@ from pyiron_workflow.function import Function
 from pyiron_workflow.workflow import Workflow
 
 
-class TestTopology(TestCase):
+class TestTopology(unittest.TestCase):
     @classmethod
     def setUpClass(cls) -> None:
         ensure_tests_in_python_path()
@@ -198,3 +198,7 @@ class TestTopology(TestCase):
         wf.before_pickling.executor = None
         wf.after_pickling = wf.create.demo.OptionallyAdd(2, y=3)
         wf()
+
+
+if __name__ == '__main__':
+    unittest.main()

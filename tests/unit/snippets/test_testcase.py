@@ -1,4 +1,4 @@
-from unittest import TestCase
+import unittest
 
 from pyiron_workflow._tests import ensure_tests_in_python_path
 from pyiron_workflow.snippets.testcase import PyironTestCase
@@ -9,7 +9,7 @@ from static import docs_submodule
 from static.docs_submodule import bad_class, good_function, mix, bad_init_example
 
 
-class TestTestCase(TestCase):
+class TestTestCase(unittest.TestCase):
 
     def setUp(self) -> None:
         self.tester = PyironTestCase()
@@ -65,3 +65,7 @@ class TestTestCase(TestCase):
                 msg="Any failure should cause overall failure"
             ):
                 self.tester.test_docstrings()
+
+
+if __name__ == '__main__':
+    unittest.main()

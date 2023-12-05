@@ -1,4 +1,4 @@
-from unittest import TestCase
+import unittest
 
 
 from pyiron_workflow.channels import (
@@ -18,7 +18,7 @@ class DummyNode:
 
 
 
-class TestChannel(TestCase):
+class TestChannel(unittest.TestCase):
 
     class InputChannel(Channel):
         """Just to de-abstract the base class"""
@@ -123,7 +123,7 @@ class TestChannel(TestCase):
 
 
 
-class TestDataChannels(TestCase):
+class TestDataChannels(unittest.TestCase):
 
     def setUp(self) -> None:
         self.ni1 = InputData(
@@ -346,7 +346,7 @@ class TestDataChannels(TestCase):
         self.assertFalse(self.ni1.ready)
 
 
-class TestSignalChannels(TestCase):
+class TestSignalChannels(unittest.TestCase):
     def setUp(self) -> None:
         node = DummyNode()
         self.inp = InputSignal(label="inp", node=node, callback=node.update)
@@ -465,3 +465,7 @@ class TestSignalChannels(TestCase):
             len(agg.received_signals),
             msg="All signals, including vestigial ones, should get cleared on call"
         )
+
+
+if __name__ == '__main__':
+    unittest.main()

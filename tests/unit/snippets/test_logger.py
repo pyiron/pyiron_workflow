@@ -2,13 +2,13 @@
 # Copyright (c) Max-Planck-Institut für Eisenforschung GmbH - Computational Materials Design (CM) Department
 # Distributed under the terms of "New BSD License", see the LICENSE file.
 
-from unittest import TestCase
+import unittest
 from pyiron_workflow.snippets.logger import logger
 import os
 import shutil
 
 
-class TestLogger(TestCase):
+class TestLogger(unittest.TestCase):
 
     @classmethod
     def setUpClass(cls) -> None:
@@ -38,3 +38,7 @@ class TestLogger(TestCase):
 
         logger.set_logging_level("WARNING", channel=0)
         self.assertEqual(30, logger.handlers[0].level, "Should be able to set by string")
+
+
+if __name__ == '__main__':
+    unittest.main()

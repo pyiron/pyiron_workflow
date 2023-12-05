@@ -1,4 +1,4 @@
-from unittest import TestCase
+import unittest
 
 
 from pyiron_workflow.channels import (
@@ -17,7 +17,7 @@ class DummyNode:
 
 
 
-class TestDataIO(TestCase):
+class TestDataIO(unittest.TestCase):
 
     @classmethod
     def setUp(self) -> None:
@@ -152,7 +152,7 @@ class TestDataIO(TestCase):
         )
 
 
-class TestSignalIO(TestCase):
+class TestSignalIO(unittest.TestCase):
     def setUp(self) -> None:
         node = DummyNode()
 
@@ -192,3 +192,7 @@ class TestSignalIO(TestCase):
             len(no_run_signals.disconnect_run()),
             msg="If there is no run channel, the list of disconnections should be empty"
         )
+
+
+if __name__ == '__main__':
+    unittest.main()

@@ -1,4 +1,4 @@
-from unittest import TestCase
+import unittest
 
 
 from pyiron_workflow.node_package import NodePackage
@@ -11,7 +11,7 @@ def dummy(x: int = 0):
 
 
 
-class TestNodePackage(TestCase):
+class TestNodePackage(unittest.TestCase):
     def setUp(self) -> None:
         self.package = NodePackage(dummy)
 
@@ -66,3 +66,7 @@ class TestNodePackage(TestCase):
         self.assertEqual(
             new_dummy_instance.outputs.y.value, 1, msg="Should have new functionality"
         )
+
+
+if __name__ == '__main__':
+    unittest.main()

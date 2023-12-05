@@ -1,5 +1,5 @@
 import typing
-from unittest import TestCase
+import unittest
 
 
 from pyiron_workflow.type_hinting import (
@@ -8,7 +8,7 @@ from pyiron_workflow.type_hinting import (
 
 
 
-class TestTypeHinting(TestCase):
+class TestTypeHinting(unittest.TestCase):
     def test_value_validation(self):
         class Foo:
             pass
@@ -80,3 +80,7 @@ class TestTypeHinting(TestCase):
                     type_hint_is_as_or_more_specific_than(target, reference),
                     is_more_specific
                 )
+
+
+if __name__ == '__main__':
+    unittest.main()

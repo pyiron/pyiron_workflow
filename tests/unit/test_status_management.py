@@ -1,6 +1,6 @@
 from concurrent.futures import Future
 
-from unittest import TestCase
+import unittest
 
 from pyiron_workflow.node import manage_status
 
@@ -24,7 +24,7 @@ class FauxNode:
 
 
 
-class TestStatusManagement(TestCase):
+class TestStatusManagement(unittest.TestCase):
     def setUp(self) -> None:
         self.node = FauxNode()
 
@@ -45,3 +45,7 @@ class TestStatusManagement(TestCase):
         self.assertTrue(self.node.running)
         self.assertFalse(self.node.failed)
         self.assertIsInstance(out, Future)
+
+
+if __name__ == '__main__':
+    unittest.main()

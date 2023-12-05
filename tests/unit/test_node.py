@@ -344,3 +344,7 @@ class TestNode(unittest.TestCase):
             ANode("right_away", run_after_init=True, x=0).outputs.y.value,
             msg="With run_after_init, the node should run right away"
         )
+
+
+if __name__ == '__main__':
+    unittest.main()

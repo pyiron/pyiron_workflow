@@ -1,9 +1,9 @@
-from unittest import TestCase
+import unittest
 
 import pyiron_workflow.snippets.has_post
 
 
-class TestHasPost(TestCase):
+class TestHasPost(unittest.TestCase):
     def test_has_post_metaclass(self):
         class Foo(metaclass=pyiron_workflow.snippets.has_post.HasPost):
             def __init__(self, x=0):
@@ -35,3 +35,7 @@ class TestHasPost(TestCase):
             msg="Metaclass should be inherited, able to use input, and happen _after_ "
                 "__init__"
         )
+
+
+if __name__ == '__main__':
+    unittest.main()
