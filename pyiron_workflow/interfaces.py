@@ -102,9 +102,22 @@ class Creator(metaclass=Singleton):
     @property
     def meta(self):
         if self._meta is None:
-            from pyiron_workflow.meta import meta_nodes
+            from pyiron_workflow.meta import (
+                for_loop,
+                input_to_list,
+                list_to_output,
+                while_loop,
+            )
+            from pyiron_workflow.snippets.dotdict import DotDict
 
-            self._meta = meta_nodes
+            self._meta = DotDict(
+                {
+                    for_loop.__name__: for_loop,
+                    input_to_list.__name__: input_to_list,
+                    list_to_output.__name__: list_to_output,
+                    while_loop.__name__: while_loop,
+                }
+            )
         return self._meta
 
     def __getattr__(self, item):

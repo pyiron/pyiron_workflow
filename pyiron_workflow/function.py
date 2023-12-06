@@ -86,9 +86,11 @@ class Function(Node):
         We'll run into a hiccup if we try to set only one of the inputs and force the
         run:
         >>> plus_minus_1.inputs.x = 2
-        >>> plus_minus_1.run()
-        ValueError: mwe received a run command but is not ready. The node should be
-        neither running nor failed, and all input values should conform to type hints:
+        >>> try:
+        ...     plus_minus_1.run()
+        ... except ValueError as e:
+        ...     print("ValueError:", e.args[0])
+        ValueError: mwe received a run command but is not ready. The node should be neither running nor failed, and all input values should conform to type hints:
         running: False
         failed: False
         x ready: True
@@ -103,7 +105,7 @@ class Function(Node):
         last run call
         >>> plus_minus_1.failed = False
         >>> plus_minus_1.inputs.y = 3
-        >>> plus_minus_1.run()
+        >>> out = plus_minus_1.run()
         >>> plus_minus_1.outputs.to_value_dict()
         {'x+1': 3, 'y-1': 2}
 
@@ -147,9 +149,11 @@ class Function(Node):
         ...     return p1, m1
         >>>
         >>> plus_minus_1 = Function(hinted_example)
-        >>> plus_minus_1.inputs.x =  "not an int or float"
-        TypeError: The channel x cannot take the value `not an int or float` because it
-        is not compliant with the type hint typing.Union[int, float]
+        >>> try:
+        ...     plus_minus_1.inputs.x =  "not an int or float"
+        ... except TypeError as e:
+        ...     print("TypeError:", e.args[0])
+        TypeError: The channel x cannot take the value `not an int or float` because it is not compliant with the type hint typing.Union[int, float]
 
         We can turn off type hinting with the `strict_hints` boolean property, or just
         circumvent the type hinting by applying the new data directly to the private
@@ -157,10 +161,11 @@ class Function(Node):
         In the latter case, we'd still get a readiness error when we try to run and
         the ready check sees that the data doesn't conform to the type hint:
         >>> plus_minus_1.inputs.x._value =  "not an int or float"
-        >>> plus_minus_1.run()
-        ValueError: hinted_example received a run command but is not ready. The node
-        should be neither running nor failed, and all input values should conform to
-        type hints:
+        >>> try:
+        ...     plus_minus_1.run()
+        ... except ValueError as e:
+        ...     print("ValueError:", e.args[0])
+        ValueError: hinted_example received a run command but is not ready. The node should be neither running nor failed, and all input values should conform to type hints:
         running: False
         failed: False
         x ready: False
@@ -215,13 +220,13 @@ class Function(Node):
         ...         **kwargs
         ...     ):
         ...         super().__init__(
-        ...             self.alphabet_mod_three,
+        ...             None,
         ...             label=label,
         ...             **kwargs
         ...         )
         ...
         ...     @staticmethod
-        ...     def alphabet_mod_three(i: int) -> Literal["a", "b", "c"]:
+        ...     def node_function(i: int) -> Literal["a", "b", "c"]:
         ...         letter = ["a", "b", "c"][i % 3]
         ...         return letter
 
@@ -241,14 +246,14 @@ class Function(Node):
         >>> adder = adder_node(x=1)
         >>> alpha = AlphabetModThree(i=adder.outputs.sum)
         >>> print(alpha())
-        "b"
+        b
         >>> adder.inputs.y = 1
         >>> print(alpha())
-        "c"
+        c
         >>> adder.inputs.x = 0
         >>> adder.inputs.y = 0
         >>> print(alpha())
-        "a"
+        a
 
         Alternatively, execution flows can be specified manualy by connecting
         `.signals.input.run` and `.signals.output.ran` channels, either by their
@@ -266,19 +271,21 @@ class Function(Node):
         >>>
         >>> adder = adder_node()
         >>> alpha = AlphabetModThree(i=adder.outputs.sum)
-        >>> adder > alpha
+        >>> adder > alpha  # Ignore the `True`, this is just because we need it to chain
+        True
+
         >>>
-        >>> adder.run(x=1)
+        >>> out = adder.run(x=1)
         >>> print(alpha.outputs.letter)
-        "b"
-        >>> adder.run(y=1)
+        b
+        >>> out = adder.run(y=1)
         >>> print(alpha.outputs.letter)
-        "c"
+        c
         >>> adder.inputs.x = 0
         >>> adder.inputs.y = 0
-        >>> adder.run()
+        >>> out = adder.run()
         >>> print(alpha.outputs.letter)
-        "a"
+        a
 
         To see more details on how to use many nodes together, look at the
         `Workflow` class.
