@@ -312,6 +312,7 @@ class Function(Node):
                     f"property must be defined instead, e.g. when making child classes"
                     f"of `Function` with specific behaviour"
                 )
+            self._type_hints = get_type_hints(self.node_function)
         else:
             # If a callable node function is received, use it
             self.node_function = node_function
