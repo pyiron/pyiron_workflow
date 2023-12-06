@@ -2,8 +2,6 @@ import math
 import random
 import unittest
 
-import numpy as np
-
 from pyiron_workflow._tests import ensure_tests_in_python_path
 from pyiron_workflow.channels import OutputSignal
 from pyiron_workflow.function import Function
@@ -96,16 +94,18 @@ class TestTopology(unittest.TestCase):
         )()
 
         base = 42
-        to_add = np.arange(n, dtype=int)
+        to_add = list(range(n))
         out = bulk_loop(
             x=base,  # Sent equally to each body node
-            Y=to_add.tolist(),  # Distributed across body nodes
+            Y=to_add,  # Distributed across body nodes
         )
 
-        self.assertTrue(
-            np.allclose([added for added in out.SUM], to_add + base),
-            msg="Output should be list result of each individiual result"
-        )
+        for output, expectation in zip(out.SUM, [base + v for v in to_add]):
+            self.assertAlmostEqual(
+                output,
+                expectation,
+                msg="Output should be list result of each individiual result"
+            )
 
     def test_while_loop(self):
         with self.subTest("Random"):
