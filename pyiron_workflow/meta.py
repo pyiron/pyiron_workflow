@@ -239,14 +239,15 @@ def while_loop(
         9 + 2 = 11
         Finally, 11
 
-        >>> import numpy as np
+        >>> import random
+        >>>
         >>> from pyiron_workflow import Workflow
         >>>
-        >>> np.random.seed(0)
+        >>> random.seed(0)
         >>>
         >>> @Workflow.wrap_as.single_value_node("random")
-        ... def random(length: int | None = None):
-        ...     return np.random.random(length)
+        ... def random_float():
+        ...     return random.random()
         >>>
         >>> @Workflow.wrap_as.single_value_node()
         ... def greater_than(x: float, threshold: float):
@@ -256,10 +257,10 @@ def while_loop(
         ...     return gt
         >>>
         >>> RandomWhile = Workflow.create.meta.while_loop(
-        ...     loop_body_class=random,
+        ...     loop_body_class=random_float,
         ...     condition_class=greater_than,
-        ...     internal_connection_map=[("Random", "random", "GreaterThan", "x")],
-        ...     outputs_map={"Random__random": "capped_result"}
+        ...     internal_connection_map=[("RandomFloat", "random", "GreaterThan", "x")],
+        ...     outputs_map={"RandomFloat__random": "capped_result"}
         ... )
         >>>
         >>> # Define workflow
@@ -275,23 +276,12 @@ def while_loop(
         >>> wf.outputs_map = {"random_while__capped_result": "capped_result"}
         >>>
         >>> # Set a threshold and run
-        >>> print(f"Finally {wf(threshold=0.1).capped_result:.3f}")
-        0.549 > 0.1
-        0.715 > 0.1
-        0.603 > 0.1
-        0.545 > 0.1
-        0.424 > 0.1
-        0.646 > 0.1
-        0.438 > 0.1
-        0.892 > 0.1
-        0.964 > 0.1
-        0.383 > 0.1
-        0.792 > 0.1
-        0.529 > 0.1
-        0.568 > 0.1
-        0.926 > 0.1
-        0.071 <= 0.1
-        Finally 0.071
+        >>> print(f"Finally {wf(threshold=0.3).capped_result:.3f}")
+        0.844 > 0.3
+        0.758 > 0.3
+        0.421 > 0.3
+        0.259 <= 0.3
+        Finally 0.259
     """
 
     def make_loop(macro):
