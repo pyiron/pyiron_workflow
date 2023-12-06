@@ -6,7 +6,6 @@ import pyiron_workflow
 
 
 def load_tests(loader, tests, ignore):
-    tests.addTests(doctest.DocTestSuite("pyiron_workflow.executors.cloudpickleprocesspool"))
     for importer, name, ispkg in pkgutil.walk_packages(
         pyiron_workflow.__path__, pyiron_workflow.__name__ + '.'
     ):
