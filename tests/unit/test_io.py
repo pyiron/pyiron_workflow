@@ -1,5 +1,4 @@
-from unittest import TestCase, skipUnless
-from sys import version_info
+import unittest
 
 from pyiron_workflow.channels import (
     InputData, InputSignal, OutputData, OutputSignal, ChannelConnectionError
@@ -16,8 +15,7 @@ class DummyNode:
         pass
 
 
-@skipUnless(version_info[0] == 3 and version_info[1] >= 10, "Only supported for 3.10+")
-class TestDataIO(TestCase):
+class TestDataIO(unittest.TestCase):
 
     @classmethod
     def setUp(self) -> None:
@@ -151,8 +149,8 @@ class TestDataIO(TestCase):
                 "order the channels are added here"
         )
 
-@skipUnless(version_info[0] == 3 and version_info[1] >= 10, "Only supported for 3.10+")
-class TestSignalIO(TestCase):
+
+class TestSignalIO(unittest.TestCase):
     def setUp(self) -> None:
         node = DummyNode()
 
@@ -192,3 +190,7 @@ class TestSignalIO(TestCase):
             len(no_run_signals.disconnect_run()),
             msg="If there is no run channel, the list of disconnections should be empty"
         )
+
+
+if __name__ == '__main__':
+    unittest.main()

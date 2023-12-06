@@ -1,11 +1,11 @@
 from concurrent.futures import Future
-from sys import version_info
+
 from time import sleep
 import unittest
 
 from pyiron_workflow._tests import ensure_tests_in_python_path
 from pyiron_workflow.channels import NotData
-from pyiron_workflow.util import DotDict
+from pyiron_workflow.snippets.dotdict import DotDict
 from pyiron_workflow.workflow import Workflow
 
 
@@ -14,7 +14,6 @@ def plus_one(x=0):
     return y
 
 
-@unittest.skipUnless(version_info[0] == 3 and version_info[1] >= 10, "Only supported for 3.10+")
 class TestWorkflow(unittest.TestCase):
     @classmethod
     def setUpClass(cls) -> None:

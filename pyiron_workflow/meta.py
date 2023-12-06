@@ -14,7 +14,7 @@ from pyiron_workflow.function import (
 )
 from pyiron_workflow.macro import Macro, macro_node
 from pyiron_workflow.node import Node
-from pyiron_workflow.util import DotDict
+from pyiron_workflow.snippets.dotdict import DotDict
 
 
 def list_to_output(length: int, **node_class_kwargs) -> type[Function]:

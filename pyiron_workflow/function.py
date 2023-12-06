@@ -10,7 +10,7 @@ from pyiron_workflow.has_channel import HasChannel
 from pyiron_workflow.io import Inputs, Outputs
 from pyiron_workflow.node import Node
 from pyiron_workflow.output_parser import ParseOutput
-from pyiron_workflow.util import SeabornColors
+from pyiron_workflow.snippets.colors import SeabornColors
 
 if TYPE_CHECKING:
     from pyiron_workflow.composite import Composite

@@ -1,6 +1,6 @@
 from concurrent.futures import Future
 import os
-from sys import version_info
+
 import unittest
 
 from pyiron_workflow.channels import InputData, OutputData, NotData
@@ -48,7 +48,6 @@ class ANode(Node):
         pass
 
 
-@unittest.skipUnless(version_info[0] == 3 and version_info[1] >= 10, "Only supported for 3.10+")
 class TestNode(unittest.TestCase):
     def setUp(self):
         self.n1 = ANode("start", x=0)
@@ -344,3 +343,7 @@ class TestNode(unittest.TestCase):
             ANode("right_away", run_after_init=True, x=0).outputs.y.value,
             msg="With run_after_init, the node should run right away"
         )
+
+
+if __name__ == '__main__':
+    unittest.main()

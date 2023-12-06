@@ -198,3 +198,7 @@ class TestTopology(unittest.TestCase):
         wf.before_pickling.executor = None
         wf.after_pickling = wf.create.demo.OptionallyAdd(2, y=3)
         wf()
+
+
+if __name__ == '__main__':
+    unittest.main()
