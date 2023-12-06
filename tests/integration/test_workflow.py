@@ -20,7 +20,7 @@ class TestTopology(unittest.TestCase):
         """
 
         @Workflow.wrap_as.single_value_node()
-        def numpy_randint(low=0, high=20):
+        def randint(low=0, high=20):
             rand = np.random.randint(low=low, high=high)
             print(f"Generating random number between {low} and {high}...{rand}!")
             return rand
@@ -57,20 +57,20 @@ class TestTopology(unittest.TestCase):
                     print(f"{self.inputs.value.value} <= {self.inputs.limit.value}")
                     self.signals.output.false()
 
-        @Workflow.wrap_as.single_value_node()
-        def numpy_sqrt(value=0):
-            sqrt = np.sqrt(value)
-            print(f"sqrt({value}) = {sqrt}")
-            return sqrt
+        @Workflow.wrap_as.single_value_node("sqrt")
+        def sqrt(value=0):
+            root_value = np.sqrt(value)
+            print(f"sqrt({value}) = {root_value}")
+            return root_value
 
         wf = Workflow("rand_until_big_then_sqrt", automate_execution=False)
 
-        wf.rand = numpy_randint()
+        wf.rand = randint()
 
         wf.gt_switch = GreaterThanLimitSwitch()
         wf.gt_switch.inputs.value = wf.rand
 
-        wf.sqrt = numpy_sqrt()
+        wf.sqrt = sqrt()
         wf.sqrt.inputs.value = wf.rand
 
         wf.gt_switch.signals.output.false > wf.rand > wf.gt_switch  # Loop on false
