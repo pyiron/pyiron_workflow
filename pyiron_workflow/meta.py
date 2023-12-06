@@ -310,13 +310,3 @@ def while_loop(
         macro.outputs_map = {} if outputs_map is None else outputs_map
 
     return macro_node()(make_loop)
-
-
-meta_nodes = DotDict(
-    {
-        for_loop.__name__: for_loop,
-        input_to_list.__name__: input_to_list,
-        list_to_output.__name__: list_to_output,
-        while_loop.__name__: while_loop,
-    }
-)
