@@ -740,6 +740,7 @@ class Node(HasToDict, ABC, metaclass=AbstractHasPost):
         Allows users to connect run and ran signals like: `first_node > second_node`.
         """
         other._connect_output_signal(self.signals.output.ran)
+        return True
 
     def _connect_accumulating_input_signal(self, signal: AccumulatingInputSignal):
         self.signals.output.ran.connect(signal)

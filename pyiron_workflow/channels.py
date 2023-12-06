@@ -594,6 +594,7 @@ class OutputSignal(SignalChannel):
 
     def __gt__(self, other: InputSignal | Node):
         other._connect_output_signal(self)
+        return True
 
     def _connect_accumulating_input_signal(self, signal: AccumulatingInputSignal):
         self.connect(signal)
