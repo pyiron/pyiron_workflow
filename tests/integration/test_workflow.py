@@ -1,3 +1,5 @@
+import math
+import random
 import unittest
 
 import numpy as np
@@ -21,7 +23,7 @@ class TestTopology(unittest.TestCase):
 
         @Workflow.wrap_as.single_value_node()
         def randint(low=0, high=20):
-            rand = np.random.randint(low=low, high=high)
+            rand = random.randint(low, high)
             print(f"Generating random number between {low} and {high}...{rand}!")
             return rand
 
@@ -33,7 +35,7 @@ class TestTopology(unittest.TestCase):
 
             def __init__(self, **kwargs):
                 super().__init__(
-                    self.greater_than,
+                    None,
                     output_labels="value_gt_limit",
                     **kwargs
                 )
@@ -41,7 +43,7 @@ class TestTopology(unittest.TestCase):
                 self.signals.output.false = OutputSignal("false", self)
 
             @staticmethod
-            def greater_than(value, limit=10):
+            def node_function(value, limit=10):
                 return value > limit
 
             def process_run_result(self, function_output):
@@ -59,7 +61,7 @@ class TestTopology(unittest.TestCase):
 
         @Workflow.wrap_as.single_value_node("sqrt")
         def sqrt(value=0):
-            root_value = np.sqrt(value)
+            root_value = math.sqrt(value)
             print(f"sqrt({value}) = {root_value}")
             return root_value
 
@@ -79,7 +81,7 @@ class TestTopology(unittest.TestCase):
 
         wf.run()
         self.assertAlmostEqual(
-            np.sqrt(wf.rand.outputs.rand.value), wf.sqrt.outputs.sqrt.value, 6
+            math.sqrt(wf.rand.outputs.rand.value), wf.sqrt.outputs.sqrt.value, 6
         )
 
     def test_for_loop(self):
