@@ -109,21 +109,23 @@ class TestTopology(unittest.TestCase):
 
     def test_while_loop(self):
         with self.subTest("Random"):
-            np.random.seed(0)
+            random.seed(0)
 
             @Workflow.wrap_as.single_value_node("random")
-            def random(length: int | None = None):
-                return np.random.random(length)
+            def random_float() -> float:
+                return random.random()
 
             @Workflow.wrap_as.single_value_node("gt")
             def greater_than(x: float, threshold: float):
                 return x > threshold
 
             RandomWhile = Workflow.create.meta.while_loop(
-                loop_body_class=random,
+                loop_body_class=random_float,
                 condition_class=greater_than,
-                internal_connection_map=[("Random", "random", "GreaterThan", "x")],
-                outputs_map={"Random__random": "capped_result"}
+                internal_connection_map=[
+                    ("RandomFloat", "random", "GreaterThan", "x")
+                ],
+                outputs_map={"RandomFloat__random": "capped_result"}
             )
 
             # Define workflow
@@ -140,7 +142,7 @@ class TestTopology(unittest.TestCase):
 
             self.assertAlmostEqual(
                 wf(threshold=0.1).capped_result,
-                0.07103605819788694,  # For this reason we set the random seed
+                0.014041700164018955,  # For this reason we set the random seed
             )
 
         with self.subTest("Self-data-loop"):
