@@ -73,26 +73,22 @@ def for_loop(
       (i.e. the specified input and all output) is all caps
 
     Examples:
-        >>> import numpy as np
         >>> from pyiron_workflow import Workflow
         >>>
-        >>> bulk_loop = Workflow.create.meta.for_loop(
-        ...     Workflow.create.atomistics.Bulk,
-        ...     5,
-        ...     iterate_on = ("a",),
-        ... )()
+        >>> @Workflow.wrap_as.single_value_node("div")
+        ... def divide(numerator, denominator):
+        ...    return numerator / denominator
         >>>
-        >>> [
-        ...     struct.cell.volume for struct in bulk_loop(
-        ...         name="Al",  # Sent equally to each body node
-        ...         A=np.linspace(3.9, 4.1, 5).tolist(),  # Distributed across body nodes
-        ...     ).STRUCTURE
-        ... ]
-        [14.829749999999995,
-         15.407468749999998,
-         15.999999999999998,
-         16.60753125,
-         17.230249999999995]
+        >>> denominators = list(range(1, 5))
+        >>> bulk_loop = Workflow.create.meta.for_loop(
+        ...     divide,
+        ...     len(denominators),
+        ...     iterate_on = ("denominator",),
+        ... )()
+        >>> bulk_loop.inputs.numerator = 1
+        >>> bulk_loop.inputs.DENOMINATOR = denominators
+        >>> bulk_loop().DIV
+        [1.0, 0.5, 0.3333333333333333, 0.25]
 
     TODO:
         - Refactor like crazy, it's super hard to read and some stuff is too hard-coded
