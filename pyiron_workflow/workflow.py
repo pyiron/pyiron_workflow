@@ -62,17 +62,17 @@ class Workflow(Composite):
         >>> wf = Workflow("my_workflow", n1)
         >>>
         >>> # (2) Being passed to the `add` method
-        >>> wf.add(Workflow.create.Function(fnc, label="n2"))
+        >>> added = wf.add(Workflow.create.Function(fnc, label="n2"))
         >>>
         >>> # (3) Calling `create` from the _workflow instance_ that will own the node
-        >>> wf.create.Function(fnc, label="n3")  # Instantiating from add
+        >>> added = wf.create.Function(fnc, label="n3")  # Instantiating from add
         >>>
         >>> # (4) By attribute assignment (here the node can be created from the
         >>> # workflow class or instance and the end result is the same
         >>> wf.n4 = wf.create.Function(fnc, label="anyhow_n4_gets_used")
         >>>
         >>> # (5) By creating from the workflow class but specifying the parent kwarg
-        >>> Workflow.create.Function(fnc, label="n5", parent=wf)
+        >>> added = Workflow.create.Function(fnc, label="n5", parent=wf)
 
         By default, the node naming scheme is strict, so if you try to add a node to a
         label that already exists, you will get an error. This behaviour can be changed
@@ -84,7 +84,7 @@ class Workflow(Composite):
         >>> wf.my_node = wf.create.Function(fnc, x=1)
         >>> wf.my_node = wf.create.Function(fnc, x=2)
         >>> print(wf.my_node.inputs.x, wf.my_node0.inputs.x, wf.my_node1.inputs.x)
-        0, 1, 2
+        0 1 2
 
         The `Workflow` class is designed as a single point of entry for workflows, so
         you can also access decorators to define new node classes right from the
@@ -92,7 +92,7 @@ class Workflow(Composite):
         Let's use these to explore a workflow's input and output, which are dynamically
         generated from the unconnected IO of its nodes:
         >>> @Workflow.wrap_as.function_node("y")
-        >>> def plus_one(x: int = 0):
+        ... def plus_one(x: int = 0):
         ...     return x + 1
         >>>
         >>> wf = Workflow("io_workflow")
@@ -153,19 +153,26 @@ class Workflow(Composite):
         `outputs_map`. In the example above, let's make the resulting figure a bit
         easier to find:
         >>> wf.outputs_map = {"plot__fig": "fig"}
-        >>> wf().fig
+        >>> matplot_figure = wf().fig
+        The job JUSTAJOBNAME was saved and received the ID: 9562
 
         Workflows can be visualized in the notebook using graphviz:
-        >>> wf.draw()
+        >>> graphviz_graph = wf.draw()
 
         The resulting object can be saved as an image, e.g.
         >>> wf.draw().render(filename="demo", format="png")
+        'demo.png'
 
         When your workflow's data follows a directed-acyclic pattern, it will determine
         the execution flow automatically.
         If you want or need more control, you can set the `automate_execution` flag to
         `False` and manually specify an execution flow.
         Cf. the
+
+        Lastly, let's clean up after ourselves (for when the CI runs the docstrings)
+        >>> from os import remove
+        >>> remove("demo")
+        >>> remove("demo.png")
 
     TODO: Workflows can be serialized.
 

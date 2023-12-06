@@ -14,7 +14,6 @@ from pyiron_workflow.function import (
 )
 from pyiron_workflow.macro import Macro, macro_node
 from pyiron_workflow.node import Node
-from pyiron_workflow.snippets.dotdict import DotDict
 
 
 def list_to_output(length: int, **node_class_kwargs) -> type[Function]:
@@ -74,6 +73,7 @@ def for_loop(
 
     Examples:
         >>> from pyiron_workflow import Workflow
+        >>> from pyiron_workflow.meta import for_loop
         >>>
         >>> @Workflow.wrap_as.single_value_node("div")
         ... def divide(numerator, denominator):
@@ -203,12 +203,12 @@ def while_loop(
         >>> from pyiron_workflow import Workflow
         >>>
         >>> @Workflow.wrap_as.single_value_node()
-        >>> def add(a, b):
+        ... def add(a, b):
         ...     print(f"{a} + {b} = {a + b}")
         ...     return a + b
         >>>
         >>> @Workflow.wrap_as.single_value_node()
-        >>> def less_than_ten(value):
+        ... def less_than_ten(value):
         ...     return value < 10
         >>>
         >>> AddWhile = Workflow.create.meta.while_loop(
@@ -245,11 +245,11 @@ def while_loop(
         >>> np.random.seed(0)
         >>>
         >>> @Workflow.wrap_as.single_value_node("random")
-        >>> def random(length: int | None = None):
+        ... def random(length: int | None = None):
         ...     return np.random.random(length)
         >>>
         >>> @Workflow.wrap_as.single_value_node()
-        >>> def greater_than(x: float, threshold: float):
+        ... def greater_than(x: float, threshold: float):
         ...     gt = x > threshold
         ...     symbol = ">" if gt else "<="
         ...     print(f"{x:.3f} {symbol} {threshold}")

@@ -129,7 +129,6 @@ class Macro(Composite):
         ...     macro.c = macro.create.SingleValue(add_one, x=0)
         >>>
         >>> m = Macro(modified_flow_macro)
-        >>> m.outputs.to_value_dict()
         >>> m(a__x=1, b__x=2, c__x=3)
         {'a__result': 2, 'b__result': 3, 'c__result': 4}
 
@@ -139,7 +138,9 @@ class Macro(Composite):
         signals, but beyond that the code doesn't hold our hands.
         Let's use this and then observe how the `a` sub-node no longer gets run:
         >>> m.starting_nodes = [m.b]  # At least one starting node
-        >>> m.b > m.c  # At least one run signal
+        >>> m.b > m.c  # At least one run signal (ignore `True`, it's for chaining)
+        True
+
         >>> m(a__x=1000, b__x=2000, c__x=3000)
         {'a__result': 2, 'b__result': 2001, 'c__result': 3001}
 
@@ -161,7 +162,7 @@ class Macro(Composite):
         >>> # With the replace method
         >>> # (replacement target can be specified by label or instance,
         >>> # the replacing node can be specified by instance or class)
-        >>> adds_six_macro.replace(adds_six_macro.one, add_two())
+        >>> replaced = adds_six_macro.replace(adds_six_macro.one, add_two())
         >>> # With the replace_with method
         >>> adds_six_macro.two.replace_with(add_two())
         >>> # And by assignment of a compatible class to an occupied node label
