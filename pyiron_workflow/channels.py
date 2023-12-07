@@ -35,8 +35,9 @@ class Channel(HasChannel, HasToDict, ABC):
     They must have an identifier (`label: str`) and belong to a parent node
     (`node: pyiron_workflow.node.Node`).
 
-    Non-abstract channel classes should come in input/output pairs with a shared
-    ancestor (`generic_type: type[Channel]`).
+    Non-abstract channel classes should come in input/output pairs and specify the
+    a necessary ancestor for instances they can connect to
+    (`connection_partner_type: type[Channel]`).
 
     Channels may form (`connect`/`disconnect`) and store (`connections: list[Channel]`)
     connections with other channels.
@@ -49,9 +50,8 @@ class Channel(HasChannel, HasToDict, ABC):
     subjected to a validity test.
 
     In this abstract class the only requirement is that the connecting channels form a
-    "conjugate pair" of classes, i.e. they are different classes but have the same
-    parent class (`generic_type: type[Channel]`) -- input/output connects to
-    output/input.
+    "conjugate pair" of classes, i.e. they are children of each other's partner class
+    (`connection_partner_type: type[Channel]`) -- input/output connects to output/input.
 
     Iterating over channels yields their connections.
 
@@ -86,34 +86,35 @@ class Channel(HasChannel, HasToDict, ABC):
 
     @property
     @abstractmethod
-    def generic_type(self) -> type[Channel]:
-        """Input and output class pairs should share this parent class"""
+    def connection_partner_type(self) -> type[Channel]:
+        """
+        Input and output class pairs must specify a parent class for their valid
+        connection partners.
+        """
 
     def _valid_connection(self, other: Channel) -> bool:
         """
         Logic for determining if a connection is valid.
 
-        Connections should have the same generic type, but not the same type -- i.e.
-        they should be an input/output pair of some connection type.
+        Connections only allowed to instances with the right parent type -- i.e.
+        connection pairs should be an input/output.
         """
-        return isinstance(other, self.generic_type) and not isinstance(
-            other, self.__class__
-        )
+        return isinstance(other, self.connection_partner_type)
 
     def connect(self, *others: Channel) -> None:
         """
         Form a connection between this and one or more other channels.
-        Connections are reflexive, and must occur between input and output channels of
-        the same `generic_type` (i.e. data or signal).
+        Connections are reflexive, and should only occur between input and output
+        channels, i.e. they are instances of each others `connection_partner_type`.
 
         Args:
             *others (Channel): The other channel objects to attempt to connect with.
 
         Raises:
-            (ChannelConnectionError): If the other channel is of the correct generic
-                type, but nonetheless not a valid connection.
+            (ChannelConnectionError): If the other channel is of the correct type, but
+                nonetheless not a valid connection.
             (TypeError): If the other channel is not an instance of this channel's
-                generic type.
+                partner type.
         """
         for other in others:
             if other in self.connections:
@@ -122,18 +123,18 @@ class Channel(HasChannel, HasToDict, ABC):
                 self.connections.append(other)
                 other.connections.append(self)
             else:
-                if isinstance(other, self.generic_type):
+                if isinstance(other, self.connection_partner_type):
                     raise ChannelConnectionError(
-                        f"{self.label} ({self.__class__.__name__}) and {other.label} "
-                        f"({other.__class__.__name__}) share a generic type but were "
-                        f"not a valid connection. Check channel classes, type hints, "
-                        f"etc."
+                        f"{other.label} ({other.__class__.__name__}) has the correct "
+                        f"type ({self.connection_partner_type.__name__} to connect "
+                        f"with {self.label} ({self.__class__.__name__}), but is not a "
+                        f"valid connection. Please check type hints, etc."
                     )
                 else:
                     raise TypeError(
-                        f"Can only connect two {self.generic_type.__name__} objects, "
-                        f"but {self.label} ({self.__class__.__name__}) got {other} "
-                        f"({type(other)})"
+                        f"Can only connect to {self.connection_partner_type.__name__} "
+                        f"objects, but {self.label} ({self.__class__.__name__}) got "
+                        f"{other} ({type(other)})"
                     )
 
     def disconnect(self, *others: Channel) -> list[tuple[Channel, Channel]]:
@@ -382,10 +383,6 @@ class DataChannel(Channel, ABC):
         self._value_receiver = new_partner
 
     @property
-    def generic_type(self) -> type[Channel]:
-        return DataChannel
-
-    @property
     def ready(self) -> bool:
         """
         Check if the currently stored value is data and satisfies the channel's type
@@ -446,6 +443,10 @@ class DataChannel(Channel, ABC):
 
 
 class InputData(DataChannel):
+    @property
+    def connection_partner_type(self):
+        return OutputData
+
     def fetch(self) -> None:
         """
         Sets `value` to the first value among connections that is something other than
@@ -481,7 +482,9 @@ class InputData(DataChannel):
 
 
 class OutputData(DataChannel):
-    pass
+    @property
+    def connection_partner_type(self):
+        return InputData
 
 
 class SignalChannel(Channel, ABC):
@@ -502,12 +505,12 @@ class SignalChannel(Channel, ABC):
     def __call__(self) -> None:
         pass
 
-    @property
-    def generic_type(self) -> type[Channel]:
-        return SignalChannel
-
 
 class InputSignal(SignalChannel):
+    @property
+    def connection_partner_type(self):
+        return OutputSignal
+
     def __init__(
         self,
         label: str,
@@ -582,6 +585,10 @@ class AccumulatingInputSignal(InputSignal):
 
 
 class OutputSignal(SignalChannel):
+    @property
+    def connection_partner_type(self):
+        return InputSignal
+
     def __call__(self) -> None:
         for c in self.connections:
             c(self)
