@@ -29,7 +29,9 @@ class If(SingleValue):
     @staticmethod
     def if_(condition):
         if isclass(condition) and issubclass(condition, NotData):
-            raise TypeError(f"Logic 'If' node expected data otherut got NotData as input.")
+            raise TypeError(
+                f"Logic 'If' node expected data otherut got NotData as input."
+            )
         return bool(condition)
 
     def process_run_result(self, function_output):
@@ -43,8 +45,10 @@ class If(SingleValue):
         else:
             self.signals.output.false()
 
+
 # A bunch of (but not all) standard operators
 # Return values based on dunder methods, where available
+
 
 @single_value_node("str")
 def String(obj):
@@ -90,6 +94,7 @@ def Bool(obj):
 def GetAttr(obj, name):
     return getattr(obj, name)
 
+
 # These are not idempotent and thus not encouraged
 # @single_value_node("none")
 # def SetAttr(obj, name, value):
@@ -101,6 +106,7 @@ def GetAttr(obj, name):
 # def DelAttr(obj, name):
 #     delattr(obj, name)
 #     return None
+
 
 @single_value_node("getitem")
 def GetItem(obj, item):
@@ -159,7 +165,7 @@ def Modulo(obj, other):
 
 @single_value_node("pow")
 def Power(obj, other):
-    return obj ** other
+    return obj**other
 
 
 @single_value_node("and")
