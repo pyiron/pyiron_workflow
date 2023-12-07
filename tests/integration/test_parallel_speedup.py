@@ -24,7 +24,7 @@ class TestParallelSpeedup(unittest.TestCase):
         t = 2.5
 
         wf = make_workflow("serial")
-        wf.a > wf.b > wf.c > wf.d
+        wf.a >> wf.b >> wf.c >> wf.d
         wf.starting_nodes = [wf.a]
         t0 = perf_counter()
         wf()

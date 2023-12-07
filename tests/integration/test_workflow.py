@@ -73,8 +73,8 @@ class TestTopology(unittest.TestCase):
         wf.sqrt = sqrt()
         wf.sqrt.inputs.value = wf.rand
 
-        wf.gt_switch.signals.output.false > wf.rand > wf.gt_switch  # Loop on false
-        wf.gt_switch.signals.output.true > wf.sqrt  # On true break to sqrt node
+        wf.gt_switch.signals.output.false >> wf.rand >> wf.gt_switch  # Loop on false
+        wf.gt_switch.signals.output.true >> wf.sqrt  # On true break to sqrt node
         wf.starting_nodes = [wf.rand]
 
         wf.run()

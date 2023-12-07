@@ -251,9 +251,9 @@ class TestWorkflow(unittest.TestCase):
 
         user = make_workflow()
         user.automate_execution = False
-        user.n1l > user.n1r > user.n2l
-        user.n1r > user.n2m
-        user.n1r > user.n2r
+        user.n1l >> user.n1r >> user.n2l
+        user.n1r >> user.n2m
+        user.n1r >> user.n2r
         user.starting_nodes = [user.n1l]
         self.assertTrue(
             matches_expectations(user()),

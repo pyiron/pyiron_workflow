@@ -163,10 +163,10 @@ class TestSignalIO(unittest.TestCase):
         signals.output.ran = OutputSignal("ran", node)
         signals.output.bar = OutputSignal("bar", node)
 
-        signals.output.ran > signals.input.run
-        signals.output.ran > signals.input.foo
-        signals.output.bar > signals.input.run
-        signals.output.bar > signals.input.foo
+        signals.output.ran >> signals.input.run
+        signals.output.ran >> signals.input.foo
+        signals.output.bar >> signals.input.run
+        signals.output.bar >> signals.input.foo
 
         self.signals = signals
 

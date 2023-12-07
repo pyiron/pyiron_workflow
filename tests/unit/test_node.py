@@ -195,7 +195,7 @@ class TestNode(unittest.TestCase):
         self.n2.executor_shutdown()
 
     def test_emit_ran_signal(self):
-        self.n1 > self.n2 > self.n3  # Chained connection declaration
+        self.n1 >> self.n2 >> self.n3  # Chained connection declaration
 
         self.n1.run(emit_ran_signal=False)
         self.assertFalse(
@@ -213,7 +213,7 @@ class TestNode(unittest.TestCase):
 
     def test_execute(self):
         self.n1.outputs.y = 0  # Prime the upstream data source for fetching
-        self.n2 > self.n3
+        self.n2 >> self.n3
         self.assertEqual(
             self.n2.run(fetch_input=False, emit_ran_signal=False, x=10) + 1,
             self.n2.execute(x=11),
@@ -234,7 +234,7 @@ class TestNode(unittest.TestCase):
             self.n2.execute()
 
     def test_pull(self):
-        self.n2 > self.n3
+        self.n2 >> self.n3
         self.n1.inputs.x = 0
         by_run = self.n2.run(
                 run_data_tree=True,
@@ -256,7 +256,7 @@ class TestNode(unittest.TestCase):
     def test___call__(self):
         # __call__ is just a pull that punches through macro walls, so we'll need to
         # test it again over in macro to really make sure it's working
-        self.n2 > self.n3
+        self.n2 >> self.n3
         self.n1.inputs.x = 0
         by_run = self.n2.run(
             run_data_tree=True,
