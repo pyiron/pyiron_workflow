@@ -599,9 +599,9 @@ class OutputSignal(SignalChannel):
             f"{[f'{c.node.label}.{c.label}' for c in self.connections]}"
         )
 
-    def __gt__(self, other: InputSignal | Node):
+    def __rshift__(self, other: InputSignal | Node):
         other._connect_output_signal(self)
-        return True
+        return other
 
     def _connect_accumulating_input_signal(self, signal: AccumulatingInputSignal):
         self.connect(signal)
