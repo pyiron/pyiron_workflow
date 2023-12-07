@@ -54,25 +54,22 @@ class Workflow(Composite):
         We allow adding nodes to workflows in five equivalent ways:
         >>> from pyiron_workflow.workflow import Workflow
         >>>
+        >>> @Workflow.wrap_as.single_value_node()
         >>> def fnc(x=0):
         ...     return x + 1
         >>>
         >>> # (1) As *args at instantiation
-        >>> n1 = Workflow.create.Function(fnc, label="n1")
+        >>> n1 = fnc(label="n1")
         >>> wf = Workflow("my_workflow", n1)
         >>>
         >>> # (2) Being passed to the `add` method
-        >>> added = wf.add(Workflow.create.Function(fnc, label="n2"))
+        >>> n2 = wf.add(fnc(label="n2"))
         >>>
-        >>> # (3) Calling `create` from the _workflow instance_ that will own the node
-        >>> added = wf.create.Function(fnc, label="n3")  # Instantiating from add
+        >>> # (3) By attribute assignment
+        >>> wf.n3 = fnc(label="anyhow_n3_gets_used")
         >>>
-        >>> # (4) By attribute assignment (here the node can be created from the
-        >>> # workflow class or instance and the end result is the same
-        >>> wf.n4 = wf.create.Function(fnc, label="anyhow_n4_gets_used")
-        >>>
-        >>> # (5) By creating from the workflow class but specifying the parent kwarg
-        >>> added = Workflow.create.Function(fnc, label="n5", parent=wf)
+        >>> # (4) By creating from the workflow class but specifying the parent kwarg
+        >>> n4 = fnc(label="n4", parent=wf)
 
         By default, the node naming scheme is strict, so if you try to add a node to a
         label that already exists, you will get an error. This behaviour can be changed
@@ -80,9 +77,9 @@ class Workflow(Composite):
         bool to this property. When deactivated, repeated assignments to the same label
         just get appended with an index:
         >>> wf.strict_naming = False
-        >>> wf.my_node = wf.create.Function(fnc, x=0)
-        >>> wf.my_node = wf.create.Function(fnc, x=1)
-        >>> wf.my_node = wf.create.Function(fnc, x=2)
+        >>> wf.my_node = fnc(x=0)
+        >>> wf.my_node = fnc(x=1)
+        >>> wf.my_node = fnc(x=2)
         >>> print(wf.my_node.inputs.x, wf.my_node0.inputs.x, wf.my_node1.inputs.x)
         0 1 2
 
