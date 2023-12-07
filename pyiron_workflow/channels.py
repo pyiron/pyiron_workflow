@@ -496,8 +496,8 @@ class SignalChannel(Channel, ABC):
 
     Inputs hold a callback function to call, and outputs call each of their connections.
 
-    Signal channels support `>` as syntactic sugar for their connections, i.e.
-    `some_output > some_input` is equivalent to `some_input.connect(some_output)`.
+    Signal channels support `>>` as syntactic sugar for their connections, i.e.
+    `some_output >> some_input` is equivalent to `some_input.connect(some_output)`.
     (This is also interoperable with `Node` objects, cf. the `Node` docs.)
     """
 

@@ -737,7 +737,7 @@ class Node(HasToDict, ABC, metaclass=AbstractHasPost):
 
     def __rshift__(self, other: InputSignal | Node):
         """
-        Allows users to connect run and ran signals like: `first_node > second_node`.
+        Allows users to connect run and ran signals like: `first_node >> second_node`.
         """
         other._connect_output_signal(self.signals.output.ran)
         return other

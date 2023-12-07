@@ -67,7 +67,7 @@ class Macro(Composite):
         ...     macro.one = macro.create.SingleValue(add_one)
         ...     macro.two = macro.create.SingleValue(add_one, macro.one)
         ...     macro.three = macro.create.SingleValue(add_one, macro.two)
-        ...     macro.one > macro.two > macro.three
+        ...     macro.one >> macro.two >> macro.three
         ...     macro.starting_nodes = [macro.one]
 
         In this case we had _no need_ to specify the execution order and starting nodes
@@ -138,7 +138,7 @@ class Macro(Composite):
         signals, but beyond that the code doesn't hold our hands.
         Let's use this and then observe how the `a` sub-node no longer gets run:
         >>> m.starting_nodes = [m.b]  # At least one starting node
-        >>> m.b > m.c  # At least one run signal (ignore `True`, it's for chaining)
+        >>> m.b >> m.c  # At least one run signal (ignore output, it's for chaining)
         True
 
         >>> m(a__x=1000, b__x=2000, c__x=3000)

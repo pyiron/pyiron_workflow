@@ -271,7 +271,7 @@ class Function(Node):
         >>>
         >>> adder = adder_node()
         >>> alpha = AlphabetModThree(i=adder.outputs.sum)
-        >>> adder > alpha  # Ignore the `True`, this is just because we need it to chain
+        >>> adder >> alpha  # Ignore output, this is just because we need it to chain
         True
 
         >>>

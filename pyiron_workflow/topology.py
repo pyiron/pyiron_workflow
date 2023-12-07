@@ -135,7 +135,7 @@ def _set_run_connections_according_to_linear_dag(nodes: dict[str, Node]) -> list
 
     for i, label in enumerate(execution_order[:-1]):
         next_node = execution_order[i + 1]
-        nodes[label] > nodes[next_node]
+        nodes[label] >> nodes[next_node]
 
     return [nodes[execution_order[0]]]
 
