@@ -6,7 +6,7 @@ sub-graph
 from __future__ import annotations
 
 from abc import ABC, abstractmethod
-from functools import partial, wraps
+from functools import wraps
 from typing import Literal, Optional, TYPE_CHECKING
 
 from bidict import bidict
@@ -37,7 +37,6 @@ class Composite(Node, ABC):
             - From the instance level, created nodes get the instance as their parent
     - Child nodes...
         - Can be added by...
-            - Creating them from the creator on a composite _instance_
             - Passing a node instance to the adding method
             - Setting the composite instance as the node's parent at node instantiation
             - Assigning a node instance as an attribute
@@ -120,8 +119,6 @@ class Composite(Node, ABC):
         self.outputs_map = outputs_map
         self.nodes: DotDict[str, Node] = DotDict()
         self.starting_nodes: list[Node] = []
-        self._creator = self.create
-        self.create = self._owned_creator  # Override the create method from the class
 
     @property
     def inputs_map(self) -> bidict | None:
@@ -163,15 +160,6 @@ class Composite(Node, ABC):
         super().deactivate_strict_hints()
         for node in self:
             node.deactivate_strict_hints()
-
-    @property
-    def _owned_creator(self):
-        """
-        A misdirection so that the `create` method behaves differently on the class
-        and on instances (in the latter case, created nodes should get the instance as
-        their parent).
-        """
-        return OwnedCreator(self, self._creator)
 
     def to_dict(self):
         return {
@@ -570,66 +558,3 @@ class Composite(Node, ABC):
     def color(self) -> str:
         """For drawing the graph"""
         return SeabornColors.brown
-
-
-class OwnedCreator:
-    """
-    A creator that overrides the `parent` arg of all accessed nodes to its own parent.
-
-    Necessary so that `Workflow.create.Function(...)` returns an unowned function node,
-    while `some_workflow_instance.create.Function(...)` returns a function node owned
-    by the workflow instance.
-    """
-
-    def __init__(self, parent: Composite, creator: Creator):
-        self._parent = parent
-        self._creator = creator
-
-    def __getattr__(self, item):
-        value = getattr(self._creator, item)
-
-        try:
-            is_node_class = issubclass(value, Node)
-        except TypeError:
-            # issubclass complains if the value isn't even a class
-            is_node_class = False
-
-        if is_node_class:
-            value = partial(value, parent=self._parent)
-        elif isinstance(value, NodePackage):
-            value = OwnedNodePackage(self._parent, value)
-
-        return value
-
-    def __getstate__(self):
-        # Compatibility with python <3.11
-        return self.__dict__
-
-    def __setstate__(self, state):
-        # Because we override getattr, we need to use __dict__ assignment directly in
-        # __setstate__
-        self.__dict__["_parent"] = state["_parent"]
-        self.__dict__["_creator"] = state["_creator"]
-
-
-class OwnedNodePackage:
-    """
-    A wrapper for node packages so that accessed node classes can have their parent
-    value automatically filled.
-    """
-
-    def __init__(self, parent: Composite, node_package: NodePackage):
-        self._parent = parent
-        self._node_package = node_package
-
-    def __getattr__(self, item):
-        value = getattr(self._node_package, item)
-        if issubclass(value, Node):
-            value = partial(value, parent=self._parent)
-        return value
-
-    def __getstate__(self):
-        return self.__dict__
-
-    def __setstate__(self, state):
-        self.__dict__ = state
