@@ -87,7 +87,7 @@ class Composite(Node, ABC):
         wrap_as (Wrappers): A tool for accessing node-creating decorators
 
     Methods:
-        add(node: Node): Add the node instance to this subgraph.
+        add_node(node: Node): Add the node instance to this subgraph.
         remove(node: Node): Break all connections the node has, remove it from this
          subgraph, and set its parent to `None`.
         (de)activate_strict_hints(): Recursively (de)activate strict type hints.
@@ -292,7 +292,7 @@ class Composite(Node, ABC):
     def _build_outputs(self) -> Outputs:
         return self._build_io("outputs", self.outputs_map)
 
-    def add(self, node: Node, label: Optional[str] = None) -> None:
+    def add_node(self, node: Node, label: Optional[str] = None) -> None:
         """
         Assign a node to the parent. Optionally provide a new label for that node.
 
@@ -445,7 +445,7 @@ class Composite(Node, ABC):
         is_starting_node = owned_node in self.starting_nodes
         self.remove(owned_node)
         replacement.label, owned_node.label = owned_node.label, replacement.label
-        self.add(replacement)
+        self.add_node(replacement)
         if is_starting_node:
             self.starting_nodes.append(replacement)
 
@@ -518,7 +518,7 @@ class Composite(Node, ABC):
 
     def __setattr__(self, key: str, node: Node):
         if isinstance(node, Node) and key != "_parent":
-            self.add(node, label=key)
+            self.add_node(node, label=key)
         elif (
             isinstance(node, type)
             and issubclass(node, Node)

@@ -234,7 +234,7 @@ class Node(HasToDict, ABC, metaclass=AbstractHasPost):
         self.label: str = label
         self._parent = None
         if parent is not None:
-            parent.add(self)
+            parent.add_node(self)
         self.running = False
         self.failed = False
         self.signals = self._build_signal_channels()

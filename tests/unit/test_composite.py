@@ -69,7 +69,7 @@ class TestComposite(unittest.TestCase):
         self.comp.register("demo", "static.demo_nodes")
 
         # Test invocation
-        self.comp.add(self.comp.create.demo.OptionallyAdd(label="by_add"))
+        self.comp.add_node(self.comp.create.demo.OptionallyAdd(label="by_add"))
         # Test invocation with attribute assignment
         self.comp.by_assignment = self.comp.create.demo.OptionallyAdd()
         node = self.comp.create.demo.OptionallyAdd()
@@ -77,7 +77,7 @@ class TestComposite(unittest.TestCase):
         self.assertSetEqual(
             set(self.comp.nodes.keys()),
             set(["by_add", "by_assignment"]),
-            msg=f"Expected one node label generated automatically from the add call "
+            msg=f"Expected one node label generated automatically from the add_node call "
                 f"and the other from the attribute assignment, but got "
                 f"{self.comp.nodes.keys()}"
         )
@@ -88,7 +88,7 @@ class TestComposite(unittest.TestCase):
 
     def test_node_addition(self):
         # Validate the four ways to add a node
-        self.comp.add(Composite.create.Function(plus_one, label="foo"))
+        self.comp.add_node(Composite.create.Function(plus_one, label="foo"))
         self.comp.baz = self.comp.create.Function(plus_one, label="whatever_baz_gets_used")
         Composite.create.Function(plus_one, label="qux", parent=self.comp)
         self.assertListEqual(
@@ -171,7 +171,7 @@ class TestComposite(unittest.TestCase):
         self.comp.strict_naming = True
         # Validate name preservation for each node addition path
         with self.assertRaises(AttributeError, msg="We have 'foo' at home"):
-            self.comp.add(self.comp.create.Function(plus_one, label="foo"))
+            self.comp.add_node(self.comp.create.Function(plus_one, label="foo"))
 
         with self.assertRaises(
             AttributeError,
@@ -203,7 +203,7 @@ class TestComposite(unittest.TestCase):
             )
 
         self.comp.strict_naming = False
-        self.comp.add(Composite.create.Function(plus_one, label="foo"))
+        self.comp.add_node(Composite.create.Function(plus_one, label="foo"))
         self.assertEqual(
             2,
             len(self.comp),
@@ -226,9 +226,9 @@ class TestComposite(unittest.TestCase):
 
         comp2 = AComposite("two")
         with self.assertRaises(ValueError, msg="Can't belong to two parents"):
-            comp2.add(node2)
+            comp2.add_node(node2)
         comp1.remove(node2)
-        comp2.add(node2)
+        comp2.add_node(node2)
         self.assertEqual(
             node2.parent,
             comp2,
