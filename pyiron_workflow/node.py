@@ -299,6 +299,20 @@ class Node(HasToDict, ABC, metaclass=AbstractHasPost):
             "parent"
         )
 
+    @property
+    def readiness_report(self) -> str:
+        input_readiness = "\n".join(
+            [f"{k} ready: {v.ready}" for k, v in self.inputs.items()]
+        )
+        report = (
+            f"{self.label} readiness: {self.ready}\n"
+            f"STATE:\n"
+            f"running: {self.running}\n"
+            f"failed: {self.failed}\n"
+            f"INPUTS:\n" + input_readiness
+        )
+        return report
+
     def run(
         self,
         run_data_tree: bool = False,
@@ -362,15 +376,10 @@ class Node(HasToDict, ABC, metaclass=AbstractHasPost):
             self.inputs.fetch()
 
         if check_readiness and not self.ready:
-            input_readiness = "\n".join(
-                [f"{k} ready: {v.ready}" for k, v in self.inputs.items()]
-            )
             raise ValueError(
                 f"{self.label} received a run command but is not ready. The node "
                 f"should be neither running nor failed, and all input values should"
-                f" conform to type hints:\n"
-                f"running: {self.running}\n"
-                f"failed: {self.failed}\n" + input_readiness
+                f" conform to type hints.\n" + self.readiness_report
             )
 
         return self._run(

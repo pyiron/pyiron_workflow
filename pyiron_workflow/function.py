@@ -90,9 +90,23 @@ class Function(Node):
         ...     plus_minus_1.run()
         ... except ValueError as e:
         ...     print("ValueError:", e.args[0])
-        ValueError: mwe received a run command but is not ready. The node should be neither running nor failed, and all input values should conform to type hints:
+        ValueError: mwe received a run command but is not ready. The node should be neither running nor failed, and all input values should conform to type hints.
+        mwe readiness: False
+        STATE:
         running: False
         failed: False
+        INPUTS:
+        x ready: True
+        y ready: False
+
+        We are able to check this without trying and failing by looking at the
+        readiness report:
+        >>> print(plus_minus_1.readiness_report)
+        mwe readiness: False
+        STATE:
+        running: False
+        failed: False
+        INPUTS:
         x ready: True
         y ready: False
 
@@ -165,9 +179,12 @@ class Function(Node):
         ...     plus_minus_1.run()
         ... except ValueError as e:
         ...     print("ValueError:", e.args[0])
-        ValueError: hinted_example received a run command but is not ready. The node should be neither running nor failed, and all input values should conform to type hints:
+        ValueError: hinted_example received a run command but is not ready. The node should be neither running nor failed, and all input values should conform to type hints.
+        hinted_example readiness: False
+        STATE:
         running: False
         failed: False
+        INPUTS:
         x ready: False
         y ready: True
 
