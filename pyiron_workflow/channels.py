@@ -92,6 +92,11 @@ class Channel(HasChannel, HasToDict, ABC):
         connection partners.
         """
 
+    @property
+    def scoped_label(self) -> str:
+        """A label combining the channel's usual label and its node's label"""
+        return f"{self.node.label}__{self.label}"
+
     def _valid_connection(self, other: Channel) -> bool:
         """
         Logic for determining if a connection is valid.
