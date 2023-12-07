@@ -102,6 +102,11 @@ def GetAttr(obj, name):
 #     delattr(obj, name)
 #     return None
 
+@single_value_node("getitem")
+def GetItem(obj, item):
+    return obj[item]
+
+
 @single_value_node("dir")
 def Dir(obj):
     return dir(obj)
