@@ -88,7 +88,7 @@ class Composite(Node, ABC):
 
     Methods:
         add_node(node: Node): Add the node instance to this subgraph.
-        remove(node: Node): Break all connections the node has, remove it from this
+        remove_node(node: Node): Break all connections the node has, remove_node it from this
          subgraph, and set its parent to `None`.
         (de)activate_strict_hints(): Recursively (de)activate strict type hints.
         replace(owned_node: Node | str, replacement: Node | type[Node]): Replaces an
@@ -370,7 +370,7 @@ class Composite(Node, ABC):
             )
             del self.nodes[node.label]
 
-    def remove(self, node: Node | str) -> list[tuple[Channel, Channel]]:
+    def remove_node(self, node: Node | str) -> list[tuple[Channel, Channel]]:
         """
         Remove a node from the `nodes` collection, disconnecting it and setting its
         `parent` to None.
@@ -443,7 +443,7 @@ class Composite(Node, ABC):
         # first guaranteed to be an unconnected orphan, there is not yet any permanent
         # damage
         is_starting_node = owned_node in self.starting_nodes
-        self.remove(owned_node)
+        self.remove_node(owned_node)
         replacement.label, owned_node.label = owned_node.label, replacement.label
         self.add_node(replacement)
         if is_starting_node:

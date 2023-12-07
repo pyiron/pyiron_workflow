@@ -138,7 +138,7 @@ class TestComposite(unittest.TestCase):
         # Connect it inside the composite
         self.comp.foo.inputs.x = self.comp.owned.outputs.y
 
-        disconnected = self.comp.remove(node)
+        disconnected = self.comp.remove_node(node)
         self.assertIsNone(node.parent, msg="Removal should de-parent")
         self.assertFalse(node.connected, msg="Removal should disconnect")
         self.assertListEqual(
@@ -153,7 +153,7 @@ class TestComposite(unittest.TestCase):
         )
 
         node_owned = self.comp.owned
-        disconnections = self.comp.remove(node_owned.label)
+        disconnections = self.comp.remove_node(node_owned.label)
         self.assertEqual(
             node_owned.parent,
             None,
@@ -227,7 +227,7 @@ class TestComposite(unittest.TestCase):
         comp2 = AComposite("two")
         with self.assertRaises(ValueError, msg="Can't belong to two parents"):
             comp2.add_node(node2)
-        comp1.remove(node2)
+        comp1.remove_node(node2)
         comp2.add_node(node2)
         self.assertEqual(
             node2.parent,
@@ -347,7 +347,7 @@ class TestComposite(unittest.TestCase):
             ):
                 self.comp.replace(self.comp.n1, another_node)
 
-            another_comp.remove(another_node)
+            another_comp.remove_node(another_node)
             another_node.inputs.x = replacement.outputs.y
             with self.assertRaises(
                 ValueError,
