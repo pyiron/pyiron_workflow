@@ -112,16 +112,16 @@ class TestTopology(unittest.TestCase):
             random.seed(0)
 
             @Workflow.wrap_as.single_value_node("random")
-            def random_float() -> float:
+            def RandomFloat() -> float:
                 return random.random()
 
             @Workflow.wrap_as.single_value_node("gt")
-            def greater_than(x: float, threshold: float):
+            def GreaterThan(x: float, threshold: float):
                 return x > threshold
 
             RandomWhile = Workflow.create.meta.while_loop(
-                loop_body_class=random_float,
-                condition_class=greater_than,
+                loop_body_class=RandomFloat,
+                condition_class=GreaterThan,
                 internal_connection_map=[
                     ("RandomFloat", "random", "GreaterThan", "x")
                 ],
@@ -148,16 +148,16 @@ class TestTopology(unittest.TestCase):
         with self.subTest("Self-data-loop"):
 
             @Workflow.wrap_as.single_value_node()
-            def add(a, b):
+            def Add(a, b):
                 return a + b
 
             @Workflow.wrap_as.single_value_node()
-            def less_than_ten(value):
+            def LessThanTen(value):
                 return value < 10
 
             AddWhile = Workflow.create.meta.while_loop(
-                loop_body_class=add,
-                condition_class=less_than_ten,
+                loop_body_class=Add,
+                condition_class=LessThanTen,
                 internal_connection_map=[
                     ("Add", "a + b", "LessThanTen", "value"),
                     ("Add", "a + b", "Add", "a")

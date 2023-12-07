@@ -14,10 +14,11 @@ from pyiron_workflow.function import function_node, single_value_node
 
 
 Bulk = single_value_node("structure")(_StructureFactory().bulk)
+Bulk.__name__ = "Bulk"
 
 
 @single_value_node("job")
-def lammps(structure: Optional[Atoms] = None) -> LammpsJob:
+def Lammps(structure: Optional[Atoms] = None) -> LammpsJob:
     pr = Project(".")
     job = pr.atomistics.job.Lammps("NOTAREALNAME")
     job.structure = structure if structure is not None else _StructureFactory().bulk()
@@ -98,7 +99,7 @@ def _run_and_remove_job(job, modifier: Optional[callable] = None, **modifier_kwa
     "unwrapped_positions",
     "volume",
 )
-def calc_static(
+def CalcStatic(
     job: AtomisticGenericJob,
 ):
     return _run_and_remove_job(job=job)
@@ -120,7 +121,7 @@ def calc_static(
     "unwrapped_positions",
     "volume",
 )
-def calc_md(
+def CalcMd(
     job: AtomisticGenericJob,
     n_ionic_steps: int = 1000,
     n_print: int = 100,
@@ -164,7 +165,7 @@ def calc_md(
     "unwrapped_positions",
     "volume",
 )
-def calc_min(
+def CalcMin(
     job: AtomisticGenericJob,
     n_ionic_steps: int = 1000,
     n_print: int = 100,
@@ -192,8 +193,8 @@ def calc_min(
 
 nodes = [
     Bulk,
-    calc_md,
-    calc_min,
-    calc_static,
-    lammps,
+    CalcMd,
+    CalcMin,
+    CalcStatic,
+    Lammps,
 ]

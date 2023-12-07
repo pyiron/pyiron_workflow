@@ -11,7 +11,7 @@ from pyiron_workflow.function import SingleValue, single_value_node
 
 
 @single_value_node()
-def user_input(user_input):
+def UserInput(user_input):
     return user_input
 
 
@@ -45,6 +45,6 @@ class If(SingleValue):
 
 
 nodes = [
-    user_input,
+    UserInput,
     If,
 ]

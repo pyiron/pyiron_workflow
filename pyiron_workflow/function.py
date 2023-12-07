@@ -662,7 +662,7 @@ def _wrapper_factory(
     # when (de)pickling so we can keep processing type hints without trouble.
     def as_node(node_function: callable):
         return type(
-            node_function.__name__.title().replace("_", ""),  # fnc_name to CamelCase
+            node_function.__name__,
             (parent_class,),  # Define parentage
             {
                 "__init__": partialmethod(

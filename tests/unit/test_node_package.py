@@ -5,23 +5,23 @@ from pyiron_workflow.function import function_node
 
 
 @function_node()
-def dummy(x: int = 0):
+def Dummy(x: int = 0):
     return x
 
 
 class TestNodePackage(unittest.TestCase):
     def setUp(self) -> None:
-        self.package = NodePackage(dummy)
+        self.package = NodePackage(Dummy)
 
     def test_init(self):
         self.assertTrue(
-            hasattr(self.package, dummy.__name__),
+            hasattr(self.package, Dummy.__name__),
             msg="Classes should be added at instantiation"
         )
 
     def test_access(self):
         node = self.package.Dummy()
-        self.assertIsInstance(node, dummy)
+        self.assertIsInstance(node, Dummy)
 
     def test_update(self):
         with self.assertRaises(KeyError):
@@ -46,11 +46,11 @@ class TestNodePackage(unittest.TestCase):
         old_dummy_instance = self.package.Dummy(label="old_dummy_instance")
 
         @function_node()
-        def dummy(x: int = 0):
+        def Dummy(x: int = 0):
             y = x + 1
             return y
 
-        self.package.update(dummy)
+        self.package.update(Dummy)
 
         self.assertEqual(len(self.package), 2, msg="Update should replace, not extend")
 

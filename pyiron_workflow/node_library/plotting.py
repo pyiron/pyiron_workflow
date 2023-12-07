@@ -12,7 +12,7 @@ from pyiron_workflow.function import single_value_node
 
 
 @single_value_node("fig")
-def scatter(
+def Scatter(
     x: Optional[list | np.ndarray] = None, y: Optional[list | np.ndarray] = None
 ):
     from matplotlib import pyplot as plt
@@ -21,5 +21,5 @@ def scatter(
 
 
 nodes = [
-    scatter,
+    Scatter,
 ]

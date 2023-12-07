@@ -76,12 +76,12 @@ def for_loop(
         >>> from pyiron_workflow.meta import for_loop
         >>>
         >>> @Workflow.wrap_as.single_value_node("div")
-        ... def divide(numerator, denominator):
+        ... def Divide(numerator, denominator):
         ...    return numerator / denominator
         >>>
         >>> denominators = list(range(1, 5))
         >>> bulk_loop = Workflow.create.meta.for_loop(
-        ...     divide,
+        ...     Divide,
         ...     len(denominators),
         ...     iterate_on = ("denominator",),
         ... )()
@@ -206,17 +206,17 @@ def while_loop(
         >>> from pyiron_workflow import Workflow
         >>>
         >>> @Workflow.wrap_as.single_value_node()
-        ... def add(a, b):
+        ... def Add(a, b):
         ...     print(f"{a} + {b} = {a + b}")
         ...     return a + b
         >>>
         >>> @Workflow.wrap_as.single_value_node()
-        ... def less_than_ten(value):
+        ... def LessThanTen(value):
         ...     return value < 10
         >>>
         >>> AddWhile = Workflow.create.meta.while_loop(
-        ...     loop_body_class=add,
-        ...     condition_class=less_than_ten,
+        ...     loop_body_class=Add,
+        ...     condition_class=LessThanTen,
         ...     internal_connection_map=[
         ...         ("Add", "a + b", "LessThanTen", "value"),
         ...         ("Add", "a + b", "Add", "a")
@@ -249,19 +249,19 @@ def while_loop(
         >>> random.seed(0)
         >>>
         >>> @Workflow.wrap_as.single_value_node("random")
-        ... def random_float():
+        ... def RandomFloat():
         ...     return random.random()
         >>>
         >>> @Workflow.wrap_as.single_value_node()
-        ... def greater_than(x: float, threshold: float):
+        ... def GreaterThan(x: float, threshold: float):
         ...     gt = x > threshold
         ...     symbol = ">" if gt else "<="
         ...     print(f"{x:.3f} {symbol} {threshold}")
         ...     return gt
         >>>
         >>> RandomWhile = Workflow.create.meta.while_loop(
-        ...     loop_body_class=random_float,
-        ...     condition_class=greater_than,
+        ...     loop_body_class=RandomFloat,
+        ...     condition_class=GreaterThan,
         ...     internal_connection_map=[("RandomFloat", "random", "GreaterThan", "x")],
         ...     outputs_map={"RandomFloat__random": "capped_result"}
         ... )
