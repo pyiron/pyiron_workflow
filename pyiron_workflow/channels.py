@@ -496,8 +496,8 @@ class SignalChannel(Channel, ABC):
 
     Inputs hold a callback function to call, and outputs call each of their connections.
 
-    Signal channels support `>` as syntactic sugar for their connections, i.e.
-    `some_output > some_input` is equivalent to `some_input.connect(some_output)`.
+    Signal channels support `>>` as syntactic sugar for their connections, i.e.
+    `some_output >> some_input` is equivalent to `some_input.connect(some_output)`.
     (This is also interoperable with `Node` objects, cf. the `Node` docs.)
     """
 
@@ -599,9 +599,9 @@ class OutputSignal(SignalChannel):
             f"{[f'{c.node.label}.{c.label}' for c in self.connections]}"
         )
 
-    def __gt__(self, other: InputSignal | Node):
+    def __rshift__(self, other: InputSignal | Node):
         other._connect_output_signal(self)
-        return True
+        return other
 
     def _connect_accumulating_input_signal(self, signal: AccumulatingInputSignal):
         self.connect(signal)

@@ -416,7 +416,7 @@ class TestComposite(unittest.TestCase):
         self.comp.create.SingleValue(plus_one, label="n1", x=0)
         self.comp.create.SingleValue(plus_one, label="n2", x=self.comp.n1)
         self.comp.create.SingleValue(plus_one, label="n3", x=42)
-        self.comp.n1 > self.comp.n2
+        self.comp.n1 >> self.comp.n2
         self.comp.starting_nodes = [self.comp.n1]
 
         self.comp.run()

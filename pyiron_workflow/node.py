@@ -735,12 +735,12 @@ class Node(HasToDict, ABC, metaclass=AbstractHasPost):
     def _connect_output_signal(self, signal: OutputSignal):
         self.signals.input.run.connect(signal)
 
-    def __gt__(self, other: InputSignal | Node):
+    def __rshift__(self, other: InputSignal | Node):
         """
-        Allows users to connect run and ran signals like: `first_node > second_node`.
+        Allows users to connect run and ran signals like: `first_node >> second_node`.
         """
         other._connect_output_signal(self.signals.output.ran)
-        return True
+        return other
 
     def _connect_accumulating_input_signal(self, signal: AccumulatingInputSignal):
         self.signals.output.ran.connect(signal)

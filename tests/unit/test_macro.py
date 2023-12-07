@@ -90,12 +90,12 @@ class TestMacro(unittest.TestCase):
 
         def fully_defined(macro):
             add_three_macro(macro)
-            macro.one > macro.two > macro.three
+            macro.one >> macro.two >> macro.three
             macro.starting_nodes = [macro.one]
 
         def only_order(macro):
             add_three_macro(macro)
-            macro.two > macro.three
+            macro.two >> macro.three
 
         def only_starting(macro):
             add_three_macro(macro)
@@ -198,7 +198,7 @@ class TestMacro(unittest.TestCase):
                 add_one,
                 x=macro.c.outputs.three__result,
             )
-            macro.a > macro.b > macro.c > macro.d
+            macro.a >> macro.b >> macro.c >> macro.d
             macro.starting_nodes = [macro.a]
             # This definition of the execution graph is not strictly necessary in this
             # simple DAG case; we just do it to make sure nesting definied/automatic
@@ -211,7 +211,7 @@ class TestMacro(unittest.TestCase):
     def test_with_executor(self):
         macro = Macro(add_three_macro)
         downstream = SingleValue(add_one, x=macro.outputs.three__result)
-        macro > downstream  # Manually specify since we'll run the macro but look
+        macro >> downstream  # Manually specify since we'll run the macro but look
         # at the downstream output, and none of this is happening in a workflow
 
         original_one = macro.one
@@ -314,7 +314,7 @@ class TestMacro(unittest.TestCase):
                 macro.one = SingleValue(add_one)
                 macro.two = SingleValue(add_one, x=macro.one)
                 macro.one.inputs.x = macro.two
-                macro.one > macro.two
+                macro.one >> macro.two
                 macro.starting_nodes = [macro.one]
                 # We need to manually specify execution since the data flow is cyclic
 
@@ -395,7 +395,7 @@ class TestMacro(unittest.TestCase):
             n1 = SingleValue(fail_at_zero, x=0)
             n2 = SingleValue(add_one, x=n1, label="n1")
             n_not_used = SingleValue(add_one)
-            n_not_used > n2  # Just here to make sure it gets restored
+            n_not_used >> n2  # Just here to make sure it gets restored
 
             with self.assertRaises(
                 ZeroDivisionError,

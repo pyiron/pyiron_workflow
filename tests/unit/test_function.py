@@ -89,7 +89,7 @@ class TestFunction(unittest.TestCase):
                 node.outputs.y,
                 msg="Should be able to make a connection at initialization"
             )
-            node > node2
+            node >> node2
             node.run()
             self.assertEqual(4, node2.outputs.y.value, msg="Initialize from connection")
 
@@ -318,7 +318,7 @@ class TestFunction(unittest.TestCase):
         upstream = Function(plus_one)
         to_copy = Function(plus_one, x=upstream.outputs.y)
         downstream = Function(plus_one, x=to_copy.outputs.y)
-        upstream > to_copy > downstream
+        upstream >> to_copy >> downstream
 
         wrong_io = Function(
             returns_multiple, x=upstream.outputs.y, y=upstream.outputs.y
@@ -549,7 +549,7 @@ class TestSingleValue(unittest.TestCase):
                 "output and another node's input by passing themselves"
         )
 
-        svn > regular
+        svn >> regular
         svn.run()
         self.assertEqual(
             regular.outputs.y.value, 3,

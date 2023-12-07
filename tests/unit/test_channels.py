@@ -374,7 +374,7 @@ class TestSignalChannels(unittest.TestCase):
 
         with self.subTest("Test syntactic sugar"):
             self.out.disconnect_all()
-            self.out > self.inp
+            self.out >> self.inp
             self.assertIn(self.out, self.inp.connections)
 
     def test_calls(self):

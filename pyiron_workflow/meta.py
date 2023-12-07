@@ -293,7 +293,7 @@ def while_loop(
         for out_n, out_c, in_n, in_c in internal_connection_map:
             macro.nodes[in_n].inputs[in_c] = macro.nodes[out_n].outputs[out_c]
 
-        switch.signals.output.true > body_node > condition_node > switch
+        switch.signals.output.true >> body_node >> condition_node >> switch
         macro.starting_nodes = [body_node]
 
         macro.inputs_map = {} if inputs_map is None else inputs_map
