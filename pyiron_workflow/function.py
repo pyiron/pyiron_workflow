@@ -616,8 +616,13 @@ class SingleValue(Function, HasChannel):
         """For drawing the graph"""
         return SeabornColors.cyan
 
-    def __getitem__(self, item):
-        return self.single_value.__getitem__(item)
+    def __repr__(self):
+        return self.single_value.__repr__()
+
+    def __str__(self):
+        return f"{self.label} ({self.__class__.__name__}) output single-value: " + str(
+            self.single_value
+        )
 
     def __getattr__(self, item):
         try:
@@ -628,13 +633,8 @@ class SingleValue(Function, HasChannel):
                 f"{self.single_value}"
             ) from e
 
-    def __repr__(self):
-        return self.single_value.__repr__()
-
-    def __str__(self):
-        return f"{self.label} ({self.__class__.__name__}) output single-value: " + str(
-            self.single_value
-        )
+    def __getitem__(self, item):
+        return self.single_value.__getitem__(item)
 
 
 def _wrapper_factory(
