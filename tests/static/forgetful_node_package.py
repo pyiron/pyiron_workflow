@@ -6,8 +6,8 @@ from pyiron_workflow import Workflow
 
 
 @Workflow.wrap_as.single_value_node("sum")
-def add(x: int, y: int) -> int:
+def Add(x: int, y: int) -> int:
     return x + y
 
 
-# nodes = [add]  # Oops, we "forgot" to populate a `nodes` list
+# nodes = [Add]  # Oops, we "forgot" to populate a `nodes` list
