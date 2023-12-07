@@ -389,7 +389,9 @@ class Composite(Node, ABC):
         del self.nodes[node.label]
         return disconnected
 
-    def replace_node(self, owned_node: Node | str, replacement: Node | type[Node]) -> Node:
+    def replace_node(
+        self, owned_node: Node | str, replacement: Node | type[Node]
+    ) -> Node:
         """
         Replaces a node currently owned with a new node instance.
         The replacement must not belong to any other parent or have any connections.
