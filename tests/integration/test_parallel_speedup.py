@@ -21,7 +21,7 @@ class TestParallelSpeedup(unittest.TestCase):
             wf.automate_execution = False
             return wf
 
-        t = 2
+        t = 2.5
 
         wf = make_workflow("serial")
         wf.a > wf.b > wf.c > wf.d
