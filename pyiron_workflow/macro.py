@@ -302,7 +302,7 @@ def macro_node(**node_class_kwargs):
 
     def as_node(graph_creator: callable[[Macro], None]):
         return type(
-            graph_creator.__name__
+            graph_creator.__name__,
             (Macro,),  # Define parentage
             {
                 "__init__": partialmethod(Macro.__init__, None, **node_class_kwargs),
