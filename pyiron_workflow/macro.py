@@ -162,7 +162,7 @@ class Macro(Composite):
         >>> # With the replace method
         >>> # (replacement target can be specified by label or instance,
         >>> # the replacing node can be specified by instance or class)
-        >>> replaced = adds_six_macro.replace(adds_six_macro.one, add_two())
+        >>> replaced = adds_six_macro.replace_node(adds_six_macro.one, add_two())
         >>> # With the replace_with method
         >>> adds_six_macro.two.replace_with(add_two())
         >>> # And by assignment of a compatible class to an occupied node label
