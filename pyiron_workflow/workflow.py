@@ -55,7 +55,7 @@ class Workflow(Composite):
         >>> from pyiron_workflow.workflow import Workflow
         >>>
         >>> @Workflow.wrap_as.single_value_node()
-        >>> def fnc(x=0):
+        ... def fnc(x=0):
         ...     return x + 1
         >>>
         >>> # (1) As *args at instantiation
