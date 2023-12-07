@@ -304,11 +304,13 @@ class Node(HasToDict, ABC, metaclass=AbstractHasPost):
         input_readiness = "\n".join(
             [f"{k} ready: {v.ready}" for k, v in self.inputs.items()]
         )
-        report = f"{self.label} readiness: {self.ready}\n" \
-                 f"STATE:\n" \
-                 f"running: {self.running}\n" \
-                 f"failed: {self.failed}\n" \
-                 f"INPUTS:\n" + input_readiness
+        report = (
+            f"{self.label} readiness: {self.ready}\n"
+            f"STATE:\n"
+            f"running: {self.running}\n"
+            f"failed: {self.failed}\n"
+            f"INPUTS:\n" + input_readiness
+        )
         return report
 
     def run(
