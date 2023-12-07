@@ -183,9 +183,6 @@ class Channel(HasChannel, HasToDict, ABC):
     def __iter__(self):
         return self.connections.__iter__()
 
-    def __len__(self):
-        return len(self.connections)
-
     @property
     def channel(self) -> Channel:
         return self
