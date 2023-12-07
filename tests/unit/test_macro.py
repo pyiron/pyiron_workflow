@@ -18,7 +18,7 @@ def add_one(x):
 def add_three_macro(macro):
     macro.one = SingleValue(add_one)
     SingleValue(add_one, macro.one, label="two", parent=macro)
-    macro.add(SingleValue(add_one, macro.two, label="three"))
+    macro.add_node(SingleValue(add_one, macro.two, label="three"))
     # Cover a handful of addition methods,
     # although these are more thoroughly tested in Workflow tests
 

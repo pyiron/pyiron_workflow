@@ -111,7 +111,7 @@ def for_loop(
         # Parallelize over body nodes
         for n in range(length):
             body_nodes.append(
-                macro.add(loop_body_class(label=f"{loop_body_class.__name__}_{n}"))
+                macro.add_node(loop_body_class(label=f"{loop_body_class.__name__}_{n}"))
             )
 
         # Make input interface
@@ -138,7 +138,10 @@ def for_loop(
             # Or distribute the same input to each node equally
             else:
                 interface = macro.create.standard.UserInput(
-                    label=label, output_labels=label, user_input=inp.default
+                    label=label,
+                    output_labels=label,
+                    user_input=inp.default,
+                    parent=macro,
                 )
                 for body_node in body_nodes:
                     body_node.inputs[label] = interface
@@ -285,9 +288,9 @@ def while_loop(
     """
 
     def make_loop(macro):
-        body_node = macro.add(loop_body_class(label=loop_body_class.__name__))
-        condition_node = macro.add(condition_class(label=condition_class.__name__))
-        switch = macro.create.standard.If(label="switch")
+        body_node = macro.add_node(loop_body_class(label=loop_body_class.__name__))
+        condition_node = macro.add_node(condition_class(label=condition_class.__name__))
+        switch = macro.create.standard.If(label="switch", parent=macro)
 
         switch.inputs.condition = condition_node
         for out_n, out_c, in_n, in_c in internal_connection_map:

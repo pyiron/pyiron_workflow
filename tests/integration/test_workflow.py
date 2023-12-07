@@ -191,7 +191,7 @@ class TestTopology(unittest.TestCase):
         C.f. `pyiron_workflow.function._wrapper_factory` for more detail.
         """
         wf = Workflow("depickle")
-        wf.create.register("demo", "static.demo_nodes")
+        wf.register("demo", "static.demo_nodes")
 
         wf.before_pickling = wf.create.demo.OptionallyAdd(1)
         wf.before_pickling.executor = wf.create.Executor()

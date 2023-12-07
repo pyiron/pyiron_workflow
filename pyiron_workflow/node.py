@@ -234,7 +234,7 @@ class Node(HasToDict, ABC, metaclass=AbstractHasPost):
         self.label: str = label
         self._parent = None
         if parent is not None:
-            parent.add(self)
+            parent.add_node(self)
         self.running = False
         self.failed = False
         self.signals = self._build_signal_channels()
@@ -900,7 +900,7 @@ class Node(HasToDict, ABC, metaclass=AbstractHasPost):
 
     def replace_with(self, other: Node | type[Node]):
         """
-        If this node has a parent, invokes `self.parent.replace(self, other)` to swap
+        If this node has a parent, invokes `self.parent.replace_node(self, other)` to swap
         out this node for the other node in the parent graph.
 
         The replacement must have fully compatible IO, i.e. its IO must be a superset of
@@ -912,9 +912,9 @@ class Node(HasToDict, ABC, metaclass=AbstractHasPost):
             other (Node|type[Node]): The replacement.
         """
         if self.parent is not None:
-            self.parent.replace(self, other)
+            self.parent.replace_node(self, other)
         else:
-            warnings.warn(f"Could not replace {self.label}, as it has no parent.")
+            warnings.warn(f"Could not replace_node {self.label}, as it has no parent.")
 
     def __getstate__(self):
         state = self.__dict__
