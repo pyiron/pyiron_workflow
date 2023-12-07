@@ -1,20 +1,20 @@
 from pyiron_workflow.macro import Macro, macro_node
-from pyiron_workflow.node_library.atomistics.calculator import calc_with_calculator
+from pyiron_workflow.node_library.atomistics.calculator import CalcWithCalculator
 from pyiron_workflow.node_library.atomistics.task import (
-    elastic_matrix_task_generator,
-    evcurve_task_generator,
-    phonons_task_generator,
-    analyse_structures,
-    generate_structures,
+    ElasticMatrixTaskGenerator,
+    EvcurveTaskGenerator,
+    PhononsTaskGenerator,
+    AnalyseStructures,
+    GenerateStructures,
 )
 
 
 def atomistics_meta_macro(task_generator_node_class, macro_name) -> type[Macro]:
     def generic_macro(wf: Macro) -> None:
         wf.tasks = task_generator_node_class()
-        wf.structures = generate_structures(instance=wf.tasks)
-        wf.calc = calc_with_calculator(task_dict=wf.structures)
-        wf.fit = analyse_structures(instance=wf.tasks, output_dict=wf.calc)
+        wf.structures = GenerateStructures(instance=wf.tasks)
+        wf.calc = CalcWithCalculator(task_dict=wf.structures)
+        wf.fit = AnalyseStructures(instance=wf.tasks, output_dict=wf.calc)
         inputs_map = {
             # Dynamically expose _all_ task generator input directly on the macro
             "tasks__" + s: s
@@ -29,19 +29,19 @@ def atomistics_meta_macro(task_generator_node_class, macro_name) -> type[Macro]:
     return macro_node()(generic_macro)
 
 
-elastic_matrix = atomistics_meta_macro(elastic_matrix_task_generator, "elastic_matrix")
+ElasticMatrix = atomistics_meta_macro(ElasticMatrixTaskGenerator, "ElasticMatrix")
 
 
-energy_volume_curve = atomistics_meta_macro(
-    evcurve_task_generator,
-    "energy_volume_curve",
+EnergyVolumeCurve = atomistics_meta_macro(
+    EvcurveTaskGenerator,
+    "EnergyVolumeCurve",
 )
 
-phonons = atomistics_meta_macro(phonons_task_generator, "phonons")
+Phonons = atomistics_meta_macro(PhononsTaskGenerator, "Phonons")
 
 
 nodes = [
-    elastic_matrix,
-    energy_volume_curve,
-    phonons,
+    ElasticMatrix,
+    EnergyVolumeCurve,
+    Phonons,
 ]
