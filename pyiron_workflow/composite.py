@@ -256,11 +256,9 @@ class Composite(Node, ABC):
         io = Inputs() if i_or_o == "inputs" else Outputs()
         for node in self.nodes.values():
             panel = getattr(node, i_or_o)
-            for channel_label in panel.labels:
-                channel = panel[channel_label]
-                default_key = f"{node.label}__{channel_label}"
+            for channel in panel:
                 try:
-                    io_panel_key = key_map[default_key]
+                    io_panel_key = key_map[channel.scoped_label]
                     if not isinstance(io_panel_key, tuple):
                         # Tuples indicate that the channel has been deactivated
                         io[io_panel_key] = self._get_linking_channel(
@@ -268,8 +266,8 @@ class Composite(Node, ABC):
                         )
                 except KeyError:
                     if not channel.connected:
-                        io[default_key] = self._get_linking_channel(
-                            channel, default_key
+                        io[channel.scoped_label] = self._get_linking_channel(
+                            channel, channel.scoped_label
                         )
         return io
 
