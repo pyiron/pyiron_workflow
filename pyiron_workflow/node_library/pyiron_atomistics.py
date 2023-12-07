@@ -14,6 +14,7 @@ from pyiron_workflow.function import function_node, single_value_node
 
 
 Bulk = single_value_node("structure")(_StructureFactory().bulk)
+Bulk.__name__ = "Bulk"
 
 
 @single_value_node("job")
