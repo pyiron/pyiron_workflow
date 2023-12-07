@@ -271,10 +271,9 @@ class Function(Node):
         >>>
         >>> adder = adder_node()
         >>> alpha = AlphabetModThree(i=adder.outputs.sum)
-        >>> adder >> alpha  # Ignore output, this is just because we need it to chain
-        True
-
-        >>>
+        >>> _ = adder >> alpha
+        >>> # We catch and ignore output -- it's needed for chaining, but screws up
+        >>> # doctests -- you don't normally need to catch it like this!
         >>> out = adder.run(x=1)
         >>> print(alpha.outputs.letter)
         b

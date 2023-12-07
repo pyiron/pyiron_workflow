@@ -138,9 +138,9 @@ class Macro(Composite):
         signals, but beyond that the code doesn't hold our hands.
         Let's use this and then observe how the `a` sub-node no longer gets run:
         >>> m.starting_nodes = [m.b]  # At least one starting node
-        >>> m.b >> m.c  # At least one run signal (ignore output, it's for chaining)
-        True
-
+        >>> _ = m.b >> m.c  # At least one run signal
+        >>> # We catch and ignore output -- it's needed for chaining, but screws up
+        >>> # doctests -- you don't normally need to catch it like this!
         >>> m(a__x=1000, b__x=2000, c__x=3000)
         {'a__result': 2, 'b__result': 2001, 'c__result': 3001}
 
