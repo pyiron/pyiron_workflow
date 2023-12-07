@@ -216,17 +216,17 @@ def while_loop(
         >>>
         >>> AddWhile = Workflow.create.meta.while_loop(
         ...     loop_body_class=Add,
-        ...     condition_class=LessThanTen,
+        ...     condition_class=Workflow.create.standard.LessThan,
         ...     internal_connection_map=[
-        ...         ("Add", "a + b", "LessThanTen", "value"),
+        ...         ("Add", "a + b", "LessThan", "obj"),
         ...         ("Add", "a + b", "Add", "a")
         ...     ],
-        ...     inputs_map={"Add__a": "a", "Add__b": "b"},
+        ...     inputs_map={"Add__a": "a", "Add__b": "b", "LessThan__other": "cap"},
         ...     outputs_map={"Add__a + b": "total"}
         ... )
         >>>
         >>> wf = Workflow("do_while")
-        >>> wf.add_while = AddWhile()
+        >>> wf.add_while = AddWhile(cap=10)
         >>>
         >>> wf.inputs_map = {
         ...     "add_while__a": "a",
