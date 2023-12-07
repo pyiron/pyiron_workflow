@@ -22,9 +22,9 @@ class TestWorkflow(unittest.TestCase):
 
     def test_io(self):
         wf = Workflow("wf")
-        wf.create.Function(plus_one, label="n1")
-        wf.create.Function(plus_one, label="n2")
-        wf.create.Function(plus_one, label="n3")
+        wf.n1 = wf.create.Function(plus_one)
+        wf.n2 = wf.create.Function(plus_one)
+        wf.n3 = wf.create.Function(plus_one)
 
         inp = wf.inputs
         inp_again = wf.inputs
@@ -34,7 +34,7 @@ class TestWorkflow(unittest.TestCase):
 
         n_in = len(wf.inputs)
         n_out = len(wf.outputs)
-        wf.create.Function(plus_one, label="n4")
+        wf.n4 = wf.create.Function(plus_one)
         self.assertEqual(
             n_in + 1, len(wf.inputs), msg="Workflow IO should be drawn from its nodes"
         )

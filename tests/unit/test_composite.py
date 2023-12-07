@@ -69,37 +69,37 @@ class TestComposite(unittest.TestCase):
         self.comp.register("demo", "static.demo_nodes")
 
         # Test invocation
-        self.comp.create.demo.OptionallyAdd(label="by_add")
+        self.comp.add(self.comp.create.demo.OptionallyAdd(label="by_add"))
         # Test invocation with attribute assignment
         self.comp.by_assignment = self.comp.create.demo.OptionallyAdd()
-        node = AComposite.create.demo.OptionallyAdd()
+        node = self.comp.create.demo.OptionallyAdd()
 
         self.assertSetEqual(
             set(self.comp.nodes.keys()),
             set(["by_add", "by_assignment"]),
-            msg=f"Expected one node label generated automatically from the class and "
-                f"the other from the attribute assignment, but got {self.comp.nodes.keys()}"
+            msg=f"Expected one node label generated automatically from the add call "
+                f"and the other from the attribute assignment, but got "
+                f"{self.comp.nodes.keys()}"
         )
         self.assertIsNone(
             node.parent,
-            msg="Creating from the class directly should not parent the created nodes"
+            msg="Just creating should not parent the created nodes"
         )
 
     def test_node_addition(self):
         # Validate the four ways to add a node
         self.comp.add(Composite.create.Function(plus_one, label="foo"))
-        self.comp.create.Function(plus_one, label="bar")
         self.comp.baz = self.comp.create.Function(plus_one, label="whatever_baz_gets_used")
         Composite.create.Function(plus_one, label="qux", parent=self.comp)
         self.assertListEqual(
             list(self.comp.nodes.keys()),
-            ["foo", "bar", "baz", "qux"],
+            ["foo", "baz", "qux"],
             msg="Expected every above syntax to add a node OK"
         )
         self.comp.boa = self.comp.qux
         self.assertListEqual(
             list(self.comp.nodes.keys()),
-            ["foo", "bar", "baz", "boa"],
+            ["foo", "baz", "boa"],
             msg="Reassignment should remove the original instance"
         )
                 
@@ -173,9 +173,6 @@ class TestComposite(unittest.TestCase):
         with self.assertRaises(AttributeError, msg="We have 'foo' at home"):
             self.comp.add(self.comp.create.Function(plus_one, label="foo"))
 
-        with self.assertRaises(AttributeError, msg="We have 'foo' at home"):
-            self.comp.create.Function(plus_one, label="foo")
-
         with self.assertRaises(
             AttributeError,
             msg="The provided label is ok, but then assigning to baz should give "
@@ -221,8 +218,8 @@ class TestComposite(unittest.TestCase):
 
     def test_singular_ownership(self):
         comp1 = AComposite("one")
-        comp1.create.Function(plus_one, label="node1")
-        node2 = AComposite.create.Function(
+        comp1.node1 = comp1.create.Function(plus_one)
+        node2 = comp1.create.Function(
             plus_one, label="node2", parent=comp1, x=comp1.node1.outputs.y
         )
         self.assertTrue(node2.connected, msg="Sanity check that node connection works")
@@ -413,9 +410,9 @@ class TestComposite(unittest.TestCase):
         )
 
     def test_run(self):
-        self.comp.create.SingleValue(plus_one, label="n1", x=0)
-        self.comp.create.SingleValue(plus_one, label="n2", x=self.comp.n1)
-        self.comp.create.SingleValue(plus_one, label="n3", x=42)
+        self.comp.n1 = self.comp.create.SingleValue(plus_one, x=0)
+        self.comp.n2 = self.comp.create.SingleValue(plus_one, x=self.comp.n1)
+        self.comp.n3 = self.comp.create.SingleValue(plus_one, x=42)
         self.comp.n1 >> self.comp.n2
         self.comp.starting_nodes = [self.comp.n1]
 
@@ -433,9 +430,9 @@ class TestComposite(unittest.TestCase):
 
     def test_set_run_signals_to_dag(self):
         # Like the run test, but manually invoking this first
-        self.comp.create.SingleValue(plus_one, label="n1", x=0)
-        self.comp.create.SingleValue(plus_one, label="n2", x=self.comp.n1)
-        self.comp.create.SingleValue(plus_one, label="n3", x=42)
+        self.comp.n1 = self.comp.create.SingleValue(plus_one, x=0)
+        self.comp.n2 = self.comp.create.SingleValue(plus_one, x=self.comp.n1)
+        self.comp.n3 = self.comp.create.SingleValue(plus_one, x=42)
         self.comp.set_run_signals_to_dag_execution()
         self.comp.run()
         self.assertEqual(
@@ -465,7 +462,7 @@ class TestComposite(unittest.TestCase):
         self.comp.n1 = Composite.create.SingleValue(plus_one, x=0)
         not_dottable_string = "can't dot this"
         not_dottable_name_node = self.comp.create.SingleValue(
-            plus_one, x=42, label=not_dottable_string
+            plus_one, x=42, label=not_dottable_string, parent=self.comp
         )
         self.comp.starting_nodes = [self.comp.n1, not_dottable_name_node]
         out = self.comp.run()
