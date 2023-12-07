@@ -261,6 +261,8 @@ class Composite(Node, ABC):
                     io_panel_key = key_map[channel.scoped_label]
                     if not isinstance(io_panel_key, tuple):
                         # Tuples indicate that the channel has been deactivated
+                        # This is a necessary misdirection to keep the bidict working,
+                        # as we can't simply map _multiple_ keys to `None`
                         io[io_panel_key] = self._get_linking_channel(
                             channel, io_panel_key
                         )
