@@ -123,14 +123,14 @@ def Length(obj):
     return len(obj)
 
 
-@single_value_node("add")
-def Add(obj, other):
-    return obj + other
-
-
 @single_value_node("in")
 def Contains(obj, other):
     return other in obj
+
+
+@single_value_node("add")
+def Add(obj, other):
+    return obj + other
 
 
 @single_value_node("sub")
