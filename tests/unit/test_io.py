@@ -64,7 +64,7 @@ class TestDataIO(unittest.TestCase):
 
     def test_connection(self):
         with self.assertRaises(
-            ChannelConnectionError,
+            TypeError,
             msg="Shouldn't be allowed to connect two inputs"
         ):
             self.input.x = self.input.y

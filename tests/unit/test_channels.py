@@ -16,30 +16,32 @@ class DummyNode:
         self.foo.append(self.foo[-1] + 1)
 
 
+class InputChannel(Channel):
+    """Just to de-abstract the base class"""
+    def __str__(self):
+        return "non-abstract input"
+
+    @property
+    def connection_partner_type(self) -> type[Channel]:
+        return OutputChannel
+
+
+class OutputChannel(Channel):
+    """Just to de-abstract the base class"""
+    def __str__(self):
+        return "non-abstract output"
+
+    @property
+    def connection_partner_type(self) -> type[Channel]:
+        return InputChannel
+
+
 class TestChannel(unittest.TestCase):
 
-    class InputChannel(Channel):
-        """Just to de-abstract the base class"""
-        def __str__(self):
-            return "non-abstract input"
-
-        @property
-        def generic_type(self) -> type[Channel]:
-            return Channel
-
-    class OutputChannel(Channel):
-        """Just to de-abstract the base class"""
-        def __str__(self):
-            return "non-abstract output"
-
-        @property
-        def generic_type(self) -> type[Channel]:
-            return Channel
-
     def setUp(self) -> None:
-        self.inp = self.InputChannel("inp", DummyNode())
-        self.out = self.OutputChannel("out", DummyNode())
-        self.out2 = self.OutputChannel("out2", DummyNode())
+        self.inp = InputChannel("inp", DummyNode())
+        self.out = OutputChannel("out", DummyNode())
+        self.out2 = OutputChannel("out2", DummyNode())
 
     def test_connection_validity(self):
         with self.assertRaises(
@@ -49,10 +51,10 @@ class TestChannel(unittest.TestCase):
             self.inp.connect("not a node")
 
         with self.assertRaises(
-            ChannelConnectionError,
-            msg="Can't connect non-conjugate pairs"
+            TypeError,
+            msg="Can't connect to channels that are not the partner type"
         ):
-            self.inp.connect(self.InputChannel("also_input", DummyNode()))
+            self.inp.connect(InputChannel("also_input", DummyNode()))
 
         self.inp.connect(self.out)
         # A conjugate pair should work fine
