@@ -230,6 +230,7 @@ nodes = [
     Float,
     FloorDivide,
     GetAttr,
+    GetItem,
     GreaterThan,
     GreaterThanEquals,
     Hash,
