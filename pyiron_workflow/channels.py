@@ -511,7 +511,7 @@ class OutputData(DataChannel):
         suffix = f"_{other_labels}" if len(args) > 0 else ""
         return f"{self.scoped_label}_{injection_class.__name__}{suffix}"
 
-    def _node_injection(self, injection_class, *args):
+    def _node_injection(self, injection_class, *args, inject_self=True):
         """
         Create a new node with the same parent as this channel's node, and feed it
         arguments, or load such a node if it already exists on the parent (based on a
@@ -520,6 +520,8 @@ class OutputData(DataChannel):
         Args:
             injection_class (type[Node]): The new node class to instantiate
             *args: Any arguments for that function node
+            inject_self (bool): Whether to pre-pend the args with self. (Default is
+                True.)
 
         Returns:
             (Node): The instantiated or loaded node.
@@ -530,8 +532,9 @@ class OutputData(DataChannel):
             return self.node.parent.nodes[label]
         except (AttributeError, KeyError):
             # Fall back on creating a new node in case parent is None or node nexists
+            node_args = (self, *args) if inject_self else args
             return injection_class(
-                self, *args, parent=self.node.parent, label=label, run_after_init=True
+                *node_args, parent=self.node.parent, label=label
             )
 
     # We don't wrap __all__ the operators, because you might really want the string or
