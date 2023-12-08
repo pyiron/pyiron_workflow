@@ -46,6 +46,24 @@ class If(SingleValue):
             self.signals.output.false()
 
 
+@single_value_node("slice")
+def Slice(start=None, stop=None, step=None):
+    if start is None:
+        if stop is None:
+            raise ValueError(
+                "Slice must define at least start or stop, but both are None"
+            )
+        elif step is not None:
+            raise ValueError("If step is provided, start _must_ be provided")
+        else:
+            s = slice(stop)
+    elif stop is None:
+        raise ValueError("If start is provided, stop _must_ be provided")
+    else:
+        s = slice(start, stop, step)
+    return s
+
+
 # A bunch of (but not all) standard operators
 # Return values based on dunder methods, where available
 
@@ -248,6 +266,7 @@ nodes = [
     Positive,
     Power,
     Round,
+    Slice,
     String,
     Subtract,
     UserInput,
