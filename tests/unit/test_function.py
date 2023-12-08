@@ -480,31 +480,42 @@ class TestSingleValue(unittest.TestCase):
             return Foo()
 
         svn = SingleValue(returns_foo, output_labels="foo")
-        svn.run()
-
-        self.assertEqual(
-            svn.some_attribute,
-            "exists",
-            msg="Should fall back to looking on the single value"
-        )
 
         self.assertEqual(
             svn.connected,
             False,
-            msg="Should return the _node_ attribute, not the single value attribute"
+            msg="Should return the _node_ attribute, not acting on the output channel"
         )
 
-        with self.assertRaises(AttributeError):
+        injection = svn[0]  # Should pass cleanly, even though it tries to run
+        svn.run()
+
+        self.assertEqual(
+            svn.some_attribute.value,  # The call runs the dynamic node
+            "exists",
+            msg="Should fall back to acting on the output channel and creating a node"
+        )
+
+        self.assertEqual(
+            svn.connected,
+            True,
+            msg="Should now be connected to the dynamically created nodes"
+        )
+
+        with self.assertRaises(
+            AttributeError,
+            msg="Aggressive running hits the problem that no such attribute exists"
+        ):
             svn.doesnt_exists_anywhere
 
         self.assertEqual(
-            svn[0],
+            injection(),
             True,
-            msg="Should fall back to looking on the single value"
+            msg="Should be able to query injection later"
         )
 
         self.assertEqual(
-            svn["some other key"],
+            svn["some other key"].value,
             False,
             msg="Should fall back to looking on the single value"
         )
@@ -531,7 +542,7 @@ class TestSingleValue(unittest.TestCase):
         svn = SingleValue(plus_one)
         svn.run()
         self.assertTrue(
-            str(svn).endswith(str(svn.single_value)),
+            str(svn).endswith(str(svn.value)),
             msg="SingleValueNodes should have their output as a string in their string "
                 "representation (e.g., perhaps with a reminder note that this is "
                 "actually still a Function and not just the value you're seeing.)"

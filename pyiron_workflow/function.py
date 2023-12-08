@@ -582,13 +582,15 @@ class SingleValue(Function, HasChannel):
     """
     A node that _must_ return only a single value.
 
-    Attribute and item access is modified to finally attempt access on the output value.
-    Note that this means any attributes/method available on the output value become
-    available directly at the node level (at least those which don't conflict with the
-    existing node namespace).
+    Attribute and item access is modified to finally attempt access on the output
+    channel, and other operations (those supported by the output channel) are also
+    passed there automatically.
+    This means that the node itself can be used in place of its output channel,
+    and that the `value` attribtue directly accesses the output value.
 
     Promises (in addition parent class promises):
-    - Attribute and item access will finally attempt to access the output value
+    - Attribute and item access will finally attempt to access the output
+    - Other operators supported by the output channel operate there immediately.
     - The entire node can be used in place of its output value for connections, e.g.
         `some_node.input.some_channel = my_svn_instance`.
     """
@@ -603,8 +605,8 @@ class SingleValue(Function, HasChannel):
         return output_labels
 
     @property
-    def single_value(self):
-        return self.outputs[self.outputs.labels[0]].value
+    def output(self) -> OutputData:
+        return self.outputs[self.outputs.labels[0]]
 
     @property
     def channel(self) -> OutputData:
@@ -617,24 +619,87 @@ class SingleValue(Function, HasChannel):
         return SeabornColors.cyan
 
     def __repr__(self):
-        return self.single_value.__repr__()
+        return self.output.value.__repr__()
 
     def __str__(self):
         return f"{self.label} ({self.__class__.__name__}) output single-value: " + str(
-            self.single_value
+            self.output.value
         )
 
     def __getattr__(self, item):
-        try:
-            return getattr(self.single_value, item)
-        except Exception as e:
-            raise AttributeError(
-                f"Could not find {item} as an attribute of the single value "
-                f"{self.single_value}"
-            ) from e
+        return getattr(self.output, item)
 
     def __getitem__(self, item):
-        return self.single_value.__getitem__(item)
+        return self.output.__getitem__(item)
+
+    def __lt__(self, other):
+        return self.output.__lt__(other)
+
+    def __le__(self, other):
+        return self.output.__le__(other)
+
+    def __gt__(self, other):
+        return self.output.__gt__(other)
+
+    def __ge__(self, other):
+        return self.output.__ge__(other)
+
+    def __bool__(self):
+        return self.output.__bool__()
+
+    def __len__(self):
+        return self.output.__len__()
+
+    def __contains__(self, other):
+        return self.output.__contains__(other)
+
+    def __add__(self, other):
+        return self.output.__add__(other)
+
+    def __sub__(self, other):
+        return self.output.__sub__(other)
+
+    def __matmul__(self, other):
+        return self.output.__matmul__(other)
+
+    def __truediv__(self, other):
+        return self.output.__truediv__(other)
+
+    def __floordiv__(self, other):
+        return self.output.__floordiv__(other)
+
+    def __mod__(self, other):
+        return self.output.__mod__(other)
+
+    def __pow__(self, other):
+        return self.output.__pow__(other)
+
+    def __and__(self, other):
+        return self.output.__and__(other)
+
+    def __xor__(self, other):
+        return self.output.__xor__(other)
+
+    def __or__(self, other):
+        return self.output.__or__(other)
+
+    def __neg__(self):
+        return self.output.__neg__()
+
+    def __pos__(self):
+        return self.output.__pos__()
+
+    def __abs__(self):
+        return self.output.__abs__()
+
+    def __int__(self):
+        return self.output.__int__()
+
+    def __float__(self):
+        return self.output.__float__()
+
+    def __round__(self):
+        return self.output.__round__()
 
 
 def _wrapper_factory(
