@@ -602,16 +602,12 @@ class SingleValue(Function, HasChannel):
                 f"{self.__class__.__name__} must only have a single return value, but "
                 f"got multiple output labels: {output_labels}"
             )
-        return output_labels
-
-    @property
-    def output(self) -> OutputData:
-        return self.outputs[self.outputs.labels[0]]
+        return output_labels 
 
     @property
     def channel(self) -> OutputData:
         """The channel for the single output"""
-        return list(self.outputs.channel_dict.values())[0]
+        return self.outputs[self.outputs.labels[0]]
 
     @property
     def color(self) -> str:
@@ -619,87 +615,87 @@ class SingleValue(Function, HasChannel):
         return SeabornColors.cyan
 
     def __repr__(self):
-        return self.output.value.__repr__()
+        return self.channel.value.__repr__()
 
     def __str__(self):
         return f"{self.label} ({self.__class__.__name__}) output single-value: " + str(
-            self.output.value
+            self.channel.value
         )
 
     def __getattr__(self, item):
-        return getattr(self.output, item)
+        return getattr(self.channel, item)
 
     def __getitem__(self, item):
-        return self.output.__getitem__(item)
+        return self.channel.__getitem__(item)
 
     def __lt__(self, other):
-        return self.output.__lt__(other)
+        return self.channel.__lt__(other)
 
     def __le__(self, other):
-        return self.output.__le__(other)
+        return self.channel.__le__(other)
 
     def __gt__(self, other):
-        return self.output.__gt__(other)
+        return self.channel.__gt__(other)
 
     def __ge__(self, other):
-        return self.output.__ge__(other)
+        return self.channel.__ge__(other)
 
     def __bool__(self):
-        return self.output.__bool__()
+        return self.channel.__bool__()
 
     def __len__(self):
-        return self.output.__len__()
+        return self.channel.__len__()
 
     def __contains__(self, other):
-        return self.output.__contains__(other)
+        return self.channel.__contains__(other)
 
     def __add__(self, other):
-        return self.output.__add__(other)
+        return self.channel.__add__(other)
 
     def __sub__(self, other):
-        return self.output.__sub__(other)
+        return self.channel.__sub__(other)
 
     def __matmul__(self, other):
-        return self.output.__matmul__(other)
+        return self.channel.__matmul__(other)
 
     def __truediv__(self, other):
-        return self.output.__truediv__(other)
+        return self.channel.__truediv__(other)
 
     def __floordiv__(self, other):
-        return self.output.__floordiv__(other)
+        return self.channel.__floordiv__(other)
 
     def __mod__(self, other):
-        return self.output.__mod__(other)
+        return self.channel.__mod__(other)
 
     def __pow__(self, other):
-        return self.output.__pow__(other)
+        return self.channel.__pow__(other)
 
     def __and__(self, other):
-        return self.output.__and__(other)
+        return self.channel.__and__(other)
 
     def __xor__(self, other):
-        return self.output.__xor__(other)
+        return self.channel.__xor__(other)
 
     def __or__(self, other):
-        return self.output.__or__(other)
+        return self.channel.__or__(other)
 
     def __neg__(self):
-        return self.output.__neg__()
+        return self.channel.__neg__()
 
     def __pos__(self):
-        return self.output.__pos__()
+        return self.channel.__pos__()
 
     def __abs__(self):
-        return self.output.__abs__()
+        return self.channel.__abs__()
 
     def __int__(self):
-        return self.output.__int__()
+        return self.channel.__int__()
 
     def __float__(self):
-        return self.output.__float__()
+        return self.channel.__float__()
 
     def __round__(self):
-        return self.output.__round__()
+        return self.channel.__round__()
 
 
 def _wrapper_factory(
