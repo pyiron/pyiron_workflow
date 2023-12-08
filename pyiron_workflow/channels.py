@@ -506,30 +506,32 @@ class OutputData(DataChannel):
         suffix = f"_{self._other_label(other)}" if other is not None else ""
         return f"{self.scoped_label}_{injection_class.__name__}{suffix}"
 
-    def _binary_injection(self, injection_class, other):
-        """A template for injecting binary function nodes"""
-        label = self.get_injected_label(injection_class, other)
-        try:
-            # First check if the node already exists
-            return self.node.parent.nodes[label]
-        except (AttributeError, KeyError):
-            # Fall back on creating a new node in case parent is None or node nexists
-            return injection_class(
-                self, other, parent=self.node.parent, label=label, run_after_init=True
-            )
+    def _get_injection_label(self, injection_class, *args):
+        other_labels = "_".join(self._other_label(other) for other in args)
+        suffix = f"_{other_labels}" if len(args) > 0 else ""
+        return f"{self.scoped_label}_{injection_class.__name__}{suffix}"
 
-    def _unary_injection(self, injection_class):
-        """A template for injecting unary function nodes"""
-        # We can't just do an `if other is None` and combine this implementation with
-        # the binary, because users might pass `None` other data on purpose
-        label = self.get_injected_label(injection_class)
+    def _node_injection(self, injection_class, *args):
+        """
+        Create a new node with the same parent as this channel's node, and feed it
+        arguments, or load such a node if it already exists on the parent (based on a
+        name dynamically generated from the injected node class and arguments).
+
+        Args:
+            injection_class (type[Node]): The new node class to instantiate
+            *args: Any arguments for that function node
+
+        Returns:
+            (Node): The instantiated or loaded node.
+        """
+        label = self._get_injection_label(injection_class, *args)
         try:
             # First check if the node already exists
             return self.node.parent.nodes[label]
         except (AttributeError, KeyError):
             # Fall back on creating a new node in case parent is None or node nexists
             return injection_class(
-                self, parent=self.node.parent, label=label, run_after_init=True
+                self, *args, parent=self.node.parent, label=label, run_after_init=True
             )
 
     # We don't wrap __all__ the operators, because you might really want the string or
@@ -539,137 +541,136 @@ class OutputData(DataChannel):
     def __lt__(self, other):
         from pyiron_workflow.node_library.standard import LessThan
 
-        return self._binary_injection(LessThan, other)
+        return self._node_injection(LessThan, other)
 
     def __le__(self, other):
         from pyiron_workflow.node_library.standard import LessThanEquals
 
-        return self._binary_injection(LessThanEquals, other)
+        return self._node_injection(LessThanEquals, other)
 
     def __gt__(self, other):
         from pyiron_workflow.node_library.standard import GreaterThan
 
-        return self._binary_injection(GreaterThan, other)
+        return self._node_injection(GreaterThan, other)
 
     def __ge__(self, other):
         from pyiron_workflow.node_library.standard import GreaterThanEquals
 
-        return self._binary_injection(GreaterThanEquals, other)
+        return self._node_injection(GreaterThanEquals, other)
 
     def __bool__(self):
         from pyiron_workflow.node_library.standard import Bool
 
-        return self._unary_injection(Bool)
+        return self._node_injection(Bool)
 
     def __getattr__(self, name):
         from pyiron_workflow.node_library.standard import GetAttr
 
-        return self._binary_injection(GetAttr, name)
+        return self._node_injection(GetAttr, name)
 
     def __getitem__(self, item):
         from pyiron_workflow.node_library.standard import GetItem
-
-        return self._binary_injection(GetItem, item)
+        return self._node_injection(GetItem, item)
 
     def __len__(self):
         from pyiron_workflow.node_library.standard import Length
 
-        return self._unary_injection(Length)
+        return self._node_injection(Length)
 
     def __contains__(self, other):
         from pyiron_workflow.node_library.standard import Contains
 
-        return self._binary_injection(Contains, other)
+        return self._node_injection(Contains, other)
 
     def __add__(self, other):
         from pyiron_workflow.node_library.standard import Add
 
-        return self._binary_injection(Add, other)
+        return self._node_injection(Add, other)
 
     def __sub__(self, other):
         from pyiron_workflow.node_library.standard import Subtract
 
-        return self._binary_injection(Subtract, other)
+        return self._node_injection(Subtract, other)
 
     def __mul__(self, other):
         from pyiron_workflow.node_library.standard import Multiply
 
-        return self._binary_injection(Multiply, other)
+        return self._node_injection(Multiply, other)
 
     def __matmul__(self, other):
         from pyiron_workflow.node_library.standard import MatrixMultiply
 
-        return self._binary_injection(MatrixMultiply, other)
+        return self._node_injection(MatrixMultiply, other)
 
     def __truediv__(self, other):
         from pyiron_workflow.node_library.standard import Divide
 
-        return self._binary_injection(Divide, other)
+        return self._node_injection(Divide, other)
 
     def __floordiv__(self, other):
         from pyiron_workflow.node_library.standard import FloorDivide
 
-        return self._binary_injection(FloorDivide, other)
+        return self._node_injection(FloorDivide, other)
 
     def __mod__(self, other):
         from pyiron_workflow.node_library.standard import Modulo
 
-        return self._binary_injection(Modulo, other)
+        return self._node_injection(Modulo, other)
 
     def __pow__(self, other):
         from pyiron_workflow.node_library.standard import Power
 
-        return self._binary_injection(Power, other)
+        return self._node_injection(Power, other)
 
     def __and__(self, other):
         from pyiron_workflow.node_library.standard import And
 
-        return self._binary_injection(And, other)
+        return self._node_injection(And, other)
 
     def __xor__(self, other):
         from pyiron_workflow.node_library.standard import XOr
 
-        return self._binary_injection(XOr, other)
+        return self._node_injection(XOr, other)
 
     def __or__(self, other):
         from pyiron_workflow.node_library.standard import Or
 
-        return self._binary_injection(Or, other)
+        return self._node_injection(Or, other)
 
     def __neg__(self):
         from pyiron_workflow.node_library.standard import Negative
 
-        return self._unary_injection(Negative)
+        return self._node_injection(Negative)
 
     def __pos__(self):
         from pyiron_workflow.node_library.standard import Positive
 
-        return self._unary_injection(Positive)
+        return self._node_injection(Positive)
 
     def __abs__(self):
         from pyiron_workflow.node_library.standard import Absolute
 
-        return self._unary_injection(Absolute)
+        return self._node_injection(Absolute)
 
     def __invert__(self):
         from pyiron_workflow.node_library.standard import Invert
 
-        return self._unary_injection(Invert)
+        return self._node_injection(Invert)
 
     def __int__(self):
         from pyiron_workflow.node_library.standard import Int
 
-        return self._unary_injection(Int)
+        return self._node_injection(Int)
 
     def __float__(self):
         from pyiron_workflow.node_library.standard import Float
 
-        return self._unary_injection(Float)
+        return self._node_injection(Float)
 
     def __round__(self):
         from pyiron_workflow.node_library.standard import Round
 
-        return self._unary_injection(Round)
+        return self._node_injection(Round)
 
     # Because we override __getattr__ we need to get and set state for serialization
     def __getstate__(self):
