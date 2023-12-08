@@ -71,6 +71,10 @@ def manage_status(node_method):
     return wrapped_method
 
 
+class ReadinessError(ValueError):
+    pass
+
+
 class Node(HasToDict, ABC, metaclass=AbstractHasPost):
     """
     Nodes are elements of a computational graph.
@@ -120,6 +124,8 @@ class Node(HasToDict, ABC, metaclass=AbstractHasPost):
         held by the output channels
     - If an error is encountered _after_ reaching the state of actually computing the
         node's task, the status will get set to failure
+    - Nodes can be instructed to run at the end of their initialization, but will exit
+        cleanly if they get to checking their readiness and find they are not ready
     - Nodes have a label by which they are identified
     - Nodes may open a working directory related to their label, their parent(age) and
         the python process working directory
@@ -247,7 +253,10 @@ class Node(HasToDict, ABC, metaclass=AbstractHasPost):
 
     def __post__(self, *args, run_after_init: bool = False, **kwargs):
         if run_after_init:
-            self.run()
+            try:
+                self.run()
+            except ReadinessError:
+                pass
 
     @property
     @abstractmethod
@@ -376,7 +385,7 @@ class Node(HasToDict, ABC, metaclass=AbstractHasPost):
             self.inputs.fetch()
 
         if check_readiness and not self.ready:
-            raise ValueError(
+            raise ReadinessError(
                 f"{self.label} received a run command but is not ready. The node "
                 f"should be neither running nor failed, and all input values should"
                 f" conform to type hints.\n" + self.readiness_report
