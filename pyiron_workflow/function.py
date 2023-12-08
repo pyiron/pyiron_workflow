@@ -634,6 +634,12 @@ class SingleValue(Function, HasChannel):
     def __le__(self, other):
         return self.channel.__le__(other)
 
+    def eq(self, other):
+        return self.channel.eq(other)
+
+    def __ne__(self, other):
+        return self.channel.__ne__(other)
+
     def __gt__(self, other):
         return self.channel.__gt__(other)
 
@@ -654,6 +660,12 @@ class SingleValue(Function, HasChannel):
 
     def __sub__(self, other):
         return self.channel.__sub__(other)
+
+    def __mul__(self, other):
+        return self.channel.__mul__(other)
+
+    def __rmul__(self, other):
+        return self.channel.__rmul__(other)
 
     def __matmul__(self, other):
         return self.channel.__matmul__(other)

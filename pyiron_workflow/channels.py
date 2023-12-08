@@ -551,6 +551,16 @@ class OutputData(DataChannel):
 
         return self._node_injection(LessThanEquals, other)
 
+    def eq(self, other):
+        from pyiron_workflow.node_library.standard import Equals
+
+        return self._node_injection(Equals, other)
+
+    def __ne__(self, other):
+        from pyiron_workflow.node_library.standard import NotEquals
+
+        return self._node_injection(NotEquals, other)
+
     def __gt__(self, other):
         from pyiron_workflow.node_library.standard import GreaterThan
 
@@ -609,6 +619,11 @@ class OutputData(DataChannel):
         from pyiron_workflow.node_library.standard import Multiply
 
         return self._node_injection(Multiply, other)
+
+    def __rmul__(self, other):
+        from pyiron_workflow.node_library.standard import RightMultiply
+
+        return self._node_injection(RightMultiply, other)
 
     def __matmul__(self, other):
         from pyiron_workflow.node_library.standard import MatrixMultiply

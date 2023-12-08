@@ -88,6 +88,16 @@ def LessThanEquals(obj, other):
     return obj <= other
 
 
+@single_value_node("eq")
+def Equals(obj, other):
+    return obj == other
+
+
+@single_value_node("neq")
+def NotEquals(obj, other):
+    return obj != other
+
+
 @single_value_node("gt")
 def GreaterThan(obj, other):
     return obj > other
@@ -159,6 +169,11 @@ def Subtract(obj, other):
 @single_value_node("mul")
 def Multiply(obj, other):
     return obj * other
+
+
+@single_value_node("rmul")
+def RightMultiply(obj, other):
+    return other * obj
 
 
 @single_value_node("matmul")
@@ -245,6 +260,7 @@ nodes = [
     Contains,
     Dir,
     Divide,
+    Equals,
     Float,
     FloorDivide,
     GetAttr,
@@ -262,9 +278,11 @@ nodes = [
     Modulo,
     Multiply,
     Negative,
+    NotEquals,
     Or,
     Positive,
     Power,
+    RightMultiply,
     Round,
     Slice,
     String,
