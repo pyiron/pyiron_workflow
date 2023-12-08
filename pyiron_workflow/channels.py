@@ -261,6 +261,14 @@ class DataChannel(Channel, ABC):
     which is to say it is data (not `NotData`) and that it conforms to the type hint
     (if one is provided and checking is active).
 
+    Output data facilitates most (but not all) python operators by injecting a new
+    node to perform that operation. These new nodes are instructed to run at the end of
+    instantiation, but this fails cleanly in case they are not ready. This is intended
+    to accommodate two likely scenarios: if you're injecting a node on top of an
+    existing result you probably want the injection result to also be immediately
+    available, but if you're injecting it at the end of something that hasn't run yet
+    you don't want to see an error.
+
     TODO:
         - Storage (including priority and history)
         - Ontological hinting
@@ -504,7 +512,9 @@ class OutputData(DataChannel):
             return self.node.parent.nodes[label]
         except (AttributeError, KeyError):
             # Fall back on creating a new node in case parent is None or node nexists
-            return injection_class(self, other, parent=self.node.parent, label=label)
+            return injection_class(
+                self, other, parent=self.node.parent, label=label, run_after_init=True
+            )
 
     def _unary_injection(self, injection_class):
         """A template for injecting unary function nodes"""
@@ -516,7 +526,9 @@ class OutputData(DataChannel):
             return self.node.parent.nodes[label]
         except (AttributeError, KeyError):
             # Fall back on creating a new node in case parent is None or node nexists
-            return injection_class(self, parent=self.node.parent, label=label)
+            return injection_class(
+                self, parent=self.node.parent, label=label, run_after_init=True
+            )
 
     # We don't wrap __all__ the operators, because you might really want the string or
     # hash or whatever of the actual channel. But we do wrap all the dunder methods
