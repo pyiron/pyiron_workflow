@@ -47,7 +47,7 @@ class If(SingleValue):
 
 
 @single_value_node("slice")
-def Slice(start=None, stop=None, step=None):
+def Slice(start=None, stop=NotData, step=None):
     if start is None:
         if stop is None:
             raise ValueError(
