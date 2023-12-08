@@ -572,6 +572,16 @@ class OutputData(DataChannel):
         return self._node_injection(GetAttr, name)
 
     def __getitem__(self, item):
+        # Break slices into deeper injections, if any slice arguments are channel-like
+        if isinstance(item, slice) and any(
+            isinstance(slice_input, HasChannel)
+            for slice_input in [item.start, item.stop, item.step]
+        ):
+            from pyiron_workflow.node_library.standard import Slice
+            item = self._node_injection(
+                Slice, item.start, item.stop, item.step, inject_self=False
+            )
+
         from pyiron_workflow.node_library.standard import GetItem
         return self._node_injection(GetItem, item)
 
