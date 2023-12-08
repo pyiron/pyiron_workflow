@@ -261,13 +261,16 @@ class DataChannel(Channel, ABC):
     which is to say it is data (not `NotData`) and that it conforms to the type hint
     (if one is provided and checking is active).
 
-    Output data facilitates most (but not all) python operators by injecting a new
-    node to perform that operation. These new nodes are instructed to run at the end of
-    instantiation, but this fails cleanly in case they are not ready. This is intended
-    to accommodate two likely scenarios: if you're injecting a node on top of an
-    existing result you probably want the injection result to also be immediately
-    available, but if you're injecting it at the end of something that hasn't run yet
-    you don't want to see an error.
+    Output data facilitates many (but not all) python operators by injecting a new
+    node to perform that operation. Where the operator is not supported, we try to
+    support using the operator's dunder name as a method, e.g. `==` gives us trouble
+    with hashing, but this exploits the dunder method `.__eq__(other)`, so you can call
+    `.eq(other)` on output data.
+    These new nodes are instructed to run at the end of instantiation, but this fails
+    cleanly in case they are not ready. This is intended to accommodate two likely
+    scenarios: if you're injecting a node on top of an existing result you probably
+    want the injection result to also be immediately available, but if you're injecting
+    it at the end of something that hasn't run yet you don't want to see an error.
 
     TODO:
         - Storage (including priority and history)
@@ -534,7 +537,7 @@ class OutputData(DataChannel):
             # Fall back on creating a new node in case parent is None or node nexists
             node_args = (self, *args) if inject_self else args
             return injection_class(
-                *node_args, parent=self.node.parent, label=label
+                *node_args, parent=self.node.parent, label=label, run_after_init=True
             )
 
     # We don't wrap __all__ the operators, because you might really want the string or
@@ -571,7 +574,7 @@ class OutputData(DataChannel):
 
         return self._node_injection(GreaterThanEquals, other)
 
-    def __bool__(self):
+    def bool(self):
         from pyiron_workflow.node_library.standard import Bool
 
         return self._node_injection(Bool)
@@ -595,12 +598,12 @@ class OutputData(DataChannel):
         from pyiron_workflow.node_library.standard import GetItem
         return self._node_injection(GetItem, item)
 
-    def __len__(self):
+    def len(self):
         from pyiron_workflow.node_library.standard import Length
 
         return self._node_injection(Length)
 
-    def __contains__(self, other):
+    def contains(self, other):
         from pyiron_workflow.node_library.standard import Contains
 
         return self._node_injection(Contains, other)

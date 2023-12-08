@@ -646,14 +646,14 @@ class SingleValue(Function, HasChannel):
     def __ge__(self, other):
         return self.channel.__ge__(other)
 
-    def __bool__(self):
-        return self.channel.__bool__()
+    def bool(self):
+        return self.channel.bool()
 
-    def __len__(self):
-        return self.channel.__len__()
+    def len(self):
+        return self.channel.len()
 
-    def __contains__(self, other):
-        return self.channel.__contains__(other)
+    def contains(self, other):
+        return self.channel.contains(other)
 
     def __add__(self, other):
         return self.channel.__add__(other)
