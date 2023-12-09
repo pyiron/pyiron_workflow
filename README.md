@@ -47,40 +47,43 @@ Nodes can be used by themselves and -- other than being "delayed" in that their 
 
 ```
 
-But the intent is to collect them together into a workflow and leverage existing nodes:
+But the intent is to collect them together into a workflow and leverage existing nodes. We can directly perform (many but not quite all) python actions natively on output channels, can build up data graph topology by simply assigning values (to attributes or at instantiation), and can package things together into reusable macros with customizable IO interfaces:
 
 ```python
 >>> from pyiron_workflow import Workflow
+>>> Workflow.register("plotting", "pyiron_workflow.node_library.plotting")
 >>>
 >>> @Workflow.wrap_as.single_value_node()
-... def add_one(x):
-...     return x + 1
+... def Arange(n: int):
+...     import numpy as np
+...     return np.arange(n)
 >>>
 >>> @Workflow.wrap_as.macro_node()
-... def add_three_macro(macro):
-...     macro.start = add_one()
-...     macro.middle = add_one(x=macro.start)
-...     macro.end = add_one(x=macro.middle)
-...     macro.inputs_map = {"start__x": "x"}
-...     macro.outputs_map = {"end__x + 1": "y"}
+... def PlotShiftedSquare(macro):
+...     macro.shift = macro.create.standard.UserInput(0)
+...     macro.arange = Arange()
+...     macro.plot = macro.create.plotting.Scatter(
+...         x=macro.arange + macro.shift,
+...         y=macro.arange**2
+...     )
+...     macro.inputs_map = {
+...         "shift__user_input": "shift",
+...         "arange__n": "n",
+...     }
+...     macro.outputs_map = {"plot__fig": "fig"}
 >>> 
->>> Workflow.register(
-...     "plotting", 
-...     "pyiron_workflow.node_library.plotting"
-... )
->>> 
->>> wf = Workflow("add_5_and_plot")
->>> wf.add_one = add_one()
->>> wf.add_three = add_three_macro(x=wf.add_one)
->>> wf.plot = wf.create.plotting.Scatter(
-...     x=wf.add_one,
-...     y=wf.add_three.outputs.y
-... )
+>>> wf = Workflow("plot_with_and_without_shift")
+>>> wf.n = wf.create.standard.UserInput()
+>>> wf.no_shift = PlotShiftedSquare(shift=0, n=10)
+>>> wf.shift = PlotShiftedSquare(shift=2, n=10)
+>>> wf.inputs_map = {
+...     "n__user_input": "n",
+...     "shift__shift": "shift"
+... }
 >>> 
 >>> diagram = wf.draw()
 >>> 
->>> import numpy as np
->>> fig = wf(add_one__x=np.arange(5)).plot__fig
+>>> out = wf(shift=3, n=10)
 
 ```
 
@@ -90,7 +93,7 @@ Which gives the workflow `diagram`
 
 And the resulting `fig`
 
-![](docs/_static/readme_shifted.png)
+![](docs/_static/readme_fig.png)
 
 ## Installation
 
