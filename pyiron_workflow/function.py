@@ -700,8 +700,8 @@ class SingleValue(Function, HasChannel):
     def __abs__(self):
         return self.channel.__abs__()
 
-    def __int__(self):
-        return self.channel.__int__()
+    def __invert__(self):
+        return self.channel.__invert__()
 
     def __float__(self):
         return self.channel.__float__()
