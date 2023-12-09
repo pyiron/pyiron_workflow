@@ -556,11 +556,13 @@ class OutputData(DataChannel):
             for slice_input in [item.start, item.stop, item.step]
         ):
             from pyiron_workflow.node_library.standard import Slice
+
             item = self._node_injection(
                 Slice, item.start, item.stop, item.step, inject_self=False
             )
 
         from pyiron_workflow.node_library.standard import GetItem
+
         return self._node_injection(GetItem, item)
 
     def __lt__(self, other):

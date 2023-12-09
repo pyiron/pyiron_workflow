@@ -602,7 +602,7 @@ class SingleValue(Function, HasChannel):
                 f"{self.__class__.__name__} must only have a single return value, but "
                 f"got multiple output labels: {output_labels}"
             )
-        return output_labels 
+        return output_labels
 
     @property
     def channel(self) -> OutputData:
