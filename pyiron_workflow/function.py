@@ -703,8 +703,11 @@ class SingleValue(Function, HasChannel):
     def __invert__(self):
         return self.channel.__invert__()
 
-    def __float__(self):
-        return self.channel.__float__()
+    def int(self):
+        return self.channel.int()
+
+    def float(self):
+        return self.channel.float()
 
     def __round__(self):
         return self.channel.__round__()

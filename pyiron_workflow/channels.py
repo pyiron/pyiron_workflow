@@ -688,12 +688,12 @@ class OutputData(DataChannel):
 
         return self._node_injection(Invert)
 
-    def __int__(self):
+    def int(self):
         from pyiron_workflow.node_library.standard import Int
 
         return self._node_injection(Int)
 
-    def __float__(self):
+    def float(self):
         from pyiron_workflow.node_library.standard import Float
 
         return self._node_injection(Float)
