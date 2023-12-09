@@ -59,20 +59,6 @@ class TestChannel(unittest.TestCase):
         self.inp.connect(self.out)
         # A conjugate pair should work fine
 
-    def test_length(self):
-        self.inp.connect(self.out)
-        self.out2.connect(self.inp)
-        self.assertEqual(
-            2,
-            len(self.inp),
-            msg="Promised that channel length was number of connections"
-        )
-        self.assertEqual(
-            1,
-            len(self.out),
-            msg="Promised that channel length was number of connections"
-        )
-
     def test_connection_reflexivity(self):
         self.inp.connect(self.out)
 
@@ -359,13 +345,13 @@ class TestSignalChannels(unittest.TestCase):
 
         with self.subTest("Ignore repeated connection"):
             self.out.connect(self.inp)
-            self.assertEqual(len(self.inp), 1)
-            self.assertEqual(len(self.out), 1)
+            self.assertEqual(len(self.inp.connections), 1)
+            self.assertEqual(len(self.out.connections), 1)
 
         with self.subTest("Check disconnection"):
             self.out.disconnect_all()
-            self.assertEqual(len(self.inp), 0)
-            self.assertEqual(len(self.out), 0)
+            self.assertEqual(len(self.inp.connections), 0)
+            self.assertEqual(len(self.out.connections), 0)
 
         with self.subTest("No connections to non-SignalChannels"):
             bad = InputData(label="numeric", node=DummyNode(), default=1, type_hint=int)

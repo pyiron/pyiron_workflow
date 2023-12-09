@@ -147,23 +147,19 @@ class TestTopology(unittest.TestCase):
 
         with self.subTest("Self-data-loop"):
 
-            @Workflow.wrap_as.single_value_node()
-            def Add(a, b):
-                return a + b
-
-            @Workflow.wrap_as.single_value_node()
-            def LessThanTen(value):
-                return value < 10
-
             AddWhile = Workflow.create.meta.while_loop(
-                loop_body_class=Add,
-                condition_class=LessThanTen,
+                loop_body_class=Workflow.create.standard.Add,
+                condition_class=Workflow.create.standard.LessThan,
                 internal_connection_map=[
-                    ("Add", "a + b", "LessThanTen", "value"),
-                    ("Add", "a + b", "Add", "a")
+                    ("Add", "add", "LessThan", "obj"),
+                    ("Add", "add", "Add", "obj")
                 ],
-                inputs_map={"Add__a": "a", "Add__b": "b"},
-                outputs_map={"Add__a + b": "total"}
+                inputs_map={
+                    "Add__obj": "a",
+                    "Add__other": "b",
+                    "LessThan__other": "cap",
+                },
+                outputs_map={"Add__add": "total"}
             )
 
             wf = Workflow("do_while")
@@ -171,11 +167,12 @@ class TestTopology(unittest.TestCase):
 
             wf.inputs_map = {
                 "add_while__a": "a",
-                "add_while__b": "b"
+                "add_while__b": "b",
+                "add_while__cap": "cap"
             }
             wf.outputs_map = {"add_while__total": "total"}
 
-            out = wf(a=1, b=2)
+            out = wf(a=1, b=2, cap=10)
             self.assertEqual(out.total, 11)
 
     def test_executor_and_creator_interaction(self):
