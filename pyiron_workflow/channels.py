@@ -544,6 +544,25 @@ class OutputData(DataChannel):
     # hash or whatever of the actual channel. But we do wrap all the dunder methods
     # that should be unambiguously referring to an operation on values
 
+    def __getattr__(self, name):
+        from pyiron_workflow.node_library.standard import GetAttr
+
+        return self._node_injection(GetAttr, name)
+
+    def __getitem__(self, item):
+        # Break slices into deeper injections, if any slice arguments are channel-like
+        if isinstance(item, slice) and any(
+            isinstance(slice_input, HasChannel)
+            for slice_input in [item.start, item.stop, item.step]
+        ):
+            from pyiron_workflow.node_library.standard import Slice
+            item = self._node_injection(
+                Slice, item.start, item.stop, item.step, inject_self=False
+            )
+
+        from pyiron_workflow.node_library.standard import GetItem
+        return self._node_injection(GetItem, item)
+
     def __lt__(self, other):
         from pyiron_workflow.node_library.standard import LessThan
 
@@ -578,25 +597,6 @@ class OutputData(DataChannel):
         from pyiron_workflow.node_library.standard import Bool
 
         return self._node_injection(Bool)
-
-    def __getattr__(self, name):
-        from pyiron_workflow.node_library.standard import GetAttr
-
-        return self._node_injection(GetAttr, name)
-
-    def __getitem__(self, item):
-        # Break slices into deeper injections, if any slice arguments are channel-like
-        if isinstance(item, slice) and any(
-            isinstance(slice_input, HasChannel)
-            for slice_input in [item.start, item.stop, item.step]
-        ):
-            from pyiron_workflow.node_library.standard import Slice
-            item = self._node_injection(
-                Slice, item.start, item.stop, item.step, inject_self=False
-            )
-
-        from pyiron_workflow.node_library.standard import GetItem
-        return self._node_injection(GetItem, item)
 
     def len(self):
         from pyiron_workflow.node_library.standard import Length
