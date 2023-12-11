@@ -122,10 +122,7 @@ class Creator(metaclass=Singleton):
 
     def __getattr__(self, item):
         try:
-            module = import_module(self._node_packages[item])
-            from pyiron_workflow.node_package import NodePackage
-
-            return NodePackage(*module.nodes)
+            return self._node_packages[item][1]
         except KeyError as e:
             raise AttributeError(
                 f"{self.__class__.__name__} could not find attribute {item} -- did you "
@@ -164,6 +161,7 @@ class Creator(metaclass=Singleton):
                 method or attribute of the creator.
             ValueError: If the identifier can't be parsed.
         """
+        from pyiron_workflow.node_package import NodePackage
 
         if self._package_conflicts_with_existing(domain, package_identifier):
             raise KeyError(
@@ -173,9 +171,8 @@ class Creator(metaclass=Singleton):
         elif domain in self.__dir__():
             raise AttributeError(f"{domain} is already an attribute of {self}")
 
-        self._verify_identifier(package_identifier)
-
-        self._node_packages[domain] = package_identifier
+        nodes = self._import_nodes(package_identifier)
+        self._node_packages[domain] = (package_identifier, NodePackage(*nodes))
 
     def _package_conflicts_with_existing(
         self, domain: str, package_identifier: str
@@ -195,7 +192,7 @@ class Creator(metaclass=Singleton):
         """
         if domain in self._node_packages.keys():
             # If it's already here, it had better be the same package
-            return package_identifier != self._node_packages[domain]
+            return package_identifier != self._node_packages[domain][0]
             # We can make "sameness" logic more complex as we allow more sophisticated
             # identifiers
         else:
@@ -203,7 +200,7 @@ class Creator(metaclass=Singleton):
             return False
 
     @staticmethod
-    def _verify_identifier(package_identifier: str):
+    def _import_nodes(package_identifier: str):
         """
         Logic for verifying whether new package identifiers will actually be usable for
         creating node packages when their domain is called. Lets us fail early in
@@ -221,6 +218,7 @@ class Creator(metaclass=Singleton):
                 raise TypeError(
                     f"At least one node in {nodes} was not of the type {Node.__name__}"
                 )
+            return nodes
         except Exception as e:
             raise ValueError(
                 f"The package identifier is {package_identifier} is not valid. Please "
