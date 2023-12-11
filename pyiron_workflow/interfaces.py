@@ -5,6 +5,7 @@ Container classes for giving access to various workflow objects and tools
 from __future__ import annotations
 
 from importlib import import_module
+import pkgutil
 from sys import version_info
 
 from pyiron_workflow.snippets.singleton import Singleton
@@ -32,6 +33,7 @@ from pyiron_workflow.function import (
     function_node,
     single_value_node,
 )
+from pyiron_workflow.snippets.dotdict import DotDict
 
 
 class Creator(metaclass=Singleton):
@@ -161,7 +163,6 @@ class Creator(metaclass=Singleton):
                 method or attribute of the creator.
             ValueError: If the identifier can't be parsed.
         """
-        from pyiron_workflow.node_package import NodePackage
 
         if self._package_conflicts_with_existing(domain, package_identifier):
             raise KeyError(
@@ -171,8 +172,10 @@ class Creator(metaclass=Singleton):
         elif domain in self.__dir__():
             raise AttributeError(f"{domain} is already an attribute of {self}")
 
-        nodes = self._import_nodes(package_identifier)
-        self._node_packages[domain] = (package_identifier, NodePackage(*nodes))
+        self._node_packages[domain] = (
+            package_identifier,
+            self._import_nodes(package_identifier)
+        )
 
     def _package_conflicts_with_existing(
         self, domain: str, package_identifier: str
@@ -199,32 +202,40 @@ class Creator(metaclass=Singleton):
             # If it's not here already, it can't conflict!
             return False
 
-    @staticmethod
-    def _import_nodes(package_identifier: str):
+    def _import_nodes(self, package_identifier: str):
         """
-        Logic for verifying whether new package identifiers will actually be usable for
-        creating node packages when their domain is called. Lets us fail early in
-        registration.
+        Recursively walk through all submodules of the provided package identifier,
+        and collect an instance of `nodes: list[Node]` from each non-package module.
+        """
 
-        Right now, we just make sure it's a string from which we can import a list of
-        nodes.
-        """
+        module = import_module(package_identifier)
+        if hasattr(module, "__path__"):
+            package = DotDict()
+            for _, submodule_name, _ in pkgutil.walk_packages(
+                module.__path__, module.__name__ + '.'
+            ):
+                package[submodule_name.split(".")[-1]] = self._import_nodes(submodule_name)
+        else:
+            package = self._get_nodes_from_module(module)
+        return package
+
+    @staticmethod
+    def _get_nodes_from_module(module):
         from pyiron_workflow.node import Node
+        from pyiron_workflow.node_package import NodePackage
 
         try:
-            module = import_module(package_identifier)
             nodes = module.nodes
-            if not all(issubclass(node, Node) for node in nodes):
-                raise TypeError(
-                    f"At least one node in {nodes} was not of the type {Node.__name__}"
-                )
-            return nodes
-        except Exception as e:
+        except AttributeError:
             raise ValueError(
-                f"The package identifier is {package_identifier} is not valid. Please "
-                f"ensure it is an importable module with a list of {Node.__name__} "
-                f"objects stored in the variable `nodes`."
-            ) from e
+                f"Could node find `nodes: list[Nodes]` in {module.__name__}"
+            )
+        if not all(issubclass(node, Node) for node in nodes):
+            raise TypeError(
+                f"At least one node in {nodes} was not of the type {Node.__name__}"
+            )
+        return NodePackage(*module.nodes)
+
 
 
 class Wrappers(metaclass=Singleton):

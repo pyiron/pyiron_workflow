@@ -2,6 +2,7 @@ import unittest
 
 from pyiron_workflow._tests import ensure_tests_in_python_path
 from pyiron_workflow.interfaces import Creator
+from pyiron_workflow.node_package import NodePackage
 
 
 class TestCreator(unittest.TestCase):
@@ -28,6 +29,10 @@ class TestCreator(unittest.TestCase):
             node(),
             msg="Node should get instantiated from creator and be operable"
         )
+
+        self.creator.register("sub", "static.nodes_subpackage")
+        self.assertIsInstance(self.creator.sub.demo_nodes, NodePackage)
+        self.assertIsInstance(self.creator.sub.subsub_package.demo_nodes, NodePackage)
 
         with self.subTest("Test re-registration"):
             self.creator.register("demo", "static.demo_nodes")
@@ -65,8 +70,8 @@ class TestCreator(unittest.TestCase):
                 self.creator.register("forgetful", "static.forgetful_node_package")
 
             with self.assertRaises(
-                ValueError,
-                msg="Must have only nodes in the iterable `nodes` property"
+                TypeError,
+                msg="Must have only node classes in the iterable `nodes` property"
             ):
                 self.creator.register("faulty", "static.faulty_node_package")
 
