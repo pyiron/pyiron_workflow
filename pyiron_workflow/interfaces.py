@@ -174,7 +174,7 @@ class Creator(metaclass=Singleton):
 
         self._node_packages[domain] = (
             package_identifier,
-            self._import_nodes(package_identifier)
+            self._import_nodes(package_identifier),
         )
 
     def _package_conflicts_with_existing(
@@ -212,9 +212,11 @@ class Creator(metaclass=Singleton):
         if hasattr(module, "__path__"):
             package = DotDict()
             for _, submodule_name, _ in pkgutil.walk_packages(
-                module.__path__, module.__name__ + '.'
+                module.__path__, module.__name__ + "."
             ):
-                package[submodule_name.split(".")[-1]] = self._import_nodes(submodule_name)
+                package[submodule_name.split(".")[-1]] = self._import_nodes(
+                    submodule_name
+                )
         else:
             package = self._get_nodes_from_module(module)
         return package
@@ -235,7 +237,6 @@ class Creator(metaclass=Singleton):
                 f"At least one node in {nodes} was not of the type {Node.__name__}"
             )
         return NodePackage(*module.nodes)
-
 
 
 class Wrappers(metaclass=Singleton):
