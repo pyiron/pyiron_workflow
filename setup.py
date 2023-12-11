@@ -42,7 +42,7 @@ setup(
             'atomistics==0.1.12',
             'numpy==1.26.2',
             'phonopy==2.21.0',
-            'pyiron_atomistics==0.3.10',
+            'pyiron_atomistics==0.3.11',
         ],
     },
     cmdclass=versioneer.get_cmdclass(),
