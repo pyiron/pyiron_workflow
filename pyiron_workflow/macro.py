@@ -10,6 +10,7 @@ from typing import Optional, TYPE_CHECKING
 
 from pyiron_workflow.channels import InputData, OutputData
 from pyiron_workflow.composite import Composite
+from pyiron_workflow.has_channel import HasChannel
 from pyiron_workflow.io import Outputs, Inputs
 from pyiron_workflow.output_parser import ParseOutput
 
@@ -331,7 +332,9 @@ def macro_node(*output_labels, **node_class_kwargs):
     """
     output_labels = None if len(output_labels) == 0 else output_labels
 
-    def as_node(graph_creator: callable[[Macro], None]):
+    def as_node(
+        graph_creator: callable[[Macro, ...], Optional[tuple[HasChannel]]]
+    ):
         return type(
             graph_creator.__name__,
             (Macro,),  # Define parentage
