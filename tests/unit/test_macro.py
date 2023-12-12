@@ -451,16 +451,16 @@ class TestMacro(unittest.TestCase):
         """
         @macro_node()
         def WithIOMaps(macro):
-            macro.forked = macro.create.standard.UserInput()
-            macro.forked.inputs.user_input.type_hint = int
             macro.list_in = macro.create.standard.UserInput()
             macro.list_in.inputs.user_input.type_hint = list
+            macro.forked = macro.create.standard.UserInput(2)
+            macro.forked.inputs.user_input.type_hint = int
             macro.n_plus_2 = macro.forked + 2
             macro.sliced_list = macro.list_in[macro.forked:macro.n_plus_2]
             macro.double_fork = 2 * macro.forked
             macro.inputs_map = {
-                macro.forked.inputs.user_input.scoped_label: "n",
                 "list_in__user_input": "lin",
+                macro.forked.inputs.user_input.scoped_label: "n",
                 "n_plus_2__other": None,
                 "list_in__user_input_Slice_forked__user_input_n_plus_2__add_None__step": None,
                 macro.double_fork.inputs.other.scoped_label: None,
@@ -472,17 +472,17 @@ class TestMacro(unittest.TestCase):
             }
 
         @macro_node("lout", "n_plus_2")
-        def LikeAFunction(macro, n: int, lin: list):
+        def LikeAFunction(macro, lin: list,  n: int = 2):
             macro.plus_two = n + 2
             macro.sliced_list = lin[n:macro.plus_two]
             # Test returning both a single value node and an output channel,
             # even though here we could just use the node both times
             return macro.sliced_list, macro.plus_two.channel
 
-        n = 2
+        n = 1  # Override the default
         lin = [1, 2, 3, 4, 5, 6]
-        expected_input_labels = ["n", "lin"]
-        expected_result = {"n_plus_2": 4, "lout": [3, 4]}
+        expected_input_labels = ["lin", "n"]
+        expected_result = {"n_plus_2": 3, "lout": [2, 3]}
 
         for MacroClass in [WithIOMaps, LikeAFunction]:
             with self.subTest(f"{MacroClass.__name__}"):
@@ -506,7 +506,8 @@ class TestMacro(unittest.TestCase):
         # Manually set the required input data we hid from the macro IO
         # (You wouldn't ever actually hide necessary IO like this, this is just for the
         # silly test)
-        override_io_maps.n.inputs.user_input = 1
+        # override_io_maps.n.inputs.user_input = 1
+        # ^ If default is not working you'd need this
         self.assertListEqual(override_io_maps.inputs.labels, ["my_lin"])
         self.assertDictEqual(override_io_maps(), {"the_input_list": [1, 2, 3, 4]})
 

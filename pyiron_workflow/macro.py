@@ -9,7 +9,7 @@ from functools import partialmethod
 import inspect
 from typing import get_type_hints, Literal, Optional, TYPE_CHECKING
 
-from pyiron_workflow.channels import InputData, OutputData
+from pyiron_workflow.channels import InputData, OutputData, NotData
 from pyiron_workflow.composite import Composite
 from pyiron_workflow.has_channel import HasChannel
 from pyiron_workflow.io import Outputs, Inputs
@@ -256,13 +256,23 @@ class Macro(Composite):
                 )
 
     def _prepopulate_ui_nodes_from_graph_creator_signature(self):
-        arg_names = list(inspect.signature(self.graph_creator).parameters.keys())[1:]
         hints_dict = get_type_hints(self.graph_creator)
         interface_nodes = ()
-        for inp in arg_names:
-            node = self.create.standard.UserInput(label=inp, parent=self)
+        for i, (arg_name, inspected_value) in enumerate(
+            inspect.signature(self.graph_creator).parameters.items()
+        ):
+            if i == 0:
+                continue  # Skip the macro argument itself, it's like `self` here
+
+            default = (
+                NotData
+                if inspected_value.default is inspect.Parameter.empty
+                else inspected_value.default
+            )
+            node = self.create.standard.UserInput(default, label=arg_name, parent=self)
+            node.inputs.user_input.default = default
             try:
-                node.inputs.user_input.type_hint = hints_dict[inp]
+                node.inputs.user_input.type_hint = hints_dict[arg_name]
             except KeyError:
                 pass  # If there's no hint that's fine
             interface_nodes += (node,)
