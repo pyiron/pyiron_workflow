@@ -329,6 +329,7 @@ def macro_node(*output_labels, **node_class_kwargs):
 
     Optionally takes any keyword arguments of `Macro`.
     """
+    output_labels = None if len(output_labels) == 0 else output_labels
 
     def as_node(graph_creator: callable[[Macro], None]):
         return type(
