@@ -212,9 +212,20 @@ class Macro(Composite):
         )
         self._validate_returns_and_labels(output_labels)
 
-        self.graph_creator(self)
+        ui_nodes = self._prepopulate_ui_nodes_from_graph_creator_signature()
+        returned_has_channel_objects = self.graph_creator(self, *ui_nodes)
         self._configure_graph_execution()
 
+        if len(ui_nodes) > 0:
+            self._whitelist_inputs_map(*ui_nodes)
+        if returned_has_channel_objects is not None:
+            self._whitelist_outputs_map(
+                *(
+                    (returned_has_channel_objects,)
+                    if not isinstance(returned_has_channel_objects, tuple)
+                    else returned_has_channel_objects
+                )
+            )
         self._inputs: Inputs = self._build_inputs()
         self._outputs: Outputs = self._build_outputs()
 
@@ -241,6 +252,16 @@ class Macro(Composite):
                     f"Output labels and graph creator return values must either both "
                     f"or neither be present, " + error_suffix
                 )
+
+    def _prepopulate_ui_nodes_from_graph_creator_signature(self):
+        to_parse_later = self.graph_creator
+        return ()
+
+    def _whitelist_inputs_map(self, *ui_nodes: HasChannel) -> None:
+        to_update = self.inputs_map
+
+    def _whitelist_outputs_map(self, *creator_returns: HasChannel) -> None:
+        to_update = self.outputs_map
 
     def _get_linking_channel(
         self,
