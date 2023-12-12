@@ -226,7 +226,7 @@ class Macro(Composite):
                     (returned_has_channel_objects,)
                     if not isinstance(returned_has_channel_objects, tuple)
                     else returned_has_channel_objects
-                )
+                ),
             )
         self._inputs: Inputs = self._build_inputs()
         self._outputs: Outputs = self._build_outputs()
@@ -239,10 +239,14 @@ class Macro(Composite):
         return values, if provided.
         """
         graph_creator_returns = ParseOutput(self.graph_creator).output
-        output_labels = [output_labels] if isinstance(output_labels, str) else output_labels
+        output_labels = (
+            [output_labels] if isinstance(output_labels, str) else output_labels
+        )
         if graph_creator_returns is not None or output_labels is not None:
-            error_suffix = f"but {self.label} macro got return values: " \
-                           f"{graph_creator_returns} and labels: {output_labels}."
+            error_suffix = (
+                f"but {self.label} macro got return values: "
+                f"{graph_creator_returns} and labels: {output_labels}."
+            )
             try:
                 if len(output_labels) != len(graph_creator_returns):
                     raise ValueError(
@@ -408,9 +412,7 @@ def macro_node(*output_labels, **node_class_kwargs):
     """
     output_labels = None if len(output_labels) == 0 else output_labels
 
-    def as_node(
-        graph_creator: callable[[Macro, ...], Optional[tuple[HasChannel]]]
-    ):
+    def as_node(graph_creator: callable[[Macro, ...], Optional[tuple[HasChannel]]]):
         return type(
             graph_creator.__name__,
             (Macro,),  # Define parentage
