@@ -11,6 +11,7 @@ from typing import Optional, TYPE_CHECKING
 from pyiron_workflow.channels import InputData, OutputData
 from pyiron_workflow.composite import Composite
 from pyiron_workflow.io import Outputs, Inputs
+from pyiron_workflow.output_parser import ParseOutput
 
 if TYPE_CHECKING:
     from bidict import bidict
@@ -180,6 +181,7 @@ class Macro(Composite):
         strict_naming: bool = True,
         inputs_map: Optional[dict | bidict] = None,
         outputs_map: Optional[dict | bidict] = None,
+        output_labels: Optional[str | list[str] | tuple[str]] = None,
         **kwargs,
     ):
         if not callable(graph_creator):
@@ -207,6 +209,8 @@ class Macro(Composite):
             inputs_map=inputs_map,
             outputs_map=outputs_map,
         )
+        self._validate_returns_and_labels(output_labels)
+
         self.graph_creator(self)
         self._configure_graph_execution()
 
@@ -214,6 +218,28 @@ class Macro(Composite):
         self._outputs: Outputs = self._build_outputs()
 
         self.set_input_values(**kwargs)
+
+    def _validate_returns_and_labels(self, output_labels):
+        """
+        Ensure that output_labels, if provided, are commensurate with graph creator
+        return values, if provided.
+        """
+        graph_creator_returns = ParseOutput(self.graph_creator).output
+        output_labels = [output_labels] if isinstance(output_labels, str) else output_labels
+        if graph_creator_returns is not None or output_labels  is not None:
+            error_suffix = f"but {self.label} macro got return values: " \
+                           f"{graph_creator_returns} and labels: {output_labels}."
+            try:
+                if len(output_labels) != len(graph_creator_returns):
+                    raise ValueError(
+                        "The number of return values in the graph creator must exactly "
+                        "match the number of output labels provided, " + error_suffix
+                    )
+            except TypeError:
+                raise TypeError(
+                    f"Output labels and graph creator return values must either both "
+                    f"or neither be present, " + error_suffix
+                )
 
     def _get_linking_channel(
         self,
@@ -288,7 +314,7 @@ class Macro(Composite):
         raise NotImplementedError
 
 
-def macro_node(**node_class_kwargs):
+def macro_node(*output_labels, **node_class_kwargs):
     """
     A decorator for dynamically creating macro classes from graph-creating functions.
 
@@ -296,6 +322,10 @@ def macro_node(**node_class_kwargs):
     Returns a `Macro` subclass whose name is the camel-case version of the
     graph-creating function, and whose signature is modified to exclude this function
     and provided kwargs.
+
+    Optionally takes output labels as args in case the node function uses the
+    like-a-function interface to define its IO. (The number of output labels must match
+    number of channel-like objects returned by the graph creating function _exactly_.)
 
     Optionally takes any keyword arguments of `Macro`.
     """
@@ -305,7 +335,12 @@ def macro_node(**node_class_kwargs):
             graph_creator.__name__,
             (Macro,),  # Define parentage
             {
-                "__init__": partialmethod(Macro.__init__, None, **node_class_kwargs),
+                "__init__": partialmethod(
+                    Macro.__init__,
+                    None,
+                    output_labels=output_labels,
+                    **node_class_kwargs,
+                ),
                 "graph_creator": staticmethod(graph_creator),
             },
         )

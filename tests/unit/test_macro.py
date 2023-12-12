@@ -413,6 +413,37 @@ class TestMacro(unittest.TestCase):
                 msg="Original connections should get restored on upstream failure"
             )
 
+    def test_output_labels_vs_return_values(self):
+        def no_return(macro):
+            macro.foo = macro.create.standard.UserInput()
+
+        Macro(no_return)  # Neither is fine
+
+        with self.assertRaises(
+            TypeError,
+            msg="Output labels and return values must match"
+        ):
+            Macro(no_return, output_labels="not_None")
+
+        @macro_node("some_return")
+        def HasReturn(macro):
+            macro.foo = macro.create.standard.UserInput()
+            return macro.foo
+
+        HasReturn()  # Both is fine
+
+        with self.assertRaises(
+            TypeError,
+            msg="Output labels and return values must match"
+        ):
+            HasReturn(output_labels=None)  # Override those gotten by the decorator
+
+        with self.assertRaises(
+            ValueError,
+            msg="Output labels and return values must have commensurate length"
+        ):
+            HasReturn(output_labels=["one_label", "too_many"])
+
     def test_maps_vs_functionlike_definitions(self):
         """
         Check that the full-detail IO maps and the white-listing like-a-function
