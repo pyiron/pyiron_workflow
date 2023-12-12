@@ -490,6 +490,26 @@ class TestMacro(unittest.TestCase):
                 self.assertListEqual(macro.inputs.labels, expected_input_labels)
                 self.assertDictEqual(macro(), expected_result)
 
+        # Make sure whatever the user defines takes precedence, even over whitelists
+        override_io_maps = LikeAFunction(
+            my_lin=[1, 2, 3, 4],
+            inputs_map={
+                "n__user_input": None,
+                "lin__user_input": "my_lin",
+            },
+            outputs_map={
+                "sliced_list__getitem": None,
+                "plus_two__add": None,
+                "lin__user_input": "the_input_list",
+            }
+        )
+        # Manually set the required input data we hid from the macro IO
+        # (You wouldn't ever actually hide necessary IO like this, this is just for the
+        # silly test)
+        override_io_maps.n.inputs.user_input = 1
+        self.assertListEqual(override_io_maps.inputs.labels, ["my_lin"])
+        self.assertDictEqual(override_io_maps(), {"the_input_list": [1, 2, 3, 4]})
+
 
 if __name__ == '__main__':
     unittest.main()
