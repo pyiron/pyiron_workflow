@@ -475,6 +475,8 @@ class TestMacro(unittest.TestCase):
         def LikeAFunction(macro, lin: list,  n: int = 2):
             macro.plus_two = n + 2
             macro.sliced_list = lin[n:macro.plus_two]
+            macro.double_fork = 2 * n
+            # ^ This is vestigial, just to show we don't need to blacklist it
             # Test returning both a single value node and an output channel,
             # even though here we could just use the node both times
             return macro.sliced_list, macro.plus_two.channel
