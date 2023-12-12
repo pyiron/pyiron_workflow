@@ -471,17 +471,20 @@ class TestMacro(unittest.TestCase):
                 "double_fork__rmul": None
             }
 
-        # @macro_node("lout")
-        # def LikeAFunction(macro, n: int, lin: list):
-        #     macro.sliced_list = lin[n:n + 2]
-        #     return macro.sliced_list  # It's a SVN
+        @macro_node("lout", "n_plus_2")
+        def LikeAFunction(macro, n: int, lin: list):
+            macro.plus_two = n + 2
+            macro.sliced_list = lin[n:macro.plus_two]
+            # Test returning both a single value node and an output channel,
+            # even though here we could just use the node both times
+            return macro.sliced_list, macro.plus_two.channel
 
         n = 2
         lin = [1, 2, 3, 4, 5, 6]
         expected_input_labels = ["n", "lin"]
         expected_result = {"n_plus_2": 4, "lout": [3, 4]}
 
-        for MacroClass in [WithIOMaps]:  #, LikeAFunction]:
+        for MacroClass in [WithIOMaps, LikeAFunction]:
             with self.subTest(f"{MacroClass.__name__}"):
                 macro = MacroClass(n=n, lin=lin)
                 self.assertListEqual(macro.inputs.labels, expected_input_labels)
