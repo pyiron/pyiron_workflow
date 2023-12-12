@@ -6,7 +6,7 @@ import unittest
 
 from pyiron_workflow.channels import NotData
 from pyiron_workflow.function import SingleValue
-from pyiron_workflow.macro import Macro
+from pyiron_workflow.macro import Macro, macro_node
 from pyiron_workflow.topology import CircularDataFlowError
 
 
@@ -412,6 +412,49 @@ class TestMacro(unittest.TestCase):
                 n2.signals.input.run.connections[0].node,
                 msg="Original connections should get restored on upstream failure"
             )
+
+    def test_maps_vs_functionlike_definitions(self):
+        """
+        Check that the full-detail IO maps and the white-listing like-a-function
+        approach are equivalent
+        """
+        @macro_node()
+        def WithIOMaps(macro):
+            macro.forked = macro.create.standard.UserInput()
+            macro.forked.inputs.user_input.type_hint = int
+            macro.list_in = macro.create.standard.UserInput()
+            macro.list_in.inputs.user_input.type_hint = list
+            macro.n_plus_2 = macro.forked + 2
+            macro.sliced_list = macro.list_in[macro.forked:macro.n_plus_2]
+            macro.double_fork = 2 * macro.forked
+            macro.inputs_map = {
+                macro.forked.inputs.user_input.scoped_label: "n",
+                "list_in__user_input": "lin",
+                "n_plus_2__other": None,
+                "list_in__user_input_Slice_forked__user_input_n_plus_2__add_None__step": None,
+                macro.double_fork.inputs.other.scoped_label: None,
+            }
+            macro.outputs_map = {
+                macro.sliced_list.outputs.getitem.scoped_label: "lout",
+                macro.n_plus_2.outputs.add.scoped_label: "n_plus_2",
+                "double_fork__rmul": None
+            }
+
+        # @macro_node("lout")
+        # def LikeAFunction(macro, n: int, lin: list):
+        #     macro.sliced_list = lin[n:n + 2]
+        #     return macro.sliced_list  # It's a SVN
+
+        n = 2
+        lin = [1, 2, 3, 4, 5, 6]
+        expected_input_labels = ["n", "lin"]
+        expected_result = {"n_plus_2": 4, "lout": [3, 4]}
+
+        for MacroClass in [WithIOMaps]:  #, LikeAFunction]:
+            with self.subTest(f"{MacroClass.__name__}"):
+                macro = MacroClass(n=n, lin=lin)
+                self.assertListEqual(macro.inputs.labels, expected_input_labels)
+                self.assertDictEqual(macro(), expected_result)
 
 
 if __name__ == '__main__':
