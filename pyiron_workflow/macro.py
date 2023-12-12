@@ -226,7 +226,7 @@ class Macro(Composite):
         """
         graph_creator_returns = ParseOutput(self.graph_creator).output
         output_labels = [output_labels] if isinstance(output_labels, str) else output_labels
-        if graph_creator_returns is not None or output_labels  is not None:
+        if graph_creator_returns is not None or output_labels is not None:
             error_suffix = f"but {self.label} macro got return values: " \
                            f"{graph_creator_returns} and labels: {output_labels}."
             try:
