@@ -6,7 +6,8 @@ interface and are not intended to be internally modified after instantiation.
 from __future__ import annotations
 
 from functools import partialmethod
-from typing import Optional, TYPE_CHECKING
+import inspect
+from typing import get_type_hints, Literal, Optional, TYPE_CHECKING
 
 from pyiron_workflow.channels import InputData, OutputData
 from pyiron_workflow.composite import Composite
@@ -220,6 +221,7 @@ class Macro(Composite):
             self._whitelist_inputs_map(*ui_nodes)
         if returned_has_channel_objects is not None:
             self._whitelist_outputs_map(
+                output_labels,
                 *(
                     (returned_has_channel_objects,)
                     if not isinstance(returned_has_channel_objects, tuple)
@@ -254,14 +256,57 @@ class Macro(Composite):
                 )
 
     def _prepopulate_ui_nodes_from_graph_creator_signature(self):
-        to_parse_later = self.graph_creator
-        return ()
+        arg_names = list(inspect.signature(self.graph_creator).parameters.keys())[1:]
+        hints_dict = get_type_hints(self.graph_creator)
+        interface_nodes = ()
+        for inp in arg_names:
+            node = self.create.standard.UserInput(label=inp, parent=self)
+            try:
+                node.inputs.user_input.type_hint = hints_dict[inp]
+            except KeyError:
+                pass  # If there's no hint that's fine
+            interface_nodes += (node,)
 
-    def _whitelist_inputs_map(self, *ui_nodes: HasChannel) -> None:
-        to_update = self.inputs_map
+        return interface_nodes
 
-    def _whitelist_outputs_map(self, *creator_returns: HasChannel) -> None:
-        to_update = self.outputs_map
+    def _whitelist_inputs_map(self, *ui_nodes) -> None:
+        if self.inputs_map is None:
+            self.inputs_map = {}
+
+        for ui_node in ui_nodes:
+            # White-list each of the input arguments that isn't already mapped
+            if ui_node.channel.scoped_label not in self.inputs_map.keys():
+                self.inputs_map[ui_node.channel.scoped_label] = ui_node.label
+
+        self.inputs_map = self._hide_non_whitelisted_io(self.inputs_map, "inputs")
+
+    def _whitelist_outputs_map(
+        self, output_labels, *creator_returns: HasChannel
+    ) -> None:
+        if self.outputs_map is None:
+            self.outputs_map = {}
+
+        for label, returned in zip(output_labels, creator_returns):
+            # White-list each of the returned values that isn't already mapped
+            if returned.channel.scoped_label not in self.outputs_map.keys():
+                self.outputs_map[returned.channel.scoped_label] = label
+
+        self.outputs_map = self._hide_non_whitelisted_io(self.outputs_map, "outputs")
+
+    def _hide_non_whitelisted_io(
+        self, io_map: bidict, i_or_o: Literal["inputs", "outputs"]
+    ) -> dict:
+        """
+        Make a new map dictionary with `None` entries for each channel that isn't
+        already in the provided map bidict. I.e. blacklist things we didn't whitelist.
+        """
+        io_map = dict(io_map)
+        # We do it in two steps like this to leverage the bidict security on the setter
+        for node in self.nodes.values():
+            for channel in getattr(node, i_or_o):
+                if channel.scoped_label not in io_map.keys():
+                    io_map[channel.scoped_label] = None
+        return io_map
 
     def _get_linking_channel(
         self,
