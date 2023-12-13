@@ -11,7 +11,7 @@ from pyiron_workflow.node_library.dev_tools import Replacer, VarType, FileObject
 
 
 @single_value_node("calculator")
-def calc_md(
+def CalcMd(
     temperature: VarType(dat_type=float, store=10) = 300,
     n_ionic_steps=1000,
     n_print=100,
@@ -27,7 +27,7 @@ def calc_md(
 
 
 @single_value_node("calculator")
-def calc_static():
+def CalcStatic():
     from pyiron_atomistics.lammps.control import LammpsControl
 
     calculator = LammpsControl()
@@ -37,12 +37,12 @@ def calc_static():
 
 # TODO: The following function has been only introduced to mimic input variables for a macro
 @single_value_node("structure")
-def structure(structure):
+def Structure(structure):
     return structure
 
 
 @single_value_node("path")
-def init_lammps(
+def InitLammps(
     structure=None, potential=None, calculator=None, working_directory=None
 ):
     import os
@@ -68,7 +68,7 @@ def init_lammps(
 
 
 @single_value_node("log")
-def parser_log_file(log_file):
+def ParserLogFile(log_file):
     from pymatgen.io.lammps.outputs import parse_lammps_log
 
     log = parse_lammps_log(log_file.path)
@@ -80,7 +80,7 @@ def parser_log_file(log_file):
 
 
 @single_value_node("dump")
-def parser_dump_file(dump_file):
+def ParserDumpFile(dump_file):
     from pymatgen.io.lammps.outputs import parse_lammps_dumps
 
     dump = list(parse_lammps_dumps(dump_file.path))
@@ -109,7 +109,7 @@ class ShellOutput(Storage):
 
 
 @function_node("output", "dump", "log")
-def shell(
+def Shell(
     command: str,
     environment: Optional[dict] = None,
     arguments: Optional[list] = None,
@@ -155,7 +155,7 @@ class GenericOutput(Storage):
 
 
 @single_value_node("generic")
-def collect(out_dump, out_log):
+def Collect(out_dump, out_log):
     import numpy as np
 
     log = out_log[0]
@@ -171,7 +171,7 @@ def collect(out_dump, out_log):
 
 
 @single_value_node("potential")
-def potential(structure, name=None, index=0):
+def Potential(structure, name=None, index=0):
     from pyiron_atomistics.lammps.potential import list_potentials as lp
 
     potentials = lp(structure)
@@ -186,7 +186,7 @@ def potential(structure, name=None, index=0):
 
 
 @single_value_node("potentials")
-def list_potentials(structure):
+def ListPotentials(structure):
     from pyiron_atomistics.lammps.potential import list_potentials as lp
 
     pot = lp(structure)
@@ -194,19 +194,19 @@ def list_potentials(structure):
 
 
 @single_value_node("empty")
-def list_empty():
+def ListEmpty():
     return []
 
 
 @single_value_node("structure")
-def repeat(
+def Repeat(
     structure: Optional[Atoms] = None, repeat_scalar: int = 1
 ) -> Optional[Atoms]:
     return structure.repeat(repeat_scalar)
 
 
 @single_value_node("structure")
-def apply_strain(
+def ApplyStrain(
     structure: Optional[Atoms] = None, strain: Union[float, int] = 0
 ) -> Optional[Atoms]:
     # print("apply strain: ", strain)
@@ -224,17 +224,17 @@ def get_calculators():
 
 
 nodes = [
-    structure,
-    init_lammps,
-    potential,
-    list_potentials,
-    list_empty,
-    calc_md,
-    calc_static,
-    parser_log_file,
-    parser_dump_file,
-    collect,
-    shell,
-    repeat,
-    apply_strain,
+    Structure,
+    InitLammps,
+    Potential,
+    ListPotentials,
+    ListEmpty,
+    CalcMd,
+    CalcStatic,
+    ParserLogFile,
+    ParserDumpFile,
+    Collect,
+    Shell,
+    Repeat,
+    ApplyStrain,
 ]

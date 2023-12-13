@@ -4,7 +4,7 @@ from pyiron_workflow.node_library.dev_tools import set_replacer
 
 
 @macro_node()
-def lammps(wf: Macro) -> None:
+def Lammps(wf: Macro) -> None:
     from pyiron_contrib.tinybase.shell import ExecutablePathResolver
 
     structure = wf.create.lammps.Structure()
@@ -41,4 +41,4 @@ def lammps(wf: Macro) -> None:
     wf.outputs_map = {"collect__generic": "generic"}
 
 
-nodes = [lammps]
+nodes = [Lammps]
