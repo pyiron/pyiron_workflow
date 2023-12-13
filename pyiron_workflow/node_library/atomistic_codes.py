@@ -1,23 +1,22 @@
+from typing import Optional
+
 from pyiron_workflow.macro import Macro, macro_node
 from pyiron_workflow.node_library.lammps import get_calculators
 from pyiron_workflow.node_library.dev_tools import set_replacer
 
 
-@macro_node()
-def Lammps(wf: Macro) -> None:
+@macro_node("generic")
+def Lammps(wf: Macro, structure, potential_name: Optional[str]) -> None:
     from pyiron_contrib.tinybase.shell import ExecutablePathResolver
 
-    wf.structure = wf.create.lammps.Structure()
-
-    wf.potential = wf.create.lammps.Potential(structure=wf.structure)
-
-    wf.list_pots = wf.create.lammps.ListPotentials(structure=wf.structure)
+    wf.potential = wf.create.lammps.Potential(structure, name=potential_name)
+    wf.list_pots = wf.create.lammps.ListPotentials(structure)
 
     wf.calc = wf.create.lammps.CalcStatic()
     wf.calc_select = set_replacer(wf.calc, get_calculators())
 
     wf.init_lammps = wf.create.lammps.InitLammps(
-        structure=wf.structure,
+        structure=structure,
         potential=wf.potential,
         calculator=wf.calc.outputs.calculator,
         # working_directory="test2",
@@ -33,12 +32,7 @@ def Lammps(wf: Macro) -> None:
     wf.collect = wf.create.lammps.Collect(
         out_dump=wf.parser_dump_file.outputs.dump, out_log=wf.parser_log_file.outputs.log
     )
-
-    wf.inputs_map = {
-        "structure__structure": "structure",
-        "potential__name": "potential",
-    }
-    wf.outputs_map = {"collect__generic": "generic"}
+    return wf.collect
 
 
 nodes = [Lammps]
