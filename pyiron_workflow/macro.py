@@ -327,6 +327,7 @@ class Macro(Composite):
         """
         io_map = dict(io_map)
         # We do it in two steps like this to leverage the bidict security on the setter
+        # Since bidict can't handle getting `None` (i.e. disable) for multiple keys
         for node in self.nodes.values():
             for channel in getattr(node, i_or_o):
                 if channel.scoped_label not in io_map.keys():
