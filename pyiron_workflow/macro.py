@@ -7,16 +7,15 @@ from __future__ import annotations
 
 from functools import partialmethod
 import inspect
-from typing import get_type_hints, Literal, Optional, TYPE_CHECKING
+from typing import get_type_hints, Literal, Optional
+
+from bidict import bidict
 
 from pyiron_workflow.channels import InputData, OutputData, NotData
 from pyiron_workflow.composite import Composite
 from pyiron_workflow.has_channel import HasChannel
 from pyiron_workflow.io import Outputs, Inputs
 from pyiron_workflow.output_parser import ParseOutput
-
-if TYPE_CHECKING:
-    from bidict import bidict
 
 
 class Macro(Composite):
@@ -285,28 +284,39 @@ class Macro(Composite):
         return interface_nodes
 
     def _whitelist_inputs_map(self, *ui_nodes) -> None:
-        if self.inputs_map is None:
-            self.inputs_map = {}
-
-        for ui_node in ui_nodes:
-            # White-list each of the input arguments that isn't already mapped
-            if ui_node.channel.scoped_label not in self.inputs_map.keys():
-                self.inputs_map[ui_node.channel.scoped_label] = ui_node.label
-
-        self.inputs_map = self._hide_non_whitelisted_io(self.inputs_map, "inputs")
+        self.inputs_map = self._hide_non_whitelisted_io(
+            self._whitelist_map(
+                self.inputs_map,
+                tuple(n.label for n in ui_nodes),
+                ui_nodes
+            ),
+            "inputs"
+        )
 
     def _whitelist_outputs_map(
-        self, output_labels, *creator_returns: HasChannel
-    ) -> None:
-        if self.outputs_map is None:
-            self.outputs_map = {}
+        self, output_labels: tuple[str], *creator_returns: HasChannel
+    ):
+        self.outputs_map = self._hide_non_whitelisted_io(
+            self._whitelist_map(
+                self.outputs_map,
+                output_labels,
+                creator_returns
+            ),
+            "outputs"
+        )
 
-        for label, returned in zip(output_labels, creator_returns):
-            # White-list each of the returned values that isn't already mapped
-            if returned.channel.scoped_label not in self.outputs_map.keys():
-                self.outputs_map[returned.channel.scoped_label] = label
-
-        self.outputs_map = self._hide_non_whitelisted_io(self.outputs_map, "outputs")
+    @staticmethod
+    def _whitelist_map(
+        io_map: bidict,
+        new_labels: tuple[str],
+        ui_nodes: tuple[HasChannel]
+    ) -> bidict:
+        io_map = bidict({}) if io_map is None else io_map
+        for new_label, ui_node in zip(new_labels, ui_nodes):
+            # White-list everything not already in the map
+            if ui_node.channel.scoped_label not in io_map.keys():
+                io_map[ui_node.channel.scoped_label] = new_label
+        return io_map
 
     def _hide_non_whitelisted_io(
         self, io_map: bidict, i_or_o: Literal["inputs", "outputs"]
