@@ -293,6 +293,7 @@ class Node(WorkflowGraphvizMap):
 
         if depth > 0:
             from pyiron_workflow.composite import Composite
+
             # Janky in-line import to avoid circular imports but only look for children
             # where they exist (since SingleValue nodes now actually do something on
             # failed attribute access, i.e. use it as delayed access on their output)
