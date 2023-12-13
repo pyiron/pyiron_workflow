@@ -217,7 +217,7 @@ class Macro(Composite):
         ...     # ^ This is vestigial, just to show we don't need to blacklist it in a
         ...     # whitelist-paradigm
         ...     return macro.sliced_list, macro.plus_two.channel
-        >>>      
+        >>>
         >>> like_functions = LikeAFunction(lin=[1,2,3,4,5,6], n=2)
         >>> like_functions()
         {'n_plus_2': 4, 'lout': [3, 4]}
@@ -243,7 +243,7 @@ class Macro(Composite):
         ...         macro.n_plus_2.outputs.add.scoped_label: "n_plus_2",
         ...         "double_fork__rmul": None
         ...     }
-        >>>      
+        >>>
         >>> with_maps = WithIOMaps(lin=[1,2,3,4,5,6], n=2)
         >>> with_maps()
         {'n_plus_2': 4, 'lout': [3, 4]}
@@ -372,11 +372,9 @@ class Macro(Composite):
         """
         self.inputs_map = self._hide_non_whitelisted_io(
             self._whitelist_map(
-                self.inputs_map,
-                tuple(n.label for n in ui_nodes),
-                ui_nodes
+                self.inputs_map, tuple(n.label for n in ui_nodes), ui_nodes
             ),
-            "inputs"
+            "inputs",
         )
 
     def _whitelist_outputs_map(
@@ -388,19 +386,13 @@ class Macro(Composite):
         output that wasn't explicitly mapped already.
         """
         self.outputs_map = self._hide_non_whitelisted_io(
-            self._whitelist_map(
-                self.outputs_map,
-                output_labels,
-                creator_returns
-            ),
-            "outputs"
+            self._whitelist_map(self.outputs_map, output_labels, creator_returns),
+            "outputs",
         )
 
     @staticmethod
     def _whitelist_map(
-        io_map: bidict,
-        new_labels: tuple[str],
-        has_channel_objects: tuple[HasChannel]
+        io_map: bidict, new_labels: tuple[str], has_channel_objects: tuple[HasChannel]
     ) -> bidict:
         """
         Update an IO map to give new labels to the channels of a bunch of `HasChannel`
