@@ -10,7 +10,7 @@ from pyiron_workflow.workflow import Workflow
 from pyiron_workflow.node_library.dev_tools import Replacer, VarType, FileObject
 
 
-@single_value_node(output_labels=["calculator"])
+@single_value_node("calculator")
 def calc_md(
     temperature: VarType(dat_type=float, store=10) = 300,
     n_ionic_steps=1000,
@@ -26,7 +26,7 @@ def calc_md(
     return calculator
 
 
-@single_value_node(output_labels=["calculator"])
+@single_value_node("calculator")
 def calc_static():
     from pyiron_atomistics.lammps.control import LammpsControl
 
@@ -36,12 +36,12 @@ def calc_static():
 
 
 # TODO: The following function has been only introduced to mimic input variables for a macro
-@single_value_node(output_labels=["structure"])
+@single_value_node("structure")
 def structure(structure):
     return structure
 
 
-@single_value_node(output_labels=["path"])
+@single_value_node("path")
 def init_lammps(
     structure=None, potential=None, calculator=None, working_directory=None
 ):
@@ -67,7 +67,7 @@ def init_lammps(
     return os.path.abspath(working_directory)
 
 
-@single_value_node(output_labels=["log"])
+@single_value_node("log")
 def parser_log_file(log_file):
     from pymatgen.io.lammps.outputs import parse_lammps_log
 
@@ -79,7 +79,7 @@ def parser_log_file(log_file):
     return log
 
 
-@single_value_node(output_labels=["dump"])
+@single_value_node("dump")
 def parser_dump_file(dump_file):
     from pymatgen.io.lammps.outputs import parse_lammps_dumps
 
@@ -108,7 +108,7 @@ class ShellOutput(Storage):
     log: FileObject
 
 
-@function_node(output_labels=["output", "dump", "log"])
+@function_node("output", "dump", "log")
 def shell(
     command: str,
     environment: Optional[dict] = None,
@@ -154,7 +154,7 @@ class GenericOutput(Storage):
     forces: []
 
 
-@single_value_node(output_labels=["generic"])
+@single_value_node("generic")
 def collect(out_dump, out_log):
     import numpy as np
 
@@ -170,7 +170,7 @@ def collect(out_dump, out_log):
     return output
 
 
-@single_value_node(output_labels=["potential"])
+@single_value_node("potential")
 def potential(structure, name=None, index=0):
     from pyiron_atomistics.lammps.potential import list_potentials as lp
 
@@ -185,7 +185,7 @@ def potential(structure, name=None, index=0):
     return pot
 
 
-@single_value_node(output_labels=["potentials"])
+@single_value_node("potentials")
 def list_potentials(structure):
     from pyiron_atomistics.lammps.potential import list_potentials as lp
 
@@ -193,19 +193,19 @@ def list_potentials(structure):
     return pot
 
 
-@single_value_node(output_labels=["empty"])
+@single_value_node("empty")
 def list_empty():
     return []
 
 
-@single_value_node(output_labels="structure")
+@single_value_node("structure")
 def repeat(
     structure: Optional[Atoms] = None, repeat_scalar: int = 1
 ) -> Optional[Atoms]:
     return structure.repeat(repeat_scalar)
 
 
-@single_value_node(output_labels="structure")
+@single_value_node("structure")
 def apply_strain(
     structure: Optional[Atoms] = None, strain: Union[float, int] = 0
 ) -> Optional[Atoms]:
