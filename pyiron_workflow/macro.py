@@ -309,10 +309,14 @@ class Macro(Composite):
     def _whitelist_map(
         io_map: bidict,
         new_labels: tuple[str],
-        ui_nodes: tuple[HasChannel]
+        has_channel_objects: tuple[HasChannel]
     ) -> bidict:
+        """
+        Update an IO map to give new labels to the channels of a bunch of `HasChannel`
+        objects.
+        """
         io_map = bidict({}) if io_map is None else io_map
-        for new_label, ui_node in zip(new_labels, ui_nodes):
+        for new_label, ui_node in zip(new_labels, has_channel_objects):
             # White-list everything not already in the map
             if ui_node.channel.scoped_label not in io_map.keys():
                 io_map[ui_node.channel.scoped_label] = new_label
