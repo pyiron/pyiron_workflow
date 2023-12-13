@@ -24,21 +24,43 @@ class Macro(Composite):
     pre-populated workflow that is the same every time you instantiate it.
 
     At instantiation, the macro uses a provided callable to build and wire the graph,
-    then builds a static IO interface for this graph. (See the parent class docstring
-    for more details, but by default and as with workflows, unconnected IO is
-    represented by combining node and channel names, but can be controlled in more
-    detail with maps.)
-    This IO is _value linked_ to the child IO, so that their values stay synchronized,
-    but the child nodes of a macro form an isolated sub-graph.
-    As with function nodes, sub-classes may define a method for creating the graph.
+    then builds a static IO interface for this graph.
+    This callable must use the macro object itself as the first argument (e.g. adding
+    nodes to it).
+    As with `Workflow` objects, macros leverage `inputs_map` and `outputs_map` to
+    control macro-level IO access to child IO.
+    As with `Workflow`, default behaviour is to expose all unconnected child IO.
+    The provided callable may optionally specify further args and kwargs, which are used
+    to pre-populate the macro with `UserInput` nodes;
+    This can be especially helpful when more than one child node needs access to the
+    same input value.
+    Similarly, the callable may return any number of child nodes' output channels (or
+    the node itself in the case of `SingleValue` nodes) and commensurate
+    `output_labels` to define macro-level output.
+    These function-like definitions of the graph creator callable can be used
+    independently or together.
+    Each that is used switches its IO map to a "whitelist" paradigm, so any I/O _not_
+    provided in the callable signature/return values and output labels will be disabled.
+    Manual modifications of the IO maps inside the callable always take priority over
+    this whitelisting behaviour, so you always retain full control over what IO is
+    exposed, and the whitelisting is only for your convenience.
 
-    As with workflows, all DAG macros can determine their execution flow automatically,
-    if you have cycles in your data flow, or otherwise want more control over the
-    execution, all you need to do is specify the `node.signals.input.run` connections
-    and `starting_nodes` list yourself.
+    Macro IO is _value linked_ to the child IO, so that their values stay synchronized,
+    but the child nodes of a macro form an isolated sub-graph.
+
+    As with function nodes, subclasses of `Macro` may define a method for creating the
+    graph.
+
+    As with `Workflow``, all DAG macros can determine their execution flow
+    automatically, if you have cycles in your data flow, or otherwise want more control
+    over the execution, all you need to do is specify the `node.signals.input.run`
+    connections and `starting_nodes` list yourself.
     If only _one_ of these is specified, you'll get an error, but if you've provided
     both then no further checks of their validity/reasonableness are performed, so be
     careful.
+    Unlike `Workflow`, this execution flow automation is set up once at instantiation;
+    If the macro is modified post-facto, you may need to manually re-invoke
+    `configure_graph_execution`.
 
     Promises (in addition parent class promises):
     - IO is...
@@ -171,6 +193,60 @@ class Macro(Composite):
         >>> adds_six_macro.three = add_two
         >>> adds_six_macro(one__x=1)
         {'three__result': 7}
+
+        Instead of controlling the IO interface with dictionary maps, we can instead
+        provide a more `Function(Node)`-like definition of the `graph_creator` by
+        adding args and/or kwargs to the signature (under the hood, this dynamically
+        creates new `UserInput` nodes before running the rest of the graph creation),
+        and/or returning child channels (or whole children in the case of `SingleValue`
+        nodes) and providing commensurate `output_labels`.
+        This process switches us from the `Workflow` default of exposing all
+        unconnected child IO, to a "whitelist" paradigm of _only_ showing the IO that
+        we exposed by our function defintion.
+        (Note: any `.inputs_map` or `.outputs_map` explicitly defined in the
+        `graph_creator` still takes precedence over this whitelisting! So you always
+        retain full control over what IO gets exposed.)
+        E.g., these two definitions are perfectly equivalent:
+
+        >>> @Macro.wrap_as.macro_node("lout", "n_plus_2")
+        ... def LikeAFunction(macro, lin: list,  n: int = 1):
+        ...     macro.plus_two = n + 2
+        ...     macro.sliced_list = lin[n:macro.plus_two]
+        ...     macro.double_fork = 2 * n
+        ...     # ^ This is vestigial, just to show we don't need to blacklist it in a
+        ...     # whitelist-paradigm
+        ...     return macro.sliced_list, macro.plus_two.channel
+        >>>      
+        >>> like_functions = LikeAFunction(lin=[1,2,3,4,5,6], n=2)
+        >>> like_functions()
+        {'n_plus_2': 4, 'lout': [3, 4]}
+
+        >>> @Macro.wrap_as.macro_node()
+        ... def WithIOMaps(macro):
+        ...     macro.list_in = macro.create.standard.UserInput()
+        ...     macro.list_in.inputs.user_input.type_hint = list
+        ...     macro.forked = macro.create.standard.UserInput(2)
+        ...     macro.forked.inputs.user_input.type_hint = int
+        ...     macro.n_plus_2 = macro.forked + 2
+        ...     macro.sliced_list = macro.list_in[macro.forked:macro.n_plus_2]
+        ...     macro.double_fork = 2 * macro.forked
+        ...     macro.inputs_map = {
+        ...         "list_in__user_input": "lin",
+        ...         macro.forked.inputs.user_input.scoped_label: "n",
+        ...         "n_plus_2__other": None,
+        ...         "list_in__user_input_Slice_forked__user_input_n_plus_2__add_None__step": None,
+        ...         macro.double_fork.inputs.other.scoped_label: None,
+        ...     }
+        ...     macro.outputs_map = {
+        ...         macro.sliced_list.outputs.getitem.scoped_label: "lout",
+        ...         macro.n_plus_2.outputs.add.scoped_label: "n_plus_2",
+        ...         "double_fork__rmul": None
+        ...     }
+        >>>      
+        >>> with_maps = WithIOMaps(lin=[1,2,3,4,5,6], n=2)
+        >>> with_maps()
+        {'n_plus_2': 4, 'lout': [3, 4]}
+
     """
 
     def __init__(
