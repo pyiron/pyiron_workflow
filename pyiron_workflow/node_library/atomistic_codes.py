@@ -6,7 +6,7 @@ from pyiron_workflow.node_library.dev_tools import set_replacer
 
 
 @macro_node("generic")
-def Lammps(wf: Macro, structure, potential_name: Optional[str]) -> None:
+def Lammps(wf: Macro, structure, potential_name: Optional[str] = None) -> None:
     from pyiron_contrib.tinybase.shell import ExecutablePathResolver
 
     wf.potential = wf.create.lammps.Potential(structure, name=potential_name)
