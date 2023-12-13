@@ -233,14 +233,14 @@ class Macro(Composite):
 
         self.set_input_values(**kwargs)
 
-    def _validate_output_labels(self, output_labels):
+    def _validate_output_labels(self, output_labels) -> tuple[str]:
         """
         Ensure that output_labels, if provided, are commensurate with graph creator
-        return values, if provided.
+        return values, if provided, and return them as a tuple.
         """
         graph_creator_returns = ParseOutput(self.graph_creator).output
         output_labels = (
-            [output_labels] if isinstance(output_labels, str) else output_labels
+            (output_labels,) if isinstance(output_labels, str) else output_labels
         )
         if graph_creator_returns is not None or output_labels is not None:
             error_suffix = (
@@ -258,6 +258,7 @@ class Macro(Composite):
                     f"Output labels and graph creator return values must either both "
                     f"or neither be present, " + error_suffix
                 )
+        return () if output_labels is None else tuple(output_labels)
 
     def _prepopulate_ui_nodes_from_graph_creator_signature(self):
         hints_dict = get_type_hints(self.graph_creator)
