@@ -9,22 +9,29 @@ from __future__ import annotations
 
 import warnings
 from abc import ABC, abstractmethod
-from concurrent.futures import Future
+from concurrent.futures import Executor as StdLibExecutor, Future
 from typing import Any, Literal, Optional, TYPE_CHECKING
 
-from pyiron_workflow.channels import NotData
+from pyiron_workflow.channels import (
+    InputSignal,
+    AccumulatingInputSignal,
+    OutputSignal,
+    NotData,
+)
 from pyiron_workflow.draw import Node as GraphvizNode
-from pyiron_workflow.executors import CloudpickleProcessPoolExecutor as Executor
 from pyiron_workflow.files import DirectoryObject
 from pyiron_workflow.has_to_dict import HasToDict
-from pyiron_workflow.io import Signals, InputSignal, OutputSignal
+from pyiron_workflow.io import Signals
 from pyiron_workflow.topology import (
     get_nodes_in_data_tree,
     set_run_connections_according_to_linear_dag,
 )
-from pyiron_workflow.util import SeabornColors
+from pyiron_workflow.snippets.colors import SeabornColors
+from pyiron_workflow.snippets.has_post import AbstractHasPost
 
 if TYPE_CHECKING:
+    from pathlib import Path
+
     import graphviz
 
     from pyiron_workflow.channels import Channel
@@ -64,7 +71,11 @@ def manage_status(node_method):
     return wrapped_method
 
 
-class Node(HasToDict, ABC):
+class ReadinessError(ValueError):
+    pass
+
+
+class Node(HasToDict, ABC, metaclass=AbstractHasPost):
     """
     Nodes are elements of a computational graph.
     They have inputs and outputs to interface with the wider world, and perform some
@@ -83,6 +94,9 @@ class Node(HasToDict, ABC):
         - And a signal flavour, to control the flow of execution
             - Execution flows can be specified manually, but in the case of data flows
                 which form directed acyclic graphs (DAGs), this can be automated
+            - Running can be triggered in an instantaneous (i.e. "or" applied to
+                incoming signals) or accumulating way (i.e. "and" applied to incoming
+                signals).
     - When running their computation, nodes may or may not:
         - First update their input data values using kwargs
             - (Note that since this happens first, if the "fetching" step later occurs,
@@ -110,15 +124,28 @@ class Node(HasToDict, ABC):
         held by the output channels
     - If an error is encountered _after_ reaching the state of actually computing the
         node's task, the status will get set to failure
+    - Nodes can be instructed to run at the end of their initialization, but will exit
+        cleanly if they get to checking their readiness and find they are not ready
     - Nodes have a label by which they are identified
     - Nodes may open a working directory related to their label, their parent(age) and
         the python process working directory
-
-    WARNING: Executors are currently only working when the node executable function
-        does not use `self`.
-
-    NOTE: Executors are only allowed in a "push" paradigm, and you will get an
-    exception if you try to `pull` and one of the upstream nodes uses an executor.
+    - Nodes can run their computation using remote resources by setting an executor
+        - Any executor must have a `submit` method with the same interface as
+            `concurrent.futures.Executor`, must return a `concurrent.futures.Future`
+            (or child thereof) object, and must be able to serialize dynamically
+            defined objects
+        - On executing this way, a futures object will be returned instead of the usual
+            result, this future will also be stored as an attribute, and a callback will
+            be registered with the executor
+        - Post-execution processing -- e.g. updating output and firing signals -- will
+            not occur until the futures object is finished and the callback fires.
+        - WARNING: Executors are currently only working when the node executable
+            function does not use `self`
+        - NOTE: Executors are only allowed in a "push" paradigm, and you will get an
+            exception if you try to `pull` and one of the upstream nodes uses an
+            executor
+        - NOTE: Don't forget to `shutdown` any created executors outside of a `with`
+            context when you're done with them; we give a convenience method for this.
 
     This is an abstract class.
     Children *must* define how `inputs` and `outputs` are constructed, what will
@@ -156,9 +183,12 @@ class Node(HasToDict, ABC):
             received output from this call. (Default is False.)
         signals (pyiron_workflow.io.Signals): A container for input and output
             signals, which are channels for controlling execution flow. By default, has
-            a `signals.inputs.run` channel which has a callback to the `run` method,
-            and `signals.outputs.ran` which should be called at when the `run` method
-            is finished.
+            a `signals.inputs.run` channel which has a callback to the `run` method
+            that fires whenever _any_ of its connections sends a signal to it, a
+            `signals.inputs.accumulate_and_run` channel which has a callback to the
+            `run` method but only fires after _all_ its connections send at least one
+            signal to it, and `signals.outputs.ran` which gets called when the `run`
+            method is finished.
             Additional signal channels in derived classes can be added to
             `signals.inputs` and  `signals.outputs` after this mixin class is
             initialized.
@@ -192,6 +222,7 @@ class Node(HasToDict, ABC):
         label: str,
         *args,
         parent: Optional[Composite] = None,
+        run_after_init: bool = False,
         **kwargs,
     ):
         """
@@ -201,22 +232,31 @@ class Node(HasToDict, ABC):
         Args:
             label (str): A name for this node.
             *args: Arguments passed on with `super`.
+            parent: (Composite|None): The composite node that owns this as a child.
+            run_after_init (bool): Whether to run at the end of initialization.
             **kwargs: Keyword arguments passed on with `super`.
         """
         super().__init__(*args, **kwargs)
         self.label: str = label
         self._parent = None
         if parent is not None:
-            parent.add(self)
+            parent.add_node(self)
         self.running = False
         self.failed = False
         self.signals = self._build_signal_channels()
         self._working_directory = None
-        self.executor = False
+        self.executor = None
         # We call it an executor, but it's just whether to use one.
         # This is a simply stop-gap as we work out more sophisticated ways to reference
         # (or create) an executor process without ever trying to pickle a `_thread.lock`
         self.future: None | Future = None
+
+    def __post__(self, *args, run_after_init: bool = False, **kwargs):
+        if run_after_init:
+            try:
+                self.run()
+            except ReadinessError:
+                pass
 
     @property
     @abstractmethod
@@ -267,6 +307,20 @@ class Node(HasToDict, ABC):
             "Please change parentage by adding/removing the node to/from the relevant"
             "parent"
         )
+
+    @property
+    def readiness_report(self) -> str:
+        input_readiness = "\n".join(
+            [f"{k} ready: {v.ready}" for k, v in self.inputs.items()]
+        )
+        report = (
+            f"{self.label} readiness: {self.ready}\n"
+            f"STATE:\n"
+            f"running: {self.running}\n"
+            f"failed: {self.failed}\n"
+            f"INPUTS:\n" + input_readiness
+        )
+        return report
 
     def run(
         self,
@@ -331,15 +385,10 @@ class Node(HasToDict, ABC):
             self.inputs.fetch()
 
         if check_readiness and not self.ready:
-            input_readiness = "\n".join(
-                [f"{k} ready: {v.ready}" for k, v in self.inputs.items()]
-            )
-            raise ValueError(
+            raise ReadinessError(
                 f"{self.label} received a run command but is not ready. The node "
                 f"should be neither running nor failed, and all input values should"
-                f" conform to type hints:\n"
-                f"running: {self.running}\n"
-                f"failed: {self.failed}\n" + input_readiness
+                f" conform to type hints.\n" + self.readiness_report
             )
 
         return self._run(
@@ -368,7 +417,7 @@ class Node(HasToDict, ABC):
 
         data_tree_nodes = get_nodes_in_data_tree(self)
         for node in data_tree_nodes:
-            if node.executor:
+            if node.executor is not None:
                 raise ValueError(
                     f"Running the data tree is pull-paradigm action, and is "
                     f"incompatible with using executors. An executor request was found "
@@ -386,9 +435,10 @@ class Node(HasToDict, ABC):
             nodes[modified_label] = node
 
         try:
-            disconnected_pairs, starter = set_run_connections_according_to_linear_dag(
+            disconnected_pairs, starters = set_run_connections_according_to_linear_dag(
                 nodes
             )
+            starter = starters[0]
         except Exception as e:
             # If the dag setup fails it will repair any connections it breaks before
             # raising the error, but we still need to repair our label changes
@@ -423,17 +473,48 @@ class Node(HasToDict, ABC):
         Handles the status of the node, and communicating with any remote
         computing resources.
         """
-        if force_local_execution or not self.executor:
+        if force_local_execution or self.executor is None:
             # Run locally
             run_output = self.on_run(**self.run_args)
             return finished_callback(run_output)
         else:
             # Just blindly try to execute -- as we nail down the executor interaction
             # we'll want to fail more cleanly here.
-            executor = Executor()
-            self.future = executor.submit(self.on_run, **self.run_args)
+            executor = self._parse_executor(self.executor)
+            kwargs = self.run_args
+            if "self" in kwargs.keys():
+                raise ValueError(
+                    f"{self.label} got 'self' as a run argument, but self cannot "
+                    f"currently be combined with running on executors."
+                )
+            self.future = executor.submit(self.on_run, **kwargs)
             self.future.add_done_callback(finished_callback)
             return self.future
+
+    @staticmethod
+    def _parse_executor(executor) -> StdLibExecutor:
+        """
+        We may want to allow users to specify how to build an executor rather than
+        actually providing an executor instance -- so here we can interpret these.
+
+        NOTE:
+            `concurrent.futures.Executor` _won't_ actually work, because we need
+            stuff with `cloudpickle` support. We're leaning on this for a guaranteed
+            interface (has `submit` and returns a `Future`), and leaving it to the user
+            to provide an executor that will actually work!!!
+
+        NOTE:
+            If, in the future, this parser is extended to instantiate new executors from
+            instructions, these new instances may not be caught by the
+            `executor_shutdown` method. This will require some re-engineering to make
+            sure we don't have dangling executors.
+        """
+        if isinstance(executor, StdLibExecutor):
+            return executor
+        else:
+            raise NotImplementedError(
+                f"Expected an instance of {StdLibExecutor}, but got {executor}."
+            )
 
     def _finish_run(self, run_output: tuple | Future) -> Any | tuple:
         """
@@ -538,6 +619,9 @@ class Node(HasToDict, ABC):
     def _build_signal_channels(self) -> Signals:
         signals = Signals()
         signals.input.run = InputSignal("run", self, self.run)
+        signals.input.accumulate_and_run = AccumulatingInputSignal(
+            "accumulate_and_run", self, self.run
+        )
         signals.output.ran = OutputSignal("ran", self)
         return signals
 
@@ -587,10 +671,26 @@ class Node(HasToDict, ABC):
         return SeabornColors.white
 
     def draw(
-        self, depth: int = 1, rankdir: Literal["LR", "TB"] = "LR"
+        self,
+        depth: int = 1,
+        rankdir: Literal["LR", "TB"] = "LR",
+        save: bool = False,
+        view: bool = False,
+        directory: Optional[Path | str] = None,
+        filename: Optional[Path | str] = None,
+        format: Optional[str] = None,
+        cleanup: bool = True,
     ) -> graphviz.graphs.Digraph:
         """
-        Draw the node structure.
+        Draw the node structure and return it as a graphviz object.
+
+        A selection of the `graphviz.Graph.render` method options are exposed, and if
+        `view` or `filename` is provided, this will be called before returning the
+        graph.
+        The graph file and rendered image will be stored in the node's working
+        directory.
+        This is purely for convenience -- since we directly return a graphviz object
+        you can instead use this to leverage the full power of graphviz.
 
         Args:
             depth (int): How deeply to decompose the representation of composite nodes
@@ -600,17 +700,37 @@ class Node(HasToDict, ABC):
                 max depth of the node will have no adverse side effects.
             rankdir ("LR" | "TB"): Use left-right or top-bottom graphviz `rankdir` to
                 orient the flow of the graph.
+            save (bool): Render the graph image. (Default is False. When True, all
+                other defaults will yield a PDF in the node's working directory.)
+            view (bool): `graphviz.Graph.render` argument, open the rendered result
+                with the default application. (Default is False. When True, default
+                values for the directory and filename are supplied by the node working
+                directory and label.)
+            directory (Path|str|None): `graphviz.Graph.render` argument, (sub)directory
+                for source saving and rendering. (Default is None, which uses the
+                node's working directory.)
+            filename (Path|str): `graphviz.Graph.render` argument, filename for saving
+                the source. (Default is None, which uses the node label + `"_graph"`.
+            format (str|None): `graphviz.Graph.render` argument, the output format used
+                for rendering ('pdf', 'png', etc.).
+            cleanup (bool): `graphviz.Graph.render` argument, delete the source file
+                after successful rendering. (Default is True -- unlike graphviz.)
 
         Returns:
             (graphviz.graphs.Digraph): The resulting graph object.
-
-        Note:
-            The graphviz docs will elucidate all the possibilities of what to do with
-            the returned object, but the thing you are most likely to need is the
-            `render` method, which allows you to save the resulting graph as an image.
-            E.g. `self.draw().render(filename="my_node", format="png")`.
         """
-        return GraphvizNode(self, depth=depth, rankdir=rankdir).graph
+        graph = GraphvizNode(self, depth=depth, rankdir=rankdir).graph
+        if save or view or filename is not None:
+            directory = self.working_directory.path if directory is None else directory
+            filename = self.label + "_graph" if filename is None else filename
+            graph.render(
+                view=view,
+                directory=directory,
+                filename=filename,
+                format=format,
+                cleanup=cleanup,
+            )
+        return graph
 
     def activate_strict_hints(self):
         """Enable type hint checks for all data IO"""
@@ -633,12 +753,22 @@ class Node(HasToDict, ABC):
     def _connect_output_signal(self, signal: OutputSignal):
         self.signals.input.run.connect(signal)
 
-    def __gt__(self, other: InputSignal | Node):
+    def __rshift__(self, other: InputSignal | Node):
         """
-        Allows users to connect run and ran signals like: `first_node > second_node`.
+        Allows users to connect run and ran signals like: `first_node >> second_node`.
         """
         other._connect_output_signal(self.signals.output.ran)
-        return True
+        return other
+
+    def _connect_accumulating_input_signal(self, signal: AccumulatingInputSignal):
+        self.signals.output.ran.connect(signal)
+
+    def __lshift__(self, others):
+        """
+        Connect one or more `ran` signals to `accumulate_and_run` signals like:
+        `this_node << some_node, another_node, or_by_channel.signals.output.ran`
+        """
+        self.signals.input.accumulate_and_run << others
 
     def copy_io(
         self,
@@ -779,7 +909,7 @@ class Node(HasToDict, ABC):
 
     def replace_with(self, other: Node | type[Node]):
         """
-        If this node has a parent, invokes `self.parent.replace(self, other)` to swap
+        If this node has a parent, invokes `self.parent.replace_node(self, other)` to swap
         out this node for the other node in the parent graph.
 
         The replacement must have fully compatible IO, i.e. its IO must be a superset of
@@ -791,9 +921,9 @@ class Node(HasToDict, ABC):
             other (Node|type[Node]): The replacement.
         """
         if self.parent is not None:
-            self.parent.replace(self, other)
+            self.parent.replace_node(self, other)
         else:
-            warnings.warn(f"Could not replace {self.label}, as it has no parent.")
+            warnings.warn(f"Could not replace_node {self.label}, as it has no parent.")
 
     def __getstate__(self):
         state = self.__dict__
@@ -818,7 +948,27 @@ class Node(HasToDict, ABC):
         # for the record I am admitting that the current shallowness of my understanding
         # may cause me/us headaches in the future.
         # -Liam
+        state["future"] = None
+        # Don't pass the future -- with the future in the state things work fine for
+        # the simple pyiron_workflow.executors.CloudpickleProcessPoolExecutor, but for
+        # the more complex pympipool.Executor we're getting:
+        # TypeError: cannot pickle '_thread.RLock' object
+        if isinstance(self.executor, StdLibExecutor):
+            state["executor"] = None
+        # Don't pass actual executors, they have an unserializable thread lock on them
+        # _but_ if the user is just passing instructions on how to _build_ an executor,
+        # we'll trust that those serialize OK (this way we can, hopefully, eventually
+        # support nesting executors!)
         return self.__dict__
 
     def __setstate__(self, state):
-        self.__dict__ = state
+        # Update instead of overriding in case some other attributes were added on the
+        # main process while a remote process was working away
+        self.__dict__.update(**state)
+
+    def executor_shutdown(self, wait=True, *, cancel_futures=False):
+        """Invoke shutdown on the executor (if present)."""
+        try:
+            self.executor.shutdown(wait=wait, cancel_futures=cancel_futures)
+        except AttributeError:
+            pass

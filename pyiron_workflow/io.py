@@ -20,7 +20,8 @@ from pyiron_workflow.channels import (
 )
 from pyiron_workflow.has_channel import HasChannel
 from pyiron_workflow.has_to_dict import HasToDict
-from pyiron_workflow.util import DotDict, logger
+from pyiron_workflow.snippets.logger import logger
+from pyiron_workflow.snippets.dotdict import DotDict
 
 
 class IO(HasToDict, ABC):
@@ -171,6 +172,10 @@ class DataIO(IO, ABC):
     def to_value_dict(self):
         return {label: channel.value for label, channel in self.channel_dict.items()}
 
+    def to_list(self):
+        """A list of channel values (order not guaranteed)"""
+        return list(channel.value for channel in self.channel_dict.values())
+
     @property
     def ready(self):
         return all([c.ready for c in self])
@@ -218,10 +223,17 @@ class InputSignals(SignalIO):
         return InputSignal
 
     def disconnect_run(self) -> list[tuple[Channel, Channel]]:
+        """Disconnect all `run` and `accumulate_and_run` signals, if they exist."""
+        disconnected = []
         try:
-            return self.run.disconnect_all()
+            disconnected += self.run.disconnect_all()
         except AttributeError:
-            return []
+            pass
+        try:
+            disconnected += self.accumulate_and_run.disconnect_all()
+        except AttributeError:
+            pass
+        return disconnected
 
 
 class OutputSignals(SignalIO):

@@ -1,9 +1,8 @@
-from unittest import TestCase, skipUnless
-from sys import version_info
+import unittest
 
 from pyiron_workflow.channels import (
-    Channel, InputData, OutputData, InputSignal, OutputSignal, NotData,
-    ChannelConnectionError
+    Channel, InputData, OutputData, InputSignal, AccumulatingInputSignal, OutputSignal,
+    NotData, ChannelConnectionError
 )
 
 
@@ -17,31 +16,32 @@ class DummyNode:
         self.foo.append(self.foo[-1] + 1)
 
 
-@skipUnless(version_info[0] == 3 and version_info[1] >= 10, "Only supported for 3.10+")
-class TestChannel(TestCase):
+class InputChannel(Channel):
+    """Just to de-abstract the base class"""
+    def __str__(self):
+        return "non-abstract input"
 
-    class InputChannel(Channel):
-        """Just to de-abstract the base class"""
-        def __str__(self):
-            return "non-abstract input"
+    @property
+    def connection_partner_type(self) -> type[Channel]:
+        return OutputChannel
 
-        @property
-        def generic_type(self) -> type[Channel]:
-            return Channel
 
-    class OutputChannel(Channel):
-        """Just to de-abstract the base class"""
-        def __str__(self):
-            return "non-abstract output"
+class OutputChannel(Channel):
+    """Just to de-abstract the base class"""
+    def __str__(self):
+        return "non-abstract output"
 
-        @property
-        def generic_type(self) -> type[Channel]:
-            return Channel
+    @property
+    def connection_partner_type(self) -> type[Channel]:
+        return InputChannel
+
+
+class TestChannel(unittest.TestCase):
 
     def setUp(self) -> None:
-        self.inp = self.InputChannel("inp", DummyNode())
-        self.out = self.OutputChannel("out", DummyNode())
-        self.out2 = self.OutputChannel("out2", DummyNode())
+        self.inp = InputChannel("inp", DummyNode())
+        self.out = OutputChannel("out", DummyNode())
+        self.out2 = OutputChannel("out2", DummyNode())
 
     def test_connection_validity(self):
         with self.assertRaises(
@@ -51,27 +51,13 @@ class TestChannel(TestCase):
             self.inp.connect("not a node")
 
         with self.assertRaises(
-            ChannelConnectionError,
-            msg="Can't connect non-conjugate pairs"
+            TypeError,
+            msg="Can't connect to channels that are not the partner type"
         ):
-            self.inp.connect(self.InputChannel("also_input", DummyNode()))
+            self.inp.connect(InputChannel("also_input", DummyNode()))
 
         self.inp.connect(self.out)
         # A conjugate pair should work fine
-
-    def test_length(self):
-        self.inp.connect(self.out)
-        self.out2.connect(self.inp)
-        self.assertEqual(
-            2,
-            len(self.inp),
-            msg="Promised that channel length was number of connections"
-        )
-        self.assertEqual(
-            1,
-            len(self.out),
-            msg="Promised that channel length was number of connections"
-        )
 
     def test_connection_reflexivity(self):
         self.inp.connect(self.out)
@@ -122,8 +108,7 @@ class TestChannel(TestCase):
             )
 
 
-@skipUnless(version_info[0] == 3 and version_info[1] >= 10, "Only supported for 3.10+")
-class TestDataChannels(TestCase):
+class TestDataChannels(unittest.TestCase):
 
     def setUp(self) -> None:
         self.ni1 = InputData(
@@ -346,7 +331,7 @@ class TestDataChannels(TestCase):
         self.assertFalse(self.ni1.ready)
 
 
-class TestSignalChannels(TestCase):
+class TestSignalChannels(unittest.TestCase):
     def setUp(self) -> None:
         node = DummyNode()
         self.inp = InputSignal(label="inp", node=node, callback=node.update)
@@ -360,13 +345,13 @@ class TestSignalChannels(TestCase):
 
         with self.subTest("Ignore repeated connection"):
             self.out.connect(self.inp)
-            self.assertEqual(len(self.inp), 1)
-            self.assertEqual(len(self.out), 1)
+            self.assertEqual(len(self.inp.connections), 1)
+            self.assertEqual(len(self.out.connections), 1)
 
         with self.subTest("Check disconnection"):
             self.out.disconnect_all()
-            self.assertEqual(len(self.inp), 0)
-            self.assertEqual(len(self.out), 0)
+            self.assertEqual(len(self.inp.connections), 0)
+            self.assertEqual(len(self.out.connections), 0)
 
         with self.subTest("No connections to non-SignalChannels"):
             bad = InputData(label="numeric", node=DummyNode(), default=1, type_hint=int)
@@ -375,7 +360,7 @@ class TestSignalChannels(TestCase):
 
         with self.subTest("Test syntactic sugar"):
             self.out.disconnect_all()
-            self.out > self.inp
+            self.out >> self.inp
             self.assertIn(self.out, self.inp.connections)
 
     def test_calls(self):
@@ -384,3 +369,88 @@ class TestSignalChannels(TestCase):
         self.assertListEqual(self.inp.node.foo, [0, 1])
         self.inp()
         self.assertListEqual(self.inp.node.foo, [0, 1, 2])
+
+    def test_aggregating_call(self):
+        node = DummyNode()
+        agg = AccumulatingInputSignal(label="agg", node=node, callback=node.update)
+
+        with self.assertRaises(
+            TypeError,
+            msg="For an aggregating input signal, it _matters_ who called it, so "
+                "receiving an output signal is not optional"
+        ):
+            agg()
+
+        out2 = OutputSignal(label="out", node=DummyNode())
+        agg.connect(self.out, out2)
+
+        self.assertEqual(
+            2,
+            len(agg.connections),
+            msg="Sanity check on initial conditions"
+        )
+        self.assertEqual(
+            0,
+            len(agg.received_signals),
+            msg="Sanity check on initial conditions"
+        )
+        self.assertListEqual(
+            [0],
+            node.foo,
+            msg="Sanity check on initial conditions"
+        )
+
+        self.out()
+        self.assertEqual(
+            1,
+            len(agg.received_signals),
+            msg="Signal should be received"
+        )
+        self.assertListEqual(
+            [0],
+            node.foo,
+            msg="Receiving only _one_ of your connections should not fire the callback"
+        )
+
+        self.out()
+        self.assertEqual(
+            1,
+            len(agg.received_signals),
+            msg="Repeatedly receiving the same signal should have no effect"
+        )
+        self.assertListEqual(
+            [0],
+            node.foo,
+            msg="Repeatedly receiving the same signal should have no effect"
+        )
+
+        out2()
+        self.assertListEqual(
+            [0, 1],
+            node.foo,
+            msg="After 2/2 output signals have fired, the callback should fire"
+        )
+        self.assertEqual(
+            0,
+            len(agg.received_signals),
+            msg="Firing the callback should reset the list of received signals"
+        )
+
+        out2()
+        agg.disconnect(out2)
+        self.out()
+        self.assertListEqual(
+            [0, 1, 2],
+            node.foo,
+            msg="Having a vestigial received signal (i.e. one from an output signal "
+                "that is no longer connected) shouldn't hurt anything"
+        )
+        self.assertEqual(
+            0,
+            len(agg.received_signals),
+            msg="All signals, including vestigial ones, should get cleared on call"
+        )
+
+
+if __name__ == '__main__':
+    unittest.main()

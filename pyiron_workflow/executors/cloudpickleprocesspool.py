@@ -48,7 +48,9 @@ class CloudpickleProcessPoolExecutor(ProcessPoolExecutor):
         normal.
         >>> from functools import partialmethod
         >>>
-        >>> from pyiron_contrib.executors import CloudpickleProcessPoolExecutor
+        >>> from pyiron_workflow.executors.cloudpickleprocesspool import (
+        ...     CloudpickleProcessPoolExecutor
+        ... )
         >>>
         >>> class Foo:
         ...     '''
@@ -87,7 +89,7 @@ class CloudpickleProcessPoolExecutor(ProcessPoolExecutor):
         ...     return as_dynamic_foo
         >>>
         >>> @dynamic_foo()
-        >>> def UnpicklableCallable(unpicklable_arg):
+        ... def UnpicklableCallable(unpicklable_arg):
         ...     unpicklable_arg.result = "This was an arg"
         ...     return unpicklable_arg
         >>>
