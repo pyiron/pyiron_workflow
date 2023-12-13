@@ -164,6 +164,12 @@ class DataStore:
     def __init__(self, path="."):
         self._path = path
         self._project = MiniProject(path)
+        self._ensure_storage_folder_exists()
+
+    def _ensure_storage_folder_exists(self):
+        path = pathlib.Path(self._path)
+        if not path.is_dir():
+            path.mkdir(parents=True, exist_ok=True)
 
     def get_hdf(self, path, label):
         p = pathlib.Path(path, label)
