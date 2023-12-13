@@ -57,7 +57,7 @@ class Replacer:
     def __call__(self, other: Node, **kwargs):
         # This is just the current replacement code:
         if self.node.parent is not None:
-            self.node.parent.replace(self.node, other)
+            self.node.parent.replace_node(self.node, other)
             # print ('replacer called', self.node.label, other, kwargs) #, other.info, dir(other))
             self.node = self.parent[self.node_label]
             return self.node.set_input_values(**kwargs)
