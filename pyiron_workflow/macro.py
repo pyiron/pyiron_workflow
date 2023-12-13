@@ -216,6 +216,7 @@ class Macro(Composite):
         returned_has_channel_objects = self.graph_creator(self, *ui_nodes)
         self._configure_graph_execution()
 
+        # Update IO map(s) if a function-like graph creator interface was used
         if len(ui_nodes) > 0:
             self._whitelist_inputs_map(*ui_nodes)
         if returned_has_channel_objects is not None:
@@ -227,6 +228,7 @@ class Macro(Composite):
                     else returned_has_channel_objects
                 ),
             )
+
         self._inputs: Inputs = self._build_inputs()
         self._outputs: Outputs = self._build_outputs()
 
@@ -284,6 +286,11 @@ class Macro(Composite):
         return interface_nodes
 
     def _whitelist_inputs_map(self, *ui_nodes) -> None:
+        """
+        Updates the inputs map so each UI node's output channel is available directly
+        under the node label, and updates the map to disable all other input that
+        wasn't explicitly mapped already.
+        """
         self.inputs_map = self._hide_non_whitelisted_io(
             self._whitelist_map(
                 self.inputs_map,
@@ -296,6 +303,11 @@ class Macro(Composite):
     def _whitelist_outputs_map(
         self, output_labels: tuple[str], *creator_returns: HasChannel
     ):
+        """
+        Updates the outputs map so objects returned by the graph creator directly
+        leverage the supplied output labels, and updates the map to disable all other
+        output that wasn't explicitly mapped already.
+        """
         self.outputs_map = self._hide_non_whitelisted_io(
             self._whitelist_map(
                 self.outputs_map,
