@@ -211,7 +211,7 @@ class Macro(Composite):
             inputs_map=inputs_map,
             outputs_map=outputs_map,
         )
-        self._validate_returns_and_labels(output_labels)
+        output_labels = self._validate_output_labels(output_labels)
 
         ui_nodes = self._prepopulate_ui_nodes_from_graph_creator_signature()
         returned_has_channel_objects = self.graph_creator(self, *ui_nodes)
@@ -233,7 +233,7 @@ class Macro(Composite):
 
         self.set_input_values(**kwargs)
 
-    def _validate_returns_and_labels(self, output_labels):
+    def _validate_output_labels(self, output_labels):
         """
         Ensure that output_labels, if provided, are commensurate with graph creator
         return values, if provided.
