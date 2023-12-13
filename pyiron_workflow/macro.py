@@ -115,12 +115,13 @@ class Macro(Composite):
         `partialmethod`:
         >>> from functools import partialmethod
         >>> class AddThreeMacro(Macro):
-        ...     def build_graph(self):
+        ...     @staticmethod
+        ...     def graph_creator(self):
         ...         add_three_macro(self)
         ...
         ...     __init__ = partialmethod(
         ...         Macro.__init__,
-        ...         build_graph,
+        ...         None,  # We directly define the graph creator method on the class
         ...     )
         >>>
         >>> macro = AddThreeMacro()
