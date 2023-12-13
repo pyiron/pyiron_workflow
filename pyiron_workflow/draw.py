@@ -292,11 +292,12 @@ class Node(WorkflowGraphvizMap):
         )
 
         if depth > 0:
-            try:
+            from pyiron_workflow.composite import Composite
+            # Janky in-line import to avoid circular imports but only look for children
+            # where they exist (since SingleValue nodes now actually do something on
+            # failed attribute access, i.e. use it as delayed access on their output)
+            if isinstance(self.node, Composite):
                 self._connect_owned_nodes(depth)
-            except AttributeError:
-                # Only composite nodes have their own nodes attribute
-                pass
 
         if self.parent is not None:
             self.parent.graph.subgraph(self.graph)
