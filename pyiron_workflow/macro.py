@@ -248,6 +248,8 @@ class Macro(Composite):
         >>> with_maps()
         {'n_plus_2': 4, 'lout': [3, 4]}
 
+        Here we've leveraged the macro-creating decorator, but this works the same way
+        using the `Macro` class directly.
     """
 
     def __init__(
