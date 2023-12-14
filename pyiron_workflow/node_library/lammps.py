@@ -7,7 +7,7 @@ from pyiron_atomistics.atomistics.structure.atoms import Atoms
 from pyiron_workflow.function import single_value_node, function_node
 from pyiron_workflow.workflow import Workflow
 
-from pyiron_workflow.node_library.dev_tools import Replacer, VarType, FileObject
+from pyiron_workflow.node_library.dev_tools import FileObject
 
 
 @single_value_node("calculator")
@@ -19,7 +19,6 @@ def CalcMd(
     from pyiron_atomistics.lammps.control import LammpsControl
 
     calculator = LammpsControl()
-    # print("calc: T=", temperature)
     calculator.calc_md(
         temperature=temperature, n_ionic_steps=n_ionic_steps, n_print=n_print
     )
@@ -52,10 +51,6 @@ def InitLammps(
     with open(os.path.join(working_directory, "structure.inp"), "w") as f:
         structure.write(f, format="lammps-data", specorder=pot.get_element_lst())
 
-    # control = LammpsControl()
-    # assert calc_type == "static"  # , "Cannot happen"
-    # control.calc_static()
-    # control.calc_md(temperature=500, n_ionic_steps=1000, n_print=100)
     calculator.write_file(file_name="control.inp", cwd=working_directory)
 
     return os.path.abspath(working_directory)
@@ -121,8 +116,6 @@ def Shell(
 
     environ = dict(os.environ)
     environ.update({k: str(v) for k, v in environment.items()})
-    # print ([str(command), *map(str, arguments)], working_directory, environment)
-    # print("start shell")
     proc = subprocess.run(
         [command, *map(str, arguments)],
         capture_output=True,
@@ -130,7 +123,6 @@ def Shell(
         encoding="utf8",
         env=environ,
     )
-    # print("end shell")
 
     output = ShellOutput()
     output.stdout = proc.stdout
@@ -194,9 +186,7 @@ def Repeat(structure: Atoms, repeat_scalar: int = 1) -> Atoms:
 
 @single_value_node("structure")
 def ApplyStrain(structure: Atoms, strain: Union[float, int] = 0) -> Atoms:
-    # print("apply strain: ", strain)
     struct = structure.copy()
-    # struct.cell *= strain
     struct.apply_strain(strain)
     return struct
 
