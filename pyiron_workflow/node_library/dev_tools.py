@@ -91,13 +91,10 @@ def register_libraries(libraries, library_path="pyiron_workflow.node_library"):
 # these tools are meant only for a proof of concept, some parts may be already present in
 # the existing code, others should be moved there
 def extract_value(value):
-    if hasattr(value, "_convert_to_dict"):
-        return value._convert_to_dict()
     if hasattr(value, "value"):
-        val = value.value
-        if hasattr(val, "_convert_to_dict"):
-            return val._convert_to_dict()
-        return val
+        value = value.value
+    if hasattr(value, "_convert_to_dict"):
+        value = value._convert_to_dict()
     return value
 
 
