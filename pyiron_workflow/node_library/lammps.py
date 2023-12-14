@@ -12,9 +12,9 @@ from pyiron_workflow.node_library.dev_tools import Replacer, VarType, FileObject
 
 @single_value_node("calculator")
 def CalcMd(
-    temperature: VarType(dat_type=float, store=10) = 300,
-    n_ionic_steps=1000,
-    n_print=100,
+    temperature: float | int = 300,
+    n_ionic_steps: int = 1000,
+    n_print: int = 100,
 ):
     from pyiron_atomistics.lammps.control import LammpsControl
 
@@ -37,7 +37,7 @@ def CalcStatic():
 
 @single_value_node("path")
 def InitLammps(
-    structure=None, potential=None, calculator=None, working_directory=None
+    structure: Atoms, potential: str, calculator, working_directory
 ):
     import os
     from pyiron_atomistics.lammps.potential import LammpsPotential, LammpsPotentialFile
@@ -149,7 +149,7 @@ class GenericOutput(Storage):
 
 
 @single_value_node("generic")
-def Collect(out_dump, out_log):
+def Collect(out_dump, out_log) -> GenericOutput:
     import numpy as np
 
     log = out_log[0]
@@ -165,7 +165,7 @@ def Collect(out_dump, out_log):
 
 
 @single_value_node("potential")
-def Potential(structure, name=None, index=0):
+def Potential(structure: Atoms, name: Optional[str] = None, index: int = 0) -> str:
     from pyiron_atomistics.lammps.potential import list_potentials as lp
 
     potentials = lp(structure)
@@ -188,16 +188,12 @@ def ListPotentials(structure):
 
 
 @single_value_node("structure")
-def Repeat(
-    structure: Optional[Atoms] = None, repeat_scalar: int = 1
-) -> Optional[Atoms]:
+def Repeat(structure: Atoms, repeat_scalar: int = 1) -> Atoms:
     return structure.repeat(repeat_scalar)
 
 
 @single_value_node("structure")
-def ApplyStrain(
-    structure: Optional[Atoms] = None, strain: Union[float, int] = 0
-) -> Optional[Atoms]:
+def ApplyStrain(structure: Atoms, strain: Union[float, int] = 0) -> Atoms:
     # print("apply strain: ", strain)
     struct = structure.copy()
     # struct.cell *= strain
