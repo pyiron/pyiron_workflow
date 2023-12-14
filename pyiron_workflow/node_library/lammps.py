@@ -35,12 +35,6 @@ def CalcStatic():
     return calculator
 
 
-# TODO: The following function has been only introduced to mimic input variables for a macro
-@single_value_node("structure")
-def Structure(structure):
-    return structure
-
-
 @single_value_node("path")
 def InitLammps(
     structure=None, potential=None, calculator=None, working_directory=None
@@ -193,11 +187,6 @@ def ListPotentials(structure):
     return pot
 
 
-@single_value_node("empty")
-def ListEmpty():
-    return []
-
-
 @single_value_node("structure")
 def Repeat(
     structure: Optional[Atoms] = None, repeat_scalar: int = 1
@@ -224,11 +213,9 @@ def get_calculators():
 
 
 nodes = [
-    Structure,
     InitLammps,
     Potential,
     ListPotentials,
-    ListEmpty,
     CalcMd,
     CalcStatic,
     ParserLogFile,
