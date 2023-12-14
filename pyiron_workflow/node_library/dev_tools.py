@@ -177,11 +177,11 @@ class DataStore:
     def remove(self, node_label, path=None):
         if path is None:
             path = self._path
-        p = pathlib.Path(path, f'{node_label}.h5')
+        p = pathlib.Path(path, f"{node_label}.h5")
         # print (p, p.is_file())
         if p.is_file():
             p.unlink()
-            print (f'node {node_label} has been removed from store')
+            print(f"node {node_label} has been removed from store")
 
     def store(self, node, overwrite=False):
         if overwrite:

@@ -35,9 +35,7 @@ def CalcStatic():
 
 
 @single_value_node("path")
-def InitLammps(
-    structure: Atoms, potential: str, calculator, working_directory
-):
+def InitLammps(structure: Atoms, potential: str, calculator, working_directory):
     import os
     from pyiron_atomistics.lammps.potential import LammpsPotential, LammpsPotentialFile
 
