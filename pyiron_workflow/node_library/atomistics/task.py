@@ -77,7 +77,7 @@ def GenerateStructures(instance):
 def Bulk(element):
     from ase.build import bulk
 
-    return bulk(element, a=4.00, cubic=True)
+    return bulk(element)
 
 
 nodes = [
