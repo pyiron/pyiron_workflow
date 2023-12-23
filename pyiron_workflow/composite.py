@@ -6,7 +6,7 @@ sub-graph
 from __future__ import annotations
 
 from abc import ABC, abstractmethod
-from functools import partial, wraps
+from functools import wraps
 from typing import Literal, Optional, TYPE_CHECKING
 
 from bidict import bidict
@@ -15,8 +15,10 @@ from pyiron_workflow.interfaces import Creator, Wrappers
 from pyiron_workflow.io import Outputs, Inputs
 from pyiron_workflow.node import Node
 from pyiron_workflow.node_package import NodePackage
-from pyiron_workflow.topology import set_run_connections_according_to_linear_dag
-from pyiron_workflow.util import logger, DotDict, SeabornColors
+from pyiron_workflow.snippets.logger import logger
+from pyiron_workflow.topology import set_run_connections_according_to_dag
+from pyiron_workflow.snippets.colors import SeabornColors
+from pyiron_workflow.snippets.dotdict import DotDict
 
 if TYPE_CHECKING:
     from pyiron_workflow.channels import Channel, InputData, OutputData
@@ -35,7 +37,6 @@ class Composite(Node, ABC):
             - From the instance level, created nodes get the instance as their parent
     - Child nodes...
         - Can be added by...
-            - Creating them from the creator on a composite _instance_
             - Passing a node instance to the adding method
             - Setting the composite instance as the node's parent at node instantiation
             - Assigning a node instance as an attribute
@@ -86,11 +87,11 @@ class Composite(Node, ABC):
         wrap_as (Wrappers): A tool for accessing node-creating decorators
 
     Methods:
-        add(node: Node): Add the node instance to this subgraph.
-        remove(node: Node): Break all connections the node has, remove it from this
+        add_node(node: Node): Add the node instance to this subgraph.
+        remove_node(node: Node): Break all connections the node has, remove_node it from this
          subgraph, and set its parent to `None`.
         (de)activate_strict_hints(): Recursively (de)activate strict type hints.
-        replace(owned_node: Node | str, replacement: Node | type[Node]): Replaces an
+        replace_node(owned_node: Node | str, replacement: Node | type[Node]): Replaces an
             owned node with a new node, as long as the new node's IO is commensurate
             with the node being replaced.
         register(): A short-cut to registering a new node package with the node creator.
@@ -104,6 +105,7 @@ class Composite(Node, ABC):
         label: str,
         *args,
         parent: Optional[Composite] = None,
+        run_after_init: bool = False,
         strict_naming: bool = True,
         inputs_map: Optional[dict | bidict] = None,
         outputs_map: Optional[dict | bidict] = None,
@@ -117,8 +119,6 @@ class Composite(Node, ABC):
         self.outputs_map = outputs_map
         self.nodes: DotDict[str, Node] = DotDict()
         self.starting_nodes: list[Node] = []
-        self._creator = self.create
-        self.create = self._owned_creator  # Override the create method from the class
 
     @property
     def inputs_map(self) -> bidict | None:
@@ -160,15 +160,6 @@ class Composite(Node, ABC):
         super().deactivate_strict_hints()
         for node in self:
             node.deactivate_strict_hints()
-
-    @property
-    def _owned_creator(self):
-        """
-        A misdirection so that the `create` method behaves differently on the class
-        and on instances (in the latter case, created nodes should get the instance as
-        their parent).
-        """
-        return OwnedCreator(self, self._creator)
 
     def to_dict(self):
         return {
@@ -224,8 +215,8 @@ class Composite(Node, ABC):
         reconnect these according to the DAG flow of the data. On success, sets the
         starting nodes to just be the upstream-most node in this linear DAG flow.
         """
-        _, upstream_most_node = set_run_connections_according_to_linear_dag(self.nodes)
-        self.starting_nodes = [upstream_most_node]
+        _, upstream_most_nodes = set_run_connections_according_to_dag(self.nodes)
+        self.starting_nodes = upstream_most_nodes
 
     def _build_io(
         self,
@@ -253,20 +244,20 @@ class Composite(Node, ABC):
         io = Inputs() if i_or_o == "inputs" else Outputs()
         for node in self.nodes.values():
             panel = getattr(node, i_or_o)
-            for channel_label in panel.labels:
-                channel = panel[channel_label]
-                default_key = f"{node.label}__{channel_label}"
+            for channel in panel:
                 try:
-                    io_panel_key = key_map[default_key]
+                    io_panel_key = key_map[channel.scoped_label]
                     if not isinstance(io_panel_key, tuple):
                         # Tuples indicate that the channel has been deactivated
+                        # This is a necessary misdirection to keep the bidict working,
+                        # as we can't simply map _multiple_ keys to `None`
                         io[io_panel_key] = self._get_linking_channel(
                             channel, io_panel_key
                         )
                 except KeyError:
                     if not channel.connected:
-                        io[default_key] = self._get_linking_channel(
-                            channel, default_key
+                        io[channel.scoped_label] = self._get_linking_channel(
+                            channel, channel.scoped_label
                         )
         return io
 
@@ -301,7 +292,7 @@ class Composite(Node, ABC):
     def _build_outputs(self) -> Outputs:
         return self._build_io("outputs", self.outputs_map)
 
-    def add(self, node: Node, label: Optional[str] = None) -> None:
+    def add_node(self, node: Node, label: Optional[str] = None) -> None:
         """
         Assign a node to the parent. Optionally provide a new label for that node.
 
@@ -379,7 +370,7 @@ class Composite(Node, ABC):
             )
             del self.nodes[node.label]
 
-    def remove(self, node: Node | str) -> list[tuple[Channel, Channel]]:
+    def remove_node(self, node: Node | str) -> list[tuple[Channel, Channel]]:
         """
         Remove a node from the `nodes` collection, disconnecting it and setting its
         `parent` to None.
@@ -398,7 +389,9 @@ class Composite(Node, ABC):
         del self.nodes[node.label]
         return disconnected
 
-    def replace(self, owned_node: Node | str, replacement: Node | type[Node]) -> Node:
+    def replace_node(
+        self, owned_node: Node | str, replacement: Node | type[Node]
+    ) -> Node:
         """
         Replaces a node currently owned with a new node instance.
         The replacement must not belong to any other parent or have any connections.
@@ -452,9 +445,9 @@ class Composite(Node, ABC):
         # first guaranteed to be an unconnected orphan, there is not yet any permanent
         # damage
         is_starting_node = owned_node in self.starting_nodes
-        self.remove(owned_node)
+        self.remove_node(owned_node)
         replacement.label, owned_node.label = owned_node.label, replacement.label
-        self.add(replacement)
+        self.add_node(replacement)
         if is_starting_node:
             self.starting_nodes.append(replacement)
 
@@ -467,7 +460,7 @@ class Composite(Node, ABC):
         except Exception as e:
             # If IO can't be successfully rebuilt using this node, revert changes and
             # raise the exception
-            self.replace(replacement, owned_node)  # Guaranteed to work since
+            self.replace_node(replacement, owned_node)  # Guaranteed to work since
             # replacement in the other direction was already a success
             raise e
 
@@ -516,16 +509,25 @@ class Composite(Node, ABC):
     def register(cls, domain: str, package_identifier: str) -> None:
         cls.create.register(domain=domain, package_identifier=package_identifier)
 
+    def executor_shutdown(self, wait=True, *, cancel_futures=False):
+        """
+        Invoke shutdown on the executor (if present), and recursively invoke shutdown
+        for children.
+        """
+        super().executor_shutdown(wait=wait, cancel_futures=cancel_futures)
+        for node in self:
+            node.executor_shutdown(wait=wait, cancel_futures=cancel_futures)
+
     def __setattr__(self, key: str, node: Node):
         if isinstance(node, Node) and key != "_parent":
-            self.add(node, label=key)
+            self.add_node(node, label=key)
         elif (
             isinstance(node, type)
             and issubclass(node, Node)
             and key in self.nodes.keys()
         ):
             # When a class is assigned to an existing node, try a replacement
-            self.replace(key, node)
+            self.replace_node(key, node)
         else:
             super().__setattr__(key, node)
 
@@ -558,66 +560,3 @@ class Composite(Node, ABC):
     def color(self) -> str:
         """For drawing the graph"""
         return SeabornColors.brown
-
-
-class OwnedCreator:
-    """
-    A creator that overrides the `parent` arg of all accessed nodes to its own parent.
-
-    Necessary so that `Workflow.create.Function(...)` returns an unowned function node,
-    while `some_workflow_instance.create.Function(...)` returns a function node owned
-    by the workflow instance.
-    """
-
-    def __init__(self, parent: Composite, creator: Creator):
-        self._parent = parent
-        self._creator = creator
-
-    def __getattr__(self, item):
-        value = getattr(self._creator, item)
-
-        try:
-            is_node_class = issubclass(value, Node)
-        except TypeError:
-            # issubclass complains if the value isn't even a class
-            is_node_class = False
-
-        if is_node_class:
-            value = partial(value, parent=self._parent)
-        elif isinstance(value, NodePackage):
-            value = OwnedNodePackage(self._parent, value)
-
-        return value
-
-    def __getstate__(self):
-        # Compatibility with python <3.11
-        return self.__dict__
-
-    def __setstate__(self, state):
-        # Because we override getattr, we need to use __dict__ assignment directly in
-        # __setstate__
-        self.__dict__["_parent"] = state["_parent"]
-        self.__dict__["_creator"] = state["_creator"]
-
-
-class OwnedNodePackage:
-    """
-    A wrapper for node packages so that accessed node classes can have their parent
-    value automatically filled.
-    """
-
-    def __init__(self, parent: Composite, node_package: NodePackage):
-        self._parent = parent
-        self._node_package = node_package
-
-    def __getattr__(self, item):
-        value = getattr(self._node_package, item)
-        if issubclass(value, Node):
-            value = partial(value, parent=self._parent)
-        return value
-
-    def __getstate__(self):
-        return self.__dict__
-
-    def __setstate__(self, state):
-        self.__dict__ = state

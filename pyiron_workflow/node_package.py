@@ -1,7 +1,7 @@
 from __future__ import annotations
 
 from pyiron_workflow.node import Node
-from pyiron_workflow.util import DotDict
+from pyiron_workflow.snippets.dotdict import DotDict
 
 
 class NodePackage(DotDict):

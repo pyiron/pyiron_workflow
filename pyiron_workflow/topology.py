@@ -8,7 +8,7 @@ from __future__ import annotations
 
 from typing import TYPE_CHECKING
 
-from toposort import toposort_flatten, CircularDependencyError
+from toposort import toposort, toposort_flatten, CircularDependencyError
 
 if TYPE_CHECKING:
     from pyiron_workflow.channels import SignalChannel
@@ -16,6 +16,9 @@ if TYPE_CHECKING:
 
 
 class CircularDataFlowError(ValueError):
+    # Helpful for tests, so we can make sure we're getting exactly the failure we want
+    # Also lets us wrap other libraries circular dependency errors (i.e. toposort's)
+    # in language that makes more sense for us
     pass
 
 
@@ -85,39 +88,61 @@ def nodes_to_data_digraph(nodes: dict[str, Node]) -> dict[str, set[str]]:
     return digraph
 
 
-def nodes_to_execution_order(nodes: dict[str, Node]) -> list[str]:
+def _set_new_run_connections_with_fallback_recovery(
+    connection_creator: callable[[dict[str, Node]], list[Node]], nodes: dict[str, Node]
+):
     """
-    Given a set of nodes that all have the same parent, returns a list of corresponding
-    node labels giving an execution order that guarantees the executing node always has
-    data from all its upstream nodes.
+    Given a function that takes a dictionary of unconnected nodes, connects their
+    execution graph, and returns the new starting nodes, this wrapper makes sure that
+    all the initial connections are broken, that these broken connections get returned
+    (if wiring new connections works) / that these broken connections get re-instated
+    (if an error is encountered).
+    """
+    disconnected_pairs = []
+    for node in nodes.values():
+        disconnected_pairs.extend(node.signals.disconnect_run())
+        disconnected_pairs.extend(node.signals.output.ran.disconnect_all())
 
-    Args:
-        nodes (dict[str, Node]): A label-keyed dictionary of nodes from whom to build
-            an execution order based on topological analysis of data flow.
+    try:
+        return disconnected_pairs, connection_creator(nodes)
+    except Exception as e:
+        # Restore whatever you broke
+        for c1, c2 in disconnected_pairs:
+            c1.connect(c2)
+        raise e
 
-    Returns:
-        (list[str]): The labels in safe execution order.
 
-    Raises:
-        ValueError: If the data dependency is not a Directed Acyclic Graph
+def _raise_wrapped_circular_error(e):
+    """
+    A convenience wrapper that converts toposort's circular dependency error into
+    language that makes more sense in our context.
+    """
+    raise CircularDataFlowError(
+        f"Detected a cycle in the data flow topology, unable to automate the "
+        f"execution of non-DAGs: cycles found among {e.data}"
+    ) from e
+
+
+def _set_run_connections_according_to_linear_dag(nodes: dict[str, Node]) -> list[Node]:
+    """
+    This is the most primitive sort of topological exploitation we can do.
+    It is not efficient if the nodes have executors and can run in parallel.
     """
     try:
-        # Topological sorting ensures that all input dependencies have been
-        # executed before the node depending on them gets run
-        # The flattened part is just that we don't care about topological
-        # generations that are mutually independent (inefficient but easier for now)
         execution_order = toposort_flatten(nodes_to_data_digraph(nodes))
     except CircularDependencyError as e:
-        raise CircularDataFlowError(
-            f"Detected a cycle in the data flow topology, unable to automate the "
-            f"execution of non-DAGs: cycles found among {e.data}"
-        ) from e
-    return execution_order
+        _raise_wrapped_circular_error(e)
+
+    for i, label in enumerate(execution_order[:-1]):
+        next_node = execution_order[i + 1]
+        nodes[label] >> nodes[next_node]
+
+    return [nodes[execution_order[0]]]
 
 
 def set_run_connections_according_to_linear_dag(
     nodes: dict[str, Node]
-) -> tuple[list[tuple[SignalChannel, SignalChannel]], Node]:
+) -> tuple[list[tuple[SignalChannel, SignalChannel]], list[Node]]:
     """
     Given a set of nodes that all have the same parent, have no upstream data
     connections outside the nodes provided, and have acyclic data flow, disconnects all
@@ -135,29 +160,63 @@ def set_run_connections_according_to_linear_dag(
     Returns:
         (list[tuple[SignalChannel, SignalChannel]]): Any `run`/`ran` pairs that were
             disconnected.
-        (Node): The 0th node in the execution order, i.e. on that has no
-            dependencies.
+        (list[Node]): The 0th node in the execution order, i.e. on that has no
+            dependencies wrapped in a list.
     """
-    disconnected_pairs = []
-    for node in nodes.values():
-        disconnected_pairs.extend(node.signals.disconnect_run())
-        disconnected_pairs.extend(node.signals.output.ran.disconnect_all())
+    return _set_new_run_connections_with_fallback_recovery(
+        _set_run_connections_according_to_linear_dag, nodes
+    )
 
+
+def _set_run_connections_according_to_dag(nodes: dict[str, Node]) -> list[Node]:
+    """
+    More sophisticated sorting, so that each node has an "and" execution dependency on
+    all its directly-upstream data dependencies.
+    """
     try:
-        # This is the most primitive sort of topological exploitation we can do
-        # It is not efficient if the nodes have executors and can run in parallel
-        execution_order = nodes_to_execution_order(nodes)
+        execution_layer_sets = list(toposort(nodes_to_data_digraph(nodes)))
+        # Note: toposort only catches circular dependency errors after walking through
+        #       everything in the generator, so we need to force the generator into a
+        #       list to ensure that we catch these
+    except CircularDependencyError as e:
+        _raise_wrapped_circular_error(e)
 
-        for i, label in enumerate(execution_order[:-1]):
-            next_node = execution_order[i + 1]
-            nodes[label] > nodes[next_node]
+    for node in nodes.values():
+        upstream_connections = [con for inp in node.inputs for con in inp.connections]
+        upstream_nodes = set([c.node for c in upstream_connections])
+        upstream_rans = [n.signals.output.ran for n in upstream_nodes]
+        node.signals.input.accumulate_and_run.connect(*upstream_rans)
+    # Note: We can be super fast-and-loose here because the `nodes_to_data_digraph` call
+    #       above did all our safety checks for us
 
-        return disconnected_pairs, nodes[execution_order[0]]
-    except Exception as e:
-        # Restore whatever you broke
-        for c1, c2 in disconnected_pairs:
-            c1.connect(c2)
-        raise e
+    return [nodes[label] for label in execution_layer_sets[0]]
+
+
+def set_run_connections_according_to_dag(
+    nodes: dict[str, Node]
+) -> tuple[list[tuple[SignalChannel, SignalChannel]], list[Node]]:
+    """
+    Given a set of nodes that all have the same parent, have no upstream data
+    connections outside the nodes provided, and have acyclic data flow, disconnects all
+    their `run` and `ran` signals, then sets these signals so that each node has its
+    accumulating `and_run` signals connected to all of its up-data-stream dependencies.
+    Returns the upstream-most nodes that have no data dependencies.
+
+    In the event an exception is encountered, any disconnected connections are repaired
+    before it is raised.
+
+    Args:
+        nodes (dict[str, Node]): A dictionary of node labels and the node the label is
+            from, whose connections will be set according to data flow.
+
+    Returns:
+        (list[tuple[SignalChannel, SignalChannel]]): Any `run`/`ran` pairs that were
+            disconnected.
+        (list[Node]): The upstream-most nodes, i.e. those that have no dependencies.
+    """
+    return _set_new_run_connections_with_fallback_recovery(
+        _set_run_connections_according_to_dag, nodes
+    )
 
 
 def get_nodes_in_data_tree(node: Node) -> set[Node]:
