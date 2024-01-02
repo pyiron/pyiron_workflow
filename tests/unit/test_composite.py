@@ -1,4 +1,3 @@
-from sys import version_info
 import unittest
 
 from bidict import ValueDuplicationError
@@ -31,7 +30,6 @@ class AComposite(Composite):
         return self._build_outputs()  # Dynamic IO reflecting current children
 
 
-@unittest.skipUnless(version_info[0] == 3 and version_info[1] >= 10, "Only supported for 3.10+")
 class TestComposite(unittest.TestCase):
     @classmethod
     def setUpClass(cls) -> None:
@@ -71,37 +69,37 @@ class TestComposite(unittest.TestCase):
         self.comp.register("demo", "static.demo_nodes")
 
         # Test invocation
-        self.comp.create.demo.OptionallyAdd(label="by_add")
+        self.comp.add_node(self.comp.create.demo.OptionallyAdd(label="by_add"))
         # Test invocation with attribute assignment
         self.comp.by_assignment = self.comp.create.demo.OptionallyAdd()
-        node = AComposite.create.demo.OptionallyAdd()
+        node = self.comp.create.demo.OptionallyAdd()
 
         self.assertSetEqual(
             set(self.comp.nodes.keys()),
             set(["by_add", "by_assignment"]),
-            msg=f"Expected one node label generated automatically from the class and "
-                f"the other from the attribute assignment, but got {self.comp.nodes.keys()}"
+            msg=f"Expected one node label generated automatically from the add_node call "
+                f"and the other from the attribute assignment, but got "
+                f"{self.comp.nodes.keys()}"
         )
         self.assertIsNone(
             node.parent,
-            msg="Creating from the class directly should not parent the created nodes"
+            msg="Just creating should not parent the created nodes"
         )
 
     def test_node_addition(self):
         # Validate the four ways to add a node
-        self.comp.add(Composite.create.Function(plus_one, label="foo"))
-        self.comp.create.Function(plus_one, label="bar")
+        self.comp.add_node(Composite.create.Function(plus_one, label="foo"))
         self.comp.baz = self.comp.create.Function(plus_one, label="whatever_baz_gets_used")
         Composite.create.Function(plus_one, label="qux", parent=self.comp)
         self.assertListEqual(
             list(self.comp.nodes.keys()),
-            ["foo", "bar", "baz", "qux"],
+            ["foo", "baz", "qux"],
             msg="Expected every above syntax to add a node OK"
         )
         self.comp.boa = self.comp.qux
         self.assertListEqual(
             list(self.comp.nodes.keys()),
-            ["foo", "bar", "baz", "boa"],
+            ["foo", "baz", "boa"],
             msg="Reassignment should remove the original instance"
         )
                 
@@ -140,7 +138,7 @@ class TestComposite(unittest.TestCase):
         # Connect it inside the composite
         self.comp.foo.inputs.x = self.comp.owned.outputs.y
 
-        disconnected = self.comp.remove(node)
+        disconnected = self.comp.remove_node(node)
         self.assertIsNone(node.parent, msg="Removal should de-parent")
         self.assertFalse(node.connected, msg="Removal should disconnect")
         self.assertListEqual(
@@ -155,7 +153,7 @@ class TestComposite(unittest.TestCase):
         )
 
         node_owned = self.comp.owned
-        disconnections = self.comp.remove(node_owned.label)
+        disconnections = self.comp.remove_node(node_owned.label)
         self.assertEqual(
             node_owned.parent,
             None,
@@ -173,10 +171,7 @@ class TestComposite(unittest.TestCase):
         self.comp.strict_naming = True
         # Validate name preservation for each node addition path
         with self.assertRaises(AttributeError, msg="We have 'foo' at home"):
-            self.comp.add(self.comp.create.Function(plus_one, label="foo"))
-
-        with self.assertRaises(AttributeError, msg="We have 'foo' at home"):
-            self.comp.create.Function(plus_one, label="foo")
+            self.comp.add_node(self.comp.create.Function(plus_one, label="foo"))
 
         with self.assertRaises(
             AttributeError,
@@ -207,10 +202,8 @@ class TestComposite(unittest.TestCase):
                 msg="Reassigning a node to the same name should have no impact",
             )
 
-        print("\nKEYS", list(self.comp.nodes.keys()))
         self.comp.strict_naming = False
-        self.comp.add(Composite.create.Function(plus_one, label="foo"))
-        print("\nKEYS", list(self.comp.nodes.keys()))
+        self.comp.add_node(Composite.create.Function(plus_one, label="foo"))
         self.assertEqual(
             2,
             len(self.comp),
@@ -225,17 +218,17 @@ class TestComposite(unittest.TestCase):
 
     def test_singular_ownership(self):
         comp1 = AComposite("one")
-        comp1.create.Function(plus_one, label="node1")
-        node2 = AComposite.create.Function(
+        comp1.node1 = comp1.create.Function(plus_one)
+        node2 = comp1.create.Function(
             plus_one, label="node2", parent=comp1, x=comp1.node1.outputs.y
         )
         self.assertTrue(node2.connected, msg="Sanity check that node connection works")
 
         comp2 = AComposite("two")
         with self.assertRaises(ValueError, msg="Can't belong to two parents"):
-            comp2.add(node2)
-        comp1.remove(node2)
-        comp2.add(node2)
+            comp2.add_node(node2)
+        comp1.remove_node(node2)
+        comp2.add_node(node2)
         self.assertEqual(
             node2.parent,
             comp2,
@@ -247,7 +240,7 @@ class TestComposite(unittest.TestCase):
         n2 = Composite.create.SingleValue(plus_one)
         n3 = Composite.create.SingleValue(plus_one)
 
-        @Composite.wrap_as.function_node(("y", "minus"))
+        @Composite.wrap_as.function_node("y", "minus")
         def x_plus_minus_z(x: int = 0, z=2) -> tuple[int, int]:
             """
             A commensurate but different node: has _more_ than the necessary channels,
@@ -277,7 +270,7 @@ class TestComposite(unittest.TestCase):
         with self.subTest("Verify success cases"):
             self.assertEqual(3, self.comp.run().y, msg="Sanity check")
 
-            self.comp.replace(n1, replacement)
+            self.comp.replace_node(n1, replacement)
             out = self.comp.run(x=0)
             self.assertEqual(
                 (0+2) + 1 + 1, out.y, msg="Should be able to replace by instance"
@@ -285,7 +278,7 @@ class TestComposite(unittest.TestCase):
             self.assertEqual(
                 0 - 2, out.n1__minus, msg="Replacement output should also appear"
             )
-            self.comp.replace(replacement, n1)
+            self.comp.replace_node(replacement, n1)
             self.assertFalse(
                 replacement.connected, msg="Replaced nodes should be disconnected"
             )
@@ -293,15 +286,15 @@ class TestComposite(unittest.TestCase):
                 replacement.parent, msg="Replaced nodes should be orphaned"
             )
 
-            self.comp.replace("n2", replacement)
+            self.comp.replace_node("n2", replacement)
             out = self.comp.run(x=0)
             self.assertEqual(
                 (0 + 1) + 2 + 1, out.y, msg="Should be able to replace by label"
             )
             self.assertEqual(1 - 2, out.n2__minus)
-            self.comp.replace(replacement, n2)
+            self.comp.replace_node(replacement, n2)
 
-            self.comp.replace(n3, x_plus_minus_z)
+            self.comp.replace_node(n3, x_plus_minus_z)
             out = self.comp.run(x=0)
             self.assertEqual(
                 (0 + 1) + 2 + 1, out.y, msg="Should be able to replace with a class"
@@ -313,7 +306,7 @@ class TestComposite(unittest.TestCase):
                 msg="Sanity check -- when replacing with class, a _new_ instance "
                     "should be created"
             )
-            self.comp.replace(self.comp.n3, n3)
+            self.comp.replace_node(self.comp.n3, n3)
 
             self.comp.n1 = x_plus_minus_z
             self.assertEqual(
@@ -322,7 +315,7 @@ class TestComposite(unittest.TestCase):
                 msg="Assigning a new _class_ to an existing node should be a shortcut "
                     "for replacement"
             )
-            self.comp.replace(self.comp.n1, n1)  # Return to original state
+            self.comp.replace_node(self.comp.n1, n1)  # Return to original state
 
             self.comp.n1 = different_input_channel
             self.assertEqual(
@@ -331,7 +324,7 @@ class TestComposite(unittest.TestCase):
                 msg="Different IO should be compatible as long as what's missing is "
                     "not connected"
             )
-            self.comp.replace(self.comp.n1, n1)
+            self.comp.replace_node(self.comp.n1, n1)
 
             self.comp.n3 = different_output_channel
             self.assertEqual(
@@ -340,7 +333,7 @@ class TestComposite(unittest.TestCase):
                 msg="Different IO should be compatible as long as what's missing is "
                     "not connected"
             )
-            self.comp.replace(self.comp.n3, n3)
+            self.comp.replace_node(self.comp.n3, n3)
 
         with self.subTest("Verify failure cases"):
             self.assertEqual(3, self.comp.run().y, msg="Sanity check")
@@ -352,22 +345,22 @@ class TestComposite(unittest.TestCase):
                 ValueError,
                 msg="Should fail when replacement has a parent"
             ):
-                self.comp.replace(self.comp.n1, another_node)
+                self.comp.replace_node(self.comp.n1, another_node)
 
-            another_comp.remove(another_node)
+            another_comp.remove_node(another_node)
             another_node.inputs.x = replacement.outputs.y
             with self.assertRaises(
                 ValueError,
                 msg="Should fail when replacement is connected"
             ):
-                self.comp.replace(self.comp.n1, another_node)
+                self.comp.replace_node(self.comp.n1, another_node)
 
             another_node.disconnect()
             with self.assertRaises(
                 ValueError,
                 msg="Should fail if the node being replaced isn't a child"
             ):
-                self.comp.replace(replacement, another_node)
+                self.comp.replace_node(replacement, another_node)
 
             @Composite.wrap_as.single_value_node("y")
             def wrong_hint(x: float = 0) -> float:
@@ -417,10 +410,10 @@ class TestComposite(unittest.TestCase):
         )
 
     def test_run(self):
-        self.comp.create.SingleValue(plus_one, label="n1", x=0)
-        self.comp.create.SingleValue(plus_one, label="n2", x=self.comp.n1)
-        self.comp.create.SingleValue(plus_one, label="n3", x=42)
-        self.comp.n1 > self.comp.n2
+        self.comp.n1 = self.comp.create.SingleValue(plus_one, x=0)
+        self.comp.n2 = self.comp.create.SingleValue(plus_one, x=self.comp.n1)
+        self.comp.n3 = self.comp.create.SingleValue(plus_one, x=42)
+        self.comp.n1 >> self.comp.n2
         self.comp.starting_nodes = [self.comp.n1]
 
         self.comp.run()
@@ -437,9 +430,9 @@ class TestComposite(unittest.TestCase):
 
     def test_set_run_signals_to_dag(self):
         # Like the run test, but manually invoking this first
-        self.comp.create.SingleValue(plus_one, label="n1", x=0)
-        self.comp.create.SingleValue(plus_one, label="n2", x=self.comp.n1)
-        self.comp.create.SingleValue(plus_one, label="n3", x=42)
+        self.comp.n1 = self.comp.create.SingleValue(plus_one, x=0)
+        self.comp.n2 = self.comp.create.SingleValue(plus_one, x=self.comp.n1)
+        self.comp.n3 = self.comp.create.SingleValue(plus_one, x=42)
         self.comp.set_run_signals_to_dag_execution()
         self.comp.run()
         self.assertEqual(
@@ -469,7 +462,7 @@ class TestComposite(unittest.TestCase):
         self.comp.n1 = Composite.create.SingleValue(plus_one, x=0)
         not_dottable_string = "can't dot this"
         not_dottable_name_node = self.comp.create.SingleValue(
-            plus_one, x=42, label=not_dottable_string
+            plus_one, x=42, label=not_dottable_string, parent=self.comp
         )
         self.comp.starting_nodes = [self.comp.n1, not_dottable_name_node]
         out = self.comp.run()
@@ -568,7 +561,6 @@ class TestComposite(unittest.TestCase):
             self.comp.inputs_map["n1__x"] = None
             self.comp.inputs_map["n2__x"] = None
             self.comp.inputs_map["n3__x"] = None
-            print("\nMAP", self.comp.inputs_map)
             self.assertEqual(
                 3,
                 len(self.comp.inputs_map),

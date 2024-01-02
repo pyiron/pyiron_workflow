@@ -14,7 +14,6 @@ from pyiron_workflow.function import (
 )
 from pyiron_workflow.macro import Macro, macro_node
 from pyiron_workflow.node import Node
-from pyiron_workflow.util import DotDict
 
 
 def list_to_output(length: int, **node_class_kwargs) -> type[Function]:
@@ -73,26 +72,23 @@ def for_loop(
       (i.e. the specified input and all output) is all caps
 
     Examples:
-        >>> import numpy as np
         >>> from pyiron_workflow import Workflow
+        >>> from pyiron_workflow.meta import for_loop
         >>>
+        >>> @Workflow.wrap_as.single_value_node("div")
+        ... def Divide(numerator, denominator):
+        ...    return numerator / denominator
+        >>>
+        >>> denominators = list(range(1, 5))
         >>> bulk_loop = Workflow.create.meta.for_loop(
-        ...     Workflow.create.atomistics.Bulk,
-        ...     5,
-        ...     iterate_on = ("a",),
+        ...     Divide,
+        ...     len(denominators),
+        ...     iterate_on = ("denominator",),
         ... )()
-        >>>
-        >>> [
-        ...     struct.cell.volume for struct in bulk_loop(
-        ...         name="Al",  # Sent equally to each body node
-        ...         A=np.linspace(3.9, 4.1, 5).tolist(),  # Distributed across body nodes
-        ...     ).STRUCTURE
-        ... ]
-        [14.829749999999995,
-         15.407468749999998,
-         15.999999999999998,
-         16.60753125,
-         17.230249999999995]
+        >>> bulk_loop.inputs.numerator = 1
+        >>> bulk_loop.inputs.DENOMINATOR = denominators
+        >>> bulk_loop().DIV
+        [1.0, 0.5, 0.3333333333333333, 0.25]
 
     TODO:
         - Refactor like crazy, it's super hard to read and some stuff is too hard-coded
@@ -115,7 +111,7 @@ def for_loop(
         # Parallelize over body nodes
         for n in range(length):
             body_nodes.append(
-                macro.add(loop_body_class(label=f"{loop_body_class.__name__}_{n}"))
+                macro.add_node(loop_body_class(label=f"{loop_body_class.__name__}_{n}"))
             )
 
         # Make input interface
@@ -142,7 +138,10 @@ def for_loop(
             # Or distribute the same input to each node equally
             else:
                 interface = macro.create.standard.UserInput(
-                    label=label, output_labels=label, user_input=inp.default
+                    label=label,
+                    output_labels=label,
+                    user_input=inp.default,
+                    parent=macro,
                 )
                 for body_node in body_nodes:
                     body_node.inputs[label] = interface
@@ -207,27 +206,27 @@ def while_loop(
         >>> from pyiron_workflow import Workflow
         >>>
         >>> @Workflow.wrap_as.single_value_node()
-        >>> def add(a, b):
+        ... def Add(a, b):
         ...     print(f"{a} + {b} = {a + b}")
         ...     return a + b
         >>>
         >>> @Workflow.wrap_as.single_value_node()
-        >>> def less_than_ten(value):
+        ... def LessThanTen(value):
         ...     return value < 10
         >>>
         >>> AddWhile = Workflow.create.meta.while_loop(
-        ...     loop_body_class=add,
-        ...     condition_class=less_than_ten,
+        ...     loop_body_class=Add,
+        ...     condition_class=Workflow.create.standard.LessThan,
         ...     internal_connection_map=[
-        ...         ("Add", "a + b", "LessThanTen", "value"),
+        ...         ("Add", "a + b", "LessThan", "obj"),
         ...         ("Add", "a + b", "Add", "a")
         ...     ],
-        ...     inputs_map={"Add__a": "a", "Add__b": "b"},
+        ...     inputs_map={"Add__a": "a", "Add__b": "b", "LessThan__other": "cap"},
         ...     outputs_map={"Add__a + b": "total"}
         ... )
         >>>
         >>> wf = Workflow("do_while")
-        >>> wf.add_while = AddWhile()
+        >>> wf.add_while = AddWhile(cap=10)
         >>>
         >>> wf.inputs_map = {
         ...     "add_while__a": "a",
@@ -243,27 +242,28 @@ def while_loop(
         9 + 2 = 11
         Finally, 11
 
-        >>> import numpy as np
+        >>> import random
+        >>>
         >>> from pyiron_workflow import Workflow
         >>>
-        >>> np.random.seed(0)
+        >>> random.seed(0)
         >>>
         >>> @Workflow.wrap_as.single_value_node("random")
-        >>> def random(length: int | None = None):
-        ...     return np.random.random(length)
+        ... def RandomFloat():
+        ...     return random.random()
         >>>
         >>> @Workflow.wrap_as.single_value_node()
-        >>> def greater_than(x: float, threshold: float):
+        ... def GreaterThan(x: float, threshold: float):
         ...     gt = x > threshold
         ...     symbol = ">" if gt else "<="
         ...     print(f"{x:.3f} {symbol} {threshold}")
         ...     return gt
         >>>
         >>> RandomWhile = Workflow.create.meta.while_loop(
-        ...     loop_body_class=random,
-        ...     condition_class=greater_than,
-        ...     internal_connection_map=[("Random", "random", "GreaterThan", "x")],
-        ...     outputs_map={"Random__random": "capped_result"}
+        ...     loop_body_class=RandomFloat,
+        ...     condition_class=GreaterThan,
+        ...     internal_connection_map=[("RandomFloat", "random", "GreaterThan", "x")],
+        ...     outputs_map={"RandomFloat__random": "capped_result"}
         ... )
         >>>
         >>> # Define workflow
@@ -279,48 +279,27 @@ def while_loop(
         >>> wf.outputs_map = {"random_while__capped_result": "capped_result"}
         >>>
         >>> # Set a threshold and run
-        >>> print(f"Finally {wf(threshold=0.1).capped_result:.3f}")
-        0.549 > 0.1
-        0.715 > 0.1
-        0.603 > 0.1
-        0.545 > 0.1
-        0.424 > 0.1
-        0.646 > 0.1
-        0.438 > 0.1
-        0.892 > 0.1
-        0.964 > 0.1
-        0.383 > 0.1
-        0.792 > 0.1
-        0.529 > 0.1
-        0.568 > 0.1
-        0.926 > 0.1
-        0.071 <= 0.1
-        Finally 0.071
+        >>> print(f"Finally {wf(threshold=0.3).capped_result:.3f}")
+        0.844 > 0.3
+        0.758 > 0.3
+        0.421 > 0.3
+        0.259 <= 0.3
+        Finally 0.259
     """
 
     def make_loop(macro):
-        body_node = macro.add(loop_body_class(label=loop_body_class.__name__))
-        condition_node = macro.add(condition_class(label=condition_class.__name__))
-        switch = macro.create.standard.If(label="switch")
+        body_node = macro.add_node(loop_body_class(label=loop_body_class.__name__))
+        condition_node = macro.add_node(condition_class(label=condition_class.__name__))
+        switch = macro.create.standard.If(label="switch", parent=macro)
 
         switch.inputs.condition = condition_node
         for out_n, out_c, in_n, in_c in internal_connection_map:
             macro.nodes[in_n].inputs[in_c] = macro.nodes[out_n].outputs[out_c]
 
-        switch.signals.output.true > body_node > condition_node > switch
+        switch.signals.output.true >> body_node >> condition_node >> switch
         macro.starting_nodes = [body_node]
 
         macro.inputs_map = {} if inputs_map is None else inputs_map
         macro.outputs_map = {} if outputs_map is None else outputs_map
 
     return macro_node()(make_loop)
-
-
-meta_nodes = DotDict(
-    {
-        for_loop.__name__: for_loop,
-        input_to_list.__name__: input_to_list,
-        list_to_output.__name__: list_to_output,
-        while_loop.__name__: while_loop,
-    }
-)

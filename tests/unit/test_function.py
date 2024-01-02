@@ -1,11 +1,10 @@
-from concurrent.futures import Future
-from sys import version_info
 from typing import Optional, Union
 import unittest
 import warnings
 
 from pyiron_workflow.channels import NotData, ChannelConnectionError
 from pyiron_workflow.function import Function, SingleValue, function_node
+from pyiron_workflow.interfaces import Executor
 
 
 def throw_error(x: Optional[int] = None):
@@ -36,7 +35,6 @@ def multiple_branches(x):
         return False
 
 
-@unittest.skipUnless(version_info[0] == 3 and version_info[1] >= 10, "Only supported for 3.10+")
 class TestFunction(unittest.TestCase):
     def test_instantiation(self):
         with self.subTest("Void function is allowable"):
@@ -91,7 +89,7 @@ class TestFunction(unittest.TestCase):
                 node.outputs.y,
                 msg="Should be able to make a connection at initialization"
             )
-            node > node2
+            node >> node2
             node.run()
             self.assertEqual(4, node2.outputs.y.value, msg="Initialize from connection")
 
@@ -216,14 +214,15 @@ class TestFunction(unittest.TestCase):
                 "object."
         )
 
-        node.executor = True
+        node.executor = Executor()
         with self.assertRaises(
             ValueError,
             msg="We haven't implemented any way to update a function node's `self` when"
                 "it runs on an executor, so trying to do so should fail hard"
         ):
             node.run()
-        node.executor = False
+            node.executor_shutdown()  # Shouldn't get this far, but if we do shutdown
+        node.executor = None
 
         def with_messed_self(x: float, self) -> float:
             return x + 0.1
@@ -319,7 +318,7 @@ class TestFunction(unittest.TestCase):
         upstream = Function(plus_one)
         to_copy = Function(plus_one, x=upstream.outputs.y)
         downstream = Function(plus_one, x=to_copy.outputs.y)
-        upstream > to_copy > downstream
+        upstream >> to_copy >> downstream
 
         wrong_io = Function(
             returns_multiple, x=upstream.outputs.y, y=upstream.outputs.y
@@ -451,7 +450,7 @@ class TestFunction(unittest.TestCase):
             ref._copy_values(extra, fail_hard=True)
 
 
-@unittest.skipUnless(version_info[0] == 3 and version_info[1] >= 10, "Only supported for 3.10+")
+
 class TestSingleValue(unittest.TestCase):
     def test_instantiation(self):
         node = SingleValue(no_default, 1, y=2, output_labels="output")
@@ -481,31 +480,42 @@ class TestSingleValue(unittest.TestCase):
             return Foo()
 
         svn = SingleValue(returns_foo, output_labels="foo")
-        svn.run()
-
-        self.assertEqual(
-            svn.some_attribute,
-            "exists",
-            msg="Should fall back to looking on the single value"
-        )
 
         self.assertEqual(
             svn.connected,
             False,
-            msg="Should return the _node_ attribute, not the single value attribute"
+            msg="Should return the _node_ attribute, not acting on the output channel"
         )
 
-        with self.assertRaises(AttributeError):
+        injection = svn[0]  # Should pass cleanly, even though it tries to run
+        svn.run()
+
+        self.assertEqual(
+            svn.some_attribute.value,  # The call runs the dynamic node
+            "exists",
+            msg="Should fall back to acting on the output channel and creating a node"
+        )
+
+        self.assertEqual(
+            svn.connected,
+            True,
+            msg="Should now be connected to the dynamically created nodes"
+        )
+
+        with self.assertRaises(
+            AttributeError,
+            msg="Aggressive running hits the problem that no such attribute exists"
+        ):
             svn.doesnt_exists_anywhere
 
         self.assertEqual(
-            svn[0],
+            injection(),
             True,
-            msg="Should fall back to looking on the single value"
+            msg="Should be able to query injection later"
         )
 
         self.assertEqual(
-            svn["some other key"],
+            svn["some other key"].value,
             False,
             msg="Should fall back to looking on the single value"
         )
@@ -532,7 +542,7 @@ class TestSingleValue(unittest.TestCase):
         svn = SingleValue(plus_one)
         svn.run()
         self.assertTrue(
-            str(svn).endswith(str(svn.single_value)),
+            str(svn).endswith(str(svn.value)),
             msg="SingleValueNodes should have their output as a string in their string "
                 "representation (e.g., perhaps with a reminder note that this is "
                 "actually still a Function and not just the value you're seeing.)"
@@ -550,7 +560,7 @@ class TestSingleValue(unittest.TestCase):
                 "output and another node's input by passing themselves"
         )
 
-        svn > regular
+        svn >> regular
         svn.run()
         self.assertEqual(
             regular.outputs.y.value, 3,

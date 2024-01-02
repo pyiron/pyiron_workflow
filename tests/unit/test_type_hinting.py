@@ -1,14 +1,13 @@
 import typing
-from unittest import TestCase, skipUnless
-from sys import version_info
+import unittest
+
 
 from pyiron_workflow.type_hinting import (
     type_hint_is_as_or_more_specific_than, valid_value
 )
 
 
-@skipUnless(version_info[0] == 3 and version_info[1] >= 10, "Only supported for 3.10+")
-class TestTypeHinting(TestCase):
+class TestTypeHinting(unittest.TestCase):
     def test_value_validation(self):
         class Foo:
             pass
@@ -80,3 +79,7 @@ class TestTypeHinting(TestCase):
                     type_hint_is_as_or_more_specific_than(target, reference),
                     is_more_specific
                 )
+
+
+if __name__ == '__main__':
+    unittest.main()

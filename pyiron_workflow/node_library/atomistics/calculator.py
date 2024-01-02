@@ -4,14 +4,14 @@ from pyiron_workflow.function import single_value_node
 
 
 @single_value_node("calculator")
-def get_emt():
+def Emt():
     from ase.calculators.emt import EMT
 
     return EMT()
 
 
 @single_value_node("calculator")
-def get_abinit(
+def Abinit(
     label="abinit_evcurve",
     nbands=32,
     ecut=10 * Ry,
@@ -32,14 +32,14 @@ def get_abinit(
 
 
 @single_value_node("calculator")
-def get_gpaw(xc="PBE", encut=300, kpts=(3, 3, 3)):
+def Gpaw(xc="PBE", encut=300, kpts=(3, 3, 3)):
     from gpaw import GPAW, PW
 
     return GPAW(xc=xc, mode=PW(encut), kpts=kpts)
 
 
 @single_value_node("calculator")
-def get_quantum_espresso(
+def QuantumEspresso(
     pseudopotentials={"Al": "Al.pbe-n-kjpaw_psl.1.0.0.UPF"},
     tstress=True,
     tprnfor=True,
@@ -56,7 +56,7 @@ def get_quantum_espresso(
 
 
 @single_value_node("calculator")
-def get_siesta(
+def Siesta(
     label="siesta",
     xc="PBE",
     mesh_cutoff=200 * Ry,
@@ -83,14 +83,14 @@ def get_siesta(
 
 
 @single_value_node("energy_dict")
-def calc_with_calculator(task_dict, calculator):
+def CalcWithCalculator(task_dict, calculator):
     from atomistics.calculators.ase import evaluate_with_ase
 
     return evaluate_with_ase(task_dict=task_dict, ase_calculator=calculator)
 
 
 @single_value_node("lammps_potential_dataframe")
-def get_lammps_potential(potential_name, structure, resource_path):
+def LammpsPotential(potential_name, structure, resource_path):
     from atomistics.calculators.lammps import get_potential_dataframe
 
     df_pot = get_potential_dataframe(structure=structure, resource_path=resource_path)
@@ -98,7 +98,7 @@ def get_lammps_potential(potential_name, structure, resource_path):
 
 
 @single_value_node("energy_dict")
-def get_lammps(task_dict, potential_dataframe):
+def Lammps(task_dict, potential_dataframe):
     from atomistics.calculators.lammps import evaluate_with_lammps
 
     return evaluate_with_lammps(
@@ -108,12 +108,12 @@ def get_lammps(task_dict, potential_dataframe):
 
 
 nodes = [
-    calc_with_calculator,
-    get_abinit,
-    get_emt,
-    get_gpaw,
-    get_lammps,
-    get_lammps_potential,
-    get_quantum_espresso,
-    get_siesta,
+    CalcWithCalculator,
+    Abinit,
+    Emt,
+    Gpaw,
+    Lammps,
+    LammpsPotential,
+    QuantumEspresso,
+    Siesta,
 ]

@@ -7,27 +7,26 @@ from pyiron_atomistics.atomistics.structure.atoms import Atoms
 from pyiron_workflow.function import single_value_node, function_node
 from pyiron_workflow.workflow import Workflow
 
-from pyiron_workflow.node_library.dev_tools import Replacer, VarType, FileObject
+from pyiron_workflow.node_library.dev_tools import FileObject
 
 
-@single_value_node(output_labels=["calculator"])
-def calc_md(
-    temperature: VarType(dat_type=float, store=10) = 300,
-    n_ionic_steps=1000,
-    n_print=100,
+@single_value_node("calculator")
+def CalcMd(
+    temperature: float | int = 300,
+    n_ionic_steps: int = 1000,
+    n_print: int = 100,
 ):
     from pyiron_atomistics.lammps.control import LammpsControl
 
     calculator = LammpsControl()
-    # print("calc: T=", temperature)
     calculator.calc_md(
         temperature=temperature, n_ionic_steps=n_ionic_steps, n_print=n_print
     )
     return calculator
 
 
-@single_value_node(output_labels=["calculator"])
-def calc_static():
+@single_value_node("calculator")
+def CalcStatic():
     from pyiron_atomistics.lammps.control import LammpsControl
 
     calculator = LammpsControl()
@@ -35,16 +34,8 @@ def calc_static():
     return calculator
 
 
-# TODO: The following function has been only introduced to mimic input variables for a macro
-@single_value_node(output_labels=["structure"])
-def structure(structure):
-    return structure
-
-
-@single_value_node(output_labels=["path"])
-def init_lammps(
-    structure=None, potential=None, calculator=None, working_directory=None
-):
+@single_value_node("path")
+def InitLammps(structure: Atoms, potential: str, calculator, working_directory):
     import os
     from pyiron_atomistics.lammps.potential import LammpsPotential, LammpsPotentialFile
 
@@ -58,17 +49,13 @@ def init_lammps(
     with open(os.path.join(working_directory, "structure.inp"), "w") as f:
         structure.write(f, format="lammps-data", specorder=pot.get_element_lst())
 
-    # control = LammpsControl()
-    # assert calc_type == "static"  # , "Cannot happen"
-    # control.calc_static()
-    # control.calc_md(temperature=500, n_ionic_steps=1000, n_print=100)
     calculator.write_file(file_name="control.inp", cwd=working_directory)
 
     return os.path.abspath(working_directory)
 
 
-@single_value_node(output_labels=["log"])
-def parser_log_file(log_file):
+@single_value_node("log")
+def ParserLogFile(log_file):
     from pymatgen.io.lammps.outputs import parse_lammps_log
 
     log = parse_lammps_log(log_file.path)
@@ -79,8 +66,8 @@ def parser_log_file(log_file):
     return log
 
 
-@single_value_node(output_labels=["dump"])
-def parser_dump_file(dump_file):
+@single_value_node("dump")
+def ParserDumpFile(dump_file):
     from pymatgen.io.lammps.outputs import parse_lammps_dumps
 
     dump = list(parse_lammps_dumps(dump_file.path))
@@ -108,8 +95,8 @@ class ShellOutput(Storage):
     log: FileObject
 
 
-@function_node(output_labels=["output", "dump", "log"])
-def shell(
+@function_node("output", "dump", "log")
+def Shell(
     command: str,
     environment: Optional[dict] = None,
     arguments: Optional[list] = None,
@@ -127,8 +114,6 @@ def shell(
 
     environ = dict(os.environ)
     environ.update({k: str(v) for k, v in environment.items()})
-    # print ([str(command), *map(str, arguments)], working_directory, environment)
-    # print("start shell")
     proc = subprocess.run(
         [command, *map(str, arguments)],
         capture_output=True,
@@ -136,7 +121,6 @@ def shell(
         encoding="utf8",
         env=environ,
     )
-    # print("end shell")
 
     output = ShellOutput()
     output.stdout = proc.stdout
@@ -154,8 +138,8 @@ class GenericOutput(Storage):
     forces: []
 
 
-@single_value_node(output_labels=["generic"])
-def collect(out_dump, out_log):
+@single_value_node("generic")
+def Collect(out_dump, out_log) -> GenericOutput:
     import numpy as np
 
     log = out_log[0]
@@ -170,8 +154,8 @@ def collect(out_dump, out_log):
     return output
 
 
-@single_value_node(output_labels=["potential"])
-def potential(structure, name=None, index=0):
+@single_value_node("potential")
+def Potential(structure: Atoms, name: Optional[str] = None, index: int = 0) -> str:
     from pyiron_atomistics.lammps.potential import list_potentials as lp
 
     potentials = lp(structure)
@@ -185,33 +169,22 @@ def potential(structure, name=None, index=0):
     return pot
 
 
-@single_value_node(output_labels=["potentials"])
-def list_potentials(structure):
+@single_value_node("potentials")
+def ListPotentials(structure):
     from pyiron_atomistics.lammps.potential import list_potentials as lp
 
     pot = lp(structure)
     return pot
 
 
-@single_value_node(output_labels=["empty"])
-def list_empty():
-    return []
-
-
-@single_value_node(output_labels="structure")
-def repeat(
-    structure: Optional[Atoms] = None, repeat_scalar: int = 1
-) -> Optional[Atoms]:
+@single_value_node("structure")
+def Repeat(structure: Atoms, repeat_scalar: int = 1) -> Atoms:
     return structure.repeat(repeat_scalar)
 
 
-@single_value_node(output_labels="structure")
-def apply_strain(
-    structure: Optional[Atoms] = None, strain: Union[float, int] = 0
-) -> Optional[Atoms]:
-    # print("apply strain: ", strain)
+@single_value_node("structure")
+def ApplyStrain(structure: Atoms, strain: Union[float, int] = 0) -> Atoms:
     struct = structure.copy()
-    # struct.cell *= strain
     struct.apply_strain(strain)
     return struct
 
@@ -224,17 +197,15 @@ def get_calculators():
 
 
 nodes = [
-    structure,
-    init_lammps,
-    potential,
-    list_potentials,
-    list_empty,
-    calc_md,
-    calc_static,
-    parser_log_file,
-    parser_dump_file,
-    collect,
-    shell,
-    repeat,
-    apply_strain,
+    InitLammps,
+    Potential,
+    ListPotentials,
+    CalcMd,
+    CalcStatic,
+    ParserLogFile,
+    ParserDumpFile,
+    Collect,
+    Shell,
+    Repeat,
+    ApplyStrain,
 ]

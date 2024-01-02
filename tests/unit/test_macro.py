@@ -1,12 +1,12 @@
 from concurrent.futures import Future
 from functools import partialmethod
-from sys import version_info
+
 from time import sleep
 import unittest
 
 from pyiron_workflow.channels import NotData
 from pyiron_workflow.function import SingleValue
-from pyiron_workflow.macro import Macro
+from pyiron_workflow.macro import Macro, macro_node
 from pyiron_workflow.topology import CircularDataFlowError
 
 
@@ -18,12 +18,11 @@ def add_one(x):
 def add_three_macro(macro):
     macro.one = SingleValue(add_one)
     SingleValue(add_one, macro.one, label="two", parent=macro)
-    macro.add(SingleValue(add_one, macro.two, label="three"))
+    macro.add_node(SingleValue(add_one, macro.two, label="three"))
     # Cover a handful of addition methods,
     # although these are more thoroughly tested in Workflow tests
 
 
-@unittest.skipUnless(version_info[0] == 3 and version_info[1] >= 10, "Only supported for 3.10+")
 class TestMacro(unittest.TestCase):
 
     def test_static_input(self):
@@ -91,12 +90,12 @@ class TestMacro(unittest.TestCase):
 
         def fully_defined(macro):
             add_three_macro(macro)
-            macro.one > macro.two > macro.three
+            macro.one >> macro.two >> macro.three
             macro.starting_nodes = [macro.one]
 
         def only_order(macro):
             add_three_macro(macro)
-            macro.two > macro.three
+            macro.two >> macro.three
 
         def only_starting(macro):
             add_three_macro(macro)
@@ -199,7 +198,7 @@ class TestMacro(unittest.TestCase):
                 add_one,
                 x=macro.c.outputs.three__result,
             )
-            macro.a > macro.b > macro.c > macro.d
+            macro.a >> macro.b >> macro.c >> macro.d
             macro.starting_nodes = [macro.a]
             # This definition of the execution graph is not strictly necessary in this
             # simple DAG case; we just do it to make sure nesting definied/automatic
@@ -212,11 +211,11 @@ class TestMacro(unittest.TestCase):
     def test_with_executor(self):
         macro = Macro(add_three_macro)
         downstream = SingleValue(add_one, x=macro.outputs.three__result)
-        macro > downstream  # Manually specify since we'll run the macro but look
+        macro >> downstream  # Manually specify since we'll run the macro but look
         # at the downstream output, and none of this is happening in a workflow
 
         original_one = macro.one
-        macro.executor = True
+        macro.executor = macro.create.Executor()
 
         self.assertIs(
             NotData,
@@ -237,8 +236,7 @@ class TestMacro(unittest.TestCase):
                 "for the callback when the result is ready"
         )
 
-        returned_nodes = result.result()  # Wait for the process to finish
-        from time import sleep
+        returned_nodes = result.result(timeout=120)  # Wait for the process to finish
         sleep(1)
         self.assertIsNot(
             original_one,
@@ -283,6 +281,8 @@ class TestMacro(unittest.TestCase):
                 "downstream execution"
         )
 
+        macro.executor_shutdown()
+
     def test_pulling_from_inside_a_macro(self):
         upstream = SingleValue(add_one, x=2)
         macro = Macro(add_three_macro, one__x=upstream)
@@ -314,7 +314,7 @@ class TestMacro(unittest.TestCase):
                 macro.one = SingleValue(add_one)
                 macro.two = SingleValue(add_one, x=macro.one)
                 macro.one.inputs.x = macro.two
-                macro.one > macro.two
+                macro.one >> macro.two
                 macro.starting_nodes = [macro.one]
                 # We need to manually specify execution since the data flow is cyclic
 
@@ -395,7 +395,7 @@ class TestMacro(unittest.TestCase):
             n1 = SingleValue(fail_at_zero, x=0)
             n2 = SingleValue(add_one, x=n1, label="n1")
             n_not_used = SingleValue(add_one)
-            n_not_used > n2  # Just here to make sure it gets restored
+            n_not_used >> n2  # Just here to make sure it gets restored
 
             with self.assertRaises(
                 ZeroDivisionError,
@@ -412,6 +412,106 @@ class TestMacro(unittest.TestCase):
                 n2.signals.input.run.connections[0].node,
                 msg="Original connections should get restored on upstream failure"
             )
+
+    def test_output_labels_vs_return_values(self):
+        def no_return(macro):
+            macro.foo = macro.create.standard.UserInput()
+
+        Macro(no_return)  # Neither is fine
+
+        with self.assertRaises(
+            TypeError,
+            msg="Output labels and return values must match"
+        ):
+            Macro(no_return, output_labels="not_None")
+
+        @macro_node("some_return")
+        def HasReturn(macro):
+            macro.foo = macro.create.standard.UserInput()
+            return macro.foo
+
+        HasReturn()  # Both is fine
+
+        with self.assertRaises(
+            TypeError,
+            msg="Output labels and return values must match"
+        ):
+            HasReturn(output_labels=None)  # Override those gotten by the decorator
+
+        with self.assertRaises(
+            ValueError,
+            msg="Output labels and return values must have commensurate length"
+        ):
+            HasReturn(output_labels=["one_label", "too_many"])
+
+    def test_maps_vs_functionlike_definitions(self):
+        """
+        Check that the full-detail IO maps and the white-listing like-a-function
+        approach are equivalent
+        """
+        @macro_node()
+        def WithIOMaps(macro):
+            macro.list_in = macro.create.standard.UserInput()
+            macro.list_in.inputs.user_input.type_hint = list
+            macro.forked = macro.create.standard.UserInput(2)
+            macro.forked.inputs.user_input.type_hint = int
+            macro.n_plus_2 = macro.forked + 2
+            macro.sliced_list = macro.list_in[macro.forked:macro.n_plus_2]
+            macro.double_fork = 2 * macro.forked
+            macro.inputs_map = {
+                "list_in__user_input": "lin",
+                macro.forked.inputs.user_input.scoped_label: "n",
+                "n_plus_2__other": None,
+                "list_in__user_input_Slice_forked__user_input_n_plus_2__add_None__step": None,
+                macro.double_fork.inputs.other.scoped_label: None,
+            }
+            macro.outputs_map = {
+                macro.sliced_list.outputs.getitem.scoped_label: "lout",
+                macro.n_plus_2.outputs.add.scoped_label: "n_plus_2",
+                "double_fork__rmul": None
+            }
+
+        @macro_node("lout", "n_plus_2")
+        def LikeAFunction(macro, lin: list,  n: int = 2):
+            macro.plus_two = n + 2
+            macro.sliced_list = lin[n:macro.plus_two]
+            macro.double_fork = 2 * n
+            # ^ This is vestigial, just to show we don't need to blacklist it
+            # Test returning both a single value node and an output channel,
+            # even though here we could just use the node both times
+            return macro.sliced_list, macro.plus_two.channel
+
+        n = 1  # Override the default
+        lin = [1, 2, 3, 4, 5, 6]
+        expected_input_labels = ["lin", "n"]
+        expected_result = {"n_plus_2": 3, "lout": [2, 3]}
+
+        for MacroClass in [WithIOMaps, LikeAFunction]:
+            with self.subTest(f"{MacroClass.__name__}"):
+                macro = MacroClass(n=n, lin=lin)
+                self.assertListEqual(macro.inputs.labels, expected_input_labels)
+                self.assertDictEqual(macro(), expected_result)
+
+        # Make sure whatever the user defines takes precedence, even over whitelists
+        override_io_maps = LikeAFunction(
+            my_lin=[1, 2, 3, 4],
+            inputs_map={
+                "n__user_input": None,
+                "lin__user_input": "my_lin",
+            },
+            outputs_map={
+                "sliced_list__getitem": None,
+                "plus_two__add": None,
+                "lin__user_input": "the_input_list",
+            }
+        )
+        # Manually set the required input data we hid from the macro IO
+        # (You wouldn't ever actually hide necessary IO like this, this is just for the
+        # silly test)
+        # override_io_maps.n.inputs.user_input = 1
+        # ^ If default is not working you'd need this
+        self.assertListEqual(override_io_maps.inputs.labels, ["my_lin"])
+        self.assertDictEqual(override_io_maps(), {"the_input_list": [1, 2, 3, 4]})
 
 
 if __name__ == '__main__':

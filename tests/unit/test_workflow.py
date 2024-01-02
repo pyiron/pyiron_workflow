@@ -1,11 +1,11 @@
 from concurrent.futures import Future
-from sys import version_info
+
 from time import sleep
 import unittest
 
 from pyiron_workflow._tests import ensure_tests_in_python_path
 from pyiron_workflow.channels import NotData
-from pyiron_workflow.util import DotDict
+from pyiron_workflow.snippets.dotdict import DotDict
 from pyiron_workflow.workflow import Workflow
 
 
@@ -14,7 +14,6 @@ def plus_one(x=0):
     return y
 
 
-@unittest.skipUnless(version_info[0] == 3 and version_info[1] >= 10, "Only supported for 3.10+")
 class TestWorkflow(unittest.TestCase):
     @classmethod
     def setUpClass(cls) -> None:
@@ -23,9 +22,9 @@ class TestWorkflow(unittest.TestCase):
 
     def test_io(self):
         wf = Workflow("wf")
-        wf.create.Function(plus_one, label="n1")
-        wf.create.Function(plus_one, label="n2")
-        wf.create.Function(plus_one, label="n3")
+        wf.n1 = wf.create.Function(plus_one)
+        wf.n2 = wf.create.Function(plus_one)
+        wf.n3 = wf.create.Function(plus_one)
 
         inp = wf.inputs
         inp_again = wf.inputs
@@ -35,7 +34,7 @@ class TestWorkflow(unittest.TestCase):
 
         n_in = len(wf.inputs)
         n_out = len(wf.outputs)
-        wf.create.Function(plus_one, label="n4")
+        wf.n4 = wf.create.Function(plus_one)
         self.assertEqual(
             n_in + 1, len(wf.inputs), msg="Workflow IO should be drawn from its nodes"
         )
@@ -81,7 +80,7 @@ class TestWorkflow(unittest.TestCase):
         wf.b = wf.create.SingleValue(plus_one, x=wf.a)
 
         original_a = wf.a
-        wf.executor = True
+        wf.executor = wf.create.Executor()
 
         self.assertIs(
             NotData,
@@ -96,7 +95,7 @@ class TestWorkflow(unittest.TestCase):
             msg="Should be running as a parallel process"
         )
 
-        returned_nodes = result.result()  # Wait for the process to finish
+        returned_nodes = result.result(timeout=120)  # Wait for the process to finish
         self.assertIsNot(
             original_a,
             returned_nodes.a,
@@ -118,6 +117,7 @@ class TestWorkflow(unittest.TestCase):
             wf.outputs.b__y.value,
             msg="And of course we expect the calculation to actually run"
         )
+        wf.executor_shutdown()
 
     def test_parallel_execution(self):
         wf = Workflow("wf")
@@ -155,8 +155,11 @@ class TestWorkflow(unittest.TestCase):
             msg="The slow node _should_ hold up the downstream node to which it inputs"
         )
 
-        while wf.slow.future.running():
-            sleep(0.1)
+        wf.slow.future.result(timeout=120)  # Wait for it to finish
+        self.assertFalse(
+            wf.slow.running,
+            msg="The slow node should be done running"
+        )
 
         wf.sum.run()
         self.assertEqual(
@@ -165,6 +168,8 @@ class TestWorkflow(unittest.TestCase):
             msg="After the slow node completes, its output should be updated as a "
                 "callback, and downstream nodes should proceed"
         )
+
+        wf.executor_shutdown()
 
     def test_call(self):
         wf = Workflow("wf")
@@ -246,9 +251,9 @@ class TestWorkflow(unittest.TestCase):
 
         user = make_workflow()
         user.automate_execution = False
-        user.n1l > user.n1r > user.n2l
-        user.n1r > user.n2m
-        user.n1r > user.n2r
+        user.n1l >> user.n1r >> user.n2l
+        user.n1r >> user.n2m
+        user.n1r >> user.n2r
         user.starting_nodes = [user.n1l]
         self.assertTrue(
             matches_expectations(user()),
@@ -271,14 +276,10 @@ class TestWorkflow(unittest.TestCase):
             msg="Expected old execution signals to be overwritten"
         )
         self.assertIn(
-            user.n2m.signals.output.ran,
-            user.n2r.signals.input.run.connections,
-            msg="At time of writing tests, automation makes a linear execution flow "
-                "based on node topology and initialized by the order of appearance in "
-                "the nodes list, so for a simple DAG like this the final node should "
-                "be getting triggered by the penultimate node."
-                "If this test failed, maybe you've written more sophisticated "
-                "automation."
+            user.n1r.signals.output.ran,
+            user.n2r.signals.input.accumulate_and_run.connections,
+            msg="The automated flow uses a non-linear accumulating approach, so the "
+                "accumulating run signal is the one that should hold a connection"
         )
 
         with self.subTest("Make sure automated cyclic graphs throw an error"):
@@ -309,15 +310,16 @@ class TestWorkflow(unittest.TestCase):
             msg="Sanity check, pulling here should work perfectly fine"
         )
 
-        wf.m.one.executor = True
+        wf.m.one.executor = wf.create.Executor()
         with self.assertRaises(
             ValueError,
             msg="Should not be able to pull with executor in local scope"
         ):
             wf.m.two.pull()
-        wf.m.one.executor = False
+            wf.m.one.executor_shutdown()  # Shouldn't get this far, but if so, shutdown
+        wf.m.one.executor = None
 
-        wf.n1.executor = True
+        wf.n1.executor = wf.create.Executor()
         with self.assertRaises(
             ValueError,
             msg="Should not be able to pull with executor in parent scope"
@@ -327,6 +329,7 @@ class TestWorkflow(unittest.TestCase):
         # Pulling in the local scope should be fine with an executor only in the parent
         # scope
         wf.m.two.pull(run_parent_trees_too=False)
+        wf.executor_shutdown()
 
 
 if __name__ == '__main__':

@@ -1,3 +1,6 @@
+"""
+Nodes wrapping a subset of pyiron_atomistics functionality
+"""
 from __future__ import annotations
 
 from typing import Literal, Optional
@@ -10,11 +13,12 @@ from pyiron_atomistics.lammps.lammps import Lammps as LammpsJob
 from pyiron_workflow.function import function_node, single_value_node
 
 
-Bulk = single_value_node(output_labels="structure")(_StructureFactory().bulk)
+Bulk = single_value_node("structure")(_StructureFactory().bulk)
+Bulk.__name__ = "Bulk"
 
 
-@single_value_node(output_labels="job")
-def lammps(structure: Optional[Atoms] = None) -> LammpsJob:
+@single_value_node("job")
+def Lammps(structure: Optional[Atoms] = None) -> LammpsJob:
     pr = Project(".")
     job = pr.atomistics.job.Lammps("NOTAREALNAME")
     job.structure = structure if structure is not None else _StructureFactory().bulk()
@@ -80,48 +84,44 @@ def _run_and_remove_job(job, modifier: Optional[callable] = None, **modifier_kwa
 
 
 @function_node(
-    output_labels=[
-        "cells",
-        "displacements",
-        "energy_pot",
-        "energy_tot",
-        "force_max",
-        "forces",
-        "indices",
-        "positions",
-        "pressures",
-        "steps",
-        "temperature",
-        "total_displacements",
-        "unwrapped_positions",
-        "volume",
-    ]
+    "cells",
+    "displacements",
+    "energy_pot",
+    "energy_tot",
+    "force_max",
+    "forces",
+    "indices",
+    "positions",
+    "pressures",
+    "steps",
+    "temperature",
+    "total_displacements",
+    "unwrapped_positions",
+    "volume",
 )
-def calc_static(
+def CalcStatic(
     job: AtomisticGenericJob,
 ):
     return _run_and_remove_job(job=job)
 
 
 @function_node(
-    output_labels=[
-        "cells",
-        "displacements",
-        "energy_pot",
-        "energy_tot",
-        "force_max",
-        "forces",
-        "indices",
-        "positions",
-        "pressures",
-        "steps",
-        "temperature",
-        "total_displacements",
-        "unwrapped_positions",
-        "volume",
-    ]
+    "cells",
+    "displacements",
+    "energy_pot",
+    "energy_tot",
+    "force_max",
+    "forces",
+    "indices",
+    "positions",
+    "pressures",
+    "steps",
+    "temperature",
+    "total_displacements",
+    "unwrapped_positions",
+    "volume",
 )
-def calc_md(
+def CalcMd(
     job: AtomisticGenericJob,
     n_ionic_steps: int = 1000,
     n_print: int = 100,
@@ -151,23 +151,21 @@ def calc_md(
 
 
 @function_node(
-    output_labels=[
-        "cells",
-        "displacements",
-        "energy_pot",
-        "energy_tot",
-        "force_max",
-        "forces",
-        "indices",
-        "positions",
-        "pressures",
-        "steps",
-        "total_displacements",
-        "unwrapped_positions",
-        "volume",
-    ]
+    "cells",
+    "displacements",
+    "energy_pot",
+    "energy_tot",
+    "force_max",
+    "forces",
+    "indices",
+    "positions",
+    "pressures",
+    "steps",
+    "total_displacements",
+    "unwrapped_positions",
+    "volume",
 )
-def calc_min(
+def CalcMin(
     job: AtomisticGenericJob,
     n_ionic_steps: int = 1000,
     n_print: int = 100,
@@ -195,8 +193,8 @@ def calc_min(
 
 nodes = [
     Bulk,
-    calc_md,
-    calc_min,
-    calc_static,
-    lammps,
+    CalcMd,
+    CalcMin,
+    CalcStatic,
+    Lammps,
 ]

@@ -3,7 +3,7 @@ from pyiron_workflow.function import single_value_node
 
 
 @single_value_node("task_generator")
-def get_elastic_matrix_task_generator(
+def ElasticMatrixTaskGenerator(
     structure, num_of_point=5, eps_range=0.05, sqrt_eta=True, fit_order=2
 ):
     from atomistics.workflows.elastic.workflow import ElasticMatrixWorkflow
@@ -18,7 +18,7 @@ def get_elastic_matrix_task_generator(
 
 
 @single_value_node("task_generator")
-def get_evcurve_task_generator(
+def EvcurveTaskGenerator(
     structure,
     num_points=11,
     fit_type="polynomial",
@@ -41,7 +41,7 @@ def get_evcurve_task_generator(
 
 
 @single_value_node("task_generator")
-def get_phonons_task_generator(
+def PhononsTaskGenerator(
     structure,
     interaction_range=10,
     factor=VaspToTHz,
@@ -64,27 +64,27 @@ def get_phonons_task_generator(
 
 
 @single_value_node("result_dict")
-def analyse_structures(instance, output_dict):
+def AnalyseStructures(instance, output_dict):
     return instance.analyse_structures(output_dict=output_dict)
 
 
 @single_value_node("task_dict")
-def generate_structures(instance):
+def GenerateStructures(instance):
     return instance.generate_structures()
 
 
 @single_value_node("structure")
-def get_bulk(element):
+def Bulk(element):
     from ase.build import bulk
 
-    return bulk(element, a=4.00, cubic=True)
+    return bulk(element)
 
 
 nodes = [
-    analyse_structures,
-    generate_structures,
-    get_bulk,
-    get_elastic_matrix_task_generator,
-    get_evcurve_task_generator,
-    get_phonons_task_generator,
+    AnalyseStructures,
+    GenerateStructures,
+    Bulk,
+    ElasticMatrixTaskGenerator,
+    EvcurveTaskGenerator,
+    PhononsTaskGenerator,
 ]

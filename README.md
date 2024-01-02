@@ -23,7 +23,7 @@ By allowing (but not demanding, in the case of data DAGs) users to specify the e
 
 By scraping type hints from decorated functions, both new data values and new graph connections are (optionally) required to conform to hints, making workflows strongly typed.
 
-Individual node computations can be shipped off to parallel processes for scalability. (This is an alpha-feature at time of writing and limited to single core parallel python processes; full support of [`pympipool`](https://github.com/pyiron/pympipool) is under active development)
+Individual node computations can be shipped off to parallel processes for scalability. (This is a beta-feature at time of writing; the `PyMPIExecutor` executor from [`pympipool`](https://github.com/pyiron/pympipool) is supported and tested; automated execution flows to not yet fully leverage the efficiency possible in parallel execution, and `pympipool`'s more powerful flux- and slurm- based executors have not been tested and may fail.)
 
 Once you're happy with a workflow, it can be easily turned it into a macro for use in other workflows. This allows the clean construction of increasingly complex computation graphs by composing simpler graphs.
 
@@ -36,59 +36,60 @@ Nodes (including macros) can be stored in plain text, and registered by future w
 Nodes can be used by themselves and -- other than being "delayed" in that their computation needs to be requested after they're instantiated -- they feel an awful lot like the regular python functions they wrap:
 
 ```python
-from pyiron_workflow import Workflow
+>>> from pyiron_workflow import Workflow
+>>>
+>>> @Workflow.wrap_as.single_value_node()
+... def add_one(x):
+...     return x + 1
+>>>
+>>> add_one(add_one(add_one(x=0)))()
+3
 
-@Workflow.wrap_as.single_value_node()
-def add_one(x):
-    return x + 1
-
-add_one(add_one(add_one(x=0)))()
->>> 3
 ```
 
-But the intent is to collect them together into a workflow and leverage existing nodes:
+But the intent is to collect them together into a workflow and leverage existing nodes. We can directly perform (many but not quite all) python actions natively on output channels, can build up data graph topology by simply assigning values (to attributes or at instantiation), and can package things together into reusable macros with customizable IO interfaces:
 
 ```python
-from pyiron_workflow import Workflow
+>>> from pyiron_workflow import Workflow
+>>> Workflow.register("plotting", "pyiron_workflow.node_library.plotting")
+>>>
+>>> @Workflow.wrap_as.single_value_node()
+... def Arange(n: int):
+...     import numpy as np
+...     return np.arange(n)
+>>>
+>>> @Workflow.wrap_as.macro_node("fig")
+... def PlotShiftedSquare(macro, shift: int = 0):
+...     macro.arange = Arange()
+...     macro.plot = macro.create.plotting.Scatter(
+...         x=macro.arange + shift,
+...         y=macro.arange**2
+...     )
+...     macro.inputs_map = {"arange__n": "n"}  # Expose arange input
+...     return macro.plot
+>>> 
+>>> wf = Workflow("plot_with_and_without_shift")
+>>> wf.n = wf.create.standard.UserInput()
+>>> wf.no_shift = PlotShiftedSquare(shift=0, n=10)
+>>> wf.shift = PlotShiftedSquare(shift=2, n=10)
+>>> wf.inputs_map = {
+...     "n__user_input": "n",
+...     "shift__shift": "shift"
+... }
+>>> 
+>>> diagram = wf.draw()
+>>> 
+>>> out = wf(shift=3, n=10)
 
-@Workflow.wrap_as.single_value_node()
-def add_one(x):
-    return x + 1
-
-@Workflow.wrap_as.macro_node()
-def add_three_macro(macro):
-    macro.start = add_one()
-    macro.middle = add_one(x=macro.start)
-    macro.end = add_one(x=macro.middle)
-    macro.inputs_map = {"start__x": "x"}
-    macro.outputs_map = {"end__x + 1": "y"}
-
-Workflow.register(
-    "plotting", 
-    "pyiron_workflow.node_library.plotting"
-)
-
-wf = Workflow("add_5_and_plot")
-wf.add_one = add_one()
-wf.add_three = add_three_macro(x=wf.add_one)
-wf.plot = wf.create.plotting.Scatter(
-    x=wf.add_one,
-    y=wf.add_three.outputs.y
-)
-
-diagram = wf.draw()
-
-import numpy as np
-fig = wf(add_one__x=np.arange(5)).plot__fig
 ```
 
 Which gives the workflow `diagram`
 
 ![](docs/_static/readme_diagram.png)
 
-And the resulting `fig`
+And the resulting figure (when axes are not cleared)
 
-![](docs/_static/readme_shifted.png)
+![](docs/_static/readme_fig.png)
 
 ## Installation
 
