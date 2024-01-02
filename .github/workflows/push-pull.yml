@@ -12,6 +12,7 @@ jobs:
     uses: pyiron/actions/.github/workflows/push-pull-main.yml@main
     secrets: inherit
     with:
+      docs-env-files: .ci_support/environment.yml .ci_support/environment-docs.yml
       notebooks-env-files: .ci_support/environment.yml .ci_support/environment-notebooks.yml
       tests-in-python-path: true
       runner-alt2: 'macos-11'
