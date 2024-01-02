@@ -30,6 +30,7 @@ class Composite(Node, ABC):
     collection of child nodes and their computation is to execute that graph.
 
     Promises (in addition parent class promises):
+
     - The class offers access...
         - To the node-izing `pyiron_workflow` decorators
         - To a creator for other `pyiron_workflow` objects (namely nodes)

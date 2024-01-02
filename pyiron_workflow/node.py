@@ -86,6 +86,7 @@ class Node(HasToDict, ABC, metaclass=AbstractHasPost):
     one or more sub-graphs.
 
     Promises:
+
     - Nodes perform some computation, but this is delayed and won't happen until asked
         for (the nature of the computation is left to child classes).
     - Nodes have input and output for interfacing with the outside world
@@ -153,7 +154,8 @@ class Node(HasToDict, ABC, metaclass=AbstractHasPost):
     `process_run_result` once `on_run` finishes.
     They may optionally add additional signal channels to the signals IO.
 
-    # TODO:
+    TODO:
+
         - Everything with (de)serialization for storage
         - Integration with more powerful tools for remote execution (anything obeying
             the standard interface of a `submit` method taking the callable and

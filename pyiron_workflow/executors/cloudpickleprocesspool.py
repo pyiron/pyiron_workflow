@@ -46,6 +46,7 @@ class CloudpickleProcessPoolExecutor(ProcessPoolExecutor):
         and returns such an unpickleable class.
         Actions such as registering callbacks and waiting for results behave just like
         normal.
+
         >>> from functools import partialmethod
         >>>
         >>> from pyiron_workflow.executors.cloudpickleprocesspool import (

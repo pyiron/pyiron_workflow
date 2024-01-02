@@ -35,6 +35,7 @@ class Function(Node):
     numbers of return values may or may not work smoothly, depending on the details.
 
     Promises:
+
     - IO channels are constructed automatically from the wrapped function
         - This includes type hints (if any)
         - This includes defaults (if any)
@@ -68,6 +69,7 @@ class Function(Node):
     Examples:
         At the most basic level, to use nodes all we need to do is provide the
         `Function` class with a function and labels for its output, like so:
+
         >>> from pyiron_workflow.function import Function
         >>>
         >>> def mwe(x, y):
@@ -85,6 +87,7 @@ class Function(Node):
 
         We'll run into a hiccup if we try to set only one of the inputs and force the
         run:
+
         >>> plus_minus_1.inputs.x = 2
         >>> try:
         ...     plus_minus_1.run()
@@ -101,6 +104,7 @@ class Function(Node):
 
         We are able to check this without trying and failing by looking at the
         readiness report:
+
         >>> print(plus_minus_1.readiness_report)
         mwe readiness: False
         STATE:
@@ -117,6 +121,7 @@ class Function(Node):
         `run()` call, which succeeds and updates the output.
         The final thing we need to do is disable the `failed` status we got from our
         last run call
+
         >>> plus_minus_1.failed = False
         >>> plus_minus_1.inputs.y = 3
         >>> out = plus_minus_1.run()
@@ -125,6 +130,7 @@ class Function(Node):
 
         We can also, optionally, provide initial values for some or all of the input and
         labels for the output:
+
         >>> plus_minus_1 = Function(mwe, output_labels=("p1", "m1"),  x=1)
         >>> plus_minus_1.inputs.y = 2
         >>> out = plus_minus_1.run()
@@ -135,6 +141,7 @@ class Function(Node):
         or keyword kwargs.
         When running the node (or any alias to run like pull, execute, or just calling
         the node), the output of the wrapped function is returned:
+
         >>> plus_minus_1(2, y=3)
         (3, 2)
 
@@ -153,6 +160,7 @@ class Function(Node):
         using good variable names and returning those variables instead of using
         `output_labels`.
         If we try to assign a value of the wrong type, it will raise an error:
+
         >>> from typing import Union
         >>>
         >>> def hinted_example(
@@ -174,6 +182,7 @@ class Function(Node):
         `_value` property.
         In the latter case, we'd still get a readiness error when we try to run and
         the ready check sees that the data doesn't conform to the type hint:
+
         >>> plus_minus_1.inputs.x._value =  "not an int or float"
         >>> try:
         ...     plus_minus_1.run()
@@ -208,6 +217,7 @@ class Function(Node):
 
         This can be done most easily with the `node` decorator, which takes a function
         and returns a node class:
+
         >>> from pyiron_workflow.function import function_node
         >>>
         >>> @function_node("p1", "m1")
@@ -228,6 +238,7 @@ class Function(Node):
         Using the decorator is the recommended way to create new node classes, but this
         magic is just equivalent to creating a child class with the `node_function`
         already defined as a `staticmethod`:
+
         >>> from typing import Literal, Optional
         >>>
         >>> class AlphabetModThree(Function):
@@ -255,6 +266,7 @@ class Function(Node):
         out automatically by the topology of data connections.
         Let's put together a couple of nodes and then run in a "pull" paradigm to get
         the final node to run everything "upstream" then run itself:
+
         >>> @function_node()
         ... def adder_node(x: int = 0, y: int = 0) -> int:
         ...     sum = x + y
@@ -281,6 +293,7 @@ class Function(Node):
         This is a bit more verbose, but a necessary tool for more complex situations
         (like cyclic graphs).
         Here's our simple example from above using this other paradigm:
+
         >>> @function_node()
         ... def adder_node(x: int = 0, y: int = 0) -> int:
         ...     sum = x + y

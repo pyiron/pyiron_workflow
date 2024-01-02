@@ -47,11 +47,13 @@ class Workflow(Composite):
     efficiently.
 
     Promises (in addition parent class promises):
+
     - Workflows are living, their IO always reflects their current state of child nodes
     - Workflows are parent-most objects, they cannot be a sub-graph of a larger graph
 
     Examples:
         We allow adding nodes to workflows in five equivalent ways:
+
         >>> from pyiron_workflow.workflow import Workflow
         >>>
         >>> @Workflow.wrap_as.single_value_node()
@@ -76,6 +78,7 @@ class Workflow(Composite):
         at instantiation with the `strict_naming` kwarg, or afterwards by assigning a
         bool to this property. When deactivated, repeated assignments to the same label
         just get appended with an index:
+
         >>> wf.strict_naming = False
         >>> wf.my_node = fnc(x=0)
         >>> wf.my_node = fnc(x=1)
@@ -88,6 +91,7 @@ class Workflow(Composite):
         workflow (cf. the `Node` docs for more detail on the node types).
         Let's use these to explore a workflow's input and output, which are dynamically
         generated from the unconnected IO of its nodes:
+
         >>> @Workflow.wrap_as.function_node("y")
         ... def plus_one(x: int = 0):
         ...     return x + 1
@@ -100,33 +104,39 @@ class Workflow(Composite):
 
         If we connect the output of one node to the input of the other, there are fewer
         dangling channels for the workflow IO to find:
+
         >>> wf.second.inputs.x = wf.first.outputs.y
         >>> print(len(wf.inputs), len(wf.outputs))
         1 1
 
         Then we just run the workflow
+
         >>> out = wf.run()
 
         The workflow joins node lavels and channel labels with a `_` character to
         provide direct access to the output:
+
         >>> print(wf.outputs.second__y.value)
         2
 
         These input keys can be used when calling the workflow to update the input. In
         our example, the nodes update automatically when their input gets updated, so
         all we need to do to see updated workflow output is update the input:
+
         >>> out = wf(first__x=10)
         >>> out
         {'second__y': 12}
 
         Note: this _looks_ like a dictionary, but has some extra convenience that we
         can dot-access data:
+
         >>> out.second__y
         12
 
         We can give more convenient names to IO, and even access IO that would normally
         be hidden (because it's connected) by specifying an `inputs_map` and/or
         `outputs_map`:
+
         >>> wf.inputs_map = {"first__x": "x"}
         >>> wf.outputs_map = {
         ...     "first__y": "intermediate",
@@ -136,13 +146,16 @@ class Workflow(Composite):
         {'intermediate': 1, 'y': 2}
 
         Workflows can be visualized in the notebook using graphviz:
+
         >>> graphviz_graph = wf.draw()
 
         The resulting object can be saved as an image, e.g.
+
         >>> wf.draw().render(filename="demo", format="png")
         'demo.png'
 
         Let's clean up after ourselves (for when the CI runs the docstrings)
+
         >>> from os import remove
         >>> remove("demo")
         >>> remove("demo.png")
@@ -150,6 +163,7 @@ class Workflow(Composite):
         Workflows also give access to packages of pre-built nodes under different
         namespaces. These need to be registered first, like the standard package is
         automatically registered:
+
         >>> Workflow.register("standard", "pyiron_workflow.node_library.standard")
 
         When your workflow's data follows a directed-acyclic pattern, it will determine

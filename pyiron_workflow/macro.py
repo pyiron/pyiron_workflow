@@ -63,6 +63,7 @@ class Macro(Composite):
     `configure_graph_execution`.
 
     Promises (in addition parent class promises):
+
     - IO is...
         - Only built at instantiation, after child node replacement, or at request, so
             it is "static" for improved efficiency
@@ -81,6 +82,7 @@ class Macro(Composite):
     Examples:
         Let's consider the simplest case of macros that just consecutively add 1 to
         their input:
+
         >>> from pyiron_workflow.macro import Macro
         >>>
         >>> def add_one(x):
@@ -103,6 +105,7 @@ class Macro(Composite):
         class. Then, we can use it like a regular node! Just like a workflow, the
         io is constructed from unconnected owned-node IO by combining node and channel
         labels.
+
         >>> macro = Macro(add_three_macro)
         >>> out = macro(one__x=3)
         >>> out.three__result
@@ -113,6 +116,7 @@ class Macro(Composite):
         `graph_creator` arg such that the same graph is always created. We could
         override `__init__` the normal way, but it's even faster to just use
         `partialmethod`:
+
         >>> from functools import partialmethod
         >>> class AddThreeMacro(Macro):
         ...     @staticmethod
@@ -130,6 +134,7 @@ class Macro(Composite):
 
         We can also nest macros, rename their IO, and provide access to
         internally-connected IO by inputs and outputs maps:
+
         >>> def nested_macro(macro):
         ...     macro.a = macro.create.SingleValue(add_one)
         ...     macro.b = macro.create.Macro(add_three_macro, one__x=macro.a)
@@ -148,6 +153,7 @@ class Macro(Composite):
         Macros and workflows automatically generate execution flows when their data
         is acyclic.
         Let's build a simple macro with two independent tracks:
+
         >>> def modified_flow_macro(macro):
         ...     macro.a = macro.create.SingleValue(add_one, x=0)
         ...     macro.b = macro.create.SingleValue(add_one, x=0)
@@ -162,6 +168,7 @@ class Macro(Composite):
         If we do this we also need to provide at least one connection among the run
         signals, but beyond that the code doesn't hold our hands.
         Let's use this and then observe how the `a` sub-node no longer gets run:
+
         >>> m.starting_nodes = [m.b]  # At least one starting node
         >>> _ = m.b >> m.c  # At least one run signal
         >>> # We catch and ignore output -- it's needed for chaining, but screws up
@@ -178,6 +185,7 @@ class Macro(Composite):
         long as the replacement has fully compatible IO. There are three syntacic ways
         to do this. Let's explore these by going back to our `add_three_macro` and
         replacing each of its children with a node that adds 2 instead of 1.
+
         >>> @Macro.wrap_as.single_value_node()
         ... def add_two(x):
         ...     result = x + 2

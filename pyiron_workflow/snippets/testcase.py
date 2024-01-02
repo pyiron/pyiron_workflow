@@ -35,6 +35,7 @@ class PyironTestCase(unittest.TestCase, ABC):
     Base class for all pyiron unit tets.
 
     If numpy is avaiable, registers utility type equality function:
+
         - `np.testing.assert_array_equal`
 
     Demands that you provide information on modules(s) for docstring testing, but
