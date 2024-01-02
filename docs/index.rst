@@ -1,3 +1,6 @@
+```{include} ../../README.md
+```
+
 .. pyiron_workflow documentation master file
 
 .. _index:
