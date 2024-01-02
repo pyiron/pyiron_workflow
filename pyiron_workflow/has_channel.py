@@ -13,9 +13,9 @@ if TYPE_CHECKING:
 
 class HasChannel(ABC):
     """
-    A mix-in class for use with the `Channel` class.
-    A `Channel` is able to (attempt to) connect to any child instance of `HasConnection`
-    by looking at its `connection` attribute.
+    A mix-in class for use with the :class:`Channel` class.
+    A :class:`Channel` is able to (attempt to) connect to any child instance of :class:`HasConnection`
+    by looking at its :attr:`connection` attribute.
 
     This is useful for letting channels attempt to connect to non-channel objects
     directly by pointing them to some channel that object holds.

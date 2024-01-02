@@ -158,7 +158,7 @@ class Function(Node):
         variety of common use cases.
         Note that getting "good" (i.e. dot-accessible) output labels can be achieved by
         using good variable names and returning those variables instead of using
-        `output_labels`.
+        :attr:`output_labels`.
         If we try to assign a value of the wrong type, it will raise an error:
 
         >>> from typing import Union
@@ -206,16 +206,16 @@ class Function(Node):
         >>> plus_minus_1.ready, plus_minus_1.inputs.x.ready, plus_minus_1.inputs.y.ready
         (False, False, True)
 
-        In these examples, we've instantiated nodes directly from the base `Function`
+        In these examples, we've instantiated nodes directly from the base :class:`Function`
         class, and populated their input directly with data.
         In practice, these nodes are meant to be part of complex workflows; that means
         both that you are likely to have particular nodes that get heavily re-used, and
         that you need the nodes to pass data to each other.
 
-        For reusable nodes, we want to create a sub-class of `Function` that fixes some
-        of the node behaviour -- usually the `node_function` and `output_labels`.
+        For reusable nodes, we want to create a sub-class of :class:`Function` that fixes some
+        of the node behaviour -- usually the :meth:`node_function` and :attr:`output_labels`.
 
-        This can be done most easily with the `node` decorator, which takes a function
+        This can be done most easily with the :func:`function_node` decorator, which takes a function
         and returns a node class:
 
         >>> from pyiron_workflow.function import function_node
@@ -317,7 +317,7 @@ class Function(Node):
         a
 
         To see more details on how to use many nodes together, look at the
-        `Workflow` class.
+        :class:`Workflow` class.
 
     Comments:
         Using the `self` argument for function nodes is not fully supported; it will

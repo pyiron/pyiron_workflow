@@ -27,16 +27,16 @@ class Macro(Composite):
     then builds a static IO interface for this graph.
     This callable must use the macro object itself as the first argument (e.g. adding
     nodes to it).
-    As with `Workflow` objects, macros leverage `inputs_map` and `outputs_map` to
+    As with :class:`Workflow` objects, macros leverage `inputs_map` and `outputs_map` to
     control macro-level IO access to child IO.
-    As with `Workflow`, default behaviour is to expose all unconnected child IO.
+    As with :class:`Workflow`, default behaviour is to expose all unconnected child IO.
     The provided callable may optionally specify further args and kwargs, which are used
-    to pre-populate the macro with `UserInput` nodes;
+    to pre-populate the macro with :class:`UserInput` nodes;
     This can be especially helpful when more than one child node needs access to the
     same input value.
     Similarly, the callable may return any number of child nodes' output channels (or
-    the node itself in the case of `SingleValue` nodes) and commensurate
-    `output_labels` to define macro-level output.
+    the node itself in the case of :class:`SingleValue` nodes) and commensurate
+    :attr:`output_labels` to define macro-level output.
     These function-like definitions of the graph creator callable can be used
     independently or together.
     Each that is used switches its IO map to a "whitelist" paradigm, so any I/O _not_
@@ -48,19 +48,19 @@ class Macro(Composite):
     Macro IO is _value linked_ to the child IO, so that their values stay synchronized,
     but the child nodes of a macro form an isolated sub-graph.
 
-    As with function nodes, subclasses of `Macro` may define a method for creating the
+    As with function nodes, subclasses of :class:`Macro` may define a method for creating the
     graph.
 
-    As with `Workflow``, all DAG macros can determine their execution flow
+    As with :class:`Workflow``, all DAG macros can determine their execution flow
     automatically, if you have cycles in your data flow, or otherwise want more control
     over the execution, all you need to do is specify the `node.signals.input.run`
-    connections and `starting_nodes` list yourself.
+    connections and :attr:`starting_nodes` list yourself.
     If only _one_ of these is specified, you'll get an error, but if you've provided
     both then no further checks of their validity/reasonableness are performed, so be
     careful.
-    Unlike `Workflow`, this execution flow automation is set up once at instantiation;
+    Unlike :class:`Workflow`, this execution flow automation is set up once at instantiation;
     If the macro is modified post-facto, you may need to manually re-invoke
-    `configure_graph_execution`.
+    :meth:`configure_graph_execution`.
 
     Promises (in addition parent class promises):
 
@@ -101,7 +101,7 @@ class Macro(Composite):
         demonstrate the syntax.
 
         We can make a macro by passing this graph-building function (that takes a macro
-        as its first argument, i.e. `self` from the macro's perspective) to the `Macro`
+        as its first argument, i.e. `self` from the macro's perspective) to the :class:`Macro`
         class. Then, we can use it like a regular node! Just like a workflow, the
         io is constructed from unconnected owned-node IO by combining node and channel
         labels.
@@ -112,8 +112,8 @@ class Macro(Composite):
         6
 
         If there's a particular macro we're going to use again and again, we might want
-        to consider making a new child class of `Macro` that overrides the
-        `graph_creator` arg such that the same graph is always created. We could
+        to consider making a new child class of :class:`Macro` that overrides the
+        :meth:`graph_creator` arg such that the same graph is always created. We could
         override `__init__` the normal way, but it's even faster to just use
         `partialmethod`:
 
@@ -163,7 +163,7 @@ class Macro(Composite):
         >>> m(a__x=1, b__x=2, c__x=3)
         {'a__result': 2, 'b__result': 3, 'c__result': 4}
 
-        We can override which nodes get used to start by specifying the `starting_nodes`
+        We can override which nodes get used to start by specifying the :attr:`starting_nodes`
         property.
         If we do this we also need to provide at least one connection among the run
         signals, but beyond that the code doesn't hold our hands.
@@ -204,16 +204,16 @@ class Macro(Composite):
         {'three__result': 7}
 
         Instead of controlling the IO interface with dictionary maps, we can instead
-        provide a more `Function(Node)`-like definition of the `graph_creator` by
+        provide a more :class:`Function(Node)`-like definition of the :meth:`graph_creator` by
         adding args and/or kwargs to the signature (under the hood, this dynamically
-        creates new `UserInput` nodes before running the rest of the graph creation),
-        and/or returning child channels (or whole children in the case of `SingleValue`
-        nodes) and providing commensurate `output_labels`.
-        This process switches us from the `Workflow` default of exposing all
+        creates new :class:`UserInput` nodes before running the rest of the graph creation),
+        and/or returning child channels (or whole children in the case of :class:`SingleValue`
+        nodes) and providing commensurate :attr:`output_labels`.
+        This process switches us from the :class:`Workflow` default of exposing all
         unconnected child IO, to a "whitelist" paradigm of _only_ showing the IO that
         we exposed by our function defintion.
         (Note: any `.inputs_map` or `.outputs_map` explicitly defined in the
-        `graph_creator` still takes precedence over this whitelisting! So you always
+        :meth:`graph_creator` still takes precedence over this whitelisting! So you always
         retain full control over what IO gets exposed.)
         E.g., these two definitions are perfectly equivalent:
 
@@ -257,7 +257,7 @@ class Macro(Composite):
         {'n_plus_2': 4, 'lout': [3, 4]}
 
         Here we've leveraged the macro-creating decorator, but this works the same way
-        using the `Macro` class directly.
+        using the :class:`Macro` class directly.
     """
 
     def __init__(
@@ -403,7 +403,7 @@ class Macro(Composite):
         io_map: bidict, new_labels: tuple[str], has_channel_objects: tuple[HasChannel]
     ) -> bidict:
         """
-        Update an IO map to give new labels to the channels of a bunch of `HasChannel`
+        Update an IO map to give new labels to the channels of a bunch of :class:`HasChannel`
         objects.
         """
         io_map = bidict({}) if io_map is None else io_map
@@ -507,7 +507,7 @@ def macro_node(*output_labels, **node_class_kwargs):
     A decorator for dynamically creating macro classes from graph-creating functions.
 
     Decorates a function.
-    Returns a `Macro` subclass whose name is the camel-case version of the
+    Returns a :class:`Macro` subclass whose name is the camel-case version of the
     graph-creating function, and whose signature is modified to exclude this function
     and provided kwargs.
 
@@ -515,7 +515,7 @@ def macro_node(*output_labels, **node_class_kwargs):
     like-a-function interface to define its IO. (The number of output labels must match
     number of channel-like objects returned by the graph creating function _exactly_.)
 
-    Optionally takes any keyword arguments of `Macro`.
+    Optionally takes any keyword arguments of :class:`Macro`.
     """
     output_labels = None if len(output_labels) == 0 else output_labels
 

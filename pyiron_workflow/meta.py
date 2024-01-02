@@ -18,7 +18,7 @@ from pyiron_workflow.node import Node
 
 def list_to_output(length: int, **node_class_kwargs) -> type[Function]:
     """
-    A meta-node that returns a node class with `length` input channels and
+    A meta-node that returns a node class with :param:`length` input channels and
     maps these to a single output channel with type `list`.
     """
 
@@ -36,7 +36,7 @@ def __list_to_many(l: list):
 
 def input_to_list(length: int, **node_class_kwargs) -> type[SingleValue]:
     """
-    A meta-node that returns a node class with `length` output channels and
+    A meta-node that returns a node class with :param:`length` output channels and
     maps an input list to these.
     """
 
@@ -101,7 +101,7 @@ def for_loop(
         - Is it possible to somehow dynamically adapt the held graph depending on the
           length of the input values being iterated over? Tricky to keep IO well defined
         - Allow a different mode, or make a different meta node, that makes all possible
-          pairs of body nodes given the input being looped over instead of just `length`
+          pairs of body nodes given the input being looped over instead of just :param:`length`
         - Provide enter and exit magic methods so we can `for` or `with` this fancy-like
     """
     iterate_on = [iterate_on] if isinstance(iterate_on, str) else iterate_on

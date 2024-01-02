@@ -32,8 +32,8 @@ class Composite(Node, ABC):
     Promises (in addition parent class promises):
 
     - The class offers access...
-        - To the node-izing `pyiron_workflow` decorators
-        - To a creator for other `pyiron_workflow` objects (namely nodes)
+        - To the node-izing :mod:`pyiron_workflow` decorators
+        - To a creator for other :mod:`pyiron_workflow` objects (namely nodes)
             - From the class level, this simply creates these objects
             - From the instance level, created nodes get the instance as their parent
     - Child nodes...
@@ -74,7 +74,7 @@ class Composite(Node, ABC):
          connected to some other child channel). Non-`None` values provided at input
          can be in regular dictionary form, but get re-cast as a clean bidict to ensure
          the bijective nature of the maps (i.e. there is a 1:1 connection between any
-         IO exposed at the `Composite` level and the underlying channels).
+         IO exposed at the :class:`Composite` level and the underlying channels).
         nodes (DotDict[pyiron_workflow.node.Node]): The owned nodes that
          form the composite subgraph.
         strict_naming (bool): When true, repeated assignment of a new node to an
@@ -373,8 +373,8 @@ class Composite(Node, ABC):
 
     def remove_node(self, node: Node | str) -> list[tuple[Channel, Channel]]:
         """
-        Remove a node from the `nodes` collection, disconnecting it and setting its
-        `parent` to None.
+        Remove a node from the :attr:`nodes` collection, disconnecting it and setting its
+        :attr:`parent` to None.
 
         Args:
             node (Node|str): The node (or its label) to remove.

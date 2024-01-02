@@ -45,8 +45,8 @@ class Creator(metaclass=Singleton):
     In addition to node objects, the creator also provides workflow-compliant executors
     for parallel processing.
     This includes a very simple in-house executor that is useful for learning, but also
-    choices from the `pympipool` packages.
-    Some `pympipool` executors may not be available on your machine (e.g. flux- and/or
+    choices from the :mod:`pympipool` packages.
+    Some :mod:`pympipool` executors may not be available on your machine (e.g. flux- and/or
      slurm-based executors), in which case these attributes will return `None` instead.
     """
 

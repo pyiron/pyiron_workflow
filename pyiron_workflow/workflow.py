@@ -26,14 +26,14 @@ class Workflow(Composite):
     and modifying their connections).
 
     Nodes can be added to the workflow at instantiation or with dot-assignment later on.
-    They are then accessible either under the `nodes` dot-dictionary, or just directly
+    They are then accessible either under the :attr:`nodes` dot-dictionary, or just directly
     by dot-access on the workflow object itself.
 
-    Using the `input` and `output` attributes, the workflow gives by-reference access
+    Using the :attr:`input` and :attr:`output` attributes, the workflow gives by-reference access
     to all the IO channels among its nodes which are currently unconnected.
 
-    The `Workflow` class acts as a single-point-of-import for us;
-    Directly from the class we can use the `create` method to instantiate workflow
+    The :class:`Workflow` class acts as a single-point-of-import for us;
+    Directly from the class we can use the :meth:`create` method to instantiate workflow
     objects.
     When called from a workflow _instance_, any created nodes get their parent set to
     the workflow instance being used.
@@ -43,7 +43,7 @@ class Workflow(Composite):
     they sit at the top of any data dependency tree and may never have a parent of
     their own.
     They are flexible and great for development, but once you have a setup you like,
-    you should consider reformulating it as a `Macro`, which operates somewhat more
+    you should consider reformulating it as a :class:`Macro`, which operates somewhat more
     efficiently.
 
     Promises (in addition parent class promises):
@@ -75,7 +75,7 @@ class Workflow(Composite):
 
         By default, the node naming scheme is strict, so if you try to add a node to a
         label that already exists, you will get an error. This behaviour can be changed
-        at instantiation with the `strict_naming` kwarg, or afterwards by assigning a
+        at instantiation with the :attr:`strict_naming` kwarg, or afterwards by assigning a
         bool to this property. When deactivated, repeated assignments to the same label
         just get appended with an index:
 
@@ -86,9 +86,9 @@ class Workflow(Composite):
         >>> print(wf.my_node.inputs.x, wf.my_node0.inputs.x, wf.my_node1.inputs.x)
         0 1 2
 
-        The `Workflow` class is designed as a single point of entry for workflows, so
+        The :class:`Workflow` class is designed as a single point of entry for workflows, so
         you can also access decorators to define new node classes right from the
-        workflow (cf. the `Node` docs for more detail on the node types).
+        workflow (cf. the :class:`Node` docs for more detail on the node types).
         Let's use these to explore a workflow's input and output, which are dynamically
         generated from the unconnected IO of its nodes:
 
@@ -134,8 +134,8 @@ class Workflow(Composite):
         12
 
         We can give more convenient names to IO, and even access IO that would normally
-        be hidden (because it's connected) by specifying an `inputs_map` and/or
-        `outputs_map`:
+        be hidden (because it's connected) by specifying an :attr:`inputs_map` and/or
+        :attr:`outputs_map`:
 
         >>> wf.inputs_map = {"first__x": "x"}
         >>> wf.outputs_map = {
