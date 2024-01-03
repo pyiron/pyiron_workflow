@@ -18,7 +18,7 @@ from pyiron_workflow.node import Node
 
 def list_to_output(length: int, **node_class_kwargs) -> type[Function]:
     """
-    A meta-node that returns a node class with `length` input channels and
+    A meta-node that returns a node class with :param:`length` input channels and
     maps these to a single output channel with type `list`.
     """
 
@@ -36,7 +36,7 @@ def __list_to_many(l: list):
 
 def input_to_list(length: int, **node_class_kwargs) -> type[SingleValue]:
     """
-    A meta-node that returns a node class with `length` output channels and
+    A meta-node that returns a node class with :param:`length` output channels and
     maps an input list to these.
     """
 
@@ -63,6 +63,7 @@ def for_loop(
     Takes a node class, how long the loop should be, and which input(s) of the provided
     node class should be looped over (given as strings of the channel labels) and
     builds a macro that
+
     - Makes copies of the provided node class, i.e. the "body node"
     - For each input channel specified to "loop over", creates a list-to-many node and
       connects each of its outputs to their respective body node inputs
@@ -72,6 +73,7 @@ def for_loop(
       (i.e. the specified input and all output) is all caps
 
     Examples:
+
         >>> from pyiron_workflow import Workflow
         >>> from pyiron_workflow.meta import for_loop
         >>>
@@ -91,6 +93,7 @@ def for_loop(
         [1.0, 0.5, 0.3333333333333333, 0.25]
 
     TODO:
+
         - Refactor like crazy, it's super hard to read and some stuff is too hard-coded
         - Give some sort of access to flow control??
         - How to handle passing executors to the children? Maybe this is more
@@ -98,7 +101,7 @@ def for_loop(
         - Is it possible to somehow dynamically adapt the held graph depending on the
           length of the input values being iterated over? Tricky to keep IO well defined
         - Allow a different mode, or make a different meta node, that makes all possible
-          pairs of body nodes given the input being looped over instead of just `length`
+          pairs of body nodes given the input being looped over instead of just :param:`length`
         - Provide enter and exit magic methods so we can `for` or `with` this fancy-like
     """
     iterate_on = [iterate_on] if isinstance(iterate_on, str) else iterate_on
@@ -202,7 +205,9 @@ def while_loop(
             connecting channel pairs inside the macro.
         inputs_map Optional[dict[str, str]]: The inputs map as usual for a macro.
         outputs_map Optional[dict[str, str]]: The outputs map as usual for a macro.
+
     Examples:
+
         >>> from pyiron_workflow import Workflow
         >>>
         >>> @Workflow.wrap_as.single_value_node()

@@ -11,7 +11,7 @@ class NodePackage(DotDict):
     Node classes are accessible by their _class name_ by item or attribute access.
 
     Can be extended by adding node classes to new names with an item or attribute set,
-    but to update an existing node the `update` method must be used.
+    but to update an existing node the :meth:`update` method must be used.
     """
 
     def __init__(self, *node_classes: Node):

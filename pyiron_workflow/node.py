@@ -44,10 +44,10 @@ def manage_status(node_method):
     Decorates methods of nodes that might be time-consuming, i.e. their main run
     functionality.
 
-    Sets `running` to true until the method completes and either fails or returns
-    something other than a `concurrent.futures.Future` instance; sets `failed` to true
+    Sets :attr:`running` to true until the method completes and either fails or returns
+    something other than a :class:`concurrent.futures.Future` instance; sets `failed` to true
     if the method raises an exception; raises a `RuntimeError` if the node is already
-    `running` or `failed`.
+    :attr:`running` or :attr:`failed`.
     """
 
     def wrapped_method(node: Node, *args, **kwargs):  # rather node:Node
@@ -86,6 +86,7 @@ class Node(HasToDict, ABC, metaclass=AbstractHasPost):
     one or more sub-graphs.
 
     Promises:
+
     - Nodes perform some computation, but this is delayed and won't happen until asked
         for (the nature of the computation is left to child classes).
     - Nodes have input and output for interfacing with the outside world
@@ -130,8 +131,8 @@ class Node(HasToDict, ABC, metaclass=AbstractHasPost):
     - Nodes may open a working directory related to their label, their parent(age) and
         the python process working directory
     - Nodes can run their computation using remote resources by setting an executor
-        - Any executor must have a `submit` method with the same interface as
-            `concurrent.futures.Executor`, must return a `concurrent.futures.Future`
+        - Any executor must have a :meth:`submit` method with the same interface as
+            :class:`concurrent.futures.Executor`, must return a :class:`concurrent.futures.Future`
             (or child thereof) object, and must be able to serialize dynamically
             defined objects
         - On executing this way, a futures object will be returned instead of the usual
@@ -142,76 +143,77 @@ class Node(HasToDict, ABC, metaclass=AbstractHasPost):
         - WARNING: Executors are currently only working when the node executable
             function does not use `self`
         - NOTE: Executors are only allowed in a "push" paradigm, and you will get an
-            exception if you try to `pull` and one of the upstream nodes uses an
+            exception if you try to :meth:`pull` and one of the upstream nodes uses an
             executor
-        - NOTE: Don't forget to `shutdown` any created executors outside of a `with`
+        - NOTE: Don't forget to :meth:`shutdown` any created executors outside of a `with`
             context when you're done with them; we give a convenience method for this.
 
     This is an abstract class.
-    Children *must* define how `inputs` and `outputs` are constructed, what will
-    happen `on_run`, the `run_args` that will get passed to `on_run`, and how to
-    `process_run_result` once `on_run` finishes.
+    Children *must* define how :attr:`inputs` and :attr:`outputs` are constructed, what will
+    happen :meth:`on_run`, the :attr:`run_args` that will get passed to :meth:`on_run`, and how to
+    :meth:`process_run_result` once :meth:`on_run` finishes.
     They may optionally add additional signal channels to the signals IO.
 
-    # TODO:
+    TODO:
+
         - Everything with (de)serialization for storage
         - Integration with more powerful tools for remote execution (anything obeying
-            the standard interface of a `submit` method taking the callable and
+            the standard interface of a :meth:`submit` method taking the callable and
             arguments and returning a futures object should work, as long as it can
             handle serializing dynamically defined objects.
 
     Attributes:
         connected (bool): Whether _any_ of the IO (including signals) are connected.
-        failed (bool): Whether the node raised an error calling `run`. (Default
+        failed (bool): Whether the node raised an error calling :meth:`run`. (Default
             is False.)
         fully_connected (bool): whether _all_ of the IO (including signals) are
             connected.
         future (concurrent.futures.Future | None): A futures object, if the node is
             currently running or has already run using an executor.
         inputs (pyiron_workflow.io.Inputs): **Abstract.** Children must define
-            a property returning an `Inputs` object.
+            a property returning an :class:`Inputs` object.
         label (str): A name for the node.
         outputs (pyiron_workflow.io.Outputs): **Abstract.** Children must define
-            a property returning an `Outputs` object.
+            a property returning an :class:`Outputs` object.
         parent (pyiron_workflow.composite.Composite | None): The parent object
             owning this, if any.
         ready (bool): Whether the inputs are all ready and the node is neither
             already running nor already failed.
         run_args (dict): **Abstract** the argmuments to use for actually running the
             node. Must be specified in child classes.
-        running (bool): Whether the node has called `run` and has not yet
+        running (bool): Whether the node has called :meth:`run` and has not yet
             received output from this call. (Default is False.)
         signals (pyiron_workflow.io.Signals): A container for input and output
             signals, which are channels for controlling execution flow. By default, has
-            a `signals.inputs.run` channel which has a callback to the `run` method
+            a :attr:`signals.inputs.run` channel which has a callback to the :meth:`run` method
             that fires whenever _any_ of its connections sends a signal to it, a
-            `signals.inputs.accumulate_and_run` channel which has a callback to the
-            `run` method but only fires after _all_ its connections send at least one
+            :attr:`signals.inputs.accumulate_and_run` channel which has a callback to the
+            :meth:`run` method but only fires after _all_ its connections send at least one
             signal to it, and `signals.outputs.ran` which gets called when the `run`
             method is finished.
             Additional signal channels in derived classes can be added to
-            `signals.inputs` and  `signals.outputs` after this mixin class is
+            :attr:`signals.inputs` and  :attr:`signals.outputs` after this mixin class is
             initialized.
 
     Methods:
-        __call__: An alias for `pull` that aggressively runs upstream nodes even
+        __call__: An alias for :meth:`pull` that aggressively runs upstream nodes even
             _outside_ the local scope (i.e. runs parents' dependencies as well).
         (de)activate_strict_hints: Recursively (de)activate strict hints among data IO.
         disconnect: Remove all connections, including signals.
         draw: Use graphviz to visualize the node, its IO and, if composite in nature,
             its internal structure.
-        execute: An alias for `run`, but with flags to run right here, right now, and
+        execute: An alias for :meth:`run`, but with flags to run right here, right now, and
             with the input it currently has.
         on_run: **Abstract.** Do the thing. What thing must be specified by child
             classes.
-        pull: An alias for `run` that runs everything upstream, then runs this node
+        pull: An alias for :meth:`run` that runs everything upstream, then runs this node
             (but doesn't fire off the `ran` signal, so nothing happens farther
             downstream). "Upstream" may optionally break out of the local scope to run
             parent nodes' dependencies as well (all the way until the parent-most
             object is encountered).
         replace_with: If the node belongs to a parent, attempts to replace itself in
             that parent with a new provided node.
-        run: Run the node function from `on_run`. Handles status automatically. Various
+        run: Run the node function from :meth:`on_run`. Handles status automatically. Various
             execution options are available as boolean flags.
         set_input_values: Allows input channels' values to be updated without any
             running.
@@ -280,13 +282,13 @@ class Node(HasToDict, ABC, metaclass=AbstractHasPost):
     @abstractmethod
     def run_args(self) -> dict:
         """
-        Any data needed for `on_run`, will be passed as **kwargs.
+        Any data needed for :meth:`on_run`, will be passed as **kwargs.
         """
 
     @abstractmethod
     def process_run_result(self, run_output):
         """
-        What to _do_ with the results of `on_run` once you have them.
+        What to _do_ with the results of :meth:`on_run` once you have them.
 
         By extracting this as a separate method, we allow the node to pass the actual
         execution off to another entity and release the python process to do other
@@ -356,7 +358,7 @@ class Node(HasToDict, ABC, metaclass=AbstractHasPost):
             fetch_input (bool): Whether to first update inputs with the
                 highest-priority connections holding data. (Default is True.)
             check_readiness (bool): Whether to raise an exception if the node is not
-                `ready` to run after fetching new input. (Default is True.)
+                :attr:`ready` to run after fetching new input. (Default is True.)
             force_local_execution (bool): Whether to ignore any executor settings and
                 force the computation to run locally. (Default is False.)
             emit_ran_signal (bool): Whether to fire off all the output `ran` signal
@@ -499,7 +501,7 @@ class Node(HasToDict, ABC, metaclass=AbstractHasPost):
 
         NOTE:
             `concurrent.futures.Executor` _won't_ actually work, because we need
-            stuff with `cloudpickle` support. We're leaning on this for a guaranteed
+            stuff with :mod:`cloudpickle` support. We're leaning on this for a guaranteed
             interface (has `submit` and returns a `Future`), and leaving it to the user
             to provide an executor that will actually work!!!
 
@@ -520,7 +522,7 @@ class Node(HasToDict, ABC, metaclass=AbstractHasPost):
         """
         Switch the node status, then process and return the run result.
 
-        Sets the `failed` status to true if an exception is encountered.
+        Sets the :attr:`failed` status to true if an exception is encountered.
         """
         if isinstance(run_output, Future):
             run_output = run_output.result()
@@ -548,7 +550,7 @@ class Node(HasToDict, ABC, metaclass=AbstractHasPost):
 
     def execute(self, **kwargs):
         """
-        A shortcut for `run` with particular flags.
+        A shortcut for :meth:`run` with particular flags.
 
         Run the node with whatever input it currently has (or is given as kwargs here),
         run it on this python process, and don't emit the `ran` signal afterwards.
@@ -568,7 +570,7 @@ class Node(HasToDict, ABC, metaclass=AbstractHasPost):
 
     def pull(self, run_parent_trees_too=False, **kwargs):
         """
-        A shortcut for `run` with particular flags.
+        A shortcut for :meth:`run` with particular flags.
 
         Runs nodes upstream in the data graph, then runs this node without triggering
         any downstream runs. By default only runs sibling nodes, but can optionally
@@ -591,7 +593,7 @@ class Node(HasToDict, ABC, metaclass=AbstractHasPost):
 
     def __call__(self, **kwargs) -> None:
         """
-        A shortcut for `pull` that automatically runs the entire set of upstream data
+        A shortcut for :meth:`pull` that automatically runs the entire set of upstream data
         dependencies all the way to the parent-most graph object.
         """
         return self.pull(run_parent_trees_too=True, **kwargs)
@@ -684,8 +686,8 @@ class Node(HasToDict, ABC, metaclass=AbstractHasPost):
         """
         Draw the node structure and return it as a graphviz object.
 
-        A selection of the `graphviz.Graph.render` method options are exposed, and if
-        `view` or `filename` is provided, this will be called before returning the
+        A selection of the :func:`graphviz.Graph.render` method options are exposed, and if
+        :param:`view` or :param:`filename` is provided, this will be called before returning the
         graph.
         The graph file and rendered image will be stored in the node's working
         directory.

@@ -39,8 +39,8 @@ class Channel(HasChannel, HasToDict, ABC):
     a necessary ancestor for instances they can connect to
     (`connection_partner_type: type[Channel]`).
 
-    Channels may form (`connect`/`disconnect`) and store (`connections: list[Channel]`)
-    connections with other channels.
+    Channels may form (:meth:`connect`/:meth:`disconnect`) and store
+    (:attr:`connections: list[Channel]`) connections with other channels.
 
     This connection information is reflexive, and is duplicated to be stored on _both_
     channels in the form of a reference to their counterpart in the connection.
@@ -51,7 +51,8 @@ class Channel(HasChannel, HasToDict, ABC):
 
     In this abstract class the only requirement is that the connecting channels form a
     "conjugate pair" of classes, i.e. they are children of each other's partner class
-    (`connection_partner_type: type[Channel]`) -- input/output connects to output/input.
+    (:attr:`connection_partner_type: type[Channel]`) -- input/output connects to
+    output/input.
 
     Iterating over channels yields their connections.
 
@@ -110,7 +111,8 @@ class Channel(HasChannel, HasToDict, ABC):
         """
         Form a connection between this and one or more other channels.
         Connections are reflexive, and should only occur between input and output
-        channels, i.e. they are instances of each others `connection_partner_type`.
+        channels, i.e. they are instances of each others
+        :attr:`connection_partner_type`.
 
         Args:
             *others (Channel): The other channel objects to attempt to connect with.
@@ -231,12 +233,12 @@ class DataChannel(Channel, ABC):
     """
     Data channels control the flow of data on the graph.
 
-    They store data persistently (`value`).
+    They store data persistently (:attr:`value`).
 
-    This value may have a default (`default`) and the default-default is to be
+    This value may have a default (:attr:`default`) and the default-default is to be
     `NotData`.
 
-    They may optionally have a type hint (`type_hint`).
+    They may optionally have a type hint (:attr:`type_hint`).
 
     New data and new connections are tested against type hints (if any).
 
@@ -245,21 +247,21 @@ class DataChannel(Channel, ABC):
     more specific than the input channel.
 
     In addition to connections, these channels can have a single partner
-    (`value_receiver: DataChannel`) that is of the _same_ class and obeys type hints as
-    though it were the "downstream" (input) partner in a connection.
+    (:attr:`value_receiver: DataChannel`) that is of the _same_ class and obeys type
+    hints as though it were the "downstream" (input) partner in a connection.
     Channels with such partners pass any data updates they receive directly to this
-    partner (via the `value` setter).
+    partner (via the :attr:`value` setter).
     (This is helpful for passing data between scopes, where we want input at one scope
     to be passed to the input of nodes at a deeper scope, i.e. macro input passing to
     child node input, or vice versa for output.)
 
     All these type hint tests can be disabled on the input/receiving channel
-    (`strict_hints: bool`), and this is recommended for the optimal performance in
-    production runs.
+    (:attr:`strict_hints: bool`), and this is recommended for the optimal performance
+    in production runs.
 
-    Channels can indicate whether they hold data they are happy with (`ready: bool`),
-    which is to say it is data (not `NotData`) and that it conforms to the type hint
-    (if one is provided and checking is active).
+    Channels can indicate whether they hold data they are happy with
+    (:attr:`ready: bool`), which is to say it is data (not :class:`NotData`) and that
+    it conforms to the type hint (if one is provided and checking is active).
 
     Output data facilitates many (but not all) python operators by injecting a new
     node to perform that operation. Where the operator is not supported, we try to
@@ -273,6 +275,7 @@ class DataChannel(Channel, ABC):
     it at the end of something that hasn't run yet you don't want to see an error.
 
     TODO:
+
         - Storage (including priority and history)
         - Ontological hinting
 
@@ -462,15 +465,15 @@ class InputData(DataChannel):
 
     def fetch(self) -> None:
         """
-        Sets `value` to the first value among connections that is something other than
-        `NotData`; if no such value exists (e.g. because there are no connections or
+        Sets :attr:`value` to the first value among connections that is something other than
+        :class:`NotData`; if no such value exists (e.g. because there are no connections or
         because all the connected output channels have `NotData` as their value),
-        `value` remains unchanged.
+        :attr:`value` remains unchanged.
         I.e., the connection with the highest priority for updating input data is the
         0th connection; build graphs accordingly.
 
         Raises:
-            RuntimeError: If the parent node is `running`.
+            RuntimeError: If the parent node is :attr:`running`.
         """
         for out in self.connections:
             if out.value is not NotData:
