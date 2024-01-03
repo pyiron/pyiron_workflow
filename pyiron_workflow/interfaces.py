@@ -238,6 +238,10 @@ class Creator(metaclass=Singleton):
             )
         return NodePackage(*module.nodes)
 
+    def __dir__(self) -> list[str]:
+        return super().__dir__() + list(self._node_packages.keys())
+
+
 
 class Wrappers(metaclass=Singleton):
     """
