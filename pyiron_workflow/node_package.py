@@ -14,12 +14,13 @@ class NodePackage(DotDict):
     but to update an existing node the :meth:`update` method must be used.
     """
 
-    def __init__(self, *node_classes: Node):
-        super().__init__()
+    def __init__(self, *node_classes: Node, identifier: str, domain: str):
+        super().__init__(_identifier=identifier, _domain=domain)
         for node in node_classes:
             self[node.__name__] = node
 
     def __setitem__(self, key, value):
+        # Fail fast if key is forbidden
         if key in self.keys():
             raise KeyError(f"The name {key} is already a stored node class.")
         elif key in self.__dir__():
@@ -27,7 +28,11 @@ class NodePackage(DotDict):
                 f"The name {key} is already an attribute of this "
                 f"{self.__class__.__name__} instance."
             )
-        if not isinstance(value, type) or not issubclass(value, Node):
+
+        # Continue if key/value is permissible
+        if key in ["_identifier", "_domain"]:
+            pass  # Special properties that are always allowed
+        elif not isinstance(value, type) or not issubclass(value, Node):
             raise TypeError(
                 f"Can only set members that are (sub)classes of  {Node.__name__}, "
                 f"but got {type(value)}"
