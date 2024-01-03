@@ -242,7 +242,6 @@ class Creator(metaclass=Singleton):
         return super().__dir__() + list(self._node_packages.keys())
 
 
-
 class Wrappers(metaclass=Singleton):
     """
     A container class giving access to the decorators that transform functions to nodes.
