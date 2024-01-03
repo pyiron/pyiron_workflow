@@ -1,5 +1,3 @@
-```{include} ../../README.md
-```
 
 .. pyiron_workflow documentation master file
 
@@ -9,6 +7,9 @@
 ===============
 pyiron_workflow
 ===============
+
+.. include:: include.md
+   :parser: myst_parser.sphinx_
 
 .. toctree::
    :hidden:
