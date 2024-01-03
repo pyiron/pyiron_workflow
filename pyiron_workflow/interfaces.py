@@ -202,7 +202,7 @@ class Creator(metaclass=Singleton):
             # If it's not here already, it can't conflict!
             return False
 
-    def _import_nodes(self, package_identifier: str):
+    def _import_nodes(self, package_identifier: str) -> DotDict:
         """
         Recursively walk through all submodules of the provided package identifier,
         and collect an instance of `nodes: list[Node]` from each non-package module.
