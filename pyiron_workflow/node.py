@@ -219,6 +219,9 @@ class Node(HasToDict, ABC, metaclass=AbstractHasPost):
             running.
     """
 
+    package_domain = None
+    package_identifier = None
+
     def __init__(
         self,
         label: str,
