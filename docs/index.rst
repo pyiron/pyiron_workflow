@@ -8,7 +8,7 @@
 pyiron_workflow
 ===============
 
-.. include:: include.md
+.. include:: ../../README.md
    :parser: myst_parser.sphinx_
 
 .. toctree::
