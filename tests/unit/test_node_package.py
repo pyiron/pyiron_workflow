@@ -36,14 +36,14 @@ class TestNodePackage(unittest.TestCase):
             self.package.available_name = "But we can still only assign node classes"
 
         @function_node("y")
-        def add(x: int = 0):
+        def Add(x: int = 0):
             return x + 1
 
-        self.package.node_class_and_free_key = add  # Should work!
+        self.package.node_class_and_free_key = Add  # Should work!
 
         with self.assertRaises(KeyError):
             # This is already occupied by another node class
-            self.package.Dummy = add
+            self.package.Dummy = Add
 
         old_dummy_instance = self.package.Dummy(label="old_dummy_instance")
 
