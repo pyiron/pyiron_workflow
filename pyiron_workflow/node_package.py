@@ -52,3 +52,7 @@ class NodePackage(DotDict):
 
         for node in node_classes:
             self[node.__name__] = node
+
+    def __len__(self):
+        # Only count the nodes themselves
+        return super().__len__() - len(NODE_PACKAGE_ATTRIBUTES)
