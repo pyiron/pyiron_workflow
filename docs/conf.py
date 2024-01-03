@@ -286,7 +286,7 @@ texinfo_documents = [
    u'pyiron Documentation',
    u'Max-Planck-Institut für Eisenforschung GmbH - Computational Materials Design (CM) Department',
    'pyiron_workflow',
-   'One line description of project.',
+   'Graph-based workflow management.',
    'Miscellaneous'),
 ]
 
