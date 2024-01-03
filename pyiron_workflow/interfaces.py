@@ -169,7 +169,10 @@ class Creator(metaclass=Singleton):
                 f"{domain} is already a registered node package, please choose a "
                 f"different domain to store these nodes under"
             )
-        elif domain in self.__dir__():
+        elif domain in super().__dir__():
+            # We store package names in __dir__ for autocomplete, so here look only
+            # at the parent-class __dir__, which stores actual properties and methods,
+            # but _not_ the node packages
             raise AttributeError(f"{domain} is already an attribute of {self}")
 
         package = self._import_nodes(package_identifier, domain, package_identifier)
