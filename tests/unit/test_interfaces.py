@@ -55,7 +55,7 @@ class TestCreator(unittest.TestCase):
                 self.creator.register(some_field, "static.demo_nodes")
 
         with self.subTest("Test failure cases"):
-            n_initial_packages = len(self.creator._node_packages)
+            n_initial_packages = len(self.creator._package_access)
 
             with self.assertRaises(
                 ValueError,
@@ -77,7 +77,7 @@ class TestCreator(unittest.TestCase):
 
             self.assertEqual(
                 n_initial_packages,
-                len(self.creator._node_packages),
+                len(self.creator._package_access),
                 msg="Packages should not be getting added if exceptions are raised"
             )
 

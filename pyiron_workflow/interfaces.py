@@ -51,7 +51,7 @@ class Creator(metaclass=Singleton):
     """
 
     def __init__(self):
-        self._node_packages = {}
+        self._package_access = {}
 
         self.Executor = Executor
         self.CloudpickleProcessPoolExecutor = CloudpickleProcessPoolExecutor
@@ -124,7 +124,7 @@ class Creator(metaclass=Singleton):
 
     def __getattr__(self, item):
         try:
-            return self._node_packages[item][1]
+            return self._package_access[item][1]
         except KeyError as e:
             raise AttributeError(
                 f"{self.__class__.__name__} could not find attribute {item} -- did you "
@@ -176,7 +176,7 @@ class Creator(metaclass=Singleton):
             raise AttributeError(f"{domain} is already an attribute of {self}")
 
         package = self._import_nodes(package_identifier)
-        self._node_packages[domain] = (package_identifier, package)
+        self._package_access[domain] = (package_identifier, package)
 
     def _package_conflicts_with_existing(
         self, domain: str, package_identifier: str
@@ -194,9 +194,9 @@ class Creator(metaclass=Singleton):
             (bool): True iff there is a package already at that domain and it is not
                 the same as the new one.
         """
-        if domain in self._node_packages.keys():
+        if domain in self._package_access.keys():
             # If it's already here, it had better be the same package
-            return package_identifier != self._node_packages[domain][0]
+            return package_identifier != self._package_access[domain][0]
             # We can make "sameness" logic more complex as we allow more sophisticated
             # identifiers
         else:
@@ -239,7 +239,7 @@ class Creator(metaclass=Singleton):
         return NodePackage(package_identifier, *module.nodes)
 
     def __dir__(self) -> list[str]:
-        return super().__dir__() + list(self._node_packages.keys())
+        return super().__dir__() + list(self._package_access.keys())
 
 
 class Wrappers(metaclass=Singleton):
