@@ -34,6 +34,10 @@ class TestNodePackage(unittest.TestCase):
             node = package.OptionallyAdd()
             self.assertEqual(node.package_identifier, package.package_identifier)
 
+    def test_length(self):
+        package = NodePackage("static.demo_nodes")
+        self.assertEqual(1, len(package))
+
 
 if __name__ == '__main__':
     unittest.main()
