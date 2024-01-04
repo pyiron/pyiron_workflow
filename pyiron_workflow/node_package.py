@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+from importlib import import_module
 from inspect import isclass
 
 from pyiron_workflow.node import Node
@@ -7,6 +8,10 @@ from pyiron_workflow.snippets.dotdict import DotDict
 
 
 NODE_PACKAGE_ATTRIBUTES = ("package_identifier",)
+
+
+class NotANodePackage(Exception):
+    pass
 
 
 class NodePackage(DotDict):
@@ -19,13 +24,32 @@ class NodePackage(DotDict):
     but to update an existing node the :meth:`update` method must be used.
     """
 
-    def __init__(self, package_identifier: str, *node_classes: Node):
+    def __init__(self, package_identifier: str):
         super().__init__(package_identifier=package_identifier)
+        try:
+            self._register_from_module_name(package_identifier)
+        except ModuleNotFoundError as e:
+            raise NotANodePackage(
+                f"In the current implementation, we expect package identifiers to be "
+                f"modules, but {package_identifier} couldn't be imported. If this "
+                f"looks like a module, perhaps it's simply not in your path?"
+            ) from e
+
+    def _register_from_module_name(self, module_name: str):
+        module = import_module(module_name)
+
+        try:
+            node_classes = module.nodes
+        except AttributeError as e:
+            raise NotANodePackage(
+                f"Couldn't find an attribute `nodes` in {module_name}"
+            )
+
         for node in node_classes:
-            if not isclass(node) and issubclass(node, Node):
-                raise TypeError(
+            if not isclass(node) or not issubclass(node, Node):
+                raise NotANodePackage(
                     f"Node packages must contain only nodes, but the package "
-                    f"{package_identifier} got {node}"
+                    f"{module_name} got {node}"
                 )
             self[node.__name__] = node
 

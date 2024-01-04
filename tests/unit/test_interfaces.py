@@ -2,7 +2,7 @@ import unittest
 
 from pyiron_workflow._tests import ensure_tests_in_python_path
 from pyiron_workflow.interfaces import Creator
-from pyiron_workflow.node_package import NodePackage
+from pyiron_workflow.node_package import NodePackage, NotANodePackage
 
 
 class TestCreator(unittest.TestCase):
@@ -64,19 +64,19 @@ class TestCreator(unittest.TestCase):
             n_initial_packages = len(self.creator._package_access)
 
             with self.assertRaises(
-                AttributeError,
+                NotANodePackage,
                 msg="Mustn't allow importing from things that are not node packages"
             ):
                 self.creator.register("not_even", "static.not_a_node_package")
 
             with self.assertRaises(
-                AttributeError,
+                NotANodePackage,
                 msg="Must require a `nodes` property in the module"
             ):
                 self.creator.register("forgetful", "static.forgetful_node_package")
 
             with self.assertRaises(
-                TypeError,
+                NotANodePackage,
                 msg="Must have only node classes in the iterable `nodes` property"
             ):
                 self.creator.register("faulty", "static.faulty_node_package")

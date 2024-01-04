@@ -173,6 +173,8 @@ class Creator(metaclass=Singleton):
 
         try:
             module = import_module(package_identifier)
+            container = self._package_access  # TODO: walk the dots in domain
+            self._register_recursively_from_module(module, domain, container)
         except ModuleNotFoundError as e:
             raise ModuleNotFoundError(
                 f"In the current implementation, we expect package identifiers to be "
@@ -180,8 +182,7 @@ class Creator(metaclass=Singleton):
                 f"looks like a module, perhaps it's simply not in your path?"
             ) from e
 
-        container = self._package_access  # TODO: walk the dots in domain
-
+    def _register_recursively_from_module(self, module, domain, container):
         if hasattr(module, "__path__"):
             if domain not in container.keys():
                 container[domain] = DotDict()
@@ -212,13 +213,15 @@ class Creator(metaclass=Singleton):
         domain: str,
         container: dict | DotDict
     ):
+        from pyiron_workflow.node_package import NodePackage
+
         # NOTE: Here we treat the package identifier and the module name as equivalent
         try:
             # If the package is already registered, grab that instance
             package = self._package_registry[module.__name__]
         except KeyError:
             # Otherwise make a new package
-            package = self._get_node_package_from_module(module, module.__name__)
+            package = NodePackage(module.__name__)
             self._package_registry[module.__name__] = package
 
         if domain not in container.keys():
@@ -237,11 +240,6 @@ class Creator(metaclass=Singleton):
                     f"The domain {domain} is already a container, and cannot be "
                     f"overwritten with the package {package.package_identifier}"
                 )
-
-    def _get_node_package_from_module(self, module, package_identifier: str):
-        from pyiron_workflow.node_package import NodePackage
-        package = NodePackage(package_identifier, *module.nodes)
-        return package
 
     def __dir__(self) -> list[str]:
         return super().__dir__() + list(self._package_access.keys())
