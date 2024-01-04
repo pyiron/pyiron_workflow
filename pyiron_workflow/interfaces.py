@@ -165,75 +165,82 @@ class Creator(metaclass=Singleton):
                 method or attribute of the creator.
             ValueError: If the identifier can't be parsed.
         """
-
-        if self._package_conflicts_with_existing(domain, package_identifier):
-            raise KeyError(
-                f"{domain} is already a registered node package, please choose a "
-                f"different domain to store these nodes under"
-            )
-        elif domain in super().__dir__():
+        if domain in super().__dir__():
             # We store package names in __dir__ for autocomplete, so here look only
             # at the parent-class __dir__, which stores actual properties and methods,
             # but _not_ the node packages
             raise AttributeError(f"{domain} is already an attribute of {self}")
 
-        package = self._import_nodes(package_identifier)
-        self._package_access[domain] = package
+        try:
+            module = import_module(package_identifier)
+        except ModuleNotFoundError as e:
+            raise ModuleNotFoundError(
+                f"In the current implementation, we expect package identifiers to be "
+                f"modules, but {package_identifier} couldn't be imported. If this "
+                f"looks like a module, perhaps it's simply not in your path?"
+            ) from e
 
-    def _package_conflicts_with_existing(
-        self, domain: str, package_identifier: str
-    ) -> bool:
-        """
-        Check if the new package conflict with an existing package at the requested
-        domain; if there isn't one, or if the new and old packages are identical then
-        there is no conflict!
+        container = self._package_access  # TODO: walk the dots in domain
 
-        Args:
-            domain (str): The domain at which the new package is attempting to register.
-            package_identifier (str): The identifier for the new package.
-
-        Returns:
-            (bool): True iff there is a package already at that domain and it is not
-                the same as the new one.
-        """
-        if domain in self._package_access.keys():
-            # If it's already here, it had better be the same package
-            return package_identifier != self._package_access[domain].package_identifier
-            # We can make "sameness" logic more complex as we allow more sophisticated
-            # identifiers
-        else:
-            # If it's not here already, it can't conflict!
-            return False
-
-    def _import_nodes(self, package_identifier: str) -> DotDict:
-        """
-        Recursively walk through all submodules of the provided package identifier,
-        and collect an instance of `nodes: list[Node]` from each non-package module.
-        """
-
-        module = import_module(package_identifier)
         if hasattr(module, "__path__"):
-            package = DotDict()
+            if domain not in container.keys():
+                container[domain] = DotDict()
+            subcontainer = container[domain]
             for _, submodule_name, _ in pkgutil.walk_packages(
                 module.__path__, module.__name__ + "."
             ):
+                submodule = import_module(submodule_name)
                 subdomain = submodule_name.split(".")[-1]
-                package[subdomain] = self._import_nodes(submodule_name)
+
+                if not hasattr(submodule, "__path__"):
+                    if hasattr(submodule, "nodes"):
+                        # If it's a .py file with a `nodes` variable,
+                        # assume that we want it
+                        self._register_package_from_module(
+                            submodule, subdomain, subcontainer
+                        )
+                else:
+                    if subdomain not in container.keys():
+                        subcontainer[subdomain] = DotDict()
+                    subcontainer = subcontainer[subdomain]
         else:
-            package = self._get_node_package_from_module(module, package_identifier)
-        return package
+            self._register_package_from_module(module, domain, container)
+
+    def _register_package_from_module(
+        self,
+        module,
+        domain: str,
+        container: dict | DotDict
+    ):
+        # NOTE: Here we treat the package identifier and the module name as equivalent
+        try:
+            # If the package is already registered, grab that instance
+            package = self._package_registry[module.__name__]
+        except KeyError:
+            # Otherwise make a new package
+            package = self._get_node_package_from_module(module, module.__name__)
+            self._package_registry[module.__name__] = package
+
+        if domain not in container.keys():
+            # If the container _doesn't_ yet have anything at this domain, just add it
+            container[domain] = package
+        else:
+            try:
+                if container[domain].package_identifier != package.package_identifier:
+                    raise ValueError(
+                        f"The domain {domain} already holds the package "
+                        f"{container[domain].package_identifier}, and cannot store the "
+                        f"package {package.package_identifier}"
+                    )
+            except AttributeError:
+                raise ValueError(
+                    f"The domain {domain} is already a container, and cannot be "
+                    f"overwritten with the package {package.package_identifier}"
+                )
 
     def _get_node_package_from_module(self, module, package_identifier: str):
         from pyiron_workflow.node_package import NodePackage
-
-        try:
-            module.nodes
-        except AttributeError:
-            raise ValueError(
-                f"Could node find `nodes: list[Nodes]` in {module.__name__}"
-            )
         package = NodePackage(package_identifier, *module.nodes)
-        self._package_registry[package_identifier] = package
         return package
 
     def __dir__(self) -> list[str]:

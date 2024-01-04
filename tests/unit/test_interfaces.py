@@ -40,9 +40,15 @@ class TestCreator(unittest.TestCase):
 
             self.creator.register("a_key_other_than_demo", "static.demo_nodes")
             # The same thing to another key is usually dumb, but totally permissible
+            self.assertIs(
+                self.creator.demo,
+                self.creator.a_key_other_than_demo,
+                msg="Registering the same package to two locations should use the same "
+                    "package instance in both places."
+            )
 
             with self.assertRaises(
-                KeyError,
+                ValueError,
                 msg="Should not be able to register a new package to an existing domain"
             ):
                 self.creator.register("demo", "pyiron_workflow.node_library.standard")
@@ -58,13 +64,13 @@ class TestCreator(unittest.TestCase):
             n_initial_packages = len(self.creator._package_access)
 
             with self.assertRaises(
-                ValueError,
+                AttributeError,
                 msg="Mustn't allow importing from things that are not node packages"
             ):
                 self.creator.register("not_even", "static.not_a_node_package")
 
             with self.assertRaises(
-                ValueError,
+                AttributeError,
                 msg="Must require a `nodes` property in the module"
             ):
                 self.creator.register("forgetful", "static.forgetful_node_package")
