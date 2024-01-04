@@ -11,9 +11,7 @@ def Dummy(x: int = 0):
 
 class TestNodePackage(unittest.TestCase):
     def setUp(self) -> None:
-        self.package = NodePackage(
-            Dummy, identifier="test_node_package", domain="dummy"
-        )
+        self.package = NodePackage("test_node_package", Dummy)
 
     def test_init(self):
         self.assertTrue(

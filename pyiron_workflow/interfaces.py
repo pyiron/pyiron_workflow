@@ -175,7 +175,7 @@ class Creator(metaclass=Singleton):
             # but _not_ the node packages
             raise AttributeError(f"{domain} is already an attribute of {self}")
 
-        package = self._import_nodes(package_identifier, domain, package_identifier)
+        package = self._import_nodes(package_identifier)
         self._node_packages[domain] = (package_identifier, package)
 
     def _package_conflicts_with_existing(
@@ -203,12 +203,7 @@ class Creator(metaclass=Singleton):
             # If it's not here already, it can't conflict!
             return False
 
-    def _import_nodes(
-        self,
-        top_package: str,
-        domain: str,
-        package_identifier: str
-    ) -> DotDict:
+    def _import_nodes(self, package_identifier: str) -> DotDict:
         """
         Recursively walk through all submodules of the provided package identifier,
         and collect an instance of `nodes: list[Node]` from each non-package module.
@@ -221,17 +216,13 @@ class Creator(metaclass=Singleton):
                 module.__path__, module.__name__ + "."
             ):
                 subdomain = submodule_name.split(".")[-1]
-                package[subdomain] = self._import_nodes(
-                    top_package,
-                    ".".join([domain, subdomain]),
-                    submodule_name
-                )
+                package[subdomain] = self._import_nodes(submodule_name)
         else:
-            package = self._get_nodes_from_module(module, top_package, domain)
+            package = self._get_nodes_from_module(module, package_identifier)
         return package
 
     @staticmethod
-    def _get_nodes_from_module(module, top_package_identifier: str, full_domain: str):
+    def _get_nodes_from_module(module, package_identifier: str):
         from pyiron_workflow.node import Node
         from pyiron_workflow.node_package import NodePackage
 
@@ -245,11 +236,7 @@ class Creator(metaclass=Singleton):
             raise TypeError(
                 f"At least one node in {nodes} was not of the type {Node.__name__}"
             )
-        return NodePackage(
-            *module.nodes,
-            identifier=top_package_identifier,
-            domain=full_domain
-        )
+        return NodePackage(package_identifier, *module.nodes)
 
     def __dir__(self) -> list[str]:
         return super().__dir__() + list(self._node_packages.keys())
