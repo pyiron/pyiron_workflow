@@ -1,6 +1,11 @@
 class DotDict(dict):
     def __getattr__(self, item):
-        return self.__getitem__(item)
+        try:
+            return self.__getitem__(item)
+        except KeyError:
+            raise AttributeError(
+                f"{self.__class__.__name__} object has no attribute '{item}'"
+            )
 
     def __setattr__(self, key, value):
         self[key] = value
