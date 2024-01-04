@@ -57,7 +57,7 @@ class Creator(metaclass=Singleton):
     """
 
     def __init__(self):
-        self._package_access = {}
+        self._package_access = DotDict()
         self._package_registry = bidict()
 
         self.Executor = Executor
@@ -178,7 +178,10 @@ class Creator(metaclass=Singleton):
 
         try:
             module = import_module(package_identifier)
-            container = self._package_access  # TODO: walk the dots in domain
+            if "." in domain:
+                domain, container = self._get_deep_container(domain)
+            else:
+                container = self._package_access
             self._register_recursively_from_module(module, domain, container)
         except ModuleNotFoundError as e:
             raise ModuleNotFoundError(
@@ -186,6 +189,26 @@ class Creator(metaclass=Singleton):
                 f"modules, but {package_identifier} couldn't be imported. If this "
                 f"looks like a module, perhaps it's simply not in your path?"
             ) from e
+
+    def _get_deep_container(self, semantic_domain: str) -> tuple[str, DotDict]:
+        from pyiron_workflow.node_package import NodePackage
+
+        container = self._package_access
+        path = semantic_domain.split(".")
+
+        while len(path) > 1:
+            step = path.pop(0)
+            if not hasattr(container, step):
+                container[step] = DotDict()
+            elif isinstance(container[step], NodePackage):
+                raise ValueError(
+                    f"The semantic path {semantic_domain} is invalid because it uses "
+                    f"{step} as an intermediary, but this is already a "
+                    f"{NodePackage.__name__}"
+                )
+            container = container[step]
+        domain = path[0]
+        return domain, container
 
     def _register_recursively_from_module(
         self, module: ModuleType, domain: str, container: DotDict

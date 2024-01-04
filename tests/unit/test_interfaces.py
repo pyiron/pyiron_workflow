@@ -60,6 +60,19 @@ class TestCreator(unittest.TestCase):
                 some_field = self.creator.dir()[0]
                 self.creator.register(some_field, "static.demo_nodes")
 
+        with self.subTest("Test semantic domain"):
+            self.creator.register("some.path", "static.demo_nodes")
+            self.assertIsInstance(self.creator.some.path, NodePackage)
+
+            self.creator.register("some.deeper.path", "static.demo_nodes")
+            self.assertIsInstance(self.creator.some.deeper.path, NodePackage)
+
+            with self.assertRaises(
+                ValueError,
+                msg="Can't inject a branch on a package"
+            ):
+                self.creator.register("some.path.deeper", "static.demo_nodes")
+
         with self.subTest("Test failure cases"):
             n_initial_packages = len(self.creator._package_access)
 
