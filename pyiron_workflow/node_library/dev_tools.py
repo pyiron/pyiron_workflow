@@ -57,7 +57,7 @@ class Replacer:
     def __call__(self, other: Node, **kwargs):
         # This is just the current replacement code:
         if self.node.parent is not None:
-            self.node.parent.replace_node(self.node, other)
+            self.node.replace_with(other)
             # print ('replacer called', self.node.label, other, kwargs) #, other.info, dir(other))
             self.node = self.parent[self.node_label]
             return self.node.set_input_values(**kwargs)
@@ -91,10 +91,13 @@ def register_libraries(libraries, library_path="pyiron_workflow.node_library"):
 # these tools are meant only for a proof of concept, some parts may be already present in
 # the existing code, others should be moved there
 def extract_value(value):
+    # if hasattr(value, "_convert_to_dict"):
+    #     return value._convert_to_dict()
     if hasattr(value, "value"):
-        value = value.value
-    if hasattr(value, "_convert_to_dict"):
-        value = value._convert_to_dict()
+        val = value.value
+        if hasattr(val, "_convert_to_dict"):
+            return val._convert_to_dict()
+        return val
     return value
 
 
@@ -161,12 +164,6 @@ class DataStore:
     def __init__(self, path="."):
         self._path = path
         self._project = MiniProject(path)
-        self._ensure_storage_folder_exists()
-
-    def _ensure_storage_folder_exists(self):
-        path = pathlib.Path(self._path)
-        if not path.is_dir():
-            path.mkdir(parents=True, exist_ok=True)
 
     def get_hdf(self, path, label):
         p = pathlib.Path(path, label)
@@ -177,11 +174,11 @@ class DataStore:
     def remove(self, node_label, path=None):
         if path is None:
             path = self._path
-        p = pathlib.Path(path, f"{node_label}.h5")
+        p = pathlib.Path(path, f'{node_label}.h5')
         # print (p, p.is_file())
         if p.is_file():
             p.unlink()
-            print(f"node {node_label} has been removed from store")
+            print(f'node {node_label} has been removed from store')
 
     def store(self, node, overwrite=False):
         if overwrite:

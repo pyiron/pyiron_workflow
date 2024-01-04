@@ -972,3 +972,77 @@ class Node(HasToDict, ABC, metaclass=AbstractHasPost):
             self.executor.shutdown(wait=wait, cancel_futures=cancel_futures)
         except AttributeError:
             pass
+
+    def iter(self, max_workers=1, cores_per_worker=1, executor=None, **kwargs):
+        from pympipool import Executor
+        import pandas as pd
+
+        # Get the keys and lists from kwargs
+        keys = list(kwargs.keys())
+        lists = list(kwargs.values())
+
+        # Get the number of dimensions
+        num_dimensions = len(keys)
+
+        # Get the length of each list
+        lengths = [len(lst) for lst in lists]
+
+        # Initialize indices
+        indices = [0] * num_dimensions
+
+        with Executor(cores_per_worker=cores_per_worker, max_workers=max_workers) as p:
+            # iter_dict = {'kwargs': kwargs}
+            iter_dict = {}
+
+            # Create an empty dictionary to store the results
+            dict_lst = {}
+            # df_result = pd.DataFrame(columns=keys)
+
+            # Perform multidimensional for loop
+            count = 0
+            while indices[0] < lengths[0]:
+                # Access the current elements using indices
+                current_elements = [lists[i][indices[i]] for i in range(num_dimensions)]
+
+                # Add current_elements as a dictionary
+                current_elements_kwarg = dict(zip(keys, current_elements))
+                # self._iter_index = indices[i]
+
+                # the following construct is used to get workflow related info via the _internal
+                # argument of the node function into the function body (where the workflow object
+                # is not accessible)
+                _internal = {}
+                _internal["iter_index"] = indices.copy()
+                current_elements_kwarg["_internal"] = _internal
+
+                if executor is None:
+                    out = self(**current_elements_kwarg)
+                else:
+                    fs = p.submit(self, **current_elements_kwarg)
+                    out = fs.result()
+                iter_dict[count] = out
+                count += 1
+
+                for k, v in out.items():
+                    current_elements_kwarg[k] = v
+
+                # Append the current_elements_kwarg to the dictionary
+                for k, v in current_elements_kwarg.items():
+                    if count == 1:
+                        dict_lst[k] = [v]
+                    else:
+                        if k in dict_lst:
+                            dict_lst[k].append(v)
+                        else:
+                            ValueError(f"New key appears at count {count}")
+
+                # Update indices for the next iteration
+                indices[num_dimensions - 1] += 1
+
+                # Update indices and carry-over if needed
+                for i in range(num_dimensions - 1, 0, -1):
+                    if indices[i] == lengths[i]:
+                        indices[i] = 0
+                        indices[i - 1] += 1
+
+        return pd.DataFrame(dict_lst)
