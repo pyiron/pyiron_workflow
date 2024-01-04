@@ -8,6 +8,7 @@ from importlib import import_module
 import pkgutil
 from sys import version_info
 
+from bidict import bidict
 from pyiron_workflow.snippets.singleton import Singleton
 
 # Import all the supported executors
@@ -52,6 +53,7 @@ class Creator(metaclass=Singleton):
 
     def __init__(self):
         self._package_access = {}
+        self._package_registry = bidict()
 
         self.Executor = Executor
         self.CloudpickleProcessPoolExecutor = CloudpickleProcessPoolExecutor
@@ -221,8 +223,7 @@ class Creator(metaclass=Singleton):
             package = self._get_nodes_from_module(module, package_identifier)
         return package
 
-    @staticmethod
-    def _get_nodes_from_module(module, package_identifier: str):
+    def _get_nodes_from_module(self, module, package_identifier: str):
         from pyiron_workflow.node import Node
         from pyiron_workflow.node_package import NodePackage
 
@@ -236,7 +237,9 @@ class Creator(metaclass=Singleton):
             raise TypeError(
                 f"At least one node in {nodes} was not of the type {Node.__name__}"
             )
-        return NodePackage(package_identifier, *module.nodes)
+        package = NodePackage(package_identifier, *module.nodes)
+        self._package_registry[package_identifier] = package
+        return package
 
     def __dir__(self) -> list[str]:
         return super().__dir__() + list(self._package_access.keys())

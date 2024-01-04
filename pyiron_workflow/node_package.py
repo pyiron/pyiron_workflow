@@ -56,3 +56,8 @@ class NodePackage(DotDict):
     def __len__(self):
         # Only count the nodes themselves
         return super().__len__() - len(NODE_PACKAGE_ATTRIBUTES)
+
+    def __hash__(self):
+        # Dictionaries (DotDict(dict)) are mutable and thus not hashable
+        # Since the identifier is expected to be unique for the package, just hash that
+        return hash(self._identifier)
