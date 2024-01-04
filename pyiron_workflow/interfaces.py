@@ -238,10 +238,7 @@ class Creator(metaclass=Singleton):
             self._register_package_from_module(module, domain, container)
 
     def _register_package_from_module(
-        self,
-        module: ModuleType,
-        domain: str,
-        container: dict | DotDict
+        self, module: ModuleType, domain: str, container: dict | DotDict
     ) -> None:
         package = self._get_existing_package_or_register_a_new_one(module.__name__)
         # NOTE: Here we treat the package identifier and the module name as equivalent
@@ -263,6 +260,7 @@ class Creator(metaclass=Singleton):
         except KeyError:
             # Otherwise make a new package
             from pyiron_workflow.node_package import NodePackage
+
             package = NodePackage(package_identifier)
             self._package_registry[package_identifier] = package
         return package
