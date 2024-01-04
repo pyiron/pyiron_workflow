@@ -4,7 +4,7 @@ from pyiron_workflow.node import Node
 from pyiron_workflow.snippets.dotdict import DotDict
 
 
-NODE_PACKAGE_ATTRIBUTES = ("_identifier", "_domain")
+NODE_PACKAGE_ATTRIBUTES = ("_identifier",)
 
 
 class NodePackage(DotDict):
@@ -17,8 +17,8 @@ class NodePackage(DotDict):
     but to update an existing node the :meth:`update` method must be used.
     """
 
-    def __init__(self, *node_classes: Node, identifier: str, domain: str):
-        super().__init__(_identifier=identifier, _domain=domain)
+    def __init__(self, identifier: str, *node_classes: Node):
+        super().__init__(_identifier=identifier)
         for node in node_classes:
             self[node.__name__] = node
 
@@ -36,8 +36,8 @@ class NodePackage(DotDict):
         if key in NODE_PACKAGE_ATTRIBUTES:
             super().__setitem__(key, value)  # Special properties that are allowed
         elif isinstance(value, type) and issubclass(value, Node):
+            # Set the node class's package identifier and hold that class
             value.package_identifier = self._identifier
-            value.package_domain = self._domain
             super().__setitem__(key, value)
         else:
             raise TypeError(
