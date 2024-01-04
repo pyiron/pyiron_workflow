@@ -7,6 +7,8 @@ from __future__ import annotations
 from importlib import import_module
 import pkgutil
 from sys import version_info
+from types import ModuleType
+from typing import TYPE_CHECKING
 
 from bidict import bidict
 from pyiron_workflow.snippets.singleton import Singleton
@@ -35,6 +37,9 @@ from pyiron_workflow.function import (
     single_value_node,
 )
 from pyiron_workflow.snippets.dotdict import DotDict
+
+if TYPE_CHECKING:
+    from pyiron_workflow.node_package import NodePackage
 
 
 class Creator(metaclass=Singleton):
@@ -182,7 +187,9 @@ class Creator(metaclass=Singleton):
                 f"looks like a module, perhaps it's simply not in your path?"
             ) from e
 
-    def _register_recursively_from_module(self, module, domain, container):
+    def _register_recursively_from_module(
+        self, module: ModuleType, domain: str, container: DotDict
+    ) -> None:
         if hasattr(module, "__path__"):
             if domain not in container.keys():
                 container[domain] = DotDict()
@@ -209,10 +216,10 @@ class Creator(metaclass=Singleton):
 
     def _register_package_from_module(
         self,
-        module,
+        module: ModuleType,
         domain: str,
         container: dict | DotDict
-    ):
+    ) -> None:
         package = self._get_existing_package_or_register_a_new_one(module.__name__)
         # NOTE: Here we treat the package identifier and the module name as equivalent
 
@@ -224,7 +231,9 @@ class Creator(metaclass=Singleton):
                 container, domain, package
             )
 
-    def _get_existing_package_or_register_a_new_one(self, package_identifier: str):
+    def _get_existing_package_or_register_a_new_one(
+        self, package_identifier: str
+    ) -> NodePackage:
         try:
             # If the package is already registered, grab that instance
             package = self._package_registry[package_identifier]
@@ -236,8 +245,8 @@ class Creator(metaclass=Singleton):
         return package
 
     def _raise_error_unless_new_package_matches_existing(
-        self, container, domain, package
-    ):
+        self, container: DotDict, domain: str, package: NodePackage
+    ) -> None:
         try:
             if container[domain].package_identifier != package.package_identifier:
                 raise ValueError(
