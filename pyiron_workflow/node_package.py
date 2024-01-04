@@ -1,5 +1,7 @@
 from __future__ import annotations
 
+from inspect import isclass
+
 from pyiron_workflow.node import Node
 from pyiron_workflow.snippets.dotdict import DotDict
 
@@ -20,6 +22,11 @@ class NodePackage(DotDict):
     def __init__(self, package_identifier: str, *node_classes: Node):
         super().__init__(package_identifier=package_identifier)
         for node in node_classes:
+            if not isclass(node) and issubclass(node, Node):
+                raise TypeError(
+                    f"Node packages must contain only nodes, but the package "
+                    f"{package_identifier} got {node}"
+                )
             self[node.__name__] = node
 
     def __setitem__(self, key, value):

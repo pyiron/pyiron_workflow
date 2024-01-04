@@ -224,18 +224,13 @@ class Creator(metaclass=Singleton):
         return package
 
     def _get_nodes_from_module(self, module, package_identifier: str):
-        from pyiron_workflow.node import Node
         from pyiron_workflow.node_package import NodePackage
 
         try:
-            nodes = module.nodes
+            module.nodes
         except AttributeError:
             raise ValueError(
                 f"Could node find `nodes: list[Nodes]` in {module.__name__}"
-            )
-        if not all(issubclass(node, Node) for node in nodes):
-            raise TypeError(
-                f"At least one node in {nodes} was not of the type {Node.__name__}"
             )
         package = NodePackage(package_identifier, *module.nodes)
         self._package_registry[package_identifier] = package
