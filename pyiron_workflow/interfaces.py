@@ -220,10 +220,10 @@ class Creator(metaclass=Singleton):
                 subdomain = submodule_name.split(".")[-1]
                 package[subdomain] = self._import_nodes(submodule_name)
         else:
-            package = self._get_nodes_from_module(module, package_identifier)
+            package = self._get_node_package_from_module(module, package_identifier)
         return package
 
-    def _get_nodes_from_module(self, module, package_identifier: str):
+    def _get_node_package_from_module(self, module, package_identifier: str):
         from pyiron_workflow.node_package import NodePackage
 
         try:
