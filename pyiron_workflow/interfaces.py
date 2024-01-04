@@ -213,33 +213,43 @@ class Creator(metaclass=Singleton):
         domain: str,
         container: dict | DotDict
     ):
-        from pyiron_workflow.node_package import NodePackage
-
+        package = self._get_existing_package_or_register_a_new_one(module.__name__)
         # NOTE: Here we treat the package identifier and the module name as equivalent
-        try:
-            # If the package is already registered, grab that instance
-            package = self._package_registry[module.__name__]
-        except KeyError:
-            # Otherwise make a new package
-            package = NodePackage(module.__name__)
-            self._package_registry[module.__name__] = package
 
         if domain not in container.keys():
             # If the container _doesn't_ yet have anything at this domain, just add it
             container[domain] = package
         else:
-            try:
-                if container[domain].package_identifier != package.package_identifier:
-                    raise ValueError(
-                        f"The domain {domain} already holds the package "
-                        f"{container[domain].package_identifier}, and cannot store the "
-                        f"package {package.package_identifier}"
-                    )
-            except AttributeError:
+            self._raise_error_unless_new_package_matches_existing(
+                container, domain, package
+            )
+
+    def _get_existing_package_or_register_a_new_one(self, package_identifier: str):
+        try:
+            # If the package is already registered, grab that instance
+            package = self._package_registry[package_identifier]
+        except KeyError:
+            # Otherwise make a new package
+            from pyiron_workflow.node_package import NodePackage
+            package = NodePackage(package_identifier)
+            self._package_registry[package_identifier] = package
+        return package
+
+    def _raise_error_unless_new_package_matches_existing(
+        self, container, domain, package
+    ):
+        try:
+            if container[domain].package_identifier != package.package_identifier:
                 raise ValueError(
-                    f"The domain {domain} is already a container, and cannot be "
-                    f"overwritten with the package {package.package_identifier}"
+                    f"The domain {domain} already holds the package "
+                    f"{container[domain].package_identifier}, and cannot store the "
+                    f"package {package.package_identifier}"
                 )
+        except AttributeError:
+            raise ValueError(
+                f"The domain {domain} is already a container, and cannot be "
+                f"overwritten with the package {package.package_identifier}"
+            )
 
     def __dir__(self) -> list[str]:
         return super().__dir__() + list(self._package_access.keys())
