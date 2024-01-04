@@ -16,12 +16,10 @@ class NotANodePackage(Exception):
 
 class NodePackage(DotDict):
     """
-    A collection of node classes.
+    A collection of node classes loaded from a package (right now that's just a python
+    module (.py file) with a `nodes: list[Node]` attribute).
 
     Node classes are accessible by their _class name_ by item or attribute access.
-
-    Can be extended by adding node classes to new names with an item or attribute set,
-    but to update an existing node the :meth:`update` method must be used.
     """
 
     def __init__(self, package_identifier: str):
@@ -75,14 +73,6 @@ class NodePackage(DotDict):
                 f"Can only set members that are (sub)classes of  {Node.__name__}, "
                 f"but got {type(value)}"
             )
-
-    def update(self, *node_classes):
-        replacing = set(self.keys()).intersection([n.__name__ for n in node_classes])
-        for name in replacing:
-            del self[name]
-
-        for node in node_classes:
-            self[node.__name__] = node
 
     def __len__(self):
         # Only count the nodes themselves
