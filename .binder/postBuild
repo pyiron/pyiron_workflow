@@ -24,7 +24,6 @@ if [ -d "${HOME}/pyiron_workflow" ]; then
             ${HOME}/CONTRIBUTING.rst \
             ${HOME}/LICENSE \
             ${HOME}/MANIFEST.in \
-            ${HOME}/README.md \
             ${HOME}/setup.cfg \
             ${HOME}/setup.py \
             ${HOME}/versioneer.py
