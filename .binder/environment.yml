@@ -12,9 +12,9 @@ dependencies:
 - toposort =1.10
 - typeguard =4.1.5
 - ase =3.22.1
-- atomistics =0.1.12
+- atomistics =0.1.20
 - lammps
 - phonopy =2.21.0
-- pyiron_atomistics =0.3.5
-- pyiron-data =0.0.24
-- numpy =1.26.0
+- pyiron_atomistics =0.4.4
+- pyiron-data =0.0.27
+- numpy =1.26.3
