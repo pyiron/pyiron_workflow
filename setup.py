@@ -39,10 +39,10 @@ setup(
     extras_require={
         "node_library": [
             'ase==3.22.1',
-            'atomistics==0.1.19',
-            'numpy==1.26.2',
+            'atomistics==0.1.20',
+            'numpy==1.26.3',
             'phonopy==2.21.0',
-            'pyiron_atomistics==0.4.1',
+            'pyiron_atomistics==0.4.4',
         ],
     },
     cmdclass=versioneer.get_cmdclass(),
