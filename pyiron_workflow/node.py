@@ -147,6 +147,8 @@ class Node(HasToDict, ABC, metaclass=AbstractHasPost):
             executor
         - NOTE: Don't forget to :meth:`shutdown` any created executors outside of a `with`
             context when you're done with them; we give a convenience method for this.
+    - Nodes created from a registered package store their package identifier as a class
+        attribute.
 
     This is an abstract class.
     Children *must* define how :attr:`inputs` and :attr:`outputs` are constructed, what will
@@ -175,6 +177,8 @@ class Node(HasToDict, ABC, metaclass=AbstractHasPost):
         label (str): A name for the node.
         outputs (pyiron_workflow.io.Outputs): **Abstract.** Children must define
             a property returning an :class:`Outputs` object.
+        package_identifier (str|None): (Class attribute) the identifier for the
+            package this node came from (if any).
         parent (pyiron_workflow.composite.Composite | None): The parent object
             owning this, if any.
         ready (bool): Whether the inputs are all ready and the node is neither
@@ -218,6 +222,8 @@ class Node(HasToDict, ABC, metaclass=AbstractHasPost):
         set_input_values: Allows input channels' values to be updated without any
             running.
     """
+
+    package_identifier = None
 
     def __init__(
         self,
