@@ -5,6 +5,6 @@ dependencies:
   - atomistics =0.1.20
   - lammps
   - phonopy =2.21.0
-  - pyiron_atomistics =0.4.1
-  - pyiron-data =0.0.24
-  - numpy =1.26.2
+  - pyiron_atomistics =0.4.4
+  - pyiron-data =0.0.27
+  - numpy =1.26.3
