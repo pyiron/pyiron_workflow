@@ -157,8 +157,9 @@ class Creator(metaclass=Singleton):
 
         Args:
             domain (str): The attribute name at which to register the new package.
-                (Note: no sanitizing is done here, so if you provide a string that
-                won't work as an attribute name, that's your problem.)
+                (Note: no sanitizing is done here except for splitting on "." to create
+                sub-domains, so if you provide a string that won't work as an attribute
+                name, that's your problem.)
             package_identifier (str): An identifier for the node package. (Right now
                 that's just a string version of the path to the module, e.g.
                 `pyiron_workflow.node_library.standard`.)
