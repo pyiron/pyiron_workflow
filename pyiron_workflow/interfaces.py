@@ -8,7 +8,7 @@ from importlib import import_module
 import pkgutil
 from sys import version_info
 from types import ModuleType
-from typing import TYPE_CHECKING
+from typing import Optional, TYPE_CHECKING
 
 from bidict import bidict
 from pyiron_workflow.snippets.singleton import Singleton
@@ -152,11 +152,24 @@ class Creator(metaclass=Singleton):
     def __setstate__(self, state):
         self.__dict__ = state
 
-    def register(self, domain: str, package_identifier: str) -> None:
+    def register(self, package_identifier: str, domain: Optional[str] = None) -> None:
         """
+        Add a new package of nodes from the provided identifier.
+        The new package is available by item-access using the identifier, and, if a
+        domain was provided, by attribute access under that domain path ("."-split
+        strings allow for deep-registration of domains).
         Add a new package of nodes under the provided attribute, e.g. after adding
         nodes to the domain `"my_nodes"`, and instance of creator can call things like
         `creator.my_nodes.some_node_that_is_there()`.
+
+        Currently, :param:`package_identifier` is just a python module string, and we
+        allow recursive registration of multiple node packages when a module is
+        provided whose sub-modules are node packages. If a :param:`domain` was
+        provided, then it is extended by the same semantic path as the modules, e.g.
+        if `my_python_module` is registered to the domain `"mpm"`, and
+        `my_python_module.submod1` and `my_python_module.submod2.subsub` are both node
+        packages, then `mpm.submod1` and `mpm.submod2.subsub` will both be available
+        for attribute access.
 
         Note: If a macro is going to use a creator, the node registration should be
             _inside_ the macro definition to make sure the node actually has access to
@@ -164,13 +177,14 @@ class Creator(metaclass=Singleton):
             import access to that location, but we don't for that check that.
 
         Args:
-            domain (str): The attribute name at which to register the new package.
-                (Note: no sanitizing is done here except for splitting on "." to create
-                sub-domains, so if you provide a string that won't work as an attribute
-                name, that's your problem.)
             package_identifier (str): An identifier for the node package. (Right now
                 that's just a string version of the path to the module, e.g.
                 `pyiron_workflow.node_library.standard`.)
+            domain (str|None): The attribute name at which to register the new package.
+                (Note: no sanitizing is done here except for splitting on "." to create
+                sub-domains, so if you provide a string that won't work as an attribute
+                name, that's your problem.) (Default is None, don't provide attribute
+                access to this package.)
 
         Raises:
             KeyError: If the domain already exists, but the identifier doesn't match
@@ -187,11 +201,14 @@ class Creator(metaclass=Singleton):
 
         try:
             module = import_module(package_identifier)
-            if "." in domain:
-                domain, container = self._get_deep_container(domain)
+            if domain is not None:
+                if "." in domain:
+                    domain, container = self._get_deep_container(domain)
+                else:
+                    container = self._package_access
+                self._register_recursively_from_module(module, domain, container)
             else:
-                container = self._package_access
-            self._register_recursively_from_module(module, domain, container)
+                self._register_recursively_from_module(module, None, None)
         except ModuleNotFoundError as e:
             raise ModuleNotFoundError(
                 f"In the current implementation, we expect package identifiers to be "
@@ -220,17 +237,20 @@ class Creator(metaclass=Singleton):
         return domain, container
 
     def _register_recursively_from_module(
-        self, module: ModuleType, domain: str, container: DotDict
+        self, module: ModuleType, domain: str | None, container: DotDict | None
     ) -> None:
         if hasattr(module, "__path__"):
-            if domain not in container.keys():
-                container[domain] = DotDict()
-            subcontainer = container[domain]
+            if domain is not None:
+                if domain not in container.keys():
+                    container[domain] = DotDict()
+                subcontainer = container[domain]
+            else:
+                subcontainer = None
             for _, submodule_name, _ in pkgutil.walk_packages(
                 module.__path__, module.__name__ + "."
             ):
                 submodule = import_module(submodule_name)
-                subdomain = submodule_name.split(".")[-1]
+                subdomain = None if domain is None else submodule_name.split(".")[-1]
 
                 if not hasattr(submodule, "__path__"):
                     if hasattr(submodule, "nodes"):
@@ -247,18 +267,19 @@ class Creator(metaclass=Singleton):
             self._register_package_from_module(module, domain, container)
 
     def _register_package_from_module(
-        self, module: ModuleType, domain: str, container: dict | DotDict
+        self, module: ModuleType, domain: str | None, container: dict | DotDict | None
     ) -> None:
         package = self._get_existing_package_or_register_a_new_one(module.__name__)
         # NOTE: Here we treat the package identifier and the module name as equivalent
 
-        if domain not in container.keys():
-            # If the container _doesn't_ yet have anything at this domain, just add it
-            container[domain] = package
-        else:
-            self._raise_error_unless_new_package_matches_existing(
-                container, domain, package
-            )
+        if domain is not None:
+            if domain not in container.keys():
+                # If the container _doesn't_ yet have anything at this domain, just add it
+                container[domain] = package
+            else:
+                self._raise_error_unless_new_package_matches_existing(
+                    container, domain, package
+                )
 
     def _get_existing_package_or_register_a_new_one(
         self, package_identifier: str
