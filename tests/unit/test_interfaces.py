@@ -21,7 +21,7 @@ class TestCreator(unittest.TestCase):
         ):
             self.creator.demo_nodes
 
-        self.creator.register("static.demo_nodes", "demo")
+        self.creator.register("static.demo_nodes")
 
         with self.subTest("Test access by item"):
             node = self.creator["static.demo_nodes"].OptionallyAdd(1, 2)
@@ -30,6 +30,8 @@ class TestCreator(unittest.TestCase):
                 node(),
                 msg="Node should get instantiated from creator and be operable"
             )
+
+        self.creator.register("static.demo_nodes", "demo")
 
         with self.subTest("Test access by attribute"):
             node = self.creator.demo.OptionallyAdd(1, 2)
@@ -58,7 +60,8 @@ class TestCreator(unittest.TestCase):
 
             with self.assertRaises(
                 ValueError,
-                msg="Should not be able to register a new package to an existing domain"
+                msg="Should not be able to register different package to an existing "
+                    "domain"
             ):
                 self.creator.register("pyiron_workflow.node_library.standard", "demo")
 
@@ -83,29 +86,29 @@ class TestCreator(unittest.TestCase):
                 self.creator.register("static.demo_nodes", "some.path.deeper")
 
         with self.subTest("Test failure cases"):
-            n_initial_packages = len(self.creator._package_access)
+            n_initial_packages = len(self.creator._package_registry)
 
             with self.assertRaises(
                 NotANodePackage,
                 msg="Mustn't allow importing from things that are not node packages"
             ):
-                self.creator.register("static.not_a_node_package", "not_even")
+                self.creator.register("static.not_a_node_package")
 
             with self.assertRaises(
                 NotANodePackage,
                 msg="Must require a `nodes` property in the module"
             ):
-                self.creator.register("static.forgetful_node_package", "forgetful")
+                self.creator.register("static.forgetful_node_package")
 
             with self.assertRaises(
                 NotANodePackage,
                 msg="Must have only node classes in the iterable `nodes` property"
             ):
-                self.creator.register("static.faulty_node_package", "faulty")
+                self.creator.register("static.faulty_node_package")
 
             self.assertEqual(
                 n_initial_packages,
-                len(self.creator._package_access),
+                len(self.creator._package_registry),
                 msg="Packages should not be getting added if exceptions are raised"
             )
 
