@@ -78,7 +78,7 @@ class Creator(metaclass=Singleton):
             # in python >=3.10
             # If the CI skips testing on 3.9 gets dropped, we can think about removing
             # this if-clause and just letting users of python <3.10 hit an error.
-            self.register("standard", "pyiron_workflow.node_library.standard")
+            self.register("pyiron_workflow.node_library.standard", "standard")
 
     @property
     def PyFluxExecutor(self):

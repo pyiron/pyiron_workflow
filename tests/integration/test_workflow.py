@@ -83,7 +83,7 @@ class TestTopology(unittest.TestCase):
         )
 
     def test_for_loop(self):
-        Workflow.register("demo", "static.demo_nodes")
+        Workflow.register("static.demo_nodes", "demo")
 
         n = 5
 
@@ -188,7 +188,7 @@ class TestTopology(unittest.TestCase):
         C.f. `pyiron_workflow.function._wrapper_factory` for more detail.
         """
         wf = Workflow("depickle")
-        wf.register("demo", "static.demo_nodes")
+        wf.register("static.demo_nodes", "demo")
 
         wf.before_pickling = wf.create.demo.OptionallyAdd(1)
         wf.before_pickling.executor = wf.create.Executor()

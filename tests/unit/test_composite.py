@@ -66,7 +66,7 @@ class TestComposite(unittest.TestCase):
         )
 
     def test_creator_access_and_registration(self):
-        self.comp.register("demo", "static.demo_nodes")
+        self.comp.register("static.demo_nodes", "demo")
 
         # Test invocation
         self.comp.add_node(self.comp.create.demo.OptionallyAdd(label="by_add"))

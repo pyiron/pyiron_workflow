@@ -507,8 +507,8 @@ class Composite(Node, ABC):
 
     @classmethod
     @wraps(Creator.register)
-    def register(cls, domain: str, package_identifier: str) -> None:
-        cls.create.register(domain=domain, package_identifier=package_identifier)
+    def register(cls, package_identifier: str, domain: Optional[str]) -> None:
+        cls.create.register(package_identifier=package_identifier, domain=domain)
 
     def executor_shutdown(self, wait=True, *, cancel_futures=False):
         """
