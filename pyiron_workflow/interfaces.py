@@ -137,6 +137,14 @@ class Creator(metaclass=Singleton):
                 f"{self.__class__.__name__} could not find attribute {item} -- did you "
                 f"forget to register node package to this key?"
             ) from e
+        
+    def __getitem__(self, item):
+        try:
+            return self._package_registry[item]
+        except KeyError as e:
+            raise KeyError(
+                f"Could not find the package {item} -- are you sure it's registered?"
+            ) from e
 
     def __getstate__(self):
         return self.__dict__

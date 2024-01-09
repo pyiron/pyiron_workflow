@@ -23,12 +23,21 @@ class TestCreator(unittest.TestCase):
 
         self.creator.register("demo", "static.demo_nodes")
 
-        node = self.creator.demo.OptionallyAdd(1, 2)
-        self.assertEqual(
-            3,
-            node(),
-            msg="Node should get instantiated from creator and be operable"
-        )
+        with self.subTest("Test access by item"):
+            node = self.creator["static.demo_nodes"].OptionallyAdd(1, 2)
+            self.assertEqual(
+                3,
+                node(),
+                msg="Node should get instantiated from creator and be operable"
+            )
+
+        with self.subTest("Test access by attribute"):
+            node = self.creator.demo.OptionallyAdd(1, 2)
+            self.assertEqual(
+                3,
+                node(),
+                msg="Node should get instantiated from creator and be operable"
+            )
 
         self.creator.register("sub", "static.nodes_subpackage")
         self.assertIsInstance(self.creator.sub.demo_nodes, NodePackage)
