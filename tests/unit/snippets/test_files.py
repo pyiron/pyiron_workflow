@@ -46,9 +46,9 @@ class TestFiles(unittest.TestCase):
         self.assertFalse(f.is_file())
 
     def test_is_empty(self):
-        self.assertTrue(self.directory.is_empty)
+        self.assertTrue(self.directory.is_empty())
         self.directory.write(file_name="test.txt", content="something")
-        self.assertFalse(self.directory.is_empty)
+        self.assertFalse(self.directory.is_empty())
 
     def test_delete(self):
         self.assertTrue(
@@ -58,7 +58,7 @@ class TestFiles(unittest.TestCase):
         self.directory.write(file_name="test.txt", content="something")
         self.directory.delete(only_if_empty=True)
         self.assertFalse(
-            self.directory.is_empty,
+            self.directory.is_empty(),
             msg="Flag argument on delete should have prevented removal"
         )
         self.directory.delete()
