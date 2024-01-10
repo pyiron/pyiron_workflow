@@ -568,3 +568,23 @@ class Composite(Node, ABC):
         A list of node package identifiers for children.
         """
         return set(n.package_identifier for n in self)
+
+    def to_storage(self, storage):
+        nodes_storage = storage.create_group("child_nodes")
+        for label, node in self.nodes.items():
+            node.to_storage(nodes_storage.create_group(label))
+
+        storage["inputs_map"] = self.inputs_map
+        storage["outputs_map"] = self.outputs_map
+
+        super().to_storage(storage)
+
+    def from_storage(self, storage):
+        for node in self:
+            node.from_storage(storage["child_nodes"][node.label])
+
+        self.inputs_map = storage["inputs_map"]
+        self.outputs_map = storage["outputs_map"]
+        self._rebuild_data_io()  # To apply any map that was saved
+
+        super().from_storage(storage)

@@ -980,3 +980,30 @@ class Node(HasToDict, ABC, metaclass=AbstractHasPost):
             self.executor.shutdown(wait=wait, cancel_futures=cancel_futures)
         except AttributeError:
             pass
+
+    def to_storage(self, storage):
+        storage["package_identifier"] = self.package_identifier
+        storage["class_name"] = self.__class__.__name__
+        storage["label"] = self.label
+        storage["running"] = self.running
+        storage["failed"] = self.failed
+
+        data_inputs = storage.create_group("data_inputs")
+        for label, channel in self.inputs.items():
+            channel.to_storage(data_inputs.create_group(label))
+
+        data_outputs = storage.create_group("data_outputs")
+        for label, channel in self.outputs.items():
+            channel.to_storage(data_outputs.create_group(label))
+
+    def from_storage(self, storage):
+        self.running = storage["running"]
+        self.failed = storage["failed"]
+
+        data_inputs = storage["data_inputs"]
+        for label in data_inputs.list_groups():
+            self.inputs[label].from_storage(data_inputs[label])
+
+        data_outputs = storage["data_outputs"]
+        for label in data_outputs.list_groups():
+            self.outputs[label].from_storage(data_outputs[label])
