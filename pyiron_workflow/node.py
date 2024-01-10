@@ -1007,3 +1007,63 @@ class Node(HasToDict, ABC, metaclass=AbstractHasPost):
         data_outputs = storage["data_outputs"]
         for label in data_outputs.list_groups():
             self.outputs[label].from_storage(data_outputs[label])
+
+    _save_load_warnings = """
+        HERE BE DRAGONS!!!
+        
+        Warning:
+            This almost certainly only fails for subclasses of :class:`Node` that don't
+            override `node_function` or `macro_creator` directly, as these are expected 
+            to be part of the class itself (and thus already present on our instantiated 
+            object) and are never stored. Nodes created using the provided decorators 
+            should all work.
+            
+        Warning:
+            If you modify a `Macro` class in any way (changing its IO maps, rewiring 
+            internal connections, or replacing internal nodes), don't expect 
+            saving/loading to work.
+            
+        Warning:
+            If the underlying source code has changed since saving (i.e. the node doing 
+            the loading does not use the same code as the node doing the saving, or the 
+            nodes in some node package have been modified), then all bets are off.
+            
+        Note:
+            Saving and loading `Workflows` only works when all child nodes were created 
+            via the creator (and thus have a `package_identifier`). Right now, this is 
+            not a big barrier to custom nodes as all you need to do is move them into a 
+            .py file, make sure it's in your python path, and :func:`register` it as 
+            usual.
+    """
+
+    def save(self):
+        """
+        Writes the node to file (using HDF5) such that a new node instance of the same
+        type can :meth:`load()` the data to return to the same state as the save point,
+        i.e. the same data IO channel values, the same flags, etc.
+        """
+        self.to_storage(self.storage)
+    save.__doc__ += _save_load_warnings
+
+    def load(self):
+        """
+        Loads the node file (from HDF5) such that this node restores its state at time
+        of loading.
+
+        Raises:
+            TypeError) when the saved node has a different class name.
+        """
+        if self.storage["class_name"] != self.__class__.__name__:
+            raise TypeError(
+                f"{self.label} cannot load, as it has type {self.__class__.__name__}, "
+                f"but the saved node has type {self.storage['class_name']}"
+            )
+        self.from_storage(self.storage)
+    save.__doc__ += _save_load_warnings
+
+    @property
+    def storage(self):
+        from pyiron_contrib.tinybase.project.h5io import SingleHdfProject
+        return SingleHdfProject.open_location(
+            str(self.working_directory.path.resolve())
+        ).create_storage(self.label)
