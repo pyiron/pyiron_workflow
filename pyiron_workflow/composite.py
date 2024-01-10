@@ -561,3 +561,10 @@ class Composite(Node, ABC):
     def color(self) -> str:
         """For drawing the graph"""
         return SeabornColors.brown
+
+    @property
+    def package_requirements(self) -> set[str]:
+        """
+        A list of node package identifiers for children.
+        """
+        return set(n.package_identifier for n in self)
