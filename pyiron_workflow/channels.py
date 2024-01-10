@@ -457,6 +457,18 @@ class DataChannel(Channel, ABC):
     def deactivate_strict_hints(self) -> None:
         self.strict_hints = False
 
+    def to_storage(self, storage):
+        storage["strict_hints"] = self.strict_hints
+        storage["type_hint"] = self.type_hint
+        storage["default"] = self.default
+        storage["value"] = self.value
+
+    def from_storage(self, storage):
+        self.strict_hints = storage["strict_hints"]
+        self.type_hint = storage["type_hint"]
+        self.default = storage["default"]
+        self.value = storage["value"]
+
 
 class InputData(DataChannel):
     @property

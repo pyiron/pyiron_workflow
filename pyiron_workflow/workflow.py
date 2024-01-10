@@ -278,3 +278,59 @@ class Workflow(Composite):
                 f"{self.__class__} may only take None as a parent but got "
                 f"{type(new_parent)}"
             )
+
+    def to_storage(self, storage):
+        storage["package_requirements"] = self.package_requirements
+        storage["automate_execution"] = self.automate_execution
+        super().to_storage(storage)
+
+        data_connections = []
+        for node in self:
+            for inp_label, inp in node.inputs.items():
+                for conn in inp.connections:
+                    data_connections.append(
+                        ((node.label, inp_label), (conn.node.label, conn.label))
+                    )
+        storage["data_connections"] = data_connections
+
+        if not self.automate_execution:
+            signal_connections = []
+            for node in self:
+                for inp_label, inp in node.signals.input.items():
+                    for conn in inp.connections:
+                        signal_connections.append(
+                            ((node.label, inp_label), (conn.node.label, conn.label))
+                        )
+            storage["signal_connections"] = signal_connections
+            storage["starting_nodes_labels"] = [n.label for n in self.starting_nodes]
+
+    def from_storage(self, storage):
+        for package_identifier in storage["package_requirements"]:
+            self.register(package_identifier)
+
+        nodes_storage = storage["child_nodes"]
+        for child_label in nodes_storage.list_groups():
+            child_data = nodes_storage[child_label]
+            pid = child_data["package_identifier"]
+            cls = child_data["class_name"]
+            self.create[pid][cls](label=child_label, parent=self)
+
+        self.automate_execution = storage["automate_execution"]
+
+        super().from_storage(storage)
+
+        for data_connection in storage["data_connections"]:
+            (inp_label, inp_channel), (out_label, out_channel) = data_connection
+            self.nodes[inp_label].inputs[inp_channel].connect(
+                self.nodes[out_label].outputs[out_channel]
+            )
+
+        if not self.automate_execution:
+            for signal_connection in storage["signal_connections"]:
+                (inp_label, inp_channel), (out_label, out_channel) = signal_connection
+                self.nodes[inp_label].signals.input[inp_channel].connect(
+                    self.nodes[out_label].signals.output[out_channel]
+                )
+            self.starting_nodes = [
+                self.nodes[label] for label in storage["starting_nodes_labels"]
+            ]
