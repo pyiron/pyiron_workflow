@@ -50,6 +50,24 @@ class TestFiles(unittest.TestCase):
         self.directory.write(file_name="test.txt", content="something")
         self.assertFalse(self.directory.is_empty)
 
+    def test_delete(self):
+        self.assertTrue(
+            Path("test").exists() and Path("test").is_dir(),
+            msg="Sanity check on initial state"
+        )
+        self.directory.write(file_name="test.txt", content="something")
+        self.directory.delete(only_if_empty=True)
+        self.assertFalse(
+            self.directory.is_empty,
+            msg="Flag argument on delete should have prevented removal"
+        )
+        self.directory.delete()
+        self.assertFalse(
+            Path("test").exists(),
+            msg="Delete should remove the entire directory"
+        )
+        self.directory = DirectoryObject("test")  # Rebuild it so the tearDown works
+
 
 if __name__ == '__main__':
     unittest.main()
