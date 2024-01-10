@@ -71,6 +71,10 @@ class DirectoryObject:
     def create_file(self, file_name):
         return FileObject(file_name, self)
 
+    @property
+    def is_empty(self) -> bool:
+        return len(self) == 0
+
 
 class FileObject:
     def __init__(self, file_name: str, directory: DirectoryObject):

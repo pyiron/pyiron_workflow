@@ -45,6 +45,11 @@ class TestFiles(unittest.TestCase):
         f.delete()
         self.assertFalse(f.is_file())
 
+    def test_is_empty(self):
+        self.assertTrue(self.directory.is_empty)
+        self.directory.write(file_name="test.txt", content="something")
+        self.assertFalse(self.directory.is_empty)
+
 
 if __name__ == '__main__':
     unittest.main()
