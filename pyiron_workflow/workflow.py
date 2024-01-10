@@ -294,7 +294,7 @@ class Workflow(Composite):
             )
 
     def to_storage(self, storage):
-        storage["package_requirements"] = self.package_requirements
+        storage["package_requirements"] = list(self.package_requirements)
         storage["automate_execution"] = self.automate_execution
         super().to_storage(storage)
 
