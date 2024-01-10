@@ -331,6 +331,7 @@ class Function(Node):
         *args,
         label: Optional[str] = None,
         parent: Optional[Composite] = None,
+        overwrite_save: bool = False,
         run_after_init: bool = False,
         output_labels: Optional[str | list[str] | tuple[str]] = None,
         **kwargs,

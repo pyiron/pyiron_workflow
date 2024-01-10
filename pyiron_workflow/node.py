@@ -230,6 +230,7 @@ class Node(HasToDict, ABC, metaclass=AbstractHasPost):
         label: str,
         *args,
         parent: Optional[Composite] = None,
+        overwrite_save: bool = False,
         run_after_init: bool = False,
         **kwargs,
     ):
@@ -259,8 +260,39 @@ class Node(HasToDict, ABC, metaclass=AbstractHasPost):
         # (or create) an executor process without ever trying to pickle a `_thread.lock`
         self.future: None | Future = None
 
-    def __post__(self, *args, run_after_init: bool = False, **kwargs):
-        if run_after_init:
+    def __post__(
+        self,
+        *args,
+        overwrite_save: bool = False,
+        run_after_init: bool = False,
+        **kwargs
+    ):
+        hardcoded_tinybase_filename = "project.h5"
+        save_exists = self.working_directory.file_exists(hardcoded_tinybase_filename)
+
+        if save_exists and overwrite_save:
+            self.working_directory.remove_file(hardcoded_tinybase_filename)
+
+        self.working_directory.delete(only_if_empty=True)
+        # Touching the working directory may have created it -- if it's there and empty
+        # just clean it up
+
+        do_load = save_exists and not overwrite_save
+
+        if do_load and run_after_init:
+            raise ValueError(
+                "Can't both load _and_ run after init -- either delete the save file "
+                "(e.g. with with the `overwrite_save=True` kwarg), change the node "
+                "label to work in a new space, or give up on running after init."
+            )
+        elif do_load:
+            warnings.warn(
+                f"A saved file was found for the node {self.label} -- attempting to "
+                f"load it...(To delete the saved file instead, use "
+                f"`overwrite_save=True`)"
+            )
+            self.load()
+        elif run_after_init:
             try:
                 self.run()
             except ReadinessError:

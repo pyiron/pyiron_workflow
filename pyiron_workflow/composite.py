@@ -106,6 +106,7 @@ class Composite(Node, ABC):
         label: str,
         *args,
         parent: Optional[Composite] = None,
+        overwrite_save: bool = False,
         run_after_init: bool = False,
         strict_naming: bool = True,
         inputs_map: Optional[dict | bidict] = None,

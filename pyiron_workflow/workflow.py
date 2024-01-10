@@ -188,6 +188,7 @@ class Workflow(Composite):
         self,
         label: str,
         *nodes: Node,
+        overwrite_save: bool = False,
         run_after_init: bool = False,
         strict_naming: bool = True,
         inputs_map: Optional[dict | bidict] = None,
