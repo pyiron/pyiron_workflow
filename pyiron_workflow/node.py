@@ -265,7 +265,7 @@ class Node(HasToDict, ABC, metaclass=AbstractHasPost):
         *args,
         overwrite_save: bool = False,
         run_after_init: bool = False,
-        **kwargs
+        **kwargs,
     ):
         hardcoded_tinybase_filename = "project.h5"
         save_exists = self.working_directory.file_exists(hardcoded_tinybase_filename)
@@ -1075,6 +1075,7 @@ class Node(HasToDict, ABC, metaclass=AbstractHasPost):
         i.e. the same data IO channel values, the same flags, etc.
         """
         self.to_storage(self.storage)
+
     save.__doc__ += _save_load_warnings
 
     def load(self):
@@ -1091,11 +1092,13 @@ class Node(HasToDict, ABC, metaclass=AbstractHasPost):
                 f"but the saved node has type {self.storage['class_name']}"
             )
         self.from_storage(self.storage)
+
     save.__doc__ += _save_load_warnings
 
     @property
     def storage(self):
         from pyiron_contrib.tinybase.project.h5io import SingleHdfProject
+
         return SingleHdfProject.open_location(
             str(self.working_directory.path.resolve())
         ).create_storage(self.label)
