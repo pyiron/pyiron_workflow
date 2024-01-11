@@ -1,45 +1,15 @@
 from typing import Optional, Union
-from dataclasses import dataclass
+
 
 # from pyiron_workflow.macro import Macro, macro_node
 from pyiron_workflow.function import single_value_node, function_node
-
-# Ref.: https://stackoverflow.com/questions/68901049/copying-the-docstring-of-function-onto-another-function-by-name
-from typing import Callable, TypeVar, Any, TypeAlias
-from typing_extensions import ParamSpec
-
-T = TypeVar("T")
-P = ParamSpec("P")
-WrappedFuncDeco: TypeAlias = Callable[[Callable[P, T]], Callable[P, T]]
-
-
-def copy_doc(copy_func: Callable[..., Any]) -> WrappedFuncDeco[P, T]:
-    """Copies the doc string of the given function to another.
-    This function is intended to be used as a decorator.
-
-    .. code-block:: python3
-
-        def foo():
-            '''This is a foo doc string'''
-            ...
-
-        @copy_doc(foo)
-        def bar():
-            ...
-    """
-
-    def wrapped(func: Callable[P, T]) -> Callable[P, T]:
-        func.__doc__ = copy_func.__doc__
-        return func
-
-    return wrapped
+from pyiron_workflow.node_library.dev_tools import wf_data_class
 
 
 from phonopy.api_phonopy import Phonopy
 
 
-@dataclass
-@copy_doc(Phonopy.generate_displacements)
+@wf_data_class(doc_func=Phonopy.generate_displacements)
 class InputPhonopyGenerateSupercells:
     distance: float = 0.01
     is_plusminus: Union[str, bool] = "auto"
@@ -50,12 +20,6 @@ class InputPhonopyGenerateSupercells:
     temperature: Optional[float] = None
     cutoff_frequency: Optional[float] = None
     max_distance: Optional[float] = None
-
-    def keys(self):
-        return self.__dict__.keys()
-
-    def __getitem__(self, key):
-        return self.__dict__[key]
 
 
 # @single_value_node()

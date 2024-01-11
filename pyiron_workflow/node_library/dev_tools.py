@@ -174,11 +174,11 @@ class DataStore:
     def remove(self, node_label, path=None):
         if path is None:
             path = self._path
-        p = pathlib.Path(path, f'{node_label}.h5')
+        p = pathlib.Path(path, f"{node_label}.h5")
         # print (p, p.is_file())
         if p.is_file():
             p.unlink()
-            print(f'node {node_label} has been removed from store')
+            print(f"node {node_label} has been removed from store")
 
     def store(self, node, overwrite=False):
         if overwrite:
@@ -196,3 +196,72 @@ class DataStore:
 
         new_node.from_hdf(hdf)
         return new_node
+
+
+from dataclasses import dataclass
+
+
+def filter_internals(input_list):
+    return [
+        string
+        for string in input_list
+        if not (string.startswith("__") and string.endswith("__"))
+    ]
+
+
+def wf_data_class(*args, doc_func=None, **kwargs):
+    # def wf_data_class(*args, doc_func=None, keys_to_store=None, **kwargs):
+    """
+    Extension of the python default dataclass to include methods and functionality needed for pyiron_workflows
+
+    :param args: pass to dataclass decorator
+    :param doc_func: function from which to copy docstring
+    # :param keys_to_store:
+    :param kwargs: pass to dataclass decorator
+    :return: dataclass like object with enhanced workflow features
+    """
+
+    def wrapper(cls):
+        cls = dataclass(*args, **kwargs)(cls)
+
+        # Add/modify a variable
+        if doc_func is not None:
+            cls.__doc__ = doc_func.__doc__
+
+        # Add new methods
+        def keys(self):
+            return self.__dict__.keys()
+
+        def __getitem__(self, key):
+            return self.__dict__[key]
+
+        def __setitem__(self, key, value):
+            if key in self.keys():
+                self.__dict__[key] = value
+
+        def select(self, keys_to_store=None):
+            if keys_to_store is None:
+                keys_to_store = self.keys()  # cls._keys_to_store
+            return {k: self[k] for k in keys_to_store}
+
+        setattr(cls, "keys", keys)
+        setattr(cls, "__getitem__", __getitem__)
+        setattr(cls, "__setitem__", __setitem__)
+        setattr(cls, "select", select)
+
+        # if keys_to_store is None:
+        #     cls._keys_to_store = filter_internals(keys(cls))
+        #     # TODO: remove added new functions
+
+        return cls
+
+    return wrapper
+
+
+from typing import Optional
+
+
+@wf_data_class()
+class wfMetaData:
+    log_level: int = 0
+    doc: Optional[str] = None
