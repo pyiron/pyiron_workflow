@@ -43,8 +43,9 @@ class DirectoryObject:
     def create(self):
         self.path.mkdir(parents=True, exist_ok=True)
 
-    def delete(self):
-        delete_files_and_directories_recursively(self.path)
+    def delete(self, only_if_empty: bool = False):
+        if self.is_empty() or not only_if_empty:
+            delete_files_and_directories_recursively(self.path)
 
     def list_content(self):
         return categorize_folder_items(self.path)
@@ -70,6 +71,9 @@ class DirectoryObject:
 
     def create_file(self, file_name):
         return FileObject(file_name, self)
+
+    def is_empty(self) -> bool:
+        return len(self) == 0
 
 
 class FileObject:
