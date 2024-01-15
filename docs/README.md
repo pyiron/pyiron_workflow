@@ -51,7 +51,7 @@ But the intent is to collect them together into a workflow and leverage existing
 
 ```python
 >>> from pyiron_workflow import Workflow
->>> Workflow.register("plotting", "pyiron_workflow.node_library.plotting")
+>>> Workflow.register("pyiron_workflow.node_library.plotting", "plotting")
 >>>
 >>> @Workflow.wrap_as.single_value_node()
 ... def Arange(n: int):

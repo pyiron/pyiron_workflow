@@ -19,7 +19,7 @@ from pyiron_workflow.channels import (
     NotData,
 )
 from pyiron_workflow.draw import Node as GraphvizNode
-from pyiron_workflow.files import DirectoryObject
+from pyiron_workflow.snippets.files import DirectoryObject
 from pyiron_workflow.has_to_dict import HasToDict
 from pyiron_workflow.io import Signals
 from pyiron_workflow.topology import (
