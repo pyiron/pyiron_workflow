@@ -77,19 +77,19 @@ class TestFiles(unittest.TestCase):
             len(self.directory),
             msg="Sanity check on initial state"
         )
-        self.directory.remove("test1.txt", "test2.txt")
+        self.directory.remove_files("test1.txt", "test2.txt")
         self.assertEqual(
             1,
             len(self.directory),
             msg="Should be able to remove multiple files at once",
         )
-        self.directory.remove("not even there", "nor this")
+        self.directory.remove_files("not even there", "nor this")
         self.assertEqual(
             1,
             len(self.directory),
             msg="Removing non-existent things should have no effect",
         )
-        self.directory.remove("test3.txt")
+        self.directory.remove_files("test3.txt")
         self.assertEqual(
             0,
             len(self.directory),
