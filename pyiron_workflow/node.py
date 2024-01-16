@@ -247,6 +247,7 @@ class Node(HasToDict, ABC, metaclass=AbstractHasPost):
             **kwargs: Keyword arguments passed on with `super`.
         """
         super().__init__(*args, **kwargs)
+        self._label = None
         self.label: str = label
         self._parent = None
         if parent is not None:
@@ -267,6 +268,16 @@ class Node(HasToDict, ABC, metaclass=AbstractHasPost):
                 self.run()
             except ReadinessError:
                 pass
+
+    @property
+    def label(self) -> str:
+        return self._label
+
+    @label.setter
+    def label(self, new_label: str):
+        if self._semantic_delimiter in new_label:
+            raise ValueError(f"{self._semantic_delimiter} cannot be in the label")
+        self._label = new_label
 
     @property
     @abstractmethod
