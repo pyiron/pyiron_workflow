@@ -318,6 +318,11 @@ class Node(HasToDict, ABC, metaclass=AbstractHasPost):
         )
 
     @property
+    def root(self) -> Node:
+        """The parent-most node in this graph."""
+        return self if self.parent is None else self.parent.root
+
+    @property
     def readiness_report(self) -> str:
         input_readiness = "\n".join(
             [f"{k} ready: {v.ready}" for k, v in self.inputs.items()]

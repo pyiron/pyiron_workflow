@@ -590,6 +590,34 @@ class TestComposite(unittest.TestCase):
             msg="Activating should propagate to children"
         )
 
+    def test_root(self):
+        top = AComposite("topmost")
+        top.middle_composite = AComposite("middle_composite")
+        top.middle_composite.deep_node = Composite.create.SingleValue(plus_one)
+        top.middle_function = Composite.create.SingleValue(plus_one)
+
+        self.assertIs(
+            top,
+            top.root,
+            msg="The parent-most node should be its own root."
+        )
+        self.assertIs(
+            top,
+            top.middle_composite.root,
+            msg="The parent-most node should be the root."
+        )
+        self.assertIs(
+            top,
+            top.middle_function.root,
+            msg="The parent-most node should be the root."
+        )
+        self.assertIs(
+            top,
+            top.middle_composite.deep_node.root,
+            msg="The parent-most node should be the root, recursively accessible from "
+                "all depths."
+        )
+
 
 if __name__ == '__main__':
     unittest.main()

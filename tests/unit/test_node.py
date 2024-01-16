@@ -344,6 +344,14 @@ class TestNode(unittest.TestCase):
             msg="With run_after_init, the node should run right away"
         )
 
+    def test_root(self):
+        n = ANode("n")
+        self.assertIs(
+            n,
+            n.root,
+            msg="Lone nodes should be their own root, as there is no parent above."
+        )
+
 
 if __name__ == '__main__':
     unittest.main()
