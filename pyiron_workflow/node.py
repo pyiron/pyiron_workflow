@@ -225,6 +225,7 @@ class Node(HasToDict, ABC, metaclass=AbstractHasPost):
     """
 
     package_identifier = None
+    _semantic_delimiter = "/"
 
     def __init__(
         self,
@@ -321,6 +322,15 @@ class Node(HasToDict, ABC, metaclass=AbstractHasPost):
     def graph_root(self) -> Node:
         """The parent-most node in this graph."""
         return self if self.parent is None else self.parent.graph_root
+
+    @property
+    def semantic_path(self):
+        path = self.label
+        if self.parent is not None:
+            path = self.parent.semantic_path + self._semantic_delimiter + path
+        # else:
+        #     path = self.semantic_root + self._semantic_delimiter + path
+        return path
 
     @property
     def readiness_report(self) -> str:
