@@ -273,7 +273,7 @@ class Node(HasToDict, ABC, metaclass=AbstractHasPost):
         if save_exists and overwrite_save:
             self.working_directory.remove_files(hardcoded_tinybase_filename)
 
-        self.working_directory.delete(only_if_empty=True)
+        self._working_directory = self.working_directory.delete(only_if_empty=True)
         # Touching the working directory may have created it -- if it's there and empty
         # just clean it up
 
