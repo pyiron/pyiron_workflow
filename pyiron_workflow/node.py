@@ -1097,8 +1097,9 @@ class Node(HasToDict, ABC, metaclass=AbstractHasPost):
 
     @property
     def storage(self):
-        from pyiron_contrib.tinybase.project.h5io import SingleHdfProject
+        from pyiron_contrib.tinybase.storage import H5ioStorage
+        from h5io_browser import Pointer
 
-        return SingleHdfProject.open_location(
-            str(self.working_directory.path.resolve())
-        ).create_storage(self.label)
+        # UGLY -- make sure it exists, as accessing .path directly doesn't!
+        storage_file = str((self.working_directory.path / "project.h5").resolve())  # self.label
+        return H5ioStorage(Pointer(storage_file), None)
