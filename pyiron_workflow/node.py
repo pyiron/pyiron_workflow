@@ -225,6 +225,10 @@ class Node(HasToDict, ABC, metaclass=AbstractHasPost):
 
     package_identifier = None
 
+    _STORAGE_FILE_NAME = "project.h5"
+    # This isn't nice, just a technical necessity in the current implementation
+    # Eventually, of course, this needs to be _at least_ file-format independent
+
     def __init__(
         self,
         label: str,
@@ -267,11 +271,10 @@ class Node(HasToDict, ABC, metaclass=AbstractHasPost):
         run_after_init: bool = False,
         **kwargs,
     ):
-        hardcoded_tinybase_filename = "project.h5"
-        save_exists = self.working_directory.file_exists(hardcoded_tinybase_filename)
+        save_exists = self.working_directory.file_exists(self._STORAGE_FILE_NAME)
 
         if save_exists and overwrite_save:
-            self.working_directory.remove_files(hardcoded_tinybase_filename)
+            self.working_directory.remove_files(self._STORAGE_FILE_NAME)
 
         if self.working_directory.is_empty():
             self.working_directory.delete()
@@ -1102,5 +1105,7 @@ class Node(HasToDict, ABC, metaclass=AbstractHasPost):
         from pyiron_contrib.tinybase.storage import H5ioStorage
         from h5io_browser import Pointer
 
-        storage_file = str((self.working_directory.path / "project.h5").resolve())  # self.label
+        storage_file = str(
+            (self.working_directory.path / self._STORAGE_FILE_NAME).resolve()
+        )
         return H5ioStorage(Pointer(storage_file), None)
