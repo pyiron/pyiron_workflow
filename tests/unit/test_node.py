@@ -344,8 +344,16 @@ class TestNode(unittest.TestCase):
             msg="With run_after_init, the node should run right away"
         )
 
-    def test_root(self):
+    def test_graph_info(self):
         n = ANode("n")
+
+        self.assertEqual(
+            n.label,
+            n.graph_path,
+            msg="Lone nodes should just have their label as the path, as there is no "
+                "parent above."
+        )
+
         self.assertIs(
             n,
             n.graph_root,
