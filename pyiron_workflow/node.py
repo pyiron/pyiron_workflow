@@ -1102,6 +1102,5 @@ class Node(HasToDict, ABC, metaclass=AbstractHasPost):
         from pyiron_contrib.tinybase.storage import H5ioStorage
         from h5io_browser import Pointer
 
-        # UGLY -- make sure it exists, as accessing .path directly doesn't!
         storage_file = str((self.working_directory.path / "project.h5").resolve())  # self.label
         return H5ioStorage(Pointer(storage_file), None)
