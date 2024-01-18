@@ -1018,9 +1018,16 @@ class Node(HasToDict, ABC, metaclass=AbstractHasPost):
         except AttributeError:
             pass
 
+    @property
+    def class_name(self) -> str:
+        """The class name of the node"""
+        # Since we want this directly in storage, put it in an attribute so it is
+        # guaranteed not to conflict with a child node label
+        return self.__class__.__name__
+
     def to_storage(self, storage):
         storage["package_identifier"] = self.package_identifier
-        storage["class_name"] = self.__class__.__name__
+        storage["class_name"] = self.class_name
         storage["label"] = self.label
         storage["running"] = self.running
         storage["failed"] = self.failed
