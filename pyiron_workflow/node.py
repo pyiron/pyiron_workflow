@@ -1144,6 +1144,6 @@ class Node(HasToDict, ABC, metaclass=AbstractHasPost):
         from h5io_browser import Pointer
 
         storage_file = str(
-            (self.working_directory.path / self._STORAGE_FILE_NAME).resolve()
+            (self.graph_root.working_directory.path / self._STORAGE_FILE_NAME).resolve()
         )
-        return H5ioStorage(Pointer(storage_file), None)
+        return H5ioStorage(Pointer(storage_file, h5_path=self.graph_path), None)
