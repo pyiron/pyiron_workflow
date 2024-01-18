@@ -274,7 +274,7 @@ class Node(HasToDict, ABC, metaclass=AbstractHasPost):
         save_exists = self.working_directory.file_exists(self._STORAGE_FILE_NAME)
 
         if save_exists and overwrite_save:
-            self.working_directory.remove_files(self._STORAGE_FILE_NAME)
+            self.working_directory.remove_file(self._STORAGE_FILE_NAME)
 
         if self.working_directory.is_empty():
             self.working_directory.delete()
