@@ -339,8 +339,6 @@ class Node(HasToDict, ABC, metaclass=AbstractHasPost):
         path = self.label
         if self.parent is not None:
             path = self.parent.graph_path + self._semantic_delimiter + path
-        # else:
-        #     path = self.semantic_root + self._semantic_delimiter + path
         return path
 
     @property
