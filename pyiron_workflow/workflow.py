@@ -348,13 +348,13 @@ class Workflow(Composite):
 
         if not self.automate_execution:
             storage["_signal_connections"] = self._signal_connections
-            storage["starting_nodes_labels"] = [n.label for n in self.starting_nodes]
+            storage["starting_nodes"] = [n.label for n in self.starting_nodes]
 
     def from_storage(self, storage):
         for package_identifier in storage["package_requirements"]:
             self.register(package_identifier)
 
-        for child_label in storage["child_node_labels"]:
+        for child_label in storage["nodes"]:
             child_data = storage[child_label]
             pid = child_data["package_identifier"]
             cls = child_data["class_name"]
@@ -377,5 +377,5 @@ class Workflow(Composite):
                     self.nodes[out_label].signals.output[out_channel]
                 )
             self.starting_nodes = [
-                self.nodes[label] for label in storage["starting_nodes_labels"]
+                self.nodes[label] for label in storage["starting_nodes"]
             ]

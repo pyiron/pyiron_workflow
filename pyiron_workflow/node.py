@@ -1032,11 +1032,11 @@ class Node(HasToDict, ABC, metaclass=AbstractHasPost):
         storage["running"] = self.running
         storage["failed"] = self.failed
 
-        data_inputs = storage.create_group("data_inputs")
+        data_inputs = storage.create_group("inputs")
         for label, channel in self.inputs.items():
             channel.to_storage(data_inputs.create_group(label))
 
-        data_outputs = storage.create_group("data_outputs")
+        data_outputs = storage.create_group("outputs")
         for label, channel in self.outputs.items():
             channel.to_storage(data_outputs.create_group(label))
 
@@ -1044,11 +1044,11 @@ class Node(HasToDict, ABC, metaclass=AbstractHasPost):
         self.running = storage["running"]
         self.failed = storage["failed"]
 
-        data_inputs = storage["data_inputs"]
+        data_inputs = storage["inputs"]
         for label in data_inputs.list_groups():
             self.inputs[label].from_storage(data_inputs[label])
 
-        data_outputs = storage["data_outputs"]
+        data_outputs = storage["outputs"]
         for label in data_outputs.list_groups():
             self.outputs[label].from_storage(data_outputs[label])
 
