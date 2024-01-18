@@ -335,10 +335,10 @@ class Node(HasToDict, ABC, metaclass=AbstractHasPost):
         return self if self.parent is None else self.parent.graph_root
 
     @property
-    def semantic_path(self):
+    def graph_path(self):
         path = self.label
         if self.parent is not None:
-            path = self.parent.semantic_path + self._semantic_delimiter + path
+            path = self.parent.graph_path + self._semantic_delimiter + path
         # else:
         #     path = self.semantic_root + self._semantic_delimiter + path
         return path
