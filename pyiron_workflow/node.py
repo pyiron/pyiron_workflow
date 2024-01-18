@@ -342,15 +342,6 @@ class Node(HasToDict, ABC, metaclass=AbstractHasPost):
         return path
 
     @property
-    def semantic_path(self):
-        path = self.label
-        if self.parent is not None:
-            path = self.parent.semantic_path + self._semantic_delimiter + path
-        # else:
-        #     path = self.semantic_root + self._semantic_delimiter + path
-        return path
-
-    @property
     def readiness_report(self) -> str:
         input_readiness = "\n".join(
             [f"{k} ready: {v.ready}" for k, v in self.inputs.items()]
