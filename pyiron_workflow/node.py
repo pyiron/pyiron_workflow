@@ -183,6 +183,8 @@ class Node(HasToDict, ABC, metaclass=AbstractHasPost):
             owning this, if any.
         ready (bool): Whether the inputs are all ready and the node is neither
             already running nor already failed.
+        graph_path (str): The file-path-like path of node labels from the parent-most
+            node down to this node.
         graph_root (Node): The parent-most node in this graph.
         run_args (dict): **Abstract** the argmuments to use for actually running the
             node. Must be specified in child classes.
@@ -335,7 +337,11 @@ class Node(HasToDict, ABC, metaclass=AbstractHasPost):
         return self if self.parent is None else self.parent.graph_root
 
     @property
-    def graph_path(self):
+    def graph_path(self) -> str:
+        """
+        The path of node labels from the graph root (parent-most node) down to this
+        node.
+        """
         path = self.label
         if self.parent is not None:
             path = self.parent.graph_path + self._semantic_delimiter + path
