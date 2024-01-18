@@ -257,13 +257,6 @@ class Workflow(Composite):
         """
         raise NotImplementedError
 
-    # (De)serialization is necessary throughout these classes, but not implemented here
-    def serialize(self):
-        raise NotImplementedError
-
-    def deserialize(self, source):
-        raise NotImplementedError
-
     @property
     def _parent(self) -> None:
         return None
