@@ -19,7 +19,7 @@ from pyiron_workflow.channels import (
     NotData,
 )
 from pyiron_workflow.draw import Node as GraphvizNode
-from pyiron_workflow.snippets.files import DirectoryObject
+from pyiron_workflow.snippets.files import FileObject, DirectoryObject
 from pyiron_workflow.has_to_dict import HasToDict
 from pyiron_workflow.io import Signals
 from pyiron_workflow.topology import (
@@ -274,7 +274,7 @@ class Node(HasToDict, ABC, metaclass=AbstractHasPost):
         save_exists = self.working_directory.file_exists(self._STORAGE_FILE_NAME)
 
         if save_exists and overwrite_save:
-            self.working_directory.remove_file(self._STORAGE_FILE_NAME)
+            FileObject(self._STORAGE_FILE_NAME, self.working_directory).delete()
 
         if self.working_directory.is_empty():
             self.working_directory.delete()
