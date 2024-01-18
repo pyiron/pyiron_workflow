@@ -46,8 +46,6 @@ class DirectoryObject:
     def delete(self, only_if_empty: bool = False):
         if self.is_empty() or not only_if_empty:
             delete_files_and_directories_recursively(self.path)
-        else:
-            return self
 
     def list_content(self):
         return categorize_folder_items(self.path)
