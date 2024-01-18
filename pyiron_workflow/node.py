@@ -183,6 +183,7 @@ class Node(HasToDict, ABC, metaclass=AbstractHasPost):
             owning this, if any.
         ready (bool): Whether the inputs are all ready and the node is neither
             already running nor already failed.
+        graph_root (Node): The parent-most node in this graph.
         run_args (dict): **Abstract** the argmuments to use for actually running the
             node. Must be specified in child classes.
         running (bool): Whether the node has called :meth:`run` and has not yet
@@ -315,6 +316,11 @@ class Node(HasToDict, ABC, metaclass=AbstractHasPost):
             "Please change parentage by adding/removing the node to/from the relevant"
             "parent"
         )
+
+    @property
+    def graph_root(self) -> Node:
+        """The parent-most node in this graph."""
+        return self if self.parent is None else self.parent.graph_root
 
     @property
     def readiness_report(self) -> str:
