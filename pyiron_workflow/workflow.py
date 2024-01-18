@@ -268,19 +268,6 @@ class Workflow(Composite):
     def _parent(self) -> None:
         return None
 
-    def save(self):
-        if any(node.package_identifier is None for node in self):
-            raise NotImplementedError(
-                f"{self.__class__.__name__} can currently only save itself to file if "
-                f"_all_ of its child nodes were created via the creator and have an "
-                f"associated `package_identifier` -- otherwise we won't know how to "
-                f"re-instantiate them at load time! Right now this is as easy as "
-                f"moving your custom nodes to their own .py file and registering it "
-                f"like any other node package. Remember that this new module needs to "
-                f"be in your python path and importable at load time too."
-            )
-        self.to_storage(self.storage)
-
     @_parent.setter
     def _parent(self, new_parent: None):
         # Currently workflows are not allowed to have a parent -- maybe we want to
@@ -379,3 +366,16 @@ class Workflow(Composite):
             self.starting_nodes = [
                 self.nodes[label] for label in storage["starting_nodes"]
             ]
+
+    def save(self):
+        if any(node.package_identifier is None for node in self):
+            raise NotImplementedError(
+                f"{self.__class__.__name__} can currently only save itself to file if "
+                f"_all_ of its child nodes were created via the creator and have an "
+                f"associated `package_identifier` -- otherwise we won't know how to "
+                f"re-instantiate them at load time! Right now this is as easy as "
+                f"moving your custom nodes to their own .py file and registering it "
+                f"like any other node package. Remember that this new module needs to "
+                f"be in your python path and importable at load time too."
+            )
+        self.to_storage(self.storage)
