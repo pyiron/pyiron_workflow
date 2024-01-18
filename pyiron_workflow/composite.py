@@ -571,9 +571,9 @@ class Composite(Node, ABC):
         return set(n.package_identifier for n in self)
 
     def to_storage(self, storage):
-        nodes_storage = storage.create_group("child_nodes")
+        storage["child_node_labels"] = list(self.nodes.keys())
         for label, node in self.nodes.items():
-            node.to_storage(nodes_storage.create_group(label))
+            node.to_storage(storage.create_group(label))
 
         storage["inputs_map"] = self.inputs_map
         storage["outputs_map"] = self.outputs_map
@@ -582,7 +582,7 @@ class Composite(Node, ABC):
 
     def from_storage(self, storage):
         for node in self:
-            node.from_storage(storage["child_nodes"][node.label])
+            node.from_storage(storage[node.label])
 
         self.inputs_map = storage["inputs_map"]
         self.outputs_map = storage["outputs_map"]

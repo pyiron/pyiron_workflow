@@ -322,9 +322,8 @@ class Workflow(Composite):
         for package_identifier in storage["package_requirements"]:
             self.register(package_identifier)
 
-        nodes_storage = storage["child_nodes"]
-        for child_label in nodes_storage.list_groups():
-            child_data = nodes_storage[child_label]
+        for child_label in storage["child_node_labels"]:
+            child_data = storage[child_label]
             pid = child_data["package_identifier"]
             cls = child_data["class_name"]
             self.create[pid][cls](label=child_label, parent=self)
