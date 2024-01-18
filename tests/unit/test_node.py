@@ -348,8 +348,9 @@ class TestNode(unittest.TestCase):
         n = ANode("n")
         self.assertIs(
             n,
-            n.root,
-            msg="Lone nodes should be their own root, as there is no parent above."
+            n.graph_root,
+            msg="Lone nodes should be their own graph_root, as there is no parent "
+                "above."
         )
 
 

@@ -598,24 +598,24 @@ class TestComposite(unittest.TestCase):
 
         self.assertIs(
             top,
-            top.root,
-            msg="The parent-most node should be its own root."
+            top.graph_root,
+            msg="The parent-most node should be its own graph_root."
         )
         self.assertIs(
             top,
-            top.middle_composite.root,
-            msg="The parent-most node should be the root."
+            top.middle_composite.graph_root,
+            msg="The parent-most node should be the graph_root."
         )
         self.assertIs(
             top,
-            top.middle_function.root,
-            msg="The parent-most node should be the root."
+            top.middle_function.graph_root,
+            msg="The parent-most node should be the graph_root."
         )
         self.assertIs(
             top,
-            top.middle_composite.deep_node.root,
-            msg="The parent-most node should be the root, recursively accessible from "
-                "all depths."
+            top.middle_composite.deep_node.graph_root,
+            msg="The parent-most node should be the graph_root, recursively accessible "
+                "from all depths."
         )
 
 
