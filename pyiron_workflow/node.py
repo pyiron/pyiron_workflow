@@ -332,11 +332,6 @@ class Node(HasToDict, ABC, metaclass=AbstractHasPost):
         )
 
     @property
-    def graph_root(self) -> Node:
-        """The parent-most node in this graph."""
-        return self if self.parent is None else self.parent.graph_root
-
-    @property
     def graph_path(self) -> str:
         """
         The path of node labels from the graph root (parent-most node) down to this
@@ -346,6 +341,11 @@ class Node(HasToDict, ABC, metaclass=AbstractHasPost):
         if self.parent is not None:
             path = self.parent.graph_path + self._semantic_delimiter + path
         return path
+
+    @property
+    def graph_root(self) -> Node:
+        """The parent-most node in this graph."""
+        return self if self.parent is None else self.parent.graph_root
 
     @property
     def readiness_report(self) -> str:
