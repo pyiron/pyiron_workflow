@@ -183,6 +183,9 @@ class Node(HasToDict, ABC, metaclass=AbstractHasPost):
             owning this, if any.
         ready (bool): Whether the inputs are all ready and the node is neither
             already running nor already failed.
+        graph_path (str): The file-path-like path of node labels from the parent-most
+            node down to this node.
+        graph_root (Node): The parent-most node in this graph.
         run_args (dict): **Abstract** the argmuments to use for actually running the
             node. Must be specified in child classes.
         running (bool): Whether the node has called :meth:`run` and has not yet
@@ -224,6 +227,7 @@ class Node(HasToDict, ABC, metaclass=AbstractHasPost):
     """
 
     package_identifier = None
+    _semantic_delimiter = "/"
 
     _STORAGE_FILE_NAME = "project.h5"
     # This isn't nice, just a technical necessity in the current implementation
@@ -250,6 +254,7 @@ class Node(HasToDict, ABC, metaclass=AbstractHasPost):
             **kwargs: Keyword arguments passed on with `super`.
         """
         super().__init__(*args, **kwargs)
+        self._label = None
         self.label: str = label
         self._parent = None
         if parent is not None:
@@ -304,6 +309,16 @@ class Node(HasToDict, ABC, metaclass=AbstractHasPost):
                 pass
 
     @property
+    def label(self) -> str:
+        return self._label
+
+    @label.setter
+    def label(self, new_label: str):
+        if self._semantic_delimiter in new_label:
+            raise ValueError(f"{self._semantic_delimiter} cannot be in the label")
+        self._label = new_label
+
+    @property
     @abstractmethod
     def inputs(self) -> Inputs:
         pass
@@ -352,6 +367,22 @@ class Node(HasToDict, ABC, metaclass=AbstractHasPost):
             "Please change parentage by adding/removing the node to/from the relevant"
             "parent"
         )
+
+    @property
+    def graph_path(self) -> str:
+        """
+        The path of node labels from the graph root (parent-most node) down to this
+        node.
+        """
+        path = self.label
+        if self.parent is not None:
+            path = self.parent.graph_path + self._semantic_delimiter + path
+        return path
+
+    @property
+    def graph_root(self) -> Node:
+        """The parent-most node in this graph."""
+        return self if self.parent is None else self.parent.graph_root
 
     @property
     def readiness_report(self) -> str:

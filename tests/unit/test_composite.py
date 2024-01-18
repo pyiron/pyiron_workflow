@@ -590,6 +590,68 @@ class TestComposite(unittest.TestCase):
             msg="Activating should propagate to children"
         )
 
+    def test_graph_info(self):
+        top = AComposite("topmost")
+        top.middle_composite = AComposite("middle_composite")
+        top.middle_composite.deep_node = Composite.create.SingleValue(plus_one)
+        top.middle_function = Composite.create.SingleValue(plus_one)
+
+        with self.subTest("test_graph_path"):
+            self.assertEqual(
+                top.label,
+                top.graph_path,
+                msg="The parent-most node should be its own path."
+            )
+            self.assertEqual(
+                Composite._semantic_delimiter.join(
+                    [top.label, top.middle_composite.label]
+                ),
+                top.middle_composite.graph_path,
+                msg="The path should go to the parent-most object."
+            )
+            self.assertEqual(
+                Composite._semantic_delimiter.join(
+                    [top.label, top.middle_function.label]
+                ),
+                top.middle_function.graph_path,
+                msg="The path should go to the parent-most object."
+            )
+            self.assertEqual(
+                Composite._semantic_delimiter.join(
+                    [
+                        top.label,
+                        top.middle_composite.label,
+                        top.middle_composite.deep_node.label
+                    ]
+                ),
+                top.middle_composite.deep_node.graph_path,
+                msg="The path should go to the parent-most object, recursively from all "
+                    "depths."
+            )
+
+        with self.subTest("test_graph_root"):
+            self.assertIs(
+                top,
+                top.graph_root,
+                msg="The parent-most node should be its own graph_root."
+            )
+            self.assertIs(
+                top,
+                top.middle_composite.graph_root,
+                msg="The parent-most node should be the graph_root."
+            )
+            self.assertIs(
+                top,
+                top.middle_function.graph_root,
+                msg="The parent-most node should be the graph_root."
+            )
+            self.assertIs(
+                top,
+                top.middle_composite.deep_node.graph_root,
+                msg="The parent-most node should be the graph_root, recursively accessible "
+                    "from all depths."
+            )
+
 
 if __name__ == '__main__':
     unittest.main()
