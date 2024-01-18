@@ -590,7 +590,7 @@ class TestComposite(unittest.TestCase):
             msg="Activating should propagate to children"
         )
 
-    def test_root(self):
+    def test_graph_info(self):
         top = AComposite("topmost")
         top.middle_composite = AComposite("middle_composite")
         top.middle_composite.deep_node = Composite.create.SingleValue(plus_one)

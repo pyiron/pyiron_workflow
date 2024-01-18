@@ -344,7 +344,7 @@ class TestNode(unittest.TestCase):
             msg="With run_after_init, the node should run right away"
         )
 
-    def test_root(self):
+    def test_graph_info(self):
         n = ANode("n")
 
         self.assertEqual(
