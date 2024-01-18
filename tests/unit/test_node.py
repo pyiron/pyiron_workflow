@@ -346,6 +346,14 @@ class TestNode(unittest.TestCase):
 
     def test_root(self):
         n = ANode("n")
+
+        self.assertEqual(
+            n.label,
+            n.graph_path,
+            msg="Lone nodes should just have their label as the path, as there is no "
+                "parent above."
+        )
+
         self.assertIs(
             n,
             n.graph_root,
