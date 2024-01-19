@@ -10,6 +10,7 @@ from __future__ import annotations
 import warnings
 from abc import ABC, abstractmethod
 from concurrent.futures import Executor as StdLibExecutor, Future
+import os
 from typing import Any, Literal, Optional, TYPE_CHECKING
 
 from pyiron_workflow.channels import (
@@ -276,16 +277,22 @@ class Node(HasToDict, ABC, metaclass=AbstractHasPost):
         run_after_init: bool = False,
         **kwargs,
     ):
-        save_exists = self.working_directory.file_exists(self._STORAGE_FILE_NAME)
+        save_file_exists = os.path.isfile(self._storage_file_path)
+        if save_file_exists:
+            save_exists = self.storage_has_contents
+            if save_exists and overwrite_save:
+                up = self.storage.close()
+                del up[self.label]
+                if self.parent is None:
+                    FileObject(self._STORAGE_FILE_NAME, self.working_directory).delete()
 
-        if save_exists and overwrite_save:
-            FileObject(self._STORAGE_FILE_NAME, self.working_directory).delete()
-
-        if self.working_directory.is_empty():
-            self.working_directory.delete()
-            self._working_directory = None
-            # Touching the working directory may have created it -- if it's there and
-            # empty just clean it up
+            if self.working_directory.is_empty():
+                self.working_directory.delete()
+                self._working_directory = None
+                # Touching the working directory may have created it -- if it's there and
+                # empty just clean it up
+        else:
+            save_exists = False
 
         do_load = save_exists and not overwrite_save
 
@@ -1153,3 +1160,8 @@ class Node(HasToDict, ABC, metaclass=AbstractHasPost):
             Pointer(self._storage_file_path, h5_path=self.graph_path),
             None
         )
+
+    @property
+    def storage_has_contents(self) -> bool:
+        n_items = len(self.storage.list_groups()) + len(self.storage.list_nodes())
+        return n_items > 0
