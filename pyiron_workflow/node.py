@@ -285,12 +285,8 @@ class Node(HasToDict, ABC, metaclass=AbstractHasPost):
                 del up[self.label]
                 if self.parent is None:
                     FileObject(self._STORAGE_FILE_NAME, self.working_directory).delete()
+            self.tidy_working_directory()
 
-            if self.working_directory.is_empty():
-                self.working_directory.delete()
-                self._working_directory = None
-                # Touching the working directory may have created it -- if it's there and
-                # empty just clean it up
         else:
             save_exists = False
 
@@ -1165,3 +1161,13 @@ class Node(HasToDict, ABC, metaclass=AbstractHasPost):
     def storage_has_contents(self) -> bool:
         n_items = len(self.storage.list_groups()) + len(self.storage.list_nodes())
         return n_items > 0
+
+    def tidy_working_directory(self):
+        """
+        If the working directory is completely empty, deletes it.
+        """
+        if self.working_directory.is_empty():
+            self.working_directory.delete()
+            self._working_directory = None
+            # Touching the working directory may have created it -- if it's there and
+            # empty just clean it up
