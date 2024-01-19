@@ -1139,11 +1139,17 @@ class Node(HasToDict, ABC, metaclass=AbstractHasPost):
     save.__doc__ += _save_load_warnings
 
     @property
+    def _storage_file_path(self) -> str:
+        return str(
+            (self.graph_root.working_directory.path / self._STORAGE_FILE_NAME).resolve()
+        )
+
+    @property
     def storage(self):
         from pyiron_contrib.tinybase.storage import H5ioStorage
         from h5io_browser import Pointer
 
-        storage_file = str(
-            (self.graph_root.working_directory.path / self._STORAGE_FILE_NAME).resolve()
+        return H5ioStorage(
+            Pointer(self._storage_file_path, h5_path=self.graph_path),
+            None
         )
-        return H5ioStorage(Pointer(storage_file, h5_path=self.graph_path), None)
