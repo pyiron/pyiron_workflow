@@ -68,6 +68,34 @@ class TestFiles(unittest.TestCase):
         )
         self.directory = DirectoryObject("test")  # Rebuild it so the tearDown works
 
+    def test_remove(self):
+        self.directory.write(file_name="test1.txt", content="something")
+        self.directory.write(file_name="test2.txt", content="something")
+        self.directory.write(file_name="test3.txt", content="something")
+        self.assertEqual(
+            3,
+            len(self.directory),
+            msg="Sanity check on initial state"
+        )
+        self.directory.remove_files("test1.txt", "test2.txt")
+        self.assertEqual(
+            1,
+            len(self.directory),
+            msg="Should be able to remove multiple files at once",
+        )
+        self.directory.remove_files("not even there", "nor this")
+        self.assertEqual(
+            1,
+            len(self.directory),
+            msg="Removing non-existent things should have no effect",
+        )
+        self.directory.remove_files("test3.txt")
+        self.assertEqual(
+            0,
+            len(self.directory),
+            msg="Should be able to remove just one file",
+        )
+
 
 if __name__ == '__main__':
     unittest.main()
