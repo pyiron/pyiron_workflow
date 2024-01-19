@@ -277,17 +277,14 @@ class Node(HasToDict, ABC, metaclass=AbstractHasPost):
         run_after_init: bool = False,
         **kwargs,
     ):
-        save_file_exists = os.path.isfile(self._storage_file_path)
-        if save_file_exists:
+        if os.path.isfile(self._storage_file_path):
             if overwrite_save:
                 self.delete_storage()
-                save_exists = False
+                do_load = False
             else:
-                save_exists = self.storage_has_contents
+                do_load = self.storage_has_contents
         else:
-            save_exists = False
-
-        do_load = save_exists and not overwrite_save
+            do_load = False
 
         if do_load and run_after_init:
             raise ValueError(
