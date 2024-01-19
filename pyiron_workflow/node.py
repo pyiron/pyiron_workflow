@@ -150,6 +150,35 @@ class Node(HasToDict, ABC, metaclass=AbstractHasPost):
             context when you're done with them; we give a convenience method for this.
     - Nodes created from a registered package store their package identifier as a class
         attribute.
+    - [ALPHA FEATURE] Nodes can be saved to and loaded from file.
+        - On instantiation, nodes will look in the working directory of their
+            parent-most node for a save file; they will search within this along their
+            relative semantic path (i.e. the path of node labels) for stored data; if
+            found, they will use it to load their state.
+            - Found save files can be deleted and ignored with an initialization kwarg
+        - You can't load a saved node _and_ run that node after instantiation during
+            the same instantiation.
+        - To save a composite graph, _all_ children need to be created from a
+            registered module or saving will raise an error;
+            - [ALPHA ISSUE?] Right now that means moving any nodes defined in-notebook
+                off to a `.py` file.
+        - [ALPHA ISSUE] Modifications to macros (e.g. replacing a child node) are not
+            reflected in the saved data -- saving and loading such a graph is likely to
+            _silently_ misbehave, as the loaded macro will just reinstantiate its
+            original nodes and connections.
+        - [ALPHA ISSUE] If the source code (i.e. `.py` files) for a saved graph is
+            altered between saving and loading the graph, there are no guarnatees about
+            the loaded state; depending on the nature of the changes everything may
+            work fine with the new node definition, the graph may load but silently
+            behave unexpectedly (e.g. if node functionality has changed but the
+            interface is the same), or may crash on loading (e.g. if IO channel labels
+            have changed).
+        - [ALPHA ISSUE] There is no filtering available, saving a node stores all of
+            its IO and does the same thing recursively for its children; depending on
+            your graph this could be expensive in terms of storage space and/or time.
+        - Since nodes store their IO data, all data is expected to be serializable; as
+            a fallback, the save process will attempt to `pickle` the data.
+        - While loading is attempted at instantiation, saving only happens on request.
 
     This is an abstract class.
     Children *must* define how :attr:`inputs` and :attr:`outputs` are constructed, what will
@@ -159,7 +188,9 @@ class Node(HasToDict, ABC, metaclass=AbstractHasPost):
 
     TODO:
 
-        - Everything with (de)serialization for storage
+        - Allow saving/loading at locations _other_ than the interpreter's working
+            directory combined with the node's working directory, i.e. decouple the
+            working directory from the interpreter's `cwd`.
         - Integration with more powerful tools for remote execution (anything obeying
             the standard interface of a :meth:`submit` method taking the callable and
             arguments and returning a futures object should work, as long as it can
