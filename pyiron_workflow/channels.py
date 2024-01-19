@@ -467,7 +467,12 @@ class DataChannel(Channel, ABC):
         self.strict_hints = storage["strict_hints"]
         self.type_hint = storage["type_hint"]
         self.default = storage["default"]
-        self.value = storage["value"]
+        from pyiron_contrib.tinybase.storage import GenericStorage
+        self.value = (
+            storage["value"].to_object()
+            if isinstance(storage["value"], GenericStorage)
+            else storage["value"]
+        )
 
 
 class InputData(DataChannel):

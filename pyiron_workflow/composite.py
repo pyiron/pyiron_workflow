@@ -581,8 +581,17 @@ class Composite(Node, ABC):
         super().to_storage(storage)
 
     def from_storage(self, storage):
-        self.inputs_map = storage["inputs_map"]
-        self.outputs_map = storage["outputs_map"]
+        from pyiron_contrib.tinybase.storage import GenericStorage
+        self.inputs_map = (
+            storage["inputs_map"].to_object()
+            if isinstance(storage["inputs_map"], GenericStorage)
+            else storage["inputs_map"]
+        )
+        self.outputs_map = (
+            storage["outputs_map"].to_object()
+            if isinstance(storage["outputs_map"], GenericStorage)
+            else storage["outputs_map"]
+        )
         self._rebuild_data_io()  # To apply any map that was saved
 
         super().from_storage(storage)
