@@ -1151,12 +1151,14 @@ class Node(HasToDict, ABC, metaclass=AbstractHasPost):
 
     @property
     def storage_has_contents(self) -> bool:
-        return (
+        has_contents = (
             os.path.isfile(self._storage_file_path)
             and (
                 len(self.storage.list_groups()) + len(self.storage.list_nodes())
             ) > 0
         )
+        self.tidy_working_directory()
+        return has_contents
 
     def tidy_working_directory(self):
         """
