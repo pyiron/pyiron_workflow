@@ -331,6 +331,36 @@ class TestWorkflow(unittest.TestCase):
         wf.m.two.pull(run_parent_trees_too=False)
         wf.executor_shutdown()
 
+    def test_storage(self):
+        with self.subTest("Fail when nodes have no package"):
+            wf = Workflow("wf")
+            wf.n1 = wf.create.Function(plus_one)
+            with self.assertRaises(
+                NotImplementedError, msg="We can't handle nodes without a package yet"
+            ):
+                wf.save()
+
+        wf = Workflow("wf")
+        wf.register("static.demo_nodes", domain="demo")
+        wf.inp = wf.create.demo.AddThree(x=0)
+        wf.out = wf.inp.outputs.add_three + 1
+        wf_out = wf()
+        three_result = wf.inp.three.outputs.add.value
+
+        wf.save()
+
+        reloaded = Workflow("wf")
+        self.assertEqual(
+            wf_out.out__add,
+            reloaded.outputs.out__add.value,
+            msg="Workflow-level data should get reloaded"
+        )
+        self.assertEqual(
+            three_result,
+            reloaded.inp.three.value,
+            msg="Child data arbitrarily deep should get reloaded"
+        )
+
 
 if __name__ == '__main__':
     unittest.main()
