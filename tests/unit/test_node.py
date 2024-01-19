@@ -17,7 +17,7 @@ def add_one(x):
 class ANode(Node):
     """To de-abstract the class"""
 
-    def __init__(self, label, run_after_init=False, x=None):
+    def __init__(self, label, run_after_init=False, overwrite_save=False, x=None):
         super().__init__(label=label)
         self._inputs = Inputs(InputData("x", self, type_hint=int))
         self._outputs = Outputs(OutputData("y", self, type_hint=int))
@@ -359,6 +359,51 @@ class TestNode(unittest.TestCase):
             n.graph_root,
             msg="Lone nodes should be their own graph_root, as there is no parent "
                 "above."
+        )
+
+    def test_storage(self):
+        self.assertIs(
+            self.n1.outputs.y.value,
+            NotData,
+            msg="Sanity check on initial state"
+        )
+        y = self.n1()
+        self.n1.save()
+
+        x = self.n1.inputs.x.value
+        reloaded = ANode(self.n1.label, x=x)
+        self.assertEqual(
+            y,
+            reloaded.outputs.y.value,
+            msg="Nodes should load by default if they find a save file"
+        )
+
+        clean_slate = ANode(self.n1.label, x=x, overwrite_save=True)
+        self.assertIs(
+            clean_slate.outputs.y.value,
+            NotData,
+            msg="Users should be able to ignore a save"
+        )
+
+        run_right_away = ANode(self.n1.label, x=x, run_after_init=True)
+        self.assertEqual(
+            y,
+            run_right_away.outputs.y.value,
+            msg="With nothing to load, running after init is fine"
+        )
+
+        run_right_away.save()
+        with self.assertRaises(
+            ValueError,
+            msg="Should be able to both immediately run _and_ load a node at once"
+        ):
+            ANode(self.n1.label, x=x, run_after_init=True)
+
+        force_run = ANode(self.n1.label, x=x, run_after_init=True, overwrite_save=True)
+        self.assertEqual(
+            y,
+            force_run.outputs.y.value,
+            msg="Destroying the save should allow immediate re-running"
         )
 
 
