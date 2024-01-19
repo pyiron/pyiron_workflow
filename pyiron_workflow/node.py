@@ -301,6 +301,7 @@ class Node(HasToDict, ABC, metaclass=AbstractHasPost):
                 self.run()
             except ReadinessError:
                 pass
+        # Else neither loading nor running now -- no action required!
 
     @property
     def label(self) -> str:
