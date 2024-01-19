@@ -335,22 +335,7 @@ class Workflow(Composite):
         self.automate_execution = storage["automate_execution"]
         # Super call will rebuild the IO, so first get our automate_execution flag
         super().from_storage(storage)
-
-        for data_connection in storage["_data_connections"]:
-            (inp_label, inp_channel), (out_label, out_channel) = data_connection
-            self.nodes[inp_label].inputs[inp_channel].connect(
-                self.nodes[out_label].outputs[out_channel]
-            )
-
-        if not self.automate_execution:
-            for signal_connection in storage["_signal_connections"]:
-                (inp_label, inp_channel), (out_label, out_channel) = signal_connection
-                self.nodes[inp_label].signals.input[inp_channel].connect(
-                    self.nodes[out_label].signals.output[out_channel]
-                )
-            self.starting_nodes = [
-                self.nodes[label] for label in storage["starting_nodes"]
-            ]
+        self._rebuild_connections(storage)
 
     def _reinstantiate_children(self, storage):
         # Parents attempt to reload their data on instantiation,
@@ -363,6 +348,28 @@ class Workflow(Composite):
             pid = child_data["package_identifier"]
             cls = child_data["class_name"]
             self.create[pid][cls](label=child_label, parent=self)
+
+    def _rebuild_connections(self, storage):
+        self._rebuild_data_connections(storage)
+        if not self.automate_execution:
+            self._rebuild_execution_graph(storage)
+
+    def _rebuild_data_connections(self, storage):
+        for data_connection in storage["_data_connections"]:
+            (inp_label, inp_channel), (out_label, out_channel) = data_connection
+            self.nodes[inp_label].inputs[inp_channel].connect(
+                self.nodes[out_label].outputs[out_channel]
+            )
+
+    def _rebuild_execution_graph(self, storage):
+        for signal_connection in storage["_signal_connections"]:
+            (inp_label, inp_channel), (out_label, out_channel) = signal_connection
+            self.nodes[inp_label].signals.input[inp_channel].connect(
+                self.nodes[out_label].signals.output[out_channel]
+            )
+        self.starting_nodes = [
+            self.nodes[label] for label in storage["starting_nodes"]
+        ]
 
     def save(self):
         if any(node.package_identifier is None for node in self):
