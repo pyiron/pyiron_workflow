@@ -331,15 +331,7 @@ class Workflow(Composite):
             storage["starting_nodes"] = [n.label for n in self.starting_nodes]
 
     def from_storage(self, storage):
-        for package_identifier in storage["package_requirements"]:
-            self.register(package_identifier)
-
-        for child_label in storage["nodes"]:
-            child_data = storage[child_label]
-            pid = child_data["package_identifier"]
-            cls = child_data["class_name"]
-            self.create[pid][cls](label=child_label, parent=self)
-
+        self._reinstantiate_children(storage)
         self.automate_execution = storage["automate_execution"]
 
         super().from_storage(storage)
@@ -359,6 +351,18 @@ class Workflow(Composite):
             self.starting_nodes = [
                 self.nodes[label] for label in storage["starting_nodes"]
             ]
+
+    def _reinstantiate_children(self, storage):
+        # Parents attempt to reload their data on instantiation,
+        # so there is no need to explicitly load any of these children
+        for package_identifier in storage["package_requirements"]:
+            self.register(package_identifier)
+
+        for child_label in storage["nodes"]:
+            child_data = storage[child_label]
+            pid = child_data["package_identifier"]
+            cls = child_data["class_name"]
+            self.create[pid][cls](label=child_label, parent=self)
 
     def save(self):
         if any(node.package_identifier is None for node in self):
