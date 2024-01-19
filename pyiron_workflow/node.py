@@ -279,14 +279,11 @@ class Node(HasToDict, ABC, metaclass=AbstractHasPost):
     ):
         save_file_exists = os.path.isfile(self._storage_file_path)
         if save_file_exists:
-            save_exists = self.storage_has_contents
-            if save_exists and overwrite_save:
-                up = self.storage.close()
-                del up[self.label]
-                if self.parent is None:
-                    FileObject(self._STORAGE_FILE_NAME, self.working_directory).delete()
-            self.tidy_working_directory()
-
+            if overwrite_save:
+                self.delete_storage()
+                save_exists = False
+            else:
+                save_exists = self.storage_has_contents
         else:
             save_exists = False
 
@@ -1171,3 +1168,11 @@ class Node(HasToDict, ABC, metaclass=AbstractHasPost):
             self._working_directory = None
             # Touching the working directory may have created it -- if it's there and
             # empty just clean it up
+
+    def delete_storage(self):
+        if self.storage_has_contents:
+            up = self.storage.close()
+            del up[self.label]
+            if self.parent is None:
+                FileObject(self._STORAGE_FILE_NAME, self.working_directory).delete()
+        self.tidy_working_directory()
