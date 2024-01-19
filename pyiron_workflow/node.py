@@ -302,6 +302,7 @@ class Node(HasToDict, ABC, metaclass=AbstractHasPost):
             except ReadinessError:
                 pass
         # Else neither loading nor running now -- no action required!
+        self.graph_root.tidy_working_directory()
 
     @property
     def label(self) -> str:
