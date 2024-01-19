@@ -333,7 +333,7 @@ class Workflow(Composite):
     def from_storage(self, storage):
         self._reinstantiate_children(storage)
         self.automate_execution = storage["automate_execution"]
-
+        # Super call will rebuild the IO, so first get our automate_execution flag
         super().from_storage(storage)
 
         for data_connection in storage["_data_connections"]:
