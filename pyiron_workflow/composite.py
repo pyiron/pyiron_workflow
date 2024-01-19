@@ -581,9 +581,6 @@ class Composite(Node, ABC):
         super().to_storage(storage)
 
     def from_storage(self, storage):
-        for node in self:
-            node.from_storage(storage[node.label])
-
         self.inputs_map = storage["inputs_map"]
         self.outputs_map = storage["outputs_map"]
         self._rebuild_data_io()  # To apply any map that was saved
