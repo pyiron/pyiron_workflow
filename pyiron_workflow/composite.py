@@ -586,3 +586,8 @@ class Composite(Node, ABC):
         self._rebuild_data_io()  # To apply any map that was saved
 
         super().from_storage(storage)
+
+    def tidy_working_directory(self):
+        for node in self:
+            node.tidy_working_directory()
+        super().tidy_working_directory()
