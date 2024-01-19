@@ -277,14 +277,11 @@ class Node(HasToDict, ABC, metaclass=AbstractHasPost):
         run_after_init: bool = False,
         **kwargs,
     ):
-        if os.path.isfile(self._storage_file_path):
-            if overwrite_save:
-                self.delete_storage()
-                do_load = False
-            else:
-                do_load = self.storage_has_contents
-        else:
+        if overwrite_save:
+            self.delete_storage()
             do_load = False
+        else:
+            do_load = self.storage_has_contents
 
         if do_load and run_after_init:
             raise ValueError(
@@ -1153,8 +1150,12 @@ class Node(HasToDict, ABC, metaclass=AbstractHasPost):
 
     @property
     def storage_has_contents(self) -> bool:
-        n_items = len(self.storage.list_groups()) + len(self.storage.list_nodes())
-        return n_items > 0
+        return (
+            os.path.isfile(self._storage_file_path)
+            and (
+                len(self.storage.list_groups()) + len(self.storage.list_nodes())
+            ) > 0
+        )
 
     def tidy_working_directory(self):
         """
