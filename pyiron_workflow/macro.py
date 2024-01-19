@@ -502,6 +502,14 @@ class Macro(Composite):
     def to_workfow(self):
         raise NotImplementedError
 
+    def from_storage(self, storage):
+        super().from_storage(storage)
+        # Nodes instantiated in macros probably aren't aware of their parent at
+        # instantiation time, and thus may be clean (un-loaded) objects --
+        # reload their data
+        for label, node in self.nodes.items():
+            node.from_storage(storage[label])
+
 
 def macro_node(*output_labels, **node_class_kwargs):
     """
