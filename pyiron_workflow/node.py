@@ -1111,9 +1111,9 @@ class Node(HasToDict, ABC, metaclass=AbstractHasPost):
             channel.to_storage(data_outputs.create_group(label))
 
     def from_storage(self, storage):
-        self.running = storage["running"]
-        self.failed = storage["failed"]
-        self.save_after_run = storage["save_after_run"]
+        self.running = bool(storage["running"])
+        self.failed = bool(storage["failed"])
+        self.save_after_run = bool(storage["save_after_run"])
 
         data_inputs = storage["inputs"]
         for label in data_inputs.list_groups():

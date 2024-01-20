@@ -464,7 +464,7 @@ class DataChannel(Channel, ABC):
         storage["value"] = self.value
 
     def from_storage(self, storage):
-        self.strict_hints = storage["strict_hints"]
+        self.strict_hints = bool(storage["strict_hints"])
         self.type_hint = storage["type_hint"]
         self.default = storage["default"]
         from pyiron_contrib.tinybase.storage import GenericStorage
