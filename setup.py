@@ -29,6 +29,7 @@ setup(
     packages=find_packages(exclude=["*tests*", "*docs*", "*binder*", "*conda*", "*notebooks*", "*.ci_support*"]),
     install_requires=[
         'bidict==0.22.1',
+        'boto3',  # Just because pyiron_contrib is not making sure it's there
         'cloudpickle==3.0.0',
         'graphviz==0.20.1',
         'h5io_browser==0.0.6',
