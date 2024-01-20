@@ -176,6 +176,8 @@ class Node(HasToDict, ABC, metaclass=AbstractHasPost):
         - [ALPHA ISSUE] There is no filtering available, saving a node stores all of
             its IO and does the same thing recursively for its children; depending on
             your graph this could be expensive in terms of storage space and/or time.
+        - [ALPHA ISSUE] Similarly, there is no way to save only part of a graph; only
+            the entire graph may be saved at once.
         - Since nodes store their IO data, all data is expected to be serializable; as
             a fallback, the save process will attempt to `pickle` the data.
         - While loading is attempted at instantiation, saving only happens on request.
@@ -1144,7 +1146,11 @@ class Node(HasToDict, ABC, metaclass=AbstractHasPost):
         type can :meth:`load()` the data to return to the same state as the save point,
         i.e. the same data IO channel values, the same flags, etc.
         """
-        self.to_storage(self.storage)
+        if self.parent is None:
+            self.to_storage(self.storage)
+        else:
+            root = self.graph_root
+            root.to_storage(root.storage)
 
     save.__doc__ += _save_load_warnings
 
