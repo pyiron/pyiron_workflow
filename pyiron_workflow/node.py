@@ -1183,17 +1183,14 @@ class Node(HasToDict, ABC, metaclass=AbstractHasPost):
         from h5io_browser import Pointer
 
         return H5ioStorage(
-            Pointer(self._storage_file_path, h5_path=self.graph_path),
-            None
+            Pointer(self._storage_file_path, h5_path=self.graph_path), None
         )
 
     @property
     def storage_has_contents(self) -> bool:
         has_contents = (
             os.path.isfile(self._storage_file_path)
-            and (
-                len(self.storage.list_groups()) + len(self.storage.list_nodes())
-            ) > 0
+            and (len(self.storage.list_groups()) + len(self.storage.list_nodes())) > 0
         )
         self.tidy_working_directory()
         return has_contents

@@ -367,9 +367,7 @@ class Workflow(Composite):
             self.nodes[inp_label].signals.input[inp_channel].connect(
                 self.nodes[out_label].signals.output[out_channel]
             )
-        self.starting_nodes = [
-            self.nodes[label] for label in storage["starting_nodes"]
-        ]
+        self.starting_nodes = [self.nodes[label] for label in storage["starting_nodes"]]
 
     def save(self):
         if any(node.package_identifier is None for node in self):

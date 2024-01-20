@@ -582,6 +582,7 @@ class Composite(Node, ABC):
 
     def from_storage(self, storage):
         from pyiron_contrib.tinybase.storage import GenericStorage
+
         self.inputs_map = (
             storage["inputs_map"].to_object()
             if isinstance(storage["inputs_map"], GenericStorage)
