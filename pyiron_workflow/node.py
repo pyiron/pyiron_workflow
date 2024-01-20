@@ -151,6 +151,8 @@ class Node(HasToDict, ABC, metaclass=AbstractHasPost):
     - Nodes created from a registered package store their package identifier as a class
         attribute.
     - [ALPHA FEATURE] Nodes can be saved to and loaded from file.
+        - Saving is triggered manually, or by setting a flag to save after the nodes
+            runs.
         - On instantiation, nodes will look in the working directory of their
             parent-most node for a save file; they will search within this along their
             relative semantic path (i.e. the path of node labels) for stored data; if
@@ -224,6 +226,8 @@ class Node(HasToDict, ABC, metaclass=AbstractHasPost):
             node. Must be specified in child classes.
         running (bool): Whether the node has called :meth:`run` and has not yet
             received output from this call. (Default is False.)
+        save_after_run (bool): Whether to trigger a save after each run of the node
+            (currently causes the entire graph to save). (Default is False.)
         signals (pyiron_workflow.io.Signals): A container for input and output
             signals, which are channels for controlling execution flow. By default, has
             a :attr:`signals.inputs.run` channel which has a callback to the :meth:`run` method
@@ -274,6 +278,7 @@ class Node(HasToDict, ABC, metaclass=AbstractHasPost):
         parent: Optional[Composite] = None,
         overwrite_save: bool = False,
         run_after_init: bool = False,
+        save_after_run: bool = False,
         **kwargs,
     ):
         """
@@ -302,6 +307,7 @@ class Node(HasToDict, ABC, metaclass=AbstractHasPost):
         # This is a simply stop-gap as we work out more sophisticated ways to reference
         # (or create) an executor process without ever trying to pickle a `_thread.lock`
         self.future: None | Future = None
+        self.save_after_run = save_after_run
 
     def __post__(
         self,
@@ -637,6 +643,9 @@ class Node(HasToDict, ABC, metaclass=AbstractHasPost):
         except Exception as e:
             self.failed = True
             raise e
+        finally:
+            if self.save_after_run:
+                self.save()
 
     def _finish_run_and_emit_ran(self, run_output: tuple | Future) -> Any | tuple:
         processed_output = self._finish_run(run_output)
@@ -1091,6 +1100,7 @@ class Node(HasToDict, ABC, metaclass=AbstractHasPost):
         storage["label"] = self.label
         storage["running"] = self.running
         storage["failed"] = self.failed
+        storage["save_after_run"] = self.save_after_run
 
         data_inputs = storage.create_group("inputs")
         for label, channel in self.inputs.items():
@@ -1103,6 +1113,7 @@ class Node(HasToDict, ABC, metaclass=AbstractHasPost):
     def from_storage(self, storage):
         self.running = storage["running"]
         self.failed = storage["failed"]
+        self.save_after_run = storage["save_after_run"]
 
         data_inputs = storage["inputs"]
         for label in data_inputs.list_groups():

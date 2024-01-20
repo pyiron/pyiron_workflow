@@ -108,12 +108,15 @@ class Composite(Node, ABC):
         parent: Optional[Composite] = None,
         overwrite_save: bool = False,
         run_after_init: bool = False,
+        save_after_run: bool = False,
         strict_naming: bool = True,
         inputs_map: Optional[dict | bidict] = None,
         outputs_map: Optional[dict | bidict] = None,
         **kwargs,
     ):
-        super().__init__(*args, label=label, parent=parent, **kwargs)
+        super().__init__(
+            *args, label=label, parent=parent, save_after_run=save_after_run, **kwargs
+        )
         self.strict_naming: bool = strict_naming
         self._inputs_map = None
         self._outputs_map = None

@@ -17,8 +17,15 @@ def add_one(x):
 class ANode(Node):
     """To de-abstract the class"""
 
-    def __init__(self, label, run_after_init=False, overwrite_save=False, x=None):
-        super().__init__(label=label)
+    def __init__(
+        self,
+        label,
+        overwrite_save=False,
+        run_after_init=False,
+        save_after_run=False,
+        x=None,
+    ):
+        super().__init__(label=label, save_after_run=save_after_run)
         self._inputs = Inputs(InputData("x", self, type_hint=int))
         self._outputs = Outputs(OutputData("y", self, type_hint=int))
         if x is not None:
@@ -405,6 +412,27 @@ class TestNode(unittest.TestCase):
             force_run.outputs.y.value,
             msg="Destroying the save should allow immediate re-running"
         )
+
+    def test_save_after_run(self):
+        ANode("just_run", x=0, run_after_init=True)
+        saves = ANode("run_and_save", x=0, run_after_init=True, save_after_run=True)
+        y = saves.outputs.y.value
+
+        not_reloaded = ANode("just_run")
+        self.assertIs(
+            NotData,
+            not_reloaded.outputs.y.value,
+            msg="Should not have saved, therefore should have been nothing to load"
+        )
+
+        find_saved = ANode("run_and_save")
+        self.assertEqual(
+            y,
+            find_saved.outputs.y.value,
+            msg="Should have saved automatically after run, and reloaded on "
+                "instantiation"
+        )
+        find_saved.delete_storage()  # Clean up
 
 
 if __name__ == '__main__':

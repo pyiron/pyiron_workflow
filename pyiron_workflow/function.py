@@ -333,6 +333,7 @@ class Function(Node):
         parent: Optional[Composite] = None,
         overwrite_save: bool = False,
         run_after_init: bool = False,
+        save_after_run: bool = False,
         output_labels: Optional[str | list[str] | tuple[str]] = None,
         **kwargs,
     ):
@@ -358,6 +359,7 @@ class Function(Node):
         super().__init__(
             label=label if label is not None else self.node_function.__name__,
             parent=parent,
+            save_after_run=save_after_run,
             # **kwargs,
         )
 

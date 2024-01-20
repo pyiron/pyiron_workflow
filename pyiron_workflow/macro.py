@@ -267,6 +267,7 @@ class Macro(Composite):
         parent: Optional[Composite] = None,
         overwrite_save: bool = False,
         run_after_init: bool = False,
+        save_after_run: bool = False,
         strict_naming: bool = True,
         inputs_map: Optional[dict | bidict] = None,
         outputs_map: Optional[dict | bidict] = None,
@@ -294,6 +295,7 @@ class Macro(Composite):
         super().__init__(
             label=label if label is not None else self.graph_creator.__name__,
             parent=parent,
+            save_after_run=save_after_run,
             strict_naming=strict_naming,
             inputs_map=inputs_map,
             outputs_map=outputs_map,

@@ -190,6 +190,7 @@ class Workflow(Composite):
         *nodes: Node,
         overwrite_save: bool = False,
         run_after_init: bool = False,
+        save_after_run: bool = False,
         strict_naming: bool = True,
         inputs_map: Optional[dict | bidict] = None,
         outputs_map: Optional[dict | bidict] = None,
@@ -198,6 +199,7 @@ class Workflow(Composite):
         super().__init__(
             label=label,
             parent=None,
+            save_after_run=save_after_run,
             strict_naming=strict_naming,
             inputs_map=inputs_map,
             outputs_map=outputs_map,
