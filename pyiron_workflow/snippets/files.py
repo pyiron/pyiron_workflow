@@ -75,6 +75,12 @@ class DirectoryObject:
     def is_empty(self) -> bool:
         return len(self) == 0
 
+    def remove_files(self, *files: str):
+        for file in files:
+            path = self.get_path(file)
+            if path.is_file():
+                path.unlink()
+
 
 class FileObject:
     def __init__(self, file_name: str, directory: DirectoryObject):
