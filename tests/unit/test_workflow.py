@@ -361,6 +361,9 @@ class TestWorkflow(unittest.TestCase):
             msg="Child data arbitrarily deep should get reloaded"
         )
 
+        # Clean up after ourselves
+        reloaded.delete_storage()
+
 
 if __name__ == '__main__':
     unittest.main()
