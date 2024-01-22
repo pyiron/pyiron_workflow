@@ -817,13 +817,14 @@ class AccumulatingInputSignal(InputSignal):
         Resets the collection of received signals when firing.
         """
         self.received_signals.update([other.scoped_label])
-        if len(
-            set(
-                c.scoped_label for c in self.connections
-            ).difference(
-                self.received_signals
+        if (
+            len(
+                set(c.scoped_label for c in self.connections).difference(
+                    self.received_signals
+                )
             )
-        ) == 0:
+            == 0
+        ):
             self.reset()
             self.callback()
 
