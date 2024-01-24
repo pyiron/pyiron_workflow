@@ -381,7 +381,7 @@ class TestSignalChannels(unittest.TestCase):
         ):
             agg()
 
-        out2 = OutputSignal(label="out", node=DummyNode())
+        out2 = OutputSignal(label="out2", node=DummyNode())
         agg.connect(self.out, out2)
 
         self.assertEqual(
