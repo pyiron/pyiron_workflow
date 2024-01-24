@@ -22,7 +22,7 @@ from pyiron_workflow.channels import (
 from pyiron_workflow.draw import Node as GraphvizNode
 from pyiron_workflow.snippets.files import FileObject, DirectoryObject
 from pyiron_workflow.has_to_dict import HasToDict
-from pyiron_workflow.io import Signals
+from pyiron_workflow.io import Signals, IO
 from pyiron_workflow.topology import (
     get_nodes_in_data_tree,
     set_run_connections_according_to_linear_dag,
@@ -1079,14 +1079,20 @@ class Node(HasToDict, ABC, metaclass=AbstractHasPost):
         # Update instead of overriding in case some other attributes were added on the
         # main process while a remote process was working away
         self.__dict__.update(**state)
-        for io_panel in [
+
+        # Channels don't store their own node in their state, so repopulate it
+        for io_panel in self._owned_io_panels:
+            for channel in io_panel:
+                channel.node = self
+
+    @property
+    def _owned_io_panels(self) -> list[IO]:
+        return [
             self.inputs,
             self.outputs,
             self.signals.input,
             self.signals.output,
-        ]:
-            for channel in io_panel:
-                channel.node = self
+        ]
 
     def executor_shutdown(self, wait=True, *, cancel_futures=False):
         """Invoke shutdown on the executor (if present)."""

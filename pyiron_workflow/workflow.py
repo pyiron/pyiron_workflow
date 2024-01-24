@@ -16,6 +16,7 @@ if TYPE_CHECKING:
     from bidict import bidict
 
     from pyiron_workflow.channels import InputData, OutputData
+    from pyiron_workflow.io import IO
     from pyiron_workflow.node import Node
 
 
@@ -383,3 +384,13 @@ class Workflow(Composite):
                 f"be in your python path and importable at load time too."
             )
         self.to_storage(self.storage)
+
+    @property
+    def _owned_io_panels(self) -> list[IO]:
+        # Workflow data IO is just pointers to child IO, not actually owned directly
+        # by the workflow; this is used in re-parenting channels, and we don't want to
+        # override the real parent with this workflow!
+        return [
+            self.signals.input,
+            self.signals.output,
+        ]
