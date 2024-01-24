@@ -194,16 +194,6 @@ class Composite(Node, ABC):
     def _parse_remotely_executed_self(self, other_self):
         self.__setstate__(other_self.__getstate__())
 
-    def _update_children(self, children_from_another_process: DotDict[str, Node]):
-        """
-        If you receive a new dictionary of children, e.g. from unpacking a futures
-        object of your own children you sent off to another process for computation,
-        replace your own nodes with them, and set yourself as their parent.
-        """
-        for child in children_from_another_process.values():
-            child._parent = self
-        self.nodes = children_from_another_process
-
     def disconnect_run(self) -> list[tuple[Channel, Channel]]:
         """
         Disconnect all `signals.input.run` connections on all child nodes.

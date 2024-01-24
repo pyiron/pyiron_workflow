@@ -507,10 +507,6 @@ class Macro(Composite):
             for c in channel
         ]
 
-    def _update_children(self, children_from_another_process):
-        super()._update_children(children_from_another_process)
-        self._rebuild_data_io()
-
     def _configure_graph_execution(self):
         run_signals = self.disconnect_run()
 
