@@ -177,20 +177,22 @@ class Composite(Node, ABC):
         return self.run_graph
 
     @staticmethod
-    def run_graph(_nodes: dict[Node], _starting_nodes: list[Node]):
-        for node in _starting_nodes:
+    def run_graph(_composite: Composite):
+        for node in _composite.starting_nodes:
             node.run()
-        return _nodes
+        return _composite
 
     @property
     def run_args(self) -> dict:
-        return {"_nodes": self.nodes, "_starting_nodes": self.starting_nodes}
+        return {"_composite": self}
 
     def process_run_result(self, run_output):
-        if run_output is not self.nodes:
-            # Then we probably ran on a parallel process and have an unpacked future
-            self._update_children(run_output)
+        if run_output is not self:
+            self._parse_remotely_executed_self(run_output)
         return DotDict(self.outputs.to_value_dict())
+
+    def _parse_remotely_executed_self(self, other_self):
+        self.__setstate__(other_self.__getstate__())
 
     def _update_children(self, children_from_another_process: DotDict[str, Node]):
         """
@@ -604,3 +606,10 @@ class Composite(Node, ABC):
         for node in self:
             node.tidy_working_directory()
         super().tidy_working_directory()
+
+    def __setstate__(self, state):
+        super().__setstate__(state)
+        # Nodes purge their _parent information in their __getstate__
+        # so return it to them:
+        for node in self:
+            node._parent = self
