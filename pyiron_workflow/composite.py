@@ -601,9 +601,114 @@ class Composite(Node, ABC):
             node.tidy_working_directory()
         super().tidy_working_directory()
 
+    def _get_connections_as_strings(
+        self, panel_getter: callable
+    ) -> list[tuple[tuple[str, str], tuple[str, str]]]:
+        """
+        Connections between children in string representation based on labels.
+
+        The string representation helps storage, and having it as a property ensures
+        the name is protected.
+        """
+        return [
+            (
+                (inp.node.label, inp.label),
+                (out.node.label, out.label)
+            )
+            for child in self
+            for inp in panel_getter(child)
+            for out in inp.connections
+        ]
+
+    @staticmethod
+    def _get_data_inputs(node: Node):
+        return node.inputs
+
+    @staticmethod
+    def _get_signals_input(node: Node):
+        return node.signals.input
+
+    @property
+    def _child_data_connections(self) -> list[tuple[tuple[str, str], tuple[str, str]]]:
+        return self._get_connections_as_strings(self._get_data_inputs)
+
+    @property
+    def _child_signal_connections(
+        self
+    ) -> list[tuple[tuple[str, str], tuple[str, str]]]:
+        return self._get_connections_as_strings(self._get_signals_input)
+
+    def __getstate__(self):
+        state = super().__getstate__()
+        state["_child_data_connections"] = self._child_data_connections
+        state["_child_signal_connections"] = self._child_signal_connections
+        return state
+
     def __setstate__(self, state):
+        # Purge child connection info from the state
+        child_data_connections = state.pop("_child_data_connections")
+        child_signal_connections = state.pop("_child_signal_connections")
+
         super().__setstate__(state)
+
         # Nodes purge their _parent information in their __getstate__
         # so return it to them:
         for node in self:
             node._parent = self
+        # Nodes don't store connection information, so restore it to them
+        self._restore_data_connections_from_strings(child_data_connections)
+        self._restore_signal_connections_from_strings(child_signal_connections)
+
+    @staticmethod
+    def _restore_connections_from_strings(
+        nodes: dict[str, Node] | DotDict[str, Node],
+        connections: list[tuple[tuple[str, str], tuple[str, str]]],
+        input_panel_getter: callable,
+        output_panel_getter: callable,
+    ) -> None:
+        """
+        Set connections among a dictionary of nodes.
+
+        This is useful for recreating node connections after (de)serialization of the
+        individual nodes, which don't know about their connections (that information is
+        the responsibility of their parent `Composite`).
+
+        Args:
+            nodes (dict[Node]): The nodes to connect.
+            connections (list[tuple[tuple[str, str], tuple[str, str]]]): Connections
+                among these nodes in the format ((input node label, input channel label
+                ), (output node label, output channel label)).
+        """
+        for ((inp_node, inp), (out_node, out)) in connections:
+            input_panel_getter(nodes[inp_node])[inp].connect(
+                output_panel_getter(nodes[out_node])[out]
+            )
+
+    @staticmethod
+    def _get_data_outputs(node: Node):
+        return node.outputs
+
+    @staticmethod
+    def _get_signals_output(node: Node):
+        return node.signals.output
+
+    def _restore_data_connections_from_strings(
+        self, connections: list[tuple[tuple[str, str], tuple[str, str]]]
+    ) -> None:
+        self._restore_connections_from_strings(
+            self.nodes,
+            connections,
+            self._get_data_inputs,
+            self._get_data_outputs,
+        )
+
+    def _restore_signal_connections_from_strings(
+        self, connections: list[tuple[tuple[str, str], tuple[str, str]]]
+    ) -> None:
+        self._restore_connections_from_strings(
+            self.nodes,
+            connections,
+            self._get_signals_input,
+            self._get_signals_output,
+        )
+

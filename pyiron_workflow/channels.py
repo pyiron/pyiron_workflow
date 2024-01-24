@@ -216,11 +216,14 @@ class Channel(HasChannel, HasToDict, ABC):
         }
 
     def __getstate__(self):
-        state = self.__dict__
+        state = dict(self.__dict__)
         # To avoid cyclic storage and avoid storing complex objects, purge some
         # properties from the state
         state["node"] = None
         # It is the responsibility of the owning node to restore the node property
+        state["connections"] = []
+        # It is the responsibility of the owning node's parent to store and restore
+        # connections (if any)
         return state
 
     def __setstate__(self, state):

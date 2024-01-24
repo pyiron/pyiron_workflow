@@ -484,7 +484,6 @@ class Macro(Composite):
                 self.signals.output,
             ]
         ]
-
         super()._parse_remotely_executed_self(other_self)
 
         for old_data, io_panel in zip(
@@ -584,14 +583,18 @@ class Macro(Composite):
         return state
 
     def __setstate__(self, state):
-        # Purge value links from the state and re-forge them
-        for (inp, (child, child_inp)) in state.pop("_input_value_links"):
-            self.inputs[inp].value_receiver = self.nodes[child].inputs[child_inp]
-
-        for ((child, child_out), out) in state.pop("_output_value_links"):
-            self.nodes[child].outputs[child_out].value_receiver = self.outputs[out]
+        # Purge value links from the state
+        input_links = state.pop("_input_value_links")
+        output_links = state.pop("_output_value_links")
 
         super().__setstate__(state)
+
+        # Re-forge value links
+        for (inp, (child, child_inp)) in input_links:
+            self.inputs[inp].value_receiver = self.nodes[child].inputs[child_inp]
+
+        for ((child, child_out), out) in output_links:
+            self.nodes[child].outputs[child_out].value_receiver = self.outputs[out]
 
 
 def macro_node(*output_labels, **node_class_kwargs):
