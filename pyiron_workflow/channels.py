@@ -10,6 +10,7 @@ from __future__ import annotations
 
 import typing
 from abc import ABC, abstractmethod
+import inspect
 from warnings import warn
 
 from pyiron_workflow.has_channel import HasChannel
@@ -740,6 +741,7 @@ class SignalChannel(Channel, ABC):
     """
     Signal channels give the option control execution flow by triggering callback
     functions when the channel is called.
+    Callbacks must be methods on the parent node that require no positional arguments.
     Inputs optionally accept an output signal on call, which output signals always
     send when they call their input connections.
 
@@ -753,6 +755,10 @@ class SignalChannel(Channel, ABC):
     @abstractmethod
     def __call__(self) -> None:
         pass
+
+
+class BadCallbackError(ValueError):
+    pass
 
 
 class InputSignal(SignalChannel):
@@ -777,7 +783,34 @@ class InputSignal(SignalChannel):
                 object.
         """
         super().__init__(label=label, node=node)
-        self.callback: callable = callback
+        if self._is_node_method(callback) and self._takes_zero_arguments(callback):
+            self.callback: callable = callback
+        else:
+            raise BadCallbackError(
+                f"The channel {self.label} on {self.node.label} got an unexpected "
+                f"callback: {callback}. "
+                f"Lives on node: {self._is_node_method(callback)}; "
+                f"take no args: {self._takes_zero_arguments(callback)} "
+            )
+
+    def _is_node_method(self, callback):
+        try:
+            return callback == getattr(self.node, callback.__name__)
+        except AttributeError:
+            return False
+
+    def _takes_zero_arguments(self, callback):
+        return callable(callback) and self._no_positional_args(callback)
+
+    @staticmethod
+    def _no_positional_args(func):
+        return sum(
+            1 for parameter in inspect.signature(func).parameters.values()
+            if (
+                parameter.default == inspect.Parameter.empty
+                and parameter.kind != inspect._ParameterKind.VAR_KEYWORD
+            )
+        ) == 0
 
     def __call__(self, other: typing.Optional[OutputSignal] = None) -> None:
         self.callback()
