@@ -489,6 +489,13 @@ class DataChannel(Channel, ABC):
             else storage["value"]
         )
 
+    def __getstate__(self):
+        state = super().__getstate__()
+        state["_value_receiver"] = None
+        # Value receivers live in the scope of Macros, so (re)storing them is the
+        # owning macro's responsibility
+        return state
+
 
 class InputData(DataChannel):
     @property
