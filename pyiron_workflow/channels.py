@@ -784,7 +784,7 @@ class InputSignal(SignalChannel):
         """
         super().__init__(label=label, node=node)
         if self._is_node_method(callback) and self._takes_zero_arguments(callback):
-            self.callback: callable = callback
+            self._callback: str = callback.__name__
         else:
             raise BadCallbackError(
                 f"The channel {self.label} on {self.node.label} got an unexpected "
@@ -811,6 +811,10 @@ class InputSignal(SignalChannel):
                 and parameter.kind != inspect._ParameterKind.VAR_KEYWORD
             )
         ) == 0
+
+    @property
+    def callback(self) -> callable:
+        return getattr(self.node, self._callback)
 
     def __call__(self, other: typing.Optional[OutputSignal] = None) -> None:
         self.callback()
