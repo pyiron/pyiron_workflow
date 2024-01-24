@@ -238,6 +238,10 @@ class TestMacro(unittest.TestCase):
 
         returned_nodes = result.result(timeout=120)  # Wait for the process to finish
         sleep(1)
+        self.assertFalse(
+            macro.running,
+            msg="Macro should be done running"
+        )
         self.assertIsNot(
             original_one,
             returned_nodes.one,
