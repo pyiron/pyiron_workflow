@@ -2,7 +2,7 @@ import unittest
 
 from pyiron_workflow.channels import (
     Channel, InputData, OutputData, InputSignal, AccumulatingInputSignal, OutputSignal,
-    NotData, ChannelConnectionError
+    NotData, ChannelConnectionError, BadCallbackError
 )
 
 
@@ -14,7 +14,6 @@ class DummyNode:
 
     def update(self):
         self.foo.append(self.foo[-1] + 1)
-
 
 class InputChannel(Channel):
     """Just to de-abstract the base class"""
@@ -451,6 +450,54 @@ class TestSignalChannels(unittest.TestCase):
             msg="All signals, including vestigial ones, should get cleared on call"
         )
 
+    def test_callbacks(self):
+        class Extended(DummyNode):
+            def method_with_args(self, x):
+                return x + 1
+
+            def method_with_only_kwargs(self, x=0):
+                return x + 1
+
+            @staticmethod
+            def staticmethod_without_args():
+                return 42
+
+            @staticmethod
+            def staticmethod_with_args(x):
+                return x + 1
+
+            @classmethod
+            def classmethod_without_args(cls):
+                return 42
+
+            @classmethod
+            def classmethod_with_args(cls, x):
+                return x + 1
+
+        def doesnt_belong_to_node():
+            return 42
+
+        node = Extended()
+        with self.subTest("Callbacks that belong to the node and take no arguments"):
+            for callback in [
+                node.update,
+                node.method_with_only_kwargs,
+                node.staticmethod_without_args,
+                node.classmethod_without_args
+            ]:
+                with self.subTest(callback.__name__):
+                    InputSignal(label="inp", node=node, callback=callback)
+
+        with self.subTest("Invalid callbacks"):
+            for callback in [
+                node.method_with_args,
+                node.staticmethod_with_args,
+                node.classmethod_with_args,
+                doesnt_belong_to_node,
+            ]:
+                with self.subTest(callback.__name__):
+                    with self.assertRaises(BadCallbackError):
+                        InputSignal(label="inp", node=node, callback=callback)
 
 if __name__ == '__main__':
     unittest.main()
