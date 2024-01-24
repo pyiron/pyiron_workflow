@@ -477,8 +477,12 @@ class Macro(Composite):
     def _parse_remotely_executed_self(self, other_self):
         local_connection_data = [
             [(c, c.label, c.connections) for c in io_panel]
-            for io_panel
-            in [self.inputs, self.outputs, self.signals.input, self.signals.output]
+            for io_panel in [
+                self.inputs,
+                self.outputs,
+                self.signals.input,
+                self.signals.output,
+            ]
         ]
 
         super()._parse_remotely_executed_self(other_self)
@@ -502,9 +506,7 @@ class Macro(Composite):
     ):
         """Brute-force replace an old connection in a channel with a new one"""
         channel.connections = [
-            c if c is not old_connection
-            else new_connection
-            for c in channel
+            c if c is not old_connection else new_connection for c in channel
         ]
 
     def _configure_graph_execution(self):
