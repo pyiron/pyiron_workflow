@@ -789,7 +789,7 @@ class AccumulatingInputSignal(InputSignal):
         callback: callable,
     ):
         super().__init__(label=label, node=node, callback=callback)
-        self.received_signals: set[OutputSignal] = set()
+        self.received_signals: set[str] = set()
 
     def __call__(self, other: OutputSignal) -> None:
         """
@@ -798,8 +798,15 @@ class AccumulatingInputSignal(InputSignal):
 
         Resets the collection of received signals when firing.
         """
-        self.received_signals.update([other])
-        if len(set(self.connections).difference(self.received_signals)) == 0:
+        self.received_signals.update([other.scoped_label])
+        if (
+            len(
+                set(c.scoped_label for c in self.connections).difference(
+                    self.received_signals
+                )
+            )
+            == 0
+        ):
             self.reset()
             self.callback()
 
