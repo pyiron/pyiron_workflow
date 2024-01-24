@@ -1079,6 +1079,14 @@ class Node(HasToDict, ABC, metaclass=AbstractHasPost):
         # Update instead of overriding in case some other attributes were added on the
         # main process while a remote process was working away
         self.__dict__.update(**state)
+        for io_panel in [
+            self.inputs,
+            self.outputs,
+            self.signals.input,
+            self.signals.output,
+        ]:
+            for channel in io_panel:
+                channel.node = self
 
     def executor_shutdown(self, wait=True, *, cancel_futures=False):
         """Invoke shutdown on the executor (if present)."""
