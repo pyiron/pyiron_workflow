@@ -625,6 +625,7 @@ def macro_node(*output_labels, **node_class_kwargs):
                     **node_class_kwargs,
                 ),
                 "graph_creator": staticmethod(graph_creator),
+                "__module__": graph_creator.__module__,
             },
         )
 
