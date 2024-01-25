@@ -611,10 +611,7 @@ class Composite(Node, ABC):
         the name is protected.
         """
         return [
-            (
-                (inp.node.label, inp.label),
-                (out.node.label, out.label)
-            )
+            ((inp.node.label, inp.label), (out.node.label, out.label))
             for child in self
             for inp in panel_getter(child)
             for out in inp.connections
@@ -634,7 +631,7 @@ class Composite(Node, ABC):
 
     @property
     def _child_signal_connections(
-        self
+        self,
     ) -> list[tuple[tuple[str, str], tuple[str, str]]]:
         return self._get_connections_as_strings(self._get_signals_input)
 
@@ -679,7 +676,7 @@ class Composite(Node, ABC):
                 among these nodes in the format ((input node label, input channel label
                 ), (output node label, output channel label)).
         """
-        for ((inp_node, inp), (out_node, out)) in connections:
+        for (inp_node, inp), (out_node, out) in connections:
             input_panel_getter(nodes[inp_node])[inp].connect(
                 output_panel_getter(nodes[out_node])[out]
             )
@@ -711,4 +708,3 @@ class Composite(Node, ABC):
             self._get_signals_input,
             self._get_signals_output,
         )
-

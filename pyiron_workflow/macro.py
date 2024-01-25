@@ -556,8 +556,7 @@ class Macro(Composite):
         """
         return [
             (c.label, (c.value_receiver.node.label, c.value_receiver.label))
-            for c
-            in self.inputs
+            for c in self.inputs
         ]
 
     @property
@@ -590,10 +589,10 @@ class Macro(Composite):
         super().__setstate__(state)
 
         # Re-forge value links
-        for (inp, (child, child_inp)) in input_links:
+        for inp, (child, child_inp) in input_links:
             self.inputs[inp].value_receiver = self.nodes[child].inputs[child_inp]
 
-        for ((child, child_out), out) in output_links:
+        for (child, child_out), out in output_links:
             self.nodes[child].outputs[child_out].value_receiver = self.outputs[out]
 
 
