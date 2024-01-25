@@ -2,7 +2,7 @@ import unittest
 
 from pyiron_workflow.channels import (
     Channel, InputData, OutputData, InputSignal, AccumulatingInputSignal, OutputSignal,
-    NotData, ChannelConnectionError, BadCallbackError
+    NOT_DATA, ChannelConnectionError, BadCallbackError
 )
 
 
@@ -140,7 +140,7 @@ class TestDataChannels(unittest.TestCase):
         )
 
     def test_fetch(self):
-        self.no.value = NotData
+        self.no.value = NOT_DATA
         self.ni1.value = 1
 
         self.ni1.connect(self.no_empty)
@@ -285,7 +285,7 @@ class TestDataChannels(unittest.TestCase):
 
     def test_value_assignment(self):
         self.ni1.value = 2  # Should be fine when value matches hint
-        self.ni1.value = NotData  # Should be able to clear the data
+        self.ni1.value = NOT_DATA  # Should be able to clear the data
 
         self.ni1.node.running = True
         with self.assertRaises(
@@ -313,7 +313,7 @@ class TestDataChannels(unittest.TestCase):
             without_default = InputData(label="without_default", node=DummyNode())
             self.assertIs(
                 without_default.value,
-                NotData,
+                NOT_DATA,
                 msg=f"Without a default, spec is to have a NotData value but got "
                     f"{type(without_default.value)}"
             )

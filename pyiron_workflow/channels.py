@@ -15,6 +15,7 @@ from warnings import warn
 
 from pyiron_workflow.has_channel import HasChannel
 from pyiron_workflow.has_to_dict import HasToDict
+from pyiron_workflow.snippets.singleton import Singleton
 from pyiron_workflow.type_hinting import (
     valid_value,
     type_hint_is_as_or_more_specific_than,
@@ -232,7 +233,7 @@ class Channel(HasChannel, HasToDict, ABC):
         self.__dict__.update(**state)
 
 
-class NotData:
+class NotData(metaclass=Singleton):
     """
     This class exists purely to initialize data channel values where no default value
     is provided; it lets the channel know that it has _no data in it_ and thus should
@@ -243,7 +244,13 @@ class NotData:
     def __repr__(cls):
         # We use the class directly (not instances of it) where there is not yet data
         # So give it a decent repr, even as just a class
-        return cls.__name__
+        return "NOT_DATA"
+
+    def __reduce__(self):
+        return "NOT_DATA"
+
+
+NOT_DATA = NotData()
 
 
 class DataChannel(Channel, ABC):
@@ -338,13 +345,13 @@ class DataChannel(Channel, ABC):
         self,
         label: str,
         node: Node,
-        default: typing.Optional[typing.Any] = NotData,
+        default: typing.Optional[typing.Any] = NOT_DATA,
         type_hint: typing.Optional[typing.Any] = None,
         strict_hints: bool = True,
         value_receiver: typing.Optional[InputData] = None,
     ):
         super().__init__(label=label, node=node)
-        self._value = NotData
+        self._value = NOT_DATA
         self._value_receiver = None
         self.type_hint = type_hint
         self.strict_hints = strict_hints
@@ -366,7 +373,7 @@ class DataChannel(Channel, ABC):
     def _type_check_new_value(self, new_value):
         if (
             self.strict_hints
-            and new_value is not NotData
+            and new_value is not NOT_DATA
             and self._has_hint
             and not valid_value(new_value, self.type_hint)
         ):
@@ -430,7 +437,7 @@ class DataChannel(Channel, ABC):
 
     @property
     def _value_is_data(self) -> bool:
-        return self.value is not NotData
+        return self.value is not NOT_DATA
 
     @property
     def _has_hint(self) -> bool:
@@ -518,7 +525,7 @@ class InputData(DataChannel):
             RuntimeError: If the parent node is :attr:`running`.
         """
         for out in self.connections:
-            if out.value is not NotData:
+            if out.value is not NOT_DATA:
                 self.value = out.value
                 break
 

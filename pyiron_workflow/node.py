@@ -17,7 +17,7 @@ from pyiron_workflow.channels import (
     InputSignal,
     AccumulatingInputSignal,
     OutputSignal,
-    NotData,
+    NOT_DATA,
 )
 from pyiron_workflow.draw import Node as GraphvizNode
 from pyiron_workflow.snippets.files import FileObject, DirectoryObject
@@ -1006,7 +1006,7 @@ class Node(HasToDict, ABC, metaclass=AbstractHasPost):
             (self.outputs, other.outputs),
         ]:
             for key, to_copy in other_panel.items():
-                if to_copy.value is not NotData:
+                if to_copy.value is not NOT_DATA:
                     try:
                         old_value = my_panel[key].value
                         my_panel[key].value = to_copy.value  # Gets hint-checked

@@ -2,7 +2,7 @@ from time import perf_counter, sleep
 import unittest
 
 from pyiron_workflow import Workflow
-from pyiron_workflow.channels import NotData
+from pyiron_workflow.channels import NOT_DATA
 
 
 class TestParallelSpeedup(unittest.TestCase):
@@ -28,7 +28,7 @@ class TestParallelSpeedup(unittest.TestCase):
         wf.starting_nodes = [wf.a]
         t0 = perf_counter()
         wf()
-        while wf.outputs.d__user_input.value is NotData:
+        while wf.outputs.d__user_input.value is NOT_DATA:
             sleep(0.001)
         dt_serial = perf_counter() - t0
 
@@ -43,7 +43,7 @@ class TestParallelSpeedup(unittest.TestCase):
 
             t1 = perf_counter()
             wf()
-            while wf.outputs.d__user_input.value is NotData:
+            while wf.outputs.d__user_input.value is NOT_DATA:
                 sleep(0.001)
             dt_parallel = perf_counter() - t1
 

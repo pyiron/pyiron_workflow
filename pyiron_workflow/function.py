@@ -5,7 +5,7 @@ import warnings
 from functools import partialmethod
 from typing import Any, get_args, get_type_hints, Optional, TYPE_CHECKING
 
-from pyiron_workflow.channels import InputData, OutputData, NotData
+from pyiron_workflow.channels import InputData, OutputData, NOT_DATA
 from pyiron_workflow.has_channel import HasChannel
 from pyiron_workflow.io import Inputs, Outputs
 from pyiron_workflow.node import Node
@@ -78,7 +78,7 @@ class Function(Node):
         >>> plus_minus_1 = Function(mwe)
         >>>
         >>> print(plus_minus_1.outputs["x+1"])
-        <class 'pyiron_workflow.channels.NotData'>
+        NOT_DATA
 
         There is no output because we haven't given our function any input, it has
         no defaults, and we never ran it! So outputs have the channel default value of
@@ -445,7 +445,7 @@ class Function(Node):
             except KeyError:
                 type_hint = None
 
-            default = NotData  # The standard default in DataChannel
+            default = NOT_DATA  # The standard default in DataChannel
             if value.default is not inspect.Parameter.empty:
                 if is_self:
                     warnings.warn("default value for self ignored")

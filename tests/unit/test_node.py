@@ -3,7 +3,7 @@ import os
 
 import unittest
 
-from pyiron_workflow.channels import InputData, OutputData, NotData
+from pyiron_workflow.channels import InputData, OutputData, NOT_DATA
 from pyiron_workflow.snippets.files import DirectoryObject
 from pyiron_workflow.interfaces import Executor
 from pyiron_workflow.io import Inputs, Outputs
@@ -342,7 +342,7 @@ class TestNode(unittest.TestCase):
     def test_run_after_init(self):
         self.assertIs(
             self.n1.outputs.y.value,
-            NotData,
+            NOT_DATA,
             msg="By default, nodes should not be getting run until asked"
         )
         self.assertEqual(
@@ -371,7 +371,7 @@ class TestNode(unittest.TestCase):
     def test_storage(self):
         self.assertIs(
             self.n1.outputs.y.value,
-            NotData,
+            NOT_DATA,
             msg="Sanity check on initial state"
         )
         y = self.n1()
@@ -388,7 +388,7 @@ class TestNode(unittest.TestCase):
         clean_slate = ANode(self.n1.label, x=x, overwrite_save=True)
         self.assertIs(
             clean_slate.outputs.y.value,
-            NotData,
+            NOT_DATA,
             msg="Users should be able to ignore a save"
         )
 
@@ -420,7 +420,7 @@ class TestNode(unittest.TestCase):
 
         not_reloaded = ANode("just_run")
         self.assertIs(
-            NotData,
+            NOT_DATA,
             not_reloaded.outputs.y.value,
             msg="Should not have saved, therefore should have been nothing to load"
         )
