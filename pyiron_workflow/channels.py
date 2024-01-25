@@ -750,13 +750,6 @@ class OutputData(DataChannel):
 
         return self._node_injection(Round)
 
-    # Because we override __getattr__ we need to get and set state for serialization
-    def __getstate__(self):
-        return dict(self.__dict__)
-
-    def __setstate__(self, state):
-        self.__dict__.update(**state)
-
 
 class SignalChannel(Channel, ABC):
     """
