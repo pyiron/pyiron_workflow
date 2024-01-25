@@ -156,7 +156,7 @@ class TestDataChannels(unittest.TestCase):
         self.assertEqual(
             self.ni1.value,
             1,
-            msg="NotData values should not be getting pulled, so no update expected"
+            msg="NOT_DATA values should not be getting pulled, so no update expected"
         )
 
         self.no.value = 3
@@ -314,13 +314,13 @@ class TestDataChannels(unittest.TestCase):
             self.assertIs(
                 without_default.value,
                 NOT_DATA,
-                msg=f"Without a default, spec is to have a NotData value but got "
+                msg=f"Without a default, spec is to have a NOT_DATA value but got "
                     f"{type(without_default.value)}"
             )
             self.assertFalse(
                 without_default.ready,
-                msg="Even without type hints, readiness should be false when the value"
-                    "is NotData"
+                msg="Even without type hints, readiness should be false when the value "
+                    "is NOT_DATA"
             )
 
         self.ni1.value = 1

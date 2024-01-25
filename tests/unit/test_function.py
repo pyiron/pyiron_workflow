@@ -394,7 +394,7 @@ class TestFunction(unittest.TestCase):
         floats.run(
             check_readiness=False,
             # We force-skip the readiness check since we are explicitly _trying_ to
-            # have one of the inputs be `NotData` -- a value which triggers the channel
+            # have one of the inputs be `NOT_DATA` -- a value which triggers the channel
             # to be "not ready"
         )
 
@@ -417,7 +417,7 @@ class TestFunction(unittest.TestCase):
         self.assertEqual(
             ref.inputs.omega.value,
             None,
-            msg="NotData should be ignored when copying"
+            msg="NOT_DATA should be ignored when copying"
         )
         self.assertEqual(
             ref.outputs.out.value,

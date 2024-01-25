@@ -30,7 +30,7 @@ class If(SingleValue):
     def if_(condition):
         if condition is NOT_DATA:
             raise TypeError(
-                f"Logic 'If' node expected data other but got NotData as input."
+                f"Logic 'If' node expected data other but got NOT_DATA as input."
             )
         return bool(condition)
 

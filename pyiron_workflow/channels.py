@@ -260,7 +260,7 @@ class DataChannel(Channel, ABC):
     They store data persistently (:attr:`value`).
 
     This value may have a default (:attr:`default`) and the default-default is to be
-    `NotData`.
+    `NOT_DATA`.
 
     They may optionally have a type hint (:attr:`type_hint`).
 
@@ -284,8 +284,8 @@ class DataChannel(Channel, ABC):
     in production runs.
 
     Channels can indicate whether they hold data they are happy with
-    (:attr:`ready: bool`), which is to say it is data (not :class:`NotData`) and that
-    it conforms to the type hint (if one is provided and checking is active).
+    (:attr:`ready: bool`), which is to say it is data (not the singleton `NOT_DATA`)
+    and that it conforms to the type hint (if one is provided and checking is active).
 
     Output data facilitates many (but not all) python operators by injecting a new
     node to perform that operation. Where the operator is not supported, we try to
@@ -331,7 +331,7 @@ class DataChannel(Channel, ABC):
         label (str): The label for the channel.
         node (pyiron_workflow.node.Node): The node to which this channel belongs.
         default (typing.Any|None): The default value to initialize to.
-            (Default is the class `NotData`.)
+            (Default is the singleton `NOT_DATA`.)
         type_hint (typing.Any|None): A type hint for values. (Default is None.)
         strict_hints (bool): Whether to check new values, connections, and partners
             when this node is a value receiver. This can potentially be expensive, so
@@ -514,9 +514,9 @@ class InputData(DataChannel):
 
     def fetch(self) -> None:
         """
-        Sets :attr:`value` to the first value among connections that is something other than
-        :class:`NotData`; if no such value exists (e.g. because there are no connections or
-        because all the connected output channels have `NotData` as their value),
+        Sets :attr:`value` to the first value among connections that is something other
+        than `NOT_DATA`; if no such value exists (e.g. because there are no connections
+        or because all the connected output channels have `NOT_DATA` as their value),
         :attr:`value` remains unchanged.
         I.e., the connection with the highest priority for updating input data is the
         0th connection; build graphs accordingly.

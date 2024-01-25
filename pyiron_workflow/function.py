@@ -82,8 +82,8 @@ class Function(Node):
 
         There is no output because we haven't given our function any input, it has
         no defaults, and we never ran it! So outputs have the channel default value of
-        `NotData` -- a special non-data class (since `None` is sometimes a meaningful
-        value in python).
+        `NOT_DATA` -- a special non-data singleton (since `None` is sometimes a
+        meaningful value in python).
 
         We'll run into a hiccup if we try to set only one of the inputs and force the
         run:
@@ -115,7 +115,7 @@ class Function(Node):
         y ready: False
 
         This is because the second input (`y`) still has no input value -- indicated in
-        the error message -- so we can't do the sum between `NotData` and `2`.
+        the error message -- so we can't do the sum between `NOT_DATA` and `2`.
 
         Once we update `y`, all the input is ready we will be allowed to proceed to a
         `run()` call, which succeeds and updates the output.
