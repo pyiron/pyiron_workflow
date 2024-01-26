@@ -31,6 +31,7 @@ setup(
         'bidict==0.22.1',
         'cloudpickle==3.0.0',
         'graphviz==0.20.1',
+        'h5io==0.2.2',
         'matplotlib==3.8.2',
         'pympipool==0.7.9',
         'toposort==1.10',
