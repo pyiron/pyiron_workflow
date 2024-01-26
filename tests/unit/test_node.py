@@ -1,6 +1,6 @@
 from concurrent.futures import Future
 import os
-
+from typing import Literal
 import unittest
 
 from pyiron_workflow.channels import InputData, OutputData, NOT_DATA
@@ -22,6 +22,7 @@ class ANode(Node):
         label,
         overwrite_save=False,
         run_after_init=False,
+        storage_mode: Literal["h5io", "tinybase"] = "h5io",
         save_after_run=False,
         x=None,
     ):

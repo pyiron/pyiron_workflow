@@ -270,6 +270,7 @@ class Macro(Composite):
         parent: Optional[Composite] = None,
         overwrite_save: bool = False,
         run_after_init: bool = False,
+        storage_mode: Literal["h5io", "tinybase"] = "h5io",
         save_after_run: bool = False,
         strict_naming: bool = True,
         inputs_map: Optional[dict | bidict] = None,

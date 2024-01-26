@@ -332,13 +332,14 @@ class TestWorkflow(unittest.TestCase):
         wf.executor_shutdown()
 
     def test_storage(self):
-        with self.subTest("Fail when nodes have no package"):
-            wf = Workflow("wf")
-            wf.n1 = wf.create.Function(plus_one)
-            with self.assertRaises(
-                NotImplementedError, msg="We can't handle nodes without a package yet"
-            ):
-                wf.save()
+        # Only do the package check when using tinybase, which isn't available
+        # with self.subTest("Fail when nodes have no package"):
+        #     wf = Workflow("wf")
+        #     wf.n1 = wf.create.Function(plus_one)
+        #     with self.assertRaises(
+        #         NotImplementedError, msg="We can't handle nodes without a package yet"
+        #     ):
+        #         wf.save()
 
         wf = Workflow("wf")
         wf.register("static.demo_nodes", domain="demo")
