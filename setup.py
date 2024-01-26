@@ -29,12 +29,9 @@ setup(
     packages=find_packages(exclude=["*tests*", "*docs*", "*binder*", "*conda*", "*notebooks*", "*.ci_support*"]),
     install_requires=[
         'bidict==0.22.1',
-        'boto3',  # Just because pyiron_contrib is not making sure it's there
         'cloudpickle==3.0.0',
         'graphviz==0.20.1',
-        'h5io_browser==0.0.6',
         'matplotlib==3.8.2',
-        'pyiron_contrib==0.1.13',
         'pympipool==0.7.9',
         'toposort==1.10',
         'typeguard==4.1.5',
@@ -47,6 +44,11 @@ setup(
             'phonopy==2.21.0',
             'pyiron_atomistics==0.4.7',
         ],
+        "tinybase": [
+            'boto3',  # Just because pyiron_contrib is not making sure it's there
+            'h5io_browser==0.0.6',
+            'pyiron_contrib==0.1.13',
+        ]
     },
     cmdclass=versioneer.get_cmdclass(),
 
