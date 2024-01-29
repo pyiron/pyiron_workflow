@@ -333,7 +333,7 @@ class Function(Node):
         parent: Optional[Composite] = None,
         overwrite_save: bool = False,
         run_after_init: bool = False,
-        storage_mode: Literal["h5io", "tinybase"] = "h5io",
+        storage_backend: Literal["h5io", "tinybase"] = "h5io",
         save_after_run: bool = False,
         output_labels: Optional[str | list[str] | tuple[str]] = None,
         **kwargs,

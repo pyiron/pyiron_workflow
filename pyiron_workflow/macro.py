@@ -270,7 +270,7 @@ class Macro(Composite):
         parent: Optional[Composite] = None,
         overwrite_save: bool = False,
         run_after_init: bool = False,
-        storage_mode: Literal["h5io", "tinybase"] = "h5io",
+        storage_backend: Literal["h5io", "tinybase"] = "h5io",
         save_after_run: bool = False,
         strict_naming: bool = True,
         inputs_map: Optional[dict | bidict] = None,
@@ -307,7 +307,7 @@ class Macro(Composite):
         output_labels = self._validate_output_labels(output_labels)
 
         ui_nodes = self._prepopulate_ui_nodes_from_graph_creator_signature(
-            storage_mode=storage_mode
+            storage_backend=storage_backend
         )
         returned_has_channel_objects = self.graph_creator(self, *ui_nodes)
         self._configure_graph_execution()
@@ -358,7 +358,7 @@ class Macro(Composite):
         return () if output_labels is None else tuple(output_labels)
 
     def _prepopulate_ui_nodes_from_graph_creator_signature(
-        self, storage_mode: Literal["h5io", "tinybase"]
+        self, storage_backend: Literal["h5io", "tinybase"]
     ):
         hints_dict = get_type_hints(self.graph_creator)
         interface_nodes = ()
@@ -374,7 +374,7 @@ class Macro(Composite):
                 else inspected_value.default
             )
             node = self.create.standard.UserInput(
-                default, label=arg_name, parent=self, storage_mode=storage_mode
+                default, label=arg_name, parent=self, storage_backend=storage_backend
             )
             node.inputs.user_input.default = default
             try:

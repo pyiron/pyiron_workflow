@@ -277,7 +277,7 @@ class Node(HasToDict, ABC, metaclass=AbstractHasPost):
         parent: Optional[Composite] = None,
         overwrite_save: bool = False,
         run_after_init: bool = False,
-        storage_mode: Literal["h5io", "tinybase"] = "h5io",
+        storage_backend: Literal["h5io", "tinybase"] = "h5io",
         save_after_run: bool = False,
         **kwargs,
     ):
@@ -314,7 +314,7 @@ class Node(HasToDict, ABC, metaclass=AbstractHasPost):
         *args,
         overwrite_save: bool = False,
         run_after_init: bool = False,
-        storage_mode: Literal["h5io", "tinybase"] = "h5io",
+        storage_backend: Literal["h5io", "tinybase"] = "h5io",
         **kwargs,
     ):
         if overwrite_save:
@@ -335,7 +335,7 @@ class Node(HasToDict, ABC, metaclass=AbstractHasPost):
                 f"load it...(To delete the saved file instead, use "
                 f"`overwrite_save=True`)"
             )
-            self.load(mode=storage_mode)
+            self.load(mode=storage_backend)
         elif run_after_init:
             try:
                 self.run()
@@ -1166,13 +1166,13 @@ class Node(HasToDict, ABC, metaclass=AbstractHasPost):
             usual.
     """
 
-    def save(self, mode: Literal["h5io", "tinybase"] = "h5io"):
+    def save(self, backend: Literal["h5io", "tinybase"] = "h5io"):
         """
         Writes the node to file (using HDF5) such that a new node instance of the same
         type can :meth:`load()` the data to return to the same state as the save point,
         i.e. the same data IO channel values, the same flags, etc.
         """
-        self.storage.save(backend=mode)
+        self.storage.save(backend=backend)
 
     save.__doc__ += _save_load_warnings
 

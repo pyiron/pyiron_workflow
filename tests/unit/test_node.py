@@ -22,7 +22,7 @@ class ANode(Node):
         label,
         overwrite_save=False,
         run_after_init=False,
-        storage_mode: Literal["h5io", "tinybase"] = "h5io",
+        storage_backend: Literal["h5io", "tinybase"] = "h5io",
         save_after_run=False,
         x=None,
     ):

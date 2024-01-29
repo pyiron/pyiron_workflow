@@ -340,8 +340,8 @@ class TestWorkflow(unittest.TestCase):
         #         NotImplementedError, msg="We can't handle nodes without a package yet"
         #     ):
         #         wf.save()
-        for storage_mode in ["h5io", "tinybase"]:
-            with self.subTest(storage_mode):
+        for storage_backend in ["h5io", "tinybase"]:
+            with self.subTest(storage_backend):
                 wf = Workflow("wf")
                 wf.register("static.demo_nodes", domain="demo")
                 wf.inp = wf.create.demo.AddThree(x=0)
@@ -349,9 +349,9 @@ class TestWorkflow(unittest.TestCase):
                 wf_out = wf()
                 three_result = wf.inp.three.outputs.add.value
 
-                wf.save(mode=storage_mode)
+                wf.save(backend=storage_backend)
 
-                reloaded = Workflow("wf", storage_mode=storage_mode)
+                reloaded = Workflow("wf", storage_backend=storage_backend)
                 self.assertEqual(
                     wf_out.out__add,
                     reloaded.outputs.out__add.value,
