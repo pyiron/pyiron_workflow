@@ -175,11 +175,13 @@ class Node(HasToDict, ABC, metaclass=AbstractHasPost):
         - [ALPHA ISSUE] Restrictions on data:
             - For the `h5io` backend: Most data that can be pickled will be fine, but
                 some classes will hit an edge case and throw an exception from `h5io`
-                (e.g. the `Calculator` class and its children from `ase`).
+                (at a minimum, those classes which define a custom reconstructor hit,
+                this, but there also seems to be issues with dynamic methods, e.g. the
+                `Calculator` class and its children from `ase`).
             - For the `tinybase` backend: Any data that can be pickled will be fine,
                 although it might get stored in a pickled state, which is not ideal for
                 long-term storage or sharing.
-        - [ALPHA ISSUE] Restrictions on composites:
+        - [ALPHA ISSUE] Restrictions on workflows:
             - For the `h5io` backend: all child nodes must be defined in an importable
                 location. This includes `__main__` in a jupyter notebook (as long as
                 the same `__main__` cells get executed prior to trying to load!) but
