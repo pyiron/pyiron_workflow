@@ -15,6 +15,8 @@ from pyiron_workflow.snippets.files import FileObject
 if TYPE_CHECKING:
     from pyiron_workflow.node import Node
 
+ALLOWED_BACKENDS = ["h5io", "tinybase"]
+
 
 class StorageInterface:
 
@@ -25,6 +27,12 @@ class StorageInterface:
         self.node = node
 
     def save(self, backend: Literal["h5io", "tinybase"]):
+        if backend not in ALLOWED_BACKENDS:
+            raise ValueError(
+                f"Backend {backend} not recognized, please use one of "
+                f"{ALLOWED_BACKENDS}."
+            )
+
         if self.node.parent is None:
             self._save(backend=backend)
         else:
@@ -48,7 +56,12 @@ class StorageInterface:
             )
 
     def load(self, backend: Literal["h5io", "tinybase"]):
-        if backend == "h5io":
+        if backend not in ALLOWED_BACKENDS:
+            raise ValueError(
+                f"Backend {backend} not recognized, please use one of "
+                f"{ALLOWED_BACKENDS}."
+            )
+        elif backend == "h5io":
             inst = h5io.read_hdf5(
                 fname=self._h5io_storage_file_path,
                 title=self.node.label
@@ -63,10 +76,6 @@ class StorageInterface:
                     f"{tinybase_storage['class_name']}"
                 )
             self.node.from_storage(tinybase_storage)
-        else:
-            raise ValueError(
-                f"Backend {backend} not recognized, please use 'h5io' or 'tinybase'."
-            )
 
     @property
     def has_contents(self) -> bool:
