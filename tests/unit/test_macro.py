@@ -4,6 +4,8 @@ from functools import partialmethod
 from time import sleep
 import unittest
 
+
+from pyiron_workflow._tests import ensure_tests_in_python_path
 from pyiron_workflow.channels import NOT_DATA
 from pyiron_workflow.function import SingleValue
 from pyiron_workflow.macro import Macro, macro_node
@@ -21,24 +23,6 @@ def add_three_macro(macro):
     macro.add_node(SingleValue(add_one, macro.two, label="three"))
     # Cover a handful of addition methods,
     # although these are more thoroughly tested in Workflow tests
-
-
-@Macro.wrap_as.single_value_node("result")
-def AddOne(x):
-    return x + 1
-
-
-@Macro.wrap_as.macro_node("result")
-def AddThreeMacro(macro, x=0):
-    macro.one = AddOne(x)
-    macro.two = AddOne(macro.one)
-    macro.three = AddOne(macro.two)
-    return macro.three
-
-
-@Macro.wrap_as.single_value_node("result")
-def AddTwo(x):
-    return x + 2
 
 
 class TestMacro(unittest.TestCase):
@@ -536,40 +520,74 @@ class TestMacro(unittest.TestCase):
         self.assertDictEqual(override_io_maps(), {"the_input_list": [1, 2, 3, 4]})
 
     def test_storage_for_modified_macros(self):
+        ensure_tests_in_python_path()
+        Macro.register("static.demo_nodes", domain="demo")
 
-        macro = AddThreeMacro(label="m")
-        macro.replace_node(macro.two, AddTwo())
-        macro.remove_node(macro.three)
-        macro.five = AddOne(macro.two)
-        macro.two >> macro.five
-        macro._rebuild_data_io()  # Need this because of the explicitly created node
-        # Note that it destroys our output labeling, since the new output never existed
-        modified_result = macro(x=1)
+        for backend in ["h5io", "tinybase"]:
+            with self.subTest(backend):
+                try:
+                    macro = Macro.create.demo.AddThree(label="m", x=0)
+                    original_result = macro()
+                    macro.replace_node(macro.two, Macro.create.demo.AddPlusOne())
 
-        try:
-            macro.save()
-            reloaded = AddThreeMacro(label="m")
-            self.assertDictEqual(
-                macro.outputs.to_value_dict(),
-                reloaded.outputs.to_value_dict(),
-                msg="Updated IO should have been (de)serialized"
-            )
-            self.assertSetEqual(
-                set(macro.nodes.keys()),
-                set(reloaded.nodes.keys()),
-                msg="All nodes, including the new one, should have been (de)serialized."
-            )
-            self.assertEqual(
-                AddThreeMacro.__name__,
-                reloaded.class_name,
-                msg=f"LOOK OUT! This all (de)serialized nicely, but what we loaded is "
-                    f"_falsely_ claiming to be an {AddThreeMacro.__name__}. This is "
-                    f"not any sort of technical error -- what other class name would "
-                    f"we load? -- but is a deeper problem with saving modified objects "
-                    f"that we need ot figure out some better solution for later."
-            )
-        finally:
-            macro.storage.delete()
+                    if backend == "h5io":
+                        # Go really wild and actually change the interface to the node
+                        # By replacing one of the terminal nodes
+                        macro.remove_node(macro.three)
+                        macro.five = Macro.create.standard.Add(macro.two, 1)
+                        macro.two >> macro.five
+                        macro._rebuild_data_io()  # Need this because of the
+                        # explicitly created node!
+                        # Note that it destroys our output labeling, since the new
+                        # output never existed
+
+                    modified_result = macro()
+
+                    macro.save(backend=backend)
+                    reloaded = Macro.create.demo.AddThree(
+                        label="m", storage_backend=backend
+                    )
+                    self.assertDictEqual(
+                        modified_result,
+                        reloaded.outputs.to_value_dict(),
+                        msg="Updated IO should have been (de)serialized"
+                    )
+                    self.assertSetEqual(
+                        set(macro.nodes.keys()),
+                        set(reloaded.nodes.keys()),
+                        msg="All nodes should have been (de)serialized."
+                    )  # Note that this snags the _new_ one in the case of h5io!
+                    self.assertEqual(
+                        Macro.create.demo.AddThree.__name__,
+                        reloaded.class_name,
+                        msg=f"LOOK OUT! This all (de)serialized nicely, but what we "
+                            f"loaded is _falsely_ claiming to be an "
+                            f"{Macro.create.demo.AddThree.__name__}. This is "
+                            f"not any sort of technical error -- what other class name "
+                            f"would we load? -- but is a deeper problem with saving "
+                            f"modified objects that we need ot figure out some better "
+                            f"solution for later."
+                    )
+                    rerun = reloaded()
+
+                    if backend == "h5io":
+                        self.assertDictEqual(
+                            modified_result,
+                            rerun,
+                            msg="Rerunning should re-execute the _modified_ "
+                                "functionality"
+                        )
+                    elif backend == "tinybase":
+                        self.assertDictEqual(
+                            original_result,
+                            rerun,
+                            msg="Rerunning should re-execute the _original_ "
+                                "functionality"
+                        )
+                    else:
+                        raise ValueError(f"Unexpected backend {backend}?")
+                finally:
+                    macro.storage.delete()
 
 
 if __name__ == '__main__':

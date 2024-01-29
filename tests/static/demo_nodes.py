@@ -21,4 +21,10 @@ def AddThree(macro, x: int) -> int:
     return macro.three
 
 
-nodes = [OptionallyAdd, AddThree]
+@Workflow.wrap_as.single_value_node("add")
+def AddPlusOne(obj, other):
+    """The same IO labels as `standard.Add`, but with type hints and a boost."""
+    return obj + other + 1
+
+
+nodes = [OptionallyAdd, AddThree, AddPlusOne]
