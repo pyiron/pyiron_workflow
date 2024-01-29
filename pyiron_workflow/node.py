@@ -508,9 +508,9 @@ class Node(HasToDict, ABC, metaclass=AbstractHasPost):
             )
 
         return self._run(
-            finished_callback=self._finish_run_and_emit_ran
-            if emit_ran_signal
-            else self._finish_run,
+            finished_callback=(
+                self._finish_run_and_emit_ran if emit_ran_signal else self._finish_run
+            ),
             force_local_execution=force_local_execution,
         )
 
@@ -1230,8 +1230,8 @@ class Node(HasToDict, ABC, metaclass=AbstractHasPost):
     def _tinybase_storage_file_path(self) -> str:
         return str(
             (
-                self.graph_root.working_directory.path /
-                self._TINYBASE_STORAGE_FILE_NAME
+                self.graph_root.working_directory.path
+                / self._TINYBASE_STORAGE_FILE_NAME
             ).resolve()
         )
 
@@ -1239,8 +1239,7 @@ class Node(HasToDict, ABC, metaclass=AbstractHasPost):
     def _h5io_storage_file_path(self) -> str:
         return str(
             (
-                self.graph_root.working_directory.path /
-                self._H5IO_STORAGE_FILE_NAME
+                self.graph_root.working_directory.path / self._H5IO_STORAGE_FILE_NAME
             ).resolve()
         )
 
@@ -1255,10 +1254,7 @@ class Node(HasToDict, ABC, metaclass=AbstractHasPost):
 
     @property
     def storage_has_contents(self) -> bool:
-        has_contents = (
-            self._tinybase_storage_is_there
-            or self._h5io_storage_is_there
-        )
+        has_contents = self._tinybase_storage_is_there or self._h5io_storage_is_there
         self.tidy_working_directory()
         return has_contents
 
@@ -1292,7 +1288,5 @@ class Node(HasToDict, ABC, metaclass=AbstractHasPost):
                     self._TINYBASE_STORAGE_FILE_NAME, self.working_directory
                 ).delete()
         if self._h5io_storage_is_there:
-            FileObject(
-                self._H5IO_STORAGE_FILE_NAME, self.working_directory
-            ).delete()
+            FileObject(self._H5IO_STORAGE_FILE_NAME, self.working_directory).delete()
         self.tidy_working_directory()

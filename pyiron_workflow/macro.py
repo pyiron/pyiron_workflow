@@ -495,7 +495,7 @@ class Macro(Composite):
 
         for old_data, io_panel in zip(
             local_connection_data,
-            [self.inputs, self.outputs, self.signals.input, self.signals.output]
+            [self.inputs, self.outputs, self.signals.input, self.signals.output],
             # Get fresh copies of the IO panels post-update
         ):
             for original_channel, label, connections in old_data:
