@@ -340,30 +340,31 @@ class TestWorkflow(unittest.TestCase):
         #         NotImplementedError, msg="We can't handle nodes without a package yet"
         #     ):
         #         wf.save()
+        for storage_mode in ["h5io", "tinybase"]:
+            with self.subTest(storage_mode):
+                wf = Workflow("wf")
+                wf.register("static.demo_nodes", domain="demo")
+                wf.inp = wf.create.demo.AddThree(x=0)
+                wf.out = wf.inp.outputs.add_three + 1
+                wf_out = wf()
+                three_result = wf.inp.three.outputs.add.value
 
-        wf = Workflow("wf")
-        wf.register("static.demo_nodes", domain="demo")
-        wf.inp = wf.create.demo.AddThree(x=0)
-        wf.out = wf.inp.outputs.add_three + 1
-        wf_out = wf()
-        three_result = wf.inp.three.outputs.add.value
+                wf.save(mode=storage_mode)
 
-        wf.save()
+                reloaded = Workflow("wf", storage_mode=storage_mode)
+                self.assertEqual(
+                    wf_out.out__add,
+                    reloaded.outputs.out__add.value,
+                    msg="Workflow-level data should get reloaded"
+                )
+                self.assertEqual(
+                    three_result,
+                    reloaded.inp.three.value,
+                    msg="Child data arbitrarily deep should get reloaded"
+                )
 
-        reloaded = Workflow("wf")
-        self.assertEqual(
-            wf_out.out__add,
-            reloaded.outputs.out__add.value,
-            msg="Workflow-level data should get reloaded"
-        )
-        self.assertEqual(
-            three_result,
-            reloaded.inp.three.value,
-            msg="Child data arbitrarily deep should get reloaded"
-        )
-
-        # Clean up after ourselves
-        reloaded.delete_storage()
+                # Clean up after ourselves
+                reloaded.delete_storage()
 
 
 if __name__ == '__main__':
