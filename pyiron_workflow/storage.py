@@ -131,8 +131,8 @@ class StorageInterface:
 
     @property
     def _tinybase_storage_is_there(self) -> bool:
-        storage = self._tinybase_storage
-        return (
-            os.path.isfile(self._tinybase_storage_file_path)
-            and (len(storage.list_groups()) + len(storage.list_nodes())) > 0
-        )
+        if os.path.isfile(self._tinybase_storage_file_path):
+            storage = self._tinybase_storage
+            return (len(storage.list_groups()) + len(storage.list_nodes())) > 0
+        else:
+            return False
