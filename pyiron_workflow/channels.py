@@ -249,6 +249,9 @@ class NotData(metaclass=Singleton):
     def __reduce__(self):
         return "NOT_DATA"
 
+    def __bool__(self):
+        return False
+
 
 NOT_DATA = NotData()
 

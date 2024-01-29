@@ -3,7 +3,6 @@ A test case that encourages you to test your docstrings and makes it easier to t
 numpy arrays (if numpy is available).
 """
 
-
 from abc import ABC
 from contextlib import redirect_stdout
 import doctest
@@ -30,7 +29,6 @@ __date__ = "Dec 5, 2023"
 
 
 class PyironTestCase(unittest.TestCase, ABC):
-
     """
     Base class for all pyiron unit tets.
 
