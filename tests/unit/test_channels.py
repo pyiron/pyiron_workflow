@@ -329,6 +329,13 @@ class TestDataChannels(unittest.TestCase):
         self.ni1._value = "Not numeric at all"  # Bypass type checking
         self.assertFalse(self.ni1.ready)
 
+    def test_if_not_data(self):
+        if NOT_DATA:
+            a = 0
+        else:
+            a = 1
+        self.assertEqual(a, 1)
+
 
 class TestSignalChannels(unittest.TestCase):
     def setUp(self) -> None:
