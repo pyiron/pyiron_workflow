@@ -23,6 +23,24 @@ def add_three_macro(macro):
     # although these are more thoroughly tested in Workflow tests
 
 
+@Macro.wrap_as.single_value_node("result")
+def AddOne(x):
+    return x + 1
+
+
+@Macro.wrap_as.macro_node("result")
+def AddThreeMacro(macro, x=0):
+    macro.one = AddOne(x)
+    macro.two = AddOne(macro.one)
+    macro.three = AddOne(macro.two)
+    return macro.three
+
+
+@Macro.wrap_as.single_value_node("result")
+def AddTwo(x):
+    return x + 2
+
+
 class TestMacro(unittest.TestCase):
 
     def test_static_input(self):
@@ -516,6 +534,42 @@ class TestMacro(unittest.TestCase):
         # ^ If default is not working you'd need this
         self.assertListEqual(override_io_maps.inputs.labels, ["my_lin"])
         self.assertDictEqual(override_io_maps(), {"the_input_list": [1, 2, 3, 4]})
+
+    def test_storage_for_modified_macros(self):
+
+        macro = AddThreeMacro(label="m")
+        macro.replace_node(macro.two, AddTwo())
+        macro.remove_node(macro.three)
+        macro.five = AddOne(macro.two)
+        macro.two >> macro.five
+        macro._rebuild_data_io()  # Need this because of the explicitly created node
+        # Note that it destroys our output labeling, since the new output never existed
+        modified_result = macro(x=1)
+
+        try:
+            macro.save()
+            reloaded = AddThreeMacro(label="m")
+            self.assertDictEqual(
+                macro.outputs.to_value_dict(),
+                reloaded.outputs.to_value_dict(),
+                msg="Updated IO should have been (de)serialized"
+            )
+            self.assertSetEqual(
+                set(macro.nodes.keys()),
+                set(reloaded.nodes.keys()),
+                msg="All nodes, including the new one, should have been (de)serialized."
+            )
+            self.assertEqual(
+                AddThreeMacro.__name__,
+                reloaded.class_name,
+                msg=f"LOOK OUT! This all (de)serialized nicely, but what we loaded is "
+                    f"_falsely_ claiming to be an {AddThreeMacro.__name__}. This is "
+                    f"not any sort of technical error -- what other class name would "
+                    f"we load? -- but is a deeper problem with saving modified objects "
+                    f"that we need ot figure out some better solution for later."
+            )
+        finally:
+            macro.storage.delete()
 
 
 if __name__ == '__main__':
