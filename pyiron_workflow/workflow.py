@@ -376,7 +376,9 @@ class Workflow(Composite):
         self.starting_nodes = [self.nodes[label] for label in storage["starting_nodes"]]
 
     def save(self, backend: Literal["h5io", "tinybase"] = "h5io"):
-        if backend == "tinybase" and any(node.package_identifier is None for node in self):
+        if backend == "tinybase" and any(
+            node.package_identifier is None for node in self
+        ):
             raise NotImplementedError(
                 f"{self.__class__.__name__} can currently only save itself to file if "
                 f"_all_ of its child nodes were created via the creator and have an "

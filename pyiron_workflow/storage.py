@@ -63,8 +63,7 @@ class StorageInterface:
             )
         elif backend == "h5io":
             inst = h5io.read_hdf5(
-                fname=self._h5io_storage_file_path,
-                title=self.node.label
+                fname=self._h5io_storage_file_path, title=self.node.label
             )
             self.node.__setstate__(inst.__getstate__())
         elif backend == "tinybase":
@@ -100,10 +99,7 @@ class StorageInterface:
     @property
     def _h5io_storage_file_path(self) -> str:
         return str(
-            (
-                self.node.working_directory.path
-                / self._H5IO_STORAGE_FILE_NAME
-            ).resolve()
+            (self.node.working_directory.path / self._H5IO_STORAGE_FILE_NAME).resolve()
         )
 
     @property
@@ -126,7 +122,7 @@ class StorageInterface:
 
         return H5ioStorage(
             Pointer(self._tinybase_storage_file_path, h5_path=self.node.graph_path),
-            None
+            None,
         )
 
     @property
