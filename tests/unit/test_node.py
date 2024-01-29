@@ -433,7 +433,7 @@ class TestNode(unittest.TestCase):
             msg="Should have saved automatically after run, and reloaded on "
                 "instantiation"
         )
-        find_saved.delete_storage()  # Clean up
+        find_saved.storage.delete()  # Clean up
 
 
 if __name__ == '__main__':

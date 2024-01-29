@@ -10,10 +10,7 @@ from __future__ import annotations
 import warnings
 from abc import ABC, abstractmethod
 from concurrent.futures import Executor as StdLibExecutor, Future
-import os
 from typing import Any, Literal, Optional, TYPE_CHECKING
-
-import h5io
 
 from pyiron_workflow.channels import (
     InputSignal,
@@ -22,9 +19,10 @@ from pyiron_workflow.channels import (
     NOT_DATA,
 )
 from pyiron_workflow.draw import Node as GraphvizNode
-from pyiron_workflow.snippets.files import FileObject, DirectoryObject
+from pyiron_workflow.snippets.files import DirectoryObject
 from pyiron_workflow.has_to_dict import HasToDict
 from pyiron_workflow.io import Signals, IO
+from pyiron_workflow.storage import StorageInterface
 from pyiron_workflow.topology import (
     get_nodes_in_data_tree,
     set_run_connections_according_to_linear_dag,
@@ -269,8 +267,6 @@ class Node(HasToDict, ABC, metaclass=AbstractHasPost):
     package_identifier = None
     _semantic_delimiter = "/"
 
-    _TINYBASE_STORAGE_FILE_NAME = "project.h5"
-    _H5IO_STORAGE_FILE_NAME = "h5io.h5"
     # This isn't nice, just a technical necessity in the current implementation
     # Eventually, of course, this needs to be _at least_ file-format independent
 
@@ -322,10 +318,10 @@ class Node(HasToDict, ABC, metaclass=AbstractHasPost):
         **kwargs,
     ):
         if overwrite_save:
-            self.delete_storage()
+            self.storage.delete()
             do_load = False
         else:
-            do_load = self.storage_has_contents
+            do_load = self.storage.has_contents
 
         if do_load and run_after_init:
             raise ValueError(
@@ -1176,29 +1172,9 @@ class Node(HasToDict, ABC, metaclass=AbstractHasPost):
         type can :meth:`load()` the data to return to the same state as the save point,
         i.e. the same data IO channel values, the same flags, etc.
         """
-        if self.parent is None:
-            self._save(mode=mode)
-        else:
-            root = self.graph_root
-            root._save(mode=mode)
+        self.storage.save(backend=mode)
 
     save.__doc__ += _save_load_warnings
-
-    def _save(self, mode: Literal["h5io", "tinybase"] = "h5io"):
-        if mode == "h5io":
-            h5io.write_hdf5(
-                fname=self._h5io_storage_file_path,
-                data=self,
-                title=self.label,
-                use_state=True,
-                overwrite=True,  # Don't worry about efficiency or updating yet
-            )
-        elif mode == "tinybase":
-            self.to_storage(self.storage)
-        else:
-            raise ValueError(
-                f"Mode {mode} not recognized, please use 'h5io' or 'tinybase'."
-            )
 
     def load(self, mode: Literal["h5io", "tinybase"] = "h5io"):
         """
@@ -1208,55 +1184,13 @@ class Node(HasToDict, ABC, metaclass=AbstractHasPost):
         Raises:
             TypeError) when the saved node has a different class name.
         """
-        if mode == "h5io":
-            inst = h5io.read_hdf5(fname=self._h5io_storage_file_path, title=self.label)
-            self.__setstate__(inst.__getstate__())
-        elif mode == "tinybase":
-            if self.storage["class_name"] != self.__class__.__name__:
-                raise TypeError(
-                    f"{self.label} cannot load, as it has type "
-                    f"{self.__class__.__name__},  but the saved node has type "
-                    f"{self.storage['class_name']}"
-                )
-            self.from_storage(self.storage)
-        else:
-            raise ValueError(
-                f"Mode {mode} not recognized, please use 'h5io' or 'tinybase'."
-            )
+        self.storage.load(backend=mode)
 
     save.__doc__ += _save_load_warnings
 
     @property
-    def _tinybase_storage_file_path(self) -> str:
-        return str(
-            (
-                self.graph_root.working_directory.path
-                / self._TINYBASE_STORAGE_FILE_NAME
-            ).resolve()
-        )
-
-    @property
-    def _h5io_storage_file_path(self) -> str:
-        return str(
-            (
-                self.graph_root.working_directory.path / self._H5IO_STORAGE_FILE_NAME
-            ).resolve()
-        )
-
-    @property
     def storage(self):
-        from pyiron_contrib.tinybase.storage import H5ioStorage
-        from h5io_browser import Pointer
-
-        return H5ioStorage(
-            Pointer(self._tinybase_storage_file_path, h5_path=self.graph_path), None
-        )
-
-    @property
-    def storage_has_contents(self) -> bool:
-        has_contents = self._tinybase_storage_is_there or self._h5io_storage_is_there
-        self.tidy_working_directory()
-        return has_contents
+        return StorageInterface(self)
 
     def tidy_working_directory(self):
         """
@@ -1267,26 +1201,3 @@ class Node(HasToDict, ABC, metaclass=AbstractHasPost):
             self._working_directory = None
             # Touching the working directory may have created it -- if it's there and
             # empty just clean it up
-
-    @property
-    def _tinybase_storage_is_there(self) -> bool:
-        return (
-            os.path.isfile(self._tinybase_storage_file_path)
-            and (len(self.storage.list_groups()) + len(self.storage.list_nodes())) > 0
-        )
-
-    @property
-    def _h5io_storage_is_there(self) -> bool:
-        return os.path.isfile(self._h5io_storage_file_path)
-
-    def delete_storage(self):
-        if self._tinybase_storage_is_there:
-            up = self.storage.close()
-            del up[self.label]
-            if self.parent is None:
-                FileObject(
-                    self._TINYBASE_STORAGE_FILE_NAME, self.working_directory
-                ).delete()
-        if self._h5io_storage_is_there:
-            FileObject(self._H5IO_STORAGE_FILE_NAME, self.working_directory).delete()
-        self.tidy_working_directory()

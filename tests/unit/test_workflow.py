@@ -364,7 +364,7 @@ class TestWorkflow(unittest.TestCase):
                 )
 
                 # Clean up after ourselves
-                reloaded.delete_storage()
+                reloaded.storage.delete()
 
 
 if __name__ == '__main__':
