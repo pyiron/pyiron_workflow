@@ -28,4 +28,5 @@ Planned:
 - Ontological hinting for data channels in order to provide guided workflow design
 - GUI on top for code-lite/code-free visual scripting
 """
+
 from pyiron_workflow.workflow import Workflow
