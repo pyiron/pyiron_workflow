@@ -351,7 +351,9 @@ class Workflow(Composite):
             child_data = storage[child_label]
             pid = child_data["package_identifier"]
             cls = child_data["class_name"]
-            self.create[pid][cls](label=child_label, parent=self)
+            self.create[pid][cls](
+                label=child_label, parent=self, storage_mode="tinybase"
+            )
 
     def _rebuild_connections(self, storage):
         self._rebuild_data_connections(storage)
