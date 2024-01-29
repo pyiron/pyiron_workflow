@@ -101,7 +101,7 @@ class StorageInterface:
     def _h5io_storage_file_path(self) -> str:
         return str(
             (
-                self.node.graph_root.working_directory.path
+                self.node.working_directory.path
                 / self._H5IO_STORAGE_FILE_NAME
             ).resolve()
         )
