@@ -153,23 +153,11 @@ class Node(HasToDict, ABC, metaclass=AbstractHasPost):
     - [ALPHA FEATURE] Nodes can be saved to and loaded from file.
         - Saving is triggered manually, or by setting a flag to save after the nodes
             runs.
-        - On instantiation, nodes will look in the working directory of their
-            parent-most node for a save file; they will search within this along their
-            relative semantic path (i.e. the path of node labels) for stored data; if
-            found, they will use it to load their state.
-            - Found save files can be deleted and ignored with an initialization kwarg
-        - You can't load a saved node _and_ run that node after instantiation during
-            the same instantiation.
-        - To save a composite graph, _all_ children need to be created from a
-            registered module or saving will raise an error;
-            - [ALPHA ISSUE?] Right now that means moving any nodes defined in-notebook
-                off to a `.py` file.
-        - [ALPHA ISSUE] Modifications to macros (e.g. replacing a child node) are not
-            reflected in the saved data -- saving and loading such a graph is likely to
-            _silently_ misbehave, as the loaded macro will just reinstantiate its
-            original nodes and connections.
-        - [ALPHA ISSUE] If the source code (i.e. `.py` files) for a saved graph is
-            altered between saving and loading the graph, there are no guarnatees about
+        - On instantiation, nodes will load automatically if they find saved content.
+          - Discovered content can instead be deleted with a kwarg.
+          - You can't load saved content _and_ run after instantiation at once.
+        - [ALPHA ISSUE] If the source code (cells, `.py` files...) for a saved graph is
+            altered between saving and loading the graph, there are no guarantees about
             the loaded state; depending on the nature of the changes everything may
             work fine with the new node definition, the graph may load but silently
             behave unexpectedly (e.g. if node functionality has changed but the
@@ -180,9 +168,42 @@ class Node(HasToDict, ABC, metaclass=AbstractHasPost):
             your graph this could be expensive in terms of storage space and/or time.
         - [ALPHA ISSUE] Similarly, there is no way to save only part of a graph; only
             the entire graph may be saved at once.
-        - Since nodes store their IO data, all data is expected to be serializable; as
-            a fallback, the save process will attempt to `pickle` the data.
-        - While loading is attempted at instantiation, saving only happens on request.
+        - There are two possible back-ends for saving: one leaning on
+            `tinybase.storage.GenericStorage` (in practice,
+            `H5ioStorage(GenericStorage)`), and the other, default back-end that uses
+            the `h5io` module directly.
+        - [ALPHA ISSUE] Restrictions on data:
+            - For the `h5io` backend: Most data that can be pickled will be fine, but
+                some classes will hit an edge case and throw an exception from `h5io`
+                (e.g. the `Calculator` class and its children from `ase`).
+            - For the `tinybase` backend: Any data that can be pickled will be fine,
+                although it might get stored in a pickled state, which is not ideal for
+                long-term storage or sharing.
+        - [ALPHA ISSUE] Restrictions on composites:
+            - For the `h5io` backend: all child nodes must be defined in an importable
+                location. This includes `__main__` in a jupyter notebook (as long as
+                the same `__main__` cells get executed prior to trying to load!) but
+                not, e.g., inside functions in `__main__`.
+            - For the `tinybase` backend: all child nodes must have been created via
+                the creator (i.e. `wf.create...`), which is to say they come from a
+                registered node package. The composite will run a check and fail early
+                in the save process if this is not the case. Fulfilling this
+                requirement is as simple as moving all the desired nodes off to a `.py`
+                file, registering it, and building the composite from  there.
+        - [ALPHA ISSUE] Restrictions to macros:
+            - For the `h5io` backend: there are none; if a macro is modified, saved,
+                and reloaded, the modifications will be reflected in the loaded state.
+                Note there is a little bit of danger here, as the macro class still
+                corresponds to the un-modified macro class.
+            - For the `tinybase` backend: the macro will re-instantiate its original
+                nodes and try to update their data. Any modifications to the macro
+                prior to saving are completely disregarded; if the interface to the
+                macro was modified (e.g. different channel names in the IO), then this
+                will save fine but throw an exception on load; if the interface was
+                unchanged but the functionality changed (e.g. replacing a child node),
+                the original, unmodified macro will cleanly load and the loaded data
+                will _silently_ mis-represent the macro functionality (insofaras the
+                internal changes would cause a difference in the output data).
 
     This is an abstract class.
     Children *must* define how :attr:`inputs` and :attr:`outputs` are constructed, what will
