@@ -1040,7 +1040,7 @@ class Node(HasToDict, ABC, metaclass=AbstractHasPost):
             warnings.warn(f"Could not replace_node {self.label}, as it has no parent.")
 
     def __getstate__(self):
-        state = self.__dict__
+        state = dict(self.__dict__)
         state["_parent"] = None
         # I am not at all confident that removing the parent here is the _right_
         # solution.

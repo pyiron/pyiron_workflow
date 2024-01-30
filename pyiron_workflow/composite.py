@@ -192,6 +192,10 @@ class Composite(Node, ABC):
         return DotDict(self.outputs.to_value_dict())
 
     def _parse_remotely_executed_self(self, other_self):
+        # Un-parent existing nodes before ditching them
+        for node in self:
+            node._parent = None
+        other_self.running = False  # It's done now
         self.__setstate__(other_self.__getstate__())
 
     def disconnect_run(self) -> list[tuple[Channel, Channel]]:
