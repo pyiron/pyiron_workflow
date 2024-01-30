@@ -657,6 +657,11 @@ class Composite(Node, ABC):
         state["node_labels"] = list(self.nodes.keys())
         for node in self:
             state[node.label] = node
+
+        # Also remove the starting node instances
+        del state["starting_nodes"]
+        state["starting_node_labels"] = [n.label for n in self.starting_nodes]
+
         return state
 
     def __setstate__(self, state):
@@ -676,6 +681,11 @@ class Composite(Node, ABC):
         state["nodes"] = DotDict(
             {label: state[label] for label in state.pop("node_labels")}
         )
+
+        # Restore starting nodes
+        state["starting_nodes"] = [
+            state[label] for label in state.pop("starting_node_labels")
+        ]
 
         super().__setstate__(state)
 
