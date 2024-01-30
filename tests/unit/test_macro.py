@@ -238,6 +238,10 @@ class TestMacro(unittest.TestCase):
 
         returned_nodes = result.result(timeout=120)  # Wait for the process to finish
         sleep(1)
+        self.assertFalse(
+            macro.running,
+            msg="Macro should be done running"
+        )
         self.assertIsNot(
             original_one,
             returned_nodes.one,
@@ -270,7 +274,7 @@ class TestMacro(unittest.TestCase):
         self.assertIs(
             downstream.inputs.x.connections[0],
             macro.outputs.three__result,
-            msg="The macro should still be connected to "
+            msg=f"The macro output should still be connected to downstream"
         )
         sleep(0.2)  # Give a moment for the ran signal to emit and downstream to run
         # I'm a bit surprised this sleep is necessary

@@ -7,7 +7,7 @@ from __future__ import annotations
 
 from functools import partialmethod
 import inspect
-from typing import get_type_hints, Literal, Optional
+from typing import get_type_hints, Literal, Optional, TYPE_CHECKING
 
 from bidict import bidict
 
@@ -16,6 +16,9 @@ from pyiron_workflow.composite import Composite
 from pyiron_workflow.has_channel import HasChannel
 from pyiron_workflow.io import Outputs, Inputs
 from pyiron_workflow.output_parser import ParseOutput
+
+if TYPE_CHECKING:
+    from pyiron_workflow.channels import Channel
 
 
 class Macro(Composite):
@@ -471,9 +474,40 @@ class Macro(Composite):
     def outputs(self) -> Outputs:
         return self._outputs
 
-    def _update_children(self, children_from_another_process):
-        super()._update_children(children_from_another_process)
-        self._rebuild_data_io()
+    def _parse_remotely_executed_self(self, other_self):
+        local_connection_data = [
+            [(c, c.label, c.connections) for c in io_panel]
+            for io_panel in [
+                self.inputs,
+                self.outputs,
+                self.signals.input,
+                self.signals.output,
+            ]
+        ]
+
+        super()._parse_remotely_executed_self(other_self)
+
+        for old_data, io_panel in zip(
+            local_connection_data,
+            [self.inputs, self.outputs, self.signals.input, self.signals.output]
+            # Get fresh copies of the IO panels post-update
+        ):
+            for original_channel, label, connections in old_data:
+                new_channel = io_panel[label]  # Fetch it from the fresh IO panel
+                new_channel.connections = connections
+                for other_channel in connections:
+                    self._replace_connection(
+                        other_channel, original_channel, new_channel
+                    )
+
+    @staticmethod
+    def _replace_connection(
+        channel: Channel, old_connection: Channel, new_connection: Channel
+    ):
+        """Brute-force replace an old connection in a channel with a new one"""
+        channel.connections = [
+            c if c is not old_connection else new_connection for c in channel
+        ]
 
     def _configure_graph_execution(self):
         run_signals = self.disconnect_run()

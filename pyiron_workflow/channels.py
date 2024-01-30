@@ -729,11 +729,9 @@ class OutputData(DataChannel):
 
     # Because we override __getattr__ we need to get and set state for serialization
     def __getstate__(self):
-        return self.__dict__
+        return dict(self.__dict__)
 
     def __setstate__(self, state):
-        # Update instead of overriding in case some other attributes were added on the
-        # main process while a remote process was working away
         self.__dict__.update(**state)
 
 

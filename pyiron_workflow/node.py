@@ -1040,7 +1040,7 @@ class Node(HasToDict, ABC, metaclass=AbstractHasPost):
             warnings.warn(f"Could not replace_node {self.label}, as it has no parent.")
 
     def __getstate__(self):
-        state = self.__dict__
+        state = dict(self.__dict__)
         state["_parent"] = None
         # I am not at all confident that removing the parent here is the _right_
         # solution.
@@ -1073,7 +1073,7 @@ class Node(HasToDict, ABC, metaclass=AbstractHasPost):
         # _but_ if the user is just passing instructions on how to _build_ an executor,
         # we'll trust that those serialize OK (this way we can, hopefully, eventually
         # support nesting executors!)
-        return self.__dict__
+        return state
 
     def __setstate__(self, state):
         # Update instead of overriding in case some other attributes were added on the
