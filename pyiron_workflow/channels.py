@@ -215,6 +215,22 @@ class Channel(HasChannel, HasToDict, ABC):
             "connections": [f"{c.node.label}.{c.label}" for c in self.connections],
         }
 
+    def __getstate__(self):
+        state = dict(self.__dict__)
+        # To avoid cyclic storage and avoid storing complex objects, purge some
+        # properties from the state
+        state["node"] = None
+        # It is the responsibility of the owning node to restore the node property
+        state["connections"] = []
+        # It is the responsibility of the owning node's parent to store and restore
+        # connections (if any)
+        return state
+
+    def __setstate__(self, state):
+        # Update instead of overriding in case some other attributes were added on the
+        # main process while a remote process was working away
+        self.__dict__.update(**state)
+
 
 class NotData:
     """
@@ -476,6 +492,13 @@ class DataChannel(Channel, ABC):
             else storage["value"]
         )
 
+    def __getstate__(self):
+        state = super().__getstate__()
+        state["_value_receiver"] = None
+        # Value receivers live in the scope of Macros, so (re)storing them is the
+        # owning macro's responsibility
+        return state
+
 
 class InputData(DataChannel):
     @property
@@ -726,13 +749,6 @@ class OutputData(DataChannel):
         from pyiron_workflow.node_library.standard import Round
 
         return self._node_injection(Round)
-
-    # Because we override __getattr__ we need to get and set state for serialization
-    def __getstate__(self):
-        return dict(self.__dict__)
-
-    def __setstate__(self, state):
-        self.__dict__.update(**state)
 
 
 class SignalChannel(Channel, ABC):

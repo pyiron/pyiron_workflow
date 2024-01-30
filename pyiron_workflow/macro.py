@@ -484,7 +484,6 @@ class Macro(Composite):
                 self.signals.output,
             ]
         ]
-
         super()._parse_remotely_executed_self(other_self)
 
         for old_data, io_panel in zip(
@@ -545,6 +544,56 @@ class Macro(Composite):
         # reload their data
         for label, node in self.nodes.items():
             node.from_storage(storage[label])
+
+    @property
+    def _input_value_links(self):
+        """
+        Value connections between child output and macro in string representation based
+        on labels.
+
+        The string representation helps storage, and having it as a property ensures
+        the name is protected.
+        """
+        return [
+            (c.label, (c.value_receiver.node.label, c.value_receiver.label))
+            for c in self.inputs
+        ]
+
+    @property
+    def _output_value_links(self):
+        """
+        Value connections between macro and child input in string representation based
+        on labels.
+
+        The string representation helps storage, and having it as a property ensures
+        the name is protected.
+        """
+        return [
+            ((c.node.label, c.label), c.value_receiver.label)
+            for child in self
+            for c in child.outputs
+            if c.value_receiver is not None
+        ]
+
+    def __getstate__(self):
+        state = super().__getstate__()
+        state["_input_value_links"] = self._input_value_links
+        state["_output_value_links"] = self._output_value_links
+        return state
+
+    def __setstate__(self, state):
+        # Purge value links from the state
+        input_links = state.pop("_input_value_links")
+        output_links = state.pop("_output_value_links")
+
+        super().__setstate__(state)
+
+        # Re-forge value links
+        for inp, (child, child_inp) in input_links:
+            self.inputs[inp].value_receiver = self.nodes[child].inputs[child_inp]
+
+        for (child, child_out), out in output_links:
+            self.nodes[child].outputs[child_out].value_receiver = self.outputs[out]
 
 
 def macro_node(*output_labels, **node_class_kwargs):
