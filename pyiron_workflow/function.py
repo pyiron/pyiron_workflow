@@ -3,7 +3,7 @@ from __future__ import annotations
 import inspect
 import warnings
 from functools import partialmethod
-from typing import Any, get_args, get_type_hints, Optional, TYPE_CHECKING
+from typing import Any, get_args, get_type_hints, Literal, Optional, TYPE_CHECKING
 
 from pyiron_workflow.channels import InputData, OutputData, NOT_DATA
 from pyiron_workflow.has_channel import HasChannel
@@ -333,6 +333,7 @@ class Function(Node):
         parent: Optional[Composite] = None,
         overwrite_save: bool = False,
         run_after_init: bool = False,
+        storage_backend: Literal["h5io", "tinybase"] = "h5io",
         save_after_run: bool = False,
         output_labels: Optional[str | list[str] | tuple[str]] = None,
         **kwargs,

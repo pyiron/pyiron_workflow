@@ -639,12 +639,25 @@ class Composite(Node, ABC):
         state = super().__getstate__()
         state["_child_data_connections"] = self._child_data_connections
         state["_child_signal_connections"] = self._child_signal_connections
+        # Bidict implements a custom reconstructor that is not playing well with h5io
+        state["_inputs_map"] = (
+            None if self._inputs_map is None else dict(self._inputs_map)
+        )
+        state["_outputs_map"] = (
+            None if self._outputs_map is None else dict(self._outputs_map)
+        )
         return state
 
     def __setstate__(self, state):
         # Purge child connection info from the state
         child_data_connections = state.pop("_child_data_connections")
         child_signal_connections = state.pop("_child_signal_connections")
+        state["_inputs_map"] = (
+            None if state["_inputs_map"] is None else bidict(state["_inputs_map"])
+        )
+        state["_outputs_map"] = (
+            None if state["_outputs_map"] is None else bidict(state["_outputs_map"])
+        )
 
         super().__setstate__(state)
 

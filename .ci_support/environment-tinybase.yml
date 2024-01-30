@@ -1,0 +1,6 @@
+channels:
+- conda-forge
+dependencies:
+- boto3
+- h5io_browser =0.0.6
+- pyiron_contrib =0.1.13

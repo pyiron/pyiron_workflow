@@ -6,7 +6,7 @@ This class is intended as the single point of entry for users making an import.
 
 from __future__ import annotations
 
-from typing import Optional, TYPE_CHECKING
+from typing import Literal, Optional, TYPE_CHECKING
 
 from pyiron_workflow.composite import Composite
 from pyiron_workflow.io import Inputs, Outputs
@@ -191,6 +191,7 @@ class Workflow(Composite):
         *nodes: Node,
         overwrite_save: bool = False,
         run_after_init: bool = False,
+        storage_backend: Literal["h5io", "tinybase"] = "h5io",
         save_after_run: bool = False,
         strict_naming: bool = True,
         inputs_map: Optional[dict | bidict] = None,
@@ -350,7 +351,9 @@ class Workflow(Composite):
             child_data = storage[child_label]
             pid = child_data["package_identifier"]
             cls = child_data["class_name"]
-            self.create[pid][cls](label=child_label, parent=self)
+            self.create[pid][cls](
+                label=child_label, parent=self, storage_backend="tinybase"
+            )
 
     def _rebuild_connections(self, storage):
         self._rebuild_data_connections(storage)
@@ -372,8 +375,10 @@ class Workflow(Composite):
             )
         self.starting_nodes = [self.nodes[label] for label in storage["starting_nodes"]]
 
-    def save(self):
-        if any(node.package_identifier is None for node in self):
+    def save(self, backend: Literal["h5io", "tinybase"] = "h5io"):
+        if backend == "tinybase" and any(
+            node.package_identifier is None for node in self
+        ):
             raise NotImplementedError(
                 f"{self.__class__.__name__} can currently only save itself to file if "
                 f"_all_ of its child nodes were created via the creator and have an "
@@ -383,7 +388,7 @@ class Workflow(Composite):
                 f"like any other node package. Remember that this new module needs to "
                 f"be in your python path and importable at load time too."
             )
-        self.to_storage(self.storage)
+        super().save(backend=backend)
 
     @property
     def _owned_io_panels(self) -> list[IO]:

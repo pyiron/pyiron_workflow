@@ -10,7 +10,6 @@ from __future__ import annotations
 import warnings
 from abc import ABC, abstractmethod
 from concurrent.futures import Executor as StdLibExecutor, Future
-import os
 from typing import Any, Literal, Optional, TYPE_CHECKING
 
 from pyiron_workflow.channels import (
@@ -20,9 +19,10 @@ from pyiron_workflow.channels import (
     NOT_DATA,
 )
 from pyiron_workflow.draw import Node as GraphvizNode
-from pyiron_workflow.snippets.files import FileObject, DirectoryObject
+from pyiron_workflow.snippets.files import DirectoryObject
 from pyiron_workflow.has_to_dict import HasToDict
 from pyiron_workflow.io import Signals, IO
+from pyiron_workflow.storage import StorageInterface
 from pyiron_workflow.topology import (
     get_nodes_in_data_tree,
     set_run_connections_according_to_linear_dag,
@@ -153,23 +153,11 @@ class Node(HasToDict, ABC, metaclass=AbstractHasPost):
     - [ALPHA FEATURE] Nodes can be saved to and loaded from file.
         - Saving is triggered manually, or by setting a flag to save after the nodes
             runs.
-        - On instantiation, nodes will look in the working directory of their
-            parent-most node for a save file; they will search within this along their
-            relative semantic path (i.e. the path of node labels) for stored data; if
-            found, they will use it to load their state.
-            - Found save files can be deleted and ignored with an initialization kwarg
-        - You can't load a saved node _and_ run that node after instantiation during
-            the same instantiation.
-        - To save a composite graph, _all_ children need to be created from a
-            registered module or saving will raise an error;
-            - [ALPHA ISSUE?] Right now that means moving any nodes defined in-notebook
-                off to a `.py` file.
-        - [ALPHA ISSUE] Modifications to macros (e.g. replacing a child node) are not
-            reflected in the saved data -- saving and loading such a graph is likely to
-            _silently_ misbehave, as the loaded macro will just reinstantiate its
-            original nodes and connections.
-        - [ALPHA ISSUE] If the source code (i.e. `.py` files) for a saved graph is
-            altered between saving and loading the graph, there are no guarnatees about
+        - On instantiation, nodes will load automatically if they find saved content.
+          - Discovered content can instead be deleted with a kwarg.
+          - You can't load saved content _and_ run after instantiation at once.
+        - [ALPHA ISSUE] If the source code (cells, `.py` files...) for a saved graph is
+            altered between saving and loading the graph, there are no guarantees about
             the loaded state; depending on the nature of the changes everything may
             work fine with the new node definition, the graph may load but silently
             behave unexpectedly (e.g. if node functionality has changed but the
@@ -180,9 +168,44 @@ class Node(HasToDict, ABC, metaclass=AbstractHasPost):
             your graph this could be expensive in terms of storage space and/or time.
         - [ALPHA ISSUE] Similarly, there is no way to save only part of a graph; only
             the entire graph may be saved at once.
-        - Since nodes store their IO data, all data is expected to be serializable; as
-            a fallback, the save process will attempt to `pickle` the data.
-        - While loading is attempted at instantiation, saving only happens on request.
+        - There are two possible back-ends for saving: one leaning on
+            `tinybase.storage.GenericStorage` (in practice,
+            `H5ioStorage(GenericStorage)`), and the other, default back-end that uses
+            the `h5io` module directly.
+        - [ALPHA ISSUE] Restrictions on data:
+            - For the `h5io` backend: Most data that can be pickled will be fine, but
+                some classes will hit an edge case and throw an exception from `h5io`
+                (at a minimum, those classes which define a custom reconstructor hit,
+                this, but there also seems to be issues with dynamic methods, e.g. the
+                `Calculator` class and its children from `ase`).
+            - For the `tinybase` backend: Any data that can be pickled will be fine,
+                although it might get stored in a pickled state, which is not ideal for
+                long-term storage or sharing.
+        - [ALPHA ISSUE] Restrictions on workflows:
+            - For the `h5io` backend: all child nodes must be defined in an importable
+                location. This includes `__main__` in a jupyter notebook (as long as
+                the same `__main__` cells get executed prior to trying to load!) but
+                not, e.g., inside functions in `__main__`.
+            - For the `tinybase` backend: all child nodes must have been created via
+                the creator (i.e. `wf.create...`), which is to say they come from a
+                registered node package. The composite will run a check and fail early
+                in the save process if this is not the case. Fulfilling this
+                requirement is as simple as moving all the desired nodes off to a `.py`
+                file, registering it, and building the composite from  there.
+        - [ALPHA ISSUE] Restrictions to macros:
+            - For the `h5io` backend: there are none; if a macro is modified, saved,
+                and reloaded, the modifications will be reflected in the loaded state.
+                Note there is a little bit of danger here, as the macro class still
+                corresponds to the un-modified macro class.
+            - For the `tinybase` backend: the macro will re-instantiate its original
+                nodes and try to update their data. Any modifications to the macro
+                prior to saving are completely disregarded; if the interface to the
+                macro was modified (e.g. different channel names in the IO), then this
+                will save fine but throw an exception on load; if the interface was
+                unchanged but the functionality changed (e.g. replacing a child node),
+                the original, unmodified macro will cleanly load and the loaded data
+                will _silently_ mis-represent the macro functionality (insofaras the
+                internal changes would cause a difference in the output data).
 
     This is an abstract class.
     Children *must* define how :attr:`inputs` and :attr:`outputs` are constructed, what will
@@ -267,7 +290,6 @@ class Node(HasToDict, ABC, metaclass=AbstractHasPost):
     package_identifier = None
     _semantic_delimiter = "/"
 
-    _STORAGE_FILE_NAME = "project.h5"
     # This isn't nice, just a technical necessity in the current implementation
     # Eventually, of course, this needs to be _at least_ file-format independent
 
@@ -278,6 +300,7 @@ class Node(HasToDict, ABC, metaclass=AbstractHasPost):
         parent: Optional[Composite] = None,
         overwrite_save: bool = False,
         run_after_init: bool = False,
+        storage_backend: Literal["h5io", "tinybase"] = "h5io",
         save_after_run: bool = False,
         **kwargs,
     ):
@@ -314,13 +337,14 @@ class Node(HasToDict, ABC, metaclass=AbstractHasPost):
         *args,
         overwrite_save: bool = False,
         run_after_init: bool = False,
+        storage_backend: Literal["h5io", "tinybase"] = "h5io",
         **kwargs,
     ):
         if overwrite_save:
-            self.delete_storage()
+            self.storage.delete()
             do_load = False
         else:
-            do_load = self.storage_has_contents
+            do_load = self.storage.has_contents
 
         if do_load and run_after_init:
             raise ValueError(
@@ -334,7 +358,7 @@ class Node(HasToDict, ABC, metaclass=AbstractHasPost):
                 f"load it...(To delete the saved file instead, use "
                 f"`overwrite_save=True`)"
             )
-            self.load()
+            self.load(mode=storage_backend)
         elif run_after_init:
             try:
                 self.run()
@@ -1165,21 +1189,17 @@ class Node(HasToDict, ABC, metaclass=AbstractHasPost):
             usual.
     """
 
-    def save(self):
+    def save(self, backend: Literal["h5io", "tinybase"] = "h5io"):
         """
         Writes the node to file (using HDF5) such that a new node instance of the same
         type can :meth:`load()` the data to return to the same state as the save point,
         i.e. the same data IO channel values, the same flags, etc.
         """
-        if self.parent is None:
-            self.to_storage(self.storage)
-        else:
-            root = self.graph_root
-            root.to_storage(root.storage)
+        self.storage.save(backend=backend)
 
     save.__doc__ += _save_load_warnings
 
-    def load(self):
+    def load(self, mode: Literal["h5io", "tinybase"] = "h5io"):
         """
         Loads the node file (from HDF5) such that this node restores its state at time
         of loading.
@@ -1187,38 +1207,13 @@ class Node(HasToDict, ABC, metaclass=AbstractHasPost):
         Raises:
             TypeError) when the saved node has a different class name.
         """
-        if self.storage["class_name"] != self.__class__.__name__:
-            raise TypeError(
-                f"{self.label} cannot load, as it has type {self.__class__.__name__}, "
-                f"but the saved node has type {self.storage['class_name']}"
-            )
-        self.from_storage(self.storage)
+        self.storage.load(backend=mode)
 
     save.__doc__ += _save_load_warnings
 
     @property
-    def _storage_file_path(self) -> str:
-        return str(
-            (self.graph_root.working_directory.path / self._STORAGE_FILE_NAME).resolve()
-        )
-
-    @property
     def storage(self):
-        from pyiron_contrib.tinybase.storage import H5ioStorage
-        from h5io_browser import Pointer
-
-        return H5ioStorage(
-            Pointer(self._storage_file_path, h5_path=self.graph_path), None
-        )
-
-    @property
-    def storage_has_contents(self) -> bool:
-        has_contents = (
-            os.path.isfile(self._storage_file_path)
-            and (len(self.storage.list_groups()) + len(self.storage.list_nodes())) > 0
-        )
-        self.tidy_working_directory()
-        return has_contents
+        return StorageInterface(self)
 
     def tidy_working_directory(self):
         """
@@ -1229,11 +1224,3 @@ class Node(HasToDict, ABC, metaclass=AbstractHasPost):
             self._working_directory = None
             # Touching the working directory may have created it -- if it's there and
             # empty just clean it up
-
-    def delete_storage(self):
-        if self.storage_has_contents:
-            up = self.storage.close()
-            del up[self.label]
-            if self.parent is None:
-                FileObject(self._STORAGE_FILE_NAME, self.working_directory).delete()
-        self.tidy_working_directory()

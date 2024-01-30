@@ -1,6 +1,6 @@
 from concurrent.futures import Future
 import os
-
+from typing import Literal
 import unittest
 
 from pyiron_workflow.channels import InputData, OutputData, NOT_DATA
@@ -22,6 +22,7 @@ class ANode(Node):
         label,
         overwrite_save=False,
         run_after_init=False,
+        storage_backend: Literal["h5io", "tinybase"] = "h5io",
         save_after_run=False,
         x=None,
     ):
@@ -432,7 +433,7 @@ class TestNode(unittest.TestCase):
             msg="Should have saved automatically after run, and reloaded on "
                 "instantiation"
         )
-        find_saved.delete_storage()  # Clean up
+        find_saved.storage.delete()  # Clean up
 
 
 if __name__ == '__main__':

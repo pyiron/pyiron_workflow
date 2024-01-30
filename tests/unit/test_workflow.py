@@ -14,6 +14,11 @@ def plus_one(x=0):
     return y
 
 
+@Workflow.wrap_as.single_value_node("y")
+def PlusOne(x: int = 0):
+    return x + 1
+
+
 class TestWorkflow(unittest.TestCase):
     @classmethod
     def setUpClass(cls) -> None:
@@ -331,38 +336,94 @@ class TestWorkflow(unittest.TestCase):
         wf.m.two.pull(run_parent_trees_too=False)
         wf.executor_shutdown()
 
-    def test_storage(self):
-        with self.subTest("Fail when nodes have no package"):
-            wf = Workflow("wf")
-            wf.n1 = wf.create.Function(plus_one)
-            with self.assertRaises(
-                NotImplementedError, msg="We can't handle nodes without a package yet"
-            ):
-                wf.save()
+    def test_storage_values(self):
+        for storage_backend in ["h5io", "tinybase"]:
+            with self.subTest(storage_backend):
+                wf = Workflow("wf")
+                wf.register("static.demo_nodes", domain="demo")
+                wf.inp = wf.create.demo.AddThree(x=0)
+                wf.out = wf.inp.outputs.add_three + 1
+                wf_out = wf()
+                three_result = wf.inp.three.outputs.add.value
 
+                wf.save(backend=storage_backend)
+
+                reloaded = Workflow("wf", storage_backend=storage_backend)
+                self.assertEqual(
+                    wf_out.out__add,
+                    reloaded.outputs.out__add.value,
+                    msg="Workflow-level data should get reloaded"
+                )
+                self.assertEqual(
+                    three_result,
+                    reloaded.inp.three.value,
+                    msg="Child data arbitrarily deep should get reloaded"
+                )
+
+                # Clean up after ourselves
+                reloaded.storage.delete()
+                
+    def test_storage_scopes(self):
         wf = Workflow("wf")
-        wf.register("static.demo_nodes", domain="demo")
-        wf.inp = wf.create.demo.AddThree(x=0)
-        wf.out = wf.inp.outputs.add_three + 1
-        wf_out = wf()
-        three_result = wf.inp.three.outputs.add.value
+        wf.register("static.demo_nodes", "demo")
 
-        wf.save()
+        # Test invocation
+        wf.add_node(wf.create.demo.AddPlusOne(label="by_add"))
+        # Note that the type hint `Optional[int]` from OptionallyAdd defines a custom
+        # reconstructor, which borks h5io
 
-        reloaded = Workflow("wf")
-        self.assertEqual(
-            wf_out.out__add,
-            reloaded.outputs.out__add.value,
-            msg="Workflow-level data should get reloaded"
-        )
-        self.assertEqual(
-            three_result,
-            reloaded.inp.three.value,
-            msg="Child data arbitrarily deep should get reloaded"
-        )
+        for backend in ["h5io", "tinybase"]:
+            with self.subTest(backend):
+                try:
+                    wf.save(backend=backend)
+                    Workflow(wf.label, storage_backend=backend)
+                finally:
+                    wf.storage.delete()
 
-        # Clean up after ourselves
-        reloaded.delete_storage()
+        wf.add_node(PlusOne(label="local_but_importable"))
+        try:
+            wf.save(backend="h5io")
+            Workflow(wf.label, storage_backend="h5io")
+        finally:
+            wf.storage.delete()
+
+        with self.assertRaises(
+            NotImplementedError,
+            msg="Storage docs for tinybase claim all children must be registered nodes"
+        ):
+            wf.save(backend="tinybase")
+
+        with self.subTest("Instanced node"):
+            wf.direct_instance = Workflow.create.Function(plus_one)
+            try:
+                with self.assertRaises(
+                    TypeError,
+                    msg="No direct node instances, only children with functions as "
+                        "_class_ attribtues"
+                ):
+                    wf.save(backend="h5io")
+            finally:
+                wf.remove_node(wf.direct_instance)
+                wf.storage.delete()
+
+        with self.subTest("Unimportable node"):
+            @Workflow.wrap_as.single_value_node("y")
+            def UnimportableScope(x):
+                return x
+
+            wf.unimportable_scope = UnimportableScope()
+
+            try:
+                wf.save(backend="h5io")
+                with self.assertRaises(
+                    AttributeError,
+                    msg="Nodes must live in an importable scope to save with the h5io "
+                        "backend"
+                ):
+                    Workflow(wf.label, storage_backend="h5io")
+            finally:
+                wf.remove_node(wf.unimportable_scope)
+                wf.storage.delete()
 
 
 if __name__ == '__main__':
