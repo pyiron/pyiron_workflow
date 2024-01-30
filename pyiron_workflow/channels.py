@@ -804,17 +804,11 @@ class InputSignal(SignalChannel):
 
     @staticmethod
     def _no_positional_args(func):
-        return (
-            sum(
-                1
-                for parameter in inspect.signature(func).parameters.values()
-                if (
-                    parameter.default == inspect.Parameter.empty
-                    and parameter.kind != inspect._ParameterKind.VAR_KEYWORD
-                )
-            )
-            == 0
-        )
+        return all([
+            parameter.default != inspect.Parameter.empty
+            or parameter.kind == inspect.Parameter.VAR_KEYWORD
+            for parameter in inspect.signature(func).parameters.values()
+        ])
 
     @property
     def callback(self) -> callable:
