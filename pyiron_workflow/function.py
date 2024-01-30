@@ -764,6 +764,7 @@ def _wrapper_factory(
                 ),
                 "node_function": staticmethod(node_function),
                 "_type_hints": get_type_hints(node_function),
+                "__module__": node_function.__module__,
             },
         )
 
