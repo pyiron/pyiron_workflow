@@ -340,28 +340,29 @@ class TestWorkflow(unittest.TestCase):
         for storage_backend in ["h5io", "tinybase"]:
             with self.subTest(storage_backend):
                 wf = Workflow("wf")
-                wf.register("static.demo_nodes", domain="demo")
-                wf.inp = wf.create.demo.AddThree(x=0)
-                wf.out = wf.inp.outputs.add_three + 1
-                wf_out = wf()
-                three_result = wf.inp.three.outputs.add.value
+                try:
+                    wf.register("static.demo_nodes", domain="demo")
+                    wf.inp = wf.create.demo.AddThree(x=0)
+                    wf.out = wf.inp.outputs.add_three + 1
+                    wf_out = wf()
+                    three_result = wf.inp.three.outputs.add.value
 
-                wf.save(backend=storage_backend)
+                    wf.save(backend=storage_backend)
 
-                reloaded = Workflow("wf", storage_backend=storage_backend)
-                self.assertEqual(
-                    wf_out.out__add,
-                    reloaded.outputs.out__add.value,
-                    msg="Workflow-level data should get reloaded"
-                )
-                self.assertEqual(
-                    three_result,
-                    reloaded.inp.three.value,
-                    msg="Child data arbitrarily deep should get reloaded"
-                )
-
-                # Clean up after ourselves
-                reloaded.storage.delete()
+                    reloaded = Workflow("wf", storage_backend=storage_backend)
+                    self.assertEqual(
+                        wf_out.out__add,
+                        reloaded.outputs.out__add.value,
+                        msg="Workflow-level data should get reloaded"
+                    )
+                    self.assertEqual(
+                        three_result,
+                        reloaded.inp.three.value,
+                        msg="Child data arbitrarily deep should get reloaded"
+                    )
+                finally:
+                    # Clean up after ourselves
+                    wf.storage.delete()
                 
     def test_storage_scopes(self):
         wf = Workflow("wf")
