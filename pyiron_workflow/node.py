@@ -431,9 +431,9 @@ class Node(HasToDict, ABC, metaclass=AbstractHasPost):
             )
 
         return self._run(
-            finished_callback=self._finish_run_and_emit_ran
-            if emit_ran_signal
-            else self._finish_run,
+            finished_callback=(
+                self._finish_run_and_emit_ran if emit_ran_signal else self._finish_run
+            ),
             force_local_execution=force_local_execution,
         )
 
