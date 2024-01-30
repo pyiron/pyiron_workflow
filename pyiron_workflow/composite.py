@@ -646,6 +646,14 @@ class Composite(Node, ABC):
         state["_outputs_map"] = (
             None if self._outputs_map is None else dict(self._outputs_map)
         )
+
+        # Remove the nodes container from the state and store each element (node) right
+        # in the state -- the labels are guaranteed to not be attributes already so
+        # this is safe, and it makes sure that the storage path matches the graph path
+        del state["nodes"]
+        state["node_labels"] = list(self.nodes.keys())
+        for node in self:
+            state[node.label] = node
         return state
 
     def __setstate__(self, state):
@@ -657,6 +665,11 @@ class Composite(Node, ABC):
         )
         state["_outputs_map"] = (
             None if state["_outputs_map"] is None else bidict(state["_outputs_map"])
+        )
+
+        # Reconstruct nodes from state
+        state["nodes"] = DotDict(
+            {label: state[label] for label in state.pop("node_labels")}
         )
 
         super().__setstate__(state)
