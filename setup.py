@@ -40,10 +40,10 @@ setup(
     extras_require={
         "node_library": [
             'ase==3.22.1',
-            'atomistics==0.1.20',
+            'atomistics==0.1.21',
             'numpy==1.26.3',
             'phonopy==2.21.0',
-            'pyiron_atomistics==0.4.7',
+            'pyiron_atomistics==0.4.9',
         ],
         "tinybase": [
             'boto3',  # Just because pyiron_contrib is not making sure it's there
