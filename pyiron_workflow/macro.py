@@ -11,7 +11,7 @@ from typing import get_type_hints, Literal, Optional, TYPE_CHECKING
 
 from bidict import bidict
 
-from pyiron_workflow.channels import InputData, OutputData, NotData
+from pyiron_workflow.channels import InputData, OutputData, NOT_DATA
 from pyiron_workflow.composite import Composite
 from pyiron_workflow.has_channel import HasChannel
 from pyiron_workflow.io import Outputs, Inputs
@@ -364,7 +364,7 @@ class Macro(Composite):
                 continue  # Skip the macro argument itself, it's like `self` here
 
             default = (
-                NotData
+                NOT_DATA
                 if inspected_value.default is inspect.Parameter.empty
                 else inspected_value.default
             )
@@ -488,7 +488,7 @@ class Macro(Composite):
 
         for old_data, io_panel in zip(
             local_connection_data,
-            [self.inputs, self.outputs, self.signals.input, self.signals.output]
+            [self.inputs, self.outputs, self.signals.input, self.signals.output],
             # Get fresh copies of the IO panels post-update
         ):
             for original_channel, label, connections in old_data:

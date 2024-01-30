@@ -2,7 +2,7 @@ from typing import Optional, Union
 import unittest
 import warnings
 
-from pyiron_workflow.channels import NotData, ChannelConnectionError
+from pyiron_workflow.channels import NOT_DATA, ChannelConnectionError
 from pyiron_workflow.function import Function, SingleValue, function_node
 from pyiron_workflow.interfaces import Executor
 
@@ -44,7 +44,7 @@ class TestFunction(unittest.TestCase):
         with self.subTest("Args and kwargs at initialization"):
             node = Function(plus_one)
             self.assertIs(
-                NotData,
+                NOT_DATA,
                 node.outputs.y.value,
                 msg="Sanity check that output just has the standard not-data value at "
                     "instantiation",
@@ -52,7 +52,7 @@ class TestFunction(unittest.TestCase):
             node.inputs.x = 10
             self.assertIs(
                 node.outputs.y.value,
-                NotData,
+                NOT_DATA,
                 msg="Nodes should not run on input updates",
             )
             node.run()
@@ -104,8 +104,8 @@ class TestFunction(unittest.TestCase):
         without_defaults = Function(no_default)
         self.assertIs(
             without_defaults.inputs.x.value,
-            NotData,
-            msg=f"Expected values with no default specified to start as {NotData} but "
+            NOT_DATA,
+            msg=f"Expected values with no default specified to start as {NOT_DATA} but "
                 f"got {without_defaults.inputs.x.value}",
         )
         self.assertFalse(
@@ -383,7 +383,7 @@ class TestFunction(unittest.TestCase):
             return out
 
         @function_node()
-        def all_floats(x=1.1, y=1.1, z=1.1, omega=NotData, extra_there=None) -> float:
+        def all_floats(x=1.1, y=1.1, z=1.1, omega=NOT_DATA, extra_there=None) -> float:
             out = 42.1
             return out
 
@@ -394,7 +394,7 @@ class TestFunction(unittest.TestCase):
         floats.run(
             check_readiness=False,
             # We force-skip the readiness check since we are explicitly _trying_ to
-            # have one of the inputs be `NotData` -- a value which triggers the channel
+            # have one of the inputs be `NOT_DATA` -- a value which triggers the channel
             # to be "not ready"
         )
 
@@ -417,7 +417,7 @@ class TestFunction(unittest.TestCase):
         self.assertEqual(
             ref.inputs.omega.value,
             None,
-            msg="NotData should be ignored when copying"
+            msg="NOT_DATA should be ignored when copying"
         )
         self.assertEqual(
             ref.outputs.out.value,
@@ -531,9 +531,9 @@ class TestSingleValue(unittest.TestCase):
 
         with self.subTest("Not data"):
             svn = SingleValue(no_default, output_labels="output")
-            self.assertIs(svn.outputs.output.value, NotData)
+            self.assertIs(svn.outputs.output.value, NOT_DATA)
             self.assertTrue(
-                svn.__repr__().endswith(NotData.__name__),
+                svn.__repr__().endswith(NOT_DATA.__repr__()),
                 msg="When the output is still not data, the representation should "
                     "indicate this"
             )

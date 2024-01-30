@@ -4,7 +4,7 @@ from functools import partialmethod
 from time import sleep
 import unittest
 
-from pyiron_workflow.channels import NotData
+from pyiron_workflow.channels import NOT_DATA
 from pyiron_workflow.function import SingleValue
 from pyiron_workflow.macro import Macro, macro_node
 from pyiron_workflow.topology import CircularDataFlowError
@@ -142,7 +142,7 @@ class TestMacro(unittest.TestCase):
 
         self.assertIs(
             m.outputs.three__result.value,
-            NotData,
+            NOT_DATA,
             msg="Output should be accessible with the usual naming convention, but we "
                 "have not run yet so there shouldn't be any data"
         )
@@ -218,7 +218,7 @@ class TestMacro(unittest.TestCase):
         macro.executor = macro.create.Executor()
 
         self.assertIs(
-            NotData,
+            NOT_DATA,
             macro.outputs.three__result.value,
             msg="Sanity check that test is in right starting condition"
         )
@@ -230,7 +230,7 @@ class TestMacro(unittest.TestCase):
             msg="Should be running as a parallel process"
         )
         self.assertIs(
-            NotData,
+            NOT_DATA,
             downstream.outputs.result.value,
             msg="Downstream events should not yet have triggered either, we should wait"
                 "for the callback when the result is ready"

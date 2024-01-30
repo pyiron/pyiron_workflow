@@ -1,6 +1,7 @@
 """
 Nodes wrapping a subset of pyiron_atomistics functionality
 """
+
 from __future__ import annotations
 
 from typing import Literal, Optional
@@ -126,10 +127,12 @@ def CalcMd(
     n_ionic_steps: int = 1000,
     n_print: int = 100,
     temperature: int | float = 300.0,
-    pressure: float
-    | tuple[float, float, float]
-    | tuple[float, float, float, float, float, float]
-    | None = None,
+    pressure: (
+        float
+        | tuple[float, float, float]
+        | tuple[float, float, float, float, float, float]
+        | None
+    ) = None,
 ):
     def calc_md(job, n_ionic_steps, n_print, temperature, pressure):
         job.calc_md(
@@ -169,10 +172,12 @@ def CalcMin(
     job: AtomisticGenericJob,
     n_ionic_steps: int = 1000,
     n_print: int = 100,
-    pressure: float
-    | tuple[float, float, float]
-    | tuple[float, float, float, float, float, float]
-    | None = None,
+    pressure: (
+        float
+        | tuple[float, float, float]
+        | tuple[float, float, float, float, float, float]
+        | None
+    ) = None,
 ):
     def calc_min(job, n_ionic_steps, n_print, pressure):
         job.calc_minimize(

@@ -3,7 +3,7 @@ import unittest
 from bidict import ValueDuplicationError
 
 from pyiron_workflow._tests import ensure_tests_in_python_path
-from pyiron_workflow.channels import NotData
+from pyiron_workflow.channels import NOT_DATA
 from pyiron_workflow.composite import Composite
 from pyiron_workflow.io import Outputs, Inputs
 from pyiron_workflow.topology import CircularDataFlowError
@@ -423,7 +423,7 @@ class TestComposite(unittest.TestCase):
             msg="Expected to start from starting node and propagate"
         )
         self.assertIs(
-            NotData,
+            NOT_DATA,
             self.comp.n3.outputs.y.value,
             msg="n3 was omitted from the execution diagram, it should not have run"
         )
