@@ -659,6 +659,8 @@ class Composite(Node, ABC):
         state["node_labels"] = list(self.nodes.keys())
         for node in self:
             state[node.label] = node
+            # This key is guaranteed to be available in the state, since children are
+            # forbidden from having labels that clash with their parent's __dir__
         return state
 
     def __setstate__(self, state):
