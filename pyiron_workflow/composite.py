@@ -50,6 +50,8 @@ class Composite(Node, ABC):
         - Have no other parent
         - Can be replaced in-place with another node that has commensurate IO
         - Have their working directory nested inside the composite's
+        - Are disallowed from having a label that conflicts with any of the parent's
+            other methods or attributes
     - The length of a composite instance is its number of child nodes
     - Running the composite...
         - Runs the child nodes (either using manually specified execution signals, or
