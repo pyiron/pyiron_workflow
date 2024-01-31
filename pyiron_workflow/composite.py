@@ -641,6 +641,12 @@ class Composite(Node, ABC):
     def node_labels(self) -> tuple[str]:
         return (n.label for n in self)
 
+    @property
+    def _starting_node_labels(self):
+        # As a property so it appears in `__dir__` and thus is guaranteed to not
+        # conflict with a child node name in the state
+        return tuple(n.label for n in self.starting_nodes)
+
     def __getstate__(self):
         state = super().__getstate__()
         # Store connections as strings
@@ -668,7 +674,7 @@ class Composite(Node, ABC):
 
         # Also remove the starting node instances
         del state["starting_nodes"]
-        state["starting_node_labels"] = [n.label for n in self.starting_nodes]
+        state["_starting_node_labels"] = self._starting_node_labels
 
         return state
 
@@ -692,7 +698,7 @@ class Composite(Node, ABC):
 
         # Restore starting nodes
         state["starting_nodes"] = [
-            state[label] for label in state.pop("starting_node_labels")
+            state[label] for label in state.pop("_starting_node_labels")
         ]
 
         super().__setstate__(state)
