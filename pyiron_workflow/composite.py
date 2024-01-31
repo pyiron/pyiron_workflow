@@ -50,6 +50,8 @@ class Composite(Node, ABC):
         - Have no other parent
         - Can be replaced in-place with another node that has commensurate IO
         - Have their working directory nested inside the composite's
+        - Are disallowed from having a label that conflicts with any of the parent's
+            other methods or attributes
     - The length of a composite instance is its number of child nodes
     - Running the composite...
         - Runs the child nodes (either using manually specified execution signals, or
@@ -635,6 +637,10 @@ class Composite(Node, ABC):
     ) -> list[tuple[tuple[str, str], tuple[str, str]]]:
         return self._get_connections_as_strings(self._get_signals_input)
 
+    @property
+    def node_labels(self) -> tuple[str]:
+        return (n.label for n in self)
+
     def __getstate__(self):
         state = super().__getstate__()
         # Store connections as strings
@@ -654,9 +660,11 @@ class Composite(Node, ABC):
         # in the state -- the labels are guaranteed to not be attributes already so
         # this is safe, and it makes sure that the storage path matches the graph path
         del state["nodes"]
-        state["node_labels"] = list(self.nodes.keys())
+        state["node_labels"] = self.node_labels
         for node in self:
             state[node.label] = node
+            # This key is guaranteed to be available in the state, since children are
+            # forbidden from having labels that clash with their parent's __dir__
 
         # Also remove the starting node instances
         del state["starting_nodes"]
