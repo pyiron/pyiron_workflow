@@ -50,6 +50,8 @@ class Composite(Node, ABC):
         - Have no other parent
         - Can be replaced in-place with another node that has commensurate IO
         - Have their working directory nested inside the composite's
+        - Are disallowed from having a label that conflicts with any of the parent's
+            other methods or attributes
     - The length of a composite instance is its number of child nodes
     - Running the composite...
         - Runs the child nodes (either using manually specified execution signals, or
@@ -635,28 +637,52 @@ class Composite(Node, ABC):
     ) -> list[tuple[tuple[str, str], tuple[str, str]]]:
         return self._get_connections_as_strings(self._get_signals_input)
 
+    @property
+    def node_labels(self) -> tuple[str]:
+        return (n.label for n in self)
+
     def __getstate__(self):
         state = super().__getstate__()
+        # Store connections as strings
         state["_child_data_connections"] = self._child_data_connections
         state["_child_signal_connections"] = self._child_signal_connections
-        # Bidict implements a custom reconstructor that is not playing well with h5io
+
+        # Transform the IO maps into a datatype that plays well with h5io
+        # (Bidict implements a custom reconstructor, which hurts us)
         state["_inputs_map"] = (
             None if self._inputs_map is None else dict(self._inputs_map)
         )
         state["_outputs_map"] = (
             None if self._outputs_map is None else dict(self._outputs_map)
         )
+
+        # Remove the nodes container from the state and store each element (node) right
+        # in the state -- the labels are guaranteed to not be attributes already so
+        # this is safe, and it makes sure that the storage path matches the graph path
+        del state["nodes"]
+        state["node_labels"] = self.node_labels
+        for node in self:
+            state[node.label] = node
+            # This key is guaranteed to be available in the state, since children are
+            # forbidden from having labels that clash with their parent's __dir__
         return state
 
     def __setstate__(self, state):
         # Purge child connection info from the state
         child_data_connections = state.pop("_child_data_connections")
         child_signal_connections = state.pop("_child_signal_connections")
+
+        # Transform the IO maps back into the right class (bidict)
         state["_inputs_map"] = (
             None if state["_inputs_map"] is None else bidict(state["_inputs_map"])
         )
         state["_outputs_map"] = (
             None if state["_outputs_map"] is None else bidict(state["_outputs_map"])
+        )
+
+        # Reconstruct nodes from state
+        state["nodes"] = DotDict(
+            {label: state[label] for label in state.pop("node_labels")}
         )
 
         super().__setstate__(state)
