@@ -639,7 +639,7 @@ class Composite(Node, ABC):
 
     @property
     def node_labels(self) -> tuple[str]:
-        return (n.label for n in self)
+        return tuple(n.label for n in self)
 
     @property
     def _starting_node_labels(self):
