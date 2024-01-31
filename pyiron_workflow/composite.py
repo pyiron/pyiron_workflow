@@ -639,7 +639,13 @@ class Composite(Node, ABC):
 
     @property
     def node_labels(self) -> tuple[str]:
-        return (n.label for n in self)
+        return tuple(n.label for n in self)
+
+    @property
+    def _starting_node_labels(self):
+        # As a property so it appears in `__dir__` and thus is guaranteed to not
+        # conflict with a child node name in the state
+        return tuple(n.label for n in self.starting_nodes)
 
     def __getstate__(self):
         state = super().__getstate__()
@@ -665,6 +671,11 @@ class Composite(Node, ABC):
             state[node.label] = node
             # This key is guaranteed to be available in the state, since children are
             # forbidden from having labels that clash with their parent's __dir__
+
+        # Also remove the starting node instances
+        del state["starting_nodes"]
+        state["_starting_node_labels"] = self._starting_node_labels
+
         return state
 
     def __setstate__(self, state):
@@ -684,6 +695,11 @@ class Composite(Node, ABC):
         state["nodes"] = DotDict(
             {label: state[label] for label in state.pop("node_labels")}
         )
+
+        # Restore starting nodes
+        state["starting_nodes"] = [
+            state[label] for label in state.pop("_starting_node_labels")
+        ]
 
         super().__setstate__(state)
 
