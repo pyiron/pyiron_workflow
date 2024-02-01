@@ -15,11 +15,12 @@ def plus_one(x=0):
 
 
 PlusOne = Workflow.wrap_as.function_node("y")(plus_one)
+PlusOneSVN = Workflow.wrap_as.single_value_node("y")(plus_one)
 
 
 @Workflow.wrap_as.single_value_node("y")
-def PlusOneSVN(x=0):
-    return x + 1
+def PlusOneSVNDefined(x=0):
+    return plus_one(x)
 
 
 class TestWorkflow(unittest.TestCase):
@@ -386,6 +387,21 @@ class TestWorkflow(unittest.TestCase):
                     wf.storage.delete()
 
         wf.add_node(PlusOneSVN(label="local_but_importable"))
+        try:
+            wf.save(backend="h5io")
+            with self.assertRaises(
+                AttributeError,
+                msg="This isn't actually desirable, I'm just using this to log the bug."
+                    "For some reason, nodes defined as variables aren't reloading "
+                    "properly"
+            ):
+                Workflow(wf.label, storage_backend="h5io")
+        finally:
+            wf.storage.delete()
+
+        # Replace the variable node with a defined node
+        wf.local_but_importable = PlusOneSVNDefined
+        # Run the save test again, but this time it should work
         try:
             wf.save(backend="h5io")
             Workflow(wf.label, storage_backend="h5io")
