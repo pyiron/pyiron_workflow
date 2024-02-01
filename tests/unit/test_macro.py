@@ -12,15 +12,16 @@ from pyiron_workflow.macro import Macro, macro_node
 from pyiron_workflow.topology import CircularDataFlowError
 
 
-def add_one(x):
-    result = x + 1
-    return result
+@Macro.wrap_as.single_value_node("result")
+def AddOne(x):
+    return x + 1
 
 
-def add_three_macro(macro):
-    macro.one = SingleValue(add_one)
-    SingleValue(add_one, macro.one, label="two", parent=macro)
-    macro.add_node(SingleValue(add_one, macro.two, label="three"))
+@Macro.wrap_as.macro_node()
+def AddThreeMacro(macro):
+    macro.one = AddOne()
+    AddOne(macro.one, label="two", parent=macro)
+    macro.add_node(AddOne(macro.two, label="three"))
     # Cover a handful of addition methods,
     # although these are more thoroughly tested in Workflow tests
 
@@ -28,7 +29,7 @@ def add_three_macro(macro):
 class TestMacro(unittest.TestCase):
 
     def test_static_input(self):
-        m = Macro(add_three_macro)
+        m = AddThreeMacro()
         inp = m.inputs
         inp_again = m.inputs
         self.assertIs(
@@ -41,7 +42,7 @@ class TestMacro(unittest.TestCase):
         )
 
     def test_io_independence(self):
-        m = Macro(add_three_macro)
+        m = AddThreeMacro()
         self.assertIsNot(
             m.inputs.one__x,
             m.one.inputs.x,
@@ -59,7 +60,7 @@ class TestMacro(unittest.TestCase):
         )
 
     def test_value_links(self):
-        m = Macro(add_three_macro)
+        m = AddThreeMacro()
         self.assertIs(
             m.one.inputs.x,
             m.inputs.one__x.value_receiver,
@@ -88,26 +89,29 @@ class TestMacro(unittest.TestCase):
         )
 
     def test_execution_automation(self):
-        fully_automatic = add_three_macro
+        FullyAutomatic = AddThreeMacro
 
-        def fully_defined(macro):
-            add_three_macro(macro)
+        @macro_node()
+        def FullyDefined(macro):
+            AddThreeMacro.graph_creator(macro)
             macro.one >> macro.two >> macro.three
             macro.starting_nodes = [macro.one]
 
-        def only_order(macro):
-            add_three_macro(macro)
+        @macro_node()
+        def OnlyOrder(macro):
+            AddThreeMacro.graph_creator(macro)
             macro.two >> macro.three
 
-        def only_starting(macro):
-            add_three_macro(macro)
+        @macro_node()
+        def OnlyStarting(macro):
+            AddThreeMacro.graph_creator(macro)
             macro.starting_nodes = [macro.one]
 
-        m_auto = Macro(fully_automatic)
-        m_user = Macro(fully_defined)
+        m_auto = FullyAutomatic()
+        m_user = FullyDefined()
 
         x = 0
-        expected = add_one(add_one(add_one(x)))
+        expected = AddOne.node_function(AddOne.node_function(AddOne.node_function(x)))
         self.assertEqual(
             m_auto(one__x=x).three__result,
             expected,
@@ -123,24 +127,24 @@ class TestMacro(unittest.TestCase):
             # We don't yet check for _crappy_ user-defined execution,
             # But we should make sure it's at least valid in principle
             with self.assertRaises(ValueError):
-                Macro(only_order)
+                OnlyOrder()
 
             with self.assertRaises(ValueError):
-                Macro(only_starting)
+                OnlyStarting()
 
     def test_default_label(self):
-        m = Macro(add_three_macro)
+        m = AddThreeMacro()
         self.assertEqual(
             m.label,
-            add_three_macro.__name__,
+            AddThreeMacro.__name__,
             msg="Label should be automatically generated"
         )
         label = "custom_name"
-        m2 = Macro(add_three_macro, label=label)
+        m2 = AddThreeMacro(label=label)
         self.assertEqual(m2.label, label, msg="Should be able to specify a label")
 
     def test_creation_from_decorator(self):
-        m = Macro(add_three_macro)
+        m = AddThreeMacro()
 
         self.assertIs(
             m.outputs.three__result.value,
@@ -150,7 +154,9 @@ class TestMacro(unittest.TestCase):
         )
 
         input_x = 1
-        expected_value = add_one(add_one(add_one(input_x)))
+        expected_value = AddOne.node_function(
+            AddOne.node_function(AddOne.node_function(input_x))
+        )
         out = m(one__x=input_x)  # Take kwargs to set input at runtime
 
         self.assertEqual(
@@ -166,40 +172,32 @@ class TestMacro(unittest.TestCase):
 
     def test_creation_from_subclass(self):
         class MyMacro(Macro):
-            def build_graph(self):
-                add_three_macro(self)
-
-            __init__ = partialmethod(
-                Macro.__init__,
-                build_graph,
-            )
+            @staticmethod
+            def graph_creator(macro):
+                AddThreeMacro.graph_creator(macro)
 
         x = 0
         m = MyMacro(one__x=x)
         m.run()
         self.assertEqual(
             m.outputs.three__result.value,
-            add_one(add_one(add_one(x))),
+            AddOne.node_function(AddOne.node_function(AddOne.node_function(x))),
             msg="Subclasses should be able to simply override the graph_creator arg"
         )
 
     def test_nesting(self):
-        def nested_macro(macro):
-            macro.a = SingleValue(add_one)
-            macro.b = Macro(
-                add_three_macro,
+        @macro_node()
+        def NestedMacro(macro):
+            macro.a = AddOne()
+            macro.b = AddThreeMacro(
                 one__x=macro.a,
                 outputs_map={"two__result": "intermediate_result"}
             )
-            macro.c = Macro(
-                add_three_macro,
+            macro.c = AddThreeMacro(
                 one__x=macro.b.outputs.three__result,
                 outputs_map={"two__result": "intermediate_result"}
             )
-            macro.d = SingleValue(
-                add_one,
-                x=macro.c.outputs.three__result,
-            )
+            macro.d = AddOne(x=macro.c.outputs.three__result)
             macro.a >> macro.b >> macro.c >> macro.d
             macro.starting_nodes = [macro.a]
             # This definition of the execution graph is not strictly necessary in this
@@ -207,12 +205,12 @@ class TestMacro(unittest.TestCase):
             # macros works ok
             macro.outputs_map = {"b__intermediate_result": "deep_output"}
 
-        m = Macro(nested_macro)
+        m = NestedMacro()
         self.assertEqual(m(a__x=0).d__result, 8)
 
     def test_with_executor(self):
-        macro = Macro(add_three_macro)
-        downstream = SingleValue(add_one, x=macro.outputs.three__result)
+        macro = AddThreeMacro()
+        downstream = AddOne(x=macro.outputs.three__result)
         macro >> downstream  # Manually specify since we'll run the macro but look
         # at the downstream output, and none of this is happening in a workflow
 
@@ -290,8 +288,8 @@ class TestMacro(unittest.TestCase):
         macro.executor_shutdown()
 
     def test_pulling_from_inside_a_macro(self):
-        upstream = SingleValue(add_one, x=2)
-        macro = Macro(add_three_macro, one__x=upstream)
+        upstream = AddOne(x=2)
+        macro = AddThreeMacro(one__x=upstream)
         macro.inputs.one__x = 0  # Set value
         # Now macro.one.inputs.x has both value and a connection
 
@@ -316,15 +314,16 @@ class TestMacro(unittest.TestCase):
             return node.inputs.x.connections + node.signals.input.run.connections
 
         with self.subTest("When the local scope has cyclic data flow"):
-            def cyclic_macro(macro):
-                macro.one = SingleValue(add_one)
-                macro.two = SingleValue(add_one, x=macro.one)
+            @macro_node()
+            def CyclicMacro(macro):
+                macro.one = AddOne()
+                macro.two = AddOne(x=macro.one)
                 macro.one.inputs.x = macro.two
                 macro.one >> macro.two
                 macro.starting_nodes = [macro.one]
                 # We need to manually specify execution since the data flow is cyclic
 
-            m = Macro(cyclic_macro)
+            m = CyclicMacro()
 
             initial_labels = list(m.nodes.keys())
 
@@ -353,9 +352,9 @@ class TestMacro(unittest.TestCase):
             )
 
         with self.subTest("When the parent scope has cyclic data flow"):
-            n1 = SingleValue(add_one, label="n1", x=0)
-            n2 = SingleValue(add_one, label="n2", x=n1)
-            m = Macro(add_three_macro, label="m", one__x=n2)
+            n1 = AddOne(label="n1", x=0)
+            n2 = AddOne(label="n2", x=n1)
+            m = AddThreeMacro(label="m", one__x=n2)
 
             self.assertEqual(
                 0 + 1 + 1 + (1 + 1 + 1),
@@ -394,13 +393,14 @@ class TestMacro(unittest.TestCase):
             )
 
         with self.subTest("When a node breaks upstream"):
-            def fail_at_zero(x):
+            @Macro.wrap_as.single_value_node()
+            def FailAtZero(x):
                 y = 1 / x
                 return y
 
-            n1 = SingleValue(fail_at_zero, x=0)
-            n2 = SingleValue(add_one, x=n1, label="n1")
-            n_not_used = SingleValue(add_one)
+            n1 = FailAtZero(x=0)
+            n2 = AddOne(x=n1, label="n1")
+            n_not_used = AddOne()
             n_not_used >> n2  # Just here to make sure it gets restored
 
             with self.assertRaises(
@@ -420,16 +420,17 @@ class TestMacro(unittest.TestCase):
             )
 
     def test_output_labels_vs_return_values(self):
-        def no_return(macro):
+        @macro_node()
+        def NoReturn(macro):
             macro.foo = macro.create.standard.UserInput()
 
-        Macro(no_return)  # Neither is fine
+        NoReturn()  # Neither is fine
 
         with self.assertRaises(
             TypeError,
             msg="Output labels and return values must match"
         ):
-            Macro(no_return, output_labels="not_None")
+            NoReturn(output_labels="not_None")
 
         @macro_node("some_return")
         def HasReturn(macro):
