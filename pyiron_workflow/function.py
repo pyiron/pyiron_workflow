@@ -558,7 +558,7 @@ class Function(Node, ABC):
         return SeabornColors.green
 
 
-class SingleValue(Function, HasChannel):
+class SingleValue(Function, HasChannel, ABC):
     """
     A node that _must_ return only a single value.
 
