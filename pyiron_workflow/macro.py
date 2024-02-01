@@ -26,20 +26,21 @@ class Macro(Composite):
     A macro is a composite node that holds a graph with a fixed interface, like a
     pre-populated workflow that is the same every time you instantiate it.
 
-    At instantiation, the macro uses a provided callable to build and wire the graph,
-    then builds a static IO interface for this graph.
-    This callable must use the macro object itself as the first argument (e.g. adding
+    At instantiation, the macro uses a graph creating function that is an abstract
+    requirement for all child classes to build and wire the graph, then builds a static
+    IO interface for this graph.
+    This function must use the macro object itself as the first argument (e.g. adding
     nodes to it).
     As with :class:`Workflow` objects, macros leverage `inputs_map` and `outputs_map` to
     control macro-level IO access to child IO.
     As with :class:`Workflow`, default behaviour is to expose all unconnected child IO.
-    The provided callable may optionally specify further args and kwargs, which are used
-    to pre-populate the macro with :class:`UserInput` nodes;
+    The graph creator function may optionally specify further args and kwargs, which
+    are used to pre-populate the macro with :class:`UserInput` nodes;
     This can be especially helpful when more than one child node needs access to the
     same input value.
-    Similarly, the callable may return any number of child nodes' output channels (or
-    the node itself in the case of :class:`SingleValue` nodes) and commensurate
-    :attr:`output_labels` to define macro-level output.
+    Similarly, the graph creator function may return any number of child nodes' output
+    channels (or the node itself in the case of :class:`SingleValue` nodes) and
+    commensurate :attr:`output_labels` to define macro-level output.
     These function-like definitions of the graph creator callable can be used
     independently or together.
     Each that is used switches its IO map to a "whitelist" paradigm, so any I/O _not_
@@ -50,9 +51,6 @@ class Macro(Composite):
 
     Macro IO is _value linked_ to the child IO, so that their values stay synchronized,
     but the child nodes of a macro form an isolated sub-graph.
-
-    As with function nodes, subclasses of :class:`Macro` may define a method for creating the
-    graph.
 
     As with :class:`Workflow``, all DAG macros can determine their execution flow
     automatically, if you have cycles in your data flow, or otherwise want more control

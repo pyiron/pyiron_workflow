@@ -20,12 +20,8 @@ class Function(Node):
     """
     Function nodes wrap an arbitrary python function.
 
-    Actual function node instances can either be instances of the base node class, in
-    which case the callable node function *must* be provided OR they can be instances
-    of children of this class which provide the node function as a class-level method.
-    Those children may define some or all of the node behaviour at the class level, and
-    modify their signature accordingly so this is not available for alteration by the
-    user, e.g. the node function and output labels may be hard-wired.
+    This is an abstract class; actual function node instances must be an instance of
+    some child class that defines the abstract node funcion method.
 
     Although not strictly enforced, it is a best-practice that where possible, function
     nodes should be both functional (always returning the same output given the same
