@@ -85,16 +85,18 @@ class Macro(Composite, ABC):
         Let's consider the simplest case of macros that just consecutively add 1 to
         their input:
 
-        >>> from pyiron_workflow.macro import Macro
+        >>> from pyiron_workflow.macro import Macro, macro_node
         >>>
-        >>> def add_one(x):
+        >>> @Macro.wrap_as.single_value_node()
+        ... def AddOne(x):
         ...     result = x + 1
         ...     return result
         >>>
-        >>> def add_three_macro(macro):
-        ...     macro.one = macro.create.SingleValue(add_one)
-        ...     macro.two = macro.create.SingleValue(add_one, macro.one)
-        ...     macro.three = macro.create.SingleValue(add_one, macro.two)
+        >>> @macro_node()
+        ... def AddThreeMacro(macro):
+        ...     macro.one = AddOne()
+        ...     macro.two = AddOne(macro.one)
+        ...     macro.three = AddOne(macro.two)
         ...     macro.one >> macro.two >> macro.three
         ...     macro.starting_nodes = [macro.one]
 
@@ -102,53 +104,47 @@ class Macro(Composite, ABC):
         --it's just an extremely simple DAG after all! -- but it's done here to
         demonstrate the syntax.
 
-        We can make a macro by passing this graph-building function (that takes a macro
-        as its first argument, i.e. `self` from the macro's perspective) to the :class:`Macro`
-        class. Then, we can use it like a regular node! Just like a workflow, the
-        io is constructed from unconnected owned-node IO by combining node and channel
-        labels.
+        Macros are used like a regular node. Just like a workflow, the default io is
+        constructed from unconnected owned-node IO by combining node and channel labels.
 
-        >>> macro = Macro(add_three_macro)
+        >>> macro = AddThreeMacro()
         >>> out = macro(one__x=3)
         >>> out.three__result
         6
 
-        If there's a particular macro we're going to use again and again, we might want
-        to consider making a new child class of :class:`Macro` that overrides the
-        :meth:`graph_creator` arg such that the same graph is always created. We could
-        override `__init__` the normal way, but it's even faster to just use
-        `partialmethod`:
+        Just like :class:`Function` nodes, we can manually create a subclass instead
+        of using the decorator, as long as that subclass defines the asbtract
+        :meth:`graph_creator` method.
 
         >>> from functools import partialmethod
         >>> class AddThreeMacro(Macro):
         ...     @staticmethod
-        ...     def graph_creator(self):
-        ...         add_three_macro(self)
-        ...
-        ...     __init__ = partialmethod(
-        ...         Macro.__init__,
-        ...         None,  # We directly define the graph creator method on the class
-        ...     )
+        ...     def graph_creator(macro):
+        ...         macro.one = AddOne()
+        ...         macro.two = AddOne(macro.one)
+        ...         macro.three = AddOne(macro.two)
+        ...         macro.one >> macro.two >> macro.three
+        ...         macro.starting_nodes = [macro.one]
         >>>
         >>> macro = AddThreeMacro()
         >>> macro(one__x=0).three__result
         3
 
-        We can also nest macros, rename their IO, and provide access to
-        internally-connected IO by inputs and outputs maps:
+        We can also nest macros, as well as rename their IO, and provide access to
+        internally-connected IO that would otherwise be hidden. These manipulations
+        of the IO are done with maps, which can be provided at intialization or
+        directly to the decorator (so they're the default for all new instances)
 
-        >>> def nested_macro(macro):
-        ...     macro.a = macro.create.SingleValue(add_one)
-        ...     macro.b = macro.create.Macro(add_three_macro, one__x=macro.a)
-        ...     macro.c = macro.create.SingleValue(
-        ...         add_one, x=macro.b.outputs.three__result
-        ...     )
-        >>>
-        >>> macro = Macro(
-        ...     nested_macro,
+        >>> @macro_node(
         ...     inputs_map={"a__x": "inp"},
         ...     outputs_map={"c__result": "out", "b__three__result": "intermediate"},
         ... )
+        ... def NestedMacro(macro):
+        ...     macro.a = AddOne()
+        ...     macro.b = AddThreeMacro(one__x=macro.a)
+        ...     macro.c = AddOne(x=macro.b.outputs.three__result)
+        >>>
+        >>> macro = NestedMacro()
         >>> macro(inp=1)
         {'intermediate': 5, 'out': 6}
 
@@ -156,12 +152,13 @@ class Macro(Composite, ABC):
         is acyclic.
         Let's build a simple macro with two independent tracks:
 
-        >>> def modified_flow_macro(macro):
-        ...     macro.a = macro.create.SingleValue(add_one, x=0)
-        ...     macro.b = macro.create.SingleValue(add_one, x=0)
-        ...     macro.c = macro.create.SingleValue(add_one, x=0)
+        >>> @macro_node()
+        ... def ModifiedFlowMacro(macro):
+        ...     macro.a = AddOne(0)
+        ...     macro.b = AddOne(0)
+        ...     macro.c = AddOne(0)
         >>>
-        >>> m = Macro(modified_flow_macro)
+        >>> m = ModifiedFlowMacro()
         >>> m(a__x=1, b__x=2, c__x=3)
         {'a__result': 2, 'b__result': 3, 'c__result': 4}
 
@@ -185,23 +182,22 @@ class Macro(Composite, ABC):
 
         We can also modify an existing macro at runtime by replacing nodes within it, as
         long as the replacement has fully compatible IO. There are three syntacic ways
-        to do this. Let's explore these by going back to our `add_three_macro` and
+        to do this. Let's explore these by going back to our `AddThreeMacro` and
         replacing each of its children with a node that adds 2 instead of 1.
 
-        >>> @Macro.wrap_as.single_value_node()
-        ... def add_two(x):
-        ...     result = x + 2
-        ...     return result
+        >>> @Macro.wrap_as.single_value_node("result")
+        ... def AddTwo(x):
+        ...     return x + 2
         >>>
-        >>> adds_six_macro = Macro(add_three_macro)
+        >>> adds_six_macro = AddThreeMacro()
         >>> # With the replace method
         >>> # (replacement target can be specified by label or instance,
         >>> # the replacing node can be specified by instance or class)
-        >>> replaced = adds_six_macro.replace_node(adds_six_macro.one, add_two())
+        >>> replaced = adds_six_macro.replace_node(adds_six_macro.one, AddTwo())
         >>> # With the replace_with method
-        >>> adds_six_macro.two.replace_with(add_two())
+        >>> adds_six_macro.two.replace_with(AddTwo())
         >>> # And by assignment of a compatible class to an occupied node label
-        >>> adds_six_macro.three = add_two
+        >>> adds_six_macro.three = AddTwo
         >>> adds_six_macro(one__x=1)
         {'three__result': 7}
 
@@ -258,8 +254,6 @@ class Macro(Composite, ABC):
         >>> with_maps()
         {'n_plus_2': 4, 'lout': [3, 4]}
 
-        Here we've leveraged the macro-creating decorator, but this works the same way
-        using the :class:`Macro` class directly.
     """
 
     def __init__(
