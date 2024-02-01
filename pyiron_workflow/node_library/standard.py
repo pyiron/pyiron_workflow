@@ -22,12 +22,12 @@ class If(SingleValue):
     """
 
     def __init__(self, **kwargs):
-        super().__init__(self.if_, output_labels="truth", **kwargs)
+        super().__init__(output_labels="truth", **kwargs)
         self.signals.output.true = OutputSignal("true", self)
         self.signals.output.false = OutputSignal("false", self)
 
     @staticmethod
-    def if_(condition):
+    def node_function(condition):
         if condition is NOT_DATA:
             raise TypeError(
                 f"Logic 'If' node expected data other but got NOT_DATA as input."
