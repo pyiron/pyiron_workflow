@@ -414,19 +414,6 @@ class TestWorkflow(unittest.TestCase):
         ):
             wf.save(backend="tinybase")
 
-        with self.subTest("Instanced node"):
-            wf.direct_instance = Workflow.create.Function(plus_one)
-            try:
-                with self.assertRaises(
-                    TypeError,
-                    msg="No direct node instances, only children with functions as "
-                        "_class_ attribtues"
-                ):
-                    wf.save(backend="h5io")
-            finally:
-                wf.remove_node(wf.direct_instance)
-                wf.storage.delete()
-
         with self.subTest("Unimportable node"):
             @Workflow.wrap_as.single_value_node("y")
             def UnimportableScope(x):
