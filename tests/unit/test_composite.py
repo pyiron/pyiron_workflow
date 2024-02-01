@@ -9,9 +9,14 @@ from pyiron_workflow.io import Outputs, Inputs
 from pyiron_workflow.topology import CircularDataFlowError
 
 
-def plus_one(x: int = 0) -> int:
+@Composite.wrap_as.function_node()
+def PlusOne(x: int = 0) -> int:
     y = x + 1
     return y
+
+@Composite.wrap_as.single_value_node("y")
+def PlusOneSVN(x: int = 0) -> int:
+    return PlusOne.node_function(x)
 
 
 class AComposite(Composite):
@@ -88,9 +93,9 @@ class TestComposite(unittest.TestCase):
 
     def test_node_addition(self):
         # Validate the four ways to add a node
-        self.comp.add_node(Composite.create.Function(plus_one, label="foo"))
-        self.comp.baz = self.comp.create.Function(plus_one, label="whatever_baz_gets_used")
-        Composite.create.Function(plus_one, label="qux", parent=self.comp)
+        self.comp.add_node(PlusOne(label="foo"))
+        self.comp.baz = PlusOne(label="whatever_baz_gets_used")
+        PlusOne(label="qux", parent=self.comp)
         self.assertListEqual(
             list(self.comp.nodes.keys()),
             ["foo", "baz", "qux"],
@@ -104,7 +109,7 @@ class TestComposite(unittest.TestCase):
         )
                 
     def test_node_access(self):
-        node = Composite.create.Function(plus_one)
+        node = PlusOne()
         self.comp.child = node
         self.assertIs(
             self.comp.child,
@@ -130,8 +135,8 @@ class TestComposite(unittest.TestCase):
             )
 
     def test_node_removal(self):
-        self.comp.owned = Composite.create.Function(plus_one)
-        node = Composite.create.Function(plus_one)
+        self.comp.owned = PlusOne()
+        node = PlusOne()
         self.comp.foo = node
         # Add it to starting nodes manually, otherwise it's only there at run time
         self.comp.starting_nodes = [self.comp.foo]
@@ -166,25 +171,25 @@ class TestComposite(unittest.TestCase):
         )
 
     def test_label_uniqueness(self):
-        self.comp.foo = Composite.create.Function(plus_one)
+        self.comp.foo = PlusOne()
 
         self.comp.strict_naming = True
         # Validate name preservation for each node addition path
         with self.assertRaises(AttributeError, msg="We have 'foo' at home"):
-            self.comp.add_node(self.comp.create.Function(plus_one, label="foo"))
+            self.comp.add_node(PlusOne(label="foo"))
 
         with self.assertRaises(
             AttributeError,
             msg="The provided label is ok, but then assigning to baz should give "
                 "trouble since that name is already occupied"
         ):
-            self.comp.foo = Composite.create.Function(plus_one, label="whatever")
+            self.comp.foo = PlusOne(label="whatever")
 
         with self.assertRaises(AttributeError, msg="We have 'foo' at home"):
-            Composite.create.Function(plus_one, label="foo", parent=self.comp)
+            PlusOne(label="foo", parent=self.comp)
 
         with self.assertRaises(ValueError, msg="Parentage can't be set directly"):
-            node = Composite.create.Function(plus_one, label="foo")
+            node = PlusOne(label="foo")
             node.parent = self.comp
 
         with self.subTest("Make sure trivial re-assignment has no impact"):
@@ -203,7 +208,7 @@ class TestComposite(unittest.TestCase):
             )
 
         self.comp.strict_naming = False
-        self.comp.add_node(Composite.create.Function(plus_one, label="foo"))
+        self.comp.add_node(PlusOne(label="foo"))
         self.assertEqual(
             2,
             len(self.comp),
@@ -218,10 +223,8 @@ class TestComposite(unittest.TestCase):
 
     def test_singular_ownership(self):
         comp1 = AComposite("one")
-        comp1.node1 = comp1.create.Function(plus_one)
-        node2 = comp1.create.Function(
-            plus_one, label="node2", parent=comp1, x=comp1.node1.outputs.y
-        )
+        comp1.node1 = PlusOne()
+        node2 = PlusOne(label="node2", parent=comp1, x=comp1.node1.outputs.y)
         self.assertTrue(node2.connected, msg="Sanity check that node connection works")
 
         comp2 = AComposite("two")
@@ -236,9 +239,9 @@ class TestComposite(unittest.TestCase):
         )
 
     def test_replace(self):
-        n1 = Composite.create.SingleValue(plus_one)
-        n2 = Composite.create.SingleValue(plus_one)
-        n3 = Composite.create.SingleValue(plus_one)
+        n1 = PlusOneSVN()
+        n2 = PlusOneSVN()
+        n3 = PlusOneSVN()
 
         @Composite.wrap_as.function_node("y", "minus")
         def x_plus_minus_z(x: int = 0, z=2) -> tuple[int, int]:
@@ -392,7 +395,7 @@ class TestComposite(unittest.TestCase):
             )
 
     def test_working_directory(self):
-        self.comp.plus_one = Composite.create.Function(plus_one)
+        self.comp.plus_one = PlusOne()
         self.assertTrue(
             str(self.comp.plus_one.working_directory.path).endswith(self.comp.plus_one.label),
             msg="Child nodes should have their own working directories nested inside"
@@ -400,9 +403,9 @@ class TestComposite(unittest.TestCase):
         self.comp.working_directory.delete()  # Clean up
 
     def test_length(self):
-        self.comp.child = Composite.create.Function(plus_one)
+        self.comp.child = PlusOne()
         l1 = len(self.comp)
-        self.comp.child2 = Composite.create.Function(plus_one)
+        self.comp.child2 = PlusOne()
         self.assertEqual(
             l1 + 1,
             len(self.comp),
@@ -410,9 +413,9 @@ class TestComposite(unittest.TestCase):
         )
 
     def test_run(self):
-        self.comp.n1 = self.comp.create.SingleValue(plus_one, x=0)
-        self.comp.n2 = self.comp.create.SingleValue(plus_one, x=self.comp.n1)
-        self.comp.n3 = self.comp.create.SingleValue(plus_one, x=42)
+        self.comp.n1 = PlusOneSVN(x=0)
+        self.comp.n2 = PlusOneSVN(x=self.comp.n1)
+        self.comp.n3 = PlusOneSVN(x=42)
         self.comp.n1 >> self.comp.n2
         self.comp.starting_nodes = [self.comp.n1]
 
@@ -430,9 +433,9 @@ class TestComposite(unittest.TestCase):
 
     def test_set_run_signals_to_dag(self):
         # Like the run test, but manually invoking this first
-        self.comp.n1 = self.comp.create.SingleValue(plus_one, x=0)
-        self.comp.n2 = self.comp.create.SingleValue(plus_one, x=self.comp.n1)
-        self.comp.n3 = self.comp.create.SingleValue(plus_one, x=42)
+        self.comp.n1 = PlusOneSVN(x=0)
+        self.comp.n2 = PlusOneSVN(x=self.comp.n1)
+        self.comp.n3 = PlusOneSVN(x=42)
         self.comp.set_run_signals_to_dag_execution()
         self.comp.run()
         self.assertEqual(
@@ -459,10 +462,10 @@ class TestComposite(unittest.TestCase):
             self.comp.set_run_signals_to_dag_execution()
 
     def test_return(self):
-        self.comp.n1 = Composite.create.SingleValue(plus_one, x=0)
+        self.comp.n1 = PlusOneSVN(x=0)
         not_dottable_string = "can't dot this"
-        not_dottable_name_node = self.comp.create.SingleValue(
-            plus_one, x=42, label=not_dottable_string, parent=self.comp
+        not_dottable_name_node = PlusOneSVN(
+            x=42, label=not_dottable_string, parent=self.comp
         )
         self.comp.starting_nodes = [self.comp.n1, not_dottable_name_node]
         out = self.comp.run()
@@ -489,10 +492,10 @@ class TestComposite(unittest.TestCase):
 
     def test_io_maps(self):
         # input and output, renaming, accessing connected, and deactivating disconnected
-        self.comp.n1 = Composite.create.SingleValue(plus_one, x=0)
-        self.comp.n2 = Composite.create.SingleValue(plus_one, x=self.comp.n1)
-        self.comp.n3 = Composite.create.SingleValue(plus_one, x=self.comp.n2)
-        self.comp.m = Composite.create.SingleValue(plus_one, x=42)
+        self.comp.n1 = PlusOneSVN(x=0)
+        self.comp.n2 = PlusOneSVN(x=self.comp.n1)
+        self.comp.n3 = PlusOneSVN(x=self.comp.n2)
+        self.comp.m = PlusOneSVN(x=42)
         self.comp.inputs_map = {
             "n1__x": "x",  # Rename
             "n2__x": "intermediate_x",  # Expose
@@ -574,7 +577,7 @@ class TestComposite(unittest.TestCase):
 
     def test_de_activate_strict_connections(self):
         self.comp.sub_comp = AComposite("sub")
-        self.comp.sub_comp.n1 = Composite.create.SingleValue(plus_one, x=0)
+        self.comp.sub_comp.n1 = PlusOneSVN(x=0)
         self.assertTrue(
             self.comp.sub_comp.n1.inputs.x.strict_hints,
             msg="Sanity check that test starts in the expected condition"
@@ -593,8 +596,8 @@ class TestComposite(unittest.TestCase):
     def test_graph_info(self):
         top = AComposite("topmost")
         top.middle_composite = AComposite("middle_composite")
-        top.middle_composite.deep_node = Composite.create.SingleValue(plus_one)
-        top.middle_function = Composite.create.SingleValue(plus_one)
+        top.middle_composite.deep_node = PlusOneSVN()
+        top.middle_function = PlusOneSVN()
 
         with self.subTest("test_graph_path"):
             self.assertEqual(
