@@ -3,46 +3,40 @@ import unittest
 import warnings
 
 from pyiron_workflow.channels import NOT_DATA, ChannelConnectionError
-from pyiron_workflow.function import Function, SingleValue, function_node
+from pyiron_workflow.function import (
+    Function, SingleValue, function_node, single_value_node
+)
 from pyiron_workflow.interfaces import Executor
 
 
-def throw_error(x: Optional[int] = None):
-    raise RuntimeError
-
-
-def plus_one(x=1) -> Union[int, float]:
+@function_node()
+def PlusOne(x=1) -> Union[int, float]:
     y = x + 1
     return y
 
 
-def no_default(x, y):
+@function_node()
+def NoDefault(x, y):
     return x + y + 1
 
 
-def returns_multiple(x, y):
+@function_node()
+def ReturnsMultiple(x, y):
     return x, y, x + y
-
-
-def void():
-    pass
-
-
-def multiple_branches(x):
-    if x < 10:
-        return True
-    else:
-        return False
 
 
 class TestFunction(unittest.TestCase):
     def test_instantiation(self):
         with self.subTest("Void function is allowable"):
-            void_node = Function(void)
+            @function_node()
+            def Void():
+                pass
+
+            void_node = Void()
             self.assertEqual(len(void_node.outputs), 0)
 
         with self.subTest("Args and kwargs at initialization"):
-            node = Function(plus_one)
+            node = PlusOne()
             self.assertIs(
                 NOT_DATA,
                 node.outputs.y.value,
@@ -63,27 +57,27 @@ class TestFunction(unittest.TestCase):
                     f"change or something?"
             )
 
-            node = Function(no_default, 1, y=2, output_labels="output")
+            node = NoDefault(1, y=2, output_labels="output")
             node.run()
             self.assertEqual(
-                no_default(1, 2),
+                NoDefault.node_function(1, 2),
                 node.outputs.output.value,
                 msg="Nodes should allow input initialization by arg _and_ kwarg"
             )
             node(2, y=3)
             self.assertEqual(
-                no_default(2, 3),
+                NoDefault.node_function(2, 3),
                 node.outputs.output.value,
                 msg="Nodes should allow input update on call by arg and kwarg"
             )
 
             with self.assertRaises(ValueError):
                 # Can't pass more args than the function takes
-                Function(returns_multiple, 1, 2, 3)
+                ReturnsMultiple(1, 2, 3)
 
         with self.subTest("Initializing with connections"):
-            node = Function(plus_one, x=2)
-            node2 = Function(plus_one, x=node.outputs.y)
+            node = PlusOne(x=2)
+            node2 = PlusOne(x=node.outputs.y)
             self.assertIs(
                 node2.inputs.x.connections[0],
                 node.outputs.y,
@@ -94,14 +88,14 @@ class TestFunction(unittest.TestCase):
             self.assertEqual(4, node2.outputs.y.value, msg="Initialize from connection")
 
     def test_defaults(self):
-        with_defaults = Function(plus_one)
+        with_defaults = PlusOne()
         self.assertEqual(
             with_defaults.inputs.x.value,
             1,
             msg=f"Expected to get the default provided in the underlying function but "
                 f"got {with_defaults.inputs.x.value}",
         )
-        without_defaults = Function(no_default)
+        without_defaults = NoDefault()
         self.assertIs(
             without_defaults.inputs.x.value,
             NOT_DATA,
@@ -116,30 +110,37 @@ class TestFunction(unittest.TestCase):
 
     def test_label_choices(self):
         with self.subTest("Automatically scrape output labels"):
-            n = Function(plus_one)
+            n = PlusOne()
             self.assertListEqual(n.outputs.labels, ["y"])
 
         with self.subTest("Allow overriding them"):
-            n = Function(no_default, output_labels=("sum_plus_one",))
+            n = NoDefault(output_labels=("sum_plus_one",))
             self.assertListEqual(n.outputs.labels, ["sum_plus_one"])
 
         with self.subTest("Allow forcing _one_ output channel"):
-            n = Function(returns_multiple, output_labels="its_a_tuple")
+            n = ReturnsMultiple(output_labels="its_a_tuple")
             self.assertListEqual(n.outputs.labels, ["its_a_tuple"])
+
+        @function_node()
+        def MultipleBranches(x):
+            if x < 10:
+                return True
+            else:
+                return False
 
         with self.subTest("Fail on multiple return values"):
             with self.assertRaises(ValueError):
                 # Can't automatically parse output labels from a function with multiple
                 # return expressions
-                Function(multiple_branches)
+                MultipleBranches()
 
         with self.subTest("Override output label scraping"):
-            switch = Function(multiple_branches, output_labels="bool")
+            switch = MultipleBranches(output_labels="bool")
             self.assertListEqual(switch.outputs.labels, ["bool"])
 
     def test_default_label(self):
-        n = Function(plus_one)
-        self.assertEqual(plus_one.__name__, n.label)
+        n = PlusOne()
+        self.assertEqual(PlusOne.__name__, n.label)
 
     def test_availability_of_node_function(self):
         @function_node()
@@ -159,7 +160,7 @@ class TestFunction(unittest.TestCase):
         )
 
     def test_statuses(self):
-        n = Function(plus_one)
+        n = PlusOne()
         self.assertTrue(n.ready)
         self.assertFalse(n.running)
         self.assertFalse(n.failed)
@@ -176,7 +177,8 @@ class TestFunction(unittest.TestCase):
         self.assertTrue(n.failed)
 
     def test_with_self(self):
-        def with_self(self, x: float) -> float:
+        @function_node("output")
+        def WithSelf(self, x: float) -> float:
             # Note: Adding internal state to the node like this goes against the best
             #  practice of keeping nodes "functional". Following python's paradigm of
             #  giving users lots of power, we want to guarantee that this behaviour is
@@ -189,7 +191,7 @@ class TestFunction(unittest.TestCase):
                 self.some_counter = 1
             return x + 0.1
 
-        node = Function(with_self, output_labels="output")
+        node = WithSelf()
         self.assertTrue(
             "x" in node.inputs.labels,
             msg=f"Expected to find function input 'x' in the node input but got "
@@ -228,13 +230,13 @@ class TestFunction(unittest.TestCase):
             return x + 0.1
 
         with warnings.catch_warnings(record=True) as warning_list:
-            node = Function(with_messed_self)
+            node = function_node()(with_messed_self)()
             self.assertTrue("self" in node.inputs.labels)
 
         self.assertEqual(len(warning_list), 1)
 
     def test_call(self):
-        node = Function(no_default, output_labels="output")
+        node = NoDefault(output_labels="output")
 
         with self.subTest("Ensure desired failures occur"):
             with self.assertRaises(ValueError):
@@ -263,7 +265,7 @@ class TestFunction(unittest.TestCase):
 
             node(3)  # Implicitly test partial update
             self.assertEqual(
-                no_default(3, 2),
+                NoDefault.node_function(3, 2),
                 node.outputs.output.value,
                 msg="__call__ should allow updating only _some_ input before running"
             )
@@ -291,14 +293,14 @@ class TestFunction(unittest.TestCase):
                 node(some_randome_kwaaaaarg="foo")
 
     def test_return_value(self):
-        node = Function(plus_one)
+        node = PlusOne()
 
         with self.subTest("Run on main process"):
             node.inputs.x = 2
             return_on_explicit_run = node.run()
             self.assertEqual(
                 return_on_explicit_run,
-                plus_one(2),
+                PlusOne.node_function(2),
                 msg="On explicit run, the most recent input data should be used and "
                     "the result should be returned"
             )
@@ -306,23 +308,21 @@ class TestFunction(unittest.TestCase):
             return_on_call = node(1)
             self.assertEqual(
                 return_on_call,
-                plus_one(1),
+                PlusOne.node_function(1),
                 msg="Run output should be returned on call"
                 # This is a duplicate test, since __call__ just invokes run, but it is
                 # such a core promise that let's just double-check it
             )
 
     def test_copy_connections(self):
-        node = Function(plus_one)
+        node = PlusOne()
 
-        upstream = Function(plus_one)
-        to_copy = Function(plus_one, x=upstream.outputs.y)
-        downstream = Function(plus_one, x=to_copy.outputs.y)
+        upstream = PlusOne()
+        to_copy = PlusOne(x=upstream.outputs.y)
+        downstream = PlusOne(x=to_copy.outputs.y)
         upstream >> to_copy >> downstream
 
-        wrong_io = Function(
-            returns_multiple, x=upstream.outputs.y, y=upstream.outputs.y
-        )
+        wrong_io = ReturnsMultiple(x=upstream.outputs.y, y=upstream.outputs.y)
         downstream.inputs.x.connect(wrong_io.outputs.y)
 
         with self.subTest("Successful copy"):
@@ -333,11 +333,12 @@ class TestFunction(unittest.TestCase):
             self.assertIn(downstream.signals.input.run, node.signals.output.ran)
         node.disconnect()  # Make sure you've got a clean slate
 
-        def plus_one_hinted(x: int = 0) -> int:
+        @function_node()
+        def PlusOneHinted(x: int = 0) -> int:
             y = x + 1
             return y
 
-        hinted_node = Function(plus_one_hinted)
+        hinted_node = PlusOneHinted()
 
         with self.subTest("Ensure failed copies fail cleanly"):
             with self.assertRaises(AttributeError, msg="Wrong labels"):
@@ -450,20 +451,24 @@ class TestFunction(unittest.TestCase):
             ref._copy_values(extra, fail_hard=True)
 
 
-
 class TestSingleValue(unittest.TestCase):
+    @classmethod
+    def setUpClass(cls) -> None:
+        cls.PlusOne = single_value_node()(PlusOne.node_function)
+
     def test_instantiation(self):
-        node = SingleValue(no_default, 1, y=2, output_labels="output")
+        NoDefaultSVN = single_value_node("output")(NoDefault.node_function)
+        node = NoDefaultSVN(1, y=2)
         node.run()
         self.assertEqual(
-            no_default(1, 2),
+            NoDefault.node_function(1, 2),
             node.outputs.output.value,
             msg="Single value node should allow function input by arg and kwarg"
         )
 
         with self.assertRaises(ValueError):
             # Too many labels
-            SingleValue(plus_one, output_labels=["z", "excess_label"])
+            self.PlusOne(output_labels=["z", "excess_label"])
 
     def test_item_and_attribute_access(self):
         class Foo:
@@ -476,10 +481,12 @@ class TestSingleValue(unittest.TestCase):
                 else:
                     return False
 
-        def returns_foo() -> Foo:
-            return Foo()
+        class ReturnsFoo(SingleValue):
+            @staticmethod
+            def node_function() -> Foo:
+                return Foo()
 
-        svn = SingleValue(returns_foo, output_labels="foo")
+        svn = ReturnsFoo(output_labels="foo")
 
         self.assertEqual(
             svn.connected,
@@ -522,7 +529,7 @@ class TestSingleValue(unittest.TestCase):
 
     def test_repr(self):
         with self.subTest("Filled data"):
-            svn = SingleValue(plus_one)
+            svn = self.PlusOne()
             svn.run()
             self.assertEqual(
                 svn.__repr__(), svn.outputs.y.value.__repr__(),
@@ -530,7 +537,7 @@ class TestSingleValue(unittest.TestCase):
             )
 
         with self.subTest("Not data"):
-            svn = SingleValue(no_default, output_labels="output")
+            svn = single_value_node("output")(NoDefault.node_function)()
             self.assertIs(svn.outputs.output.value, NOT_DATA)
             self.assertTrue(
                 svn.__repr__().endswith(NOT_DATA.__repr__()),
@@ -539,7 +546,7 @@ class TestSingleValue(unittest.TestCase):
             )
 
     def test_str(self):
-        svn = SingleValue(plus_one)
+        svn = self.PlusOne()
         svn.run()
         self.assertTrue(
             str(svn).endswith(str(svn.value)),
@@ -549,8 +556,8 @@ class TestSingleValue(unittest.TestCase):
         )
 
     def test_easy_output_connection(self):
-        svn = SingleValue(plus_one)
-        regular = Function(plus_one)
+        svn = self.PlusOne()
+        regular = PlusOne()
 
         regular.inputs.x = svn
 
@@ -568,7 +575,7 @@ class TestSingleValue(unittest.TestCase):
                 "case default->plus_one->plus_one = 1 + 1 +1 = 3"
         )
 
-        at_instantiation = Function(plus_one, x=svn)
+        at_instantiation = PlusOne(x=svn)
         self.assertIn(
             svn.outputs.y, at_instantiation.inputs.x.connections,
             msg="The parsing of SingleValue output as a connection should also work"
@@ -578,12 +585,9 @@ class TestSingleValue(unittest.TestCase):
     def test_nested_declaration(self):
         # It's really just a silly case of running without a parent, where you don't
         # store references to all the nodes declared
-        node = SingleValue(
-            plus_one,
-            x=SingleValue(
-                plus_one,
-                x=SingleValue(
-                    plus_one,
+        node = self.PlusOne(
+            x=self.PlusOne(
+                x=self.PlusOne(
                     x=2
                 )
             )
