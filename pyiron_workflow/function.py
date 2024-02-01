@@ -64,15 +64,19 @@ class Function(Node, ABC):
             input channel will have their value assigned to that channel.
 
     Examples:
-        At the most basic level, to use nodes all we need to do is provide the
-        `Function` class with a function and labels for its output, like so:
+        At the most basic level, to use functions nodes all we need to do is wrap a
+        regular function with the :func:`function_node` decorator. The decorator can
+        accept labels for the output, so we need to provide it with arguments (or no
+        arguments, as here). Note that we follow the convention of `PascalCase` for
+        these function definitions, since the wrapped object is actually a class!
 
-        >>> from pyiron_workflow.function import Function
+        >>> from pyiron_workflow.function import function_node
         >>>
-        >>> def mwe(x, y):
+        >>> @function_node()
+        ... def PlusMinusOne(x, y):
         ...     return x+1, y-1
         >>>
-        >>> plus_minus_1 = Function(mwe)
+        >>> plus_minus_1 = PlusMinusOne()
         >>>
         >>> print(plus_minus_1.outputs["x+1"])
         NOT_DATA
@@ -90,8 +94,8 @@ class Function(Node, ABC):
         ...     plus_minus_1.run()
         ... except ValueError as e:
         ...     print("ValueError:", e.args[0])
-        ValueError: mwe received a run command but is not ready. The node should be neither running nor failed, and all input values should conform to type hints.
-        mwe readiness: False
+        ValueError: PlusMinusOne received a run command but is not ready. The node should be neither running nor failed, and all input values should conform to type hints.
+        PlusMinusOne readiness: False
         STATE:
         running: False
         failed: False
@@ -103,7 +107,7 @@ class Function(Node, ABC):
         readiness report:
 
         >>> print(plus_minus_1.readiness_report)
-        mwe readiness: False
+        PlusMinusOne readiness: False
         STATE:
         running: False
         failed: False
@@ -128,7 +132,11 @@ class Function(Node, ABC):
         We can also, optionally, provide initial values for some or all of the input and
         labels for the output:
 
-        >>> plus_minus_1 = Function(mwe, output_labels=("p1", "m1"),  x=1)
+        >>> @function_node("p1", "m1")
+        ... def PlusMinusOneLabeled(x, y):
+        ...     return x+1, y-1
+        >>>
+        >>> plus_minus_1 = PlusMinusOneLabeled(1)
         >>> plus_minus_1.inputs.y = 2
         >>> out = plus_minus_1.run()
         >>> out
@@ -154,20 +162,21 @@ class Function(Node, ABC):
         Our treatment of type hints is **not infinitely robust**, but covers a wide
         variety of common use cases.
         Note that getting "good" (i.e. dot-accessible) output labels can be achieved by
-        using good variable names and returning those variables instead of using
-        :attr:`output_labels`.
+        using good variable names and returning those variables instead of manually
+        specifying :attr:`output_labels`.
         If we try to assign a value of the wrong type, it will raise an error:
 
         >>> from typing import Union
         >>>
-        >>> def hinted_example(
+        >>> @function_node()
+        ... def HintedExample(
         ...     x: Union[int, float],
         ...     y: int | float = 1
         ... ) -> tuple[int, int | float]:
         ...     p1, m1 = x+1, y-1
         ...     return p1, m1
         >>>
-        >>> plus_minus_1 = Function(hinted_example)
+        >>> plus_minus_1 = HintedExample()
         >>> try:
         ...     plus_minus_1.inputs.x =  "not an int or float"
         ... except TypeError as e:
@@ -185,8 +194,8 @@ class Function(Node, ABC):
         ...     plus_minus_1.run()
         ... except ValueError as e:
         ...     print("ValueError:", e.args[0])
-        ValueError: hinted_example received a run command but is not ready. The node should be neither running nor failed, and all input values should conform to type hints.
-        hinted_example readiness: False
+        ValueError: HintedExample received a run command but is not ready. The node should be neither running nor failed, and all input values should conform to type hints.
+        HintedExample readiness: False
         STATE:
         running: False
         failed: False
@@ -203,52 +212,18 @@ class Function(Node, ABC):
         >>> plus_minus_1.ready, plus_minus_1.inputs.x.ready, plus_minus_1.inputs.y.ready
         (False, False, True)
 
-        In these examples, we've instantiated nodes directly from the base :class:`Function`
-        class, and populated their input directly with data.
-        In practice, these nodes are meant to be part of complex workflows; that means
-        both that you are likely to have particular nodes that get heavily re-used, and
-        that you need the nodes to pass data to each other.
+        In these examples, we've used the decorator to wrap functions and make child
+        classes of :class:`Function`, but of course you can always make a subclass the
+        old-fashioned way and define the abstract :meth:`node_function`.
+        This might be useful if you want to add other functionality, e.g. perhaps you
+        want your node to have `.plot()` helper method or something that knows how to
+        automatically leverage the node output.
 
-        For reusable nodes, we want to create a sub-class of :class:`Function` that fixes some
-        of the node behaviour -- usually the :meth:`node_function` and :attr:`output_labels`.
-
-        This can be done most easily with the :func:`function_node` decorator, which takes a function
-        and returns a node class:
-
-        >>> from pyiron_workflow.function import function_node
-        >>>
-        >>> @function_node("p1", "m1")
-        ... def my_mwe_node(
-        ...     x: int | float, y: int | float = 1
-        ... ) -> tuple[int | float, int | float]:
-        ...     return x+1, y-1
-        >>>
-        >>> node_instance = my_mwe_node(x=0)
-        >>> node_instance(y=0)
-        (1, -1)
-
-        Where we've passed the output labels and class arguments to the decorator,
-        and inital values to the newly-created node class (`my_mwe_node`) at
-        instantiation.
-        Because we provided a good initial value for `x`, we get our result right away.
-
-        Using the decorator is the recommended way to create new node classes, but this
-        magic is just equivalent to creating a child class with the `node_function`
-        already defined as a `staticmethod`:
+        Here's a trivial example of manually sub-classing:
 
         >>> from typing import Literal, Optional
         >>>
         >>> class AlphabetModThree(Function):
-        ...     def __init__(
-        ...         self,
-        ...         label: Optional[str] = None,
-        ...         **kwargs
-        ...     ):
-        ...         super().__init__(
-        ...             None,
-        ...             label=label,
-        ...             **kwargs
-        ...         )
         ...
         ...     @staticmethod
         ...     def node_function(i: int) -> Literal["a", "b", "c"]:
@@ -265,11 +240,11 @@ class Function(Node, ABC):
         the final node to run everything "upstream" then run itself:
 
         >>> @function_node()
-        ... def adder_node(x: int = 0, y: int = 0) -> int:
+        ... def AdderNode(x: int = 0, y: int = 0) -> int:
         ...     sum = x + y
         ...     return sum
         >>>
-        >>> adder = adder_node(x=1)
+        >>> adder = AdderNode(x=1)
         >>> alpha = AlphabetModThree(i=adder.outputs.sum)
         >>> print(alpha())
         b
@@ -292,11 +267,11 @@ class Function(Node, ABC):
         Here's our simple example from above using this other paradigm:
 
         >>> @function_node()
-        ... def adder_node(x: int = 0, y: int = 0) -> int:
+        ... def AdderNode(x: int = 0, y: int = 0) -> int:
         ...     sum = x + y
         ...     return sum
         >>>
-        >>> adder = adder_node()
+        >>> adder = AdderNode()
         >>> alpha = AlphabetModThree(i=adder.outputs.sum)
         >>> _ = adder >> alpha
         >>> # We catch and ignore output -- it's needed for chaining, but screws up
