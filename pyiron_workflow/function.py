@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+from abc import ABC, abstractmethod
 import inspect
 import warnings
 from functools import partialmethod
@@ -16,7 +17,7 @@ if TYPE_CHECKING:
     from pyiron_workflow.composite import Composite
 
 
-class Function(Node):
+class Function(Node, ABC):
     """
     Function nodes wrap an arbitrary python function.
 
@@ -323,7 +324,6 @@ class Function(Node):
 
     def __init__(
         self,
-        node_function: callable,
         *args,
         label: Optional[str] = None,
         parent: Optional[Composite] = None,
@@ -334,27 +334,10 @@ class Function(Node):
         output_labels: Optional[str | list[str] | tuple[str]] = None,
         **kwargs,
     ):
-        if not callable(node_function):
-            # Children of `Function` may explicitly provide a `node_function` static
-            # method so the node has fixed behaviour.
-            # In this case, the `__init__` signature should be changed so that the
-            # `node_function` argument is just always `None` or some other non-callable.
-            # If a callable `node_function` is not received, you'd better have it as an
-            # attribute already!
-            if not hasattr(self, "node_function"):
-                raise AttributeError(
-                    f"If `None` is provided as a `node_function`, a `node_function` "
-                    f"property must be defined instead, e.g. when making child classes"
-                    f"of `Function` with specific behaviour"
-                )
-            self._type_hints = get_type_hints(self.node_function)
-        else:
-            # If a callable node function is received, use it
-            self.node_function = node_function
-            self._type_hints = get_type_hints(node_function)
+        self._type_hints = get_type_hints(self.node_function)
 
         super().__init__(
-            label=label if label is not None else self.node_function.__name__,
+            label=label if label is not None else self.__class__.__name__,
             parent=parent,
             save_after_run=save_after_run,
             # **kwargs,
@@ -367,6 +350,15 @@ class Function(Node):
 
         self.signals = self._build_signal_channels()
         self.set_input_values(*args, **kwargs)
+
+    @staticmethod
+    @abstractmethod
+    def node_function(*args, **kwargs):
+        """
+        The functionality to be executed when the node is run.
+
+        It is strongly recommended that this be both functional and idempotent.
+        """
 
     def _get_output_labels(self, output_labels: str | list[str] | tuple[str] | None):
         """
@@ -756,7 +748,6 @@ def _wrapper_factory(
             {
                 "__init__": partialmethod(
                     parent_class.__init__,
-                    None,
                     output_labels=output_labels,
                 ),
                 "node_function": staticmethod(node_function),

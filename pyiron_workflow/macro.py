@@ -5,6 +5,7 @@ interface and are not intended to be internally modified after instantiation.
 
 from __future__ import annotations
 
+from abc import ABC, abstractmethod
 from functools import partialmethod
 import inspect
 from typing import get_type_hints, Literal, Optional, TYPE_CHECKING
@@ -21,7 +22,7 @@ if TYPE_CHECKING:
     from pyiron_workflow.channels import Channel
 
 
-class Macro(Composite):
+class Macro(Composite, ABC):
     """
     A macro is a composite node that holds a graph with a fixed interface, like a
     pre-populated workflow that is the same every time you instantiate it.
@@ -263,7 +264,6 @@ class Macro(Composite):
 
     def __init__(
         self,
-        graph_creator: callable[[Macro], None],
         label: Optional[str] = None,
         parent: Optional[Composite] = None,
         overwrite_save: bool = False,
@@ -276,26 +276,9 @@ class Macro(Composite):
         output_labels: Optional[str | list[str] | tuple[str]] = None,
         **kwargs,
     ):
-        if not callable(graph_creator):
-            # Children of `Function` may explicitly provide a `node_function` static
-            # method so the node has fixed behaviour.
-            # In this case, the `__init__` signature should be changed so that the
-            # `node_function` argument is just always `None` or some other non-callable.
-            # If a callable `node_function` is not received, you'd better have it as an
-            # attribute already!
-            if not hasattr(self, "graph_creator"):
-                raise AttributeError(
-                    f"If `None` is provided as a `graph_creator`, a `graph_creator` "
-                    f"property must be defined instead, e.g. when making child classes"
-                    f"of `Macro` with specific behaviour"
-                )
-        else:
-            # If a callable graph creator is received, use it
-            self.graph_creator = graph_creator
-
         self._parent = None
         super().__init__(
-            label=label if label is not None else self.graph_creator.__name__,
+            label=label if label is not None else self.__class__.__name__,
             parent=parent,
             save_after_run=save_after_run,
             strict_naming=strict_naming,
@@ -327,6 +310,15 @@ class Macro(Composite):
         self._outputs: Outputs = self._build_outputs()
 
         self.set_input_values(**kwargs)
+
+    @staticmethod
+    @abstractmethod
+    def graph_creator(self: Macro, *args, **kwargs):
+        """
+        A function that builds a graph by adding nodes to `self`, wiring their data
+        connections, and (optionally) wiring signal connections and setting starting
+        nodes.
+        """
 
     def _validate_output_labels(self, output_labels) -> tuple[str]:
         """
@@ -625,7 +617,6 @@ def macro_node(*output_labels, **node_class_kwargs):
             {
                 "__init__": partialmethod(
                     Macro.__init__,
-                    None,
                     output_labels=output_labels,
                     **node_class_kwargs,
                 ),
