@@ -27,4 +27,10 @@ def AddPlusOne(obj, other):
     return obj + other + 1
 
 
-nodes = [OptionallyAdd, AddThree, AddPlusOne]
+def dynamic(x):
+    return x + 1
+
+
+Dynamic = Workflow.wrap_as.single_value_node()(dynamic)
+
+nodes = [OptionallyAdd, AddThree, AddPlusOne, Dynamic]

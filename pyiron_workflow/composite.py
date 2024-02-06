@@ -763,3 +763,7 @@ class Composite(Node, ABC):
             self._get_signals_input,
             self._get_signals_output,
         )
+
+    @property
+    def import_ready(self) -> bool:
+        return super().import_ready and all(node.import_ready for node in self)

@@ -10,6 +10,7 @@ from __future__ import annotations
 import warnings
 from abc import ABC, abstractmethod
 from concurrent.futures import Executor as StdLibExecutor, Future
+from importlib import import_module
 from typing import Any, Literal, Optional, TYPE_CHECKING
 
 from pyiron_workflow.channels import (
@@ -231,6 +232,8 @@ class Node(HasToDict, ABC, metaclass=AbstractHasPost):
             connected.
         future (concurrent.futures.Future | None): A futures object, if the node is
             currently running or has already run using an executor.
+        import_ready (bool): Whether importing the node's class from its class's module
+            returns the same thing as its type. (Recursive on sub-nodes for composites.)
         inputs (pyiron_workflow.io.Inputs): **Abstract.** Children must define
             a property returning an :class:`Inputs` object.
         label (str): A name for the node.
@@ -1224,3 +1227,22 @@ class Node(HasToDict, ABC, metaclass=AbstractHasPost):
             self._working_directory = None
             # Touching the working directory may have created it -- if it's there and
             # empty just clean it up
+
+    @property
+    def import_ready(self) -> bool:
+        """
+        Checks whether `importlib` can find this node's class, and if so whether the
+        imported object matches the node's type.
+
+        Returns:
+            (bool): Whether the imported module and name of this node's class match
+                its type.
+        """
+        try:
+            module = self.__class__.__module__
+            class_ = getattr(import_module(module), self.__class__.__name__)
+            if module == "__main__":
+                warnings.warn(f"{self.label} is only defined in __main__")
+            return type(self) is class_
+        except (ModuleNotFoundError, AttributeError):
+            return False
