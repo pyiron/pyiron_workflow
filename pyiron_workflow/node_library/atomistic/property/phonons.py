@@ -38,17 +38,18 @@ def create_phonopy(
     structure,
     engine=None,
     executor=None,
+    max_workers=1,
     parameters=InputPhonopyGenerateSupercells(),
 ):
     from phonopy import Phonopy
     from structuretoolkit.common import atoms_to_phonopy
-    from pyiron_workflow.node_library import calculator
+    import pyiron_workflow
 
     phonopy = Phonopy(unitcell=atoms_to_phonopy(structure))
 
     cells = generate_supercells(phonopy, parameters=parameters)  # .run()
-    gs = calculator.ase.static(engine=engine)
-    df = gs.iter(atoms=cells, executor=executor)
+    gs = pyiron_workflow.node_library.atomistic.calculator.ase.static(engine=engine)
+    df = gs.iter(atoms=cells, executor=executor, max_workers=max_workers)
     phonopy.forces = df.forces
 
     # could be automatized (out = collect(gs, log_level))

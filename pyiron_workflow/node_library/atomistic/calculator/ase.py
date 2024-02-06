@@ -1,43 +1,10 @@
-import numpy as np
-
 from pyiron_workflow.function import single_value_node, function_node
-from typing import Optional, Union
-from dataclasses import field
-
-from pyiron_workflow.node_library.dev_tools import wf_data_class, wfMetaData
-
-
-@wf_data_class()
-class OutputCalcStatic:
-    from ase import Atoms
-
-    energy: Optional[float] = field(default=None, metadata=wfMetaData(log_level=0))
-    forces: Optional[np.ndarray] = field(default=None, metadata=wfMetaData(log_level=0))
-    stress: Optional[np.ndarray] = field(
-        default=None, metadata=wfMetaData(log_level=10)
-    )
-    structure: Optional[Atoms] = field(default=None, metadata=wfMetaData(log_level=10))
-
-    energies: Optional[float] = field(
-        default=None,
-        metadata=wfMetaData(
-            log_level=0, doc="per atom energy, only if supported by calculator"
-        ),
-    )
-
-
-@wf_data_class()
-class OutputCalcMinimize:
-    initial: Optional[OutputCalcStatic] = field(
-        default_factory=lambda: OutputCalcStatic(), metadata=wfMetaData(log_level=0)
-    )
-    final: Optional[OutputCalcStatic] = field(
-        default_factory=lambda: OutputCalcStatic(), metadata=wfMetaData(log_level=0)
-    )
 
 
 @single_value_node()
 def static(atoms=None, engine=None, _internal=None, keys_to_store=None):
+    from pyiron_workflow.node_library.atomistic.calculator.data import OutputCalcStatic
+
     if engine is None:
         from ase.calculators.emt import EMT
 
@@ -47,8 +14,8 @@ def static(atoms=None, engine=None, _internal=None, keys_to_store=None):
 
     out = OutputCalcStatic()
     # out['structure'] = atoms # not needed since identical to input
-    out["energy"] = atoms.get_potential_energy()
-    out["forces"] = atoms.get_forces()
+    out.energy = atoms.get_potential_energy()
+    out.forces = atoms.get_forces()
 
     if _internal is not None:
         out["iter_index"] = _internal[
@@ -60,7 +27,11 @@ def static(atoms=None, engine=None, _internal=None, keys_to_store=None):
 @function_node("structure", "out")
 def minimize(atoms=None, engine=None, fmax=0.005, log_file="tmp.log"):
     from ase.optimize import BFGS
-    import numpy as np
+    from pyiron_workflow.node_library.atomistic.calculator.data import (
+        OutputCalcMinimize,
+    )
+
+    # import numpy as np
 
     if engine is None:
         from ase.calculators.emt import EMT
@@ -97,5 +68,3 @@ nodes = [
     static,
     minimize,
 ]
-
-from dataclasses import dataclass

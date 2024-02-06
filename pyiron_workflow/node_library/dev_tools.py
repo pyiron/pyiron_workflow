@@ -23,7 +23,7 @@ class VarType:
 
 
 class FileObject:
-    def __init__(self, path, directory=None):
+    def __init__(self, path='.', directory=None):
         if directory is None:
             self._path = Path(path)
         else:
@@ -232,6 +232,9 @@ def wf_data_class(*args, doc_func=None, **kwargs):
         def keys(self):
             return self.__dict__.keys()
 
+        def items(self):
+            return [(k, self[k]) for k in self.keys()]
+
         def __getitem__(self, key):
             return self.__dict__[key]
 
@@ -245,6 +248,7 @@ def wf_data_class(*args, doc_func=None, **kwargs):
             return {k: self[k] for k in keys_to_store}
 
         setattr(cls, "keys", keys)
+        setattr(cls, "items", items)
         setattr(cls, "__getitem__", __getitem__)
         setattr(cls, "__setitem__", __setitem__)
         setattr(cls, "select", select)

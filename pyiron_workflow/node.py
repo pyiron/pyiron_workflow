@@ -973,19 +973,21 @@ class Node(HasToDict, ABC, metaclass=AbstractHasPost):
         except AttributeError:
             pass
 
-    def iter(self, max_workers=1, cores_per_worker=1, executor=None, **kwargs):
+    def iter_old(self, max_workers=1, cores_per_worker=1, executor=None, **kwargs):
         from pympipool import Executor
         import pandas as pd
 
         # Get the keys and lists from kwargs
         keys = list(kwargs.keys())
         lists = list(kwargs.values())
+        # print ('lists: ', lists)
 
         # Get the number of dimensions
         num_dimensions = len(keys)
 
         # Get the length of each list
         lengths = [len(lst) for lst in lists]
+        # print ('lengths: ', lengths, num_dimensions)
 
         # Initialize indices
         indices = [0] * num_dimensions
@@ -1001,6 +1003,7 @@ class Node(HasToDict, ABC, metaclass=AbstractHasPost):
             # Perform multidimensional for loop
             count = 0
             while indices[0] < lengths[0]:
+                # print (f'iter: indices {indices}, {lengths[0]} {count}')
                 # Access the current elements using indices
                 current_elements = [lists[i][indices[i]] for i in range(num_dimensions)]
 
@@ -1023,8 +1026,11 @@ class Node(HasToDict, ABC, metaclass=AbstractHasPost):
                 iter_dict[count] = out
                 count += 1
 
-                for k, v in out.items():
-                    current_elements_kwarg[k] = v
+                if hasattr(out, "items"):
+                    for k, v in out.items():
+                        current_elements_kwarg[k] = v
+                else:
+                    current_elements_kwarg[self.label] = out
 
                 # Append the current_elements_kwarg to the dictionary
                 for k, v in current_elements_kwarg.items():
@@ -1038,11 +1044,112 @@ class Node(HasToDict, ABC, metaclass=AbstractHasPost):
 
                 # Update indices for the next iteration
                 indices[num_dimensions - 1] += 1
+                # print ('indices: ', indices)
 
                 # Update indices and carry-over if needed
                 for i in range(num_dimensions - 1, 0, -1):
+                    # print ('dimensions: ', i, indices[i], lengths[i])
                     if indices[i] == lengths[i]:
                         indices[i] = 0
                         indices[i - 1] += 1
 
         return pd.DataFrame(dict_lst)
+
+    def iter(self, max_workers=1, executor=None, **kwargs):
+        from concurrent.futures import ThreadPoolExecutor, as_completed
+        import pandas as pd
+
+        futures = []
+        future_index_map = {}
+        out = []
+        out_index = []
+
+        refs = to_list_of_kwargs(**kwargs)
+        df_refs = pd.DataFrame(refs)
+        # print("iter_refs: ", refs)
+        if max_workers < 2:
+            executor = None
+        else:
+            executor = max_workers
+
+        print("max_workers: ", max_workers)
+        if executor is None:
+            for i, ref in enumerate(refs):
+                out.append(self(**ref))
+                out_index.append(i)
+        else:
+            with ThreadPoolExecutor(max_workers=max_workers) as p:
+                for i, ref in enumerate(refs):
+                    # use the class rather than the instance -> (type(self))
+                    future = p.submit(func, type(self), **ref)
+                    future_index_map[future] = i
+                    futures.append(future)
+
+                for future in as_completed(futures):
+                    out.append(future.result())
+                    out_index.append(future_index_map[future])
+
+        if len(out) > 0:
+            if not hasattr(out[0], "items"):
+                print("iter: add label")
+                df_dict = {self.label: out}
+            else:
+                df_dict = {}
+                for i, row in enumerate(out):
+                    for key, value in row.items():
+                        if i == 0:
+                            df_dict[key] = [value]
+                        else:
+                            df_dict[key].append(value)
+
+            df_out = pd.DataFrame(df_dict)
+
+        # try:
+        #     df_out = pd.DataFrame(out, index=out_index).sort_index()
+        #
+        # except:
+        #     print("iter out: ", out)
+        #     return out
+
+        return pd.concat([df_refs, df_out], axis=1)
+
+
+def to_list_of_kwargs(**kwargs):
+    keys = list(kwargs.keys())
+    lists = list(kwargs.values())
+
+    # Get the number of dimensions
+    num_dimensions = len(keys)
+
+    # Get the length of each list
+    lengths = [len(lst) for lst in lists]
+
+    # Initialize indices
+    indices = [0] * num_dimensions
+
+    kwargs_list = []
+
+    # Perform multidimensional for loop
+    while indices[0] < lengths[0]:
+        # Access the current elements using indices
+        current_elements = [lists[i][indices[i]] for i in range(num_dimensions)]
+
+        # Add current_elements as a dictionary
+        current_elements_kwarg = dict(zip(keys, current_elements))
+        kwargs_list.append(current_elements_kwarg)
+
+        # Update indices for the next iteration
+        indices[num_dimensions - 1] += 1
+
+        # Update indices and carry-over if needed
+        for i in range(num_dimensions - 1, 0, -1):
+            if indices[i] == lengths[i]:
+                indices[i] = 0
+                indices[i - 1] += 1
+
+    return kwargs_list
+
+
+def func(node, **kwargs):
+    # print("func (node): ", node, kwargs)
+    return node(**kwargs).run()
