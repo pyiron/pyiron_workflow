@@ -6,6 +6,7 @@ import unittest
 from pyiron_workflow._tests import ensure_tests_in_python_path
 from pyiron_workflow.channels import NOT_DATA
 from pyiron_workflow.snippets.dotdict import DotDict
+from pyiron_workflow.storage import TypeNotFoundError
 from pyiron_workflow.workflow import Workflow
 
 
@@ -415,13 +416,12 @@ class TestWorkflow(unittest.TestCase):
             wf.unimportable_scope = UnimportableScope()
 
             try:
-                wf.save(backend="h5io")
                 with self.assertRaises(
-                    AttributeError,
+                    TypeNotFoundError,
                     msg="Nodes must live in an importable scope to save with the h5io "
                         "backend"
                 ):
-                    Workflow(wf.label, storage_backend="h5io")
+                    wf.save(backend="h5io")
             finally:
                 wf.remove_node(wf.unimportable_scope)
                 wf.storage.delete()

@@ -18,6 +18,13 @@ if TYPE_CHECKING:
 ALLOWED_BACKENDS = ["h5io", "tinybase"]
 
 
+class TypeNotFoundError(ImportError):
+    """
+    Raised when you try to save a node, but importing its module and class give
+    something other than its type.
+    """
+
+
 class StorageInterface:
 
     _TINYBASE_STORAGE_FILE_NAME = "project.h5"
@@ -41,6 +48,13 @@ class StorageInterface:
 
     def _save(self, backend: Literal["h5io", "tinybase"]):
         if backend == "h5io":
+            if not self.node.import_ready:
+                raise TypeNotFoundError(
+                    f"{self.node.label} cannot be saved with h5io because it (or one "
+                    f"of its child nodes) has a type that cannot be imported. Did you "
+                    f"dynamically define this node? Try using the node wrapper as a "
+                    f"decorator instead."
+                )
             h5io.write_hdf5(
                 fname=self._h5io_storage_file_path,
                 data=self.node,
