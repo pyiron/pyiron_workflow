@@ -1247,8 +1247,8 @@ class Node(HasToDict, ABC, metaclass=AbstractHasPost):
         except (ModuleNotFoundError, AttributeError):
             return False
 
-    def import_readiness_report(self, tabs=0):
+    def import_readiness_report(self, tabs=0, report_so_far=""):
+        newline = "\n" if len(report_so_far) > 0 else ""
         tabspace = tabs * "\t"
-        print(
-            f"{tabspace}{self.label}: {'ok' if self.import_ready else 'NOT IMPORTABLE'}"
-        )
+        return report_so_far + f"{newline}{tabspace}{self.label}: " \
+                               f"{'ok' if self.import_ready else 'NOT IMPORTABLE'}"
