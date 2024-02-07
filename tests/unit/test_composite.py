@@ -666,7 +666,7 @@ class TestComposite(unittest.TestCase):
             msg="The node is in an importable location, but the imported object is not "
                 "the node class (but rather the node function)"
         )
-        with self.subTest(msg="Made up class"):
+        with self.subTest(msg="Made up module"):
             og_module = totally_findable.__class__.__module__
             try:
                 totally_findable.__class__.__module__ = "something I totally made up"
