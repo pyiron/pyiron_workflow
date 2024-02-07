@@ -42,7 +42,8 @@ _WARNINGS_STRING = """
 
 
 class NodeJob(TemplateJob):
-    __doc__ = """
+    __doc__ = (
+        """
     This job is an intermediate feature for accessing pyiron's queue submission
     infrastructure for nodes (function nodes, macros, or entire workflows).
 
@@ -80,7 +81,9 @@ class NodeJob(TemplateJob):
         >>> pr.remove_jobs(recursive=True, silently=True)
         >>> pr.remove(enable=True)
 
-    """ + _WARNINGS_STRING
+    """
+        + _WARNINGS_STRING
+    )
 
     def __init__(self, project, job_name):
         super().__init__(project, job_name)
@@ -105,8 +108,9 @@ class NodeJob(TemplateJob):
             self.raise_working_directory_error()
         else:
             self._node = new_node
-            self.input._class_type = f"{new_node.__class__.__module__}." \
-                                    f"{new_node.__class__.__name__}"
+            self.input._class_type = (
+                f"{new_node.__class__.__module__}." f"{new_node.__class__.__name__}"
+            )
             self.input._label = new_node.label
 
     @staticmethod
@@ -158,7 +162,8 @@ def _run_node(node):
 
 
 def create_job_with_python_wrapper(project, node):
-    __doc__ = """
+    __doc__ = (
+        """
     A convenience wrapper around :meth:`pyiron_base.Project.wrap_python_function` for 
     running a `pyiron_workflow.Workflow`. (And _only_ workflows, `Function` and `Macro`
     children will fail.)
@@ -194,7 +199,9 @@ def create_job_with_python_wrapper(project, node):
         >>> pr.remove_jobs(recursive=True, silently=True)
         >>> pr.remove(enable=True)
         
-    """ + _WARNINGS_STRING
+    """
+        + _WARNINGS_STRING
+    )
     job = project.wrap_python_function(_run_node)
     job.input["node"] = node
     return job
