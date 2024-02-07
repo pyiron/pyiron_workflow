@@ -1261,5 +1261,7 @@ class Node(HasToDict, ABC, metaclass=AbstractHasPost):
     def _report_import_readiness(self, tabs=0, report_so_far=""):
         newline = "\n" if len(report_so_far) > 0 else ""
         tabspace = tabs * "\t"
-        return report_so_far + f"{newline}{tabspace}{self.label}: " \
-                               f"{'ok' if self.import_ready else 'NOT IMPORTABLE'}"
+        return (
+            report_so_far + f"{newline}{tabspace}{self.label}: "
+            f"{'ok' if self.import_ready else 'NOT IMPORTABLE'}"
+        )

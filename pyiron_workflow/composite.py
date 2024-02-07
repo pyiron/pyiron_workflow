@@ -769,7 +769,9 @@ class Composite(Node, ABC):
         return super().import_ready and all(node.import_ready for node in self)
 
     def _report_import_readiness(self, tabs=0, report_so_far=""):
-        report = super()._report_import_readiness(tabs=tabs, report_so_far=report_so_far)
+        report = super()._report_import_readiness(
+            tabs=tabs, report_so_far=report_so_far
+        )
         for node in self:
             report = node._report_import_readiness(tabs=tabs + 1, report_so_far=report)
         return report
