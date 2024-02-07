@@ -666,14 +666,17 @@ class TestComposite(unittest.TestCase):
             msg="The node is in an importable location, but the imported object is not "
                 "the node class (but rather the node function)"
         )
-        og_module = totally_findable.__class__.__module__
-        totally_findable.__class__.__module__ = "something I totally made up"
-        self.assertFalse(
-            totally_findable.import_ready,
-            msg="The node class is well defined, but the module is not in the python "
-                "path so import fails"
-        )
-        totally_findable.__class__.__module__ = og_module  # Fix what you broke
+        with self.subTest(msg="Made up class"):
+            try:
+                og_module = totally_findable.__class__.__module__
+                totally_findable.__class__.__module__ = "something I totally made up"
+                self.assertFalse(
+                    totally_findable.import_ready,
+                    msg="The node class is well defined, but the module is not in the python "
+                        "path so import fails"
+                )
+            finally:
+                totally_findable.__class__.__module__ = og_module  # Fix what you broke
 
         self.assertTrue(
             self.comp.import_ready,
