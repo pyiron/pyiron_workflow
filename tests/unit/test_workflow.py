@@ -6,6 +6,7 @@ import unittest
 from pyiron_workflow._tests import ensure_tests_in_python_path
 from pyiron_workflow.channels import NOT_DATA
 from pyiron_workflow.snippets.dotdict import DotDict
+from pyiron_workflow.storage import TypeNotFoundError
 from pyiron_workflow.workflow import Workflow
 
 
@@ -381,6 +382,20 @@ class TestWorkflow(unittest.TestCase):
                 finally:
                     wf.storage.delete()
 
+        with self.subTest("No unimportable nodes for either back-end"):
+            try:
+                wf.import_type_mismatch = wf.create.demo.dynamic()
+                for backend in ["h5io", "tinybase"]:
+                    with self.subTest(backend):
+                        with self.assertRaises(
+                            TypeNotFoundError,
+                            msg="Imported object is function but node type is node -- "
+                                "should fail early on save"
+                        ):
+                            wf.save(backend=backend)
+            finally:
+                wf.remove_node(wf.import_type_mismatch)
+
         wf.add_node(PlusOne(label="local_but_importable"))
         try:
             wf.save(backend="h5io")
@@ -415,13 +430,12 @@ class TestWorkflow(unittest.TestCase):
             wf.unimportable_scope = UnimportableScope()
 
             try:
-                wf.save(backend="h5io")
                 with self.assertRaises(
-                    AttributeError,
+                    TypeNotFoundError,
                     msg="Nodes must live in an importable scope to save with the h5io "
                         "backend"
                 ):
-                    Workflow(wf.label, storage_backend="h5io")
+                    wf.save(backend="h5io")
             finally:
                 wf.remove_node(wf.unimportable_scope)
                 wf.storage.delete()

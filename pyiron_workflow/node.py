@@ -10,6 +10,7 @@ from __future__ import annotations
 import warnings
 from abc import ABC, abstractmethod
 from concurrent.futures import Executor as StdLibExecutor, Future
+from importlib import import_module
 from typing import Any, Literal, Optional, TYPE_CHECKING
 
 from pyiron_workflow.channels import (
@@ -156,6 +157,13 @@ class Node(HasToDict, ABC, metaclass=AbstractHasPost):
         - On instantiation, nodes will load automatically if they find saved content.
           - Discovered content can instead be deleted with a kwarg.
           - You can't load saved content _and_ run after instantiation at once.
+        - The nodes must be somewhere importable, and the imported object must match
+            the type of the node being saved. This basically just rules out one edge
+            case where a node class is defined like
+            `SomeFunctionNode = Workflow.wrap_as.function_node()(some_function)`, since
+            then the new class gets the name `some_function`, which when imported is
+            the _function_ "some_function" and not the desired class "SomeFunctionNode".
+            This is checked for at save-time and will cause a nice early failure.
         - [ALPHA ISSUE] If the source code (cells, `.py` files...) for a saved graph is
             altered between saving and loading the graph, there are no guarantees about
             the loaded state; depending on the nature of the changes everything may
@@ -231,6 +239,8 @@ class Node(HasToDict, ABC, metaclass=AbstractHasPost):
             connected.
         future (concurrent.futures.Future | None): A futures object, if the node is
             currently running or has already run using an executor.
+        import_ready (bool): Whether importing the node's class from its class's module
+            returns the same thing as its type. (Recursive on sub-nodes for composites.)
         inputs (pyiron_workflow.io.Inputs): **Abstract.** Children must define
             a property returning an :class:`Inputs` object.
         label (str): A name for the node.
@@ -1224,3 +1234,34 @@ class Node(HasToDict, ABC, metaclass=AbstractHasPost):
             self._working_directory = None
             # Touching the working directory may have created it -- if it's there and
             # empty just clean it up
+
+    @property
+    def import_ready(self) -> bool:
+        """
+        Checks whether `importlib` can find this node's class, and if so whether the
+        imported object matches the node's type.
+
+        Returns:
+            (bool): Whether the imported module and name of this node's class match
+                its type.
+        """
+        try:
+            module = self.__class__.__module__
+            class_ = getattr(import_module(module), self.__class__.__name__)
+            if module == "__main__":
+                warnings.warn(f"{self.label} is only defined in __main__")
+            return type(self) is class_
+        except (ModuleNotFoundError, AttributeError):
+            return False
+
+    @property
+    def import_readiness_report(self):
+        print(self._report_import_readiness())
+
+    def _report_import_readiness(self, tabs=0, report_so_far=""):
+        newline = "\n" if len(report_so_far) > 0 else ""
+        tabspace = tabs * "\t"
+        return (
+            report_so_far + f"{newline}{tabspace}{self.label}: "
+            f"{'ok' if self.import_ready else 'NOT IMPORTABLE'}"
+        )

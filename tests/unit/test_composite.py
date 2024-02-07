@@ -652,6 +652,48 @@ class TestComposite(unittest.TestCase):
                     "from all depths."
             )
 
+    def test_import_ready(self):
+        self.comp.register("static.demo_nodes", "demo")
+
+        totally_findable = Composite.create.demo.OptionallyAdd()
+        self.assertTrue(
+            totally_findable.import_ready,
+            msg="The node class is well defined and in an importable module"
+        )
+        bad_class = Composite.create.demo.dynamic()
+        self.assertFalse(
+            bad_class.import_ready,
+            msg="The node is in an importable location, but the imported object is not "
+                "the node class (but rather the node function)"
+        )
+        with self.subTest(msg="Made up module"):
+            og_module = totally_findable.__class__.__module__
+            try:
+                totally_findable.__class__.__module__ = "something I totally made up"
+                self.assertFalse(
+                    totally_findable.import_ready,
+                    msg="The node class is well defined, but the module is not in the "
+                        "python path so import fails"
+                )
+            finally:
+                totally_findable.__class__.__module__ = og_module  # Fix what you broke
+
+        self.assertTrue(
+            self.comp.import_ready,
+            msg="Sanity check on initial condition -- tests are in the path, so this "
+                "is importable"
+        )
+        self.comp.totally_findable = totally_findable
+        self.assertTrue(
+            self.comp.import_ready,
+            msg="Adding importable children should leave the parent import-ready"
+        )
+        self.comp.bad_class = bad_class
+        self.assertFalse(
+            self.comp.import_ready,
+            msg="Adding un-importable children should make the parent not import ready"
+        )
+
 
 if __name__ == '__main__':
     unittest.main()
