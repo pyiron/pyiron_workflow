@@ -1247,6 +1247,10 @@ class Node(HasToDict, ABC, metaclass=AbstractHasPost):
         except (ModuleNotFoundError, AttributeError):
             return False
 
+    @property
+    def import_readiness_report(self):
+        print(self._report_import_readiness())
+
     def _report_import_readiness(self, tabs=0, report_so_far=""):
         newline = "\n" if len(report_so_far) > 0 else ""
         tabspace = tabs * "\t"
