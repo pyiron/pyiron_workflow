@@ -54,7 +54,7 @@ class StorageInterface:
                 f"dynamically define this node? Try using the node wrapper as a "
                 f"decorator instead. \n"
                 f"Import readiness report: \n"
-                f"{self.node._report_import_readiness()}""
+                f"{self.node._report_import_readiness()}"
             )
         if backend == "h5io":
             h5io.write_hdf5(
