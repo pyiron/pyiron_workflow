@@ -48,7 +48,7 @@ setup(
         "tinybase": [
             'boto3',  # Just because pyiron_contrib is not making sure it's there
             'h5io_browser==0.0.6',
-            'pyiron_contrib==0.1.13',
+            'pyiron_contrib==0.1.14',
         ]
     },
     cmdclass=versioneer.get_cmdclass(),
