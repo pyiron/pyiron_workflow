@@ -49,7 +49,7 @@ class StorageInterface:
     def _save(self, backend: Literal["h5io", "tinybase"]):
         if not self.node.import_ready:
             raise TypeNotFoundError(
-                f"{self.node.label} cannot be saved with h5io because it (or one "
+                f"{self.node.label} cannot be saved because it (or one "
                 f"of its child nodes) has a type that cannot be imported. Did you "
                 f"dynamically define this node? Try using the node wrapper as a "
                 f"decorator instead."
