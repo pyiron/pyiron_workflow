@@ -61,27 +61,21 @@ class NodeJob(TemplateJob):
         >>> from pyiron_workflow import Workflow
         >>> import pyiron_workflow.job  # To get the job registered in JOB_CLASS_DICT
         >>> 
-        >>> @Workflow.wrap_as.single_value_node("t")
-        ... def Sleep(t):
-        ...     from time import sleep
-        ...     sleep(t)
-        ...     return t
-        >>> 
         >>> wf = Workflow("pyiron_node", overwrite_save=True)
-        >>> wf.sleep = Sleep(0)
-        >>> wf.out = wf.create.standard.UserInput(wf.sleep)
+        >>> wf.answer = Workflow.create.standard.UserInput(42)  # Or your nodes
         >>> 
         >>> pr = Project("test")
         >>> 
         >>> nj = pr.create.job.NodeJob("my_node")
         >>> nj.node = wf
-        >>> nj.run()
+        >>> nj.run()  # doctest:+ELLIPSIS
+        The job my_node was saved and received the ID: ...
         >>> print(nj.node.outputs.to_value_dict())
-        {'out__user_input': 0}
+        {'answer__user_input': 42}
 
         >>> lj = pr.load(nj.job_name)
         >>> print(nj.node.outputs.to_value_dict())
-        {'out__user_input': 0}
+        {'answer__user_input': 42}
 
         >>> pr.remove_jobs(recursive=True, silently=True)
         >>> pr.remove(enable=True)
@@ -183,26 +177,19 @@ def create_job_with_python_wrapper(project, node):
         >>> from pyiron_workflow import Workflow
         >>> from pyiron_workflow.job import create_job_with_python_wrapper
         >>> 
-        >>> @Workflow.wrap_as.single_value_node("t")
-        ... def Sleep(t):
-        ...     from time import sleep
-        ...     sleep(t)
-        ...     return t
-        >>> 
         >>> wf = Workflow("pyiron_node", overwrite_save=True)
-        >>> wf.sleep = Sleep(0)
-        >>> wf.out = wf.create.standard.UserInput(wf.sleep)
+        >>> wf.answer = Workflow.create.standard.UserInput(42)  # Or your nodes
         >>> 
         >>> pr = Project("test")
         >>> 
         >>> nj = create_job_with_python_wrapper(pr, wf)
         >>> nj.run()
         >>> print(nj.output["result"].outputs.to_value_dict())
-        {'out__user_input': 0}
+        {'answer__user_input': 42}
 
         >>> lj = pr.load(nj.job_name)
         >>> print(nj.output["result"].outputs.to_value_dict())
-        {'out__user_input': 0}
+        {'answer__user_input': 42}
 
         >>> pr.remove_jobs(recursive=True, silently=True)
         >>> pr.remove(enable=True)
