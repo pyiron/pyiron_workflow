@@ -767,3 +767,8 @@ class Composite(Node, ABC):
     @property
     def import_ready(self) -> bool:
         return super().import_ready and all(node.import_ready for node in self)
+
+    def import_readiness_report(self, tabs=0):
+        super().import_readiness_report(tabs=tabs)
+        for node in self:
+            node.import_readiness_report(tabs=tabs + 1)
