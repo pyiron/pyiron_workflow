@@ -672,8 +672,8 @@ class TestComposite(unittest.TestCase):
                 totally_findable.__class__.__module__ = "something I totally made up"
                 self.assertFalse(
                     totally_findable.import_ready,
-                    msg="The node class is well defined, but the module is not in the python "
-                        "path so import fails"
+                    msg="The node class is well defined, but the module is not in the "
+                        "python path so import fails"
                 )
             finally:
                 totally_findable.__class__.__module__ = og_module  # Fix what you broke
