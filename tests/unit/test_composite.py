@@ -667,8 +667,8 @@ class TestComposite(unittest.TestCase):
                 "the node class (but rather the node function)"
         )
         with self.subTest(msg="Made up class"):
+            og_module = totally_findable.__class__.__module__
             try:
-                og_module = totally_findable.__class__.__module__
                 totally_findable.__class__.__module__ = "something I totally made up"
                 self.assertFalse(
                     totally_findable.import_ready,
