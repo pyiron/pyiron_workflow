@@ -684,7 +684,6 @@ class TestComposite(unittest.TestCase):
                 "is importable"
         )
         self.comp.totally_findable = totally_findable
-        print(self.comp.import_ready, self.comp.import_ready, self.comp.node_labels)
         self.assertTrue(
             self.comp.import_ready,
             msg="Adding importable children should leave the parent import-ready"
