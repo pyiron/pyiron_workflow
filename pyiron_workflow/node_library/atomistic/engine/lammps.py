@@ -39,7 +39,7 @@ def Calc(parameters):
     return calculator
 
 
-def _parse_calculator_kwargs(calculator_kwargs, expected_type):
+def _parse_input_kwargs(calculator_kwargs, expected_type):
     """
     Make sure the calculator args are commensurate with the expected dataclass, and
     return the data as a plain dictionary.
@@ -61,7 +61,7 @@ def _parse_calculator_kwargs(calculator_kwargs, expected_type):
 
 @single_value_node("calculator")
 def CalcStatic(calculator_input: Optional[InputCalcStatic | dict] = None):
-    calculator_kwargs = _parse_calculator_kwargs(calculator_input, InputCalcStatic)
+    calculator_kwargs = _parse_input_kwargs(calculator_input, InputCalcStatic)
     calculator = LammpsControl()
     calculator.calc_static(**calculator_kwargs)
     calculator._mode = "static"
@@ -71,7 +71,7 @@ def CalcStatic(calculator_input: Optional[InputCalcStatic | dict] = None):
 
 @single_value_node("calculator")
 def CalcMinimize(calculator_input: Optional[InputCalcMinimize | dict] = None):
-    calculator_kwargs = _parse_calculator_kwargs(calculator_input, InputCalcMinimize)
+    calculator_kwargs = _parse_input_kwargs(calculator_input, InputCalcMinimize)
     calculator = LammpsControl()
     calculator.calc_minimize(**calculator_kwargs)
     calculator._mode = "static"
@@ -81,7 +81,7 @@ def CalcMinimize(calculator_input: Optional[InputCalcMinimize | dict] = None):
 
 @single_value_node("calculator")
 def CalcMD(calculator_input: Optional[InputCalcMD | dict] = None):
-    calculator_kwargs = _parse_calculator_kwargs(calculator_input, InputCalcMD)
+    calculator_kwargs = _parse_input_kwargs(calculator_input, InputCalcMD)
     calculator = LammpsControl()
     calculator.calc_md(**calculator_kwargs)
     calculator._mode = "md"
