@@ -42,6 +42,7 @@ setup(
             'atomistics==0.1.15',
             'matgl==0.9.2',
             'numpy==1.26.2',
+            'pandas==2.2.0',
             'phonopy==2.21.0',
             'pyiron_atomistics==0.3.11',
         ],
