@@ -41,7 +41,9 @@ def Lammps(wf, structure=Atoms(), potential=None):
         dump_file=wf.Shell.outputs.dump
     )
     wf.Collect = wf.create.atomistic.engine.lammps.Collect(
-        out_dump=wf.ParseDumpFile.outputs.dump, out_log=wf.ParseLogFile.outputs.log
+        out_dump=wf.ParseDumpFile.outputs.dump,
+        out_log=wf.ParseLogFile.outputs.log,
+        calc_mode=wf.calc._mode  # SVN gives output -> inject attribute getter node
     )
 
     return wf.Collect

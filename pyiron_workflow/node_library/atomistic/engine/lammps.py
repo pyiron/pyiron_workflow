@@ -170,7 +170,7 @@ class GenericOutput:
 def Collect(
     out_dump,
     out_log,
-    # calc_mode: str = "stat",
+    calc_mode: str,
     bla="",
 ):
     import numpy as np
