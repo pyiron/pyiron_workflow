@@ -3,7 +3,7 @@ from typing import Optional, Union
 
 # from pyiron_workflow.macro import Macro, macro_node
 from pyiron_workflow.function import single_value_node, function_node
-from pyiron_workflow.node_library.dev_tools import wf_data_class
+from pyiron_workflow.node_library.dev_tools import wf_data_class, parse_input_kwargs
 
 
 from phonopy.api_phonopy import Phonopy
@@ -32,6 +32,31 @@ def generate_supercells(phonopy, parameters: InputPhonopyGenerateSupercells):
     return supercells
 
 
+@single_value_node("parameters")
+def PhonopyParameters(
+    distance: float = 0.01,
+    is_plusminus: Union[str, bool] = "auto",
+    is_diagonal: bool = True,
+    is_trigonal: bool = False,
+    number_of_snapshots: Optional[int] = None,
+    random_seed: Optional[int] = None,
+    temperature: Optional[float] = None,
+    cutoff_frequency: Optional[float] = None,
+    max_distance: Optional[float] = None,
+) -> dict:
+    return {
+        "distance": distance,
+        "is_plusminus": is_plusminus,
+        "is_diagonal": is_diagonal,
+        "is_trigonal": is_trigonal,
+        "number_of_snapshots": number_of_snapshots,
+        "random_seed": random_seed,
+        "temperature": temperature,
+        "cutoff_frequency": cutoff_frequency,
+        "max_distance": max_distance,
+    }
+
+
 # The following function should be defined as a workflow macro (presently not possible)
 @function_node()
 def create_phonopy(
@@ -39,7 +64,7 @@ def create_phonopy(
     engine=None,
     executor=None,
     max_workers=1,
-    parameters=InputPhonopyGenerateSupercells(),
+    parameters: Optional[InputPhonopyGenerateSupercells | dict] = None,
 ):
     from phonopy import Phonopy
     from structuretoolkit.common import atoms_to_phonopy
@@ -47,7 +72,10 @@ def create_phonopy(
 
     phonopy = Phonopy(unitcell=atoms_to_phonopy(structure))
 
-    cells = generate_supercells(phonopy, parameters=parameters)  # .run()
+    cells = generate_supercells(
+        phonopy,
+        parameters=parse_input_kwargs(parameters, InputPhonopyGenerateSupercells)
+    )
     gs = pyiron_workflow.node_library.atomistic.calculator.ase.static(engine=engine)
     df = gs.iter(atoms=cells, executor=executor, max_workers=max_workers)
     phonopy.forces = df.forces
@@ -109,6 +137,7 @@ def get_total_dos(phonopy, mesh=3 * [10]):
 nodes = [
     #    generate_supercells,
     create_phonopy,
+    PhonopyParameters,
     get_dynamical_matrix,
     get_eigenvalues,
     check_consistency,
