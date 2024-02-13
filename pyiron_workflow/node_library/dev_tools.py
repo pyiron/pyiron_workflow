@@ -274,8 +274,22 @@ class wfMetaData:
 
 def parse_input_kwargs(input_kwargs, expected_type):
     """
-    Make sure the calculator args are commensurate with the expected dataclass, and
-    return the data as a plain dictionary.
+    Get a dictionary of data for some dataclass.
+
+    Args:
+        input_kwargs (expected_type|dict|None):
+        expected_type (type): One of our input dataclasses
+
+    Returns:
+        (dict): A dictionary of data from the `expected_type`, updated from the
+            `input_kwargs` -- Just the defaults for the type when `input_kwargs` is
+            `None`, a dictionary version of the instance if it was an instance of the
+            expected type, or the defaults updated by the provided input if it was a
+            `dict`.
+
+    Warnings:
+        In the case that `input_kwargs` is a dict, there's not currently any safeguards
+        to make sure the provided data aligns with the `expected_type`.
     """
     if input_kwargs is None or isinstance(input_kwargs, dict):
         calculator_input = expected_type()
