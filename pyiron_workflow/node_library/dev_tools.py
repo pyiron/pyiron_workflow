@@ -272,21 +272,21 @@ class wfMetaData:
     doc: Optional[str] = None
 
 
-def parse_input_kwargs(calculator_kwargs, expected_type):
+def parse_input_kwargs(input_kwargs, expected_type):
     """
     Make sure the calculator args are commensurate with the expected dataclass, and
     return the data as a plain dictionary.
     """
-    if calculator_kwargs is None or isinstance(calculator_kwargs, dict):
+    if input_kwargs is None or isinstance(input_kwargs, dict):
         calculator_input = expected_type()
-    elif not isinstance(calculator_kwargs, expected_type):
+    elif not isinstance(input_kwargs, expected_type):
         raise TypeError(
             f"Expected to get input that was None, a dict, or {expected_type}, but got"
-            f"{calculator_kwargs}"
+            f"{input_kwargs}"
         )
 
     parsed_kwargs = vars(calculator_input)
-    if isinstance(calculator_kwargs, dict):
+    if isinstance(input_kwargs, dict):
         # WARNING: We're not doing any checking here that the dictionary items are valid
-        parsed_kwargs.update(calculator_kwargs)
+        parsed_kwargs.update(input_kwargs)
     return parsed_kwargs
