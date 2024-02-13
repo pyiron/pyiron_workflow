@@ -2,7 +2,10 @@ channels:
 - conda-forge
 dependencies:
 - ipykernel
+- myst-parser
 - nbsphinx
+- sphinx-gallery
+- sphinx-rtd-theme
 - coveralls
 - coverage
 - bidict =0.22.1
