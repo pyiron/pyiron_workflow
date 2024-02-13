@@ -44,19 +44,19 @@ def _parse_calculator_kwargs(calculator_kwargs, expected_type):
     Make sure the calculator args are commensurate with the expected dataclass, and
     return the data as a plain dictionary.
     """
-    if calculator_kwargs is None:
+    if calculator_kwargs is None or isinstance(calculator_kwargs, dict):
         calculator_input = expected_type()
-    elif isinstance(calculator_kwargs, dict):
-        calculator_input = expected_type(**calculator_kwargs)
-    elif isinstance(calculator_kwargs, expected_type):
-        calculator_input = calculator_kwargs
-    else:
-        raise ValueError(
-            f"Expected calculator input commensurate with {expected_type} but got "
-            f"{calculator_kwargs}. Maybe you gave a dictionary with the wrong elements?"
-            f"{expected_type} expects {expected_type.__annotations__}"
+    elif not isinstance(calculator_kwargs, expected_type):
+        raise TypeError(
+            f"Expected to get input that was None, a dict, or {expected_type}, but got"
+            f"{calculator_kwargs}"
         )
-    return vars(calculator_input)
+
+    parsed_kwargs = vars(calculator_input)
+    if isinstance(calculator_kwargs, dict):
+        # WARNING: We're not doing any checking here that the dictionary items are valid
+        parsed_kwargs.update(calculator_kwargs)
+    return parsed_kwargs
 
 
 @single_value_node("calculator")
