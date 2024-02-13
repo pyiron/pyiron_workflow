@@ -3,9 +3,10 @@ from typing import Optional
 
 
 @single_value_node("dataframe")
-def de_jong(max_index: int | None = None):
+def de_jong(max_index: int | None = None, filename="ec.json"):
     """
-    Database from Ref. de Jong et al. https://www.nature.com/articles/sdata20159#MOESM77
+    Expects the file to be the "ec.json" database referenced by:
+    Ref. de Jong et al. https://www.nature.com/articles/sdata20159#MOESM77
 
     :return:
     """
@@ -13,7 +14,7 @@ def de_jong(max_index: int | None = None):
     import io
     from ase.io import read
 
-    df = pd.read_json("ec.json")
+    df = pd.read_json(filename)
 
     structures = []
     # count = 0
