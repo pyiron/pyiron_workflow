@@ -39,28 +39,51 @@ def Calc(parameters):
     return calculator
 
 
+def _parse_calculator_kwargs(calculator_kwargs, expected_type):
+    """
+    Make sure the calculator args are commensurate with the expected dataclass, and
+    return the data as a plain dictionary.
+    """
+    if calculator_kwargs is None:
+        calculator_input = expected_type()
+    elif isinstance(calculator_kwargs, dict):
+        calculator_input = expected_type(**calculator_kwargs)
+    elif isinstance(calculator_kwargs, expected_type):
+        calculator_input = calculator_kwargs
+    else:
+        raise ValueError(
+            f"Expected calculator input commensurate with {expected_type} but got "
+            f"{calculator_kwargs}. Maybe you gave a dictionary with the wrong elements?"
+            f"{expected_type} expects {expected_type.__annotations__}"
+        )
+    return vars(calculator_input)
+
+
 @single_value_node("calculator")
-def CalcStatic():
+def CalcStatic(calculator_input: Optional[InputCalcStatic | dict] = None):
+    calculator_kwargs = _parse_calculator_kwargs(calculator_input, InputCalcStatic)
     calculator = LammpsControl()
-    calculator.calc_static()
+    calculator.calc_static(**calculator_kwargs)
     calculator._mode = "static"
 
     return calculator
 
 
 @single_value_node("calculator")
-def CalcMinimize(**kwargs):
+def CalcMinimize(calculator_input: Optional[InputCalcMinimize | dict] = None):
+    calculator_kwargs = _parse_calculator_kwargs(calculator_input, InputCalcMinimize)
     calculator = LammpsControl()
-    calculator.calc_minimize(InputCalcMinimize(**kwargs))
+    calculator.calc_minimize(**calculator_kwargs)
     calculator._mode = "static"
 
     return calculator
 
 
 @single_value_node("calculator")
-def CalcMD(**kwargs):
+def CalcMD(calculator_input: Optional[InputCalcMD | dict] = None):
+    calculator_kwargs = _parse_calculator_kwargs(calculator_input, InputCalcMD)
     calculator = LammpsControl()
-    calculator.calc_md(InputCalcMD(**kwargs))
+    calculator.calc_md(**calculator_kwargs)
     calculator._mode = "md"
 
     return calculator
