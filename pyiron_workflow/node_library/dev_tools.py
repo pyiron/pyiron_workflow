@@ -1,5 +1,6 @@
 # for development and testing only
 # provide functionality, data types etc. that will be later moved to the workflow code
+from __future__ import annotations
 
 from pathlib import Path
 
@@ -269,3 +270,23 @@ from typing import Optional
 class wfMetaData:
     log_level: int = 0
     doc: Optional[str] = None
+
+
+def parse_input_kwargs(calculator_kwargs, expected_type):
+    """
+    Make sure the calculator args are commensurate with the expected dataclass, and
+    return the data as a plain dictionary.
+    """
+    if calculator_kwargs is None or isinstance(calculator_kwargs, dict):
+        calculator_input = expected_type()
+    elif not isinstance(calculator_kwargs, expected_type):
+        raise TypeError(
+            f"Expected to get input that was None, a dict, or {expected_type}, but got"
+            f"{calculator_kwargs}"
+        )
+
+    parsed_kwargs = vars(calculator_input)
+    if isinstance(calculator_kwargs, dict):
+        # WARNING: We're not doing any checking here that the dictionary items are valid
+        parsed_kwargs.update(calculator_kwargs)
+    return parsed_kwargs

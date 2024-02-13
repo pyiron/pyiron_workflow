@@ -14,7 +14,8 @@ from pyiron_workflow.node_library.atomistic.calculator.data import (
     InputCalcStatic,
 )
 
-from pyiron_workflow.node_library.dev_tools import VarType, FileObject
+from pyiron_workflow.node_library.dev_tools import FileObject, \
+    parse_input_kwargs
 from pyiron_workflow.node_library.dev_tools import wf_data_class
 
 from pyiron_atomistics.lammps.control import LammpsControl
@@ -39,29 +40,9 @@ def Calc(parameters):
     return calculator
 
 
-def _parse_input_kwargs(calculator_kwargs, expected_type):
-    """
-    Make sure the calculator args are commensurate with the expected dataclass, and
-    return the data as a plain dictionary.
-    """
-    if calculator_kwargs is None or isinstance(calculator_kwargs, dict):
-        calculator_input = expected_type()
-    elif not isinstance(calculator_kwargs, expected_type):
-        raise TypeError(
-            f"Expected to get input that was None, a dict, or {expected_type}, but got"
-            f"{calculator_kwargs}"
-        )
-
-    parsed_kwargs = vars(calculator_input)
-    if isinstance(calculator_kwargs, dict):
-        # WARNING: We're not doing any checking here that the dictionary items are valid
-        parsed_kwargs.update(calculator_kwargs)
-    return parsed_kwargs
-
-
 @single_value_node("calculator")
 def CalcStatic(calculator_input: Optional[InputCalcStatic | dict] = None):
-    calculator_kwargs = _parse_input_kwargs(calculator_input, InputCalcStatic)
+    calculator_kwargs = parse_input_kwargs(calculator_input, InputCalcStatic)
     calculator = LammpsControl()
     calculator.calc_static(**calculator_kwargs)
     calculator._mode = "static"
@@ -71,7 +52,7 @@ def CalcStatic(calculator_input: Optional[InputCalcStatic | dict] = None):
 
 @single_value_node("calculator")
 def CalcMinimize(calculator_input: Optional[InputCalcMinimize | dict] = None):
-    calculator_kwargs = _parse_input_kwargs(calculator_input, InputCalcMinimize)
+    calculator_kwargs = parse_input_kwargs(calculator_input, InputCalcMinimize)
     calculator = LammpsControl()
     calculator.calc_minimize(**calculator_kwargs)
     calculator._mode = "static"
@@ -81,7 +62,7 @@ def CalcMinimize(calculator_input: Optional[InputCalcMinimize | dict] = None):
 
 @single_value_node("calculator")
 def CalcMD(calculator_input: Optional[InputCalcMD | dict] = None):
-    calculator_kwargs = _parse_input_kwargs(calculator_input, InputCalcMD)
+    calculator_kwargs = parse_input_kwargs(calculator_input, InputCalcMD)
     calculator = LammpsControl()
     calculator.calc_md(**calculator_kwargs)
     calculator._mode = "md"
