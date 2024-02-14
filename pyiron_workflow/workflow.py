@@ -191,8 +191,8 @@ class Workflow(Composite):
         *nodes: Node,
         overwrite_save: bool = False,
         run_after_init: bool = False,
-        storage_backend: Literal["h5io", "tinybase"] = "h5io",
-        save_after_run: Literal["h5io", "tinybase"] | None = None,
+        storage_backend: Optional[Literal["h5io", "tinybase"]] = None,
+        save_after_run: bool = False,
         strict_naming: bool = True,
         inputs_map: Optional[dict | bidict] = None,
         outputs_map: Optional[dict | bidict] = None,
@@ -202,6 +202,7 @@ class Workflow(Composite):
             label=label,
             parent=None,
             save_after_run=save_after_run,
+            storage_backend=storage_backend,
             strict_naming=strict_naming,
             inputs_map=inputs_map,
             outputs_map=outputs_map,
@@ -375,8 +376,8 @@ class Workflow(Composite):
             )
         self.starting_nodes = [self.nodes[label] for label in storage["starting_nodes"]]
 
-    def save(self, backend: Literal["h5io", "tinybase"] = "h5io"):
-        if backend == "tinybase" and any(
+    def save(self):
+        if self.storage_backend == "tinybase" and any(
             node.package_identifier is None for node in self
         ):
             raise NotImplementedError(
@@ -388,7 +389,7 @@ class Workflow(Composite):
                 f"like any other node package. Remember that this new module needs to "
                 f"be in your python path and importable at load time too."
             )
-        super().save(backend=backend)
+        super().save()
 
     @property
     def _owned_io_panels(self) -> list[IO]:

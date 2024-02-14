@@ -176,10 +176,11 @@ class Node(HasToDict, ABC, metaclass=AbstractHasPost):
             your graph this could be expensive in terms of storage space and/or time.
         - [ALPHA ISSUE] Similarly, there is no way to save only part of a graph; only
             the entire graph may be saved at once.
-        - There are two possible back-ends for saving: one leaning on
+        - [ALPHA ISSUE] There are two possible back-ends for saving: one leaning on
             `tinybase.storage.GenericStorage` (in practice,
             `H5ioStorage(GenericStorage)`), and the other, default back-end that uses
-            the `h5io` module directly.
+            the `h5io` module directly. The backend used is always the one on the graph
+            root.
         - [ALPHA ISSUE] Restrictions on data:
             - For the `h5io` backend: Most data that can be pickled will be fine, but
                 some classes will hit an edge case and throw an exception from `h5io`
@@ -259,9 +260,11 @@ class Node(HasToDict, ABC, metaclass=AbstractHasPost):
             node. Must be specified in child classes.
         running (bool): Whether the node has called :meth:`run` and has not yet
             received output from this call. (Default is False.)
-        save_after_run (Literal["h5io" | "tinybase"] | None): Whether to trigger a save
-            after each run of the node (currently causes the entire graph to save).
-            (Default is None, which does not save after running.)
+        save_after_run (bool): Whether to trigger a save after each run of the node
+            (currently causes the entire graph to save). (Default is False.)
+        storage_backend (Literal["h5io" | "tinybase"] | None): The flag for the the
+            backend to use for saving and loading; for nodes in a graph the value on
+            the root node is always used.
         signals (pyiron_workflow.io.Signals): A container for input and output
             signals, which are channels for controlling execution flow. By default, has
             a :attr:`signals.inputs.run` channel which has a callback to the :meth:`run` method
@@ -311,8 +314,8 @@ class Node(HasToDict, ABC, metaclass=AbstractHasPost):
         parent: Optional[Composite] = None,
         overwrite_save: bool = False,
         run_after_init: bool = False,
-        storage_backend: Literal["h5io", "tinybase"] = "h5io",
-        save_after_run: Literal["h5io", "tinybase"] | None = None,
+        storage_backend: Optional[Literal["h5io", "tinybase"]] = None,
+        save_after_run: bool = False,
         **kwargs,
     ):
         """
@@ -341,6 +344,8 @@ class Node(HasToDict, ABC, metaclass=AbstractHasPost):
         # This is a simply stop-gap as we work out more sophisticated ways to reference
         # (or create) an executor process without ever trying to pickle a `_thread.lock`
         self.future: None | Future = None
+        self._storage_backend = None
+        self.storage_backend = storage_backend
         self.save_after_run = save_after_run
 
     def __post__(
@@ -348,7 +353,6 @@ class Node(HasToDict, ABC, metaclass=AbstractHasPost):
         *args,
         overwrite_save: bool = False,
         run_after_init: bool = False,
-        storage_backend: Literal["h5io", "tinybase"] = "h5io",
         **kwargs,
     ):
         if overwrite_save:
@@ -369,7 +373,7 @@ class Node(HasToDict, ABC, metaclass=AbstractHasPost):
                 f"load it...(To delete the saved file instead, use "
                 f"`overwrite_save=True`)"
             )
-            self.load(mode=storage_backend)
+            self.load()
         elif run_after_init:
             try:
                 self.run()
@@ -679,8 +683,8 @@ class Node(HasToDict, ABC, metaclass=AbstractHasPost):
             self.failed = True
             raise e
         finally:
-            if self.save_after_run is not None:
-                self.save(backend=self.save_after_run)
+            if self.save_after_run:
+                self.save()
 
     def _finish_run_and_emit_ran(self, run_output: tuple | Future) -> Any | tuple:
         processed_output = self._finish_run(run_output)
@@ -1200,17 +1204,18 @@ class Node(HasToDict, ABC, metaclass=AbstractHasPost):
             usual.
     """
 
-    def save(self, backend: Literal["h5io", "tinybase"] = "h5io"):
+    def save(self):
         """
         Writes the node to file (using HDF5) such that a new node instance of the same
         type can :meth:`load()` the data to return to the same state as the save point,
         i.e. the same data IO channel values, the same flags, etc.
         """
+        backend = "h5io" if self.storage_backend is None else self.storage_backend
         self.storage.save(backend=backend)
 
     save.__doc__ += _save_load_warnings
 
-    def load(self, mode: Literal["h5io", "tinybase"] = "h5io"):
+    def load(self):
         """
         Loads the node file (from HDF5) such that this node restores its state at time
         of loading.
@@ -1218,9 +1223,31 @@ class Node(HasToDict, ABC, metaclass=AbstractHasPost):
         Raises:
             TypeError) when the saved node has a different class name.
         """
-        self.storage.load(backend=mode)
+        backend = "h5io" if self.storage_backend is None else self.storage_backend
+        self.storage.load(backend=backend)
 
     save.__doc__ += _save_load_warnings
+
+    @property
+    def storage_backend(self):
+        if self.parent is None:
+            return self._storage_backend
+        else:
+            return self.graph_root.storage_backend
+
+    @storage_backend.setter
+    def storage_backend(self, new_backend):
+        if (
+            new_backend is not None
+            and self.parent is not None
+            and new_backend != self.graph_root.storage_backend
+        ):
+            raise ValueError(
+                f"Storage backends should only be set on the graph root "
+                f"({self.graph_root.label}), not on child ({self.label})"
+            )
+        else:
+            self._storage_backend = new_backend
 
     @property
     def storage(self):

@@ -333,8 +333,8 @@ class Function(Node):
         parent: Optional[Composite] = None,
         overwrite_save: bool = False,
         run_after_init: bool = False,
-        storage_backend: Literal["h5io", "tinybase"] = "h5io",
-        save_after_run: Literal["h5io", "tinybase"] | None = None,
+        storage_backend: Optional[Literal["h5io", "tinybase"]] = None,
+        save_after_run: bool = False,
         output_labels: Optional[str | list[str] | tuple[str]] = None,
         **kwargs,
     ):
@@ -361,6 +361,7 @@ class Function(Node):
             label=label if label is not None else self.node_function.__name__,
             parent=parent,
             save_after_run=save_after_run,
+            storage_backend=storage_backend,
             # **kwargs,
         )
 
