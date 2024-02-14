@@ -6,7 +6,7 @@ import unittest
 from pyiron_workflow._tests import ensure_tests_in_python_path
 from pyiron_workflow.channels import NOT_DATA
 from pyiron_workflow.snippets.dotdict import DotDict
-from pyiron_workflow.storage import TypeNotFoundError
+from pyiron_workflow.storage import TypeNotFoundError, ALLOWED_BACKENDS
 from pyiron_workflow.workflow import Workflow
 
 
@@ -338,9 +338,9 @@ class TestWorkflow(unittest.TestCase):
         wf.executor_shutdown()
 
     def test_storage_values(self):
-        for storage_backend in ["h5io", "tinybase"]:
-            with self.subTest(storage_backend):
-                wf = Workflow("wf")
+        for backend in ALLOWED_BACKENDS:
+            with self.subTest(backend):
+                wf = Workflow("wf", storage_backend=backend)
                 try:
                     wf.register("static.demo_nodes", domain="demo")
                     wf.inp = wf.create.demo.AddThree(x=0)
@@ -348,9 +348,9 @@ class TestWorkflow(unittest.TestCase):
                     wf_out = wf()
                     three_result = wf.inp.three.outputs.add.value
 
-                    wf.save(backend=storage_backend)
+                    wf.save()
 
-                    reloaded = Workflow("wf", storage_backend=storage_backend)
+                    reloaded = Workflow("wf", storage_backend=backend)
                     self.assertEqual(
                         wf_out.out__add,
                         reloaded.outputs.out__add.value,
@@ -374,10 +374,11 @@ class TestWorkflow(unittest.TestCase):
         # Note that the type hint `Optional[int]` from OptionallyAdd defines a custom
         # reconstructor, which borks h5io
 
-        for backend in ["h5io", "tinybase"]:
+        for backend in ALLOWED_BACKENDS:
             with self.subTest(backend):
                 try:
-                    wf.save(backend=backend)
+                    wf.storage_backend = backend
+                    wf.save()
                     Workflow(wf.label, storage_backend=backend)
                 finally:
                     wf.storage.delete()
@@ -385,42 +386,50 @@ class TestWorkflow(unittest.TestCase):
         with self.subTest("No unimportable nodes for either back-end"):
             try:
                 wf.import_type_mismatch = wf.create.demo.dynamic()
-                for backend in ["h5io", "tinybase"]:
+                for backend in ALLOWED_BACKENDS:
                     with self.subTest(backend):
                         with self.assertRaises(
                             TypeNotFoundError,
                             msg="Imported object is function but node type is node -- "
                                 "should fail early on save"
                         ):
-                            wf.save(backend=backend)
+                            wf.storage_backend = backend
+                            wf.save()
             finally:
                 wf.remove_node(wf.import_type_mismatch)
 
-        wf.add_node(PlusOne(label="local_but_importable"))
-        try:
-            wf.save(backend="h5io")
-            Workflow(wf.label, storage_backend="h5io")
-        finally:
-            wf.storage.delete()
-
-        with self.assertRaises(
-            NotImplementedError,
-            msg="Storage docs for tinybase claim all children must be registered nodes"
-        ):
-            wf.save(backend="tinybase")
-
-        with self.subTest("Instanced node"):
-            wf.direct_instance = Workflow.create.Function(plus_one)
+        if "h5io" in ALLOWED_BACKENDS:
+            wf.add_node(PlusOne(label="local_but_importable"))
             try:
-                with self.assertRaises(
-                    TypeError,
-                    msg="No direct node instances, only children with functions as "
-                        "_class_ attribtues"
-                ):
-                    wf.save(backend="h5io")
+                wf.storage_backend = "h5io"
+                wf.save()
+                Workflow(wf.label, storage_backend="h5io")
             finally:
-                wf.remove_node(wf.direct_instance)
                 wf.storage.delete()
+
+        if "tinybase" in ALLOWED_BACKENDS:
+            with self.assertRaises(
+                NotImplementedError,
+                msg="Storage docs for tinybase claim all children must be registered "
+                    "nodes"
+            ):
+                wf.storage_backend = "tinybase"
+                wf.save()
+
+        if "h5io" in ALLOWED_BACKENDS:
+            with self.subTest("Instanced node"):
+                wf.direct_instance = Workflow.create.Function(plus_one)
+                try:
+                    with self.assertRaises(
+                        TypeError,
+                        msg="No direct node instances, only children with functions as "
+                            "_class_ attribtues"
+                    ):
+                        wf.storage_backend = "h5io"
+                        wf.save()
+                finally:
+                    wf.remove_node(wf.direct_instance)
+                    wf.storage.delete()
 
         with self.subTest("Unimportable node"):
             @Workflow.wrap_as.single_value_node("y")
@@ -429,16 +438,18 @@ class TestWorkflow(unittest.TestCase):
 
             wf.unimportable_scope = UnimportableScope()
 
-            try:
-                with self.assertRaises(
-                    TypeNotFoundError,
-                    msg="Nodes must live in an importable scope to save with the h5io "
-                        "backend"
-                ):
-                    wf.save(backend="h5io")
-            finally:
-                wf.remove_node(wf.unimportable_scope)
-                wf.storage.delete()
+            if "h5io" in ALLOWED_BACKENDS:
+                try:
+                    with self.assertRaises(
+                        TypeNotFoundError,
+                        msg="Nodes must live in an importable scope to save with the "
+                            "h5io backend"
+                    ):
+                        wf.storage_backend = "h5io"
+                        wf.save()
+                finally:
+                    wf.remove_node(wf.unimportable_scope)
+                    wf.storage.delete()
 
 
 if __name__ == '__main__':

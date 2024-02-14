@@ -9,6 +9,7 @@ from pyiron_workflow._tests import ensure_tests_in_python_path
 from pyiron_workflow.channels import NOT_DATA
 from pyiron_workflow.function import SingleValue
 from pyiron_workflow.macro import Macro, macro_node
+from pyiron_workflow.storage import ALLOWED_BACKENDS
 from pyiron_workflow.topology import CircularDataFlowError
 
 
@@ -523,10 +524,12 @@ class TestMacro(unittest.TestCase):
         ensure_tests_in_python_path()
         Macro.register("static.demo_nodes", domain="demo")
 
-        for backend in ["h5io", "tinybase"]:
+        for backend in ALLOWED_BACKENDS:
             with self.subTest(backend):
                 try:
-                    macro = Macro.create.demo.AddThree(label="m", x=0)
+                    macro = Macro.create.demo.AddThree(
+                        label="m", x=0, storage_backend=backend
+                    )
                     original_result = macro()
                     macro.replace_node(macro.two, Macro.create.demo.AddPlusOne())
 
@@ -543,7 +546,7 @@ class TestMacro(unittest.TestCase):
 
                     modified_result = macro()
 
-                    macro.save(backend=backend)
+                    macro.save()
                     reloaded = Macro.create.demo.AddThree(
                         label="m", storage_backend=backend
                     )

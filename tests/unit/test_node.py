@@ -1,6 +1,6 @@
 from concurrent.futures import Future
 import os
-from typing import Literal
+from typing import Literal, Optional
 import unittest
 
 from pyiron_workflow.channels import InputData, OutputData, NOT_DATA
@@ -8,6 +8,7 @@ from pyiron_workflow.snippets.files import DirectoryObject
 from pyiron_workflow.interfaces import Executor
 from pyiron_workflow.io import Inputs, Outputs
 from pyiron_workflow.node import Node
+from pyiron_workflow.storage import ALLOWED_BACKENDS
 
 
 def add_one(x):
@@ -22,11 +23,13 @@ class ANode(Node):
         label,
         overwrite_save=False,
         run_after_init=False,
-        storage_backend: Literal["h5io", "tinybase"] = "h5io",
-        save_after_run=False,
+        storage_backend: Optional[Literal["h5io", "tinybase"]] = None,
+        save_after_run: bool = False,
         x=None,
     ):
-        super().__init__(label=label, save_after_run=save_after_run)
+        super().__init__(
+            label=label, save_after_run=save_after_run, storage_backend=storage_backend
+        )
         self._inputs = Inputs(InputData("x", self, type_hint=int))
         self._outputs = Outputs(OutputData("y", self, type_hint=int))
         if x is not None:
@@ -376,64 +379,86 @@ class TestNode(unittest.TestCase):
             msg="Sanity check on initial state"
         )
         y = self.n1()
-        self.n1.save()
 
-        x = self.n1.inputs.x.value
-        reloaded = ANode(self.n1.label, x=x)
-        self.assertEqual(
-            y,
-            reloaded.outputs.y.value,
-            msg="Nodes should load by default if they find a save file"
-        )
+        for backend in ALLOWED_BACKENDS:
+            with self.subTest(backend):
+                self.n1.storage_backend = backend
+                self.n1.save()
 
-        clean_slate = ANode(self.n1.label, x=x, overwrite_save=True)
-        self.assertIs(
-            clean_slate.outputs.y.value,
-            NOT_DATA,
-            msg="Users should be able to ignore a save"
-        )
+                x = self.n1.inputs.x.value
+                reloaded = ANode(self.n1.label, x=x, storage_backend=backend)
+                self.assertEqual(
+                    y,
+                    reloaded.outputs.y.value,
+                    msg="Nodes should load by default if they find a save file"
+                )
 
-        run_right_away = ANode(self.n1.label, x=x, run_after_init=True)
-        self.assertEqual(
-            y,
-            run_right_away.outputs.y.value,
-            msg="With nothing to load, running after init is fine"
-        )
+                clean_slate = ANode(self.n1.label, x=x, overwrite_save=True)
+                self.assertIs(
+                    clean_slate.outputs.y.value,
+                    NOT_DATA,
+                    msg="Users should be able to ignore a save"
+                )
 
-        run_right_away.save()
-        with self.assertRaises(
-            ValueError,
-            msg="Should be able to both immediately run _and_ load a node at once"
-        ):
-            ANode(self.n1.label, x=x, run_after_init=True)
+                run_right_away = ANode(
+                    self.n1.label, x=x, run_after_init=True, storage_backend=backend
+                )
+                self.assertEqual(
+                    y,
+                    run_right_away.outputs.y.value,
+                    msg="With nothing to load, running after init is fine"
+                )
 
-        force_run = ANode(self.n1.label, x=x, run_after_init=True, overwrite_save=True)
-        self.assertEqual(
-            y,
-            force_run.outputs.y.value,
-            msg="Destroying the save should allow immediate re-running"
-        )
+                run_right_away.save()
+                with self.assertRaises(
+                    ValueError,
+                    msg="Should be able to both immediately run _and_ load a node at "
+                        "once"
+                ):
+                    ANode(
+                        self.n1.label, x=x, run_after_init=True, storage_backend=backend
+                    )
+
+                force_run = ANode(
+                    self.n1.label, x=x, run_after_init=True, overwrite_save=True
+                )
+                self.assertEqual(
+                    y,
+                    force_run.outputs.y.value,
+                    msg="Destroying the save should allow immediate re-running"
+                )
 
     def test_save_after_run(self):
-        ANode("just_run", x=0, run_after_init=True)
-        saves = ANode("run_and_save", x=0, run_after_init=True, save_after_run=True)
-        y = saves.outputs.y.value
+        for backend in ALLOWED_BACKENDS:
+            with self.subTest(backend):
+                try:
+                    ANode("just_run", x=0, run_after_init=True, storage_backend=backend)
+                    saves = ANode(
+                        "run_and_save",
+                        x=0,
+                        run_after_init=True,
+                        save_after_run=True,
+                        storage_backend=backend
+                    )
+                    y = saves.outputs.y.value
 
-        not_reloaded = ANode("just_run")
-        self.assertIs(
-            NOT_DATA,
-            not_reloaded.outputs.y.value,
-            msg="Should not have saved, therefore should have been nothing to load"
-        )
+                    not_reloaded = ANode("just_run", storage_backend=backend)
+                    self.assertIs(
+                        NOT_DATA,
+                        not_reloaded.outputs.y.value,
+                        msg="Should not have saved, therefore should have been nothing "
+                            "to load"
+                    )
 
-        find_saved = ANode("run_and_save")
-        self.assertEqual(
-            y,
-            find_saved.outputs.y.value,
-            msg="Should have saved automatically after run, and reloaded on "
-                "instantiation"
-        )
-        find_saved.storage.delete()  # Clean up
+                    find_saved = ANode("run_and_save", storage_backend=backend)
+                    self.assertEqual(
+                        y,
+                        find_saved.outputs.y.value,
+                        msg="Should have saved automatically after run, and reloaded "
+                            "on instantiation"
+                    )
+                finally:
+                    saves.storage.delete()  # Clean up
 
 
 if __name__ == '__main__':
