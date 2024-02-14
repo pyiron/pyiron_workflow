@@ -30,14 +30,14 @@ class _CloudPickledCallable:
 
 class CloudpickleProcessPoolExecutor(ProcessPoolExecutor):
     """
-    This class wraps `concurrent.futures.ProcessPoolExecutor` such that the submitted
-    callable, its arguments, and its return value are all pickled using `cloudpickle`.
+    This class wraps :class:`concurrent.futures.ProcessPoolExecutor` such that the submitted
+    callable, its arguments, and its return value are all pickled using :mod:`cloudpickle`.
     In this way, the executor extends support to all objects which are cloud-pickleable,
     e.g. dynamically defined or decorated classes.
 
-    To accomplish this, the underlying `concurrent.futures.Future` class used is
-    replaced with our `CloudLoadsFuture`, which is identical except that calls to
-    `result()` will first try to `cloudpickle.loads` and `bytes` results found.
+    To accomplish this, the underlying :class:`concurrent.futures.Future` class used is
+    replaced with our :class:`CloudLoadsFuture`, which is identical except that calls to
+    :meth:`result()` will first try to :func:`cloudpickle.loads` and `bytes` results found.
 
     Examples:
         Consider a class created from a function dynamically with a decorator.
@@ -46,6 +46,7 @@ class CloudpickleProcessPoolExecutor(ProcessPoolExecutor):
         and returns such an unpickleable class.
         Actions such as registering callbacks and waiting for results behave just like
         normal.
+
         >>> from functools import partialmethod
         >>>
         >>> from pyiron_workflow.executors.cloudpickleprocesspool import (

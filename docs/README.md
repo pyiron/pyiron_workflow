@@ -4,8 +4,7 @@
 [![License](https://img.shields.io/badge/License-BSD_3--Clause-blue.svg)](https://opensource.org/licenses/BSD-3-Clause)
 [![Codacy Badge](https://app.codacy.com/project/badge/Grade/0b4c75adf30744a29de88b5959246882)](https://app.codacy.com/gh/pyiron/pyiron_workflow/dashboard?utm_source=gh&utm_medium=referral&utm_content=&utm_campaign=Badge_grade)
 [![Coverage Status](https://coveralls.io/repos/github/pyiron/pyiron_workflow/badge.svg?branch=main)](https://coveralls.io/github/pyiron/pyiron_workflow?branch=main)
-
-[//]: # ([![Documentation Status]&#40;https://readthedocs.org/projects/pyiron-workflow/badge/?version=latest&#41;]&#40;https://pyiron-workflow.readthedocs.io/en/latest/?badge=latest&#41;)
+[![Documentation Status](https://readthedocs.org/projects/pyiron-workflow/badge/?version=latest)](https://pyiron-workflow.readthedocs.io/en/latest/?badge=latest)
 
 [![Anaconda](https://anaconda.org/conda-forge/pyiron_workflow/badges/version.svg)](https://anaconda.org/conda-forge/pyiron_workflow)
 [![Last Updated](https://anaconda.org/conda-forge/pyiron_workflow/badges/latest_release_date.svg
@@ -51,7 +50,7 @@ But the intent is to collect them together into a workflow and leverage existing
 
 ```python
 >>> from pyiron_workflow import Workflow
->>> Workflow.register("plotting", "pyiron_workflow.node_library.plotting")
+>>> Workflow.register("pyiron_workflow.node_library.plotting", "plotting")
 >>>
 >>> @Workflow.wrap_as.single_value_node()
 ... def Arange(n: int):
@@ -85,18 +84,18 @@ But the intent is to collect them together into a workflow and leverage existing
 
 Which gives the workflow `diagram`
 
-![](docs/_static/readme_diagram.png)
+![](_static/readme_diagram.png)
 
 And the resulting figure (when axes are not cleared)
 
-![](docs/_static/readme_fig.png)
+![](_static/readme_fig.png)
 
 ## Installation
 
 `conda install -c conda-forge pyiron_workflow`
 
-To unlock the associated node packages and ensure that the demo notebooks run, also make sure your conda environment has the packages listed in our [notebooks dependencies](.ci_support/environment-notebooks.yml)
+To unlock the associated node packages and ensure that the demo notebooks run, also make sure your conda environment has the packages listed in our [notebooks dependencies](../.ci_support/environment-notebooks.yml)
 
 ## Learning more
 
-Check out the demo [notebooks](notebooks), read through the docstrings, and don't be scared to raise an issue on this GitHub repo!
+Check out the demo [notebooks](../notebooks), read through the docstrings, and don't be scared to raise an issue on this GitHub repo!

@@ -1,69 +1,42 @@
 import unittest
 
-from pyiron_workflow.node_package import NodePackage
-from pyiron_workflow.function import function_node
-
-
-@function_node()
-def Dummy(x: int = 0):
-    return x
+from pyiron_workflow._tests import ensure_tests_in_python_path
+from pyiron_workflow.node_package import NodePackage, NotANodePackage
 
 
 class TestNodePackage(unittest.TestCase):
-    def setUp(self) -> None:
-        self.package = NodePackage(Dummy)
+    @classmethod
+    def setUpClass(cls) -> None:
+        ensure_tests_in_python_path()
+        cls.valid_identifier = "static.demo_nodes"
 
     def test_init(self):
-        self.assertTrue(
-            hasattr(self.package, Dummy.__name__),
-            msg="Classes should be added at instantiation"
-        )
+        ok = NodePackage(self.valid_identifier)
+        self.assertEqual(self.valid_identifier, ok.package_identifier)
 
-    def test_access(self):
-        node = self.package.Dummy()
-        self.assertIsInstance(node, Dummy)
+        with self.assertRaises(NotANodePackage):
+            NodePackage("not_even_a_module")
 
-    def test_update(self):
-        with self.assertRaises(KeyError):
-            self.package.Dummy = "This is already a node class name"
+        with self.assertRaises(NotANodePackage):
+            NodePackage("static.faulty_node_package")
 
-        with self.assertRaises(KeyError):
-            self.package.update = "This is already a method"
+        with self.assertRaises(NotANodePackage):
+            NodePackage("static.not_a_node_packageZ")
 
-        with self.assertRaises(TypeError):
-            self.package.available_name = "But we can still only assign node classes"
+    def test_nodes(self):
+        package = NodePackage("static.demo_nodes")
 
-        @function_node("y")
-        def add(x: int = 0):
-            return x + 1
+        with self.subTest("Attribute access"):
+            node = package.OptionallyAdd()
+            self.assertIsInstance(node, package.OptionallyAdd)
 
-        self.package.node_class_and_free_key = add  # Should work!
+        with self.subTest("Identifier information"):
+            node = package.OptionallyAdd()
+            self.assertEqual(node.package_identifier, package.package_identifier)
 
-        with self.assertRaises(KeyError):
-            # This is already occupied by another node class
-            self.package.Dummy = add
-
-        old_dummy_instance = self.package.Dummy(label="old_dummy_instance")
-
-        @function_node()
-        def Dummy(x: int = 0):
-            y = x + 1
-            return y
-
-        self.package.update(Dummy)
-
-        self.assertEqual(len(self.package), 2, msg="Update should replace, not extend")
-
-        new_dummy_instance = self.package.Dummy(label="new_dummy_instance")
-
-        old_dummy_instance.run()
-        new_dummy_instance.run()
-        self.assertEqual(
-            old_dummy_instance.outputs.x.value, 0, msg="Should have old functionality"
-        )
-        self.assertEqual(
-            new_dummy_instance.outputs.y.value, 1, msg="Should have new functionality"
-        )
+    def test_length(self):
+        package = NodePackage("static.demo_nodes")
+        self.assertEqual(1, len(package))
 
 
 if __name__ == '__main__':

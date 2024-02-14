@@ -7,7 +7,10 @@ from __future__ import annotations
 from importlib import import_module
 import pkgutil
 from sys import version_info
+from types import ModuleType
+from typing import Optional, TYPE_CHECKING
 
+from bidict import bidict
 from pyiron_workflow.snippets.singleton import Singleton
 
 # Import all the supported executors
@@ -35,6 +38,9 @@ from pyiron_workflow.function import (
 )
 from pyiron_workflow.snippets.dotdict import DotDict
 
+if TYPE_CHECKING:
+    from pyiron_workflow.node_package import NodePackage
+
 
 class Creator(metaclass=Singleton):
     """
@@ -45,13 +51,14 @@ class Creator(metaclass=Singleton):
     In addition to node objects, the creator also provides workflow-compliant executors
     for parallel processing.
     This includes a very simple in-house executor that is useful for learning, but also
-    choices from the `pympipool` packages.
-    Some `pympipool` executors may not be available on your machine (e.g. flux- and/or
+    choices from the :mod:`pympipool` packages.
+    Some :mod:`pympipool` executors may not be available on your machine (e.g. flux- and/or
      slurm-based executors), in which case these attributes will return `None` instead.
     """
 
     def __init__(self):
-        self._node_packages = {}
+        self._package_access = DotDict()
+        self._package_registry = bidict()
 
         self.Executor = Executor
         self.CloudpickleProcessPoolExecutor = CloudpickleProcessPoolExecutor
@@ -71,7 +78,7 @@ class Creator(metaclass=Singleton):
             # in python >=3.10
             # If the CI skips testing on 3.9 gets dropped, we can think about removing
             # this if-clause and just letting users of python <3.10 hit an error.
-            self.register("standard", "pyiron_workflow.node_library.standard")
+            self.register("pyiron_workflow.node_library.standard", "standard")
 
     @property
     def PyFluxExecutor(self):
@@ -124,11 +131,19 @@ class Creator(metaclass=Singleton):
 
     def __getattr__(self, item):
         try:
-            return self._node_packages[item][1]
+            return self._package_access[item]
         except KeyError as e:
             raise AttributeError(
                 f"{self.__class__.__name__} could not find attribute {item} -- did you "
                 f"forget to register node package to this key?"
+            ) from e
+
+    def __getitem__(self, item):
+        try:
+            return self._package_registry[item]
+        except KeyError as e:
+            raise KeyError(
+                f"Could not find the package {item} -- are you sure it's registered?"
             ) from e
 
     def __getstate__(self):
@@ -137,11 +152,24 @@ class Creator(metaclass=Singleton):
     def __setstate__(self, state):
         self.__dict__ = state
 
-    def register(self, domain: str, package_identifier: str) -> None:
+    def register(self, package_identifier: str, domain: Optional[str] = None) -> None:
         """
+        Add a new package of nodes from the provided identifier.
+        The new package is available by item-access using the identifier, and, if a
+        domain was provided, by attribute access under that domain path ("."-split
+        strings allow for deep-registration of domains).
         Add a new package of nodes under the provided attribute, e.g. after adding
         nodes to the domain `"my_nodes"`, and instance of creator can call things like
         `creator.my_nodes.some_node_that_is_there()`.
+
+        Currently, :param:`package_identifier` is just a python module string, and we
+        allow recursive registration of multiple node packages when a module is
+        provided whose sub-modules are node packages. If a :param:`domain` was
+        provided, then it is extended by the same semantic path as the modules, e.g.
+        if `my_python_module` is registered to the domain `"mpm"`, and
+        `my_python_module.submod1` and `my_python_module.submod2.subsub` are both node
+        packages, then `mpm.submod1` and `mpm.submod2.subsub` will both be available
+        for attribute access.
 
         Note: If a macro is going to use a creator, the node registration should be
             _inside_ the macro definition to make sure the node actually has access to
@@ -149,12 +177,14 @@ class Creator(metaclass=Singleton):
             import access to that location, but we don't for that check that.
 
         Args:
-            domain (str): The attribute name at which to register the new package.
-                (Note: no sanitizing is done here, so if you provide a string that
-                won't work as an attribute name, that's your problem.)
             package_identifier (str): An identifier for the node package. (Right now
                 that's just a string version of the path to the module, e.g.
                 `pyiron_workflow.node_library.standard`.)
+            domain (str|None): The attribute name at which to register the new package.
+                (Note: no sanitizing is done here except for splitting on "." to create
+                sub-domains, so if you provide a string that won't work as an attribute
+                name, that's your problem.) (Default is None, don't provide attribute
+                access to this package.)
 
         Raises:
             KeyError: If the domain already exists, but the identifier doesn't match
@@ -163,80 +193,126 @@ class Creator(metaclass=Singleton):
                 method or attribute of the creator.
             ValueError: If the identifier can't be parsed.
         """
-
-        if self._package_conflicts_with_existing(domain, package_identifier):
-            raise KeyError(
-                f"{domain} is already a registered node package, please choose a "
-                f"different domain to store these nodes under"
-            )
-        elif domain in self.__dir__():
+        if domain in super().__dir__():
+            # We store package names in __dir__ for autocomplete, so here look only
+            # at the parent-class __dir__, which stores actual properties and methods,
+            # but _not_ the node packages
             raise AttributeError(f"{domain} is already an attribute of {self}")
 
-        self._node_packages[domain] = (
-            package_identifier,
-            self._import_nodes(package_identifier),
-        )
+        try:
+            module = import_module(package_identifier)
+            if domain is not None:
+                if "." in domain:
+                    domain, container = self._get_deep_container(domain)
+                else:
+                    container = self._package_access
+                self._register_recursively_from_module(module, domain, container)
+            else:
+                self._register_recursively_from_module(module, None, None)
+        except ModuleNotFoundError as e:
+            raise ModuleNotFoundError(
+                f"In the current implementation, we expect package identifiers to be "
+                f"modules, but {package_identifier} couldn't be imported. If this "
+                f"looks like a module, perhaps it's simply not in your path?"
+            ) from e
 
-    def _package_conflicts_with_existing(
-        self, domain: str, package_identifier: str
-    ) -> bool:
-        """
-        Check if the new package conflict with an existing package at the requested
-        domain; if there isn't one, or if the new and old packages are identical then
-        there is no conflict!
+    def _get_deep_container(self, semantic_domain: str) -> tuple[str, DotDict]:
+        from pyiron_workflow.node_package import NodePackage
 
-        Args:
-            domain (str): The domain at which the new package is attempting to register.
-            package_identifier (str): The identifier for the new package.
+        container = self._package_access
+        path = semantic_domain.split(".")
 
-        Returns:
-            (bool): True iff there is a package already at that domain and it is not
-                the same as the new one.
-        """
-        if domain in self._node_packages.keys():
-            # If it's already here, it had better be the same package
-            return package_identifier != self._node_packages[domain][0]
-            # We can make "sameness" logic more complex as we allow more sophisticated
-            # identifiers
-        else:
-            # If it's not here already, it can't conflict!
-            return False
+        while len(path) > 1:
+            step = path.pop(0)
+            if not hasattr(container, step):
+                container[step] = DotDict()
+            elif isinstance(container[step], NodePackage):
+                raise ValueError(
+                    f"The semantic path {semantic_domain} is invalid because it uses "
+                    f"{step} as an intermediary, but this is already a "
+                    f"{NodePackage.__name__}"
+                )
+            container = container[step]
+        domain = path[0]
+        return domain, container
 
-    def _import_nodes(self, package_identifier: str):
-        """
-        Recursively walk through all submodules of the provided package identifier,
-        and collect an instance of `nodes: list[Node]` from each non-package module.
-        """
-
-        module = import_module(package_identifier)
+    def _register_recursively_from_module(
+        self, module: ModuleType, domain: str | None, container: DotDict | None
+    ) -> None:
         if hasattr(module, "__path__"):
-            package = DotDict()
+            if domain is not None:
+                if domain not in container.keys():
+                    container[domain] = DotDict()
+                subcontainer = container[domain]
+            else:
+                subcontainer = None
             for _, submodule_name, _ in pkgutil.walk_packages(
                 module.__path__, module.__name__ + "."
             ):
-                package[submodule_name.split(".")[-1]] = self._import_nodes(
-                    submodule_name
-                )
+                submodule = import_module(submodule_name)
+                subdomain = None if domain is None else submodule_name.split(".")[-1]
+
+                if not hasattr(submodule, "__path__"):
+                    if hasattr(submodule, "nodes"):
+                        # If it's a .py file with a `nodes` variable,
+                        # assume that we want it
+                        self._register_package_from_module(
+                            submodule, subdomain, subcontainer
+                        )
+                else:
+                    if subdomain not in container.keys():
+                        subcontainer[subdomain] = DotDict()
+                    subcontainer = subcontainer[subdomain]
         else:
-            package = self._get_nodes_from_module(module)
+            self._register_package_from_module(module, domain, container)
+
+    def _register_package_from_module(
+        self, module: ModuleType, domain: str | None, container: dict | DotDict | None
+    ) -> None:
+        package = self._get_existing_package_or_register_a_new_one(module.__name__)
+        # NOTE: Here we treat the package identifier and the module name as equivalent
+
+        if domain is not None:
+            if domain not in container.keys():
+                # If the container _doesn't_ yet have anything at this domain, just add it
+                container[domain] = package
+            else:
+                self._raise_error_unless_new_package_matches_existing(
+                    container, domain, package
+                )
+
+    def _get_existing_package_or_register_a_new_one(
+        self, package_identifier: str
+    ) -> NodePackage:
+        try:
+            # If the package is already registered, grab that instance
+            package = self._package_registry[package_identifier]
+        except KeyError:
+            # Otherwise make a new package
+            from pyiron_workflow.node_package import NodePackage
+
+            package = NodePackage(package_identifier)
+            self._package_registry[package_identifier] = package
         return package
 
-    @staticmethod
-    def _get_nodes_from_module(module):
-        from pyiron_workflow.node import Node
-        from pyiron_workflow.node_package import NodePackage
-
+    def _raise_error_unless_new_package_matches_existing(
+        self, container: DotDict, domain: str, package: NodePackage
+    ) -> None:
         try:
-            nodes = module.nodes
+            if container[domain].package_identifier != package.package_identifier:
+                raise ValueError(
+                    f"The domain {domain} already holds the package "
+                    f"{container[domain].package_identifier}, and cannot store the "
+                    f"package {package.package_identifier}"
+                )
         except AttributeError:
             raise ValueError(
-                f"Could node find `nodes: list[Nodes]` in {module.__name__}"
+                f"The domain {domain} is already a container, and cannot be "
+                f"overwritten with the package {package.package_identifier}"
             )
-        if not all(issubclass(node, Node) for node in nodes):
-            raise TypeError(
-                f"At least one node in {nodes} was not of the type {Node.__name__}"
-            )
-        return NodePackage(*module.nodes)
+
+    def __dir__(self) -> list[str]:
+        return super().__dir__() + list(self._package_access.keys())
 
 
 class Wrappers(metaclass=Singleton):

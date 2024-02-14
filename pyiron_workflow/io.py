@@ -32,11 +32,11 @@ class IO(HasToDict, ABC):
     alter the properties of or check the status of all the channels at once.
 
     A new channel can be assigned as an attribute of an IO collection, as long as it
-    matches the channel's type (e.g. `OutputChannel` for `Outputs`, `InputChannel`
-    for `Inputs`, etc...).
+    matches the channel's type (e.g. :class:`OutputChannel` for :class:`Outputs`, :class:`InputChannel`
+    for :class:`Inputs`, etc...).
 
     When assigning something to an attribute holding an existing channel, if the
-    assigned object is a `Channel`, then an attempt is made to make a `connection`
+    assigned object is a :class:`Channel`, then an attempt is made to make a :attr:`connection`
     between the two channels, otherwise we fall back on a value assignment that must
     be defined in child classes under `_assign_value_to_existing_channel`.
     This provides syntactic sugar such that both new connections and new values can
