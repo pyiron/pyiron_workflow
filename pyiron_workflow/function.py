@@ -334,7 +334,7 @@ class Function(Node):
         overwrite_save: bool = False,
         run_after_init: bool = False,
         storage_backend: Literal["h5io", "tinybase"] = "h5io",
-        save_after_run: bool = False,
+        save_after_run: Literal["h5io", "tinybase"] | None = None,
         output_labels: Optional[str | list[str] | tuple[str]] = None,
         **kwargs,
     ):

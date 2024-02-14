@@ -259,8 +259,9 @@ class Node(HasToDict, ABC, metaclass=AbstractHasPost):
             node. Must be specified in child classes.
         running (bool): Whether the node has called :meth:`run` and has not yet
             received output from this call. (Default is False.)
-        save_after_run (bool): Whether to trigger a save after each run of the node
-            (currently causes the entire graph to save). (Default is False.)
+        save_after_run (Literal["h5io" | "tinybase"] | None): Whether to trigger a save
+            after each run of the node (currently causes the entire graph to save).
+            (Default is None, which does not save after running.)
         signals (pyiron_workflow.io.Signals): A container for input and output
             signals, which are channels for controlling execution flow. By default, has
             a :attr:`signals.inputs.run` channel which has a callback to the :meth:`run` method
@@ -311,7 +312,7 @@ class Node(HasToDict, ABC, metaclass=AbstractHasPost):
         overwrite_save: bool = False,
         run_after_init: bool = False,
         storage_backend: Literal["h5io", "tinybase"] = "h5io",
-        save_after_run: bool = False,
+        save_after_run: Literal["h5io", "tinybase"] | None = None,
         **kwargs,
     ):
         """
@@ -678,8 +679,8 @@ class Node(HasToDict, ABC, metaclass=AbstractHasPost):
             self.failed = True
             raise e
         finally:
-            if self.save_after_run:
-                self.save()
+            if self.save_after_run is not None:
+                self.save(backend=self.save_after_run)
 
     def _finish_run_and_emit_ran(self, run_output: tuple | Future) -> Any | tuple:
         processed_output = self._finish_run(run_output)
