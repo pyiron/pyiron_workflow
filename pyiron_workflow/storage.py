@@ -6,6 +6,7 @@ back ends.
 from __future__ import annotations
 
 import os
+import sys
 from typing import Literal, TYPE_CHECKING
 
 import h5io
@@ -15,7 +16,7 @@ from pyiron_workflow.snippets.files import FileObject
 if TYPE_CHECKING:
     from pyiron_workflow.node import Node
 
-ALLOWED_BACKENDS = ["h5io", "tinybase"]
+ALLOWED_BACKENDS = ["h5io", "tinybase"] if sys.version_info >= (3, 11) else ["h5io"]
 
 
 class TypeNotFoundError(ImportError):
