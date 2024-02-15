@@ -67,8 +67,7 @@ class StorageInterface:
             )
         elif backend == "tinybase":
             os.makedirs(
-                os.path.dirname(self._tinybase_storage_file_path),
-                exist_ok=True
+                os.path.dirname(self._tinybase_storage_file_path), exist_ok=True
             )  # Make sure the path to the storage location exists
             self.node.to_storage(self._tinybase_storage)
         else:

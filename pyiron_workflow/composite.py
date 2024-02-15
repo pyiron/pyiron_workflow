@@ -123,7 +123,7 @@ class Composite(Node, ABC):
             parent=parent,
             save_after_run=save_after_run,
             storage_backend=storage_backend,
-            **kwargs
+            **kwargs,
         )
         self.strict_naming: bool = strict_naming
         self._inputs_map = None
