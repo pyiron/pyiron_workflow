@@ -243,9 +243,11 @@ class Creator(metaclass=Singleton):
             if domain is not None:
                 if domain not in container.keys():
                     container[domain] = DotDict()
-                subcontainer = container[domain]
+                container = container[domain]
             else:
-                subcontainer = None
+                container = None
+            subcontainer = container
+
             for _, submodule_name, _ in pkgutil.walk_packages(
                 module.__path__, module.__name__ + "."
             ):
@@ -260,9 +262,14 @@ class Creator(metaclass=Singleton):
                             submodule, subdomain, subcontainer
                         )
                 else:
-                    if subdomain not in container.keys():
-                        subcontainer[subdomain] = DotDict()
-                    subcontainer = subcontainer[subdomain]
+                    relative_path = submodule.__name__.replace(
+                        module.__name__ + ".", ""
+                    )
+                    subcontainer = container
+                    for step in relative_path.split("."):
+                        if step not in subcontainer.keys():
+                            subcontainer[step] = DotDict()
+                        subcontainer = subcontainer[subdomain]
         else:
             self._register_package_from_module(module, domain, container)
 
