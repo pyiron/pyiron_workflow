@@ -88,7 +88,7 @@ def InitLammps(structure=None, potential=None, calculator=None, working_director
 
     calculator.write_file(file_name="control.inp", cwd=working_directory)
     bla = "bla"
-    print("Lammps_init: ", calculator._mode, bla)
+    # print("Lammps_init: ", calculator._mode, bla)
 
     # return os.path.abspath(working_directory), calculator._mode, bla
     return os.path.abspath(working_directory), bla
