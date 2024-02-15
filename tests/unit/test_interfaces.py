@@ -44,6 +44,7 @@ class TestCreator(unittest.TestCase):
         self.creator.register("static.nodes_subpackage", "sub")
         self.assertIsInstance(self.creator.sub.demo_nodes, NodePackage)
         self.assertIsInstance(self.creator.sub.subsub_package.demo_nodes, NodePackage)
+        self.assertIsInstance(self.creator.sub.subsub_sibling.demo_nodes, NodePackage)
 
         with self.subTest("Test re-registration"):
             self.creator.register("static.demo_nodes", "demo")
