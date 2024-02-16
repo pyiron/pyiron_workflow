@@ -40,9 +40,12 @@ setup(
         "node_library": [
             'ase==3.22.1',
             'atomistics==0.1.23',
+            'matgl==0.9.2',
             'numpy==1.26.4',
+            'pandas==2.2.0',
             'phonopy==2.21.0',
-            'pyiron_atomistics==0.4.14',
+            'pyiron_atomistics==0.4.15',
+            'pyiron_contrib==0.1.15',
         ],
     },
     cmdclass=versioneer.get_cmdclass(),
