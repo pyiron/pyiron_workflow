@@ -280,7 +280,7 @@ def Code(
     wf.InitLammps = wf.create.atomistic.engine.lammps.InitLammps(
         structure=structure,
         potential=wf.Potential,
-        calculator=wf.calc.outputs.calculator,
+        calculator=wf.calc,
         # working_directory="test2",
     )
     wf.InitLammps.inputs.working_directory = (
@@ -301,7 +301,7 @@ def Code(
         bla=wf.InitLammps.outputs.bla,
         out_dump=wf.ParseDumpFile.outputs.dump,
         out_log=wf.ParseLogFile.outputs.log,
-        # calc_mode=wf.InitLammps.outputs.calc_mode,
+        calc_mode=wf.calc,
     )
 
     return wf.Collect
