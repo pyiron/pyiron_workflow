@@ -175,7 +175,7 @@ class GenericOutput:
 def Collect(
     out_dump,
     out_log,
-    calc_mode: str,
+    calc_mode: str | LammpsControl | InputCalcMinimize | InputCalcMD | InputCalcStatic,
     bla="",
 ):
     import numpy as np
@@ -188,6 +188,15 @@ def Collect(
 
     print("Collect: ", calc_mode, bla)
     log = out_log[0]
+
+    if isinstance(calc_mode, str) and calc_mode in ["static", "minimize", "md"]:
+        pass
+    elif isinstance(calc_mode, (InputCalcMinimize, InputCalcMD, InputCalcStatic)):
+        calc_mode = calc_mode.__class__.__name__.replace("InputCalc", "").lower()
+    elif isinstance(calc_mode, LammpsControl):
+        calc_mode = calc_mode._mode
+    else:
+        raise ValueError(f"Unexpected calc_mode {calc_mode}")
 
     if calc_mode == "static":
         generic = OutputCalcStatic()
