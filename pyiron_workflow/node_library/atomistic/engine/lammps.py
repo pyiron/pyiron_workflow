@@ -35,6 +35,8 @@ def Calc(parameters):
     elif isinstance(parameters, InputCalcStatic):
         calculator.calc_static(**parameters)
         calculator._mode = "static"
+    else:
+        raise TypeError(f"Unexpected parameters type {parameters}")
 
     return calculator
 
