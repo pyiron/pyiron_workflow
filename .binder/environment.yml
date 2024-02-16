@@ -17,7 +17,7 @@ dependencies:
 - matgl =0.9.2
 - pandas =2.2.0
 - phonopy =2.21.0
-- pyiron_atomistics =0.4.14
-- pyiron_contrib =0.1.13
+- pyiron_atomistics =0.4.15
+- pyiron_contrib =0.1.15
 - pyiron-data =0.0.27
 - numpy =1.26.4
