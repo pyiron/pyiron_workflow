@@ -24,7 +24,7 @@ class VarType:
 
 
 class FileObject:
-    def __init__(self, path='.', directory=None):
+    def __init__(self, path=".", directory=None):
         if directory is None:
             self._path = Path(path)
         else:

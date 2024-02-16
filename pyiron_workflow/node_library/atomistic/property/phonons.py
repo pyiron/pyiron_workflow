@@ -74,7 +74,7 @@ def create_phonopy(
 
     cells = generate_supercells(
         phonopy,
-        parameters=parse_input_kwargs(parameters, InputPhonopyGenerateSupercells)
+        parameters=parse_input_kwargs(parameters, InputPhonopyGenerateSupercells),
     )
     gs = pyiron_workflow.node_library.atomistic.calculator.ase.static(engine=engine)
     df = gs.iter(atoms=cells, executor=executor, max_workers=max_workers)

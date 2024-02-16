@@ -14,8 +14,7 @@ from pyiron_workflow.node_library.atomistic.calculator.data import (
     InputCalcStatic,
 )
 
-from pyiron_workflow.node_library.dev_tools import FileObject, \
-    parse_input_kwargs
+from pyiron_workflow.node_library.dev_tools import FileObject, parse_input_kwargs
 from pyiron_workflow.node_library.dev_tools import wf_data_class
 
 from pyiron_atomistics.lammps.control import LammpsControl

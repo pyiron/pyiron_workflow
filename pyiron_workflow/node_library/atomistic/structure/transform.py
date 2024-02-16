@@ -7,9 +7,7 @@ from ase import Atoms
 
 
 @single_value_node("structure")
-def repeat(
-    structure: Atoms, repeat_scalar: int = 1
-) -> Atoms:
+def repeat(structure: Atoms, repeat_scalar: int = 1) -> Atoms:
     return structure.repeat(repeat_scalar)
 
 

@@ -49,7 +49,9 @@ def elastic_constants(structure, calculator=None, engine=None):
         engine = M3GNet()
 
     if calculator is None:
-        from pyiron_workflow.node_library.atomistic.calculator.ase import static as calculator
+        from pyiron_workflow.node_library.atomistic.calculator.ase import (
+            static as calculator,
+        )
 
     gs = calculator(engine=engine)
 
