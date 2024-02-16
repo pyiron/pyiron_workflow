@@ -32,7 +32,7 @@ def Calc(parameters):
     elif isinstance(parameters, InputCalcMinimize):
         calculator.calc_minimize(**parameters)
         calculator._mode = "minimize"
-    elif isinstance(parameters, InputCalcMinimize):
+    elif isinstance(parameters, InputCalcStatic):
         calculator.calc_static(**parameters)
         calculator._mode = "static"
 
