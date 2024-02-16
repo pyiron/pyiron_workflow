@@ -1,5 +1,6 @@
 # for development and testing only
 # provide functionality, data types etc. that will be later moved to the workflow code
+from __future__ import annotations
 
 from pathlib import Path
 
@@ -23,7 +24,7 @@ class VarType:
 
 
 class FileObject:
-    def __init__(self, path='.', directory=None):
+    def __init__(self, path=".", directory=None):
         if directory is None:
             self._path = Path(path)
         else:
@@ -269,3 +270,37 @@ from typing import Optional
 class wfMetaData:
     log_level: int = 0
     doc: Optional[str] = None
+
+
+def parse_input_kwargs(input_kwargs, expected_type):
+    """
+    Get a dictionary of data for some dataclass.
+
+    Args:
+        input_kwargs (expected_type|dict|None):
+        expected_type (type): One of our input dataclasses
+
+    Returns:
+        (dict): A dictionary of data from the `expected_type`, updated from the
+            `input_kwargs` -- Just the defaults for the type when `input_kwargs` is
+            `None`, a dictionary version of the instance if it was an instance of the
+            expected type, or the defaults updated by the provided input if it was a
+            `dict`.
+
+    Warnings:
+        In the case that `input_kwargs` is a dict, there's not currently any safeguards
+        to make sure the provided data aligns with the `expected_type`.
+    """
+    if input_kwargs is None or isinstance(input_kwargs, dict):
+        calculator_input = expected_type()
+    elif not isinstance(input_kwargs, expected_type):
+        raise TypeError(
+            f"Expected to get input that was None, a dict, or {expected_type}, but got"
+            f"{input_kwargs}"
+        )
+
+    parsed_kwargs = vars(calculator_input)
+    if isinstance(input_kwargs, dict):
+        # WARNING: We're not doing any checking here that the dictionary items are valid
+        parsed_kwargs.update(input_kwargs)
+    return parsed_kwargs

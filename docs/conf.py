@@ -34,14 +34,25 @@ from sphinx.ext.apidoc import main
 # Add any Sphinx extension module names here, as strings. They can be
 # extensions coming with Sphinx (named 'sphinx.ext.*') or your custom
 # ones.
-extensions = ['nbsphinx', 'sphinx.ext.mathjax', 'sphinx.ext.autodoc', 'sphinx.ext.viewcode',
-              'sphinx.ext.autosummary', 'sphinx.ext.napoleon']
+extensions = [
+    'myst_parser',
+    'nbsphinx',
+    'sphinx_gallery.load_style',
+    'sphinx.ext.mathjax',
+    'sphinx.ext.autodoc',
+    'sphinx.ext.viewcode',
+    'sphinx.ext.autosummary',
+    'sphinx.ext.napoleon'
+]
 
 # Add any paths that contain templates here, relative to this directory.
 templates_path = ['_templates']
 
 # The suffix of source filenames.
-source_suffix = '.rst'
+source_suffix = {
+    '.rst': 'restructuredtext',
+    '.md': 'markdown'
+}
 
 # The encoding of source files.
 # source_encoding = 'utf-8-sig'
@@ -50,7 +61,7 @@ source_suffix = '.rst'
 master_doc = 'index'
 
 # General information about the project.
-project = u'pyiron'
+project = u'pyiron_workflow'
 copyright = u'2021, Max-Planck-Institut für Eisenforschung GmbH - Computational Materials Design (CM) Department ' \
             u'All rights reserved'
 
@@ -228,7 +239,7 @@ latex_elements = {
 # (source start file, target name, title,
 #  author, documentclass [howto, manual, or own class]).
 latex_documents = [
-  ('index', 'pyiron.tex', u'pyiron Documentation',
+  ('index', 'pyiron_workflow.tex', u'pyiron_workflow Documentation',
    u'Max-Planck-Institut für Eisenforschung GmbH - Computational Materials Design (CM) Department', 'manual'),
 ]
 
@@ -259,8 +270,8 @@ latex_documents = [
 # (source start file, name, description, authors, manual section).
 man_pages = [
     ('index',
-     'pyiron',
-     u'pyiron Documentation',
+     'pyiron_workflow',
+     u'pyiron_workflow Documentation',
      [u'Max-Planck-Institut für Eisenforschung GmbH - Computational Materials Design (CM) Department'], 1)
 ]
 
@@ -276,10 +287,10 @@ man_pages = [
 texinfo_documents = [
   ('index',
    'pyiron_workflow',
-   u'pyiron Documentation',
+   u'pyiron_workflow Documentation',
    u'Max-Planck-Institut für Eisenforschung GmbH - Computational Materials Design (CM) Department',
    'pyiron_workflow',
-   'One line description of project.',
+   'Graph-based workflow management.',
    'Miscellaneous'),
 ]
 

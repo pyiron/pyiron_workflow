@@ -4,7 +4,7 @@ import os
 import unittest
 
 from pyiron_workflow.channels import InputData, OutputData, NotData
-from pyiron_workflow.files import DirectoryObject
+from pyiron_workflow.snippets.files import DirectoryObject
 from pyiron_workflow.interfaces import Executor
 from pyiron_workflow.io import Inputs, Outputs
 from pyiron_workflow.node import Node
@@ -342,6 +342,23 @@ class TestNode(unittest.TestCase):
             1,
             ANode("right_away", run_after_init=True, x=0).outputs.y.value,
             msg="With run_after_init, the node should run right away"
+        )
+
+    def test_graph_info(self):
+        n = ANode("n")
+
+        self.assertEqual(
+            n.label,
+            n.graph_path,
+            msg="Lone nodes should just have their label as the path, as there is no "
+                "parent above."
+        )
+
+        self.assertIs(
+            n,
+            n.graph_root,
+            msg="Lone nodes should be their own graph_root, as there is no parent "
+                "above."
         )
 
 

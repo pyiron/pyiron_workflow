@@ -3,7 +3,6 @@ A test case that encourages you to test your docstrings and makes it easier to t
 numpy arrays (if numpy is available).
 """
 
-
 from abc import ABC
 from contextlib import redirect_stdout
 import doctest
@@ -30,11 +29,11 @@ __date__ = "Dec 5, 2023"
 
 
 class PyironTestCase(unittest.TestCase, ABC):
-
     """
     Base class for all pyiron unit tets.
 
     If numpy is avaiable, registers utility type equality function:
+
         - `np.testing.assert_array_equal`
 
     Demands that you provide information on modules(s) for docstring testing, but

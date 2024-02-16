@@ -136,7 +136,9 @@ class InputCalcMinimize:
 
 @wf_data_class()
 class InputCalcStatic:
-    keys_to_store: Optional[list] = field(default_factory=list)
+    # keys_to_store: Optional[list] = field(default_factory=list)
+    pass  # LammpsControl.calc_static takes exactly zero arguments, and currently we
+    # have the input objects matching their respective LammpsControl counterparts
 
 
 nodes = []

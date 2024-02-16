@@ -42,9 +42,7 @@ def Structure(structure):
 
 
 @single_value_node("path")
-def InitLammps(
-    structure=None, potential=None, calculator=None, working_directory=None
-):
+def InitLammps(structure=None, potential=None, calculator=None, working_directory=None):
     import os
     from pyiron_atomistics.lammps.potential import LammpsPotential, LammpsPotentialFile
 

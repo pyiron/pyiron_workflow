@@ -1,6 +1,7 @@
 """
 Nodes wrapping a subset of pyiron_atomistics functionality
 """
+
 from __future__ import annotations
 
 from typing import Literal, Optional
@@ -30,8 +31,8 @@ def _run_and_remove_job(job, modifier: Optional[callable] = None, **modifier_kwa
     """
     Extracts the commonalities for all the "calc" methods for running a Lammps engine.
     Will need to be extended/updated once we support other engines so that more output
-    can be parsed. Output may wind up more concretely packaged, e.g. as `CalcOutput` or
-    `MDOutput`, etc., ala Joerg's suggestion later, so for the time being we don't put
+    can be parsed. Output may wind up more concretely packaged, e.g. as :class:`CalcOutput` or
+    :class:`MDOutput`, etc., ala Joerg's suggestion later, so for the time being we don't put
     too much effort into this.
 
     Warning:
@@ -126,10 +127,12 @@ def CalcMd(
     n_ionic_steps: int = 1000,
     n_print: int = 100,
     temperature: int | float = 300.0,
-    pressure: float
-    | tuple[float, float, float]
-    | tuple[float, float, float, float, float, float]
-    | None = None,
+    pressure: (
+        float
+        | tuple[float, float, float]
+        | tuple[float, float, float, float, float, float]
+        | None
+    ) = None,
 ):
     def calc_md(job, n_ionic_steps, n_print, temperature, pressure):
         job.calc_md(
@@ -169,10 +172,12 @@ def CalcMin(
     job: AtomisticGenericJob,
     n_ionic_steps: int = 1000,
     n_print: int = 100,
-    pressure: float
-    | tuple[float, float, float]
-    | tuple[float, float, float, float, float, float]
-    | None = None,
+    pressure: (
+        float
+        | tuple[float, float, float]
+        | tuple[float, float, float, float, float, float]
+        | None
+    ) = None,
 ):
     def calc_min(job, n_ionic_steps, n_print, pressure):
         job.calc_minimize(

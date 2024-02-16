@@ -14,7 +14,7 @@ from pyiron_workflow.node_library.atomistic.calculator.data import (
     InputCalcStatic,
 )
 
-from pyiron_workflow.node_library.dev_tools import VarType, FileObject
+from pyiron_workflow.node_library.dev_tools import FileObject, parse_input_kwargs
 from pyiron_workflow.node_library.dev_tools import wf_data_class
 
 from pyiron_atomistics.lammps.control import LammpsControl
@@ -32,35 +32,40 @@ def Calc(parameters):
     elif isinstance(parameters, InputCalcMinimize):
         calculator.calc_minimize(**parameters)
         calculator._mode = "minimize"
-    elif isinstance(parameters, InputCalcMinimize):
+    elif isinstance(parameters, InputCalcStatic):
         calculator.calc_static(**parameters)
         calculator._mode = "static"
+    else:
+        raise TypeError(f"Unexpected parameters type {parameters}")
 
     return calculator
 
 
 @single_value_node("calculator")
-def CalcStatic():
+def CalcStatic(calculator_input: Optional[InputCalcStatic | dict] = None):
+    calculator_kwargs = parse_input_kwargs(calculator_input, InputCalcStatic)
     calculator = LammpsControl()
-    calculator.calc_static()
+    calculator.calc_static(**calculator_kwargs)
     calculator._mode = "static"
 
     return calculator
 
 
 @single_value_node("calculator")
-def CalcMinimize(**kwargs):
+def CalcMinimize(calculator_input: Optional[InputCalcMinimize | dict] = None):
+    calculator_kwargs = parse_input_kwargs(calculator_input, InputCalcMinimize)
     calculator = LammpsControl()
-    calculator.calc_minimize(InputCalcMinimize(**kwargs))
+    calculator.calc_minimize(**calculator_kwargs)
     calculator._mode = "static"
 
     return calculator
 
 
 @single_value_node("calculator")
-def CalcMD(**kwargs):
+def CalcMD(calculator_input: Optional[InputCalcMD | dict] = None):
+    calculator_kwargs = parse_input_kwargs(calculator_input, InputCalcMD)
     calculator = LammpsControl()
-    calculator.calc_md(InputCalcMD(**kwargs))
+    calculator.calc_md(**calculator_kwargs)
     calculator._mode = "md"
 
     return calculator
@@ -84,7 +89,7 @@ def InitLammps(structure=None, potential=None, calculator=None, working_director
 
     calculator.write_file(file_name="control.inp", cwd=working_directory)
     bla = "bla"
-    print("Lammps_init: ", calculator._mode, bla)
+    # print("Lammps_init: ", calculator._mode, bla)
 
     # return os.path.abspath(working_directory), calculator._mode, bla
     return os.path.abspath(working_directory), bla
@@ -170,7 +175,7 @@ class GenericOutput:
 def Collect(
     out_dump,
     out_log,
-    # calc_mode: str = "stat",
+    calc_mode: str | LammpsControl | InputCalcMinimize | InputCalcMD | InputCalcStatic,
     bla="",
 ):
     import numpy as np
@@ -183,6 +188,15 @@ def Collect(
 
     print("Collect: ", calc_mode, bla)
     log = out_log[0]
+
+    if isinstance(calc_mode, str) and calc_mode in ["static", "minimize", "md"]:
+        pass
+    elif isinstance(calc_mode, (InputCalcMinimize, InputCalcMD, InputCalcStatic)):
+        calc_mode = calc_mode.__class__.__name__.replace("InputCalc", "").lower()
+    elif isinstance(calc_mode, LammpsControl):
+        calc_mode = calc_mode._mode
+    else:
+        raise ValueError(f"Unexpected calc_mode {calc_mode}")
 
     if calc_mode == "static":
         generic = OutputCalcStatic()
@@ -197,7 +211,7 @@ def Collect(
     elif calc_mode == "md":
         generic = OutputCalcMD()
         generic.energies_pot = log["PotEng"].values
-        generic.energies_kin = log["KinEng"].values
+        generic.energies_kin = log["TotEng"].values - generic.energies_pot
         generic.forces = np.array([o.data[["fx", "fy", "fz"]] for o in out_dump])
 
     return generic
@@ -266,7 +280,7 @@ def Code(
     wf.InitLammps = wf.create.atomistic.engine.lammps.InitLammps(
         structure=structure,
         potential=wf.Potential,
-        calculator=wf.calc.outputs.calculator,
+        calculator=wf.calc,
         # working_directory="test2",
     )
     wf.InitLammps.inputs.working_directory = (
@@ -287,7 +301,7 @@ def Code(
         bla=wf.InitLammps.outputs.bla,
         out_dump=wf.ParseDumpFile.outputs.dump,
         out_log=wf.ParseLogFile.outputs.log,
-        # calc_mode=wf.InitLammps.outputs.calc_mode,
+        calc_mode=wf.calc,
     )
 
     return wf.Collect

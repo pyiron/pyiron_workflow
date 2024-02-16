@@ -31,7 +31,10 @@ def bulk(
 def cubic_bulk_cell(
     wf, element: str, cell_size: int = 1, vacancy_index: int | None = None
 ):
-    from pyiron_workflow.node_library.atomistic.structure.transform import create_vacancy, repeat
+    from pyiron_workflow.node_library.atomistic.structure.transform import (
+        create_vacancy,
+        repeat,
+    )
 
     wf.structure = bulk(name=element, cubic=True)
     wf.cell = repeat(structure=wf.structure, repeat_scalar=cell_size)

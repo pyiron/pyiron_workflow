@@ -8,9 +8,10 @@ from pyiron_workflow.node_library.atomistic.calculator.data import (
 
 
 @single_value_node("generic")
-def static(structure=None, engine=None, keys_to_store=None):
+def static(structure=None, engine=None):  # , keys_to_store=None):
     output = engine(
-        structure=structure, calculator=InputCalcStatic(keys_to_store=keys_to_store)
+        structure=structure,
+        calculator=InputCalcStatic(),  # keys_to_store=keys_to_store)
     )
     return output.generic
 
