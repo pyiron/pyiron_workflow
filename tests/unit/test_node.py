@@ -439,6 +439,7 @@ class TestNode(unittest.TestCase):
                     msg="Destroying the save should allow immediate re-running"
                 )
 
+    @unittest.skipIf(sys.version_info < (3, 11), "Storage will only work in 3.11+")
     def test_save_after_run(self):
         for backend in ALLOWED_BACKENDS:
             with self.subTest(backend):
