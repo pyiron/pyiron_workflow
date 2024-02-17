@@ -7,6 +7,7 @@ The workhorse class for the entire concept.
 
 from __future__ import annotations
 
+import sys
 import warnings
 from abc import ABC, abstractmethod
 from concurrent.futures import Executor as StdLibExecutor, Future
@@ -355,11 +356,11 @@ class Node(HasToDict, ABC, metaclass=AbstractHasPost):
         run_after_init: bool = False,
         **kwargs,
     ):
-        if overwrite_save:
+        if overwrite_save and sys.version_info >= (3, 11):
             self.storage.delete()
             do_load = False
         else:
-            do_load = self.storage.has_contents
+            do_load = sys.version_info >= (3, 11) and self.storage.has_contents
 
         if do_load and run_after_init:
             raise ValueError(
