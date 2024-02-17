@@ -12,7 +12,7 @@ def load_tests(loader, tests, ignore):
     ):
         if "node_library" in name:
             continue
-        if sys.version_info >= (3, 11) and "job" in name:
+        if sys.version_info < (3, 11) and "job" in name:
             continue
         tests.addTests(doctest.DocTestSuite(name))
     return tests
