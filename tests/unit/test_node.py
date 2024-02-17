@@ -1,5 +1,6 @@
 from concurrent.futures import Future
 import os
+import sys
 from typing import Literal, Optional
 import unittest
 
@@ -372,6 +373,7 @@ class TestNode(unittest.TestCase):
                 "above."
         )
 
+    @unittest.skipIf(sys.version_info < (3, 11), "Storage will only work in 3.11+")
     def test_storage(self):
         self.assertIs(
             self.n1.outputs.y.value,
