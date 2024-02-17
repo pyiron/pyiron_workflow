@@ -152,7 +152,7 @@ class Node(HasToDict, ABC, metaclass=AbstractHasPost):
             context when you're done with them; we give a convenience method for this.
     - Nodes created from a registered package store their package identifier as a class
         attribute.
-    - [ALPHA FEATURE] Nodes can be saved to and loaded from file.
+    - [ALPHA FEATURE] Nodes can be saved to and loaded from file if python >= 3.11.
         - Saving is triggered manually, or by setting a flag to save after the nodes
             runs.
         - On instantiation, nodes will load automatically if they find saved content.
