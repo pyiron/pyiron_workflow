@@ -35,6 +35,17 @@ class TestNodeJob(_WithAJob):
         return job
 
     @unittest.skipIf(sys.version_info < (3, 11), "Storage will only work in 3.11+")
+    def test_node(self):
+        node = Workflow.create.standard.UserInput(42)
+        nj = self.make_a_job_from_node(node)
+        nj.run()
+        self.assertEqual(
+            42,
+            nj.node.outputs.user_input.value,
+            msg="A single node should run just as well as a workflow"
+        )
+
+    @unittest.skipIf(sys.version_info < (3, 11), "Storage will only work in 3.11+")
     def test_modal(self):
         modal_wf = Workflow("modal_wf")
         modal_wf.sleep = Sleep(0)
@@ -146,17 +157,6 @@ class TestWrapperFunction(_WithAJob):
             nj.output["result"].outputs.out__user_input.value,
             lj.output["result"].outputs.out__user_input.value,
             msg="The loaded job should still have all the same values"
-        )
-
-    @unittest.skipIf(sys.version_info < (3, 11), "Storage will only work in 3.11+")
-    def test_node(self):
-        node = Workflow.create.standard.UserInput(42)
-        nj = self.make_a_job_from_node(node)
-        nj.run()
-        self.assertEqual(
-            42,
-            nj.node.outputs.user_input,
-            msg="A single node should run just as well as a workflow"
         )
 
     @unittest.skipIf(sys.version_info < (3, 11), "Storage will only work in 3.11+")
