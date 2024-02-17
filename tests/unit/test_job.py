@@ -34,6 +34,16 @@ class TestNodeJob(_WithAJob):
         job.node = node
         return job
 
+    @unittest.skipIf(sys.version_info >= (3, 11), "Storage should only work in 3.11+")
+    def test_clean_failure(self):
+        with self.assertRaises(
+            NotImplementedError,
+            msg="Storage, and therefore node jobs, are only available in python 3.11+, "
+                "so we should fail hard and clean here"
+        ):
+            node = Workflow.create.standard.UserInput(42)
+            self.make_a_job_from_node(node)
+
     @unittest.skipIf(sys.version_info < (3, 11), "Storage will only work in 3.11+")
     def test_node(self):
         node = Workflow.create.standard.UserInput(42)
@@ -127,6 +137,16 @@ class TestNodeJob(_WithAJob):
 class TestWrapperFunction(_WithAJob):
     def make_a_job_from_node(self, node):
         return create_job_with_python_wrapper(self.pr, node)
+
+    @unittest.skipIf(sys.version_info >= (3, 11), "Storage should only work in 3.11+")
+    def test_clean_failure(self):
+        with self.assertRaises(
+            NotImplementedError,
+            msg="Storage, and therefore node jobs, are only available in python 3.11+, "
+                "so we should fail hard and clean here"
+        ):
+            node = Workflow.create.standard.UserInput(42)
+            self.make_a_job_from_node(node)
 
     @unittest.skipIf(sys.version_info < (3, 11), "Storage will only work in 3.11+")
     def test_modal(self):

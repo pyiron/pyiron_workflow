@@ -32,6 +32,8 @@ class StorageInterface:
     _H5IO_STORAGE_FILE_NAME = "h5io.h5"
 
     def __init__(self, node: Node):
+        if sys.version_info < (3, 11):
+            raise NotImplementedError("Storage is only available in python 3.11+")
         self.node = node
 
     def save(self, backend: Literal["h5io", "tinybase"]):

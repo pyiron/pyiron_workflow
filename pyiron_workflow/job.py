@@ -23,6 +23,7 @@ leveraged.
 from __future__ import annotations
 
 import os
+import sys
 
 from pyiron_base import TemplateJob, JOB_CLASS_DICT
 from pyiron_workflow.node import Node
@@ -87,6 +88,9 @@ class NodeJob(TemplateJob):
     )
 
     def __init__(self, project, job_name):
+        if sys.version_info < (3, 11):
+            raise NotImplementedError("Node jobs are only available in python 3.11+")
+
         super().__init__(project, job_name)
         self._python_only_job = True
         self._write_work_dir_warnings = False
@@ -209,6 +213,9 @@ def create_job_with_python_wrapper(project, node):
     """
         + _WARNINGS_STRING
     )
+    if sys.version_info < (3, 11):
+        raise NotImplementedError("Node jobs are only available in python 3.11+")
+
     job = project.wrap_python_function(_run_node)
     job.input["node"] = node
     return job

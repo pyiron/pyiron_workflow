@@ -373,6 +373,15 @@ class TestNode(unittest.TestCase):
                 "above."
         )
 
+    @unittest.skipIf(sys.version_info >= (3, 11), "Storage should only work in 3.11+")
+    def test_storage_failure(self):
+        with self.assertRaises(
+            NotImplementedError,
+            msg="Storage is only available in python 3.11+, so we should fail hard and "
+                "clean here"
+        ):
+            self.n1.storage
+
     @unittest.skipIf(sys.version_info < (3, 11), "Storage will only work in 3.11+")
     def test_storage(self):
         self.assertIs(
