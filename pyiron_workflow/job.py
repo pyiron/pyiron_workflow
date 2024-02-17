@@ -31,6 +31,9 @@ from h5io._h5io import _import_class
 
 _WARNINGS_STRING = """    
     Warnings:
+        Node jobs rely on storing the node to file, which means these are also only 
+        available for python >= 3.11.
+        
         The job can be run with `run_mode="non_modal"`, but _only_ if all the nodes
         being run are defined in an importable file location -- i.e. copying and
         pasting the example above into a jupyter notebook works fine in modal mode, but
