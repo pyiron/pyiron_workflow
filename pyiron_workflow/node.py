@@ -7,6 +7,7 @@ The workhorse class for the entire concept.
 
 from __future__ import annotations
 
+import sys
 import warnings
 from abc import ABC, abstractmethod
 from concurrent.futures import Executor as StdLibExecutor, Future
@@ -151,7 +152,7 @@ class Node(HasToDict, ABC, metaclass=AbstractHasPost):
             context when you're done with them; we give a convenience method for this.
     - Nodes created from a registered package store their package identifier as a class
         attribute.
-    - [ALPHA FEATURE] Nodes can be saved to and loaded from file.
+    - [ALPHA FEATURE] Nodes can be saved to and loaded from file if python >= 3.11.
         - Saving is triggered manually, or by setting a flag to save after the nodes
             runs.
         - On instantiation, nodes will load automatically if they find saved content.
@@ -355,11 +356,11 @@ class Node(HasToDict, ABC, metaclass=AbstractHasPost):
         run_after_init: bool = False,
         **kwargs,
     ):
-        if overwrite_save:
+        if overwrite_save and sys.version_info >= (3, 11):
             self.storage.delete()
             do_load = False
         else:
-            do_load = self.storage.has_contents
+            do_load = sys.version_info >= (3, 11) and self.storage.has_contents
 
         if do_load and run_after_init:
             raise ValueError(

@@ -1,3 +1,4 @@
+import sys
 from concurrent.futures import Future
 from functools import partialmethod
 
@@ -520,6 +521,7 @@ class TestMacro(unittest.TestCase):
         self.assertListEqual(override_io_maps.inputs.labels, ["my_lin"])
         self.assertDictEqual(override_io_maps(), {"the_input_list": [1, 2, 3, 4]})
 
+    @unittest.skipIf(sys.version_info < (3, 11), "Storage will only work in 3.11+")
     def test_storage_for_modified_macros(self):
         ensure_tests_in_python_path()
         Macro.register("static.demo_nodes", domain="demo")

@@ -1,5 +1,5 @@
 from concurrent.futures import Future
-
+import sys
 from time import sleep
 import unittest
 
@@ -337,6 +337,7 @@ class TestWorkflow(unittest.TestCase):
         wf.m.two.pull(run_parent_trees_too=False)
         wf.executor_shutdown()
 
+    @unittest.skipIf(sys.version_info < (3, 11), "Storage will only work in 3.11+")
     def test_storage_values(self):
         for backend in ALLOWED_BACKENDS:
             with self.subTest(backend):
@@ -364,7 +365,8 @@ class TestWorkflow(unittest.TestCase):
                 finally:
                     # Clean up after ourselves
                     wf.storage.delete()
-                
+
+    @unittest.skipIf(sys.version_info < (3, 11), "Storage will only work in 3.11+")
     def test_storage_scopes(self):
         wf = Workflow("wf")
         wf.register("static.demo_nodes", "demo")

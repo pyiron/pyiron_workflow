@@ -23,6 +23,7 @@ leveraged.
 from __future__ import annotations
 
 import os
+import sys
 
 from pyiron_base import TemplateJob, JOB_CLASS_DICT
 from pyiron_workflow.node import Node
@@ -30,6 +31,9 @@ from h5io._h5io import _import_class
 
 _WARNINGS_STRING = """    
     Warnings:
+        Node jobs rely on storing the node to file, which means these are also only 
+        available for python >= 3.11.
+        
         The job can be run with `run_mode="non_modal"`, but _only_ if all the nodes
         being run are defined in an importable file location -- i.e. copying and
         pasting the example above into a jupyter notebook works fine in modal mode, but
@@ -49,13 +53,14 @@ class NodeJob(TemplateJob):
 
     It leans directly on the storage capabilities of the node itself, except for
     the node class and name, and the storage backend mode, all of which are held in the
-    traditional job input. (Only the storage backend ever needs to be specified, the
-    node information gets populated automatically).
+    traditional job input. (WARNING: This might be fragile to adjusting the storage  
+    backend on the node _after_ the node has been assign to the job.)
 
     The job provides direct access to its owned node (as both input and output) on the
     :attr:`node` attribute. The only requirement is that the node have an untouched
     working directory (so we can make sure its files get stored _inside_ the job's
-    directory tree), and that it be compatible with the storage backend used.
+    directory tree), and that it be saveable (not all objects work with the "h5io" 
+    storage backend, e.g. `ase.Calculator` objects may break it).
 
     Examples:
         >>> from pyiron_base import Project
@@ -86,13 +91,16 @@ class NodeJob(TemplateJob):
     )
 
     def __init__(self, project, job_name):
+        if sys.version_info < (3, 11):
+            raise NotImplementedError("Node jobs are only available in python 3.11+")
+
         super().__init__(project, job_name)
         self._python_only_job = True
         self._write_work_dir_warnings = False
         self._node = None
         self.input._label = None
         self.input._class_type = None
-        self.input.storage_backend = "h5io"  # Or "tinybase"
+        self.input._storage_backend = None
 
     @property
     def node(self) -> Node:
@@ -112,6 +120,7 @@ class NodeJob(TemplateJob):
                 f"{new_node.__class__.__module__}." f"{new_node.__class__.__name__}"
             )
             self.input._label = new_node.label
+            self.input._storage_backend = new_node.storage_backend
 
     @staticmethod
     def _node_working_directory_already_there(node):
@@ -125,13 +134,16 @@ class NodeJob(TemplateJob):
         here = os.getcwd()
         os.makedirs(self.working_directory, exist_ok=True)
         os.chdir(self.working_directory)
-        self.node.save(backend=self.input.storage_backend)
+        self.node.save()
         os.chdir(here)
 
     def _load_node(self):
         here = os.getcwd()
         os.chdir(self.working_directory)
-        self._node = _import_class(self.input._class_type)(self.input._label)
+        self._node = _import_class(self.input._class_type)(
+            label=self.input._label,
+            storage_backend=self.input._storage_backend,
+        )
         os.chdir(here)
 
     def to_hdf(self, hdf=None, group_name=None):
@@ -202,6 +214,9 @@ def create_job_with_python_wrapper(project, node):
     """
         + _WARNINGS_STRING
     )
+    if sys.version_info < (3, 11):
+        raise NotImplementedError("Node jobs are only available in python 3.11+")
+
     job = project.wrap_python_function(_run_node)
     job.input["node"] = node
     return job
