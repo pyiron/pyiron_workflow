@@ -140,9 +140,7 @@ class NodeJob(TemplateJob):
     def _load_node(self):
         here = os.getcwd()
         os.chdir(self.working_directory)
-        self._node = _import_class(
-            self.input._class_type
-        )(
+        self._node = _import_class(self.input._class_type)(
             label=self.input._label,
             storage_backend=self.input._storage_backend,
         )
