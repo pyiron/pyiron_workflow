@@ -1,13 +1,15 @@
 from concurrent.futures import Future
 import os
-
+import sys
+from typing import Literal, Optional
 import unittest
 
-from pyiron_workflow.channels import InputData, OutputData, NotData
+from pyiron_workflow.channels import InputData, OutputData, NOT_DATA
 from pyiron_workflow.snippets.files import DirectoryObject
 from pyiron_workflow.interfaces import Executor
 from pyiron_workflow.io import Inputs, Outputs
 from pyiron_workflow.node import Node
+from pyiron_workflow.storage import ALLOWED_BACKENDS
 
 
 def add_one(x):
@@ -17,8 +19,18 @@ def add_one(x):
 class ANode(Node):
     """To de-abstract the class"""
 
-    def __init__(self, label, run_after_init=False, x=None):
-        super().__init__(label=label)
+    def __init__(
+        self,
+        label,
+        overwrite_save=False,
+        run_after_init=False,
+        storage_backend: Optional[Literal["h5io", "tinybase"]] = None,
+        save_after_run: bool = False,
+        x=None,
+    ):
+        super().__init__(
+            label=label, save_after_run=save_after_run, storage_backend=storage_backend
+        )
         self._inputs = Inputs(InputData("x", self, type_hint=int))
         self._outputs = Outputs(OutputData("y", self, type_hint=int))
         if x is not None:
@@ -335,7 +347,7 @@ class TestNode(unittest.TestCase):
     def test_run_after_init(self):
         self.assertIs(
             self.n1.outputs.y.value,
-            NotData,
+            NOT_DATA,
             msg="By default, nodes should not be getting run until asked"
         )
         self.assertEqual(
@@ -360,6 +372,105 @@ class TestNode(unittest.TestCase):
             msg="Lone nodes should be their own graph_root, as there is no parent "
                 "above."
         )
+
+    @unittest.skipIf(sys.version_info >= (3, 11), "Storage should only work in 3.11+")
+    def test_storage_failure(self):
+        with self.assertRaises(
+            NotImplementedError,
+            msg="Storage is only available in python 3.11+, so we should fail hard and "
+                "clean here"
+        ):
+            self.n1.storage
+
+    @unittest.skipIf(sys.version_info < (3, 11), "Storage will only work in 3.11+")
+    def test_storage(self):
+        self.assertIs(
+            self.n1.outputs.y.value,
+            NOT_DATA,
+            msg="Sanity check on initial state"
+        )
+        y = self.n1()
+
+        for backend in ALLOWED_BACKENDS:
+            with self.subTest(backend):
+                self.n1.storage_backend = backend
+                self.n1.save()
+
+                x = self.n1.inputs.x.value
+                reloaded = ANode(self.n1.label, x=x, storage_backend=backend)
+                self.assertEqual(
+                    y,
+                    reloaded.outputs.y.value,
+                    msg="Nodes should load by default if they find a save file"
+                )
+
+                clean_slate = ANode(self.n1.label, x=x, overwrite_save=True)
+                self.assertIs(
+                    clean_slate.outputs.y.value,
+                    NOT_DATA,
+                    msg="Users should be able to ignore a save"
+                )
+
+                run_right_away = ANode(
+                    self.n1.label, x=x, run_after_init=True, storage_backend=backend
+                )
+                self.assertEqual(
+                    y,
+                    run_right_away.outputs.y.value,
+                    msg="With nothing to load, running after init is fine"
+                )
+
+                run_right_away.save()
+                with self.assertRaises(
+                    ValueError,
+                    msg="Should be able to both immediately run _and_ load a node at "
+                        "once"
+                ):
+                    ANode(
+                        self.n1.label, x=x, run_after_init=True, storage_backend=backend
+                    )
+
+                force_run = ANode(
+                    self.n1.label, x=x, run_after_init=True, overwrite_save=True
+                )
+                self.assertEqual(
+                    y,
+                    force_run.outputs.y.value,
+                    msg="Destroying the save should allow immediate re-running"
+                )
+
+    @unittest.skipIf(sys.version_info < (3, 11), "Storage will only work in 3.11+")
+    def test_save_after_run(self):
+        for backend in ALLOWED_BACKENDS:
+            with self.subTest(backend):
+                try:
+                    ANode("just_run", x=0, run_after_init=True, storage_backend=backend)
+                    saves = ANode(
+                        "run_and_save",
+                        x=0,
+                        run_after_init=True,
+                        save_after_run=True,
+                        storage_backend=backend
+                    )
+                    y = saves.outputs.y.value
+
+                    not_reloaded = ANode("just_run", storage_backend=backend)
+                    self.assertIs(
+                        NOT_DATA,
+                        not_reloaded.outputs.y.value,
+                        msg="Should not have saved, therefore should have been nothing "
+                            "to load"
+                    )
+
+                    find_saved = ANode("run_and_save", storage_backend=backend)
+                    self.assertEqual(
+                        y,
+                        find_saved.outputs.y.value,
+                        msg="Should have saved automatically after run, and reloaded "
+                            "on instantiation"
+                    )
+                finally:
+                    saves.storage.delete()  # Clean up
 
 
 if __name__ == '__main__':

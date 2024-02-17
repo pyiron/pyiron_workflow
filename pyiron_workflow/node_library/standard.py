@@ -6,7 +6,7 @@ from __future__ import annotations
 
 from inspect import isclass
 
-from pyiron_workflow.channels import NotData, OutputSignal
+from pyiron_workflow.channels import NOT_DATA, OutputSignal
 from pyiron_workflow.function import SingleValue, single_value_node
 
 
@@ -28,9 +28,9 @@ class If(SingleValue):
 
     @staticmethod
     def if_(condition):
-        if isclass(condition) and issubclass(condition, NotData):
+        if condition is NOT_DATA:
             raise TypeError(
-                f"Logic 'If' node expected data otherut got NotData as input."
+                f"Logic 'If' node expected data other but got NOT_DATA as input."
             )
         return bool(condition)
 
@@ -47,7 +47,7 @@ class If(SingleValue):
 
 
 @single_value_node("slice")
-def Slice(start=None, stop=NotData, step=None):
+def Slice(start=None, stop=NOT_DATA, step=None):
     if start is None:
         if stop is None:
             raise ValueError(

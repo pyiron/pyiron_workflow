@@ -1,12 +1,16 @@
+import sys
 from concurrent.futures import Future
 from functools import partialmethod
 
 from time import sleep
 import unittest
 
-from pyiron_workflow.channels import NotData
+
+from pyiron_workflow._tests import ensure_tests_in_python_path
+from pyiron_workflow.channels import NOT_DATA
 from pyiron_workflow.function import SingleValue
 from pyiron_workflow.macro import Macro, macro_node
+from pyiron_workflow.storage import ALLOWED_BACKENDS
 from pyiron_workflow.topology import CircularDataFlowError
 
 
@@ -142,7 +146,7 @@ class TestMacro(unittest.TestCase):
 
         self.assertIs(
             m.outputs.three__result.value,
-            NotData,
+            NOT_DATA,
             msg="Output should be accessible with the usual naming convention, but we "
                 "have not run yet so there shouldn't be any data"
         )
@@ -218,7 +222,7 @@ class TestMacro(unittest.TestCase):
         macro.executor = macro.create.Executor()
 
         self.assertIs(
-            NotData,
+            NOT_DATA,
             macro.outputs.three__result.value,
             msg="Sanity check that test is in right starting condition"
         )
@@ -230,7 +234,7 @@ class TestMacro(unittest.TestCase):
             msg="Should be running as a parallel process"
         )
         self.assertIs(
-            NotData,
+            NOT_DATA,
             downstream.outputs.result.value,
             msg="Downstream events should not yet have triggered either, we should wait"
                 "for the callback when the result is ready"
@@ -238,6 +242,10 @@ class TestMacro(unittest.TestCase):
 
         returned_nodes = result.result(timeout=120)  # Wait for the process to finish
         sleep(1)
+        self.assertFalse(
+            macro.running,
+            msg="Macro should be done running"
+        )
         self.assertIsNot(
             original_one,
             returned_nodes.one,
@@ -270,7 +278,7 @@ class TestMacro(unittest.TestCase):
         self.assertIs(
             downstream.inputs.x.connections[0],
             macro.outputs.three__result,
-            msg="The macro should still be connected to "
+            msg=f"The macro output should still be connected to downstream"
         )
         sleep(0.2)  # Give a moment for the ran signal to emit and downstream to run
         # I'm a bit surprised this sleep is necessary
@@ -512,6 +520,79 @@ class TestMacro(unittest.TestCase):
         # ^ If default is not working you'd need this
         self.assertListEqual(override_io_maps.inputs.labels, ["my_lin"])
         self.assertDictEqual(override_io_maps(), {"the_input_list": [1, 2, 3, 4]})
+
+    @unittest.skipIf(sys.version_info < (3, 11), "Storage will only work in 3.11+")
+    def test_storage_for_modified_macros(self):
+        ensure_tests_in_python_path()
+        Macro.register("static.demo_nodes", domain="demo")
+
+        for backend in ALLOWED_BACKENDS:
+            with self.subTest(backend):
+                try:
+                    macro = Macro.create.demo.AddThree(
+                        label="m", x=0, storage_backend=backend
+                    )
+                    original_result = macro()
+                    macro.replace_node(macro.two, Macro.create.demo.AddPlusOne())
+
+                    if backend == "h5io":
+                        # Go really wild and actually change the interface to the node
+                        # By replacing one of the terminal nodes
+                        macro.remove_node(macro.three)
+                        macro.five = Macro.create.standard.Add(macro.two, 1)
+                        macro.two >> macro.five
+                        macro._rebuild_data_io()  # Need this because of the
+                        # explicitly created node!
+                        # Note that it destroys our output labeling, since the new
+                        # output never existed
+
+                    modified_result = macro()
+
+                    macro.save()
+                    reloaded = Macro.create.demo.AddThree(
+                        label="m", storage_backend=backend
+                    )
+                    self.assertDictEqual(
+                        modified_result,
+                        reloaded.outputs.to_value_dict(),
+                        msg="Updated IO should have been (de)serialized"
+                    )
+                    self.assertSetEqual(
+                        set(macro.nodes.keys()),
+                        set(reloaded.nodes.keys()),
+                        msg="All nodes should have been (de)serialized."
+                    )  # Note that this snags the _new_ one in the case of h5io!
+                    self.assertEqual(
+                        Macro.create.demo.AddThree.__name__,
+                        reloaded.class_name,
+                        msg=f"LOOK OUT! This all (de)serialized nicely, but what we "
+                            f"loaded is _falsely_ claiming to be an "
+                            f"{Macro.create.demo.AddThree.__name__}. This is "
+                            f"not any sort of technical error -- what other class name "
+                            f"would we load? -- but is a deeper problem with saving "
+                            f"modified objects that we need ot figure out some better "
+                            f"solution for later."
+                    )
+                    rerun = reloaded()
+
+                    if backend == "h5io":
+                        self.assertDictEqual(
+                            modified_result,
+                            rerun,
+                            msg="Rerunning should re-execute the _modified_ "
+                                "functionality"
+                        )
+                    elif backend == "tinybase":
+                        self.assertDictEqual(
+                            original_result,
+                            rerun,
+                            msg="Rerunning should re-execute the _original_ "
+                                "functionality"
+                        )
+                    else:
+                        raise ValueError(f"Unexpected backend {backend}?")
+                finally:
+                    macro.storage.delete()
 
 
 if __name__ == '__main__':

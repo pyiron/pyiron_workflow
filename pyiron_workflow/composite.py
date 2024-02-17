@@ -50,6 +50,8 @@ class Composite(Node, ABC):
         - Have no other parent
         - Can be replaced in-place with another node that has commensurate IO
         - Have their working directory nested inside the composite's
+        - Are disallowed from having a label that conflicts with any of the parent's
+            other methods or attributes
     - The length of a composite instance is its number of child nodes
     - Running the composite...
         - Runs the child nodes (either using manually specified execution signals, or
@@ -106,13 +108,23 @@ class Composite(Node, ABC):
         label: str,
         *args,
         parent: Optional[Composite] = None,
+        overwrite_save: bool = False,
         run_after_init: bool = False,
+        storage_backend: Optional[Literal["h5io", "tinybase"]] = None,
+        save_after_run: bool = False,
         strict_naming: bool = True,
         inputs_map: Optional[dict | bidict] = None,
         outputs_map: Optional[dict | bidict] = None,
         **kwargs,
     ):
-        super().__init__(*args, label=label, parent=parent, **kwargs)
+        super().__init__(
+            *args,
+            label=label,
+            parent=parent,
+            save_after_run=save_after_run,
+            storage_backend=storage_backend,
+            **kwargs,
+        )
         self.strict_naming: bool = strict_naming
         self._inputs_map = None
         self._outputs_map = None
@@ -173,30 +185,26 @@ class Composite(Node, ABC):
         return self.run_graph
 
     @staticmethod
-    def run_graph(_nodes: dict[Node], _starting_nodes: list[Node]):
-        for node in _starting_nodes:
+    def run_graph(_composite: Composite):
+        for node in _composite.starting_nodes:
             node.run()
-        return _nodes
+        return _composite
 
     @property
     def run_args(self) -> dict:
-        return {"_nodes": self.nodes, "_starting_nodes": self.starting_nodes}
+        return {"_composite": self}
 
     def process_run_result(self, run_output):
-        if run_output is not self.nodes:
-            # Then we probably ran on a parallel process and have an unpacked future
-            self._update_children(run_output)
+        if run_output is not self:
+            self._parse_remotely_executed_self(run_output)
         return DotDict(self.outputs.to_value_dict())
 
-    def _update_children(self, children_from_another_process: DotDict[str, Node]):
-        """
-        If you receive a new dictionary of children, e.g. from unpacking a futures
-        object of your own children you sent off to another process for computation,
-        replace your own nodes with them, and set yourself as their parent.
-        """
-        for child in children_from_another_process.values():
-            child._parent = self
-        self.nodes = children_from_another_process
+    def _parse_remotely_executed_self(self, other_self):
+        # Un-parent existing nodes before ditching them
+        for node in self:
+            node._parent = None
+        other_self.running = False  # It's done now
+        self.__setstate__(other_self.__getstate__())
 
     def disconnect_run(self) -> list[tuple[Channel, Channel]]:
         """
@@ -561,3 +569,215 @@ class Composite(Node, ABC):
     def color(self) -> str:
         """For drawing the graph"""
         return SeabornColors.brown
+
+    @property
+    def package_requirements(self) -> set[str]:
+        """
+        A list of node package identifiers for children.
+        """
+        return set(n.package_identifier for n in self)
+
+    def to_storage(self, storage):
+        storage["nodes"] = list(self.nodes.keys())
+        for label, node in self.nodes.items():
+            node.to_storage(storage.create_group(label))
+
+        storage["inputs_map"] = self.inputs_map
+        storage["outputs_map"] = self.outputs_map
+
+        super().to_storage(storage)
+
+    def from_storage(self, storage):
+        from pyiron_contrib.tinybase.storage import GenericStorage
+
+        self.inputs_map = (
+            storage["inputs_map"].to_object()
+            if isinstance(storage["inputs_map"], GenericStorage)
+            else storage["inputs_map"]
+        )
+        self.outputs_map = (
+            storage["outputs_map"].to_object()
+            if isinstance(storage["outputs_map"], GenericStorage)
+            else storage["outputs_map"]
+        )
+        self._rebuild_data_io()  # To apply any map that was saved
+
+        super().from_storage(storage)
+
+    def tidy_working_directory(self):
+        for node in self:
+            node.tidy_working_directory()
+        super().tidy_working_directory()
+
+    def _get_connections_as_strings(
+        self, panel_getter: callable
+    ) -> list[tuple[tuple[str, str], tuple[str, str]]]:
+        """
+        Connections between children in string representation based on labels.
+
+        The string representation helps storage, and having it as a property ensures
+        the name is protected.
+        """
+        return [
+            ((inp.node.label, inp.label), (out.node.label, out.label))
+            for child in self
+            for inp in panel_getter(child)
+            for out in inp.connections
+        ]
+
+    @staticmethod
+    def _get_data_inputs(node: Node):
+        return node.inputs
+
+    @staticmethod
+    def _get_signals_input(node: Node):
+        return node.signals.input
+
+    @property
+    def _child_data_connections(self) -> list[tuple[tuple[str, str], tuple[str, str]]]:
+        return self._get_connections_as_strings(self._get_data_inputs)
+
+    @property
+    def _child_signal_connections(
+        self,
+    ) -> list[tuple[tuple[str, str], tuple[str, str]]]:
+        return self._get_connections_as_strings(self._get_signals_input)
+
+    @property
+    def node_labels(self) -> tuple[str]:
+        return tuple(n.label for n in self)
+
+    @property
+    def _starting_node_labels(self):
+        # As a property so it appears in `__dir__` and thus is guaranteed to not
+        # conflict with a child node name in the state
+        return tuple(n.label for n in self.starting_nodes)
+
+    def __getstate__(self):
+        state = super().__getstate__()
+        # Store connections as strings
+        state["_child_data_connections"] = self._child_data_connections
+        state["_child_signal_connections"] = self._child_signal_connections
+
+        # Transform the IO maps into a datatype that plays well with h5io
+        # (Bidict implements a custom reconstructor, which hurts us)
+        state["_inputs_map"] = (
+            None if self._inputs_map is None else dict(self._inputs_map)
+        )
+        state["_outputs_map"] = (
+            None if self._outputs_map is None else dict(self._outputs_map)
+        )
+
+        # Remove the nodes container from the state and store each element (node) right
+        # in the state -- the labels are guaranteed to not be attributes already so
+        # this is safe, and it makes sure that the storage path matches the graph path
+        del state["nodes"]
+        state["node_labels"] = self.node_labels
+        for node in self:
+            state[node.label] = node
+            # This key is guaranteed to be available in the state, since children are
+            # forbidden from having labels that clash with their parent's __dir__
+
+        # Also remove the starting node instances
+        del state["starting_nodes"]
+        state["_starting_node_labels"] = self._starting_node_labels
+
+        return state
+
+    def __setstate__(self, state):
+        # Purge child connection info from the state
+        child_data_connections = state.pop("_child_data_connections")
+        child_signal_connections = state.pop("_child_signal_connections")
+
+        # Transform the IO maps back into the right class (bidict)
+        state["_inputs_map"] = (
+            None if state["_inputs_map"] is None else bidict(state["_inputs_map"])
+        )
+        state["_outputs_map"] = (
+            None if state["_outputs_map"] is None else bidict(state["_outputs_map"])
+        )
+
+        # Reconstruct nodes from state
+        state["nodes"] = DotDict(
+            {label: state[label] for label in state.pop("node_labels")}
+        )
+
+        # Restore starting nodes
+        state["starting_nodes"] = [
+            state[label] for label in state.pop("_starting_node_labels")
+        ]
+
+        super().__setstate__(state)
+
+        # Nodes purge their _parent information in their __getstate__
+        # so return it to them:
+        for node in self:
+            node._parent = self
+        # Nodes don't store connection information, so restore it to them
+        self._restore_data_connections_from_strings(child_data_connections)
+        self._restore_signal_connections_from_strings(child_signal_connections)
+
+    @staticmethod
+    def _restore_connections_from_strings(
+        nodes: dict[str, Node] | DotDict[str, Node],
+        connections: list[tuple[tuple[str, str], tuple[str, str]]],
+        input_panel_getter: callable,
+        output_panel_getter: callable,
+    ) -> None:
+        """
+        Set connections among a dictionary of nodes.
+
+        This is useful for recreating node connections after (de)serialization of the
+        individual nodes, which don't know about their connections (that information is
+        the responsibility of their parent `Composite`).
+
+        Args:
+            nodes (dict[Node]): The nodes to connect.
+            connections (list[tuple[tuple[str, str], tuple[str, str]]]): Connections
+                among these nodes in the format ((input node label, input channel label
+                ), (output node label, output channel label)).
+        """
+        for (inp_node, inp), (out_node, out) in connections:
+            input_panel_getter(nodes[inp_node])[inp].connect(
+                output_panel_getter(nodes[out_node])[out]
+            )
+
+    @staticmethod
+    def _get_data_outputs(node: Node):
+        return node.outputs
+
+    @staticmethod
+    def _get_signals_output(node: Node):
+        return node.signals.output
+
+    def _restore_data_connections_from_strings(
+        self, connections: list[tuple[tuple[str, str], tuple[str, str]]]
+    ) -> None:
+        self._restore_connections_from_strings(
+            self.nodes,
+            connections,
+            self._get_data_inputs,
+            self._get_data_outputs,
+        )
+
+    def _restore_signal_connections_from_strings(
+        self, connections: list[tuple[tuple[str, str], tuple[str, str]]]
+    ) -> None:
+        self._restore_connections_from_strings(
+            self.nodes,
+            connections,
+            self._get_signals_input,
+            self._get_signals_output,
+        )
+
+    @property
+    def import_ready(self) -> bool:
+        return super().import_ready and all(node.import_ready for node in self)
+
+    def _report_import_readiness(self, tabs=0, report_so_far=""):
+        report = super()._report_import_readiness(
+            tabs=tabs, report_so_far=report_so_far
+        )
+        for node in self:
+            report = node._report_import_readiness(tabs=tabs + 1, report_so_far=report)
+        return report

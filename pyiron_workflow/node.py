@@ -7,21 +7,24 @@ The workhorse class for the entire concept.
 
 from __future__ import annotations
 
+import sys
 import warnings
 from abc import ABC, abstractmethod
 from concurrent.futures import Executor as StdLibExecutor, Future
+from importlib import import_module
 from typing import Any, Literal, Optional, TYPE_CHECKING
 
 from pyiron_workflow.channels import (
     InputSignal,
     AccumulatingInputSignal,
     OutputSignal,
-    NotData,
+    NOT_DATA,
 )
 from pyiron_workflow.draw import Node as GraphvizNode
 from pyiron_workflow.snippets.files import DirectoryObject
 from pyiron_workflow.has_to_dict import HasToDict
-from pyiron_workflow.io import Signals
+from pyiron_workflow.io import Signals, IO
+from pyiron_workflow.storage import StorageInterface
 from pyiron_workflow.topology import (
     get_nodes_in_data_tree,
     set_run_connections_according_to_linear_dag,
@@ -149,6 +152,70 @@ class Node(HasToDict, ABC, metaclass=AbstractHasPost):
             context when you're done with them; we give a convenience method for this.
     - Nodes created from a registered package store their package identifier as a class
         attribute.
+    - [ALPHA FEATURE] Nodes can be saved to and loaded from file if python >= 3.11.
+        - Saving is triggered manually, or by setting a flag to save after the nodes
+            runs.
+        - On instantiation, nodes will load automatically if they find saved content.
+          - Discovered content can instead be deleted with a kwarg.
+          - You can't load saved content _and_ run after instantiation at once.
+        - The nodes must be somewhere importable, and the imported object must match
+            the type of the node being saved. This basically just rules out one edge
+            case where a node class is defined like
+            `SomeFunctionNode = Workflow.wrap_as.function_node()(some_function)`, since
+            then the new class gets the name `some_function`, which when imported is
+            the _function_ "some_function" and not the desired class "SomeFunctionNode".
+            This is checked for at save-time and will cause a nice early failure.
+        - [ALPHA ISSUE] If the source code (cells, `.py` files...) for a saved graph is
+            altered between saving and loading the graph, there are no guarantees about
+            the loaded state; depending on the nature of the changes everything may
+            work fine with the new node definition, the graph may load but silently
+            behave unexpectedly (e.g. if node functionality has changed but the
+            interface is the same), or may crash on loading (e.g. if IO channel labels
+            have changed).
+        - [ALPHA ISSUE] There is no filtering available, saving a node stores all of
+            its IO and does the same thing recursively for its children; depending on
+            your graph this could be expensive in terms of storage space and/or time.
+        - [ALPHA ISSUE] Similarly, there is no way to save only part of a graph; only
+            the entire graph may be saved at once.
+        - [ALPHA ISSUE] There are two possible back-ends for saving: one leaning on
+            `tinybase.storage.GenericStorage` (in practice,
+            `H5ioStorage(GenericStorage)`), and the other, default back-end that uses
+            the `h5io` module directly. The backend used is always the one on the graph
+            root.
+        - [ALPHA ISSUE] Restrictions on data:
+            - For the `h5io` backend: Most data that can be pickled will be fine, but
+                some classes will hit an edge case and throw an exception from `h5io`
+                (at a minimum, those classes which define a custom reconstructor hit,
+                this, but there also seems to be issues with dynamic methods, e.g. the
+                `Calculator` class and its children from `ase`).
+            - For the `tinybase` backend: Any data that can be pickled will be fine,
+                although it might get stored in a pickled state, which is not ideal for
+                long-term storage or sharing.
+        - [ALPHA ISSUE] Restrictions on workflows:
+            - For the `h5io` backend: all child nodes must be defined in an importable
+                location. This includes `__main__` in a jupyter notebook (as long as
+                the same `__main__` cells get executed prior to trying to load!) but
+                not, e.g., inside functions in `__main__`.
+            - For the `tinybase` backend: all child nodes must have been created via
+                the creator (i.e. `wf.create...`), which is to say they come from a
+                registered node package. The composite will run a check and fail early
+                in the save process if this is not the case. Fulfilling this
+                requirement is as simple as moving all the desired nodes off to a `.py`
+                file, registering it, and building the composite from  there.
+        - [ALPHA ISSUE] Restrictions to macros:
+            - For the `h5io` backend: there are none; if a macro is modified, saved,
+                and reloaded, the modifications will be reflected in the loaded state.
+                Note there is a little bit of danger here, as the macro class still
+                corresponds to the un-modified macro class.
+            - For the `tinybase` backend: the macro will re-instantiate its original
+                nodes and try to update their data. Any modifications to the macro
+                prior to saving are completely disregarded; if the interface to the
+                macro was modified (e.g. different channel names in the IO), then this
+                will save fine but throw an exception on load; if the interface was
+                unchanged but the functionality changed (e.g. replacing a child node),
+                the original, unmodified macro will cleanly load and the loaded data
+                will _silently_ mis-represent the macro functionality (insofaras the
+                internal changes would cause a difference in the output data).
 
     This is an abstract class.
     Children *must* define how :attr:`inputs` and :attr:`outputs` are constructed, what will
@@ -158,7 +225,9 @@ class Node(HasToDict, ABC, metaclass=AbstractHasPost):
 
     TODO:
 
-        - Everything with (de)serialization for storage
+        - Allow saving/loading at locations _other_ than the interpreter's working
+            directory combined with the node's working directory, i.e. decouple the
+            working directory from the interpreter's `cwd`.
         - Integration with more powerful tools for remote execution (anything obeying
             the standard interface of a :meth:`submit` method taking the callable and
             arguments and returning a futures object should work, as long as it can
@@ -172,6 +241,8 @@ class Node(HasToDict, ABC, metaclass=AbstractHasPost):
             connected.
         future (concurrent.futures.Future | None): A futures object, if the node is
             currently running or has already run using an executor.
+        import_ready (bool): Whether importing the node's class from its class's module
+            returns the same thing as its type. (Recursive on sub-nodes for composites.)
         inputs (pyiron_workflow.io.Inputs): **Abstract.** Children must define
             a property returning an :class:`Inputs` object.
         label (str): A name for the node.
@@ -190,6 +261,11 @@ class Node(HasToDict, ABC, metaclass=AbstractHasPost):
             node. Must be specified in child classes.
         running (bool): Whether the node has called :meth:`run` and has not yet
             received output from this call. (Default is False.)
+        save_after_run (bool): Whether to trigger a save after each run of the node
+            (currently causes the entire graph to save). (Default is False.)
+        storage_backend (Literal["h5io" | "tinybase"] | None): The flag for the the
+            backend to use for saving and loading; for nodes in a graph the value on
+            the root node is always used.
         signals (pyiron_workflow.io.Signals): A container for input and output
             signals, which are channels for controlling execution flow. By default, has
             a :attr:`signals.inputs.run` channel which has a callback to the :meth:`run` method
@@ -229,12 +305,18 @@ class Node(HasToDict, ABC, metaclass=AbstractHasPost):
     package_identifier = None
     _semantic_delimiter = "/"
 
+    # This isn't nice, just a technical necessity in the current implementation
+    # Eventually, of course, this needs to be _at least_ file-format independent
+
     def __init__(
         self,
         label: str,
         *args,
         parent: Optional[Composite] = None,
+        overwrite_save: bool = False,
         run_after_init: bool = False,
+        storage_backend: Optional[Literal["h5io", "tinybase"]] = None,
+        save_after_run: bool = False,
         **kwargs,
     ):
         """
@@ -263,13 +345,43 @@ class Node(HasToDict, ABC, metaclass=AbstractHasPost):
         # This is a simply stop-gap as we work out more sophisticated ways to reference
         # (or create) an executor process without ever trying to pickle a `_thread.lock`
         self.future: None | Future = None
+        self._storage_backend = None
+        self.storage_backend = storage_backend
+        self.save_after_run = save_after_run
 
-    def __post__(self, *args, run_after_init: bool = False, **kwargs):
-        if run_after_init:
+    def __post__(
+        self,
+        *args,
+        overwrite_save: bool = False,
+        run_after_init: bool = False,
+        **kwargs,
+    ):
+        if overwrite_save and sys.version_info >= (3, 11):
+            self.storage.delete()
+            do_load = False
+        else:
+            do_load = sys.version_info >= (3, 11) and self.storage.has_contents
+
+        if do_load and run_after_init:
+            raise ValueError(
+                "Can't both load _and_ run after init -- either delete the save file "
+                "(e.g. with with the `overwrite_save=True` kwarg), change the node "
+                "label to work in a new space, or give up on running after init."
+            )
+        elif do_load:
+            warnings.warn(
+                f"A saved file was found for the node {self.label} -- attempting to "
+                f"load it...(To delete the saved file instead, use "
+                f"`overwrite_save=True`)"
+            )
+            self.load()
+        elif run_after_init:
             try:
                 self.run()
             except ReadinessError:
                 pass
+        # Else neither loading nor running now -- no action required!
+        self.graph_root.tidy_working_directory()
 
     @property
     def label(self) -> str:
@@ -571,6 +683,9 @@ class Node(HasToDict, ABC, metaclass=AbstractHasPost):
         except Exception as e:
             self.failed = True
             raise e
+        finally:
+            if self.save_after_run:
+                self.save()
 
     def _finish_run_and_emit_ran(self, run_output: tuple | Future) -> Any | tuple:
         processed_output = self._finish_run(run_output)
@@ -931,7 +1046,7 @@ class Node(HasToDict, ABC, metaclass=AbstractHasPost):
             (self.outputs, other.outputs),
         ]:
             for key, to_copy in other_panel.items():
-                if to_copy.value is not NotData:
+                if to_copy.value is not NOT_DATA:
                     try:
                         old_value = my_panel[key].value
                         my_panel[key].value = to_copy.value  # Gets hint-checked
@@ -965,7 +1080,7 @@ class Node(HasToDict, ABC, metaclass=AbstractHasPost):
             warnings.warn(f"Could not replace_node {self.label}, as it has no parent.")
 
     def __getstate__(self):
-        state = self.__dict__
+        state = dict(self.__dict__)
         state["_parent"] = None
         # I am not at all confident that removing the parent here is the _right_
         # solution.
@@ -998,12 +1113,26 @@ class Node(HasToDict, ABC, metaclass=AbstractHasPost):
         # _but_ if the user is just passing instructions on how to _build_ an executor,
         # we'll trust that those serialize OK (this way we can, hopefully, eventually
         # support nesting executors!)
-        return self.__dict__
+        return state
 
     def __setstate__(self, state):
         # Update instead of overriding in case some other attributes were added on the
         # main process while a remote process was working away
         self.__dict__.update(**state)
+
+        # Channels don't store their own node in their state, so repopulate it
+        for io_panel in self._owned_io_panels:
+            for channel in io_panel:
+                channel.node = self
+
+    @property
+    def _owned_io_panels(self) -> list[IO]:
+        return [
+            self.inputs,
+            self.outputs,
+            self.signals.input,
+            self.signals.output,
+        ]
 
     def executor_shutdown(self, wait=True, *, cancel_futures=False):
         """Invoke shutdown on the executor (if present)."""
@@ -1011,3 +1140,157 @@ class Node(HasToDict, ABC, metaclass=AbstractHasPost):
             self.executor.shutdown(wait=wait, cancel_futures=cancel_futures)
         except AttributeError:
             pass
+
+    @property
+    def class_name(self) -> str:
+        """The class name of the node"""
+        # Since we want this directly in storage, put it in an attribute so it is
+        # guaranteed not to conflict with a child node label
+        return self.__class__.__name__
+
+    def to_storage(self, storage):
+        storage["package_identifier"] = self.package_identifier
+        storage["class_name"] = self.class_name
+        storage["label"] = self.label
+        storage["running"] = self.running
+        storage["failed"] = self.failed
+        storage["save_after_run"] = self.save_after_run
+
+        data_inputs = storage.create_group("inputs")
+        for label, channel in self.inputs.items():
+            channel.to_storage(data_inputs.create_group(label))
+
+        data_outputs = storage.create_group("outputs")
+        for label, channel in self.outputs.items():
+            channel.to_storage(data_outputs.create_group(label))
+
+    def from_storage(self, storage):
+        self.running = bool(storage["running"])
+        self.failed = bool(storage["failed"])
+        self.save_after_run = bool(storage["save_after_run"])
+
+        data_inputs = storage["inputs"]
+        for label in data_inputs.list_groups():
+            self.inputs[label].from_storage(data_inputs[label])
+
+        data_outputs = storage["outputs"]
+        for label in data_outputs.list_groups():
+            self.outputs[label].from_storage(data_outputs[label])
+
+    _save_load_warnings = """
+        HERE BE DRAGONS!!!
+        
+        Warning:
+            This almost certainly only fails for subclasses of :class:`Node` that don't
+            override `node_function` or `macro_creator` directly, as these are expected 
+            to be part of the class itself (and thus already present on our instantiated 
+            object) and are never stored. Nodes created using the provided decorators 
+            should all work.
+            
+        Warning:
+            If you modify a `Macro` class in any way (changing its IO maps, rewiring 
+            internal connections, or replacing internal nodes), don't expect 
+            saving/loading to work.
+            
+        Warning:
+            If the underlying source code has changed since saving (i.e. the node doing 
+            the loading does not use the same code as the node doing the saving, or the 
+            nodes in some node package have been modified), then all bets are off.
+            
+        Note:
+            Saving and loading `Workflows` only works when all child nodes were created 
+            via the creator (and thus have a `package_identifier`). Right now, this is 
+            not a big barrier to custom nodes as all you need to do is move them into a 
+            .py file, make sure it's in your python path, and :func:`register` it as 
+            usual.
+    """
+
+    def save(self):
+        """
+        Writes the node to file (using HDF5) such that a new node instance of the same
+        type can :meth:`load()` the data to return to the same state as the save point,
+        i.e. the same data IO channel values, the same flags, etc.
+        """
+        backend = "h5io" if self.storage_backend is None else self.storage_backend
+        self.storage.save(backend=backend)
+
+    save.__doc__ += _save_load_warnings
+
+    def load(self):
+        """
+        Loads the node file (from HDF5) such that this node restores its state at time
+        of loading.
+
+        Raises:
+            TypeError) when the saved node has a different class name.
+        """
+        backend = "h5io" if self.storage_backend is None else self.storage_backend
+        self.storage.load(backend=backend)
+
+    save.__doc__ += _save_load_warnings
+
+    @property
+    def storage_backend(self):
+        if self.parent is None:
+            return self._storage_backend
+        else:
+            return self.graph_root.storage_backend
+
+    @storage_backend.setter
+    def storage_backend(self, new_backend):
+        if (
+            new_backend is not None
+            and self.parent is not None
+            and new_backend != self.graph_root.storage_backend
+        ):
+            raise ValueError(
+                f"Storage backends should only be set on the graph root "
+                f"({self.graph_root.label}), not on child ({self.label})"
+            )
+        else:
+            self._storage_backend = new_backend
+
+    @property
+    def storage(self):
+        return StorageInterface(self)
+
+    def tidy_working_directory(self):
+        """
+        If the working directory is completely empty, deletes it.
+        """
+        if self.working_directory.is_empty():
+            self.working_directory.delete()
+            self._working_directory = None
+            # Touching the working directory may have created it -- if it's there and
+            # empty just clean it up
+
+    @property
+    def import_ready(self) -> bool:
+        """
+        Checks whether `importlib` can find this node's class, and if so whether the
+        imported object matches the node's type.
+
+        Returns:
+            (bool): Whether the imported module and name of this node's class match
+                its type.
+        """
+        try:
+            module = self.__class__.__module__
+            class_ = getattr(import_module(module), self.__class__.__name__)
+            if module == "__main__":
+                warnings.warn(f"{self.label} is only defined in __main__")
+            return type(self) is class_
+        except (ModuleNotFoundError, AttributeError):
+            return False
+
+    @property
+    def import_readiness_report(self):
+        print(self._report_import_readiness())
+
+    def _report_import_readiness(self, tabs=0, report_so_far=""):
+        newline = "\n" if len(report_so_far) > 0 else ""
+        tabspace = tabs * "\t"
+        return (
+            report_so_far + f"{newline}{tabspace}{self.label}: "
+            f"{'ok' if self.import_ready else 'NOT IMPORTABLE'}"
+        )
