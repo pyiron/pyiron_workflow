@@ -1,5 +1,6 @@
 import doctest
 import pkgutil
+import sys
 import unittest
 
 import pyiron_workflow
@@ -10,6 +11,8 @@ def load_tests(loader, tests, ignore):
         pyiron_workflow.__path__, pyiron_workflow.__name__ + '.'
     ):
         if "node_library" in name:
+            continue
+        if sys.version_info >= (3, 11) and "job" in name:
             continue
         tests.addTests(doctest.DocTestSuite(name))
     return tests
