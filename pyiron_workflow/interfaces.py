@@ -147,10 +147,10 @@ class Creator(metaclass=Singleton):
             ) from e
 
     def __getstate__(self):
-        return self.__dict__
+        return dict(self.__dict__)
 
     def __setstate__(self, state):
-        self.__dict__ = state
+        self.__dict__.update(**state)
 
     def register(self, package_identifier: str, domain: Optional[str] = None) -> None:
         """

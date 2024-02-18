@@ -152,14 +152,18 @@ class TestDataIO(unittest.TestCase):
 
 class TestSignalIO(unittest.TestCase):
     def setUp(self) -> None:
-        node = DummyNode()
+        class Extended(DummyNode):
+            @staticmethod
+            def do_nothing():
+                pass
 
-        def do_nothing():
-            pass
+        node = Extended()
+
+
 
         signals = Signals()
-        signals.input.run = InputSignal("run", node, do_nothing)
-        signals.input.foo = InputSignal("foo", node, do_nothing)
+        signals.input.run = InputSignal("run", node, node.do_nothing)
+        signals.input.foo = InputSignal("foo", node, node.do_nothing)
         signals.output.ran = OutputSignal("ran", node)
         signals.output.bar = OutputSignal("bar", node)
 

@@ -10,10 +10,12 @@ from __future__ import annotations
 
 import typing
 from abc import ABC, abstractmethod
+import inspect
 from warnings import warn
 
 from pyiron_workflow.has_channel import HasChannel
 from pyiron_workflow.has_to_dict import HasToDict
+from pyiron_workflow.snippets.singleton import Singleton
 from pyiron_workflow.type_hinting import (
     valid_value,
     type_hint_is_as_or_more_specific_than,
@@ -214,8 +216,24 @@ class Channel(HasChannel, HasToDict, ABC):
             "connections": [f"{c.node.label}.{c.label}" for c in self.connections],
         }
 
+    def __getstate__(self):
+        state = dict(self.__dict__)
+        # To avoid cyclic storage and avoid storing complex objects, purge some
+        # properties from the state
+        state["node"] = None
+        # It is the responsibility of the owning node to restore the node property
+        state["connections"] = []
+        # It is the responsibility of the owning node's parent to store and restore
+        # connections (if any)
+        return state
 
-class NotData:
+    def __setstate__(self, state):
+        # Update instead of overriding in case some other attributes were added on the
+        # main process while a remote process was working away
+        self.__dict__.update(**state)
+
+
+class NotData(metaclass=Singleton):
     """
     This class exists purely to initialize data channel values where no default value
     is provided; it lets the channel know that it has _no data in it_ and thus should
@@ -226,7 +244,16 @@ class NotData:
     def __repr__(cls):
         # We use the class directly (not instances of it) where there is not yet data
         # So give it a decent repr, even as just a class
-        return cls.__name__
+        return "NOT_DATA"
+
+    def __reduce__(self):
+        return "NOT_DATA"
+
+    def __bool__(self):
+        return False
+
+
+NOT_DATA = NotData()
 
 
 class DataChannel(Channel, ABC):
@@ -236,7 +263,7 @@ class DataChannel(Channel, ABC):
     They store data persistently (:attr:`value`).
 
     This value may have a default (:attr:`default`) and the default-default is to be
-    `NotData`.
+    `NOT_DATA`.
 
     They may optionally have a type hint (:attr:`type_hint`).
 
@@ -260,8 +287,8 @@ class DataChannel(Channel, ABC):
     in production runs.
 
     Channels can indicate whether they hold data they are happy with
-    (:attr:`ready: bool`), which is to say it is data (not :class:`NotData`) and that
-    it conforms to the type hint (if one is provided and checking is active).
+    (:attr:`ready: bool`), which is to say it is data (not the singleton `NOT_DATA`)
+    and that it conforms to the type hint (if one is provided and checking is active).
 
     Output data facilitates many (but not all) python operators by injecting a new
     node to perform that operation. Where the operator is not supported, we try to
@@ -307,7 +334,7 @@ class DataChannel(Channel, ABC):
         label (str): The label for the channel.
         node (pyiron_workflow.node.Node): The node to which this channel belongs.
         default (typing.Any|None): The default value to initialize to.
-            (Default is the class `NotData`.)
+            (Default is the singleton `NOT_DATA`.)
         type_hint (typing.Any|None): A type hint for values. (Default is None.)
         strict_hints (bool): Whether to check new values, connections, and partners
             when this node is a value receiver. This can potentially be expensive, so
@@ -321,13 +348,13 @@ class DataChannel(Channel, ABC):
         self,
         label: str,
         node: Node,
-        default: typing.Optional[typing.Any] = NotData,
+        default: typing.Optional[typing.Any] = NOT_DATA,
         type_hint: typing.Optional[typing.Any] = None,
         strict_hints: bool = True,
         value_receiver: typing.Optional[InputData] = None,
     ):
         super().__init__(label=label, node=node)
-        self._value = NotData
+        self._value = NOT_DATA
         self._value_receiver = None
         self.type_hint = type_hint
         self.strict_hints = strict_hints
@@ -349,7 +376,7 @@ class DataChannel(Channel, ABC):
     def _type_check_new_value(self, new_value):
         if (
             self.strict_hints
-            and new_value is not NotData
+            and new_value is not NOT_DATA
             and self._has_hint
             and not valid_value(new_value, self.type_hint)
         ):
@@ -413,7 +440,7 @@ class DataChannel(Channel, ABC):
 
     @property
     def _value_is_data(self) -> bool:
-        return self.value is not NotData
+        return self.value is not NOT_DATA
 
     @property
     def _has_hint(self) -> bool:
@@ -457,6 +484,31 @@ class DataChannel(Channel, ABC):
     def deactivate_strict_hints(self) -> None:
         self.strict_hints = False
 
+    def to_storage(self, storage):
+        storage["strict_hints"] = self.strict_hints
+        storage["type_hint"] = self.type_hint
+        storage["default"] = self.default
+        storage["value"] = self.value
+
+    def from_storage(self, storage):
+        self.strict_hints = bool(storage["strict_hints"])
+        self.type_hint = storage["type_hint"]
+        self.default = storage["default"]
+        from pyiron_contrib.tinybase.storage import GenericStorage
+
+        self.value = (
+            storage["value"].to_object()
+            if isinstance(storage["value"], GenericStorage)
+            else storage["value"]
+        )
+
+    def __getstate__(self):
+        state = super().__getstate__()
+        state["_value_receiver"] = None
+        # Value receivers live in the scope of Macros, so (re)storing them is the
+        # owning macro's responsibility
+        return state
+
 
 class InputData(DataChannel):
     @property
@@ -465,9 +517,9 @@ class InputData(DataChannel):
 
     def fetch(self) -> None:
         """
-        Sets :attr:`value` to the first value among connections that is something other than
-        :class:`NotData`; if no such value exists (e.g. because there are no connections or
-        because all the connected output channels have `NotData` as their value),
+        Sets :attr:`value` to the first value among connections that is something other
+        than `NOT_DATA`; if no such value exists (e.g. because there are no connections
+        or because all the connected output channels have `NOT_DATA` as their value),
         :attr:`value` remains unchanged.
         I.e., the connection with the highest priority for updating input data is the
         0th connection; build graphs accordingly.
@@ -476,7 +528,7 @@ class InputData(DataChannel):
             RuntimeError: If the parent node is :attr:`running`.
         """
         for out in self.connections:
-            if out.value is not NotData:
+            if out.value is not NOT_DATA:
                 self.value = out.value
                 break
 
@@ -708,20 +760,12 @@ class OutputData(DataChannel):
 
         return self._node_injection(Round)
 
-    # Because we override __getattr__ we need to get and set state for serialization
-    def __getstate__(self):
-        return self.__dict__
-
-    def __setstate__(self, state):
-        # Update instead of overriding in case some other attributes were added on the
-        # main process while a remote process was working away
-        self.__dict__.update(**state)
-
 
 class SignalChannel(Channel, ABC):
     """
     Signal channels give the option control execution flow by triggering callback
     functions when the channel is called.
+    Callbacks must be methods on the parent node that require no positional arguments.
     Inputs optionally accept an output signal on call, which output signals always
     send when they call their input connections.
 
@@ -735,6 +779,10 @@ class SignalChannel(Channel, ABC):
     @abstractmethod
     def __call__(self) -> None:
         pass
+
+
+class BadCallbackError(ValueError):
+    pass
 
 
 class InputSignal(SignalChannel):
@@ -759,7 +807,38 @@ class InputSignal(SignalChannel):
                 object.
         """
         super().__init__(label=label, node=node)
-        self.callback: callable = callback
+        if self._is_node_method(callback) and self._takes_zero_arguments(callback):
+            self._callback: str = callback.__name__
+        else:
+            raise BadCallbackError(
+                f"The channel {self.label} on {self.node.label} got an unexpected "
+                f"callback: {callback}. "
+                f"Lives on node: {self._is_node_method(callback)}; "
+                f"take no args: {self._takes_zero_arguments(callback)} "
+            )
+
+    def _is_node_method(self, callback):
+        try:
+            return callback == getattr(self.node, callback.__name__)
+        except AttributeError:
+            return False
+
+    def _takes_zero_arguments(self, callback):
+        return callable(callback) and self._no_positional_args(callback)
+
+    @staticmethod
+    def _no_positional_args(func):
+        return all(
+            [
+                parameter.default != inspect.Parameter.empty
+                or parameter.kind == inspect.Parameter.VAR_KEYWORD
+                for parameter in inspect.signature(func).parameters.values()
+            ]
+        )
+
+    @property
+    def callback(self) -> callable:
+        return getattr(self.node, self._callback)
 
     def __call__(self, other: typing.Optional[OutputSignal] = None) -> None:
         self.callback()

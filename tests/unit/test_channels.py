@@ -2,7 +2,7 @@ import unittest
 
 from pyiron_workflow.channels import (
     Channel, InputData, OutputData, InputSignal, AccumulatingInputSignal, OutputSignal,
-    NotData, ChannelConnectionError
+    NOT_DATA, ChannelConnectionError, BadCallbackError
 )
 
 
@@ -14,7 +14,6 @@ class DummyNode:
 
     def update(self):
         self.foo.append(self.foo[-1] + 1)
-
 
 class InputChannel(Channel):
     """Just to de-abstract the base class"""
@@ -141,7 +140,7 @@ class TestDataChannels(unittest.TestCase):
         )
 
     def test_fetch(self):
-        self.no.value = NotData
+        self.no.value = NOT_DATA
         self.ni1.value = 1
 
         self.ni1.connect(self.no_empty)
@@ -157,7 +156,7 @@ class TestDataChannels(unittest.TestCase):
         self.assertEqual(
             self.ni1.value,
             1,
-            msg="NotData values should not be getting pulled, so no update expected"
+            msg="NOT_DATA values should not be getting pulled, so no update expected"
         )
 
         self.no.value = 3
@@ -286,7 +285,7 @@ class TestDataChannels(unittest.TestCase):
 
     def test_value_assignment(self):
         self.ni1.value = 2  # Should be fine when value matches hint
-        self.ni1.value = NotData  # Should be able to clear the data
+        self.ni1.value = NOT_DATA  # Should be able to clear the data
 
         self.ni1.node.running = True
         with self.assertRaises(
@@ -314,14 +313,14 @@ class TestDataChannels(unittest.TestCase):
             without_default = InputData(label="without_default", node=DummyNode())
             self.assertIs(
                 without_default.value,
-                NotData,
-                msg=f"Without a default, spec is to have a NotData value but got "
+                NOT_DATA,
+                msg=f"Without a default, spec is to have a NOT_DATA value but got "
                     f"{type(without_default.value)}"
             )
             self.assertFalse(
                 without_default.ready,
-                msg="Even without type hints, readiness should be false when the value"
-                    "is NotData"
+                msg="Even without type hints, readiness should be false when the value "
+                    "is NOT_DATA"
             )
 
         self.ni1.value = 1
@@ -329,6 +328,15 @@ class TestDataChannels(unittest.TestCase):
 
         self.ni1._value = "Not numeric at all"  # Bypass type checking
         self.assertFalse(self.ni1.ready)
+
+    def test_if_not_data(self):
+        if NOT_DATA:
+            a = 0
+        else:
+            a = 1
+        self.assertEqual(
+            a, 1, msg="NOT_DATA failed behave like None in the if-statement"
+        )
 
 
 class TestSignalChannels(unittest.TestCase):
@@ -451,6 +459,54 @@ class TestSignalChannels(unittest.TestCase):
             msg="All signals, including vestigial ones, should get cleared on call"
         )
 
+    def test_callbacks(self):
+        class Extended(DummyNode):
+            def method_with_args(self, x):
+                return x + 1
+
+            def method_with_only_kwargs(self, x=0):
+                return x + 1
+
+            @staticmethod
+            def staticmethod_without_args():
+                return 42
+
+            @staticmethod
+            def staticmethod_with_args(x):
+                return x + 1
+
+            @classmethod
+            def classmethod_without_args(cls):
+                return 42
+
+            @classmethod
+            def classmethod_with_args(cls, x):
+                return x + 1
+
+        def doesnt_belong_to_node():
+            return 42
+
+        node = Extended()
+        with self.subTest("Callbacks that belong to the node and take no arguments"):
+            for callback in [
+                node.update,
+                node.method_with_only_kwargs,
+                node.staticmethod_without_args,
+                node.classmethod_without_args
+            ]:
+                with self.subTest(callback.__name__):
+                    InputSignal(label="inp", node=node, callback=callback)
+
+        with self.subTest("Invalid callbacks"):
+            for callback in [
+                node.method_with_args,
+                node.staticmethod_with_args,
+                node.classmethod_with_args,
+                doesnt_belong_to_node,
+            ]:
+                with self.subTest(callback.__name__):
+                    with self.assertRaises(BadCallbackError):
+                        InputSignal(label="inp", node=node, callback=callback)
 
 if __name__ == '__main__':
     unittest.main()

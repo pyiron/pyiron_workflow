@@ -6,7 +6,7 @@ This class is intended as the single point of entry for users making an import.
 
 from __future__ import annotations
 
-from typing import Optional, TYPE_CHECKING
+from typing import Literal, Optional, TYPE_CHECKING
 
 from pyiron_workflow.composite import Composite
 from pyiron_workflow.io import Inputs, Outputs
@@ -16,6 +16,7 @@ if TYPE_CHECKING:
     from bidict import bidict
 
     from pyiron_workflow.channels import InputData, OutputData
+    from pyiron_workflow.io import IO
     from pyiron_workflow.node import Node
 
 
@@ -188,7 +189,10 @@ class Workflow(Composite):
         self,
         label: str,
         *nodes: Node,
+        overwrite_save: bool = False,
         run_after_init: bool = False,
+        storage_backend: Optional[Literal["h5io", "tinybase"]] = None,
+        save_after_run: bool = False,
         strict_naming: bool = True,
         inputs_map: Optional[dict | bidict] = None,
         outputs_map: Optional[dict | bidict] = None,
@@ -197,6 +201,8 @@ class Workflow(Composite):
         super().__init__(
             label=label,
             parent=None,
+            save_after_run=save_after_run,
+            storage_backend=storage_backend,
             strict_naming=strict_naming,
             inputs_map=inputs_map,
             outputs_map=outputs_map,
@@ -256,13 +262,6 @@ class Workflow(Composite):
         """
         raise NotImplementedError
 
-    # (De)serialization is necessary throughout these classes, but not implemented here
-    def serialize(self):
-        raise NotImplementedError
-
-    def deserialize(self, source):
-        raise NotImplementedError
-
     @property
     def _parent(self) -> None:
         return None
@@ -278,3 +277,126 @@ class Workflow(Composite):
                 f"{self.__class__} may only take None as a parent but got "
                 f"{type(new_parent)}"
             )
+
+    @property
+    def _data_connections(self) -> list[tuple[tuple[str, str], tuple[str, str]]]:
+        """
+        A string-tuple representation of all connections between the data channels of
+        child nodes.
+
+        Intended for internal use during storage, so that connections can be
+        represented in plain strings, and stored on an attribute to guarantee that the
+        name does not conflict with a child node label.
+
+        Returns:
+            (list): Nested-pair tuples of (node label, channel label) data for
+                (input, output) channels of data connections between children.
+        """
+        data_connections = []
+        for node in self:
+            for inp_label, inp in node.inputs.items():
+                for conn in inp.connections:
+                    data_connections.append(
+                        ((node.label, inp_label), (conn.node.label, conn.label))
+                    )
+        return data_connections
+
+    @property
+    def _signal_connections(self) -> list[tuple[tuple[str, str], tuple[str, str]]]:
+        """
+        A string-tuple representation of all connections between the signal channels of
+        child nodes.
+
+        Intended for internal use during storage, so that connections can be
+        represented in plain strings, and stored on an attribute to guarantee that the
+        name does not conflict
+
+        Returns:
+            (list): Nested-pair tuples of (node label, channel label) data for
+                (input, output) channels of signal connections between children.
+        """
+        signal_connections = []
+        for node in self:
+            for inp_label, inp in node.signals.input.items():
+                for conn in inp.connections:
+                    signal_connections.append(
+                        ((node.label, inp_label), (conn.node.label, conn.label))
+                    )
+        return signal_connections
+
+    def to_storage(self, storage):
+        storage["package_requirements"] = list(self.package_requirements)
+        storage["automate_execution"] = self.automate_execution
+        super().to_storage(storage)
+
+        storage["_data_connections"] = self._data_connections
+
+        if not self.automate_execution:
+            storage["_signal_connections"] = self._signal_connections
+            storage["starting_nodes"] = [n.label for n in self.starting_nodes]
+
+    def from_storage(self, storage):
+        self._reinstantiate_children(storage)
+        self.automate_execution = storage["automate_execution"]
+        # Super call will rebuild the IO, so first get our automate_execution flag
+        super().from_storage(storage)
+        self._rebuild_connections(storage)
+
+    def _reinstantiate_children(self, storage):
+        # Parents attempt to reload their data on instantiation,
+        # so there is no need to explicitly load any of these children
+        for package_identifier in storage["package_requirements"]:
+            self.register(package_identifier)
+
+        for child_label in storage["nodes"]:
+            child_data = storage[child_label]
+            pid = child_data["package_identifier"]
+            cls = child_data["class_name"]
+            self.create[pid][cls](
+                label=child_label, parent=self, storage_backend="tinybase"
+            )
+
+    def _rebuild_connections(self, storage):
+        self._rebuild_data_connections(storage)
+        if not self.automate_execution:
+            self._rebuild_execution_graph(storage)
+
+    def _rebuild_data_connections(self, storage):
+        for data_connection in storage["_data_connections"]:
+            (inp_label, inp_channel), (out_label, out_channel) = data_connection
+            self.nodes[inp_label].inputs[inp_channel].connect(
+                self.nodes[out_label].outputs[out_channel]
+            )
+
+    def _rebuild_execution_graph(self, storage):
+        for signal_connection in storage["_signal_connections"]:
+            (inp_label, inp_channel), (out_label, out_channel) = signal_connection
+            self.nodes[inp_label].signals.input[inp_channel].connect(
+                self.nodes[out_label].signals.output[out_channel]
+            )
+        self.starting_nodes = [self.nodes[label] for label in storage["starting_nodes"]]
+
+    def save(self):
+        if self.storage_backend == "tinybase" and any(
+            node.package_identifier is None for node in self
+        ):
+            raise NotImplementedError(
+                f"{self.__class__.__name__} can currently only save itself to file if "
+                f"_all_ of its child nodes were created via the creator and have an "
+                f"associated `package_identifier` -- otherwise we won't know how to "
+                f"re-instantiate them at load time! Right now this is as easy as "
+                f"moving your custom nodes to their own .py file and registering it "
+                f"like any other node package. Remember that this new module needs to "
+                f"be in your python path and importable at load time too."
+            )
+        super().save()
+
+    @property
+    def _owned_io_panels(self) -> list[IO]:
+        # Workflow data IO is just pointers to child IO, not actually owned directly
+        # by the workflow; this is used in re-parenting channels, and we don't want to
+        # override the real parent with this workflow!
+        return [
+            self.signals.input,
+            self.signals.output,
+        ]
