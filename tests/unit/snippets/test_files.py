@@ -109,6 +109,12 @@ class TestFiles(unittest.TestCase):
         new_file_3 = f.copy(str(f.path.parent / "another_test"), ".")
         self.assertEqual(new_file_1.path.absolute(), new_file_3.path.absolute())
 
+    def test_str(self):
+        f = FileObject("test_copy.txt", self.directory)
+        self.assertEqual(
+            f"my file: {f}",
+            f"my file: {self.directory.path.absolute()}/test_copy.txt"
+        )
 
 if __name__ == '__main__':
     unittest.main()
