@@ -112,12 +112,20 @@ class FileObject:
     def _clean_directory_and_path(
         self, new_file_name: str, directory: DirectoryObject | str | None=None
     ):
+        """
+        Internal routine to separate the file name and the directory in case
+        file name is given in absolute path etc.
+        """
         new_path = Path(new_file_name)
         file_name = new_path.name
         if new_path.is_absolute():
-            directory = new_path.cwd()
+            directory = str(new_path.resolve().parent)
         elif directory is None:
             directory = self.directory
+        else:
+            if isinstance(directory, DirectoryObject):
+                directory = directory.path
+            directory = str(directory / new_path.resolve().parent)
         if isinstance(directory, str):
             directory = DirectoryObject(directory)
         return file_name, directory
