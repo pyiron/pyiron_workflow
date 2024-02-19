@@ -1,4 +1,5 @@
 from pathlib import Path
+import shutil
 
 
 def delete_files_and_directories_recursively(path):
@@ -107,3 +108,36 @@ class FileObject:
 
     def delete(self):
         self.path.unlink()
+
+    def _clean_directory_and_path(
+        self, new_file_name: str, directory: DirectoryObject | str | None=None
+    ):
+        new_path = Path(new_file_name)
+        file_name = new_path.name
+        if new_path.is_absolute():
+            directory = new_path.cwd()
+        elif directory is None:
+            directory = self.directory
+        if isinstance(directory, str):
+            directory = DirectoryObject(directory)
+        return file_name, directory
+
+    def copy(
+        self, new_file_name: str, directory: DirectoryObject | str | None=None
+    ):
+        """
+        Copy an existing file to a new location.
+
+        Args:
+            new_file_name (str): New file name. You can also set
+                an absolute path (in which case `directory` will be ignored)
+            directory (DirectoryObject): Directory. If None, the same
+                directory is used
+
+        Returns:
+            (FileObject): file object of the new file
+        """
+        file_name, directory = self._clean_directory_and_path(new_file_name, directory)
+        new_file = FileObject(file_name, directory)
+        shutil.copy(str(self.path), str(new_file.path))
+        return new_file
