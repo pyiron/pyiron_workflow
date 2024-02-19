@@ -109,6 +109,9 @@ class FileObject:
     def delete(self):
         self.path.unlink()
 
+    def __str__(self):
+        return str(self.path.absolute())
+
     def _clean_directory_and_path(
         self, new_file_name: str, directory: DirectoryObject | str | None=None
     ):
