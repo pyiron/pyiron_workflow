@@ -128,10 +128,10 @@ class FileObject:
         """
         path = Path(file_name)
         file_name = path.name
-        if new_path.is_absolute():
+        if path.is_absolute():
             # If absolute path, take that of new_file_name regardless of the
             # name of directory
-            directory = str(path.resolve().parent)
+            directory = str(path.parent)
         elif directory is None:
             # If directory is not given, take default directory
             directory = default_directory
@@ -140,7 +140,7 @@ class FileObject:
             # additional path if given in new_file_name
             if isinstance(directory, DirectoryObject):
                 directory = directory.path
-            directory = directory / new_path.resolve().parent
+            directory = directory / path.parent
         if not isinstance(directory, DirectoryObject):
             directory = DirectoryObject(directory)
         return file_name, directory
