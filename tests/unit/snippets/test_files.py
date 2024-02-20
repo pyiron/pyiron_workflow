@@ -18,13 +18,13 @@ class TestFiles(unittest.TestCase):
 
     def test_file_instantiation(self):
         self.assertEqual(
-            FileObject("test_copy.txt", self.directory),
-            FileObject("test_copy.txt", "test"),
+            FileObject("test.txt", self.directory).path,
+            FileObject("test.txt", "test").path,
             msg="DirectoryObject and str must give the same object"
         )
         self.assertEqual(
-            FileObject("test/test_copy.txt"),
-            FileObject("test_copy.txt", "test"),
+            FileObject("test/test.txt").path,
+            FileObject("test.txt", "test").path,
             msg="File path not same as directory path"
         )
 

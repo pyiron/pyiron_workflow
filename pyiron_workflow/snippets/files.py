@@ -90,7 +90,7 @@ class DirectoryObject:
 
 
 class FileObject:
-    def __init__(self, file_name: str, directory: DirectoryObject):
+    def __init__(self, file_name: str, directory: DirectoryObject=None):
         self._file_name, self.directory = self._resolve_directory_and_path(
             file_name=file_name, directory=directory, default_directory="."
         )
@@ -132,14 +132,15 @@ class FileObject:
             # If absolute path, take that of new_file_name regardless of the
             # name of directory
             directory = str(path.parent)
-        elif directory is None:
-            # If directory is not given, take default directory
-            directory = default_directory
         else:
-            # If the directory is given, use it as the main path and append
-            # additional path if given in new_file_name
-            if isinstance(directory, DirectoryObject):
-                directory = directory.path
+            if directory is None:
+                # If directory is not given, take default directory
+                directory = default_directory
+            else:
+                # If the directory is given, use it as the main path and append
+                # additional path if given in new_file_name
+                if isinstance(directory, DirectoryObject):
+                    directory = directory.path
             directory = directory / path.parent
         if not isinstance(directory, DirectoryObject):
             directory = DirectoryObject(directory)
