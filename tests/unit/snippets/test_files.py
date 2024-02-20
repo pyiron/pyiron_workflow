@@ -114,6 +114,20 @@ class TestFiles(unittest.TestCase):
             msg="Should be able to remove just one file",
         )
 
+    def test_copy(self):
+         f = FileObject("test_copy.txt", self.directory)
+         f.write("sam wrote this wondrful thing")
+         new_file_1 = f.copy("another_test")
+         self.assertEqual(new_file_1.read(), "sam wrote this wondrful thing")
+         new_file_2 = f.copy("another_test", ".")
+         with open("another_test", "r") as file:
+             txt = file.read()
+         self.assertEqual(txt, "sam wrote this wondrful thing")
+         new_file_2.delete()  # needed because current directory
+         new_file_3 = f.copy(str(f.path.parent / "another_test"), ".")
+         self.assertEqual(new_file_1.path.absolute(), new_file_3.path.absolute())
+
+
 
 if __name__ == '__main__':
     unittest.main()

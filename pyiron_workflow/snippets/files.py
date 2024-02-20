@@ -145,3 +145,25 @@ class FileObject:
         if not isinstance(directory, DirectoryObject):
             directory = DirectoryObject(directory)
         return file_name, directory
+
+    def copy(
+        self, new_file_name: str, directory: DirectoryObject | str | None=None
+    ):
+        """
+        Copy an existing file to a new location.
+        Args:
+            new_file_name (str): New file name. You can also set
+                an absolute path (in which case `directory` will be ignored)
+            directory (DirectoryObject): Directory. If None, the same
+                directory is used
+        Returns:
+            (FileObject): file object of the new file
+        """
+        file_name, directory = self._resolve_directory_and_path(
+           new_file_name,
+           directory,
+           default_directory=self.directory.path
+        )
+        new_file = FileObject(file_name, directory.path)
+        shutil.copy(str(self.path), str(new_file.path))
+        return new_file
