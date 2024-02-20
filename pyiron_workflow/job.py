@@ -3,11 +3,9 @@ Wrapper for running a node as a pyiron base job.
 
 Two approaches are provided while we work out which is more convenient and how some
 edge cases may be handled differently:
-- A direct sub-class of :class:`TemplateJob`, created using the usual job creation.
-- A helper method for using :meth:`Project.wrap_python_function`.
-
-The wrapper   function appears to be slightly slower (presumably because of the extra
-layer of serialization).
+- `NodeOutputJob(PythonFunctionContainerJob)`, which gets serialized like any other
+  wrapped python code.
+- `StoredNodeJob(TemplateJob)`, which uses the node's underlying storage capabilities.
 
 The intent of this module is to provide immediate access to pyiron's queue submission
 functionality, while in the long run this should be integrated more directly with the
@@ -124,25 +122,8 @@ class NodeOutputJob(PythonFunctionContainerJob):
 JOB_CLASS_DICT[NodeOutputJob.__name__] = NodeOutputJob.__module__
 
 
-_WARNINGS_STRING = """    
-    Warnings:
-        Node jobs rely on storing the node to file, which means these are also only 
-        available for python >= 3.11.
-        
-        The job can be run with `run_mode="non_modal"`, but _only_ if all the nodes
-        being run are defined in an importable file location -- i.e. copying and
-        pasting the example above into a jupyter notebook works fine in modal mode, but
-        will throw an exception if you try to run it non-modally.
-
-        This hasn't been tested for running on a remote queue. It should work, but it's
-        _possible_ the same requirement from non-modal mode (importable nodes) will
-        apply.
-"""
-
-
 class StoredNodeJob(TemplateJob):
-    __doc__ = (
-        """
+    """
     This job is an intermediate feature for accessing pyiron's queue submission
     infrastructure for nodes (function nodes, macros, or entire workflows).
 
@@ -181,9 +162,20 @@ class StoredNodeJob(TemplateJob):
         >>> pr.remove_jobs(recursive=True, silently=True)
         >>> pr.remove(enable=True)
 
+
+    Warnings:
+        Node jobs rely on storing the node to file, which means these are also only
+        available for python >= 3.11.
+
+        The job can be run with `run_mode="non_modal"`, but _only_ if all the nodes
+        being run are defined in an importable file location -- i.e. copying and
+        pasting the example above into a jupyter notebook works fine in modal mode, but
+        will throw an exception if you try to run it non-modally.
+
+        This hasn't been tested for running on a remote queue. It should work, but it's
+        _possible_ the same requirement from non-modal mode (importable nodes) will
+        apply.
     """
-        + _WARNINGS_STRING
-    )
 
     def __init__(self, project, job_name):
         if sys.version_info < (3, 11):
@@ -261,57 +253,3 @@ class StoredNodeJob(TemplateJob):
 
 
 JOB_CLASS_DICT[StoredNodeJob.__name__] = StoredNodeJob.__module__
-
-
-def _run_node(node):
-    node.run()
-    return node
-
-
-def create_job_with_python_wrapper(project, node):
-    __doc__ = (
-        """
-    A convenience wrapper around :meth:`pyiron_base.Project.wrap_python_function` for 
-    running a `pyiron_workflow.Workflow`. (And _only_ workflows, `Function` and `Macro`
-    children will fail.)
-
-    Args:
-        project (pyiron_base.Project): A pyiron project.
-        node (pyiron_workflow.node.Node): The node to run.
-
-    Returns:
-        (pyiron_base.jobs.flex.pythonfunctioncontainer.PythonFunctionContainerJob):
-            A job which wraps a function for running the node, with the `"node"` input
-            pre-populated with the provided node.
-            
-    Examples:
-        >>> from pyiron_base import Project
-        >>> from pyiron_workflow import Workflow
-        >>> from pyiron_workflow.job import create_job_with_python_wrapper
-        >>> 
-        >>> wf = Workflow("pyiron_node", overwrite_save=True)
-        >>> wf.answer = Workflow.create.standard.UserInput(42)  # Or your nodes
-        >>> 
-        >>> pr = Project("test")
-        >>> 
-        >>> nj = create_job_with_python_wrapper(pr, wf)
-        >>> nj.run()
-        >>> print(nj.output["result"].outputs.to_value_dict())
-        {'answer__user_input': 42}
-
-        >>> lj = pr.load(nj.job_name)
-        >>> print(nj.output["result"].outputs.to_value_dict())
-        {'answer__user_input': 42}
-
-        >>> pr.remove_jobs(recursive=True, silently=True)
-        >>> pr.remove(enable=True)
-        
-    """
-        + _WARNINGS_STRING
-    )
-    if sys.version_info < (3, 11):
-        raise NotImplementedError("Node jobs are only available in python 3.11+")
-
-    job = project.wrap_python_function(_run_node)
-    job.input["node"] = node
-    return job
