@@ -138,7 +138,6 @@ class TestWrapperFunction(_WithAJob):
     def make_a_job_from_node(self, node):
         return create_job_with_python_wrapper(self.pr, node)
 
-    @unittest.skipIf(sys.version_info >= (3, 11), "Storage should only work in 3.11+")
     def test_clean_failure(self):
         with self.assertRaises(
             NotImplementedError,
@@ -148,7 +147,6 @@ class TestWrapperFunction(_WithAJob):
             node = Workflow.create.standard.UserInput(42)
             self.make_a_job_from_node(node)
 
-    @unittest.skipIf(sys.version_info < (3, 11), "Storage will only work in 3.11+")
     def test_modal(self):
         modal_wf = Workflow("modal_wf")
         modal_wf.sleep = Sleep(0)
@@ -179,7 +177,6 @@ class TestWrapperFunction(_WithAJob):
             msg="The loaded job should still have all the same values"
         )
 
-    @unittest.skipIf(sys.version_info < (3, 11), "Storage will only work in 3.11+")
     def test_nonmodal(self):
         nonmodal_node = Workflow("non_modal")
         nonmodal_node.out = Workflow.create.standard.UserInput(42)
@@ -211,7 +208,6 @@ class TestWrapperFunction(_WithAJob):
             msg="The loaded job should have the finished values"
         )
 
-    @unittest.skipIf(sys.version_info < (3, 11), "Storage will only work in 3.11+")
     def test_node(self):
         node = Workflow.create.standard.UserInput(42)
         nj = self.make_a_job_from_node(node)
