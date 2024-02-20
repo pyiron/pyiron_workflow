@@ -45,7 +45,7 @@ _WARNINGS_STRING = """
 """
 
 
-class NodeJob(TemplateJob):
+class StoredNodeJob(TemplateJob):
     __doc__ = (
         """
     This job is an intermediate feature for accessing pyiron's queue submission
@@ -72,7 +72,7 @@ class NodeJob(TemplateJob):
         >>> 
         >>> pr = Project("test")
         >>> 
-        >>> nj = pr.create.job.NodeJob("my_node")
+        >>> nj = pr.create.job.StoredNodeJob("my_node")
         >>> nj.node = wf
         >>> nj.run()  # doctest:+ELLIPSIS
         The job my_node was saved and received the ID: ...
@@ -165,7 +165,7 @@ class NodeJob(TemplateJob):
         self.status.finished = True
 
 
-JOB_CLASS_DICT[NodeJob.__name__] = NodeJob.__module__
+JOB_CLASS_DICT[StoredNodeJob.__name__] = StoredNodeJob.__module__
 
 
 def _run_node(node):
