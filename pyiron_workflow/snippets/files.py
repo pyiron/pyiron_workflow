@@ -109,8 +109,11 @@ class FileObject:
     def delete(self):
         self.path.unlink()
 
-    def _clean_directory_and_path(
-        self, new_file_name: str, directory: DirectoryObject | str | None=None
+    def _resolve_directory_and_path(
+        self,
+        file_name: str,
+        directory: DirectoryObject | str | None=None,
+        default_directory: str=".",
     ):
         """
         Internal routine to separate the file name and the directory in case
@@ -135,23 +138,3 @@ class FileObject:
         if isinstance(directory, str):
             directory = DirectoryObject(directory)
         return file_name, directory
-
-    def copy(
-        self, new_file_name: str, directory: DirectoryObject | str | None=None
-    ):
-        """
-        Copy an existing file to a new location.
-
-        Args:
-            new_file_name (str): New file name. You can also set
-                an absolute path (in which case `directory` will be ignored)
-            directory (DirectoryObject): Directory. If None, the same
-                directory is used
-
-        Returns:
-            (FileObject): file object of the new file
-        """
-        file_name, directory = self._clean_directory_and_path(new_file_name, directory)
-        new_file = FileObject(file_name, directory)
-        shutil.copy(str(self.path), str(new_file.path))
-        return new_file
