@@ -1,3 +1,4 @@
+from __future__ import annotations
 from pathlib import Path
 
 
@@ -36,8 +37,13 @@ def categorize_folder_items(folder_path):
 
 
 class DirectoryObject:
-    def __init__(self, directory):
-        self.path = Path(directory)
+    def __init__(self, directory: str | Path | DirectoryObject):
+        if isinstance(directory, str):
+            self.path = Path(directory)
+        elif isinstance(directory, Path):
+            self.path = directory
+        elif isinstance(directory, DirectoryObject):
+            self.path = directory.path
         self.create()
 
     def create(self):
