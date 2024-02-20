@@ -10,6 +10,24 @@ class TestFiles(unittest.TestCase):
     def tearDown(cls):
         cls.directory.delete()
 
+    def test_directory_instantiation(self):
+        directory = DirectoryObject(Path("test"))
+        self.assertEqual(directory.path, self.directory.path)
+        directory = DirectoryObject(self.directory)
+        self.assertEqual(directory.path, self.directory.path)
+
+    def test_file_instantiation(self):
+        self.assertEqual(
+            FileObject("test.txt", self.directory).path,
+            FileObject("test.txt", "test").path,
+            msg="DirectoryObject and str must give the same object"
+        )
+        self.assertEqual(
+            FileObject("test/test.txt").path,
+            FileObject("test.txt", "test").path,
+            msg="File path not same as directory path"
+        )
+
     def test_directory_exists(self):
         self.assertTrue(Path("test").exists() and Path("test").is_dir())
 
@@ -97,17 +115,18 @@ class TestFiles(unittest.TestCase):
         )
 
     def test_copy(self):
-        f = FileObject("test_copy.txt", self.directory)
-        f.write("sam wrote this wondrful thing")
-        new_file_1 = f.copy("another_test")
-        self.assertEqual(new_file_1.read(), "sam wrote this wondrful thing")
-        new_file_2 = f.copy("another_test", ".")
-        with open("another_test", "r") as file:
-            txt = file.read()
-        self.assertEqual(txt, "sam wrote this wondrful thing")
-        new_file_2.delete()  # needed because current directory
-        new_file_3 = f.copy(str(f.path.parent / "another_test"), ".")
-        self.assertEqual(new_file_1.path.absolute(), new_file_3.path.absolute())
+         f = FileObject("test_copy.txt", self.directory)
+         f.write("sam wrote this wondrful thing")
+         new_file_1 = f.copy("another_test")
+         self.assertEqual(new_file_1.read(), "sam wrote this wondrful thing")
+         new_file_2 = f.copy("another_test", ".")
+         with open("another_test", "r") as file:
+             txt = file.read()
+         self.assertEqual(txt, "sam wrote this wondrful thing")
+         new_file_2.delete()  # needed because current directory
+         new_file_3 = f.copy(str(f.path.parent / "another_test"), ".")
+         self.assertEqual(new_file_1.path.absolute(), new_file_3.path.absolute())
+
 
     def test_str(self):
         f = FileObject("test_copy.txt", self.directory)
