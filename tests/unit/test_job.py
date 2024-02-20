@@ -34,6 +34,17 @@ class TestNodeNodeOutputJobJob(_WithAJob):
         job.input["node"] = node
         return job
 
+    @unittest.skipIf(sys.version_info >= (3, 11), "Storage should only work in 3.11+")
+    def test_clean_failure(self):
+        with self.assertRaises(
+            NotImplementedError,
+            msg="Storage, and therefore node jobs, are only available in python 3.11+, "
+                "so we should fail hard and clean here"
+        ):
+            node = Workflow.create.standard.UserInput(42)
+            self.make_a_job_from_node(node)
+
+    @unittest.skipIf(sys.version_info < (3, 11), "Storage will only work in 3.11+")
     def test_node(self):
         node = Workflow.create.standard.UserInput(42)
         nj = self.make_a_job_from_node(node)
@@ -44,6 +55,7 @@ class TestNodeNodeOutputJobJob(_WithAJob):
             msg="A single node should run just as well as a workflow"
         )
 
+    @unittest.skipIf(sys.version_info < (3, 11), "Storage will only work in 3.11+")
     def test_modal(self):
         modal_wf = Workflow("modal_wf")
         modal_wf.sleep = Sleep(0)
@@ -74,6 +86,7 @@ class TestNodeNodeOutputJobJob(_WithAJob):
             msg="The loaded job should still have all the same values"
         )
 
+    @unittest.skipIf(sys.version_info < (3, 11), "Storage will only work in 3.11+")
     def test_nonmodal(self):
         nonmodal_node = Workflow("non_modal")
         nonmodal_node.out = Workflow.create.standard.UserInput(42)
@@ -104,6 +117,7 @@ class TestNodeNodeOutputJobJob(_WithAJob):
             msg="The loaded job should have the finished values"
         )
 
+    @unittest.skipIf(sys.version_info < (3, 11), "Storage will only work in 3.11+")
     def test_bad_input(self):
         with self.subTest("Not a node"):
             nj = self.pr.create.job.NodeOutputJob("will_fail")
@@ -119,6 +133,7 @@ class TestNodeNodeOutputJobJob(_WithAJob):
             with self.assertRaises(ValueError, msg="The input is not ready"):
                 nj.run()
 
+    @unittest.skipIf(sys.version_info < (3, 11), "Storage will only work in 3.11+")
     def test_unloadable(self):
         @Workflow.wrap_as.single_value_node("y")
         def not_importable_directy_from_module(x):

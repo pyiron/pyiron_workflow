@@ -74,6 +74,8 @@ class NodeOutputJob(PythonFunctionContainerJob):
         bets are off.
     """
     def __init__(self, project, job_name):
+        if sys.version_info < (3, 11):
+            raise NotImplementedError("Node jobs are only available in python 3.11+")
         super().__init__(project, job_name)
         self._function = _node_out
         self.input.update(get_function_parameter_dict(funct=_node_out))
