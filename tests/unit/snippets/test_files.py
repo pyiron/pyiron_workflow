@@ -16,6 +16,18 @@ class TestFiles(unittest.TestCase):
         directory = DirectoryObject(self.directory)
         self.assertEqual(directory.path, self.directory.path)
 
+    def test_file_instantiation(self):
+        self.assertEqual(
+            FileObject("test_copy.txt", self.directory),
+            FileObject("test_copy.txt", "test"),
+            msg="DirectoryObject and str must give the same object"
+        )
+        self.assertEqual(
+            FileObject("test/test_copy.txt"),
+            FileObject("test_copy.txt", "test"),
+            msg="File path not same as directory path"
+        )
+
     def test_directory_exists(self):
         self.assertTrue(Path("test").exists() and Path("test").is_dir())
 
