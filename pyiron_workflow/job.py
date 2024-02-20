@@ -26,7 +26,8 @@ import sys
 
 from pyiron_base import TemplateJob, JOB_CLASS_DICT
 from pyiron_base.jobs.flex.pythonfunctioncontainer import (
-    PythonFunctionContainerJob, get_function_parameter_dict
+    PythonFunctionContainerJob,
+    get_function_parameter_dict,
 )
 from pyiron_workflow.node import Node
 from h5io._h5io import _import_class
@@ -73,6 +74,7 @@ class NodeOutputJob(PythonFunctionContainerJob):
         be redefined. If node definitions get changed between saving and loading, all
         bets are off.
     """
+
     def __init__(self, project, job_name):
         if sys.version_info < (3, 11):
             raise NotImplementedError("Node jobs are only available in python 3.11+")
@@ -131,25 +133,25 @@ class StoredNodeJob(TemplateJob):
 
     It leans directly on the storage capabilities of the node itself, except for
     the node class and name, and the storage backend mode, all of which are held in the
-    traditional job input. (WARNING: This might be fragile to adjusting the storage  
+    traditional job input. (WARNING: This might be fragile to adjusting the storage
     backend on the node _after_ the node has been assign to the job.)
 
     The job provides direct access to its owned node (as both input and output) on the
     :attr:`node` attribute. The only requirement is that the node have an untouched
     working directory (so we can make sure its files get stored _inside_ the job's
-    directory tree), and that it be saveable (not all objects work with the "h5io" 
+    directory tree), and that it be saveable (not all objects work with the "h5io"
     storage backend, e.g. `ase.Calculator` objects may break it).
 
     Examples:
         >>> from pyiron_base import Project
         >>> from pyiron_workflow import Workflow
         >>> import pyiron_workflow.job  # To get the job registered in JOB_CLASS_DICT
-        >>> 
+        >>>
         >>> wf = Workflow("pyiron_node", overwrite_save=True)
         >>> wf.answer = Workflow.create.standard.UserInput(42)  # Or your nodes
-        >>> 
+        >>>
         >>> pr = Project("test")
-        >>> 
+        >>>
         >>> nj = pr.create.job.StoredNodeJob("my_node")
         >>> nj.node = wf
         >>> nj.run()  # doctest:+ELLIPSIS

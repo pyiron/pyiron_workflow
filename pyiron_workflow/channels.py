@@ -601,6 +601,7 @@ class OutputData(DataChannel):
 
     def __getattr__(self, name):
         from pyiron_workflow.node_library.standard import GetAttr
+
         if name == "to_hdf":
             raise AttributeError(
                 "This is just a failsafe to protect us against other elements of the "
