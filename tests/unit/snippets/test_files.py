@@ -126,6 +126,13 @@ class TestFiles(unittest.TestCase):
          new_file_2.delete()  # needed because current directory
          new_file_3 = f.copy(str(f.path.parent / "another_test"), ".")
          self.assertEqual(new_file_1.path.absolute(), new_file_3.path.absolute())
+         new_file_4 = f.copy(directory=".")
+         with open("test_copy.txt", "r") as file:
+             txt = file.read()
+         self.assertEqual(txt, "sam wrote this wondrful thing")
+         new_file_4.delete()  # needed because current directory
+         with self.assertRaises(ValueError):
+            f.copy()
 
 
 

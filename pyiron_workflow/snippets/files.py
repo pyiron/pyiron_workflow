@@ -147,7 +147,9 @@ class FileObject:
         return file_name, directory
 
     def copy(
-        self, new_file_name: str, directory: DirectoryObject | str | None=None
+        self,
+        new_file_name: str | None=None,
+        directory: DirectoryObject | str | None=None
     ):
         """
         Copy an existing file to a new location.
@@ -159,6 +161,12 @@ class FileObject:
         Returns:
             (FileObject): file object of the new file
         """
+        if new_file_name is None:
+            if directory is None:
+                raise ValueError(
+                    "Either new file name or directory must be specified"
+                )
+            new_file_name = self.file_name
         file_name, directory = self._resolve_directory_and_path(
            new_file_name,
            directory,
