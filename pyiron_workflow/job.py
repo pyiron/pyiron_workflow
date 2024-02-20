@@ -214,9 +214,6 @@ def create_job_with_python_wrapper(project, node):
     """
         + _WARNINGS_STRING
     )
-    if sys.version_info < (3, 11):
-        raise NotImplementedError("Node jobs are only available in python 3.11+")
-
     job = project.wrap_python_function(_run_node)
     job.input["node"] = node
     return job
