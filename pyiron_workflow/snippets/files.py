@@ -91,8 +91,9 @@ class DirectoryObject:
 
 class FileObject:
     def __init__(self, file_name: str, directory: DirectoryObject):
-        self.directory = directory
-        self._file_name = file_name
+        self._file_name, self.directory = self._resolve_directory_and_path(
+            file_name=file_name, directory=directory, default_directory="."
+        )
 
     @property
     def file_name(self):
@@ -125,22 +126,21 @@ class FileObject:
         Internal routine to separate the file name and the directory in case
         file name is given in absolute path etc.
         """
-        new_path = Path(new_file_name)
-        file_name = new_path.name
+        path = Path(file_name)
+        file_name = path.name
         if new_path.is_absolute():
             # If absolute path, take that of new_file_name regardless of the
             # name of directory
-            directory = str(new_path.resolve().parent)
+            directory = str(path.resolve().parent)
         elif directory is None:
-            # If directory is not given, take the directory of the current
-            # object
-            directory = self.directory
+            # If directory is not given, take default directory
+            directory = default_directory
         else:
             # If the directory is given, use it as the main path and append
             # additional path if given in new_file_name
             if isinstance(directory, DirectoryObject):
                 directory = directory.path
-            directory = str(directory / new_path.resolve().parent)
-        if isinstance(directory, str):
+            directory = directory / new_path.resolve().parent
+        if not isinstance(directory, DirectoryObject):
             directory = DirectoryObject(directory)
         return file_name, directory
