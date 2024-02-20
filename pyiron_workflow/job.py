@@ -22,12 +22,107 @@ leveraged.
 
 from __future__ import annotations
 
+import inspect
 import os
 import sys
 
 from pyiron_base import TemplateJob, JOB_CLASS_DICT
+from pyiron_base.jobs.flex.pythonfunctioncontainer import (
+    PythonFunctionContainerJob, get_function_parameter_dict
+)
 from pyiron_workflow.node import Node
 from h5io._h5io import _import_class
+
+
+def _node_out(node):
+    node.run()
+    return node.outputs.to_value_dict()
+
+
+class NodeOutputJob(PythonFunctionContainerJob):
+    """
+    A `PythonFunctionContainer` node that explicitly runs a node input and returns its
+    output value dictionary.
+
+    Examples:
+        >>> from pyiron_base import Project
+        >>> from pyiron_workflow import Workflow
+        >>> import pyiron_workflow.job  # To get the job registered in JOB_CLASS_DICT
+        >>>
+        >>> wf = Workflow("pyiron_node", overwrite_save=True)
+        >>> wf.answer = Workflow.create.standard.UserInput(42)  # Or your nodes
+        >>>
+        >>> pr = Project("test")
+        >>>
+        >>> nj = pr.create.job.NodeOutputJob("my_node")
+        >>> nj.input["node"] = wf
+        >>> nj.run()  # doctest:+ELLIPSIS
+        The job ...
+        >>> print(nj.output)
+        DataContainer({'answer__user_input': 42})
+
+        >>> lj = pr.load(nj.job_name)
+        >>> print(nj.output)
+        DataContainer({'answer__user_input': 42})
+
+        >>> pr.remove_jobs(recursive=True, silently=True)
+        >>> pr.remove(enable=True)
+
+    Warnings:
+        All submitted nodes must be importable from their module at load time, or
+        loading will fail. This means node definitions can't be nested inside another
+        object, and any nodes defined in `__main__` (e.g. in a jupyter notebook) must
+        be redefined. If node definitions get changed between saving and loading, all
+        bets are off.
+    """
+    def __init__(self, project, job_name):
+        super().__init__(project, job_name)
+        self._function = _node_out
+        self.input.update(get_function_parameter_dict(funct=_node_out))
+        self._executor_type = None
+
+    @property
+    def python_function(self):
+        return self._function
+
+    @python_function.setter
+    def python_function(self, funct):
+        raise NotImplementedError(
+            f"{self.__class__.__name__}'s python function is to run the node and get "
+            f"its output values, and this may not be overridden."
+        )
+
+    def validate_ready_to_run(self):
+        if not isinstance(self.input["node"], Node):
+            raise TypeError(f"'node' input must be of type {Node.__name__}")
+        elif not self.input["node"].ready:
+            nl = "\n"
+            raise ValueError(
+                f"Node not ready:{nl}{self.input['node'].readiness_report}"
+            )
+
+    def run_static(self):
+        # Overrides the parent method
+        # Copy and paste except for the output update, which makes sure the output is
+        # flat and not tested beneath "result"
+        if (
+            self._executor_type is not None
+            and "executor" in inspect.signature(self._function).parameters.keys()
+        ):
+            input_dict = self.input.to_builtin()
+            del input_dict["executor"]
+            output = self._function(
+                **input_dict, executor=self._get_executor(max_workers=self.server.cores)
+            )
+        else:
+            output = self._function(**self.input.to_builtin())
+        self.output.update(output)  # DIFFERS FROM PARENT METHOD
+        self.to_hdf()
+        self.status.finished = True
+
+
+JOB_CLASS_DICT[NodeOutputJob.__name__] = NodeOutputJob.__module__
+
 
 _WARNINGS_STRING = """    
     Warnings:

@@ -28,6 +28,118 @@ class _WithAJob(unittest.TestCase, ABC):
         self.pr.remove(enable=True)
 
 
+class TestNodeNodeOutputJobJob(_WithAJob):
+    def make_a_job_from_node(self, node):
+        job = self.pr.create.job.NodeOutputJob(node.label)
+        job.input["node"] = node
+        return job
+
+    def test_node(self):
+        node = Workflow.create.standard.UserInput(42)
+        nj = self.make_a_job_from_node(node)
+        nj.run()
+        self.assertEqual(
+            42,
+            nj.output.user_input,
+            msg="A single node should run just as well as a workflow"
+        )
+
+    def test_modal(self):
+        modal_wf = Workflow("modal_wf")
+        modal_wf.sleep = Sleep(0)
+        modal_wf.out = modal_wf.create.standard.UserInput(modal_wf.sleep)
+        nj = self.make_a_job_from_node(modal_wf)
+
+        nj.run()
+        self.assertTrue(
+            nj.status.finished,
+            msg="The interpreter should not release until the job is done"
+        )
+        self.assertEqual(
+            0,
+            nj.output.out__user_input,
+            msg="The node should have run, and since it's modal there's no need to "
+                "update the instance"
+        )
+
+        lj = self.pr.load(nj.job_name)
+        self.assertIsNot(
+            lj,
+            nj,
+            msg="The loaded job should be a new instance."
+        )
+        self.assertEqual(
+            nj.output.out__user_input,
+            lj.output.out__user_input,
+            msg="The loaded job should still have all the same values"
+        )
+
+    def test_nonmodal(self):
+        nonmodal_node = Workflow("non_modal")
+        nonmodal_node.out = Workflow.create.standard.UserInput(42)
+
+        nj = self.make_a_job_from_node(nonmodal_node)
+        nj.run(run_mode="non_modal")
+        self.assertFalse(
+            nj.status.finished,
+            msg=f"The local process should released immediately per non-modal "
+                f"style, but got status {nj.status}"
+        )
+        while not nj.status.finished:
+            sleep(0.1)
+        self.assertTrue(
+            nj.status.finished,
+            msg="The job status should update on completion"
+        )
+        self.assertEqual(
+            0,
+            len(nj.output),
+            msg="Non-modal stuff needs to be reloaded"
+        )
+
+        lj = self.pr.load(nj.job_name)
+        self.assertEqual(
+            42,
+            lj.output.out__user_input,
+            msg="The loaded job should have the finished values"
+        )
+
+    def test_bad_input(self):
+        with self.subTest("Not a node"):
+            nj = self.pr.create.job.NodeOutputJob("will_fail")
+            nj.input["node"] = 42
+            with self.assertRaises(TypeError, msg="The input is not a node"):
+                nj.run()
+
+        with self.subTest("Node not ready"):
+            node = Workflow.create.standard.UserInput()  # No value!
+            self.assertFalse(node.ready, msg="Sanity check")
+
+            nj = self.make_a_job_from_node(node)
+            with self.assertRaises(ValueError, msg="The input is not ready"):
+                nj.run()
+
+    def test_unloadable(self):
+        @Workflow.wrap_as.single_value_node("y")
+        def not_importable_directy_from_module(x):
+            return x + 1
+
+        nj = self.make_a_job_from_node(not_importable_directy_from_module(42))
+        nj.run()
+        self.assertEqual(
+            43,
+            nj.output.y,
+            msg="Things should run fine locally"
+        )
+        with self.assertRaises(
+            AttributeError,
+            msg="We have promised that you'll hit trouble if you try to load a job "
+                "whose nodes are not all importable directly from their module"
+                # h5io also has this limitation, so I suspect that may be the source
+        ):
+            self.pr.load(nj.job_name)
+
+
 class TestStoredNodeJob(_WithAJob):
     def make_a_job_from_node(self, node):
         job = self.pr.create.job.StoredNodeJob(node.label)
