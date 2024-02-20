@@ -10,6 +10,12 @@ class TestFiles(unittest.TestCase):
     def tearDown(cls):
         cls.directory.delete()
 
+    def test_directory_instantiation(self):
+        directory = DirectoryObject(Path("test"))
+        self.assertEqual(directory.path, self.directory.path)
+        directory = DirectoryObject(self.directory)
+        self.assertEqual(directory.path, self.directory.path)
+
     def test_directory_exists(self):
         self.assertTrue(Path("test").exists() and Path("test").is_dir())
 
