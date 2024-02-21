@@ -154,6 +154,11 @@ class TestNodeNodeOutputJobJob(_WithAJob):
         ):
             self.pr.load(nj.job_name)
 
+    def test_shorter_name(self):
+        j1 = self.pr.create.job.NodeOutputJob("foo")
+        j2 = self.pr.create.job.NodeOutputJob("bar")
+        self.assertIsInstance(j2, j1.__class__)
+
 
 class TestStoredNodeJob(_WithAJob):
     def make_a_job_from_node(self, node):
