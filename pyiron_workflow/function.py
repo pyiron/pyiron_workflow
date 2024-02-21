@@ -398,7 +398,7 @@ class Function(Node):
         dot-accessible.
         """
         parsed_outputs = ParseOutput(self.node_function).output
-        return [] if parsed_outputs is None else parsed_outputs
+        return [None] if parsed_outputs is None else parsed_outputs
 
     @property
     def _input_args(self):
