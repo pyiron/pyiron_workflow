@@ -89,6 +89,10 @@ class DirectoryObject:
                 path.unlink()
 
 
+class NoDestinationError(ValueError):
+    """A custom error for when neither a new file name nor new location are provided"""
+
+
 class FileObject:
     def __init__(self, file_name: str, directory: DirectoryObject=None):
         self._file_name, self.directory = self._resolve_directory_and_path(
@@ -163,7 +167,7 @@ class FileObject:
         """
         if new_file_name is None:
             if directory is None:
-                raise ValueError(
+                raise NoDestinationError(
                     "Either new file name or directory must be specified"
                 )
             new_file_name = self.file_name
