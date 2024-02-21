@@ -154,6 +154,7 @@ class TestNodeOutputJob(_WithAJob):
         ):
             self.pr.load(nj.job_name)
 
+    @unittest.skipIf(sys.version_info < (3, 11), "Storage will only work in 3.11+")
     def test_shorter_name(self):
         j1 = self.pr.create.job.NodeOutputJob("foo")
         j2 = self.pr.create.job.NodeOutputJob("bar")
