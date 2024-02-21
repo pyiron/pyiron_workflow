@@ -28,7 +28,7 @@ class _WithAJob(unittest.TestCase, ABC):
         self.pr.remove(enable=True)
 
 
-class TestNodeNodeOutputJobJob(_WithAJob):
+class TestNodeOutputJob(_WithAJob):
     def make_a_job_from_node(self, node):
         job = self.pr.create.job.NodeOutputJob(node.label)
         job.input["node"] = node
