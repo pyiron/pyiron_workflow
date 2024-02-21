@@ -28,7 +28,7 @@ class _WithAJob(unittest.TestCase, ABC):
         self.pr.remove(enable=True)
 
 
-class TestNodeNodeOutputJobJob(_WithAJob):
+class TestNodeOutputJob(_WithAJob):
     def make_a_job_from_node(self, node):
         job = self.pr.create.job.NodeOutputJob(node.label)
         job.input["node"] = node
@@ -153,6 +153,12 @@ class TestNodeNodeOutputJobJob(_WithAJob):
                 # h5io also has this limitation, so I suspect that may be the source
         ):
             self.pr.load(nj.job_name)
+
+    @unittest.skipIf(sys.version_info < (3, 11), "Storage will only work in 3.11+")
+    def test_shorter_name(self):
+        j1 = self.pr.create.job.NodeOutputJob("foo")
+        j2 = self.pr.create.job.NodeOutputJob("bar")
+        self.assertIsInstance(j2, j1.__class__)
 
 
 class TestStoredNodeJob(_WithAJob):

@@ -126,6 +126,16 @@ class NodeOutputJob(PythonFunctionContainerJob):
 JOB_CLASS_DICT[NodeOutputJob.__name__] = NodeOutputJob.__module__
 
 
+class NodeJob(NodeOutputJob):
+    # Just to expose it under the simpler name per @JNmpi's request
+    # This is a temporary change ahead of the 2024 DPG conference,
+    # in the long run these job names are likely to take on different meanings
+    pass
+
+
+JOB_CLASS_DICT[NodeJob.__name__] = NodeJob.__module__
+
+
 class StoredNodeJob(TemplateJob):
     """
     This job is an intermediate feature for accessing pyiron's queue submission
