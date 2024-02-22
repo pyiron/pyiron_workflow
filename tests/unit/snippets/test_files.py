@@ -27,6 +27,7 @@ class TestFiles(unittest.TestCase):
             FileObject("test.txt", "test").path,
             msg="File path not same as directory path"
         )
+        self.assertRaises(ValueError, FileObject, "/test.txt", "test")
 
     def test_directory_exists(self):
         self.assertTrue(Path("test").exists() and Path("test").is_dir())
