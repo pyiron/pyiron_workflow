@@ -22,4 +22,3 @@ dependencies:
 - pyiron_atomistics =0.4.15
 - pyiron-data =0.0.27
 - numpy =1.26.4
-- pip: []
