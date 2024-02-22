@@ -30,7 +30,7 @@ class TestFiles(unittest.TestCase):
         )
 
         if platform.system() == "Windows":
-            self.assertRaises(ValueError, FileObject, "\\test.txt", "test")
+            self.assertRaises(ValueError, FileObject, "C:\\test.txt", "test")
         else:
             self.assertRaises(ValueError, FileObject, "/test.txt", "test")
 
