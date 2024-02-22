@@ -39,8 +39,8 @@ def categorize_folder_items(folder_path):
 
 def _resolve_directory_and_path(
     file_name: str,
-    directory: DirectoryObject | str | None=None,
-    default_directory: str=".",
+    directory: DirectoryObject | str | None = None,
+    default_directory: str = ".",
 ):
     """
     Internal routine to separate the file name and the directory in case
@@ -124,7 +124,7 @@ class DirectoryObject:
 
 
 class FileObject:
-    def __init__(self, file_name: str, directory: DirectoryObject=None):
+    def __init__(self, file_name: str, directory: DirectoryObject = None):
         self._file_name, self.directory = _resolve_directory_and_path(
             file_name=file_name, directory=directory, default_directory="."
         )
