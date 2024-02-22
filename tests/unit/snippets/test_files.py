@@ -1,6 +1,7 @@
 import unittest
 from pyiron_workflow.snippets.files import DirectoryObject, FileObject
 from pathlib import Path
+import platform
 
 
 class TestFiles(unittest.TestCase):
@@ -9,6 +10,30 @@ class TestFiles(unittest.TestCase):
 
     def tearDown(cls):
         cls.directory.delete()
+
+    def test_directory_instantiation(self):
+        directory = DirectoryObject(Path("test"))
+        self.assertEqual(directory.path, self.directory.path)
+        directory = DirectoryObject(self.directory)
+        self.assertEqual(directory.path, self.directory.path)
+
+    def test_file_instantiation(self):
+        self.assertEqual(
+            FileObject("test.txt", self.directory).path,
+            FileObject("test.txt", "test").path,
+            msg="DirectoryObject and str must give the same object"
+        )
+        self.assertEqual(
+            FileObject("test/test.txt").path,
+            FileObject("test.txt", "test").path,
+            msg="File path not same as directory path"
+        )
+
+        if platform.system() == "Windows":
+            self.assertRaises(ValueError, FileObject, "C:\\test.txt", "test")
+        else:
+            self.assertRaises(ValueError, FileObject, "/test.txt", "test")
+
 
     def test_directory_exists(self):
         self.assertTrue(Path("test").exists() and Path("test").is_dir())
