@@ -119,7 +119,7 @@ class FileObject:
     def _resolve_directory_and_path(
         self,
         file_name: str,
-        directory: DirectoryObject | str | None=None,
+        directory: DirectoryObject | str | Path | None=None,
         default_directory: str=".",
     ):
         """
