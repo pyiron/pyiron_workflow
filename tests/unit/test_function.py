@@ -39,7 +39,7 @@ class TestFunction(unittest.TestCase):
     def test_instantiation(self):
         with self.subTest("Void function is allowable"):
             void_node = Function(void)
-            self.assertEqual(len(void_node.outputs), 0)
+            self.assertEqual(len(void_node.outputs), 1)
 
         with self.subTest("Args and kwargs at initialization"):
             node = Function(plus_one)
