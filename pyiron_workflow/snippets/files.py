@@ -37,6 +37,40 @@ def categorize_folder_items(folder_path):
     return results
 
 
+def _resolve_directory_and_path(
+    file_name: str,
+    directory: DirectoryObject | str | None = None,
+    default_directory: str = ".",
+):
+    """
+    Internal routine to separate the file name and the directory in case
+    file name is given in absolute path etc.
+    """
+    path = Path(file_name)
+    file_name = path.name
+    if path.is_absolute():
+        if directory is not None:
+            raise ValueError(
+                "You cannot set `directory` when `file_name` is an absolute path"
+            )
+        # If absolute path, take that of new_file_name regardless of the
+        # name of directory
+        directory = str(path.parent)
+    else:
+        if directory is None:
+            # If directory is not given, take default directory
+            directory = default_directory
+        else:
+            # If the directory is given, use it as the main path and append
+            # additional path if given in new_file_name
+            if isinstance(directory, DirectoryObject):
+                directory = directory.path
+        directory = directory / path.parent
+    if not isinstance(directory, DirectoryObject):
+        directory = DirectoryObject(directory)
+    return file_name, directory
+
+
 class DirectoryObject:
     def __init__(self, directory: str | Path | DirectoryObject):
         if isinstance(directory, str):
@@ -94,8 +128,8 @@ class NoDestinationError(ValueError):
 
 
 class FileObject:
-    def __init__(self, file_name: str, directory: DirectoryObject=None):
-        self._file_name, self.directory = self._resolve_directory_and_path(
+    def __init__(self, file_name: str, directory: DirectoryObject = None):
+        self._file_name, self.directory = _resolve_directory_and_path(
             file_name=file_name, directory=directory, default_directory="."
         )
 
@@ -119,6 +153,7 @@ class FileObject:
 
     def delete(self):
         self.path.unlink()
+<<<<<<< HEAD
 
     def _resolve_directory_and_path(
         self,
