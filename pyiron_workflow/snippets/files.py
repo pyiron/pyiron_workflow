@@ -1,6 +1,5 @@
 from __future__ import annotations
 from pathlib import Path
-import shutil
 
 
 def delete_files_and_directories_recursively(path):
