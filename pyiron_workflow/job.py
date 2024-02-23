@@ -80,6 +80,9 @@ class NodeOutputJob(PythonFunctionContainerJob):
             raise NotImplementedError("Node jobs are only available in python 3.11+")
         super().__init__(project, job_name)
         self._function = _node_out
+        self._mangle_name_on_save = False  # This class is expected to be accessed from
+        # the regular job creation, not via a wrapper function, so we can rely on users
+        # to provide a job name just like usual.
         self.input.update(get_function_parameter_dict(funct=_node_out))
         self._executor_type = None
 
