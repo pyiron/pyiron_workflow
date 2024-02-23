@@ -123,6 +123,14 @@ class NodeOutputJob(PythonFunctionContainerJob):
         self.status.finished = True
 
     def save(self):
+        # PythonFunctionContainerJob.save assumes that the job is being created
+        # exclusively from pyiron_base.Project.wrap_python_function, and therefore
+        # always dynamically renames the job based on the wrapped function and the
+        # input.
+        # Here, the jobs are created in the usual way, with the usual use of job name,
+        # so it is just confusing if this renaming happens; thus, we save as usual.
+        # If at any point PythonFunctionContainerJob.save behaves in the usual way,
+        # this override can be removed
         GenericJob.save(self)
 
 
