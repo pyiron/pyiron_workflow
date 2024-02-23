@@ -24,7 +24,7 @@ import inspect
 import os
 import sys
 
-from pyiron_base import TemplateJob, JOB_CLASS_DICT
+from pyiron_base import GenericJob, TemplateJob, JOB_CLASS_DICT
 from pyiron_base.jobs.flex.pythonfunctioncontainer import (
     PythonFunctionContainerJob,
     get_function_parameter_dict,
@@ -121,6 +121,9 @@ class NodeOutputJob(PythonFunctionContainerJob):
         self.output.update(output)  # DIFFERS FROM PARENT METHOD
         self.to_hdf()
         self.status.finished = True
+
+    def save(self):
+        GenericJob.save(self)
 
 
 JOB_CLASS_DICT[NodeOutputJob.__name__] = NodeOutputJob.__module__
