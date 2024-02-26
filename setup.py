@@ -36,7 +36,7 @@ setup(
         'matplotlib==3.8.2',
         'pyiron_base==0.7.8',
         'pyiron_contrib==0.1.15',
-        'pympipool==0.7.13',
+        'pympipool==0.7.15',
         'toposort==1.10',
         'typeguard==4.1.5',
     ],
