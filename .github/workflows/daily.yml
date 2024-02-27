@@ -8,7 +8,7 @@ on:
 
 jobs:
   codeql:
-    uses: pyiron/actions/.github/workflows/tests-and-coverage.yml@main
+    uses: pyiron/actions/.github/workflows/tests-and-coverage.yml@v1.1.0
     secrets: inherit
     with:
       tests-in-python-path: true
