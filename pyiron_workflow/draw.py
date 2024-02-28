@@ -18,7 +18,7 @@ if TYPE_CHECKING:
     from pyiron_workflow.node import Node as WorkflowNode
 
 
-def directed_graph(name, label, rankdir, color_start, color_end, gradient_angle):
+def directed_graph(name, label, rankdir, color_start, color_end, gradient_angle, size=None):
     """A shortcut method for instantiating the type of graphviz graph we want"""
     digraph = graphviz.graphs.Digraph(name=name)
     digraph.attr(
@@ -28,6 +28,8 @@ def directed_graph(name, label, rankdir, color_start, color_end, gradient_angle)
         style="filled",
         fillcolor=f"{color_start}:{color_end}",
         gradientangle=gradient_angle,
+        fontname='helvetica',
+        size=size,
     )
     return digraph
 
@@ -107,6 +109,7 @@ class _Channel(WorkflowGraphvizMap, ABC):
             shape=self.shape,
             color=self.color,
             style="filled",
+            fontname='helvetica',
         )
 
     @property
