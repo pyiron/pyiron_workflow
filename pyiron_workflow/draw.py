@@ -146,8 +146,9 @@ class _Channel(WorkflowGraphvizMap, ABC):
 class DataChannel(_Channel):
     @property
     def color(self) -> str:
-        return SeabornColors.orange
-
+        orange = "#EDB22C"
+        return orange
+        
     @property
     def shape(self) -> str:
         return "oval"
