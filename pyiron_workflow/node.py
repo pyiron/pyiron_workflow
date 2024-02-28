@@ -875,7 +875,7 @@ class Node(HasToDict, ABC, metaclass=AbstractHasPost):
             (graphviz.graphs.Digraph): The resulting graph object.
         """
         if size is not None:
-            size = f'{size[0]},{size[1]}'
+            size = f"{size[0]},{size[1]}"
         graph = GraphvizNode(self, depth=depth, rankdir=rankdir, size=size).graph
         if save or view or filename is not None:
             directory = self.working_directory.path if directory is None else directory
