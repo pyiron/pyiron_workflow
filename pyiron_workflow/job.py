@@ -24,7 +24,7 @@ import inspect
 import os
 import sys
 
-from pyiron_base import TemplateJob, JOB_CLASS_DICT
+from pyiron_base import GenericJob, TemplateJob, JOB_CLASS_DICT
 from pyiron_base.jobs.flex.pythonfunctioncontainer import (
     PythonFunctionContainerJob,
     get_function_parameter_dict,
@@ -121,6 +121,17 @@ class NodeOutputJob(PythonFunctionContainerJob):
         self.output.update(output)  # DIFFERS FROM PARENT METHOD
         self.to_hdf()
         self.status.finished = True
+
+    def save(self):
+        # PythonFunctionContainerJob.save assumes that the job is being created
+        # exclusively from pyiron_base.Project.wrap_python_function, and therefore
+        # always dynamically renames the job based on the wrapped function and the
+        # input.
+        # Here, the jobs are created in the usual way, with the usual use of job name,
+        # so it is just confusing if this renaming happens; thus, we save as usual.
+        # If at any point PythonFunctionContainerJob.save behaves in the usual way,
+        # this override can be removed
+        GenericJob.save(self)
 
 
 JOB_CLASS_DICT[NodeOutputJob.__name__] = NodeOutputJob.__module__
