@@ -148,7 +148,7 @@ class DataChannel(_Channel):
     def color(self) -> str:
         orange = "#EDB22C"
         return orange
-        
+
     @property
     def shape(self) -> str:
         return "oval"
@@ -287,8 +287,8 @@ class Node(WorkflowGraphvizMap):
             self.name,
             self.label,
             rankdir=self.rankdir,
-            color_start=self.color,
-            color_end=self.color,
+            color_start=lighten_hex_color(self.color),
+            color_end=lighten_hex_color(self.color),
             gradient_angle="0",
             size=size,
         )
