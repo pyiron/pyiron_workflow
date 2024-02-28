@@ -288,7 +288,7 @@ class Node(WorkflowGraphvizMap):
             rankdir=self.rankdir,
             color_start=self.color,
             color_end=lighten_hex_color(self.color),
-            gradient_angle="90",
+            gradient_angle="0",
             size=size,
         )
 
