@@ -156,7 +156,8 @@ class DataChannel(_Channel):
 class SignalChannel(_Channel):
     @property
     def color(self) -> str:
-        return SeabornColors.blue
+        blue = "#21BFD8"
+        return blue
 
     @property
     def shape(self) -> str:
@@ -221,7 +222,8 @@ class _IO(WorkflowGraphvizMap, ABC):
 
     @property
     def color(self) -> str:
-        return SeabornColors.gray
+        gray = "#A5A4A5"
+        return gray
 
     def __len__(self):
         return len(self.channels)
