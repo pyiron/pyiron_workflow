@@ -271,6 +271,9 @@ class Node(WorkflowGraphvizMap):
             owns this visualization (if any).
         depth (int): How deeply to decompose any child nodes beyond showing their IO.
         rankdir ("LR" | "TB"): Use left-right or top-bottom graphviz `rankdir`.
+        size (tuple[int | float, int | float] | None): The size of the diagram, in
+            inches(?); respects ratio by scaling until at least one dimension matches
+            the requested size. (Default is None, automatically size.)
     """
 
     def __init__(

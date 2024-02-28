@@ -855,6 +855,9 @@ class Node(HasToDict, ABC, metaclass=AbstractHasPost):
                 max depth of the node will have no adverse side effects.
             rankdir ("LR" | "TB"): Use left-right or top-bottom graphviz `rankdir` to
                 orient the flow of the graph.
+            size (tuple[int | float, int | float] | None): The size of the diagram, in
+                inches(?); respects ratio by scaling until at least one dimension
+                matches the requested size. (Default is None, automatically size.)
             save (bool): Render the graph image. (Default is False. When True, all
                 other defaults will yield a PDF in the node's working directory.)
             view (bool): `graphviz.Graph.render` argument, open the rendered result
