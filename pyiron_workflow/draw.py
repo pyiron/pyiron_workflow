@@ -275,6 +275,7 @@ class Node(WorkflowGraphvizMap):
         parent: Optional[Node] = None,
         depth: int = 1,
         rankdir: Literal["LR", "TB"] = "LR",
+        size: Optional[str] = None,
     ):
         self.node = node
         self._parent = parent
@@ -288,6 +289,7 @@ class Node(WorkflowGraphvizMap):
             color_start=self.color,
             color_end=lighten_hex_color(self.color),
             gradient_angle="90",
+            size=size,
         )
 
         self.inputs = Inputs(self)

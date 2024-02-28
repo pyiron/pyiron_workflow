@@ -828,6 +828,7 @@ class Node(HasToDict, ABC, metaclass=AbstractHasPost):
         self,
         depth: int = 1,
         rankdir: Literal["LR", "TB"] = "LR",
+        size: Optional[tuple] = None,
         save: bool = False,
         view: bool = False,
         directory: Optional[Path | str] = None,
@@ -873,7 +874,9 @@ class Node(HasToDict, ABC, metaclass=AbstractHasPost):
         Returns:
             (graphviz.graphs.Digraph): The resulting graph object.
         """
-        graph = GraphvizNode(self, depth=depth, rankdir=rankdir).graph
+        if size is not None:
+            size = f'{size[0]},{size[1]}'
+        graph = GraphvizNode(self, depth=depth, rankdir=rankdir, size=size).graph
         if save or view or filename is not None:
             directory = self.working_directory.path if directory is None else directory
             filename = self.label + "_graph" if filename is None else filename
