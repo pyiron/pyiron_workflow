@@ -28,7 +28,7 @@ setup(
     keywords='pyiron',
     packages=find_packages(exclude=["*tests*", "*docs*", "*binder*", "*conda*", "*notebooks*", "*.ci_support*"]),
     install_requires=[
-        'bidict==0.22.1',
+        'bidict==0.23.1',
         'cloudpickle==3.0.0',
         'graphviz==0.20.1',
         'h5io==0.2.2',
