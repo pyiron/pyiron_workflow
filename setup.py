@@ -34,7 +34,7 @@ setup(
         'h5io==0.2.2',
         'h5io_browser==0.0.10',
         'matplotlib==3.8.3',
-        'pyiron_base==0.7.10',
+        'pyiron_base==0.7.9',
         'pyiron_contrib==0.1.15',
         'pympipool==0.7.13',
         'toposort==1.10',
