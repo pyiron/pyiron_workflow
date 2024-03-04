@@ -3,9 +3,9 @@ from __future__ import annotations
 import inspect
 import warnings
 from functools import partialmethod
-from typing import Any, get_args, get_type_hints, Optional, TYPE_CHECKING
+from typing import Any, get_args, get_type_hints, Literal, Optional, TYPE_CHECKING
 
-from pyiron_workflow.channels import InputData, OutputData, NotData
+from pyiron_workflow.channels import InputData, OutputData, NOT_DATA
 from pyiron_workflow.has_channel import HasChannel
 from pyiron_workflow.io import Inputs, Outputs
 from pyiron_workflow.node import Node
@@ -78,12 +78,12 @@ class Function(Node):
         >>> plus_minus_1 = Function(mwe)
         >>>
         >>> print(plus_minus_1.outputs["x+1"])
-        <class 'pyiron_workflow.channels.NotData'>
+        NOT_DATA
 
         There is no output because we haven't given our function any input, it has
         no defaults, and we never ran it! So outputs have the channel default value of
-        `NotData` -- a special non-data class (since `None` is sometimes a meaningful
-        value in python).
+        `NOT_DATA` -- a special non-data singleton (since `None` is sometimes a
+        meaningful value in python).
 
         We'll run into a hiccup if we try to set only one of the inputs and force the
         run:
@@ -115,7 +115,7 @@ class Function(Node):
         y ready: False
 
         This is because the second input (`y`) still has no input value -- indicated in
-        the error message -- so we can't do the sum between `NotData` and `2`.
+        the error message -- so we can't do the sum between `NOT_DATA` and `2`.
 
         Once we update `y`, all the input is ready we will be allowed to proceed to a
         `run()` call, which succeeds and updates the output.
@@ -331,7 +331,10 @@ class Function(Node):
         *args,
         label: Optional[str] = None,
         parent: Optional[Composite] = None,
+        overwrite_save: bool = False,
         run_after_init: bool = False,
+        storage_backend: Optional[Literal["h5io", "tinybase"]] = None,
+        save_after_run: bool = False,
         output_labels: Optional[str | list[str] | tuple[str]] = None,
         **kwargs,
     ):
@@ -357,6 +360,8 @@ class Function(Node):
         super().__init__(
             label=label if label is not None else self.node_function.__name__,
             parent=parent,
+            save_after_run=save_after_run,
+            storage_backend=storage_backend,
             # **kwargs,
         )
 
@@ -393,7 +398,7 @@ class Function(Node):
         dot-accessible.
         """
         parsed_outputs = ParseOutput(self.node_function).output
-        return [] if parsed_outputs is None else parsed_outputs
+        return [None] if parsed_outputs is None else parsed_outputs
 
     @property
     def _input_args(self):
@@ -442,7 +447,7 @@ class Function(Node):
             except KeyError:
                 type_hint = None
 
-            default = NotData  # The standard default in DataChannel
+            default = NOT_DATA  # The standard default in DataChannel
             if value.default is not inspect.Parameter.empty:
                 if is_self:
                     warnings.warn("default value for self ignored")
@@ -761,6 +766,7 @@ def _wrapper_factory(
                 ),
                 "node_function": staticmethod(node_function),
                 "_type_hints": get_type_hints(node_function),
+                "__module__": node_function.__module__,
             },
         )
 

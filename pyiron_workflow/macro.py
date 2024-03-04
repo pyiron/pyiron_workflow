@@ -7,15 +7,18 @@ from __future__ import annotations
 
 from functools import partialmethod
 import inspect
-from typing import get_type_hints, Literal, Optional
+from typing import get_type_hints, Literal, Optional, TYPE_CHECKING
 
 from bidict import bidict
 
-from pyiron_workflow.channels import InputData, OutputData, NotData
+from pyiron_workflow.channels import InputData, OutputData, NOT_DATA
 from pyiron_workflow.composite import Composite
 from pyiron_workflow.has_channel import HasChannel
 from pyiron_workflow.io import Outputs, Inputs
 from pyiron_workflow.output_parser import ParseOutput
+
+if TYPE_CHECKING:
+    from pyiron_workflow.channels import Channel
 
 
 class Macro(Composite):
@@ -265,7 +268,10 @@ class Macro(Composite):
         graph_creator: callable[[Macro], None],
         label: Optional[str] = None,
         parent: Optional[Composite] = None,
+        overwrite_save: bool = False,
         run_after_init: bool = False,
+        storage_backend: Optional[Literal["h5io", "tinybase"]] = None,
+        save_after_run: bool = False,
         strict_naming: bool = True,
         inputs_map: Optional[dict | bidict] = None,
         outputs_map: Optional[dict | bidict] = None,
@@ -293,13 +299,17 @@ class Macro(Composite):
         super().__init__(
             label=label if label is not None else self.graph_creator.__name__,
             parent=parent,
+            save_after_run=save_after_run,
+            storage_backend=storage_backend,
             strict_naming=strict_naming,
             inputs_map=inputs_map,
             outputs_map=outputs_map,
         )
         output_labels = self._validate_output_labels(output_labels)
 
-        ui_nodes = self._prepopulate_ui_nodes_from_graph_creator_signature()
+        ui_nodes = self._prepopulate_ui_nodes_from_graph_creator_signature(
+            storage_backend=storage_backend
+        )
         returned_has_channel_objects = self.graph_creator(self, *ui_nodes)
         self._configure_graph_execution()
 
@@ -348,7 +358,9 @@ class Macro(Composite):
                 )
         return () if output_labels is None else tuple(output_labels)
 
-    def _prepopulate_ui_nodes_from_graph_creator_signature(self):
+    def _prepopulate_ui_nodes_from_graph_creator_signature(
+        self, storage_backend: Literal["h5io", "tinybase"]
+    ):
         hints_dict = get_type_hints(self.graph_creator)
         interface_nodes = ()
         for i, (arg_name, inspected_value) in enumerate(
@@ -358,11 +370,13 @@ class Macro(Composite):
                 continue  # Skip the macro argument itself, it's like `self` here
 
             default = (
-                NotData
+                NOT_DATA
                 if inspected_value.default is inspect.Parameter.empty
                 else inspected_value.default
             )
-            node = self.create.standard.UserInput(default, label=arg_name, parent=self)
+            node = self.create.standard.UserInput(
+                default, label=arg_name, parent=self, storage_backend=storage_backend
+            )
             node.inputs.user_input.default = default
             try:
                 node.inputs.user_input.type_hint = hints_dict[arg_name]
@@ -468,9 +482,39 @@ class Macro(Composite):
     def outputs(self) -> Outputs:
         return self._outputs
 
-    def _update_children(self, children_from_another_process):
-        super()._update_children(children_from_another_process)
-        self._rebuild_data_io()
+    def _parse_remotely_executed_self(self, other_self):
+        local_connection_data = [
+            [(c, c.label, c.connections) for c in io_panel]
+            for io_panel in [
+                self.inputs,
+                self.outputs,
+                self.signals.input,
+                self.signals.output,
+            ]
+        ]
+        super()._parse_remotely_executed_self(other_self)
+
+        for old_data, io_panel in zip(
+            local_connection_data,
+            [self.inputs, self.outputs, self.signals.input, self.signals.output],
+            # Get fresh copies of the IO panels post-update
+        ):
+            for original_channel, label, connections in old_data:
+                new_channel = io_panel[label]  # Fetch it from the fresh IO panel
+                new_channel.connections = connections
+                for other_channel in connections:
+                    self._replace_connection(
+                        other_channel, original_channel, new_channel
+                    )
+
+    @staticmethod
+    def _replace_connection(
+        channel: Channel, old_connection: Channel, new_connection: Channel
+    ):
+        """Brute-force replace an old connection in a channel with a new one"""
+        channel.connections = [
+            c if c is not old_connection else new_connection for c in channel
+        ]
 
     def _configure_graph_execution(self):
         run_signals = self.disconnect_run()
@@ -500,6 +544,64 @@ class Macro(Composite):
 
     def to_workfow(self):
         raise NotImplementedError
+
+    def from_storage(self, storage):
+        super().from_storage(storage)
+        # Nodes instantiated in macros probably aren't aware of their parent at
+        # instantiation time, and thus may be clean (un-loaded) objects --
+        # reload their data
+        for label, node in self.nodes.items():
+            node.from_storage(storage[label])
+
+    @property
+    def _input_value_links(self):
+        """
+        Value connections between child output and macro in string representation based
+        on labels.
+
+        The string representation helps storage, and having it as a property ensures
+        the name is protected.
+        """
+        return [
+            (c.label, (c.value_receiver.node.label, c.value_receiver.label))
+            for c in self.inputs
+        ]
+
+    @property
+    def _output_value_links(self):
+        """
+        Value connections between macro and child input in string representation based
+        on labels.
+
+        The string representation helps storage, and having it as a property ensures
+        the name is protected.
+        """
+        return [
+            ((c.node.label, c.label), c.value_receiver.label)
+            for child in self
+            for c in child.outputs
+            if c.value_receiver is not None
+        ]
+
+    def __getstate__(self):
+        state = super().__getstate__()
+        state["_input_value_links"] = self._input_value_links
+        state["_output_value_links"] = self._output_value_links
+        return state
+
+    def __setstate__(self, state):
+        # Purge value links from the state
+        input_links = state.pop("_input_value_links")
+        output_links = state.pop("_output_value_links")
+
+        super().__setstate__(state)
+
+        # Re-forge value links
+        for inp, (child, child_inp) in input_links:
+            self.inputs[inp].value_receiver = self.nodes[child].inputs[child_inp]
+
+        for (child, child_out), out in output_links:
+            self.nodes[child].outputs[child_out].value_receiver = self.outputs[out]
 
 
 def macro_node(*output_labels, **node_class_kwargs):
@@ -531,6 +633,7 @@ def macro_node(*output_labels, **node_class_kwargs):
                     **node_class_kwargs,
                 ),
                 "graph_creator": staticmethod(graph_creator),
+                "__module__": graph_creator.__module__,
             },
         )
 

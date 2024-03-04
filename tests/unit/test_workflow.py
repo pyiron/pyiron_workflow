@@ -1,17 +1,23 @@
 from concurrent.futures import Future
-
+import sys
 from time import sleep
 import unittest
 
 from pyiron_workflow._tests import ensure_tests_in_python_path
-from pyiron_workflow.channels import NotData
+from pyiron_workflow.channels import NOT_DATA
 from pyiron_workflow.snippets.dotdict import DotDict
+from pyiron_workflow.storage import TypeNotFoundError, ALLOWED_BACKENDS
 from pyiron_workflow.workflow import Workflow
 
 
 def plus_one(x=0):
     y = x + 1
     return y
+
+
+@Workflow.wrap_as.single_value_node("y")
+def PlusOne(x: int = 0):
+    return x + 1
 
 
 class TestWorkflow(unittest.TestCase):
@@ -83,7 +89,7 @@ class TestWorkflow(unittest.TestCase):
         wf.executor = wf.create.Executor()
 
         self.assertIs(
-            NotData,
+            NOT_DATA,
             wf.outputs.b__y.value,
             msg="Sanity check that test is in right starting condition"
         )
@@ -151,7 +157,7 @@ class TestWorkflow(unittest.TestCase):
         )
         self.assertEqual(
             wf.sum.outputs.sum.value,
-            NotData,
+            NOT_DATA,
             msg="The slow node _should_ hold up the downstream node to which it inputs"
         )
 
@@ -330,6 +336,122 @@ class TestWorkflow(unittest.TestCase):
         # scope
         wf.m.two.pull(run_parent_trees_too=False)
         wf.executor_shutdown()
+
+    @unittest.skipIf(sys.version_info < (3, 11), "Storage will only work in 3.11+")
+    def test_storage_values(self):
+        for backend in ALLOWED_BACKENDS:
+            with self.subTest(backend):
+                wf = Workflow("wf", storage_backend=backend)
+                try:
+                    wf.register("static.demo_nodes", domain="demo")
+                    wf.inp = wf.create.demo.AddThree(x=0)
+                    wf.out = wf.inp.outputs.add_three + 1
+                    wf_out = wf()
+                    three_result = wf.inp.three.outputs.add.value
+
+                    wf.save()
+
+                    reloaded = Workflow("wf", storage_backend=backend)
+                    self.assertEqual(
+                        wf_out.out__add,
+                        reloaded.outputs.out__add.value,
+                        msg="Workflow-level data should get reloaded"
+                    )
+                    self.assertEqual(
+                        three_result,
+                        reloaded.inp.three.value,
+                        msg="Child data arbitrarily deep should get reloaded"
+                    )
+                finally:
+                    # Clean up after ourselves
+                    wf.storage.delete()
+
+    @unittest.skipIf(sys.version_info < (3, 11), "Storage will only work in 3.11+")
+    def test_storage_scopes(self):
+        wf = Workflow("wf")
+        wf.register("static.demo_nodes", "demo")
+
+        # Test invocation
+        wf.add_node(wf.create.demo.AddPlusOne(label="by_add"))
+        # Note that the type hint `Optional[int]` from OptionallyAdd defines a custom
+        # reconstructor, which borks h5io
+
+        for backend in ALLOWED_BACKENDS:
+            with self.subTest(backend):
+                try:
+                    wf.storage_backend = backend
+                    wf.save()
+                    Workflow(wf.label, storage_backend=backend)
+                finally:
+                    wf.storage.delete()
+
+        with self.subTest("No unimportable nodes for either back-end"):
+            try:
+                wf.import_type_mismatch = wf.create.demo.dynamic()
+                for backend in ALLOWED_BACKENDS:
+                    with self.subTest(backend):
+                        with self.assertRaises(
+                            TypeNotFoundError,
+                            msg="Imported object is function but node type is node -- "
+                                "should fail early on save"
+                        ):
+                            wf.storage_backend = backend
+                            wf.save()
+            finally:
+                wf.remove_node(wf.import_type_mismatch)
+
+        if "h5io" in ALLOWED_BACKENDS:
+            wf.add_node(PlusOne(label="local_but_importable"))
+            try:
+                wf.storage_backend = "h5io"
+                wf.save()
+                Workflow(wf.label, storage_backend="h5io")
+            finally:
+                wf.storage.delete()
+
+        if "tinybase" in ALLOWED_BACKENDS:
+            with self.assertRaises(
+                NotImplementedError,
+                msg="Storage docs for tinybase claim all children must be registered "
+                    "nodes"
+            ):
+                wf.storage_backend = "tinybase"
+                wf.save()
+
+        if "h5io" in ALLOWED_BACKENDS:
+            with self.subTest("Instanced node"):
+                wf.direct_instance = Workflow.create.Function(plus_one)
+                try:
+                    with self.assertRaises(
+                        TypeError,
+                        msg="No direct node instances, only children with functions as "
+                            "_class_ attribtues"
+                    ):
+                        wf.storage_backend = "h5io"
+                        wf.save()
+                finally:
+                    wf.remove_node(wf.direct_instance)
+                    wf.storage.delete()
+
+        with self.subTest("Unimportable node"):
+            @Workflow.wrap_as.single_value_node("y")
+            def UnimportableScope(x):
+                return x
+
+            wf.unimportable_scope = UnimportableScope()
+
+            if "h5io" in ALLOWED_BACKENDS:
+                try:
+                    with self.assertRaises(
+                        TypeNotFoundError,
+                        msg="Nodes must live in an importable scope to save with the "
+                            "h5io backend"
+                    ):
+                        wf.storage_backend = "h5io"
+                        wf.save()
+                finally:
+                    wf.remove_node(wf.unimportable_scope)
+                    wf.storage.delete()
 
 
 if __name__ == '__main__':
