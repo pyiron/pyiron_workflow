@@ -32,7 +32,7 @@ setup(
         'cloudpickle==3.0.0',
         'graphviz==0.20.1',
         'h5io==0.2.2',
-        'h5io_browser==0.0.10',
+        'h5io_browser==0.0.9',
         'matplotlib==3.8.3',
         'pyiron_base==0.7.9',
         'pyiron_contrib==0.1.15',
