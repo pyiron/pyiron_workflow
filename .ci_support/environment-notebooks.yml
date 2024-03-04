@@ -8,6 +8,5 @@ dependencies:
   - pandas =2.2.0
   - phonopy =2.21.2
   - pyiron_atomistics =0.4.17
-  - pyiron_contrib =0.1.15
   - pyiron-data =0.0.29
   - numpy =1.26.4
