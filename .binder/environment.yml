@@ -8,8 +8,8 @@ dependencies:
 - graphviz =8.1.0
 - h5io =0.2.2
 - h5io_browser =0.0.9
-- matplotlib =3.8.2
-- pyiron_base =0.7.8
+- matplotlib =3.8.3
+- pyiron_base =0.7.9
 - pyiron_contrib =0.1.15
 - pympipool =0.7.13
 - python-graphviz =0.20.1
@@ -18,7 +18,7 @@ dependencies:
 - ase =3.22.1
 - atomistics =0.1.23
 - lammps
-- phonopy =2.21.0
-- pyiron_atomistics =0.4.15
-- pyiron-data =0.0.27
+- phonopy =2.21.2
+- pyiron_atomistics =0.4.17
+- pyiron-data =0.0.29
 - numpy =1.26.4
