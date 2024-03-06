@@ -157,8 +157,8 @@ class FileObject:
     def _resolve_directory_and_path(
         self,
         file_name: str,
-        directory: DirectoryObject | str | None=None,
-        default_directory: str=".",
+        directory: DirectoryObject | str | None = None,
+        default_directory: str = ".",
     ):
         """
         Internal routine to separate the file name and the directory in case
@@ -186,8 +186,8 @@ class FileObject:
 
     def copy(
         self,
-        new_file_name: str | None=None,
-        directory: DirectoryObject | str | None=None
+        new_file_name: str | None = None,
+        directory: DirectoryObject | str | None = None
     ):
         """
         Copy an existing file to a new location.
