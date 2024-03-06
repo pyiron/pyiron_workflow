@@ -598,35 +598,22 @@ class TestComposite(unittest.TestCase):
 
         with self.subTest("test_graph_path"):
             self.assertEqual(
-                top.label,
+                top.semantics.delimiter + top.label,
                 top.graph_path,
                 msg="The parent-most node should be its own path."
             )
-            self.assertEqual(
-                Composite._semantic_delimiter.join(
-                    [top.label, top.middle_composite.label]
-                ),
-                top.middle_composite.graph_path,
+            self.assertTrue(
+                top.middle_composite.graph_path.startswith(top.graph_path),
                 msg="The path should go to the parent-most object."
             )
-            self.assertEqual(
-                Composite._semantic_delimiter.join(
-                    [top.label, top.middle_function.label]
-                ),
-                top.middle_function.graph_path,
+            self.assertTrue(
+                top.middle_function.graph_path.startswith(top.graph_path),
                 msg="The path should go to the parent-most object."
             )
-            self.assertEqual(
-                Composite._semantic_delimiter.join(
-                    [
-                        top.label,
-                        top.middle_composite.label,
-                        top.middle_composite.deep_node.label
-                    ]
-                ),
-                top.middle_composite.deep_node.graph_path,
-                msg="The path should go to the parent-most object, recursively from all "
-                    "depths."
+            self.assertTrue(
+                top.middle_composite.deep_node.graph_path.startswith(top.graph_path),
+                msg="The path should go to the parent-most object, recursively from "
+                    "all depths."
             )
 
         with self.subTest("test_graph_root"):

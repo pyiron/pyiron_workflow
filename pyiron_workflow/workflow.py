@@ -10,6 +10,7 @@ from typing import Literal, Optional, TYPE_CHECKING
 
 from pyiron_workflow.composite import Composite
 from pyiron_workflow.io import Inputs, Outputs
+from pyiron_workflow.semantics import Parentmost
 
 
 if TYPE_CHECKING:
@@ -20,7 +21,7 @@ if TYPE_CHECKING:
     from pyiron_workflow.node import Node
 
 
-class Workflow(Composite):
+class Workflow(Composite, Parentmost):
     """
     Workflows are a dynamic composite node -- i.e. they hold and run a collection of
     nodes (a subgraph) which can be dynamically modified (adding and removing nodes,
@@ -262,19 +263,15 @@ class Workflow(Composite):
         """
         raise NotImplementedError
 
-    @property
-    def _parent(self) -> None:
-        return None
-
-    @_parent.setter
-    def _parent(self, new_parent: None):
+    @classmethod
+    def _parent_most_object_parent_setter(cls, new_parent: None):
         # Currently workflows are not allowed to have a parent -- maybe we want to
         # change our minds on this in the future? If we do, we can just expose `parent`
         # as a kwarg and roll back this private var/property/setter protection and let
         # the super call in init handle everything
         if new_parent is not None:
             raise TypeError(
-                f"{self.__class__} may only take None as a parent but got "
+                f"{cls.__name__} may only take None as a parent but got "
                 f"{type(new_parent)}"
             )
 

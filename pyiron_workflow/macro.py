@@ -295,7 +295,6 @@ class Macro(Composite):
             # If a callable graph creator is received, use it
             self.graph_creator = graph_creator
 
-        self._parent = None
         super().__init__(
             label=label if label is not None else self.graph_creator.__name__,
             parent=parent,

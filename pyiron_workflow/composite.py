@@ -202,7 +202,7 @@ class Composite(Node, ABC):
     def _parse_remotely_executed_self(self, other_self):
         # Un-parent existing nodes before ditching them
         for node in self:
-            node._parent = None
+            node.semantics.parent = None
         other_self.running = False  # It's done now
         self.__setstate__(other_self.__getstate__())
 
@@ -326,7 +326,7 @@ class Composite(Node, ABC):
 
             self.nodes[label] = node
             node.label = label
-            node._parent = self
+            node.semantics.parent = self
         return node
 
     def _get_unique_label(self, label):
@@ -391,7 +391,7 @@ class Composite(Node, ABC):
             (list[tuple[Channel, Channel]]): Any connections that node had.
         """
         node = self.nodes[node] if isinstance(node, str) else node
-        node._parent = None
+        node.semantics.parent = None
         disconnected = node.disconnect()
         if node in self.starting_nodes:
             self.starting_nodes.remove(node)
@@ -528,7 +528,7 @@ class Composite(Node, ABC):
             node.executor_shutdown(wait=wait, cancel_futures=cancel_futures)
 
     def __setattr__(self, key: str, node: Node):
-        if isinstance(node, Node) and key != "_parent":
+        if isinstance(node, Node):
             self.add_node(node, label=key)
         elif (
             isinstance(node, type)
@@ -709,10 +709,10 @@ class Composite(Node, ABC):
 
         super().__setstate__(state)
 
-        # Nodes purge their _parent information in their __getstate__
+        # Nodes purge their semantics.parent information in their __getstate__
         # so return it to them:
         for node in self:
-            node._parent = self
+            node.semantics.parent = self
         # Nodes don't store connection information, so restore it to them
         self._restore_data_connections_from_strings(child_data_connections)
         self._restore_signal_connections_from_strings(child_signal_connections)
