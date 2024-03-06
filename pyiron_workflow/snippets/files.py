@@ -187,7 +187,7 @@ class FileObject:
     def copy(
         self,
         new_file_name: str | None = None,
-        directory: DirectoryObject | str | None = None
+        directory: DirectoryObject | str | None = None,
     ):
         """
         Copy an existing file to a new location.
@@ -206,9 +206,7 @@ class FileObject:
                 )
             new_file_name = self.file_name
         file_name, directory = self._resolve_directory_and_path(
-           new_file_name,
-           directory,
-           default_directory=self.directory.path
+           new_file_name, directory, default_directory=self.directory.path
         )
         new_file = FileObject(file_name, directory.path)
         shutil.copy(str(self.path), str(new_file.path))
