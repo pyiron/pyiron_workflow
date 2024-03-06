@@ -29,10 +29,38 @@ class _WithAJob(unittest.TestCase, ABC):
 
 
 class TestNodeOutputJob(_WithAJob):
-    def make_a_job_from_node(self, node):
-        job = self.pr.create.job.NodeOutputJob(node.label)
+    def make_a_job_from_node(self, node, job_name=None):
+        job = self.pr.create.job.NodeOutputJob(
+            node.label if job_name is None else job_name
+        )
         job.input["node"] = node
         return job
+
+    @unittest.skipIf(sys.version_info < (3, 11), "Storage will only work in 3.11+")
+    def test_job_name_override(self):
+        job_name = "my_name"
+        job = self.make_a_job_from_node(
+            Workflow.create.standard.UserInput(42),
+            job_name=job_name
+        )
+        self.assertEqual(
+            job_name,
+            job.job_name,
+            msg="Sanity check"
+        )
+        try:
+            job.save()
+            self.assertEqual(
+                job_name,
+                job.job_name,
+                msg="Standard behaviour for the parent class is to dynamically rename "
+                    "the job at save time; since we create these jobs as usual from "
+                    "the job creator, this is just confusing and we want to avoid it. "
+                    "If this behaviour is every changed in pyiron_base, the override "
+                    "and this test can both be removed."
+            )
+        finally:
+            job.remove()
 
     @unittest.skipIf(sys.version_info >= (3, 11), "Storage should only work in 3.11+")
     def test_clean_failure(self):

@@ -828,6 +828,7 @@ class Node(HasToDict, ABC, metaclass=AbstractHasPost):
         self,
         depth: int = 1,
         rankdir: Literal["LR", "TB"] = "LR",
+        size: Optional[tuple] = None,
         save: bool = False,
         view: bool = False,
         directory: Optional[Path | str] = None,
@@ -854,6 +855,9 @@ class Node(HasToDict, ABC, metaclass=AbstractHasPost):
                 max depth of the node will have no adverse side effects.
             rankdir ("LR" | "TB"): Use left-right or top-bottom graphviz `rankdir` to
                 orient the flow of the graph.
+            size (tuple[int | float, int | float] | None): The size of the diagram, in
+                inches(?); respects ratio by scaling until at least one dimension
+                matches the requested size. (Default is None, automatically size.)
             save (bool): Render the graph image. (Default is False. When True, all
                 other defaults will yield a PDF in the node's working directory.)
             view (bool): `graphviz.Graph.render` argument, open the rendered result
@@ -873,7 +877,9 @@ class Node(HasToDict, ABC, metaclass=AbstractHasPost):
         Returns:
             (graphviz.graphs.Digraph): The resulting graph object.
         """
-        graph = GraphvizNode(self, depth=depth, rankdir=rankdir).graph
+        if size is not None:
+            size = f"{size[0]},{size[1]}"
+        graph = GraphvizNode(self, depth=depth, rankdir=rankdir, size=size).graph
         if save or view or filename is not None:
             directory = self.working_directory.path if directory is None else directory
             filename = self.label + "_graph" if filename is None else filename
