@@ -153,7 +153,6 @@ class FileObject:
 
     def delete(self):
         self.path.unlink()
-<<<<<<< HEAD
 
     def _resolve_directory_and_path(
         self,
