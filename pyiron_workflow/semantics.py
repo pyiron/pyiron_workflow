@@ -23,13 +23,20 @@ class Semantic(ABC):
     delimiter = "/"
 
     def __init__(
-        self, label: str, parent: Optional[Semantic] = None
+        self,
+        label: str,
+        *args,
+        parent: Optional[Semantic] = None,
+        strict_naming: bool = True,
+        **kwargs
     ):
         self._label = None
         self._parent = None
         self._children = bidict()
         self.label = label
         self.parent = parent
+        self.strict_naming = strict_naming
+        super().__init__(self, *args, **kwargs)
 
     @property
     def label(self) -> str:
