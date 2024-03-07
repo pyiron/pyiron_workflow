@@ -94,7 +94,7 @@ class Composite(Node, ABC):
         remove_child(node: Node): Break all connections the node has, remove_child it from this
          subgraph, and set its parent to `None`.
         (de)activate_strict_hints(): Recursively (de)activate strict type hints.
-        replace_node(owned_node: Node | str, replacement: Node | type[Node]): Replaces an
+        replace_child(owned_node: Node | str, replacement: Node | type[Node]): Replaces an
             owned node with a new node, as long as the new node's IO is commensurate
             with the node being replaced.
         register(): A short-cut to registering a new node package with the node creator.
@@ -329,7 +329,7 @@ class Composite(Node, ABC):
         disconnected = child.disconnect()
         return disconnected
 
-    def replace_node(
+    def replace_child(
         self, owned_node: Node | str, replacement: Node | type[Node]
     ) -> Node:
         """
@@ -400,7 +400,7 @@ class Composite(Node, ABC):
         except Exception as e:
             # If IO can't be successfully rebuilt using this node, revert changes and
             # raise the exception
-            self.replace_node(replacement, owned_node)  # Guaranteed to work since
+            self.replace_child(replacement, owned_node)  # Guaranteed to work since
             # replacement in the other direction was already a success
             raise e
 
@@ -467,7 +467,7 @@ class Composite(Node, ABC):
             and key in self.nodes.keys()
         ):
             # When a class is assigned to an existing node, try a replacement
-            self.replace_node(key, node)
+            self.replace_child(key, node)
         else:
             super().__setattr__(key, node)
 

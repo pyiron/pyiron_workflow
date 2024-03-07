@@ -1072,7 +1072,7 @@ class Node(HasToDict, Semantic, ABC, metaclass=AbstractHasPost):
 
     def replace_with(self, other: Node | type[Node]):
         """
-        If this node has a parent, invokes `self.parent.replace_node(self, other)` to swap
+        If this node has a parent, invokes `self.parent.replace_child(self, other)` to swap
         out this node for the other node in the parent graph.
 
         The replacement must have fully compatible IO, i.e. its IO must be a superset of
@@ -1086,7 +1086,7 @@ class Node(HasToDict, Semantic, ABC, metaclass=AbstractHasPost):
         if self.parent is not None:
             self.parent.replace_node(self, other)
         else:
-            warnings.warn(f"Could not replace_node {self.label}, as it has no parent.")
+            warnings.warn(f"Could not replace_child {self.label}, as it has no parent.")
 
     def __getstate__(self):
         state = dict(self.__dict__)

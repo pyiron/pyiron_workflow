@@ -270,7 +270,7 @@ class TestComposite(unittest.TestCase):
         with self.subTest("Verify success cases"):
             self.assertEqual(3, self.comp.run().y, msg="Sanity check")
 
-            self.comp.replace_node(n1, replacement)
+            self.comp.replace_child(n1, replacement)
             out = self.comp.run(x=0)
             self.assertEqual(
                 (0+2) + 1 + 1, out.y, msg="Should be able to replace by instance"
@@ -278,7 +278,7 @@ class TestComposite(unittest.TestCase):
             self.assertEqual(
                 0 - 2, out.n1__minus, msg="Replacement output should also appear"
             )
-            self.comp.replace_node(replacement, n1)
+            self.comp.replace_child(replacement, n1)
             self.assertFalse(
                 replacement.connected, msg="Replaced nodes should be disconnected"
             )
@@ -286,15 +286,15 @@ class TestComposite(unittest.TestCase):
                 replacement.parent, msg="Replaced nodes should be orphaned"
             )
 
-            self.comp.replace_node("n2", replacement)
+            self.comp.replace_child("n2", replacement)
             out = self.comp.run(x=0)
             self.assertEqual(
                 (0 + 1) + 2 + 1, out.y, msg="Should be able to replace by label"
             )
             self.assertEqual(1 - 2, out.n2__minus)
-            self.comp.replace_node(replacement, n2)
+            self.comp.replace_child(replacement, n2)
 
-            self.comp.replace_node(n3, x_plus_minus_z)
+            self.comp.replace_child(n3, x_plus_minus_z)
             out = self.comp.run(x=0)
             self.assertEqual(
                 (0 + 1) + 2 + 1, out.y, msg="Should be able to replace with a class"
@@ -306,7 +306,7 @@ class TestComposite(unittest.TestCase):
                 msg="Sanity check -- when replacing with class, a _new_ instance "
                     "should be created"
             )
-            self.comp.replace_node(self.comp.n3, n3)
+            self.comp.replace_child(self.comp.n3, n3)
 
             self.comp.n1 = x_plus_minus_z
             self.assertEqual(
@@ -315,7 +315,7 @@ class TestComposite(unittest.TestCase):
                 msg="Assigning a new _class_ to an existing node should be a shortcut "
                     "for replacement"
             )
-            self.comp.replace_node(self.comp.n1, n1)  # Return to original state
+            self.comp.replace_child(self.comp.n1, n1)  # Return to original state
 
             self.comp.n1 = different_input_channel
             self.assertEqual(
@@ -324,7 +324,7 @@ class TestComposite(unittest.TestCase):
                 msg="Different IO should be compatible as long as what's missing is "
                     "not connected"
             )
-            self.comp.replace_node(self.comp.n1, n1)
+            self.comp.replace_child(self.comp.n1, n1)
 
             self.comp.n3 = different_output_channel
             self.assertEqual(
@@ -333,7 +333,7 @@ class TestComposite(unittest.TestCase):
                 msg="Different IO should be compatible as long as what's missing is "
                     "not connected"
             )
-            self.comp.replace_node(self.comp.n3, n3)
+            self.comp.replace_child(self.comp.n3, n3)
 
         with self.subTest("Verify failure cases"):
             self.assertEqual(3, self.comp.run().y, msg="Sanity check")
@@ -345,7 +345,7 @@ class TestComposite(unittest.TestCase):
                 ValueError,
                 msg="Should fail when replacement has a parent"
             ):
-                self.comp.replace_node(self.comp.n1, another_node)
+                self.comp.replace_child(self.comp.n1, another_node)
 
             another_comp.remove_child(another_node)
             another_node.inputs.x = replacement.outputs.y
@@ -353,14 +353,14 @@ class TestComposite(unittest.TestCase):
                 ValueError,
                 msg="Should fail when replacement is connected"
             ):
-                self.comp.replace_node(self.comp.n1, another_node)
+                self.comp.replace_child(self.comp.n1, another_node)
 
             another_node.disconnect()
             with self.assertRaises(
                 ValueError,
                 msg="Should fail if the node being replaced isn't a child"
             ):
-                self.comp.replace_node(replacement, another_node)
+                self.comp.replace_child(replacement, another_node)
 
             @Composite.wrap_as.single_value_node("y")
             def wrong_hint(x: float = 0) -> float:

@@ -538,7 +538,7 @@ class TestMacro(unittest.TestCase):
                         label="m", x=0, storage_backend=backend
                     )
                     original_result = macro()
-                    macro.replace_node(macro.two, Macro.create.demo.AddPlusOne())
+                    macro.replace_child(macro.two, Macro.create.demo.AddPlusOne())
 
                     if backend == "h5io":
                         # Go really wild and actually change the interface to the node
