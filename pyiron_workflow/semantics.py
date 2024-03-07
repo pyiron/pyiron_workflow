@@ -193,7 +193,7 @@ class HasSemanticChildren(ABC):
             if existing_child is child:
                 if label is None or label == child.label:
                     # Exit early if nothing is changing
-                    return
+                    return child
                 else:
                     # We're moving the child to a new label, delete the old location
                     del self.children[child.label]
