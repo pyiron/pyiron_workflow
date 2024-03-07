@@ -26,7 +26,7 @@ class Semantic(ABC):
     An object with a unique semantic path
     """
 
-    delimiter = "/"
+    semantic_delimiter = "/"
 
     def __init__(
         self,
@@ -49,8 +49,8 @@ class Semantic(ABC):
     def label(self, new_label: str) -> None:
         if not isinstance(new_label, str):
             raise TypeError(f"Expected a string label but got {new_label}")
-        if self.delimiter in new_label:
-            raise ValueError(f"{self.delimiter} cannot be in the label")
+        if self.semantic_delimiter in new_label:
+            raise ValueError(f"{self.semantic_delimiter} cannot be in the label")
         self._label = new_label
 
     @property
@@ -82,7 +82,7 @@ class Semantic(ABC):
         node.
         """
         prefix = "" if self.parent is None else self.parent.path
-        return prefix + self.delimiter + self.label
+        return prefix + self.semantic_delimiter + self.label
 
     @property
     def semantic_root(self) -> Semantic:
