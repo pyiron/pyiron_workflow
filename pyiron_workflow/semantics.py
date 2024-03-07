@@ -263,7 +263,7 @@ class _HasSemanticChildren(ABC):
         if isinstance(child, str):
             child = self.children.pop(child)
         elif isinstance(child, Semantic):
-            self.children.pop(child)
+            self.children.inv.pop(child)
         else:
             raise TypeError(
                 f"{self.label} expected to remove a child of type str or "
