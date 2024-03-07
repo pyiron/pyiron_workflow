@@ -133,7 +133,7 @@ class _HasSemanticChildren(ABC):
     ):
         self._children = bidict()
         self.strict_naming = strict_naming
-        super().__init__(self, *args, **kwargs)
+        super().__init__(*args, **kwargs)
 
     @property
     def children(self) -> bidict[str: Semantic]:
