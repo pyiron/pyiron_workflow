@@ -602,6 +602,13 @@ class OutputData(DataChannel):
     def __getattr__(self, name):
         from pyiron_workflow.node_library.standard import GetAttr
 
+        if name == "to_hdf":
+            raise AttributeError(
+                "This is just a failsafe to protect us against other elements of the "
+                "pyiron ecosystem (pyiron_base's DataContainer) running a "
+                "`hasattr('to_hdf')` check on us and accidentally injecting a new "
+                "getattr node."
+            )
         return self._node_injection(GetAttr, name)
 
     def __getitem__(self, item):
