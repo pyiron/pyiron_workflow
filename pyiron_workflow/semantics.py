@@ -87,7 +87,7 @@ class Semantic(ABC):
     @property
     def semantic_root(self) -> Semantic:
         """The parent-most object in this semantic path; may be self."""
-        return self if self.parent is None else self.semantic_root
+        return self if self.parent is None else self.parent.semantic_root
 
     def __getstate__(self):
         state = dict(self.__dict__)
@@ -199,7 +199,8 @@ class _HasSemanticChildren(ABC):
         self._ensure_child_has_no_other_parent(child)
 
         label = child.label if label is None else label
-        if label not in self.children.keys():  # Otherwise conflict may get resolved
+        if label not in self.child_labels:  # Otherwise conflict may get resolved
+            print(label, self.child_labels, self.__dir__())
             self._ensure_label_does_not_conflict_with_attr(label)
 
         strict_naming = self.strict_naming if strict_naming is None else strict_naming
@@ -228,7 +229,7 @@ class _HasSemanticChildren(ABC):
         # Finally, update label and reflexively form the parent-child relationship
         child.label = label
         self.children[child.label] = child
-        child.parent = self
+        child._parent = self
         return child
 
     def _ensure_child_has_no_other_parent(self, child: Semantic):
