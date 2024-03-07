@@ -150,6 +150,15 @@ class _HasSemanticChildren(ABC):
                 f"({self.children.keys()})"
             )
 
+    def __iter__(self):
+        return self.children.values().__iter__()
+
+    def __len__(self):
+        return len(self.nodes)
+
+    def __dir__(self):
+        return set(super().__dir__() + list(self.children.keys()))
+
     def add_child(
         self,
         child: Semantic,
