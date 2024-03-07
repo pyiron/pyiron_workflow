@@ -76,7 +76,7 @@ class Semantic(ABC):
         self._parent.add_child(self)
 
     @property
-    def path(self) -> str:
+    def semantic_path(self) -> str:
         """
         The path of node labels from the graph root (parent-most node) down to this
         node.
@@ -85,9 +85,9 @@ class Semantic(ABC):
         return prefix + self.delimiter + self.label
 
     @property
-    def root(self) -> Semantic:
+    def semantic_root(self) -> Semantic:
         """The parent-most object in this semantic path; may be self."""
-        return self if self.parent is None else self.root
+        return self if self.parent is None else self.semantic_root
 
     def __getstate__(self):
         state = dict(self.__dict__)
