@@ -187,8 +187,8 @@ class _HasSemanticChildren(ABC):
             TypeError: When the child is not of an allowed class.
             ValueError: When the child has a different parent already.
             AttributeError: When the label is already an attribute (but not a child).
-            ValueError: When the label conflicts with another child and `strict_naming`
-                is true.
+            AttributeError: When the label conflicts with another child and
+                `strict_naming` is true.
 
         """
         if not isinstance(child, Semantic):
@@ -216,7 +216,7 @@ class _HasSemanticChildren(ABC):
                     del self.children[child.label]
             else:
                 if strict_naming:
-                    raise ValueError(
+                    raise AttributeError(
                         f"{self.label} cannot add the child {child.label} "
                         f"because another child already exists with this name"
                     )
