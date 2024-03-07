@@ -199,36 +199,20 @@ class _HasSemanticChildren(ABC):
         self._ensure_child_has_no_other_parent(child)
 
         label = child.label if label is None else label
-        if label not in self.child_labels:  # Otherwise conflict may get resolved
-            self._ensure_label_does_not_conflict_with_attr(label)
-
         strict_naming = self.strict_naming if strict_naming is None else strict_naming
 
-        try:
-            existing_child = self.children[label]
-            if existing_child is child:
-                if label is None or label == child.label:
-                    # Exit early if nothing is changing
-                    return child
-                else:
-                    # We're moving the child to a new label, delete the old location
-                    del self.children[child.label]
-            else:
-                if strict_naming:
-                    raise AttributeError(
-                        f"{self.label} cannot add the child {child.label} "
-                        f"because another child already exists with this name"
-                    )
-                else:
-                    label = self._add_suffix_to_label(child.label)
-        except KeyError:
-            # If it's a new name, only make sure the name is legal
-            self._ensure_label_does_not_conflict_with_attr(label)
+        if self._this_child_is_already_at_this_label(child, label):
+            pass
+        else:
+            label = self._get_unique_label(label, strict_naming)
 
-        # Finally, update label and reflexively form the parent-child relationship
-        child.label = label
-        self.children[child.label] = child
-        child._parent = self
+            if self._this_child_is_already_at_a_different_label(child, label):
+                self.children.inv.pop(child)
+
+            # Finally, update label and reflexively form the parent-child relationship
+            child.label = label
+            self.children[child.label] = child
+            child._parent = self
         return child
 
     def _ensure_child_has_no_other_parent(self, child: Semantic):
@@ -239,12 +223,32 @@ class _HasSemanticChildren(ABC):
                 f"add it to this parent ({self.label})."
             )
 
-    def _ensure_label_does_not_conflict_with_attr(self, label: str):
+    def _this_child_is_already_at_this_label(self, child: Semantic, label: str):
+        return (
+            label == child.label
+            and label in self.child_labels
+            and self.children[label] is child
+        )
+
+    def _this_child_is_already_at_a_different_label(self, child, label):
+        return child.parent is self and label != child.label
+
+    def _get_unique_label(self, label: str, strict_naming: bool):
         if label in self.__dir__():
-            raise AttributeError(
-                f"{label} is already in the __dir__ of {self.label}, please choose a "
-                f"different label."
-            )
+            if label in self.child_labels:
+                if strict_naming:
+                    raise AttributeError(
+                        f"{label} is already the label for a child. Please remove it "
+                        f"before assigning another child to this label."
+                    )
+                else:
+                    label = self._add_suffix_to_label(label)
+            else:
+                raise AttributeError(
+                    f"{label} is an attribute or method of the {self.__class__} class, "
+                    f"and cannot be used as a child label."
+                )
+        return label
 
     def _add_suffix_to_label(self, label):
         i = 0
