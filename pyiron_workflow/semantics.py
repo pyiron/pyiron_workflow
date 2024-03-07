@@ -3,8 +3,10 @@ from __future__ import annotations
 from abc import ABC
 from typing import Optional
 
+from bidict import bidict
 
-class Semantics:
+
+class Semantics(ABC):
     """
     Base class for "semantic" objects.
 
@@ -26,6 +28,7 @@ class Semantics:
         self._owner = owner
         self._label = None
         self._parent = None
+        self._children = bidict()
         self.label = label
         self.parent = parent
 
@@ -47,6 +50,10 @@ class Semantics:
 
     @parent.setter
     def parent(self, new_parent: HasSemantics | None) -> None:
+        if new_parent is self._parent:
+            # Exit early if nothing is changing
+            return
+
         if new_parent is not None:
             if isinstance(self._owner, Parentmost):
                 raise TypeError(
@@ -58,7 +65,53 @@ class Semantics:
                     f"Expected None or another {HasSemantics.__name__} for the "
                     f"semantic parent of {self.label}, but got {new_parent}"
                 )
+
+        if self._parent is not None and new_parent is not self._parent:
+            self._parent.remove_child(self)
         self._parent = new_parent
+        self._parent.semantics.add_child(self._owner)
+
+    @property
+    def children(self) -> bidict[str: HasSemantics]:
+        return self._children
+
+    def add_child(self, child: HasSemantics):
+        if not isinstance(child, HasSemantics):
+            raise TypeError(
+                f"{self.label} expected a new child of type {HasSemantics.__name__} "
+                f"but got {child}"
+            )
+
+        try:
+            existing_child = self.children[child.semantics.label]
+            if existing_child is child:
+                # Exit early if nothing is changing
+                return
+            else:
+                raise ValueError(
+                    f"{self.label} cannot add the child {child.semantics.label} "
+                    f"because another child already exists with this name"
+                )
+        except KeyError:
+            # If it's a new name, that's fine
+            pass
+
+        self.children[child.semantics.label] = child
+        child.semantics.parent = self._owner
+
+    def remove_child(self, child: HasSemantics | str):
+        if isinstance(child, str):
+            child = self.children.pop(child)
+        elif isinstance(child, HasSemantics):
+            self.children.pop(child)
+        else:
+            raise TypeError(
+                f"{self.label} expected to remove a child of type str or "
+                f"{HasSemantics.__name__} but got {child}"
+            )
+
+        if child.semantics.parent is not None:
+            child.semantics.parent = None
 
     @property
     def path(self) -> str:
