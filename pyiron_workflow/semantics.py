@@ -6,7 +6,7 @@ from typing import Optional
 from bidict import bidict
 
 
-class Semantics(ABC):
+class Semantic(ABC):
     """
     Base class for "semantic" objects.
 
@@ -23,9 +23,8 @@ class Semantics(ABC):
     delimiter = "/"
 
     def __init__(
-        self, owner: HasSemantics, label: str, parent: Optional[HasSemantics] = None
+        self, label: str, parent: Optional[Semantic] = None
     ):
-        self._owner = owner
         self._label = None
         self._parent = None
         self._children = bidict()
@@ -45,73 +44,68 @@ class Semantics(ABC):
         self._label = new_label
 
     @property
-    def parent(self) -> HasSemantics | None:
+    def parent(self) -> Semantic | None:
         return self._parent
 
     @parent.setter
-    def parent(self, new_parent: HasSemantics | None) -> None:
+    def parent(self, new_parent: Semantic | None) -> None:
         if new_parent is self._parent:
             # Exit early if nothing is changing
             return
 
         if new_parent is not None:
-            if isinstance(self._owner, Parentmost):
-                raise TypeError(
-                    f"{self.label} is {Parentmost.__name__}, and cannot receive a "
-                    f"parent"
-                )
-            if not isinstance(new_parent, HasSemantics):
+            if not isinstance(new_parent, Semantic):
                 raise ValueError(
-                    f"Expected None or another {HasSemantics.__name__} for the "
+                    f"Expected None or another {Semantic.__name__} for the "
                     f"semantic parent of {self.label}, but got {new_parent}"
                 )
 
         if self._parent is not None and new_parent is not self._parent:
             self._parent.remove_child(self)
         self._parent = new_parent
-        self._parent.semantics.add_child(self._owner)
+        self._parent.add_child(self)
 
     @property
-    def children(self) -> bidict[str: HasSemantics]:
+    def children(self) -> bidict[str: Semantic]:
         return self._children
 
-    def add_child(self, child: HasSemantics):
-        if not isinstance(child, HasSemantics):
+    def add_child(self, child: Semantic):
+        if not isinstance(child, Semantic):
             raise TypeError(
-                f"{self.label} expected a new child of type {HasSemantics.__name__} "
+                f"{self.label} expected a new child of type {Semantic.__name__} "
                 f"but got {child}"
             )
 
         try:
-            existing_child = self.children[child.semantics.label]
+            existing_child = self.children[child.label]
             if existing_child is child:
                 # Exit early if nothing is changing
                 return
             else:
                 raise ValueError(
-                    f"{self.label} cannot add the child {child.semantics.label} "
+                    f"{self.label} cannot add the child {child.label} "
                     f"because another child already exists with this name"
                 )
         except KeyError:
             # If it's a new name, that's fine
             pass
 
-        self.children[child.semantics.label] = child
-        child.semantics.parent = self._owner
+        self.children[child.label] = child
+        child.parent = self
 
-    def remove_child(self, child: HasSemantics | str):
+    def remove_child(self, child: Semantic | str):
         if isinstance(child, str):
             child = self.children.pop(child)
-        elif isinstance(child, HasSemantics):
+        elif isinstance(child, Semantic):
             self.children.pop(child)
         else:
             raise TypeError(
                 f"{self.label} expected to remove a child of type str or "
-                f"{HasSemantics.__name__} but got {child}"
+                f"{Semantic.__name__} but got {child}"
             )
 
-        if child.semantics.parent is not None:
-            child.semantics.parent = None
+        if child.parent is not None:
+            child.parent = None
 
     @property
     def path(self) -> str:
@@ -119,13 +113,13 @@ class Semantics(ABC):
         The path of node labels from the graph root (parent-most node) down to this
         node.
         """
-        prefix = "" if self.parent is None else self.parent.semantics.path
+        prefix = "" if self.parent is None else self.parent.path
         return prefix + self.delimiter + self.label
 
     @property
-    def root(self) -> HasSemantics:
+    def root(self) -> Semantic:
         """The parent-most object in this semantic path; may be self."""
-        return self._owner if self.parent is None else self.parent.semantics.root
+        return self if self.parent is None else self.root
 
     def __getstate__(self):
         state = dict(self.__dict__)
@@ -156,38 +150,7 @@ class Semantics(ABC):
         # for the record I am admitting that the current shallowness of my understanding
         # may cause me/us headaches in the future.
         # -Liam
-        state["_owner"] = None
-        # We do the same thing for "owner", but only because h5io can't handle any
-        # recursion; this object and its owner always come together so there's no
-        # efficiency reason for this, it's just to accommodate the backend tool...
         return state
 
     def __setstate__(self, state):
         self.__dict__.update(**state)
-
-
-class HasSemantics(ABC):
-    """A mixin for classes with a semantic component."""
-    def __init__(
-        self,
-        semantic_label,
-        *args,
-        semantic_parent: Optional[HasSemantics] = None,
-        **kwargs
-    ):
-        self._semantics = Semantics(self, semantic_label, semantic_parent)
-        super().__init__(*args, **kwargs)
-
-    @property
-    def semantics(self) -> Semantics:
-        return self._semantics
-
-    def __setstate__(self, state):
-        self.__dict__.update(state)
-
-        self.semantics._owner = self
-        # Re-set self to accommodate h5io's recursion aversion
-
-
-class Parentmost(HasSemantics, ABC):
-    """Has semantics, but will not accept a parent assignment"""
