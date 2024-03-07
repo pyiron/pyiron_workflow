@@ -139,6 +139,10 @@ class _HasSemanticChildren(ABC):
     def children(self) -> bidict[str: Semantic]:
         return self._children
 
+    @property
+    def child_labels(self) -> tuple[str]:
+        return tuple(child.label for child in self)
+
     def __getattr__(self, key):
         try:
             return self.children[key]
@@ -269,6 +273,33 @@ class _HasSemanticChildren(ABC):
         child.parent = None
 
         return child
+
+    def __getstate__(self):
+        try:
+            state = super().__getstate__()
+        except AttributeError:
+            state = dict(self.__dict__)
+
+        # Remove the children from the state and store each element right in the state
+        # -- the labels are guaranteed to not be attributes already so this is safe,
+        # and it makes sure that the state path matches the semantic path
+        del state["_children"]
+        state["child_labels"] = self.node_labels
+        for child in self:
+            state[child.label] = child
+
+        return state
+
+    def __setstate__(self, state):
+        # Reconstruct children from state
+        state["_children"] = bidict(
+            {label: state[label] for label in state.pop("child_labels")}
+        )
+
+        try:
+            super().__setstate__(state)
+        except AttributeError:
+            self.__dict__.update(**state)
 
 
 class SemanticParent(Semantic, _HasSemanticChildren, ABC):
