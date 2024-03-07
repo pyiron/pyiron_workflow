@@ -6,7 +6,16 @@ from typing import Optional
 
 class Semantics:
     """
-    A component for describing the linear semantic relationship between objects.
+    Base class for "semantic" objects.
+
+    The motivation here is to be able to provide the object with a unique identifier
+    in the context of other semantic objects. Each object may have exactly one parent
+    and an arbitrary number of children, and each child's name must be unique in the
+    scope of that parent. In this way, the path from the parent-most object to any
+    child is completely unique. The typical filesystem on a computer is an excellent
+    example and fulfills our requirements, the only reason we depart from it is so that
+    we are free to have objects stored in different locations (possibly even on totally
+    different drives or machines) belong to the same semantic group.
     """
 
     delimiter = "/"
