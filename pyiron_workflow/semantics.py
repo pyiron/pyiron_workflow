@@ -270,7 +270,7 @@ class _HasSemanticChildren(ABC):
                 f"{Semantic.__name__} but got {child}"
             )
 
-        child.parent = None
+        child._parent = None
 
         return child
 
