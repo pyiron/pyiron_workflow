@@ -90,8 +90,8 @@ class Composite(Node, ABC):
         wrap_as (Wrappers): A tool for accessing node-creating decorators
 
     Methods:
-        add_node(node: Node): Add the node instance to this subgraph.
-        remove_node(node: Node): Break all connections the node has, remove_node it from this
+        add_child(node: Node): Add the node instance to this subgraph.
+        remove_child(node: Node): Break all connections the node has, remove_child it from this
          subgraph, and set its parent to `None`.
         (de)activate_strict_hints(): Recursively (de)activate strict type hints.
         replace_node(owned_node: Node | str, replacement: Node | type[Node]): Replaces an
@@ -301,101 +301,32 @@ class Composite(Node, ABC):
     def _build_outputs(self) -> Outputs:
         return self._build_io("outputs", self.outputs_map)
 
-    def add_node(self, node: Node, label: Optional[str] = None) -> None:
-        """
-        Assign a node to the parent. Optionally provide a new label for that node.
-
-        Args:
-            node (pyiron_workflow.node.Node): The node to add.
-            label (Optional[str]): The label for this node.
-
-        Raises:
-            TypeError: If the
-        """
-        if not isinstance(node, Node):
+    def add_child(
+        self,
+        child: Node,
+        label: Optional[str] = None,
+        strict_naming: Optional[bool] = None,
+    ) -> Node:
+        if not isinstance(child, Node):
             raise TypeError(
-                f"Only new node instances may be added, but got {type(node)}."
+                f"Only new {Node.__name__} instances may be added, but got "
+                f"{type(child)}."
             )
-        self._ensure_node_has_no_other_parent(node)
+        return super().add_child(child, label=label, strict_naming=strict_naming)
 
-        if not (label in self.nodes.keys() and self.nodes[label] is node):
-            # Otherwise you're just passing the same node to the same key!
-
-            label = self._get_unique_label(node.label if label is None else label)
-            self._ensure_node_is_not_duplicated(node, label)
-
-            self.nodes[label] = node
-            node.label = label
-            node.semantics.parent = self
-        return node
-
-    def _get_unique_label(self, label):
-        if label in self.__dir__():
-            if isinstance(getattr(self, label), Node):
-                if self.strict_naming:
-                    raise AttributeError(
-                        f"{label} is already the label for a node. Please remove it "
-                        f"before assigning another node to this label."
-                    )
-                else:
-                    label = self._add_suffix_to_label(label)
-            else:
-                raise AttributeError(
-                    f"{label} is an attribute or method of the {self.__class__} class, "
-                    f"and cannot be used as a node label."
-                )
-        return label
-
-    def _add_suffix_to_label(self, label):
-        i = 0
-        new_label = label
-        while new_label in self.nodes.keys():
-            new_label = f"{label}{i}"
-            i += 1
-        if new_label != label:
-            logger.info(
-                f"{label} is already a node; appending an index to the "
-                f"node label instead: {new_label}"
-            )
-        return new_label
-
-    def _ensure_node_has_no_other_parent(self, node: Node):
-        if node.parent is not None and node.parent is not self:
-            raise ValueError(
-                f"The node ({node.label}) already belongs to the parent "
-                f"{node.parent.label}. Please remove it there before trying to "
-                f"add it to this parent ({self.label})."
-            )
-
-    def _ensure_node_is_not_duplicated(self, node: Node, label: str):
-        if (
-            node.parent is self
-            and label != node.label
-            and self.nodes[node.label] is node
-        ):
-            logger.info(
-                f"Reassigning the node {node.label} to the label {label} when "
-                f"adding it to the parent {self.label}."
-            )
-            del self.nodes[node.label]
-
-    def remove_node(self, node: Node | str) -> list[tuple[Channel, Channel]]:
+    def remove_child(self, child: Node | str) -> list[tuple[Channel, Channel]]:
         """
-        Remove a node from the :attr:`nodes` collection, disconnecting it and setting its
-        :attr:`parent` to None.
+        Remove a child from the :attr:`children` collection, disconnecting it and
+        setting its :attr:`parent` to None.
 
         Args:
-            node (Node|str): The node (or its label) to remove.
+            child (Node|str): The child (or its label) to remove.
 
         Returns:
             (list[tuple[Channel, Channel]]): Any connections that node had.
         """
-        node = self.nodes[node] if isinstance(node, str) else node
-        node.semantics.parent = None
-        disconnected = node.disconnect()
-        if node in self.starting_nodes:
-            self.starting_nodes.remove(node)
-        del self.nodes[node.label]
+        child = super().remove_child(child)
+        disconnected = child.disconnect()
         return disconnected
 
     def replace_node(
@@ -454,9 +385,9 @@ class Composite(Node, ABC):
         # first guaranteed to be an unconnected orphan, there is not yet any permanent
         # damage
         is_starting_node = owned_node in self.starting_nodes
-        self.remove_node(owned_node)
+        self.remove_child(owned_node)
         replacement.label, owned_node.label = owned_node.label, replacement.label
-        self.add_node(replacement)
+        self.add_child(replacement)
         if is_starting_node:
             self.starting_nodes.append(replacement)
 
@@ -529,7 +460,7 @@ class Composite(Node, ABC):
 
     def __setattr__(self, key: str, node: Node):
         if isinstance(node, Node):
-            self.add_node(node, label=key)
+            self.add_child(node, label=key)
         elif (
             isinstance(node, type)
             and issubclass(node, Node)

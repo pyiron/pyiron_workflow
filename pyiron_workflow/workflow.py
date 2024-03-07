@@ -67,7 +67,7 @@ class Workflow(Composite, Parentmost):
         >>> wf = Workflow("my_workflow", n1)
         >>>
         >>> # (2) Being passed to the `add` method
-        >>> n2 = wf.add_node(fnc(label="n2"))
+        >>> n2 = wf.add_child(fnc(label="n2"))
         >>>
         >>> # (3) By attribute assignment
         >>> wf.n3 = fnc(label="anyhow_n3_gets_used")
@@ -211,7 +211,7 @@ class Workflow(Composite, Parentmost):
         self.automate_execution = automate_execution
 
         for node in nodes:
-            self.add_node(node)
+            self.add_child(node)
 
     def _get_linking_channel(
         self,

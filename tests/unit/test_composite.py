@@ -69,7 +69,7 @@ class TestComposite(unittest.TestCase):
         self.comp.register("static.demo_nodes", "demo")
 
         # Test invocation
-        self.comp.add_node(self.comp.create.demo.OptionallyAdd(label="by_add"))
+        self.comp.add_child(self.comp.create.demo.OptionallyAdd(label="by_add"))
         # Test invocation with attribute assignment
         self.comp.by_assignment = self.comp.create.demo.OptionallyAdd()
         node = self.comp.create.demo.OptionallyAdd()
@@ -77,7 +77,7 @@ class TestComposite(unittest.TestCase):
         self.assertSetEqual(
             set(self.comp.nodes.keys()),
             set(["by_add", "by_assignment"]),
-            msg=f"Expected one node label generated automatically from the add_node call "
+            msg=f"Expected one node label generated automatically from the add_child call "
                 f"and the other from the attribute assignment, but got "
                 f"{self.comp.nodes.keys()}"
         )
@@ -88,7 +88,7 @@ class TestComposite(unittest.TestCase):
 
     def test_node_addition(self):
         # Validate the four ways to add a node
-        self.comp.add_node(Composite.create.Function(plus_one, label="foo"))
+        self.comp.add_child(Composite.create.Function(plus_one, label="foo"))
         self.comp.baz = self.comp.create.Function(plus_one, label="whatever_baz_gets_used")
         Composite.create.Function(plus_one, label="qux", parent=self.comp)
         self.assertListEqual(
@@ -138,7 +138,7 @@ class TestComposite(unittest.TestCase):
         # Connect it inside the composite
         self.comp.foo.inputs.x = self.comp.owned.outputs.y
 
-        disconnected = self.comp.remove_node(node)
+        disconnected = self.comp.remove_child(node)
         self.assertIsNone(node.parent, msg="Removal should de-parent")
         self.assertFalse(node.connected, msg="Removal should disconnect")
         self.assertListEqual(
@@ -153,7 +153,7 @@ class TestComposite(unittest.TestCase):
         )
 
         node_owned = self.comp.owned
-        disconnections = self.comp.remove_node(node_owned.label)
+        disconnections = self.comp.remove_child(node_owned.label)
         self.assertEqual(
             node_owned.parent,
             None,
@@ -171,7 +171,7 @@ class TestComposite(unittest.TestCase):
         self.comp.strict_naming = True
         # Validate name preservation for each node addition path
         with self.assertRaises(AttributeError, msg="We have 'foo' at home"):
-            self.comp.add_node(self.comp.create.Function(plus_one, label="foo"))
+            self.comp.add_child(self.comp.create.Function(plus_one, label="foo"))
 
         with self.assertRaises(
             AttributeError,
@@ -203,7 +203,7 @@ class TestComposite(unittest.TestCase):
             )
 
         self.comp.strict_naming = False
-        self.comp.add_node(Composite.create.Function(plus_one, label="foo"))
+        self.comp.add_child(Composite.create.Function(plus_one, label="foo"))
         self.assertEqual(
             2,
             len(self.comp),
@@ -226,9 +226,9 @@ class TestComposite(unittest.TestCase):
 
         comp2 = AComposite("two")
         with self.assertRaises(ValueError, msg="Can't belong to two parents"):
-            comp2.add_node(node2)
-        comp1.remove_node(node2)
-        comp2.add_node(node2)
+            comp2.add_child(node2)
+        comp1.remove_child(node2)
+        comp2.add_child(node2)
         self.assertEqual(
             node2.parent,
             comp2,
@@ -347,7 +347,7 @@ class TestComposite(unittest.TestCase):
             ):
                 self.comp.replace_node(self.comp.n1, another_node)
 
-            another_comp.remove_node(another_node)
+            another_comp.remove_child(another_node)
             another_node.inputs.x = replacement.outputs.y
             with self.assertRaises(
                 ValueError,

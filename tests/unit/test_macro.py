@@ -22,7 +22,7 @@ def add_one(x):
 def add_three_macro(macro):
     macro.one = SingleValue(add_one)
     SingleValue(add_one, macro.one, label="two", parent=macro)
-    macro.add_node(SingleValue(add_one, macro.two, label="three"))
+    macro.add_child(SingleValue(add_one, macro.two, label="three"))
     # Cover a handful of addition methods,
     # although these are more thoroughly tested in Workflow tests
 
@@ -543,7 +543,7 @@ class TestMacro(unittest.TestCase):
                     if backend == "h5io":
                         # Go really wild and actually change the interface to the node
                         # By replacing one of the terminal nodes
-                        macro.remove_node(macro.three)
+                        macro.remove_child(macro.three)
                         macro.five = Macro.create.standard.Add(macro.two, 1)
                         macro.two >> macro.five
                         macro._rebuild_data_io()  # Need this because of the

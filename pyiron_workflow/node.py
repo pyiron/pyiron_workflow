@@ -24,7 +24,7 @@ from pyiron_workflow.draw import Node as GraphvizNode
 from pyiron_workflow.snippets.files import DirectoryObject
 from pyiron_workflow.has_to_dict import HasToDict
 from pyiron_workflow.io import Signals, IO
-from pyiron_workflow.semantics import HasSemantics
+from pyiron_workflow.semantics import Semantic
 from pyiron_workflow.storage import StorageInterface
 from pyiron_workflow.topology import (
     get_nodes_in_data_tree,
@@ -79,7 +79,7 @@ class ReadinessError(ValueError):
     pass
 
 
-class Node(HasToDict, HasSemantics, ABC, metaclass=AbstractHasPost):
+class Node(HasToDict, Semantic, ABC, metaclass=AbstractHasPost):
     """
     Nodes are elements of a computational graph.
     They have inputs and outputs to interface with the wider world, and perform some
@@ -333,13 +333,13 @@ class Node(HasToDict, HasSemantics, ABC, metaclass=AbstractHasPost):
         """
         super().__init__(
             *args,
-            semantic_label=label,
-            semantic_parent=parent,
+            label=label,
+            parent=parent,
             **kwargs
         )
-        if self.parent is not None and isinstance(self.parent, Node):
+        if self.parent is not None:
             # TODO: Check against a HasChildren mixin rather than Node
-            self.parent.add_node(self)
+            self.parent.add_child(self)
         self.running = False
         self.failed = False
         self.signals = self._build_signal_channels()

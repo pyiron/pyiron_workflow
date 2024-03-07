@@ -5,6 +5,8 @@ from typing import Optional
 
 from bidict import bidict
 
+from pyiron_workflow.snippets.logger import logger
+
 
 class Semantic(ABC):
     """
@@ -76,31 +78,114 @@ class Semantic(ABC):
     def children(self) -> bidict[str: Semantic]:
         return self._children
 
-    def add_child(self, child: Semantic):
+    def __getattr__(self, key):
+        try:
+            return self.children[key]
+        except KeyError:
+            # Raise an attribute error from getattr to make sure hasattr works well!
+            raise AttributeError(
+                f"Could not find attribute {key} on {self.label} "
+                f"({self.__class__.__name__}) or among its children "
+                f"({self.children.keys()})"
+            )
+
+    def add_child(
+        self,
+        child: Semantic,
+        label: Optional[str] = None,
+        strict_naming: Optional[bool] = None,
+    ) -> Semantic:
+        """
+        Add a child, optionally assigning it a new label in the process.
+
+        Args:
+            child (Semantic): The child to add.
+            label (str|None): A (potentially) new label to assign the child. (Default
+                is None, leave the child's label alone.)
+            strict_naming (bool|None): Whether to append a suffix to the label if
+                another child is already held with the same label. (Default is None,
+                use the class-level flag.)
+
+        Returns:
+            (Semantic): The child being added.
+
+        Raises:
+            TypeError: When the child is not of an allowed class.
+            ValueError: When the child has a different parent already.
+            AttributeError: When the label is already an attribute (but not a child).
+            ValueError: When the label conflicts with another child and `strict_naming`
+                is true.
+
+        """
         if not isinstance(child, Semantic):
             raise TypeError(
                 f"{self.label} expected a new child of type {Semantic.__name__} "
                 f"but got {child}"
             )
+        self._ensure_child_has_no_other_parent(child)
+
+        label = child.label if label is None else label
+        if label not in self.children.keys():  # Otherwise conflict may get resolved
+            self._ensure_label_does_not_conflict_with_attr(label)
+
+        strict_naming = self.strict_naming if strict_naming is None else strict_naming
 
         try:
-            existing_child = self.children[child.label]
+            existing_child = self.children[label]
             if existing_child is child:
-                # Exit early if nothing is changing
-                return
+                if label is None or label == child.label:
+                    # Exit early if nothing is changing
+                    return
+                else:
+                    # We're moving the child to a new label, delete the old location
+                    del self.children[child.label]
             else:
-                raise ValueError(
-                    f"{self.label} cannot add the child {child.label} "
-                    f"because another child already exists with this name"
-                )
+                if strict_naming:
+                    raise ValueError(
+                        f"{self.label} cannot add the child {child.label} "
+                        f"because another child already exists with this name"
+                    )
+                else:
+                    label = self._add_suffix_to_label(child.label)
         except KeyError:
-            # If it's a new name, that's fine
-            pass
+            # If it's a new name, only make sure the name is legal
+            self._ensure_label_does_not_conflict_with_attr(label)
 
+        # Finally, update label and reflexively form the parent-child relationship
+        child.label = label
         self.children[child.label] = child
         child.parent = self
+        return child
 
-    def remove_child(self, child: Semantic | str):
+    def _ensure_child_has_no_other_parent(self, child: Semantic):
+        if child.parent is not None and child.parent is not self:
+            raise ValueError(
+                f"The child ({child.label}) already belongs to the parent "
+                f"{child.parent.label}. Please remove it there before trying to "
+                f"add it to this parent ({self.label})."
+            )
+
+    def _ensure_label_does_not_conflict_with_attr(self, label: str):
+        if label in self.__dir__():
+            raise AttributeError(
+                f"{label} is already in the __dir__ of {self.label}, please choose a "
+                f"different label."
+            )
+
+    def _add_suffix_to_label(self, label):
+        i = 0
+        new_label = label
+        while new_label in self.children.keys():
+            new_label = f"{label}{i}"
+            i += 1
+        if new_label != label:
+            logger.info(
+                f"{label} is already a node; appending an index to the "
+                f"node label instead: {new_label}"
+            )
+        return new_label
+
+    def remove_child(self, child: Semantic | str) -> Semantic:
         if isinstance(child, str):
             child = self.children.pop(child)
         elif isinstance(child, Semantic):
@@ -111,8 +196,10 @@ class Semantic(ABC):
                 f"{Semantic.__name__} but got {child}"
             )
 
-        if child.parent is not None:
-            child.parent = None
+        child.parent = None
+
+        return child
+
 
     @property
     def path(self) -> str:

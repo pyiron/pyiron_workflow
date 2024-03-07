@@ -595,6 +595,22 @@ class Function(Node):
         """For drawing the graph"""
         return SeabornColors.green
 
+    @classmethod
+    def _no_children_allowed(cls) -> str:
+        raise TypeError(
+            f"{cls.__name__} is a leaf-like object and cannot have children."
+        )
+
+    @property
+    def children(self):
+        self._no_children_allowed()
+
+    def add_child(self, child):
+        self._no_children_allowed()
+
+    def remove_child(self, child):
+        self._no_children_allowed()
+
 
 class SingleValue(Function, HasChannel):
     """

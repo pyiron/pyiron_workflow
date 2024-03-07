@@ -372,7 +372,7 @@ class TestWorkflow(unittest.TestCase):
         wf.register("static.demo_nodes", "demo")
 
         # Test invocation
-        wf.add_node(wf.create.demo.AddPlusOne(label="by_add"))
+        wf.add_child(wf.create.demo.AddPlusOne(label="by_add"))
         # Note that the type hint `Optional[int]` from OptionallyAdd defines a custom
         # reconstructor, which borks h5io
 
@@ -398,10 +398,10 @@ class TestWorkflow(unittest.TestCase):
                             wf.storage_backend = backend
                             wf.save()
             finally:
-                wf.remove_node(wf.import_type_mismatch)
+                wf.remove_child(wf.import_type_mismatch)
 
         if "h5io" in ALLOWED_BACKENDS:
-            wf.add_node(PlusOne(label="local_but_importable"))
+            wf.add_child(PlusOne(label="local_but_importable"))
             try:
                 wf.storage_backend = "h5io"
                 wf.save()
@@ -430,7 +430,7 @@ class TestWorkflow(unittest.TestCase):
                         wf.storage_backend = "h5io"
                         wf.save()
                 finally:
-                    wf.remove_node(wf.direct_instance)
+                    wf.remove_child(wf.direct_instance)
                     wf.storage.delete()
 
         with self.subTest("Unimportable node"):
@@ -450,7 +450,7 @@ class TestWorkflow(unittest.TestCase):
                         wf.storage_backend = "h5io"
                         wf.save()
                 finally:
-                    wf.remove_node(wf.unimportable_scope)
+                    wf.remove_child(wf.unimportable_scope)
                     wf.storage.delete()
 
 
