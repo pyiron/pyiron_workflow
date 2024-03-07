@@ -249,7 +249,9 @@ class _HasSemanticChildren(ABC):
     def _add_suffix_to_label(self, label):
         i = 0
         new_label = label
-        while new_label in self.children.keys():
+        while new_label in self.__dir__():
+            # We search dir and not just the child_labels for the edge case that
+            # someone has a very label-like attribute
             new_label = f"{label}{i}"
             i += 1
         if new_label != label:
