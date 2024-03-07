@@ -1,3 +1,16 @@
+"""
+Classes for "semantic" reasoning.
+
+The motivation here is to be able to provide the object with a unique identifier
+in the context of other semantic objects. Each object may have exactly one parent
+and an arbitrary number of children, and each child's name must be unique in the
+scope of that parent. In this way, the path from the parent-most object to any
+child is completely unique. The typical filesystem on a computer is an excellent
+example and fulfills our requirements, the only reason we depart from it is so that
+we are free to have objects stored in different locations (possibly even on totally
+different drives or machines) belong to the same semantic group.
+"""
+
 from __future__ import annotations
 
 from abc import ABC
@@ -10,16 +23,7 @@ from pyiron_workflow.snippets.logger import logger
 
 class Semantic(ABC):
     """
-    Base class for "semantic" objects.
-
-    The motivation here is to be able to provide the object with a unique identifier
-    in the context of other semantic objects. Each object may have exactly one parent
-    and an arbitrary number of children, and each child's name must be unique in the
-    scope of that parent. In this way, the path from the parent-most object to any
-    child is completely unique. The typical filesystem on a computer is an excellent
-    example and fulfills our requirements, the only reason we depart from it is so that
-    we are free to have objects stored in different locations (possibly even on totally
-    different drives or machines) belong to the same semantic group.
+    An object with a unique semantic path
     """
 
     delimiter = "/"
@@ -28,8 +32,7 @@ class Semantic(ABC):
         self,
         label: str,
         *args,
-        parent: Optional[Semantic] = None,
-        strict_naming: bool = True,
+        parent: Optional[SemanticParent] = None,
         **kwargs
     ):
         self._label = None
@@ -51,20 +54,20 @@ class Semantic(ABC):
         self._label = new_label
 
     @property
-    def parent(self) -> Semantic | None:
+    def parent(self) -> SemanticParent | None:
         return self._parent
 
     @parent.setter
-    def parent(self, new_parent: HasSemanticChildren | None) -> None:
+    def parent(self, new_parent: SemanticParent | None) -> None:
         if new_parent is self._parent:
             # Exit early if nothing is changing
             return
 
         if new_parent is not None:
-            if not isinstance(new_parent, HasSemanticChildren):
+            if not isinstance(new_parent, SemanticParent):
                 raise ValueError(
-                    f"Expected None or another {Semantic.__name__} for the "
-                    f"semantic parent of {self.label}, but got {new_parent}"
+                    f"Expected None or a {SemanticParent.__name__} for the parent of "
+                    f"{self.label}, but got {new_parent}"
                 )
 
         if self._parent is not None and new_parent is not self._parent:
@@ -121,7 +124,7 @@ class Semantic(ABC):
         self.__dict__.update(**state)
 
 
-class HasSemanticChildren(ABC):
+class _HasSemanticChildren(ABC):
     def __init__(
         self,
         *args,
@@ -257,3 +260,17 @@ class HasSemanticChildren(ABC):
         child.parent = None
 
         return child
+
+
+class SemanticParent(Semantic, _HasSemanticChildren, ABC):
+    def __init__(
+        self,
+        label: str,
+        *args,
+        parent: Optional[SemanticParent] = None,
+        strict_naming: bool = True,
+        **kwargs
+    ):
+        super().__init__(
+            *args, label=label, parent=parent, strict_naming=strict_naming, **kwargs
+        )
