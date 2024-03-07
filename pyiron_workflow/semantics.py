@@ -39,7 +39,7 @@ class Semantic(ABC):
         self._parent = None
         self.label = label
         self.parent = parent
-        super().__init__(self, *args, **kwargs)
+        super().__init__(*args, **kwargs)
 
     @property
     def label(self) -> str:
