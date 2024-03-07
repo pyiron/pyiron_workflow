@@ -158,7 +158,7 @@ class _HasSemanticChildren(ABC):
         return self.children.values().__iter__()
 
     def __len__(self):
-        return len(self.nodes)
+        return len(self.children)
 
     def __dir__(self):
         return set(super().__dir__() + list(self.children.keys()))
@@ -200,7 +200,6 @@ class _HasSemanticChildren(ABC):
 
         label = child.label if label is None else label
         if label not in self.child_labels:  # Otherwise conflict may get resolved
-            print(label, self.child_labels, self.__dir__())
             self._ensure_label_does_not_conflict_with_attr(label)
 
         strict_naming = self.strict_naming if strict_naming is None else strict_naming
