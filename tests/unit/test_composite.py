@@ -75,11 +75,11 @@ class TestComposite(unittest.TestCase):
         node = self.comp.create.demo.OptionallyAdd()
 
         self.assertSetEqual(
-            set(self.comp.nodes.keys()),
+            set(self.comp.children.keys()),
             set(["by_add", "by_assignment"]),
             msg=f"Expected one node label generated automatically from the add_child call "
                 f"and the other from the attribute assignment, but got "
-                f"{self.comp.nodes.keys()}"
+                f"{self.comp.children.keys()}"
         )
         self.assertIsNone(
             node.parent,
@@ -92,13 +92,14 @@ class TestComposite(unittest.TestCase):
         self.comp.baz = self.comp.create.Function(plus_one, label="whatever_baz_gets_used")
         Composite.create.Function(plus_one, label="qux", parent=self.comp)
         self.assertListEqual(
-            list(self.comp.nodes.keys()),
+            list(self.comp.children.keys()),
             ["foo", "baz", "qux"],
             msg="Expected every above syntax to add a node OK"
         )
+        print(self.comp.children)
         self.comp.boa = self.comp.qux
         self.assertListEqual(
-            list(self.comp.nodes.keys()),
+            list(self.comp.children.keys()),
             ["foo", "baz", "boa"],
             msg="Reassignment should remove the original instance"
         )
@@ -112,14 +113,14 @@ class TestComposite(unittest.TestCase):
             msg="Access should be possible by attribute"
         )
         self.assertIs(
-            self.comp.nodes.child,
+            self.comp["child"],
             node,
-            msg="Access should be possible by attribute on nodes collection"
+            msg="Access should be possible by item"
         )
         self.assertIs(
-            self.comp.nodes["child"],
+            self.comp.children["child"],
             node,
-            msg="Access should be possible by item on nodes collection"
+            msg="Access should be possible by item on children collection"
         )
         
         for n in self.comp:
@@ -183,13 +184,13 @@ class TestComposite(unittest.TestCase):
         with self.assertRaises(AttributeError, msg="We have 'foo' at home"):
             Composite.create.Function(plus_one, label="foo", parent=self.comp)
 
-        with self.assertRaises(ValueError, msg="Parentage can't be set directly"):
+        with self.assertRaises(AttributeError, msg="The parent already has 'foo'"):
             node = Composite.create.Function(plus_one, label="foo")
             node.parent = self.comp
 
         with self.subTest("Make sure trivial re-assignment has no impact"):
             original_foo = self.comp.foo
-            n_nodes = len(self.comp.nodes)
+            n_nodes = len(self.comp.children)
             self.comp.foo = original_foo
             self.assertIs(
                 original_foo,
@@ -198,7 +199,7 @@ class TestComposite(unittest.TestCase):
             )
             self.assertEqual(
                 n_nodes,
-                len(self.comp.nodes),
+                len(self.comp.children),
                 msg="Reassigning a node to the same name should have no impact",
             )
 
@@ -211,7 +212,7 @@ class TestComposite(unittest.TestCase):
         )
         self.assertListEqual(
             ["foo", "foo0"],
-            list(self.comp.nodes.keys()),
+            list(self.comp.children.keys()),
             msg="When adding a node with an existing name and relaxed naming, the new "
                 "node should get an index on its label so each label is still unique"
         )
@@ -478,7 +479,7 @@ class TestComposite(unittest.TestCase):
         # We can give nodes crazy names, but then we're stuck with item access
         self.assertIs(
             not_dottable_name_node,
-            self.comp.nodes[not_dottable_string],
+            self.comp.children[not_dottable_string],
             msg="Should be able to access the node by item"
         )
         self.assertEqual(
@@ -598,7 +599,7 @@ class TestComposite(unittest.TestCase):
 
         with self.subTest("test_graph_path"):
             self.assertEqual(
-                top.semantics.delimiter + top.label,
+                top.semantic_delimiter + top.label,
                 top.graph_path,
                 msg="The parent-most node should be its own path."
             )

@@ -326,6 +326,8 @@ class Composite(Node, SemanticParent, ABC):
         """
         child = super().remove_child(child)
         disconnected = child.disconnect()
+        if child in self.starting_nodes:
+            self.starting_nodes.remove(child)
         return disconnected
 
     def replace_child(
