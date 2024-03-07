@@ -338,7 +338,6 @@ class Node(HasToDict, Semantic, ABC, metaclass=AbstractHasPost):
             **kwargs
         )
         if self.parent is not None:
-            # TODO: Check against a HasChildren mixin rather than Node
             self.parent.add_child(self)
         self.running = False
         self.failed = False
