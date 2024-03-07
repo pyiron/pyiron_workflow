@@ -81,7 +81,7 @@ class Semantic(ABC):
         The path of node labels from the graph root (parent-most node) down to this
         node.
         """
-        prefix = "" if self.parent is None else self.parent.path
+        prefix = "" if self.parent is None else self.parent.semantic_path
         return prefix + self.semantic_delimiter + self.label
 
     @property
