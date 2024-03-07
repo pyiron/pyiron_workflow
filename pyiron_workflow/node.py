@@ -304,7 +304,6 @@ class Node(HasToDict, Semantic, ABC, metaclass=AbstractHasPost):
     """
 
     package_identifier = None
-    _semantic_delimiter = "/"
 
     # This isn't nice, just a technical necessity in the current implementation
     # Eventually, of course, this needs to be _at least_ file-format independent
@@ -425,41 +424,22 @@ class Node(HasToDict, Semantic, ABC, metaclass=AbstractHasPost):
             run_output: The results of a `self.on_run(self.run_args)` call.
         """
 
-
-    @property
-    def label(self) -> str:
-        return self.semantics.label
-
-    @label.setter
-    def label(self, new_label: str) -> None:
-        self.semantics.label = new_label
-
-    @property
-    def parent(self):
-        # For now the only objects with semantics are also nodes
-        return self.semantics.parent
-
-    @parent.setter
-    def parent(self, new_parent: Composite | None) -> None:
-        raise ValueError(
-            "Please change parentage by adding/removing the node to/from the relevant"
-            "parent"
-        )
-
     @property
     def graph_path(self) -> str:
         """
         The path of node labels from the graph root (parent-most node) down to this
         node.
         """
-        return self.semantics.path
+        # If non-node objects come up in the semantic path, we'll need early stopping
+        # to make this docstring true, but those don't exist right now.
+        return self.semantic_path
 
     @property
     def graph_root(self) -> Node:
         """The parent-most node in this graph."""
         # If non-node objects come up in the semantic path, we'll need early stopping
         # to make this docstring true, but those don't exist right now.
-        return self.semantics.root
+        return self.semantic_root
 
     @property
     def readiness_report(self) -> str:
@@ -1083,12 +1063,12 @@ class Node(HasToDict, Semantic, ABC, metaclass=AbstractHasPost):
             other (Node|type[Node]): The replacement.
         """
         if self.parent is not None:
-            self.parent.replace_node(self, other)
+            self.parent.replace_child(self, other)
         else:
             warnings.warn(f"Could not replace_child {self.label}, as it has no parent.")
 
     def __getstate__(self):
-        state = dict(self.__dict__)
+        state = super().__getstate__()
         state["future"] = None
         # Don't pass the future -- with the future in the state things work fine for
         # the simple pyiron_workflow.executors.CloudpickleProcessPoolExecutor, but for
