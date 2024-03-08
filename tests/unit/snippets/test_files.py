@@ -142,6 +142,13 @@ class TestFiles(unittest.TestCase):
             f.copy()
 
 
+    def test_str(self):
+        f = FileObject("test_copy.txt", self.directory)
+        if platform.system() == "Windows":
+            txt = f"my file: {self.directory.path.absolute()}\\test_copy.txt"
+        else:
+            txt = f"my file: {self.directory.path.absolute()}/test_copy.txt"
+        self.assertEqual(f"my file: {f}", txt)
 
 if __name__ == '__main__':
     unittest.main()

@@ -154,6 +154,9 @@ class FileObject:
     def delete(self):
         self.path.unlink()
 
+    def __str__(self):
+        return str(self.path.absolute())
+
     def _resolve_directory_and_path(
         self,
         file_name: str,
