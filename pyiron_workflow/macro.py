@@ -412,9 +412,8 @@ class Macro(Composite):
             "outputs",
         )
 
-    @staticmethod
     def _whitelist_map(
-        io_map: bidict, new_labels: tuple[str], has_channel_objects: tuple[HasChannel]
+        self, io_map: bidict, new_labels: tuple[str], has_channel_objects: tuple[HasChannel]
     ) -> bidict:
         """
         Update an IO map to give new labels to the channels of a bunch of :class:`HasChannel`
@@ -422,6 +421,13 @@ class Macro(Composite):
         """
         io_map = bidict({}) if io_map is None else io_map
         for new_label, ui_node in zip(new_labels, has_channel_objects):
+            if not hasattr(ui_node, "channel"):
+                raise TypeError(
+                    f"Your node `{new_label}` does not have `channel`. There"
+                    + " are following nodes that can be returned:"
+                    + f" {self.node_labels}. More can be found from this page:"
+                    + " https://github.com/pyiron/pyiron_workflow"
+                )
             # White-list everything not already in the map
             if ui_node.channel.scoped_label not in io_map.keys():
                 io_map[ui_node.channel.scoped_label] = new_label
