@@ -263,7 +263,7 @@ class TestMacro(unittest.TestCase):
         # )  # You can't do this, result.result() is returning new instances each call
         self.assertIs(
             macro,
-            macro.nodes.one.parent,
+            macro.one.parent,
             msg="Returned nodes should get the macro as their parent"
             # Once upon a time there was some evidence that this test was failing
             # stochastically, but I just ran the whole test suite 6 times and this test
