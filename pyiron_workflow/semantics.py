@@ -73,7 +73,8 @@ class Semantic(ABC):
         if self._parent is not None and new_parent is not self._parent:
             self._parent.remove_child(self)
         self._parent = new_parent
-        self._parent.add_child(self)
+        if self._parent is not None:
+            self._parent.add_child(self)
 
     @property
     def semantic_path(self) -> str:
