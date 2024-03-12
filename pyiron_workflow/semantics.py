@@ -91,7 +91,11 @@ class Semantic(ABC):
         return self if self.parent is None else self.parent.semantic_root
 
     def __getstate__(self):
-        state = dict(self.__dict__)
+        try:
+            state = super().__getstate__()
+            state = dict(state) if state is self.__dict__ else state
+        except AttributeError:
+            state = dict(self.__dict__)
         state["_parent"] = None
         # Comment on moving this to semantics)
         # Basically we want to avoid recursion during (de)serialization; when the
@@ -122,7 +126,10 @@ class Semantic(ABC):
         return state
 
     def __setstate__(self, state):
-        self.__dict__.update(**state)
+        try:
+            super().__setstate__(state)
+        except AttributeError:
+            self.__dict__.update(**state)
 
 
 class _HasSemanticChildren(ABC):
@@ -284,6 +291,7 @@ class _HasSemanticChildren(ABC):
     def __getstate__(self):
         try:
             state = super().__getstate__()
+            state = dict(state) if state is self.__dict__ else state
         except AttributeError:
             state = dict(self.__dict__)
 
