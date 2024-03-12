@@ -27,6 +27,11 @@ def add_three_macro(macro):
     # although these are more thoroughly tested in Workflow tests
 
 
+def wrong_return_macro(macro):
+    macro.one = SingleValue(add_one)
+    return 3
+
+
 class TestMacro(unittest.TestCase):
 
     def test_static_input(self):
@@ -593,6 +598,10 @@ class TestMacro(unittest.TestCase):
                         raise ValueError(f"Unexpected backend {backend}?")
                 finally:
                     macro.storage.delete()
+
+    def test_wrong_return(self):
+        with self.assertRaises(TypeError):
+            Macro(wrong_return_macro)
 
 
 if __name__ == '__main__':
