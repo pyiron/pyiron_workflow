@@ -600,7 +600,10 @@ class TestMacro(unittest.TestCase):
                     macro.storage.delete()
 
     def test_wrong_return(self):
-        with self.assertRaises(TypeError):
+        with self.assertRaises(
+            TypeError,
+            msg="Macro returning object without channel did not raise an error"
+        ):
             Macro(wrong_return_macro)
 
 
