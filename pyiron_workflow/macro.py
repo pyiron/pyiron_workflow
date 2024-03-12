@@ -439,7 +439,7 @@ class Macro(Composite):
         io_map = dict(io_map)
         # We do it in two steps like this to leverage the bidict security on the setter
         # Since bidict can't handle getting `None` (i.e. disable) for multiple keys
-        for node in self.nodes.values():
+        for node in self.children.values():
             for channel in getattr(node, i_or_o):
                 if channel.scoped_label not in io_map.keys():
                     io_map[channel.scoped_label] = None
@@ -552,7 +552,7 @@ class Macro(Composite):
         # Nodes instantiated in macros probably aren't aware of their parent at
         # instantiation time, and thus may be clean (un-loaded) objects --
         # reload their data
-        for label, node in self.nodes.items():
+        for label, node in self.children.items():
             node.from_storage(storage[label])
 
     @property

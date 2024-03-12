@@ -361,17 +361,19 @@ class Workflow(Composite, Parentmost):
     def _rebuild_data_connections(self, storage):
         for data_connection in storage["_data_connections"]:
             (inp_label, inp_channel), (out_label, out_channel) = data_connection
-            self.nodes[inp_label].inputs[inp_channel].connect(
-                self.nodes[out_label].outputs[out_channel]
+            self.children[inp_label].inputs[inp_channel].connect(
+                self.children[out_label].outputs[out_channel]
             )
 
     def _rebuild_execution_graph(self, storage):
         for signal_connection in storage["_signal_connections"]:
             (inp_label, inp_channel), (out_label, out_channel) = signal_connection
-            self.nodes[inp_label].signals.input[inp_channel].connect(
-                self.nodes[out_label].signals.output[out_channel]
+            self.children[inp_label].signals.input[inp_channel].connect(
+                self.children[out_label].signals.output[out_channel]
             )
-        self.starting_nodes = [self.nodes[label] for label in storage["starting_nodes"]]
+        self.starting_nodes = [
+            self.children[label] for label in storage["starting_nodes"]
+        ]
 
     def save(self):
         if self.storage_backend == "tinybase" and any(

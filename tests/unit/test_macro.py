@@ -333,7 +333,7 @@ class TestMacro(unittest.TestCase):
 
             m = Macro(cyclic_macro)
 
-            initial_labels = list(m.nodes.keys())
+            initial_labels = list(m.children.keys())
 
             def grab_connections(macro):
                 return grab_x_and_run(macro.one) + grab_x_and_run(macro.two)
@@ -347,7 +347,7 @@ class TestMacro(unittest.TestCase):
                 m.two.pull()
             self.assertListEqual(
                 initial_labels,
-                list(m.nodes.keys()),
+                list(m.children.keys()),
                 msg="Labels should be restored after failing to pull because of "
                     "acyclicity"
             )
@@ -563,8 +563,8 @@ class TestMacro(unittest.TestCase):
                         msg="Updated IO should have been (de)serialized"
                     )
                     self.assertSetEqual(
-                        set(macro.nodes.keys()),
-                        set(reloaded.nodes.keys()),
+                        set(macro.children.keys()),
+                        set(reloaded.children.keys()),
                         msg="All nodes should have been (de)serialized."
                     )  # Note that this snags the _new_ one in the case of h5io!
                     self.assertEqual(
