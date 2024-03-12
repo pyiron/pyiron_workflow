@@ -299,7 +299,7 @@ class _HasSemanticChildren(ABC):
         # -- the labels are guaranteed to not be attributes already so this is safe,
         # and it makes sure that the state path matches the semantic path
         del state["_children"]
-        state["child_labels"] = self.node_labels
+        state["child_labels"] = self.child_labels
         for child in self:
             state[child.label] = child
 
@@ -315,6 +315,15 @@ class _HasSemanticChildren(ABC):
             super().__setstate__(state)
         except AttributeError:
             self.__dict__.update(**state)
+
+        self._children = bidict(self._children)
+
+        # Children purge their parent information in their __getstate__ (this avoids
+        # recursion, which is mainly done to accommodate h5io as most other storage
+        # tools are able to store a reference to an object to overcom it), so now
+        # return it to them:
+        for child in self:
+            child._parent = self
 
 
 class SemanticParent(Semantic, _HasSemanticChildren, ABC):
