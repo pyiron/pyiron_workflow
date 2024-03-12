@@ -319,9 +319,7 @@ class Macro(Composite):
         if returned_has_channel_objects is not None:
             if not isinstance(returned_has_channel_objects, tuple):
                 returned_has_channel_objects = (returned_has_channel_objects,)
-            self._whitelist_outputs_map(
-                output_labels, *returned_has_channel_objects
-            )
+            self._whitelist_outputs_map(output_labels, *returned_has_channel_objects)
 
         self._inputs: Inputs = self._build_inputs()
         self._outputs: Outputs = self._build_outputs()
