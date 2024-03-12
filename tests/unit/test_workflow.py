@@ -118,7 +118,7 @@ class TestWorkflow(unittest.TestCase):
         )
         self.assertIs(
             wf,
-            wf.children.a.parent,
+            wf.a.parent,
             msg="Returned nodes should get the macro as their parent"
         )
         self.assertIsNone(
