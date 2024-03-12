@@ -581,16 +581,6 @@ class Composite(Node, SemanticParent, ABC):
             None if self._outputs_map is None else dict(self._outputs_map)
         )
 
-        # Remove the nodes container from the state and store each element (node) right
-        # in the state -- the labels are guaranteed to not be attributes already so
-        # this is safe, and it makes sure that the storage path matches the graph path
-        del state["nodes"]
-        state["node_labels"] = self.node_labels
-        for node in self:
-            state[node.label] = node
-            # This key is guaranteed to be available in the state, since children are
-            # forbidden from having labels that clash with their parent's __dir__
-
         # Also remove the starting node instances
         del state["starting_nodes"]
         state["_starting_node_labels"] = self._starting_node_labels
@@ -617,10 +607,6 @@ class Composite(Node, SemanticParent, ABC):
 
         super().__setstate__(state)
 
-        # Nodes purge their semantics.parent information in their __getstate__
-        # so return it to them:
-        for node in self:
-            node.semantics.parent = self
         # Nodes don't store connection information, so restore it to them
         self._restore_data_connections_from_strings(child_data_connections)
         self._restore_signal_connections_from_strings(child_signal_connections)
