@@ -317,13 +317,10 @@ class Macro(Composite):
         if len(ui_nodes) > 0:
             self._whitelist_inputs_map(*ui_nodes)
         if returned_has_channel_objects is not None:
+            if not isinstance(returned_has_channel_objects, tuple):
+                returned_has_channel_objects = (returned_has_channel_objects,)
             self._whitelist_outputs_map(
-                output_labels,
-                *(
-                    (returned_has_channel_objects,)
-                    if not isinstance(returned_has_channel_objects, tuple)
-                    else returned_has_channel_objects
-                ),
+                output_labels, *returned_has_channel_objects
             )
 
         self._inputs: Inputs = self._build_inputs()
@@ -407,13 +404,22 @@ class Macro(Composite):
         leverage the supplied output labels, and updates the map to disable all other
         output that wasn't explicitly mapped already.
         """
+        for new_label, ui_node in zip(output_labels, creator_returns):
+            if not isinstance(ui_node, HasChannel):
+                raise TypeError(
+                    f"Your node `{new_label}` does not have `channel`. There"
+                    + " are following nodes that can be returned:"
+                    + f" {self.node_labels}. More can be found from this page:"
+                    + " https://github.com/pyiron/pyiron_workflow"
+                )
         self.outputs_map = self._hide_non_whitelisted_io(
             self._whitelist_map(self.outputs_map, output_labels, creator_returns),
             "outputs",
         )
 
+    @staticmethod
     def _whitelist_map(
-        self, io_map: bidict, new_labels: tuple[str], has_channel_objects: tuple[HasChannel]
+        io_map: bidict, new_labels: tuple[str], has_channel_objects: tuple[HasChannel]
     ) -> bidict:
         """
         Update an IO map to give new labels to the channels of a bunch of :class:`HasChannel`
@@ -421,13 +427,6 @@ class Macro(Composite):
         """
         io_map = bidict({}) if io_map is None else io_map
         for new_label, ui_node in zip(new_labels, has_channel_objects):
-            if not hasattr(ui_node, "channel"):
-                raise TypeError(
-                    f"Your node `{new_label}` does not have `channel`. There"
-                    + " are following nodes that can be returned:"
-                    + f" {self.node_labels}. More can be found from this page:"
-                    + " https://github.com/pyiron/pyiron_workflow"
-                )
             # White-list everything not already in the map
             if ui_node.channel.scoped_label not in io_map.keys():
                 io_map[ui_node.channel.scoped_label] = new_label
