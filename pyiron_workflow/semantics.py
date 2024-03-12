@@ -153,13 +153,13 @@ class _HasSemanticChildren(ABC):
 
     def __getattr__(self, key):
         try:
-            return self.children[key]
+            return self._children[key]
         except KeyError:
             # Raise an attribute error from getattr to make sure hasattr works well!
             raise AttributeError(
                 f"Could not find attribute {key} on {self.label} "
                 f"({self.__class__.__name__}) or among its children "
-                f"({self.children.keys()})"
+                f"({self._children.keys()})"
             )
 
     def __iter__(self):
