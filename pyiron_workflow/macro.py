@@ -317,14 +317,9 @@ class Macro(Composite):
         if len(ui_nodes) > 0:
             self._whitelist_inputs_map(*ui_nodes)
         if returned_has_channel_objects is not None:
-            self._whitelist_outputs_map(
-                output_labels,
-                *(
-                    (returned_has_channel_objects,)
-                    if not isinstance(returned_has_channel_objects, tuple)
-                    else returned_has_channel_objects
-                ),
-            )
+            if not isinstance(returned_has_channel_objects, tuple):
+                returned_has_channel_objects = (returned_has_channel_objects,)
+            self._whitelist_outputs_map(output_labels, *returned_has_channel_objects)
 
         self._inputs: Inputs = self._build_inputs()
         self._outputs: Outputs = self._build_outputs()
@@ -407,6 +402,14 @@ class Macro(Composite):
         leverage the supplied output labels, and updates the map to disable all other
         output that wasn't explicitly mapped already.
         """
+        for new_label, ui_node in zip(output_labels, creator_returns):
+            if not isinstance(ui_node, HasChannel):
+                raise TypeError(
+                    f"Your node `{new_label}` does not have `channel`. There"
+                    + " are following nodes that can be returned:"
+                    + f" {self.node_labels}. More can be found from this page:"
+                    + " https://github.com/pyiron/pyiron_workflow"
+                )
         self.outputs_map = self._hide_non_whitelisted_io(
             self._whitelist_map(self.outputs_map, output_labels, creator_returns),
             "outputs",
