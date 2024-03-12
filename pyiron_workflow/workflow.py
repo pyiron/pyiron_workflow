@@ -10,7 +10,7 @@ from typing import Literal, Optional, TYPE_CHECKING
 
 from pyiron_workflow.composite import Composite
 from pyiron_workflow.io import Inputs, Outputs
-from pyiron_workflow.semantics import Parentmost
+from pyiron_workflow.semantics import ParentMost
 
 
 if TYPE_CHECKING:
@@ -21,7 +21,7 @@ if TYPE_CHECKING:
     from pyiron_workflow.node import Node
 
 
-class Workflow(Composite, Parentmost):
+class Workflow(Composite, ParentMost):
     """
     Workflows are a dynamic composite node -- i.e. they hold and run a collection of
     nodes (a subgraph) which can be dynamically modified (adding and removing nodes,
