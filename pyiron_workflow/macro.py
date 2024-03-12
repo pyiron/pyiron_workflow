@@ -600,10 +600,10 @@ class Macro(Composite):
 
         # Re-forge value links
         for inp, (child, child_inp) in input_links:
-            self.inputs[inp].value_receiver = self.nodes[child].inputs[child_inp]
+            self.inputs[inp].value_receiver = self.children[child].inputs[child_inp]
 
         for (child, child_out), out in output_links:
-            self.nodes[child].outputs[child_out].value_receiver = self.outputs[out]
+            self.children[child].outputs[child_out].value_receiver = self.outputs[out]
 
 
 def macro_node(*output_labels, **node_class_kwargs):
