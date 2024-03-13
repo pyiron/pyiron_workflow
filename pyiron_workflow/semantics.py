@@ -353,7 +353,7 @@ class ParentMostError(TypeError):
     """
 
 
-class ParentMost(Semantic, ABC):
+class ParentMost(SemanticParent, ABC):
     """
     A mixin to indicate that the class should not be allowed to have a semantic parent.
     """

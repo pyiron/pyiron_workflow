@@ -8,7 +8,7 @@ class SemanticRoot(SemanticParent, ParentMost):
 
 class TestSemantics(unittest.TestCase):
     def setUp(self):
-        self.root = SemanticRoot("root")
+        self.root = ParentMost("root")
         self.child1 = Semantic("child1", parent=self.root)
         self.middle1 = SemanticParent("middle1", parent=self.root)
         self.middle2 = SemanticParent("middle2", parent=self.middle1)
