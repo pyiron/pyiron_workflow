@@ -1,13 +1,17 @@
 import unittest
-from pyiron_workflow.semantics import Semantics, HasSemantics, Parentmost
+from pyiron_workflow.semantics import Semantic, SemanticParent, ParentMost
+
+
+class SemanticRoot(SemanticParent, ParentMost):
+    pass
 
 
 class TestSemantics(unittest.TestCase):
     def setUp(self):
-        self.root = HasSemantics("root")
-        self.child1 = HasSemantics("child1", semantic_parent=self.root)
-        self.child2 = HasSemantics("child2", semantic_parent=self.child1)
-        self.parentmost = Parentmost("top")
+        self.root = SemanticRoot("root")
+        self.child1 = Semantic("child1", semantic_parent=self.root)
+        self.parent = SemanticParent("parent", semantic_parent=self.root)
+        self.child2 = Semantic("child2", semantic_parent=self.parent)
 
     def test_label_validity(self):
         with self.assertRaises(TypeError, msg="Label must be a string"):
