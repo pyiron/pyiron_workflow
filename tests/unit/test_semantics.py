@@ -18,8 +18,11 @@ class TestSemantics(unittest.TestCase):
             Semantic(label=123)
 
     def test_label_delimiter(self):
-        with self.assertRaises(ValueError, msg="Delimiter '/' not allowed"):
-            Semantics(self.root, "invalid/label")
+        with self.assertRaises(
+            ValueError,
+            msg=f"Delimiter '{Semantic.semantic_delimiter}' not allowed"
+        ):
+            Semantic(f"invalid{Semantic.semantic_delimiter}label")
 
     def test_parent(self):
         self.assertEqual(self.child1.semantics.parent, self.root)
