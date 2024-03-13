@@ -9,9 +9,9 @@ class SemanticRoot(SemanticParent, ParentMost):
 class TestSemantics(unittest.TestCase):
     def setUp(self):
         self.root = SemanticRoot("root")
-        self.child1 = Semantic("child1", semantic_parent=self.root)
-        self.parent = SemanticParent("parent", semantic_parent=self.root)
-        self.child2 = Semantic("child2", semantic_parent=self.parent)
+        self.child1 = Semantic("child1", parent=self.root)
+        self.parent = SemanticParent("parent", parent=self.root)
+        self.child2 = Semantic("child2", parent=self.parent)
 
     def test_label_validity(self):
         with self.assertRaises(TypeError, msg="Label must be a string"):
