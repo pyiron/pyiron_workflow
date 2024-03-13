@@ -10,8 +10,9 @@ class TestSemantics(unittest.TestCase):
     def setUp(self):
         self.root = SemanticRoot("root")
         self.child1 = Semantic("child1", parent=self.root)
-        self.middle = SemanticParent("middle", parent=self.root)
-        self.child2 = Semantic("child2", parent=self.middle)
+        self.middle1 = SemanticParent("middle1", parent=self.root)
+        self.middle2 = SemanticParent("middle2", parent=self.middle1)
+        self.child2 = Semantic("child2", parent=self.middle2)
 
     def test_label_validity(self):
         with self.assertRaises(TypeError, msg="Label must be a string"):
@@ -54,13 +55,15 @@ class TestSemantics(unittest.TestCase):
     def test_path(self):
         self.assertEqual(self.root.semantic_path, "/root")
         self.assertEqual(self.child1.semantic_path, "/root/child1")
-        self.assertEqual(self.middle.semantic_path, "/root/middle")
-        self.assertEqual(self.child2.semantic_path, "/root/middle/child2")
+        self.assertEqual(self.middle1.semantic_path, "/root/middle1")
+        self.assertEqual(self.middle2.semantic_path, "/root/middle1/middle2")
+        self.assertEqual(self.child2.semantic_path, "/root/middle1/middle2/child2")
 
     def test_root(self):
         self.assertEqual(self.root.semantic_root, self.root)
         self.assertEqual(self.child1.semantic_root, self.root)
-        self.assertEqual(self.middle.semantic_root, self.root)
+        self.assertEqual(self.middle1.semantic_root, self.root)
+        self.assertEqual(self.middle2.semantic_root, self.root)
         self.assertEqual(self.child2.semantic_root, self.root)
 
 
