@@ -23,7 +23,10 @@ from pyiron_workflow.snippets.logger import logger
 
 class Semantic(ABC):
     """
-    An object with a unique semantic path
+    An object with a unique semantic path.
+
+    The semantic parent object (if any), and the parent-most object are both easily
+    accessible.
     """
 
     semantic_delimiter = "/"
@@ -139,6 +142,21 @@ class CyclicPathError(ValueError):
 
 
 class SemanticParent(Semantic, ABC):
+    """
+    A semantic object with a collection of uniquely-named semantic children.
+
+    Children should be added or removed via the :meth:`add_child` and
+    :meth:`remove_child` methods and _not_ by direct manipulation of the
+    :attr:`children` container.
+
+    Children are dot-accessible and appear in :meth:`__dir__` for tab-completion.
+
+    Iterating over the parent yields the children, and the length of the parent is
+    the number of children.
+
+    When adding children or assigning parents, a check is performed on the semantic
+    path to forbid cyclic paths.
+    """
     def __init__(
         self,
         label: str,
@@ -365,7 +383,7 @@ class ParentMostError(TypeError):
 
 class ParentMost(SemanticParent, ABC):
     """
-    A mixin to indicate that the class should not be allowed to have a semantic parent.
+    A semantic parent that cannot have any other parent.
     """
 
     @property
