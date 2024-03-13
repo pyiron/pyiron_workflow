@@ -32,11 +32,7 @@ class Semantic(ABC):
     semantic_delimiter = "/"
 
     def __init__(
-        self,
-        label: str,
-        *args,
-        parent: Optional[SemanticParent] = None,
-        **kwargs
+        self, label: str, *args, parent: Optional[SemanticParent] = None, **kwargs
     ):
         self._label = None
         self._parent = None
@@ -157,20 +153,21 @@ class SemanticParent(Semantic, ABC):
     When adding children or assigning parents, a check is performed on the semantic
     path to forbid cyclic paths.
     """
+
     def __init__(
         self,
         label: str,
         *args,
         parent: Optional[SemanticParent] = None,
         strict_naming: bool = True,
-        **kwargs
+        **kwargs,
     ):
         self._children = bidict()
         self.strict_naming = strict_naming
         super().__init__(*args, label=label, parent=parent, **kwargs)
 
     @property
-    def children(self) -> bidict[str: Semantic]:
+    def children(self) -> bidict[str:Semantic]:
         return self._children
 
     @property

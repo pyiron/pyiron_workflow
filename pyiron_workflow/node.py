@@ -330,12 +330,7 @@ class Node(HasToDict, Semantic, ABC, metaclass=AbstractHasPost):
             run_after_init (bool): Whether to run at the end of initialization.
             **kwargs: Keyword arguments passed on with `super`.
         """
-        super().__init__(
-            *args,
-            label=label,
-            parent=parent,
-            **kwargs
-        )
+        super().__init__(*args, label=label, parent=parent, **kwargs)
         if self.parent is not None:
             self.parent.add_child(self)
         self.running = False
