@@ -409,4 +409,3 @@ class ParentMost(SemanticParent, ABC):
                 f"{self.label} is {ParentMost.__name__} and may only take None as a "
                 f"parent but got {type(new_parent)}"
             )
-
