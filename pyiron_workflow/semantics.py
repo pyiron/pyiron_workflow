@@ -132,16 +132,24 @@ class Semantic(ABC):
             self.__dict__.update(**state)
 
 
-class _HasSemanticChildren(ABC):
+class CyclicPathError(ValueError):
+    """
+    To be raised when adding a child would result in a cyclic semantic path.
+    """
+
+
+class SemanticParent(Semantic, ABC):
     def __init__(
         self,
+        label: str,
         *args,
+        parent: Optional[SemanticParent] = None,
         strict_naming: bool = True,
         **kwargs
     ):
         self._children = bidict()
         self.strict_naming = strict_naming
-        super().__init__(*args, **kwargs)
+        super().__init__(*args, label=label, parent=parent, **kwargs)
 
     @property
     def children(self) -> bidict[str: Semantic]:
@@ -211,6 +219,8 @@ class _HasSemanticChildren(ABC):
                 f"parent but was added as a child to {self.label}"
             )
 
+        self._ensure_path_is_not_cyclic(self, child)
+
         self._ensure_child_has_no_other_parent(child)
 
         label = child.label if label is None else label
@@ -229,6 +239,18 @@ class _HasSemanticChildren(ABC):
             self.children[child.label] = child
             child._parent = self
         return child
+
+    @staticmethod
+    def _ensure_path_is_not_cyclic(parent: SemanticParent | None, child: Semantic):
+        if parent is not None and parent.semantic_path.startswith(
+            child.semantic_path + child.semantic_delimiter
+        ):
+            raise CyclicPathError(
+                f"{parent.label} cannot be the parent of {child.label}, because its "
+                f"semantic path is already in {child.label}'s path and cyclic paths "
+                f"are not allowed. (i.e. {child.semantic_path} is in "
+                f"{parent.semantic_path})"
+            )
 
     def _ensure_child_has_no_other_parent(self, child: Semantic):
         if child.parent is not None and child.parent is not self:
@@ -295,12 +317,17 @@ class _HasSemanticChildren(ABC):
 
         return child
 
+    @property
+    def parent(self) -> SemanticParent | None:
+        return self._parent
+
+    @parent.setter
+    def parent(self, new_parent: SemanticParent | None) -> None:
+        self._ensure_path_is_not_cyclic(new_parent, self)
+        super(SemanticParent, type(self)).parent.__set__(self, new_parent)
+
     def __getstate__(self):
-        try:
-            state = super().__getstate__()
-            state = dict(state) if state is self.__dict__ else state
-        except AttributeError:
-            state = dict(self.__dict__)
+        state = super().__getstate__()
 
         # Remove the children from the state and store each element right in the state
         # -- the labels are guaranteed to not be attributes already so this is safe,
@@ -318,10 +345,7 @@ class _HasSemanticChildren(ABC):
             {label: state[label] for label in state.pop("child_labels")}
         )
 
-        try:
-            super().__setstate__(state)
-        except AttributeError:
-            self.__dict__.update(**state)
+        super().__setstate__(state)
 
         self._children = bidict(self._children)
 
@@ -331,60 +355,6 @@ class _HasSemanticChildren(ABC):
         # return it to them:
         for child in self:
             child._parent = self
-
-
-class CyclicPathError(ValueError):
-    """
-    To be raised when adding a child would result in a cyclic semantic path.
-    """
-
-
-class SemanticParent(Semantic, _HasSemanticChildren, ABC):
-    def __init__(
-        self,
-        label: str,
-        *args,
-        parent: Optional[SemanticParent] = None,
-        strict_naming: bool = True,
-        **kwargs
-    ):
-        super().__init__(
-            *args, label=label, parent=parent, strict_naming=strict_naming, **kwargs
-        )
-
-    @property
-    def parent(self) -> SemanticParent | None:
-        return self._parent
-
-    @parent.setter
-    def parent(self, new_parent: SemanticParent | None) -> None:
-        if (
-            new_parent is not None
-            and new_parent.semantic_path.startswith(
-                self.semantic_path + self.semantic_delimiter
-            )
-        ):
-            raise CyclicPathError(
-                f"{self.label} cannot take {new_parent.label} as a parent, because its "
-                f"semantic path is already in {new_parent.label}'s path and cyclic "
-                f"paths are not allowed. (i.e. {self.semantic_path} in "
-                f"{new_parent.semantic_path})"
-            )
-        super(SemanticParent, type(self)).parent.__set__(self, new_parent)
-
-    def add_child(
-        self,
-        child: Semantic,
-        label: Optional[str] = None,
-        strict_naming: Optional[bool] = None,
-    ) -> Semantic:
-        if self.semantic_path.startswith(child.semantic_path + self.semantic_delimiter):
-            raise CyclicPathError(
-                f"{self.label} cannot add {child.label} as a child, because its "
-                f"semantic path is already in {self.label}'s path and cyclic paths are "
-                f"not allowed. (i.e. {child.semantic_path} in {self.semantic_path})"
-            )
-        return super().add_child(child=child, label=label, strict_naming=strict_naming)
 
 
 class ParentMostError(TypeError):
