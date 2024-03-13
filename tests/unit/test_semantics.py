@@ -58,9 +58,10 @@ class TestSemantics(unittest.TestCase):
         self.assertEqual(self.child2.semantic_path, "/root/middle/child2")
 
     def test_root(self):
-        self.assertEqual(self.root.semantics.root, self.root)
-        self.assertEqual(self.child1.semantics.root, self.root)
-        self.assertEqual(self.child2.semantics.root, self.root)
+        self.assertEqual(self.root.semantic_root, self.root)
+        self.assertEqual(self.child1.semantic_root, self.root)
+        self.assertEqual(self.middle.semantic_root, self.root)
+        self.assertEqual(self.child2.semantic_root, self.root)
 
 
 if __name__ == '__main__':
