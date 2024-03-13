@@ -24,6 +24,16 @@ class TestSemantics(unittest.TestCase):
         ):
             Semantic(f"invalid{Semantic.semantic_delimiter}label")
 
+    def test_semantic_delimiter(self):
+        self.assertEqual(
+            "/",
+            Semantic.semantic_delimiter,
+            msg="This is just a hard-code to the current value, update it freely so "
+                "the test passes; if it fails it's just a reminder that your change is "
+                "not backwards compatible, and the next release number should reflect "
+                "this."
+        )
+
     def test_parent(self):
         self.assertEqual(self.child1.semantics.parent, self.root)
         self.assertEqual(self.root.semantics.parent, None)
