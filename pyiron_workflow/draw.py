@@ -321,7 +321,7 @@ class Node(WorkflowGraphvizMap):
         return f"{start_channel.color};0.5:{end_channel.color};0.5"
 
     def _connect_owned_nodes(self, depth):
-        nodes = [Node(node, self, depth - 1) for node in self.node.nodes.values()]
+        nodes = [Node(node, self, depth - 1) for node in self.node.children.values()]
         internal_inputs = [
             channel for node in nodes for channel in node.inputs.channels
         ]
