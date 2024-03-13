@@ -8,8 +8,8 @@ class TestSemantics(unittest.TestCase):
     def setUp(self):
         self.root = ParentMost("root")
         self.child1 = Semantic("child1", parent=self.root)
-        self.middle1 = SemanticParent("middle1", parent=self.root)
-        self.middle2 = SemanticParent("middle2", parent=self.middle1)
+        self.middle1 = SemanticParent("middle", parent=self.root)
+        self.middle2 = SemanticParent("middle_sub", parent=self.middle1)
         self.child2 = Semantic("child2", parent=self.middle2)
 
     def test_label_validity(self):
@@ -62,9 +62,9 @@ class TestSemantics(unittest.TestCase):
     def test_path(self):
         self.assertEqual(self.root.semantic_path, "/root")
         self.assertEqual(self.child1.semantic_path, "/root/child1")
-        self.assertEqual(self.middle1.semantic_path, "/root/middle1")
-        self.assertEqual(self.middle2.semantic_path, "/root/middle1/middle2")
-        self.assertEqual(self.child2.semantic_path, "/root/middle1/middle2/child2")
+        self.assertEqual(self.middle1.semantic_path, "/root/middle")
+        self.assertEqual(self.middle2.semantic_path, "/root/middle/middle_sub")
+        self.assertEqual(self.child2.semantic_path, "/root/middle/middle_sub/child2")
 
     def test_root(self):
         self.assertEqual(self.root.semantic_root, self.root)

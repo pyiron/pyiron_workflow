@@ -360,12 +360,15 @@ class SemanticParent(Semantic, _HasSemanticChildren, ABC):
     def parent(self, new_parent: SemanticParent | None) -> None:
         if (
             new_parent is not None
-            and new_parent.semantic_path.startswith(self.semantic_path)
+            and new_parent.semantic_path.startswith(
+                self.semantic_path + self.semantic_delimiter
+            )
         ):
             raise CyclicPathError(
                 f"{self.label} cannot take {new_parent.label} as a parent, because its "
                 f"semantic path is already in {new_parent.label}'s path and cyclic "
-                f"paths are not allowed."
+                f"paths are not allowed. (i.e. {self.semantic_path} in "
+                f"{new_parent.semantic_path})"
             )
         super(SemanticParent, type(self)).parent.__set__(self, new_parent)
 
@@ -375,11 +378,11 @@ class SemanticParent(Semantic, _HasSemanticChildren, ABC):
         label: Optional[str] = None,
         strict_naming: Optional[bool] = None,
     ) -> Semantic:
-        if self.semantic_path.startswith(child.semantic_path):
+        if self.semantic_path.startswith(child.semantic_path + self.semantic_delimiter):
             raise CyclicPathError(
                 f"{self.label} cannot add {child.label} as a child, because its "
                 f"semantic path is already in {self.label}'s path and cyclic paths are "
-                f"not allowed."
+                f"not allowed. (i.e. {child.semantic_path} in {self.semantic_path})"
             )
         return super().add_child(child=child, label=label, strict_naming=strict_naming)
 
