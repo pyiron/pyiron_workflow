@@ -460,9 +460,10 @@ class Composite(Node, SemanticParent, ABC):
             node.executor_shutdown(wait=wait, cancel_futures=cancel_futures)
 
     def __setattr__(self, key: str, node: Node):
-        if isinstance(node, Composite) and key == "_parent":
+        if isinstance(node, Composite) and key in ["_parent", "parent"]:
             # This is an edge case for assigning a node to an attribute
-            # Since it's to a private variable, we trust the call and carry it out
+            # We either defer to the setter with super, or directly assign the private
+            # variable (as requested in the setter)
             super().__setattr__(key, node)
         elif isinstance(node, Node):
             self.add_child(node, label=key)
