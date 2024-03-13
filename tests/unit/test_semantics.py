@@ -35,11 +35,21 @@ class TestSemantics(unittest.TestCase):
         )
 
     def test_parent(self):
-        self.assertEqual(self.child1.semantics.parent, self.root)
-        self.assertEqual(self.root.semantics.parent, None)
+        self.assertEqual(self.child1.parent, self.root)
+        self.assertEqual(self.root.parent, None)
 
-        with self.assertRaises(TypeError, msg="Parentmost can't have parent"):
-            self.parentmost.semantics.parent = self.root
+        with self.assertRaises(
+            TypeError,
+            msg=f"{ParentMost.__name__} instances can't have parent"
+        ):
+            self.root.parent = SemanticParent(label="foo")
+
+        with self.assertRaises(
+            TypeError,
+            msg=f"{ParentMost.__name__} instances can't be children"
+        ):
+            some_parent = SemanticParent(label="bar")
+            some_parent.add_child(self.root)
 
     def test_path(self):
         self.assertEqual(self.root.semantics.path, "/root")
