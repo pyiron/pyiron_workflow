@@ -15,7 +15,7 @@ class TestSemantics(unittest.TestCase):
 
     def test_label_validity(self):
         with self.assertRaises(TypeError, msg="Label must be a string"):
-            Semantics(self.root, 123)
+            Semantic(label=123)
 
     def test_label_delimiter(self):
         with self.assertRaises(ValueError, msg="Delimiter '/' not allowed"):
