@@ -333,6 +333,12 @@ class _HasSemanticChildren(ABC):
             child._parent = self
 
 
+class CyclicPathError(ValueError):
+    """
+    To be raised when adding a child would result in a cyclic semantic path.
+    """
+
+
 class SemanticParent(Semantic, _HasSemanticChildren, ABC):
     def __init__(
         self,
@@ -345,6 +351,37 @@ class SemanticParent(Semantic, _HasSemanticChildren, ABC):
         super().__init__(
             *args, label=label, parent=parent, strict_naming=strict_naming, **kwargs
         )
+
+    @property
+    def parent(self) -> SemanticParent | None:
+        return self._parent
+
+    @parent.setter
+    def parent(self, new_parent: SemanticParent | None) -> None:
+        if (
+            new_parent is not None
+            and new_parent.semantic_path.startswith(self.semantic_path)
+        ):
+            raise CyclicPathError(
+                f"{self.label} cannot take {new_parent.label} as a parent, because its "
+                f"semantic path is already in {new_parent.label}'s path and cyclic "
+                f"paths are not allowed."
+            )
+        super(SemanticParent, type(self)).parent.__set__(self, new_parent)
+
+    def add_child(
+        self,
+        child: Semantic,
+        label: Optional[str] = None,
+        strict_naming: Optional[bool] = None,
+    ) -> Semantic:
+        if self.semantic_path.startswith(child.semantic_path):
+            raise CyclicPathError(
+                f"{self.label} cannot add {child.label} as a child, because its "
+                f"semantic path is already in {self.label}'s path and cyclic paths are "
+                f"not allowed."
+            )
+        return super().add_child(child=child, label=label, strict_naming=strict_naming)
 
 
 class ParentMostError(TypeError):
