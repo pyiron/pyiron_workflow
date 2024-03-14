@@ -13,7 +13,7 @@ from abc import ABC, abstractmethod
 import inspect
 from warnings import warn
 
-from pyiron_workflow.has_channel import HasChannel
+from pyiron_workflow.has_interface_mixins import HasChannel
 from pyiron_workflow.has_to_dict import HasToDict
 from pyiron_workflow.snippets.singleton import Singleton
 from pyiron_workflow.type_hinting import (
