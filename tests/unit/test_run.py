@@ -42,6 +42,11 @@ class ConcreteRunnable(Runnable):
         return {"foo": 42, "bar": 0, "baz": 1}
 
 
+class FailingRunnable(ConcreteRunnable):
+    def on_run(self, **kwargs):
+        raise RuntimeError()
+
+
 class TestRunnable(unittest.TestCase):
     def test_runnable_not_ready(self):
         runnable = ConcreteRunnable()
@@ -68,6 +73,16 @@ class TestRunnable(unittest.TestCase):
                     runnable.run()
             finally:
                 runnable.failed = False
+
+    def test_failure(self):
+        runnable = FailingRunnable()
+
+        with self.assertRaises(RuntimeError):
+            runnable.run()
+        self.assertTrue(
+            runnable.failed,
+            msg="Encountering an error should set status to failed"
+        )
 
     def test_runnable_run_local(self):
         runnable = ConcreteRunnable()
