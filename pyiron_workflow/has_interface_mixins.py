@@ -7,6 +7,7 @@ type hints. These mixins allow us to guarantee the presence of such interfaces w
 leaving their actual implementation up to other classes in order to have the weakest
 possible coupling between different components of a composed class.
 """
+
 from __future__ import annotations
 
 from abc import ABC, abstractmethod
