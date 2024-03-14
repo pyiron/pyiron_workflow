@@ -120,23 +120,6 @@ class Runnable(HasLabel, HasRun, ABC):
         except AttributeError:
             pass
 
-    def _finish_run(self, run_output: tuple | Future) -> Any | tuple:
-        """
-        Switch the status, then process and return the run result.
-
-        Sets the :attr:`failed` status to true if an exception is encountered.
-        """
-        if isinstance(run_output, Future):
-            run_output = run_output.result()
-
-        self.running = False
-        try:
-            processed_output = self.process_run_result(run_output)
-            return processed_output
-        except Exception as e:
-            self.failed = True
-            raise e
-
     def run(
         self,
         check_readiness: bool = True,
@@ -227,6 +210,23 @@ class Runnable(HasLabel, HasRun, ABC):
             raise NotImplementedError(
                 f"Expected an instance of {StdLibExecutor}, but got {executor}."
             )
+
+    def _finish_run(self, run_output: tuple | Future) -> Any | tuple:
+        """
+        Switch the status, then process and return the run result.
+
+        Sets the :attr:`failed` status to true if an exception is encountered.
+        """
+        if isinstance(run_output, Future):
+            run_output = run_output.result()
+
+        self.running = False
+        try:
+            processed_output = self.process_run_result(run_output)
+            return processed_output
+        except Exception as e:
+            self.failed = True
+            raise e
 
     def __getstate__(self):
         try:
