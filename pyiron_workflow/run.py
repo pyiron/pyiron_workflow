@@ -2,6 +2,7 @@
 A module to extract encapsulate for complex run mechanics, such as status, executor
 interaction, etc.
 """
+
 from __future__ import annotations
 
 from abc import ABC, abstractmethod
@@ -63,6 +64,7 @@ class Runnable(HasLabel, HasRun, ABC):
     with the returned value of :meth:`on_run`, but by default the returned value just
     passes cleanly through the function.
     """
+
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
         self.running = False
@@ -171,13 +173,15 @@ class Runnable(HasLabel, HasRun, ABC):
             raise ReadinessError(self._readiness_error_message)
         return self._run(
             finished_callback=_finished_callback,
-            force_local_execution=force_local_execution
+            force_local_execution=force_local_execution,
         )
 
     @property
     def _readiness_error_message(self) -> str:
-        return f"{self.label} received a run command but is not ready. The runnable " \
+        return (
+            f"{self.label} received a run command but is not ready. The runnable "
             f"should be neither running nor failed.\n" + self.readiness_report
+        )
 
     @manage_status
     def _run(

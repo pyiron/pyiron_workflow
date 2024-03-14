@@ -374,9 +374,11 @@ class Node(HasToDict, Semantic, Runnable, ABC, metaclass=AbstractHasPost):
 
     @property
     def _readiness_error_message(self) -> str:
-        return f"{self.label} received a run command but is not ready. The node " \
-            f"should be neither running nor failed, and all input values should" \
+        return (
+            f"{self.label} received a run command but is not ready. The node "
+            f"should be neither running nor failed, and all input values should"
             f" conform to type hints.\n" + self.readiness_report
+        )
 
     def run(
         self,
