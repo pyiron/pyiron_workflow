@@ -7,7 +7,7 @@ from __future__ import annotations
 
 from abc import ABC, abstractmethod
 from concurrent.futures import Executor as StdLibExecutor, Future
-from typing import Any
+from typing import Any, Optional
 
 from pyiron_workflow.has_interface_mixins import HasLabel, HasRun
 
@@ -147,7 +147,7 @@ class Runnable(HasLabel, HasRun, ABC):
         self,
         check_readiness: bool = True,
         force_local_execution: bool = False,
-        _finished_callback: callable = _finish_run,
+        _finished_callback: Optional[callable] = None,
     ) -> Any | tuple | Future:
         """
         Checks that the runnable is :attr:`ready` (if requested), then executes the
@@ -172,7 +172,9 @@ class Runnable(HasLabel, HasRun, ABC):
         if check_readiness and not self.ready:
             raise ReadinessError(self._readiness_error_message)
         return self._run(
-            finished_callback=_finished_callback,
+            finished_callback=(
+                self._finish_run if _finished_callback is None else _finished_callback
+            ),
             force_local_execution=force_local_execution,
         )
 
