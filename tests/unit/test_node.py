@@ -144,13 +144,6 @@ class TestNode(unittest.TestCase):
         ):
             self.n3.run(run_data_tree=False, fetch_input=False, check_readiness=True)
 
-        with self.assertRaises(
-            RuntimeError,
-            msg="If we manage to run with bad input, being in a failed state still "
-                "stops us"
-        ):
-            self.n3.run(run_data_tree=False, fetch_input=False, check_readiness=False)
-
         self.n3.failed = False
         self.assertEqual(
             1,

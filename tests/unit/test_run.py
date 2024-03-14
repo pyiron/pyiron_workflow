@@ -74,6 +74,18 @@ class TestRunnable(unittest.TestCase):
             finally:
                 runnable.failed = False
 
+        with self.subTest("Bypass"):
+            runnable.failed = True
+            self.assertFalse(runnable.ready)
+            result = runnable.run(check_readiness=False)
+            self.assertEqual(
+                runnable.expected_run_output,
+                result,
+                msg="We should be able to bypass the readiness check with a flag, and "
+                    "in this simple case expect to get perfectly normal behaviour "
+                    "afterwards"
+            )
+
     def test_failure(self):
         runnable = FailingRunnable()
 

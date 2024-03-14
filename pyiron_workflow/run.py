@@ -19,16 +19,10 @@ def manage_status(status_managed_method):
 
     Sets :attr:`running` to true until the method completes and either fails or returns
     something other than a :class:`concurrent.futures.Future` instance; sets `failed`
-    to true if the method raises an exception; raises a `RuntimeError` if the runnable
-    is already :attr:`running` or :attr:`failed`.
+    to true if the method raises an exception.
     """
 
     def wrapped_method(runnable: Runnable, *args, **kwargs):
-        if runnable.running:
-            raise RuntimeError(f"{runnable.label} is already running")
-        elif runnable.failed:
-            raise RuntimeError(f"{runnable.label} has a failed status")
-
         runnable.running = True
         try:
             out = status_managed_method(runnable, *args, **kwargs)
