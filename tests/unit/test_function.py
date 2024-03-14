@@ -4,7 +4,7 @@ import warnings
 
 from pyiron_workflow.channels import NOT_DATA, ChannelConnectionError
 from pyiron_workflow.function import Function, SingleValue, function_node
-from pyiron_workflow.interfaces import Executor
+from pyiron_workflow.create import Executor
 
 
 def throw_error(x: Optional[int] = None):
