@@ -42,3 +42,13 @@ class HasChannel(ABC):
     @abstractmethod
     def channel(self) -> Channel:
         pass
+
+
+class HasRun(ABC):
+    """
+    A mixin to guarantee that the :meth:`run` method exists.
+    """
+
+    @abstractmethod
+    def run(self, *args, **kwargs):
+        pass
