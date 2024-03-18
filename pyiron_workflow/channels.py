@@ -553,6 +553,9 @@ class OutputData(DataChannel):
     def connection_partner_type(self):
         return InputData
 
+
+class OutputDataWithInjections(OutputData):
+
     @staticmethod
     def _other_label(other):
         return (
