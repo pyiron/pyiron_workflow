@@ -339,8 +339,9 @@ class DataChannel(Channel, ABC):
             when this node is a value receiver. This can potentially be expensive, so
             consider deactivating strict hints everywhere for production runs. (Default
             is True, raise exceptions when type hints get violated.)
-        value_receiver (pyiron_workflow.node.Node|None): Another node of the same class
-            whose value will always get updated when this node's value gets updated.
+        value_receiver (pyiron_workflow.channel.DataChannel|None): Another channel of
+            the same class whose value will always get updated when this channel's
+            value gets updated.
     """
 
     def __init__(
