@@ -331,8 +331,6 @@ class Node(HasToDict, Semantic, ABC, metaclass=AbstractHasPost):
             **kwargs: Keyword arguments passed on with `super`.
         """
         super().__init__(*args, label=label, parent=parent, **kwargs)
-        if self.parent is not None:
-            self.parent.add_child(self)
         self.running = False
         self.failed = False
         self.signals = self._build_signal_channels()
