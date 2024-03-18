@@ -24,6 +24,7 @@ class UsesState(ABC):
     Guarantees that `super()` can always be called in these methods to return a copy
     of the state dict or to update it, respectively.
     """
+
     def __getstate__(self):
         # Make a shallow(! careful!) copy of the state so any modifications don't
         # immediately impact the object we're getting the state from)
