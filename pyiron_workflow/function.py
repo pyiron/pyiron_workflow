@@ -370,7 +370,6 @@ class Function(Node):
         self._output_labels = self._get_output_labels(output_labels)
         # TODO: Parse output labels from the node function in case output_labels is None
 
-        self.signals = self._build_signal_channels()
         self.set_input_values(*args, **kwargs)
 
     def _get_output_labels(self, output_labels: str | list[str] | tuple[str] | None):
