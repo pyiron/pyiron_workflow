@@ -458,7 +458,7 @@ class Macro(Composite):
         """
         composite_channel = child_reference_channel.__class__(
             label=composite_io_key,
-            node=self,
+            owner=self,
             default=child_reference_channel.default,
             type_hint=child_reference_channel.type_hint,
         )
@@ -565,7 +565,7 @@ class Macro(Composite):
         the name is protected.
         """
         return [
-            (c.label, (c.value_receiver.node.label, c.value_receiver.label))
+            (c.label, (c.value_receiver.owner.label, c.value_receiver.label))
             for c in self.inputs
         ]
 
@@ -579,7 +579,7 @@ class Macro(Composite):
         the name is protected.
         """
         return [
-            ((c.node.label, c.label), c.value_receiver.label)
+            ((c.owner.label, c.label), c.value_receiver.label)
             for child in self
             for c in child.outputs
             if c.value_receiver is not None

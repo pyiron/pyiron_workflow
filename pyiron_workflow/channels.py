@@ -35,7 +35,7 @@ class Channel(UsesState, HasChannel, HasLabel, HasToDict, ABC):
     out of nodes.
 
     They must have an identifier (`label: str`) and belong to a parent node
-    (`node: pyiron_workflow.node.Node`).
+    (`owner: pyiron_workflow.node.Node`).
 
     Non-abstract channel classes should come in input/output pairs and specify the
     a necessary ancestor for instances they can connect to
@@ -62,25 +62,24 @@ class Channel(UsesState, HasChannel, HasLabel, HasToDict, ABC):
 
     Attributes:
         label (str): The name of the channel.
-        node (pyiron_workflow.node.Node): The node to which the channel
-         belongs.
+        owner (pyiron_workflow.node.Node): The channel's owner.
         connections (list[Channel]): Other channels to which this channel is connected.
     """
 
     def __init__(
         self,
         label: str,
-        node: Node,
+        owner: Node,
     ):
         """
         Make a new channel.
 
         Args:
             label (str): A name for the channel.
-            node (pyiron_workflow.node.Node): The node to which the channel belongs.
+            owner (pyiron_workflow.node.Node): The channel's owner.
         """
         self._label = label
-        self.node: Node = node
+        self.owner: Node = owner
         self.connections: list[Channel] = []
 
     @property
@@ -101,8 +100,8 @@ class Channel(UsesState, HasChannel, HasLabel, HasToDict, ABC):
 
     @property
     def scoped_label(self) -> str:
-        """A label combining the channel's usual label and its node's label"""
-        return f"{self.node.label}__{self.label}"
+        """A label combining the channel's usual label and its owner's label"""
+        return f"{self.owner.label}__{self.label}"
 
     def _valid_connection(self, other: Channel) -> bool:
         """
@@ -217,17 +216,17 @@ class Channel(UsesState, HasChannel, HasLabel, HasToDict, ABC):
         return {
             "label": self.label,
             "connected": self.connected,
-            "connections": [f"{c.node.label}.{c.label}" for c in self.connections],
+            "connections": [f"{c.owner.label}.{c.label}" for c in self.connections],
         }
 
     def __getstate__(self):
         state = super().__getstate__()
         # To avoid cyclic storage and avoid storing complex objects, purge some
         # properties from the state
-        state["node"] = None
-        # It is the responsibility of the owning node to restore the node property
+        state["owner"] = None
+        # It is the responsibility of the owner to restore the owner property
         state["connections"] = []
-        # It is the responsibility of the owning node's parent to store and restore
+        # It is the responsibility of the owner's parent to store and restore
         # connections (if any)
         return state
 
@@ -278,7 +277,7 @@ class DataChannel(Channel, ABC):
     Channels with such partners pass any data updates they receive directly to this
     partner (via the :attr:`value` setter).
     (This is helpful for passing data between scopes, where we want input at one scope
-    to be passed to the input of nodes at a deeper scope, i.e. macro input passing to
+    to be passed to the input of owners at a deeper scope, i.e. macro input passing to
     child node input, or vice versa for output.)
 
     All these type hint tests can be disabled on the input/receiving channel
@@ -329,14 +328,14 @@ class DataChannel(Channel, ABC):
         yet included in our test suite and behaviour is not guaranteed.
 
     Attributes:
-        value: The actual data value held by the node.
+        value: The actual data value held by the channel.
         label (str): The label for the channel.
-        node (pyiron_workflow.node.Node): The node to which this channel belongs.
+        owner (pyiron_workflow.node.Node): The channel's owner.
         default (typing.Any|None): The default value to initialize to.
             (Default is the singleton `NOT_DATA`.)
         type_hint (typing.Any|None): A type hint for values. (Default is None.)
         strict_hints (bool): Whether to check new values, connections, and partners
-            when this node is a value receiver. This can potentially be expensive, so
+            when this channel is a value receiver. This can potentially be expensive, so
             consider deactivating strict hints everywhere for production runs. (Default
             is True, raise exceptions when type hints get violated.)
         value_receiver (pyiron_workflow.channel.DataChannel|None): Another channel of
@@ -347,13 +346,13 @@ class DataChannel(Channel, ABC):
     def __init__(
         self,
         label: str,
-        node: Node,
+        owner: Node,
         default: typing.Optional[typing.Any] = NOT_DATA,
         type_hint: typing.Optional[typing.Any] = None,
         strict_hints: bool = True,
         value_receiver: typing.Optional[InputData] = None,
     ):
-        super().__init__(label=label, node=node)
+        super().__init__(label=label, owner=owner)
         self._value = NOT_DATA
         self._value_receiver = None
         self.type_hint = type_hint
@@ -391,7 +390,7 @@ class DataChannel(Channel, ABC):
         Another data channel of the same type to whom new values are always pushed
         (without type checking of any sort, not even when forming the couple!)
 
-        Useful for macros, so that the IO of owned nodes and IO at the macro level can
+        Useful for macros, so that the IO of children and IO at the macro level can
         be kept synchronized.
         """
         return self._value_receiver
@@ -525,7 +524,7 @@ class InputData(DataChannel):
         0th connection; build graphs accordingly.
 
         Raises:
-            RuntimeError: If the parent node is :attr:`running`.
+            RuntimeError: If the owner is :attr:`running`.
         """
         for out in self.connections:
             if out.value is not NOT_DATA:
@@ -538,9 +537,9 @@ class InputData(DataChannel):
 
     @value.setter
     def value(self, new_value):
-        if self.node.running:
+        if self.owner.running:
             raise RuntimeError(
-                f"Parent node {self.node.label} of {self.label} is running, so value "
+                f"Owner {self.owner.label} of {self.label} is running, so value "
                 f"cannot be updated."
             )
         self._type_check_new_value(new_value)
@@ -587,12 +586,12 @@ class OutputData(DataChannel):
         label = self._get_injection_label(injection_class, *args)
         try:
             # First check if the node already exists
-            return self.node.parent.children[label]
+            return self.owner.parent.children[label]
         except (AttributeError, KeyError):
             # Fall back on creating a new node in case parent is None or node nexists
             node_args = (self, *args) if inject_self else args
             return injection_class(
-                *node_args, parent=self.node.parent, label=label, run_after_init=True
+                *node_args, parent=self.owner.parent, label=label, run_after_init=True
             )
 
     # We don't wrap __all__ the operators, because you might really want the string or
@@ -772,7 +771,7 @@ class SignalChannel(Channel, ABC):
     """
     Signal channels give the option control execution flow by triggering callback
     functions when the channel is called.
-    Callbacks must be methods on the parent node that require no positional arguments.
+    Callbacks must be methods on the owner that require no positional arguments.
     Inputs optionally accept an output signal on call, which output signals always
     send when they call their input connections.
 
@@ -800,7 +799,7 @@ class InputSignal(SignalChannel):
     def __init__(
         self,
         label: str,
-        node: Node,
+        owner: Node,
         callback: callable,
     ):
         """
@@ -808,25 +807,24 @@ class InputSignal(SignalChannel):
 
         Args:
             label (str): A name for the channel.
-            node (pyiron_workflow.node.Node): The node to which the
-             channel belongs.
+            owner (pyiron_workflow.node.Node): The channel's owner.
             callback (callable): An argument-free callback to invoke when calling this
-                object.
+                object. Must be a method on the owner.
         """
-        super().__init__(label=label, node=node)
-        if self._is_node_method(callback) and self._takes_zero_arguments(callback):
+        super().__init__(label=label, owner=owner)
+        if self._is_method_on_owner(callback) and self._takes_zero_arguments(callback):
             self._callback: str = callback.__name__
         else:
             raise BadCallbackError(
-                f"The channel {self.label} on {self.node.label} got an unexpected "
+                f"The channel {self.label} on {self.owner.label} got an unexpected "
                 f"callback: {callback}. "
-                f"Lives on node: {self._is_node_method(callback)}; "
+                f"Lives on owner: {self._is_method_on_owner(callback)}; "
                 f"take no args: {self._takes_zero_arguments(callback)} "
             )
 
-    def _is_node_method(self, callback):
+    def _is_method_on_owner(self, callback):
         try:
-            return callback == getattr(self.node, callback.__name__)
+            return callback == getattr(self.owner, callback.__name__)
         except AttributeError:
             return False
 
@@ -845,7 +843,7 @@ class InputSignal(SignalChannel):
 
     @property
     def callback(self) -> callable:
-        return getattr(self.node, self._callback)
+        return getattr(self.owner, self._callback)
 
     def __call__(self, other: typing.Optional[OutputSignal] = None) -> None:
         self.callback()
@@ -871,10 +869,10 @@ class AccumulatingInputSignal(InputSignal):
     def __init__(
         self,
         label: str,
-        node: Node,
+        owner: Node,
         callback: callable,
     ):
-        super().__init__(label=label, node=node, callback=callback)
+        super().__init__(label=label, owner=owner, callback=callback)
         self.received_signals: set[str] = set()
 
     def __call__(self, other: OutputSignal) -> None:
@@ -920,7 +918,7 @@ class OutputSignal(SignalChannel):
     def __str__(self):
         return (
             f"{self.label} activates "
-            f"{[f'{c.node.label}.{c.label}' for c in self.connections]}"
+            f"{[f'{c.owner.label}.{c.label}' for c in self.connections]}"
         )
 
     def __rshift__(self, other: InputSignal | Node):
