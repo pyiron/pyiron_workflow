@@ -263,18 +263,6 @@ class Workflow(Composite, ParentMost):
         """
         raise NotImplementedError
 
-    @classmethod
-    def _parent_most_object_parent_setter(cls, new_parent: None):
-        # Currently workflows are not allowed to have a parent -- maybe we want to
-        # change our minds on this in the future? If we do, we can just expose `parent`
-        # as a kwarg and roll back this private var/property/setter protection and let
-        # the super call in init handle everything
-        if new_parent is not None:
-            raise TypeError(
-                f"{cls.__name__} may only take None as a parent but got "
-                f"{type(new_parent)}"
-            )
-
     @property
     def _data_connections(self) -> list[tuple[tuple[str, str], tuple[str, str]]]:
         """
