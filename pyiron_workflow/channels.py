@@ -13,7 +13,7 @@ from abc import ABC, abstractmethod
 import inspect
 from warnings import warn
 
-from pyiron_workflow.has_interface_mixins import HasChannel, UsesState
+from pyiron_workflow.has_interface_mixins import HasChannel, HasLabel, UsesState
 from pyiron_workflow.has_to_dict import HasToDict
 from pyiron_workflow.snippets.singleton import Singleton
 from pyiron_workflow.type_hinting import (
@@ -29,7 +29,7 @@ class ChannelConnectionError(Exception):
     pass
 
 
-class Channel(UsesState, HasChannel, HasToDict, ABC):
+class Channel(UsesState, HasChannel, HasLabel, HasToDict, ABC):
     """
     Channels facilitate the flow of information (data or control signals) into and
     out of nodes.
@@ -79,9 +79,13 @@ class Channel(UsesState, HasChannel, HasToDict, ABC):
             label (str): A name for the channel.
             node (pyiron_workflow.node.Node): The node to which the channel belongs.
         """
-        self.label: str = label
+        self._label = label
         self.node: Node = node
         self.connections: list[Channel] = []
+
+    @property
+    def label(self) -> str:
+        return self._label
 
     @abstractmethod
     def __str__(self):
