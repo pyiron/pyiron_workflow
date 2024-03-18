@@ -19,7 +19,7 @@ from pyiron_workflow.channels import (
     SignalChannel,
     InputSignal,
     OutputSignal, AccumulatingInputSignal, NOT_DATA, )
-from pyiron_workflow.has_interface_mixins import HasChannel, HasRun, UsesState
+from pyiron_workflow.has_interface_mixins import HasChannel, HasLabel, HasRun, UsesState
 from pyiron_workflow.has_to_dict import HasToDict
 from pyiron_workflow.snippets.logger import logger
 from pyiron_workflow.snippets.dotdict import DotDict
@@ -287,7 +287,7 @@ class Signals:
         return f"{str(self.input)}\n{str(self.output)}"
 
 
-class HasIO(UsesState, HasRun, ABC):
+class HasIO(UsesState, HasLabel, HasRun, ABC):
     """
     A mixin for classes that provide data and signal IO.
 

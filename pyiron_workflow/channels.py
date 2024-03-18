@@ -22,6 +22,7 @@ from pyiron_workflow.type_hinting import (
 )
 
 if typing.TYPE_CHECKING:
+    from pyiron_workflow.io import HasIO
     from pyiron_workflow.node import Node
 
 
@@ -32,10 +33,10 @@ class ChannelConnectionError(Exception):
 class Channel(UsesState, HasChannel, HasLabel, HasToDict, ABC):
     """
     Channels facilitate the flow of information (data or control signals) into and
-    out of nodes.
+    out of :class:`HasIO` objects (namely nodes).
 
-    They must have an identifier (`label: str`) and belong to a parent node
-    (`owner: pyiron_workflow.node.Node`).
+    They must have an identifier (`label: str`) and belong to an
+    `owner: pyiron_workflow.io.HasIO`.
 
     Non-abstract channel classes should come in input/output pairs and specify the
     a necessary ancestor for instances they can connect to
@@ -62,24 +63,24 @@ class Channel(UsesState, HasChannel, HasLabel, HasToDict, ABC):
 
     Attributes:
         label (str): The name of the channel.
-        owner (pyiron_workflow.node.Node): The channel's owner.
+        owner (pyiron_workflow.io.HasIO): The channel's owner.
         connections (list[Channel]): Other channels to which this channel is connected.
     """
 
     def __init__(
         self,
         label: str,
-        owner: Node,
+        owner: HasIO,
     ):
         """
         Make a new channel.
 
         Args:
             label (str): A name for the channel.
-            owner (pyiron_workflow.node.Node): The channel's owner.
+            owner (pyiron_workflow.io.HasIO): The channel's owner.
         """
         self._label = label
-        self.owner: Node = owner
+        self.owner: HasIO = owner
         self.connections: list[Channel] = []
 
     @property
@@ -288,17 +289,6 @@ class DataChannel(Channel, ABC):
     (:attr:`ready: bool`), which is to say it is data (not the singleton `NOT_DATA`)
     and that it conforms to the type hint (if one is provided and checking is active).
 
-    Output data facilitates many (but not all) python operators by injecting a new
-    node to perform that operation. Where the operator is not supported, we try to
-    support using the operator's dunder name as a method, e.g. `==` gives us trouble
-    with hashing, but this exploits the dunder method `.__eq__(other)`, so you can call
-    `.eq(other)` on output data.
-    These new nodes are instructed to run at the end of instantiation, but this fails
-    cleanly in case they are not ready. This is intended to accommodate two likely
-    scenarios: if you're injecting a node on top of an existing result you probably
-    want the injection result to also be immediately available, but if you're injecting
-    it at the end of something that hasn't run yet you don't want to see an error.
-
     TODO:
 
         - Storage (including priority and history)
@@ -330,7 +320,7 @@ class DataChannel(Channel, ABC):
     Attributes:
         value: The actual data value held by the channel.
         label (str): The label for the channel.
-        owner (pyiron_workflow.node.Node): The channel's owner.
+        owner (pyiron_workflow.io.HasIO): The channel's owner.
         default (typing.Any|None): The default value to initialize to.
             (Default is the singleton `NOT_DATA`.)
         type_hint (typing.Any|None): A type hint for values. (Default is None.)
@@ -346,7 +336,7 @@ class DataChannel(Channel, ABC):
     def __init__(
         self,
         label: str,
-        owner: Node,
+        owner: HasIO,
         default: typing.Optional[typing.Any] = NOT_DATA,
         type_hint: typing.Optional[typing.Any] = None,
         strict_hints: bool = True,
@@ -555,6 +545,40 @@ class OutputData(DataChannel):
 
 
 class OutputDataWithInjections(OutputData):
+    """
+    Output data that must have a :class:`pyiron_workflow.node.Node` for its
+    :attr:`owner`, and which is able to inject new nodes into that owner's graph, e.g.
+    to accomplish operations on the channel.
+
+    This class facilitates many (but not all) python operators by injecting a new
+    node to perform that operation. Where the operator is not supported, we try to
+    support using the operator's dunder name as a method, e.g. `==` gives us trouble
+    with hashing, but this exploits the dunder method `.__eq__(other)`, so you can call
+    `.eq(other)` on output data.
+    These new nodes are instructed to run at the end of instantiation, but this fails
+    cleanly in case they are not ready. This is intended to accommodate two likely
+    scenarios: if you're injecting a node on top of an existing result you probably
+    want the injection result to also be immediately available, but if you're injecting
+    it at the end of something that hasn't run yet you don't want to see an error.
+    """
+    def __init__(
+        self,
+        label: str,
+        owner: Node,
+        default: typing.Optional[typing.Any] = NOT_DATA,
+        type_hint: typing.Optional[typing.Any] = None,
+        strict_hints: bool = True,
+        value_receiver: typing.Optional[InputData] = None,
+    ):
+        # Override parent method to give the new owner type hint
+        super().__init__(
+            label=label,
+            owner=owner,
+            default=default,
+            type_hint=type_hint,
+            strict_hints=strict_hints,
+            value_receiver=value_receiver,
+        )
 
     @staticmethod
     def _other_label(other):
@@ -782,7 +806,7 @@ class SignalChannel(Channel, ABC):
 
     Signal channels support `>>` as syntactic sugar for their connections, i.e.
     `some_output >> some_input` is equivalent to `some_input.connect(some_output)`.
-    (This is also interoperable with `Node` objects, cf. the `Node` docs.)
+    (This is also interoperable with `HasIO` objects.)
     """
 
     @abstractmethod
@@ -802,7 +826,7 @@ class InputSignal(SignalChannel):
     def __init__(
         self,
         label: str,
-        owner: Node,
+        owner: HasIO,
         callback: callable,
     ):
         """
@@ -810,7 +834,7 @@ class InputSignal(SignalChannel):
 
         Args:
             label (str): A name for the channel.
-            owner (pyiron_workflow.node.Node): The channel's owner.
+            owner (pyiron_workflow.io.HasIO): The channel's owner.
             callback (callable): An argument-free callback to invoke when calling this
                 object. Must be a method on the owner.
         """
@@ -872,7 +896,7 @@ class AccumulatingInputSignal(InputSignal):
     def __init__(
         self,
         label: str,
-        owner: Node,
+        owner: HasIO,
         callback: callable,
     ):
         super().__init__(label=label, owner=owner, callback=callback)
@@ -924,7 +948,7 @@ class OutputSignal(SignalChannel):
             f"{[f'{c.owner.label}.{c.label}' for c in self.connections]}"
         )
 
-    def __rshift__(self, other: InputSignal | Node):
+    def __rshift__(self, other: InputSignal | HasIO):
         other._connect_output_signal(self)
         return other
 
