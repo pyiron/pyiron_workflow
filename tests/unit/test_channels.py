@@ -9,11 +9,15 @@ from pyiron_workflow.channels import (
 class DummyNode:
     def __init__(self):
         self.foo = [0]
-        self.running = False
+        self.locked = False
         self.label = "node_label"
 
     def update(self):
         self.foo.append(self.foo[-1] + 1)
+
+    def data_input_locked(self):
+        return self.locked
+
 
 class InputChannel(Channel):
     """Just to de-abstract the base class"""
@@ -287,13 +291,13 @@ class TestDataChannels(unittest.TestCase):
         self.ni1.value = 2  # Should be fine when value matches hint
         self.ni1.value = NOT_DATA  # Should be able to clear the data
 
-        self.ni1.owner.running = True
+        self.ni1.owner.locked = True
         with self.assertRaises(
             RuntimeError,
-            msg="Input data should be locked while its node runs"
+            msg="Input data should be locked while its owner has data_input_locked"
         ):
             self.ni1.value = 3
-        self.ni1.owner.running = False
+        self.ni1.owner.locked = False
 
         with self.assertRaises(
             TypeError,

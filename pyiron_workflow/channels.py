@@ -527,10 +527,10 @@ class InputData(DataChannel):
 
     @value.setter
     def value(self, new_value):
-        if self.owner.running:
+        if self.owner.data_input_locked():
             raise RuntimeError(
-                f"Owner {self.owner.label} of {self.label} is running, so value "
-                f"cannot be updated."
+                f"Owner {self.owner.label} of {self.label} has its data input locked, "
+                f"so value cannot be updated."
             )
         self._type_check_new_value(new_value)
         if self.value_receiver is not None:

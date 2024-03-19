@@ -8,11 +8,13 @@ from pyiron_workflow.io import Inputs, Outputs, Signals
 
 class DummyNode:
     def __init__(self):
-        self.running = False
         self.label = "node_label"
 
     def update(self):
         pass
+
+    def data_input_locked(self):
+        return False
 
 
 class TestDataIO(unittest.TestCase):

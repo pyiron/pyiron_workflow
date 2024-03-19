@@ -344,6 +344,9 @@ class Node(HasToDict, Semantic, Runnable, HasIO, ABC, metaclass=AbstractHasPost)
         # to make this docstring true, but those don't exist right now.
         return self.semantic_root
 
+    def data_input_locked(self):
+        return self.running
+
     @property
     def readiness_report(self) -> str:
         input_readiness_report = f"INPUTS:\n" + "\n".join(
