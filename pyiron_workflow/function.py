@@ -5,10 +5,9 @@ import warnings
 from functools import partialmethod
 from typing import Any, get_args, get_type_hints, Literal, Optional, TYPE_CHECKING
 
-from pyiron_workflow.channels import (
-    InputData, OutputData, OutputDataWithInjections, NOT_DATA
-)
+from pyiron_workflow.channels import InputData, OutputData, NOT_DATA
 from pyiron_workflow.has_interface_mixins import HasChannel
+from pyiron_workflow.injection import OutputDataWithInjections
 from pyiron_workflow.io import Inputs, Outputs
 from pyiron_workflow.node import Node
 from pyiron_workflow.output_parser import ParseOutput
