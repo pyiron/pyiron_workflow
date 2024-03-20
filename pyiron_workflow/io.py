@@ -18,7 +18,10 @@ from pyiron_workflow.channels import (
     OutputData,
     SignalChannel,
     InputSignal,
-    OutputSignal, AccumulatingInputSignal, NOT_DATA, )
+    OutputSignal,
+    AccumulatingInputSignal,
+    NOT_DATA,
+)
 from pyiron_workflow.has_interface_mixins import HasChannel, HasLabel, HasRun, UsesState
 from pyiron_workflow.has_to_dict import HasToDict
 from pyiron_workflow.snippets.logger import logger
