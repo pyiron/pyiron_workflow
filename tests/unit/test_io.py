@@ -3,25 +3,44 @@ import unittest
 from pyiron_workflow.channels import (
     InputData, InputSignal, OutputData, OutputSignal, ChannelConnectionError
 )
-from pyiron_workflow.io import Inputs, Outputs, Signals
+from pyiron_workflow.io import Inputs, Outputs, Signals, HasIO
 
 
-class DummyHasIO:
+class Dummy(HasIO):
+
     def __init__(self):
-        self.label = "has_io_label"
+        super().__init__()
+        self._inputs = Inputs()
+        self._outputs = Outputs()
+        self._locked = False
+
+    @property
+    def inputs(self) -> Inputs:
+        return self._inputs
+
+    @property
+    def outputs(self) -> Outputs:
+        return self._outputs
+
+    @property
+    def label(self) -> str:
+        return "has_io_label"
+
+    def run(self, **kwargs):
+        pass
 
     def update(self):
         pass
 
     def data_input_locked(self):
-        return False
+        return self._locked
 
 
 class TestDataIO(unittest.TestCase):
 
     @classmethod
     def setUp(cls) -> None:
-        has_io = DummyHasIO()
+        has_io = Dummy()
         cls.inputs = [
             InputData(label="x", owner=has_io, default=0., type_hint=float),
             InputData(label="y", owner=has_io, default=1., type_hint=float)
@@ -154,7 +173,7 @@ class TestDataIO(unittest.TestCase):
 
 class TestSignalIO(unittest.TestCase):
     def setUp(self) -> None:
-        class Extended(DummyHasIO):
+        class Extended(Dummy):
             @staticmethod
             def do_nothing():
                 pass
