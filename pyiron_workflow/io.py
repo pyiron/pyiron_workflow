@@ -487,7 +487,11 @@ class HasIO(UsesState, HasLabel, HasRun, ABC):
                             # If you run into trouble, unwind what you've done
                             for this, other in new_connections:
                                 this.disconnect(other)
-                            raise e
+                            raise ConnectionCopyError(
+                                f"{self.label} could not copy connections from "
+                                f"{other.label} due to the channel {key} on "
+                                f"{other_panel.__class__.__name__}"
+                            ) from e
                         else:
                             continue
         return new_connections
@@ -535,7 +539,12 @@ class HasIO(UsesState, HasLabel, HasRun, ABC):
                             # If you run into trouble, unwind what you've done
                             for channel, value in old_values:
                                 channel.value = value
-                            raise e
+                            raise ValueCopyError(
+                                f"{self.label} could not copy values from "
+                                f"{other.label} due to the channel {key} on "
+                                f"{other_panel.__class__.__name__}, which holds value "
+                                f"{to_copy.value}"
+                            ) from e
                         else:
                             continue
         return old_values
@@ -558,3 +567,11 @@ class HasIO(UsesState, HasLabel, HasRun, ABC):
             self.signals.input,
             self.signals.output,
         ]
+
+
+class ConnectionCopyError(ValueError):
+    """Raised when trying to copy IO, but connections cannot be copied"""
+
+
+class ValueCopyError(ValueError):
+    """Raised when trying to copy IO, but values cannot be copied"""

@@ -5,7 +5,7 @@ from bidict import ValueDuplicationError
 from pyiron_workflow._tests import ensure_tests_in_python_path
 from pyiron_workflow.channels import NOT_DATA
 from pyiron_workflow.composite import Composite
-from pyiron_workflow.io import Outputs, Inputs
+from pyiron_workflow.io import Outputs, Inputs, ConnectionCopyError, ValueCopyError
 from pyiron_workflow.topology import CircularDataFlowError
 
 
@@ -374,13 +374,13 @@ class TestComposite(unittest.TestCase):
                 self.comp.n1 = wrong_hint
 
             with self.assertRaises(
-                AttributeError,
+                ConnectionCopyError,
                 msg="Should not be able to replace with any missing connected channels"
             ):
                 self.comp.n2 = different_input_channel
 
             with self.assertRaises(
-                AttributeError,
+                ConnectionCopyError,
                 msg="Should not be able to replace with any missing connected channels"
             ):
                 self.comp.n2 = different_output_channel
