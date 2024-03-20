@@ -14,7 +14,7 @@ from pyiron_workflow.has_interface_mixins import HasChannel
 from pyiron_workflow.node import Node
 
 
-class OutputDataWithInjections(OutputData):
+class OutputDataWithInjection(OutputData):
     """
     Output data that must have a :class:`pyiron_workflow.node.Node` for its
     :attr:`owner`, and which is able to inject new nodes into that owner's graph, e.g.

@@ -7,7 +7,7 @@ from typing import Any, get_args, get_type_hints, Literal, Optional, TYPE_CHECKI
 
 from pyiron_workflow.channels import InputData, OutputData, NOT_DATA
 from pyiron_workflow.has_interface_mixins import HasChannel
-from pyiron_workflow.injection import OutputDataWithInjections
+from pyiron_workflow.injection import OutputDataWithInjection
 from pyiron_workflow.io import Inputs, Outputs
 from pyiron_workflow.node import Node
 from pyiron_workflow.output_parser import ParseOutput
@@ -495,7 +495,7 @@ class Function(Node):
         channels = []
         for label, hint in zip(return_labels, type_hints):
             channels.append(
-                OutputDataWithInjections(
+                OutputDataWithInjection(
                     label=label,
                     owner=self,
                     type_hint=hint,
