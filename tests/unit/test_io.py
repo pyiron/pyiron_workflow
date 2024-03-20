@@ -6,9 +6,9 @@ from pyiron_workflow.channels import (
 from pyiron_workflow.io import Inputs, Outputs, Signals
 
 
-class DummyNode:
+class DummyHasIO:
     def __init__(self):
-        self.label = "node_label"
+        self.label = "has_io_label"
 
     def update(self):
         pass
@@ -21,16 +21,16 @@ class TestDataIO(unittest.TestCase):
 
     @classmethod
     def setUp(self) -> None:
-        node = DummyNode()
+        has_io = DummyHasIO()
         self.inputs = [
-            InputData(label="x", owner=node, default=0., type_hint=float),
-            InputData(label="y", owner=node, default=1., type_hint=float)
+            InputData(label="x", owner=has_io, default=0., type_hint=float),
+            InputData(label="y", owner=has_io, default=1., type_hint=float)
         ]
         outputs = [
-            OutputData(label="a", owner=node, type_hint=float),
+            OutputData(label="a", owner=has_io, type_hint=float),
         ]
 
-        self.post_facto_output = OutputData(label="b", owner=node, type_hint=float)
+        self.post_facto_output = OutputData(label="b", owner=has_io, type_hint=float)
 
         self.input = Inputs(*self.inputs)
         self.output = Outputs(*outputs)
@@ -154,20 +154,18 @@ class TestDataIO(unittest.TestCase):
 
 class TestSignalIO(unittest.TestCase):
     def setUp(self) -> None:
-        class Extended(DummyNode):
+        class Extended(DummyHasIO):
             @staticmethod
             def do_nothing():
                 pass
 
-        node = Extended()
-
-
+        has_io = Extended()
 
         signals = Signals()
-        signals.input.run = InputSignal("run", node, node.do_nothing)
-        signals.input.foo = InputSignal("foo", node, node.do_nothing)
-        signals.output.ran = OutputSignal("ran", node)
-        signals.output.bar = OutputSignal("bar", node)
+        signals.input.run = InputSignal("run", has_io, has_io.do_nothing)
+        signals.input.foo = InputSignal("foo", has_io, has_io.do_nothing)
+        signals.output.ran = OutputSignal("ran", has_io)
+        signals.output.bar = OutputSignal("bar", has_io)
 
         signals.output.ran >> signals.input.run
         signals.output.ran >> signals.input.foo
