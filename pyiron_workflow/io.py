@@ -473,12 +473,7 @@ class HasIO(UsesState, HasLabel, HasRun, ABC):
                 pairs (for reverting changes).
         """
         new_connections = []
-        for my_panel, other_panel in [
-            (self.inputs, other.inputs),
-            (self.outputs, other.outputs),
-            (self.signals.input, other.signals.input),
-            (self.signals.output, other.signals.output),
-        ]:
+        for my_panel, other_panel in zip(self._owned_io_panels, other._owned_io_panels):
             for key, channel in other_panel.items():
                 for target in channel.connections:
                     try:
