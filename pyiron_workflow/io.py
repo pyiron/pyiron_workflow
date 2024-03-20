@@ -372,7 +372,7 @@ class HasIO(UsesState, HasLabel, HasRun, ABC):
 
     def __rshift__(self, other: InputSignal | HasIO):
         """
-        Allows users to connect run and ran signals like: `first_node >> second_node`.
+        Allows users to connect run and ran signals like: `first >> second`.
         """
         other._connect_output_signal(self.signals.output.ran)
         return other
@@ -383,7 +383,7 @@ class HasIO(UsesState, HasLabel, HasRun, ABC):
     def __lshift__(self, others):
         """
         Connect one or more `ran` signals to `accumulate_and_run` signals like:
-        `this_node << some_node, another_node, or_by_channel.signals.output.ran`
+        `this << some_object, another_object, or_by_channel.signals.output.ran`
         """
         self.signals.input.accumulate_and_run << others
 
@@ -403,8 +403,8 @@ class HasIO(UsesState, HasLabel, HasRun, ABC):
             else:
                 warnings.warn(
                     f"The keyword '{k}' was not found among input labels. If you are "
-                    f"trying to update a node keyword, please use attribute assignment "
-                    f"directly instead of calling"
+                    f"trying to update a class instance keyword, please use attribute "
+                    f"assignment directly instead of calling this method"
                 )
 
     def copy_io(
@@ -414,13 +414,13 @@ class HasIO(UsesState, HasLabel, HasRun, ABC):
         values_fail_hard: bool = False,
     ) -> None:
         """
-        Copies connections and values from another node's IO onto this node's IO.
+        Copies connections and values from another object's IO onto this object's IO.
         Other channels with no connections are ignored for copying connections, and all
         data channels without data are ignored for copying data.
-        Otherwise, default behaviour is to throw an exception if any of the other node's
-        connections fail to copy, but failed value copies are simply ignored (e.g.
-        because this node does not have a channel with a commensurate label or the
-        value breaks a type hint).
+        Otherwise, default behaviour is to throw an exception if any of the other
+        object's connections fail to copy, but failed value copies are simply ignored
+        (e.g. because this object does not have a channel with a commensurate label or
+        the value breaks a type hint).
         This error throwing/passing behaviour can be controlled with boolean flags.
 
         In the case that an exception is thrown, all newly formed connections are broken
@@ -448,25 +448,25 @@ class HasIO(UsesState, HasLabel, HasRun, ABC):
         fail_hard: bool = True,
     ) -> list[tuple[Channel, Channel]]:
         """
-        Copies all the connections in another node to this one.
-        Expects all connected channels on the other node to have a counterpart on this
-        node -- i.e. the same label, type, and (for data) a type hint compatible with
-        all the existing connections being copied.
+        Copies all the connections in another object to this one.
+        Expects all connected channels on the other object to have a counterpart on
+        this object -- i.e. the same label, type, and (for data) a type hint compatible
+        with all the existing connections being copied.
         This requirement can be optionally relaxed such that any failures encountered
-        when attempting to make a connection (i.e. this node has no channel with a
-        corresponding label as the other node, or the new connection fails its validity
-        check), such that we simply continue past these errors and make as many
-        connections as we can while ignoring errors.
+        when attempting to make a connection (i.e. this object has no channel with a
+        corresponding label as the other object, or the new connection fails its
+        validity check), such that we simply continue past these errors and make as
+        many connections as we can while ignoring errors.
 
-        This node may freely have additional channels not present in the other node.
-        The other node may have additional channels not present here as long as they are
-        not connected.
+        This object may freely have additional channels not present in the other object.
+        The other object may have additional channels not present here as long as they
+        are not connected.
 
         If an exception is going to be raised, any connections copied so far are
         disconnected first.
 
         Args:
-            other (HasIO): the node whose connections should be copied.
+            other (HasIO): the object whose connections should be copied.
             fail_hard (bool): Whether to raise an error an exception is encountered
                 when trying to reproduce a connection. (Default is True; revert new
                 connections then raise the exception.)
@@ -498,10 +498,11 @@ class HasIO(UsesState, HasLabel, HasRun, ABC):
         fail_hard: bool = False,
     ) -> list[tuple[Channel, Any]]:
         """
-        Copies all data from input and output channels in the other node onto this one.
+        Copies all data from input and output channels in the other object onto this
+        one.
         Ignores other channels that hold non-data.
-        Failures to find a corresponding channel on this node (matching label, type, and
-        compatible type hint) are ignored by default, but can optionally be made to
+        Failures to find a corresponding channel on this object (matching label, type,
+        and compatible type hint) are ignored by default, but can optionally be made to
         raise an exception.
 
         If an exception is going to be raised, any values updated so far are
