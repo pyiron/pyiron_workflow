@@ -7,11 +7,15 @@ to inject new nodes into the graph dynamically.
 """
 from __future__ import annotations
 
-import typing
+from abc import ABC, abstractmethod
+from typing import Any, Optional, TYPE_CHECKING
 
 from pyiron_workflow.channels import OutputData, NOT_DATA, InputData
 from pyiron_workflow.has_interface_mixins import HasChannel
-from pyiron_workflow.node import Node
+from pyiron_workflow.io import Outputs, HasIO
+
+if TYPE_CHECKING:
+    from pyiron_workflow.node import Node
 
 
 class OutputDataWithInjection(OutputData):
@@ -35,10 +39,10 @@ class OutputDataWithInjection(OutputData):
         self,
         label: str,
         owner: Node,
-        default: typing.Optional[typing.Any] = NOT_DATA,
-        type_hint: typing.Optional[typing.Any] = None,
+        default: Optional[Any] = NOT_DATA,
+        type_hint: Optional[Any] = None,
         strict_hints: bool = True,
-        value_receiver: typing.Optional[InputData] = None,
+        value_receiver: Optional[InputData] = None,
     ):
         # Override parent method to give the new owner type hint
         super().__init__(
@@ -262,3 +266,16 @@ class OutputDataWithInjection(OutputData):
         from pyiron_workflow.node_library.standard import Round
 
         return self._node_injection(Round)
+
+
+class OutputsWithInjection(Outputs):
+    @property
+    def _channel_class(self) -> type(OutputDataWithInjection):
+        return OutputDataWithInjection
+
+
+class HasIOWithInjection(HasIO, ABC):
+    @property
+    @abstractmethod
+    def outputs(self) -> OutputsWithInjection:
+        pass

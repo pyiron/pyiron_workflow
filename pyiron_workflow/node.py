@@ -17,7 +17,7 @@ from typing import Any, Literal, Optional, TYPE_CHECKING
 from pyiron_workflow.draw import Node as GraphvizNode
 from pyiron_workflow.snippets.files import DirectoryObject
 from pyiron_workflow.has_to_dict import HasToDict
-from pyiron_workflow.io import HasIO
+from pyiron_workflow.injection import HasIOWithInjection
 from pyiron_workflow.run import Runnable, ReadinessError
 from pyiron_workflow.semantics import Semantic
 from pyiron_workflow.storage import StorageInterface
@@ -36,7 +36,9 @@ if TYPE_CHECKING:
     from pyiron_workflow.composite import Composite
 
 
-class Node(HasToDict, Semantic, Runnable, HasIO, ABC, metaclass=AbstractHasPost):
+class Node(
+    HasToDict, Semantic, Runnable, HasIOWithInjection, ABC, metaclass=AbstractHasPost
+):
     """
     Nodes are elements of a computational graph.
     They have inputs and outputs to interface with the wider world, and perform some
