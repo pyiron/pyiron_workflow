@@ -5,6 +5,7 @@ they were regular objects, but still retain our graph paradigm.
 To accomplish this, we overload :class:`pyiron_workflow.channel.OutputData` to be able
 to inject new nodes into the graph dynamically.
 """
+
 from __future__ import annotations
 
 from abc import ABC, abstractmethod
@@ -35,6 +36,7 @@ class OutputDataWithInjection(OutputData):
     want the injection result to also be immediately available, but if you're injecting
     it at the end of something that hasn't run yet you don't want to see an error.
     """
+
     def __init__(
         self,
         label: str,
