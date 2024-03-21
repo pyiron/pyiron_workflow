@@ -20,6 +20,7 @@ from pyiron_workflow.has_to_dict import HasToDict
 from pyiron_workflow.injection import HasIOWithInjection
 from pyiron_workflow.run import Runnable, ReadinessError
 from pyiron_workflow.semantics import Semantic
+from pyiron_workflow.single_output import ExploitsSingleOutput
 from pyiron_workflow.storage import StorageInterface
 from pyiron_workflow.topology import (
     get_nodes_in_data_tree,
@@ -37,7 +38,13 @@ if TYPE_CHECKING:
 
 
 class Node(
-    HasToDict, Semantic, Runnable, HasIOWithInjection, ABC, metaclass=AbstractHasPost
+    HasToDict,
+    Semantic,
+    Runnable,
+    HasIOWithInjection,
+    ExploitsSingleOutput,
+    ABC,
+    metaclass=AbstractHasPost
 ):
     """
     Nodes are elements of a computational graph.
@@ -272,6 +279,7 @@ class Node(
         label: str,
         *args,
         parent: Optional[Composite] = None,
+        exploit_single_output: bool = True,
         overwrite_save: bool = False,
         run_after_init: bool = False,
         storage_backend: Optional[Literal["h5io", "tinybase"]] = None,
@@ -286,14 +294,23 @@ class Node(
             label (str): A name for this node.
             *args: Arguments passed on with `super`.
             parent: (Composite|None): The composite node that owns this as a child.
+            exploit_single_output (bool): Whether to attempt passing any failed
+                `__getattr__` calls on to a single output channel. (Default is False.)
             run_after_init (bool): Whether to run at the end of initialization.
             **kwargs: Keyword arguments passed on with `super`.
         """
-        super().__init__(*args, label=label, parent=parent, **kwargs)
+        super().__init__(
+            *args,
+            label=label,
+            parent=parent,
+            # exploit_single_output=exploit_single_output,
+            **kwargs
+        )
         self._working_directory = None
         self._storage_backend = None
         self.storage_backend = storage_backend
         self.save_after_run = save_after_run
+        self._user_data = {}  # A place for power-users to bypass node-injection
 
     def __post__(
         self,
