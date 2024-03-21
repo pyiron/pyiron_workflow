@@ -4,10 +4,11 @@ import sys
 from typing import Literal, Optional
 import unittest
 
-from pyiron_workflow.channels import InputData, OutputData, NOT_DATA
+from pyiron_workflow.channels import InputData, NOT_DATA
 from pyiron_workflow.snippets.files import DirectoryObject
 from pyiron_workflow.create import Executor
-from pyiron_workflow.io import Inputs, Outputs
+from pyiron_workflow.injection import OutputDataWithInjection, OutputsWithInjection
+from pyiron_workflow.io import Inputs
 from pyiron_workflow.node import Node
 from pyiron_workflow.storage import ALLOWED_BACKENDS
 
@@ -32,7 +33,9 @@ class ANode(Node):
             label=label, save_after_run=save_after_run, storage_backend=storage_backend
         )
         self._inputs = Inputs(InputData("x", self, type_hint=int))
-        self._outputs = Outputs(OutputData("y", self, type_hint=int))
+        self._outputs = OutputsWithInjection(
+            OutputDataWithInjection("y", self, type_hint=int),
+        )
         if x is not None:
             self.inputs.x = x
 
@@ -41,7 +44,7 @@ class ANode(Node):
         return self._inputs
 
     @property
-    def outputs(self) -> Inputs:
+    def outputs(self) -> OutputsWithInjection:
         return self._outputs
 
     @property
