@@ -44,7 +44,7 @@ class Node(
     HasIOWithInjection,
     ExploitsSingleOutput,
     ABC,
-    metaclass=AbstractHasPost
+    metaclass=AbstractHasPost,
 ):
     """
     Nodes are elements of a computational graph.
@@ -309,7 +309,7 @@ class Node(
             label=label,
             parent=parent,
             # exploit_single_output=exploit_single_output,
-            **kwargs
+            **kwargs,
         )
         self._working_directory = None
         self._storage_backend = None
