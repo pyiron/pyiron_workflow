@@ -10,6 +10,7 @@ from pyiron_workflow.create import Executor
 from pyiron_workflow.injection import OutputDataWithInjection, OutputsWithInjection
 from pyiron_workflow.io import Inputs
 from pyiron_workflow.node import Node
+from pyiron_workflow.single_output import AmbiguousOutputError
 from pyiron_workflow.storage import ALLOWED_BACKENDS
 
 
@@ -368,6 +369,40 @@ class TestNode(unittest.TestCase):
             msg="Lone nodes should be their own graph_root, as there is no parent "
                 "above."
         )
+
+    def test_single_value(self):
+        node = ANode("n")
+        self.assertIs(
+            node.outputs.y,
+            node.channel,
+            msg="With a single output, the `HasChannel` interface fulfillment should "
+                "use that output."
+        )
+
+        with_addition = node + 5
+        self.assertIsInstance(
+            with_addition,
+            Node,
+            msg="With a single output, acting on the node should fall back on acting "
+                "on the single (with-injection) output"
+        )
+
+        node2 = ANode("n2")
+        node2.inputs.x = node
+        self.assertListEqual(
+            [node.outputs.y],
+            node2.inputs.x.connections,
+            msg="With a single output, the node should fall back on the single output "
+                "for output-like use cases"
+        )
+
+        node.outputs["z"] = OutputDataWithInjection("z", node, type_hint=int)
+        with self.assertRaises(
+            AmbiguousOutputError,
+            msg="With multiple outputs, trying to exploit the `HasChannel` interface "
+                "should fail cleanly"
+        ):
+            node.channel
 
     @unittest.skipIf(sys.version_info >= (3, 11), "Storage should only work in 3.11+")
     def test_storage_failure(self):
