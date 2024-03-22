@@ -15,7 +15,6 @@ from importlib import import_module
 from typing import Any, Literal, Optional, TYPE_CHECKING
 
 from pyiron_workflow.draw import Node as GraphvizNode
-from pyiron_workflow.snippets.files import DirectoryObject
 from pyiron_workflow.has_to_dict import HasToDict
 from pyiron_workflow.injection import HasIOWithInjection
 from pyiron_workflow.run import Runnable, ReadinessError
@@ -26,6 +25,7 @@ from pyiron_workflow.topology import (
     get_nodes_in_data_tree,
     set_run_connections_according_to_linear_dag,
 )
+from pyiron_workflow.working import HasWorkingDirectory
 from pyiron_workflow.snippets.colors import SeabornColors
 from pyiron_workflow.snippets.has_post import AbstractHasPost
 
@@ -43,6 +43,7 @@ class Node(
     Runnable,
     HasIOWithInjection,
     ExploitsSingleOutput,
+    HasWorkingDirectory,
     ABC,
     metaclass=AbstractHasPost,
 ):
@@ -587,16 +588,6 @@ class Node(
         return self.pull(run_parent_trees_too=True, **kwargs)
 
     @property
-    def working_directory(self):
-        if self._working_directory is None:
-            if self.parent is not None and hasattr(self.parent, "working_directory"):
-                parent_dir = self.parent.working_directory
-                self._working_directory = parent_dir.create_subdirectory(self.label)
-            else:
-                self._working_directory = DirectoryObject(self.label)
-        return self._working_directory
-
-    @property
     def ready(self) -> bool:
         return super().ready and self.inputs.ready
 
@@ -811,16 +802,6 @@ class Node(
     @property
     def storage(self):
         return StorageInterface(self)
-
-    def tidy_working_directory(self):
-        """
-        If the working directory is completely empty, deletes it.
-        """
-        if self.working_directory.is_empty():
-            self.working_directory.delete()
-            self._working_directory = None
-            # Touching the working directory may have created it -- if it's there and
-            # empty just clean it up
 
     @property
     def import_ready(self) -> bool:
