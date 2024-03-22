@@ -284,7 +284,6 @@ class Node(
         label: str,
         *args,
         parent: Optional[Composite] = None,
-        exploit_single_output: bool = True,
         overwrite_save: bool = False,
         run_after_init: bool = False,
         storage_backend: Optional[Literal["h5io", "tinybase"]] = None,
@@ -299,8 +298,6 @@ class Node(
             label (str): A name for this node.
             *args: Arguments passed on with `super`.
             parent: (Composite|None): The composite node that owns this as a child.
-            exploit_single_output (bool): Whether to attempt passing any failed
-                `__getattr__` calls on to a single output channel. (Default is False.)
             run_after_init (bool): Whether to run at the end of initialization.
             **kwargs: Keyword arguments passed on with `super`.
         """
@@ -308,7 +305,6 @@ class Node(
             *args,
             label=label,
             parent=parent,
-            # exploit_single_output=exploit_single_output,
             **kwargs,
         )
         self._working_directory = None
