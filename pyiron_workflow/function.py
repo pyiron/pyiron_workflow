@@ -636,13 +636,16 @@ class SingleValue(Function):
         )
 
 
-def _wrapper_factory(
-    parent_class: type[Function], output_labels: Optional[list[str] | tuple[str]]
-) -> callable:
+def function_node(*output_labels: str):
     """
-    An abstract base for making decorators that wrap a function as `Function` or its
-    children.
+    A decorator for dynamically creating node classes from functions.
+
+    Decorates a function.
+    Returns a `Function` subclass whose name is the camel-case version of the function
+    node, and whose signature is modified to exclude the node function and output labels
+    (which are explicitly defined in the process of using the decorator).
     """
+    output_labels = None if len(output_labels) == 0 else output_labels
 
     # One really subtle thing is that we manually parse the function type hints right
     # here and include these as a class-level attribute.
@@ -662,10 +665,10 @@ def _wrapper_factory(
     def as_node(node_function: callable):
         return type(
             node_function.__name__,
-            (parent_class,),  # Define parentage
+            (Function,),  # Define parentage
             {
                 "__init__": partialmethod(
-                    parent_class.__init__,
+                    Function.__init__,
                     None,
                     output_labels=output_labels,
                 ),
@@ -676,16 +679,3 @@ def _wrapper_factory(
         )
 
     return as_node
-
-
-def function_node(*output_labels: str):
-    """
-    A decorator for dynamically creating node classes from functions.
-
-    Decorates a function.
-    Returns a `Function` subclass whose name is the camel-case version of the function
-    node, and whose signature is modified to exclude the node function and output labels
-    (which are explicitly defined in the process of using the decorator).
-    """
-    output_labels = None if len(output_labels) == 0 else output_labels
-    return _wrapper_factory(parent_class=Function, output_labels=output_labels)
