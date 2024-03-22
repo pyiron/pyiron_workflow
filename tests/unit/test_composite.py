@@ -260,11 +260,11 @@ class TestComposite(unittest.TestCase):
 
         replacement = x_plus_minus_z()
 
-        @Composite.wrap_as.single_value_node("y")
+        @Composite.wrap_as.function_node("y")
         def different_input_channel(z: int = 0) -> int:
             return z + 10
 
-        @Composite.wrap_as.single_value_node("z")
+        @Composite.wrap_as.function_node("z")
         def different_output_channel(x: int = 0) -> int:
             return x + 100
 
@@ -372,7 +372,7 @@ class TestComposite(unittest.TestCase):
             ):
                 self.comp.replace_child(replacement, another_node)
 
-            @Composite.wrap_as.single_value_node("y")
+            @Composite.wrap_as.function_node("y")
             def wrong_hint(x: float = 0) -> float:
                 return x + 1.1
 

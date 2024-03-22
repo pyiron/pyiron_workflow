@@ -689,12 +689,3 @@ def function_node(*output_labels: str):
     """
     output_labels = None if len(output_labels) == 0 else output_labels
     return _wrapper_factory(parent_class=Function, output_labels=output_labels)
-
-
-def single_value_node(output_label: Optional[str] = None):
-    """
-    A decorator for dynamically creating fast node classes from functions.
-
-    Unlike normal nodes, fast nodes _must_ have default values set for all their inputs.
-    """
-    return _wrapper_factory(parent_class=SingleValue, output_labels=output_label)

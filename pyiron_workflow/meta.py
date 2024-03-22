@@ -10,7 +10,6 @@ from pyiron_workflow.function import (
     Function,
     SingleValue,
     function_node,
-    single_value_node,
 )
 from pyiron_workflow.macro import Macro, macro_node
 from pyiron_workflow.node import Node
@@ -48,7 +47,7 @@ def __many_to_list({", ".join([f"inp{i}=None" for i in range(length)])}):
         exec(template)
         return locals()["__many_to_list"]
 
-    return single_value_node(**node_class_kwargs)(_many_to_list(length=length))
+    return function_node(**node_class_kwargs)(_many_to_list(length=length))
 
 
 def for_loop(
@@ -77,7 +76,7 @@ def for_loop(
         >>> from pyiron_workflow import Workflow
         >>> from pyiron_workflow.meta import for_loop
         >>>
-        >>> @Workflow.wrap_as.single_value_node("div")
+        >>> @Workflow.wrap_as.function_node("div")
         ... def Divide(numerator, denominator):
         ...    return numerator / denominator
         >>>
@@ -212,12 +211,12 @@ def while_loop(
 
         >>> from pyiron_workflow import Workflow
         >>>
-        >>> @Workflow.wrap_as.single_value_node()
+        >>> @Workflow.wrap_as.function_node()
         ... def Add(a, b):
         ...     print(f"{a} + {b} = {a + b}")
         ...     return a + b
         >>>
-        >>> @Workflow.wrap_as.single_value_node()
+        >>> @Workflow.wrap_as.function_node()
         ... def LessThanTen(value):
         ...     return value < 10
         >>>
@@ -255,11 +254,11 @@ def while_loop(
         >>>
         >>> random.seed(0)
         >>>
-        >>> @Workflow.wrap_as.single_value_node("random")
+        >>> @Workflow.wrap_as.function_node("random")
         ... def RandomFloat():
         ...     return random.random()
         >>>
-        >>> @Workflow.wrap_as.single_value_node()
+        >>> @Workflow.wrap_as.function_node()
         ... def GreaterThan(x: float, threshold: float):
         ...     gt = x > threshold
         ...     symbol = ">" if gt else "<="

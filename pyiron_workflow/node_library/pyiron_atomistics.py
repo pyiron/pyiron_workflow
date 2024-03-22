@@ -11,14 +11,14 @@ from pyiron_atomistics.atomistics.job.atomistic import AtomisticGenericJob
 from pyiron_atomistics.atomistics.structure.atoms import Atoms
 from pyiron_atomistics.lammps.lammps import Lammps as LammpsJob
 
-from pyiron_workflow.function import function_node, single_value_node
+from pyiron_workflow.function import function_node
 
 
-Bulk = single_value_node("structure")(_StructureFactory().bulk)
+Bulk = function_node("structure")(_StructureFactory().bulk)
 Bulk.__name__ = "Bulk"
 
 
-@single_value_node("job")
+@function_node("job")
 def Lammps(structure: Optional[Atoms] = None) -> LammpsJob:
     pr = Project(".")
     job = pr.atomistics.job.Lammps("NOTAREALNAME")
