@@ -351,19 +351,16 @@ class Node(
     @property
     def graph_path(self) -> str:
         """
-        The path of node labels from the graph root (parent-most node) down to this
-        node.
+        The path of node labels from the graph root (parent-most node in this semantic
+        path) down to this node.
         """
-        # If non-node objects come up in the semantic path, we'll need early stopping
-        # to make this docstring true, but those don't exist right now.
-        return self.semantic_path
+        prefix = self.parent.semantic_path if isinstance(self.parent, Node) else ""
+        return prefix + self.semantic_delimiter + self.label
 
     @property
     def graph_root(self) -> Node:
-        """The parent-most node in this graph."""
-        # If non-node objects come up in the semantic path, we'll need early stopping
-        # to make this docstring true, but those don't exist right now.
-        return self.semantic_root
+        """The parent-most node in this semantic path."""
+        return self.parent.graph_root if isinstance(self.parent, Node) else self
 
     def data_input_locked(self):
         return self.running
