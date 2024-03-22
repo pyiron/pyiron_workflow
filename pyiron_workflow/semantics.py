@@ -82,13 +82,13 @@ class Semantic(UsesState, HasLabel, HasParent, ABC):
         The path of node labels from the graph root (parent-most node) down to this
         node.
         """
-        prefix = "" if self.parent is None else self.parent.semantic_path
+        prefix = self.parent.semantic_path if isinstance(self.parent, Semantic) else ""
         return prefix + self.semantic_delimiter + self.label
 
     @property
     def semantic_root(self) -> Semantic:
         """The parent-most object in this semantic path; may be self."""
-        return self if self.parent is None else self.parent.semantic_root
+        return self.parent.semantic_root if isinstance(self.parent, Semantic) else self
 
     def __getstate__(self):
         state = super().__getstate__()
