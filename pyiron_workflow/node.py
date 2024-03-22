@@ -68,6 +68,11 @@ class Node(
             - Running can be triggered in an instantaneous (i.e. "or" applied to
                 incoming signals) or accumulating way (i.e. "and" applied to incoming
                 signals).
+        - If the node has exactly one output channel, most standard python operations
+            (attribute access, math, etc.) will fall back on attempting the same
+            operation on this single output, if the operation failed on the node.
+            Practically, that means that such "single-output" nodes get the same
+            to form IO connections and inject new nodes that output channels have.
     - When running their computation, nodes may or may not:
         - First update their input data values using kwargs
             - (Note that since this happens first, if the "fetching" step later occurs,
