@@ -54,13 +54,10 @@ class ExploitsSingleOutput(HasLabel, HasChannel, ABC):
         try:
             return super().__getattr__(item)
         except AttributeError as e1:
-            # if self.exploit_single_output:
             try:
                 return getattr(self.channel, item)
             except Exception as e2:
                 raise e2 from e1
-            # else:
-            #     raise e1
 
     def __getitem__(self, item):
         return self.channel.__getitem__(item)
