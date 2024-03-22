@@ -596,46 +596,6 @@ class Function(Node):
         return SeabornColors.green
 
 
-class SingleValue(Function):
-    """
-    A node that _must_ return only a single value.
-
-    Attribute and item access is modified to finally attempt access on the output
-    channel, and other operations (those supported by the output channel) are also
-    passed there automatically.
-    This means that the node itself can be used in place of its output channel,
-    and that the `value` attribtue directly accesses the output value.
-
-    Promises (in addition parent class promises):
-    - Attribute and item access will finally attempt to access the output
-    - Other operators supported by the output channel operate there immediately.
-    - The entire node can be used in place of its output value for connections, e.g.
-        `some_node.input.some_channel = my_svn_instance`.
-    """
-
-    def _get_output_labels(self, output_labels: str | list[str] | tuple[str] | None):
-        output_labels = super()._get_output_labels(output_labels)
-        if len(output_labels) > 1:
-            raise ValueError(
-                f"{self.__class__.__name__} must only have a single return value, but "
-                f"got multiple output labels: {output_labels}"
-            )
-        return output_labels
-
-    @property
-    def color(self) -> str:
-        """For drawing the graph"""
-        return SeabornColors.cyan
-
-    def __repr__(self):
-        return self.channel.value.__repr__()
-
-    def __str__(self):
-        return f"{self.label} ({self.__class__.__name__}) output single-value: " + str(
-            self.channel.value
-        )
-
-
 def function_node(*output_labels: str):
     """
     A decorator for dynamically creating node classes from functions.

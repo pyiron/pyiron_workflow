@@ -91,8 +91,8 @@ class TestWorkflow(unittest.TestCase):
     def test_with_executor(self):
 
         wf = Workflow("wf")
-        wf.a = wf.create.SingleValue(plus_one)
-        wf.b = wf.create.SingleValue(plus_one, x=wf.a)
+        wf.a = wf.create.Function(plus_one)
+        wf.b = wf.create.Function(plus_one, x=wf.a)
 
         original_a = wf.a
         wf.executor = wf.create.Executor()
@@ -189,8 +189,8 @@ class TestWorkflow(unittest.TestCase):
     def test_call(self):
         wf = Workflow("wf")
 
-        wf.a = wf.create.SingleValue(plus_one)
-        wf.b = wf.create.SingleValue(plus_one)
+        wf.a = wf.create.Function(plus_one)
+        wf.b = wf.create.Function(plus_one)
 
         @Workflow.wrap_as.function_node("sum")
         def sum_(a, b):
@@ -219,8 +219,8 @@ class TestWorkflow(unittest.TestCase):
 
     def test_return_value(self):
         wf = Workflow("wf")
-        wf.a = wf.create.SingleValue(plus_one)
-        wf.b = wf.create.SingleValue(plus_one, x=wf.a)
+        wf.a = wf.create.Function(plus_one)
+        wf.b = wf.create.Function(plus_one, x=wf.a)
 
         with self.subTest("Run on main process"):
             return_on_call = wf(a__x=1)
@@ -310,13 +310,13 @@ class TestWorkflow(unittest.TestCase):
 
     def test_pull_and_executors(self):
         def add_three_macro(macro):
-            macro.one = Workflow.create.SingleValue(plus_one)
-            macro.two = Workflow.create.SingleValue(plus_one, x=macro.one)
-            macro.three = Workflow.create.SingleValue(plus_one, x=macro.two)
+            macro.one = Workflow.create.Function(plus_one)
+            macro.two = Workflow.create.Function(plus_one, x=macro.one)
+            macro.three = Workflow.create.Function(plus_one, x=macro.two)
 
         wf = Workflow("pulling")
 
-        wf.n1 = Workflow.create.SingleValue(plus_one, x=0)
+        wf.n1 = Workflow.create.Function(plus_one, x=0)
         wf.m = Workflow.create.Macro(add_three_macro, one__x=wf.n1)
 
         self.assertEquals(

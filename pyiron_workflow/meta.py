@@ -8,7 +8,6 @@ from typing import Optional
 
 from pyiron_workflow.function import (
     Function,
-    SingleValue,
     function_node,
 )
 from pyiron_workflow.macro import Macro, macro_node
@@ -33,7 +32,7 @@ def __list_to_many(l: list):
     return function_node(**node_class_kwargs)(_list_to_many(length=length))
 
 
-def input_to_list(length: int, **node_class_kwargs) -> type[SingleValue]:
+def input_to_list(length: int, **node_class_kwargs) -> type[Function]:
     """
     A meta-node that returns a node class with :param:`length` output channels and
     maps an input list to these.
@@ -178,7 +177,7 @@ def for_loop(
 
 def while_loop(
     loop_body_class: type[Node],
-    condition_class: type[SingleValue],
+    condition_class: type[Function],
     internal_connection_map: dict[str, str],
     inputs_map: Optional[dict[str, str]] = None,
     outputs_map: Optional[dict[str, str]] = None,
@@ -198,8 +197,8 @@ def while_loop(
     Args:
         loop_body_class (type[pyiron_workflow.node.Node]): The class for the
             body of the while-loop.
-        condition_class (type[pyiron_workflow.function.SingleValue]): A single
-            value node returning a `bool` controlling the while loop exit condition
+        condition_class (type[pyiron_workflow.function.Function]): A single-output
+            function node returning a `bool` controlling the while loop exit condition
             (exits on False)
         internal_connection_map (list[tuple[str, str, str, str]]): String tuples
             giving (input node, input channel, output node, output channel) labels

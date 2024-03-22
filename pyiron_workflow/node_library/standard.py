@@ -7,7 +7,7 @@ from __future__ import annotations
 from inspect import isclass
 
 from pyiron_workflow.channels import NOT_DATA, OutputSignal
-from pyiron_workflow.function import SingleValue, function_node
+from pyiron_workflow.function import Function, function_node
 
 
 @function_node()
@@ -15,7 +15,7 @@ def UserInput(user_input):
     return user_input
 
 
-class If(SingleValue):
+class If(Function):
     """
     Has two extra signal channels: true and false. Evaluates the input as obj otheroolean and
     fires the corresponding output signal after running.

@@ -3,7 +3,7 @@ import unittest
 import warnings
 
 from pyiron_workflow.channels import NOT_DATA, ChannelConnectionError
-from pyiron_workflow.function import Function, SingleValue, function_node
+from pyiron_workflow.function import Function, function_node
 from pyiron_workflow.io import ConnectionCopyError, ValueCopyError
 from pyiron_workflow.create import Executor
 
@@ -550,49 +550,6 @@ class TestFunction(unittest.TestCase):
             msg="Attribute injection should not work for private attributes"
         ):
             single_output._some_nonexistant_private_var
-
-
-class TestSingleValue(unittest.TestCase):
-    def test_instantiation(self):
-        node = SingleValue(no_default, 1, y=2, output_labels="output")
-        node.run()
-        self.assertEqual(
-            no_default(1, 2),
-            node.outputs.output.value,
-            msg="Single value node should allow function input by arg and kwarg"
-        )
-
-        with self.assertRaises(ValueError):
-            # Too many labels
-            SingleValue(plus_one, output_labels=["z", "excess_label"])
-
-    def test_repr(self):
-        with self.subTest("Filled data"):
-            svn = SingleValue(plus_one)
-            svn.run()
-            self.assertEqual(
-                svn.__repr__(), svn.outputs.y.value.__repr__(),
-                msg="SingleValueNodes should have their output as their representation"
-            )
-
-        with self.subTest("Not data"):
-            svn = SingleValue(no_default, output_labels="output")
-            self.assertIs(svn.outputs.output.value, NOT_DATA)
-            self.assertTrue(
-                svn.__repr__().endswith(NOT_DATA.__repr__()),
-                msg="When the output is still not data, the representation should "
-                    "indicate this"
-            )
-
-    def test_str(self):
-        svn = SingleValue(plus_one)
-        svn.run()
-        self.assertTrue(
-            str(svn).endswith(str(svn.value)),
-            msg="SingleValueNodes should have their output as a string in their string "
-                "representation (e.g., perhaps with a reminder note that this is "
-                "actually still a Function and not just the value you're seeing.)"
-        )
 
 
 if __name__ == '__main__':
