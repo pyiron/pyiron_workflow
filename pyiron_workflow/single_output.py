@@ -11,7 +11,7 @@ from pyiron_workflow.has_interface_mixins import HasChannel, HasLabel
 from pyiron_workflow.injection import OutputDataWithInjection, OutputsWithInjection
 
 
-class AmbiguousOutputError(AttributeError):
+class AmbiguousOutputError(ValueError):
     """Raised when searching for exactly one output, but multiple are found."""
 
 
