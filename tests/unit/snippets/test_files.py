@@ -5,11 +5,11 @@ import platform
 
 
 class TestFiles(unittest.TestCase):
-    def setUp(cls):
-        cls.directory = DirectoryObject("test")
+    def setUp(self):
+        self.directory = DirectoryObject("test")
 
-    def tearDown(cls):
-        cls.directory.delete()
+    def tearDown(self):
+        self.directory.delete()
 
     def test_directory_instantiation(self):
         directory = DirectoryObject(Path("test"))
