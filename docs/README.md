@@ -39,7 +39,7 @@ Nodes can be used by themselves and -- other than being "delayed" in that their 
 ```python
 >>> from pyiron_workflow import Workflow
 >>>
->>> @Workflow.wrap_as.single_value_node()
+>>> @Workflow.wrap_as.function_node()
 ... def add_one(x):
 ...     return x + 1
 >>>
@@ -54,7 +54,7 @@ But the intent is to collect them together into a workflow and leverage existing
 >>> from pyiron_workflow import Workflow
 >>> Workflow.register("pyiron_workflow.node_library.plotting", "plotting")
 >>>
->>> @Workflow.wrap_as.single_value_node()
+>>> @Workflow.wrap_as.function_node()
 ... def Arange(n: int):
 ...     import numpy as np
 ...     return np.arange(n)
