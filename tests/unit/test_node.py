@@ -6,7 +6,7 @@ import unittest
 
 from pyiron_workflow.channels import InputData, OutputData, NOT_DATA
 from pyiron_workflow.snippets.files import DirectoryObject
-from pyiron_workflow.interfaces import Executor
+from pyiron_workflow.create import Executor
 from pyiron_workflow.io import Inputs, Outputs
 from pyiron_workflow.node import Node
 from pyiron_workflow.storage import ALLOWED_BACKENDS
