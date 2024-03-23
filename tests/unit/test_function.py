@@ -3,7 +3,7 @@ import unittest
 import warnings
 
 from pyiron_workflow.channels import NOT_DATA, ChannelConnectionError
-from pyiron_workflow.function import Function, SingleValue, function_node
+from pyiron_workflow.function import Function, function_node
 from pyiron_workflow.io import ConnectionCopyError, ValueCopyError
 from pyiron_workflow.create import Executor
 
@@ -447,24 +447,50 @@ class TestFunction(unittest.TestCase):
             msg="Missing a channel that holds data is also grounds for failure"
         ):
             ref._copy_values(extra, fail_hard=True)
+            
+    def test_easy_output_connection(self):
+        n1 = Function(plus_one)
+        n2 = Function(plus_one)
 
+        n2.inputs.x = n1
 
-
-class TestSingleValue(unittest.TestCase):
-    def test_instantiation(self):
-        node = SingleValue(no_default, 1, y=2, output_labels="output")
-        node.run()
-        self.assertEqual(
-            no_default(1, 2),
-            node.outputs.output.value,
-            msg="Single value node should allow function input by arg and kwarg"
+        self.assertIn(
+            n1.outputs.y, n2.inputs.x.connections,
+            msg="Single-output functions should be able to make connections between "
+                "their output and another node's input by passing themselves"
         )
 
-        with self.assertRaises(ValueError):
-            # Too many labels
-            SingleValue(plus_one, output_labels=["z", "excess_label"])
+        n1 >> n2
+        n1.run()
+        self.assertEqual(
+            n2.outputs.y.value, 3,
+            msg="Single-output function connections should pass data just like usual; "
+                "in this case default->plus_one->plus_one = 1 + 1 +1 = 3"
+        )
 
-    def test_item_and_attribute_access(self):
+        at_instantiation = Function(plus_one, x=n1)
+        self.assertIn(
+            n1.outputs.y, at_instantiation.inputs.x.connections,
+            msg="The parsing of Single-output functions' output as a connection should "
+                "also work from assignment at instantiation"
+        )
+
+    def test_nested_declaration(self):
+        # It's really just a silly case of running without a parent, where you don't
+        # store references to all the nodes declared
+        node = Function(
+            plus_one,
+            x=Function(
+                plus_one,
+                x=Function(
+                    plus_one,
+                    x=2
+                )
+            )
+        )
+        self.assertEqual(2 + 1 + 1 + 1, node.pull())
+        
+    def test_single_output_item_and_attribute_access(self):
         class Foo:
             some_attribute = "exists"
             connected = True  # Overlaps with an attribute of the node
@@ -478,25 +504,25 @@ class TestSingleValue(unittest.TestCase):
         def returns_foo() -> Foo:
             return Foo()
 
-        svn = SingleValue(returns_foo, output_labels="foo")
+        single_output = Function(returns_foo, output_labels="foo")
 
         self.assertEqual(
-            svn.connected,
+            single_output.connected,
             False,
             msg="Should return the _node_ attribute, not acting on the output channel"
         )
 
-        injection = svn[0]  # Should pass cleanly, even though it tries to run
-        svn.run()
+        injection = single_output[0]  # Should pass cleanly, even though it tries to run
+        single_output.run()
 
         self.assertEqual(
-            svn.some_attribute.value,  # The call runs the dynamic node
+            single_output.some_attribute.value,  # The call runs the dynamic node
             "exists",
             msg="Should fall back to acting on the output channel and creating a node"
         )
 
         self.assertEqual(
-            svn.connected,
+            single_output.connected,
             True,
             msg="Should now be connected to the dynamically created nodes"
         )
@@ -505,7 +531,7 @@ class TestSingleValue(unittest.TestCase):
             AttributeError,
             msg="Aggressive running hits the problem that no such attribute exists"
         ):
-            svn.doesnt_exists_anywhere
+            single_output.doesnt_exists_anywhere
 
         self.assertEqual(
             injection(),
@@ -514,7 +540,7 @@ class TestSingleValue(unittest.TestCase):
         )
 
         self.assertEqual(
-            svn["some other key"].value,
+            single_output["some other key"].value,
             False,
             msg="Should fall back to looking on the single value"
         )
@@ -523,77 +549,7 @@ class TestSingleValue(unittest.TestCase):
             AttributeError,
             msg="Attribute injection should not work for private attributes"
         ):
-            svn._some_nonexistant_private_var
-
-    def test_repr(self):
-        with self.subTest("Filled data"):
-            svn = SingleValue(plus_one)
-            svn.run()
-            self.assertEqual(
-                svn.__repr__(), svn.outputs.y.value.__repr__(),
-                msg="SingleValueNodes should have their output as their representation"
-            )
-
-        with self.subTest("Not data"):
-            svn = SingleValue(no_default, output_labels="output")
-            self.assertIs(svn.outputs.output.value, NOT_DATA)
-            self.assertTrue(
-                svn.__repr__().endswith(NOT_DATA.__repr__()),
-                msg="When the output is still not data, the representation should "
-                    "indicate this"
-            )
-
-    def test_str(self):
-        svn = SingleValue(plus_one)
-        svn.run()
-        self.assertTrue(
-            str(svn).endswith(str(svn.value)),
-            msg="SingleValueNodes should have their output as a string in their string "
-                "representation (e.g., perhaps with a reminder note that this is "
-                "actually still a Function and not just the value you're seeing.)"
-        )
-
-    def test_easy_output_connection(self):
-        svn = SingleValue(plus_one)
-        regular = Function(plus_one)
-
-        regular.inputs.x = svn
-
-        self.assertIn(
-            svn.outputs.y, regular.inputs.x.connections,
-            msg="SingleValueNodes should be able to make connections between their "
-                "output and another node's input by passing themselves"
-        )
-
-        svn >> regular
-        svn.run()
-        self.assertEqual(
-            regular.outputs.y.value, 3,
-            msg="SingleValue connections should pass data just like usual; in this "
-                "case default->plus_one->plus_one = 1 + 1 +1 = 3"
-        )
-
-        at_instantiation = Function(plus_one, x=svn)
-        self.assertIn(
-            svn.outputs.y, at_instantiation.inputs.x.connections,
-            msg="The parsing of SingleValue output as a connection should also work"
-                "from assignment at instantiation"
-        )
-
-    def test_nested_declaration(self):
-        # It's really just a silly case of running without a parent, where you don't
-        # store references to all the nodes declared
-        node = SingleValue(
-            plus_one,
-            x=SingleValue(
-                plus_one,
-                x=SingleValue(
-                    plus_one,
-                    x=2
-                )
-            )
-        )
-        self.assertEqual(2 + 1 + 1 + 1, node.pull())
+            single_output._some_nonexistant_private_var
 
 
 if __name__ == '__main__':

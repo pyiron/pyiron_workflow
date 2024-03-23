@@ -246,9 +246,9 @@ class TestComposite(unittest.TestCase):
         )
 
     def test_replace(self):
-        n1 = Composite.create.SingleValue(plus_one)
-        n2 = Composite.create.SingleValue(plus_one)
-        n3 = Composite.create.SingleValue(plus_one)
+        n1 = Composite.create.Function(plus_one)
+        n2 = Composite.create.Function(plus_one)
+        n3 = Composite.create.Function(plus_one)
 
         @Composite.wrap_as.function_node("y", "minus")
         def x_plus_minus_z(x: int = 0, z=2) -> tuple[int, int]:
@@ -260,11 +260,11 @@ class TestComposite(unittest.TestCase):
 
         replacement = x_plus_minus_z()
 
-        @Composite.wrap_as.single_value_node("y")
+        @Composite.wrap_as.function_node("y")
         def different_input_channel(z: int = 0) -> int:
             return z + 10
 
-        @Composite.wrap_as.single_value_node("z")
+        @Composite.wrap_as.function_node("z")
         def different_output_channel(x: int = 0) -> int:
             return x + 100
 
@@ -372,7 +372,7 @@ class TestComposite(unittest.TestCase):
             ):
                 self.comp.replace_child(replacement, another_node)
 
-            @Composite.wrap_as.single_value_node("y")
+            @Composite.wrap_as.function_node("y")
             def wrong_hint(x: float = 0) -> float:
                 return x + 1.1
 
@@ -420,9 +420,9 @@ class TestComposite(unittest.TestCase):
         )
 
     def test_run(self):
-        self.comp.n1 = self.comp.create.SingleValue(plus_one, x=0)
-        self.comp.n2 = self.comp.create.SingleValue(plus_one, x=self.comp.n1)
-        self.comp.n3 = self.comp.create.SingleValue(plus_one, x=42)
+        self.comp.n1 = self.comp.create.Function(plus_one, x=0)
+        self.comp.n2 = self.comp.create.Function(plus_one, x=self.comp.n1)
+        self.comp.n3 = self.comp.create.Function(plus_one, x=42)
         self.comp.n1 >> self.comp.n2
         self.comp.starting_nodes = [self.comp.n1]
 
@@ -440,9 +440,9 @@ class TestComposite(unittest.TestCase):
 
     def test_set_run_signals_to_dag(self):
         # Like the run test, but manually invoking this first
-        self.comp.n1 = self.comp.create.SingleValue(plus_one, x=0)
-        self.comp.n2 = self.comp.create.SingleValue(plus_one, x=self.comp.n1)
-        self.comp.n3 = self.comp.create.SingleValue(plus_one, x=42)
+        self.comp.n1 = self.comp.create.Function(plus_one, x=0)
+        self.comp.n2 = self.comp.create.Function(plus_one, x=self.comp.n1)
+        self.comp.n3 = self.comp.create.Function(plus_one, x=42)
         self.comp.set_run_signals_to_dag_execution()
         self.comp.run()
         self.assertEqual(
@@ -469,9 +469,9 @@ class TestComposite(unittest.TestCase):
             self.comp.set_run_signals_to_dag_execution()
 
     def test_return(self):
-        self.comp.n1 = Composite.create.SingleValue(plus_one, x=0)
+        self.comp.n1 = Composite.create.Function(plus_one, x=0)
         not_dottable_string = "can't dot this"
-        not_dottable_name_node = self.comp.create.SingleValue(
+        not_dottable_name_node = self.comp.create.Function(
             plus_one, x=42, label=not_dottable_string, parent=self.comp
         )
         self.comp.starting_nodes = [self.comp.n1, not_dottable_name_node]
@@ -499,10 +499,10 @@ class TestComposite(unittest.TestCase):
 
     def test_io_maps(self):
         # input and output, renaming, accessing connected, and deactivating disconnected
-        self.comp.n1 = Composite.create.SingleValue(plus_one, x=0)
-        self.comp.n2 = Composite.create.SingleValue(plus_one, x=self.comp.n1)
-        self.comp.n3 = Composite.create.SingleValue(plus_one, x=self.comp.n2)
-        self.comp.m = Composite.create.SingleValue(plus_one, x=42)
+        self.comp.n1 = Composite.create.Function(plus_one, x=0)
+        self.comp.n2 = Composite.create.Function(plus_one, x=self.comp.n1)
+        self.comp.n3 = Composite.create.Function(plus_one, x=self.comp.n2)
+        self.comp.m = Composite.create.Function(plus_one, x=42)
         self.comp.inputs_map = {
             "n1__x": "x",  # Rename
             "n2__x": "intermediate_x",  # Expose
@@ -584,7 +584,7 @@ class TestComposite(unittest.TestCase):
 
     def test_de_activate_strict_connections(self):
         self.comp.sub_comp = AComposite("sub")
-        self.comp.sub_comp.n1 = Composite.create.SingleValue(plus_one, x=0)
+        self.comp.sub_comp.n1 = Composite.create.Function(plus_one, x=0)
         self.assertTrue(
             self.comp.sub_comp.n1.inputs.x.strict_hints,
             msg="Sanity check that test starts in the expected condition"
@@ -603,8 +603,8 @@ class TestComposite(unittest.TestCase):
     def test_graph_info(self):
         top = AComposite("topmost")
         top.middle_composite = AComposite("middle_composite")
-        top.middle_composite.deep_node = Composite.create.SingleValue(plus_one)
-        top.middle_function = Composite.create.SingleValue(plus_one)
+        top.middle_composite.deep_node = Composite.create.Function(plus_one)
+        top.middle_function = Composite.create.Function(plus_one)
 
         with self.subTest("test_graph_path"):
             self.assertEqual(

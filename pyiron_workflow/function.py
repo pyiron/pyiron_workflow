@@ -596,53 +596,16 @@ class Function(Node):
         return SeabornColors.green
 
 
-class SingleValue(Function):
+def function_node(*output_labels: str):
     """
-    A node that _must_ return only a single value.
+    A decorator for dynamically creating node classes from functions.
 
-    Attribute and item access is modified to finally attempt access on the output
-    channel, and other operations (those supported by the output channel) are also
-    passed there automatically.
-    This means that the node itself can be used in place of its output channel,
-    and that the `value` attribtue directly accesses the output value.
-
-    Promises (in addition parent class promises):
-    - Attribute and item access will finally attempt to access the output
-    - Other operators supported by the output channel operate there immediately.
-    - The entire node can be used in place of its output value for connections, e.g.
-        `some_node.input.some_channel = my_svn_instance`.
+    Decorates a function.
+    Returns a `Function` subclass whose name is the camel-case version of the function
+    node, and whose signature is modified to exclude the node function and output labels
+    (which are explicitly defined in the process of using the decorator).
     """
-
-    def _get_output_labels(self, output_labels: str | list[str] | tuple[str] | None):
-        output_labels = super()._get_output_labels(output_labels)
-        if len(output_labels) > 1:
-            raise ValueError(
-                f"{self.__class__.__name__} must only have a single return value, but "
-                f"got multiple output labels: {output_labels}"
-            )
-        return output_labels
-
-    @property
-    def color(self) -> str:
-        """For drawing the graph"""
-        return SeabornColors.cyan
-
-    def __repr__(self):
-        return self.channel.value.__repr__()
-
-    def __str__(self):
-        return f"{self.label} ({self.__class__.__name__}) output single-value: " + str(
-            self.channel.value
-        )
-
-
-def _wrapper_factory(
-    parent_class: type[Function], output_labels: Optional[list[str] | tuple[str]]
-) -> callable:
-    """
-    An abstract base for making decorators that wrap a function as `Function` or its
-    children.
-    """
+    output_labels = None if len(output_labels) == 0 else output_labels
 
     # One really subtle thing is that we manually parse the function type hints right
     # here and include these as a class-level attribute.
@@ -662,10 +625,10 @@ def _wrapper_factory(
     def as_node(node_function: callable):
         return type(
             node_function.__name__,
-            (parent_class,),  # Define parentage
+            (Function,),  # Define parentage
             {
                 "__init__": partialmethod(
-                    parent_class.__init__,
+                    Function.__init__,
                     None,
                     output_labels=output_labels,
                 ),
@@ -676,25 +639,3 @@ def _wrapper_factory(
         )
 
     return as_node
-
-
-def function_node(*output_labels: str):
-    """
-    A decorator for dynamically creating node classes from functions.
-
-    Decorates a function.
-    Returns a `Function` subclass whose name is the camel-case version of the function
-    node, and whose signature is modified to exclude the node function and output labels
-    (which are explicitly defined in the process of using the decorator).
-    """
-    output_labels = None if len(output_labels) == 0 else output_labels
-    return _wrapper_factory(parent_class=Function, output_labels=output_labels)
-
-
-def single_value_node(output_label: Optional[str] = None):
-    """
-    A decorator for dynamically creating fast node classes from functions.
-
-    Unlike normal nodes, fast nodes _must_ have default values set for all their inputs.
-    """
-    return _wrapper_factory(parent_class=SingleValue, output_labels=output_label)

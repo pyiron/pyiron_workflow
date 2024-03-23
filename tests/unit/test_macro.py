@@ -8,7 +8,7 @@ import unittest
 
 from pyiron_workflow._tests import ensure_tests_in_python_path
 from pyiron_workflow.channels import NOT_DATA
-from pyiron_workflow.function import SingleValue
+from pyiron_workflow.function import Function
 from pyiron_workflow.macro import Macro, macro_node
 from pyiron_workflow.storage import ALLOWED_BACKENDS
 from pyiron_workflow.topology import CircularDataFlowError
@@ -20,15 +20,15 @@ def add_one(x):
 
 
 def add_three_macro(macro):
-    macro.one = SingleValue(add_one)
-    SingleValue(add_one, macro.one, label="two", parent=macro)
-    macro.add_child(SingleValue(add_one, macro.two, label="three"))
+    macro.one = Function(add_one)
+    Function(add_one, macro.one, label="two", parent=macro)
+    macro.add_child(Function(add_one, macro.two, label="three"))
     # Cover a handful of addition methods,
     # although these are more thoroughly tested in Workflow tests
 
 
 def wrong_return_macro(macro):
-    macro.one = SingleValue(add_one)
+    macro.one = Function(add_one)
     return 3
 
 
@@ -192,7 +192,7 @@ class TestMacro(unittest.TestCase):
 
     def test_nesting(self):
         def nested_macro(macro):
-            macro.a = SingleValue(add_one)
+            macro.a = Function(add_one)
             macro.b = Macro(
                 add_three_macro,
                 one__x=macro.a,
@@ -203,7 +203,7 @@ class TestMacro(unittest.TestCase):
                 one__x=macro.b.outputs.three__result,
                 outputs_map={"two__result": "intermediate_result"}
             )
-            macro.d = SingleValue(
+            macro.d = Function(
                 add_one,
                 x=macro.c.outputs.three__result,
             )
@@ -219,7 +219,7 @@ class TestMacro(unittest.TestCase):
 
     def test_with_executor(self):
         macro = Macro(add_three_macro)
-        downstream = SingleValue(add_one, x=macro.outputs.three__result)
+        downstream = Function(add_one, x=macro.outputs.three__result)
         macro >> downstream  # Manually specify since we'll run the macro but look
         # at the downstream output, and none of this is happening in a workflow
 
@@ -297,7 +297,7 @@ class TestMacro(unittest.TestCase):
         macro.executor_shutdown()
 
     def test_pulling_from_inside_a_macro(self):
-        upstream = SingleValue(add_one, x=2)
+        upstream = Function(add_one, x=2)
         macro = Macro(add_three_macro, one__x=upstream)
         macro.inputs.one__x = 0  # Set value
         # Now macro.one.inputs.x has both value and a connection
@@ -324,8 +324,8 @@ class TestMacro(unittest.TestCase):
 
         with self.subTest("When the local scope has cyclic data flow"):
             def cyclic_macro(macro):
-                macro.one = SingleValue(add_one)
-                macro.two = SingleValue(add_one, x=macro.one)
+                macro.one = Function(add_one)
+                macro.two = Function(add_one, x=macro.one)
                 macro.one.inputs.x = macro.two
                 macro.one >> macro.two
                 macro.starting_nodes = [macro.one]
@@ -360,8 +360,8 @@ class TestMacro(unittest.TestCase):
             )
 
         with self.subTest("When the parent scope has cyclic data flow"):
-            n1 = SingleValue(add_one, label="n1", x=0)
-            n2 = SingleValue(add_one, label="n2", x=n1)
+            n1 = Function(add_one, label="n1", x=0)
+            n2 = Function(add_one, label="n2", x=n1)
             m = Macro(add_three_macro, label="m", one__x=n2)
 
             self.assertEqual(
@@ -405,9 +405,9 @@ class TestMacro(unittest.TestCase):
                 y = 1 / x
                 return y
 
-            n1 = SingleValue(fail_at_zero, x=0)
-            n2 = SingleValue(add_one, x=n1, label="n1")
-            n_not_used = SingleValue(add_one)
+            n1 = Function(fail_at_zero, x=0)
+            n2 = Function(add_one, x=n1, label="n1")
+            n_not_used = Function(add_one)
             n_not_used >> n2  # Just here to make sure it gets restored
 
             with self.assertRaises(

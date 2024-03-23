@@ -30,12 +30,7 @@ from pyiron_workflow.executors import CloudpickleProcessPoolExecutor
 # Then choose one executor to be "standard"
 Executor = PyMpiPoolExecutor
 
-from pyiron_workflow.function import (
-    Function,
-    SingleValue,
-    function_node,
-    single_value_node,
-)
+from pyiron_workflow.function import Function, function_node
 from pyiron_workflow.snippets.dotdict import DotDict
 
 if TYPE_CHECKING:
@@ -66,7 +61,6 @@ class Creator(metaclass=Singleton):
         self.PyMpiPoolExecutor = PyMpiPoolExecutor
 
         self.Function = Function
-        self.SingleValue = SingleValue
 
         # Avoid circular imports by delaying import for children of Composite
         self._macro = None
@@ -323,7 +317,6 @@ class Wrappers(metaclass=Singleton):
 
     def __init__(self):
         self.function_node = function_node
-        self.single_value_node = single_value_node
 
         # Avoid circular imports by delaying import when wrapping children of Composite
         self._macro_node = None

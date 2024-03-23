@@ -19,7 +19,7 @@ class TestTopology(unittest.TestCase):
         Check that cyclic graphs run.
         """
 
-        @Workflow.wrap_as.single_value_node()
+        @Workflow.wrap_as.function_node()
         def randint(low=0, high=20):
             rand = random.randint(low, high)
             print(f"Generating random number between {low} and {high}...{rand}!")
@@ -57,7 +57,7 @@ class TestTopology(unittest.TestCase):
                     print(f"{self.inputs.value.value} <= {self.inputs.limit.value}")
                     self.signals.output.false()
 
-        @Workflow.wrap_as.single_value_node("sqrt")
+        @Workflow.wrap_as.function_node("sqrt")
         def sqrt(value=0):
             root_value = math.sqrt(value)
             print(f"sqrt({value}) = {root_value}")
@@ -115,11 +115,11 @@ class TestTopology(unittest.TestCase):
         with self.subTest("Random"):
             random.seed(0)
 
-            @Workflow.wrap_as.single_value_node("random")
+            @Workflow.wrap_as.function_node("random")
             def RandomFloat() -> float:
                 return random.random()
 
-            @Workflow.wrap_as.single_value_node("gt")
+            @Workflow.wrap_as.function_node("gt")
             def GreaterThan(x: float, threshold: float):
                 return x > threshold
 

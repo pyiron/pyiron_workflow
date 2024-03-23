@@ -38,7 +38,7 @@ class Macro(Composite):
     This can be especially helpful when more than one child node needs access to the
     same input value.
     Similarly, the callable may return any number of child nodes' output channels (or
-    the node itself in the case of :class:`SingleValue` nodes) and commensurate
+    the node itself in the case of single-output nodes) and commensurate
     :attr:`output_labels` to define macro-level output.
     These function-like definitions of the graph creator callable can be used
     independently or together.
@@ -93,9 +93,9 @@ class Macro(Composite):
         ...     return result
         >>>
         >>> def add_three_macro(macro):
-        ...     macro.one = macro.create.SingleValue(add_one)
-        ...     macro.two = macro.create.SingleValue(add_one, macro.one)
-        ...     macro.three = macro.create.SingleValue(add_one, macro.two)
+        ...     macro.one = macro.create.Function(add_one)
+        ...     macro.two = macro.create.Function(add_one, macro.one)
+        ...     macro.three = macro.create.Function(add_one, macro.two)
         ...     macro.one >> macro.two >> macro.three
         ...     macro.starting_nodes = [macro.one]
 
@@ -139,9 +139,9 @@ class Macro(Composite):
         internally-connected IO by inputs and outputs maps:
 
         >>> def nested_macro(macro):
-        ...     macro.a = macro.create.SingleValue(add_one)
+        ...     macro.a = macro.create.Function(add_one)
         ...     macro.b = macro.create.Macro(add_three_macro, one__x=macro.a)
-        ...     macro.c = macro.create.SingleValue(
+        ...     macro.c = macro.create.Function(
         ...         add_one, x=macro.b.outputs.three__result
         ...     )
         >>>
@@ -158,9 +158,9 @@ class Macro(Composite):
         Let's build a simple macro with two independent tracks:
 
         >>> def modified_flow_macro(macro):
-        ...     macro.a = macro.create.SingleValue(add_one, x=0)
-        ...     macro.b = macro.create.SingleValue(add_one, x=0)
-        ...     macro.c = macro.create.SingleValue(add_one, x=0)
+        ...     macro.a = macro.create.Function(add_one, x=0)
+        ...     macro.b = macro.create.Function(add_one, x=0)
+        ...     macro.c = macro.create.Function(add_one, x=0)
         >>>
         >>> m = Macro(modified_flow_macro)
         >>> m(a__x=1, b__x=2, c__x=3)
@@ -189,7 +189,7 @@ class Macro(Composite):
         to do this. Let's explore these by going back to our `add_three_macro` and
         replacing each of its children with a node that adds 2 instead of 1.
 
-        >>> @Macro.wrap_as.single_value_node()
+        >>> @Macro.wrap_as.function_node()
         ... def add_two(x):
         ...     result = x + 2
         ...     return result
@@ -210,7 +210,7 @@ class Macro(Composite):
         provide a more :class:`Function(Node)`-like definition of the :meth:`graph_creator` by
         adding args and/or kwargs to the signature (under the hood, this dynamically
         creates new :class:`UserInput` nodes before running the rest of the graph creation),
-        and/or returning child channels (or whole children in the case of :class:`SingleValue`
+        and/or returning child channels (or whole children in the case of single-output
         nodes) and providing commensurate :attr:`output_labels`.
         This process switches us from the :class:`Workflow` default of exposing all
         unconnected child IO, to a "whitelist" paradigm of _only_ showing the IO that
