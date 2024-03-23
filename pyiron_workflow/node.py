@@ -8,11 +8,10 @@ The workhorse class for the entire concept.
 from __future__ import annotations
 
 import sys
-import warnings
 from abc import ABC
 from concurrent.futures import Future
-from importlib import import_module
 from typing import Any, Literal, Optional, TYPE_CHECKING
+import warnings
 
 from pyiron_workflow.draw import Node as GraphvizNode
 from pyiron_workflow.has_to_dict import HasToDict
@@ -20,14 +19,14 @@ from pyiron_workflow.injection import HasIOWithInjection
 from pyiron_workflow.run import Runnable, ReadinessError
 from pyiron_workflow.semantics import Semantic
 from pyiron_workflow.single_output import ExploitsSingleOutput
-from pyiron_workflow.storage import StorageInterface
+from pyiron_workflow.storage import HasH5ioStorage, HasTinybaseStorage
 from pyiron_workflow.topology import (
     get_nodes_in_data_tree,
     set_run_connections_according_to_linear_dag,
 )
-from pyiron_workflow.working import HasWorkingDirectory
 from pyiron_workflow.snippets.colors import SeabornColors
 from pyiron_workflow.snippets.has_post import AbstractHasPost
+from pyiron_workflow.working import HasWorkingDirectory
 
 if TYPE_CHECKING:
     from pathlib import Path
@@ -35,6 +34,7 @@ if TYPE_CHECKING:
     import graphviz
 
     from pyiron_workflow.composite import Composite
+    from pyiron_workflow.snippets.files import DirectoryObject
 
 
 class Node(
@@ -44,6 +44,8 @@ class Node(
     HasIOWithInjection,
     ExploitsSingleOutput,
     HasWorkingDirectory,
+    HasH5ioStorage,
+    HasTinybaseStorage,
     ABC,
     metaclass=AbstractHasPost,
 ):
@@ -287,7 +289,7 @@ class Node(
         parent: Optional[Composite] = None,
         overwrite_save: bool = False,
         run_after_init: bool = False,
-        storage_backend: Optional[Literal["h5io", "tinybase"]] = None,
+        storage_backend: Literal["h5io", "tinybase"] | None = "h5io",
         save_after_run: bool = False,
         **kwargs,
     ):
@@ -306,11 +308,9 @@ class Node(
             *args,
             label=label,
             parent=parent,
+            storage_backend=storage_backend,
             **kwargs,
         )
-        self._working_directory = None
-        self._storage_backend = None
-        self.storage_backend = storage_backend
         self.save_after_run = save_after_run
         self._user_data = {}  # A place for power-users to bypass node-injection
 
@@ -322,7 +322,7 @@ class Node(
         **kwargs,
     ):
         if overwrite_save and sys.version_info >= (3, 11):
-            self.storage.delete()
+            self.delete_storage()
             do_load = False
         else:
             do_load = sys.version_info >= (3, 11) and self.storage.has_contents
@@ -688,15 +688,19 @@ class Node(
             warnings.warn(f"Could not replace_child {self.label}, as it has no parent.")
 
     @property
-    def class_name(self) -> str:
-        """The class name of the node"""
-        # Since we want this directly in storage, put it in an attribute so it is
-        # guaranteed not to conflict with a child node label
-        return self.__class__.__name__
+    def storage_directory(self) -> DirectoryObject:
+        return self.working_directory
+
+    @property
+    def storage_path(self) -> str:
+        return self.graph_path
+
+    def tidy_storage_directory(self):
+        self.tidy_working_directory()
 
     def to_storage(self, storage):
         storage["package_identifier"] = self.package_identifier
-        storage["class_name"] = self.class_name
+        storage["class_name"] = self.__class__.__name__
         storage["label"] = self.label
         storage["running"] = self.running
         storage["failed"] = self.failed
@@ -722,111 +726,3 @@ class Node(
         data_outputs = storage["outputs"]
         for label in data_outputs.list_groups():
             self.outputs[label].from_storage(data_outputs[label])
-
-    _save_load_warnings = """
-        HERE BE DRAGONS!!!
-        
-        Warning:
-            This almost certainly only fails for subclasses of :class:`Node` that don't
-            override `node_function` or `macro_creator` directly, as these are expected 
-            to be part of the class itself (and thus already present on our instantiated 
-            object) and are never stored. Nodes created using the provided decorators 
-            should all work.
-            
-        Warning:
-            If you modify a `Macro` class in any way (changing its IO maps, rewiring 
-            internal connections, or replacing internal nodes), don't expect 
-            saving/loading to work.
-            
-        Warning:
-            If the underlying source code has changed since saving (i.e. the node doing 
-            the loading does not use the same code as the node doing the saving, or the 
-            nodes in some node package have been modified), then all bets are off.
-            
-        Note:
-            Saving and loading `Workflows` only works when all child nodes were created 
-            via the creator (and thus have a `package_identifier`). Right now, this is 
-            not a big barrier to custom nodes as all you need to do is move them into a 
-            .py file, make sure it's in your python path, and :func:`register` it as 
-            usual.
-    """
-
-    def save(self):
-        """
-        Writes the node to file (using HDF5) such that a new node instance of the same
-        type can :meth:`load()` the data to return to the same state as the save point,
-        i.e. the same data IO channel values, the same flags, etc.
-        """
-        backend = "h5io" if self.storage_backend is None else self.storage_backend
-        self.storage.save(backend=backend)
-
-    save.__doc__ += _save_load_warnings
-
-    def load(self):
-        """
-        Loads the node file (from HDF5) such that this node restores its state at time
-        of loading.
-
-        Raises:
-            TypeError) when the saved node has a different class name.
-        """
-        backend = "h5io" if self.storage_backend is None else self.storage_backend
-        self.storage.load(backend=backend)
-
-    save.__doc__ += _save_load_warnings
-
-    @property
-    def storage_backend(self):
-        if self.parent is None:
-            return self._storage_backend
-        else:
-            return self.graph_root.storage_backend
-
-    @storage_backend.setter
-    def storage_backend(self, new_backend):
-        if (
-            new_backend is not None
-            and self.parent is not None
-            and new_backend != self.graph_root.storage_backend
-        ):
-            raise ValueError(
-                f"Storage backends should only be set on the graph root "
-                f"({self.graph_root.label}), not on child ({self.label})"
-            )
-        else:
-            self._storage_backend = new_backend
-
-    @property
-    def storage(self):
-        return StorageInterface(self)
-
-    @property
-    def import_ready(self) -> bool:
-        """
-        Checks whether `importlib` can find this node's class, and if so whether the
-        imported object matches the node's type.
-
-        Returns:
-            (bool): Whether the imported module and name of this node's class match
-                its type.
-        """
-        try:
-            module = self.__class__.__module__
-            class_ = getattr(import_module(module), self.__class__.__name__)
-            if module == "__main__":
-                warnings.warn(f"{self.label} is only defined in __main__")
-            return type(self) is class_
-        except (ModuleNotFoundError, AttributeError):
-            return False
-
-    @property
-    def import_readiness_report(self):
-        print(self._report_import_readiness())
-
-    def _report_import_readiness(self, tabs=0, report_so_far=""):
-        newline = "\n" if len(report_so_far) > 0 else ""
-        tabspace = tabs * "\t"
-        return (
-            report_so_far + f"{newline}{tabspace}{self.label}: "
-            f"{'ok' if self.import_ready else 'NOT IMPORTABLE'}"
-        )
