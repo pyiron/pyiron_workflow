@@ -11,7 +11,7 @@ possible coupling between different components of a composed class.
 from __future__ import annotations
 
 from abc import ABC, abstractmethod
-from typing import TYPE_CHECKING
+from typing import Any, TYPE_CHECKING
 
 if TYPE_CHECKING:
     from pyiron_workflow.channels import Channel
@@ -43,6 +43,17 @@ class HasLabel(ABC):
     @abstractmethod
     def label(self) -> str:
         """A label for the object."""
+
+
+class HasParent(ABC):
+    """
+    A mixin to guarantee the parent interface exists.
+    """
+
+    @property
+    @abstractmethod
+    def parent(self) -> Any:
+        """A parent for the object."""
 
 
 class HasChannel(ABC):
