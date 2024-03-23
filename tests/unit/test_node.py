@@ -11,7 +11,6 @@ from pyiron_workflow.injection import OutputDataWithInjection, OutputsWithInject
 from pyiron_workflow.io import Inputs
 from pyiron_workflow.node import Node
 from pyiron_workflow.single_output import AmbiguousOutputError
-from pyiron_workflow.storage import ALLOWED_BACKENDS
 
 
 def add_one(x):
@@ -422,57 +421,60 @@ class TestNode(unittest.TestCase):
         )
         y = self.n1()
 
-        for backend in ALLOWED_BACKENDS:
+        for backend in Node.allowed_backends():
             with self.subTest(backend):
                 self.n1.storage_backend = backend
-                self.n1.save()
+                try:
+                    self.n1.save()
 
-                x = self.n1.inputs.x.value
-                reloaded = ANode(self.n1.label, x=x, storage_backend=backend)
-                self.assertEqual(
-                    y,
-                    reloaded.outputs.y.value,
-                    msg="Nodes should load by default if they find a save file"
-                )
-
-                clean_slate = ANode(self.n1.label, x=x, overwrite_save=True)
-                self.assertIs(
-                    clean_slate.outputs.y.value,
-                    NOT_DATA,
-                    msg="Users should be able to ignore a save"
-                )
-
-                run_right_away = ANode(
-                    self.n1.label, x=x, run_after_init=True, storage_backend=backend
-                )
-                self.assertEqual(
-                    y,
-                    run_right_away.outputs.y.value,
-                    msg="With nothing to load, running after init is fine"
-                )
-
-                run_right_away.save()
-                with self.assertRaises(
-                    ValueError,
-                    msg="Should be able to both immediately run _and_ load a node at "
-                        "once"
-                ):
-                    ANode(
-                        self.n1.label, x=x, run_after_init=True, storage_backend=backend
+                    x = self.n1.inputs.x.value
+                    reloaded = ANode(self.n1.label, x=x, storage_backend=backend)
+                    self.assertEqual(
+                        y,
+                        reloaded.outputs.y.value,
+                        msg="Nodes should load by default if they find a save file"
                     )
 
-                force_run = ANode(
-                    self.n1.label, x=x, run_after_init=True, overwrite_save=True
-                )
-                self.assertEqual(
-                    y,
-                    force_run.outputs.y.value,
-                    msg="Destroying the save should allow immediate re-running"
-                )
+                    clean_slate = ANode(self.n1.label, x=x, overwrite_save=True)
+                    self.assertIs(
+                        clean_slate.outputs.y.value,
+                        NOT_DATA,
+                        msg="Users should be able to ignore a save"
+                    )
+
+                    run_right_away = ANode(
+                        self.n1.label, x=x, run_after_init=True, storage_backend=backend
+                    )
+                    self.assertEqual(
+                        y,
+                        run_right_away.outputs.y.value,
+                        msg="With nothing to load, running after init is fine"
+                    )
+
+                    run_right_away.save()
+                    with self.assertRaises(
+                        ValueError,
+                        msg="Should be able to both immediately run _and_ load a node at "
+                            "once"
+                    ):
+                        ANode(
+                            self.n1.label, x=x, run_after_init=True, storage_backend=backend
+                        )
+
+                    force_run = ANode(
+                        self.n1.label, x=x, run_after_init=True, overwrite_save=True
+                    )
+                    self.assertEqual(
+                        y,
+                        force_run.outputs.y.value,
+                        msg="Destroying the save should allow immediate re-running"
+                    )
+                finally:
+                    self.n1.delete_storage()
 
     @unittest.skipIf(sys.version_info < (3, 11), "Storage will only work in 3.11+")
     def test_save_after_run(self):
-        for backend in ALLOWED_BACKENDS:
+        for backend in Node.allowed_backends():
             with self.subTest(backend):
                 try:
                     ANode("just_run", x=0, run_after_init=True, storage_backend=backend)

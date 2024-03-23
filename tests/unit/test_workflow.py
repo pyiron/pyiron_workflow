@@ -7,7 +7,7 @@ from pyiron_workflow._tests import ensure_tests_in_python_path
 from pyiron_workflow.channels import NOT_DATA
 from pyiron_workflow.semantics import ParentMostError
 from pyiron_workflow.snippets.dotdict import DotDict
-from pyiron_workflow.storage import TypeNotFoundError, ALLOWED_BACKENDS
+from pyiron_workflow.storage import TypeNotFoundError
 from pyiron_workflow.workflow import Workflow
 
 
@@ -348,7 +348,7 @@ class TestWorkflow(unittest.TestCase):
 
     @unittest.skipIf(sys.version_info < (3, 11), "Storage will only work in 3.11+")
     def test_storage_values(self):
-        for backend in ALLOWED_BACKENDS:
+        for backend in Workflow.allowed_backends():
             with self.subTest(backend):
                 wf = Workflow("wf", storage_backend=backend)
                 try:
@@ -385,7 +385,7 @@ class TestWorkflow(unittest.TestCase):
         # Note that the type hint `Optional[int]` from OptionallyAdd defines a custom
         # reconstructor, which borks h5io
 
-        for backend in ALLOWED_BACKENDS:
+        for backend in Workflow.allowed_backends():
             with self.subTest(backend):
                 try:
                     wf.storage_backend = backend
@@ -397,7 +397,7 @@ class TestWorkflow(unittest.TestCase):
         with self.subTest("No unimportable nodes for either back-end"):
             try:
                 wf.import_type_mismatch = wf.create.demo.dynamic()
-                for backend in ALLOWED_BACKENDS:
+                for backend in Workflow.allowed_backends():
                     with self.subTest(backend):
                         with self.assertRaises(
                             TypeNotFoundError,
@@ -409,7 +409,7 @@ class TestWorkflow(unittest.TestCase):
             finally:
                 wf.remove_child(wf.import_type_mismatch)
 
-        if "h5io" in ALLOWED_BACKENDS:
+        if "h5io" in Workflow.allowed_backends():
             wf.add_child(PlusOne(label="local_but_importable"))
             try:
                 wf.storage_backend = "h5io"
@@ -418,7 +418,7 @@ class TestWorkflow(unittest.TestCase):
             finally:
                 wf.storage.delete()
 
-        if "tinybase" in ALLOWED_BACKENDS:
+        if "tinybase" in Workflow.allowed_backends():
             with self.assertRaises(
                 NotImplementedError,
                 msg="Storage docs for tinybase claim all children must be registered "
@@ -427,7 +427,7 @@ class TestWorkflow(unittest.TestCase):
                 wf.storage_backend = "tinybase"
                 wf.save()
 
-        if "h5io" in ALLOWED_BACKENDS:
+        if "h5io" in Workflow.allowed_backends():
             with self.subTest("Instanced node"):
                 wf.direct_instance = Workflow.create.Function(plus_one)
                 try:
@@ -449,7 +449,7 @@ class TestWorkflow(unittest.TestCase):
 
             wf.unimportable_scope = UnimportableScope()
 
-            if "h5io" in ALLOWED_BACKENDS:
+            if "h5io" in Workflow.allowed_backends():
                 try:
                     with self.assertRaises(
                         TypeNotFoundError,

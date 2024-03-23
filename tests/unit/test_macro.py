@@ -10,7 +10,6 @@ from pyiron_workflow._tests import ensure_tests_in_python_path
 from pyiron_workflow.channels import NOT_DATA
 from pyiron_workflow.function import Function
 from pyiron_workflow.macro import Macro, macro_node
-from pyiron_workflow.storage import ALLOWED_BACKENDS
 from pyiron_workflow.topology import CircularDataFlowError
 
 
@@ -531,7 +530,7 @@ class TestMacro(unittest.TestCase):
         ensure_tests_in_python_path()
         Macro.register("static.demo_nodes", domain="demo")
 
-        for backend in ALLOWED_BACKENDS:
+        for backend in Macro.allowed_backends():
             with self.subTest(backend):
                 try:
                     macro = Macro.create.demo.AddThree(
@@ -569,7 +568,7 @@ class TestMacro(unittest.TestCase):
                     )  # Note that this snags the _new_ one in the case of h5io!
                     self.assertEqual(
                         Macro.create.demo.AddThree.__name__,
-                        reloaded.class_name,
+                        reloaded.__class__.__name__,
                         msg=f"LOOK OUT! This all (de)serialized nicely, but what we "
                             f"loaded is _falsely_ claiming to be an "
                             f"{Macro.create.demo.AddThree.__name__}. This is "
