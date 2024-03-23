@@ -41,10 +41,9 @@ class Dummy(HasIO):
 
 class TestDataIO(unittest.TestCase):
 
-    @classmethod
-    def setUp(cls) -> None:
+    def setUp(self) -> None:
         has_io = Dummy()
-        cls.inputs = [
+        self.inputs = [
             InputData(label="x", owner=has_io, default=0., type_hint=float),
             InputData(label="y", owner=has_io, default=1., type_hint=float)
         ]
@@ -52,10 +51,10 @@ class TestDataIO(unittest.TestCase):
             OutputData(label="a", owner=has_io, type_hint=float),
         ]
 
-        cls.post_facto_output = OutputData(label="b", owner=has_io, type_hint=float)
+        self.post_facto_output = OutputData(label="b", owner=has_io, type_hint=float)
 
-        cls.input = Inputs(*cls.inputs)
-        cls.output = Outputs(*outputs)
+        self.input = Inputs(*self.inputs)
+        self.output = Outputs(*outputs)
 
     def test_access(self):
         self.assertEqual(self.input.x, self.input["x"])
