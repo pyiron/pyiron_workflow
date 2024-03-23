@@ -537,7 +537,7 @@ class Composite(Node, SemanticParent, ABC):
         the name is protected.
         """
         return [
-            ((inp.node.label, inp.label), (out.node.label, out.label))
+            ((inp.owner.label, inp.label), (out.owner.label, out.label))
             for child in self
             for inp in panel_getter(child)
             for out in inp.connections

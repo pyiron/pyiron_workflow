@@ -282,7 +282,7 @@ class Workflow(Composite, ParentMost):
             for inp_label, inp in node.inputs.items():
                 for conn in inp.connections:
                     data_connections.append(
-                        ((node.label, inp_label), (conn.node.label, conn.label))
+                        ((node.label, inp_label), (conn.owner.label, conn.label))
                     )
         return data_connections
 
@@ -305,7 +305,7 @@ class Workflow(Composite, ParentMost):
             for inp_label, inp in node.signals.input.items():
                 for conn in inp.connections:
                     signal_connections.append(
-                        ((node.label, inp_label), (conn.node.label, conn.label))
+                        ((node.label, inp_label), (conn.owner.label, conn.label))
                     )
         return signal_connections
 

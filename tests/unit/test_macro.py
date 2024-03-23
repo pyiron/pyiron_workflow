@@ -422,7 +422,7 @@ class TestMacro(unittest.TestCase):
             )
             self.assertIs(
                 n_not_used,
-                n2.signals.input.run.connections[0].node,
+                n2.signals.input.run.connections[0].owner,
                 msg="Original connections should get restored on upstream failure"
             )
 

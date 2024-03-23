@@ -923,7 +923,7 @@ class Node(HasToDict, Semantic, Runnable, ABC, metaclass=AbstractHasPost):
         # Channels don't store their own node in their state, so repopulate it
         for io_panel in self._owned_io_panels:
             for channel in io_panel:
-                channel.node = self
+                channel.owner = self
 
     @property
     def _owned_io_panels(self) -> list[IO]:

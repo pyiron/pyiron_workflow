@@ -21,14 +21,14 @@ class TestDataIO(unittest.TestCase):
     def setUp(self) -> None:
         node = DummyNode()
         self.inputs = [
-            InputData(label="x", node=node, default=0., type_hint=float),
-            InputData(label="y", node=node, default=1., type_hint=float)
+            InputData(label="x", owner=node, default=0., type_hint=float),
+            InputData(label="y", owner=node, default=1., type_hint=float)
         ]
         outputs = [
-            OutputData(label="a", node=node, type_hint=float),
+            OutputData(label="a", owner=node, type_hint=float),
         ]
 
-        self.post_facto_output = OutputData(label="b", node=node, type_hint=float)
+        self.post_facto_output = OutputData(label="b", owner=node, type_hint=float)
 
         self.input = Inputs(*self.inputs)
         self.output = Outputs(*outputs)

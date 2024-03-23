@@ -458,7 +458,7 @@ class Function(Node):
                 channels.append(
                     InputData(
                         label=label,
-                        node=self,
+                        owner=self,
                         default=default,
                         type_hint=type_hint,
                     )
@@ -497,7 +497,7 @@ class Function(Node):
             channels.append(
                 OutputData(
                     label=label,
-                    node=self,
+                    owner=self,
                     type_hint=hint,
                 )
             )

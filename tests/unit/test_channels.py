@@ -111,26 +111,26 @@ class TestDataChannels(unittest.TestCase):
 
     def setUp(self) -> None:
         self.ni1 = InputData(
-            label="numeric", node=DummyNode(), default=1, type_hint=int|float
+            label="numeric", owner=DummyNode(), default=1, type_hint=int | float
         )
         self.ni2 = InputData(
-            label="numeric", node=DummyNode(), default=1, type_hint=int|float
+            label="numeric", owner=DummyNode(), default=1, type_hint=int | float
         )
         self.no = OutputData(
-            label="numeric", node=DummyNode(), default=0, type_hint=int|float
+            label="numeric", owner=DummyNode(), default=0, type_hint=int | float
         )
         self.no_empty = OutputData(
-            label="not_data", node=DummyNode(), type_hint=int|float
+            label="not_data", owner=DummyNode(), type_hint=int | float
         )
 
-        self.si = InputData(label="list", node=DummyNode(), type_hint=list)
+        self.si = InputData(label="list", owner=DummyNode(), type_hint=list)
         self.so1 = OutputData(
-            label="list", node=DummyNode(), default=["foo"], type_hint=list
+            label="list", owner=DummyNode(), default=["foo"], type_hint=list
         )
 
     def test_mutable_defaults(self):
         so2 = OutputData(
-            label="list", node=DummyNode(), default=["foo"], type_hint=list
+            label="list", owner=DummyNode(), default=["foo"], type_hint=list
         )
         self.so1.default.append("bar")
         self.assertEqual(
@@ -278,7 +278,7 @@ class TestDataChannels(unittest.TestCase):
             self.ni1.value_receiver = self.si  # Should work fine if the receiver is not
             # strictly checking hints
 
-            unhinted = InputData(label="unhinted", node=DummyNode())
+            unhinted = InputData(label="unhinted", owner=DummyNode())
             self.ni1.value_receiver = unhinted
             unhinted.value_receiver = self.ni2
             # Should work fine if either lacks a hint
@@ -287,13 +287,13 @@ class TestDataChannels(unittest.TestCase):
         self.ni1.value = 2  # Should be fine when value matches hint
         self.ni1.value = NOT_DATA  # Should be able to clear the data
 
-        self.ni1.node.running = True
+        self.ni1.owner.running = True
         with self.assertRaises(
             RuntimeError,
             msg="Input data should be locked while its node runs"
         ):
             self.ni1.value = 3
-        self.ni1.node.running = False
+        self.ni1.owner.running = False
 
         with self.assertRaises(
             TypeError,
@@ -310,7 +310,7 @@ class TestDataChannels(unittest.TestCase):
 
     def test_ready(self):
         with self.subTest("Test defaults and not-data"):
-            without_default = InputData(label="without_default", node=DummyNode())
+            without_default = InputData(label="without_default", owner=DummyNode())
             self.assertIs(
                 without_default.value,
                 NOT_DATA,
@@ -342,8 +342,8 @@ class TestDataChannels(unittest.TestCase):
 class TestSignalChannels(unittest.TestCase):
     def setUp(self) -> None:
         node = DummyNode()
-        self.inp = InputSignal(label="inp", node=node, callback=node.update)
-        self.out = OutputSignal(label="out", node=DummyNode())
+        self.inp = InputSignal(label="inp", owner=node, callback=node.update)
+        self.out = OutputSignal(label="out", owner=DummyNode())
 
     def test_connections(self):
         with self.subTest("Good connection"):
@@ -362,7 +362,7 @@ class TestSignalChannels(unittest.TestCase):
             self.assertEqual(len(self.out.connections), 0)
 
         with self.subTest("No connections to non-SignalChannels"):
-            bad = InputData(label="numeric", node=DummyNode(), default=1, type_hint=int)
+            bad = InputData(label="numeric", owner=DummyNode(), default=1, type_hint=int)
             with self.assertRaises(TypeError):
                 self.inp.connect(bad)
 
@@ -374,13 +374,13 @@ class TestSignalChannels(unittest.TestCase):
     def test_calls(self):
         self.out.connect(self.inp)
         self.out()
-        self.assertListEqual(self.inp.node.foo, [0, 1])
+        self.assertListEqual(self.inp.owner.foo, [0, 1])
         self.inp()
-        self.assertListEqual(self.inp.node.foo, [0, 1, 2])
+        self.assertListEqual(self.inp.owner.foo, [0, 1, 2])
 
     def test_aggregating_call(self):
         node = DummyNode()
-        agg = AccumulatingInputSignal(label="agg", node=node, callback=node.update)
+        agg = AccumulatingInputSignal(label="agg", owner=node, callback=node.update)
 
         with self.assertRaises(
             TypeError,
@@ -389,7 +389,7 @@ class TestSignalChannels(unittest.TestCase):
         ):
             agg()
 
-        out2 = OutputSignal(label="out2", node=DummyNode())
+        out2 = OutputSignal(label="out2", owner=DummyNode())
         agg.connect(self.out, out2)
 
         self.assertEqual(
@@ -495,7 +495,7 @@ class TestSignalChannels(unittest.TestCase):
                 node.classmethod_without_args
             ]:
                 with self.subTest(callback.__name__):
-                    InputSignal(label="inp", node=node, callback=callback)
+                    InputSignal(label="inp", owner=node, callback=callback)
 
         with self.subTest("Invalid callbacks"):
             for callback in [
@@ -506,7 +506,7 @@ class TestSignalChannels(unittest.TestCase):
             ]:
                 with self.subTest(callback.__name__):
                     with self.assertRaises(BadCallbackError):
-                        InputSignal(label="inp", node=node, callback=callback)
+                        InputSignal(label="inp", owner=node, callback=callback)
 
 if __name__ == '__main__':
     unittest.main()
