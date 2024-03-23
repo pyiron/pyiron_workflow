@@ -4,6 +4,7 @@ import warnings
 
 from pyiron_workflow.channels import NOT_DATA, ChannelConnectionError
 from pyiron_workflow.function import Function, SingleValue, function_node
+from pyiron_workflow.io import ConnectionCopyError, ValueCopyError
 from pyiron_workflow.create import Executor
 
 
@@ -340,7 +341,7 @@ class TestFunction(unittest.TestCase):
         hinted_node = Function(plus_one_hinted)
 
         with self.subTest("Ensure failed copies fail cleanly"):
-            with self.assertRaises(AttributeError, msg="Wrong labels"):
+            with self.assertRaises(ConnectionCopyError, msg="Wrong labels"):
                 node._copy_connections(wrong_io)
             self.assertFalse(
                 node.connected,
@@ -349,7 +350,7 @@ class TestFunction(unittest.TestCase):
             )
 
             with self.assertRaises(
-                ChannelConnectionError,
+                ConnectionCopyError,
                 msg="An unhinted channel is not a valid connection for a hinted "
                     "channel, and should raise and exception"
             ):
@@ -437,14 +438,14 @@ class TestFunction(unittest.TestCase):
 
         ref.inputs.x = 0  # Revert the value
         with self.assertRaises(
-            TypeError,
+            ValueCopyError,
             msg="Type hint should prevent update when we fail hard"
         ):
             ref._copy_values(floats, fail_hard=True)
 
         ref._copy_values(extra)  # No problem
         with self.assertRaises(
-            AttributeError,
+            ValueCopyError,
             msg="Missing a channel that holds data is also grounds for failure"
         ):
             ref._copy_values(extra, fail_hard=True)

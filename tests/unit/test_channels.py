@@ -6,14 +6,18 @@ from pyiron_workflow.channels import (
 )
 
 
-class DummyNode:
+class DummyOwner:
     def __init__(self):
         self.foo = [0]
-        self.running = False
-        self.label = "node_label"
+        self.locked = False
+        self.label = "owner_label"
 
     def update(self):
         self.foo.append(self.foo[-1] + 1)
+
+    def data_input_locked(self):
+        return self.locked
+
 
 class InputChannel(Channel):
     """Just to de-abstract the base class"""
@@ -38,22 +42,22 @@ class OutputChannel(Channel):
 class TestChannel(unittest.TestCase):
 
     def setUp(self) -> None:
-        self.inp = InputChannel("inp", DummyNode())
-        self.out = OutputChannel("out", DummyNode())
-        self.out2 = OutputChannel("out2", DummyNode())
+        self.inp = InputChannel("inp", DummyOwner())
+        self.out = OutputChannel("out", DummyOwner())
+        self.out2 = OutputChannel("out2", DummyOwner())
 
     def test_connection_validity(self):
         with self.assertRaises(
             TypeError,
             msg="Can't connect to non-channels"
         ):
-            self.inp.connect("not a node")
+            self.inp.connect("not an owner")
 
         with self.assertRaises(
             TypeError,
             msg="Can't connect to channels that are not the partner type"
         ):
-            self.inp.connect(InputChannel("also_input", DummyNode()))
+            self.inp.connect(InputChannel("also_input", DummyOwner()))
 
         self.inp.connect(self.out)
         # A conjugate pair should work fine
@@ -111,26 +115,26 @@ class TestDataChannels(unittest.TestCase):
 
     def setUp(self) -> None:
         self.ni1 = InputData(
-            label="numeric", owner=DummyNode(), default=1, type_hint=int | float
+            label="numeric", owner=DummyOwner(), default=1, type_hint=int | float
         )
         self.ni2 = InputData(
-            label="numeric", owner=DummyNode(), default=1, type_hint=int | float
+            label="numeric", owner=DummyOwner(), default=1, type_hint=int | float
         )
         self.no = OutputData(
-            label="numeric", owner=DummyNode(), default=0, type_hint=int | float
+            label="numeric", owner=DummyOwner(), default=0, type_hint=int | float
         )
         self.no_empty = OutputData(
-            label="not_data", owner=DummyNode(), type_hint=int | float
+            label="not_data", owner=DummyOwner(), type_hint=int | float
         )
 
-        self.si = InputData(label="list", owner=DummyNode(), type_hint=list)
+        self.si = InputData(label="list", owner=DummyOwner(), type_hint=list)
         self.so1 = OutputData(
-            label="list", owner=DummyNode(), default=["foo"], type_hint=list
+            label="list", owner=DummyOwner(), default=["foo"], type_hint=list
         )
 
     def test_mutable_defaults(self):
         so2 = OutputData(
-            label="list", owner=DummyNode(), default=["foo"], type_hint=list
+            label="list", owner=DummyOwner(), default=["foo"], type_hint=list
         )
         self.so1.default.append("bar")
         self.assertEqual(
@@ -245,7 +249,7 @@ class TestDataChannels(unittest.TestCase):
         self.assertEqual(
             new_value,
             self.ni2.value,
-            msg="Value-linked nodes should automatically get new values"
+            msg="Value-linked owners should automatically get new values"
         )
 
         self.ni2.value = 3
@@ -278,7 +282,7 @@ class TestDataChannels(unittest.TestCase):
             self.ni1.value_receiver = self.si  # Should work fine if the receiver is not
             # strictly checking hints
 
-            unhinted = InputData(label="unhinted", owner=DummyNode())
+            unhinted = InputData(label="unhinted", owner=DummyOwner())
             self.ni1.value_receiver = unhinted
             unhinted.value_receiver = self.ni2
             # Should work fine if either lacks a hint
@@ -287,13 +291,13 @@ class TestDataChannels(unittest.TestCase):
         self.ni1.value = 2  # Should be fine when value matches hint
         self.ni1.value = NOT_DATA  # Should be able to clear the data
 
-        self.ni1.owner.running = True
+        self.ni1.owner.locked = True
         with self.assertRaises(
             RuntimeError,
-            msg="Input data should be locked while its node runs"
+            msg="Input data should be locked while its owner has data_input_locked"
         ):
             self.ni1.value = 3
-        self.ni1.owner.running = False
+        self.ni1.owner.locked = False
 
         with self.assertRaises(
             TypeError,
@@ -310,7 +314,7 @@ class TestDataChannels(unittest.TestCase):
 
     def test_ready(self):
         with self.subTest("Test defaults and not-data"):
-            without_default = InputData(label="without_default", owner=DummyNode())
+            without_default = InputData(label="without_default", owner=DummyOwner())
             self.assertIs(
                 without_default.value,
                 NOT_DATA,
@@ -341,9 +345,9 @@ class TestDataChannels(unittest.TestCase):
 
 class TestSignalChannels(unittest.TestCase):
     def setUp(self) -> None:
-        node = DummyNode()
-        self.inp = InputSignal(label="inp", owner=node, callback=node.update)
-        self.out = OutputSignal(label="out", owner=DummyNode())
+        owner = DummyOwner()
+        self.inp = InputSignal(label="inp", owner=owner, callback=owner.update)
+        self.out = OutputSignal(label="out", owner=DummyOwner())
 
     def test_connections(self):
         with self.subTest("Good connection"):
@@ -362,7 +366,7 @@ class TestSignalChannels(unittest.TestCase):
             self.assertEqual(len(self.out.connections), 0)
 
         with self.subTest("No connections to non-SignalChannels"):
-            bad = InputData(label="numeric", owner=DummyNode(), default=1, type_hint=int)
+            bad = InputData(label="numeric", owner=DummyOwner(), default=1, type_hint=int)
             with self.assertRaises(TypeError):
                 self.inp.connect(bad)
 
@@ -379,8 +383,8 @@ class TestSignalChannels(unittest.TestCase):
         self.assertListEqual(self.inp.owner.foo, [0, 1, 2])
 
     def test_aggregating_call(self):
-        node = DummyNode()
-        agg = AccumulatingInputSignal(label="agg", owner=node, callback=node.update)
+        owner = DummyOwner()
+        agg = AccumulatingInputSignal(label="agg", owner=owner, callback=owner.update)
 
         with self.assertRaises(
             TypeError,
@@ -389,7 +393,7 @@ class TestSignalChannels(unittest.TestCase):
         ):
             agg()
 
-        out2 = OutputSignal(label="out2", owner=DummyNode())
+        out2 = OutputSignal(label="out2", owner=DummyOwner())
         agg.connect(self.out, out2)
 
         self.assertEqual(
@@ -404,7 +408,7 @@ class TestSignalChannels(unittest.TestCase):
         )
         self.assertListEqual(
             [0],
-            node.foo,
+            owner.foo,
             msg="Sanity check on initial conditions"
         )
 
@@ -416,7 +420,7 @@ class TestSignalChannels(unittest.TestCase):
         )
         self.assertListEqual(
             [0],
-            node.foo,
+            owner.foo,
             msg="Receiving only _one_ of your connections should not fire the callback"
         )
 
@@ -428,14 +432,14 @@ class TestSignalChannels(unittest.TestCase):
         )
         self.assertListEqual(
             [0],
-            node.foo,
+            owner.foo,
             msg="Repeatedly receiving the same signal should have no effect"
         )
 
         out2()
         self.assertListEqual(
             [0, 1],
-            node.foo,
+            owner.foo,
             msg="After 2/2 output signals have fired, the callback should fire"
         )
         self.assertEqual(
@@ -449,7 +453,7 @@ class TestSignalChannels(unittest.TestCase):
         self.out()
         self.assertListEqual(
             [0, 1, 2],
-            node.foo,
+            owner.foo,
             msg="Having a vestigial received signal (i.e. one from an output signal "
                 "that is no longer connected) shouldn't hurt anything"
         )
@@ -460,7 +464,7 @@ class TestSignalChannels(unittest.TestCase):
         )
 
     def test_callbacks(self):
-        class Extended(DummyNode):
+        class Extended(DummyOwner):
             def method_with_args(self, x):
                 return x + 1
 
@@ -483,30 +487,31 @@ class TestSignalChannels(unittest.TestCase):
             def classmethod_with_args(cls, x):
                 return x + 1
 
-        def doesnt_belong_to_node():
+        def doesnt_belong_to_owner():
             return 42
 
-        node = Extended()
-        with self.subTest("Callbacks that belong to the node and take no arguments"):
+        owner = Extended()
+        with self.subTest("Callbacks that belong to the owner and take no arguments"):
             for callback in [
-                node.update,
-                node.method_with_only_kwargs,
-                node.staticmethod_without_args,
-                node.classmethod_without_args
+                owner.update,
+                owner.method_with_only_kwargs,
+                owner.staticmethod_without_args,
+                owner.classmethod_without_args
             ]:
                 with self.subTest(callback.__name__):
-                    InputSignal(label="inp", owner=node, callback=callback)
+                    InputSignal(label="inp", owner=owner, callback=callback)
 
         with self.subTest("Invalid callbacks"):
             for callback in [
-                node.method_with_args,
-                node.staticmethod_with_args,
-                node.classmethod_with_args,
-                doesnt_belong_to_node,
+                owner.method_with_args,
+                owner.staticmethod_with_args,
+                owner.classmethod_with_args,
+                doesnt_belong_to_owner,
             ]:
                 with self.subTest(callback.__name__):
                     with self.assertRaises(BadCallbackError):
-                        InputSignal(label="inp", owner=node, callback=callback)
+                        InputSignal(label="inp", owner=owner, callback=callback)
+
 
 if __name__ == '__main__':
     unittest.main()
