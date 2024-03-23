@@ -9,7 +9,7 @@ from abc import ABC, abstractmethod
 from concurrent.futures import Executor as StdLibExecutor, Future
 from typing import Any, Optional
 
-from pyiron_workflow.has_interface_mixins import HasLabel, HasRun
+from pyiron_workflow.has_interface_mixins import HasLabel, HasRun, UsesState
 
 
 def manage_status(status_managed_method):
@@ -45,7 +45,7 @@ class ReadinessError(ValueError):
     """
 
 
-class Runnable(HasLabel, HasRun, ABC):
+class Runnable(UsesState, HasLabel, HasRun, ABC):
     """
     An abstract class for interfacing with executors, etc.
 
@@ -229,11 +229,7 @@ class Runnable(HasLabel, HasRun, ABC):
             raise e
 
     def __getstate__(self):
-        try:
-            state = super().__getstate__()
-            state = dict(state) if state is self.__dict__ else state
-        except AttributeError:
-            state = dict(self.__dict__)
+        state = super().__getstate__()
         state["future"] = None
         # Don't pass the future -- with the future in the state things work fine for
         # the simple pyiron_workflow.executors.CloudpickleProcessPoolExecutor, but for

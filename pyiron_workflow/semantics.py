@@ -18,11 +18,11 @@ from typing import Optional
 
 from bidict import bidict
 
-from pyiron_workflow.has_interface_mixins import HasLabel
+from pyiron_workflow.has_interface_mixins import HasLabel, UsesState
 from pyiron_workflow.snippets.logger import logger
 
 
-class Semantic(HasLabel, ABC):
+class Semantic(UsesState, HasLabel, ABC):
     """
     An object with a unique semantic path.
 
@@ -91,11 +91,7 @@ class Semantic(HasLabel, ABC):
         return self if self.parent is None else self.parent.semantic_root
 
     def __getstate__(self):
-        try:
-            state = super().__getstate__()
-            state = dict(state) if state is self.__dict__ else state
-        except AttributeError:
-            state = dict(self.__dict__)
+        state = super().__getstate__()
         state["_parent"] = None
         # Comment on moving this to semantics)
         # Basically we want to avoid recursion during (de)serialization; when the
@@ -124,12 +120,6 @@ class Semantic(HasLabel, ABC):
         # may cause me/us headaches in the future.
         # -Liam
         return state
-
-    def __setstate__(self, state):
-        try:
-            super().__setstate__(state)
-        except AttributeError:
-            self.__dict__.update(**state)
 
 
 class CyclicPathError(ValueError):

@@ -13,7 +13,7 @@ from abc import ABC, abstractmethod
 import inspect
 from warnings import warn
 
-from pyiron_workflow.has_interface_mixins import HasChannel
+from pyiron_workflow.has_interface_mixins import HasChannel, UsesState
 from pyiron_workflow.has_to_dict import HasToDict
 from pyiron_workflow.snippets.singleton import Singleton
 from pyiron_workflow.type_hinting import (
@@ -29,7 +29,7 @@ class ChannelConnectionError(Exception):
     pass
 
 
-class Channel(HasChannel, HasToDict, ABC):
+class Channel(UsesState, HasChannel, HasToDict, ABC):
     """
     Channels facilitate the flow of information (data or control signals) into and
     out of nodes.
@@ -217,7 +217,7 @@ class Channel(HasChannel, HasToDict, ABC):
         }
 
     def __getstate__(self):
-        state = dict(self.__dict__)
+        state = super().__getstate__()
         # To avoid cyclic storage and avoid storing complex objects, purge some
         # properties from the state
         state["node"] = None
@@ -226,11 +226,6 @@ class Channel(HasChannel, HasToDict, ABC):
         # It is the responsibility of the owning node's parent to store and restore
         # connections (if any)
         return state
-
-    def __setstate__(self, state):
-        # Update instead of overriding in case some other attributes were added on the
-        # main process while a remote process was working away
-        self.__dict__.update(**state)
 
 
 class NotData(metaclass=Singleton):

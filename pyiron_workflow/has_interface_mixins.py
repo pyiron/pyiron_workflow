@@ -17,6 +17,23 @@ if TYPE_CHECKING:
     from pyiron_workflow.channels import Channel
 
 
+class UsesState(ABC):
+    """
+    A mixin for any class using :meth:`__getstate__` or :meth:`__setstate__`.
+
+    Guarantees that `super()` can always be called in these methods to return a copy
+    of the state dict or to update it, respectively.
+    """
+
+    def __getstate__(self):
+        # Make a shallow(! careful!) copy of the state so any modifications don't
+        # immediately impact the object we're getting the state from)
+        return dict(self.__dict__)
+
+    def __setstate__(self, state):
+        self.__dict__.update(**state)
+
+
 class HasLabel(ABC):
     """
     A mixin to guarantee the label interface exists.

@@ -146,12 +146,6 @@ class Creator(metaclass=Singleton):
                 f"Could not find the package {item} -- are you sure it's registered?"
             ) from e
 
-    def __getstate__(self):
-        return dict(self.__dict__)
-
-    def __setstate__(self, state):
-        self.__dict__.update(**state)
-
     def register(self, package_identifier: str, domain: Optional[str] = None) -> None:
         """
         Add a new package of nodes from the provided identifier.
