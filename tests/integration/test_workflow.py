@@ -108,6 +108,10 @@ class TestTopology(unittest.TestCase):
             )
 
     def test_while_loop(self):
+        import sys
+        limit = sys.getrecursionlimit()
+        sys.setrecursionlimit(2000)
+
         with self.subTest("Random"):
             random.seed(0)
 
@@ -144,6 +148,8 @@ class TestTopology(unittest.TestCase):
                 wf(threshold=0.1).capped_result,
                 0.014041700164018955,  # For this reason we set the random seed
             )
+
+            sys.setrecursionlimit(limit)
 
         with self.subTest("Self-data-loop"):
 

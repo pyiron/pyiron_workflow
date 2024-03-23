@@ -10,7 +10,7 @@ from __future__ import annotations
 import sys
 import warnings
 from abc import ABC, abstractmethod
-from concurrent.futures import Executor as StdLibExecutor, Future
+from concurrent.futures import Future
 from importlib import import_module
 from typing import Any, Literal, Optional, TYPE_CHECKING
 
@@ -24,6 +24,7 @@ from pyiron_workflow.draw import Node as GraphvizNode
 from pyiron_workflow.snippets.files import DirectoryObject
 from pyiron_workflow.has_to_dict import HasToDict
 from pyiron_workflow.io import Signals, IO
+from pyiron_workflow.run import Runnable, ReadinessError
 from pyiron_workflow.semantics import Semantic
 from pyiron_workflow.storage import StorageInterface
 from pyiron_workflow.topology import (
@@ -43,43 +44,7 @@ if TYPE_CHECKING:
     from pyiron_workflow.io import Inputs, Outputs
 
 
-def manage_status(node_method):
-    """
-    Decorates methods of nodes that might be time-consuming, i.e. their main run
-    functionality.
-
-    Sets :attr:`running` to true until the method completes and either fails or returns
-    something other than a :class:`concurrent.futures.Future` instance; sets `failed` to true
-    if the method raises an exception; raises a `RuntimeError` if the node is already
-    :attr:`running` or :attr:`failed`.
-    """
-
-    def wrapped_method(node: Node, *args, **kwargs):  # rather node:Node
-        if node.running:
-            raise RuntimeError(f"{node.label} is already running")
-        elif node.failed:
-            raise RuntimeError(f"{node.label} has a failed status")
-
-        node.running = True
-        try:
-            out = node_method(node, *args, **kwargs)
-            return out
-        except Exception as e:
-            node.failed = True
-            out = None
-            raise e
-        finally:
-            # Leave the status as running if the method returns a future
-            node.running = isinstance(out, Future)
-
-    return wrapped_method
-
-
-class ReadinessError(ValueError):
-    pass
-
-
-class Node(HasToDict, Semantic, ABC, metaclass=AbstractHasPost):
+class Node(HasToDict, Semantic, Runnable, ABC, metaclass=AbstractHasPost):
     """
     Nodes are elements of a computational graph.
     They have inputs and outputs to interface with the wider world, and perform some
@@ -331,15 +296,8 @@ class Node(HasToDict, Semantic, ABC, metaclass=AbstractHasPost):
             **kwargs: Keyword arguments passed on with `super`.
         """
         super().__init__(*args, label=label, parent=parent, **kwargs)
-        self.running = False
-        self.failed = False
         self.signals = self._build_signal_channels()
         self._working_directory = None
-        self.executor = None
-        # We call it an executor, but it's just whether to use one.
-        # This is a simply stop-gap as we work out more sophisticated ways to reference
-        # (or create) an executor process without ever trying to pickle a `_thread.lock`
-        self.future: None | Future = None
         self._storage_backend = None
         self.storage_backend = storage_backend
         self.save_after_run = save_after_run
@@ -389,35 +347,6 @@ class Node(HasToDict, Semantic, ABC, metaclass=AbstractHasPost):
         pass
 
     @property
-    @abstractmethod
-    def on_run(self) -> callable[..., Any | tuple]:
-        """
-        What the node actually does!
-        """
-        pass
-
-    @property
-    @abstractmethod
-    def run_args(self) -> dict:
-        """
-        Any data needed for :meth:`on_run`, will be passed as **kwargs.
-        """
-
-    @abstractmethod
-    def process_run_result(self, run_output):
-        """
-        What to _do_ with the results of :meth:`on_run` once you have them.
-
-        By extracting this as a separate method, we allow the node to pass the actual
-        execution off to another entity and release the python process to do other
-        things. In such a case, this function should be registered as a callback
-        so that the node can process the result of that process.
-
-        Args:
-            run_output: The results of a `self.on_run(self.run_args)` call.
-        """
-
-    @property
     def graph_path(self) -> str:
         """
         The path of node labels from the graph root (parent-most node) down to this
@@ -436,17 +365,18 @@ class Node(HasToDict, Semantic, ABC, metaclass=AbstractHasPost):
 
     @property
     def readiness_report(self) -> str:
-        input_readiness = "\n".join(
+        input_readiness_report = f"INPUTS:\n" + "\n".join(
             [f"{k} ready: {v.ready}" for k, v in self.inputs.items()]
         )
-        report = (
-            f"{self.label} readiness: {self.ready}\n"
-            f"STATE:\n"
-            f"running: {self.running}\n"
-            f"failed: {self.failed}\n"
-            f"INPUTS:\n" + input_readiness
+        return super().readiness_report + input_readiness_report
+
+    @property
+    def _readiness_error_message(self) -> str:
+        return (
+            f"{self.label} received a run command but is not ready. The node "
+            f"should be neither running nor failed, and all input values should"
+            f" conform to type hints.\n" + self.readiness_report
         )
-        return report
 
     def run(
         self,
@@ -510,18 +440,12 @@ class Node(HasToDict, Semantic, ABC, metaclass=AbstractHasPost):
         if fetch_input:
             self.inputs.fetch()
 
-        if check_readiness and not self.ready:
-            raise ReadinessError(
-                f"{self.label} received a run command but is not ready. The node "
-                f"should be neither running nor failed, and all input values should"
-                f" conform to type hints.\n" + self.readiness_report
-            )
-
-        return self._run(
-            finished_callback=(
+        return super().run(
+            check_readiness=check_readiness,
+            force_local_execution=force_local_execution,
+            _finished_callback=(
                 self._finish_run_and_emit_ran if emit_ran_signal else self._finish_run
             ),
-            force_local_execution=force_local_execution,
         )
 
     def run_data_tree(self, run_parent_trees_too=False) -> None:
@@ -588,76 +512,9 @@ class Node(HasToDict, Semantic, ABC, metaclass=AbstractHasPost):
             for c1, c2 in disconnected_pairs:
                 c1.connect(c2)
 
-    @manage_status
-    def _run(
-        self,
-        finished_callback: callable,
-        force_local_execution: bool,
-    ) -> Any | tuple | Future:
-        """
-        Executes the functionality of the node defined in `on_run`.
-        Handles the status of the node, and communicating with any remote
-        computing resources.
-        """
-        if force_local_execution or self.executor is None:
-            # Run locally
-            run_output = self.on_run(**self.run_args)
-            return finished_callback(run_output)
-        else:
-            # Just blindly try to execute -- as we nail down the executor interaction
-            # we'll want to fail more cleanly here.
-            executor = self._parse_executor(self.executor)
-            kwargs = self.run_args
-            if "self" in kwargs.keys():
-                raise ValueError(
-                    f"{self.label} got 'self' as a run argument, but self cannot "
-                    f"currently be combined with running on executors."
-                )
-            self.future = executor.submit(self.on_run, **kwargs)
-            self.future.add_done_callback(finished_callback)
-            return self.future
-
-    @staticmethod
-    def _parse_executor(executor) -> StdLibExecutor:
-        """
-        We may want to allow users to specify how to build an executor rather than
-        actually providing an executor instance -- so here we can interpret these.
-
-        NOTE:
-            `concurrent.futures.Executor` _won't_ actually work, because we need
-            stuff with :mod:`cloudpickle` support. We're leaning on this for a guaranteed
-            interface (has `submit` and returns a `Future`), and leaving it to the user
-            to provide an executor that will actually work!!!
-
-        NOTE:
-            If, in the future, this parser is extended to instantiate new executors from
-            instructions, these new instances may not be caught by the
-            `executor_shutdown` method. This will require some re-engineering to make
-            sure we don't have dangling executors.
-        """
-        if isinstance(executor, StdLibExecutor):
-            return executor
-        else:
-            raise NotImplementedError(
-                f"Expected an instance of {StdLibExecutor}, but got {executor}."
-            )
-
     def _finish_run(self, run_output: tuple | Future) -> Any | tuple:
-        """
-        Switch the node status, then process and return the run result.
-
-        Sets the :attr:`failed` status to true if an exception is encountered.
-        """
-        if isinstance(run_output, Future):
-            run_output = run_output.result()
-
-        self.running = False
         try:
-            processed_output = self.process_run_result(run_output)
-            return processed_output
-        except Exception as e:
-            self.failed = True
-            raise e
+            return super()._finish_run(run_output=run_output)
         finally:
             if self.save_after_run:
                 self.save()
@@ -668,7 +525,7 @@ class Node(HasToDict, Semantic, ABC, metaclass=AbstractHasPost):
         return processed_output
 
     _finish_run_and_emit_ran.__doc__ = (
-        _finish_run.__doc__
+        Runnable._finish_run.__doc__
         + """
 
     Finally, fire the `ran` signal.
@@ -780,7 +637,7 @@ class Node(HasToDict, Semantic, ABC, metaclass=AbstractHasPost):
 
     @property
     def ready(self) -> bool:
-        return not (self.running or self.failed) and self.inputs.ready
+        return super().ready and self.inputs.ready
 
     @property
     def connected(self) -> bool:
@@ -1060,21 +917,6 @@ class Node(HasToDict, Semantic, ABC, metaclass=AbstractHasPost):
         else:
             warnings.warn(f"Could not replace_child {self.label}, as it has no parent.")
 
-    def __getstate__(self):
-        state = super().__getstate__()
-        state["future"] = None
-        # Don't pass the future -- with the future in the state things work fine for
-        # the simple pyiron_workflow.executors.CloudpickleProcessPoolExecutor, but for
-        # the more complex pympipool.Executor we're getting:
-        # TypeError: cannot pickle '_thread.RLock' object
-        if isinstance(self.executor, StdLibExecutor):
-            state["executor"] = None
-        # Don't pass actual executors, they have an unserializable thread lock on them
-        # _but_ if the user is just passing instructions on how to _build_ an executor,
-        # we'll trust that those serialize OK (this way we can, hopefully, eventually
-        # support nesting executors!)
-        return state
-
     def __setstate__(self, state):
         super().__setstate__(state)
 
@@ -1091,13 +933,6 @@ class Node(HasToDict, Semantic, ABC, metaclass=AbstractHasPost):
             self.signals.input,
             self.signals.output,
         ]
-
-    def executor_shutdown(self, wait=True, *, cancel_futures=False):
-        """Invoke shutdown on the executor (if present)."""
-        try:
-            self.executor.shutdown(wait=wait, cancel_futures=cancel_futures)
-        except AttributeError:
-            pass
 
     @property
     def class_name(self) -> str:
