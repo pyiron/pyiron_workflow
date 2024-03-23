@@ -111,6 +111,13 @@ class OutputDataWithInjection(OutputData):
                 "`hasattr('to_hdf')` check on us and accidentally injecting a new "
                 "getattr node."
             )
+        if name.startswith("_"):
+            raise AttributeError(
+                f"{OutputDataWithInjection.__name__} {self.label} tried to inject on "
+                f"the attribute {name}, but injecting on private attributes is "
+                f"forbidden -- if you really need it create a {GetAttr.__name__} node "
+                f"manually."
+            )
         return self._node_injection(GetAttr, name)
 
     def __getitem__(self, item):

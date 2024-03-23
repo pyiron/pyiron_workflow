@@ -521,6 +521,12 @@ class TestSingleValue(unittest.TestCase):
             msg="Should fall back to looking on the single value"
         )
 
+        with self.assertRaises(
+            AttributeError,
+            msg="Attribute injection should not work for private attributes"
+        ):
+            svn._some_nonexistant_private_var
+
     def test_repr(self):
         with self.subTest("Filled data"):
             svn = SingleValue(plus_one)
