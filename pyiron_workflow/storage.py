@@ -319,8 +319,7 @@ class HasStorage(HasLabel, HasParent, ABC):
                     f"{self.allowed_backends()} are permitted."
                 )
             elif (
-                storage_root is not self
-                and new_backend != storage_root.storage_backend
+                storage_root is not self and new_backend != storage_root.storage_backend
             ):
                 raise ValueError(
                     f"Storage backends should only be set on the storage root "
@@ -362,7 +361,7 @@ class HasStorage(HasLabel, HasParent, ABC):
         tabspace = tabs * "\t"
         return (
             report_so_far + f"{newline}{tabspace}{self.label}: "
-                            f"{'ok' if self.import_ready else 'NOT IMPORTABLE'}"
+            f"{'ok' if self.import_ready else 'NOT IMPORTABLE'}"
         )
 
 
