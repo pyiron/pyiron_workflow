@@ -24,6 +24,7 @@ from pyiron_workflow.draw import Node as GraphvizNode
 from pyiron_workflow.snippets.files import DirectoryObject
 from pyiron_workflow.has_to_dict import HasToDict
 from pyiron_workflow.io import Signals, IO
+from pyiron_workflow.semantics import Semantic
 from pyiron_workflow.storage import StorageInterface
 from pyiron_workflow.topology import (
     get_nodes_in_data_tree,
@@ -78,7 +79,7 @@ class ReadinessError(ValueError):
     pass
 
 
-class Node(HasToDict, ABC, metaclass=AbstractHasPost):
+class Node(HasToDict, Semantic, ABC, metaclass=AbstractHasPost):
     """
     Nodes are elements of a computational graph.
     They have inputs and outputs to interface with the wider world, and perform some
@@ -303,7 +304,6 @@ class Node(HasToDict, ABC, metaclass=AbstractHasPost):
     """
 
     package_identifier = None
-    _semantic_delimiter = "/"
 
     # This isn't nice, just a technical necessity in the current implementation
     # Eventually, of course, this needs to be _at least_ file-format independent
@@ -330,12 +330,7 @@ class Node(HasToDict, ABC, metaclass=AbstractHasPost):
             run_after_init (bool): Whether to run at the end of initialization.
             **kwargs: Keyword arguments passed on with `super`.
         """
-        super().__init__(*args, **kwargs)
-        self._label = None
-        self.label: str = label
-        self._parent = None
-        if parent is not None:
-            parent.add_node(self)
+        super().__init__(*args, label=label, parent=parent, **kwargs)
         self.running = False
         self.failed = False
         self.signals = self._build_signal_channels()
@@ -384,16 +379,6 @@ class Node(HasToDict, ABC, metaclass=AbstractHasPost):
         self.graph_root.tidy_working_directory()
 
     @property
-    def label(self) -> str:
-        return self._label
-
-    @label.setter
-    def label(self, new_label: str):
-        if self._semantic_delimiter in new_label:
-            raise ValueError(f"{self._semantic_delimiter} cannot be in the label")
-        self._label = new_label
-
-    @property
     @abstractmethod
     def inputs(self) -> Inputs:
         pass
@@ -433,31 +418,21 @@ class Node(HasToDict, ABC, metaclass=AbstractHasPost):
         """
 
     @property
-    def parent(self) -> Composite | None:
-        return self._parent
-
-    @parent.setter
-    def parent(self, new_parent: Composite | None) -> None:
-        raise ValueError(
-            "Please change parentage by adding/removing the node to/from the relevant"
-            "parent"
-        )
-
-    @property
     def graph_path(self) -> str:
         """
         The path of node labels from the graph root (parent-most node) down to this
         node.
         """
-        path = self.label
-        if self.parent is not None:
-            path = self.parent.graph_path + self._semantic_delimiter + path
-        return path
+        # If non-node objects come up in the semantic path, we'll need early stopping
+        # to make this docstring true, but those don't exist right now.
+        return self.semantic_path
 
     @property
     def graph_root(self) -> Node:
         """The parent-most node in this graph."""
-        return self if self.parent is None else self.parent.graph_root
+        # If non-node objects come up in the semantic path, we'll need early stopping
+        # to make this docstring true, but those don't exist right now.
+        return self.semantic_root
 
     @property
     def readiness_report(self) -> str:
@@ -1069,7 +1044,7 @@ class Node(HasToDict, ABC, metaclass=AbstractHasPost):
 
     def replace_with(self, other: Node | type[Node]):
         """
-        If this node has a parent, invokes `self.parent.replace_node(self, other)` to swap
+        If this node has a parent, invokes `self.parent.replace_child(self, other)` to swap
         out this node for the other node in the parent graph.
 
         The replacement must have fully compatible IO, i.e. its IO must be a superset of
@@ -1081,33 +1056,12 @@ class Node(HasToDict, ABC, metaclass=AbstractHasPost):
             other (Node|type[Node]): The replacement.
         """
         if self.parent is not None:
-            self.parent.replace_node(self, other)
+            self.parent.replace_child(self, other)
         else:
-            warnings.warn(f"Could not replace_node {self.label}, as it has no parent.")
+            warnings.warn(f"Could not replace_child {self.label}, as it has no parent.")
 
     def __getstate__(self):
-        state = dict(self.__dict__)
-        state["_parent"] = None
-        # I am not at all confident that removing the parent here is the _right_
-        # solution.
-        # In order to run composites on a parallel process, we ship off just the nodes
-        # and starting nodes.
-        # When the parallel process returns these, they're obviously different
-        # instances, so we re-parent them back to the receiving composite.
-        # At the same time, we want to make sure that the _old_ children get orphaned.
-        # Of course, we could do that directly in the composite method, but it also
-        # works to do it here.
-        # Something I like about this, is it also means that when we ship groups of
-        # nodes off to another process with cloudpickle, they're definitely not lugging
-        # along their parent, its connections, etc. with them!
-        # This is all working nicely as demonstrated over in the macro test suite.
-        # However, I have a bit of concern that when we start thinking about
-        # serialization for storage instead of serialization to another process, this
-        # might introduce a hard-to-track-down bug.
-        # For now, it works and I'm going to be super pragmatic and go for it, but
-        # for the record I am admitting that the current shallowness of my understanding
-        # may cause me/us headaches in the future.
-        # -Liam
+        state = super().__getstate__()
         state["future"] = None
         # Don't pass the future -- with the future in the state things work fine for
         # the simple pyiron_workflow.executors.CloudpickleProcessPoolExecutor, but for
@@ -1122,9 +1076,7 @@ class Node(HasToDict, ABC, metaclass=AbstractHasPost):
         return state
 
     def __setstate__(self, state):
-        # Update instead of overriding in case some other attributes were added on the
-        # main process while a remote process was working away
-        self.__dict__.update(**state)
+        super().__setstate__(state)
 
         # Channels don't store their own node in their state, so repopulate it
         for io_panel in self._owned_io_panels:

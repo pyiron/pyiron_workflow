@@ -22,7 +22,7 @@ def add_one(x):
 def add_three_macro(macro):
     macro.one = SingleValue(add_one)
     SingleValue(add_one, macro.one, label="two", parent=macro)
-    macro.add_node(SingleValue(add_one, macro.two, label="three"))
+    macro.add_child(SingleValue(add_one, macro.two, label="three"))
     # Cover a handful of addition methods,
     # although these are more thoroughly tested in Workflow tests
 
@@ -263,7 +263,7 @@ class TestMacro(unittest.TestCase):
         # )  # You can't do this, result.result() is returning new instances each call
         self.assertIs(
             macro,
-            macro.nodes.one.parent,
+            macro.one.parent,
             msg="Returned nodes should get the macro as their parent"
             # Once upon a time there was some evidence that this test was failing
             # stochastically, but I just ran the whole test suite 6 times and this test
@@ -333,7 +333,7 @@ class TestMacro(unittest.TestCase):
 
             m = Macro(cyclic_macro)
 
-            initial_labels = list(m.nodes.keys())
+            initial_labels = list(m.children.keys())
 
             def grab_connections(macro):
                 return grab_x_and_run(macro.one) + grab_x_and_run(macro.two)
@@ -347,7 +347,7 @@ class TestMacro(unittest.TestCase):
                 m.two.pull()
             self.assertListEqual(
                 initial_labels,
-                list(m.nodes.keys()),
+                list(m.children.keys()),
                 msg="Labels should be restored after failing to pull because of "
                     "acyclicity"
             )
@@ -538,12 +538,12 @@ class TestMacro(unittest.TestCase):
                         label="m", x=0, storage_backend=backend
                     )
                     original_result = macro()
-                    macro.replace_node(macro.two, Macro.create.demo.AddPlusOne())
+                    macro.replace_child(macro.two, Macro.create.demo.AddPlusOne())
 
                     if backend == "h5io":
                         # Go really wild and actually change the interface to the node
                         # By replacing one of the terminal nodes
-                        macro.remove_node(macro.three)
+                        macro.remove_child(macro.three)
                         macro.five = Macro.create.standard.Add(macro.two, 1)
                         macro.two >> macro.five
                         macro._rebuild_data_io()  # Need this because of the
@@ -563,8 +563,8 @@ class TestMacro(unittest.TestCase):
                         msg="Updated IO should have been (de)serialized"
                     )
                     self.assertSetEqual(
-                        set(macro.nodes.keys()),
-                        set(reloaded.nodes.keys()),
+                        set(macro.children.keys()),
+                        set(reloaded.children.keys()),
                         msg="All nodes should have been (de)serialized."
                     )  # Note that this snags the _new_ one in the case of h5io!
                     self.assertEqual(

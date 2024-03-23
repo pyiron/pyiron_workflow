@@ -10,6 +10,7 @@ from typing import Literal, Optional, TYPE_CHECKING
 
 from pyiron_workflow.composite import Composite
 from pyiron_workflow.io import Inputs, Outputs
+from pyiron_workflow.semantics import ParentMost
 
 
 if TYPE_CHECKING:
@@ -20,7 +21,7 @@ if TYPE_CHECKING:
     from pyiron_workflow.node import Node
 
 
-class Workflow(Composite):
+class Workflow(Composite, ParentMost):
     """
     Workflows are a dynamic composite node -- i.e. they hold and run a collection of
     nodes (a subgraph) which can be dynamically modified (adding and removing nodes,
@@ -66,7 +67,7 @@ class Workflow(Composite):
         >>> wf = Workflow("my_workflow", n1)
         >>>
         >>> # (2) Being passed to the `add` method
-        >>> n2 = wf.add_node(fnc(label="n2"))
+        >>> n2 = wf.add_child(fnc(label="n2"))
         >>>
         >>> # (3) By attribute assignment
         >>> wf.n3 = fnc(label="anyhow_n3_gets_used")
@@ -210,7 +211,7 @@ class Workflow(Composite):
         self.automate_execution = automate_execution
 
         for node in nodes:
-            self.add_node(node)
+            self.add_child(node)
 
     def _get_linking_channel(
         self,
@@ -261,22 +262,6 @@ class Workflow(Composite):
         new IO channels, and the workflow mapped into the node_function.
         """
         raise NotImplementedError
-
-    @property
-    def _parent(self) -> None:
-        return None
-
-    @_parent.setter
-    def _parent(self, new_parent: None):
-        # Currently workflows are not allowed to have a parent -- maybe we want to
-        # change our minds on this in the future? If we do, we can just expose `parent`
-        # as a kwarg and roll back this private var/property/setter protection and let
-        # the super call in init handle everything
-        if new_parent is not None:
-            raise TypeError(
-                f"{self.__class__} may only take None as a parent but got "
-                f"{type(new_parent)}"
-            )
 
     @property
     def _data_connections(self) -> list[tuple[tuple[str, str], tuple[str, str]]]:
@@ -364,17 +349,19 @@ class Workflow(Composite):
     def _rebuild_data_connections(self, storage):
         for data_connection in storage["_data_connections"]:
             (inp_label, inp_channel), (out_label, out_channel) = data_connection
-            self.nodes[inp_label].inputs[inp_channel].connect(
-                self.nodes[out_label].outputs[out_channel]
+            self.children[inp_label].inputs[inp_channel].connect(
+                self.children[out_label].outputs[out_channel]
             )
 
     def _rebuild_execution_graph(self, storage):
         for signal_connection in storage["_signal_connections"]:
             (inp_label, inp_channel), (out_label, out_channel) = signal_connection
-            self.nodes[inp_label].signals.input[inp_channel].connect(
-                self.nodes[out_label].signals.output[out_channel]
+            self.children[inp_label].signals.input[inp_channel].connect(
+                self.children[out_label].signals.output[out_channel]
             )
-        self.starting_nodes = [self.nodes[label] for label in storage["starting_nodes"]]
+        self.starting_nodes = [
+            self.children[label] for label in storage["starting_nodes"]
+        ]
 
     def save(self):
         if self.storage_backend == "tinybase" and any(

@@ -198,7 +198,7 @@ class Macro(Composite):
         >>> # With the replace method
         >>> # (replacement target can be specified by label or instance,
         >>> # the replacing node can be specified by instance or class)
-        >>> replaced = adds_six_macro.replace_node(adds_six_macro.one, add_two())
+        >>> replaced = adds_six_macro.replace_child(adds_six_macro.one, add_two())
         >>> # With the replace_with method
         >>> adds_six_macro.two.replace_with(add_two())
         >>> # And by assignment of a compatible class to an occupied node label
@@ -295,7 +295,6 @@ class Macro(Composite):
             # If a callable graph creator is received, use it
             self.graph_creator = graph_creator
 
-        self._parent = None
         super().__init__(
             label=label if label is not None else self.graph_creator.__name__,
             parent=parent,
@@ -440,7 +439,7 @@ class Macro(Composite):
         io_map = dict(io_map)
         # We do it in two steps like this to leverage the bidict security on the setter
         # Since bidict can't handle getting `None` (i.e. disable) for multiple keys
-        for node in self.nodes.values():
+        for node in self.children.values():
             for channel in getattr(node, i_or_o):
                 if channel.scoped_label not in io_map.keys():
                     io_map[channel.scoped_label] = None
@@ -553,7 +552,7 @@ class Macro(Composite):
         # Nodes instantiated in macros probably aren't aware of their parent at
         # instantiation time, and thus may be clean (un-loaded) objects --
         # reload their data
-        for label, node in self.nodes.items():
+        for label, node in self.children.items():
             node.from_storage(storage[label])
 
     @property
@@ -601,10 +600,10 @@ class Macro(Composite):
 
         # Re-forge value links
         for inp, (child, child_inp) in input_links:
-            self.inputs[inp].value_receiver = self.nodes[child].inputs[child_inp]
+            self.inputs[inp].value_receiver = self.children[child].inputs[child_inp]
 
         for (child, child_out), out in output_links:
-            self.nodes[child].outputs[child_out].value_receiver = self.outputs[out]
+            self.children[child].outputs[child_out].value_receiver = self.outputs[out]
 
 
 def macro_node(*output_labels, **node_class_kwargs):

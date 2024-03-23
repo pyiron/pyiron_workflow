@@ -587,7 +587,7 @@ class OutputData(DataChannel):
         label = self._get_injection_label(injection_class, *args)
         try:
             # First check if the node already exists
-            return self.node.parent.nodes[label]
+            return self.node.parent.children[label]
         except (AttributeError, KeyError):
             # Fall back on creating a new node in case parent is None or node nexists
             node_args = (self, *args) if inject_self else args

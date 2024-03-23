@@ -5,6 +5,7 @@ import unittest
 
 from pyiron_workflow._tests import ensure_tests_in_python_path
 from pyiron_workflow.channels import NOT_DATA
+from pyiron_workflow.semantics import ParentMostError
 from pyiron_workflow.snippets.dotdict import DotDict
 from pyiron_workflow.storage import TypeNotFoundError, ALLOWED_BACKENDS
 from pyiron_workflow.workflow import Workflow
@@ -75,8 +76,16 @@ class TestWorkflow(unittest.TestCase):
         wf = Workflow("wf")
         wf2 = Workflow("wf2")
 
-        with self.assertRaises(TypeError):
-            # Setting a non-None value to parent raises the type error from the setter
+        with self.assertRaises(
+            ParentMostError,
+            msg="Workflows are promised in the docs to be parent-most"
+        ):
+            wf.parent = wf2
+
+        with self.assertRaises(
+            ParentMostError,
+            msg="We want to catch parent-most failures early when assigning children"
+        ):
             wf.sub_wf = wf2
 
     def test_with_executor(self):
@@ -109,7 +118,7 @@ class TestWorkflow(unittest.TestCase):
         )
         self.assertIs(
             wf,
-            wf.nodes.a.parent,
+            wf.a.parent,
             msg="Returned nodes should get the macro as their parent"
         )
         self.assertIsNone(
@@ -372,7 +381,7 @@ class TestWorkflow(unittest.TestCase):
         wf.register("static.demo_nodes", "demo")
 
         # Test invocation
-        wf.add_node(wf.create.demo.AddPlusOne(label="by_add"))
+        wf.add_child(wf.create.demo.AddPlusOne(label="by_add"))
         # Note that the type hint `Optional[int]` from OptionallyAdd defines a custom
         # reconstructor, which borks h5io
 
@@ -398,10 +407,10 @@ class TestWorkflow(unittest.TestCase):
                             wf.storage_backend = backend
                             wf.save()
             finally:
-                wf.remove_node(wf.import_type_mismatch)
+                wf.remove_child(wf.import_type_mismatch)
 
         if "h5io" in ALLOWED_BACKENDS:
-            wf.add_node(PlusOne(label="local_but_importable"))
+            wf.add_child(PlusOne(label="local_but_importable"))
             try:
                 wf.storage_backend = "h5io"
                 wf.save()
@@ -430,7 +439,7 @@ class TestWorkflow(unittest.TestCase):
                         wf.storage_backend = "h5io"
                         wf.save()
                 finally:
-                    wf.remove_node(wf.direct_instance)
+                    wf.remove_child(wf.direct_instance)
                     wf.storage.delete()
 
         with self.subTest("Unimportable node"):
@@ -450,7 +459,7 @@ class TestWorkflow(unittest.TestCase):
                         wf.storage_backend = "h5io"
                         wf.save()
                 finally:
-                    wf.remove_node(wf.unimportable_scope)
+                    wf.remove_child(wf.unimportable_scope)
                     wf.storage.delete()
 
 
