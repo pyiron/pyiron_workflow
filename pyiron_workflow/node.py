@@ -20,6 +20,7 @@ from pyiron_workflow.has_to_dict import HasToDict
 from pyiron_workflow.injection import HasIOWithInjection
 from pyiron_workflow.run import Runnable, ReadinessError
 from pyiron_workflow.semantics import Semantic
+from pyiron_workflow.single_output import ExploitsSingleOutput
 from pyiron_workflow.storage import StorageInterface
 from pyiron_workflow.topology import (
     get_nodes_in_data_tree,
@@ -37,7 +38,13 @@ if TYPE_CHECKING:
 
 
 class Node(
-    HasToDict, Semantic, Runnable, HasIOWithInjection, ABC, metaclass=AbstractHasPost
+    HasToDict,
+    Semantic,
+    Runnable,
+    HasIOWithInjection,
+    ExploitsSingleOutput,
+    ABC,
+    metaclass=AbstractHasPost,
 ):
     """
     Nodes are elements of a computational graph.
@@ -61,6 +68,11 @@ class Node(
             - Running can be triggered in an instantaneous (i.e. "or" applied to
                 incoming signals) or accumulating way (i.e. "and" applied to incoming
                 signals).
+        - If the node has exactly one output channel, most standard python operations
+            (attribute access, math, etc.) will fall back on attempting the same
+            operation on this single output, if the operation failed on the node.
+            Practically, that means that such "single-output" nodes get the same
+            to form IO connections and inject new nodes that output channels have.
     - When running their computation, nodes may or may not:
         - First update their input data values using kwargs
             - (Note that since this happens first, if the "fetching" step later occurs,
@@ -289,11 +301,17 @@ class Node(
             run_after_init (bool): Whether to run at the end of initialization.
             **kwargs: Keyword arguments passed on with `super`.
         """
-        super().__init__(*args, label=label, parent=parent, **kwargs)
+        super().__init__(
+            *args,
+            label=label,
+            parent=parent,
+            **kwargs,
+        )
         self._working_directory = None
         self._storage_backend = None
         self.storage_backend = storage_backend
         self.save_after_run = save_after_run
+        self._user_data = {}  # A place for power-users to bypass node-injection
 
     def __post__(
         self,

@@ -182,12 +182,10 @@ class TestFunction(unittest.TestCase):
             #  practice of keeping nodes "functional". Following python's paradigm of
             #  giving users lots of power, we want to guarantee that this behaviour is
             #  _possible_.
-            # TODO: update this test with a better-conforming example of this power at
-            #  a future date.
-            if hasattr(self, "some_counter"):
-                self.some_counter += 1
+            if "some_counter" in self._user_data:
+                self._user_data["some_counter"] += 1
             else:
-                self.some_counter = 1
+                self._user_data["some_counter"] = 1
             return x + 0.1
 
         node = Function(with_self, output_labels="output")
@@ -209,7 +207,7 @@ class TestFunction(unittest.TestCase):
             msg="Basic node functionality appears to have failed"
         )
         self.assertEqual(
-            node.some_counter,
+            node._user_data["some_counter"],
             1,
             msg="Function functions should be able to modify attributes on the node "
                 "object."

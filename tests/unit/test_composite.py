@@ -130,6 +130,15 @@ class TestComposite(unittest.TestCase):
                 msg="Should be able to iterate through (the one and only) nodes"
             )
 
+        with self.assertRaises(
+            AttributeError,
+            msg="Composites should override the attribute access portion of their "
+                "`HasIOWithInjection` mixin to guarantee that attribute access is "
+                "always looking for children. If attribute access is actually desired, "
+                " it can be accomplished with a `GetAttr` node."
+        ):
+            self.comp.not_a_child_or_attribute
+
     def test_node_removal(self):
         self.comp.owned = Composite.create.Function(plus_one)
         node = Composite.create.Function(plus_one)
