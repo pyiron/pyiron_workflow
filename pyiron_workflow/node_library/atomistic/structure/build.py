@@ -1,8 +1,8 @@
-from pyiron_workflow.function import single_value_node
+from pyiron_workflow.function import function_node
 from pyiron_workflow.workflow import Workflow
 
 
-@single_value_node("structure")
+@function_node("structure")
 def bulk(
     name,
     crystalstructure=None,
