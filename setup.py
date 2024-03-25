@@ -38,7 +38,7 @@ setup(
         'pyiron_contrib==0.1.15',
         'pympipool==0.7.13',
         'toposort==1.10',
-        'typeguard==4.1.5',
+        'typeguard==4.2.1',
     ],
     extras_require={
         "node_library": [
