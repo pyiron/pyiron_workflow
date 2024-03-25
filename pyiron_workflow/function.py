@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+from abc import ABC, abstractmethod
 import inspect
 import warnings
 from functools import partialmethod
@@ -17,7 +18,7 @@ if TYPE_CHECKING:
     from pyiron_workflow.composite import Composite
 
 
-class Function(Node):
+class AbstractFunction(Node, ABC):
     """
     Function nodes wrap an arbitrary python function.
 
@@ -241,18 +242,9 @@ class Function(Node):
         already defined as a `staticmethod`:
 
         >>> from typing import Literal, Optional
+        >>> from pyiron_workflow.function import AbstractFunction
         >>>
-        >>> class AlphabetModThree(Function):
-        ...     def __init__(
-        ...         self,
-        ...         label: Optional[str] = None,
-        ...         **kwargs
-        ...     ):
-        ...         super().__init__(
-        ...             None,
-        ...             label=label,
-        ...             **kwargs
-        ...         )
+        >>> class AlphabetModThree(AbstractFunction):
         ...
         ...     @staticmethod
         ...     def node_function(i: int) -> Literal["a", "b", "c"]:
@@ -328,7 +320,6 @@ class Function(Node):
 
     def __init__(
         self,
-        node_function: callable,
         *args,
         label: Optional[str] = None,
         parent: Optional[Composite] = None,
@@ -339,25 +330,6 @@ class Function(Node):
         output_labels: Optional[str | list[str] | tuple[str]] = None,
         **kwargs,
     ):
-        if not callable(node_function):
-            # Children of `Function` may explicitly provide a `node_function` static
-            # method so the node has fixed behaviour.
-            # In this case, the `__init__` signature should be changed so that the
-            # `node_function` argument is just always `None` or some other non-callable.
-            # If a callable `node_function` is not received, you'd better have it as an
-            # attribute already!
-            if not hasattr(self, "node_function"):
-                raise AttributeError(
-                    f"If `None` is provided as a `node_function`, a `node_function` "
-                    f"property must be defined instead, e.g. when making child classes"
-                    f"of `Function` with specific behaviour"
-                )
-            self._type_hints = get_type_hints(self.node_function)
-        else:
-            # If a callable node function is received, use it
-            self.node_function = node_function
-            self._type_hints = get_type_hints(node_function)
-
         super().__init__(
             label=label if label is not None else self.node_function.__name__,
             parent=parent,
@@ -372,6 +344,16 @@ class Function(Node):
         # TODO: Parse output labels from the node function in case output_labels is None
 
         self.set_input_values(*args, **kwargs)
+
+    @staticmethod
+    @abstractmethod
+    def node_function(*args, **kwargs) -> callable:
+        """What the node _does_."""
+
+    @classmethod
+    def _type_hints(cls) -> dict:
+        """The result of :func:`typing.get_type_hints` on the :meth:`node_function`."""
+        return get_type_hints(cls.node_function)
 
     def _get_output_labels(self, output_labels: str | list[str] | tuple[str] | None):
         """
@@ -418,7 +400,7 @@ class Function(Node):
 
     def _build_input_channels(self):
         channels = []
-        type_hints = self._type_hints
+        type_hints = self._type_hints()
 
         for ii, (label, value) in enumerate(self._input_args.items()):
             is_self = False
@@ -471,7 +453,7 @@ class Function(Node):
 
     def _build_output_channels(self, *return_labels: str):
         try:
-            type_hints = self._type_hints["return"]
+            type_hints = self._type_hints()["return"]
             if len(return_labels) > 1:
                 type_hints = get_args(type_hints)
                 if not isinstance(type_hints, tuple):
@@ -596,6 +578,43 @@ class Function(Node):
         return SeabornColors.green
 
 
+def Function(
+    node_function: callable,
+    *args,
+    label: Optional[str] = None,
+    parent: Optional[Composite] = None,
+    overwrite_save: bool = False,
+    run_after_init: bool = False,
+    storage_backend: Optional[Literal["h5io", "tinybase"]] = None,
+    save_after_run: bool = False,
+    output_labels: Optional[str | list[str] | tuple[str]] = None,
+    **kwargs,
+):
+    if not callable(node_function):
+        # `Function` quacks like a class, even though it's a function and
+        # dynamically creates children of `AbstractFunction` by providing the necessary
+        # callable to the decorator
+        raise AttributeError(
+            f"Expected `node_function` to be callable but got {node_function}"
+        )
+
+    if output_labels is None:
+        output_labels = ()
+    elif isinstance(output_labels, str):
+        output_labels = (output_labels,)
+
+    return function_node(*output_labels)(node_function)(
+        *args,
+        label=label,
+        parent=parent,
+        overwrite_save=overwrite_save,
+        run_after_init=run_after_init,
+        storage_backend=storage_backend,
+        save_after_run=save_after_run,
+        **kwargs,
+    )
+
+
 def function_node(*output_labels: str):
     """
     A decorator for dynamically creating node classes from functions.
@@ -625,15 +644,13 @@ def function_node(*output_labels: str):
     def as_node(node_function: callable):
         return type(
             node_function.__name__,
-            (Function,),  # Define parentage
+            (AbstractFunction,),  # Define parentage
             {
                 "__init__": partialmethod(
-                    Function.__init__,
-                    None,
+                    AbstractFunction.__init__,
                     output_labels=output_labels,
                 ),
                 "node_function": staticmethod(node_function),
-                "_type_hints": get_type_hints(node_function),
                 "__module__": node_function.__module__,
             },
         )
