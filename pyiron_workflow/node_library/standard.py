@@ -7,15 +7,15 @@ from __future__ import annotations
 from inspect import isclass
 
 from pyiron_workflow.channels import NOT_DATA, OutputSignal
-from pyiron_workflow.function import SingleValue, single_value_node
+from pyiron_workflow.function import Function, function_node
 
 
-@single_value_node()
+@function_node()
 def UserInput(user_input):
     return user_input
 
 
-class If(SingleValue):
+class If(Function):
     """
     Has two extra signal channels: true and false. Evaluates the input as obj otheroolean and
     fires the corresponding output signal after running.
@@ -46,7 +46,7 @@ class If(SingleValue):
             self.signals.output.false()
 
 
-@single_value_node("slice")
+@function_node("slice")
 def Slice(start=None, stop=NOT_DATA, step=None):
     if start is None:
         if stop is None:
@@ -68,185 +68,185 @@ def Slice(start=None, stop=NOT_DATA, step=None):
 # Return values based on dunder methods, where available
 
 
-@single_value_node("str")
+@function_node("str")
 def String(obj):
     return str(obj)
 
 
-@single_value_node("bytes")
+@function_node("bytes")
 def Bytes(obj):
     return bytes(obj)
 
 
-@single_value_node("lt")
+@function_node("lt")
 def LessThan(obj, other):
     return obj < other
 
 
-@single_value_node("le")
+@function_node("le")
 def LessThanEquals(obj, other):
     return obj <= other
 
 
-@single_value_node("eq")
+@function_node("eq")
 def Equals(obj, other):
     return obj == other
 
 
-@single_value_node("neq")
+@function_node("neq")
 def NotEquals(obj, other):
     return obj != other
 
 
-@single_value_node("gt")
+@function_node("gt")
 def GreaterThan(obj, other):
     return obj > other
 
 
-@single_value_node("ge")
+@function_node("ge")
 def GreaterThanEquals(obj, other):
     return obj >= other
 
 
-@single_value_node("hash")
+@function_node("hash")
 def Hash(obj):
     return hash(obj)
 
 
-@single_value_node("bool")
+@function_node("bool")
 def Bool(obj):
     return bool(obj)
 
 
-@single_value_node("getattr")
+@function_node("getattr")
 def GetAttr(obj, name):
     return getattr(obj, name)
 
 
 # These are not idempotent and thus not encouraged
-# @single_value_node("none")
+# @function_node("none")
 # def SetAttr(obj, name, value):
 #     setattr(obj, name, value)
 #     return None
 #
 #
-# @single_value_node("none")
+# @function_node("none")
 # def DelAttr(obj, name):
 #     delattr(obj, name)
 #     return None
 
 
-@single_value_node("getitem")
+@function_node("getitem")
 def GetItem(obj, item):
     return obj[item]
 
 
-@single_value_node("dir")
+@function_node("dir")
 def Dir(obj):
     return dir(obj)
 
 
-@single_value_node("len")
+@function_node("len")
 def Length(obj):
     return len(obj)
 
 
-@single_value_node("in")
+@function_node("in")
 def Contains(obj, other):
     return other in obj
 
 
-@single_value_node("add")
+@function_node("add")
 def Add(obj, other):
     return obj + other
 
 
-@single_value_node("sub")
+@function_node("sub")
 def Subtract(obj, other):
     return obj - other
 
 
-@single_value_node("mul")
+@function_node("mul")
 def Multiply(obj, other):
     return obj * other
 
 
-@single_value_node("rmul")
+@function_node("rmul")
 def RightMultiply(obj, other):
     return other * obj
 
 
-@single_value_node("matmul")
+@function_node("matmul")
 def MatrixMultiply(obj, other):
     return obj @ other
 
 
-@single_value_node("truediv")
+@function_node("truediv")
 def Divide(obj, other):
     return obj / other
 
 
-@single_value_node("floordiv")
+@function_node("floordiv")
 def FloorDivide(obj, other):
     return obj // other
 
 
-@single_value_node("mod")
+@function_node("mod")
 def Modulo(obj, other):
     return obj % other
 
 
-@single_value_node("pow")
+@function_node("pow")
 def Power(obj, other):
     return obj**other
 
 
-@single_value_node("and")
+@function_node("and")
 def And(obj, other):
     return obj & other
 
 
-@single_value_node("xor")
+@function_node("xor")
 def XOr(obj, other):
     return obj ^ other
 
 
-@single_value_node("or")
+@function_node("or")
 def Or(obj, other):
     return obj ^ other
 
 
-@single_value_node("neg")
+@function_node("neg")
 def Negative(obj):
     return -obj
 
 
-@single_value_node("pos")
+@function_node("pos")
 def Positive(obj):
     return +obj
 
 
-@single_value_node("abs")
+@function_node("abs")
 def Absolute(obj):
     return abs(obj)
 
 
-@single_value_node("invert")
+@function_node("invert")
 def Invert(obj):
     return ~obj
 
 
-@single_value_node("int")
+@function_node("int")
 def Int(obj):
     return int(obj)
 
 
-@single_value_node("float")
+@function_node("float")
 def Float(obj):
     return float(obj)
 
 
-@single_value_node("round")
+@function_node("round")
 def Round(obj):
     return round(obj)
 

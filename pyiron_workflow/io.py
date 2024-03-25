@@ -7,7 +7,9 @@ connections on the same footing.
 
 from __future__ import annotations
 
+import warnings
 from abc import ABC, abstractmethod
+from typing import Any
 
 from pyiron_workflow.channels import (
     Channel,
@@ -17,8 +19,10 @@ from pyiron_workflow.channels import (
     SignalChannel,
     InputSignal,
     OutputSignal,
+    AccumulatingInputSignal,
+    NOT_DATA,
 )
-from pyiron_workflow.has_channel import HasChannel
+from pyiron_workflow.has_interface_mixins import HasChannel, HasLabel, HasRun, UsesState
 from pyiron_workflow.has_to_dict import HasToDict
 from pyiron_workflow.snippets.logger import logger
 from pyiron_workflow.snippets.dotdict import DotDict
@@ -284,3 +288,290 @@ class Signals:
 
     def __str__(self):
         return f"{str(self.input)}\n{str(self.output)}"
+
+
+class HasIO(UsesState, HasLabel, HasRun, ABC):
+    """
+    A mixin for classes that provide data and signal IO.
+
+    Child classes must define how to return :class:`Input` and :class:`Output` panels,
+    but a standard collections of signals is included relying on the :class:`HasRun`
+    interface.
+    """
+
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        self._signals = Signals()
+        self._signals.input.run = InputSignal("run", self, self.run)
+        self._signals.input.accumulate_and_run = AccumulatingInputSignal(
+            "accumulate_and_run", self, self.run
+        )
+        self._signals.output.ran = OutputSignal("ran", self)
+
+    @property
+    @abstractmethod
+    def inputs(self) -> Inputs:
+        pass
+
+    @abstractmethod
+    def data_input_locked(self) -> bool:
+        """
+        Indicates whether data input channels should consider this owner locked to
+        change.
+        """
+        # Practically, this gives a well-named interface between HasIO and everything
+        # to do with run status
+
+    @property
+    @abstractmethod
+    def outputs(self) -> Outputs:
+        pass
+
+    @property
+    def signals(self) -> Signals:
+        return self._signals
+
+    @property
+    def connected(self) -> bool:
+        return self.inputs.connected or self.outputs.connected or self.signals.connected
+
+    @property
+    def fully_connected(self):
+        return (
+            self.inputs.fully_connected
+            and self.outputs.fully_connected
+            and self.signals.fully_connected
+        )
+
+    def disconnect(self):
+        """
+        Disconnect all connections belonging to inputs, outputs, and signals channels.
+
+        Returns:
+            [list[tuple[Channel, Channel]]]: A list of the pairs of channels that no
+                longer participate in a connection.
+        """
+        destroyed_connections = []
+        destroyed_connections.extend(self.inputs.disconnect())
+        destroyed_connections.extend(self.outputs.disconnect())
+        destroyed_connections.extend(self.signals.disconnect())
+        return destroyed_connections
+
+    def activate_strict_hints(self):
+        """Enable type hint checks for all data IO"""
+        self.inputs.activate_strict_hints()
+        self.outputs.activate_strict_hints()
+
+    def deactivate_strict_hints(self):
+        """Disable type hint checks for all data IO"""
+        self.inputs.deactivate_strict_hints()
+        self.outputs.deactivate_strict_hints()
+
+    def _connect_output_signal(self, signal: OutputSignal):
+        self.signals.input.run.connect(signal)
+
+    def __rshift__(self, other: InputSignal | HasIO):
+        """
+        Allows users to connect run and ran signals like: `first >> second`.
+        """
+        other._connect_output_signal(self.signals.output.ran)
+        return other
+
+    def _connect_accumulating_input_signal(self, signal: AccumulatingInputSignal):
+        self.signals.output.ran.connect(signal)
+
+    def __lshift__(self, others):
+        """
+        Connect one or more `ran` signals to `accumulate_and_run` signals like:
+        `this << some_object, another_object, or_by_channel.signals.output.ran`
+        """
+        self.signals.input.accumulate_and_run << others
+
+    def set_input_values(self, **kwargs) -> None:
+        """
+        Match keywords to input channels and update their values.
+
+        Throws a warning if a keyword is provided that cannot be found among the input
+        keys.
+
+        Args:
+            **kwargs: input key - input value (including channels for connection) pairs.
+        """
+        for k, v in kwargs.items():
+            if k in self.inputs.labels:
+                self.inputs[k] = v
+            else:
+                warnings.warn(
+                    f"The keyword '{k}' was not found among input labels. If you are "
+                    f"trying to update a class instance keyword, please use attribute "
+                    f"assignment directly instead of calling this method"
+                )
+
+    def copy_io(
+        self,
+        other: HasIO,
+        connections_fail_hard: bool = True,
+        values_fail_hard: bool = False,
+    ) -> None:
+        """
+        Copies connections and values from another object's IO onto this object's IO.
+        Other channels with no connections are ignored for copying connections, and all
+        data channels without data are ignored for copying data.
+        Otherwise, default behaviour is to throw an exception if any of the other
+        object's connections fail to copy, but failed value copies are simply ignored
+        (e.g. because this object does not have a channel with a commensurate label or
+        the value breaks a type hint).
+        This error throwing/passing behaviour can be controlled with boolean flags.
+
+        In the case that an exception is thrown, all newly formed connections are broken
+        and any new values are reverted to their old state before the exception is
+        raised.
+
+        Args:
+            other (HasIO): The other object whose IO to copy.
+            connections_fail_hard: Whether to raise exceptions encountered when copying
+                connections. (Default is True.)
+            values_fail_hard (bool): Whether to raise exceptions encountered when
+                copying values. (Default is False.)
+        """
+        new_connections = self._copy_connections(other, fail_hard=connections_fail_hard)
+        try:
+            self._copy_values(other, fail_hard=values_fail_hard)
+        except Exception as e:
+            for this, other in new_connections:
+                this.disconnect(other)
+            raise e
+
+    def _copy_connections(
+        self,
+        other: HasIO,
+        fail_hard: bool = True,
+    ) -> list[tuple[Channel, Channel]]:
+        """
+        Copies all the connections in another object to this one.
+        Expects all connected channels on the other object to have a counterpart on
+        this object -- i.e. the same label, type, and (for data) a type hint compatible
+        with all the existing connections being copied.
+        This requirement can be optionally relaxed such that any failures encountered
+        when attempting to make a connection (i.e. this object has no channel with a
+        corresponding label as the other object, or the new connection fails its
+        validity check), such that we simply continue past these errors and make as
+        many connections as we can while ignoring errors.
+
+        This object may freely have additional channels not present in the other object.
+        The other object may have additional channels not present here as long as they
+        are not connected.
+
+        If an exception is going to be raised, any connections copied so far are
+        disconnected first.
+
+        Args:
+            other (HasIO): the object whose connections should be copied.
+            fail_hard (bool): Whether to raise an error an exception is encountered
+                when trying to reproduce a connection. (Default is True; revert new
+                connections then raise the exception.)
+
+        Returns:
+            list[tuple[Channel, Channel]]: A list of all the newly created connection
+                pairs (for reverting changes).
+        """
+        new_connections = []
+        for my_panel, other_panel in zip(self._owned_io_panels, other._owned_io_panels):
+            for key, channel in other_panel.items():
+                for target in channel.connections:
+                    try:
+                        my_panel[key].connect(target)
+                        new_connections.append((my_panel[key], target))
+                    except Exception as e:
+                        if fail_hard:
+                            # If you run into trouble, unwind what you've done
+                            for this, other in new_connections:
+                                this.disconnect(other)
+                            raise ConnectionCopyError(
+                                f"{self.label} could not copy connections from "
+                                f"{other.label} due to the channel {key} on "
+                                f"{other_panel.__class__.__name__}"
+                            ) from e
+                        else:
+                            continue
+        return new_connections
+
+    def _copy_values(
+        self,
+        other: HasIO,
+        fail_hard: bool = False,
+    ) -> list[tuple[Channel, Any]]:
+        """
+        Copies all data from input and output channels in the other object onto this
+        one.
+        Ignores other channels that hold non-data.
+        Failures to find a corresponding channel on this object (matching label, type,
+        and compatible type hint) are ignored by default, but can optionally be made to
+        raise an exception.
+
+        If an exception is going to be raised, any values updated so far are
+        reverted first.
+
+        Args:
+            other (HasIO): the object whose data values should be copied.
+            fail_hard (bool): Whether to raise an error an exception is encountered
+                when trying to duplicate a value. (Default is False, just keep going
+                past other's channels with no compatible label here and past values
+                that don't match type hints here.)
+
+        Returns:
+            list[tuple[Channel, Any]]: A list of tuples giving channels whose value has
+                been updated and what it used to be (for reverting changes).
+        """
+        old_values = []
+        for my_panel, other_panel in [
+            (self.inputs, other.inputs),
+            (self.outputs, other.outputs),
+        ]:
+            for key, to_copy in other_panel.items():
+                if to_copy.value is not NOT_DATA:
+                    try:
+                        old_value = my_panel[key].value
+                        my_panel[key].value = to_copy.value  # Gets hint-checked
+                        old_values.append((my_panel[key], old_value))
+                    except Exception as e:
+                        if fail_hard:
+                            # If you run into trouble, unwind what you've done
+                            for channel, value in old_values:
+                                channel.value = value
+                            raise ValueCopyError(
+                                f"{self.label} could not copy values from "
+                                f"{other.label} due to the channel {key} on "
+                                f"{other_panel.__class__.__name__}, which holds value "
+                                f"{to_copy.value}"
+                            ) from e
+                        else:
+                            continue
+        return old_values
+
+    def __setstate__(self, state):
+        super().__setstate__(state)
+
+        # Channels don't store their owner in their state, so repopulate it
+        # This is to accommodate h5io storage, which does not permit recursive
+        # properties -- if we stop depending on h5io, channels can store their owner
+        for io_panel in self._owned_io_panels:
+            for channel in io_panel:
+                channel.owner = self
+
+    @property
+    def _owned_io_panels(self) -> list[IO]:
+        return [
+            self.inputs,
+            self.outputs,
+            self.signals.input,
+            self.signals.output,
+        ]
+
+
+class ConnectionCopyError(ValueError):
+    """Raised when trying to copy IO, but connections cannot be copied"""
+
+
+class ValueCopyError(ValueError):
+    """Raised when trying to copy IO, but values cannot be copied"""

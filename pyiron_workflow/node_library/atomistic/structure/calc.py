@@ -1,4 +1,4 @@
-from pyiron_workflow.function import single_value_node
+from pyiron_workflow.function import function_node
 from typing import Optional, Union
 
 # Huge savings when replacing pyiron_atomistics atoms class with ase one!! (> 5s vs 40 ms)
@@ -6,7 +6,7 @@ from typing import Optional, Union
 from ase import Atoms
 
 
-@single_value_node("structure")
+@function_node("structure")
 def volume(structure: Optional[Atoms] = None) -> float:
     return structure.get_volume()
 

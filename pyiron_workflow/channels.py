@@ -13,7 +13,7 @@ from abc import ABC, abstractmethod
 import inspect
 from warnings import warn
 
-from pyiron_workflow.has_channel import HasChannel
+from pyiron_workflow.has_interface_mixins import HasChannel, HasLabel, UsesState
 from pyiron_workflow.has_to_dict import HasToDict
 from pyiron_workflow.snippets.singleton import Singleton
 from pyiron_workflow.type_hinting import (
@@ -22,20 +22,20 @@ from pyiron_workflow.type_hinting import (
 )
 
 if typing.TYPE_CHECKING:
-    from pyiron_workflow.node import Node
+    from pyiron_workflow.io import HasIO
 
 
 class ChannelConnectionError(Exception):
     pass
 
 
-class Channel(HasChannel, HasToDict, ABC):
+class Channel(UsesState, HasChannel, HasLabel, HasToDict, ABC):
     """
     Channels facilitate the flow of information (data or control signals) into and
-    out of nodes.
+    out of :class:`HasIO` objects (namely nodes).
 
-    They must have an identifier (`label: str`) and belong to a parent node
-    (`node: pyiron_workflow.node.Node`).
+    They must have an identifier (`label: str`) and belong to an
+    `owner: pyiron_workflow.io.HasIO`.
 
     Non-abstract channel classes should come in input/output pairs and specify the
     a necessary ancestor for instances they can connect to
@@ -62,26 +62,29 @@ class Channel(HasChannel, HasToDict, ABC):
 
     Attributes:
         label (str): The name of the channel.
-        node (pyiron_workflow.node.Node): The node to which the channel
-         belongs.
+        owner (pyiron_workflow.io.HasIO): The channel's owner.
         connections (list[Channel]): Other channels to which this channel is connected.
     """
 
     def __init__(
         self,
         label: str,
-        node: Node,
+        owner: HasIO,
     ):
         """
         Make a new channel.
 
         Args:
             label (str): A name for the channel.
-            node (pyiron_workflow.node.Node): The node to which the channel belongs.
+            owner (pyiron_workflow.io.HasIO): The channel's owner.
         """
-        self.label: str = label
-        self.node: Node = node
+        self._label = label
+        self.owner: HasIO = owner
         self.connections: list[Channel] = []
+
+    @property
+    def label(self) -> str:
+        return self._label
 
     @abstractmethod
     def __str__(self):
@@ -97,8 +100,8 @@ class Channel(HasChannel, HasToDict, ABC):
 
     @property
     def scoped_label(self) -> str:
-        """A label combining the channel's usual label and its node's label"""
-        return f"{self.node.label}__{self.label}"
+        """A label combining the channel's usual label and its owner's label"""
+        return f"{self.owner.label}__{self.label}"
 
     def _valid_connection(self, other: Channel) -> bool:
         """
@@ -213,24 +216,19 @@ class Channel(HasChannel, HasToDict, ABC):
         return {
             "label": self.label,
             "connected": self.connected,
-            "connections": [f"{c.node.label}.{c.label}" for c in self.connections],
+            "connections": [f"{c.owner.label}.{c.label}" for c in self.connections],
         }
 
     def __getstate__(self):
-        state = dict(self.__dict__)
+        state = super().__getstate__()
         # To avoid cyclic storage and avoid storing complex objects, purge some
         # properties from the state
-        state["node"] = None
-        # It is the responsibility of the owning node to restore the node property
+        state["owner"] = None
+        # It is the responsibility of the owner to restore the owner property
         state["connections"] = []
-        # It is the responsibility of the owning node's parent to store and restore
+        # It is the responsibility of the owner's parent to store and restore
         # connections (if any)
         return state
-
-    def __setstate__(self, state):
-        # Update instead of overriding in case some other attributes were added on the
-        # main process while a remote process was working away
-        self.__dict__.update(**state)
 
 
 class NotData(metaclass=Singleton):
@@ -279,7 +277,7 @@ class DataChannel(Channel, ABC):
     Channels with such partners pass any data updates they receive directly to this
     partner (via the :attr:`value` setter).
     (This is helpful for passing data between scopes, where we want input at one scope
-    to be passed to the input of nodes at a deeper scope, i.e. macro input passing to
+    to be passed to the input of owners at a deeper scope, i.e. macro input passing to
     child node input, or vice versa for output.)
 
     All these type hint tests can be disabled on the input/receiving channel
@@ -289,17 +287,6 @@ class DataChannel(Channel, ABC):
     Channels can indicate whether they hold data they are happy with
     (:attr:`ready: bool`), which is to say it is data (not the singleton `NOT_DATA`)
     and that it conforms to the type hint (if one is provided and checking is active).
-
-    Output data facilitates many (but not all) python operators by injecting a new
-    node to perform that operation. Where the operator is not supported, we try to
-    support using the operator's dunder name as a method, e.g. `==` gives us trouble
-    with hashing, but this exploits the dunder method `.__eq__(other)`, so you can call
-    `.eq(other)` on output data.
-    These new nodes are instructed to run at the end of instantiation, but this fails
-    cleanly in case they are not ready. This is intended to accommodate two likely
-    scenarios: if you're injecting a node on top of an existing result you probably
-    want the injection result to also be immediately available, but if you're injecting
-    it at the end of something that hasn't run yet you don't want to see an error.
 
     TODO:
 
@@ -330,30 +317,31 @@ class DataChannel(Channel, ABC):
         yet included in our test suite and behaviour is not guaranteed.
 
     Attributes:
-        value: The actual data value held by the node.
+        value: The actual data value held by the channel.
         label (str): The label for the channel.
-        node (pyiron_workflow.node.Node): The node to which this channel belongs.
+        owner (pyiron_workflow.io.HasIO): The channel's owner.
         default (typing.Any|None): The default value to initialize to.
             (Default is the singleton `NOT_DATA`.)
         type_hint (typing.Any|None): A type hint for values. (Default is None.)
         strict_hints (bool): Whether to check new values, connections, and partners
-            when this node is a value receiver. This can potentially be expensive, so
+            when this channel is a value receiver. This can potentially be expensive, so
             consider deactivating strict hints everywhere for production runs. (Default
             is True, raise exceptions when type hints get violated.)
-        value_receiver (pyiron_workflow.node.Node|None): Another node of the same class
-            whose value will always get updated when this node's value gets updated.
+        value_receiver (pyiron_workflow.channel.DataChannel|None): Another channel of
+            the same class whose value will always get updated when this channel's
+            value gets updated.
     """
 
     def __init__(
         self,
         label: str,
-        node: Node,
+        owner: HasIO,
         default: typing.Optional[typing.Any] = NOT_DATA,
         type_hint: typing.Optional[typing.Any] = None,
         strict_hints: bool = True,
         value_receiver: typing.Optional[InputData] = None,
     ):
-        super().__init__(label=label, node=node)
+        super().__init__(label=label, owner=owner)
         self._value = NOT_DATA
         self._value_receiver = None
         self.type_hint = type_hint
@@ -391,7 +379,7 @@ class DataChannel(Channel, ABC):
         Another data channel of the same type to whom new values are always pushed
         (without type checking of any sort, not even when forming the couple!)
 
-        Useful for macros, so that the IO of owned nodes and IO at the macro level can
+        Useful for macros, so that the IO of children and IO at the macro level can
         be kept synchronized.
         """
         return self._value_receiver
@@ -525,7 +513,7 @@ class InputData(DataChannel):
         0th connection; build graphs accordingly.
 
         Raises:
-            RuntimeError: If the parent node is :attr:`running`.
+            RuntimeError: If the owner is :attr:`running`.
         """
         for out in self.connections:
             if out.value is not NOT_DATA:
@@ -538,10 +526,10 @@ class InputData(DataChannel):
 
     @value.setter
     def value(self, new_value):
-        if self.node.running:
+        if self.owner.data_input_locked():
             raise RuntimeError(
-                f"Parent node {self.node.label} of {self.label} is running, so value "
-                f"cannot be updated."
+                f"Owner {self.owner.label} of {self.label} has its data input locked, "
+                f"so value cannot be updated."
             )
         self._type_check_new_value(new_value)
         if self.value_receiver is not None:
@@ -554,218 +542,12 @@ class OutputData(DataChannel):
     def connection_partner_type(self):
         return InputData
 
-    @staticmethod
-    def _other_label(other):
-        return (
-            other.channel.scoped_label if isinstance(other, HasChannel) else str(other)
-        )
-
-    def get_injected_label(self, injection_class, other=None):
-        suffix = f"_{self._other_label(other)}" if other is not None else ""
-        return f"{self.scoped_label}_{injection_class.__name__}{suffix}"
-
-    def _get_injection_label(self, injection_class, *args):
-        other_labels = "_".join(self._other_label(other) for other in args)
-        suffix = f"_{other_labels}" if len(args) > 0 else ""
-        return f"{self.scoped_label}_{injection_class.__name__}{suffix}"
-
-    def _node_injection(self, injection_class, *args, inject_self=True):
-        """
-        Create a new node with the same parent as this channel's node, and feed it
-        arguments, or load such a node if it already exists on the parent (based on a
-        name dynamically generated from the injected node class and arguments).
-
-        Args:
-            injection_class (type[Node]): The new node class to instantiate
-            *args: Any arguments for that function node
-            inject_self (bool): Whether to pre-pend the args with self. (Default is
-                True.)
-
-        Returns:
-            (Node): The instantiated or loaded node.
-        """
-        label = self._get_injection_label(injection_class, *args)
-        try:
-            # First check if the node already exists
-            return self.node.parent.nodes[label]
-        except (AttributeError, KeyError):
-            # Fall back on creating a new node in case parent is None or node nexists
-            node_args = (self, *args) if inject_self else args
-            return injection_class(
-                *node_args, parent=self.node.parent, label=label, run_after_init=True
-            )
-
-    # We don't wrap __all__ the operators, because you might really want the string or
-    # hash or whatever of the actual channel. But we do wrap all the dunder methods
-    # that should be unambiguously referring to an operation on values
-
-    def __getattr__(self, name):
-        from pyiron_workflow.node_library.standard import GetAttr
-
-        return self._node_injection(GetAttr, name)
-
-    def __getitem__(self, item):
-        # Break slices into deeper injections, if any slice arguments are channel-like
-        if isinstance(item, slice) and any(
-            isinstance(slice_input, HasChannel)
-            for slice_input in [item.start, item.stop, item.step]
-        ):
-            from pyiron_workflow.node_library.standard import Slice
-
-            item = self._node_injection(
-                Slice, item.start, item.stop, item.step, inject_self=False
-            )
-
-        from pyiron_workflow.node_library.standard import GetItem
-
-        return self._node_injection(GetItem, item)
-
-    def __lt__(self, other):
-        from pyiron_workflow.node_library.standard import LessThan
-
-        return self._node_injection(LessThan, other)
-
-    def __le__(self, other):
-        from pyiron_workflow.node_library.standard import LessThanEquals
-
-        return self._node_injection(LessThanEquals, other)
-
-    def eq(self, other):
-        from pyiron_workflow.node_library.standard import Equals
-
-        return self._node_injection(Equals, other)
-
-    def __ne__(self, other):
-        from pyiron_workflow.node_library.standard import NotEquals
-
-        return self._node_injection(NotEquals, other)
-
-    def __gt__(self, other):
-        from pyiron_workflow.node_library.standard import GreaterThan
-
-        return self._node_injection(GreaterThan, other)
-
-    def __ge__(self, other):
-        from pyiron_workflow.node_library.standard import GreaterThanEquals
-
-        return self._node_injection(GreaterThanEquals, other)
-
-    def bool(self):
-        from pyiron_workflow.node_library.standard import Bool
-
-        return self._node_injection(Bool)
-
-    def len(self):
-        from pyiron_workflow.node_library.standard import Length
-
-        return self._node_injection(Length)
-
-    def contains(self, other):
-        from pyiron_workflow.node_library.standard import Contains
-
-        return self._node_injection(Contains, other)
-
-    def __add__(self, other):
-        from pyiron_workflow.node_library.standard import Add
-
-        return self._node_injection(Add, other)
-
-    def __sub__(self, other):
-        from pyiron_workflow.node_library.standard import Subtract
-
-        return self._node_injection(Subtract, other)
-
-    def __mul__(self, other):
-        from pyiron_workflow.node_library.standard import Multiply
-
-        return self._node_injection(Multiply, other)
-
-    def __rmul__(self, other):
-        from pyiron_workflow.node_library.standard import RightMultiply
-
-        return self._node_injection(RightMultiply, other)
-
-    def __matmul__(self, other):
-        from pyiron_workflow.node_library.standard import MatrixMultiply
-
-        return self._node_injection(MatrixMultiply, other)
-
-    def __truediv__(self, other):
-        from pyiron_workflow.node_library.standard import Divide
-
-        return self._node_injection(Divide, other)
-
-    def __floordiv__(self, other):
-        from pyiron_workflow.node_library.standard import FloorDivide
-
-        return self._node_injection(FloorDivide, other)
-
-    def __mod__(self, other):
-        from pyiron_workflow.node_library.standard import Modulo
-
-        return self._node_injection(Modulo, other)
-
-    def __pow__(self, other):
-        from pyiron_workflow.node_library.standard import Power
-
-        return self._node_injection(Power, other)
-
-    def __and__(self, other):
-        from pyiron_workflow.node_library.standard import And
-
-        return self._node_injection(And, other)
-
-    def __xor__(self, other):
-        from pyiron_workflow.node_library.standard import XOr
-
-        return self._node_injection(XOr, other)
-
-    def __or__(self, other):
-        from pyiron_workflow.node_library.standard import Or
-
-        return self._node_injection(Or, other)
-
-    def __neg__(self):
-        from pyiron_workflow.node_library.standard import Negative
-
-        return self._node_injection(Negative)
-
-    def __pos__(self):
-        from pyiron_workflow.node_library.standard import Positive
-
-        return self._node_injection(Positive)
-
-    def __abs__(self):
-        from pyiron_workflow.node_library.standard import Absolute
-
-        return self._node_injection(Absolute)
-
-    def __invert__(self):
-        from pyiron_workflow.node_library.standard import Invert
-
-        return self._node_injection(Invert)
-
-    def int(self):
-        from pyiron_workflow.node_library.standard import Int
-
-        return self._node_injection(Int)
-
-    def float(self):
-        from pyiron_workflow.node_library.standard import Float
-
-        return self._node_injection(Float)
-
-    def __round__(self):
-        from pyiron_workflow.node_library.standard import Round
-
-        return self._node_injection(Round)
-
 
 class SignalChannel(Channel, ABC):
     """
     Signal channels give the option control execution flow by triggering callback
     functions when the channel is called.
-    Callbacks must be methods on the parent node that require no positional arguments.
+    Callbacks must be methods on the owner that require no positional arguments.
     Inputs optionally accept an output signal on call, which output signals always
     send when they call their input connections.
 
@@ -773,7 +555,7 @@ class SignalChannel(Channel, ABC):
 
     Signal channels support `>>` as syntactic sugar for their connections, i.e.
     `some_output >> some_input` is equivalent to `some_input.connect(some_output)`.
-    (This is also interoperable with `Node` objects, cf. the `Node` docs.)
+    (This is also interoperable with `HasIO` objects.)
     """
 
     @abstractmethod
@@ -793,7 +575,7 @@ class InputSignal(SignalChannel):
     def __init__(
         self,
         label: str,
-        node: Node,
+        owner: HasIO,
         callback: callable,
     ):
         """
@@ -801,25 +583,24 @@ class InputSignal(SignalChannel):
 
         Args:
             label (str): A name for the channel.
-            node (pyiron_workflow.node.Node): The node to which the
-             channel belongs.
+            owner (pyiron_workflow.io.HasIO): The channel's owner.
             callback (callable): An argument-free callback to invoke when calling this
-                object.
+                object. Must be a method on the owner.
         """
-        super().__init__(label=label, node=node)
-        if self._is_node_method(callback) and self._takes_zero_arguments(callback):
+        super().__init__(label=label, owner=owner)
+        if self._is_method_on_owner(callback) and self._takes_zero_arguments(callback):
             self._callback: str = callback.__name__
         else:
             raise BadCallbackError(
-                f"The channel {self.label} on {self.node.label} got an unexpected "
+                f"The channel {self.label} on {self.owner.label} got an unexpected "
                 f"callback: {callback}. "
-                f"Lives on node: {self._is_node_method(callback)}; "
+                f"Lives on owner: {self._is_method_on_owner(callback)}; "
                 f"take no args: {self._takes_zero_arguments(callback)} "
             )
 
-    def _is_node_method(self, callback):
+    def _is_method_on_owner(self, callback):
         try:
-            return callback == getattr(self.node, callback.__name__)
+            return callback == getattr(self.owner, callback.__name__)
         except AttributeError:
             return False
 
@@ -838,7 +619,7 @@ class InputSignal(SignalChannel):
 
     @property
     def callback(self) -> callable:
-        return getattr(self.node, self._callback)
+        return getattr(self.owner, self._callback)
 
     def __call__(self, other: typing.Optional[OutputSignal] = None) -> None:
         self.callback()
@@ -864,10 +645,10 @@ class AccumulatingInputSignal(InputSignal):
     def __init__(
         self,
         label: str,
-        node: Node,
+        owner: HasIO,
         callback: callable,
     ):
-        super().__init__(label=label, node=node, callback=callback)
+        super().__init__(label=label, owner=owner, callback=callback)
         self.received_signals: set[str] = set()
 
     def __call__(self, other: OutputSignal) -> None:
@@ -913,10 +694,10 @@ class OutputSignal(SignalChannel):
     def __str__(self):
         return (
             f"{self.label} activates "
-            f"{[f'{c.node.label}.{c.label}' for c in self.connections]}"
+            f"{[f'{c.owner.label}.{c.label}' for c in self.connections]}"
         )
 
-    def __rshift__(self, other: InputSignal | Node):
+    def __rshift__(self, other: InputSignal | HasIO):
         other._connect_output_signal(self)
         return other
 

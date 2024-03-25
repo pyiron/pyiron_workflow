@@ -1,8 +1,8 @@
-from pyiron_workflow.function import single_value_node
+from pyiron_workflow.function import function_node
 from typing import Optional
 
 
-@single_value_node("dataframe")
+@function_node("dataframe")
 def de_jong(max_index: int | None = None, filename="ec.json"):
     """
     Expects the file to be the "ec.json" database referenced by:

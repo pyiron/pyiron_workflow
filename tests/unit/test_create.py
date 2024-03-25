@@ -1,7 +1,7 @@
 import unittest
 
 from pyiron_workflow._tests import ensure_tests_in_python_path
-from pyiron_workflow.interfaces import Creator
+from pyiron_workflow.create import Creator
 from pyiron_workflow.node_package import NodePackage, NotANodePackage
 
 

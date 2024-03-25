@@ -8,9 +8,7 @@ from typing import Optional
 
 from pyiron_workflow.function import (
     Function,
-    SingleValue,
     function_node,
-    single_value_node,
 )
 from pyiron_workflow.macro import Macro, macro_node
 from pyiron_workflow.node import Node
@@ -34,7 +32,7 @@ def __list_to_many(l: list):
     return function_node(**node_class_kwargs)(_list_to_many(length=length))
 
 
-def input_to_list(length: int, **node_class_kwargs) -> type[SingleValue]:
+def input_to_list(length: int, **node_class_kwargs) -> type[Function]:
     """
     A meta-node that returns a node class with :param:`length` output channels and
     maps an input list to these.
@@ -48,7 +46,7 @@ def __many_to_list({", ".join([f"inp{i}=None" for i in range(length)])}):
         exec(template)
         return locals()["__many_to_list"]
 
-    return single_value_node(**node_class_kwargs)(_many_to_list(length=length))
+    return function_node(**node_class_kwargs)(_many_to_list(length=length))
 
 
 def for_loop(
@@ -77,7 +75,7 @@ def for_loop(
         >>> from pyiron_workflow import Workflow
         >>> from pyiron_workflow.meta import for_loop
         >>>
-        >>> @Workflow.wrap_as.single_value_node("div")
+        >>> @Workflow.wrap_as.function_node("div")
         ... def Divide(numerator, denominator):
         ...    return numerator / denominator
         >>>
@@ -114,7 +112,9 @@ def for_loop(
         # Parallelize over body nodes
         for n in range(length):
             body_nodes.append(
-                macro.add_node(loop_body_class(label=f"{loop_body_class.__name__}_{n}"))
+                macro.add_child(
+                    loop_body_class(label=f"{loop_body_class.__name__}_{n}")
+                )
             )
 
         # Make input interface
@@ -177,7 +177,7 @@ def for_loop(
 
 def while_loop(
     loop_body_class: type[Node],
-    condition_class: type[SingleValue],
+    condition_class: type[Function],
     internal_connection_map: dict[str, str],
     inputs_map: Optional[dict[str, str]] = None,
     outputs_map: Optional[dict[str, str]] = None,
@@ -197,8 +197,8 @@ def while_loop(
     Args:
         loop_body_class (type[pyiron_workflow.node.Node]): The class for the
             body of the while-loop.
-        condition_class (type[pyiron_workflow.function.SingleValue]): A single
-            value node returning a `bool` controlling the while loop exit condition
+        condition_class (type[pyiron_workflow.function.Function]): A single-output
+            function node returning a `bool` controlling the while loop exit condition
             (exits on False)
         internal_connection_map (list[tuple[str, str, str, str]]): String tuples
             giving (input node, input channel, output node, output channel) labels
@@ -210,12 +210,12 @@ def while_loop(
 
         >>> from pyiron_workflow import Workflow
         >>>
-        >>> @Workflow.wrap_as.single_value_node()
+        >>> @Workflow.wrap_as.function_node()
         ... def Add(a, b):
         ...     print(f"{a} + {b} = {a + b}")
         ...     return a + b
         >>>
-        >>> @Workflow.wrap_as.single_value_node()
+        >>> @Workflow.wrap_as.function_node()
         ... def LessThanTen(value):
         ...     return value < 10
         >>>
@@ -253,11 +253,11 @@ def while_loop(
         >>>
         >>> random.seed(0)
         >>>
-        >>> @Workflow.wrap_as.single_value_node("random")
+        >>> @Workflow.wrap_as.function_node("random")
         ... def RandomFloat():
         ...     return random.random()
         >>>
-        >>> @Workflow.wrap_as.single_value_node()
+        >>> @Workflow.wrap_as.function_node()
         ... def GreaterThan(x: float, threshold: float):
         ...     gt = x > threshold
         ...     symbol = ">" if gt else "<="
@@ -293,13 +293,15 @@ def while_loop(
     """
 
     def make_loop(macro):
-        body_node = macro.add_node(loop_body_class(label=loop_body_class.__name__))
-        condition_node = macro.add_node(condition_class(label=condition_class.__name__))
+        body_node = macro.add_child(loop_body_class(label=loop_body_class.__name__))
+        condition_node = macro.add_child(
+            condition_class(label=condition_class.__name__)
+        )
         switch = macro.create.standard.If(label="switch", parent=macro)
 
         switch.inputs.condition = condition_node
         for out_n, out_c, in_n, in_c in internal_connection_map:
-            macro.nodes[in_n].inputs[in_c] = macro.nodes[out_n].outputs[out_c]
+            macro.children[in_n].inputs[in_c] = macro.children[out_n].outputs[out_c]
 
         switch.signals.output.true >> body_node >> condition_node >> switch
         macro.starting_nodes = [body_node]

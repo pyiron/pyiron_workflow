@@ -11,11 +11,11 @@ from typing import Literal, Optional, TYPE_CHECKING
 
 from bidict import bidict
 
-from pyiron_workflow.interfaces import Creator, Wrappers
+from pyiron_workflow.create import Creator, Wrappers
 from pyiron_workflow.io import Outputs, Inputs
 from pyiron_workflow.node import Node
 from pyiron_workflow.node_package import NodePackage
-from pyiron_workflow.snippets.logger import logger
+from pyiron_workflow.semantics import SemanticParent
 from pyiron_workflow.topology import set_run_connections_according_to_dag
 from pyiron_workflow.snippets.colors import SeabornColors
 from pyiron_workflow.snippets.dotdict import DotDict
@@ -24,7 +24,7 @@ if TYPE_CHECKING:
     from pyiron_workflow.channels import Channel, InputData, OutputData
 
 
-class Composite(Node, ABC):
+class Composite(Node, SemanticParent, ABC):
     """
     A base class for nodes that have internal graph structure -- i.e. they hold a
     collection of child nodes and their computation is to execute that graph.
@@ -77,7 +77,7 @@ class Composite(Node, ABC):
          can be in regular dictionary form, but get re-cast as a clean bidict to ensure
          the bijective nature of the maps (i.e. there is a 1:1 connection between any
          IO exposed at the :class:`Composite` level and the underlying channels).
-        nodes (DotDict[pyiron_workflow.node.Node]): The owned nodes that
+        children (bidict.bidict[pyiron_workflow.node.Node]): The owned nodes that
          form the composite subgraph.
         strict_naming (bool): When true, repeated assignment of a new node to an
          existing node label will raise an error, otherwise the label gets appended
@@ -90,11 +90,11 @@ class Composite(Node, ABC):
         wrap_as (Wrappers): A tool for accessing node-creating decorators
 
     Methods:
-        add_node(node: Node): Add the node instance to this subgraph.
-        remove_node(node: Node): Break all connections the node has, remove_node it from this
+        add_child(node: Node): Add the node instance to this subgraph.
+        remove_child(node: Node): Break all connections the node has, remove_child it from this
          subgraph, and set its parent to `None`.
         (de)activate_strict_hints(): Recursively (de)activate strict type hints.
-        replace_node(owned_node: Node | str, replacement: Node | type[Node]): Replaces an
+        replace_child(owned_node: Node | str, replacement: Node | type[Node]): Replaces an
             owned node with a new node, as long as the new node's IO is commensurate
             with the node being replaced.
         register(): A short-cut to registering a new node package with the node creator.
@@ -123,14 +123,13 @@ class Composite(Node, ABC):
             parent=parent,
             save_after_run=save_after_run,
             storage_backend=storage_backend,
+            strict_naming=strict_naming,
             **kwargs,
         )
-        self.strict_naming: bool = strict_naming
         self._inputs_map = None
         self._outputs_map = None
         self.inputs_map = inputs_map
         self.outputs_map = outputs_map
-        self.nodes: DotDict[str, Node] = DotDict()
         self.starting_nodes: list[Node] = []
 
     @property
@@ -177,7 +176,7 @@ class Composite(Node, ABC):
     def to_dict(self):
         return {
             "label": self.label,
-            "nodes": {n.label: n.to_dict() for n in self.nodes.values()},
+            "nodes": {n.label: n.to_dict() for n in self.children.values()},
         }
 
     @property
@@ -214,7 +213,7 @@ class Composite(Node, ABC):
             list[tuple[Channel, Channel]]: Any disconnected pairs.
         """
         disconnected_pairs = []
-        for node in self.nodes.values():
+        for node in self.children.values():
             disconnected_pairs.extend(node.signals.disconnect_run())
         return disconnected_pairs
 
@@ -224,7 +223,7 @@ class Composite(Node, ABC):
         reconnect these according to the DAG flow of the data. On success, sets the
         starting nodes to just be the upstream-most node in this linear DAG flow.
         """
-        _, upstream_most_nodes = set_run_connections_according_to_dag(self.nodes)
+        _, upstream_most_nodes = set_run_connections_according_to_dag(self.children)
         self.starting_nodes = upstream_most_nodes
 
     def _build_io(
@@ -251,7 +250,7 @@ class Composite(Node, ABC):
         """
         key_map = {} if key_map is None else key_map
         io = Inputs() if i_or_o == "inputs" else Outputs()
-        for node in self.nodes.values():
+        for node in self.children.values():
             panel = getattr(node, i_or_o)
             for channel in panel:
                 try:
@@ -301,104 +300,37 @@ class Composite(Node, ABC):
     def _build_outputs(self) -> Outputs:
         return self._build_io("outputs", self.outputs_map)
 
-    def add_node(self, node: Node, label: Optional[str] = None) -> None:
-        """
-        Assign a node to the parent. Optionally provide a new label for that node.
-
-        Args:
-            node (pyiron_workflow.node.Node): The node to add.
-            label (Optional[str]): The label for this node.
-
-        Raises:
-            TypeError: If the
-        """
-        if not isinstance(node, Node):
+    def add_child(
+        self,
+        child: Node,
+        label: Optional[str] = None,
+        strict_naming: Optional[bool] = None,
+    ) -> Node:
+        if not isinstance(child, Node):
             raise TypeError(
-                f"Only new node instances may be added, but got {type(node)}."
+                f"Only new {Node.__name__} instances may be added, but got "
+                f"{type(child)}."
             )
-        self._ensure_node_has_no_other_parent(node)
+        return super().add_child(child, label=label, strict_naming=strict_naming)
 
-        if not (label in self.nodes.keys() and self.nodes[label] is node):
-            # Otherwise you're just passing the same node to the same key!
-
-            label = self._get_unique_label(node.label if label is None else label)
-            self._ensure_node_is_not_duplicated(node, label)
-
-            self.nodes[label] = node
-            node.label = label
-            node._parent = self
-        return node
-
-    def _get_unique_label(self, label):
-        if label in self.__dir__():
-            if isinstance(getattr(self, label), Node):
-                if self.strict_naming:
-                    raise AttributeError(
-                        f"{label} is already the label for a node. Please remove it "
-                        f"before assigning another node to this label."
-                    )
-                else:
-                    label = self._add_suffix_to_label(label)
-            else:
-                raise AttributeError(
-                    f"{label} is an attribute or method of the {self.__class__} class, "
-                    f"and cannot be used as a node label."
-                )
-        return label
-
-    def _add_suffix_to_label(self, label):
-        i = 0
-        new_label = label
-        while new_label in self.nodes.keys():
-            new_label = f"{label}{i}"
-            i += 1
-        if new_label != label:
-            logger.info(
-                f"{label} is already a node; appending an index to the "
-                f"node label instead: {new_label}"
-            )
-        return new_label
-
-    def _ensure_node_has_no_other_parent(self, node: Node):
-        if node.parent is not None and node.parent is not self:
-            raise ValueError(
-                f"The node ({node.label}) already belongs to the parent "
-                f"{node.parent.label}. Please remove it there before trying to "
-                f"add it to this parent ({self.label})."
-            )
-
-    def _ensure_node_is_not_duplicated(self, node: Node, label: str):
-        if (
-            node.parent is self
-            and label != node.label
-            and self.nodes[node.label] is node
-        ):
-            logger.info(
-                f"Reassigning the node {node.label} to the label {label} when "
-                f"adding it to the parent {self.label}."
-            )
-            del self.nodes[node.label]
-
-    def remove_node(self, node: Node | str) -> list[tuple[Channel, Channel]]:
+    def remove_child(self, child: Node | str) -> list[tuple[Channel, Channel]]:
         """
-        Remove a node from the :attr:`nodes` collection, disconnecting it and setting its
-        :attr:`parent` to None.
+        Remove a child from the :attr:`children` collection, disconnecting it and
+        setting its :attr:`parent` to None.
 
         Args:
-            node (Node|str): The node (or its label) to remove.
+            child (Node|str): The child (or its label) to remove.
 
         Returns:
             (list[tuple[Channel, Channel]]): Any connections that node had.
         """
-        node = self.nodes[node] if isinstance(node, str) else node
-        node._parent = None
-        disconnected = node.disconnect()
-        if node in self.starting_nodes:
-            self.starting_nodes.remove(node)
-        del self.nodes[node.label]
+        child = super().remove_child(child)
+        disconnected = child.disconnect()
+        if child in self.starting_nodes:
+            self.starting_nodes.remove(child)
         return disconnected
 
-    def replace_node(
+    def replace_child(
         self, owned_node: Node | str, replacement: Node | type[Node]
     ) -> Node:
         """
@@ -425,7 +357,7 @@ class Composite(Node, ABC):
             (Node): The node that got removed
         """
         if isinstance(owned_node, str):
-            owned_node = self.nodes[owned_node]
+            owned_node = self.children[owned_node]
 
         if owned_node.parent is not self:
             raise ValueError(
@@ -454,9 +386,9 @@ class Composite(Node, ABC):
         # first guaranteed to be an unconnected orphan, there is not yet any permanent
         # damage
         is_starting_node = owned_node in self.starting_nodes
-        self.remove_node(owned_node)
+        self.remove_child(owned_node)
         replacement.label, owned_node.label = owned_node.label, replacement.label
-        self.add_node(replacement)
+        self.add_child(replacement)
         if is_starting_node:
             self.starting_nodes.append(replacement)
 
@@ -469,7 +401,7 @@ class Composite(Node, ABC):
         except Exception as e:
             # If IO can't be successfully rebuilt using this node, revert changes and
             # raise the exception
-            self.replace_node(replacement, owned_node)  # Guaranteed to work since
+            self.replace_child(replacement, owned_node)  # Guaranteed to work since
             # replacement in the other direction was already a success
             raise e
 
@@ -528,42 +460,28 @@ class Composite(Node, ABC):
             node.executor_shutdown(wait=wait, cancel_futures=cancel_futures)
 
     def __setattr__(self, key: str, node: Node):
-        if isinstance(node, Node) and key != "_parent":
-            self.add_node(node, label=key)
+        if isinstance(node, Composite) and key in ["_parent", "parent"]:
+            # This is an edge case for assigning a node to an attribute
+            # We either defer to the setter with super, or directly assign the private
+            # variable (as requested in the setter)
+            super().__setattr__(key, node)
+        elif isinstance(node, Node):
+            self.add_child(node, label=key)
         elif (
             isinstance(node, type)
             and issubclass(node, Node)
-            and key in self.nodes.keys()
+            and key in self.children.keys()
         ):
             # When a class is assigned to an existing node, try a replacement
-            self.replace_node(key, node)
+            self.replace_child(key, node)
         else:
             super().__setattr__(key, node)
-
-    def __getattr__(self, key):
-        try:
-            return self.nodes[key]
-        except KeyError:
-            # Raise an attribute error from getattr to make sure hasattr works well!
-            raise AttributeError(
-                f"Could not find attribute {key} on {self.label} "
-                f"({self.__class__.__name__}) or in its nodes ({self.nodes.keys()})"
-            )
 
     def __getitem__(self, item):
         return self.__getattr__(item)
 
     def __setitem__(self, key, value):
         self.__setattr__(key, value)
-
-    def __iter__(self):
-        return self.nodes.values().__iter__()
-
-    def __len__(self):
-        return len(self.nodes)
-
-    def __dir__(self):
-        return set(super().__dir__() + list(self.nodes.keys()))
 
     @property
     def color(self) -> str:
@@ -578,8 +496,8 @@ class Composite(Node, ABC):
         return set(n.package_identifier for n in self)
 
     def to_storage(self, storage):
-        storage["nodes"] = list(self.nodes.keys())
-        for label, node in self.nodes.items():
+        storage["nodes"] = list(self.children.keys())
+        for label, node in self.children.items():
             node.to_storage(storage.create_group(label))
 
         storage["inputs_map"] = self.inputs_map
@@ -619,7 +537,7 @@ class Composite(Node, ABC):
         the name is protected.
         """
         return [
-            ((inp.node.label, inp.label), (out.node.label, out.label))
+            ((inp.owner.label, inp.label), (out.owner.label, out.label))
             for child in self
             for inp in panel_getter(child)
             for out in inp.connections
@@ -644,10 +562,6 @@ class Composite(Node, ABC):
         return self._get_connections_as_strings(self._get_signals_input)
 
     @property
-    def node_labels(self) -> tuple[str]:
-        return tuple(n.label for n in self)
-
-    @property
     def _starting_node_labels(self):
         # As a property so it appears in `__dir__` and thus is guaranteed to not
         # conflict with a child node name in the state
@@ -668,16 +582,6 @@ class Composite(Node, ABC):
             None if self._outputs_map is None else dict(self._outputs_map)
         )
 
-        # Remove the nodes container from the state and store each element (node) right
-        # in the state -- the labels are guaranteed to not be attributes already so
-        # this is safe, and it makes sure that the storage path matches the graph path
-        del state["nodes"]
-        state["node_labels"] = self.node_labels
-        for node in self:
-            state[node.label] = node
-            # This key is guaranteed to be available in the state, since children are
-            # forbidden from having labels that clash with their parent's __dir__
-
         # Also remove the starting node instances
         del state["starting_nodes"]
         state["_starting_node_labels"] = self._starting_node_labels
@@ -697,11 +601,6 @@ class Composite(Node, ABC):
             None if state["_outputs_map"] is None else bidict(state["_outputs_map"])
         )
 
-        # Reconstruct nodes from state
-        state["nodes"] = DotDict(
-            {label: state[label] for label in state.pop("node_labels")}
-        )
-
         # Restore starting nodes
         state["starting_nodes"] = [
             state[label] for label in state.pop("_starting_node_labels")
@@ -709,10 +608,6 @@ class Composite(Node, ABC):
 
         super().__setstate__(state)
 
-        # Nodes purge their _parent information in their __getstate__
-        # so return it to them:
-        for node in self:
-            node._parent = self
         # Nodes don't store connection information, so restore it to them
         self._restore_data_connections_from_strings(child_data_connections)
         self._restore_signal_connections_from_strings(child_signal_connections)
@@ -754,7 +649,7 @@ class Composite(Node, ABC):
         self, connections: list[tuple[tuple[str, str], tuple[str, str]]]
     ) -> None:
         self._restore_connections_from_strings(
-            self.nodes,
+            self.children,
             connections,
             self._get_data_inputs,
             self._get_data_outputs,
@@ -764,7 +659,7 @@ class Composite(Node, ABC):
         self, connections: list[tuple[tuple[str, str], tuple[str, str]]]
     ) -> None:
         self._restore_connections_from_strings(
-            self.nodes,
+            self.children,
             connections,
             self._get_signals_input,
             self._get_signals_output,
@@ -774,10 +669,8 @@ class Composite(Node, ABC):
     def import_ready(self) -> bool:
         return super().import_ready and all(node.import_ready for node in self)
 
-    def _report_import_readiness(self, tabs=0, report_so_far=""):
-        report = super()._report_import_readiness(
-            tabs=tabs, report_so_far=report_so_far
-        )
+    def report_import_readiness(self, tabs=0, report_so_far=""):
+        report = super().report_import_readiness(tabs=tabs, report_so_far=report_so_far)
         for node in self:
-            report = node._report_import_readiness(tabs=tabs + 1, report_so_far=report)
+            report = node.report_import_readiness(tabs=tabs + 1, report_so_far=report)
         return report

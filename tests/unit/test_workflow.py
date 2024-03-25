@@ -5,8 +5,9 @@ import unittest
 
 from pyiron_workflow._tests import ensure_tests_in_python_path
 from pyiron_workflow.channels import NOT_DATA
+from pyiron_workflow.semantics import ParentMostError
 from pyiron_workflow.snippets.dotdict import DotDict
-from pyiron_workflow.storage import TypeNotFoundError, ALLOWED_BACKENDS
+from pyiron_workflow.storage import TypeNotFoundError
 from pyiron_workflow.workflow import Workflow
 
 
@@ -15,7 +16,7 @@ def plus_one(x=0):
     return y
 
 
-@Workflow.wrap_as.single_value_node("y")
+@Workflow.wrap_as.function_node("y")
 def PlusOne(x: int = 0):
     return x + 1
 
@@ -75,15 +76,23 @@ class TestWorkflow(unittest.TestCase):
         wf = Workflow("wf")
         wf2 = Workflow("wf2")
 
-        with self.assertRaises(TypeError):
-            # Setting a non-None value to parent raises the type error from the setter
+        with self.assertRaises(
+            ParentMostError,
+            msg="Workflows are promised in the docs to be parent-most"
+        ):
+            wf.parent = wf2
+
+        with self.assertRaises(
+            ParentMostError,
+            msg="We want to catch parent-most failures early when assigning children"
+        ):
             wf.sub_wf = wf2
 
     def test_with_executor(self):
 
         wf = Workflow("wf")
-        wf.a = wf.create.SingleValue(plus_one)
-        wf.b = wf.create.SingleValue(plus_one, x=wf.a)
+        wf.a = wf.create.Function(plus_one)
+        wf.b = wf.create.Function(plus_one, x=wf.a)
 
         original_a = wf.a
         wf.executor = wf.create.Executor()
@@ -109,7 +118,7 @@ class TestWorkflow(unittest.TestCase):
         )
         self.assertIs(
             wf,
-            wf.nodes.a.parent,
+            wf.a.parent,
             msg="Returned nodes should get the macro as their parent"
         )
         self.assertIsNone(
@@ -128,13 +137,13 @@ class TestWorkflow(unittest.TestCase):
     def test_parallel_execution(self):
         wf = Workflow("wf")
 
-        @Workflow.wrap_as.single_value_node()
+        @Workflow.wrap_as.function_node()
         def five(sleep_time=0.):
             sleep(sleep_time)
             five = 5
             return five
 
-        @Workflow.wrap_as.single_value_node("sum")
+        @Workflow.wrap_as.function_node("sum")
         def sum(a, b):
             return a + b
 
@@ -180,10 +189,10 @@ class TestWorkflow(unittest.TestCase):
     def test_call(self):
         wf = Workflow("wf")
 
-        wf.a = wf.create.SingleValue(plus_one)
-        wf.b = wf.create.SingleValue(plus_one)
+        wf.a = wf.create.Function(plus_one)
+        wf.b = wf.create.Function(plus_one)
 
-        @Workflow.wrap_as.single_value_node("sum")
+        @Workflow.wrap_as.function_node("sum")
         def sum_(a, b):
             return a + b
 
@@ -210,8 +219,8 @@ class TestWorkflow(unittest.TestCase):
 
     def test_return_value(self):
         wf = Workflow("wf")
-        wf.a = wf.create.SingleValue(plus_one)
-        wf.b = wf.create.SingleValue(plus_one, x=wf.a)
+        wf.a = wf.create.Function(plus_one)
+        wf.b = wf.create.Function(plus_one, x=wf.a)
 
         with self.subTest("Run on main process"):
             return_on_call = wf(a__x=1)
@@ -232,7 +241,7 @@ class TestWorkflow(unittest.TestCase):
             )
 
     def test_execution_automation(self):
-        @Workflow.wrap_as.single_value_node("out")
+        @Workflow.wrap_as.function_node("out")
         def foo(x, y):
             return x + y
 
@@ -301,13 +310,13 @@ class TestWorkflow(unittest.TestCase):
 
     def test_pull_and_executors(self):
         def add_three_macro(macro):
-            macro.one = Workflow.create.SingleValue(plus_one)
-            macro.two = Workflow.create.SingleValue(plus_one, x=macro.one)
-            macro.three = Workflow.create.SingleValue(plus_one, x=macro.two)
+            macro.one = Workflow.create.Function(plus_one)
+            macro.two = Workflow.create.Function(plus_one, x=macro.one)
+            macro.three = Workflow.create.Function(plus_one, x=macro.two)
 
         wf = Workflow("pulling")
 
-        wf.n1 = Workflow.create.SingleValue(plus_one, x=0)
+        wf.n1 = Workflow.create.Function(plus_one, x=0)
         wf.m = Workflow.create.Macro(add_three_macro, one__x=wf.n1)
 
         self.assertEquals(
@@ -339,7 +348,7 @@ class TestWorkflow(unittest.TestCase):
 
     @unittest.skipIf(sys.version_info < (3, 11), "Storage will only work in 3.11+")
     def test_storage_values(self):
-        for backend in ALLOWED_BACKENDS:
+        for backend in Workflow.allowed_backends():
             with self.subTest(backend):
                 wf = Workflow("wf", storage_backend=backend)
                 try:
@@ -372,11 +381,11 @@ class TestWorkflow(unittest.TestCase):
         wf.register("static.demo_nodes", "demo")
 
         # Test invocation
-        wf.add_node(wf.create.demo.AddPlusOne(label="by_add"))
+        wf.add_child(wf.create.demo.AddPlusOne(label="by_add"))
         # Note that the type hint `Optional[int]` from OptionallyAdd defines a custom
         # reconstructor, which borks h5io
 
-        for backend in ALLOWED_BACKENDS:
+        for backend in Workflow.allowed_backends():
             with self.subTest(backend):
                 try:
                     wf.storage_backend = backend
@@ -388,7 +397,7 @@ class TestWorkflow(unittest.TestCase):
         with self.subTest("No unimportable nodes for either back-end"):
             try:
                 wf.import_type_mismatch = wf.create.demo.dynamic()
-                for backend in ALLOWED_BACKENDS:
+                for backend in Workflow.allowed_backends():
                     with self.subTest(backend):
                         with self.assertRaises(
                             TypeNotFoundError,
@@ -398,10 +407,10 @@ class TestWorkflow(unittest.TestCase):
                             wf.storage_backend = backend
                             wf.save()
             finally:
-                wf.remove_node(wf.import_type_mismatch)
+                wf.remove_child(wf.import_type_mismatch)
 
-        if "h5io" in ALLOWED_BACKENDS:
-            wf.add_node(PlusOne(label="local_but_importable"))
+        if "h5io" in Workflow.allowed_backends():
+            wf.add_child(PlusOne(label="local_but_importable"))
             try:
                 wf.storage_backend = "h5io"
                 wf.save()
@@ -409,7 +418,7 @@ class TestWorkflow(unittest.TestCase):
             finally:
                 wf.storage.delete()
 
-        if "tinybase" in ALLOWED_BACKENDS:
+        if "tinybase" in Workflow.allowed_backends():
             with self.assertRaises(
                 NotImplementedError,
                 msg="Storage docs for tinybase claim all children must be registered "
@@ -418,7 +427,7 @@ class TestWorkflow(unittest.TestCase):
                 wf.storage_backend = "tinybase"
                 wf.save()
 
-        if "h5io" in ALLOWED_BACKENDS:
+        if "h5io" in Workflow.allowed_backends():
             with self.subTest("Instanced node"):
                 wf.direct_instance = Workflow.create.Function(plus_one)
                 try:
@@ -430,17 +439,17 @@ class TestWorkflow(unittest.TestCase):
                         wf.storage_backend = "h5io"
                         wf.save()
                 finally:
-                    wf.remove_node(wf.direct_instance)
+                    wf.remove_child(wf.direct_instance)
                     wf.storage.delete()
 
         with self.subTest("Unimportable node"):
-            @Workflow.wrap_as.single_value_node("y")
+            @Workflow.wrap_as.function_node("y")
             def UnimportableScope(x):
                 return x
 
             wf.unimportable_scope = UnimportableScope()
 
-            if "h5io" in ALLOWED_BACKENDS:
+            if "h5io" in Workflow.allowed_backends():
                 try:
                     with self.assertRaises(
                         TypeNotFoundError,
@@ -450,7 +459,7 @@ class TestWorkflow(unittest.TestCase):
                         wf.storage_backend = "h5io"
                         wf.save()
                 finally:
-                    wf.remove_node(wf.unimportable_scope)
+                    wf.remove_child(wf.unimportable_scope)
                     wf.storage.delete()
 
 

@@ -1,7 +1,7 @@
-from pyiron_workflow.function import single_value_node, function_node
+from pyiron_workflow.function import function_node
 
 
-@single_value_node()
+@function_node()
 def static(atoms=None, engine=None, _internal=None, keys_to_store=None):
     from pyiron_workflow.node_library.atomistic.calculator.data import OutputCalcStatic
 

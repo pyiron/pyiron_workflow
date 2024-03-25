@@ -1,6 +1,6 @@
 import numpy as np
 
-from pyiron_workflow.function import single_value_node
+from pyiron_workflow.function import function_node
 from pyiron_workflow.node_library.dev_tools import wf_data_class
 from dataclasses import field
 
@@ -39,7 +39,7 @@ class DataStructureContainer:
     stress: list = field(default_factory=lambda: [])
 
 
-@single_value_node()
+@function_node()
 def elastic_constants(structure, calculator=None, engine=None):
     structure_table = generate_structures(structure).run()
 
@@ -63,7 +63,7 @@ def elastic_constants(structure, calculator=None, engine=None):
     return elastic
 
 
-@single_value_node()
+@function_node()
 def symmetry_analysis(structure, parameters: InputElasticTensor = InputElasticTensor()):
     out = OutputElasticSymmetryAnalysis(structure)
 
@@ -78,7 +78,7 @@ def symmetry_analysis(structure, parameters: InputElasticTensor = InputElasticTe
     return out
 
 
-@single_value_node("structures")
+@function_node("structures")
 def generate_structures(
     structure, parameters: InputElasticTensor = InputElasticTensor()
 ):
@@ -168,7 +168,7 @@ class OutputElasticAnalysis:
     C_eigval: np.ndarray = field(default_factory=lambda: np.zeros(0))
 
 
-@single_value_node("structures")
+@function_node("structures")
 def analyse_structures(
     data_df: DataStructureContainer,
     parameters: InputElasticTensor = InputElasticTensor(),

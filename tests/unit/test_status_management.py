@@ -2,7 +2,7 @@ from concurrent.futures import Future
 
 import unittest
 
-from pyiron_workflow.node import manage_status
+from pyiron_workflow.run import manage_status
 
 
 class FauxNode:

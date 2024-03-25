@@ -2,7 +2,7 @@ from typing import Optional, Union
 
 
 # from pyiron_workflow.macro import Macro, macro_node
-from pyiron_workflow.function import single_value_node, function_node
+from pyiron_workflow.function import function_node
 from pyiron_workflow.node_library.dev_tools import wf_data_class, parse_input_kwargs
 
 
@@ -22,7 +22,7 @@ class InputPhonopyGenerateSupercells:
     max_distance: Optional[float] = None
 
 
-# @single_value_node()
+# @function_node()
 def generate_supercells(phonopy, parameters: InputPhonopyGenerateSupercells):
     from structuretoolkit.common import phonopy_to_atoms
 
@@ -32,7 +32,7 @@ def generate_supercells(phonopy, parameters: InputPhonopyGenerateSupercells):
     return supercells
 
 
-@single_value_node("parameters")
+@function_node("parameters")
 def PhonopyParameters(
     distance: float = 0.01,
     is_plusminus: Union[str, bool] = "auto",
@@ -89,7 +89,7 @@ def create_phonopy(
     return phonopy, out
 
 
-@single_value_node()
+@function_node()
 def get_dynamical_matrix(phonopy, q=[0, 0, 0]):
     import numpy as np
 
@@ -101,7 +101,7 @@ def get_dynamical_matrix(phonopy, q=[0, 0, 0]):
     return dynamical_matrix
 
 
-@single_value_node()
+@function_node()
 def get_eigenvalues(matrix):
     import numpy as np
 
@@ -109,7 +109,7 @@ def get_eigenvalues(matrix):
     return ew
 
 
-@single_value_node()
+@function_node()
 def check_consistency(phonopy, tolerance: float = 1e-10):
     dyn_matrix = get_dynamical_matrix(phonopy).run()
     ew = get_eigenvalues(dyn_matrix).run()
@@ -123,7 +123,7 @@ def check_consistency(phonopy, tolerance: float = 1e-10):
     return has_imaginary_modes
 
 
-@single_value_node()
+@function_node()
 def get_total_dos(phonopy, mesh=3 * [10]):
     from pandas import DataFrame
 
