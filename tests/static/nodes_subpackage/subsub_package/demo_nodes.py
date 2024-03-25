@@ -7,7 +7,7 @@ from typing import Optional
 from pyiron_workflow import Workflow
 
 
-@Workflow.wrap_as.single_value_node("sum")
+@Workflow.wrap_as.function_node("sum")
 def OptionallyAdd(x: int, y: Optional[int] = None) -> int:
     y = 0 if y is None else y
     return x + y

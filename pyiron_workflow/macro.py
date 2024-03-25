@@ -13,7 +13,7 @@ from bidict import bidict
 
 from pyiron_workflow.channels import InputData, OutputData, NOT_DATA
 from pyiron_workflow.composite import Composite
-from pyiron_workflow.has_channel import HasChannel
+from pyiron_workflow.has_interface_mixins import HasChannel
 from pyiron_workflow.io import Outputs, Inputs
 from pyiron_workflow.output_parser import ParseOutput
 
@@ -38,7 +38,7 @@ class Macro(Composite):
     This can be especially helpful when more than one child node needs access to the
     same input value.
     Similarly, the callable may return any number of child nodes' output channels (or
-    the node itself in the case of :class:`SingleValue` nodes) and commensurate
+    the node itself in the case of single-output nodes) and commensurate
     :attr:`output_labels` to define macro-level output.
     These function-like definitions of the graph creator callable can be used
     independently or together.
@@ -93,9 +93,9 @@ class Macro(Composite):
         ...     return result
         >>>
         >>> def add_three_macro(macro):
-        ...     macro.one = macro.create.SingleValue(add_one)
-        ...     macro.two = macro.create.SingleValue(add_one, macro.one)
-        ...     macro.three = macro.create.SingleValue(add_one, macro.two)
+        ...     macro.one = macro.create.Function(add_one)
+        ...     macro.two = macro.create.Function(add_one, macro.one)
+        ...     macro.three = macro.create.Function(add_one, macro.two)
         ...     macro.one >> macro.two >> macro.three
         ...     macro.starting_nodes = [macro.one]
 
@@ -139,9 +139,9 @@ class Macro(Composite):
         internally-connected IO by inputs and outputs maps:
 
         >>> def nested_macro(macro):
-        ...     macro.a = macro.create.SingleValue(add_one)
+        ...     macro.a = macro.create.Function(add_one)
         ...     macro.b = macro.create.Macro(add_three_macro, one__x=macro.a)
-        ...     macro.c = macro.create.SingleValue(
+        ...     macro.c = macro.create.Function(
         ...         add_one, x=macro.b.outputs.three__result
         ...     )
         >>>
@@ -158,9 +158,9 @@ class Macro(Composite):
         Let's build a simple macro with two independent tracks:
 
         >>> def modified_flow_macro(macro):
-        ...     macro.a = macro.create.SingleValue(add_one, x=0)
-        ...     macro.b = macro.create.SingleValue(add_one, x=0)
-        ...     macro.c = macro.create.SingleValue(add_one, x=0)
+        ...     macro.a = macro.create.Function(add_one, x=0)
+        ...     macro.b = macro.create.Function(add_one, x=0)
+        ...     macro.c = macro.create.Function(add_one, x=0)
         >>>
         >>> m = Macro(modified_flow_macro)
         >>> m(a__x=1, b__x=2, c__x=3)
@@ -189,7 +189,7 @@ class Macro(Composite):
         to do this. Let's explore these by going back to our `add_three_macro` and
         replacing each of its children with a node that adds 2 instead of 1.
 
-        >>> @Macro.wrap_as.single_value_node()
+        >>> @Macro.wrap_as.function_node()
         ... def add_two(x):
         ...     result = x + 2
         ...     return result
@@ -198,7 +198,7 @@ class Macro(Composite):
         >>> # With the replace method
         >>> # (replacement target can be specified by label or instance,
         >>> # the replacing node can be specified by instance or class)
-        >>> replaced = adds_six_macro.replace_node(adds_six_macro.one, add_two())
+        >>> replaced = adds_six_macro.replace_child(adds_six_macro.one, add_two())
         >>> # With the replace_with method
         >>> adds_six_macro.two.replace_with(add_two())
         >>> # And by assignment of a compatible class to an occupied node label
@@ -210,7 +210,7 @@ class Macro(Composite):
         provide a more :class:`Function(Node)`-like definition of the :meth:`graph_creator` by
         adding args and/or kwargs to the signature (under the hood, this dynamically
         creates new :class:`UserInput` nodes before running the rest of the graph creation),
-        and/or returning child channels (or whole children in the case of :class:`SingleValue`
+        and/or returning child channels (or whole children in the case of single-output
         nodes) and providing commensurate :attr:`output_labels`.
         This process switches us from the :class:`Workflow` default of exposing all
         unconnected child IO, to a "whitelist" paradigm of _only_ showing the IO that
@@ -295,7 +295,6 @@ class Macro(Composite):
             # If a callable graph creator is received, use it
             self.graph_creator = graph_creator
 
-        self._parent = None
         super().__init__(
             label=label if label is not None else self.graph_creator.__name__,
             parent=parent,
@@ -317,14 +316,9 @@ class Macro(Composite):
         if len(ui_nodes) > 0:
             self._whitelist_inputs_map(*ui_nodes)
         if returned_has_channel_objects is not None:
-            self._whitelist_outputs_map(
-                output_labels,
-                *(
-                    (returned_has_channel_objects,)
-                    if not isinstance(returned_has_channel_objects, tuple)
-                    else returned_has_channel_objects
-                ),
-            )
+            if not isinstance(returned_has_channel_objects, tuple):
+                returned_has_channel_objects = (returned_has_channel_objects,)
+            self._whitelist_outputs_map(output_labels, *returned_has_channel_objects)
 
         self._inputs: Inputs = self._build_inputs()
         self._outputs: Outputs = self._build_outputs()
@@ -407,6 +401,14 @@ class Macro(Composite):
         leverage the supplied output labels, and updates the map to disable all other
         output that wasn't explicitly mapped already.
         """
+        for new_label, ui_node in zip(output_labels, creator_returns):
+            if not isinstance(ui_node, HasChannel):
+                raise TypeError(
+                    f"Your node `{new_label}` does not have `channel`. There"
+                    + " are following nodes that can be returned:"
+                    + f" {self.node_labels}. More can be found from this page:"
+                    + " https://github.com/pyiron/pyiron_workflow"
+                )
         self.outputs_map = self._hide_non_whitelisted_io(
             self._whitelist_map(self.outputs_map, output_labels, creator_returns),
             "outputs",
@@ -437,7 +439,7 @@ class Macro(Composite):
         io_map = dict(io_map)
         # We do it in two steps like this to leverage the bidict security on the setter
         # Since bidict can't handle getting `None` (i.e. disable) for multiple keys
-        for node in self.nodes.values():
+        for node in self.children.values():
             for channel in getattr(node, i_or_o):
                 if channel.scoped_label not in io_map.keys():
                     io_map[channel.scoped_label] = None
@@ -456,7 +458,7 @@ class Macro(Composite):
         """
         composite_channel = child_reference_channel.__class__(
             label=composite_io_key,
-            node=self,
+            owner=self,
             default=child_reference_channel.default,
             type_hint=child_reference_channel.type_hint,
         )
@@ -550,7 +552,7 @@ class Macro(Composite):
         # Nodes instantiated in macros probably aren't aware of their parent at
         # instantiation time, and thus may be clean (un-loaded) objects --
         # reload their data
-        for label, node in self.nodes.items():
+        for label, node in self.children.items():
             node.from_storage(storage[label])
 
     @property
@@ -563,7 +565,7 @@ class Macro(Composite):
         the name is protected.
         """
         return [
-            (c.label, (c.value_receiver.node.label, c.value_receiver.label))
+            (c.label, (c.value_receiver.owner.label, c.value_receiver.label))
             for c in self.inputs
         ]
 
@@ -577,7 +579,7 @@ class Macro(Composite):
         the name is protected.
         """
         return [
-            ((c.node.label, c.label), c.value_receiver.label)
+            ((c.owner.label, c.label), c.value_receiver.label)
             for child in self
             for c in child.outputs
             if c.value_receiver is not None
@@ -598,10 +600,10 @@ class Macro(Composite):
 
         # Re-forge value links
         for inp, (child, child_inp) in input_links:
-            self.inputs[inp].value_receiver = self.nodes[child].inputs[child_inp]
+            self.inputs[inp].value_receiver = self.children[child].inputs[child_inp]
 
         for (child, child_out), out in output_links:
-            self.nodes[child].outputs[child_out].value_receiver = self.outputs[out]
+            self.children[child].outputs[child_out].value_receiver = self.outputs[out]
 
 
 def macro_node(*output_labels, **node_class_kwargs):

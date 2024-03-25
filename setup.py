@@ -30,7 +30,7 @@ setup(
     install_requires=[
         'bidict==0.23.1',
         'cloudpickle==3.0.0',
-        'graphviz==0.20.1',
+        'graphviz==0.20.3',
         'h5io==0.2.2',
         'h5io_browser==0.0.9',
         'matplotlib==3.8.3',

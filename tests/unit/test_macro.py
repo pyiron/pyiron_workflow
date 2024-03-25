@@ -8,9 +8,8 @@ import unittest
 
 from pyiron_workflow._tests import ensure_tests_in_python_path
 from pyiron_workflow.channels import NOT_DATA
-from pyiron_workflow.function import SingleValue
+from pyiron_workflow.function import Function
 from pyiron_workflow.macro import Macro, macro_node
-from pyiron_workflow.storage import ALLOWED_BACKENDS
 from pyiron_workflow.topology import CircularDataFlowError
 
 
@@ -20,11 +19,16 @@ def add_one(x):
 
 
 def add_three_macro(macro):
-    macro.one = SingleValue(add_one)
-    SingleValue(add_one, macro.one, label="two", parent=macro)
-    macro.add_node(SingleValue(add_one, macro.two, label="three"))
+    macro.one = Function(add_one)
+    Function(add_one, macro.one, label="two", parent=macro)
+    macro.add_child(Function(add_one, macro.two, label="three"))
     # Cover a handful of addition methods,
     # although these are more thoroughly tested in Workflow tests
+
+
+def wrong_return_macro(macro):
+    macro.one = Function(add_one)
+    return 3
 
 
 class TestMacro(unittest.TestCase):
@@ -187,7 +191,7 @@ class TestMacro(unittest.TestCase):
 
     def test_nesting(self):
         def nested_macro(macro):
-            macro.a = SingleValue(add_one)
+            macro.a = Function(add_one)
             macro.b = Macro(
                 add_three_macro,
                 one__x=macro.a,
@@ -198,7 +202,7 @@ class TestMacro(unittest.TestCase):
                 one__x=macro.b.outputs.three__result,
                 outputs_map={"two__result": "intermediate_result"}
             )
-            macro.d = SingleValue(
+            macro.d = Function(
                 add_one,
                 x=macro.c.outputs.three__result,
             )
@@ -214,7 +218,7 @@ class TestMacro(unittest.TestCase):
 
     def test_with_executor(self):
         macro = Macro(add_three_macro)
-        downstream = SingleValue(add_one, x=macro.outputs.three__result)
+        downstream = Function(add_one, x=macro.outputs.three__result)
         macro >> downstream  # Manually specify since we'll run the macro but look
         # at the downstream output, and none of this is happening in a workflow
 
@@ -258,7 +262,7 @@ class TestMacro(unittest.TestCase):
         # )  # You can't do this, result.result() is returning new instances each call
         self.assertIs(
             macro,
-            macro.nodes.one.parent,
+            macro.one.parent,
             msg="Returned nodes should get the macro as their parent"
             # Once upon a time there was some evidence that this test was failing
             # stochastically, but I just ran the whole test suite 6 times and this test
@@ -292,7 +296,7 @@ class TestMacro(unittest.TestCase):
         macro.executor_shutdown()
 
     def test_pulling_from_inside_a_macro(self):
-        upstream = SingleValue(add_one, x=2)
+        upstream = Function(add_one, x=2)
         macro = Macro(add_three_macro, one__x=upstream)
         macro.inputs.one__x = 0  # Set value
         # Now macro.one.inputs.x has both value and a connection
@@ -319,8 +323,8 @@ class TestMacro(unittest.TestCase):
 
         with self.subTest("When the local scope has cyclic data flow"):
             def cyclic_macro(macro):
-                macro.one = SingleValue(add_one)
-                macro.two = SingleValue(add_one, x=macro.one)
+                macro.one = Function(add_one)
+                macro.two = Function(add_one, x=macro.one)
                 macro.one.inputs.x = macro.two
                 macro.one >> macro.two
                 macro.starting_nodes = [macro.one]
@@ -328,7 +332,7 @@ class TestMacro(unittest.TestCase):
 
             m = Macro(cyclic_macro)
 
-            initial_labels = list(m.nodes.keys())
+            initial_labels = list(m.children.keys())
 
             def grab_connections(macro):
                 return grab_x_and_run(macro.one) + grab_x_and_run(macro.two)
@@ -342,7 +346,7 @@ class TestMacro(unittest.TestCase):
                 m.two.pull()
             self.assertListEqual(
                 initial_labels,
-                list(m.nodes.keys()),
+                list(m.children.keys()),
                 msg="Labels should be restored after failing to pull because of "
                     "acyclicity"
             )
@@ -355,8 +359,8 @@ class TestMacro(unittest.TestCase):
             )
 
         with self.subTest("When the parent scope has cyclic data flow"):
-            n1 = SingleValue(add_one, label="n1", x=0)
-            n2 = SingleValue(add_one, label="n2", x=n1)
+            n1 = Function(add_one, label="n1", x=0)
+            n2 = Function(add_one, label="n2", x=n1)
             m = Macro(add_three_macro, label="m", one__x=n2)
 
             self.assertEqual(
@@ -400,9 +404,9 @@ class TestMacro(unittest.TestCase):
                 y = 1 / x
                 return y
 
-            n1 = SingleValue(fail_at_zero, x=0)
-            n2 = SingleValue(add_one, x=n1, label="n1")
-            n_not_used = SingleValue(add_one)
+            n1 = Function(fail_at_zero, x=0)
+            n2 = Function(add_one, x=n1, label="n1")
+            n_not_used = Function(add_one)
             n_not_used >> n2  # Just here to make sure it gets restored
 
             with self.assertRaises(
@@ -417,7 +421,7 @@ class TestMacro(unittest.TestCase):
             )
             self.assertIs(
                 n_not_used,
-                n2.signals.input.run.connections[0].node,
+                n2.signals.input.run.connections[0].owner,
                 msg="Original connections should get restored on upstream failure"
             )
 
@@ -526,19 +530,19 @@ class TestMacro(unittest.TestCase):
         ensure_tests_in_python_path()
         Macro.register("static.demo_nodes", domain="demo")
 
-        for backend in ALLOWED_BACKENDS:
+        for backend in Macro.allowed_backends():
             with self.subTest(backend):
                 try:
                     macro = Macro.create.demo.AddThree(
                         label="m", x=0, storage_backend=backend
                     )
                     original_result = macro()
-                    macro.replace_node(macro.two, Macro.create.demo.AddPlusOne())
+                    macro.replace_child(macro.two, Macro.create.demo.AddPlusOne())
 
                     if backend == "h5io":
                         # Go really wild and actually change the interface to the node
                         # By replacing one of the terminal nodes
-                        macro.remove_node(macro.three)
+                        macro.remove_child(macro.three)
                         macro.five = Macro.create.standard.Add(macro.two, 1)
                         macro.two >> macro.five
                         macro._rebuild_data_io()  # Need this because of the
@@ -558,13 +562,13 @@ class TestMacro(unittest.TestCase):
                         msg="Updated IO should have been (de)serialized"
                     )
                     self.assertSetEqual(
-                        set(macro.nodes.keys()),
-                        set(reloaded.nodes.keys()),
+                        set(macro.children.keys()),
+                        set(reloaded.children.keys()),
                         msg="All nodes should have been (de)serialized."
                     )  # Note that this snags the _new_ one in the case of h5io!
                     self.assertEqual(
                         Macro.create.demo.AddThree.__name__,
-                        reloaded.class_name,
+                        reloaded.__class__.__name__,
                         msg=f"LOOK OUT! This all (de)serialized nicely, but what we "
                             f"loaded is _falsely_ claiming to be an "
                             f"{Macro.create.demo.AddThree.__name__}. This is "
@@ -593,6 +597,13 @@ class TestMacro(unittest.TestCase):
                         raise ValueError(f"Unexpected backend {backend}?")
                 finally:
                     macro.storage.delete()
+
+    def test_wrong_return(self):
+        with self.assertRaises(
+            TypeError,
+            msg="Macro returning object without channel did not raise an error"
+        ):
+            Macro(wrong_return_macro)
 
 
 if __name__ == '__main__':
