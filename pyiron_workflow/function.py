@@ -363,7 +363,8 @@ class AbstractFunction(Node, ABC):
         """The result of :func:`typing.get_type_hints` on the :meth:`node_function`."""
         return get_type_hints(cls.node_function)
 
-    def _get_output_labels(self, output_labels: str | list[str] | tuple[str] | None):
+    @classmethod
+    def _get_output_labels(cls, output_labels: str | list[str] | tuple[str] | None):
         """
         If output labels are provided, turn convert them to a list if passed as a
         string and return them, else scrape them from the source channel.
@@ -372,13 +373,14 @@ class AbstractFunction(Node, ABC):
         responsibility that these are correct, e.g. in terms of quantity, order, etc.
         """
         if output_labels is None:
-            return self._scrape_output_labels()
+            return cls._scrape_output_labels()
         elif isinstance(output_labels, str):
             return [output_labels]
         else:
             return output_labels
 
-    def _scrape_output_labels(self):
+    @classmethod
+    def _scrape_output_labels(cls):
         """
         Inspect the source code to scrape out strings representing the returned values.
         _Only_ works for functions with a single `return` expression in their body.
@@ -387,12 +389,12 @@ class AbstractFunction(Node, ABC):
         create well-named variables and return those so that the output labels stay
         dot-accessible.
         """
-        parsed_outputs = ParseOutput(self.node_function).output
+        parsed_outputs = ParseOutput(cls.node_function).output
         return [None] if parsed_outputs is None else parsed_outputs
 
-    @property
-    def _input_args(self):
-        return inspect.signature(self.node_function).parameters
+    @classmethod
+    def _input_args(cls):
+        return inspect.signature(cls.node_function).parameters
 
     @property
     def inputs(self) -> Inputs:
@@ -409,8 +411,7 @@ class AbstractFunction(Node, ABC):
     def _build_input_channels(self):
         channels = []
         type_hints = self._type_hints()
-
-        for ii, (label, value) in enumerate(self._input_args.items()):
+        for ii, (label, value) in enumerate(self._input_args().items()):
             is_self = False
             if label == "self":  # `self` is reserved for the node object
                 if ii == 0:
@@ -422,12 +423,12 @@ class AbstractFunction(Node, ABC):
                         " argument. If it is to be treated as the node object,"
                         " use it as a first argument"
                     )
-            if label in self._init_keywords:
+            elif label in self._init_keywords():
                 # We allow users to parse arbitrary kwargs as channel initialization
                 # So don't let them choose bad channel names
                 raise ValueError(
                     f"The Input channel name {label} is not valid. Please choose a "
-                    f"name _not_ among {self._init_keywords}"
+                    f"name _not_ among {self._init_keywords()}"
                 )
 
             try:
@@ -455,9 +456,9 @@ class AbstractFunction(Node, ABC):
                 )
         return channels
 
-    @property
-    def _init_keywords(self):
-        return list(inspect.signature(self.__init__).parameters.keys())
+    @classmethod
+    def _init_keywords(cls):
+        return list(inspect.signature(cls.__init__).parameters.keys())
 
     def _build_output_channels(self, *return_labels: str):
         try:
@@ -501,7 +502,7 @@ class AbstractFunction(Node, ABC):
     @property
     def run_args(self) -> dict:
         kwargs = self.inputs.to_value_dict()
-        if "self" in self._input_args:
+        if "self" in self._input_args():
             if self.executor:
                 raise ValueError(
                     f"Function node {self.label} uses the `self` argument, but this "
@@ -522,7 +523,7 @@ class AbstractFunction(Node, ABC):
         return function_output
 
     def _convert_input_args_and_kwargs_to_input_kwargs(self, *args, **kwargs):
-        reverse_keys = list(self._input_args.keys())[::-1]
+        reverse_keys = list(self._input_args().keys())[::-1]
         if len(args) > len(reverse_keys):
             raise ValueError(
                 f"Received {len(args)} positional arguments, but the node {self.label}"
