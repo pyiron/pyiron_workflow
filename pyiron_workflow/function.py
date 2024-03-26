@@ -578,41 +578,46 @@ class AbstractFunction(Node, ABC):
         return SeabornColors.green
 
 
-def Function(
-    node_function: callable,
-    *args,
-    label: Optional[str] = None,
-    parent: Optional[Composite] = None,
-    overwrite_save: bool = False,
-    run_after_init: bool = False,
-    storage_backend: Optional[Literal["h5io", "tinybase"]] = None,
-    save_after_run: bool = False,
-    output_labels: Optional[str | list[str] | tuple[str]] = None,
-    **kwargs,
-):
-    if not callable(node_function):
-        # `Function` quacks like a class, even though it's a function and
-        # dynamically creates children of `AbstractFunction` by providing the necessary
-        # callable to the decorator
-        raise AttributeError(
-            f"Expected `node_function` to be callable but got {node_function}"
-        )
+class Function:
+    """
+    Not an actual function class, just a mis-direction that dynamically creates a new
+    child of :class:`AbstractFunction` using the provided :func:`node_function` and
+    creates an instance of that.
+    """
 
-    if output_labels is None:
-        output_labels = ()
-    elif isinstance(output_labels, str):
-        output_labels = (output_labels,)
-
-    return function_node(*output_labels)(node_function)(
+    def __new__(
+        cls,
+        node_function: callable,
         *args,
-        label=label,
-        parent=parent,
-        overwrite_save=overwrite_save,
-        run_after_init=run_after_init,
-        storage_backend=storage_backend,
-        save_after_run=save_after_run,
+        label: Optional[str] = None,
+        parent: Optional[Composite] = None,
+        overwrite_save: bool = False,
+        run_after_init: bool = False,
+        storage_backend: Optional[Literal["h5io", "tinybase"]] = None,
+        save_after_run: bool = False,
+        output_labels: Optional[str | list[str] | tuple[str]] = None,
         **kwargs,
-    )
+    ):
+        if not callable(node_function):
+            raise AttributeError(
+                f"Expected `node_function` to be callable but got {node_function}"
+            )
+
+        if output_labels is None:
+            output_labels = ()
+        elif isinstance(output_labels, str):
+            output_labels = (output_labels,)
+
+        return function_node(*output_labels)(node_function)(
+            *args,
+            label=label,
+            parent=parent,
+            overwrite_save=overwrite_save,
+            run_after_init=run_after_init,
+            storage_backend=storage_backend,
+            save_after_run=save_after_run,
+            **kwargs,
+        )
 
 
 def function_node(*output_labels: str):
