@@ -251,6 +251,14 @@ class AbstractFunction(Node, ABC):
         ...         letter = ["a", "b", "c"][i % 3]
         ...         return letter
 
+        Notice here that we're inheriting from `AbstractFunction` and not just
+        `Function` we were using before. Under the hood, `Function` is actually a
+        very minimal class that is _dynamically_ creating a new child of
+        `AbstractFunction` that uses the provided `node_function` and returning you an
+        instance of this new dynamic class! So you can't inherit from it directly.
+        Anyhow, it is recommended to use the decorator on a function rather than direct
+        inheritance.
+
         Finally, let's put it all together by using both of these nodes at once.
         Instead of setting input to a particular data value, we'll set it to
         be another node's output channel, thus forming a connection.

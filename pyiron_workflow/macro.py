@@ -116,23 +116,6 @@ class AbstractMacro(Composite, ABC):
         >>> out.three__result
         6
 
-        If there's a particular macro we're going to use again and again, we might want
-        to consider making a new child class of :class:`Macro` that overrides the
-        :meth:`graph_creator` arg such that the same graph is always created. We could
-        override `__init__` the normal way, but it's even faster to just use
-        `partialmethod`:
-
-        >>> from functools import partialmethod
-        >>> from pyiron_workflow.macro import AbstractMacro
-        >>> class AddThreeMacro(AbstractMacro):
-        ...     @staticmethod
-        ...     def graph_creator(macro):
-        ...         add_three_macro(macro)
-        >>>
-        >>> macro = AddThreeMacro()
-        >>> macro(one__x=0).three__result
-        3
-
         We can also nest macros, rename their IO, and provide access to
         internally-connected IO by inputs and outputs maps:
 
@@ -181,6 +164,41 @@ class AbstractMacro(Composite, ABC):
         Manually controlling execution flow is necessary for cyclic graphs (cf. the
         while loop meta-node), but best to avoid when possible as it's easy to miss
         intended connections in complex graphs.
+
+        If there's a particular macro we're going to use again and again, we might want
+        to consider making a new class for it using the decorator, just like we do for
+        function nodes:
+
+        >>> @Macro.wrap_as.macro_node()
+        ... def AddThreeMacro(macro):
+        ...     add_three_macro(macro)  # We could also have decorated that function
+        ...     # to begin with
+        >>>
+        >>> macro = AddThreeMacro()
+        >>> macro(one__x=0).three__result
+        3
+
+        Alternatively (and not recommended) is to make a new child class of
+        :class:`AbstractMacro` that overrides the :meth:`graph_creator` arg such that
+        the same graph is always created.
+
+        >>> from pyiron_workflow.macro import AbstractMacro
+        >>> class AddThreeMacro(AbstractMacro):
+        ...     @staticmethod
+        ...     def graph_creator(macro):
+        ...         add_three_macro(macro)
+        >>>
+        >>> macro = AddThreeMacro()
+        >>> macro(one__x=0).three__result
+        3
+
+        Notice here that we're inheriting from `AbstractMacro` and not just
+        `Macro` we were using before. Under the hood, `Macro` is actually a
+        very minimal class that is _dynamically_ creating a new child of
+        `AbstractMacro` that uses the provided `graph_creator` and returning you an
+        instance of this new dynamic class! So you can't inherit from it directly.
+        Anyhow, it is recommended to use the decorator on a function rather than direct
+        inheritance.
 
         We can also modify an existing macro at runtime by replacing nodes within it, as
         long as the replacement has fully compatible IO. There are three syntacic ways
