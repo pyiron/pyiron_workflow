@@ -612,6 +612,7 @@ class Macro(HasCreator):
 
     Quacks like a :class:`Composite` for the sake of creating and registering nodes.
     """
+
     def __new__(
         cls,
         graph_creator,
