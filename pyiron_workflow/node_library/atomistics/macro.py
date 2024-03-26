@@ -1,4 +1,4 @@
-from pyiron_workflow.macro import Macro, macro_node
+from pyiron_workflow.macro import AbstractMacro, macro_node
 from pyiron_workflow.node_library.atomistics.calculator import CalcWithCalculator
 from pyiron_workflow.node_library.atomistics.task import (
     ElasticMatrixTaskGenerator,
@@ -9,8 +9,8 @@ from pyiron_workflow.node_library.atomistics.task import (
 )
 
 
-def atomistics_meta_macro(task_generator_node_class, macro_name) -> type[Macro]:
-    def generic_macro(wf: Macro) -> None:
+def atomistics_meta_macro(task_generator_node_class, macro_name) -> type[AbstractMacro]:
+    def generic_macro(wf: AbstractMacro) -> None:
         wf.tasks = task_generator_node_class()
         wf.structures = GenerateStructures(instance=wf.tasks)
         wf.calc = CalcWithCalculator(task_dict=wf.structures)

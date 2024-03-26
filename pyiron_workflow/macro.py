@@ -5,7 +5,8 @@ interface and are not intended to be internally modified after instantiation.
 
 from __future__ import annotations
 
-from functools import partialmethod
+from abc import ABC
+from functools import partialmethod, wraps
 import inspect
 from typing import get_type_hints, Literal, Optional, TYPE_CHECKING
 
@@ -13,6 +14,7 @@ from bidict import bidict
 
 from pyiron_workflow.channels import InputData, OutputData, NOT_DATA
 from pyiron_workflow.composite import Composite
+from pyiron_workflow.create import Creator, Wrappers
 from pyiron_workflow.has_interface_mixins import HasChannel
 from pyiron_workflow.io import Outputs, Inputs
 from pyiron_workflow.output_parser import ParseOutput
@@ -21,7 +23,7 @@ if TYPE_CHECKING:
     from pyiron_workflow.channels import Channel
 
 
-class Macro(Composite):
+class AbstractMacro(Composite, ABC):
     """
     A macro is a composite node that holds a graph with a fixed interface, like a
     pre-populated workflow that is the same every time you instantiate it.
@@ -121,15 +123,11 @@ class Macro(Composite):
         `partialmethod`:
 
         >>> from functools import partialmethod
-        >>> class AddThreeMacro(Macro):
+        >>> from pyiron_workflow.macro import AbstractMacro
+        >>> class AddThreeMacro(AbstractMacro):
         ...     @staticmethod
-        ...     def graph_creator(self):
-        ...         add_three_macro(self)
-        ...
-        ...     __init__ = partialmethod(
-        ...         Macro.__init__,
-        ...         None,  # We directly define the graph creator method on the class
-        ...     )
+        ...     def graph_creator(macro):
+        ...         add_three_macro(macro)
         >>>
         >>> macro = AddThreeMacro()
         >>> macro(one__x=0).three__result
@@ -265,7 +263,6 @@ class Macro(Composite):
 
     def __init__(
         self,
-        graph_creator: callable[[Macro], None],
         label: Optional[str] = None,
         parent: Optional[Composite] = None,
         overwrite_save: bool = False,
@@ -278,23 +275,6 @@ class Macro(Composite):
         output_labels: Optional[str | list[str] | tuple[str]] = None,
         **kwargs,
     ):
-        if not callable(graph_creator):
-            # Children of `Function` may explicitly provide a `node_function` static
-            # method so the node has fixed behaviour.
-            # In this case, the `__init__` signature should be changed so that the
-            # `node_function` argument is just always `None` or some other non-callable.
-            # If a callable `node_function` is not received, you'd better have it as an
-            # attribute already!
-            if not hasattr(self, "graph_creator"):
-                raise AttributeError(
-                    f"If `None` is provided as a `graph_creator`, a `graph_creator` "
-                    f"property must be defined instead, e.g. when making child classes"
-                    f"of `Macro` with specific behaviour"
-                )
-        else:
-            # If a callable graph creator is received, use it
-            self.graph_creator = graph_creator
-
         super().__init__(
             label=label if label is not None else self.graph_creator.__name__,
             parent=parent,
@@ -606,6 +586,69 @@ class Macro(Composite):
             self.children[child].outputs[child_out].value_receiver = self.outputs[out]
 
 
+class Macro:
+    """
+    Not an actual macro class, just a mis-direction that dynamically creates a new
+    child of :class:`AbstractMacro` using the provided :func:`graph_creator` and
+    creates an instance of that.
+
+    Quacks like a :class:`Composite` for the sake of creating and registering nodes.
+    """
+    def __new__(
+        cls,
+        graph_creator,
+        label: Optional[str] = None,
+        parent: Optional[Composite] = None,
+        overwrite_save: bool = False,
+        run_after_init: bool = False,
+        storage_backend: Optional[Literal["h5io", "tinybase"]] = None,
+        save_after_run: bool = False,
+        strict_naming: bool = True,
+        inputs_map: Optional[dict | bidict] = None,
+        outputs_map: Optional[dict | bidict] = None,
+        output_labels: Optional[str | list[str] | tuple[str]] = None,
+        **kwargs,
+    ):
+        if not callable(graph_creator):
+            # `Function` quacks like a class, even though it's a function and
+            # dynamically creates children of `AbstractFunction` by providing the necessary
+            # callable to the decorator
+            raise AttributeError(
+                f"Expected `graph_creator` to be callable but got {graph_creator}"
+            )
+
+        if output_labels is None:
+            output_labels = ()
+        elif isinstance(output_labels, str):
+            output_labels = (output_labels,)
+
+        return macro_node(*output_labels)(graph_creator)(
+            label=label,
+            parent=parent,
+            overwrite_save=overwrite_save,
+            run_after_init=run_after_init,
+            storage_backend=storage_backend,
+            save_after_run=save_after_run,
+            strict_naming=strict_naming,
+            inputs_map=inputs_map,
+            outputs_map=outputs_map,
+            **kwargs,
+        )
+
+    # Quack like a composite
+    create = Creator()
+    wrap_as = Wrappers()
+
+    @classmethod
+    @wraps(Creator.register)
+    def register(cls, package_identifier: str, domain: Optional[str] = None) -> None:
+        cls.create.register(package_identifier=package_identifier, domain=domain)
+
+    @classmethod
+    def allowed_backends(cls):
+        return tuple(AbstractMacro._storage_interfaces().keys())
+
+
 def macro_node(*output_labels, **node_class_kwargs):
     """
     A decorator for dynamically creating macro classes from graph-creating functions.
@@ -626,11 +669,10 @@ def macro_node(*output_labels, **node_class_kwargs):
     def as_node(graph_creator: callable[[Macro, ...], Optional[tuple[HasChannel]]]):
         return type(
             graph_creator.__name__,
-            (Macro,),  # Define parentage
+            (AbstractMacro,),  # Define parentage
             {
                 "__init__": partialmethod(
-                    Macro.__init__,
-                    None,
+                    AbstractMacro.__init__,
                     output_labels=output_labels,
                     **node_class_kwargs,
                 ),
