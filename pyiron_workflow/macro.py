@@ -6,7 +6,7 @@ interface and are not intended to be internally modified after instantiation.
 from __future__ import annotations
 
 from abc import ABC
-from functools import partialmethod, wraps
+from functools import partialmethod
 import inspect
 from typing import get_type_hints, Literal, Optional, TYPE_CHECKING
 
