@@ -4,6 +4,8 @@ Container classes for giving access to various workflow objects and tools
 
 from __future__ import annotations
 
+from abc import ABC
+from functools import wraps
 from importlib import import_module
 import pkgutil
 from sys import version_info
@@ -328,3 +330,18 @@ class Wrappers(metaclass=Singleton):
 
             self._macro_node = macro_node
         return self._macro_node
+
+
+class HasCreator(ABC):
+    """
+    A mixin class for creator (including both class-like and decorator) and
+    registration methods.
+    """
+
+    create = Creator()
+    wrap_as = Wrappers()
+
+    @classmethod
+    @wraps(Creator.register)
+    def register(cls, package_identifier: str, domain: Optional[str] = None) -> None:
+        cls.create.register(package_identifier=package_identifier, domain=domain)

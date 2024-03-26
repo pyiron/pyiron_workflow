@@ -6,12 +6,11 @@ sub-graph
 from __future__ import annotations
 
 from abc import ABC, abstractmethod
-from functools import wraps
 from typing import Literal, Optional, TYPE_CHECKING
 
 from bidict import bidict
 
-from pyiron_workflow.create import Creator, Wrappers
+from pyiron_workflow.create import HasCreator
 from pyiron_workflow.io import Outputs, Inputs
 from pyiron_workflow.node import Node
 from pyiron_workflow.node_package import NodePackage
@@ -22,9 +21,10 @@ from pyiron_workflow.snippets.dotdict import DotDict
 
 if TYPE_CHECKING:
     from pyiron_workflow.channels import Channel, InputData, OutputData
+    from pyiron_workflow.create import Creator, Wrappers
 
 
-class Composite(Node, SemanticParent, ABC):
+class Composite(Node, SemanticParent, HasCreator, ABC):
     """
     A base class for nodes that have internal graph structure -- i.e. they hold a
     collection of child nodes and their computation is to execute that graph.
@@ -99,9 +99,6 @@ class Composite(Node, SemanticParent, ABC):
             with the node being replaced.
         register(): A short-cut to registering a new node package with the node creator.
     """
-
-    wrap_as = Wrappers()
-    create = Creator()
 
     def __init__(
         self,
@@ -444,11 +441,6 @@ class Composite(Node, SemanticParent, ABC):
                 f"{e.message}"
             )
             raise e
-
-    @classmethod
-    @wraps(Creator.register)
-    def register(cls, package_identifier: str, domain: Optional[str] = None) -> None:
-        cls.create.register(package_identifier=package_identifier, domain=domain)
 
     def executor_shutdown(self, wait=True, *, cancel_futures=False):
         """

@@ -14,7 +14,7 @@ from bidict import bidict
 
 from pyiron_workflow.channels import InputData, OutputData, NOT_DATA
 from pyiron_workflow.composite import Composite
-from pyiron_workflow.create import Creator, Wrappers
+from pyiron_workflow.create import HasCreator
 from pyiron_workflow.has_interface_mixins import HasChannel
 from pyiron_workflow.io import Outputs, Inputs
 from pyiron_workflow.output_parser import ParseOutput
@@ -586,7 +586,7 @@ class AbstractMacro(Composite, ABC):
             self.children[child].outputs[child_out].value_receiver = self.outputs[out]
 
 
-class Macro:
+class Macro(HasCreator):
     """
     Not an actual macro class, just a mis-direction that dynamically creates a new
     child of :class:`AbstractMacro` using the provided :func:`graph_creator` and
@@ -635,15 +635,7 @@ class Macro:
             **kwargs,
         )
 
-    # Quack like a composite
-    create = Creator()
-    wrap_as = Wrappers()
-
-    @classmethod
-    @wraps(Creator.register)
-    def register(cls, package_identifier: str, domain: Optional[str] = None) -> None:
-        cls.create.register(package_identifier=package_identifier, domain=domain)
-
+    # Quack like an AbstractMacro
     @classmethod
     def allowed_backends(cls):
         return tuple(AbstractMacro._storage_interfaces().keys())
