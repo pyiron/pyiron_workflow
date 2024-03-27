@@ -439,10 +439,11 @@ class AbstractFunction(Node, ABC):
             self._outputs = Outputs(*self._build_output_channels())
         return self._outputs
 
-    def _build_input_channels(self):
-        channels = []
-        type_hints = self._type_hints()
-        for ii, (label, value) in enumerate(self._input_args().items()):
+    @classmethod
+    def preview_input_channels(cls) -> dict[str, tuple[Any, Any]]:
+        type_hints = cls._type_hints()
+        scraped: dict[str, tuple[Any, Any]] = {}
+        for ii, (label, value) in enumerate(cls._input_args().items()):
             is_self = False
             if label == "self":  # `self` is reserved for the node object
                 if ii == 0:
@@ -454,12 +455,12 @@ class AbstractFunction(Node, ABC):
                         " argument. If it is to be treated as the node object,"
                         " use it as a first argument"
                     )
-            elif label in self._init_keywords():
+            elif label in cls._init_keywords():
                 # We allow users to parse arbitrary kwargs as channel initialization
                 # So don't let them choose bad channel names
                 raise ValueError(
                     f"The Input channel name {label} is not valid. Please choose a "
-                    f"name _not_ among {self._init_keywords()}"
+                    f"name _not_ among {cls._init_keywords()}"
                 )
 
             try:
@@ -477,15 +478,19 @@ class AbstractFunction(Node, ABC):
                     default = value.default
 
             if not is_self:
-                channels.append(
-                    InputData(
-                        label=label,
-                        owner=self,
-                        default=default,
-                        type_hint=type_hint,
-                    )
-                )
-        return channels
+                scraped[label] = (type_hint, default)
+        return scraped
+
+    def _build_input_channels(self):
+        return [
+            InputData(
+                label=label,
+                owner=self,
+                default=default,
+                type_hint=type_hint,
+            )
+            for label, (type_hint, default) in self.preview_input_channels().items()
+        ]
 
     @classmethod
     def _init_keywords(cls):

@@ -213,6 +213,18 @@ class TestFunction(unittest.TestCase):
                 "generated code that is only in memory and thus not inspectable)"
         )
 
+    def test_preview_input_channels(self):
+        @function_node()
+        def Foo(x, y: int = 42):
+            return x + y
+
+        self.assertDictEqual(
+            {"x": (None, NOT_DATA), "y": (int, 42)},
+            Foo.preview_input_channels(),
+            msg="Input specifications should be available at the class level, with or "
+                "without type hints and/or defaults provided."
+        )
+
     def test_statuses(self):
         n = Function(plus_one)
         self.assertTrue(n.ready)
