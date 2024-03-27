@@ -2,7 +2,7 @@ from typing import Optional, Union
 import unittest
 import warnings
 
-from pyiron_workflow.channels import NOT_DATA, ChannelConnectionError
+from pyiron_workflow.channels import NOT_DATA
 from pyiron_workflow.function import Function, function_node
 from pyiron_workflow.io import ConnectionCopyError, ValueCopyError
 from pyiron_workflow.create import Executor

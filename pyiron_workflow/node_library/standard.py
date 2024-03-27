@@ -4,8 +4,6 @@ Common-use nodes relying only on the standard library
 
 from __future__ import annotations
 
-from inspect import isclass
-
 from pyiron_workflow.channels import NOT_DATA, OutputSignal
 from pyiron_workflow.function import AbstractFunction, function_node
 

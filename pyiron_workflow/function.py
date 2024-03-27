@@ -3,11 +3,9 @@ from __future__ import annotations
 from abc import ABC, abstractmethod
 import inspect
 import warnings
-from functools import partialmethod
 from typing import Any, get_args, get_type_hints, Literal, Optional, TYPE_CHECKING
 
-from pyiron_workflow.channels import InputData, OutputData, NOT_DATA
-from pyiron_workflow.has_interface_mixins import HasChannel
+from pyiron_workflow.channels import InputData, NOT_DATA
 from pyiron_workflow.injection import OutputDataWithInjection
 from pyiron_workflow.io import Inputs, Outputs
 from pyiron_workflow.node import Node
