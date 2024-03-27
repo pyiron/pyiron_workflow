@@ -395,7 +395,11 @@ class AbstractFunction(Node, ABC):
     @classmethod
     def preview_output_channels(cls) -> dict[str, Any]:
         """
-        Get a dictionary of output channel labels and their corresponding type hints.
+        Gives a class-level peek at the expected output channels.
+
+        Returns:
+            dict[str, tuple[Any, Any]]: The channel name and its corresponding type
+                hint.
         """
         labels = cls._get_output_labels()
         try:
@@ -441,6 +445,13 @@ class AbstractFunction(Node, ABC):
 
     @classmethod
     def preview_input_channels(cls) -> dict[str, tuple[Any, Any]]:
+        """
+        Gives a class-level peek at the expected input channels.
+
+        Returns:
+            dict[str, tuple[Any, Any]]: The channel name and a tuple of its
+                corresponding type hint and default value.
+        """
         type_hints = cls._type_hints()
         scraped: dict[str, tuple[Any, Any]] = {}
         for ii, (label, value) in enumerate(cls._input_args().items()):
