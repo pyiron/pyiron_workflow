@@ -432,7 +432,7 @@ class TestWorkflow(unittest.TestCase):
                 wf.direct_instance = Workflow.create.Function(plus_one)
                 try:
                     with self.assertRaises(
-                        TypeError,
+                        TypeNotFoundError,
                         msg="No direct node instances, only children with functions as "
                             "_class_ attribtues"
                     ):

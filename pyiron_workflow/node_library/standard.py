@@ -7,7 +7,7 @@ from __future__ import annotations
 from inspect import isclass
 
 from pyiron_workflow.channels import NOT_DATA, OutputSignal
-from pyiron_workflow.function import Function, function_node
+from pyiron_workflow.function import AbstractFunction, function_node
 
 
 @function_node()
@@ -15,19 +15,19 @@ def UserInput(user_input):
     return user_input
 
 
-class If(Function):
+class If(AbstractFunction):
     """
     Has two extra signal channels: true and false. Evaluates the input as obj otheroolean and
     fires the corresponding output signal after running.
     """
 
     def __init__(self, **kwargs):
-        super().__init__(self.if_, output_labels="truth", **kwargs)
+        super().__init__(output_labels="truth", **kwargs)
         self.signals.output.true = OutputSignal("true", self)
         self.signals.output.false = OutputSignal("false", self)
 
     @staticmethod
-    def if_(condition):
+    def node_function(condition):
         if condition is NOT_DATA:
             raise TypeError(
                 f"Logic 'If' node expected data other but got NOT_DATA as input."

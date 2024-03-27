@@ -10,7 +10,7 @@ from pyiron_workflow.function import (
     Function,
     function_node,
 )
-from pyiron_workflow.macro import Macro, macro_node
+from pyiron_workflow.macro import AbstractMacro, macro_node
 from pyiron_workflow.node import Node
 
 
@@ -54,7 +54,7 @@ def for_loop(
     length: int,
     iterate_on: str | tuple[str] | list[str],
     # TODO:
-) -> type[Macro]:
+) -> type[AbstractMacro]:
     """
     An _extremely rough_ first draft of a for-loop meta-node.
 
@@ -181,7 +181,7 @@ def while_loop(
     internal_connection_map: dict[str, str],
     inputs_map: Optional[dict[str, str]] = None,
     outputs_map: Optional[dict[str, str]] = None,
-) -> type[Macro]:
+) -> type[AbstractMacro]:
     """
     An _extremely rough_ first draft of a for-loop meta-node.
 
