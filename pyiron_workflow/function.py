@@ -348,8 +348,6 @@ class AbstractFunction(Node, ABC):
 
         self._inputs = None
         self._outputs = None
-        self._output_labels = self._get_output_labels()
-        # TODO: Parse output labels from the node function in case output_labels is None
 
         self.set_input_values(*args, **kwargs)
 
