@@ -325,6 +325,7 @@ class AbstractFunction(Node, ABC):
         raise an error when combined with an executor, and otherwise behaviour is not
         guaranteed.
     """
+    _provided_output_labels: tuple[str] | None = None
 
     def __init__(
         self,
@@ -335,7 +336,6 @@ class AbstractFunction(Node, ABC):
         run_after_init: bool = False,
         storage_backend: Optional[Literal["h5io", "tinybase"]] = None,
         save_after_run: bool = False,
-        output_labels: Optional[str | list[str] | tuple[str]] = None,
         **kwargs,
     ):
         super().__init__(
@@ -348,7 +348,7 @@ class AbstractFunction(Node, ABC):
 
         self._inputs = None
         self._outputs = None
-        self._output_labels = self._get_output_labels(output_labels)
+        self._output_labels = self._get_output_labels()
         # TODO: Parse output labels from the node function in case output_labels is None
 
         self.set_input_values(*args, **kwargs)
@@ -364,33 +364,64 @@ class AbstractFunction(Node, ABC):
         return get_type_hints(cls.node_function)
 
     @classmethod
-    def _get_output_labels(cls, output_labels: str | list[str] | tuple[str] | None):
+    def _get_output_labels(cls):
         """
-        If output labels are provided, turn convert them to a list if passed as a
-        string and return them, else scrape them from the source channel.
+        Return output labels provided on the class if not None, else scrape them from
+        :meth:`node_function`.
 
         Note: When the user explicitly provides output channels, they are taking
         responsibility that these are correct, e.g. in terms of quantity, order, etc.
         """
-        if output_labels is None:
+        if cls._provided_output_labels is None:
             return cls._scrape_output_labels()
-        elif isinstance(output_labels, str):
-            return [output_labels]
         else:
-            return output_labels
+            return cls._provided_output_labels
 
     @classmethod
     def _scrape_output_labels(cls):
         """
-        Inspect the source code to scrape out strings representing the returned values.
-        _Only_ works for functions with a single `return` expression in their body.
+        Inspect :meth:`node_function` to scrape out strings representing the
+        returned values.
 
-        Will return expressions and function calls just fine, thus best practice is to
-        create well-named variables and return those so that the output labels stay
+         _Only_ works for functions with a single `return` expression in their body.
+
+        It will return expressions and function calls just fine, thus good practice is
+        to create well-named variables and return those so that the output labels stay
         dot-accessible.
         """
         parsed_outputs = ParseOutput(cls.node_function).output
         return [None] if parsed_outputs is None else parsed_outputs
+
+    @classmethod
+    def preview_output_channels(cls) -> dict[str, Any]:
+        """
+        Get a dictionary of output channel labels and their corresponding type hints.
+        """
+        labels = cls._get_output_labels()
+        try:
+            type_hints = cls._type_hints()["return"]
+            if len(labels) > 1:
+                type_hints = get_args(type_hints)
+                if not isinstance(type_hints, tuple):
+                    raise TypeError(
+                        f"With multiple return labels expected to get a tuple of type "
+                        f"hints, but got type {type(type_hints)}"
+                    )
+                if len(type_hints) != len(labels):
+                    raise ValueError(
+                        f"Expected type hints and return labels to have matching "
+                        f"lengths, but got {len(type_hints)} hints and "
+                        f"{len(labels)} labels: {type_hints}, {labels}"
+                    )
+            else:
+                # If there's only one hint, wrap it in a tuple, so we can zip it with
+                # *return_labels and iterate over both at once
+                type_hints = (type_hints,)
+        except KeyError:  # If there are no return hints
+            type_hints = [None] * len(labels)
+            # Note that this nicely differs from `NoneType`, which is the hint when
+            # `None` is actually the hint!
+        return {label: hint for label, hint in zip(labels, type_hints)}
 
     @classmethod
     def _input_args(cls):
@@ -405,7 +436,7 @@ class AbstractFunction(Node, ABC):
     @property
     def outputs(self) -> Outputs:
         if self._outputs is None:
-            self._outputs = Outputs(*self._build_output_channels(*self._output_labels))
+            self._outputs = Outputs(*self._build_output_channels())
         return self._outputs
 
     def _build_input_channels(self):
@@ -460,40 +491,15 @@ class AbstractFunction(Node, ABC):
     def _init_keywords(cls):
         return list(inspect.signature(cls.__init__).parameters.keys())
 
-    def _build_output_channels(self, *return_labels: str):
-        try:
-            type_hints = self._type_hints()["return"]
-            if len(return_labels) > 1:
-                type_hints = get_args(type_hints)
-                if not isinstance(type_hints, tuple):
-                    raise TypeError(
-                        f"With multiple return labels expected to get a tuple of type "
-                        f"hints, but got type {type(type_hints)}"
-                    )
-                if len(type_hints) != len(return_labels):
-                    raise ValueError(
-                        f"Expected type hints and return labels to have matching "
-                        f"lengths, but got {len(type_hints)} hints and "
-                        f"{len(return_labels)} labels: {type_hints}, {return_labels}"
-                    )
-            else:
-                # If there's only one hint, wrap it in a tuple so we can zip it with
-                # *return_labels and iterate over both at once
-                type_hints = (type_hints,)
-        except KeyError:
-            type_hints = [None] * len(return_labels)
-
-        channels = []
-        for label, hint in zip(return_labels, type_hints):
-            channels.append(
-                OutputDataWithInjection(
-                    label=label,
-                    owner=self,
-                    type_hint=hint,
-                )
+    def _build_output_channels(self):
+        return [
+            OutputDataWithInjection(
+                label=label,
+                owner=self,
+                type_hint=hint,
             )
-
-        return channels
+            for label, hint in self.preview_output_channels().items()
+        ]
 
     @property
     def on_run(self):
@@ -604,7 +610,7 @@ class Function:
         run_after_init: bool = False,
         storage_backend: Optional[Literal["h5io", "tinybase"]] = None,
         save_after_run: bool = False,
-        output_labels: Optional[str | list[str] | tuple[str]] = None,
+        output_labels: Optional[str | tuple[str]] = None,
         **kwargs,
     ):
         if not callable(node_function):
@@ -656,17 +662,23 @@ def function_node(*output_labels: str):
     # also slap them on as a class-level attribute. These get safely packed and returned
     # when (de)pickling so we can keep processing type hints without trouble.
     def as_node(node_function: callable):
-        return type(
+        node_class = type(
             node_function.__name__,
             (AbstractFunction,),  # Define parentage
             {
-                "__init__": partialmethod(
-                    AbstractFunction.__init__,
-                    output_labels=output_labels,
-                ),
                 "node_function": staticmethod(node_function),
+                "_provided_output_labels": output_labels,
                 "__module__": node_function.__module__,
             },
         )
+        try:
+            node_class.preview_output_channels()
+        except ValueError as e:
+            raise ValueError(
+                f"Failed to create a new {AbstractFunction.__name__} child class "
+                f"dynamically from {node_function.__name__} -- probably due to a "
+                f"mismatch among output labels, returned values, and return type hints."
+            ) from e
+        return node_class
 
     return as_node

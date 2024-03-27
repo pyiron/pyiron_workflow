@@ -159,6 +159,60 @@ class TestFunction(unittest.TestCase):
                 "use at the class level"
         )
 
+    def test_preview_output_channels(self):
+        @function_node()
+        def Foo(x):
+            return x
+
+        self.assertDictEqual(
+            {"x": None},
+            Foo.preview_output_channels(),
+            msg="Should parse without label or hint."
+        )
+
+        @function_node("y")
+        def Foo(x) -> None:
+            return x
+
+        self.assertDictEqual(
+            {"y": type(None)},
+            Foo.preview_output_channels(),
+            msg="Should parse with label and hint."
+        )
+
+        with self.assertRaises(
+            ValueError,
+            msg="Should fail when scraping incommensurate hints and returns"
+        ):
+            @function_node()
+            def Foo(x) -> int:
+                y, z = 5.0, 5
+                return x, y, z
+
+        with self.assertRaises(
+            ValueError,
+            msg="Should fail when provided labels are incommensurate with hints"
+        ):
+            @function_node("xo", "yo", "zo")
+            def Foo(x) -> int:
+                y, z = 5.0, 5
+                return x, y, z
+
+        @function_node("xo", "yo")
+        def Foo(x) -> tuple[int, float]:
+            y, z = 5.0, 5
+            return x
+
+        self.assertDictEqual(
+            {"xo": int, "yo": float},
+            Foo.preview_output_channels(),
+            msg="The user carries extra responsibility if they specify return values "
+                "-- we don't even try scraping the returned stuff and it's up to them "
+                "to make sure everything is commensurate! This is necessary so that "
+                "source code scraping can get bypassed sometimes (e.g. for dynamically "
+                "generated code that is only in memory and thus not inspectable)"
+        )
+
     def test_statuses(self):
         n = Function(plus_one)
         self.assertTrue(n.ready)

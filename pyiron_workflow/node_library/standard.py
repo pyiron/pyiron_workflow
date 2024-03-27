@@ -22,7 +22,7 @@ class If(AbstractFunction):
     """
 
     def __init__(self, **kwargs):
-        super().__init__(output_labels="truth", **kwargs)
+        super().__init__(**kwargs)
         self.signals.output.true = OutputSignal("true", self)
         self.signals.output.false = OutputSignal("false", self)
 
@@ -32,7 +32,8 @@ class If(AbstractFunction):
             raise TypeError(
                 f"Logic 'If' node expected data other but got NOT_DATA as input."
             )
-        return bool(condition)
+        truth = bool(condition)
+        return truth
 
     def process_run_result(self, function_output):
         """

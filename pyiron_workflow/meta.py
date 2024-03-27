@@ -22,14 +22,16 @@ def list_to_output(length: int, **node_class_kwargs) -> type[Function]:
 
     def _list_to_many(length: int):
         template = f"""
-def __list_to_many(l: list):
-    {"; ".join([f"out{i} = l[{i}]" for i in range(length)])}
-    return [{", ".join([f"out{i}" for i in range(length)])}]
+def __list_to_many(input_list: list):
+    {"; ".join([f"out{i} = input_list[{i}]" for i in range(length)])}
+    return {", ".join([f"out{i}" for i in range(length)])}
         """
         exec(template)
         return locals()["__list_to_many"]
 
-    return function_node(**node_class_kwargs)(_list_to_many(length=length))
+    return function_node(*(f"output{n}" for n in range(length)))(
+        _list_to_many(length=length), **node_class_kwargs
+    )
 
 
 def input_to_list(length: int, **node_class_kwargs) -> type[Function]:
@@ -46,7 +48,9 @@ def __many_to_list({", ".join([f"inp{i}=None" for i in range(length)])}):
         exec(template)
         return locals()["__many_to_list"]
 
-    return function_node(**node_class_kwargs)(_many_to_list(length=length))
+    return function_node("output_list")(
+        _many_to_list(length=length), **node_class_kwargs
+    )
 
 
 def for_loop(
@@ -127,50 +131,42 @@ def for_loop(
                 interface = list_to_output(length)(
                     parent=macro,
                     label=label.upper(),
-                    output_labels=[
-                        f"{loop_body_class.__name__}__{inp.label}_{i}"
-                        for i in range(length)
-                    ],
-                    l=[inp.default] * length,
+                    input_list=[inp.default] * length,
                 )
-                # Connect each body node input to the input interface's respective output
+                # Connect each body node input to the input interface's respective
+                # output
                 for body_node, out in zip(body_nodes, interface.outputs):
                     body_node.inputs[label] = out
-                macro.inputs_map[f"{interface.label}__l"] = interface.label
-                # TODO: Don't hardcode __l
-            # Or distribute the same input to each node equally
+                macro.inputs_map[
+                    interface.inputs.input_list.scoped_label
+                ] = interface.label
+            # Or broadcast the same input to each node equally
             else:
                 interface = macro.create.standard.UserInput(
                     label=label,
-                    output_labels=label,
                     user_input=inp.default,
                     parent=macro,
                 )
                 for body_node in body_nodes:
                     body_node.inputs[label] = interface
-                macro.inputs_map[f"{interface.label}__user_input"] = interface.label
-                # TODO: Don't hardcode __user_input
+                macro.inputs_map[interface.scoped_label] = interface.label
 
         # Make output interface: outputs to lists
         for label, out in body_nodes[0].outputs.items():
             interface = input_to_list(length)(
                 parent=macro,
                 label=label.upper(),
-                output_labels=f"{loop_body_class.__name__}__{label}",
             )
             # Connect each body node output to the output interface's respective input
             for body_node, inp in zip(body_nodes, interface.inputs):
                 inp.connect(body_node.outputs[label])
-                if body_node.executor:
+                if body_node.executor is not None:
                     raise NotImplementedError(
                         "Right now the output interface gets run after each body node,"
                         "if the body nodes can run asynchronously we need something "
                         "more clever than that!"
                     )
-            macro.outputs_map[
-                f"{interface.label}__{loop_body_class.__name__}__{label}"
-            ] = interface.label
-            # TODO: Don't manually copy the output label construction
+            macro.outputs_map[interface.scoped_label] = interface.label
 
     return macro_node()(make_loop)
 

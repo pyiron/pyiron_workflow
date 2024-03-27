@@ -32,16 +32,14 @@ class TestTopology(unittest.TestCase):
             """
 
             def __init__(self, **kwargs):
-                super().__init__(
-                    output_labels="value_gt_limit",
-                    **kwargs
-                )
+                super().__init__(**kwargs)
                 self.signals.output.true = OutputSignal("true", self)
                 self.signals.output.false = OutputSignal("false", self)
 
             @staticmethod
             def node_function(value, limit=10):
-                return value > limit
+                value_gt_limit = value > limit
+                return value_gt_limit
 
             def process_run_result(self, function_output):
                 """
