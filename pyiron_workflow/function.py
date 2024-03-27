@@ -364,35 +364,6 @@ class AbstractFunction(Node, ABC):
         return get_type_hints(cls.node_function)
 
     @classmethod
-    def _get_output_labels(cls):
-        """
-        Return output labels provided on the class if not None, else scrape them from
-        :meth:`node_function`.
-
-        Note: When the user explicitly provides output channels, they are taking
-        responsibility that these are correct, e.g. in terms of quantity, order, etc.
-        """
-        if cls._provided_output_labels is None:
-            return cls._scrape_output_labels()
-        else:
-            return cls._provided_output_labels
-
-    @classmethod
-    def _scrape_output_labels(cls):
-        """
-        Inspect :meth:`node_function` to scrape out strings representing the
-        returned values.
-
-         _Only_ works for functions with a single `return` expression in their body.
-
-        It will return expressions and function calls just fine, thus good practice is
-        to create well-named variables and return those so that the output labels stay
-        dot-accessible.
-        """
-        parsed_outputs = ParseOutput(cls.node_function).output
-        return [None] if parsed_outputs is None else parsed_outputs
-
-    @classmethod
     def preview_output_channels(cls) -> dict[str, Any]:
         """
         Gives a class-level peek at the expected output channels.
@@ -428,20 +399,49 @@ class AbstractFunction(Node, ABC):
         return {label: hint for label, hint in zip(labels, type_hints)}
 
     @classmethod
-    def _input_args(cls):
-        return inspect.signature(cls.node_function).parameters
+    def _get_output_labels(cls):
+        """
+        Return output labels provided on the class if not None, else scrape them from
+        :meth:`node_function`.
 
-    @property
-    def inputs(self) -> Inputs:
-        if self._inputs is None:
-            self._inputs = Inputs(*self._build_input_channels())
-        return self._inputs
+        Note: When the user explicitly provides output channels, they are taking
+        responsibility that these are correct, e.g. in terms of quantity, order, etc.
+        """
+        if cls._provided_output_labels is None:
+            return cls._scrape_output_labels()
+        else:
+            return cls._provided_output_labels
+
+    @classmethod
+    def _scrape_output_labels(cls):
+        """
+        Inspect :meth:`node_function` to scrape out strings representing the
+        returned values.
+
+         _Only_ works for functions with a single `return` expression in their body.
+
+        It will return expressions and function calls just fine, thus good practice is
+        to create well-named variables and return those so that the output labels stay
+        dot-accessible.
+        """
+        parsed_outputs = ParseOutput(cls.node_function).output
+        return [None] if parsed_outputs is None else parsed_outputs
 
     @property
     def outputs(self) -> Outputs:
         if self._outputs is None:
             self._outputs = Outputs(*self._build_output_channels())
         return self._outputs
+
+    def _build_output_channels(self):
+        return [
+            OutputDataWithInjection(
+                label=label,
+                owner=self,
+                type_hint=hint,
+            )
+            for label, hint in self.preview_output_channels().items()
+        ]
 
     @classmethod
     def preview_input_channels(cls) -> dict[str, tuple[Any, Any]]:
@@ -492,6 +492,20 @@ class AbstractFunction(Node, ABC):
                 scraped[label] = (type_hint, default)
         return scraped
 
+    @classmethod
+    def _input_args(cls):
+        return inspect.signature(cls.node_function).parameters
+
+    @classmethod
+    def _init_keywords(cls):
+        return list(inspect.signature(cls.__init__).parameters.keys())
+
+    @property
+    def inputs(self) -> Inputs:
+        if self._inputs is None:
+            self._inputs = Inputs(*self._build_input_channels())
+        return self._inputs
+
     def _build_input_channels(self):
         return [
             InputData(
@@ -501,20 +515,6 @@ class AbstractFunction(Node, ABC):
                 type_hint=type_hint,
             )
             for label, (type_hint, default) in self.preview_input_channels().items()
-        ]
-
-    @classmethod
-    def _init_keywords(cls):
-        return list(inspect.signature(cls.__init__).parameters.keys())
-
-    def _build_output_channels(self):
-        return [
-            OutputDataWithInjection(
-                label=label,
-                owner=self,
-                type_hint=hint,
-            )
-            for label, hint in self.preview_output_channels().items()
         ]
 
     @property
