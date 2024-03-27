@@ -137,9 +137,9 @@ def for_loop(
                 # output
                 for body_node, out in zip(body_nodes, interface.outputs):
                     body_node.inputs[label] = out
-                macro.inputs_map[
-                    interface.inputs.input_list.scoped_label
-                ] = interface.label
+                macro.inputs_map[interface.inputs.input_list.scoped_label] = (
+                    interface.label
+                )
             # Or broadcast the same input to each node equally
             else:
                 interface = macro.create.standard.UserInput(

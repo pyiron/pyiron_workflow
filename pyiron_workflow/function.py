@@ -307,6 +307,7 @@ class AbstractFunction(Node, ABC):
         raise an error when combined with an executor, and otherwise behaviour is not
         guaranteed.
     """
+
     _provided_output_labels: tuple[str] | None = None
 
     def __init__(
