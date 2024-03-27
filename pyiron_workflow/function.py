@@ -50,24 +50,6 @@ class AbstractFunction(Node, ABC):
         the same input order as the wrapped function.
     - A default label can be scraped from the name of the wrapped function
 
-    Args:
-        node_function (callable): The function determining the behaviour of the node.
-        label (str): The node's label. (Defaults to the node function's name.)
-        output_labels (Optional[str | list[str] | tuple[str]]): A name for each return
-            value of the node function OR a single label. (Default is None, which
-            scrapes output labels automatically from the source code of the wrapped
-            function.) This can be useful when returned values are not well named, e.g.
-            to make the output channel dot-accessible if it would otherwise have a label
-            that requires item-string-based access. Additionally, specifying a _single_
-            label for a wrapped function that returns a tuple of values ensures that a
-            _single_ output channel (holding the tuple) is created, instead of one
-            channel for each return value. The default approach of extracting labels
-            from the function source code also requires that the function body contain
-            _at most_ one `return` expression, so providing explicit labels can be used
-            to circumvent this (at your own risk).
-        **kwargs: Any additional keyword arguments whose keyword matches the label of an
-            input channel will have their value assigned to that channel.
-
     Examples:
         At the most basic level, to use nodes all we need to do is provide the
         `Function` class with a function and labels for its output, like so:
@@ -612,6 +594,24 @@ class Function:
     Not an actual function class, just a mis-direction that dynamically creates a new
     child of :class:`AbstractFunction` using the provided :func:`node_function` and
     creates an instance of that.
+
+    Beyond the standard :class:`AbstractFunction`, initialization allows the args...
+
+    Args:
+        node_function (callable): The function determining the behaviour of the node.
+        output_labels (Optional[str | list[str] | tuple[str]]): A name for each return
+            value of the node function OR a single label. (Default is None, which
+            scrapes output labels automatically from the source code of the wrapped
+            function.) This can be useful when returned values are not well named, e.g.
+            to make the output channel dot-accessible if it would otherwise have a label
+            that requires item-string-based access. Additionally, specifying a _single_
+            label for a wrapped function that returns a tuple of values ensures that a
+            _single_ output channel (holding the tuple) is created, instead of one
+            channel for each return value. The default approach of extracting labels
+            from the function source code also requires that the function body contain
+            _at most_ one `return` expression, so providing explicit labels can be used
+            to circumvent this (at your own risk), or to circumvent un-inspectable
+            source code (e.g. a function that exists only in memory).
     """
 
     def __new__(
@@ -657,6 +657,21 @@ def function_node(*output_labels: str):
     Returns a `Function` subclass whose name is the camel-case version of the function
     node, and whose signature is modified to exclude the node function and output labels
     (which are explicitly defined in the process of using the decorator).
+
+    Args:
+        *output_labels (str): A name for each return value of the node function OR an
+            empty tuple. When empty, scrapes output labels automatically from the
+            source code of the wrapped function. This can be useful when returned
+            values are not well named, e.g. to make the output channel dot-accessible
+            if it would otherwise have a label that requires item-string-based access.
+            Additionally, specifying a _single_ label for a wrapped function that
+            returns a tuple of values ensures that a _single_ output channel (holding
+            the tuple) is created, instead of one channel for each return value. The
+            default approach of extracting labels from the function source code also
+            requires that the function body contain _at most_ one `return` expression,
+            so providing explicit labels can be used to circumvent this
+            (at your own risk), or to circumvent un-inspectable source code (e.g. a
+            function that exists only in memory).
     """
     output_labels = None if len(output_labels) == 0 else output_labels
 
