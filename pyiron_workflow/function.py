@@ -140,7 +140,7 @@ class AbstractFunction(Node, ABC):
         variety of common use cases.
         Note that getting "good" (i.e. dot-accessible) output labels can be achieved by
         using good variable names and returning those variables instead of using
-        :attr:`output_labels`.
+        :param:`output_labels`.
         If we try to assign a value of the wrong type, it will raise an error:
 
         >>> from typing import Union
@@ -194,11 +194,13 @@ class AbstractFunction(Node, ABC):
         both that you are likely to have particular nodes that get heavily re-used, and
         that you need the nodes to pass data to each other.
 
-        For reusable nodes, we want to create a sub-class of :class:`Function` that fixes some
-        of the node behaviour -- usually the :meth:`node_function` and :attr:`output_labels`.
+        For reusable nodes, we want to create a sub-class of :class:`AbstractFunction`
+        that fixes some of the node behaviour -- i.e. the :meth:`node_function`.
 
-        This can be done most easily with the :func:`function_node` decorator, which takes a function
-        and returns a node class:
+        This can be done most easily with the :func:`function_node` decorator, which
+        takes a function and returns a node class. It also allows us to provide labels
+        for the return values, :param:output_labels, which are otherwise scraped from
+        the text of the function definition:
 
         >>> from pyiron_workflow.function import function_node
         >>>
