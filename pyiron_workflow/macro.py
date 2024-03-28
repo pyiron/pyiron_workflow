@@ -388,17 +388,14 @@ class AbstractMacro(Composite, ABC):
             "inputs",
         )
 
-    def _whitelist_outputs_map(
-        self, *creator_returns: HasChannel
-    ):
+    def _whitelist_outputs_map(self, *creator_returns: HasChannel):
         """
         Updates the outputs map so objects returned by the graph creator directly
         leverage the supplied output labels, and updates the map to disable all other
         output that wasn't explicitly mapped already.
         """
         output_labels = (
-            () if self._provided_output_labels is None
-            else self._provided_output_labels
+            () if self._provided_output_labels is None else self._provided_output_labels
         )
         for new_label, ui_node in zip(output_labels, creator_returns):
             if not isinstance(ui_node, HasChannel):
