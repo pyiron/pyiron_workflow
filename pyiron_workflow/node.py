@@ -8,77 +8,48 @@ The workhorse class for the entire concept.
 from __future__ import annotations
 
 import sys
-import warnings
-from abc import ABC, abstractmethod
-from concurrent.futures import Executor as StdLibExecutor, Future
-from importlib import import_module
+from abc import ABC
+from concurrent.futures import Future
+import platform
 from typing import Any, Literal, Optional, TYPE_CHECKING
+import warnings
 
-from pyiron_workflow.channels import (
-    InputSignal,
-    AccumulatingInputSignal,
-    OutputSignal,
-    NOT_DATA,
-)
 from pyiron_workflow.draw import Node as GraphvizNode
-from pyiron_workflow.snippets.files import DirectoryObject
 from pyiron_workflow.has_to_dict import HasToDict
-from pyiron_workflow.io import Signals, IO
-from pyiron_workflow.storage import StorageInterface
+from pyiron_workflow.injection import HasIOWithInjection
+from pyiron_workflow.run import Runnable, ReadinessError
+from pyiron_workflow.semantics import Semantic
+from pyiron_workflow.single_output import ExploitsSingleOutput
+from pyiron_workflow.storage import HasH5ioStorage, HasTinybaseStorage
 from pyiron_workflow.topology import (
     get_nodes_in_data_tree,
     set_run_connections_according_to_linear_dag,
 )
 from pyiron_workflow.snippets.colors import SeabornColors
 from pyiron_workflow.snippets.has_post import AbstractHasPost
+from pyiron_workflow.working import HasWorkingDirectory
 
 if TYPE_CHECKING:
     from pathlib import Path
 
     import graphviz
 
-    from pyiron_workflow.channels import Channel
     from pyiron_workflow.composite import Composite
-    from pyiron_workflow.io import Inputs, Outputs
+    from pyiron_workflow.snippets.files import DirectoryObject
 
 
-def manage_status(node_method):
-    """
-    Decorates methods of nodes that might be time-consuming, i.e. their main run
-    functionality.
-
-    Sets :attr:`running` to true until the method completes and either fails or returns
-    something other than a :class:`concurrent.futures.Future` instance; sets `failed` to true
-    if the method raises an exception; raises a `RuntimeError` if the node is already
-    :attr:`running` or :attr:`failed`.
-    """
-
-    def wrapped_method(node: Node, *args, **kwargs):  # rather node:Node
-        if node.running:
-            raise RuntimeError(f"{node.label} is already running")
-        elif node.failed:
-            raise RuntimeError(f"{node.label} has a failed status")
-
-        node.running = True
-        try:
-            out = node_method(node, *args, **kwargs)
-            return out
-        except Exception as e:
-            node.failed = True
-            out = None
-            raise e
-        finally:
-            # Leave the status as running if the method returns a future
-            node.running = isinstance(out, Future)
-
-    return wrapped_method
-
-
-class ReadinessError(ValueError):
-    pass
-
-
-class Node(HasToDict, ABC, metaclass=AbstractHasPost):
+class Node(
+    HasToDict,
+    Semantic,
+    Runnable,
+    HasIOWithInjection,
+    ExploitsSingleOutput,
+    HasWorkingDirectory,
+    HasH5ioStorage,
+    HasTinybaseStorage,
+    ABC,
+    metaclass=AbstractHasPost,
+):
     """
     Nodes are elements of a computational graph.
     They have inputs and outputs to interface with the wider world, and perform some
@@ -101,6 +72,11 @@ class Node(HasToDict, ABC, metaclass=AbstractHasPost):
             - Running can be triggered in an instantaneous (i.e. "or" applied to
                 incoming signals) or accumulating way (i.e. "and" applied to incoming
                 signals).
+        - If the node has exactly one output channel, most standard python operations
+            (attribute access, math, etc.) will fall back on attempting the same
+            operation on this single output, if the operation failed on the node.
+            Practically, that means that such "single-output" nodes get the same
+            to form IO connections and inject new nodes that output channels have.
     - When running their computation, nodes may or may not:
         - First update their input data values using kwargs
             - (Note that since this happens first, if the "fetching" step later occurs,
@@ -303,7 +279,6 @@ class Node(HasToDict, ABC, metaclass=AbstractHasPost):
     """
 
     package_identifier = None
-    _semantic_delimiter = "/"
 
     # This isn't nice, just a technical necessity in the current implementation
     # Eventually, of course, this needs to be _at least_ file-format independent
@@ -315,7 +290,7 @@ class Node(HasToDict, ABC, metaclass=AbstractHasPost):
         parent: Optional[Composite] = None,
         overwrite_save: bool = False,
         run_after_init: bool = False,
-        storage_backend: Optional[Literal["h5io", "tinybase"]] = None,
+        storage_backend: Literal["h5io", "tinybase"] | None = "h5io",
         save_after_run: bool = False,
         **kwargs,
     ):
@@ -330,24 +305,15 @@ class Node(HasToDict, ABC, metaclass=AbstractHasPost):
             run_after_init (bool): Whether to run at the end of initialization.
             **kwargs: Keyword arguments passed on with `super`.
         """
-        super().__init__(*args, **kwargs)
-        self._label = None
-        self.label: str = label
-        self._parent = None
-        if parent is not None:
-            parent.add_node(self)
-        self.running = False
-        self.failed = False
-        self.signals = self._build_signal_channels()
-        self._working_directory = None
-        self.executor = None
-        # We call it an executor, but it's just whether to use one.
-        # This is a simply stop-gap as we work out more sophisticated ways to reference
-        # (or create) an executor process without ever trying to pickle a `_thread.lock`
-        self.future: None | Future = None
-        self._storage_backend = None
-        self.storage_backend = storage_backend
+        super().__init__(
+            *args,
+            label=label,
+            parent=parent,
+            storage_backend=storage_backend,
+            **kwargs,
+        )
         self.save_after_run = save_after_run
+        self._user_data = {}  # A place for power-users to bypass node-injection
 
     def __post__(
         self,
@@ -357,7 +323,7 @@ class Node(HasToDict, ABC, metaclass=AbstractHasPost):
         **kwargs,
     ):
         if overwrite_save and sys.version_info >= (3, 11):
-            self.storage.delete()
+            self.delete_storage()
             do_load = False
         else:
             do_load = sys.version_info >= (3, 11) and self.storage.has_contents
@@ -384,94 +350,36 @@ class Node(HasToDict, ABC, metaclass=AbstractHasPost):
         self.graph_root.tidy_working_directory()
 
     @property
-    def label(self) -> str:
-        return self._label
-
-    @label.setter
-    def label(self, new_label: str):
-        if self._semantic_delimiter in new_label:
-            raise ValueError(f"{self._semantic_delimiter} cannot be in the label")
-        self._label = new_label
-
-    @property
-    @abstractmethod
-    def inputs(self) -> Inputs:
-        pass
-
-    @property
-    @abstractmethod
-    def outputs(self) -> Outputs:
-        pass
-
-    @property
-    @abstractmethod
-    def on_run(self) -> callable[..., Any | tuple]:
-        """
-        What the node actually does!
-        """
-        pass
-
-    @property
-    @abstractmethod
-    def run_args(self) -> dict:
-        """
-        Any data needed for :meth:`on_run`, will be passed as **kwargs.
-        """
-
-    @abstractmethod
-    def process_run_result(self, run_output):
-        """
-        What to _do_ with the results of :meth:`on_run` once you have them.
-
-        By extracting this as a separate method, we allow the node to pass the actual
-        execution off to another entity and release the python process to do other
-        things. In such a case, this function should be registered as a callback
-        so that the node can process the result of that process.
-
-        Args:
-            run_output: The results of a `self.on_run(self.run_args)` call.
-        """
-
-    @property
-    def parent(self) -> Composite | None:
-        return self._parent
-
-    @parent.setter
-    def parent(self, new_parent: Composite | None) -> None:
-        raise ValueError(
-            "Please change parentage by adding/removing the node to/from the relevant"
-            "parent"
-        )
-
-    @property
     def graph_path(self) -> str:
         """
-        The path of node labels from the graph root (parent-most node) down to this
-        node.
+        The path of node labels from the graph root (parent-most node in this semantic
+        path) down to this node.
         """
-        path = self.label
-        if self.parent is not None:
-            path = self.parent.graph_path + self._semantic_delimiter + path
-        return path
+        prefix = self.parent.semantic_path if isinstance(self.parent, Node) else ""
+        return prefix + self.semantic_delimiter + self.label
 
     @property
     def graph_root(self) -> Node:
-        """The parent-most node in this graph."""
-        return self if self.parent is None else self.parent.graph_root
+        """The parent-most node in this semantic path."""
+        return self.parent.graph_root if isinstance(self.parent, Node) else self
+
+    def data_input_locked(self):
+        return self.running
 
     @property
     def readiness_report(self) -> str:
-        input_readiness = "\n".join(
+        input_readiness_report = f"INPUTS:\n" + "\n".join(
             [f"{k} ready: {v.ready}" for k, v in self.inputs.items()]
         )
-        report = (
-            f"{self.label} readiness: {self.ready}\n"
-            f"STATE:\n"
-            f"running: {self.running}\n"
-            f"failed: {self.failed}\n"
-            f"INPUTS:\n" + input_readiness
+        return super().readiness_report + input_readiness_report
+
+    @property
+    def _readiness_error_message(self) -> str:
+        return (
+            f"{self.label} received a run command but is not ready. The node "
+            f"should be neither running nor failed, and all input values should"
+            f" conform to type hints.\n" + self.readiness_report
         )
-        return report
 
     def run(
         self,
@@ -535,18 +443,12 @@ class Node(HasToDict, ABC, metaclass=AbstractHasPost):
         if fetch_input:
             self.inputs.fetch()
 
-        if check_readiness and not self.ready:
-            raise ReadinessError(
-                f"{self.label} received a run command but is not ready. The node "
-                f"should be neither running nor failed, and all input values should"
-                f" conform to type hints.\n" + self.readiness_report
-            )
-
-        return self._run(
-            finished_callback=(
+        return super().run(
+            check_readiness=check_readiness,
+            force_local_execution=force_local_execution,
+            _finished_callback=(
                 self._finish_run_and_emit_ran if emit_ran_signal else self._finish_run
             ),
-            force_local_execution=force_local_execution,
         )
 
     def run_data_tree(self, run_parent_trees_too=False) -> None:
@@ -613,76 +515,9 @@ class Node(HasToDict, ABC, metaclass=AbstractHasPost):
             for c1, c2 in disconnected_pairs:
                 c1.connect(c2)
 
-    @manage_status
-    def _run(
-        self,
-        finished_callback: callable,
-        force_local_execution: bool,
-    ) -> Any | tuple | Future:
-        """
-        Executes the functionality of the node defined in `on_run`.
-        Handles the status of the node, and communicating with any remote
-        computing resources.
-        """
-        if force_local_execution or self.executor is None:
-            # Run locally
-            run_output = self.on_run(**self.run_args)
-            return finished_callback(run_output)
-        else:
-            # Just blindly try to execute -- as we nail down the executor interaction
-            # we'll want to fail more cleanly here.
-            executor = self._parse_executor(self.executor)
-            kwargs = self.run_args
-            if "self" in kwargs.keys():
-                raise ValueError(
-                    f"{self.label} got 'self' as a run argument, but self cannot "
-                    f"currently be combined with running on executors."
-                )
-            self.future = executor.submit(self.on_run, **kwargs)
-            self.future.add_done_callback(finished_callback)
-            return self.future
-
-    @staticmethod
-    def _parse_executor(executor) -> StdLibExecutor:
-        """
-        We may want to allow users to specify how to build an executor rather than
-        actually providing an executor instance -- so here we can interpret these.
-
-        NOTE:
-            `concurrent.futures.Executor` _won't_ actually work, because we need
-            stuff with :mod:`cloudpickle` support. We're leaning on this for a guaranteed
-            interface (has `submit` and returns a `Future`), and leaving it to the user
-            to provide an executor that will actually work!!!
-
-        NOTE:
-            If, in the future, this parser is extended to instantiate new executors from
-            instructions, these new instances may not be caught by the
-            `executor_shutdown` method. This will require some re-engineering to make
-            sure we don't have dangling executors.
-        """
-        if isinstance(executor, StdLibExecutor):
-            return executor
-        else:
-            raise NotImplementedError(
-                f"Expected an instance of {StdLibExecutor}, but got {executor}."
-            )
-
     def _finish_run(self, run_output: tuple | Future) -> Any | tuple:
-        """
-        Switch the node status, then process and return the run result.
-
-        Sets the :attr:`failed` status to true if an exception is encountered.
-        """
-        if isinstance(run_output, Future):
-            run_output = run_output.result()
-
-        self.running = False
         try:
-            processed_output = self.process_run_result(run_output)
-            return processed_output
-        except Exception as e:
-            self.failed = True
-            raise e
+            return super()._finish_run(run_output=run_output)
         finally:
             if self.save_after_run:
                 self.save()
@@ -693,7 +528,7 @@ class Node(HasToDict, ABC, metaclass=AbstractHasPost):
         return processed_output
 
     _finish_run_and_emit_ran.__doc__ = (
-        _finish_run.__doc__
+        Runnable._finish_run.__doc__
         + """
 
     Finally, fire the `ran` signal.
@@ -750,74 +585,9 @@ class Node(HasToDict, ABC, metaclass=AbstractHasPost):
         """
         return self.pull(run_parent_trees_too=True, **kwargs)
 
-    def set_input_values(self, **kwargs) -> None:
-        """
-        Match keywords to input channels and update their values.
-
-        Throws a warning if a keyword is provided that cannot be found among the input
-        keys.
-
-        Args:
-            **kwargs: input key - input value (including channels for connection) pairs.
-        """
-        for k, v in kwargs.items():
-            if k in self.inputs.labels:
-                self.inputs[k] = v
-            else:
-                warnings.warn(
-                    f"The keyword '{k}' was not found among input labels. If you are "
-                    f"trying to update a node keyword, please use attribute assignment "
-                    f"directly instead of calling"
-                )
-
-    def _build_signal_channels(self) -> Signals:
-        signals = Signals()
-        signals.input.run = InputSignal("run", self, self.run)
-        signals.input.accumulate_and_run = AccumulatingInputSignal(
-            "accumulate_and_run", self, self.run
-        )
-        signals.output.ran = OutputSignal("ran", self)
-        return signals
-
-    @property
-    def working_directory(self):
-        if self._working_directory is None:
-            if self.parent is not None and hasattr(self.parent, "working_directory"):
-                parent_dir = self.parent.working_directory
-                self._working_directory = parent_dir.create_subdirectory(self.label)
-            else:
-                self._working_directory = DirectoryObject(self.label)
-        return self._working_directory
-
-    def disconnect(self):
-        """
-        Disconnect all connections belonging to inputs, outputs, and signals channels.
-
-        Returns:
-            [list[tuple[Channel, Channel]]]: A list of the pairs of channels that no
-                longer participate in a connection.
-        """
-        destroyed_connections = []
-        destroyed_connections.extend(self.inputs.disconnect())
-        destroyed_connections.extend(self.outputs.disconnect())
-        destroyed_connections.extend(self.signals.disconnect())
-        return destroyed_connections
-
     @property
     def ready(self) -> bool:
-        return not (self.running or self.failed) and self.inputs.ready
-
-    @property
-    def connected(self) -> bool:
-        return self.inputs.connected or self.outputs.connected or self.signals.connected
-
-    @property
-    def fully_connected(self):
-        return (
-            self.inputs.fully_connected
-            and self.outputs.fully_connected
-            and self.signals.fully_connected
-        )
+        return super().ready and self.inputs.ready
 
     @property
     def color(self) -> str:
@@ -828,6 +598,7 @@ class Node(HasToDict, ABC, metaclass=AbstractHasPost):
         self,
         depth: int = 1,
         rankdir: Literal["LR", "TB"] = "LR",
+        size: Optional[tuple] = None,
         save: bool = False,
         view: bool = False,
         directory: Optional[Path | str] = None,
@@ -854,6 +625,9 @@ class Node(HasToDict, ABC, metaclass=AbstractHasPost):
                 max depth of the node will have no adverse side effects.
             rankdir ("LR" | "TB"): Use left-right or top-bottom graphviz `rankdir` to
                 orient the flow of the graph.
+            size (tuple[int | float, int | float] | None): The size of the diagram, in
+                inches(?); respects ratio by scaling until at least one dimension
+                matches the requested size. (Default is None, automatically size.)
             save (bool): Render the graph image. (Default is False. When True, all
                 other defaults will yield a PDF in the node's working directory.)
             view (bool): `graphviz.Graph.render` argument, open the rendered result
@@ -872,8 +646,20 @@ class Node(HasToDict, ABC, metaclass=AbstractHasPost):
 
         Returns:
             (graphviz.graphs.Digraph): The resulting graph object.
+
+        Warnings:
+            Rendering a PDF format appears to not be working on Windows right now.
         """
-        graph = GraphvizNode(self, depth=depth, rankdir=rankdir).graph
+        if format == "pdf" and platform.system() == "Windows":
+            warnings.warn(
+                "Graphviz does not appear to be playing well with Windows right now,"
+                "this will probably fail and you will need to try a different format."
+                "If it _doesn't_ fail, please contact the developers by raising an "
+                "issue at github.com/pyiron/pyiron_workflow"
+            )
+        if size is not None:
+            size = f"{size[0]},{size[1]}"
+        graph = GraphvizNode(self, depth=depth, rankdir=rankdir, size=size).graph
         if save or view or filename is not None:
             directory = self.working_directory.path if directory is None else directory
             filename = self.label + "_graph" if filename is None else filename
@@ -886,16 +672,6 @@ class Node(HasToDict, ABC, metaclass=AbstractHasPost):
             )
         return graph
 
-    def activate_strict_hints(self):
-        """Enable type hint checks for all data IO"""
-        self.inputs.activate_strict_hints()
-        self.outputs.activate_strict_hints()
-
-    def deactivate_strict_hints(self):
-        """Disable type hint checks for all data IO"""
-        self.inputs.deactivate_strict_hints()
-        self.outputs.deactivate_strict_hints()
-
     def __str__(self):
         return (
             f"{self.label} ({self.__class__.__name__}):\n"
@@ -904,166 +680,9 @@ class Node(HasToDict, ABC, metaclass=AbstractHasPost):
             f"{str(self.signals)}"
         )
 
-    def _connect_output_signal(self, signal: OutputSignal):
-        self.signals.input.run.connect(signal)
-
-    def __rshift__(self, other: InputSignal | Node):
-        """
-        Allows users to connect run and ran signals like: `first_node >> second_node`.
-        """
-        other._connect_output_signal(self.signals.output.ran)
-        return other
-
-    def _connect_accumulating_input_signal(self, signal: AccumulatingInputSignal):
-        self.signals.output.ran.connect(signal)
-
-    def __lshift__(self, others):
-        """
-        Connect one or more `ran` signals to `accumulate_and_run` signals like:
-        `this_node << some_node, another_node, or_by_channel.signals.output.ran`
-        """
-        self.signals.input.accumulate_and_run << others
-
-    def copy_io(
-        self,
-        other: Node,
-        connections_fail_hard: bool = True,
-        values_fail_hard: bool = False,
-    ) -> None:
-        """
-        Copies connections and values from another node's IO onto this node's IO.
-        Other channels with no connections are ignored for copying connections, and all
-        data channels without data are ignored for copying data.
-        Otherwise, default behaviour is to throw an exception if any of the other node's
-        connections fail to copy, but failed value copies are simply ignored (e.g.
-        because this node does not have a channel with a commensurate label or the
-        value breaks a type hint).
-        This error throwing/passing behaviour can be controlled with boolean flags.
-
-        In the case that an exception is thrown, all newly formed connections are broken
-        and any new values are reverted to their old state before the exception is
-        raised.
-
-        Args:
-            other (Node): The other node whose IO to copy.
-            connections_fail_hard: Whether to raise exceptions encountered when copying
-                connections. (Default is True.)
-            values_fail_hard (bool): Whether to raise exceptions encountered when
-                copying values. (Default is False.)
-        """
-        new_connections = self._copy_connections(other, fail_hard=connections_fail_hard)
-        try:
-            self._copy_values(other, fail_hard=values_fail_hard)
-        except Exception as e:
-            for this, other in new_connections:
-                this.disconnect(other)
-            raise e
-
-    def _copy_connections(
-        self,
-        other: Node,
-        fail_hard: bool = True,
-    ) -> list[tuple[Channel, Channel]]:
-        """
-        Copies all the connections in another node to this one.
-        Expects all connected channels on the other node to have a counterpart on this
-        node -- i.e. the same label, type, and (for data) a type hint compatible with
-        all the existing connections being copied.
-        This requirement can be optionally relaxed such that any failures encountered
-        when attempting to make a connection (i.e. this node has no channel with a
-        corresponding label as the other node, or the new connection fails its validity
-        check), such that we simply continue past these errors and make as many
-        connections as we can while ignoring errors.
-
-        This node may freely have additional channels not present in the other node.
-        The other node may have additional channels not present here as long as they are
-        not connected.
-
-        If an exception is going to be raised, any connections copied so far are
-        disconnected first.
-
-        Args:
-            other (Node): the node whose connections should be copied.
-            fail_hard (bool): Whether to raise an error an exception is encountered
-                when trying to reproduce a connection. (Default is True; revert new
-                connections then raise the exception.)
-
-        Returns:
-            list[tuple[Channel, Channel]]: A list of all the newly created connection
-                pairs (for reverting changes).
-        """
-        new_connections = []
-        for my_panel, other_panel in [
-            (self.inputs, other.inputs),
-            (self.outputs, other.outputs),
-            (self.signals.input, other.signals.input),
-            (self.signals.output, other.signals.output),
-        ]:
-            for key, channel in other_panel.items():
-                for target in channel.connections:
-                    try:
-                        my_panel[key].connect(target)
-                        new_connections.append((my_panel[key], target))
-                    except Exception as e:
-                        if fail_hard:
-                            # If you run into trouble, unwind what you've done
-                            for this, other in new_connections:
-                                this.disconnect(other)
-                            raise e
-                        else:
-                            continue
-        return new_connections
-
-    def _copy_values(
-        self,
-        other: Node,
-        fail_hard: bool = False,
-    ) -> list[tuple[Channel, Any]]:
-        """
-        Copies all data from input and output channels in the other node onto this one.
-        Ignores other channels that hold non-data.
-        Failures to find a corresponding channel on this node (matching label, type, and
-        compatible type hint) are ignored by default, but can optionally be made to
-        raise an exception.
-
-        If an exception is going to be raised, any values updated so far are
-        reverted first.
-
-        Args:
-            other (Node): the node whose data values should be copied.
-            fail_hard (bool): Whether to raise an error an exception is encountered
-                when trying to duplicate a value. (Default is False, just keep going
-                past other's channels with no compatible label here and past values
-                that don't match type hints here.)
-
-        Returns:
-            list[tuple[Channel, Any]]: A list of tuples giving channels whose value has
-                been updated and what it used to be (for reverting changes).
-        """
-        old_values = []
-        for my_panel, other_panel in [
-            (self.inputs, other.inputs),
-            (self.outputs, other.outputs),
-        ]:
-            for key, to_copy in other_panel.items():
-                if to_copy.value is not NOT_DATA:
-                    try:
-                        old_value = my_panel[key].value
-                        my_panel[key].value = to_copy.value  # Gets hint-checked
-                        old_values.append((my_panel[key], old_value))
-                    except Exception as e:
-                        if fail_hard:
-                            # If you run into trouble, unwind what you've done
-                            for channel, value in old_values:
-                                channel.value = value
-                            raise e
-                        else:
-                            continue
-        return old_values
-
     def replace_with(self, other: Node | type[Node]):
         """
-        If this node has a parent, invokes `self.parent.replace_node(self, other)` to swap
+        If this node has a parent, invokes `self.parent.replace_child(self, other)` to swap
         out this node for the other node in the parent graph.
 
         The replacement must have fully compatible IO, i.e. its IO must be a superset of
@@ -1075,82 +694,24 @@ class Node(HasToDict, ABC, metaclass=AbstractHasPost):
             other (Node|type[Node]): The replacement.
         """
         if self.parent is not None:
-            self.parent.replace_node(self, other)
+            self.parent.replace_child(self, other)
         else:
-            warnings.warn(f"Could not replace_node {self.label}, as it has no parent.")
-
-    def __getstate__(self):
-        state = dict(self.__dict__)
-        state["_parent"] = None
-        # I am not at all confident that removing the parent here is the _right_
-        # solution.
-        # In order to run composites on a parallel process, we ship off just the nodes
-        # and starting nodes.
-        # When the parallel process returns these, they're obviously different
-        # instances, so we re-parent them back to the receiving composite.
-        # At the same time, we want to make sure that the _old_ children get orphaned.
-        # Of course, we could do that directly in the composite method, but it also
-        # works to do it here.
-        # Something I like about this, is it also means that when we ship groups of
-        # nodes off to another process with cloudpickle, they're definitely not lugging
-        # along their parent, its connections, etc. with them!
-        # This is all working nicely as demonstrated over in the macro test suite.
-        # However, I have a bit of concern that when we start thinking about
-        # serialization for storage instead of serialization to another process, this
-        # might introduce a hard-to-track-down bug.
-        # For now, it works and I'm going to be super pragmatic and go for it, but
-        # for the record I am admitting that the current shallowness of my understanding
-        # may cause me/us headaches in the future.
-        # -Liam
-        state["future"] = None
-        # Don't pass the future -- with the future in the state things work fine for
-        # the simple pyiron_workflow.executors.CloudpickleProcessPoolExecutor, but for
-        # the more complex pympipool.Executor we're getting:
-        # TypeError: cannot pickle '_thread.RLock' object
-        if isinstance(self.executor, StdLibExecutor):
-            state["executor"] = None
-        # Don't pass actual executors, they have an unserializable thread lock on them
-        # _but_ if the user is just passing instructions on how to _build_ an executor,
-        # we'll trust that those serialize OK (this way we can, hopefully, eventually
-        # support nesting executors!)
-        return state
-
-    def __setstate__(self, state):
-        # Update instead of overriding in case some other attributes were added on the
-        # main process while a remote process was working away
-        self.__dict__.update(**state)
-
-        # Channels don't store their own node in their state, so repopulate it
-        for io_panel in self._owned_io_panels:
-            for channel in io_panel:
-                channel.node = self
+            warnings.warn(f"Could not replace_child {self.label}, as it has no parent.")
 
     @property
-    def _owned_io_panels(self) -> list[IO]:
-        return [
-            self.inputs,
-            self.outputs,
-            self.signals.input,
-            self.signals.output,
-        ]
-
-    def executor_shutdown(self, wait=True, *, cancel_futures=False):
-        """Invoke shutdown on the executor (if present)."""
-        try:
-            self.executor.shutdown(wait=wait, cancel_futures=cancel_futures)
-        except AttributeError:
-            pass
+    def storage_directory(self) -> DirectoryObject:
+        return self.working_directory
 
     @property
-    def class_name(self) -> str:
-        """The class name of the node"""
-        # Since we want this directly in storage, put it in an attribute so it is
-        # guaranteed not to conflict with a child node label
-        return self.__class__.__name__
+    def storage_path(self) -> str:
+        return self.graph_path
+
+    def tidy_storage_directory(self):
+        self.tidy_working_directory()
 
     def to_storage(self, storage):
         storage["package_identifier"] = self.package_identifier
-        storage["class_name"] = self.class_name
+        storage["class_name"] = self.__class__.__name__
         storage["label"] = self.label
         storage["running"] = self.running
         storage["failed"] = self.failed
@@ -1177,123 +738,6 @@ class Node(HasToDict, ABC, metaclass=AbstractHasPost):
         for label in data_outputs.list_groups():
             self.outputs[label].from_storage(data_outputs[label])
 
-    _save_load_warnings = """
-        HERE BE DRAGONS!!!
-        
-        Warning:
-            This almost certainly only fails for subclasses of :class:`Node` that don't
-            override `node_function` or `macro_creator` directly, as these are expected 
-            to be part of the class itself (and thus already present on our instantiated 
-            object) and are never stored. Nodes created using the provided decorators 
-            should all work.
-            
-        Warning:
-            If you modify a `Macro` class in any way (changing its IO maps, rewiring 
-            internal connections, or replacing internal nodes), don't expect 
-            saving/loading to work.
-            
-        Warning:
-            If the underlying source code has changed since saving (i.e. the node doing 
-            the loading does not use the same code as the node doing the saving, or the 
-            nodes in some node package have been modified), then all bets are off.
-            
-        Note:
-            Saving and loading `Workflows` only works when all child nodes were created 
-            via the creator (and thus have a `package_identifier`). Right now, this is 
-            not a big barrier to custom nodes as all you need to do is move them into a 
-            .py file, make sure it's in your python path, and :func:`register` it as 
-            usual.
-    """
-
-    def save(self):
-        """
-        Writes the node to file (using HDF5) such that a new node instance of the same
-        type can :meth:`load()` the data to return to the same state as the save point,
-        i.e. the same data IO channel values, the same flags, etc.
-        """
-        backend = "h5io" if self.storage_backend is None else self.storage_backend
-        self.storage.save(backend=backend)
-
-    save.__doc__ += _save_load_warnings
-
-    def load(self):
-        """
-        Loads the node file (from HDF5) such that this node restores its state at time
-        of loading.
-
-        Raises:
-            TypeError) when the saved node has a different class name.
-        """
-        backend = "h5io" if self.storage_backend is None else self.storage_backend
-        self.storage.load(backend=backend)
-
-    save.__doc__ += _save_load_warnings
-
-    @property
-    def storage_backend(self):
-        if self.parent is None:
-            return self._storage_backend
-        else:
-            return self.graph_root.storage_backend
-
-    @storage_backend.setter
-    def storage_backend(self, new_backend):
-        if (
-            new_backend is not None
-            and self.parent is not None
-            and new_backend != self.graph_root.storage_backend
-        ):
-            raise ValueError(
-                f"Storage backends should only be set on the graph root "
-                f"({self.graph_root.label}), not on child ({self.label})"
-            )
-        else:
-            self._storage_backend = new_backend
-
-    @property
-    def storage(self):
-        return StorageInterface(self)
-
-    def tidy_working_directory(self):
-        """
-        If the working directory is completely empty, deletes it.
-        """
-        if self.working_directory.is_empty():
-            self.working_directory.delete()
-            self._working_directory = None
-            # Touching the working directory may have created it -- if it's there and
-            # empty just clean it up
-
-    @property
-    def import_ready(self) -> bool:
-        """
-        Checks whether `importlib` can find this node's class, and if so whether the
-        imported object matches the node's type.
-
-        Returns:
-            (bool): Whether the imported module and name of this node's class match
-                its type.
-        """
-        try:
-            module = self.__class__.__module__
-            class_ = getattr(import_module(module), self.__class__.__name__)
-            if module == "__main__":
-                warnings.warn(f"{self.label} is only defined in __main__")
-            return type(self) is class_
-        except (ModuleNotFoundError, AttributeError):
-            return False
-
-    @property
-    def import_readiness_report(self):
-        print(self._report_import_readiness())
-
-    def _report_import_readiness(self, tabs=0, report_so_far=""):
-        newline = "\n" if len(report_so_far) > 0 else ""
-        tabspace = tabs * "\t"
-        return (
-            report_so_far + f"{newline}{tabspace}{self.label}: "
-            f"{'ok' if self.import_ready else 'NOT IMPORTABLE'}"
-        )
 
     def iter_old(self, max_workers=1, cores_per_worker=1, executor=None, **kwargs):
         from pympipool import Executor

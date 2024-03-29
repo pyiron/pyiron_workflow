@@ -18,7 +18,9 @@ if TYPE_CHECKING:
     from pyiron_workflow.node import Node as WorkflowNode
 
 
-def directed_graph(name, label, rankdir, color_start, color_end, gradient_angle):
+def directed_graph(
+    name, label, rankdir, color_start, color_end, gradient_angle, size=None
+):
     """A shortcut method for instantiating the type of graphviz graph we want"""
     digraph = graphviz.graphs.Digraph(name=name)
     digraph.attr(
@@ -27,7 +29,10 @@ def directed_graph(name, label, rankdir, color_start, color_end, gradient_angle)
         rankdir=rankdir,
         style="filled",
         fillcolor=f"{color_start}:{color_end}",
+        color=f"{color_start}:{color_end}",
         gradientangle=gradient_angle,
+        fontname="helvetica",
+        size=size,
     )
     return digraph
 
@@ -107,6 +112,7 @@ class _Channel(WorkflowGraphvizMap, ABC):
             shape=self.shape,
             color=self.color,
             style="filled",
+            fontname="helvetica",
         )
 
     @property
@@ -143,7 +149,8 @@ class _Channel(WorkflowGraphvizMap, ABC):
 class DataChannel(_Channel):
     @property
     def color(self) -> str:
-        return SeabornColors.orange
+        orange = "#EDB22C"
+        return orange
 
     @property
     def shape(self) -> str:
@@ -153,7 +160,8 @@ class DataChannel(_Channel):
 class SignalChannel(_Channel):
     @property
     def color(self) -> str:
-        return SeabornColors.blue
+        blue = "#21BFD8"
+        return blue
 
     @property
     def shape(self) -> str:
@@ -218,7 +226,8 @@ class _IO(WorkflowGraphvizMap, ABC):
 
     @property
     def color(self) -> str:
-        return SeabornColors.gray
+        gray = "#A5A4A5"
+        return gray
 
     def __len__(self):
         return len(self.channels)
@@ -262,6 +271,9 @@ class Node(WorkflowGraphvizMap):
             owns this visualization (if any).
         depth (int): How deeply to decompose any child nodes beyond showing their IO.
         rankdir ("LR" | "TB"): Use left-right or top-bottom graphviz `rankdir`.
+        size (tuple[int | float, int | float] | None): The size of the diagram, in
+            inches(?); respects ratio by scaling until at least one dimension matches
+            the requested size. (Default is None, automatically size.)
     """
 
     def __init__(
@@ -270,6 +282,7 @@ class Node(WorkflowGraphvizMap):
         parent: Optional[Node] = None,
         depth: int = 1,
         rankdir: Literal["LR", "TB"] = "LR",
+        size: Optional[str] = None,
     ):
         self.node = node
         self._parent = parent
@@ -280,9 +293,10 @@ class Node(WorkflowGraphvizMap):
             self.name,
             self.label,
             rankdir=self.rankdir,
-            color_start=self.color,
+            color_start=lighten_hex_color(self.color),
             color_end=lighten_hex_color(self.color),
-            gradient_angle="90",
+            gradient_angle="0",
+            size=size,
         )
 
         self.inputs = Inputs(self)
@@ -295,7 +309,7 @@ class Node(WorkflowGraphvizMap):
             from pyiron_workflow.composite import Composite
 
             # Janky in-line import to avoid circular imports but only look for children
-            # where they exist (since SingleValue nodes now actually do something on
+            # where they exist (since nodes sometimes now actually do something on
             # failed attribute access, i.e. use it as delayed access on their output)
             if isinstance(self.node, Composite):
                 self._connect_owned_nodes(depth)
@@ -307,7 +321,7 @@ class Node(WorkflowGraphvizMap):
         return f"{start_channel.color};0.5:{end_channel.color};0.5"
 
     def _connect_owned_nodes(self, depth):
-        nodes = [Node(node, self, depth - 1) for node in self.node.nodes.values()]
+        nodes = [Node(node, self, depth - 1) for node in self.node.children.values()]
         internal_inputs = [
             channel for node in nodes for channel in node.inputs.channels
         ]
