@@ -45,7 +45,7 @@ setup(
             'ase==3.22.1',
             'atomistics==0.1.23',
             'numpy==1.26.4',
-            'phonopy==2.21.2',
+            'phonopy==2.22.1',
             'pyiron_atomistics==0.4.17',
         ],
     },
