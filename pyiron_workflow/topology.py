@@ -56,23 +56,23 @@ def nodes_to_data_digraph(nodes: dict[str, Node]) -> dict[str, set[str]]:
             locally_scoped_dependencies = []
             for upstream in channel.connections:
                 try:
-                    upstream_node = nodes[upstream.node.label]
+                    upstream_node = nodes[upstream.owner.label]
                 except KeyError as e:
                     raise KeyError(
                         f"The {channel.label} channel of {node.label} has a connection "
-                        f"to {upstream.label} channel of {upstream.node.label}, but "
-                        f"{upstream.node.label} was not found among nodes. All nodes "
+                        f"to {upstream.label} channel of {upstream.owner.label}, but "
+                        f"{upstream.owner.label} was not found among nodes. All nodes "
                         f"in the data flow dependency tree must be included."
                     )
-                if upstream_node is not upstream.node:
+                if upstream_node is not upstream.owner:
                     raise ValueError(
                         f"The {channel.label} channel of {node.label} has a connection "
-                        f"to {upstream.label} channel of {upstream.node.label}, but "
+                        f"to {upstream.label} channel of {upstream.owner.label}, but "
                         f"that channel's node is not the same as the nodes passed "
                         f"here. All nodes in the data flow dependency tree must be "
                         f"included."
                     )
-                locally_scoped_dependencies.append(upstream.node.label)
+                locally_scoped_dependencies.append(upstream.owner.label)
             node_dependencies.extend(locally_scoped_dependencies)
         node_dependencies = set(node_dependencies)
         if node.label in node_dependencies:
@@ -183,7 +183,7 @@ def _set_run_connections_according_to_dag(nodes: dict[str, Node]) -> list[Node]:
 
     for node in nodes.values():
         upstream_connections = [con for inp in node.inputs for con in inp.connections]
-        upstream_nodes = set([c.node for c in upstream_connections])
+        upstream_nodes = set([c.owner for c in upstream_connections])
         upstream_rans = [n.signals.output.ran for n in upstream_nodes]
         node.signals.input.accumulate_and_run.connect(*upstream_rans)
     # Note: We can be super fast-and-loose here because the `nodes_to_data_digraph` call
@@ -227,7 +227,7 @@ def get_nodes_in_data_tree(node: Node) -> set[Node]:
         nodes = set([node])
         for channel in node.inputs:
             for connection in channel.connections:
-                nodes = nodes.union(get_nodes_in_data_tree(connection.node))
+                nodes = nodes.union(get_nodes_in_data_tree(connection.owner))
         return nodes
     except RecursionError:
         raise CircularDataFlowError(

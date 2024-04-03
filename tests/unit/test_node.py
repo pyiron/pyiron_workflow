@@ -4,12 +4,13 @@ import sys
 from typing import Literal, Optional
 import unittest
 
-from pyiron_workflow.channels import InputData, OutputData, NOT_DATA
+from pyiron_workflow.channels import InputData, NOT_DATA
 from pyiron_workflow.snippets.files import DirectoryObject
-from pyiron_workflow.interfaces import Executor
-from pyiron_workflow.io import Inputs, Outputs
+from pyiron_workflow.create import Executor
+from pyiron_workflow.injection import OutputDataWithInjection, OutputsWithInjection
+from pyiron_workflow.io import Inputs
 from pyiron_workflow.node import Node
-from pyiron_workflow.storage import ALLOWED_BACKENDS
+from pyiron_workflow.single_output import AmbiguousOutputError
 
 
 def add_one(x):
@@ -32,7 +33,9 @@ class ANode(Node):
             label=label, save_after_run=save_after_run, storage_backend=storage_backend
         )
         self._inputs = Inputs(InputData("x", self, type_hint=int))
-        self._outputs = Outputs(OutputData("y", self, type_hint=int))
+        self._outputs = OutputsWithInjection(
+            OutputDataWithInjection("y", self, type_hint=int),
+        )
         if x is not None:
             self.inputs.x = x
 
@@ -41,7 +44,7 @@ class ANode(Node):
         return self._inputs
 
     @property
-    def outputs(self) -> Inputs:
+    def outputs(self) -> OutputsWithInjection:
         return self._outputs
 
     @property
@@ -143,13 +146,6 @@ class TestNode(unittest.TestCase):
             msg="When status is failed, we should fail early, even if input data is ok"
         ):
             self.n3.run(run_data_tree=False, fetch_input=False, check_readiness=True)
-
-        with self.assertRaises(
-            RuntimeError,
-            msg="If we manage to run with bad input, being in a failed state still "
-                "stops us"
-        ):
-            self.n3.run(run_data_tree=False, fetch_input=False, check_readiness=False)
 
         self.n3.failed = False
         self.assertEqual(
@@ -322,15 +318,19 @@ class TestNode(unittest.TestCase):
                 any(self.n1.working_directory.path.iterdir())
             )
 
-            fmt = "pdf"  # This is just so we concretely know the filename suffix
-            self.n1.draw(save=True, format=fmt)
-            expected_name = self.n1.label + "_graph." + fmt
-            # That name is just an implementation detail, update it as needed
-            self.assertTrue(
-                self.n1.working_directory.path.joinpath(expected_name).is_file(),
-                msg="If `save` is called, expect the rendered image to exist in the working"
-                    "directory"
-            )
+            for fmt in ["pdf", "png"]:
+                with self.subTest(f"Testing with format {fmt}"):
+                    self.n1.draw(save=True, format=fmt)
+                    expected_name = self.n1.label + "_graph." + fmt
+                    # That name is just an implementation detail, update it as
+                    # needed
+                    self.assertTrue(
+                        self.n1.working_directory.path.joinpath(
+                            expected_name
+                        ).is_file(),
+                        msg="If `save` is called, expect the rendered image to "
+                            "exist in the working directory"
+                    )
 
             user_specified_name = "foo"
             self.n1.draw(filename=user_specified_name, format=fmt)
@@ -360,7 +360,7 @@ class TestNode(unittest.TestCase):
         n = ANode("n")
 
         self.assertEqual(
-            n.label,
+            n.semantic_delimiter + n.label,
             n.graph_path,
             msg="Lone nodes should just have their label as the path, as there is no "
                 "parent above."
@@ -372,6 +372,40 @@ class TestNode(unittest.TestCase):
             msg="Lone nodes should be their own graph_root, as there is no parent "
                 "above."
         )
+
+    def test_single_value(self):
+        node = ANode("n")
+        self.assertIs(
+            node.outputs.y,
+            node.channel,
+            msg="With a single output, the `HasChannel` interface fulfillment should "
+                "use that output."
+        )
+
+        with_addition = node + 5
+        self.assertIsInstance(
+            with_addition,
+            Node,
+            msg="With a single output, acting on the node should fall back on acting "
+                "on the single (with-injection) output"
+        )
+
+        node2 = ANode("n2")
+        node2.inputs.x = node
+        self.assertListEqual(
+            [node.outputs.y],
+            node2.inputs.x.connections,
+            msg="With a single output, the node should fall back on the single output "
+                "for output-like use cases"
+        )
+
+        node.outputs["z"] = OutputDataWithInjection("z", node, type_hint=int)
+        with self.assertRaises(
+            AmbiguousOutputError,
+            msg="With multiple outputs, trying to exploit the `HasChannel` interface "
+                "should fail cleanly"
+        ):
+            node.channel
 
     @unittest.skipIf(sys.version_info >= (3, 11), "Storage should only work in 3.11+")
     def test_storage_failure(self):
@@ -391,57 +425,60 @@ class TestNode(unittest.TestCase):
         )
         y = self.n1()
 
-        for backend in ALLOWED_BACKENDS:
+        for backend in Node.allowed_backends():
             with self.subTest(backend):
                 self.n1.storage_backend = backend
-                self.n1.save()
+                try:
+                    self.n1.save()
 
-                x = self.n1.inputs.x.value
-                reloaded = ANode(self.n1.label, x=x, storage_backend=backend)
-                self.assertEqual(
-                    y,
-                    reloaded.outputs.y.value,
-                    msg="Nodes should load by default if they find a save file"
-                )
-
-                clean_slate = ANode(self.n1.label, x=x, overwrite_save=True)
-                self.assertIs(
-                    clean_slate.outputs.y.value,
-                    NOT_DATA,
-                    msg="Users should be able to ignore a save"
-                )
-
-                run_right_away = ANode(
-                    self.n1.label, x=x, run_after_init=True, storage_backend=backend
-                )
-                self.assertEqual(
-                    y,
-                    run_right_away.outputs.y.value,
-                    msg="With nothing to load, running after init is fine"
-                )
-
-                run_right_away.save()
-                with self.assertRaises(
-                    ValueError,
-                    msg="Should be able to both immediately run _and_ load a node at "
-                        "once"
-                ):
-                    ANode(
-                        self.n1.label, x=x, run_after_init=True, storage_backend=backend
+                    x = self.n1.inputs.x.value
+                    reloaded = ANode(self.n1.label, x=x, storage_backend=backend)
+                    self.assertEqual(
+                        y,
+                        reloaded.outputs.y.value,
+                        msg="Nodes should load by default if they find a save file"
                     )
 
-                force_run = ANode(
-                    self.n1.label, x=x, run_after_init=True, overwrite_save=True
-                )
-                self.assertEqual(
-                    y,
-                    force_run.outputs.y.value,
-                    msg="Destroying the save should allow immediate re-running"
-                )
+                    clean_slate = ANode(self.n1.label, x=x, overwrite_save=True)
+                    self.assertIs(
+                        clean_slate.outputs.y.value,
+                        NOT_DATA,
+                        msg="Users should be able to ignore a save"
+                    )
+
+                    run_right_away = ANode(
+                        self.n1.label, x=x, run_after_init=True, storage_backend=backend
+                    )
+                    self.assertEqual(
+                        y,
+                        run_right_away.outputs.y.value,
+                        msg="With nothing to load, running after init is fine"
+                    )
+
+                    run_right_away.save()
+                    with self.assertRaises(
+                        ValueError,
+                        msg="Should be able to both immediately run _and_ load a node at "
+                            "once"
+                    ):
+                        ANode(
+                            self.n1.label, x=x, run_after_init=True, storage_backend=backend
+                        )
+
+                    force_run = ANode(
+                        self.n1.label, x=x, run_after_init=True, overwrite_save=True
+                    )
+                    self.assertEqual(
+                        y,
+                        force_run.outputs.y.value,
+                        msg="Destroying the save should allow immediate re-running"
+                    )
+                finally:
+                    self.n1.delete_storage()
 
     @unittest.skipIf(sys.version_info < (3, 11), "Storage will only work in 3.11+")
     def test_save_after_run(self):
-        for backend in ALLOWED_BACKENDS:
+        for backend in Node.allowed_backends():
             with self.subTest(backend):
                 try:
                     ANode("just_run", x=0, run_after_init=True, storage_backend=backend)

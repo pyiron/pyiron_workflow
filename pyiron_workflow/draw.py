@@ -309,7 +309,7 @@ class Node(WorkflowGraphvizMap):
             from pyiron_workflow.composite import Composite
 
             # Janky in-line import to avoid circular imports but only look for children
-            # where they exist (since SingleValue nodes now actually do something on
+            # where they exist (since nodes sometimes now actually do something on
             # failed attribute access, i.e. use it as delayed access on their output)
             if isinstance(self.node, Composite):
                 self._connect_owned_nodes(depth)
@@ -321,7 +321,7 @@ class Node(WorkflowGraphvizMap):
         return f"{start_channel.color};0.5:{end_channel.color};0.5"
 
     def _connect_owned_nodes(self, depth):
-        nodes = [Node(node, self, depth - 1) for node in self.node.nodes.values()]
+        nodes = [Node(node, self, depth - 1) for node in self.node.children.values()]
         internal_inputs = [
             channel for node in nodes for channel in node.inputs.channels
         ]
