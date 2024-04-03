@@ -1,7 +1,5 @@
 from concurrent.futures import Future
 import os
-import platform
-from subprocess import CalledProcessError
 import sys
 from typing import Literal, Optional
 import unittest
@@ -322,29 +320,17 @@ class TestNode(unittest.TestCase):
 
             for fmt in ["pdf", "png"]:
                 with self.subTest(f"Testing with format {fmt}"):
-                    if fmt == "pdf" and platform.system() == "Windows":
-                        with self.assertRaises(
-                            CalledProcessError,
-                            msg="Graphviz doesn't seem to be happy about the "
-                                "combindation PDF format and Windows right now. We "
-                                "throw a warning for it in `Node.draw`, so if this "
-                                "test ever fails and this combination _doesn't_ fail, "
-                                "remove this extra bit of testing and remove the "
-                                "warning."
-                        ):
-                            self.n1.draw(save=True, format=fmt)
-                    else:
-                        self.n1.draw(save=True, format=fmt)
-                        expected_name = self.n1.label + "_graph." + fmt
-                        # That name is just an implementation detail, update it as
-                        # needed
-                        self.assertTrue(
-                            self.n1.working_directory.path.joinpath(
-                                expected_name
-                            ).is_file(),
-                            msg="If `save` is called, expect the rendered image to "
-                                "exist in the working directory"
-                        )
+                    self.n1.draw(save=True, format=fmt)
+                    expected_name = self.n1.label + "_graph." + fmt
+                    # That name is just an implementation detail, update it as
+                    # needed
+                    self.assertTrue(
+                        self.n1.working_directory.path.joinpath(
+                            expected_name
+                        ).is_file(),
+                        msg="If `save` is called, expect the rendered image to "
+                            "exist in the working directory"
+                    )
 
             user_specified_name = "foo"
             self.n1.draw(filename=user_specified_name, format=fmt)
