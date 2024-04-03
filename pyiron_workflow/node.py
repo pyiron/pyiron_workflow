@@ -10,7 +10,6 @@ from __future__ import annotations
 import sys
 from abc import ABC
 from concurrent.futures import Future
-import platform
 from typing import Any, Literal, Optional, TYPE_CHECKING
 import warnings
 
@@ -647,16 +646,8 @@ class Node(
         Returns:
             (graphviz.graphs.Digraph): The resulting graph object.
 
-        Warnings:
-            Rendering a PDF format appears to not be working on Windows right now.
         """
-        if format == "pdf" and platform.system() == "Windows":
-            warnings.warn(
-                "Graphviz does not appear to be playing well with Windows right now,"
-                "this will probably fail and you will need to try a different format."
-                "If it _doesn't_ fail, please contact the developers by raising an "
-                "issue at github.com/pyiron/pyiron_workflow"
-            )
+
         if size is not None:
             size = f"{size[0]},{size[1]}"
         graph = GraphvizNode(self, depth=depth, rankdir=rankdir, size=size).graph
