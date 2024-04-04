@@ -60,27 +60,22 @@ But the intent is to collect them together into a workflow and leverage existing
 ...     return np.arange(n)
 >>>
 >>> @Workflow.wrap_as.macro_node("fig")
-... def PlotShiftedSquare(macro, shift: int = 0):
-...     macro.arange = Arange()
+... def PlotShiftedSquare(macro, n: int, shift: int = 0):
+...     macro.arange = Arange(n)
 ...     macro.plot = macro.create.plotting.Scatter(
 ...         x=macro.arange + shift,
 ...         y=macro.arange**2
 ...     )
-...     macro.inputs_map = {"arange__n": "n"}  # Expose arange input
 ...     return macro.plot
 >>> 
 >>> wf = Workflow("plot_with_and_without_shift")
 >>> wf.n = wf.create.standard.UserInput()
->>> wf.no_shift = PlotShiftedSquare(shift=0, n=10)
->>> wf.shift = PlotShiftedSquare(shift=2, n=10)
->>> wf.inputs_map = {
-...     "n__user_input": "n",
-...     "shift__shift": "shift"
-... }
+>>> wf.no_shift = PlotShiftedSquare(shift=0, n=wf.n)
+>>> wf.shift = PlotShiftedSquare(shift=2, n=wf.n)
 >>> 
 >>> diagram = wf.draw()
 >>> 
->>> out = wf(shift=3, n=10)
+>>> out = wf(shift__shift=3, n__user_input=10)
 
 ```
 
