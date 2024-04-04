@@ -188,9 +188,9 @@ def while_loop(
     Args:
         loop_body_class (type[pyiron_workflow.node.Node]): The class for the
             body of the while-loop.
-        condition_class (type[pyiron_workflow.function.Function]): A single-output
-            function node returning a `bool` controlling the while loop exit condition
-            (exits on False)
+        condition_class (type[pyiron_workflow.function.AbstractFunction]): A
+            single-output function node returning a `bool` controlling the while loop
+            exit condition (exits on False)
         internal_connection_map (list[tuple[str, str, str, str]]): String tuples
             giving (input node, input channel, output node, output channel) labels
             connecting channel pairs inside the macro.
