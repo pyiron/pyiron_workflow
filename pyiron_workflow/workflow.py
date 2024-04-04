@@ -229,6 +229,7 @@ class Workflow(Composite, ParentMost):
 
         for node in nodes:
             self.add_child(node)
+
     @property
     def inputs_map(self) -> bidict | None:
         self._deduplicate_nones(self._inputs_map)

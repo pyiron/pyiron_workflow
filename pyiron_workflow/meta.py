@@ -121,13 +121,11 @@ def for_loop(
         )
 
     # Build code components that need an f-string, slash, etc.
-    output_labels = ", ".join(
-        f'"{l.upper()}"'
-        for l in output_preview.keys()
-    ).rstrip(" ")
+    output_labels = ", ".join(f'"{l.upper()}"' for l in output_preview.keys()).rstrip(
+        " "
+    )
     macro_args = ", ".join(
-        l.upper() if l in iterate_on else l
-        for l in input_preview.keys()
+        l.upper() if l in iterate_on else l for l in input_preview.keys()
     ).rstrip(" ")
     body_label = 'f"body{n}"'
     item_access = "[{n}]"
@@ -142,7 +140,8 @@ def for_loop(
     node_name = f'{loop_body_class.__name__}For{"".join([l.title() for l in sorted(iterate_on)])}{length}'
 
     # Assemble components into a decorated for-loop macro
-    for_loop_code = dedent(f"""
+    for_loop_code = dedent(
+        f"""
         @AbstractMacro.wrap_as.macro_node({output_labels})
         def {node_name}(macro, {macro_args}):
             from {loop_body_class.__module__} import {loop_body_class.__name__}
@@ -160,7 +159,8 @@ def for_loop(
                     macro.children[label.upper()].inputs[{input_label}] = body_node.outputs[label]
 
             return {returns}
-        """)
+        """
+    )
 
     exec(for_loop_code)
     return locals()[node_name]
@@ -274,7 +274,7 @@ def while_loop(
             [
                 "_".join(s for conn in internal_connection_map for s in conn),
                 "".join(f"{k}:{v}" for k, v in sorted(inputs_map.items())),
-                "".join(f"{k}:{v}" for k, v in sorted(outputs_map.items()))
+                "".join(f"{k}:{v}" for k, v in sorted(outputs_map.items())),
             ]
         )
     )
@@ -287,7 +287,8 @@ def while_loop(
 
     def get_kwargs(io_map: dict[str, str], node_class: type[Node]):
         return ", ".join(
-            f'{k.split("__")[1]}={v}' for k, v in io_map.items()
+            f'{k.split("__")[1]}={v}'
+            for k, v in io_map.items()
             if k.split("__")[0] == node_class.__name__
         ).rstrip(" ")
 
@@ -297,7 +298,8 @@ def while_loop(
     ).rstrip(" ")
 
     # Assemble components into a decorated while-loop macro
-    while_loop_code = dedent(f"""
+    while_loop_code = dedent(
+        f"""
         @AbstractMacro.wrap_as.macro_node({output_labels})
         def {node_name}(macro, {input_args}):
             from {loop_body_class.__module__} import {loop_body_class.__name__}
@@ -327,7 +329,8 @@ def while_loop(
             macro.starting_nodes = [body]
 
             return {returns}
-        """)
+        """
+    )
 
     exec(while_loop_code)
     return locals()[node_name]

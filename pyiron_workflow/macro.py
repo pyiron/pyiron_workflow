@@ -283,20 +283,23 @@ class AbstractMacro(Composite, ABC):
             returned_has_channel_objects = (returned_has_channel_objects,)
         self._configure_graph_execution(ui_nodes)
         self._inputs = Inputs(
-            *(
-                self._get_linking_channel(n.inputs.user_input, n.label)
-                for n in ui_nodes
-            )
+            *(self._get_linking_channel(n.inputs.user_input, n.label) for n in ui_nodes)
         )
 
         self._outputs = Outputs(
             *(
                 self._get_linking_channel(c.channel, label)
                 for (c, label) in zip(
-                    () if returned_has_channel_objects is None
-                    else returned_has_channel_objects,
-                    () if self._provided_output_labels is None
-                    else self._provided_output_labels
+                    (
+                        ()
+                        if returned_has_channel_objects is None
+                        else returned_has_channel_objects
+                    ),
+                    (
+                        ()
+                        if self._provided_output_labels is None
+                        else self._provided_output_labels
+                    ),
                 )
             )
         )
@@ -403,7 +406,8 @@ class AbstractMacro(Composite, ABC):
                 type_hint = None
 
             default = (
-                value.default if value.default is not inspect.Parameter.empty
+                value.default
+                if value.default is not inspect.Parameter.empty
                 else NOT_DATA
             )
 

@@ -24,10 +24,16 @@ def atomistics_meta_creator(task_generator_node_class) -> type[AbstractMacro]:
 
 @macro_node("result_dict")
 def ElasticMatrix(
-    wf, calculator, structure, num_of_point=5, eps_range=0.05, sqrt_eta=True, fit_order=2
+    wf,
+    calculator,
+    structure,
+    num_of_point=5,
+    eps_range=0.05,
+    sqrt_eta=True,
+    fit_order=2,
 ):
     return atomistics_meta_creator(ElasticMatrixTaskGenerator)(
-        wf, 
+        wf,
         calculator,
         structure=structure,
         num_of_point=num_of_point,
@@ -39,8 +45,8 @@ def ElasticMatrix(
 
 @macro_node("result_dict")
 def EnergyVolumeCurve(
-    wf, 
-    calculator, 
+    wf,
+    calculator,
     structure,
     num_points=11,
     fit_type="polynomial",
@@ -50,7 +56,7 @@ def EnergyVolumeCurve(
     strains=None,
 ):
     return atomistics_meta_creator(EvcurveTaskGenerator)(
-        wf, 
+        wf,
         calculator,
         structure=structure,
         num_points=num_points,
@@ -64,8 +70,8 @@ def EnergyVolumeCurve(
 
 @macro_node("result_dict")
 def Phonons(
-    wf, 
-    calculator, 
+    wf,
+    calculator,
     structure,
     interaction_range=10,
     factor=VaspToTHz,
