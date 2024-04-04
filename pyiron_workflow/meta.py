@@ -77,21 +77,16 @@ def for_loop(
     Examples:
 
         >>> from pyiron_workflow import Workflow
-        >>> from pyiron_workflow.meta import for_loop
-        >>>
-        >>> @Workflow.wrap_as.function_node("div")
-        ... def Divide(numerator, denominator):
-        ...    return numerator / denominator
         >>>
         >>> denominators = list(range(1, 5))
         >>> bulk_loop = Workflow.create.meta.for_loop(
-        ...     Divide,
+        ...     Workflow.create.standard.Divide,
         ...     len(denominators),
-        ...     iterate_on = ("denominator",),
+        ...     iterate_on = ("other",),
         ... )()
-        >>> bulk_loop.inputs.numerator = 1
-        >>> bulk_loop.inputs.DENOMINATOR = denominators
-        >>> bulk_loop().DIV
+        >>> bulk_loop.inputs.obj = 1
+        >>> bulk_loop.inputs.OTHER = denominators
+        >>> bulk_loop().TRUEDIV
         [1.0, 0.5, 0.3333333333333333, 0.25]
 
     TODO:
@@ -206,24 +201,19 @@ def while_loop(
 
         >>> from pyiron_workflow import Workflow
         >>>
-        >>> @Workflow.wrap_as.function_node()
-        ... def Add(a, b):
-        ...     print(f"{a} + {b} = {a + b}")
-        ...     return a + b
-        >>>
-        >>> @Workflow.wrap_as.function_node()
-        ... def LessThanTen(value):
-        ...     return value < 10
-        >>>
         >>> AddWhile = Workflow.create.meta.while_loop(
-        ...     loop_body_class=Add,
+        ...     loop_body_class=Workflow.create.standard.Add,
         ...     condition_class=Workflow.create.standard.LessThan,
         ...     internal_connection_map=[
-        ...         ("Add", "a + b", "LessThan", "obj"),
-        ...         ("Add", "a + b", "Add", "a")
+        ...         ("Add", "add", "LessThan", "obj"),
+        ...         ("Add", "add", "Add", "obj")
         ...     ],
-        ...     inputs_map={"Add__a": "a", "Add__b": "b", "LessThan__other": "cap"},
-        ...     outputs_map={"Add__a + b": "total"}
+        ...     inputs_map={
+        ...         "Add__obj": "a",
+        ...         "Add__other": "b",
+        ...         "LessThan__other": "cap"
+        ...     },
+        ...     outputs_map={"Add__add": "total"}
         ... )
         >>>
         >>> wf = Workflow("do_while")
@@ -236,34 +226,21 @@ def while_loop(
         >>> wf.outputs_map = {"add_while__total": "total"}
         >>>
         >>> print(f"Finally, {wf(a=1, b=2).total}")
-        1 + 2 = 3
-        3 + 2 = 5
-        5 + 2 = 7
-        7 + 2 = 9
-        9 + 2 = 11
         Finally, 11
 
         >>> import random
         >>>
         >>> from pyiron_workflow import Workflow
         >>>
-        >>> random.seed(0)
-        >>>
-        >>> @Workflow.wrap_as.function_node("random")
-        ... def RandomFloat():
-        ...     return random.random()
-        >>>
-        >>> @Workflow.wrap_as.function_node()
-        ... def GreaterThan(x: float, threshold: float):
-        ...     gt = x > threshold
-        ...     symbol = ">" if gt else "<="
-        ...     print(f"{x:.3f} {symbol} {threshold}")
-        ...     return gt
+        >>> random.seed(0)  # Set the seed so the output is consistent and doctest runs
         >>>
         >>> RandomWhile = Workflow.create.meta.while_loop(
-        ...     loop_body_class=RandomFloat,
-        ...     condition_class=GreaterThan,
-        ...     internal_connection_map=[("RandomFloat", "random", "GreaterThan", "x")],
+        ...     loop_body_class=Workflow.create.standard.RandomFloat,
+        ...     condition_class=Workflow.create.standard.GreaterThan,
+        ...     internal_connection_map=[
+        ...         ("RandomFloat", "random", "GreaterThan", "obj")
+        ...     ],
+        ...     inputs_map={"GreaterThan__other": "threshold"},
         ...     outputs_map={"RandomFloat__random": "capped_result"}
         ... )
         >>>
@@ -276,15 +253,11 @@ def while_loop(
         >>> wf.random_while = RandomWhile()
         >>>
         >>> ## Give convenient labels
-        >>> wf.inputs_map = {"random_while__GreaterThan__threshold": "threshold"}
+        >>> wf.inputs_map = {"random_while__threshold": "threshold"}
         >>> wf.outputs_map = {"random_while__capped_result": "capped_result"}
         >>>
         >>> # Set a threshold and run
         >>> print(f"Finally {wf(threshold=0.3).capped_result:.3f}")
-        0.844 > 0.3
-        0.758 > 0.3
-        0.421 > 0.3
-        0.259 <= 0.3
         Finally 0.259
     """
 
