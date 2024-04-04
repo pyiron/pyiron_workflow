@@ -4,17 +4,17 @@ Meta nodes are callables that create a node class instead of a node instance.
 
 from __future__ import annotations
 
-from typing import Optional
+from textwrap import dedent
+from typing import Optional, TYPE_CHECKING
 
-from pyiron_workflow.function import (
-    Function,
-    function_node,
-)
+from pyiron_workflow.function import AbstractFunction, function_node
 from pyiron_workflow.macro import AbstractMacro, macro_node
-from pyiron_workflow.node import Node
+
+if TYPE_CHECKING:
+    from pyiron_workflow.node import Node
 
 
-def list_to_output(length: int, **node_class_kwargs) -> type[Function]:
+def list_to_output(length: int, **node_class_kwargs) -> type[AbstractFunction]:
     """
     A meta-node that returns a node class with :param:`length` input channels and
     maps these to a single output channel with type `list`.
@@ -34,7 +34,7 @@ def __list_to_many(input_list: list):
     )
 
 
-def input_to_list(length: int, **node_class_kwargs) -> type[Function]:
+def input_to_list(length: int, **node_class_kwargs) -> type[AbstractFunction]:
     """
     A meta-node that returns a node class with :param:`length` output channels and
     maps an input list to these.
@@ -57,22 +57,27 @@ def for_loop(
     loop_body_class: type[Node],
     length: int,
     iterate_on: str | tuple[str] | list[str],
-    # TODO:
 ) -> type[AbstractMacro]:
     """
-    An _extremely rough_ first draft of a for-loop meta-node.
+    An _extremely rough_ second draft of a for-loop meta-node.
 
     Takes a node class, how long the loop should be, and which input(s) of the provided
     node class should be looped over (given as strings of the channel labels) and
-    builds a macro that
+    builds a macro that scatters some input and broadcasts the rest, then operates on
+    a zip of all the scattered input (so it had better be the same length).
 
     - Makes copies of the provided node class, i.e. the "body node"
-    - For each input channel specified to "loop over", creates a list-to-many node and
-      connects each of its outputs to their respective body node inputs
-    - For all other inputs, makes a 1:1 node and connects its output to _all_ of the
-      body nodes
-    - Relables the macro IO to match the passed node class IO so that list-ified IO
-      (i.e. the specified input and all output) is all caps
+    - Labels in :param:`iterate_on` must correspond to `loop_body_class` input channels,
+        and the for-loop node then expects list-like input for these with ALL CAPS
+        labeling, and this gets scattered to the children.
+    - All other input simply gets broadcast to each child.
+    - Output channels correspond to input channels, but are lists of the children and
+        labeled in ALL CAPS
+
+    Warnings:
+        The loop body class must be importable. E.g. it can come from a node package or
+        be defined in `__main__`, but not defined inside the scope of some other
+        function.
 
     Examples:
 
@@ -92,89 +97,84 @@ def for_loop(
     TODO:
 
         - Refactor like crazy, it's super hard to read and some stuff is too hard-coded
-        - Give some sort of access to flow control??
         - How to handle passing executors to the children? Maybe this is more
           generically a Macro question?
         - Is it possible to somehow dynamically adapt the held graph depending on the
-          length of the input values being iterated over? Tricky to keep IO well defined
+          length of the input values being iterated over? E.g. rebuilding the graph
+          every run call.
         - Allow a different mode, or make a different meta node, that makes all possible
-          pairs of body nodes given the input being looped over instead of just :param:`length`
+          pairs of body nodes given the input being looped over instead of just
+          :param:`length`
         - Provide enter and exit magic methods so we can `for` or `with` this fancy-like
     """
+    input_preview = loop_body_class.preview_input_channels()
+    output_preview = loop_body_class.preview_output_channels()
+
+    # Ensure `iterate_on` is in the input
     iterate_on = [iterate_on] if isinstance(iterate_on, str) else iterate_on
+    incommensurate_input = set(iterate_on).difference(input_preview.keys())
+    if len(incommensurate_input) > 0:
+        raise ValueError(
+            f"Cannot loop on {incommensurate_input}, as it is not an input channel "
+            f"of {loop_body_class.__name__}; please choose from among "
+            f"{list(input_preview)}"
+        )
 
-    def make_loop(macro):
-        macro.inputs_map = {}
-        macro.outputs_map = {}
-        body_nodes = []
+    # Build code components that need an f-string, slash, etc.
+    output_labels = ", ".join(
+        f'"{l.upper()}"'
+        for l in output_preview.keys()
+    ).rstrip(" ")
+    macro_args = ", ".join(
+        l.upper() if l in iterate_on else l
+        for l in input_preview.keys()
+    ).rstrip(" ")
+    body_label = 'f"body{n}"'
+    item_access = "[{n}]"
+    body_kwargs = ", ".join(
+        f"{l}={l.upper()}[n]" if l in iterate_on else f"{l}={l}"
+        for l in input_preview.keys()
+    ).rstrip(" ")
+    input_label = 'f"inp{n}"'
+    returns = ", ".join(
+        f'macro.children["{label.upper()}"]' for label in output_preview.keys()
+    )
+    node_name = f'{loop_body_class.__name__}For{"".join([l.title() for l in sorted(iterate_on)])}{length}'
 
-        # Parallelize over body nodes
-        for n in range(length):
-            body_nodes.append(
-                macro.add_child(
-                    loop_body_class(label=f"{loop_body_class.__name__}_{n}")
+    # Assemble components into a decorated for-loop macro
+    for_loop_code = dedent(f"""
+        @AbstractMacro.wrap_as.macro_node({output_labels})
+        def {node_name}(macro, {macro_args}):
+            from {loop_body_class.__module__} import {loop_body_class.__name__}
+
+            for label in [{output_labels}]:
+                input_to_list({length})(label=label, parent=macro)
+
+            for n in range({length}):
+                body_node = {loop_body_class.__name__}(
+                    {body_kwargs},
+                    label={body_label},
+                    parent=macro
                 )
-            )
+                for label in {list(output_preview.keys())}:
+                    macro.children[label.upper()].inputs[{input_label}] = body_node.outputs[label]
 
-        # Make input interface
-        for label, inp in body_nodes[0].inputs.items():
-            # Don't rely on inp.label directly, since inputs may be a Composite IO
-            # panel that has a different key for this input channel than its label
+            return {returns}
+        """)
 
-            # Scatter a list of inputs to each node separately
-            if label in iterate_on:
-                interface = list_to_output(length)(
-                    parent=macro,
-                    label=label.upper(),
-                    input_list=[inp.default] * length,
-                )
-                # Connect each body node input to the input interface's respective
-                # output
-                for body_node, out in zip(body_nodes, interface.outputs):
-                    body_node.inputs[label] = out
-                macro.inputs_map[interface.inputs.input_list.scoped_label] = (
-                    interface.label
-                )
-            # Or broadcast the same input to each node equally
-            else:
-                interface = macro.create.standard.UserInput(
-                    label=label,
-                    user_input=inp.default,
-                    parent=macro,
-                )
-                for body_node in body_nodes:
-                    body_node.inputs[label] = interface
-                macro.inputs_map[interface.scoped_label] = interface.label
-
-        # Make output interface: outputs to lists
-        for label, out in body_nodes[0].outputs.items():
-            interface = input_to_list(length)(
-                parent=macro,
-                label=label.upper(),
-            )
-            # Connect each body node output to the output interface's respective input
-            for body_node, inp in zip(body_nodes, interface.inputs):
-                inp.connect(body_node.outputs[label])
-                if body_node.executor is not None:
-                    raise NotImplementedError(
-                        "Right now the output interface gets run after each body node,"
-                        "if the body nodes can run asynchronously we need something "
-                        "more clever than that!"
-                    )
-            macro.outputs_map[interface.scoped_label] = interface.label
-
-    return macro_node()(make_loop)
+    exec(for_loop_code)
+    return locals()[node_name]
 
 
 def while_loop(
     loop_body_class: type[Node],
-    condition_class: type[Function],
+    condition_class: type[AbstractFunction],
     internal_connection_map: dict[str, str],
-    inputs_map: Optional[dict[str, str]] = None,
-    outputs_map: Optional[dict[str, str]] = None,
+    inputs_map: Optional[dict[str, str]],
+    outputs_map: Optional[dict[str, str]],
 ) -> type[AbstractMacro]:
     """
-    An _extremely rough_ first draft of a for-loop meta-node.
+    An _extremely rough_ second draft of a for-loop meta-node.
 
     Takes body and condition node classes and builds a macro that makes a cyclic signal
     connection between them and an "if" switch, i.e. when the body node finishes it
@@ -194,8 +194,15 @@ def while_loop(
         internal_connection_map (list[tuple[str, str, str, str]]): String tuples
             giving (input node, input channel, output node, output channel) labels
             connecting channel pairs inside the macro.
-        inputs_map Optional[dict[str, str]]: The inputs map as usual for a macro.
-        outputs_map Optional[dict[str, str]]: The outputs map as usual for a macro.
+        inputs_map (dict[str, str]): Define the inputs for the new macro like
+            `{body/condition class name}__{input channel}: {macro input channel name}`
+        outputs_map (dict[str, str]): Define the outputs for the new macro like
+            `{body/condition class name}__{output channel}: {macro output channel name}`
+
+    Warnings:
+        The loop body and condition classes must be importable. E.g. they can come from
+        a node package or be defined in `__main__`, but not defined inside the scope of
+        some other function.
 
     Examples:
 
@@ -261,21 +268,85 @@ def while_loop(
         Finally 0.259
     """
 
-    def make_loop(macro):
-        body_node = macro.add_child(loop_body_class(label=loop_body_class.__name__))
-        condition_node = macro.add_child(
-            condition_class(label=condition_class.__name__)
+    # Make sure each dynamic class is getting a unique name
+    io_hash = hash(
+        ",".join(
+            [
+                "_".join(s for conn in internal_connection_map for s in conn),
+                "".join(f"{k}:{v}" for k, v in sorted(inputs_map.items())),
+                "".join(f"{k}:{v}" for k, v in sorted(outputs_map.items()))
+            ]
         )
-        switch = macro.create.standard.If(label="switch", parent=macro)
+    )
+    io_hash = str(io_hash).replace("-", "m")
+    node_name = f"{loop_body_class.__name__}While{condition_class.__name__}_{io_hash}"
 
-        switch.inputs.condition = condition_node
-        for out_n, out_c, in_n, in_c in internal_connection_map:
-            macro.children[in_n].inputs[in_c] = macro.children[out_n].outputs[out_c]
+    # Build code components that need an f-string, slash, etc.
+    output_labels = ", ".join(f'"{l}"' for l in outputs_map.values()).rstrip(" ")
+    input_args = ", ".join(l for l in inputs_map.values()).rstrip(" ")
 
-        switch.signals.output.true >> body_node >> condition_node >> switch
-        macro.starting_nodes = [body_node]
+    def get_kwargs(io_map: dict[str, str], node_class: type[Node]):
+        return ", ".join(
+            f'{k.split("__")[1]}={v}' for k, v in io_map.items()
+            if k.split("__")[0] == node_class.__name__
+        ).rstrip(" ")
 
-        macro.inputs_map = {} if inputs_map is None else inputs_map
-        macro.outputs_map = {} if outputs_map is None else outputs_map
+    returns = ", ".join(
+        f'macro.{l.split("__")[0]}.outputs.{l.split("__")[1]}'
+        for l in outputs_map.keys()
+    ).rstrip(" ")
 
-    return macro_node()(make_loop)
+    # Assemble components into a decorated while-loop macro
+    while_loop_code = dedent(f"""
+        @AbstractMacro.wrap_as.macro_node({output_labels})
+        def {node_name}(macro, {input_args}):
+            from {loop_body_class.__module__} import {loop_body_class.__name__}
+            from {condition_class.__module__} import {condition_class.__name__}
+
+            body = macro.add_child(
+                {loop_body_class.__name__}(
+                    label="{loop_body_class.__name__}",
+                    {get_kwargs(inputs_map, loop_body_class)}
+                )
+            )
+
+            condition = macro.add_child(
+                {condition_class.__name__}(
+                    label="{condition_class.__name__}",
+                    {get_kwargs(inputs_map, condition_class)}
+                )
+            )
+
+            macro.switch = macro.create.standard.If(condition=condition)
+
+            for out_n, out_c, in_n, in_c in {str(internal_connection_map)}:
+                macro.children[in_n].inputs[in_c] = macro.children[out_n].outputs[out_c]
+
+
+            macro.switch.signals.output.true >> body >> condition >> macro.switch
+            macro.starting_nodes = [body]
+
+            return {returns}
+        """)
+
+    exec(while_loop_code)
+    return locals()[node_name]
+
+    # def make_loop(macro):
+    #     body_node = macro.add_child(loop_body_class(label=loop_body_class.__name__))
+    #     condition_node = macro.add_child(
+    #         condition_class(label=condition_class.__name__)
+    #     )
+    #     switch = macro.create.standard.If(label="switch", parent=macro)
+    #
+    #     switch.inputs.condition = condition_node
+    #     for out_n, out_c, in_n, in_c in internal_connection_map:
+    #         macro.children[in_n].inputs[in_c] = macro.children[out_n].outputs[out_c]
+    #
+    #     switch.signals.output.true >> body_node >> condition_node >> switch
+    #     macro.starting_nodes = [body_node]
+    #
+    #     macro.inputs_map = {} if inputs_map is None else inputs_map
+    #     macro.outputs_map = {} if outputs_map is None else outputs_map
+    #
+    # return macro_node()(make_loop)

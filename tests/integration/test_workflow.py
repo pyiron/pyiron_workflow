@@ -8,6 +8,16 @@ from pyiron_workflow.function import AbstractFunction
 from pyiron_workflow.workflow import Workflow
 
 
+@Workflow.wrap_as.function_node("random")
+def RandomFloat() -> float:
+    return random.random()
+
+
+@Workflow.wrap_as.function_node("gt")
+def GreaterThan(x: float, threshold: float):
+    return x > threshold
+
+
 class TestTopology(unittest.TestCase):
     @classmethod
     def setUpClass(cls) -> None:
@@ -112,20 +122,13 @@ class TestTopology(unittest.TestCase):
         with self.subTest("Random"):
             random.seed(0)
 
-            @Workflow.wrap_as.function_node("random")
-            def RandomFloat() -> float:
-                return random.random()
-
-            @Workflow.wrap_as.function_node("gt")
-            def GreaterThan(x: float, threshold: float):
-                return x > threshold
-
             RandomWhile = Workflow.create.meta.while_loop(
                 loop_body_class=RandomFloat,
                 condition_class=GreaterThan,
                 internal_connection_map=[
                     ("RandomFloat", "random", "GreaterThan", "x")
                 ],
+                inputs_map={"GreaterThan__threshold": "threshold"},
                 outputs_map={"RandomFloat__random": "capped_result"}
             )
 
@@ -138,15 +141,13 @@ class TestTopology(unittest.TestCase):
             wf.random_while = RandomWhile()
 
             ## Give convenient labels
-            wf.inputs_map = {"random_while__GreaterThan__threshold": "threshold"}
+            wf.inputs_map = {"random_while__threshold": "threshold"}
             wf.outputs_map = {"random_while__capped_result": "capped_result"}
 
             self.assertAlmostEqual(
                 wf(threshold=0.1).capped_result,
                 0.014041700164018955,  # For this reason we set the random seed
             )
-
-            sys.setrecursionlimit(limit)
 
         with self.subTest("Self-data-loop"):
 
@@ -177,6 +178,8 @@ class TestTopology(unittest.TestCase):
 
             out = wf(a=1, b=2, cap=10)
             self.assertEqual(out.total, 11)
+
+        sys.setrecursionlimit(limit)
 
     def test_executor_and_creator_interaction(self):
         """

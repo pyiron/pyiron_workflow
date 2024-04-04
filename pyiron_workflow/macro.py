@@ -7,9 +7,8 @@ from __future__ import annotations
 
 from abc import ABC
 import inspect
-from typing import get_type_hints, Literal, Optional, TYPE_CHECKING
-
-from bidict import bidict
+from typing import Any, get_args, get_type_hints, Literal, Optional, TYPE_CHECKING
+import warnings
 
 from pyiron_workflow.channels import InputData, OutputData, NOT_DATA
 from pyiron_workflow.composite import Composite
@@ -93,12 +92,13 @@ class AbstractMacro(Composite, ABC):
         ...     result = x + 1
         ...     return result
         >>>
-        >>> def add_three_macro(macro):
-        ...     macro.one = macro.create.Function(add_one)
+        >>> def add_three_macro(macro, one__x):
+        ...     macro.one = macro.create.Function(add_one, x=one__x)
         ...     macro.two = macro.create.Function(add_one, macro.one)
         ...     macro.three = macro.create.Function(add_one, macro.two)
         ...     macro.one >> macro.two >> macro.three
         ...     macro.starting_nodes = [macro.one]
+        ...     return macro.three
 
         In this case we had _no need_ to specify the execution order and starting nodes
         --it's just an extremely simple DAG after all! -- but it's done here to
@@ -110,7 +110,7 @@ class AbstractMacro(Composite, ABC):
         io is constructed from unconnected owned-node IO by combining node and channel
         labels.
 
-        >>> macro = Macro(add_three_macro)
+        >>> macro = Macro(add_three_macro, output_labels="three__result")
         >>> out = macro(one__x=3)
         >>> out.three__result
         6
@@ -118,46 +118,52 @@ class AbstractMacro(Composite, ABC):
         We can also nest macros, rename their IO, and provide access to
         internally-connected IO by inputs and outputs maps:
 
-        >>> def nested_macro(macro):
-        ...     macro.a = macro.create.Function(add_one)
-        ...     macro.b = macro.create.Macro(add_three_macro, one__x=macro.a)
-        ...     macro.c = macro.create.Function(
-        ...         add_one, x=macro.b.outputs.three__result
+        >>> def nested_macro(macro, inp):
+        ...     macro.a = macro.create.Function(add_one, x=inp)
+        ...     macro.b = macro.create.Macro(
+        ...         add_three_macro, one__x=macro.a, output_labels="three__result"
         ...     )
+        ...     macro.c = macro.create.Function(add_one, x=macro.b)
+        ...     return macro.c, macro.b
         >>>
         >>> macro = Macro(
-        ...     nested_macro,
-        ...     inputs_map={"a__x": "inp"},
-        ...     outputs_map={"c__result": "out", "b__three__result": "intermediate"},
+        ...     nested_macro, output_labels=("out", "intermediate")
         ... )
         >>> macro(inp=1)
-        {'intermediate': 5, 'out': 6}
+        {'out': 6, 'intermediate': 5}
 
         Macros and workflows automatically generate execution flows when their data
         is acyclic.
         Let's build a simple macro with two independent tracks:
 
-        >>> def modified_flow_macro(macro):
-        ...     macro.a = macro.create.Function(add_one, x=0)
-        ...     macro.b = macro.create.Function(add_one, x=0)
-        ...     macro.c = macro.create.Function(add_one, x=0)
+        >>> def modified_flow_macro(macro, a__x=0, b__x=0):
+        ...     macro.a = macro.create.Function(add_one, x=a__x)
+        ...     macro.b = macro.create.Function(add_one, x=b__x)
+        ...     macro.c = macro.create.Function(add_one, x=macro.b)
+        ...     return macro.a, macro.c
         >>>
-        >>> m = Macro(modified_flow_macro)
-        >>> m(a__x=1, b__x=2, c__x=3)
-        {'a__result': 2, 'b__result': 3, 'c__result': 4}
+        >>> m = Macro(modified_flow_macro, output_labels=("a", "c"))
+        >>> m(a__x=1, b__x=2)
+        {'a': 2, 'c': 4}
 
-        We can override which nodes get used to start by specifying the :attr:`starting_nodes`
-        property.
-        If we do this we also need to provide at least one connection among the run
-        signals, but beyond that the code doesn't hold our hands.
+        We can override which nodes get used to start by specifying the
+        :attr:`starting_nodes` property and (if necessary) reconfiguring the execution
+        signals.
+        Care should be taken here, as macro nodes may be creating extra input
+        nodes that need to be considered.
+        It's advisable to use :meth:`draw()` or to otherwise inspect the macro's
+        children and their connections before manually updating execution flows.
+
         Let's use this and then observe how the `a` sub-node no longer gets run:
 
-        >>> m.starting_nodes = [m.b]  # At least one starting node
-        >>> _ = m.b >> m.c  # At least one run signal
-        >>> # We catch and ignore output -- it's needed for chaining, but screws up
-        >>> # doctests -- you don't normally need to catch it like this!
-        >>> m(a__x=1000, b__x=2000, c__x=3000)
-        {'a__result': 2, 'b__result': 2001, 'c__result': 3001}
+        >>> _ = m.disconnect_run()
+        >>> m.starting_nodes = [m.b__x]
+        >>> _ = m.b__x >> m.b >> m.c
+        >>> m(a__x=1000, b__x=2000)
+        {'a': 2, 'c': 2002}
+
+        (The `_` is just to catch and ignore output for the doctest, you don't
+        typically need this.)
 
         Note how the `a` node is no longer getting run, so the output is not updated!
         Manually controlling execution flow is necessary for cyclic graphs (cf. the
@@ -168,10 +174,11 @@ class AbstractMacro(Composite, ABC):
         to consider making a new class for it using the decorator, just like we do for
         function nodes:
 
-        >>> @Macro.wrap_as.macro_node()
-        ... def AddThreeMacro(macro):
-        ...     add_three_macro(macro)  # We could also have decorated that function
-        ...     # to begin with
+        >>> @Macro.wrap_as.macro_node("three__result")
+        ... def AddThreeMacro(macro, one__x):
+        ...     add_three_macro(macro, one__x=one__x)
+        ...     # We could also simply have decorated that function to begin with
+        ...     return macro.three
         >>>
         >>> macro = AddThreeMacro()
         >>> macro(one__x=0).three__result
@@ -183,9 +190,12 @@ class AbstractMacro(Composite, ABC):
 
         >>> from pyiron_workflow.macro import AbstractMacro
         >>> class AddThreeMacro(AbstractMacro):
+        ...     _provided_output_labels = ["three__result"]
+        ...
         ...     @staticmethod
-        ...     def graph_creator(macro):
-        ...         add_three_macro(macro)
+        ...     def graph_creator(macro, one__x):
+        ...         add_three_macro(macro, one__x=one__x)
+        ...         return macro.three
         >>>
         >>> macro = AddThreeMacro()
         >>> macro(one__x=0).three__result
@@ -209,7 +219,7 @@ class AbstractMacro(Composite, ABC):
         ...     result = x + 2
         ...     return result
         >>>
-        >>> adds_six_macro = Macro(add_three_macro)
+        >>> adds_six_macro = Macro(add_three_macro, output_labels="three__result")
         >>> # With the replace method
         >>> # (replacement target can be specified by label or instance,
         >>> # the replacing node can be specified by instance or class)
@@ -221,61 +231,25 @@ class AbstractMacro(Composite, ABC):
         >>> adds_six_macro(one__x=1)
         {'three__result': 7}
 
-        Instead of controlling the IO interface with dictionary maps, we can instead
-        provide a more :class:`Function(Node)`-like definition of the :meth:`graph_creator` by
-        adding args and/or kwargs to the signature (under the hood, this dynamically
-        creates new :class:`UserInput` nodes before running the rest of the graph creation),
-        and/or returning child channels (or whole children in the case of single-output
-        nodes) and providing commensurate :param:`output_labels`.
-        This process switches us from the :class:`Workflow` default of exposing all
-        unconnected child IO, to a "whitelist" paradigm of _only_ showing the IO that
-        we exposed by our function defintion.
-        (Note: any `.inputs_map` or `.outputs_map` explicitly defined in the
-        :meth:`graph_creator` still takes precedence over this whitelisting! So you always
-        retain full control over what IO gets exposed.)
-        E.g., these two definitions are perfectly equivalent:
+        It's possible for the macro to hold nodes which are not publicly exposed for
+        data and signal connections, but which will still internally execute and store
+        data, e.g.:
 
         >>> @Macro.wrap_as.macro_node("lout", "n_plus_2")
         ... def LikeAFunction(macro, lin: list,  n: int = 1):
         ...     macro.plus_two = n + 2
         ...     macro.sliced_list = lin[n:macro.plus_two]
         ...     macro.double_fork = 2 * n
-        ...     # ^ This is vestigial, just to show we don't need to blacklist it in a
-        ...     # whitelist-paradigm
         ...     return macro.sliced_list, macro.plus_two.channel
         >>>
-        >>> like_functions = LikeAFunction(lin=[1,2,3,4,5,6], n=2)
-        >>> like_functions()
-        {'n_plus_2': 4, 'lout': [3, 4]}
+        >>> like_functions = LikeAFunction(lin=[1,2,3,4,5,6], n=3)
+        >>> sorted(like_functions().items())
+        [('lout', [4, 5]), ('n_plus_2', 5)]
 
-        >>> @Macro.wrap_as.macro_node()
-        ... def WithIOMaps(macro):
-        ...     macro.list_in = macro.create.standard.UserInput()
-        ...     macro.list_in.inputs.user_input.type_hint = list
-        ...     macro.forked = macro.create.standard.UserInput(2)
-        ...     macro.forked.inputs.user_input.type_hint = int
-        ...     macro.n_plus_2 = macro.forked + 2
-        ...     macro.sliced_list = macro.list_in[macro.forked:macro.n_plus_2]
-        ...     macro.double_fork = 2 * macro.forked
-        ...     macro.inputs_map = {
-        ...         "list_in__user_input": "lin",
-        ...         macro.forked.inputs.user_input.scoped_label: "n",
-        ...         "n_plus_2__other": None,
-        ...         "list_in__user_input_Slice_forked__user_input_n_plus_2__add_None__step": None,
-        ...         macro.double_fork.inputs.other.scoped_label: None,
-        ...     }
-        ...     macro.outputs_map = {
-        ...         macro.sliced_list.outputs.getitem.scoped_label: "lout",
-        ...         macro.n_plus_2.outputs.add.scoped_label: "n_plus_2",
-        ...         "double_fork__rmul": None
-        ...     }
-        >>>
-        >>> with_maps = WithIOMaps(lin=[1,2,3,4,5,6], n=2)
-        >>> with_maps()
-        {'n_plus_2': 4, 'lout': [3, 4]}
+        >>> like_functions.double_fork.value
+        6
 
-        Here we've leveraged the macro-creating decorator, but this works the same way
-        using the :class:`Macro` class directly.
+
     """
 
     _provided_output_labels: tuple[str] | None = None
@@ -289,8 +263,6 @@ class AbstractMacro(Composite, ABC):
         storage_backend: Optional[Literal["h5io", "tinybase"]] = None,
         save_after_run: bool = False,
         strict_naming: bool = True,
-        inputs_map: Optional[dict | bidict] = None,
-        outputs_map: Optional[dict | bidict] = None,
         **kwargs,
     ):
         super().__init__(
@@ -299,26 +271,35 @@ class AbstractMacro(Composite, ABC):
             save_after_run=save_after_run,
             storage_backend=storage_backend,
             strict_naming=strict_naming,
-            inputs_map=inputs_map,
-            outputs_map=outputs_map,
         )
 
         ui_nodes = self._prepopulate_ui_nodes_from_graph_creator_signature(
             storage_backend=storage_backend
         )
         returned_has_channel_objects = self.graph_creator(self, *ui_nodes)
-        self._configure_graph_execution()
+        if returned_has_channel_objects is None:
+            returned_has_channel_objects = ()
+        elif isinstance(returned_has_channel_objects, HasChannel):
+            returned_has_channel_objects = (returned_has_channel_objects,)
+        self._configure_graph_execution(ui_nodes)
+        self._inputs = Inputs(
+            *(
+                self._get_linking_channel(n.inputs.user_input, n.label)
+                for n in ui_nodes
+            )
+        )
 
-        # Update IO map(s) if a function-like graph creator interface was used
-        if len(ui_nodes) > 0:
-            self._whitelist_inputs_map(*ui_nodes)
-        if returned_has_channel_objects is not None:
-            if not isinstance(returned_has_channel_objects, tuple):
-                returned_has_channel_objects = (returned_has_channel_objects,)
-            self._whitelist_outputs_map(*returned_has_channel_objects)
-
-        self._inputs: Inputs = self._build_inputs()
-        self._outputs: Outputs = self._build_outputs()
+        self._outputs = Outputs(
+            *(
+                self._get_linking_channel(c.channel, label)
+                for (c, label) in zip(
+                    () if returned_has_channel_objects is None
+                    else returned_has_channel_objects,
+                    () if self._provided_output_labels is None
+                    else self._provided_output_labels
+                )
+            )
+        )
 
         self.set_input_values(**kwargs)
 
@@ -347,99 +328,109 @@ class AbstractMacro(Composite, ABC):
                     f"or neither be present, " + error_suffix
                 )
 
+    @classmethod
+    def _type_hints(cls):
+        """The result of :func:`typing.get_type_hints` on the :meth:`graph_creator`."""
+        return get_type_hints(cls.graph_creator)
+
+    @classmethod
+    def preview_output_channels(cls) -> dict[str, Any]:
+        """
+        Gives a class-level peek at the expected output channels.
+
+        Returns:
+            dict[str, tuple[Any, Any]]: The channel name and its corresponding type
+                hint.
+        """
+        labels = cls._get_output_labels()
+        try:
+            type_hints = cls._type_hints()["return"]
+            if len(labels) > 1:
+                type_hints = get_args(type_hints)
+                if not isinstance(type_hints, tuple):
+                    raise TypeError(
+                        f"With multiple return labels expected to get a tuple of type "
+                        f"hints, but got type {type(type_hints)}"
+                    )
+                if len(type_hints) != len(labels):
+                    raise ValueError(
+                        f"Expected type hints and return labels to have matching "
+                        f"lengths, but got {len(type_hints)} hints and "
+                        f"{len(labels)} labels: {type_hints}, {labels}"
+                    )
+            else:
+                # If there's only one hint, wrap it in a tuple, so we can zip it with
+                # *return_labels and iterate over both at once
+                type_hints = (type_hints,)
+        except KeyError:  # If there are no return hints
+            type_hints = [None] * len(labels)
+            # Note that this nicely differs from `NoneType`, which is the hint when
+            # `None` is actually the hint!
+        return {label: hint for label, hint in zip(labels, type_hints)}
+
+    @classmethod
+    def _get_output_labels(cls):
+        """
+        Return output labels provided on the class if not None.
+        """
+        return cls._provided_output_labels
+
+    @classmethod
+    def preview_input_channels(cls) -> dict[str, tuple[Any, Any]]:
+        """
+        Gives a class-level peek at the expected input channels.
+
+        Returns:
+            dict[str, tuple[Any, Any]]: The channel name and a tuple of its
+                corresponding type hint and default value.
+        """
+        type_hints = cls._type_hints()
+        scraped: dict[str, tuple[Any, Any]] = {}
+        for i, (label, value) in enumerate(cls._input_args().items()):
+            if i == 0:
+                continue  # Skip the macro argument itself, it's like `self` here
+            elif label in cls._init_keywords():
+                # We allow users to parse arbitrary kwargs as channel initialization
+                # So don't let them choose bad channel names
+                raise ValueError(
+                    f"The Input channel name {label} is not valid. Please choose a "
+                    f"name _not_ among {cls._init_keywords()}"
+                )
+
+            try:
+                type_hint = type_hints[label]
+            except KeyError:
+                type_hint = None
+
+            default = (
+                value.default if value.default is not inspect.Parameter.empty
+                else NOT_DATA
+            )
+
+            scraped[label] = (type_hint, default)
+        return scraped
+
+    @classmethod
+    def _input_args(cls):
+        return inspect.signature(cls.graph_creator).parameters
+
+    @classmethod
+    def _init_keywords(cls):
+        return list(inspect.signature(cls.__init__).parameters.keys())
+
     def _prepopulate_ui_nodes_from_graph_creator_signature(
         self, storage_backend: Literal["h5io", "tinybase"]
     ):
-        hints_dict = get_type_hints(self.graph_creator)
-        interface_nodes = ()
-        for i, (arg_name, inspected_value) in enumerate(
-            inspect.signature(self.graph_creator).parameters.items()
-        ):
-            if i == 0:
-                continue  # Skip the macro argument itself, it's like `self` here
-
-            default = (
-                NOT_DATA
-                if inspected_value.default is inspect.Parameter.empty
-                else inspected_value.default
+        return tuple(
+            self.create.standard.UserInput(
+                default,
+                label=label,
+                parent=self,
+                type_hint=type_hint,
+                storage_backend=storage_backend,
             )
-            node = self.create.standard.UserInput(
-                default, label=arg_name, parent=self, storage_backend=storage_backend
-            )
-            node.inputs.user_input.default = default
-            try:
-                node.inputs.user_input.type_hint = hints_dict[arg_name]
-            except KeyError:
-                pass  # If there's no hint that's fine
-            interface_nodes += (node,)
-
-        return interface_nodes
-
-    def _whitelist_inputs_map(self, *ui_nodes) -> None:
-        """
-        Updates the inputs map so each UI node's output channel is available directly
-        under the node label, and updates the map to disable all other input that
-        wasn't explicitly mapped already.
-        """
-        self.inputs_map = self._hide_non_whitelisted_io(
-            self._whitelist_map(
-                self.inputs_map, tuple(n.label for n in ui_nodes), ui_nodes
-            ),
-            "inputs",
+            for label, (type_hint, default) in self.preview_input_channels().items()
         )
-
-    def _whitelist_outputs_map(self, *creator_returns: HasChannel):
-        """
-        Updates the outputs map so objects returned by the graph creator directly
-        leverage the supplied output labels, and updates the map to disable all other
-        output that wasn't explicitly mapped already.
-        """
-        output_labels = (
-            () if self._provided_output_labels is None else self._provided_output_labels
-        )
-        for new_label, ui_node in zip(output_labels, creator_returns):
-            if not isinstance(ui_node, HasChannel):
-                raise TypeError(
-                    f"Your node `{new_label}` does not have `channel`. There"
-                    + " are following nodes that can be returned:"
-                    + f" {self.node_labels}. More can be found from this page:"
-                    + " https://github.com/pyiron/pyiron_workflow"
-                )
-        self.outputs_map = self._hide_non_whitelisted_io(
-            self._whitelist_map(self.outputs_map, output_labels, creator_returns),
-            "outputs",
-        )
-
-    @staticmethod
-    def _whitelist_map(
-        io_map: bidict, new_labels: tuple[str], has_channel_objects: tuple[HasChannel]
-    ) -> bidict:
-        """
-        Update an IO map to give new labels to the channels of a bunch of :class:`HasChannel`
-        objects.
-        """
-        io_map = bidict({}) if io_map is None else io_map
-        for new_label, ui_node in zip(new_labels, has_channel_objects):
-            # White-list everything not already in the map
-            if ui_node.channel.scoped_label not in io_map.keys():
-                io_map[ui_node.channel.scoped_label] = new_label
-        return io_map
-
-    def _hide_non_whitelisted_io(
-        self, io_map: bidict, i_or_o: Literal["inputs", "outputs"]
-    ) -> dict:
-        """
-        Make a new map dictionary with `None` entries for each channel that isn't
-        already in the provided map bidict. I.e. blacklist things we didn't whitelist.
-        """
-        io_map = dict(io_map)
-        # We do it in two steps like this to leverage the bidict security on the setter
-        # Since bidict can't handle getting `None` (i.e. disable) for multiple keys
-        for node in self.children.values():
-            for channel in getattr(node, i_or_o):
-                if channel.scoped_label not in io_map.keys():
-                    io_map[channel.scoped_label] = None
-        return io_map
 
     def _get_linking_channel(
         self,
@@ -514,7 +505,7 @@ class AbstractMacro(Composite, ABC):
             c if c is not old_connection else new_connection for c in channel
         ]
 
-    def _configure_graph_execution(self):
+    def _configure_graph_execution(self, ui_nodes):
         run_signals = self.disconnect_run()
 
         has_signals = len(run_signals) > 0
@@ -523,6 +514,10 @@ class AbstractMacro(Composite, ABC):
         if has_signals and has_starters:
             # Assume the user knows what they're doing
             self._reconnect_run(run_signals)
+            # Then put the UI upstream of the original starting nodes
+            for n in self.starting_nodes:
+                n << ui_nodes
+            self.starting_nodes = ui_nodes
         elif not has_signals and not has_starters:
             # Automate construction of the execution graph
             self.set_run_signals_to_dag_execution()
@@ -621,8 +616,6 @@ class Macro(HasCreator):
         storage_backend: Optional[Literal["h5io", "tinybase"]] = None,
         save_after_run: bool = False,
         strict_naming: bool = True,
-        inputs_map: Optional[dict | bidict] = None,
-        outputs_map: Optional[dict | bidict] = None,
         output_labels: Optional[str | list[str] | tuple[str]] = None,
         **kwargs,
     ):
@@ -647,8 +640,6 @@ class Macro(HasCreator):
             storage_backend=storage_backend,
             save_after_run=save_after_run,
             strict_naming=strict_naming,
-            inputs_map=inputs_map,
-            outputs_map=outputs_map,
             **kwargs,
         )
 
@@ -658,7 +649,7 @@ class Macro(HasCreator):
         return tuple(AbstractMacro._storage_interfaces().keys())
 
 
-def macro_node(*output_labels, **node_class_kwargs):
+def macro_node(*output_labels):
     """
     A decorator for dynamically creating macro classes from graph-creating functions.
 
@@ -685,7 +676,13 @@ def macro_node(*output_labels, **node_class_kwargs):
                 "__module__": graph_creator.__module__,
             },
         )
-        node_class._validate_output_labels()
+        try:
+            node_class._validate_output_labels()
+        except OSError:
+            warnings.warn(
+                f"Could not find the source code to validate {node_class.__name__} "
+                f"output labels"
+            )
         return node_class
 
     return as_node

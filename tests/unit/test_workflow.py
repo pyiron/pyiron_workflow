@@ -3,6 +3,8 @@ import sys
 from time import sleep
 import unittest
 
+from bidict import ValueDuplicationError
+
 from pyiron_workflow._tests import ensure_tests_in_python_path
 from pyiron_workflow.channels import NOT_DATA
 from pyiron_workflow.semantics import ParentMostError
@@ -71,6 +73,93 @@ class TestWorkflow(unittest.TestCase):
             wf.n2.outputs.y, wf.outputs.intermediate, msg="IO should be by reference"
         )
         self.assertNotIn(wf.n3.outputs.y, wf.outputs, msg="IO should be hidable")
+        
+    def test_io_maps(self):
+        # input and output, renaming, accessing connected, and deactivating disconnected
+        wf = Workflow("wf")
+        wf.n1 = Workflow.create.Function(plus_one, x=0)
+        wf.n2 = Workflow.create.Function(plus_one, x=wf.n1)
+        wf.n3 = Workflow.create.Function(plus_one, x=wf.n2)
+        wf.m = Workflow.create.Function(plus_one, x=42)
+        wf.inputs_map = {
+            "n1__x": "x",  # Rename
+            "n2__x": "intermediate_x",  # Expose
+            "m__x": None,  # Hide
+        }
+        wf.outputs_map = {
+            "n3__y": "y",  # Rename
+            "n2__y": "intermediate_y",  # Expose,
+            "m__y": None,  # Hide
+        }
+        self.assertIn("x", wf.inputs.labels, msg="Should be renamed")
+        self.assertIn("y", wf.outputs.labels, msg="Should be renamed")
+        self.assertIn("intermediate_x", wf.inputs.labels, msg="Should be exposed")
+        self.assertIn("intermediate_y", wf.outputs.labels, msg="Should be exposed")
+        self.assertNotIn("m__x", wf.inputs.labels, msg="Should be hidden")
+        self.assertNotIn("m__y", wf.outputs.labels, msg="Should be hidden")
+        self.assertNotIn("m__y", wf.outputs.labels, msg="Should be hidden")
+
+        wf.set_run_signals_to_dag_execution()
+        out = wf.run()
+        self.assertEqual(
+            3,
+            out.y,
+            msg="New names should be propagated to the returned value"
+        )
+        self.assertNotIn(
+            "m__y",
+            list(out.keys()),
+            msg="IO filtering should be evident in returned value"
+        )
+        self.assertEqual(
+            43,
+            wf.m.outputs.y.value,
+            msg="The child channel should still exist and have run"
+        )
+        self.assertEqual(
+            1,
+            wf.inputs.intermediate_x.value,
+            msg="IO should be up-to-date post-run"
+        )
+        self.assertEqual(
+            2,
+            wf.outputs.intermediate_y.value,
+            msg="IO should be up-to-date post-run"
+        )
+
+    def test_io_map_bijectivity(self):
+        wf = Workflow("wf")
+        with self.assertRaises(
+            ValueDuplicationError,
+            msg="Should not be allowed to map two children's channels to the same label"
+        ):
+            wf.inputs_map = {"n1__x": "x", "n2__x": "x"}
+
+        wf.inputs_map = {"n1__x": "x"}
+        with self.assertRaises(
+            ValueDuplicationError,
+            msg="Should not be allowed to update a second child's channel onto an "
+                "existing mapped channel"
+        ):
+            wf.inputs_map["n2__x"] = "x"
+
+        with self.subTest("Ensure we can use None to turn multiple off"):
+            wf.inputs_map = {"n1__x": None, "n2__x": None}  # At once
+            # Or in a row
+            wf.inputs_map = {}
+            wf.inputs_map["n1__x"] = None
+            wf.inputs_map["n2__x"] = None
+            wf.inputs_map["n3__x"] = None
+            self.assertEqual(
+                3,
+                len(wf.inputs_map),
+                msg="All entries should be stored"
+            )
+            self.assertEqual(
+                0,
+                len(wf.inputs),
+                msg="No IO should be left exposed"
+            )
 
     def test_is_parentmost(self):
         wf = Workflow("wf")
@@ -309,15 +398,17 @@ class TestWorkflow(unittest.TestCase):
                 cyclic()
 
     def test_pull_and_executors(self):
-        def add_three_macro(macro):
-            macro.one = Workflow.create.Function(plus_one)
+        @Workflow.wrap_as.macro_node("three__result")
+        def add_three_macro(macro, one__x):
+            macro.one = Workflow.create.Function(plus_one, x=one__x)
             macro.two = Workflow.create.Function(plus_one, x=macro.one)
             macro.three = Workflow.create.Function(plus_one, x=macro.two)
+            return macro.three
 
         wf = Workflow("pulling")
 
         wf.n1 = Workflow.create.Function(plus_one, x=0)
-        wf.m = Workflow.create.Macro(add_three_macro, one__x=wf.n1)
+        wf.m = add_three_macro(one__x=wf.n1)
 
         self.assertEquals(
             (0 + 1) + (1 + 1),
