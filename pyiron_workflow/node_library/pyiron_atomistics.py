@@ -16,6 +16,7 @@ from pyiron_workflow.function import function_node
 
 Bulk = function_node("structure")(_StructureFactory().bulk)
 Bulk.__name__ = "Bulk"
+Bulk.__module__ = __name__
 
 
 @function_node("job")
