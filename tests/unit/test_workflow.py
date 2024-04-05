@@ -398,7 +398,7 @@ class TestWorkflow(unittest.TestCase):
                 cyclic()
 
     def test_pull_and_executors(self):
-        @Workflow.wrap.macro_node("three__result")
+        @Workflow.wrap.as_macro_node("three__result")
         def add_three_macro(macro, one__x):
             macro.one = Workflow.create.node_from_function(plus_one, x=one__x)
             macro.two = Workflow.create.node_from_function(plus_one, x=macro.one)

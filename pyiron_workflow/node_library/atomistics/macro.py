@@ -1,6 +1,6 @@
 from phonopy.units import VaspToTHz
 
-from pyiron_workflow.macro import Macro, macro_node
+from pyiron_workflow.macro import Macro, as_macro_node
 from pyiron_workflow.node_library.atomistics.calculator import CalcWithCalculator
 from pyiron_workflow.node_library.atomistics.task import (
     ElasticMatrixTaskGenerator,
@@ -22,7 +22,7 @@ def atomistics_meta_creator(task_generator_node_class) -> type[Macro]:
     return generic_creator
 
 
-@macro_node("result_dict")
+@as_macro_node("result_dict")
 def ElasticMatrix(
     wf,
     calculator,
@@ -43,7 +43,7 @@ def ElasticMatrix(
     )
 
 
-@macro_node("result_dict")
+@as_macro_node("result_dict")
 def EnergyVolumeCurve(
     wf,
     calculator,
@@ -68,7 +68,7 @@ def EnergyVolumeCurve(
     )
 
 
-@macro_node("result_dict")
+@as_macro_node("result_dict")
 def Phonons(
     wf,
     calculator,

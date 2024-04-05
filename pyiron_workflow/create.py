@@ -321,15 +321,15 @@ class Wrappers(metaclass=Singleton):
         self.as_function_node = as_function_node
 
         # Avoid circular imports by delaying import when wrapping children of Composite
-        self._macro_node = None
+        self._as_macro_node = None
 
     @property
-    def macro_node(self):
-        if self._macro_node is None:
-            from pyiron_workflow.macro import macro_node
+    def as_macro_node(self):
+        if self._as_macro_node is None:
+            from pyiron_workflow.macro import as_macro_node
 
-            self._macro_node = macro_node
-        return self._macro_node
+            self._as_macro_node = as_macro_node
+        return self._as_macro_node
 
 
 class HasCreator(ABC):

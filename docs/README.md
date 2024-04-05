@@ -45,7 +45,7 @@ Nodes can be used by themselves and -- other than being "delayed" in that their 
 ...     import numpy as np
 ...     return np.arange(n)
 >>>
->>> @Workflow.wrap.macro_node("fig")
+>>> @Workflow.wrap.as_macro_node("fig")
 ... def PlotShiftedSquare(macro, n: int, shift: int = 0):
 ...     macro.arange = Arange(n)
 ...     macro.plot = macro.create.plotting.Scatter(

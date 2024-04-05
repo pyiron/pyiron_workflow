@@ -8,7 +8,7 @@ from textwrap import dedent
 from typing import Optional, TYPE_CHECKING
 
 from pyiron_workflow.function import Function, as_function_node
-from pyiron_workflow.macro import Macro, macro_node
+from pyiron_workflow.macro import Macro, as_macro_node
 
 if TYPE_CHECKING:
     from pyiron_workflow.node import Node
@@ -142,7 +142,7 @@ def for_loop(
     # Assemble components into a decorated for-loop macro
     for_loop_code = dedent(
         f"""
-        @Macro.wrap.macro_node({output_labels})
+        @Macro.wrap.as_macro_node({output_labels})
         def {node_name}(macro, {macro_args}):
             from {loop_body_class.__module__} import {loop_body_class.__name__}
 
@@ -300,7 +300,7 @@ def while_loop(
     # Assemble components into a decorated while-loop macro
     while_loop_code = dedent(
         f"""
-        @Macro.wrap.macro_node({output_labels})
+        @Macro.wrap.as_macro_node({output_labels})
         def {node_name}(macro, {input_args}):
             from {loop_body_class.__module__} import {loop_body_class.__name__}
             from {condition_class.__module__} import {condition_class.__name__}
@@ -352,4 +352,4 @@ def while_loop(
     #     macro.inputs_map = {} if inputs_map is None else inputs_map
     #     macro.outputs_map = {} if outputs_map is None else outputs_map
     #
-    # return macro_node()(make_loop)
+    # return as_macro_node()(make_loop)

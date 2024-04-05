@@ -9,7 +9,7 @@ import unittest
 from pyiron_workflow._tests import ensure_tests_in_python_path
 from pyiron_workflow.channels import NOT_DATA
 from pyiron_workflow.function import node_from_function
-from pyiron_workflow.macro import Macro, macro_from_function, macro_node
+from pyiron_workflow.macro import Macro, macro_from_function, as_macro_node
 from pyiron_workflow.topology import CircularDataFlowError
 
 
@@ -137,7 +137,7 @@ class TestMacro(unittest.TestCase):
         self.assertEqual(m2.label, label, msg="Should be able to specify a label")
 
     def test_creation_from_decorator(self):
-        m = macro_node("three__result")(add_three_macro)()
+        m = as_macro_node("three__result")(add_three_macro)()
 
         self.assertIs(
             m.outputs.three__result.value,
@@ -424,7 +424,7 @@ class TestMacro(unittest.TestCase):
 
         macro_from_function(no_return)  # Neither is fine
 
-        @macro_node("some_return")
+        @as_macro_node("some_return")
         def LabelsAndReturnsMatch(macro):
             macro.foo = macro.create.standard.UserInput()
             return macro.foo
@@ -435,7 +435,7 @@ class TestMacro(unittest.TestCase):
             ValueError,
             msg="The number of output labels and return values must match"
         ):
-            @macro_node("some_return", "nonexistent")
+            @as_macro_node("some_return", "nonexistent")
             def MissingReturn(macro):
                 macro.foo = macro.create.standard.UserInput()
                 return macro.foo
@@ -444,7 +444,7 @@ class TestMacro(unittest.TestCase):
             TypeError,
             msg="Output labels must be there if return values are"
         ):
-            @macro_node()
+            @as_macro_node()
             def MissingLabel(macro):
                 macro.foo = macro.create.standard.UserInput()
                 return macro.foo
@@ -453,7 +453,7 @@ class TestMacro(unittest.TestCase):
             TypeError,
             msg="Return values must be there if output labels are"
         ):
-            @macro_node("some_label")
+            @as_macro_node("some_label")
             def MissingLabel(macro):
                 macro.foo = macro.create.standard.UserInput()
 
@@ -463,7 +463,7 @@ class TestMacro(unittest.TestCase):
         and returns, and labels
         """
 
-        @macro_node("lout", "n_plus_2")
+        @as_macro_node("lout", "n_plus_2")
         def LikeAFunction(macro, lin: list,  n: int = 2):
             macro.plus_two = n + 2
             macro.sliced_list = lin[n:macro.plus_two]
@@ -479,7 +479,7 @@ class TestMacro(unittest.TestCase):
 
     def test_efficient_signature_interface(self):
         with self.subTest("Forked input"):
-            @macro_node("output")
+            @as_macro_node("output")
             def MutlipleUseInput(macro, x):
                 macro.n1 = macro.create.standard.UserInput(x)
                 macro.n2 = macro.create.standard.UserInput(x)
@@ -495,7 +495,7 @@ class TestMacro(unittest.TestCase):
             )
 
         with self.subTest("Single destination input"):
-            @macro_node("output")
+            @as_macro_node("output")
             def SingleUseInput(macro, x):
                 macro.n = macro.create.standard.UserInput(x)
                 return macro.n
@@ -509,7 +509,7 @@ class TestMacro(unittest.TestCase):
             )
 
         with self.subTest("Mixed input"):
-            @macro_node("output")
+            @as_macro_node("output")
             def MixedUseInput(macro, x, y):
                 macro.n1 = macro.create.standard.UserInput(x)
                 macro.n2 = macro.create.standard.UserInput(y)
@@ -525,7 +525,7 @@ class TestMacro(unittest.TestCase):
             )
 
         with self.subTest("Pass through"):
-            @macro_node("output")
+            @as_macro_node("output")
             def PassThrough(macro, x):
                 return x
 

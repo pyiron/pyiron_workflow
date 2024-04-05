@@ -173,7 +173,7 @@ class Macro(Composite, ABC):
         to consider making a new class for it using the decorator, just like we do for
         function nodes:
 
-        >>> @Macro.wrap.macro_node("three__result")
+        >>> @Macro.wrap.as_macro_node("three__result")
         ... def AddThreeMacro(macro, one__x):
         ...     add_three_macro(macro, one__x=one__x)
         ...     # We could also simply have decorated that function to begin with
@@ -225,7 +225,7 @@ class Macro(Composite, ABC):
         data and signal connections, but which will still internally execute and store
         data, e.g.:
 
-        >>> @Macro.wrap.macro_node("lout", "n_plus_2")
+        >>> @Macro.wrap.as_macro_node("lout", "n_plus_2")
         ... def LikeAFunction(macro, lin: list,  n: int = 1):
         ...     macro.plus_two = n + 2
         ...     macro.sliced_list = lin[n:macro.plus_two]
@@ -647,7 +647,7 @@ def macro_from_function(
     elif isinstance(output_labels, str):
         output_labels = (output_labels,)
 
-    return macro_node(*output_labels)(graph_creator)(
+    return as_macro_node(*output_labels)(graph_creator)(
         label=label,
         parent=parent,
         overwrite_save=overwrite_save,
@@ -659,7 +659,7 @@ def macro_from_function(
     )
 
 
-def macro_node(*output_labels):
+def as_macro_node(*output_labels):
     """
     A decorator for dynamically creating macro classes from graph-creating functions.
 
