@@ -4,7 +4,7 @@ import unittest
 
 from pyiron_workflow._tests import ensure_tests_in_python_path
 from pyiron_workflow.channels import OutputSignal
-from pyiron_workflow.function import AbstractFunction
+from pyiron_workflow.function import Function
 from pyiron_workflow.workflow import Workflow
 
 
@@ -35,7 +35,7 @@ class TestTopology(unittest.TestCase):
             print(f"Generating random number between {low} and {high}...{rand}!")
             return rand
 
-        class GreaterThanLimitSwitch(AbstractFunction):
+        class GreaterThanLimitSwitch(Function):
             """
             A switch class for sending signal output depending on a '>' check
             applied to input

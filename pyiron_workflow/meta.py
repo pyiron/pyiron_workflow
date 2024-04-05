@@ -7,14 +7,14 @@ from __future__ import annotations
 from textwrap import dedent
 from typing import Optional, TYPE_CHECKING
 
-from pyiron_workflow.function import AbstractFunction, function_node
+from pyiron_workflow.function import Function, function_node
 from pyiron_workflow.macro import AbstractMacro, macro_node
 
 if TYPE_CHECKING:
     from pyiron_workflow.node import Node
 
 
-def list_to_output(length: int, **node_class_kwargs) -> type[AbstractFunction]:
+def list_to_output(length: int, **node_class_kwargs) -> type[Function]:
     """
     A meta-node that returns a node class with :param:`length` input channels and
     maps these to a single output channel with type `list`.
@@ -34,7 +34,7 @@ def __list_to_many(input_list: list):
     )
 
 
-def input_to_list(length: int, **node_class_kwargs) -> type[AbstractFunction]:
+def input_to_list(length: int, **node_class_kwargs) -> type[Function]:
     """
     A meta-node that returns a node class with :param:`length` output channels and
     maps an input list to these.
@@ -168,7 +168,7 @@ def for_loop(
 
 def while_loop(
     loop_body_class: type[Node],
-    condition_class: type[AbstractFunction],
+    condition_class: type[Function],
     internal_connection_map: dict[str, str],
     inputs_map: Optional[dict[str, str]],
     outputs_map: Optional[dict[str, str]],
@@ -188,7 +188,7 @@ def while_loop(
     Args:
         loop_body_class (type[pyiron_workflow.node.Node]): The class for the
             body of the while-loop.
-        condition_class (type[pyiron_workflow.function.AbstractFunction]): A
+        condition_class (type[pyiron_workflow.function.Function]): A
             single-output function node returning a `bool` controlling the while loop
             exit condition (exits on False)
         internal_connection_map (list[tuple[str, str, str, str]]): String tuples

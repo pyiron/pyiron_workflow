@@ -650,7 +650,7 @@ class Macro(HasCreator):
     ):
         if not callable(graph_creator):
             # `node_from_function` quacks like a class, even though it's a function and
-            # dynamically creates children of `AbstractFunction` by providing the necessary
+            # dynamically creates children of `AbstractMacro` by providing the necessary
             # callable to the decorator
             raise AttributeError(
                 f"Expected `graph_creator` to be callable but got {graph_creator}"

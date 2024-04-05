@@ -16,7 +16,7 @@ if TYPE_CHECKING:
     from pyiron_workflow.composite import Composite
 
 
-class AbstractFunction(Node, ABC):
+class Function(Node, ABC):
     """
     Function nodes wrap an arbitrary python function.
 
@@ -224,22 +224,15 @@ class AbstractFunction(Node, ABC):
         already defined as a `staticmethod`:
 
         >>> from typing import Literal, Optional
-        >>> from pyiron_workflow.function import AbstractFunction
+        >>> from pyiron_workflow.function import Function
         >>>
-        >>> class AlphabetModThree(AbstractFunction):
+        >>> class AlphabetModThree(Function):
         ...
         ...     @staticmethod
         ...     def node_function(i: int) -> Literal["a", "b", "c"]:
         ...         letter = ["a", "b", "c"][i % 3]
         ...         return letter
 
-        Notice here that we're inheriting from `AbstractFunction` and not just
-        `Function` we were using before. Under the hood, `Function` is actually a
-        very minimal class that is _dynamically_ creating a new child of
-        `AbstractFunction` that uses the provided `node_function` and returning you an
-        instance of this new dynamic class! So you can't inherit from it directly.
-        Anyhow, it is recommended to use the decorator on a function rather than direct
-        inheritance.
 
         Finally, let's put it all together by using both of these nodes at once.
         Instead of setting input to a particular data value, we'll set it to
@@ -603,10 +596,10 @@ def node_from_function(
     **kwargs,
 ):
     """
-    Dynamically creates a new child of :class:`AbstractFunction` using the
+    Dynamically creates a new child of :class:`Function` using the
     provided :func:`node_function` and returns an instance of that.
 
-    Beyond the standard :class:`AbstractFunction`, initialization allows the args...
+    Beyond the standard :class:`Function`, initialization allows the args...
 
     Args:
         node_function (callable): The function determining the behaviour of the node.
@@ -691,7 +684,7 @@ def function_node(*output_labels: str):
     def as_node(node_function: callable):
         node_class = type(
             node_function.__name__,
-            (AbstractFunction,),  # Define parentage
+            (Function,),  # Define parentage
             {
                 "node_function": staticmethod(node_function),
                 "_provided_output_labels": output_labels,
@@ -702,7 +695,7 @@ def function_node(*output_labels: str):
             node_class.preview_output_channels()
         except ValueError as e:
             raise ValueError(
-                f"Failed to create a new {AbstractFunction.__name__} child class "
+                f"Failed to create a new {Function.__name__} child class "
                 f"dynamically from {node_function.__name__} -- probably due to a "
                 f"mismatch among output labels, returned values, and return type hints."
             ) from e
