@@ -7,7 +7,7 @@ from typing import Optional
 from pyiron_workflow import Workflow
 
 
-@Workflow.wrap.function_node("sum")
+@Workflow.wrap.as_function_node("sum")
 def OptionallyAdd(x: int, y: Optional[int] = None) -> int:
     y = 0 if y is None else y
     return x + y
@@ -21,7 +21,7 @@ def AddThree(macro, x: int) -> int:
     return macro.three
 
 
-@Workflow.wrap.function_node("add")
+@Workflow.wrap.as_function_node("add")
 def AddPlusOne(obj, other):
     """The same IO labels as `standard.Add`, but with type hints and a boost."""
     return obj + other + 1
@@ -31,6 +31,6 @@ def dynamic(x):
     return x + 1
 
 
-Dynamic = Workflow.wrap.function_node()(dynamic)
+Dynamic = Workflow.wrap.as_function_node()(dynamic)
 
 nodes = [OptionallyAdd, AddThree, AddPlusOne, Dynamic]

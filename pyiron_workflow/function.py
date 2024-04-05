@@ -202,9 +202,9 @@ class Function(Node, ABC):
         for the return values, :param:output_labels, which are otherwise scraped from
         the text of the function definition:
 
-        >>> from pyiron_workflow.function import function_node
+        >>> from pyiron_workflow.function import as_function_node
         >>>
-        >>> @function_node("p1", "m1")
+        >>> @as_function_node("p1", "m1")
         ... def my_mwe_node(
         ...     x: int | float, y: int | float = 1
         ... ) -> tuple[int | float, int | float]:
@@ -243,7 +243,7 @@ class Function(Node, ABC):
         Let's put together a couple of nodes and then run in a "pull" paradigm to get
         the final node to run everything "upstream" then run itself:
 
-        >>> @function_node()
+        >>> @as_function_node()
         ... def adder_node(x: int = 0, y: int = 0) -> int:
         ...     sum = x + y
         ...     return sum
@@ -270,7 +270,7 @@ class Function(Node, ABC):
         (like cyclic graphs).
         Here's our simple example from above using this other paradigm:
 
-        >>> @function_node()
+        >>> @as_function_node()
         ... def adder_node(x: int = 0, y: int = 0) -> int:
         ...     sum = x + y
         ...     return sum
@@ -628,7 +628,7 @@ def node_from_function(
     elif isinstance(output_labels, str):
         output_labels = (output_labels,)
 
-    return function_node(*output_labels)(node_function)(
+    return as_function_node(*output_labels)(node_function)(
         *args,
         label=label,
         parent=parent,
@@ -640,7 +640,7 @@ def node_from_function(
     )
 
 
-def function_node(*output_labels: str):
+def as_function_node(*output_labels: str):
     """
     A decorator for dynamically creating node classes from functions.
 

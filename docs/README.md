@@ -40,7 +40,7 @@ Nodes can be used by themselves and -- other than being "delayed" in that their 
 >>> from pyiron_workflow import Workflow
 >>> Workflow.register("pyiron_workflow.node_library.plotting", "plotting")
 >>>
->>> @Workflow.wrap.function_node()
+>>> @Workflow.wrap.as_function_node()
 ... def Arange(n: int):
 ...     import numpy as np
 ...     return np.arange(n)

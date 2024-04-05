@@ -136,7 +136,7 @@ class Node(
         - The nodes must be somewhere importable, and the imported object must match
             the type of the node being saved. This basically just rules out one edge
             case where a node class is defined like
-            `SomeFunctionNode = Workflow.wrap.function_node()(some_function)`, since
+            `SomeFunctionNode = Workflow.wrap.as_function_node()(some_function)`, since
             then the new class gets the name `some_function`, which when imported is
             the _function_ "some_function" and not the desired class "SomeFunctionNode".
             This is checked for at save-time and will cause a nice early failure.

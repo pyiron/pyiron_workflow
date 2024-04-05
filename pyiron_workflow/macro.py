@@ -204,7 +204,7 @@ class Macro(Composite, ABC):
         to do this. Let's explore these by going back to our `add_three_macro` and
         replacing each of its children with a node that adds 2 instead of 1.
 
-        >>> @Macro.wrap.function_node()
+        >>> @Macro.wrap.as_function_node()
         ... def add_two(x):
         ...     result = x + 2
         ...     return result

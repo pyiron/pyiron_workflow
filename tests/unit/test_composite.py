@@ -51,7 +51,7 @@ class TestComposite(unittest.TestCase):
         super().setUp()
 
     def test_node_decorator_access(self):
-        @Composite.wrap.function_node("y")
+        @Composite.wrap.as_function_node("y")
         def foo(x: int = 0) -> int:
             return x + 1
 
@@ -63,7 +63,7 @@ class TestComposite(unittest.TestCase):
         )
 
         comp = self.comp
-        @comp.wrap.function_node("y")
+        @comp.wrap.as_function_node("y")
         def bar(x: int = 0) -> int:
             return x + 2
 
@@ -260,7 +260,7 @@ class TestComposite(unittest.TestCase):
         n2 = Composite.create.node_from_function(plus_one)
         n3 = Composite.create.node_from_function(plus_one)
 
-        @Composite.wrap.function_node("y", "minus")
+        @Composite.wrap.as_function_node("y", "minus")
         def x_plus_minus_z(x: int = 0, z=2) -> tuple[int, int]:
             """
             A commensurate but different node: has _more_ than the necessary channels,
@@ -270,11 +270,11 @@ class TestComposite(unittest.TestCase):
 
         replacement = x_plus_minus_z()
 
-        @Composite.wrap.function_node("y")
+        @Composite.wrap.as_function_node("y")
         def different_input_channel(z: int = 0) -> int:
             return z + 10
 
-        @Composite.wrap.function_node("z")
+        @Composite.wrap.as_function_node("z")
         def different_output_channel(x: int = 0) -> int:
             return x + 100
 
@@ -380,7 +380,7 @@ class TestComposite(unittest.TestCase):
             ):
                 self.comp.replace_child(replacement, another_node)
 
-            @Composite.wrap.function_node("y")
+            @Composite.wrap.as_function_node("y")
             def wrong_hint(x: float = 0) -> float:
                 return x + 1.1
 

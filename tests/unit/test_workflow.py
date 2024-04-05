@@ -18,7 +18,7 @@ def plus_one(x=0):
     return y
 
 
-@Workflow.wrap.function_node("y")
+@Workflow.wrap.as_function_node("y")
 def PlusOne(x: int = 0):
     return x + 1
 
@@ -226,13 +226,13 @@ class TestWorkflow(unittest.TestCase):
     def test_parallel_execution(self):
         wf = Workflow("wf")
 
-        @Workflow.wrap.function_node()
+        @Workflow.wrap.as_function_node()
         def five(sleep_time=0.):
             sleep(sleep_time)
             five = 5
             return five
 
-        @Workflow.wrap.function_node("sum")
+        @Workflow.wrap.as_function_node("sum")
         def sum(a, b):
             return a + b
 
@@ -281,7 +281,7 @@ class TestWorkflow(unittest.TestCase):
         wf.a = wf.create.node_from_function(plus_one)
         wf.b = wf.create.node_from_function(plus_one)
 
-        @Workflow.wrap.function_node("sum")
+        @Workflow.wrap.as_function_node("sum")
         def sum_(a, b):
             return a + b
 
@@ -330,7 +330,7 @@ class TestWorkflow(unittest.TestCase):
             )
 
     def test_execution_automation(self):
-        @Workflow.wrap.function_node("out")
+        @Workflow.wrap.as_function_node("out")
         def foo(x, y):
             return x + y
 
@@ -534,7 +534,7 @@ class TestWorkflow(unittest.TestCase):
                     wf.storage.delete()
 
         with self.subTest("Unimportable node"):
-            @Workflow.wrap.function_node("y")
+            @Workflow.wrap.as_function_node("y")
             def UnimportableScope(x):
                 return x
 

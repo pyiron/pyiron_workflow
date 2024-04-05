@@ -3,7 +3,7 @@ import unittest
 import warnings
 
 from pyiron_workflow.channels import NOT_DATA
-from pyiron_workflow.function import node_from_function, function_node
+from pyiron_workflow.function import node_from_function, as_function_node
 from pyiron_workflow.io import ConnectionCopyError, ValueCopyError
 from pyiron_workflow.create import Executor
 
@@ -143,11 +143,11 @@ class TestFunction(unittest.TestCase):
         self.assertEqual(plus_one.__name__, n.label)
 
     def test_availability_of_node_function(self):
-        @function_node()
+        @as_function_node()
         def linear(x):
             return x
 
-        @function_node()
+        @as_function_node()
         def bilinear(x, y):
             xy = linear.node_function(x) * linear.node_function(y)
             return xy
@@ -160,7 +160,7 @@ class TestFunction(unittest.TestCase):
         )
 
     def test_preview_output_channels(self):
-        @function_node()
+        @as_function_node()
         def Foo(x):
             return x
 
@@ -170,7 +170,7 @@ class TestFunction(unittest.TestCase):
             msg="Should parse without label or hint."
         )
 
-        @function_node("y")
+        @as_function_node("y")
         def Foo(x) -> None:
             return x
 
@@ -184,7 +184,7 @@ class TestFunction(unittest.TestCase):
             ValueError,
             msg="Should fail when scraping incommensurate hints and returns"
         ):
-            @function_node()
+            @as_function_node()
             def Foo(x) -> int:
                 y, z = 5.0, 5
                 return x, y, z
@@ -193,12 +193,12 @@ class TestFunction(unittest.TestCase):
             ValueError,
             msg="Should fail when provided labels are incommensurate with hints"
         ):
-            @function_node("xo", "yo", "zo")
+            @as_function_node("xo", "yo", "zo")
             def Foo(x) -> int:
                 y, z = 5.0, 5
                 return x, y, z
 
-        @function_node("xo", "yo")
+        @as_function_node("xo", "yo")
         def Foo(x) -> tuple[int, float]:
             y, z = 5.0, 5
             return x
@@ -214,7 +214,7 @@ class TestFunction(unittest.TestCase):
         )
 
     def test_preview_input_channels(self):
-        @function_node()
+        @as_function_node()
         def Foo(x, y: int = 42):
             return x + y
 
@@ -442,12 +442,12 @@ class TestFunction(unittest.TestCase):
             )
 
     def test_copy_values(self):
-        @function_node()
+        @as_function_node()
         def reference(x=0, y: int = 0, z: int | float = 0, omega=None, extra_here=None):
             out = 42
             return out
 
-        @function_node()
+        @as_function_node()
         def all_floats(x=1.1, y=1.1, z=1.1, omega=NOT_DATA, extra_there=None) -> float:
             out = 42.1
             return out
@@ -492,7 +492,7 @@ class TestFunction(unittest.TestCase):
         # Note also that these nodes each have extra channels the other doesn't that
         # are simply ignored
 
-        @function_node()
+        @as_function_node()
         def extra_channel(x=1, y=1, z=1, not_present=42):
             out = 42
             return out

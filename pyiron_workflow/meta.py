@@ -7,7 +7,7 @@ from __future__ import annotations
 from textwrap import dedent
 from typing import Optional, TYPE_CHECKING
 
-from pyiron_workflow.function import Function, function_node
+from pyiron_workflow.function import Function, as_function_node
 from pyiron_workflow.macro import Macro, macro_node
 
 if TYPE_CHECKING:
@@ -29,7 +29,7 @@ def __list_to_many(input_list: list):
         exec(template)
         return locals()["__list_to_many"]
 
-    return function_node(*(f"output{n}" for n in range(length)))(
+    return as_function_node(*(f"output{n}" for n in range(length)))(
         _list_to_many(length=length), **node_class_kwargs
     )
 
@@ -48,7 +48,7 @@ def __many_to_list({", ".join([f"inp{i}=None" for i in range(length)])}):
         exec(template)
         return locals()["__many_to_list"]
 
-    return function_node("output_list")(
+    return as_function_node("output_list")(
         _many_to_list(length=length), **node_class_kwargs
     )
 

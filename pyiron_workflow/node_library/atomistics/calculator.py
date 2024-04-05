@@ -1,16 +1,16 @@
 from ase.units import Ry
 
-from pyiron_workflow.function import function_node
+from pyiron_workflow.function import as_function_node
 
 
-@function_node("calculator")
+@as_function_node("calculator")
 def Emt():
     from ase.calculators.emt import EMT
 
     return EMT()
 
 
-@function_node("calculator")
+@as_function_node("calculator")
 def Abinit(
     label="abinit_evcurve",
     nbands=32,
@@ -31,14 +31,14 @@ def Abinit(
     )
 
 
-@function_node("calculator")
+@as_function_node("calculator")
 def Gpaw(xc="PBE", encut=300, kpts=(3, 3, 3)):
     from gpaw import GPAW, PW
 
     return GPAW(xc=xc, mode=PW(encut), kpts=kpts)
 
 
-@function_node("calculator")
+@as_function_node("calculator")
 def QuantumEspresso(
     pseudopotentials={"Al": "Al.pbe-n-kjpaw_psl.1.0.0.UPF"},
     tstress=True,
@@ -55,7 +55,7 @@ def QuantumEspresso(
     )
 
 
-@function_node("calculator")
+@as_function_node("calculator")
 def Siesta(
     label="siesta",
     xc="PBE",
@@ -82,14 +82,14 @@ def Siesta(
     )
 
 
-@function_node("energy_dict")
+@as_function_node("energy_dict")
 def CalcWithCalculator(task_dict, calculator):
     from atomistics.calculators.ase import evaluate_with_ase
 
     return evaluate_with_ase(task_dict=task_dict, ase_calculator=calculator)
 
 
-@function_node("lammps_potential_dataframe")
+@as_function_node("lammps_potential_dataframe")
 def LammpsPotential(potential_name, structure, resource_path):
     from atomistics.calculators.lammps import get_potential_dataframe
 
@@ -97,7 +97,7 @@ def LammpsPotential(potential_name, structure, resource_path):
     return df_pot[df_pot.Name == potential_name].iloc[0]
 
 
-@function_node("energy_dict")
+@as_function_node("energy_dict")
 def Lammps(task_dict, potential_dataframe):
     from atomistics.calculators.lammps import evaluate_with_lammps
 
