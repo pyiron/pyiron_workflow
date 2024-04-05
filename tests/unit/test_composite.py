@@ -98,9 +98,9 @@ class TestComposite(unittest.TestCase):
 
     def test_node_addition(self):
         # Validate the four ways to add a node
-        self.comp.add_child(Composite.create.node_from_function(plus_one, label="foo"))
-        self.comp.baz = self.comp.create.node_from_function(plus_one, label="whatever_baz_gets_used")
-        Composite.create.node_from_function(plus_one, label="qux", parent=self.comp)
+        self.comp.add_child(Composite.create.function_node(plus_one, label="foo"))
+        self.comp.baz = self.comp.create.function_node(plus_one, label="whatever_baz_gets_used")
+        Composite.create.function_node(plus_one, label="qux", parent=self.comp)
         self.assertListEqual(
             list(self.comp.children.keys()),
             ["foo", "baz", "qux"],
@@ -115,7 +115,7 @@ class TestComposite(unittest.TestCase):
         )
                 
     def test_node_access(self):
-        node = Composite.create.node_from_function(plus_one)
+        node = Composite.create.function_node(plus_one)
         self.comp.child = node
         self.assertIs(
             self.comp.child,
@@ -150,8 +150,8 @@ class TestComposite(unittest.TestCase):
             self.comp.not_a_child_or_attribute
 
     def test_node_removal(self):
-        self.comp.owned = Composite.create.node_from_function(plus_one)
-        node = Composite.create.node_from_function(plus_one)
+        self.comp.owned = Composite.create.function_node(plus_one)
+        node = Composite.create.function_node(plus_one)
         self.comp.foo = node
         # Add it to starting nodes manually, otherwise it's only there at run time
         self.comp.starting_nodes = [self.comp.foo]
@@ -186,25 +186,25 @@ class TestComposite(unittest.TestCase):
         )
 
     def test_label_uniqueness(self):
-        self.comp.foo = Composite.create.node_from_function(plus_one)
+        self.comp.foo = Composite.create.function_node(plus_one)
 
         self.comp.strict_naming = True
         # Validate name preservation for each node addition path
         with self.assertRaises(AttributeError, msg="We have 'foo' at home"):
-            self.comp.add_child(self.comp.create.node_from_function(plus_one, label="foo"))
+            self.comp.add_child(self.comp.create.function_node(plus_one, label="foo"))
 
         with self.assertRaises(
             AttributeError,
             msg="The provided label is ok, but then assigning to baz should give "
                 "trouble since that name is already occupied"
         ):
-            self.comp.foo = Composite.create.node_from_function(plus_one, label="whatever")
+            self.comp.foo = Composite.create.function_node(plus_one, label="whatever")
 
         with self.assertRaises(AttributeError, msg="We have 'foo' at home"):
-            Composite.create.node_from_function(plus_one, label="foo", parent=self.comp)
+            Composite.create.function_node(plus_one, label="foo", parent=self.comp)
 
         with self.assertRaises(AttributeError, msg="The parent already has 'foo'"):
-            node = Composite.create.node_from_function(plus_one, label="foo")
+            node = Composite.create.function_node(plus_one, label="foo")
             node.parent = self.comp
 
         with self.subTest("Make sure trivial re-assignment has no impact"):
@@ -223,7 +223,7 @@ class TestComposite(unittest.TestCase):
             )
 
         self.comp.strict_naming = False
-        self.comp.add_child(Composite.create.node_from_function(plus_one, label="foo"))
+        self.comp.add_child(Composite.create.function_node(plus_one, label="foo"))
         self.assertEqual(
             2,
             len(self.comp),
@@ -238,8 +238,8 @@ class TestComposite(unittest.TestCase):
 
     def test_singular_ownership(self):
         comp1 = AComposite("one")
-        comp1.node1 = comp1.create.node_from_function(plus_one)
-        node2 = comp1.create.node_from_function(
+        comp1.node1 = comp1.create.function_node(plus_one)
+        node2 = comp1.create.function_node(
             plus_one, label="node2", parent=comp1, x=comp1.node1.outputs.y
         )
         self.assertTrue(node2.connected, msg="Sanity check that node connection works")
@@ -256,9 +256,9 @@ class TestComposite(unittest.TestCase):
         )
 
     def test_replace(self):
-        n1 = Composite.create.node_from_function(plus_one)
-        n2 = Composite.create.node_from_function(plus_one)
-        n3 = Composite.create.node_from_function(plus_one)
+        n1 = Composite.create.function_node(plus_one)
+        n2 = Composite.create.function_node(plus_one)
+        n3 = Composite.create.function_node(plus_one)
 
         @Composite.wrap.as_function_node("y", "minus")
         def x_plus_minus_z(x: int = 0, z=2) -> tuple[int, int]:
@@ -410,7 +410,7 @@ class TestComposite(unittest.TestCase):
             )
 
     def test_working_directory(self):
-        self.comp.plus_one = Composite.create.node_from_function(plus_one)
+        self.comp.plus_one = Composite.create.function_node(plus_one)
         self.assertTrue(
             str(self.comp.plus_one.working_directory.path).endswith(self.comp.plus_one.label),
             msg="Child nodes should have their own working directories nested inside"
@@ -418,9 +418,9 @@ class TestComposite(unittest.TestCase):
         self.comp.working_directory.delete()  # Clean up
 
     def test_length(self):
-        self.comp.child = Composite.create.node_from_function(plus_one)
+        self.comp.child = Composite.create.function_node(plus_one)
         l1 = len(self.comp)
-        self.comp.child2 = Composite.create.node_from_function(plus_one)
+        self.comp.child2 = Composite.create.function_node(plus_one)
         self.assertEqual(
             l1 + 1,
             len(self.comp),
@@ -428,9 +428,9 @@ class TestComposite(unittest.TestCase):
         )
 
     def test_run(self):
-        self.comp.n1 = self.comp.create.node_from_function(plus_one, x=0)
-        self.comp.n2 = self.comp.create.node_from_function(plus_one, x=self.comp.n1)
-        self.comp.n3 = self.comp.create.node_from_function(plus_one, x=42)
+        self.comp.n1 = self.comp.create.function_node(plus_one, x=0)
+        self.comp.n2 = self.comp.create.function_node(plus_one, x=self.comp.n1)
+        self.comp.n3 = self.comp.create.function_node(plus_one, x=42)
         self.comp.n1 >> self.comp.n2
         self.comp.starting_nodes = [self.comp.n1]
 
@@ -448,9 +448,9 @@ class TestComposite(unittest.TestCase):
 
     def test_set_run_signals_to_dag(self):
         # Like the run test, but manually invoking this first
-        self.comp.n1 = self.comp.create.node_from_function(plus_one, x=0)
-        self.comp.n2 = self.comp.create.node_from_function(plus_one, x=self.comp.n1)
-        self.comp.n3 = self.comp.create.node_from_function(plus_one, x=42)
+        self.comp.n1 = self.comp.create.function_node(plus_one, x=0)
+        self.comp.n2 = self.comp.create.function_node(plus_one, x=self.comp.n1)
+        self.comp.n3 = self.comp.create.function_node(plus_one, x=42)
         self.comp.set_run_signals_to_dag_execution()
         self.comp.run()
         self.assertEqual(
@@ -477,9 +477,9 @@ class TestComposite(unittest.TestCase):
             self.comp.set_run_signals_to_dag_execution()
 
     def test_return(self):
-        self.comp.n1 = Composite.create.node_from_function(plus_one, x=0)
+        self.comp.n1 = Composite.create.function_node(plus_one, x=0)
         not_dottable_string = "can't dot this"
-        not_dottable_name_node = self.comp.create.node_from_function(
+        not_dottable_name_node = self.comp.create.function_node(
             plus_one, x=42, label=not_dottable_string, parent=self.comp
         )
         self.comp.starting_nodes = [self.comp.n1, not_dottable_name_node]
@@ -507,7 +507,7 @@ class TestComposite(unittest.TestCase):
 
     def test_de_activate_strict_connections(self):
         self.comp.sub_comp = AComposite("sub")
-        self.comp.sub_comp.n1 = Composite.create.node_from_function(plus_one, x=0)
+        self.comp.sub_comp.n1 = Composite.create.function_node(plus_one, x=0)
         self.assertTrue(
             self.comp.sub_comp.n1.inputs.x.strict_hints,
             msg="Sanity check that test starts in the expected condition"
@@ -526,8 +526,8 @@ class TestComposite(unittest.TestCase):
     def test_graph_info(self):
         top = AComposite("topmost")
         top.middle_composite = AComposite("middle_composite")
-        top.middle_composite.deep_node = Composite.create.node_from_function(plus_one)
-        top.middle_function = Composite.create.node_from_function(plus_one)
+        top.middle_composite.deep_node = Composite.create.function_node(plus_one)
+        top.middle_function = Composite.create.function_node(plus_one)
 
         with self.subTest("test_graph_path"):
             self.assertEqual(

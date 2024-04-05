@@ -52,12 +52,12 @@ class Function(Node, ABC):
         At the most basic level, to use nodes all we need to do is provide the
         `Function` class with a function and labels for its output, like so:
 
-        >>> from pyiron_workflow.function import node_from_function
+        >>> from pyiron_workflow.function import function_node
         >>>
         >>> def mwe(x, y):
         ...     return x+1, y-1
         >>>
-        >>> plus_minus_1 = node_from_function(mwe)
+        >>> plus_minus_1 = function_node(mwe)
         >>>
         >>> print(plus_minus_1.outputs["x+1"])
         NOT_DATA
@@ -113,7 +113,7 @@ class Function(Node, ABC):
         We can also, optionally, provide initial values for some or all of the input and
         labels for the output:
 
-        >>> plus_minus_1 = node_from_function(mwe, output_labels=("p1", "m1"),  x=1)
+        >>> plus_minus_1 = function_node(mwe, output_labels=("p1", "m1"),  x=1)
         >>> plus_minus_1.inputs.y = 2
         >>> out = plus_minus_1.run()
         >>> out
@@ -152,7 +152,7 @@ class Function(Node, ABC):
         ...     p1, m1 = x+1, y-1
         ...     return p1, m1
         >>>
-        >>> plus_minus_1 = node_from_function(hinted_example)
+        >>> plus_minus_1 = function_node(hinted_example)
         >>> try:
         ...     plus_minus_1.inputs.x =  "not an int or float"
         ... except TypeError as e:
@@ -583,7 +583,7 @@ class Function(Node, ABC):
         return SeabornColors.green
 
 
-def node_from_function(
+def function_node(
     node_function: callable,
     *args,
     label: Optional[str] = None,
