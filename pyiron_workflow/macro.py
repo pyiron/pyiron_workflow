@@ -86,7 +86,7 @@ class AbstractMacro(Composite, ABC):
         Let's consider the simplest case of macros that just consecutively add 1 to
         their input:
 
-        >>> from pyiron_workflow.macro import Macro, AbstractMacro
+        >>> from pyiron_workflow.macro import macro_from_function, AbstractMacro
         >>>
         >>> def add_one(x):
         ...     result = x + 1
@@ -110,7 +110,7 @@ class AbstractMacro(Composite, ABC):
         io is constructed from unconnected owned-node IO by combining node and channel
         labels.
 
-        >>> macro = Macro(add_three_macro, output_labels="three__result")
+        >>> macro = macro_from_function(add_three_macro, output_labels="three__result")
         >>> out = macro(one__x=3)
         >>> out.three__result
         6
@@ -120,13 +120,13 @@ class AbstractMacro(Composite, ABC):
 
         >>> def nested_macro(macro, inp):
         ...     macro.a = macro.create.node_from_function(add_one, x=inp)
-        ...     macro.b = macro.create.Macro(
+        ...     macro.b = macro.create.macro_from_function(
         ...         add_three_macro, one__x=macro.a, output_labels="three__result"
         ...     )
         ...     macro.c = macro.create.node_from_function(add_one, x=macro.b)
         ...     return macro.c, macro.b
         >>>
-        >>> macro = Macro(
+        >>> macro = macro_from_function(
         ...     nested_macro, output_labels=("out", "intermediate")
         ... )
         >>> macro(inp=1)
@@ -142,7 +142,7 @@ class AbstractMacro(Composite, ABC):
         ...     macro.c = macro.create.node_from_function(add_one, x=macro.b)
         ...     return macro.a, macro.c
         >>>
-        >>> m = Macro(modified_flow_macro, output_labels=("a", "c"))
+        >>> m = macro_from_function(modified_flow_macro, output_labels=("a", "c"))
         >>> m(a__x=1, b__x=2)
         {'a': 2, 'c': 4}
 
@@ -200,14 +200,6 @@ class AbstractMacro(Composite, ABC):
         >>> macro(one__x=0).three__result
         3
 
-        Notice here that we're inheriting from `AbstractMacro` and not just
-        `Macro` we were using before. Under the hood, `Macro` is actually a
-        very minimal class that is _dynamically_ creating a new child of
-        `AbstractMacro` that uses the provided `graph_creator` and returning you an
-        instance of this new dynamic class! So you can't inherit from it directly.
-        Anyhow, it is recommended to use the decorator on a function rather than direct
-        inheritance.
-
         We can also modify an existing macro at runtime by replacing nodes within it, as
         long as the replacement has fully compatible IO. There are three syntacic ways
         to do this. Let's explore these by going back to our `add_three_macro` and
@@ -218,7 +210,7 @@ class AbstractMacro(Composite, ABC):
         ...     result = x + 2
         ...     return result
         >>>
-        >>> adds_six_macro = Macro(add_three_macro, output_labels="three__result")
+        >>> adds_six_macro = macro_from_function(add_three_macro, output_labels="three__result")
         >>> # With the replace method
         >>> # (replacement target can be specified by label or instance,
         >>> # the replacing node can be specified by instance or class)
@@ -625,7 +617,7 @@ class AbstractMacro(Composite, ABC):
             self.children[child].outputs[child_out].value_receiver = self.outputs[out]
 
 
-class Macro:
+class macro_from_function:
     """
     Not an actual macro class, just a mis-direction that dynamically creates a new
     child of :class:`AbstractMacro` using the provided :func:`graph_creator` and

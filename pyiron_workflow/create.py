@@ -89,11 +89,11 @@ class Creator(metaclass=Singleton):
         return PySlurmExecutor
 
     @property
-    def Macro(self):
+    def macro_from_function(self):
         if self._macro is None:
-            from pyiron_workflow.macro import Macro
+            from pyiron_workflow.macro import macro_from_function
 
-            self._macro = Macro
+            self._macro = macro_from_function
         return self._macro
 
     @property
