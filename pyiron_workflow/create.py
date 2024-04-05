@@ -65,7 +65,7 @@ class Creator(metaclass=Singleton):
         self.function_node = function_node
 
         # Avoid circular imports by delaying import for children of Composite
-        self._macro = None
+        self._macro_node = None
         self._workflow = None
         self._meta = None
 
@@ -89,12 +89,12 @@ class Creator(metaclass=Singleton):
         return PySlurmExecutor
 
     @property
-    def macro_from_function(self):
-        if self._macro is None:
-            from pyiron_workflow.macro import macro_from_function
+    def macro_node(self):
+        if self._macro_node is None:
+            from pyiron_workflow.macro import macro_node
 
-            self._macro = macro_from_function
-        return self._macro
+            self._macro_node = macro_node
+        return self._macro_node
 
     @property
     def Workflow(self):

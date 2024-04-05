@@ -85,7 +85,7 @@ class Macro(Composite, ABC):
         Let's consider the simplest case of macros that just consecutively add 1 to
         their input:
 
-        >>> from pyiron_workflow.macro import macro_from_function, Macro
+        >>> from pyiron_workflow.macro import macro_node, Macro
         >>>
         >>> def add_one(x):
         ...     result = x + 1
@@ -109,7 +109,7 @@ class Macro(Composite, ABC):
         io is constructed from unconnected owned-node IO by combining node and channel
         labels.
 
-        >>> macro = macro_from_function(add_three_macro, output_labels="three__result")
+        >>> macro = macro_node(add_three_macro, output_labels="three__result")
         >>> out = macro(one__x=3)
         >>> out.three__result
         6
@@ -119,13 +119,13 @@ class Macro(Composite, ABC):
 
         >>> def nested_macro(macro, inp):
         ...     macro.a = macro.create.function_node(add_one, x=inp)
-        ...     macro.b = macro.create.macro_from_function(
+        ...     macro.b = macro.create.macro_node(
         ...         add_three_macro, one__x=macro.a, output_labels="three__result"
         ...     )
         ...     macro.c = macro.create.function_node(add_one, x=macro.b)
         ...     return macro.c, macro.b
         >>>
-        >>> macro = macro_from_function(
+        >>> macro = macro_node(
         ...     nested_macro, output_labels=("out", "intermediate")
         ... )
         >>> macro(inp=1)
@@ -141,7 +141,7 @@ class Macro(Composite, ABC):
         ...     macro.c = macro.create.function_node(add_one, x=macro.b)
         ...     return macro.a, macro.c
         >>>
-        >>> m = macro_from_function(modified_flow_macro, output_labels=("a", "c"))
+        >>> m = macro_node(modified_flow_macro, output_labels=("a", "c"))
         >>> m(a__x=1, b__x=2)
         {'a': 2, 'c': 4}
 
@@ -209,7 +209,7 @@ class Macro(Composite, ABC):
         ...     result = x + 2
         ...     return result
         >>>
-        >>> adds_six_macro = macro_from_function(add_three_macro, output_labels="three__result")
+        >>> adds_six_macro = macro_node(add_three_macro, output_labels="three__result")
         >>> # With the replace method
         >>> # (replacement target can be specified by label or instance,
         >>> # the replacing node can be specified by instance or class)
@@ -616,7 +616,7 @@ class Macro(Composite, ABC):
             self.children[child].outputs[child_out].value_receiver = self.outputs[out]
 
 
-def macro_from_function(
+def macro_node(
     graph_creator,
     label: Optional[str] = None,
     parent: Optional[Composite] = None,
