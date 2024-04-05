@@ -617,56 +617,47 @@ class AbstractMacro(Composite, ABC):
             self.children[child].outputs[child_out].value_receiver = self.outputs[out]
 
 
-class macro_from_function:
+def macro_from_function(
+    graph_creator,
+    label: Optional[str] = None,
+    parent: Optional[Composite] = None,
+    overwrite_save: bool = False,
+    run_after_init: bool = False,
+    storage_backend: Optional[Literal["h5io", "tinybase"]] = None,
+    save_after_run: bool = False,
+    strict_naming: bool = True,
+    output_labels: Optional[str | list[str] | tuple[str]] = None,
+    **kwargs,
+):
     """
-    Not an actual macro class, just a mis-direction that dynamically creates a new
-    child of :class:`AbstractMacro` using the provided :func:`graph_creator` and
-    creates an instance of that.
+    Creates a new child of :class:`AbstractMacro` using the provided
+    :func:`graph_creator` and returns an instance of that.
 
     Quacks like a :class:`Composite` for the sake of creating and registering nodes.
     """
-
-    def __new__(
-        cls,
-        graph_creator,
-        label: Optional[str] = None,
-        parent: Optional[Composite] = None,
-        overwrite_save: bool = False,
-        run_after_init: bool = False,
-        storage_backend: Optional[Literal["h5io", "tinybase"]] = None,
-        save_after_run: bool = False,
-        strict_naming: bool = True,
-        output_labels: Optional[str | list[str] | tuple[str]] = None,
-        **kwargs,
-    ):
-        if not callable(graph_creator):
-            # `node_from_function` quacks like a class, even though it's a function and
-            # dynamically creates children of `AbstractMacro` by providing the necessary
-            # callable to the decorator
-            raise AttributeError(
-                f"Expected `graph_creator` to be callable but got {graph_creator}"
-            )
-
-        if output_labels is None:
-            output_labels = ()
-        elif isinstance(output_labels, str):
-            output_labels = (output_labels,)
-
-        return macro_node(*output_labels)(graph_creator)(
-            label=label,
-            parent=parent,
-            overwrite_save=overwrite_save,
-            run_after_init=run_after_init,
-            storage_backend=storage_backend,
-            save_after_run=save_after_run,
-            strict_naming=strict_naming,
-            **kwargs,
+    if not callable(graph_creator):
+        # `node_from_function` quacks like a class, even though it's a function and
+        # dynamically creates children of `AbstractMacro` by providing the necessary
+        # callable to the decorator
+        raise AttributeError(
+            f"Expected `graph_creator` to be callable but got {graph_creator}"
         )
 
-    # Quack like an AbstractMacro
-    @classmethod
-    def allowed_backends(cls):
-        return tuple(AbstractMacro._storage_interfaces().keys())
+    if output_labels is None:
+        output_labels = ()
+    elif isinstance(output_labels, str):
+        output_labels = (output_labels,)
+
+    return macro_node(*output_labels)(graph_creator)(
+        label=label,
+        parent=parent,
+        overwrite_save=overwrite_save,
+        run_after_init=run_after_init,
+        storage_backend=storage_backend,
+        save_after_run=save_after_run,
+        strict_naming=strict_naming,
+        **kwargs,
+    )
 
 
 def macro_node(*output_labels):
