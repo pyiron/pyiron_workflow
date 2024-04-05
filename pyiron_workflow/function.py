@@ -501,7 +501,7 @@ class Function(Node, ABC):
         if "self" in self._input_args():
             if self.executor:
                 raise ValueError(
-                    f"node_from_function node {self.label} uses the `self` argument, but this "
+                    f"Function node {self.label} uses the `self` argument, but this "
                     f"can't yet be run with executors"
                 )
             kwargs["self"] = self
@@ -645,7 +645,7 @@ def as_function_node(*output_labels: str):
     A decorator for dynamically creating node classes from functions.
 
     Decorates a function.
-    Returns a `node_from_function` subclass whose name is the camel-case version of the function
+    Returns a `Function` subclass whose name is the camel-case version of the function
     node, and whose signature is modified to exclude the node function and output labels
     (which are explicitly defined in the process of using the decorator).
 

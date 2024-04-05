@@ -155,7 +155,7 @@ class TestFunction(unittest.TestCase):
         self.assertEqual(
             bilinear(2, 3).run(),
             2 * 3,
-            msg="Children of `node_from_function` should have their `node_function` exposed for "
+            msg="Children of `Function` should have their `node_function` exposed for "
                 "use at the class level"
         )
 
@@ -275,7 +275,7 @@ class TestFunction(unittest.TestCase):
         self.assertEqual(
             node._user_data["some_counter"],
             1,
-            msg="node_from_function functions should be able to modify attributes on the node "
+            msg="node_function should be able to modify attributes on the node "
                 "object."
         )
 
