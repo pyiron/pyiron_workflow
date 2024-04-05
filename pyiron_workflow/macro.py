@@ -12,7 +12,6 @@ import warnings
 
 from pyiron_workflow.channels import InputData, OutputData, NOT_DATA
 from pyiron_workflow.composite import Composite
-from pyiron_workflow.create import HasCreator
 from pyiron_workflow.has_interface_mixins import HasChannel
 from pyiron_workflow.io import Outputs, Inputs
 from pyiron_workflow.output_parser import ParseOutput
