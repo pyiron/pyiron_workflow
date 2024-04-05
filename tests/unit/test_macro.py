@@ -535,22 +535,25 @@ class TestMacro(unittest.TestCase):
     @unittest.skipIf(sys.version_info < (3, 11), "Storage will only work in 3.11+")
     def test_storage_for_modified_macros(self):
         ensure_tests_in_python_path()
-        Macro.register("static.demo_nodes", domain="demo")
+        AbstractMacro.register("static.demo_nodes", domain="demo")
 
-        for backend in Macro.allowed_backends():
+        for backend in AbstractMacro.allowed_backends():
             with self.subTest(backend):
                 try:
-                    macro = Macro.create.demo.AddThree(
+                    macro = AbstractMacro.create.demo.AddThree(
                         label="m", x=0, storage_backend=backend
                     )
                     original_result = macro()
-                    macro.replace_child(macro.two, Macro.create.demo.AddPlusOne())
+                    macro.replace_child(
+                        macro.two,
+                        AbstractMacro.create.demo.AddPlusOne()
+                    )
 
 
                     modified_result = macro()
 
                     macro.save()
-                    reloaded = Macro.create.demo.AddThree(
+                    reloaded = AbstractMacro.create.demo.AddThree(
                         label="m", storage_backend=backend
                     )
                     self.assertDictEqual(
@@ -564,11 +567,11 @@ class TestMacro(unittest.TestCase):
                         msg="All nodes should have been (de)serialized."
                     )  # Note that this snags the _new_ one in the case of h5io!
                     self.assertEqual(
-                        Macro.create.demo.AddThree.__name__,
+                        AbstractMacro.create.demo.AddThree.__name__,
                         reloaded.__class__.__name__,
                         msg=f"LOOK OUT! This all (de)serialized nicely, but what we "
                             f"loaded is _falsely_ claiming to be an "
-                            f"{Macro.create.demo.AddThree.__name__}. This is "
+                            f"{AbstractMacro.create.demo.AddThree.__name__}. This is "
                             f"not any sort of technical error -- what other class name "
                             f"would we load? -- but is a deeper problem with saving "
                             f"modified objects that we need ot figure out some better "
