@@ -9,7 +9,7 @@ from pyiron_workflow.channels import NOT_DATA
 import pyiron_workflow.job  # To get the job classes registered
 
 
-@Workflow.wrap_as.function_node("t")
+@Workflow.wrap.function_node("t")
 def Sleep(t):
     sleep(t)
     return t
@@ -135,7 +135,7 @@ class TestNodeOutputJob(_WithAJob):
 
     @unittest.skipIf(sys.version_info < (3, 11), "Storage will only work in 3.11+")
     def test_unloadable(self):
-        @Workflow.wrap_as.function_node("y")
+        @Workflow.wrap.function_node("y")
         def not_importable_directy_from_module(x):
             return x + 1
 

@@ -71,7 +71,7 @@ class Workflow(Composite, ParentMost):
 
         >>> from pyiron_workflow.workflow import Workflow
         >>>
-        >>> @Workflow.wrap_as.function_node()
+        >>> @Workflow.wrap.function_node()
         ... def fnc(x=0):
         ...     return x + 1
         >>>
@@ -107,7 +107,7 @@ class Workflow(Composite, ParentMost):
         Let's use these to explore a workflow's input and output, which are dynamically
         generated from the unconnected IO of its nodes:
 
-        >>> @Workflow.wrap_as.function_node("y")
+        >>> @Workflow.wrap.function_node("y")
         ... def plus_one(x: int = 0):
         ...     return x + 1
         >>>

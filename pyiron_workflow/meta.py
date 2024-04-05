@@ -142,7 +142,7 @@ def for_loop(
     # Assemble components into a decorated for-loop macro
     for_loop_code = dedent(
         f"""
-        @Macro.wrap_as.macro_node({output_labels})
+        @Macro.wrap.macro_node({output_labels})
         def {node_name}(macro, {macro_args}):
             from {loop_body_class.__module__} import {loop_body_class.__name__}
 
@@ -300,7 +300,7 @@ def while_loop(
     # Assemble components into a decorated while-loop macro
     while_loop_code = dedent(
         f"""
-        @Macro.wrap_as.macro_node({output_labels})
+        @Macro.wrap.macro_node({output_labels})
         def {node_name}(macro, {input_args}):
             from {loop_body_class.__module__} import {loop_body_class.__name__}
             from {condition_class.__module__} import {condition_class.__name__}

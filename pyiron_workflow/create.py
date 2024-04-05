@@ -339,7 +339,7 @@ class HasCreator(ABC):
     """
 
     create = Creator()
-    wrap_as = Wrappers()
+    wrap = Wrappers()
 
     @classmethod
     @wraps(Creator.register)

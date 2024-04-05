@@ -173,7 +173,7 @@ class Macro(Composite, ABC):
         to consider making a new class for it using the decorator, just like we do for
         function nodes:
 
-        >>> @Macro.wrap_as.macro_node("three__result")
+        >>> @Macro.wrap.macro_node("three__result")
         ... def AddThreeMacro(macro, one__x):
         ...     add_three_macro(macro, one__x=one__x)
         ...     # We could also simply have decorated that function to begin with
@@ -204,7 +204,7 @@ class Macro(Composite, ABC):
         to do this. Let's explore these by going back to our `add_three_macro` and
         replacing each of its children with a node that adds 2 instead of 1.
 
-        >>> @Macro.wrap_as.function_node()
+        >>> @Macro.wrap.function_node()
         ... def add_two(x):
         ...     result = x + 2
         ...     return result
@@ -225,7 +225,7 @@ class Macro(Composite, ABC):
         data and signal connections, but which will still internally execute and store
         data, e.g.:
 
-        >>> @Macro.wrap_as.macro_node("lout", "n_plus_2")
+        >>> @Macro.wrap.macro_node("lout", "n_plus_2")
         ... def LikeAFunction(macro, lin: list,  n: int = 1):
         ...     macro.plus_two = n + 2
         ...     macro.sliced_list = lin[n:macro.plus_two]

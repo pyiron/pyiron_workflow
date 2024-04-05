@@ -38,28 +38,14 @@ Nodes can be used by themselves and -- other than being "delayed" in that their 
 
 ```python
 >>> from pyiron_workflow import Workflow
->>>
->>> @Workflow.wrap_as.function_node()
-... def add_one(x):
-...     return x + 1
->>>
->>> add_one(add_one(add_one(x=0)))()
-3
-
-```
-
-But the intent is to collect them together into a workflow and leverage existing nodes. We can directly perform (many but not quite all) python actions natively on output channels, can build up data graph topology by simply assigning values (to attributes or at instantiation), and can package things together into reusable macros with customizable IO interfaces:
-
-```python
->>> from pyiron_workflow import Workflow
 >>> Workflow.register("pyiron_workflow.node_library.plotting", "plotting")
 >>>
->>> @Workflow.wrap_as.function_node()
+>>> @Workflow.wrap.function_node()
 ... def Arange(n: int):
 ...     import numpy as np
 ...     return np.arange(n)
 >>>
->>> @Workflow.wrap_as.macro_node("fig")
+>>> @Workflow.wrap.macro_node("fig")
 ... def PlotShiftedSquare(macro, n: int, shift: int = 0):
 ...     macro.arange = Arange(n)
 ...     macro.plot = macro.create.plotting.Scatter(

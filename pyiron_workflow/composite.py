@@ -72,7 +72,7 @@ class Composite(Node, SemanticParent, HasCreator, ABC):
         starting_nodes (None | list[pyiron_workflow.node.Node]): A subset
          of the owned nodes to be used on running. Only necessary if the execution graph
          has been manually specified with `run` signals. (Default is an empty list.)
-        wrap_as (Wrappers): A tool for accessing node-creating decorators
+        wrap (Wrappers): A tool for accessing node-creating decorators
 
     Methods:
         add_child(node: Node): Add the node instance to this subgraph.
