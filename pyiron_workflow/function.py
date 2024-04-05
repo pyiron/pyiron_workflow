@@ -52,12 +52,12 @@ class AbstractFunction(Node, ABC):
         At the most basic level, to use nodes all we need to do is provide the
         `Function` class with a function and labels for its output, like so:
 
-        >>> from pyiron_workflow.function import Function
+        >>> from pyiron_workflow.function import node_from_function
         >>>
         >>> def mwe(x, y):
         ...     return x+1, y-1
         >>>
-        >>> plus_minus_1 = Function(mwe)
+        >>> plus_minus_1 = node_from_function(mwe)
         >>>
         >>> print(plus_minus_1.outputs["x+1"])
         NOT_DATA
@@ -113,7 +113,7 @@ class AbstractFunction(Node, ABC):
         We can also, optionally, provide initial values for some or all of the input and
         labels for the output:
 
-        >>> plus_minus_1 = Function(mwe, output_labels=("p1", "m1"),  x=1)
+        >>> plus_minus_1 = node_from_function(mwe, output_labels=("p1", "m1"),  x=1)
         >>> plus_minus_1.inputs.y = 2
         >>> out = plus_minus_1.run()
         >>> out
@@ -152,7 +152,7 @@ class AbstractFunction(Node, ABC):
         ...     p1, m1 = x+1, y-1
         ...     return p1, m1
         >>>
-        >>> plus_minus_1 = Function(hinted_example)
+        >>> plus_minus_1 = node_from_function(hinted_example)
         >>> try:
         ...     plus_minus_1.inputs.x =  "not an int or float"
         ... except TypeError as e:
@@ -508,7 +508,7 @@ class AbstractFunction(Node, ABC):
         if "self" in self._input_args():
             if self.executor:
                 raise ValueError(
-                    f"Function node {self.label} uses the `self` argument, but this "
+                    f"node_from_function node {self.label} uses the `self` argument, but this "
                     f"can't yet be run with executors"
                 )
             kwargs["self"] = self
@@ -590,7 +590,7 @@ class AbstractFunction(Node, ABC):
         return SeabornColors.green
 
 
-class Function:
+class node_from_function:
     """
     Not an actual function class, just a mis-direction that dynamically creates a new
     child of :class:`AbstractFunction` using the provided :func:`node_function` and
@@ -655,7 +655,7 @@ def function_node(*output_labels: str):
     A decorator for dynamically creating node classes from functions.
 
     Decorates a function.
-    Returns a `Function` subclass whose name is the camel-case version of the function
+    Returns a `node_from_function` subclass whose name is the camel-case version of the function
     node, and whose signature is modified to exclude the node function and output labels
     (which are explicitly defined in the process of using the decorator).
 

@@ -93,9 +93,9 @@ class AbstractMacro(Composite, ABC):
         ...     return result
         >>>
         >>> def add_three_macro(macro, one__x):
-        ...     macro.one = macro.create.Function(add_one, x=one__x)
-        ...     macro.two = macro.create.Function(add_one, macro.one)
-        ...     macro.three = macro.create.Function(add_one, macro.two)
+        ...     macro.one = macro.create.node_from_function(add_one, x=one__x)
+        ...     macro.two = macro.create.node_from_function(add_one, macro.one)
+        ...     macro.three = macro.create.node_from_function(add_one, macro.two)
         ...     macro.one >> macro.two >> macro.three
         ...     macro.starting_nodes = [macro.one]
         ...     return macro.three
@@ -119,11 +119,11 @@ class AbstractMacro(Composite, ABC):
         internally-connected IO by inputs and outputs maps:
 
         >>> def nested_macro(macro, inp):
-        ...     macro.a = macro.create.Function(add_one, x=inp)
+        ...     macro.a = macro.create.node_from_function(add_one, x=inp)
         ...     macro.b = macro.create.Macro(
         ...         add_three_macro, one__x=macro.a, output_labels="three__result"
         ...     )
-        ...     macro.c = macro.create.Function(add_one, x=macro.b)
+        ...     macro.c = macro.create.node_from_function(add_one, x=macro.b)
         ...     return macro.c, macro.b
         >>>
         >>> macro = Macro(
@@ -137,9 +137,9 @@ class AbstractMacro(Composite, ABC):
         Let's build a simple macro with two independent tracks:
 
         >>> def modified_flow_macro(macro, a__x=0, b__x=0):
-        ...     macro.a = macro.create.Function(add_one, x=a__x)
-        ...     macro.b = macro.create.Function(add_one, x=b__x)
-        ...     macro.c = macro.create.Function(add_one, x=macro.b)
+        ...     macro.a = macro.create.node_from_function(add_one, x=a__x)
+        ...     macro.b = macro.create.node_from_function(add_one, x=b__x)
+        ...     macro.c = macro.create.node_from_function(add_one, x=macro.b)
         ...     return macro.a, macro.c
         >>>
         >>> m = Macro(modified_flow_macro, output_labels=("a", "c"))
@@ -649,7 +649,7 @@ class Macro(HasCreator):
         **kwargs,
     ):
         if not callable(graph_creator):
-            # `Function` quacks like a class, even though it's a function and
+            # `node_from_function` quacks like a class, even though it's a function and
             # dynamically creates children of `AbstractFunction` by providing the necessary
             # callable to the decorator
             raise AttributeError(
