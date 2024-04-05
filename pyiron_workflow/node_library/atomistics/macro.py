@@ -1,6 +1,6 @@
 from phonopy.units import VaspToTHz
 
-from pyiron_workflow.macro import AbstractMacro, macro_node
+from pyiron_workflow.macro import Macro, macro_node
 from pyiron_workflow.node_library.atomistics.calculator import CalcWithCalculator
 from pyiron_workflow.node_library.atomistics.task import (
     ElasticMatrixTaskGenerator,
@@ -11,8 +11,8 @@ from pyiron_workflow.node_library.atomistics.task import (
 )
 
 
-def atomistics_meta_creator(task_generator_node_class) -> type[AbstractMacro]:
-    def generic_creator(wf: AbstractMacro, calculator, **task_kwargs) -> None:
+def atomistics_meta_creator(task_generator_node_class) -> type[Macro]:
+    def generic_creator(wf: Macro, calculator, **task_kwargs) -> None:
         wf.tasks = task_generator_node_class(**task_kwargs)
         wf.structures = GenerateStructures(instance=wf.tasks)
         wf.calc = CalcWithCalculator(task_dict=wf.structures, calculator=calculator)

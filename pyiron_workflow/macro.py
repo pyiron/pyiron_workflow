@@ -20,7 +20,7 @@ if TYPE_CHECKING:
     from pyiron_workflow.channels import Channel
 
 
-class AbstractMacro(Composite, ABC):
+class Macro(Composite, ABC):
     """
     A macro is a composite node that holds a graph with a fixed interface, like a
     pre-populated workflow that is the same every time you instantiate it.
@@ -85,7 +85,7 @@ class AbstractMacro(Composite, ABC):
         Let's consider the simplest case of macros that just consecutively add 1 to
         their input:
 
-        >>> from pyiron_workflow.macro import macro_from_function, AbstractMacro
+        >>> from pyiron_workflow.macro import macro_from_function, Macro
         >>>
         >>> def add_one(x):
         ...     result = x + 1
@@ -173,7 +173,7 @@ class AbstractMacro(Composite, ABC):
         to consider making a new class for it using the decorator, just like we do for
         function nodes:
 
-        >>> @AbstractMacro.wrap_as.macro_node("three__result")
+        >>> @Macro.wrap_as.macro_node("three__result")
         ... def AddThreeMacro(macro, one__x):
         ...     add_three_macro(macro, one__x=one__x)
         ...     # We could also simply have decorated that function to begin with
@@ -187,7 +187,7 @@ class AbstractMacro(Composite, ABC):
         :class:`AbstractMacro` that overrides the :meth:`graph_creator` arg such that
         the same graph is always created.
 
-        >>> class AddThreeMacro(AbstractMacro):
+        >>> class AddThreeMacro(Macro):
         ...     _provided_output_labels = ["three__result"]
         ...
         ...     @staticmethod
@@ -204,7 +204,7 @@ class AbstractMacro(Composite, ABC):
         to do this. Let's explore these by going back to our `add_three_macro` and
         replacing each of its children with a node that adds 2 instead of 1.
 
-        >>> @AbstractMacro.wrap_as.function_node()
+        >>> @Macro.wrap_as.function_node()
         ... def add_two(x):
         ...     result = x + 2
         ...     return result
@@ -225,7 +225,7 @@ class AbstractMacro(Composite, ABC):
         data and signal connections, but which will still internally execute and store
         data, e.g.:
 
-        >>> @AbstractMacro.wrap_as.macro_node("lout", "n_plus_2")
+        >>> @Macro.wrap_as.macro_node("lout", "n_plus_2")
         ... def LikeAFunction(macro, lin: list,  n: int = 1):
         ...     macro.plus_two = n + 2
         ...     macro.sliced_list = lin[n:macro.plus_two]
@@ -629,14 +629,14 @@ def macro_from_function(
     **kwargs,
 ):
     """
-    Creates a new child of :class:`AbstractMacro` using the provided
+    Creates a new child of :class:`Macro` using the provided
     :func:`graph_creator` and returns an instance of that.
 
     Quacks like a :class:`Composite` for the sake of creating and registering nodes.
     """
     if not callable(graph_creator):
         # `node_from_function` quacks like a class, even though it's a function and
-        # dynamically creates children of `AbstractMacro` by providing the necessary
+        # dynamically creates children of `Macro` by providing the necessary
         # callable to the decorator
         raise AttributeError(
             f"Expected `graph_creator` to be callable but got {graph_creator}"
@@ -679,7 +679,7 @@ def macro_node(*output_labels):
     def as_node(graph_creator: callable[[Macro, ...], Optional[tuple[HasChannel]]]):
         node_class = type(
             graph_creator.__name__,
-            (AbstractMacro,),  # Define parentage
+            (Macro,),  # Define parentage
             {
                 "graph_creator": staticmethod(graph_creator),
                 "_provided_output_labels": output_labels,

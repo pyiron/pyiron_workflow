@@ -9,7 +9,7 @@ import unittest
 from pyiron_workflow._tests import ensure_tests_in_python_path
 from pyiron_workflow.channels import NOT_DATA
 from pyiron_workflow.function import node_from_function
-from pyiron_workflow.macro import AbstractMacro, macro_from_function, macro_node
+from pyiron_workflow.macro import Macro, macro_from_function, macro_node
 from pyiron_workflow.topology import CircularDataFlowError
 
 
@@ -163,7 +163,7 @@ class TestMacro(unittest.TestCase):
         )
 
     def test_creation_from_subclass(self):
-        class MyMacro(AbstractMacro):
+        class MyMacro(Macro):
             _provided_output_labels = ("three__result",)
 
             @staticmethod
@@ -535,25 +535,25 @@ class TestMacro(unittest.TestCase):
     @unittest.skipIf(sys.version_info < (3, 11), "Storage will only work in 3.11+")
     def test_storage_for_modified_macros(self):
         ensure_tests_in_python_path()
-        AbstractMacro.register("static.demo_nodes", domain="demo")
+        Macro.register("static.demo_nodes", domain="demo")
 
-        for backend in AbstractMacro.allowed_backends():
+        for backend in Macro.allowed_backends():
             with self.subTest(backend):
                 try:
-                    macro = AbstractMacro.create.demo.AddThree(
+                    macro = Macro.create.demo.AddThree(
                         label="m", x=0, storage_backend=backend
                     )
                     original_result = macro()
                     macro.replace_child(
                         macro.two,
-                        AbstractMacro.create.demo.AddPlusOne()
+                        Macro.create.demo.AddPlusOne()
                     )
 
 
                     modified_result = macro()
 
                     macro.save()
-                    reloaded = AbstractMacro.create.demo.AddThree(
+                    reloaded = Macro.create.demo.AddThree(
                         label="m", storage_backend=backend
                     )
                     self.assertDictEqual(
@@ -567,11 +567,11 @@ class TestMacro(unittest.TestCase):
                         msg="All nodes should have been (de)serialized."
                     )  # Note that this snags the _new_ one in the case of h5io!
                     self.assertEqual(
-                        AbstractMacro.create.demo.AddThree.__name__,
+                        Macro.create.demo.AddThree.__name__,
                         reloaded.__class__.__name__,
                         msg=f"LOOK OUT! This all (de)serialized nicely, but what we "
                             f"loaded is _falsely_ claiming to be an "
-                            f"{AbstractMacro.create.demo.AddThree.__name__}. This is "
+                            f"{Macro.create.demo.AddThree.__name__}. This is "
                             f"not any sort of technical error -- what other class name "
                             f"would we load? -- but is a deeper problem with saving "
                             f"modified objects that we need ot figure out some better "
