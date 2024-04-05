@@ -242,6 +242,19 @@ class TestFunction(unittest.TestCase):
         self.assertFalse(n.running)
         self.assertTrue(n.failed)
 
+    def test_protected_name(self):
+        @as_function_node()
+        def Selfish(self, x):
+            return x
+
+        n = Selfish()
+        with self.assertRaises(
+            ValueError,
+            msg="When we try to build inputs, we should run into the fact that inputs "
+                "can't overlap with __init__ signature terms"
+        ):
+            n.inputs
+
     def test_call(self):
         node = function_node(no_default, output_labels="output")
 
