@@ -184,7 +184,7 @@ class Macro(Composite, ABC):
         3
 
         Alternatively (and not recommended) is to make a new child class of
-        :class:`AbstractMacro` that overrides the :meth:`graph_creator` arg such that
+        :class:`Macro` that overrides the :meth:`graph_creator` arg such that
         the same graph is always created.
 
         >>> class AddThreeMacro(Macro):

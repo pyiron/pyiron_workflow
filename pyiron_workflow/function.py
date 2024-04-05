@@ -110,8 +110,8 @@ class Function(Node, ABC):
         >>> plus_minus_1.outputs.to_value_dict()
         {'x+1': 3, 'y-1': 2}
 
-        We can also, optionally, provide initial values for some or all of the input and
-        labels for the output:
+        We can also, optionally, provide initial values for some or all of the input
+        and labels for the output:
 
         >>> plus_minus_1 = function_node(mwe, output_labels=("p1", "m1"),  x=1)
         >>> plus_minus_1.inputs.y = 2
@@ -128,8 +128,8 @@ class Function(Node, ABC):
         (3, 2)
 
         We can make our node even more sensible by adding type
-        hints (and, optionally, default values) when defining the function that the node
-        wraps.
+        hints (and, optionally, default values) when defining the function that the
+        node wraps.
         The node will automatically figure out defaults and type hints for the IO
         channels from inspection of the wrapped function.
 
@@ -157,7 +157,8 @@ class Function(Node, ABC):
         ...     plus_minus_1.inputs.x =  "not an int or float"
         ... except TypeError as e:
         ...     print("TypeError:", e.args[0])
-        TypeError: The channel x cannot take the value `not an int or float` because it is not compliant with the type hint typing.Union[int, float]
+        TypeError: The channel x cannot take the value `not an int or float` because it
+        is not compliant with the type hint typing.Union[int, float]
 
         We can turn off type hinting with the `strict_hints` boolean property, or just
         circumvent the type hinting by applying the new data directly to the private
@@ -188,16 +189,16 @@ class Function(Node, ABC):
         >>> plus_minus_1.ready, plus_minus_1.inputs.x.ready, plus_minus_1.inputs.y.ready
         (False, False, True)
 
-        In these examples, we've instantiated nodes directly from the base :class:`Function`
-        class, and populated their input directly with data.
+        In these examples, we've instantiated nodes directly from the base
+        :class:`Function` class, and populated their input directly with data.
         In practice, these nodes are meant to be part of complex workflows; that means
         both that you are likely to have particular nodes that get heavily re-used, and
         that you need the nodes to pass data to each other.
 
-        For reusable nodes, we want to create a sub-class of :class:`AbstractFunction`
+        For reusable nodes, we want to create a sub-class of :class:`Function`
         that fixes some of the node behaviour -- i.e. the :meth:`node_function`.
 
-        This can be done most easily with the :func:`function_node` decorator, which
+        This can be done most easily with the :func:`as_function_node` decorator, which
         takes a function and returns a node class. It also allows us to provide labels
         for the return values, :param:output_labels, which are otherwise scraped from
         the text of the function definition:
