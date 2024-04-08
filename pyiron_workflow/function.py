@@ -1,22 +1,19 @@
 from __future__ import annotations
 
 from abc import ABC, abstractmethod
-import inspect
-import warnings
-from typing import Any, get_args, get_type_hints, Literal, Optional, TYPE_CHECKING
+from typing import Any, Literal, Optional, TYPE_CHECKING
 
-from pyiron_workflow.channels import InputData, NOT_DATA
+from pyiron_workflow.channels import InputData
 from pyiron_workflow.injection import OutputDataWithInjection
-from pyiron_workflow.io import Inputs, Outputs
+from pyiron_workflow.io import Inputs, Outputs, ScrapesIO
 from pyiron_workflow.node import Node
-from pyiron_workflow.output_parser import ParseOutput
 from pyiron_workflow.snippets.colors import SeabornColors
 
 if TYPE_CHECKING:
     from pyiron_workflow.composite import Composite
 
 
-class Function(Node, ABC):
+class Function(Node, ScrapesIO, ABC):
     """
     Function nodes wrap an arbitrary python function.
 
@@ -333,73 +330,18 @@ class Function(Node, ABC):
         """What the node _does_."""
 
     @classmethod
-    def _type_hints(cls) -> dict:
-        """The result of :func:`typing.get_type_hints` on the :meth:`node_function`."""
-        return get_type_hints(cls.node_function)
+    def _io_defining_function(cls) -> callable:
+        return cls.node_function
+
+    @classmethod
+    def _io_defining_function_uses_self(cls) -> callable:
+        return False
 
     @classmethod
     def preview_output_channels(cls) -> dict[str, Any]:
-        """
-        Gives a class-level peek at the expected output channels.
-
-        Returns:
-            dict[str, tuple[Any, Any]]: The channel name and its corresponding type
-                hint.
-        """
-        labels = cls._get_output_labels()
-        try:
-            type_hints = cls._type_hints()["return"]
-            if len(labels) > 1:
-                type_hints = get_args(type_hints)
-                if not isinstance(type_hints, tuple):
-                    raise TypeError(
-                        f"With multiple return labels expected to get a tuple of type "
-                        f"hints, but got type {type(type_hints)}"
-                    )
-                if len(type_hints) != len(labels):
-                    raise ValueError(
-                        f"Expected type hints and return labels to have matching "
-                        f"lengths, but got {len(type_hints)} hints and "
-                        f"{len(labels)} labels: {type_hints}, {labels}"
-                    )
-            else:
-                # If there's only one hint, wrap it in a tuple, so we can zip it with
-                # *return_labels and iterate over both at once
-                type_hints = (type_hints,)
-        except KeyError:  # If there are no return hints
-            type_hints = [None] * len(labels)
-            # Note that this nicely differs from `NoneType`, which is the hint when
-            # `None` is actually the hint!
-        return {label: hint for label, hint in zip(labels, type_hints)}
-
-    @classmethod
-    def _get_output_labels(cls):
-        """
-        Return output labels provided on the class if not None, else scrape them from
-        :meth:`node_function`.
-
-        Note: When the user explicitly provides output channels, they are taking
-        responsibility that these are correct, e.g. in terms of quantity, order, etc.
-        """
-        if cls._provided_output_labels is None:
-            return cls._scrape_output_labels()
-        else:
-            return cls._provided_output_labels
-
-    @classmethod
-    def _scrape_output_labels(cls):
-        """
-        Inspect :meth:`node_function` to scrape out strings representing the
-        returned values.
-
-         _Only_ works for functions with a single `return` expression in their body.
-
-        It will return expressions and function calls just fine, thus good practice is
-        to create well-named variables and return those so that the output labels stay
-        dot-accessible.
-        """
-        parsed_outputs = ParseOutput(cls.node_function).output
-        return [None] if parsed_outputs is None else parsed_outputs
+        preview = super(Function, cls).preview_output_channels()
+        return preview if len(preview) > 0 else {"None": type(None)}
+        # If clause facilitates functions with no return value
 
     @property
     def outputs(self) -> Outputs:
@@ -416,46 +358,6 @@ class Function(Node, ABC):
             )
             for label, hint in self.preview_output_channels().items()
         ]
-
-    @classmethod
-    def preview_input_channels(cls) -> dict[str, tuple[Any, Any]]:
-        """
-        Gives a class-level peek at the expected input channels.
-
-        Returns:
-            dict[str, tuple[Any, Any]]: The channel name and a tuple of its
-                corresponding type hint and default value.
-        """
-        type_hints = cls._type_hints()
-        scraped: dict[str, tuple[Any, Any]] = {}
-        for label, param in cls._input_args().items():
-            if label in cls._init_keywords():
-                # We allow users to parse arbitrary kwargs as channel initialization
-                # So don't let them choose bad channel names
-                raise ValueError(
-                    f"The Input channel name {label} is not valid. Please choose a "
-                    f"name _not_ among {cls._init_keywords()}"
-                )
-
-            try:
-                type_hint = type_hints[label]
-            except KeyError:
-                type_hint = None
-
-            default = (
-                NOT_DATA if param.default is inspect.Parameter.empty else param.default
-            )
-
-            scraped[label] = (type_hint, default)
-        return scraped
-
-    @classmethod
-    def _input_args(cls):
-        return inspect.signature(cls.node_function).parameters
-
-    @classmethod
-    def _init_keywords(cls):
-        return list(inspect.signature(cls.__init__).parameters.keys())
 
     @property
     def inputs(self) -> Inputs:
