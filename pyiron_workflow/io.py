@@ -647,9 +647,7 @@ class ScrapesIO(ABC):
                 type_hint = None
 
             default = (
-                value.default
-                if value.default is not inspect.Parameter.empty
-                else NOT_DATA
+                NOT_DATA if value.default is inspect.Parameter.empty else value.default
             )
 
             scraped[label] = (type_hint, default)
