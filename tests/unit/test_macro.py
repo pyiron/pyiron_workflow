@@ -480,6 +480,17 @@ class TestMacro(unittest.TestCase):
             def MissingReturn(macro):
                 macro.foo = macro.create.standard.UserInput()
 
+        with self.assertRaises(
+            ValueError,
+            msg="Degenerate output labels should not be allowed"
+        ):
+            @as_macro_node()
+            def DegenerateOutput(macro):
+                macro.foo = macro.create.standard.UserInput()
+                macro.bar = macro.create.standard.UserInput(macro.foo)
+                bar = macro.foo
+                return bar, macro.bar
+
     def test_functionlike_io_parsing(self):
         """
         Check that various aspects of the IO are parsing from the function signature

@@ -314,6 +314,11 @@ class Macro(Composite, ABC):
         """
         graph_creator_returns = ParseOutput(cls.graph_creator).output
         output_labels = cls._get_output_labels()
+        if output_labels is not None and len(set(output_labels)) != len(output_labels):
+            raise ValueError(
+                f"{cls.__name__} must not have degenerate output labels: "
+                f"{output_labels}"
+            )
         if graph_creator_returns is not None or output_labels is not None:
             error_suffix = (
                 f"but {cls.__name__} macro class got return values: "
