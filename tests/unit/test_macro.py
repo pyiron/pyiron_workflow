@@ -431,6 +431,38 @@ class TestMacro(unittest.TestCase):
 
         LabelsAndReturnsMatch()  # Both is fine
 
+        @as_macro_node()
+        def OutputScrapedFromCleanReturn(macro):
+            macro.foo = macro.create.standard.UserInput()
+            my_out = macro.foo
+            return my_out
+
+        self.assertListEqual(
+            ["my_out"],
+            list(OutputScrapedFromCleanReturn.preview_output_channels().keys()),
+            msg="Output labels should get scraped from code, just like for functions"
+        )
+
+        @as_macro_node()
+        def OutputScrapedFromFilteredReturn(macro):
+            macro.foo = macro.create.standard.UserInput()
+            return macro.foo
+
+        self.assertListEqual(
+            ["foo"],
+            list(OutputScrapedFromFilteredReturn.preview_output_channels().keys()),
+            msg="The first, self-like argument, should get stripped from output labels"
+        )
+
+        with self.assertRaises(
+            ValueError,
+            msg="Return values shouldn't have extra dots"
+        ):
+            @as_macro_node()
+            def ReturnHasDot(macro):
+                macro.foo = macro.create.standard.UserInput()
+                return macro.foo.outputs.user_input
+
         with self.assertRaises(
             ValueError,
             msg="The number of output labels and return values must match"
@@ -442,19 +474,10 @@ class TestMacro(unittest.TestCase):
 
         with self.assertRaises(
             TypeError,
-            msg="Output labels must be there if return values are"
-        ):
-            @as_macro_node()
-            def MissingLabel(macro):
-                macro.foo = macro.create.standard.UserInput()
-                return macro.foo
-
-        with self.assertRaises(
-            TypeError,
             msg="Return values must be there if output labels are"
         ):
             @as_macro_node("some_label")
-            def MissingLabel(macro):
+            def MissingReturn(macro):
                 macro.foo = macro.create.standard.UserInput()
 
     def test_functionlike_io_parsing(self):
