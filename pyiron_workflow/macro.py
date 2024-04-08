@@ -5,7 +5,7 @@ interface and are not intended to be internally modified after instantiation.
 
 from __future__ import annotations
 
-from abc import ABC
+from abc import ABC, abstractmethod
 import inspect
 from typing import Any, get_args, get_type_hints, Literal, Optional, TYPE_CHECKING
 import warnings
@@ -297,6 +297,11 @@ class Macro(Composite, ABC):
         self._configure_graph_execution(remaining_ui_nodes)
 
         self.set_input_values(**kwargs)
+
+    @staticmethod
+    @abstractmethod
+    def graph_creator(self, *args, **kwargs) -> callable:
+        """Build the graph the node will run."""
 
     @classmethod
     def _validate_output_labels(cls) -> tuple[str]:
