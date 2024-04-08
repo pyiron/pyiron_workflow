@@ -663,7 +663,8 @@ class ScrapesIO(ABC):
                 hint.
         """
         labels = cls._get_output_labels()
-        labels = [] if labels is None else labels
+        if labels is None:
+            labels = []
         try:
             type_hints = cls._get_type_hints()["return"]
             if len(labels) > 1:
