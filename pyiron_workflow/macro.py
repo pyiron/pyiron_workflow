@@ -189,7 +189,7 @@ class Macro(Composite, ScrapesIO, ABC):
         the same graph is always created.
 
         >>> class AddThreeMacro(Macro):
-        ...     _provided_output_labels = ["three"]
+        ...     _output_labels = ["three"]
         ...
         ...     @staticmethod
         ...     def graph_creator(macro, x):
@@ -285,8 +285,8 @@ class Macro(Composite, ScrapesIO, ABC):
                     ),
                     (
                         ()
-                        if self._provided_output_labels is None
-                        else self._provided_output_labels
+                        if self._output_labels is None
+                        else self._output_labels
                     ),
                 )
             )
@@ -599,7 +599,7 @@ def as_macro_node(*output_labels):
             (Macro,),  # Define parentage
             {
                 "graph_creator": staticmethod(graph_creator),
-                "_provided_output_labels": output_labels,
+                "_output_labels": output_labels,
                 "__module__": graph_creator.__module__,
             },
         )

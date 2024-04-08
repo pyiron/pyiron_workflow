@@ -164,7 +164,7 @@ class TestMacro(unittest.TestCase):
 
     def test_creation_from_subclass(self):
         class MyMacro(Macro):
-            _provided_output_labels = ("three__result",)
+            _output_labels = ("three__result",)
 
             @staticmethod
             def graph_creator(self, one__x):

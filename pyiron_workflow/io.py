@@ -584,7 +584,9 @@ class ScrapesIO(ABC):
     A mixin class for scraping IO channel information from a specific class method.
 
     Requires that the (static and class) method :meth:`_io_defining_function` be
-    specified in child classes.
+    specified in child classes, as well as :meth:`_io_defining_function_uses_self`.
+    Optionally, :attr:`_output_labels` can be overridden at the class level to avoid
+    scraping the return signature for channel labels altogether.
 
     Class methods:
         preview_input_channels (dict[str, tuple[Any, Any]]): Input channel names paired
@@ -611,7 +613,8 @@ class ScrapesIO(ABC):
     def _io_defining_function_uses_self(cls) -> bool:
         """Whether the signature of the IO defining function starts with self."""
 
-    _provided_output_labels: tuple[str] | None = None
+    _output_labels: tuple[str] | None = None
+
     __type_hints = None
     __input_args = None
     __init_keywords = None
@@ -694,9 +697,9 @@ class ScrapesIO(ABC):
         Return output labels provided for the class, scraping them from the io-defining
         function if they are not already available.
         """
-        if cls._provided_output_labels is None:
-            cls._provided_output_labels = cls._scrape_output_labels()
-        return cls._provided_output_labels
+        if cls._output_labels is None:
+            cls._output_labels = cls._scrape_output_labels()
+        return cls._output_labels
 
     @classmethod
     def _type_hints(cls) -> dict:

@@ -298,7 +298,7 @@ class Function(Node, ScrapesIO, ABC):
         guaranteed.
     """
 
-    _provided_output_labels: tuple[str] | None = None
+    _output_labels: tuple[str] | None = None
 
     def __init__(
         self,
@@ -565,7 +565,7 @@ def as_function_node(*output_labels: str):
             (Function,),  # Define parentage
             {
                 "node_function": staticmethod(node_function),
-                "_provided_output_labels": output_labels,
+                "_output_labels": output_labels,
                 "__module__": node_function.__module__,
             },
         )
