@@ -397,7 +397,7 @@ class Function(Node, ScrapesIO, ABC):
         return function_output
 
     def _convert_input_args_and_kwargs_to_input_kwargs(self, *args, **kwargs):
-        reverse_keys = list(self._input_args().keys())[::-1]
+        reverse_keys = list(self._get_input_args().keys())[::-1]
         if len(args) > len(reverse_keys):
             raise ValueError(
                 f"Received {len(args)} positional arguments, but the node {self.label}"

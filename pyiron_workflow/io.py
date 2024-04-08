@@ -628,17 +628,17 @@ class ScrapesIO(ABC):
             dict[str, tuple[Any, Any]]: The channel name and a tuple of its
                 corresponding type hint and default value.
         """
-        type_hints = cls._type_hints()
+        type_hints = cls._get_type_hints()
         scraped: dict[str, tuple[Any, Any]] = {}
-        for i, (label, value) in enumerate(cls._input_args().items()):
+        for i, (label, value) in enumerate(cls._get_input_args().items()):
             if cls._io_defining_function_uses_self() and i == 0:
                 continue  # Skip the macro argument itself, it's like `self` here
-            elif label in cls._init_keywords():
+            elif label in cls._get_init_keywords():
                 # We allow users to parse arbitrary kwargs as channel initialization
                 # So don't let them choose bad channel names
                 raise ValueError(
                     f"The Input channel name {label} is not valid. Please choose a "
-                    f"name _not_ among {cls._init_keywords()}"
+                    f"name _not_ among {cls._get_init_keywords()}"
                 )
 
             try:
@@ -667,7 +667,7 @@ class ScrapesIO(ABC):
         labels = cls._get_output_labels()
         labels = [] if labels is None else labels
         try:
-            type_hints = cls._type_hints()["return"]
+            type_hints = cls._get_type_hints()["return"]
             if len(labels) > 1:
                 type_hints = get_args(type_hints)
                 if not isinstance(type_hints, tuple):
@@ -702,7 +702,7 @@ class ScrapesIO(ABC):
         return cls._output_labels
 
     @classmethod
-    def _type_hints(cls) -> dict:
+    def _get_type_hints(cls) -> dict:
         """
         The result of :func:`typing.get_type_hints` on the io-defining function
         """
@@ -711,13 +711,13 @@ class ScrapesIO(ABC):
         return cls.__type_hints
 
     @classmethod
-    def _input_args(cls):
+    def _get_input_args(cls):
         if cls.__input_args is None:
             cls.__input_args = inspect.signature(cls._io_defining_function()).parameters
         return cls.__input_args
 
     @classmethod
-    def _init_keywords(cls):
+    def _get_init_keywords(cls):
         if cls.__init_keywords is None:
             cls.__init_keywords = list(
                 inspect.signature(cls.__init__).parameters.keys()

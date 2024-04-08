@@ -316,7 +316,7 @@ class Macro(Composite, ScrapesIO, ABC):
 
         if scraped_labels is not None:
             # Strip off the first argument, e.g. self.foo just becomes foo
-            self_argument = list(cls._input_args().keys())[0]
+            self_argument = list(cls._get_input_args().keys())[0]
             cleaned_labels = [
                 re.sub(r"^" + re.escape(f"{self_argument}."), "", label)
                 for label in scraped_labels
