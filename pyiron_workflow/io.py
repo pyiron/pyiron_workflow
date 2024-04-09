@@ -618,6 +618,8 @@ class ScrapesIO(ABC):
     __type_hints = None
     __input_args = None
     __init_keywords = None
+    __input_preview = None
+    __output_preview = None
 
     @classmethod
     def preview_input_channels(cls) -> dict[str, tuple[Any, Any]]:
@@ -628,6 +630,12 @@ class ScrapesIO(ABC):
             dict[str, tuple[Any, Any]]: The channel name and a tuple of its
                 corresponding type hint and default value.
         """
+        if cls.__input_preview is None:
+            cls.__input_preview = cls._build_input_preview()
+        return cls.__input_preview
+
+    @classmethod
+    def _build_input_preview(cls):
         type_hints = cls._get_type_hints()
         scraped: dict[str, tuple[Any, Any]] = {}
         for i, (label, value) in enumerate(cls._get_input_args().items()):
@@ -662,6 +670,12 @@ class ScrapesIO(ABC):
             dict[str, tuple[Any, Any]]: The channel name and its corresponding type
                 hint.
         """
+        if cls.__output_preview is None:
+            cls.__output_preview = cls._build_output_preview()
+        return cls.__output_preview
+
+    @classmethod
+    def _build_output_preview(cls):
         labels = cls._get_output_labels()
         if labels is None:
             labels = []
