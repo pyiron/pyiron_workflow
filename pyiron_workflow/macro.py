@@ -543,6 +543,7 @@ def macro_node(
     save_after_run: bool = False,
     strict_naming: bool = True,
     output_labels: Optional[str | list[str] | tuple[str]] = None,
+    validate_output_labels: bool = True,
     **kwargs,
 ):
     """
@@ -564,7 +565,11 @@ def macro_node(
     elif isinstance(output_labels, str):
         output_labels = (output_labels,)
 
-    return as_macro_node(*output_labels)(graph_creator)(
+    return as_macro_node(
+        *output_labels, validate_output_labels=validate_output_labels
+    )(
+        graph_creator
+    )(
         label=label,
         parent=parent,
         overwrite_save=overwrite_save,
@@ -576,20 +581,36 @@ def macro_node(
     )
 
 
-def as_macro_node(*output_labels):
+def as_macro_node(*output_labels: str, validate_output_labels: bool = True):
     """
     A decorator for dynamically creating macro classes from graph-creating functions.
 
     Decorates a function.
-    Returns a :class:`Macro` subclass whose name is the camel-case version of the
-    graph-creating function, and whose signature is modified to exclude this function
-    and provided kwargs.
+    Returns a :class:`Macro` subclass whose name is the name of the graph-creating
+    function, and whose IO matches the input and returned value(s) (modulo
+    specification of output labels). The first arguement in the wrapped function is
+    `self`-like and will receive the macro instance itself, and thus is ignored in the
+    IO.
 
     Optionally takes output labels as args in case the node function uses the
     like-a-function interface to define its IO. (The number of output labels must match
     number of channel-like objects returned by the graph creating function _exactly_.)
-
-    Optionally takes any keyword arguments of :class:`Macro`.
+    Args:
+        *output_labels (str): A name for each return value of the graph creating
+            function. When empty, scrapes output labels automatically from the
+            source code of the wrapped function. This can be useful when returned
+            values are not well named, e.g. to make the output channel dot-accessible
+            if it would otherwise have a label that requires item-string-based access.
+            Additionally, specifying a _single_ label for a wrapped function that
+            returns a tuple of values ensures that a _single_ output channel (holding
+            the tuple) is created, instead of one channel for each return value. The
+            default approach of extracting labels from the function source code also
+            requires that the function body contain _at most_ one `return` expression,
+            so providing explicit labels can be used to circumvent this
+            (at your own risk), or to circumvent un-inspectable source code (e.g. a
+            function that exists only in memory).
+        validate_output_labels (bool): Whether to compare the provided output labels
+            (if any) against the source code (if available).
     """
     output_labels = None if len(output_labels) == 0 else output_labels
 
@@ -600,16 +621,12 @@ def as_macro_node(*output_labels):
             {
                 "graph_creator": staticmethod(graph_creator),
                 "_output_labels": output_labels,
+                "_validate_output_labels": validate_output_labels,
                 "__module__": graph_creator.__module__,
             },
         )
-        try:
-            node_class._macro_validate_output_labels()
-        except OSError:
-            warnings.warn(
-                f"Could not find the source code to validate {node_class.__name__} "
-                f"output labels"
-            )
+        node_class.preview_input_channels()
+        node_class.preview_output_channels()
         return node_class
 
     return as_node

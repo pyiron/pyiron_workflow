@@ -125,7 +125,11 @@ class TestFunction(unittest.TestCase):
             self.assertListEqual(n.outputs.labels, ["sum_plus_one"])
 
         with self.subTest("Allow forcing _one_ output channel"):
-            n = function_node(returns_multiple, output_labels="its_a_tuple")
+            n = function_node(
+                returns_multiple,
+                output_labels="its_a_tuple",
+                validate_output_labels=False,
+            )
             self.assertListEqual(n.outputs.labels, ["its_a_tuple"])
 
         with self.subTest("Fail on multiple return values"):
@@ -135,7 +139,18 @@ class TestFunction(unittest.TestCase):
                 function_node(multiple_branches)
 
         with self.subTest("Override output label scraping"):
-            switch = function_node(multiple_branches, output_labels="bool")
+            with self.assertRaises(
+                ValueError,
+                msg="Multiple return branches can't be parsed"
+            ):
+                switch = function_node(multiple_branches, output_labels="bool")
+                self.assertListEqual(switch.outputs.labels, ["bool"])
+
+            switch = function_node(
+                multiple_branches,
+                output_labels="bool",
+                validate_output_labels=False
+            )
             self.assertListEqual(switch.outputs.labels, ["bool"])
 
     def test_default_label(self):
@@ -198,20 +213,15 @@ class TestFunction(unittest.TestCase):
                 y, z = 5.0, 5
                 return x, y, z
 
-        @as_function_node("xo", "yo")
-        def Foo(x) -> tuple[int, float]:
-            y, z = 5.0, 5
-            return x
-
-        self.assertDictEqual(
-            {"xo": int, "yo": float},
-            Foo.preview_output_channels(),
-            msg="The user carries extra responsibility if they specify return values "
-                "-- we don't even try scraping the returned stuff and it's up to them "
-                "to make sure everything is commensurate! This is necessary so that "
-                "source code scraping can get bypassed sometimes (e.g. for dynamically "
-                "generated code that is only in memory and thus not inspectable)"
-        )
+        with self.assertRaises(
+            ValueError,
+            msg="The nuber of labels -- if explicitly provided -- must be commensurate "
+                "with the number of returned items"
+        ):
+            @as_function_node("xo", "yo")
+            def Foo(x) -> tuple[int, float]:
+                y, z = 5.0, 5
+                return x
 
     def test_preview_input_channels(self):
         @as_function_node()
@@ -243,17 +253,14 @@ class TestFunction(unittest.TestCase):
         self.assertTrue(n.failed)
 
     def test_protected_name(self):
-        @as_function_node()
-        def Selfish(self, x):
-            return x
 
-        n = Selfish()
         with self.assertRaises(
             ValueError,
-            msg="When we try to build inputs, we should run into the fact that inputs "
-                "can't overlap with __init__ signature terms"
+            msg="Inputs must not overlap with __init__ signature terms"
         ):
-            n.inputs
+            @as_function_node()
+            def Selfish(self, x):
+                return x
 
     def test_call(self):
         node = function_node(no_default, output_labels="output")

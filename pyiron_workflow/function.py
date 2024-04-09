@@ -471,6 +471,7 @@ def function_node(
     storage_backend: Optional[Literal["h5io", "tinybase"]] = None,
     save_after_run: bool = False,
     output_labels: Optional[str | tuple[str]] = None,
+    validate_output_labels: bool = True,
     **kwargs,
 ):
     """
@@ -506,7 +507,11 @@ def function_node(
     elif isinstance(output_labels, str):
         output_labels = (output_labels,)
 
-    return as_function_node(*output_labels)(node_function)(
+    return as_function_node(
+        *output_labels, validate_output_labels=validate_output_labels
+    )(
+        node_function
+    )(
         *args,
         label=label,
         parent=parent,
@@ -518,7 +523,7 @@ def function_node(
     )
 
 
-def as_function_node(*output_labels: str):
+def as_function_node(*output_labels: str, validate_output_labels: bool = True):
     """
     A decorator for dynamically creating node classes from functions.
 
@@ -541,24 +546,11 @@ def as_function_node(*output_labels: str):
             so providing explicit labels can be used to circumvent this
             (at your own risk), or to circumvent un-inspectable source code (e.g. a
             function that exists only in memory).
+        validate_output_labels (bool): Whether to compare the provided output labels
+            (if any) against the function source code (if available).
     """
     output_labels = None if len(output_labels) == 0 else output_labels
 
-    # One really subtle thing is that we manually parse the function type hints right
-    # here and include these as a class-level attribute.
-    # This is because on (de)(cloud)pickling a function node, somehow the node function
-    # method attached to it gets its `__globals__` attribute changed; it retains stuff
-    # _inside_ the function, but loses imports it used from the _outside_ -- i.e. type
-    # hints! I (@liamhuber) don't deeply understand _why_ (de)pickling is modifying the
-    # __globals__ in this way, but the result is that type hints cannot be parsed after
-    # the change.
-    # The final piece of the puzzle here is that because the node function is a _class_
-    # level attribute, if you (de)pickle a node, _new_ instances of that node wind up
-    # having their node function's `__globals__` trimmed down in this way!
-    # So to keep the type hint parsing working, we snag and interpret all the type hints
-    # at wrapping time, when we are guaranteed to have all the globals available, and
-    # also slap them on as a class-level attribute. These get safely packed and returned
-    # when (de)pickling so we can keep processing type hints without trouble.
     def as_node(node_function: callable):
         node_class = type(
             node_function.__name__,
@@ -566,17 +558,13 @@ def as_function_node(*output_labels: str):
             {
                 "node_function": staticmethod(node_function),
                 "_output_labels": output_labels,
+                "_validate_output_labels": validate_output_labels,
                 "__module__": node_function.__module__,
             },
         )
-        try:
-            node_class.preview_output_channels()
-        except ValueError as e:
-            raise ValueError(
-                f"Failed to create a new {Function.__name__} child class "
-                f"dynamically from {node_function.__name__} -- probably due to a "
-                f"mismatch among output labels, returned values, and return type hints."
-            ) from e
+
+        node_class.preview_input_channels()
+        node_class.preview_output_channels()
         return node_class
 
     return as_node

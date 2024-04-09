@@ -100,6 +100,7 @@ def _run_and_remove_job(job, modifier: Optional[callable] = None, **modifier_kwa
     "total_displacements",
     "unwrapped_positions",
     "volume",
+    validate_output_labels=False,
 )
 def CalcStatic(
     job: AtomisticGenericJob,
@@ -122,6 +123,7 @@ def CalcStatic(
     "total_displacements",
     "unwrapped_positions",
     "volume",
+    validate_output_labels=False,
 )
 def CalcMd(
     job: AtomisticGenericJob,
@@ -168,6 +170,7 @@ def CalcMd(
     "total_displacements",
     "unwrapped_positions",
     "volume",
+    validate_output_labels=False,
 )
 def CalcMin(
     job: AtomisticGenericJob,

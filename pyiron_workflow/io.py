@@ -614,6 +614,7 @@ class ScrapesIO(ABC):
         """Whether the signature of the IO defining function starts with self."""
 
     _output_labels: tuple[str] | None = None
+    _validate_output_labels: bool = True
 
     __type_hints = None
     __input_args = None
@@ -671,6 +672,8 @@ class ScrapesIO(ABC):
                 hint.
         """
         if cls.__output_preview is None:
+            if cls._validate_output_labels:
+                cls._validate()  # Validate output on first call
             cls.__output_preview = cls._build_output_preview()
         return cls.__output_preview
 
@@ -752,18 +755,34 @@ class ScrapesIO(ABC):
         return ParseOutput(cls._io_defining_function()).output
 
     @classmethod
-    def _macro_validate_output_labels(cls) -> tuple[str]:
+    def _validate(cls):
         """
         Ensure that output_labels, if provided, are commensurate with graph creator
         return values, if provided, and return them as a tuple.
         """
-        graph_creator_returns = ParseOutput(cls._io_defining_function()).output
+        cls._validate_degeneracy()
+        try:
+            cls._validate_return_count()
+        except OSError:
+            warnings.warn(
+                f"Could not find the source code to validate {cls.__name__} output "
+                f"labels against the number of returned values -- proceeding without "
+                f"validation"
+            )
+
+    @classmethod
+    def _validate_degeneracy(cls):
         output_labels = cls._get_output_labels()
         if output_labels is not None and len(set(output_labels)) != len(output_labels):
             raise ValueError(
                 f"{cls.__name__} must not have degenerate output labels: "
                 f"{output_labels}"
             )
+
+    @classmethod
+    def _validate_return_count(cls):
+        output_labels = cls._get_output_labels()
+        graph_creator_returns = ParseOutput(cls._io_defining_function()).output
         if graph_creator_returns is not None or output_labels is not None:
             error_suffix = (
                 f"but {cls.__name__} macro class got return values: "
