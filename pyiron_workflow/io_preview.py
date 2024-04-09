@@ -20,21 +20,49 @@ from pyiron_workflow.channels import NOT_DATA
 from pyiron_workflow.output_parser import ParseOutput
 
 
-class ScrapesIO(ABC):
+class HasIOPreview(ABC):
     """
-    A mixin class for scraping IO channel information from a specific class method.
+    An interface mixin guaranteeing the class-level availability of input and output
+    previews.
+
+    E.g. for :class:`pyiron_workflow.node.Node` that have input and output channels.
+    """
+
+    @classmethod
+    @abstractmethod
+    def preview_inputs(cls) -> dict[str, tuple[Any, Any]]:
+        """
+        Gives a class-level peek at the expected inputs.
+
+        Returns:
+            dict[str, tuple[Any, Any]]: The input name and a tuple of its
+                corresponding type hint and default value.
+        """
+
+    @classmethod
+    @abstractmethod
+    def preview_outputs(cls) -> dict[str, Any]:
+        """
+        Gives a class-level peek at the expected outputs.
+
+        Returns:
+            dict[str, tuple[Any, Any]]: The output name and its corresponding type hint.
+        """
+
+
+class ScrapesIO(HasIOPreview, ABC):
+    """
+    A mixin class for scraping IO channel information from a specific class method's
+    signature and returns.
 
     Requires that the (static and class) method :meth:`_io_defining_function` be
     specified in child classes, as well as :meth:`_io_defining_function_uses_self`.
     Optionally, :attr:`_output_labels` can be overridden at the class level to avoid
     scraping the return signature for channel labels altogether.
 
-    Class methods:
-        preview_inputs (dict[str, tuple[Any, Any]]): Input channel names paired
-            with their type hint (if any, may be `None`) and default value (if any,
-            may be `pyiron_workflow.channels.NOT_DATA`).
-        preview_outputs (dict[str, Any]): Output channel names paired with
-            their type hint (if any, may be `None`). Channel names are scr
+    Since scraping returns is only possible when the function source code is available,
+    this can be bypassed by manually specifying the class attribute
+    :attr:`_output_labels`.
 
     Warning:
         There are a number of class features which, for computational efficiency, get
@@ -65,13 +93,6 @@ class ScrapesIO(ABC):
 
     @classmethod
     def preview_inputs(cls) -> dict[str, tuple[Any, Any]]:
-        """
-        Gives a class-level peek at the expected input.
-
-        Returns:
-            dict[str, tuple[Any, Any]]: The channel name and a tuple of its
-                corresponding type hint and default value.
-        """
         if cls.__input_preview is None:
             cls.__input_preview = cls._build_input_preview()
         return cls.__input_preview
