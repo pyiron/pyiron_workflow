@@ -439,7 +439,7 @@ class TestMacro(unittest.TestCase):
 
         self.assertListEqual(
             ["my_out"],
-            list(OutputScrapedFromCleanReturn.preview_output_channels().keys()),
+            list(OutputScrapedFromCleanReturn.preview_outputs().keys()),
             msg="Output labels should get scraped from code, just like for functions"
         )
 
@@ -450,7 +450,7 @@ class TestMacro(unittest.TestCase):
 
         self.assertListEqual(
             ["foo"],
-            list(OutputScrapedFromFilteredReturn.preview_output_channels().keys()),
+            list(OutputScrapedFromFilteredReturn.preview_outputs().keys()),
             msg="The first, self-like argument, should get stripped from output labels"
         )
 

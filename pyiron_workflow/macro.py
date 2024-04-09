@@ -343,7 +343,7 @@ class Macro(Composite, ScrapesIO, ABC):
                 type_hint=type_hint,
                 storage_backend=storage_backend,
             )
-            for label, (type_hint, default) in self.preview_input_channels().items()
+            for label, (type_hint, default) in self.preview_inputs().items()
         )
 
     def _get_linking_channel(
@@ -626,8 +626,8 @@ def as_macro_node(*output_labels: str, validate_output_labels: bool = True):
                 "__module__": graph_creator.__module__,
             },
         )
-        node_class.preview_input_channels()
-        node_class.preview_output_channels()
+        node_class.preview_inputs()
+        node_class.preview_outputs()
         return node_class
 
     return as_node

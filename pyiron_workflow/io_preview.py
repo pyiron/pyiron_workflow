@@ -30,10 +30,10 @@ class ScrapesIO(ABC):
     scraping the return signature for channel labels altogether.
 
     Class methods:
-        preview_input_channels (dict[str, tuple[Any, Any]]): Input channel names paired
+        preview_inputs (dict[str, tuple[Any, Any]]): Input channel names paired
             with their type hint (if any, may be `None`) and default value (if any,
             may be `pyiron_workflow.channels.NOT_DATA`).
-        preview_output_channels (dict[str, Any]): Output channel names paired with
+        preview_outputs (dict[str, Any]): Output channel names paired with
             their type hint (if any, may be `None`). Channel names are scr
 
     Warning:
@@ -64,7 +64,7 @@ class ScrapesIO(ABC):
     __output_preview = None
 
     @classmethod
-    def preview_input_channels(cls) -> dict[str, tuple[Any, Any]]:
+    def preview_inputs(cls) -> dict[str, tuple[Any, Any]]:
         """
         Gives a class-level peek at the expected input.
 
@@ -105,7 +105,7 @@ class ScrapesIO(ABC):
         return scraped
 
     @classmethod
-    def preview_output_channels(cls) -> dict[str, Any]:
+    def preview_outputs(cls) -> dict[str, Any]:
         """
         Gives a class-level peek at the expected output channels.
 

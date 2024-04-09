@@ -174,14 +174,14 @@ class TestFunction(unittest.TestCase):
                 "use at the class level"
         )
 
-    def test_preview_output_channels(self):
+    def test_preview_outputs(self):
         @as_function_node()
         def Foo(x):
             return x
 
         self.assertDictEqual(
             {"x": None},
-            Foo.preview_output_channels(),
+            Foo.preview_outputs(),
             msg="Should parse without label or hint."
         )
 
@@ -191,7 +191,7 @@ class TestFunction(unittest.TestCase):
 
         self.assertDictEqual(
             {"y": type(None)},
-            Foo.preview_output_channels(),
+            Foo.preview_outputs(),
             msg="Should parse with label and hint."
         )
 
@@ -223,14 +223,14 @@ class TestFunction(unittest.TestCase):
                 y, z = 5.0, 5
                 return x
 
-    def test_preview_input_channels(self):
+    def test_preview_inputs(self):
         @as_function_node()
         def Foo(x, y: int = 42):
             return x + y
 
         self.assertDictEqual(
             {"x": (None, NOT_DATA), "y": (int, 42)},
-            Foo.preview_input_channels(),
+            Foo.preview_inputs(),
             msg="Input specifications should be available at the class level, with or "
                 "without type hints and/or defaults provided."
         )

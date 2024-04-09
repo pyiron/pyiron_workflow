@@ -339,8 +339,8 @@ class Function(Node, ScrapesIO, ABC):
         return False
 
     @classmethod
-    def preview_output_channels(cls) -> dict[str, Any]:
-        preview = super(Function, cls).preview_output_channels()
+    def preview_outputs(cls) -> dict[str, Any]:
+        preview = super(Function, cls).preview_outputs()
         return preview if len(preview) > 0 else {"None": type(None)}
         # If clause facilitates functions with no return value
 
@@ -357,7 +357,7 @@ class Function(Node, ScrapesIO, ABC):
                 owner=self,
                 type_hint=hint,
             )
-            for label, hint in self.preview_output_channels().items()
+            for label, hint in self.preview_outputs().items()
         ]
 
     @property
@@ -374,7 +374,7 @@ class Function(Node, ScrapesIO, ABC):
                 default=default,
                 type_hint=type_hint,
             )
-            for label, (type_hint, default) in self.preview_input_channels().items()
+            for label, (type_hint, default) in self.preview_inputs().items()
         ]
 
     @property
@@ -564,8 +564,8 @@ def as_function_node(*output_labels: str, validate_output_labels: bool = True):
             },
         )
 
-        node_class.preview_input_channels()
-        node_class.preview_output_channels()
+        node_class.preview_inputs()
+        node_class.preview_outputs()
         return node_class
 
     return as_node
