@@ -646,8 +646,9 @@ class ScrapesIO(ABC):
                 # We allow users to parse arbitrary kwargs as channel initialization
                 # So don't let them choose bad channel names
                 raise ValueError(
-                    f"The Input channel name {label} is not valid. Please choose a "
-                    f"name _not_ among {cls._get_init_keywords()}"
+                    f"Trying to build input preview for {cls.__name__}, encountered an "
+                    f"argument name that conflicts with __init__: {label}. Please "
+                    f"choose a name _not_ among {cls._get_init_keywords()}"
                 )
 
             try:
@@ -689,12 +690,12 @@ class ScrapesIO(ABC):
                 if not isinstance(type_hints, tuple):
                     raise TypeError(
                         f"With multiple return labels expected to get a tuple of type "
-                        f"hints, but got type {type(type_hints)}"
+                        f"hints, but {cls.__name__} got type {type(type_hints)}"
                     )
                 if len(type_hints) != len(labels):
                     raise ValueError(
                         f"Expected type hints and return labels to have matching "
-                        f"lengths, but got {len(type_hints)} hints and "
+                        f"lengths, but {cls.__name__} got {len(type_hints)} hints and "
                         f"{len(labels)} labels: {type_hints}, {labels}"
                     )
             else:
@@ -785,17 +786,19 @@ class ScrapesIO(ABC):
         graph_creator_returns = ParseOutput(cls._io_defining_function()).output
         if graph_creator_returns is not None or output_labels is not None:
             error_suffix = (
-                f"but {cls.__name__} macro class got return values: "
-                f"{graph_creator_returns} and labels: {output_labels}."
+                f"but {cls.__name__} got return values: {graph_creator_returns} and "
+                f"labels: {output_labels}. If this intentional, you can bypass output "
+                f"validation making sure the class attribute `_validate_output_labels` "
+                f"is False."
             )
             try:
                 if len(output_labels) != len(graph_creator_returns):
                     raise ValueError(
-                        "The number of return values in the graph creator must exactly "
-                        "match the number of output labels provided, " + error_suffix
+                        "The number of return values must exactly match the number of "
+                        "output labels provided, " + error_suffix
                     )
             except TypeError:
                 raise TypeError(
-                    f"Output labels and graph creator return values must either both "
-                    f"or neither be present, " + error_suffix
+                    f"Output labels and return values must either both or neither be "
+                    f"present, " + error_suffix
                 )
