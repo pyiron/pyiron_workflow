@@ -98,6 +98,21 @@ class ScrapesIO(HasIOPreview, ABC):
         return cls.__input_preview
 
     @classmethod
+    def preview_outputs(cls) -> dict[str, Any]:
+        """
+        Gives a class-level peek at the expected output channels.
+
+        Returns:
+            dict[str, tuple[Any, Any]]: The channel name and its corresponding type
+                hint.
+        """
+        if cls.__output_preview is None:
+            if cls._validate_output_labels:
+                cls._validate()  # Validate output on first call
+            cls.__output_preview = cls._build_output_preview()
+        return cls.__output_preview
+
+    @classmethod
     def _build_input_preview(cls):
         type_hints = cls._get_type_hints()
         scraped: dict[str, tuple[Any, Any]] = {}
@@ -124,21 +139,6 @@ class ScrapesIO(HasIOPreview, ABC):
 
             scraped[label] = (type_hint, default)
         return scraped
-
-    @classmethod
-    def preview_outputs(cls) -> dict[str, Any]:
-        """
-        Gives a class-level peek at the expected output channels.
-
-        Returns:
-            dict[str, tuple[Any, Any]]: The channel name and its corresponding type
-                hint.
-        """
-        if cls.__output_preview is None:
-            if cls._validate_output_labels:
-                cls._validate()  # Validate output on first call
-            cls.__output_preview = cls._build_output_preview()
-        return cls.__output_preview
 
     @classmethod
     def _build_output_preview(cls):
