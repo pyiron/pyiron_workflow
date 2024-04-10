@@ -6,15 +6,14 @@ from typing import Any, Literal, Optional, TYPE_CHECKING
 from pyiron_workflow.channels import InputData
 from pyiron_workflow.injection import OutputDataWithInjection
 from pyiron_workflow.io import Inputs, Outputs
-from pyiron_workflow.io_preview import ScrapesIO
-from pyiron_workflow.node import Node
+from pyiron_workflow.io_preview import DecoratedNode
 from pyiron_workflow.snippets.colors import SeabornColors
 
 if TYPE_CHECKING:
     from pyiron_workflow.composite import Composite
 
 
-class Function(Node, ScrapesIO, ABC):
+class Function(DecoratedNode, ABC):
     """
     Function nodes wrap an arbitrary python function.
 

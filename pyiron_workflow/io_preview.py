@@ -17,6 +17,7 @@ from abc import ABC, abstractmethod
 from typing import Any, get_args, get_type_hints
 
 from pyiron_workflow.channels import NOT_DATA
+from pyiron_workflow.node import Node
 from pyiron_workflow.output_parser import ParseOutput
 
 
@@ -268,3 +269,14 @@ class ScrapesIO(HasIOPreview, ABC):
                     f"Output labels and return values must either both or neither be "
                     f"present, " + error_suffix
                 )
+
+
+class StaticNode(Node, HasIOPreview, ABC):
+    """A node whose IO specification is available at the class level."""
+
+
+class DecoratedNode(StaticNode, ScrapesIO, ABC):
+    """
+    A static node whose IO is defined by a function's information (and maybe output
+    labels).
+    """
