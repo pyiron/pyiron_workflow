@@ -64,6 +64,14 @@ class ScrapesIO(HasIOPreview, ABC):
     this can be bypassed by manually specifying the class attribute
     :attr:`_output_labels`.
 
+    Attributes:
+        _output_labels ():
+        _validate_output_labels (bool): Whether to
+        _io_defining_function_uses_self (bool): Whether the signature of the IO
+            defining function starts with self. When true, the first argument in the
+            :meth:`_io_defining_function` is ignored. (Default is False, use the entire
+            signature for specifying input.)
+
     Warning:
         There are a number of class features which, for computational efficiency, get
         calculated at first call and any subsequent calls return that initial value
@@ -77,13 +85,9 @@ class ScrapesIO(HasIOPreview, ABC):
     def _io_defining_function(cls) -> callable:
         """Must return a static class method."""
 
-    @classmethod
-    @abstractmethod
-    def _io_defining_function_uses_self(cls) -> bool:
-        """Whether the signature of the IO defining function starts with self."""
-
-    _output_labels: tuple[str] | None = None
-    _validate_output_labels: bool = True
+    _output_labels: tuple[str] | None = None  # None: scrape them
+    _validate_output_labels: bool = True  # True: validate against source code
+    _io_defining_function_uses_self: bool = False  # False: use entire signature
 
     __type_hints = None
     __input_args = None
@@ -117,7 +121,7 @@ class ScrapesIO(HasIOPreview, ABC):
         type_hints = cls._get_type_hints()
         scraped: dict[str, tuple[Any, Any]] = {}
         for i, (label, value) in enumerate(cls._get_input_args().items()):
-            if cls._io_defining_function_uses_self() and i == 0:
+            if cls._io_defining_function_uses_self and i == 0:
                 continue  # Skip the macro argument itself, it's like `self` here
             elif label in cls._get_init_keywords():
                 # We allow users to parse arbitrary kwargs as channel initialization

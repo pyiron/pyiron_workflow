@@ -307,9 +307,7 @@ class Macro(Composite, ScrapesIO, ABC):
     def _io_defining_function(cls) -> callable:
         return cls.graph_creator
 
-    @classmethod
-    def _io_defining_function_uses_self(cls) -> callable:
-        return True
+    _io_defining_function_uses_self = True
 
     @classmethod
     def _scrape_output_labels(cls):

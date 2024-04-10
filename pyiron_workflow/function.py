@@ -299,8 +299,6 @@ class Function(Node, ScrapesIO, ABC):
         guaranteed.
     """
 
-    _output_labels: tuple[str] | None = None
-
     def __init__(
         self,
         *args,
@@ -333,10 +331,6 @@ class Function(Node, ScrapesIO, ABC):
     @classmethod
     def _io_defining_function(cls) -> callable:
         return cls.node_function
-
-    @classmethod
-    def _io_defining_function_uses_self(cls) -> callable:
-        return False
 
     @classmethod
     def preview_outputs(cls) -> dict[str, Any]:
