@@ -559,6 +559,24 @@ def macro_node(
     :func:`graph_creator` and returns an instance of that.
 
     Quacks like a :class:`Composite` for the sake of creating and registering nodes.
+
+    Beyond the standard :class:`Macro`, initialization allows the args...
+
+    Args:
+        graph_creator (callable): The function defining macro's graph.
+        output_labels (Optional[str | list[str] | tuple[str]]): A name for each return
+            value of the node function OR a single label. (Default is None, which
+            scrapes output labels automatically from the source code of the wrapped
+            function.) This can be useful when returned values are not well named, e.g.
+            to make the output channel dot-accessible if it would otherwise have a label
+            that requires item-string-based access. Additionally, specifying a _single_
+            label for a wrapped function that returns a tuple of values ensures that a
+            _single_ output channel (holding the tuple) is created, instead of one
+            channel for each return value. The default approach of extracting labels
+            from the function source code also requires that the function body contain
+            _at most_ one `return` expression, so providing explicit labels can be used
+            to circumvent this (at your own risk), or to circumvent un-inspectable
+            source code (e.g. a function that exists only in memory).
     """
     if not callable(graph_creator):
         # `function_node` quacks like a class, even though it's a function and
