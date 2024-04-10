@@ -532,6 +532,15 @@ class Macro(Composite, DecoratedNode, ABC):
             self.children[child].outputs[child_out].value_receiver = self.outputs[out]
 
 
+as_macro_node = decorated_node_decorator_factory(
+    Macro,
+    Macro.graph_creator,
+    decorator_docstring_additions="The first argument in the wrapped function is "
+                                  "`self`-like and will receive the macro instance "
+                                  "itself, and thus is ignored in the IO."
+)
+
+
 def macro_node(
     graph_creator,
     label: Optional[str] = None,
@@ -578,12 +587,3 @@ def macro_node(
         strict_naming=strict_naming,
         **kwargs,
     )
-
-
-as_macro_node = decorated_node_decorator_factory(
-    Macro,
-    Macro.graph_creator,
-    decorator_docstring_additions="The first argument in the wrapped function is "
-                                  "`self`-like and will receive the macro instance "
-                                  "itself, and thus is ignored in the IO."
-)

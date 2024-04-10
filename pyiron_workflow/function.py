@@ -455,6 +455,9 @@ class Function(DecoratedNode, ABC):
         return SeabornColors.green
 
 
+as_function_node = decorated_node_decorator_factory(Function, Function.node_function)
+
+
 def function_node(
     node_function: callable,
     *args,
@@ -515,6 +518,3 @@ def function_node(
         save_after_run=save_after_run,
         **kwargs,
     )
-
-
-as_function_node = decorated_node_decorator_factory(Function, Function.node_function)
