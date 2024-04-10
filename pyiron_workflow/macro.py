@@ -14,7 +14,7 @@ from pyiron_workflow.channels import InputData, OutputData
 from pyiron_workflow.composite import Composite
 from pyiron_workflow.has_interface_mixins import HasChannel
 from pyiron_workflow.io import Outputs, Inputs
-from pyiron_workflow.io_preview import DecoratedNode
+from pyiron_workflow.io_preview import DecoratedNode, decorated_node_decorator_factory
 
 if TYPE_CHECKING:
     from pyiron_workflow.channels import Channel
@@ -580,52 +580,10 @@ def macro_node(
     )
 
 
-def as_macro_node(*output_labels: str, validate_output_labels: bool = True):
-    """
-    A decorator for dynamically creating macro classes from graph-creating functions.
-
-    Decorates a function.
-    Returns a :class:`Macro` subclass whose name is the name of the graph-creating
-    function, and whose IO matches the input and returned value(s) (modulo
-    specification of output labels). The first arguement in the wrapped function is
-    `self`-like and will receive the macro instance itself, and thus is ignored in the
-    IO.
-
-    Optionally takes output labels as args in case the node function uses the
-    like-a-function interface to define its IO. (The number of output labels must match
-    number of channel-like objects returned by the graph creating function _exactly_.)
-    Args:
-        *output_labels (str): A name for each return value of the graph creating
-            function. When empty, scrapes output labels automatically from the
-            source code of the wrapped function. This can be useful when returned
-            values are not well named, e.g. to make the output channel dot-accessible
-            if it would otherwise have a label that requires item-string-based access.
-            Additionally, specifying a _single_ label for a wrapped function that
-            returns a tuple of values ensures that a _single_ output channel (holding
-            the tuple) is created, instead of one channel for each return value. The
-            default approach of extracting labels from the function source code also
-            requires that the function body contain _at most_ one `return` expression,
-            so providing explicit labels can be used to circumvent this
-            (at your own risk), or to circumvent un-inspectable source code (e.g. a
-            function that exists only in memory).
-        validate_output_labels (bool): Whether to compare the provided output labels
-            (if any) against the source code (if available).
-    """
-    output_labels = None if len(output_labels) == 0 else output_labels
-
-    def as_node(graph_creator: callable[[Macro, ...], Optional[tuple[HasChannel]]]):
-        node_class = type(
-            graph_creator.__name__,
-            (Macro,),  # Define parentage
-            {
-                "graph_creator": staticmethod(graph_creator),
-                "_output_labels": output_labels,
-                "_validate_output_labels": validate_output_labels,
-                "__module__": graph_creator.__module__,
-            },
-        )
-        node_class.preview_inputs()
-        node_class.preview_outputs()
-        return node_class
-
-    return as_node
+as_macro_node = decorated_node_decorator_factory(
+    Macro,
+    Macro.graph_creator,
+    decorator_docstring_additions="The first argument in the wrapped function is "
+                                  "`self`-like and will receive the macro instance "
+                                  "itself, and thus is ignored in the IO."
+)

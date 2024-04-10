@@ -6,7 +6,7 @@ from typing import Any, Literal, Optional, TYPE_CHECKING
 from pyiron_workflow.channels import InputData
 from pyiron_workflow.injection import OutputDataWithInjection
 from pyiron_workflow.io import Inputs, Outputs
-from pyiron_workflow.io_preview import DecoratedNode
+from pyiron_workflow.io_preview import DecoratedNode, decorated_node_decorator_factory
 from pyiron_workflow.snippets.colors import SeabornColors
 
 if TYPE_CHECKING:
@@ -517,48 +517,4 @@ def function_node(
     )
 
 
-def as_function_node(*output_labels: str, validate_output_labels: bool = True):
-    """
-    A decorator for dynamically creating node classes from functions.
-
-    Decorates a function.
-    Returns a `Function` subclass whose name is the camel-case version of the function
-    node, and whose signature is modified to exclude the node function and output labels
-    (which are explicitly defined in the process of using the decorator).
-
-    Args:
-        *output_labels (str): A name for each return value of the node function OR an
-            empty tuple. When empty, scrapes output labels automatically from the
-            source code of the wrapped function. This can be useful when returned
-            values are not well named, e.g. to make the output channel dot-accessible
-            if it would otherwise have a label that requires item-string-based access.
-            Additionally, specifying a _single_ label for a wrapped function that
-            returns a tuple of values ensures that a _single_ output channel (holding
-            the tuple) is created, instead of one channel for each return value. The
-            default approach of extracting labels from the function source code also
-            requires that the function body contain _at most_ one `return` expression,
-            so providing explicit labels can be used to circumvent this
-            (at your own risk), or to circumvent un-inspectable source code (e.g. a
-            function that exists only in memory).
-        validate_output_labels (bool): Whether to compare the provided output labels
-            (if any) against the function source code (if available).
-    """
-    output_labels = None if len(output_labels) == 0 else output_labels
-
-    def as_node(node_function: callable):
-        node_class = type(
-            node_function.__name__,
-            (Function,),  # Define parentage
-            {
-                "node_function": staticmethod(node_function),
-                "_output_labels": output_labels,
-                "_validate_output_labels": validate_output_labels,
-                "__module__": node_function.__module__,
-            },
-        )
-
-        node_class.preview_inputs()
-        node_class.preview_outputs()
-        return node_class
-
-    return as_node
+as_function_node = decorated_node_decorator_factory(Function, Function.node_function)
