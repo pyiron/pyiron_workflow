@@ -230,8 +230,8 @@ class ScrapesIO(HasIOPreview, ABC):
         Ensure that output_labels, if provided, are commensurate with graph creator
         return values, if provided, and return them as a tuple.
         """
-        cls._validate_degeneracy()
         try:
+            cls._validate_degeneracy()
             cls._validate_return_count()
         except OSError:
             warnings.warn(
