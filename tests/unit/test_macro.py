@@ -1,6 +1,5 @@
 import sys
 from concurrent.futures import Future
-from functools import partialmethod
 
 from time import sleep
 import unittest

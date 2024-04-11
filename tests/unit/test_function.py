@@ -1,11 +1,9 @@
 from typing import Optional, Union
 import unittest
-import warnings
 
 from pyiron_workflow.channels import NOT_DATA
 from pyiron_workflow.function import function_node, as_function_node
 from pyiron_workflow.io import ConnectionCopyError, ValueCopyError
-from pyiron_workflow.create import Executor
 
 
 def throw_error(x: Optional[int] = None):
