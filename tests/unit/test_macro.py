@@ -9,7 +9,7 @@ import unittest
 from pyiron_workflow._tests import ensure_tests_in_python_path
 from pyiron_workflow.channels import NOT_DATA
 from pyiron_workflow.function import Function
-from pyiron_workflow.macro import Macro, macro_node
+from pyiron_workflow.macro import AbstractMacro, Macro, macro_node
 from pyiron_workflow.topology import CircularDataFlowError
 
 
@@ -171,14 +171,10 @@ class TestMacro(unittest.TestCase):
         )
 
     def test_creation_from_subclass(self):
-        class MyMacro(Macro):
-            def build_graph(self):
+        class MyMacro(AbstractMacro):
+            @staticmethod
+            def graph_creator(self):
                 add_three_macro(self)
-
-            __init__ = partialmethod(
-                Macro.__init__,
-                build_graph,
-            )
 
         x = 0
         m = MyMacro(one__x=x)

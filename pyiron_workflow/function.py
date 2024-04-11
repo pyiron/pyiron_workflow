@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+from abc import ABC, abstractmethod
 import inspect
 import warnings
 from functools import partialmethod
@@ -17,7 +18,7 @@ if TYPE_CHECKING:
     from pyiron_workflow.composite import Composite
 
 
-class Function(Node):
+class AbstractFunction(Node, ABC):
     """
     Function nodes wrap an arbitrary python function.
 
@@ -48,24 +49,6 @@ class Function(Node):
     - Input updates can be made with `*args` as well as the usual `**kwargs`, following
         the same input order as the wrapped function.
     - A default label can be scraped from the name of the wrapped function
-
-    Args:
-        node_function (callable): The function determining the behaviour of the node.
-        label (str): The node's label. (Defaults to the node function's name.)
-        output_labels (Optional[str | list[str] | tuple[str]]): A name for each return
-            value of the node function OR a single label. (Default is None, which
-            scrapes output labels automatically from the source code of the wrapped
-            function.) This can be useful when returned values are not well named, e.g.
-            to make the output channel dot-accessible if it would otherwise have a label
-            that requires item-string-based access. Additionally, specifying a _single_
-            label for a wrapped function that returns a tuple of values ensures that a
-            _single_ output channel (holding the tuple) is created, instead of one
-            channel for each return value. The default approach of extracting labels
-            from the function source code also requires that the function body contain
-            _at most_ one `return` expression, so providing explicit labels can be used
-            to circumvent this (at your own risk).
-        **kwargs: Any additional keyword arguments whose keyword matches the label of an
-            input channel will have their value assigned to that channel.
 
     Examples:
         At the most basic level, to use nodes all we need to do is provide the
@@ -241,23 +224,22 @@ class Function(Node):
         already defined as a `staticmethod`:
 
         >>> from typing import Literal, Optional
+        >>> from pyiron_workflow.function import AbstractFunction
         >>>
-        >>> class AlphabetModThree(Function):
-        ...     def __init__(
-        ...         self,
-        ...         label: Optional[str] = None,
-        ...         **kwargs
-        ...     ):
-        ...         super().__init__(
-        ...             None,
-        ...             label=label,
-        ...             **kwargs
-        ...         )
+        >>> class AlphabetModThree(AbstractFunction):
         ...
         ...     @staticmethod
         ...     def node_function(i: int) -> Literal["a", "b", "c"]:
         ...         letter = ["a", "b", "c"][i % 3]
         ...         return letter
+
+        Notice here that we're inheriting from `AbstractFunction` and not just
+        `Function` we were using before. Under the hood, `Function` is actually a
+        very minimal class that is _dynamically_ creating a new child of
+        `AbstractFunction` that uses the provided `node_function` and returning you an
+        instance of this new dynamic class! So you can't inherit from it directly.
+        Anyhow, it is recommended to use the decorator on a function rather than direct
+        inheritance.
 
         Finally, let's put it all together by using both of these nodes at once.
         Instead of setting input to a particular data value, we'll set it to
@@ -328,7 +310,6 @@ class Function(Node):
 
     def __init__(
         self,
-        node_function: callable,
         *args,
         label: Optional[str] = None,
         parent: Optional[Composite] = None,
@@ -339,25 +320,6 @@ class Function(Node):
         output_labels: Optional[str | list[str] | tuple[str]] = None,
         **kwargs,
     ):
-        if not callable(node_function):
-            # Children of `Function` may explicitly provide a `node_function` static
-            # method so the node has fixed behaviour.
-            # In this case, the `__init__` signature should be changed so that the
-            # `node_function` argument is just always `None` or some other non-callable.
-            # If a callable `node_function` is not received, you'd better have it as an
-            # attribute already!
-            if not hasattr(self, "node_function"):
-                raise AttributeError(
-                    f"If `None` is provided as a `node_function`, a `node_function` "
-                    f"property must be defined instead, e.g. when making child classes"
-                    f"of `Function` with specific behaviour"
-                )
-            self._type_hints = get_type_hints(self.node_function)
-        else:
-            # If a callable node function is received, use it
-            self.node_function = node_function
-            self._type_hints = get_type_hints(node_function)
-
         super().__init__(
             label=label if label is not None else self.node_function.__name__,
             parent=parent,
@@ -372,6 +334,16 @@ class Function(Node):
         # TODO: Parse output labels from the node function in case output_labels is None
 
         self.set_input_values(*args, **kwargs)
+
+    @staticmethod
+    @abstractmethod
+    def node_function(*args, **kwargs) -> callable:
+        """What the node _does_."""
+
+    @classmethod
+    def _type_hints(cls) -> dict:
+        """The result of :func:`typing.get_type_hints` on the :meth:`node_function`."""
+        return get_type_hints(cls.node_function)
 
     def _get_output_labels(self, output_labels: str | list[str] | tuple[str] | None):
         """
@@ -418,7 +390,7 @@ class Function(Node):
 
     def _build_input_channels(self):
         channels = []
-        type_hints = self._type_hints
+        type_hints = self._type_hints()
 
         for ii, (label, value) in enumerate(self._input_args.items()):
             is_self = False
@@ -471,7 +443,7 @@ class Function(Node):
 
     def _build_output_channels(self, *return_labels: str):
         try:
-            type_hints = self._type_hints["return"]
+            type_hints = self._type_hints()["return"]
             if len(return_labels) > 1:
                 type_hints = get_args(type_hints)
                 if not isinstance(type_hints, tuple):
@@ -596,6 +568,66 @@ class Function(Node):
         return SeabornColors.green
 
 
+class Function:
+    """
+    Not an actual function class, just a mis-direction that dynamically creates a new
+    child of :class:`AbstractFunction` using the provided :func:`node_function` and
+    creates an instance of that.
+
+    Beyond the standard :class:`AbstractFunction`, initialization allows the args...
+
+    Args:
+        node_function (callable): The function determining the behaviour of the node.
+        output_labels (Optional[str | list[str] | tuple[str]]): A name for each return
+            value of the node function OR a single label. (Default is None, which
+            scrapes output labels automatically from the source code of the wrapped
+            function.) This can be useful when returned values are not well named, e.g.
+            to make the output channel dot-accessible if it would otherwise have a label
+            that requires item-string-based access. Additionally, specifying a _single_
+            label for a wrapped function that returns a tuple of values ensures that a
+            _single_ output channel (holding the tuple) is created, instead of one
+            channel for each return value. The default approach of extracting labels
+            from the function source code also requires that the function body contain
+            _at most_ one `return` expression, so providing explicit labels can be used
+            to circumvent this (at your own risk), or to circumvent un-inspectable
+            source code (e.g. a function that exists only in memory).
+    """
+
+    def __new__(
+        cls,
+        node_function: callable,
+        *args,
+        label: Optional[str] = None,
+        parent: Optional[Composite] = None,
+        overwrite_save: bool = False,
+        run_after_init: bool = False,
+        storage_backend: Optional[Literal["h5io", "tinybase"]] = None,
+        save_after_run: bool = False,
+        output_labels: Optional[str | list[str] | tuple[str]] = None,
+        **kwargs,
+    ):
+        if not callable(node_function):
+            raise AttributeError(
+                f"Expected `node_function` to be callable but got {node_function}"
+            )
+
+        if output_labels is None:
+            output_labels = ()
+        elif isinstance(output_labels, str):
+            output_labels = (output_labels,)
+
+        return function_node(*output_labels)(node_function)(
+            *args,
+            label=label,
+            parent=parent,
+            overwrite_save=overwrite_save,
+            run_after_init=run_after_init,
+            storage_backend=storage_backend,
+            save_after_run=save_after_run,
+            **kwargs,
+        )
+
+
 def function_node(*output_labels: str):
     """
     A decorator for dynamically creating node classes from functions.
@@ -604,6 +636,21 @@ def function_node(*output_labels: str):
     Returns a `Function` subclass whose name is the camel-case version of the function
     node, and whose signature is modified to exclude the node function and output labels
     (which are explicitly defined in the process of using the decorator).
+
+    Args:
+        *output_labels (str): A name for each return value of the node function OR an
+            empty tuple. When empty, scrapes output labels automatically from the
+            source code of the wrapped function. This can be useful when returned
+            values are not well named, e.g. to make the output channel dot-accessible
+            if it would otherwise have a label that requires item-string-based access.
+            Additionally, specifying a _single_ label for a wrapped function that
+            returns a tuple of values ensures that a _single_ output channel (holding
+            the tuple) is created, instead of one channel for each return value. The
+            default approach of extracting labels from the function source code also
+            requires that the function body contain _at most_ one `return` expression,
+            so providing explicit labels can be used to circumvent this
+            (at your own risk), or to circumvent un-inspectable source code (e.g. a
+            function that exists only in memory).
     """
     output_labels = None if len(output_labels) == 0 else output_labels
 
@@ -625,15 +672,13 @@ def function_node(*output_labels: str):
     def as_node(node_function: callable):
         return type(
             node_function.__name__,
-            (Function,),  # Define parentage
+            (AbstractFunction,),  # Define parentage
             {
                 "__init__": partialmethod(
-                    Function.__init__,
-                    None,
+                    AbstractFunction.__init__,
                     output_labels=output_labels,
                 ),
                 "node_function": staticmethod(node_function),
-                "_type_hints": get_type_hints(node_function),
                 "__module__": node_function.__module__,
             },
         )
