@@ -55,8 +55,7 @@ class TestMacro(unittest.TestCase):
     def test_value_links(self):
         m = Macro(add_three_macro, output_labels="three__result")
         self.assertIs(
-            m.one__x.inputs.user_input,  # Automatic UI node
-            # might get pruned and re-linked to m.one.inputs.x again in the future
+            m.one.inputs.x,
             m.inputs.one__x.value_receiver,
             msg="Sanity check that value link exists"
         )
@@ -75,7 +74,7 @@ class TestMacro(unittest.TestCase):
         )
         m.inputs.one__x.value = 0
         self.assertEqual(
-            0, m.one__x.inputs.user_input.value, msg="Expected values to stay synchronized"
+            0, m.one.inputs.x.value, msg="Expected values to stay synchronized"
         )
         m.three.outputs.result.value = 0
         self.assertEqual(
@@ -477,6 +476,61 @@ class TestMacro(unittest.TestCase):
         macro = LikeAFunction(n=1, lin=[1, 2, 3, 4, 5, 6])
         self.assertListEqual(["lin", "n"], macro.inputs.labels)
         self.assertDictEqual({"n_plus_2": 3, "lout": [2, 3]}, macro())
+
+    def test_efficient_signature_interface(self):
+        with self.subTest("Forked input"):
+            @macro_node("output")
+            def MutlipleUseInput(macro, x):
+                macro.n1 = macro.create.standard.UserInput(x)
+                macro.n2 = macro.create.standard.UserInput(x)
+                return macro.n1
+
+            m = MutlipleUseInput()
+            self.assertEqual(
+                2 + 1,
+                len(m),
+                msg="Signature input that is forked to multiple children should result "
+                    "in the automatic creation of a new node to manage the forking."
+
+            )
+
+        with self.subTest("Single destination input"):
+            @macro_node("output")
+            def SingleUseInput(macro, x):
+                macro.n = macro.create.standard.UserInput(x)
+                return macro.n
+
+            m = SingleUseInput()
+            self.assertEqual(
+                1,
+                len(m),
+                msg=f"Signature input with only one destination should not create an "
+                    f"interface node. Found nodes {m.child_labels}"
+            )
+
+        with self.subTest("Mixed input"):
+            @macro_node("output")
+            def MixedUseInput(macro, x, y):
+                macro.n1 = macro.create.standard.UserInput(x)
+                macro.n2 = macro.create.standard.UserInput(y)
+                macro.n3 = macro.create.standard.UserInput(y)
+                return macro.n1
+
+            m = MixedUseInput()
+            self.assertEqual(
+                3 + 1,
+                len(m),
+                msg=f"Mixing forked and single-use input should not cause problems. "
+                    f"Expected four children but found {m.child_labels}"
+            )
+
+        with self.subTest("Pass through"):
+            @macro_node("output")
+            def PassThrough(macro, x):
+                return x
+
+            m = PassThrough()
+            print(m.child_labels, m.inputs, m.outputs)
 
     @unittest.skipIf(sys.version_info < (3, 11), "Storage will only work in 3.11+")
     def test_storage_for_modified_macros(self):

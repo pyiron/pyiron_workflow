@@ -157,8 +157,8 @@ class AbstractMacro(Composite, ABC):
         Let's use this and then observe how the `a` sub-node no longer gets run:
 
         >>> _ = m.disconnect_run()
-        >>> m.starting_nodes = [m.b__x]
-        >>> _ = m.b__x >> m.b >> m.c
+        >>> m.starting_nodes = [m.b]
+        >>> _ = m.b >> m.c
         >>> m(a__x=1000, b__x=2000)
         {'a': 2, 'c': 2002}
 
@@ -281,7 +281,6 @@ class AbstractMacro(Composite, ABC):
             returned_has_channel_objects = ()
         elif isinstance(returned_has_channel_objects, HasChannel):
             returned_has_channel_objects = (returned_has_channel_objects,)
-        self._configure_graph_execution(ui_nodes)
         self._inputs = Inputs(
             *(self._get_linking_channel(n.inputs.user_input, n.label) for n in ui_nodes)
         )
@@ -303,6 +302,9 @@ class AbstractMacro(Composite, ABC):
                 )
             )
         )
+
+        remaining_ui_nodes = self._purge_single_use_ui_nodes(ui_nodes)
+        self._configure_graph_execution(remaining_ui_nodes)
 
         self.set_input_values(**kwargs)
 
@@ -467,6 +469,29 @@ class AbstractMacro(Composite, ABC):
 
         return composite_channel
 
+    def _purge_single_use_ui_nodes(self, ui_nodes):
+        """
+        We (may) create UI nodes based on the :meth:`graph_creator` signature;
+        If these are connected to only a single node actually defined in the creator,
+        they are superfluous, and we can remove them -- linking the macro input
+        directly to the child node input.
+        """
+        remaining_ui_nodes = list(ui_nodes)
+        for macro_input in self.inputs:
+            target_node = macro_input.value_receiver.owner
+            if (
+                target_node in ui_nodes  # Value link is a UI node
+                and target_node.channel.value_receiver is None  # That doesn't forward
+                # its value directly to the output
+                and len(target_node.channel.connections) <= 1  # And isn't forked to
+                # multiple children
+            ):
+                if len(target_node.channel.connections) == 1:
+                    macro_input.value_receiver = target_node.channel.connections[0]
+                self.remove_child(target_node)
+                remaining_ui_nodes.remove(target_node)
+        return tuple(remaining_ui_nodes)
+
     @property
     def inputs(self) -> Inputs:
         return self._inputs
@@ -521,7 +546,7 @@ class AbstractMacro(Composite, ABC):
             # Then put the UI upstream of the original starting nodes
             for n in self.starting_nodes:
                 n << ui_nodes
-            self.starting_nodes = ui_nodes
+            self.starting_nodes = ui_nodes if len(ui_nodes) > 0 else self.starting_nodes
         elif not has_signals and not has_starters:
             # Automate construction of the execution graph
             self.set_run_signals_to_dag_execution()
