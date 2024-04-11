@@ -284,11 +284,7 @@ class Macro(Composite, DecoratedNode, ABC):
                         if returned_has_channel_objects is None
                         else returned_has_channel_objects
                     ),
-                    (
-                        ()
-                        if self._output_labels is None
-                        else self._output_labels
-                    ),
+                    (() if self._output_labels is None else self._output_labels),
                 )
             )
         )
@@ -536,8 +532,8 @@ as_macro_node = decorated_node_decorator_factory(
     Macro,
     Macro.graph_creator,
     decorator_docstring_additions="The first argument in the wrapped function is "
-                                  "`self`-like and will receive the macro instance "
-                                  "itself, and thus is ignored in the IO."
+    "`self`-like and will receive the macro instance "
+    "itself, and thus is ignored in the IO.",
 )
 
 
@@ -591,9 +587,7 @@ def macro_node(
     elif isinstance(output_labels, str):
         output_labels = (output_labels,)
 
-    return as_macro_node(
-        *output_labels, validate_output_labels=validate_output_labels
-    )(
+    return as_macro_node(*output_labels, validate_output_labels=validate_output_labels)(
         graph_creator
     )(
         label=label,

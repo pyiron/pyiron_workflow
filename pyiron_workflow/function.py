@@ -506,9 +506,7 @@ def function_node(
 
     return as_function_node(
         *output_labels, validate_output_labels=validate_output_labels
-    )(
-        node_function
-    )(
+    )(node_function)(
         *args,
         label=label,
         parent=parent,

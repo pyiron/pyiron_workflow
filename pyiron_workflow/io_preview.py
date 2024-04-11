@@ -9,6 +9,7 @@ These previews need to be available at the class level so that suggestion menus 
 ontologies can know how mixin classes relate to the rest of the world via input and
 output without first having to instantiate them.
 """
+
 from __future__ import annotations
 
 import inspect
@@ -238,7 +239,7 @@ class ScrapesIO(HasIOPreview, ABC):
                 f"Could not find the source code to validate {cls.__name__} output "
                 f"labels against the number of returned values -- proceeding without "
                 f"validation",
-                OutputLabelsNotValidated
+                OutputLabelsNotValidated,
             )
 
     @classmethod
@@ -293,7 +294,7 @@ def decorated_node_decorator_factory(
     parent_class: type[DecoratedNode],
     io_static_method: callable,
     decorator_docstring_additions: str = "",
-    **parent_class_attr_overrides
+    **parent_class_attr_overrides,
 ):
     """
     A decorator factory for building decorators to dynamically create new subclasses
@@ -325,9 +326,7 @@ def decorated_node_decorator_factory(
             f"{io_static_method.__name__} is not a method on {parent_class}"
         )
     if not isinstance(io_static_method, FunctionType):
-        raise TypeError(
-            f"{io_static_method.__name__} should be a static method"
-        )
+        raise TypeError(f"{io_static_method.__name__} should be a static method")
 
     def as_decorated_node_decorator(
         *output_labels: str,
@@ -350,7 +349,7 @@ def decorated_node_decorator_factory(
                     "__module__": io_defining_function.__module__,
                     "_output_labels": output_labels,
                     "_validate_output_labels": validate_output_labels,
-                    **parent_class_attr_overrides
+                    **parent_class_attr_overrides,
                 },
             )
             decorated_node_class.preview_inputs()
@@ -359,7 +358,8 @@ def decorated_node_decorator_factory(
 
         return as_decorated_node
 
-    as_decorated_node_decorator.__doc__ = dedent(f"""
+    as_decorated_node_decorator.__doc__ = dedent(
+        f"""
         A decorator for dynamically creating `{parent_class.__name__}` sub-classes by 
         wrapping a function as the `{io_static_method.__name__}`.
         
@@ -391,5 +391,6 @@ def decorated_node_decorator_factory(
                 transforms a function into a child class of `{parent_class.__name__}` 
                 using the decorated function as 
                 `{parent_class.__name__}.{io_static_method.__name__}`.
-        """)
+        """
+    )
     return as_decorated_node_decorator
