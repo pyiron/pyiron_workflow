@@ -427,30 +427,38 @@ class TestMacro(unittest.TestCase):
 
         Macro(no_return)  # Neither is fine
 
-        with self.assertRaises(
-            TypeError,
-            msg="Output labels and return values must match"
-        ):
-            Macro(no_return, output_labels="not_None")
-
         @macro_node("some_return")
-        def HasReturn(macro):
+        def LabelsAndReturnsMatch(macro):
             macro.foo = macro.create.standard.UserInput()
             return macro.foo
 
-        HasReturn()  # Both is fine
-
-        with self.assertRaises(
-            TypeError,
-            msg="Output labels and return values must match"
-        ):
-            HasReturn(output_labels=None)  # Override those gotten by the decorator
+        LabelsAndReturnsMatch()  # Both is fine
 
         with self.assertRaises(
             ValueError,
-            msg="Output labels and return values must have commensurate length"
+            msg="The number of output labels and return values must match"
         ):
-            HasReturn(output_labels=["one_label", "too_many"])
+            @macro_node("some_return", "nonexistent")
+            def MissingReturn(macro):
+                macro.foo = macro.create.standard.UserInput()
+                return macro.foo
+
+        with self.assertRaises(
+            TypeError,
+            msg="Output labels must be there if return values are"
+        ):
+            @macro_node()
+            def MissingLabel(macro):
+                macro.foo = macro.create.standard.UserInput()
+                return macro.foo
+
+        with self.assertRaises(
+            TypeError,
+            msg="Return values must be there if output labels are"
+        ):
+            @macro_node("some_label")
+            def MissingLabel(macro):
+                macro.foo = macro.create.standard.UserInput()
 
     def test_maps_vs_functionlike_definitions(self):
         """

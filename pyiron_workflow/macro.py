@@ -6,7 +6,6 @@ interface and are not intended to be internally modified after instantiation.
 from __future__ import annotations
 
 from abc import ABC
-from functools import partialmethod
 import inspect
 from typing import get_type_hints, Literal, Optional, TYPE_CHECKING
 
@@ -40,10 +39,10 @@ class AbstractMacro(Composite, ABC):
     This can be especially helpful when more than one child node needs access to the
     same input value.
     Similarly, the callable may return any number of child nodes' output channels (or
-    the node itself in the case of single-output nodes) and commensurate
-    :attr:`output_labels` to define macro-level output.
+    the node itself in the case of single-output nodes) as long as a commensurate
+    number of labels for these outputs were provided to the class constructor.
     These function-like definitions of the graph creator callable can be used
-    independently or together.
+    to build only input xor output, or both together.
     Each that is used switches its IO map to a "whitelist" paradigm, so any I/O _not_
     provided in the callable signature/return values and output labels will be disabled.
     Manual modifications of the IO maps inside the callable always take priority over
@@ -227,7 +226,7 @@ class AbstractMacro(Composite, ABC):
         adding args and/or kwargs to the signature (under the hood, this dynamically
         creates new :class:`UserInput` nodes before running the rest of the graph creation),
         and/or returning child channels (or whole children in the case of single-output
-        nodes) and providing commensurate :attr:`output_labels`.
+        nodes) and providing commensurate :param:`output_labels`.
         This process switches us from the :class:`Workflow` default of exposing all
         unconnected child IO, to a "whitelist" paradigm of _only_ showing the IO that
         we exposed by our function defintion.
@@ -279,6 +278,8 @@ class AbstractMacro(Composite, ABC):
         using the :class:`Macro` class directly.
     """
 
+    _provided_output_labels: tuple[str] | None = None
+
     def __init__(
         self,
         label: Optional[str] = None,
@@ -290,7 +291,6 @@ class AbstractMacro(Composite, ABC):
         strict_naming: bool = True,
         inputs_map: Optional[dict | bidict] = None,
         outputs_map: Optional[dict | bidict] = None,
-        output_labels: Optional[str | list[str] | tuple[str]] = None,
         **kwargs,
     ):
         super().__init__(
@@ -302,7 +302,6 @@ class AbstractMacro(Composite, ABC):
             inputs_map=inputs_map,
             outputs_map=outputs_map,
         )
-        output_labels = self._validate_output_labels(output_labels)
 
         ui_nodes = self._prepopulate_ui_nodes_from_graph_creator_signature(
             storage_backend=storage_backend
@@ -316,25 +315,24 @@ class AbstractMacro(Composite, ABC):
         if returned_has_channel_objects is not None:
             if not isinstance(returned_has_channel_objects, tuple):
                 returned_has_channel_objects = (returned_has_channel_objects,)
-            self._whitelist_outputs_map(output_labels, *returned_has_channel_objects)
+            self._whitelist_outputs_map(*returned_has_channel_objects)
 
         self._inputs: Inputs = self._build_inputs()
         self._outputs: Outputs = self._build_outputs()
 
         self.set_input_values(**kwargs)
 
-    def _validate_output_labels(self, output_labels) -> tuple[str]:
+    @classmethod
+    def _validate_output_labels(cls) -> tuple[str]:
         """
         Ensure that output_labels, if provided, are commensurate with graph creator
         return values, if provided, and return them as a tuple.
         """
-        graph_creator_returns = ParseOutput(self.graph_creator).output
-        output_labels = (
-            (output_labels,) if isinstance(output_labels, str) else output_labels
-        )
+        graph_creator_returns = ParseOutput(cls.graph_creator).output
+        output_labels = cls._provided_output_labels
         if graph_creator_returns is not None or output_labels is not None:
             error_suffix = (
-                f"but {self.label} macro got return values: "
+                f"but {cls.__name__} macro class got return values: "
                 f"{graph_creator_returns} and labels: {output_labels}."
             )
             try:
@@ -348,7 +346,6 @@ class AbstractMacro(Composite, ABC):
                     f"Output labels and graph creator return values must either both "
                     f"or neither be present, " + error_suffix
                 )
-        return () if output_labels is None else tuple(output_labels)
 
     def _prepopulate_ui_nodes_from_graph_creator_signature(
         self, storage_backend: Literal["h5io", "tinybase"]
@@ -391,14 +388,15 @@ class AbstractMacro(Composite, ABC):
             "inputs",
         )
 
-    def _whitelist_outputs_map(
-        self, output_labels: tuple[str], *creator_returns: HasChannel
-    ):
+    def _whitelist_outputs_map(self, *creator_returns: HasChannel):
         """
         Updates the outputs map so objects returned by the graph creator directly
         leverage the supplied output labels, and updates the map to disable all other
         output that wasn't explicitly mapped already.
         """
+        output_labels = (
+            () if self._provided_output_labels is None else self._provided_output_labels
+        )
         for new_label, ui_node in zip(output_labels, creator_returns):
             if not isinstance(ui_node, HasChannel):
                 raise TypeError(
@@ -678,18 +676,16 @@ def macro_node(*output_labels, **node_class_kwargs):
     output_labels = None if len(output_labels) == 0 else output_labels
 
     def as_node(graph_creator: callable[[Macro, ...], Optional[tuple[HasChannel]]]):
-        return type(
+        node_class = type(
             graph_creator.__name__,
             (AbstractMacro,),  # Define parentage
             {
-                "__init__": partialmethod(
-                    AbstractMacro.__init__,
-                    output_labels=output_labels,
-                    **node_class_kwargs,
-                ),
                 "graph_creator": staticmethod(graph_creator),
+                "_provided_output_labels": output_labels,
                 "__module__": graph_creator.__module__,
             },
         )
+        node_class._validate_output_labels()
+        return node_class
 
     return as_node
