@@ -7,7 +7,7 @@ from pyiron_workflow.channels import NOT_DATA
 
 class TestParallelSpeedup(unittest.TestCase):
     def test_speedup(self):
-        @Workflow.wrap_as.function_node()
+        @Workflow.wrap.as_function_node()
         def Wait(t):
             sleep(t)
             return True

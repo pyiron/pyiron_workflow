@@ -7,14 +7,14 @@ from __future__ import annotations
 from textwrap import dedent
 from typing import Optional, TYPE_CHECKING
 
-from pyiron_workflow.function import AbstractFunction, function_node
-from pyiron_workflow.macro import AbstractMacro, macro_node
+from pyiron_workflow.function import Function, as_function_node
+from pyiron_workflow.macro import Macro, as_macro_node
 
 if TYPE_CHECKING:
     from pyiron_workflow.node import Node
 
 
-def list_to_output(length: int, **node_class_kwargs) -> type[AbstractFunction]:
+def list_to_output(length: int, **node_class_kwargs) -> type[Function]:
     """
     A meta-node that returns a node class with :param:`length` input channels and
     maps these to a single output channel with type `list`.
@@ -29,12 +29,12 @@ def __list_to_many(input_list: list):
         exec(template)
         return locals()["__list_to_many"]
 
-    return function_node(*(f"output{n}" for n in range(length)))(
+    return as_function_node(*(f"output{n}" for n in range(length)))(
         _list_to_many(length=length), **node_class_kwargs
     )
 
 
-def input_to_list(length: int, **node_class_kwargs) -> type[AbstractFunction]:
+def input_to_list(length: int, **node_class_kwargs) -> type[Function]:
     """
     A meta-node that returns a node class with :param:`length` output channels and
     maps an input list to these.
@@ -48,7 +48,7 @@ def __many_to_list({", ".join([f"inp{i}=None" for i in range(length)])}):
         exec(template)
         return locals()["__many_to_list"]
 
-    return function_node("output_list")(
+    return as_function_node("output_list")(
         _many_to_list(length=length), **node_class_kwargs
     )
 
@@ -57,7 +57,7 @@ def for_loop(
     loop_body_class: type[Node],
     length: int,
     iterate_on: str | tuple[str] | list[str],
-) -> type[AbstractMacro]:
+) -> type[Macro]:
     """
     An _extremely rough_ second draft of a for-loop meta-node.
 
@@ -142,7 +142,7 @@ def for_loop(
     # Assemble components into a decorated for-loop macro
     for_loop_code = dedent(
         f"""
-        @AbstractMacro.wrap_as.macro_node({output_labels})
+        @Macro.wrap.as_macro_node({output_labels})
         def {node_name}(macro, {macro_args}):
             from {loop_body_class.__module__} import {loop_body_class.__name__}
 
@@ -168,11 +168,11 @@ def for_loop(
 
 def while_loop(
     loop_body_class: type[Node],
-    condition_class: type[AbstractFunction],
+    condition_class: type[Function],
     internal_connection_map: dict[str, str],
     inputs_map: Optional[dict[str, str]],
     outputs_map: Optional[dict[str, str]],
-) -> type[AbstractMacro]:
+) -> type[Macro]:
     """
     An _extremely rough_ second draft of a for-loop meta-node.
 
@@ -188,7 +188,7 @@ def while_loop(
     Args:
         loop_body_class (type[pyiron_workflow.node.Node]): The class for the
             body of the while-loop.
-        condition_class (type[pyiron_workflow.function.AbstractFunction]): A
+        condition_class (type[pyiron_workflow.function.Function]): A
             single-output function node returning a `bool` controlling the while loop
             exit condition (exits on False)
         internal_connection_map (list[tuple[str, str, str, str]]): String tuples
@@ -300,7 +300,7 @@ def while_loop(
     # Assemble components into a decorated while-loop macro
     while_loop_code = dedent(
         f"""
-        @AbstractMacro.wrap_as.macro_node({output_labels})
+        @Macro.wrap.as_macro_node({output_labels})
         def {node_name}(macro, {input_args}):
             from {loop_body_class.__module__} import {loop_body_class.__name__}
             from {condition_class.__module__} import {condition_class.__name__}
@@ -352,4 +352,4 @@ def while_loop(
     #     macro.inputs_map = {} if inputs_map is None else inputs_map
     #     macro.outputs_map = {} if outputs_map is None else outputs_map
     #
-    # return macro_node()(make_loop)
+    # return as_macro_node()(make_loop)

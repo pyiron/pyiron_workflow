@@ -8,8 +8,8 @@ import unittest
 
 from pyiron_workflow._tests import ensure_tests_in_python_path
 from pyiron_workflow.channels import NOT_DATA
-from pyiron_workflow.function import Function
-from pyiron_workflow.macro import AbstractMacro, Macro, macro_node
+from pyiron_workflow.function import function_node
+from pyiron_workflow.macro import Macro, macro_node, as_macro_node
 from pyiron_workflow.topology import CircularDataFlowError
 
 
@@ -19,23 +19,23 @@ def add_one(x):
 
 
 def add_three_macro(macro, one__x):
-    macro.one = Function(add_one, x=one__x)
-    Function(add_one, macro.one, label="two", parent=macro)
-    macro.add_child(Function(add_one, macro.two, label="three"))
+    macro.one = function_node(add_one, x=one__x)
+    function_node(add_one, macro.one, label="two", parent=macro)
+    macro.add_child(function_node(add_one, macro.two, label="three"))
     # Cover a handful of addition methods,
     # although these are more thoroughly tested in Workflow tests
     return macro.three
 
 
 def wrong_return_macro(macro):
-    macro.one = Function(add_one)
+    macro.one = function_node(add_one)
     return 3
 
 
 class TestMacro(unittest.TestCase):
 
     def test_io_independence(self):
-        m = Macro(add_three_macro, output_labels="three__result")
+        m = macro_node(add_three_macro, output_labels="three__result")
         self.assertIsNot(
             m.inputs.one__x,
             m.one.inputs.x,
@@ -53,7 +53,7 @@ class TestMacro(unittest.TestCase):
         )
 
     def test_value_links(self):
-        m = Macro(add_three_macro, output_labels="three__result")
+        m = macro_node(add_three_macro, output_labels="three__result")
         self.assertIs(
             m.one.inputs.x,
             m.inputs.one__x.value_receiver,
@@ -100,8 +100,8 @@ class TestMacro(unittest.TestCase):
             macro.starting_nodes = [macro.one]
             return macro.three
 
-        m_auto = Macro(fully_automatic, output_labels="three__result")
-        m_user = Macro(fully_defined, output_labels="three__result")
+        m_auto = macro_node(fully_automatic, output_labels="three__result")
+        m_user = macro_node(fully_defined, output_labels="three__result")
 
         x = 0
         expected = add_one(add_one(add_one(x)))
@@ -120,24 +120,24 @@ class TestMacro(unittest.TestCase):
             # We don't yet check for _crappy_ user-defined execution,
             # But we should make sure it's at least valid in principle
             with self.assertRaises(ValueError):
-                Macro(only_order, output_labels="three__result")
+                macro_node(only_order, output_labels="three__result")
 
             with self.assertRaises(ValueError):
-                Macro(only_starting, output_labels="three__result")
+                macro_node(only_starting, output_labels="three__result")
 
     def test_default_label(self):
-        m = Macro(add_three_macro, output_labels="three__result")
+        m = macro_node(add_three_macro, output_labels="three__result")
         self.assertEqual(
             m.label,
             add_three_macro.__name__,
             msg="Label should be automatically generated"
         )
         label = "custom_name"
-        m2 = Macro(add_three_macro, label=label, output_labels="three__result")
+        m2 = macro_node(add_three_macro, label=label, output_labels="three__result")
         self.assertEqual(m2.label, label, msg="Should be able to specify a label")
 
     def test_creation_from_decorator(self):
-        m = macro_node("three__result")(add_three_macro)()
+        m = as_macro_node("three__result")(add_three_macro)()
 
         self.assertIs(
             m.outputs.three__result.value,
@@ -163,7 +163,7 @@ class TestMacro(unittest.TestCase):
         )
 
     def test_creation_from_subclass(self):
-        class MyMacro(AbstractMacro):
+        class MyMacro(Macro):
             _provided_output_labels = ("three__result",)
 
             @staticmethod
@@ -182,18 +182,18 @@ class TestMacro(unittest.TestCase):
 
     def test_nesting(self):
         def nested_macro(macro, a__x):
-            macro.a = Function(add_one, a__x)
-            macro.b = Macro(
+            macro.a = function_node(add_one, a__x)
+            macro.b = macro_node(
                 add_three_macro,
                 one__x=macro.a,
                 output_labels="three__result"
             )
-            macro.c = Macro(
+            macro.c = macro_node(
                 add_three_macro,
                 one__x=macro.b.outputs.three__result,
                 output_labels="three__result"
             )
-            macro.d = Function(
+            macro.d = function_node(
                 add_one,
                 x=macro.c.outputs.three__result,
             )
@@ -204,12 +204,12 @@ class TestMacro(unittest.TestCase):
             # macros works ok
             return macro.d
 
-        m = Macro(nested_macro, output_labels="d__result")
+        m = macro_node(nested_macro, output_labels="d__result")
         self.assertEqual(m(a__x=0).d__result, 8)
 
     def test_with_executor(self):
-        macro = Macro(add_three_macro, output_labels="three__result")
-        downstream = Function(add_one, x=macro.outputs.three__result)
+        macro = macro_node(add_three_macro, output_labels="three__result")
+        downstream = function_node(add_one, x=macro.outputs.three__result)
         macro >> downstream  # Manually specify since we'll run the macro but look
         # at the downstream output, and none of this is happening in a workflow
 
@@ -287,8 +287,8 @@ class TestMacro(unittest.TestCase):
         macro.executor_shutdown()
 
     def test_pulling_from_inside_a_macro(self):
-        upstream = Function(add_one, x=2)
-        macro = Macro(add_three_macro, one__x=upstream, output_labels="three__result")
+        upstream = function_node(add_one, x=2)
+        macro = macro_node(add_three_macro, one__x=upstream, output_labels="three__result")
         macro.inputs.one__x = 0  # Set value
         # Now macro.one.inputs.x has both value and a connection
 
@@ -314,14 +314,14 @@ class TestMacro(unittest.TestCase):
 
         with self.subTest("When the local scope has cyclic data flow"):
             def cyclic_macro(macro):
-                macro.one = Function(add_one)
-                macro.two = Function(add_one, x=macro.one)
+                macro.one = function_node(add_one)
+                macro.two = function_node(add_one, x=macro.one)
                 macro.one.inputs.x = macro.two
                 macro.one >> macro.two
                 macro.starting_nodes = [macro.one]
                 # We need to manually specify execution since the data flow is cyclic
 
-            m = Macro(cyclic_macro)
+            m = macro_node(cyclic_macro)
 
             initial_labels = list(m.children.keys())
 
@@ -350,9 +350,9 @@ class TestMacro(unittest.TestCase):
             )
 
         with self.subTest("When the parent scope has cyclic data flow"):
-            n1 = Function(add_one, label="n1", x=0)
-            n2 = Function(add_one, label="n2", x=n1)
-            m = Macro(
+            n1 = function_node(add_one, label="n1", x=0)
+            n2 = function_node(add_one, label="n2", x=n1)
+            m = macro_node(
                 add_three_macro, label="m", one__x=n2, output_labels="three__result"
             )
 
@@ -397,9 +397,9 @@ class TestMacro(unittest.TestCase):
                 y = 1 / x
                 return y
 
-            n1 = Function(fail_at_zero, x=0)
-            n2 = Function(add_one, x=n1, label="n1")
-            n_not_used = Function(add_one)
+            n1 = function_node(fail_at_zero, x=0)
+            n2 = function_node(add_one, x=n1, label="n1")
+            n_not_used = function_node(add_one)
             n_not_used >> n2  # Just here to make sure it gets restored
 
             with self.assertRaises(
@@ -422,9 +422,9 @@ class TestMacro(unittest.TestCase):
         def no_return(macro):
             macro.foo = macro.create.standard.UserInput()
 
-        Macro(no_return)  # Neither is fine
+        macro_node(no_return)  # Neither is fine
 
-        @macro_node("some_return")
+        @as_macro_node("some_return")
         def LabelsAndReturnsMatch(macro):
             macro.foo = macro.create.standard.UserInput()
             return macro.foo
@@ -435,7 +435,7 @@ class TestMacro(unittest.TestCase):
             ValueError,
             msg="The number of output labels and return values must match"
         ):
-            @macro_node("some_return", "nonexistent")
+            @as_macro_node("some_return", "nonexistent")
             def MissingReturn(macro):
                 macro.foo = macro.create.standard.UserInput()
                 return macro.foo
@@ -444,7 +444,7 @@ class TestMacro(unittest.TestCase):
             TypeError,
             msg="Output labels must be there if return values are"
         ):
-            @macro_node()
+            @as_macro_node()
             def MissingLabel(macro):
                 macro.foo = macro.create.standard.UserInput()
                 return macro.foo
@@ -453,7 +453,7 @@ class TestMacro(unittest.TestCase):
             TypeError,
             msg="Return values must be there if output labels are"
         ):
-            @macro_node("some_label")
+            @as_macro_node("some_label")
             def MissingLabel(macro):
                 macro.foo = macro.create.standard.UserInput()
 
@@ -463,7 +463,7 @@ class TestMacro(unittest.TestCase):
         and returns, and labels
         """
 
-        @macro_node("lout", "n_plus_2")
+        @as_macro_node("lout", "n_plus_2")
         def LikeAFunction(macro, lin: list,  n: int = 2):
             macro.plus_two = n + 2
             macro.sliced_list = lin[n:macro.plus_two]
@@ -479,7 +479,7 @@ class TestMacro(unittest.TestCase):
 
     def test_efficient_signature_interface(self):
         with self.subTest("Forked input"):
-            @macro_node("output")
+            @as_macro_node("output")
             def MutlipleUseInput(macro, x):
                 macro.n1 = macro.create.standard.UserInput(x)
                 macro.n2 = macro.create.standard.UserInput(x)
@@ -495,7 +495,7 @@ class TestMacro(unittest.TestCase):
             )
 
         with self.subTest("Single destination input"):
-            @macro_node("output")
+            @as_macro_node("output")
             def SingleUseInput(macro, x):
                 macro.n = macro.create.standard.UserInput(x)
                 return macro.n
@@ -509,7 +509,7 @@ class TestMacro(unittest.TestCase):
             )
 
         with self.subTest("Mixed input"):
-            @macro_node("output")
+            @as_macro_node("output")
             def MixedUseInput(macro, x, y):
                 macro.n1 = macro.create.standard.UserInput(x)
                 macro.n2 = macro.create.standard.UserInput(y)
@@ -525,7 +525,7 @@ class TestMacro(unittest.TestCase):
             )
 
         with self.subTest("Pass through"):
-            @macro_node("output")
+            @as_macro_node("output")
             def PassThrough(macro, x):
                 return x
 
@@ -544,7 +544,10 @@ class TestMacro(unittest.TestCase):
                         label="m", x=0, storage_backend=backend
                     )
                     original_result = macro()
-                    macro.replace_child(macro.two, Macro.create.demo.AddPlusOne())
+                    macro.replace_child(
+                        macro.two,
+                        Macro.create.demo.AddPlusOne()
+                    )
 
 
                     modified_result = macro()
@@ -600,7 +603,7 @@ class TestMacro(unittest.TestCase):
             TypeError,
             msg="Macro returning object without channel did not raise an error"
         ):
-            Macro(wrong_return_macro)
+            macro_node(wrong_return_macro)
 
 
 if __name__ == '__main__':

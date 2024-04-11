@@ -12,7 +12,6 @@ import warnings
 
 from pyiron_workflow.channels import InputData, OutputData, NOT_DATA
 from pyiron_workflow.composite import Composite
-from pyiron_workflow.create import HasCreator
 from pyiron_workflow.has_interface_mixins import HasChannel
 from pyiron_workflow.io import Outputs, Inputs
 from pyiron_workflow.output_parser import ParseOutput
@@ -21,7 +20,7 @@ if TYPE_CHECKING:
     from pyiron_workflow.channels import Channel
 
 
-class AbstractMacro(Composite, ABC):
+class Macro(Composite, ABC):
     """
     A macro is a composite node that holds a graph with a fixed interface, like a
     pre-populated workflow that is the same every time you instantiate it.
@@ -86,16 +85,16 @@ class AbstractMacro(Composite, ABC):
         Let's consider the simplest case of macros that just consecutively add 1 to
         their input:
 
-        >>> from pyiron_workflow.macro import Macro
+        >>> from pyiron_workflow.macro import macro_node, Macro
         >>>
         >>> def add_one(x):
         ...     result = x + 1
         ...     return result
         >>>
         >>> def add_three_macro(macro, one__x):
-        ...     macro.one = macro.create.Function(add_one, x=one__x)
-        ...     macro.two = macro.create.Function(add_one, macro.one)
-        ...     macro.three = macro.create.Function(add_one, macro.two)
+        ...     macro.one = macro.create.function_node(add_one, x=one__x)
+        ...     macro.two = macro.create.function_node(add_one, macro.one)
+        ...     macro.three = macro.create.function_node(add_one, macro.two)
         ...     macro.one >> macro.two >> macro.three
         ...     macro.starting_nodes = [macro.one]
         ...     return macro.three
@@ -110,7 +109,7 @@ class AbstractMacro(Composite, ABC):
         io is constructed from unconnected owned-node IO by combining node and channel
         labels.
 
-        >>> macro = Macro(add_three_macro, output_labels="three__result")
+        >>> macro = macro_node(add_three_macro, output_labels="three__result")
         >>> out = macro(one__x=3)
         >>> out.three__result
         6
@@ -119,14 +118,14 @@ class AbstractMacro(Composite, ABC):
         internally-connected IO by inputs and outputs maps:
 
         >>> def nested_macro(macro, inp):
-        ...     macro.a = macro.create.Function(add_one, x=inp)
-        ...     macro.b = macro.create.Macro(
+        ...     macro.a = macro.create.function_node(add_one, x=inp)
+        ...     macro.b = macro.create.macro_node(
         ...         add_three_macro, one__x=macro.a, output_labels="three__result"
         ...     )
-        ...     macro.c = macro.create.Function(add_one, x=macro.b)
+        ...     macro.c = macro.create.function_node(add_one, x=macro.b)
         ...     return macro.c, macro.b
         >>>
-        >>> macro = Macro(
+        >>> macro = macro_node(
         ...     nested_macro, output_labels=("out", "intermediate")
         ... )
         >>> macro(inp=1)
@@ -137,12 +136,12 @@ class AbstractMacro(Composite, ABC):
         Let's build a simple macro with two independent tracks:
 
         >>> def modified_flow_macro(macro, a__x=0, b__x=0):
-        ...     macro.a = macro.create.Function(add_one, x=a__x)
-        ...     macro.b = macro.create.Function(add_one, x=b__x)
-        ...     macro.c = macro.create.Function(add_one, x=macro.b)
+        ...     macro.a = macro.create.function_node(add_one, x=a__x)
+        ...     macro.b = macro.create.function_node(add_one, x=b__x)
+        ...     macro.c = macro.create.function_node(add_one, x=macro.b)
         ...     return macro.a, macro.c
         >>>
-        >>> m = Macro(modified_flow_macro, output_labels=("a", "c"))
+        >>> m = macro_node(modified_flow_macro, output_labels=("a", "c"))
         >>> m(a__x=1, b__x=2)
         {'a': 2, 'c': 4}
 
@@ -174,7 +173,7 @@ class AbstractMacro(Composite, ABC):
         to consider making a new class for it using the decorator, just like we do for
         function nodes:
 
-        >>> @Macro.wrap_as.macro_node("three__result")
+        >>> @Macro.wrap.as_macro_node("three__result")
         ... def AddThreeMacro(macro, one__x):
         ...     add_three_macro(macro, one__x=one__x)
         ...     # We could also simply have decorated that function to begin with
@@ -185,11 +184,10 @@ class AbstractMacro(Composite, ABC):
         3
 
         Alternatively (and not recommended) is to make a new child class of
-        :class:`AbstractMacro` that overrides the :meth:`graph_creator` arg such that
+        :class:`Macro` that overrides the :meth:`graph_creator` arg such that
         the same graph is always created.
 
-        >>> from pyiron_workflow.macro import AbstractMacro
-        >>> class AddThreeMacro(AbstractMacro):
+        >>> class AddThreeMacro(Macro):
         ...     _provided_output_labels = ["three__result"]
         ...
         ...     @staticmethod
@@ -201,25 +199,17 @@ class AbstractMacro(Composite, ABC):
         >>> macro(one__x=0).three__result
         3
 
-        Notice here that we're inheriting from `AbstractMacro` and not just
-        `Macro` we were using before. Under the hood, `Macro` is actually a
-        very minimal class that is _dynamically_ creating a new child of
-        `AbstractMacro` that uses the provided `graph_creator` and returning you an
-        instance of this new dynamic class! So you can't inherit from it directly.
-        Anyhow, it is recommended to use the decorator on a function rather than direct
-        inheritance.
-
         We can also modify an existing macro at runtime by replacing nodes within it, as
         long as the replacement has fully compatible IO. There are three syntacic ways
         to do this. Let's explore these by going back to our `add_three_macro` and
         replacing each of its children with a node that adds 2 instead of 1.
 
-        >>> @Macro.wrap_as.function_node()
+        >>> @Macro.wrap.as_function_node()
         ... def add_two(x):
         ...     result = x + 2
         ...     return result
         >>>
-        >>> adds_six_macro = Macro(add_three_macro, output_labels="three__result")
+        >>> adds_six_macro = macro_node(add_three_macro, output_labels="three__result")
         >>> # With the replace method
         >>> # (replacement target can be specified by label or instance,
         >>> # the replacing node can be specified by instance or class)
@@ -235,7 +225,7 @@ class AbstractMacro(Composite, ABC):
         data and signal connections, but which will still internally execute and store
         data, e.g.:
 
-        >>> @Macro.wrap_as.macro_node("lout", "n_plus_2")
+        >>> @Macro.wrap.as_macro_node("lout", "n_plus_2")
         ... def LikeAFunction(macro, lin: list,  n: int = 1):
         ...     macro.plus_two = n + 2
         ...     macro.sliced_list = lin[n:macro.plus_two]
@@ -626,59 +616,50 @@ class AbstractMacro(Composite, ABC):
             self.children[child].outputs[child_out].value_receiver = self.outputs[out]
 
 
-class Macro(HasCreator):
+def macro_node(
+    graph_creator,
+    label: Optional[str] = None,
+    parent: Optional[Composite] = None,
+    overwrite_save: bool = False,
+    run_after_init: bool = False,
+    storage_backend: Optional[Literal["h5io", "tinybase"]] = None,
+    save_after_run: bool = False,
+    strict_naming: bool = True,
+    output_labels: Optional[str | list[str] | tuple[str]] = None,
+    **kwargs,
+):
     """
-    Not an actual macro class, just a mis-direction that dynamically creates a new
-    child of :class:`AbstractMacro` using the provided :func:`graph_creator` and
-    creates an instance of that.
+    Creates a new child of :class:`Macro` using the provided
+    :func:`graph_creator` and returns an instance of that.
 
     Quacks like a :class:`Composite` for the sake of creating and registering nodes.
     """
-
-    def __new__(
-        cls,
-        graph_creator,
-        label: Optional[str] = None,
-        parent: Optional[Composite] = None,
-        overwrite_save: bool = False,
-        run_after_init: bool = False,
-        storage_backend: Optional[Literal["h5io", "tinybase"]] = None,
-        save_after_run: bool = False,
-        strict_naming: bool = True,
-        output_labels: Optional[str | list[str] | tuple[str]] = None,
-        **kwargs,
-    ):
-        if not callable(graph_creator):
-            # `Function` quacks like a class, even though it's a function and
-            # dynamically creates children of `AbstractFunction` by providing the necessary
-            # callable to the decorator
-            raise AttributeError(
-                f"Expected `graph_creator` to be callable but got {graph_creator}"
-            )
-
-        if output_labels is None:
-            output_labels = ()
-        elif isinstance(output_labels, str):
-            output_labels = (output_labels,)
-
-        return macro_node(*output_labels)(graph_creator)(
-            label=label,
-            parent=parent,
-            overwrite_save=overwrite_save,
-            run_after_init=run_after_init,
-            storage_backend=storage_backend,
-            save_after_run=save_after_run,
-            strict_naming=strict_naming,
-            **kwargs,
+    if not callable(graph_creator):
+        # `function_node` quacks like a class, even though it's a function and
+        # dynamically creates children of `Macro` by providing the necessary
+        # callable to the decorator
+        raise AttributeError(
+            f"Expected `graph_creator` to be callable but got {graph_creator}"
         )
 
-    # Quack like an AbstractMacro
-    @classmethod
-    def allowed_backends(cls):
-        return tuple(AbstractMacro._storage_interfaces().keys())
+    if output_labels is None:
+        output_labels = ()
+    elif isinstance(output_labels, str):
+        output_labels = (output_labels,)
+
+    return as_macro_node(*output_labels)(graph_creator)(
+        label=label,
+        parent=parent,
+        overwrite_save=overwrite_save,
+        run_after_init=run_after_init,
+        storage_backend=storage_backend,
+        save_after_run=save_after_run,
+        strict_naming=strict_naming,
+        **kwargs,
+    )
 
 
-def macro_node(*output_labels):
+def as_macro_node(*output_labels):
     """
     A decorator for dynamically creating macro classes from graph-creating functions.
 
@@ -698,7 +679,7 @@ def macro_node(*output_labels):
     def as_node(graph_creator: callable[[Macro, ...], Optional[tuple[HasChannel]]]):
         node_class = type(
             graph_creator.__name__,
-            (AbstractMacro,),  # Define parentage
+            (Macro,),  # Define parentage
             {
                 "graph_creator": staticmethod(graph_creator),
                 "_provided_output_labels": output_labels,

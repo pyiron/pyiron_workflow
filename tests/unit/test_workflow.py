@@ -18,7 +18,7 @@ def plus_one(x=0):
     return y
 
 
-@Workflow.wrap_as.function_node("y")
+@Workflow.wrap.as_function_node("y")
 def PlusOne(x: int = 0):
     return x + 1
 
@@ -31,9 +31,9 @@ class TestWorkflow(unittest.TestCase):
 
     def test_io(self):
         wf = Workflow("wf")
-        wf.n1 = wf.create.Function(plus_one)
-        wf.n2 = wf.create.Function(plus_one)
-        wf.n3 = wf.create.Function(plus_one)
+        wf.n1 = wf.create.function_node(plus_one)
+        wf.n2 = wf.create.function_node(plus_one)
+        wf.n3 = wf.create.function_node(plus_one)
 
         inp = wf.inputs
         inp_again = wf.inputs
@@ -43,7 +43,7 @@ class TestWorkflow(unittest.TestCase):
 
         n_in = len(wf.inputs)
         n_out = len(wf.outputs)
-        wf.n4 = wf.create.Function(plus_one)
+        wf.n4 = wf.create.function_node(plus_one)
         self.assertEqual(
             n_in + 1, len(wf.inputs), msg="Workflow IO should be drawn from its nodes"
         )
@@ -77,10 +77,10 @@ class TestWorkflow(unittest.TestCase):
     def test_io_maps(self):
         # input and output, renaming, accessing connected, and deactivating disconnected
         wf = Workflow("wf")
-        wf.n1 = Workflow.create.Function(plus_one, x=0)
-        wf.n2 = Workflow.create.Function(plus_one, x=wf.n1)
-        wf.n3 = Workflow.create.Function(plus_one, x=wf.n2)
-        wf.m = Workflow.create.Function(plus_one, x=42)
+        wf.n1 = Workflow.create.function_node(plus_one, x=0)
+        wf.n2 = Workflow.create.function_node(plus_one, x=wf.n1)
+        wf.n3 = Workflow.create.function_node(plus_one, x=wf.n2)
+        wf.m = Workflow.create.function_node(plus_one, x=42)
         wf.inputs_map = {
             "n1__x": "x",  # Rename
             "n2__x": "intermediate_x",  # Expose
@@ -180,8 +180,8 @@ class TestWorkflow(unittest.TestCase):
     def test_with_executor(self):
 
         wf = Workflow("wf")
-        wf.a = wf.create.Function(plus_one)
-        wf.b = wf.create.Function(plus_one, x=wf.a)
+        wf.a = wf.create.function_node(plus_one)
+        wf.b = wf.create.function_node(plus_one, x=wf.a)
 
         original_a = wf.a
         wf.executor = wf.create.Executor()
@@ -226,13 +226,13 @@ class TestWorkflow(unittest.TestCase):
     def test_parallel_execution(self):
         wf = Workflow("wf")
 
-        @Workflow.wrap_as.function_node()
+        @Workflow.wrap.as_function_node()
         def five(sleep_time=0.):
             sleep(sleep_time)
             five = 5
             return five
 
-        @Workflow.wrap_as.function_node("sum")
+        @Workflow.wrap.as_function_node("sum")
         def sum(a, b):
             return a + b
 
@@ -278,10 +278,10 @@ class TestWorkflow(unittest.TestCase):
     def test_call(self):
         wf = Workflow("wf")
 
-        wf.a = wf.create.Function(plus_one)
-        wf.b = wf.create.Function(plus_one)
+        wf.a = wf.create.function_node(plus_one)
+        wf.b = wf.create.function_node(plus_one)
 
-        @Workflow.wrap_as.function_node("sum")
+        @Workflow.wrap.as_function_node("sum")
         def sum_(a, b):
             return a + b
 
@@ -308,8 +308,8 @@ class TestWorkflow(unittest.TestCase):
 
     def test_return_value(self):
         wf = Workflow("wf")
-        wf.a = wf.create.Function(plus_one)
-        wf.b = wf.create.Function(plus_one, x=wf.a)
+        wf.a = wf.create.function_node(plus_one)
+        wf.b = wf.create.function_node(plus_one, x=wf.a)
 
         with self.subTest("Run on main process"):
             return_on_call = wf(a__x=1)
@@ -330,7 +330,7 @@ class TestWorkflow(unittest.TestCase):
             )
 
     def test_execution_automation(self):
-        @Workflow.wrap_as.function_node("out")
+        @Workflow.wrap.as_function_node("out")
         def foo(x, y):
             return x + y
 
@@ -398,16 +398,16 @@ class TestWorkflow(unittest.TestCase):
                 cyclic()
 
     def test_pull_and_executors(self):
-        @Workflow.wrap_as.macro_node("three__result")
+        @Workflow.wrap.as_macro_node("three__result")
         def add_three_macro(macro, one__x):
-            macro.one = Workflow.create.Function(plus_one, x=one__x)
-            macro.two = Workflow.create.Function(plus_one, x=macro.one)
-            macro.three = Workflow.create.Function(plus_one, x=macro.two)
+            macro.one = Workflow.create.function_node(plus_one, x=one__x)
+            macro.two = Workflow.create.function_node(plus_one, x=macro.one)
+            macro.three = Workflow.create.function_node(plus_one, x=macro.two)
             return macro.three
 
         wf = Workflow("pulling")
 
-        wf.n1 = Workflow.create.Function(plus_one, x=0)
+        wf.n1 = Workflow.create.function_node(plus_one, x=0)
         wf.m = add_three_macro(one__x=wf.n1)
 
         self.assertEquals(
@@ -520,7 +520,7 @@ class TestWorkflow(unittest.TestCase):
 
         if "h5io" in Workflow.allowed_backends():
             with self.subTest("Instanced node"):
-                wf.direct_instance = Workflow.create.Function(plus_one)
+                wf.direct_instance = Workflow.create.function_node(plus_one)
                 try:
                     with self.assertRaises(
                         TypeNotFoundError,
@@ -534,7 +534,7 @@ class TestWorkflow(unittest.TestCase):
                     wf.storage.delete()
 
         with self.subTest("Unimportable node"):
-            @Workflow.wrap_as.function_node("y")
+            @Workflow.wrap.as_function_node("y")
             def UnimportableScope(x):
                 return x
 

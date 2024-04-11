@@ -32,7 +32,7 @@ from pyiron_workflow.executors import CloudpickleProcessPoolExecutor
 # Then choose one executor to be "standard"
 Executor = PyMpiPoolExecutor
 
-from pyiron_workflow.function import Function, function_node
+from pyiron_workflow.function import function_node, as_function_node
 from pyiron_workflow.snippets.dotdict import DotDict
 
 if TYPE_CHECKING:
@@ -62,10 +62,10 @@ class Creator(metaclass=Singleton):
         self.PyMPIExecutor = PyMPIExecutor
         self.PyMpiPoolExecutor = PyMpiPoolExecutor
 
-        self.Function = Function
+        self.function_node = function_node
 
         # Avoid circular imports by delaying import for children of Composite
-        self._macro = None
+        self._macro_node = None
         self._workflow = None
         self._meta = None
 
@@ -89,12 +89,12 @@ class Creator(metaclass=Singleton):
         return PySlurmExecutor
 
     @property
-    def Macro(self):
-        if self._macro is None:
-            from pyiron_workflow.macro import Macro
+    def macro_node(self):
+        if self._macro_node is None:
+            from pyiron_workflow.macro import macro_node
 
-            self._macro = Macro
-        return self._macro
+            self._macro_node = macro_node
+        return self._macro_node
 
     @property
     def Workflow(self):
@@ -318,18 +318,18 @@ class Wrappers(metaclass=Singleton):
     """
 
     def __init__(self):
-        self.function_node = function_node
+        self.as_function_node = as_function_node
 
         # Avoid circular imports by delaying import when wrapping children of Composite
-        self._macro_node = None
+        self._as_macro_node = None
 
     @property
-    def macro_node(self):
-        if self._macro_node is None:
-            from pyiron_workflow.macro import macro_node
+    def as_macro_node(self):
+        if self._as_macro_node is None:
+            from pyiron_workflow.macro import as_macro_node
 
-            self._macro_node = macro_node
-        return self._macro_node
+            self._as_macro_node = as_macro_node
+        return self._as_macro_node
 
 
 class HasCreator(ABC):
@@ -339,7 +339,7 @@ class HasCreator(ABC):
     """
 
     create = Creator()
-    wrap_as = Wrappers()
+    wrap = Wrappers()
 
     @classmethod
     @wraps(Creator.register)

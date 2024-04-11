@@ -16,7 +16,7 @@ if TYPE_CHECKING:
     from pyiron_workflow.composite import Composite
 
 
-class AbstractFunction(Node, ABC):
+class Function(Node, ABC):
     """
     Function nodes wrap an arbitrary python function.
 
@@ -52,12 +52,12 @@ class AbstractFunction(Node, ABC):
         At the most basic level, to use nodes all we need to do is provide the
         `Function` class with a function and labels for its output, like so:
 
-        >>> from pyiron_workflow.function import Function
+        >>> from pyiron_workflow.function import function_node
         >>>
         >>> def mwe(x, y):
         ...     return x+1, y-1
         >>>
-        >>> plus_minus_1 = Function(mwe)
+        >>> plus_minus_1 = function_node(mwe)
         >>>
         >>> print(plus_minus_1.outputs["x+1"])
         NOT_DATA
@@ -110,10 +110,10 @@ class AbstractFunction(Node, ABC):
         >>> plus_minus_1.outputs.to_value_dict()
         {'x+1': 3, 'y-1': 2}
 
-        We can also, optionally, provide initial values for some or all of the input and
-        labels for the output:
+        We can also, optionally, provide initial values for some or all of the input
+        and labels for the output:
 
-        >>> plus_minus_1 = Function(mwe, output_labels=("p1", "m1"),  x=1)
+        >>> plus_minus_1 = function_node(mwe, output_labels=("p1", "m1"),  x=1)
         >>> plus_minus_1.inputs.y = 2
         >>> out = plus_minus_1.run()
         >>> out
@@ -128,8 +128,8 @@ class AbstractFunction(Node, ABC):
         (3, 2)
 
         We can make our node even more sensible by adding type
-        hints (and, optionally, default values) when defining the function that the node
-        wraps.
+        hints (and, optionally, default values) when defining the function that the
+        node wraps.
         The node will automatically figure out defaults and type hints for the IO
         channels from inspection of the wrapped function.
 
@@ -152,7 +152,7 @@ class AbstractFunction(Node, ABC):
         ...     p1, m1 = x+1, y-1
         ...     return p1, m1
         >>>
-        >>> plus_minus_1 = Function(hinted_example)
+        >>> plus_minus_1 = function_node(hinted_example)
         >>> try:
         ...     plus_minus_1.inputs.x =  "not an int or float"
         ... except TypeError as e:
@@ -188,23 +188,23 @@ class AbstractFunction(Node, ABC):
         >>> plus_minus_1.ready, plus_minus_1.inputs.x.ready, plus_minus_1.inputs.y.ready
         (False, False, True)
 
-        In these examples, we've instantiated nodes directly from the base :class:`Function`
-        class, and populated their input directly with data.
+        In these examples, we've instantiated nodes directly from the base
+        :class:`Function` class, and populated their input directly with data.
         In practice, these nodes are meant to be part of complex workflows; that means
         both that you are likely to have particular nodes that get heavily re-used, and
         that you need the nodes to pass data to each other.
 
-        For reusable nodes, we want to create a sub-class of :class:`AbstractFunction`
+        For reusable nodes, we want to create a sub-class of :class:`Function`
         that fixes some of the node behaviour -- i.e. the :meth:`node_function`.
 
-        This can be done most easily with the :func:`function_node` decorator, which
+        This can be done most easily with the :func:`as_function_node` decorator, which
         takes a function and returns a node class. It also allows us to provide labels
         for the return values, :param:output_labels, which are otherwise scraped from
         the text of the function definition:
 
-        >>> from pyiron_workflow.function import function_node
+        >>> from pyiron_workflow.function import as_function_node
         >>>
-        >>> @function_node("p1", "m1")
+        >>> @as_function_node("p1", "m1")
         ... def my_mwe_node(
         ...     x: int | float, y: int | float = 1
         ... ) -> tuple[int | float, int | float]:
@@ -224,22 +224,15 @@ class AbstractFunction(Node, ABC):
         already defined as a `staticmethod`:
 
         >>> from typing import Literal, Optional
-        >>> from pyiron_workflow.function import AbstractFunction
+        >>> from pyiron_workflow.function import Function
         >>>
-        >>> class AlphabetModThree(AbstractFunction):
+        >>> class AlphabetModThree(Function):
         ...
         ...     @staticmethod
         ...     def node_function(i: int) -> Literal["a", "b", "c"]:
         ...         letter = ["a", "b", "c"][i % 3]
         ...         return letter
 
-        Notice here that we're inheriting from `AbstractFunction` and not just
-        `Function` we were using before. Under the hood, `Function` is actually a
-        very minimal class that is _dynamically_ creating a new child of
-        `AbstractFunction` that uses the provided `node_function` and returning you an
-        instance of this new dynamic class! So you can't inherit from it directly.
-        Anyhow, it is recommended to use the decorator on a function rather than direct
-        inheritance.
 
         Finally, let's put it all together by using both of these nodes at once.
         Instead of setting input to a particular data value, we'll set it to
@@ -250,7 +243,7 @@ class AbstractFunction(Node, ABC):
         Let's put together a couple of nodes and then run in a "pull" paradigm to get
         the final node to run everything "upstream" then run itself:
 
-        >>> @function_node()
+        >>> @as_function_node()
         ... def adder_node(x: int = 0, y: int = 0) -> int:
         ...     sum = x + y
         ...     return sum
@@ -277,7 +270,7 @@ class AbstractFunction(Node, ABC):
         (like cyclic graphs).
         Here's our simple example from above using this other paradigm:
 
-        >>> @function_node()
+        >>> @as_function_node()
         ... def adder_node(x: int = 0, y: int = 0) -> int:
         ...     sum = x + y
         ...     return sum
@@ -590,13 +583,23 @@ class AbstractFunction(Node, ABC):
         return SeabornColors.green
 
 
-class Function:
+def function_node(
+    node_function: callable,
+    *args,
+    label: Optional[str] = None,
+    parent: Optional[Composite] = None,
+    overwrite_save: bool = False,
+    run_after_init: bool = False,
+    storage_backend: Optional[Literal["h5io", "tinybase"]] = None,
+    save_after_run: bool = False,
+    output_labels: Optional[str | tuple[str]] = None,
+    **kwargs,
+):
     """
-    Not an actual function class, just a mis-direction that dynamically creates a new
-    child of :class:`AbstractFunction` using the provided :func:`node_function` and
-    creates an instance of that.
+    Dynamically creates a new child of :class:`Function` using the
+    provided :func:`node_function` and returns an instance of that.
 
-    Beyond the standard :class:`AbstractFunction`, initialization allows the args...
+    Beyond the standard :class:`Function`, initialization allows the args...
 
     Args:
         node_function (callable): The function determining the behaviour of the node.
@@ -615,42 +618,29 @@ class Function:
             source code (e.g. a function that exists only in memory).
     """
 
-    def __new__(
-        cls,
-        node_function: callable,
-        *args,
-        label: Optional[str] = None,
-        parent: Optional[Composite] = None,
-        overwrite_save: bool = False,
-        run_after_init: bool = False,
-        storage_backend: Optional[Literal["h5io", "tinybase"]] = None,
-        save_after_run: bool = False,
-        output_labels: Optional[str | tuple[str]] = None,
-        **kwargs,
-    ):
-        if not callable(node_function):
-            raise AttributeError(
-                f"Expected `node_function` to be callable but got {node_function}"
-            )
-
-        if output_labels is None:
-            output_labels = ()
-        elif isinstance(output_labels, str):
-            output_labels = (output_labels,)
-
-        return function_node(*output_labels)(node_function)(
-            *args,
-            label=label,
-            parent=parent,
-            overwrite_save=overwrite_save,
-            run_after_init=run_after_init,
-            storage_backend=storage_backend,
-            save_after_run=save_after_run,
-            **kwargs,
+    if not callable(node_function):
+        raise AttributeError(
+            f"Expected `node_function` to be callable but got {node_function}"
         )
 
+    if output_labels is None:
+        output_labels = ()
+    elif isinstance(output_labels, str):
+        output_labels = (output_labels,)
 
-def function_node(*output_labels: str):
+    return as_function_node(*output_labels)(node_function)(
+        *args,
+        label=label,
+        parent=parent,
+        overwrite_save=overwrite_save,
+        run_after_init=run_after_init,
+        storage_backend=storage_backend,
+        save_after_run=save_after_run,
+        **kwargs,
+    )
+
+
+def as_function_node(*output_labels: str):
     """
     A decorator for dynamically creating node classes from functions.
 
@@ -694,7 +684,7 @@ def function_node(*output_labels: str):
     def as_node(node_function: callable):
         node_class = type(
             node_function.__name__,
-            (AbstractFunction,),  # Define parentage
+            (Function,),  # Define parentage
             {
                 "node_function": staticmethod(node_function),
                 "_provided_output_labels": output_labels,
@@ -705,7 +695,7 @@ def function_node(*output_labels: str):
             node_class.preview_output_channels()
         except ValueError as e:
             raise ValueError(
-                f"Failed to create a new {AbstractFunction.__name__} child class "
+                f"Failed to create a new {Function.__name__} child class "
                 f"dynamically from {node_function.__name__} -- probably due to a "
                 f"mismatch among output labels, returned values, and return type hints."
             ) from e
