@@ -242,61 +242,18 @@ class TestFunction(unittest.TestCase):
         self.assertFalse(n.running)
         self.assertTrue(n.failed)
 
-    def test_with_self(self):
-        def with_self(self, x: float) -> float:
-            # Note: Adding internal state to the node like this goes against the best
-            #  practice of keeping nodes "functional". Following python's paradigm of
-            #  giving users lots of power, we want to guarantee that this behaviour is
-            #  _possible_.
-            if "some_counter" in self._user_data:
-                self._user_data["some_counter"] += 1
-            else:
-                self._user_data["some_counter"] = 1
-            return x + 0.1
+    def test_protected_name(self):
+        @as_function_node()
+        def Selfish(self, x):
+            return x
 
-        node = function_node(with_self, output_labels="output")
-        self.assertTrue(
-            "x" in node.inputs.labels,
-            msg=f"Expected to find function input 'x' in the node input but got "
-                f"{node.inputs.labels}"
-        )
-        self.assertFalse(
-            "self" in node.inputs.labels,
-            msg="Expected 'self' to be filtered out of node input, but found it in the "
-                "input labels"
-        )
-        node.inputs.x = 1.0
-        node.run()
-        self.assertEqual(
-            node.outputs.output.value,
-            1.1,
-            msg="Basic node functionality appears to have failed"
-        )
-        self.assertEqual(
-            node._user_data["some_counter"],
-            1,
-            msg="node_function should be able to modify attributes on the node "
-                "object."
-        )
-
-        node.executor = Executor()
+        n = Selfish()
         with self.assertRaises(
             ValueError,
-            msg="We haven't implemented any way to update a function node's `self` when"
-                "it runs on an executor, so trying to do so should fail hard"
+            msg="When we try to build inputs, we should run into the fact that inputs "
+                "can't overlap with __init__ signature terms"
         ):
-            node.run()
-            node.executor_shutdown()  # Shouldn't get this far, but if we do shutdown
-        node.executor = None
-
-        def with_messed_self(x: float, self) -> float:
-            return x + 0.1
-
-        with warnings.catch_warnings(record=True) as warning_list:
-            node = function_node(with_messed_self)
-            self.assertTrue("self" in node.inputs.labels)
-
-        self.assertEqual(len(warning_list), 1)
+            n.inputs
 
     def test_call(self):
         node = function_node(no_default, output_labels="output")

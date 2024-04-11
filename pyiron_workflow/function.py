@@ -428,19 +428,8 @@ class Function(Node, ABC):
         """
         type_hints = cls._type_hints()
         scraped: dict[str, tuple[Any, Any]] = {}
-        for ii, (label, value) in enumerate(cls._input_args().items()):
-            is_self = False
-            if label == "self":  # `self` is reserved for the node object
-                if ii == 0:
-                    is_self = True
-                else:
-                    warnings.warn(
-                        "`self` is used as an argument but not in the first"
-                        " position, so it is treated as a normal function"
-                        " argument. If it is to be treated as the node object,"
-                        " use it as a first argument"
-                    )
-            elif label in cls._init_keywords():
+        for label, param in cls._input_args().items():
+            if label in cls._init_keywords():
                 # We allow users to parse arbitrary kwargs as channel initialization
                 # So don't let them choose bad channel names
                 raise ValueError(
@@ -450,20 +439,14 @@ class Function(Node, ABC):
 
             try:
                 type_hint = type_hints[label]
-                if is_self:
-                    warnings.warn("type hint for self ignored")
             except KeyError:
                 type_hint = None
 
-            default = NOT_DATA  # The standard default in DataChannel
-            if value.default is not inspect.Parameter.empty:
-                if is_self:
-                    warnings.warn("default value for self ignored")
-                else:
-                    default = value.default
+            default = (
+                NOT_DATA if param.default is inspect.Parameter.empty else param.default
+            )
 
-            if not is_self:
-                scraped[label] = (type_hint, default)
+            scraped[label] = (type_hint, default)
         return scraped
 
     @classmethod
@@ -498,13 +481,6 @@ class Function(Node, ABC):
     @property
     def run_args(self) -> dict:
         kwargs = self.inputs.to_value_dict()
-        if "self" in self._input_args():
-            if self.executor:
-                raise ValueError(
-                    f"Function node {self.label} uses the `self` argument, but this "
-                    f"can't yet be run with executors"
-                )
-            kwargs["self"] = self
         return kwargs
 
     def process_run_result(self, function_output: Any | tuple) -> Any | tuple:
