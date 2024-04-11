@@ -287,7 +287,7 @@ class TestHasIO(unittest.TestCase):
         has_io1 << (has_io2, has_io3)
         print(has_io1.signals.input.accumulate_and_run.connections)
         self.assertListEqual(
-            [has_io2.signals.output.ran, has_io3.signals.output.ran],
+            [has_io3.signals.output.ran, has_io2.signals.output.ran],
             has_io1.signals.input.accumulate_and_run.connections,
             msg="Left shift should accommodate groups of connections"
         )

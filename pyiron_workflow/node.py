@@ -412,7 +412,10 @@ class Node(
             run_parent_trees_too (bool): Whether to recursively run the data tree in
                 parent nodes (if any). (Default is False.)
             fetch_input (bool): Whether to first update inputs with the
-                highest-priority connections holding data. (Default is True.)
+                highest-priority connections holding data (i.e. the first valid
+                connection; and the most recently formed connections appear first
+                unless the connections list has been manually tampered with). (Default
+                is True.)
             check_readiness (bool): Whether to raise an exception if the node is not
                 :attr:`ready` to run after fetching new input. (Default is True.)
             force_local_execution (bool): Whether to ignore any executor settings and

@@ -119,6 +119,9 @@ class Channel(UsesState, HasChannel, HasLabel, HasToDict, ABC):
         channels, i.e. they are instances of each others
         :attr:`connection_partner_type`.
 
+        New connections get _prepended_ to the connection lists, so they appear first
+        when searching over connections.
+
         Args:
             *others (Channel): The other channel objects to attempt to connect with.
 
@@ -132,8 +135,10 @@ class Channel(UsesState, HasChannel, HasLabel, HasToDict, ABC):
             if other in self.connections:
                 continue
             elif self._valid_connection(other):
-                self.connections.append(other)
-                other.connections.append(self)
+                # Prepend new connections
+                # so that connection searches run newest to oldest
+                self.connections.insert(0, other)
+                other.connections.insert(0, self)
             else:
                 if isinstance(other, self.connection_partner_type):
                     raise ChannelConnectionError(
@@ -505,10 +510,10 @@ class InputData(DataChannel):
 
     def fetch(self) -> None:
         """
-        Sets :attr:`value` to the first value among connections that is something other
-        than `NOT_DATA`; if no such value exists (e.g. because there are no connections
-        or because all the connected output channels have `NOT_DATA` as their value),
-        :attr:`value` remains unchanged.
+        Sets :attr:`value` to the first value among connections (i.e. the most recent)
+        that is something other than `NOT_DATA`; if no such value exists (e.g. because
+        there are no connections or because all the connected output channels have
+        `NOT_DATA` as their value), :attr:`value` remains unchanged.
         I.e., the connection with the highest priority for updating input data is the
         0th connection; build graphs accordingly.
 

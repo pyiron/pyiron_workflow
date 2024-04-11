@@ -1,11 +1,10 @@
 import unittest
 
-from bidict import ValueDuplicationError
-
 from pyiron_workflow._tests import ensure_tests_in_python_path
 from pyiron_workflow.channels import NOT_DATA
 from pyiron_workflow.composite import Composite
-from pyiron_workflow.io import Outputs, Inputs, ConnectionCopyError, ValueCopyError
+from pyiron_workflow.injection import OutputsWithInjection
+from pyiron_workflow.io import Inputs, ConnectionCopyError, ValueCopyError
 from pyiron_workflow.topology import CircularDataFlowError
 
 
@@ -19,15 +18,26 @@ class AComposite(Composite):
         super().__init__(label=label)
 
     def _get_linking_channel(self, child_reference_channel, composite_io_key):
-        return child_reference_channel  # IO by reference
+        pass  # Shouldn't even be abstract honestly
+        # return child_reference_channel  # IO by reference
 
     @property
     def inputs(self) -> Inputs:
-        return self._build_inputs()  # Dynamic IO reflecting current children
+        # Dynamic IO reflecting current children
+        inp = Inputs()
+        for child in self:
+            for channel in child.inputs:
+                inp[channel.scoped_label] = channel
+        return inp
 
     @property
-    def outputs(self) -> Outputs:
-        return self._build_outputs()  # Dynamic IO reflecting current children
+    def outputs(self) -> OutputsWithInjection:
+        # Dynamic IO reflecting current children
+        out = OutputsWithInjection()
+        for child in self:
+            for channel in child.outputs:
+                out[channel.scoped_label] = channel
+        return out
 
 
 class TestComposite(unittest.TestCase):
@@ -273,17 +283,15 @@ class TestComposite(unittest.TestCase):
         self.comp.n3 = n3
         self.comp.n2.inputs.x = self.comp.n1
         self.comp.n3.inputs.x = self.comp.n2
-        self.comp.inputs_map = {"n1__x": "x"}
-        self.comp.outputs_map = {"n3__y": "y"}
         self.comp.set_run_signals_to_dag_execution()
 
         with self.subTest("Verify success cases"):
-            self.assertEqual(3, self.comp.run().y, msg="Sanity check")
+            self.assertEqual(3, self.comp.run().n3__y, msg="Sanity check")
 
             self.comp.replace_child(n1, replacement)
-            out = self.comp.run(x=0)
+            out = self.comp.run(n1__x=0)
             self.assertEqual(
-                (0+2) + 1 + 1, out.y, msg="Should be able to replace by instance"
+                (0+2) + 1 + 1, out.n3__y, msg="Should be able to replace by instance"
             )
             self.assertEqual(
                 0 - 2, out.n1__minus, msg="Replacement output should also appear"
@@ -297,17 +305,17 @@ class TestComposite(unittest.TestCase):
             )
 
             self.comp.replace_child("n2", replacement)
-            out = self.comp.run(x=0)
+            out = self.comp.run(n1__x=0)
             self.assertEqual(
-                (0 + 1) + 2 + 1, out.y, msg="Should be able to replace by label"
+                (0 + 1) + 2 + 1, out.n3__y, msg="Should be able to replace by label"
             )
             self.assertEqual(1 - 2, out.n2__minus)
             self.comp.replace_child(replacement, n2)
 
             self.comp.replace_child(n3, x_plus_minus_z)
-            out = self.comp.run(x=0)
+            out = self.comp.run(n1__x=0)
             self.assertEqual(
-                (0 + 1) + 2 + 1, out.y, msg="Should be able to replace with a class"
+                (0 + 1) + 2 + 1, out.n3__y, msg="Should be able to replace with a class"
             )
             self.assertEqual(2 - 2, out.n3__minus)
             self.assertIsNot(
@@ -321,7 +329,7 @@ class TestComposite(unittest.TestCase):
             self.comp.n1 = x_plus_minus_z
             self.assertEqual(
                 (0+2) + 1 + 1,
-                self.comp.run(x=0).y,
+                self.comp.run(n1__x=0).n3__y,
                 msg="Assigning a new _class_ to an existing node should be a shortcut "
                     "for replacement"
             )
@@ -330,7 +338,7 @@ class TestComposite(unittest.TestCase):
             self.comp.n1 = different_input_channel
             self.assertEqual(
                 (0 + 10) + 1 + 1,
-                self.comp.run(n1__z=0).y,
+                self.comp.run(n1__z=0).n3__y,
                 msg="Different IO should be compatible as long as what's missing is "
                     "not connected"
             )
@@ -339,14 +347,14 @@ class TestComposite(unittest.TestCase):
             self.comp.n3 = different_output_channel
             self.assertEqual(
                 (0 + 1) + 1 + 100,
-                self.comp.run(x=0).n3__z,
+                self.comp.run(n1__x=0).n3__z,
                 msg="Different IO should be compatible as long as what's missing is "
                     "not connected"
             )
             self.comp.replace_child(self.comp.n3, n3)
 
         with self.subTest("Verify failure cases"):
-            self.assertEqual(3, self.comp.run().y, msg="Sanity check")
+            self.assertEqual(3, self.comp.run().n3__y, msg="Sanity check")
 
             another_comp = AComposite("another")
             another_node = x_plus_minus_z(parent=another_comp)
@@ -396,7 +404,7 @@ class TestComposite(unittest.TestCase):
 
             self.assertEqual(
                 3,
-                self.comp.run().y,
+                self.comp.run().n3__y,
                 msg="Failed replacements should always restore the original state "
                     "cleanly"
             )
@@ -496,91 +504,6 @@ class TestComposite(unittest.TestCase):
             out[not_dottable_string + "__y"],
             msg="Should always be able to fall back to item access with crazy labels"
         )
-
-    def test_io_maps(self):
-        # input and output, renaming, accessing connected, and deactivating disconnected
-        self.comp.n1 = Composite.create.Function(plus_one, x=0)
-        self.comp.n2 = Composite.create.Function(plus_one, x=self.comp.n1)
-        self.comp.n3 = Composite.create.Function(plus_one, x=self.comp.n2)
-        self.comp.m = Composite.create.Function(plus_one, x=42)
-        self.comp.inputs_map = {
-            "n1__x": "x",  # Rename
-            "n2__x": "intermediate_x",  # Expose
-            "m__x": None,  # Hide
-        }
-        self.comp.outputs_map = {
-            "n3__y": "y",  # Rename
-            "n2__y": "intermediate_y",  # Expose,
-            "m__y": None,  # Hide
-        }
-        self.assertIn("x", self.comp.inputs.labels, msg="Should be renamed")
-        self.assertIn("y", self.comp.outputs.labels, msg="Should be renamed")
-        self.assertIn("intermediate_x", self.comp.inputs.labels, msg="Should be exposed")
-        self.assertIn("intermediate_y", self.comp.outputs.labels, msg="Should be exposed")
-        self.assertNotIn("m__x", self.comp.inputs.labels, msg="Should be hidden")
-        self.assertNotIn("m__y", self.comp.outputs.labels, msg="Should be hidden")
-        self.assertNotIn("m__y", self.comp.outputs.labels, msg="Should be hidden")
-
-        self.comp.set_run_signals_to_dag_execution()
-        out = self.comp.run()
-        self.assertEqual(
-            3,
-            out.y,
-            msg="New names should be propagated to the returned value"
-        )
-        self.assertNotIn(
-            "m__y",
-            list(out.keys()),
-            msg="IO filtering should be evident in returned value"
-        )
-        self.assertEqual(
-            43,
-            self.comp.m.outputs.y.value,
-            msg="The child channel should still exist and have run"
-        )
-        self.assertEqual(
-            1,
-            self.comp.inputs.intermediate_x.value,
-            msg="IO should be up-to-date post-run"
-        )
-        self.assertEqual(
-            2,
-            self.comp.outputs.intermediate_y.value,
-            msg="IO should be up-to-date post-run"
-        )
-
-    def test_io_map_bijectivity(self):
-        with self.assertRaises(
-            ValueDuplicationError,
-            msg="Should not be allowed to map two children's channels to the same label"
-        ):
-            self.comp.inputs_map = {"n1__x": "x", "n2__x": "x"}
-
-        self.comp.inputs_map = {"n1__x": "x"}
-        with self.assertRaises(
-            ValueDuplicationError,
-            msg="Should not be allowed to update a second child's channel onto an "
-                "existing mapped channel"
-        ):
-            self.comp.inputs_map["n2__x"] = "x"
-
-        with self.subTest("Ensure we can use None to turn multiple off"):
-            self.comp.inputs_map = {"n1__x": None, "n2__x": None}  # At once
-            # Or in a row
-            self.comp.inputs_map = {}
-            self.comp.inputs_map["n1__x"] = None
-            self.comp.inputs_map["n2__x"] = None
-            self.comp.inputs_map["n3__x"] = None
-            self.assertEqual(
-                3,
-                len(self.comp.inputs_map),
-                msg="All entries should be stored"
-            )
-            self.assertEqual(
-                0,
-                len(self.comp.inputs),
-                msg="No IO should be left exposed"
-            )
 
     def test_de_activate_strict_connections(self):
         self.comp.sub_comp = AComposite("sub")

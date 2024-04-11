@@ -4,6 +4,8 @@ Common-use nodes relying only on the standard library
 
 from __future__ import annotations
 
+import random
+
 from pyiron_workflow.channels import NOT_DATA, OutputSignal
 from pyiron_workflow.function import AbstractFunction, function_node
 
@@ -43,6 +45,11 @@ class If(AbstractFunction):
             self.signals.output.true()
         else:
             self.signals.output.false()
+
+
+@function_node("random")
+def RandomFloat():
+    return random.random()
 
 
 @function_node("slice")
@@ -281,6 +288,7 @@ nodes = [
     Or,
     Positive,
     Power,
+    RandomFloat,
     RightMultiply,
     Round,
     Slice,
