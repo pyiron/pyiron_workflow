@@ -22,6 +22,7 @@ from typing import Any, get_args, get_type_hints
 from pyiron_workflow.channels import NOT_DATA
 from pyiron_workflow.node import Node
 from pyiron_workflow.output_parser import ParseOutput
+from pyiron_workflow.snippets.dotdict import DotDict
 
 
 class HasIOPreview(ABC):
@@ -52,6 +53,12 @@ class HasIOPreview(ABC):
         Returns:
             dict[str, tuple[Any, Any]]: The output name and its corresponding type hint.
         """
+
+    @classmethod
+    def preview_io(cls) -> DotDict[str: dict]:
+        return DotDict(
+            {"inputs": cls.preview_inputs(), "outputs": cls.preview_outputs()}
+        )
 
 
 class ScrapesIO(HasIOPreview, ABC):
@@ -352,8 +359,7 @@ def decorated_node_decorator_factory(
                     **parent_class_attr_overrides,
                 },
             )
-            decorated_node_class.preview_inputs()
-            decorated_node_class.preview_outputs()
+            decorated_node_class.preview_io()  # Construct everything
             return decorated_node_class
 
         return as_decorated_node
