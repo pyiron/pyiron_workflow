@@ -55,7 +55,7 @@ class HasIOPreview(ABC):
         """
 
     @classmethod
-    def preview_io(cls) -> DotDict[str: dict]:
+    def preview_io(cls) -> DotDict[str:dict]:
         return DotDict(
             {"inputs": cls.preview_inputs(), "outputs": cls.preview_outputs()}
         )
