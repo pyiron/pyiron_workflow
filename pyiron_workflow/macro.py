@@ -6,22 +6,21 @@ interface and are not intended to be internally modified after instantiation.
 from __future__ import annotations
 
 from abc import ABC, abstractmethod
-import inspect
 import re
-from typing import Any, get_args, get_type_hints, Literal, Optional, TYPE_CHECKING
+from typing import Literal, Optional, TYPE_CHECKING
 import warnings
 
-from pyiron_workflow.channels import InputData, OutputData, NOT_DATA
+from pyiron_workflow.channels import InputData, OutputData
 from pyiron_workflow.composite import Composite
 from pyiron_workflow.has_interface_mixins import HasChannel
 from pyiron_workflow.io import Outputs, Inputs
-from pyiron_workflow.output_parser import ParseOutput
+from pyiron_workflow.io_preview import DecoratedNode, decorated_node_decorator_factory
 
 if TYPE_CHECKING:
     from pyiron_workflow.channels import Channel
 
 
-class Macro(Composite, ABC):
+class Macro(Composite, DecoratedNode, ABC):
     """
     A macro is a composite node that holds a graph with a fixed interface, like a
     pre-populated workflow that is the same every time you instantiate it.
@@ -191,7 +190,7 @@ class Macro(Composite, ABC):
         the same graph is always created.
 
         >>> class AddThreeMacro(Macro):
-        ...     _provided_output_labels = ["three"]
+        ...     _output_labels = ["three"]
         ...
         ...     @staticmethod
         ...     def graph_creator(macro, x):
@@ -245,8 +244,6 @@ class Macro(Composite, ABC):
 
     """
 
-    _provided_output_labels: tuple[str] | None = None
-
     def __init__(
         self,
         label: Optional[str] = None,
@@ -287,11 +284,7 @@ class Macro(Composite, ABC):
                         if returned_has_channel_objects is None
                         else returned_has_channel_objects
                     ),
-                    (
-                        ()
-                        if self._provided_output_labels is None
-                        else self._provided_output_labels
-                    ),
+                    (() if self._output_labels is None else self._output_labels),
                 )
             )
         )
@@ -307,105 +300,21 @@ class Macro(Composite, ABC):
         """Build the graph the node will run."""
 
     @classmethod
-    def _validate_output_labels(cls) -> tuple[str]:
-        """
-        Ensure that output_labels, if provided, are commensurate with graph creator
-        return values, if provided, and return them as a tuple.
-        """
-        graph_creator_returns = ParseOutput(cls.graph_creator).output
-        output_labels = cls._get_output_labels()
-        if output_labels is not None and len(set(output_labels)) != len(output_labels):
-            raise ValueError(
-                f"{cls.__name__} must not have degenerate output labels: "
-                f"{output_labels}"
-            )
-        if graph_creator_returns is not None or output_labels is not None:
-            error_suffix = (
-                f"but {cls.__name__} macro class got return values: "
-                f"{graph_creator_returns} and labels: {output_labels}."
-            )
-            try:
-                if len(output_labels) != len(graph_creator_returns):
-                    raise ValueError(
-                        "The number of return values in the graph creator must exactly "
-                        "match the number of output labels provided, " + error_suffix
-                    )
-            except TypeError:
-                raise TypeError(
-                    f"Output labels and graph creator return values must either both "
-                    f"or neither be present, " + error_suffix
-                )
+    def _io_defining_function(cls) -> callable:
+        return cls.graph_creator
 
-    @classmethod
-    def _type_hints(cls):
-        """The result of :func:`typing.get_type_hints` on the :meth:`graph_creator`."""
-        return get_type_hints(cls.graph_creator)
-
-    @classmethod
-    def preview_output_channels(cls) -> dict[str, Any]:
-        """
-        Gives a class-level peek at the expected output channels.
-
-        Returns:
-            dict[str, tuple[Any, Any]]: The channel name and its corresponding type
-                hint.
-        """
-        labels = cls._get_output_labels()
-        try:
-            type_hints = cls._type_hints()["return"]
-            if len(labels) > 1:
-                type_hints = get_args(type_hints)
-                if not isinstance(type_hints, tuple):
-                    raise TypeError(
-                        f"With multiple return labels expected to get a tuple of type "
-                        f"hints, but got type {type(type_hints)}"
-                    )
-                if len(type_hints) != len(labels):
-                    raise ValueError(
-                        f"Expected type hints and return labels to have matching "
-                        f"lengths, but got {len(type_hints)} hints and "
-                        f"{len(labels)} labels: {type_hints}, {labels}"
-                    )
-            else:
-                # If there's only one hint, wrap it in a tuple, so we can zip it with
-                # *return_labels and iterate over both at once
-                type_hints = (type_hints,)
-        except KeyError:  # If there are no return hints
-            type_hints = [None] * len(labels)
-            # Note that this nicely differs from `NoneType`, which is the hint when
-            # `None` is actually the hint!
-        return {label: hint for label, hint in zip(labels, type_hints)}
-
-    @classmethod
-    def _get_output_labels(cls):
-        """
-        Return output labels provided on the class if not None.
-        """
-        if cls._provided_output_labels is None:
-            cls._scrape_output_labels()
-        return cls._provided_output_labels
+    _io_defining_function_uses_self = True
 
     @classmethod
     def _scrape_output_labels(cls):
-        """
-        Inspect :meth:`node_function` to scrape out strings representing the
-        returned values.
+        scraped_labels = super(Macro, cls)._scrape_output_labels()
 
-         _Only_ works for functions with a single `return` expression in their body.
-
-        It will return expressions and function calls just fine, thus good practice is
-        to create well-named variables and return those so that the output labels stay
-        dot-accessible.
-        """
-        parsed_outputs = ParseOutput(cls.graph_creator).output
-        if parsed_outputs is None:
-            cls._provided_output_labels = None
-        else:
-            self_argument = list(cls._input_args().keys())[0]
+        if scraped_labels is not None:
+            # Strip off the first argument, e.g. self.foo just becomes foo
+            self_argument = list(cls._get_input_args().keys())[0]
             cleaned_labels = [
-                # Strip off the first argument, e.g. self.foo just becomes foo
-                re.sub(r"^" + re.escape(f"{self_argument}."), "", p)
-                for p in parsed_outputs
+                re.sub(r"^" + re.escape(f"{self_argument}."), "", label)
+                for label in scraped_labels
             ]
             if any("." in label for label in cleaned_labels):
                 raise ValueError(
@@ -413,51 +322,9 @@ class Macro(Composite, ABC):
                     f"one of {cleaned_labels} still contains a '.' -- please provide "
                     f"explicit labels"
                 )
-            cls._provided_output_labels = cleaned_labels
-
-    @classmethod
-    def preview_input_channels(cls) -> dict[str, tuple[Any, Any]]:
-        """
-        Gives a class-level peek at the expected input channels.
-
-        Returns:
-            dict[str, tuple[Any, Any]]: The channel name and a tuple of its
-                corresponding type hint and default value.
-        """
-        type_hints = cls._type_hints()
-        scraped: dict[str, tuple[Any, Any]] = {}
-        for i, (label, value) in enumerate(cls._input_args().items()):
-            if i == 0:
-                continue  # Skip the macro argument itself, it's like `self` here
-            elif label in cls._init_keywords():
-                # We allow users to parse arbitrary kwargs as channel initialization
-                # So don't let them choose bad channel names
-                raise ValueError(
-                    f"The Input channel name {label} is not valid. Please choose a "
-                    f"name _not_ among {cls._init_keywords()}"
-                )
-
-            try:
-                type_hint = type_hints[label]
-            except KeyError:
-                type_hint = None
-
-            default = (
-                value.default
-                if value.default is not inspect.Parameter.empty
-                else NOT_DATA
-            )
-
-            scraped[label] = (type_hint, default)
-        return scraped
-
-    @classmethod
-    def _input_args(cls):
-        return inspect.signature(cls.graph_creator).parameters
-
-    @classmethod
-    def _init_keywords(cls):
-        return list(inspect.signature(cls.__init__).parameters.keys())
+            return cleaned_labels
+        else:
+            return scraped_labels
 
     def _prepopulate_ui_nodes_from_graph_creator_signature(
         self, storage_backend: Literal["h5io", "tinybase"]
@@ -470,7 +337,7 @@ class Macro(Composite, ABC):
                 type_hint=type_hint,
                 storage_backend=storage_backend,
             )
-            for label, (type_hint, default) in self.preview_input_channels().items()
+            for label, (type_hint, default) in self.preview_inputs().items()
         )
 
     def _get_linking_channel(
@@ -661,6 +528,15 @@ class Macro(Composite, ABC):
             self.children[child].outputs[child_out].value_receiver = self.outputs[out]
 
 
+as_macro_node = decorated_node_decorator_factory(
+    Macro,
+    Macro.graph_creator,
+    decorator_docstring_additions="The first argument in the wrapped function is "
+    "`self`-like and will receive the macro instance "
+    "itself, and thus is ignored in the IO.",
+)
+
+
 def macro_node(
     graph_creator,
     label: Optional[str] = None,
@@ -671,6 +547,7 @@ def macro_node(
     save_after_run: bool = False,
     strict_naming: bool = True,
     output_labels: Optional[str | list[str] | tuple[str]] = None,
+    validate_output_labels: bool = True,
     **kwargs,
 ):
     """
@@ -678,6 +555,24 @@ def macro_node(
     :func:`graph_creator` and returns an instance of that.
 
     Quacks like a :class:`Composite` for the sake of creating and registering nodes.
+
+    Beyond the standard :class:`Macro`, initialization allows the args...
+
+    Args:
+        graph_creator (callable): The function defining macro's graph.
+        output_labels (Optional[str | list[str] | tuple[str]]): A name for each return
+            value of the node function OR a single label. (Default is None, which
+            scrapes output labels automatically from the source code of the wrapped
+            function.) This can be useful when returned values are not well named, e.g.
+            to make the output channel dot-accessible if it would otherwise have a label
+            that requires item-string-based access. Additionally, specifying a _single_
+            label for a wrapped function that returns a tuple of values ensures that a
+            _single_ output channel (holding the tuple) is created, instead of one
+            channel for each return value. The default approach of extracting labels
+            from the function source code also requires that the function body contain
+            _at most_ one `return` expression, so providing explicit labels can be used
+            to circumvent this (at your own risk), or to circumvent un-inspectable
+            source code (e.g. a function that exists only in memory).
     """
     if not callable(graph_creator):
         # `function_node` quacks like a class, even though it's a function and
@@ -692,7 +587,9 @@ def macro_node(
     elif isinstance(output_labels, str):
         output_labels = (output_labels,)
 
-    return as_macro_node(*output_labels)(graph_creator)(
+    return as_macro_node(*output_labels, validate_output_labels=validate_output_labels)(
+        graph_creator
+    )(
         label=label,
         parent=parent,
         overwrite_save=overwrite_save,
@@ -702,42 +599,3 @@ def macro_node(
         strict_naming=strict_naming,
         **kwargs,
     )
-
-
-def as_macro_node(*output_labels):
-    """
-    A decorator for dynamically creating macro classes from graph-creating functions.
-
-    Decorates a function.
-    Returns a :class:`Macro` subclass whose name is the camel-case version of the
-    graph-creating function, and whose signature is modified to exclude this function
-    and provided kwargs.
-
-    Optionally takes output labels as args in case the node function uses the
-    like-a-function interface to define its IO. (The number of output labels must match
-    number of channel-like objects returned by the graph creating function _exactly_.)
-
-    Optionally takes any keyword arguments of :class:`Macro`.
-    """
-    output_labels = None if len(output_labels) == 0 else output_labels
-
-    def as_node(graph_creator: callable[[Macro, ...], Optional[tuple[HasChannel]]]):
-        node_class = type(
-            graph_creator.__name__,
-            (Macro,),  # Define parentage
-            {
-                "graph_creator": staticmethod(graph_creator),
-                "_provided_output_labels": output_labels,
-                "__module__": graph_creator.__module__,
-            },
-        )
-        try:
-            node_class._validate_output_labels()
-        except OSError:
-            warnings.warn(
-                f"Could not find the source code to validate {node_class.__name__} "
-                f"output labels"
-            )
-        return node_class
-
-    return as_node

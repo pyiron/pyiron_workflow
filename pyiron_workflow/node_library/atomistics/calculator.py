@@ -12,7 +12,7 @@ def Emt():
 
 @as_function_node("calculator")
 def Abinit(
-    label="abinit_evcurve",
+    ase_label="abinit_evcurve",
     nbands=32,
     ecut=10 * Ry,
     kpts=(3, 3, 3),
@@ -22,7 +22,7 @@ def Abinit(
     from ase.calculators.abinit import Abinit
 
     return Abinit(
-        label=label,
+        label=ase_label,
         nbands=nbands,
         ecut=ecut,
         kpts=kpts,
@@ -57,7 +57,7 @@ def QuantumEspresso(
 
 @as_function_node("calculator")
 def Siesta(
-    label="siesta",
+    ase_label="siesta",
     xc="PBE",
     mesh_cutoff=200 * Ry,
     energy_shift=0.01 * Ry,
@@ -70,7 +70,7 @@ def Siesta(
     from ase.calculators.siesta import Siesta
 
     return Siesta(
-        label=label,
+        label=ase_label,
         xc=xc,
         mesh_cutoff=mesh_cutoff,
         energy_shift=energy_shift,

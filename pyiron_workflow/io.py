@@ -7,9 +7,9 @@ connections on the same footing.
 
 from __future__ import annotations
 
-import warnings
 from abc import ABC, abstractmethod
 from typing import Any
+import warnings
 
 from pyiron_workflow.channels import (
     Channel,

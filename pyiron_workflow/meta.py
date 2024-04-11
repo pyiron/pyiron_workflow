@@ -107,8 +107,8 @@ def for_loop(
           :param:`length`
         - Provide enter and exit magic methods so we can `for` or `with` this fancy-like
     """
-    input_preview = loop_body_class.preview_input_channels()
-    output_preview = loop_body_class.preview_output_channels()
+    input_preview = loop_body_class.preview_inputs()
+    output_preview = loop_body_class.preview_outputs()
 
     # Ensure `iterate_on` is in the input
     iterate_on = [iterate_on] if isinstance(iterate_on, str) else iterate_on
