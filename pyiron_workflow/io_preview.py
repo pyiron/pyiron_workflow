@@ -237,7 +237,8 @@ class ScrapesIO(HasIOPreview, ABC):
             warnings.warn(
                 f"Could not find the source code to validate {cls.__name__} output "
                 f"labels against the number of returned values -- proceeding without "
-                f"validation"
+                f"validation",
+                OutputLabelsNotValidated
             )
 
     @classmethod
@@ -271,6 +272,10 @@ class ScrapesIO(HasIOPreview, ABC):
                     f"Output labels and return values must either both or neither be "
                     f"present, " + error_suffix
                 )
+
+
+class OutputLabelsNotValidated(Warning):
+    pass
 
 
 class StaticNode(Node, HasIOPreview, ABC):
