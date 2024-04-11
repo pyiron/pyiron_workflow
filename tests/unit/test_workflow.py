@@ -399,11 +399,11 @@ class TestWorkflow(unittest.TestCase):
 
     def test_pull_and_executors(self):
         @Workflow.wrap.as_macro_node("three__result")
-        def add_three_macro(macro, one__x):
-            macro.one = Workflow.create.function_node(plus_one, x=one__x)
-            macro.two = Workflow.create.function_node(plus_one, x=macro.one)
-            macro.three = Workflow.create.function_node(plus_one, x=macro.two)
-            return macro.three
+        def add_three_macro(self, one__x):
+            self.one = Workflow.create.function_node(plus_one, x=one__x)
+            self.two = Workflow.create.function_node(plus_one, x=self.one)
+            self.three = Workflow.create.function_node(plus_one, x=self.two)
+            return self.three
 
         wf = Workflow("pulling")
 

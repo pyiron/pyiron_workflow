@@ -135,7 +135,7 @@ def for_loop(
     ).rstrip(" ")
     input_label = 'f"inp{n}"'
     returns = ", ".join(
-        f'macro.children["{label.upper()}"]' for label in output_preview.keys()
+        f'self.children["{label.upper()}"]' for label in output_preview.keys()
     )
     node_name = f'{loop_body_class.__name__}For{"".join([l.title() for l in sorted(iterate_on)])}{length}'
 
@@ -143,20 +143,20 @@ def for_loop(
     for_loop_code = dedent(
         f"""
         @Macro.wrap.as_macro_node({output_labels})
-        def {node_name}(macro, {macro_args}):
+        def {node_name}(self, {macro_args}):
             from {loop_body_class.__module__} import {loop_body_class.__name__}
 
             for label in [{output_labels}]:
-                input_to_list({length})(label=label, parent=macro)
+                input_to_list({length})(label=label, parent=self)
 
             for n in range({length}):
                 body_node = {loop_body_class.__name__}(
                     {body_kwargs},
                     label={body_label},
-                    parent=macro
+                    parent=self
                 )
                 for label in {list(output_preview.keys())}:
-                    macro.children[label.upper()].inputs[{input_label}] = body_node.outputs[label]
+                    self.children[label.upper()].inputs[{input_label}] = body_node.outputs[label]
 
             return {returns}
         """
@@ -293,7 +293,7 @@ def while_loop(
         ).rstrip(" ")
 
     returns = ", ".join(
-        f'macro.{l.split("__")[0]}.outputs.{l.split("__")[1]}'
+        f'self.{l.split("__")[0]}.outputs.{l.split("__")[1]}'
         for l in outputs_map.keys()
     ).rstrip(" ")
 
@@ -301,32 +301,32 @@ def while_loop(
     while_loop_code = dedent(
         f"""
         @Macro.wrap.as_macro_node({output_labels})
-        def {node_name}(macro, {input_args}):
+        def {node_name}(self, {input_args}):
             from {loop_body_class.__module__} import {loop_body_class.__name__}
             from {condition_class.__module__} import {condition_class.__name__}
 
-            body = macro.add_child(
+            body = self.add_child(
                 {loop_body_class.__name__}(
                     label="{loop_body_class.__name__}",
                     {get_kwargs(inputs_map, loop_body_class)}
                 )
             )
 
-            condition = macro.add_child(
+            condition = self.add_child(
                 {condition_class.__name__}(
                     label="{condition_class.__name__}",
                     {get_kwargs(inputs_map, condition_class)}
                 )
             )
 
-            macro.switch = macro.create.standard.If(condition=condition)
+            self.switch = self.create.standard.If(condition=condition)
 
             for out_n, out_c, in_n, in_c in {str(internal_connection_map)}:
-                macro.children[in_n].inputs[in_c] = macro.children[out_n].outputs[out_c]
+                self.children[in_n].inputs[in_c] = self.children[out_n].outputs[out_c]
 
 
-            macro.switch.signals.output.true >> body >> condition >> macro.switch
-            macro.starting_nodes = [body]
+            self.switch.signals.output.true >> body >> condition >> self.switch
+            self.starting_nodes = [body]
 
             return {returns}
         """

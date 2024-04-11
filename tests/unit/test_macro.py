@@ -18,13 +18,13 @@ def add_one(x):
     return result
 
 
-def add_three_macro(macro, one__x):
-    macro.one = function_node(add_one, x=one__x)
-    function_node(add_one, macro.one, label="two", parent=macro)
-    macro.add_child(function_node(add_one, macro.two, label="three"))
+def add_three_macro(self, one__x):
+    self.one = function_node(add_one, x=one__x)
+    function_node(add_one, self.one, label="two", parent=self)
+    self.add_child(function_node(add_one, self.two, label="three"))
     # Cover a handful of addition methods,
     # although these are more thoroughly tested in Workflow tests
-    return macro.three
+    return self.three
 
 
 def wrong_return_macro(macro):
@@ -84,21 +84,21 @@ class TestMacro(unittest.TestCase):
     def test_execution_automation(self):
         fully_automatic = add_three_macro
 
-        def fully_defined(macro, one__x):
-            add_three_macro(macro, one__x=one__x)
-            macro.one >> macro.two >> macro.three
-            macro.starting_nodes = [macro.one]
-            return macro.three
+        def fully_defined(self, one__x):
+            add_three_macro(self, one__x=one__x)
+            self.one >> self.two >> self.three
+            self.starting_nodes = [self.one]
+            return self.three
 
-        def only_order(macro, one__x):
-            add_three_macro(macro, one__x=one__x)
-            macro.two >> macro.three
-            return macro.three
+        def only_order(self, one__x):
+            add_three_macro(self, one__x=one__x)
+            self.two >> self.three
+            return self.three
 
-        def only_starting(macro, one__x):
-            add_three_macro(macro, one__x=one__x)
-            macro.starting_nodes = [macro.one]
-            return macro.three
+        def only_starting(self, one__x):
+            add_three_macro(self, one__x=one__x)
+            self.starting_nodes = [self.one]
+            return self.three
 
         m_auto = macro_node(fully_automatic, output_labels="three__result")
         m_user = macro_node(fully_defined, output_labels="three__result")
@@ -181,28 +181,28 @@ class TestMacro(unittest.TestCase):
         )
 
     def test_nesting(self):
-        def nested_macro(macro, a__x):
-            macro.a = function_node(add_one, a__x)
-            macro.b = macro_node(
+        def nested_macro(self, a__x):
+            self.a = function_node(add_one, a__x)
+            self.b = macro_node(
                 add_three_macro,
-                one__x=macro.a,
+                one__x=self.a,
                 output_labels="three__result"
             )
-            macro.c = macro_node(
+            self.c = macro_node(
                 add_three_macro,
-                one__x=macro.b.outputs.three__result,
+                one__x=self.b.outputs.three__result,
                 output_labels="three__result"
             )
-            macro.d = function_node(
+            self.d = function_node(
                 add_one,
-                x=macro.c.outputs.three__result,
+                x=self.c.outputs.three__result,
             )
-            macro.a >> macro.b >> macro.c >> macro.d
-            macro.starting_nodes = [macro.a]
+            self.a >> self.b >> self.c >> self.d
+            self.starting_nodes = [self.a]
             # This definition of the execution graph is not strictly necessary in this
             # simple DAG case; we just do it to make sure nesting definied/automatic
-            # macros works ok
-            return macro.d
+            # selfs works ok
+            return self.d
 
         m = macro_node(nested_macro, output_labels="d__result")
         self.assertEqual(m(a__x=0).d__result, 8)
@@ -421,10 +421,10 @@ class TestMacro(unittest.TestCase):
     def test_efficient_signature_interface(self):
         with self.subTest("Forked input"):
             @as_macro_node("output")
-            def MutlipleUseInput(macro, x):
-                macro.n1 = macro.create.standard.UserInput(x)
-                macro.n2 = macro.create.standard.UserInput(x)
-                return macro.n1
+            def MutlipleUseInput(self, x):
+                self.n1 = self.create.standard.UserInput(x)
+                self.n2 = self.create.standard.UserInput(x)
+                return self.n1
 
             m = MutlipleUseInput()
             self.assertEqual(
@@ -437,9 +437,9 @@ class TestMacro(unittest.TestCase):
 
         with self.subTest("Single destination input"):
             @as_macro_node("output")
-            def SingleUseInput(macro, x):
-                macro.n = macro.create.standard.UserInput(x)
-                return macro.n
+            def SingleUseInput(self, x):
+                self.n = self.create.standard.UserInput(x)
+                return self.n
 
             m = SingleUseInput()
             self.assertEqual(
@@ -451,11 +451,11 @@ class TestMacro(unittest.TestCase):
 
         with self.subTest("Mixed input"):
             @as_macro_node("output")
-            def MixedUseInput(macro, x, y):
-                macro.n1 = macro.create.standard.UserInput(x)
-                macro.n2 = macro.create.standard.UserInput(y)
-                macro.n3 = macro.create.standard.UserInput(y)
-                return macro.n1
+            def MixedUseInput(self, x, y):
+                self.n1 = self.create.standard.UserInput(x)
+                self.n2 = self.create.standard.UserInput(y)
+                self.n3 = self.create.standard.UserInput(y)
+                return self.n1
 
             m = MixedUseInput()
             self.assertEqual(
@@ -467,7 +467,7 @@ class TestMacro(unittest.TestCase):
 
         with self.subTest("Pass through"):
             @as_macro_node("output")
-            def PassThrough(macro, x):
+            def PassThrough(self, x):
                 return x
 
             m = PassThrough()

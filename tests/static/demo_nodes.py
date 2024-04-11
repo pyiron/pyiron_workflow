@@ -14,11 +14,11 @@ def OptionallyAdd(x: int, y: Optional[int] = None) -> int:
 
 
 @Workflow.wrap.as_macro_node("add_three")
-def AddThree(macro, x: int) -> int:
-    macro.one = macro.create.standard.Add(x, 1)
-    macro.two = macro.create.standard.Add(macro.one, 1)
-    macro.three = macro.create.standard.Add(macro.two, 1)
-    return macro.three
+def AddThree(self, x: int) -> int:
+    self.one = self.create.standard.Add(x, 1)
+    self.two = self.create.standard.Add(self.one, 1)
+    self.three = self.create.standard.Add(self.two, 1)
+    return self.three
 
 
 @Workflow.wrap.as_function_node("add")
