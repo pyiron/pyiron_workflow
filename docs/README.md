@@ -26,7 +26,7 @@ Individual node computations can be shipped off to parallel processes for scalab
 
 Once you're happy with a workflow, it can be easily turned it into a macro for use in other workflows. This allows the clean construction of increasingly complex computation graphs by composing simpler graphs.
 
-Nodes (including macros) can be stored in plain text, and registered by future workflows for easy access. This encourages and supports an ecosystem of useful nodes, so you don't need to re-invent the wheel. (This is a beta-feature, with full support of [FAIR](https://en.wikipedia.org/wiki/FAIR_data) principles for node packages planned.)
+Nodes (including macros) can be stored in plain text as python code, and registered by future workflows for easy access. This encourages and supports an ecosystem of useful nodes, so you don't need to re-invent the wheel. (This is a beta-feature, with full support of [FAIR](https://en.wikipedia.org/wiki/FAIR_data) principles for node packages planned.)
 
 Executed or partially-executed graphs can be stored to file, either by explicit call or automatically after running. When creating a new node(/macro/workflow), the working directory is automatically inspected for a save-file and the node will try to reload itself if one is found. (This is an alpha-feature, so it is currently only possible to save entire graphs at once and not individual nodes within a graph, all the child nodes in a saved graph must have been instantiated by `Workflow.create` (or equivalent, i.e. their code lives in a `.py` file that has been registered), and there are no safety rails to protect you from changing the node source code between saving and loading (which may cause errors/inconsistencies depending on the nature of the changes).) 
 
@@ -60,13 +60,13 @@ But the intent is to collect them together into a workflow and leverage existing
 ...     return np.arange(n)
 >>>
 >>> @Workflow.wrap.as_macro_node("fig")
-... def PlotShiftedSquare(macro, n: int, shift: int = 0):
-...     macro.arange = Arange(n)
-...     macro.plot = macro.create.plotting.Scatter(
-...         x=macro.arange + shift,
-...         y=macro.arange**2
+... def PlotShiftedSquare(self, n: int, shift: int = 0):
+...     self.arange = Arange(n)
+...     self.plot = self.create.plotting.Scatter(
+...         x=self.arange + shift,
+...         y=self.arange**2
 ...     )
-...     return macro.plot
+...     return self.plot
 >>> 
 >>> wf = Workflow("plot_with_and_without_shift")
 >>> wf.n = wf.create.standard.UserInput()

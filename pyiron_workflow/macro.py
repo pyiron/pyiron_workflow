@@ -8,7 +8,6 @@ from __future__ import annotations
 from abc import ABC, abstractmethod
 import re
 from typing import Literal, Optional, TYPE_CHECKING
-import warnings
 
 from pyiron_workflow.channels import InputData, OutputData
 from pyiron_workflow.composite import Composite
@@ -90,13 +89,13 @@ class Macro(Composite, DecoratedNode, ABC):
         ...     result = x + 1
         ...     return result
         >>>
-        >>> def add_three_macro(macro, one__x):
-        ...     macro.one = macro.create.function_node(add_one, x=one__x)
-        ...     macro.two = macro.create.function_node(add_one, macro.one)
-        ...     macro.three = macro.create.function_node(add_one, macro.two)
-        ...     macro.one >> macro.two >> macro.three
-        ...     macro.starting_nodes = [macro.one]
-        ...     return macro.three
+        >>> def add_three_macro(self, one__x):
+        ...     self.one = self.create.function_node(add_one, x=one__x)
+        ...     self.two = self.create.function_node(add_one, self.one)
+        ...     self.three = self.create.function_node(add_one, self.two)
+        ...     self.one >> self.two >> self.three
+        ...     self.starting_nodes = [self.one]
+        ...     return self.three
 
         In this case we had _no need_ to specify the execution order and starting nodes
         --it's just an extremely simple DAG after all! -- but it's done here to
@@ -116,13 +115,13 @@ class Macro(Composite, DecoratedNode, ABC):
         We can also nest macros, rename their IO, and provide access to
         internally-connected IO by inputs and outputs maps:
 
-        >>> def nested_macro(macro, inp):
-        ...     macro.a = macro.create.function_node(add_one, x=inp)
-        ...     macro.b = macro.create.macro_node(
-        ...         add_three_macro, one__x=macro.a, output_labels="three__result"
+        >>> def nested_macro(self, inp):
+        ...     self.a = self.create.function_node(add_one, x=inp)
+        ...     self.b = self.create.macro_node(
+        ...         add_three_macro, one__x=self.a, output_labels="three__result"
         ...     )
-        ...     macro.c = macro.create.function_node(add_one, x=macro.b)
-        ...     return macro.c, macro.b
+        ...     self.c = self.create.function_node(add_one, x=self.b)
+        ...     return self.c, self.b
         >>>
         >>> macro = macro_node(
         ...     nested_macro, output_labels=("out", "intermediate")
@@ -134,11 +133,11 @@ class Macro(Composite, DecoratedNode, ABC):
         is acyclic.
         Let's build a simple macro with two independent tracks:
 
-        >>> def modified_flow_macro(macro, a__x=0, b__x=0):
-        ...     macro.a = macro.create.function_node(add_one, x=a__x)
-        ...     macro.b = macro.create.function_node(add_one, x=b__x)
-        ...     macro.c = macro.create.function_node(add_one, x=macro.b)
-        ...     return macro.a, macro.c
+        >>> def modified_flow_macro(self, a__x=0, b__x=0):
+        ...     self.a = self.create.function_node(add_one, x=a__x)
+        ...     self.b = self.create.function_node(add_one, x=b__x)
+        ...     self.c = self.create.function_node(add_one, x=self.b)
+        ...     return self.a, self.c
         >>>
         >>> m = macro_node(modified_flow_macro, output_labels=("a", "c"))
         >>> m(a__x=1, b__x=2)
@@ -176,10 +175,10 @@ class Macro(Composite, DecoratedNode, ABC):
         is ignored):
 
         >>> @Macro.wrap.as_macro_node()
-        ... def AddThreeMacro(macro, x):
-        ...     add_three_macro(macro, one__x=x)
+        ... def AddThreeMacro(self, x):
+        ...     add_three_macro(self, one__x=x)
         ...     # We could also simply have decorated that function to begin with
-        ...     return macro.three
+        ...     return self.three
         >>>
         >>> macro = AddThreeMacro()
         >>> macro(x=0).three
@@ -193,9 +192,9 @@ class Macro(Composite, DecoratedNode, ABC):
         ...     _output_labels = ["three"]
         ...
         ...     @staticmethod
-        ...     def graph_creator(macro, x):
-        ...         add_three_macro(macro, one__x=x)
-        ...         return macro.three
+        ...     def graph_creator(self, x):
+        ...         add_three_macro(self, one__x=x)
+        ...         return self.three
         >>>
         >>> macro = AddThreeMacro()
         >>> macro(x=0).three
@@ -228,11 +227,11 @@ class Macro(Composite, DecoratedNode, ABC):
         data, e.g.:
 
         >>> @Macro.wrap.as_macro_node("lout", "n_plus_2")
-        ... def LikeAFunction(macro, lin: list,  n: int = 1):
-        ...     macro.plus_two = n + 2
-        ...     macro.sliced_list = lin[n:macro.plus_two]
-        ...     macro.double_fork = 2 * n
-        ...     return macro.sliced_list, macro.plus_two.channel
+        ... def LikeAFunction(self, lin: list,  n: int = 1):
+        ...     self.plus_two = n + 2
+        ...     self.sliced_list = lin[n:self.plus_two]
+        ...     self.double_fork = 2 * n
+        ...     return self.sliced_list, self.plus_two.channel
         >>>
         >>> like_functions = LikeAFunction(lin=[1,2,3,4,5,6], n=3)
         >>> sorted(like_functions().items())
