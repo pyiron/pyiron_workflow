@@ -2,7 +2,7 @@ from typing import Optional, Union
 import unittest
 import warnings
 
-from pyiron_workflow.channels import NOT_DATA, ChannelConnectionError
+from pyiron_workflow.channels import NOT_DATA
 from pyiron_workflow.function import Function, function_node
 from pyiron_workflow.io import ConnectionCopyError, ValueCopyError
 from pyiron_workflow.create import Executor
@@ -157,6 +157,72 @@ class TestFunction(unittest.TestCase):
             2 * 3,
             msg="Children of `Function` should have their `node_function` exposed for "
                 "use at the class level"
+        )
+
+    def test_preview_output_channels(self):
+        @function_node()
+        def Foo(x):
+            return x
+
+        self.assertDictEqual(
+            {"x": None},
+            Foo.preview_output_channels(),
+            msg="Should parse without label or hint."
+        )
+
+        @function_node("y")
+        def Foo(x) -> None:
+            return x
+
+        self.assertDictEqual(
+            {"y": type(None)},
+            Foo.preview_output_channels(),
+            msg="Should parse with label and hint."
+        )
+
+        with self.assertRaises(
+            ValueError,
+            msg="Should fail when scraping incommensurate hints and returns"
+        ):
+            @function_node()
+            def Foo(x) -> int:
+                y, z = 5.0, 5
+                return x, y, z
+
+        with self.assertRaises(
+            ValueError,
+            msg="Should fail when provided labels are incommensurate with hints"
+        ):
+            @function_node("xo", "yo", "zo")
+            def Foo(x) -> int:
+                y, z = 5.0, 5
+                return x, y, z
+
+        @function_node("xo", "yo")
+        def Foo(x) -> tuple[int, float]:
+            y, z = 5.0, 5
+            return x
+
+        self.assertDictEqual(
+            {"xo": int, "yo": float},
+            Foo.preview_output_channels(),
+            msg="The user carries extra responsibility if they specify return values "
+                "-- we don't even try scraping the returned stuff and it's up to them "
+                "to make sure everything is commensurate! This is necessary so that "
+                "source code scraping can get bypassed sometimes (e.g. for dynamically "
+                "generated code that is only in memory and thus not inspectable)"
+        )
+
+    def test_preview_input_channels(self):
+        @function_node()
+        def Foo(x, y: int = 42):
+            return x + y
+
+        self.assertDictEqual(
+            {"x": (None, NOT_DATA), "y": (int, 42)},
+            Foo.preview_input_channels(),
+            msg="Input specifications should be available at the class level, with or "
+                "without type hints and/or defaults provided."
         )
 
     def test_statuses(self):
