@@ -174,67 +174,6 @@ class TestFunction(unittest.TestCase):
                 "use at the class level"
         )
 
-    def test_preview_outputs(self):
-        @as_function_node()
-        def Foo(x):
-            return x
-
-        self.assertDictEqual(
-            {"x": None},
-            Foo.preview_outputs(),
-            msg="Should parse without label or hint."
-        )
-
-        @as_function_node("y")
-        def Foo(x) -> None:
-            return x
-
-        self.assertDictEqual(
-            {"y": type(None)},
-            Foo.preview_outputs(),
-            msg="Should parse with label and hint."
-        )
-
-        with self.assertRaises(
-            ValueError,
-            msg="Should fail when scraping incommensurate hints and returns"
-        ):
-            @as_function_node()
-            def Foo(x) -> int:
-                y, z = 5.0, 5
-                return x, y, z
-
-        with self.assertRaises(
-            ValueError,
-            msg="Should fail when provided labels are incommensurate with hints"
-        ):
-            @as_function_node("xo", "yo", "zo")
-            def Foo(x) -> int:
-                y, z = 5.0, 5
-                return x, y, z
-
-        with self.assertRaises(
-            ValueError,
-            msg="The nuber of labels -- if explicitly provided -- must be commensurate "
-                "with the number of returned items"
-        ):
-            @as_function_node("xo", "yo")
-            def Foo(x) -> tuple[int, float]:
-                y, z = 5.0, 5
-                return x
-
-    def test_preview_inputs(self):
-        @as_function_node()
-        def Foo(x, y: int = 42):
-            return x + y
-
-        self.assertDictEqual(
-            {"x": (None, NOT_DATA), "y": (int, 42)},
-            Foo.preview_inputs(),
-            msg="Input specifications should be available at the class level, with or "
-                "without type hints and/or defaults provided."
-        )
-
     def test_statuses(self):
         n = function_node(plus_one)
         self.assertTrue(n.ready)
@@ -251,16 +190,6 @@ class TestFunction(unittest.TestCase):
         self.assertFalse(n.ready)
         self.assertFalse(n.running)
         self.assertTrue(n.failed)
-
-    def test_protected_name(self):
-
-        with self.assertRaises(
-            ValueError,
-            msg="Inputs must not overlap with __init__ signature terms"
-        ):
-            @as_function_node()
-            def Selfish(self, x):
-                return x
 
     def test_call(self):
         node = function_node(no_default, output_labels="output")
@@ -580,6 +509,22 @@ class TestFunction(unittest.TestCase):
             msg="Attribute injection should not work for private attributes"
         ):
             single_output._some_nonexistant_private_var
+
+    def test_void_return(self):
+        """Test extensions to the `ScrapesIO` mixin."""
+
+        @as_function_node()
+        def NoReturn(x):
+            y = x + 1
+
+        self.assertDictEqual(
+            {"None": type(None)},
+            NoReturn.preview_outputs(),
+            msg="Functions without a return value should be permissible, although it "
+                "is not interesting"
+        )
+        # Honestly, functions with no return should probably be made illegal to
+        # encourage functional setups...
 
 
 if __name__ == '__main__':

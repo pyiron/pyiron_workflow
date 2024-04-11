@@ -418,99 +418,6 @@ class TestMacro(unittest.TestCase):
                 msg="Original connections should get restored on upstream failure"
             )
 
-    def test_output_labels_vs_return_values(self):
-        def no_return(macro):
-            macro.foo = macro.create.standard.UserInput()
-
-        macro_node(no_return)  # Neither is fine
-
-        @as_macro_node("some_return")
-        def LabelsAndReturnsMatch(macro):
-            macro.foo = macro.create.standard.UserInput()
-            return macro.foo
-
-        LabelsAndReturnsMatch()  # Both is fine
-
-        @as_macro_node()
-        def OutputScrapedFromCleanReturn(macro):
-            macro.foo = macro.create.standard.UserInput()
-            my_out = macro.foo
-            return my_out
-
-        self.assertListEqual(
-            ["my_out"],
-            list(OutputScrapedFromCleanReturn.preview_outputs().keys()),
-            msg="Output labels should get scraped from code, just like for functions"
-        )
-
-        @as_macro_node()
-        def OutputScrapedFromFilteredReturn(macro):
-            macro.foo = macro.create.standard.UserInput()
-            return macro.foo
-
-        self.assertListEqual(
-            ["foo"],
-            list(OutputScrapedFromFilteredReturn.preview_outputs().keys()),
-            msg="The first, self-like argument, should get stripped from output labels"
-        )
-
-        with self.assertRaises(
-            ValueError,
-            msg="Return values shouldn't have extra dots"
-        ):
-            @as_macro_node()
-            def ReturnHasDot(macro):
-                macro.foo = macro.create.standard.UserInput()
-                return macro.foo.outputs.user_input
-
-        with self.assertRaises(
-            ValueError,
-            msg="The number of output labels and return values must match"
-        ):
-            @as_macro_node("some_return", "nonexistent")
-            def MissingReturn(macro):
-                macro.foo = macro.create.standard.UserInput()
-                return macro.foo
-
-        with self.assertRaises(
-            TypeError,
-            msg="Return values must be there if output labels are"
-        ):
-            @as_macro_node("some_label")
-            def MissingReturn(macro):
-                macro.foo = macro.create.standard.UserInput()
-
-        with self.assertRaises(
-            ValueError,
-            msg="Degenerate output labels should not be allowed"
-        ):
-            @as_macro_node()
-            def DegenerateOutput(macro):
-                macro.foo = macro.create.standard.UserInput()
-                macro.bar = macro.create.standard.UserInput(macro.foo)
-                bar = macro.foo
-                return bar, macro.bar
-
-    def test_functionlike_io_parsing(self):
-        """
-        Check that various aspects of the IO are parsing from the function signature
-        and returns, and labels
-        """
-
-        @as_macro_node("lout", "n_plus_2")
-        def LikeAFunction(macro, lin: list,  n: int = 2):
-            macro.plus_two = n + 2
-            macro.sliced_list = lin[n:macro.plus_two]
-            macro.double_fork = 2 * n
-            # ^ This is vestigial, just to show we don't need to blacklist it
-            # Test returning both a single value node and an output channel,
-            # even though here we could just use the node both times
-            return macro.sliced_list, macro.plus_two.channel
-
-        macro = LikeAFunction(n=1, lin=[1, 2, 3, 4, 5, 6])
-        self.assertListEqual(["lin", "n"], macro.inputs.labels)
-        self.assertDictEqual({"n_plus_2": 3, "lout": [2, 3]}, macro())
-
     def test_efficient_signature_interface(self):
         with self.subTest("Forked input"):
             @as_macro_node("output")
@@ -632,12 +539,28 @@ class TestMacro(unittest.TestCase):
                 finally:
                     macro.storage.delete()
 
-    def test_wrong_return(self):
+    def test_output_label_stripping(self):
+        """Test extensions to the `ScrapesIO` mixin."""
+
+        @as_macro_node()
+        def OutputScrapedFromFilteredReturn(macro):
+            macro.foo = macro.create.standard.UserInput()
+            return macro.foo
+
+        self.assertListEqual(
+            ["foo"],
+            list(OutputScrapedFromFilteredReturn.preview_outputs().keys()),
+            msg="The first, self-like argument, should get stripped from output labels"
+        )
+
         with self.assertRaises(
-            TypeError,
-            msg="Macro returning object without channel did not raise an error"
+            ValueError,
+            msg="Return values with extra dots are not permissible as scraped labels"
         ):
-            macro_node(wrong_return_macro)
+            @as_macro_node()
+            def ReturnHasDot(macro):
+                macro.foo = macro.create.standard.UserInput()
+                return macro.foo.outputs.user_input
 
 
 if __name__ == '__main__':
