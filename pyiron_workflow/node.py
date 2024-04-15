@@ -445,6 +445,9 @@ class Node(
         if fetch_input:
             self.inputs.fetch()
 
+        if self.parent is not None:
+            self.parent.register_child_starting(self)
+
         return super().run(
             check_readiness=check_readiness,
             force_local_execution=force_local_execution,
@@ -554,14 +557,20 @@ class Node(
 
     def _finish_run(self, run_output: tuple | Future) -> Any | tuple:
         try:
-            return super()._finish_run(run_output=run_output)
+            processed_output = super()._finish_run(run_output=run_output)
+            if self.parent is not None:
+                self.parent.register_child_finished(self)
+            return processed_output
         finally:
             if self.save_after_run:
                 self.save()
 
     def _finish_run_and_emit_ran(self, run_output: tuple | Future) -> Any | tuple:
         processed_output = self._finish_run(run_output)
-        self.signals.output.ran()
+        if self.parent is None:
+            self.signals.output.ran()
+        else:
+            self.parent.register_child_emitting_ran(self)
         return processed_output
 
     _finish_run_and_emit_ran.__doc__ = (
