@@ -501,14 +501,21 @@ class Node(
                 node.label = label_map[modified_label]
             raise e
 
-        self.signals.disconnect_run()
-        # Don't let anything upstream trigger this node
-
         try:
-            # If you're the only one in the data tree, there's nothing upstream to run
-            # Otherwise...
-            for starter in data_tree_starters:
-                if starter is not self:
+            if len(data_tree_starters) == 1 and list(data_tree_starters)[0] is self:
+                # If you're the only one in the data tree, there's nothing upstream to
+                # run.
+                pass
+            else:
+                for node in set(nodes.values()).difference(data_tree_nodes):
+                    # Disconnect any nodes not in the data tree to avoid unnecessary
+                    # execution
+                    node.signals.disconnect_run()
+
+                self.signals.disconnect_run()
+                # Don't let anything upstream trigger _this_ node
+
+                for starter in data_tree_starters:
                     starter.run()  # Now push from the top
         finally:
             # No matter what, restore the original connections and labels afterwards
