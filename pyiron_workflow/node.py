@@ -535,6 +535,7 @@ class Node(
                     # the features playing together. Workflows and pull are anyhow
                     # already both very annoying on their own...
                     from pyiron_workflow.workflow import Workflow
+
                     if isinstance(self.parent, Workflow):
                         automated = self.parent.automate_execution
                         self.parent.automate_execution = False

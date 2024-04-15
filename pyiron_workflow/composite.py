@@ -18,7 +18,11 @@ from pyiron_workflow.snippets.dotdict import DotDict
 
 if TYPE_CHECKING:
     from pyiron_workflow.channels import (
-        Channel, InputData, OutputData, InputSignal, OutputSignal
+        Channel,
+        InputData,
+        OutputData,
+        InputSignal,
+        OutputSignal,
     )
     from pyiron_workflow.create import Creator, Wrappers
 
@@ -154,10 +158,7 @@ class Composite(Node, SemanticParent, HasCreator, ABC):
         for node in _composite.starting_nodes:
             node.run()
 
-        while (
-            len(_composite.running_children) > 0
-            or len(_composite.signal_queue) > 0
-        ):
+        while len(_composite.running_children) > 0 or len(_composite.signal_queue) > 0:
             try:
                 ran_signal, receiver = _composite.signal_queue.pop(0)
                 receiver(ran_signal)
