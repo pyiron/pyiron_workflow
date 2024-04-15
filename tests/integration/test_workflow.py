@@ -115,9 +115,6 @@ class TestTopology(unittest.TestCase):
             )
 
     def test_while_loop(self):
-        import sys
-        limit = sys.getrecursionlimit()
-        sys.setrecursionlimit(2000)
 
         with self.subTest("Random"):
             random.seed(0)
@@ -178,8 +175,6 @@ class TestTopology(unittest.TestCase):
 
             out = wf(a=1, b=2, cap=10)
             self.assertEqual(out.total, 11)
-
-        sys.setrecursionlimit(limit)
 
     def test_executor_and_creator_interaction(self):
         """
