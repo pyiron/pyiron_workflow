@@ -502,6 +502,10 @@ class Node(
             raise e
 
         try:
+            parent_starting_nodes = (
+                self.parent.starting_nodes if self.parent is not None else None
+            )  # We need these for state recovery later, even if we crash
+
             if len(data_tree_starters) == 1 and data_tree_starters[0] is self:
                 # If you're the only one in the data tree, there's nothing upstream to
                 # run.
@@ -515,12 +519,29 @@ class Node(
                 self.signals.disconnect_run()
                 # Don't let anything upstream trigger _this_ node
 
-                # if self.parent is None:
-                for starter in data_tree_starters:
-                    starter.run()  # Now push from the top
-                # else:
-                #     parent_starting_nodes = self.parent.starting_nodes
-                #     self.parent.starting_nodes =
+                if self.parent is None:
+                    for starter in data_tree_starters:
+                        starter.run()  # Now push from the top
+                else:
+                    # Run the special exec connections from above with the parent
+
+                    # Workflow parents will attempt to automate execution on run,
+                    # undoing all our careful execution
+                    # This heinous hack breaks in and stops that behaviour
+                    # I recognize this is dirty, but let's be pragmatic about getting
+                    # the features playing together. Workflows and pull are anyhow
+                    # already both very annoying on their own...
+                    from pyiron_workflow.workflow import Workflow
+                    if isinstance(self.parent, Workflow):
+                        automated = self.parent.automate_execution
+                        self.parent.automate_execution = False
+
+                    self.parent.starting_nodes = data_tree_starters
+                    self.parent.run()
+
+                    # And revert our workflow hack
+                    if isinstance(self.parent, Workflow):
+                        self.parent.automate_execution = automated
         finally:
             # No matter what, restore the original connections and labels afterwards
             for modified_label, node in nodes.items():
@@ -528,6 +549,8 @@ class Node(
                 node.signals.disconnect_run()
             for c1, c2 in disconnected_pairs:
                 c1.connect(c2)
+            if self.parent is not None:
+                self.parent.starting_nodes = parent_starting_nodes
 
     def _finish_run(self, run_output: tuple | Future) -> Any | tuple:
         try:
