@@ -43,7 +43,7 @@ setup(
     extras_require={
         "node_library": [
             'ase==3.22.1',
-            'atomistics==0.1.24',
+            'atomistics==0.1.25',
             'numpy==1.26.4',
             'phonopy==2.22.1',
             'pyiron_atomistics==0.5.0',
