@@ -493,7 +493,7 @@ class Node(
             disconnected_pairs, starters = set_run_connections_according_to_linear_dag(
                 nodes
             )
-            data_tree_starters = set(starters).intersection(data_tree_nodes)
+            data_tree_starters = list(set(starters).intersection(data_tree_nodes))
         except Exception as e:
             # If the dag setup fails it will repair any connections it breaks before
             # raising the error, but we still need to repair our label changes
@@ -502,7 +502,7 @@ class Node(
             raise e
 
         try:
-            if len(data_tree_starters) == 1 and list(data_tree_starters)[0] is self:
+            if len(data_tree_starters) == 1 and data_tree_starters[0] is self:
                 # If you're the only one in the data tree, there's nothing upstream to
                 # run.
                 pass
@@ -515,8 +515,12 @@ class Node(
                 self.signals.disconnect_run()
                 # Don't let anything upstream trigger _this_ node
 
+                # if self.parent is None:
                 for starter in data_tree_starters:
                     starter.run()  # Now push from the top
+                # else:
+                #     parent_starting_nodes = self.parent.starting_nodes
+                #     self.parent.starting_nodes =
         finally:
             # No matter what, restore the original connections and labels afterwards
             for modified_label, node in nodes.items():
