@@ -271,12 +271,12 @@ class Macro(Composite, DecoratedNode, ABC):
         elif isinstance(returned_has_channel_objects, HasChannel):
             returned_has_channel_objects = (returned_has_channel_objects,)
         self._inputs = Inputs(
-            *(self._get_linking_channel(n.inputs.user_input, n.label) for n in ui_nodes)
+            *(self._build_value_linking_channel(n.inputs.user_input, n.label) for n in ui_nodes)
         )
 
         self._outputs = Outputs(
             *(
-                self._get_linking_channel(c.channel, label)
+                self._build_value_linking_channel(c.channel, label)
                 for (c, label) in zip(
                     (
                         ()
@@ -339,7 +339,7 @@ class Macro(Composite, DecoratedNode, ABC):
             for label, (type_hint, default) in self.preview_inputs().items()
         )
 
-    def _get_linking_channel(
+    def _build_value_linking_channel(
         self,
         child_reference_channel: InputData | OutputData,
         composite_io_key: str,
