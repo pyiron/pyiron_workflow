@@ -9,7 +9,6 @@ from abc import ABC, abstractmethod
 import re
 from typing import Literal, Optional, TYPE_CHECKING
 
-from pyiron_workflow.channels import InputData, OutputData
 from pyiron_workflow.composite import Composite
 from pyiron_workflow.has_interface_mixins import HasChannel
 from pyiron_workflow.io import Outputs, Inputs
