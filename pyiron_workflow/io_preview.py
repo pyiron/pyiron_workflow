@@ -328,14 +328,16 @@ class StaticNode(Node, HasIOPreview, ABC):
             ]
         )
 
-        self._outputs = OutputsWithInjection(*[
-            OutputDataWithInjection(
-                label=label,
-                owner=self,
-                type_hint=hint,
-            )
-            for label, hint in self.preview_outputs().items()
-        ])
+        self._outputs = OutputsWithInjection(
+            *[
+                OutputDataWithInjection(
+                    label=label,
+                    owner=self,
+                    type_hint=hint,
+                )
+                for label, hint in self.preview_outputs().items()
+            ]
+        )
 
     @property
     def inputs(self) -> Inputs:
