@@ -275,7 +275,7 @@ class Macro(Composite, DecoratedNode, ABC):
 
         for node, output_channel_label in zip(
             returned_has_channel_objects,
-            () if self._output_labels is None else self._output_labels
+            () if self._output_labels is None else self._output_labels,
         ):
             node.channel.value_receiver = self.outputs[output_channel_label]
 
