@@ -108,8 +108,8 @@ class Creator(metaclass=Singleton):
     def meta(self):
         if self._meta is None:
             from pyiron_workflow.meta import (
-                input_to_list,
-                list_to_output,
+                from_list_node,
+                to_list_node,
             )
             from pyiron_workflow.loops import while_loop
             from pyiron_workflow.loops import for_loop
@@ -118,8 +118,8 @@ class Creator(metaclass=Singleton):
             self._meta = DotDict(
                 {
                     for_loop.__name__: for_loop,
-                    input_to_list.__name__: input_to_list,
-                    list_to_output.__name__: list_to_output,
+                    from_list_node.__name__: from_list_node,
+                    to_list_node.__name__: to_list_node,
                     while_loop.__name__: while_loop,
                 }
             )
