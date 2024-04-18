@@ -307,7 +307,7 @@ class Function(DecoratedNode, ABC):
         **kwargs,
     ):
         super().__init__(
-            label=label if label is not None else self.node_function.__name__,
+            label=label,
             parent=parent,
             save_after_run=save_after_run,
             storage_backend=storage_backend,

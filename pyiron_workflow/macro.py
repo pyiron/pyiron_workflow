@@ -254,11 +254,12 @@ class Macro(Composite, DecoratedNode, ABC):
         **kwargs,
     ):
         super().__init__(
-            label=label if label is not None else self.graph_creator.__name__,
+            label=label,
             parent=parent,
             save_after_run=save_after_run,
             storage_backend=storage_backend,
             strict_naming=strict_naming,
+            **kwargs,
         )
 
         ui_nodes = self._prepopulate_ui_nodes_from_graph_creator_signature(

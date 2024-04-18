@@ -100,8 +100,8 @@ class Composite(Node, SemanticParent, HasCreator, ABC):
 
     def __init__(
         self,
-        label: str,
         *args,
+        label: Optional[str] = None,
         parent: Optional[Composite] = None,
         overwrite_save: bool = False,
         run_after_init: bool = False,

@@ -284,8 +284,8 @@ class Node(
 
     def __init__(
         self,
-        label: str,
         *args,
+        label: Optional[str] = None,
         parent: Optional[Composite] = None,
         overwrite_save: bool = False,
         run_after_init: bool = False,
@@ -306,7 +306,7 @@ class Node(
         """
         super().__init__(
             *args,
-            label=label,
+            label=self.__class__.__name__ if label is None else label,
             parent=parent,
             storage_backend=storage_backend,
             **kwargs,
