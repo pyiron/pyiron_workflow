@@ -313,7 +313,27 @@ class Function(DecoratedNode, ABC):
             storage_backend=storage_backend,
         )
 
-        self.set_input_values(*args, **kwargs)
+    def __post__(
+        self,
+        *args,
+        label: Optional[str] = None,
+        parent: Optional[Composite] = None,
+        overwrite_save: bool = False,
+        run_after_init: bool = False,
+        storage_backend: Literal["h5io", "tinybase"] | None = "h5io",
+        save_after_run: bool = False,
+        **kwargs,
+    ):
+        kwargs = self._convert_input_args_and_kwargs_to_input_kwargs(*args, **kwargs)
+        super().__post__(
+            label=label,
+            parent=parent,
+            overwrite_save=overwrite_save,
+            run_after_init=run_after_init,
+            storage_backend=storage_backend,
+            save_after_run=save_after_run,
+            **kwargs
+        )
 
     @staticmethod
     @abstractmethod

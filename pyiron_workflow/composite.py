@@ -127,6 +127,28 @@ class Composite(Node, SemanticParent, HasCreator, ABC):
         self._child_sleep_interval = 0.01  # How long to wait when the signal_queue is
         # empty but the running_children list is not
 
+    def __post__(
+        self,
+        *args,
+        label: Optional[str] = None,
+        parent: Optional[Composite] = None,
+        overwrite_save: bool = False,
+        run_after_init: bool = False,
+        storage_backend: Literal["h5io", "tinybase"] | None = "h5io",
+        save_after_run: bool = False,
+        strict_naming: bool = True,
+        **kwargs,
+    ):
+        super().__post__(
+            label=label,
+            parent=parent,
+            overwrite_save=overwrite_save,
+            run_after_init=run_after_init,
+            storage_backend=storage_backend,
+            save_after_run=save_after_run,
+            **kwargs
+        )
+
     def activate_strict_hints(self):
         super().activate_strict_hints()
         for node in self:

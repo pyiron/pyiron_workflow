@@ -230,6 +230,31 @@ class Workflow(Composite, ParentMost):
         for node in nodes:
             self.add_child(node)
 
+    def __post__(
+        self,
+        *args,
+        label: Optional[str] = None,
+        parent: Optional[Composite] = None,
+        overwrite_save: bool = False,
+        run_after_init: bool = False,
+        storage_backend: Literal["h5io", "tinybase"] | None = "h5io",
+        save_after_run: bool = False,
+        strict_naming: bool = True,
+        inputs_map: Optional[dict | bidict] = None,
+        outputs_map: Optional[dict | bidict] = None,
+        automate_execution: bool = True,
+        **kwargs,
+    ):
+        super().__post__(
+            label=label,
+            parent=parent,
+            overwrite_save=overwrite_save,
+            run_after_init=run_after_init,
+            storage_backend=storage_backend,
+            save_after_run=save_after_run,
+            **kwargs
+        )
+
     @property
     def inputs_map(self) -> bidict | None:
         self._deduplicate_nones(self._inputs_map)

@@ -317,8 +317,12 @@ class Node(
     def __post__(
         self,
         *args,
+        label: Optional[str] = None,
+        parent: Optional[Composite] = None,
         overwrite_save: bool = False,
         run_after_init: bool = False,
+        storage_backend: Literal["h5io", "tinybase"] | None = "h5io",
+        save_after_run: bool = False,
         **kwargs,
     ):
         if overwrite_save and sys.version_info >= (3, 11):
@@ -340,12 +344,15 @@ class Node(
                 f"`overwrite_save=True`)"
             )
             self.load()
+            self.set_input_values(**kwargs)
         elif run_after_init:
             try:
+                self.set_input_values(**kwargs)
                 self.run()
             except ReadinessError:
                 pass
-        # Else neither loading nor running now -- no action required!
+        else:
+            self.set_input_values(**kwargs)
         self.graph_root.tidy_working_directory()
 
     @property

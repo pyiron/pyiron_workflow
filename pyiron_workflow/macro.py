@@ -283,8 +283,6 @@ class Macro(Composite, DecoratedNode, ABC):
         remaining_ui_nodes = self._purge_single_use_ui_nodes(ui_nodes)
         self._configure_graph_execution(remaining_ui_nodes)
 
-        self.set_input_values(**kwargs)
-
     @staticmethod
     @abstractmethod
     def graph_creator(self, *args, **kwargs) -> callable:
