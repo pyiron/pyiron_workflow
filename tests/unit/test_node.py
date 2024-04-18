@@ -80,8 +80,8 @@ class TestNode(unittest.TestCase):
             msg="Post-instantiation update of inputs should also work"
         )
 
-        n.set_input_values(y=3)
-        # Missing keys may throw a warning, but are otherwise allowed to pass
+        with self.assertRaises(ValueError, msg="Non-input-channel kwargs not allowed"):
+            n.set_input_values(z=3)
 
         with self.assertRaises(
             TypeError,

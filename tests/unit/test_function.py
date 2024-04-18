@@ -224,27 +224,8 @@ class TestFunction(unittest.TestCase):
                 msg="__call__ should allow updating only _some_ input before running"
             )
 
-        with self.subTest("Check that bad kwargs don't stop good ones"):
-            with self.assertWarns(Warning):
-                original_label = node.label
-                node(4, label="won't get read", y=5, foobar="not a kwarg of any sort")
-
-                self.assertEqual(
-                    node.label,
-                    original_label,
-                    msg="You should only be able to update input on a call, that's "
-                        "what the warning is for!"
-                )
-                self.assertTupleEqual(
-                    (node.inputs.x.value, node.inputs.y.value),
-                    (4, 5),
-                    msg="The warning should not prevent other data from being parsed"
-                )
-
-            with self.assertWarns(Warning):
-                # It's also fine if you just have a typo in your kwarg or whatever,
-                # there should just be a warning that the data didn't get updated
-                node(some_randome_kwaaaaarg="foo")
+        with self.assertRaises(ValueError, msg="Check that bad kwargs raise an error"):
+            node(4, label="won't get read", y=5, foobar="not a kwarg of any sort")
 
     def test_return_value(self):
         node = function_node(plus_one)
