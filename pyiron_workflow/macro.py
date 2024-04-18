@@ -320,16 +320,17 @@ class Macro(Composite, DecoratedNode, ABC):
     def _prepopulate_ui_nodes_from_graph_creator_signature(
         self, storage_backend: Literal["h5io", "tinybase"]
     ):
-        return tuple(
-            self.create.standard.UserInput(
+        ui_nodes = []
+        for label, (type_hint, default) in self.preview_inputs().items():
+            n = self.create.standard.UserInput(
                 default,
                 label=label,
                 parent=self,
-                type_hint=type_hint,
                 storage_backend=storage_backend,
             )
-            for label, (type_hint, default) in self.preview_inputs().items()
-        )
+            n.inputs.user_input.type_hint = type_hint
+            ui_nodes.append(n)
+        return tuple(ui_nodes)
 
     def _purge_single_use_ui_nodes(self, ui_nodes):
         """
