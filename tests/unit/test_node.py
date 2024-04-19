@@ -20,26 +20,11 @@ def add_one(x):
 class ANode(Node):
     """To de-abstract the class"""
 
-    def __init__(
-        self,
-        *args,
-        label=None,
-        overwrite_save=False,
-        run_after_init=False,
-        storage_backend: Optional[Literal["h5io", "tinybase"]] = None,
-        save_after_run: bool = False,
-        x=None,
-        **kwargs,
-    ):
-        super().__init__(
-            label=label, save_after_run=save_after_run, storage_backend=storage_backend
-        )
+    def _setup_node(self) -> None:
         self._inputs = Inputs(InputData("x", self, type_hint=int))
         self._outputs = OutputsWithInjection(
             OutputDataWithInjection("y", self, type_hint=int),
         )
-        if x is not None:
-            self.inputs.x = x
 
     @property
     def inputs(self) -> Inputs:

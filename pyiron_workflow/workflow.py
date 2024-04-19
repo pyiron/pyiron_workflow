@@ -21,7 +21,7 @@ if TYPE_CHECKING:
     from pyiron_workflow.node import Node
 
 
-class Workflow(Composite, ParentMost):
+class Workflow(ParentMost, Composite):
     """
     Workflows are a dynamic composite node -- i.e. they hold and run a collection of
     nodes (a subgraph) which can be dynamically modified (adding and removing nodes,
@@ -211,14 +211,8 @@ class Workflow(Composite, ParentMost):
         inputs_map: Optional[dict | bidict] = None,
         outputs_map: Optional[dict | bidict] = None,
         automate_execution: bool = True,
+        **kwargs,
     ):
-        super().__init__(
-            label=label,
-            parent=None,
-            save_after_run=save_after_run,
-            storage_backend=storage_backend,
-            strict_naming=strict_naming,
-        )
         self._inputs_map = None
         self._outputs_map = None
         self.inputs_map = inputs_map
@@ -227,31 +221,31 @@ class Workflow(Composite, ParentMost):
         self._outputs = None
         self.automate_execution = automate_execution
 
-        for node in nodes:
-            self.add_child(node)
-
-    def __post__(
-        self,
-        *args,
-        label: Optional[str] = None,
-        parent: Optional[Composite] = None,
-        overwrite_save: bool = False,
-        run_after_init: bool = False,
-        storage_backend: Literal["h5io", "tinybase"] | None = "h5io",
-        save_after_run: bool = False,
-        strict_naming: bool = True,
-        inputs_map: Optional[dict | bidict] = None,
-        outputs_map: Optional[dict | bidict] = None,
-        automate_execution: bool = True,
-        **kwargs,
-    ):
-        super().__post__(
+        super().__init__(
+            *nodes,
             label=label,
-            parent=parent,
+            parent=None,
             overwrite_save=overwrite_save,
             run_after_init=run_after_init,
-            storage_backend=storage_backend,
             save_after_run=save_after_run,
+            storage_backend=storage_backend,
+            strict_naming=strict_naming,
+            **kwargs,
+        )
+
+    def _after_node_setup(
+        self,
+        *args,
+        overwrite_save: bool = False,
+        run_after_init: bool = False,
+        **kwargs,
+    ):
+
+        for node in args:
+            self.add_child(node)
+        super()._after_node_setup(
+            overwrite_save=overwrite_save,
+            run_after_init=run_after_init,
             **kwargs
         )
 

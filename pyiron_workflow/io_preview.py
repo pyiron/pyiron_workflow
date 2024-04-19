@@ -285,8 +285,8 @@ class StaticNode(Node, HasIOPreview, ABC):
 
     def __init__(
         self,
-        label: str,
         *args,
+        label: Optional[str] = None,
         parent: Optional[Composite] = None,
         overwrite_save: bool = False,
         run_after_init: bool = False,
@@ -295,11 +295,18 @@ class StaticNode(Node, HasIOPreview, ABC):
         **kwargs,
     ):
         super().__init__(
+            *args,
             label=label,
             parent=parent,
-            save_after_run=save_after_run,
+            overwrite_save=overwrite_save,
+            run_after_init=run_after_init,
             storage_backend=storage_backend,
+            save_after_run=save_after_run,
+            **kwargs,
         )
+
+    def _setup_node(self) -> None:
+        super()._setup_node()
 
         self._inputs = Inputs(
             *[

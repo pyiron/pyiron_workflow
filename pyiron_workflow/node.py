@@ -25,7 +25,6 @@ from pyiron_workflow.topology import (
     set_run_connections_according_to_linear_dag,
 )
 from pyiron_workflow.snippets.colors import SeabornColors
-from pyiron_workflow.snippets.has_post import AbstractHasPost
 from pyiron_workflow.working import HasWorkingDirectory
 
 if TYPE_CHECKING:
@@ -47,7 +46,6 @@ class Node(
     HasH5ioStorage,
     HasTinybaseStorage,
     ABC,
-    metaclass=AbstractHasPost,
 ):
     """
     Nodes are elements of a computational graph.
@@ -275,6 +273,22 @@ class Node(
             execution options are available as boolean flags.
         set_input_values: Allows input channels' values to be updated without any
             running.
+
+    Note:
+        :meth:`__init__` ends with a routine :meth:`_after_node_setup` that may,
+        depending on instantiation arguments, try to actually execute the node. Since
+        child classes may need to get things done before this point, we want to make
+        sure that this happens _after_ all the other setup. This can be accomplished
+        by children (a) sticking stuff that is independent of `super().__init__` calls
+        before the super call, and (b) overriding :meth:`_setup_node(self)` to do any
+        remaining, parameter-free setup. This latter function gets called prior to any
+        execution.
+
+        Initialization will also try to parse any outstanding `args` and `kwargs` as
+        input to the node's input channels. For node class developers, that means it's
+        also important that `Node` parentage appear to the right-most of the
+        inheritance set in the class definition, so that it's invokation of `__init__`
+        appears as late as possible with the minimal set of args and kwargs.
     """
 
     package_identifier = None
@@ -294,35 +308,47 @@ class Node(
         **kwargs,
     ):
         """
-        A mixin class for objects that can form nodes in the graph representation of a
+        A parent class for objects that can form nodes in the graph representation of a
         computational workflow.
 
         Args:
             label (str): A name for this node.
-            *args: Arguments passed on with `super`.
+            *args: Interpreted as node input data, in order of input channels.
             parent: (Composite|None): The composite node that owns this as a child.
             run_after_init (bool): Whether to run at the end of initialization.
-            **kwargs: Keyword arguments passed on with `super`.
+            **kwargs: Interpreted as node input data, with keys corresponding to
+                channel labels.
         """
         super().__init__(
-            *args,
             label=self.__class__.__name__ if label is None else label,
             parent=parent,
             storage_backend=storage_backend,
-            **kwargs,
         )
         self.save_after_run = save_after_run
         self._user_data = {}  # A place for power-users to bypass node-injection
 
-    def __post__(
+        self._setup_node()
+        self._after_node_setup(
+            *args,
+            overwrite_save=overwrite_save,
+            run_after_init=run_after_init,
+            **kwargs
+        )
+
+    def _setup_node(self) -> None:
+        """
+        Called _before_ :meth:`Node.__init__` finishes.
+
+        Child node classes can use this for any parameter-free node setup that should
+        happen _before_ :meth:`Node._after_node_setup` gets called.
+        """
+        pass
+
+    def _after_node_setup(
         self,
         *args,
-        label: Optional[str] = None,
-        parent: Optional[Composite] = None,
         overwrite_save: bool = False,
         run_after_init: bool = False,
-        storage_backend: Literal["h5io", "tinybase"] | None = "h5io",
-        save_after_run: bool = False,
         **kwargs,
     ):
         if overwrite_save and sys.version_info >= (3, 11):
@@ -344,15 +370,15 @@ class Node(
                 f"`overwrite_save=True`)"
             )
             self.load()
-            self.set_input_values(**kwargs)
+            self.set_input_values(*args, **kwargs)
         elif run_after_init:
             try:
-                self.set_input_values(**kwargs)
+                self.set_input_values(*args, **kwargs)
                 self.run()
             except ReadinessError:
                 pass
         else:
-            self.set_input_values(**kwargs)
+            self.set_input_values(*args, **kwargs)
         self.graph_root.tidy_working_directory()
 
     @property

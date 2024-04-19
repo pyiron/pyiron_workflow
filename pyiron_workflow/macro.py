@@ -242,28 +242,11 @@ class Macro(Composite, DecoratedNode, ABC):
 
     """
 
-    def __init__(
-        self,
-        label: Optional[str] = None,
-        parent: Optional[Composite] = None,
-        overwrite_save: bool = False,
-        run_after_init: bool = False,
-        storage_backend: Optional[Literal["h5io", "tinybase"]] = None,
-        save_after_run: bool = False,
-        strict_naming: bool = True,
-        **kwargs,
-    ):
-        super().__init__(
-            label=label,
-            parent=parent,
-            save_after_run=save_after_run,
-            storage_backend=storage_backend,
-            strict_naming=strict_naming,
-            **kwargs,
-        )
+    def _setup_node(self) -> None:
+        super()._setup_node()
 
         ui_nodes = self._prepopulate_ui_nodes_from_graph_creator_signature(
-            storage_backend=storage_backend
+            storage_backend=self.storage_backend
         )
         returned_has_channel_objects = self.graph_creator(self, *ui_nodes)
         if returned_has_channel_objects is None:
