@@ -415,6 +415,7 @@ class Node(
 
     def run(
         self,
+        *args,
         run_data_tree: bool = False,
         run_parent_trees_too: bool = False,
         fetch_input: bool = True,
@@ -470,7 +471,7 @@ class Node(
             Kwargs updating input channel values happens _first_ and will get
             overwritten by any subsequent graph-based data manipulation.
         """
-        self.set_input_values(**kwargs)
+        self.set_input_values(*args, **kwargs)
 
         if run_data_tree:
             self.run_data_tree(run_parent_trees_too=run_parent_trees_too)
@@ -615,7 +616,7 @@ class Node(
     """
     )
 
-    def execute(self, **kwargs):
+    def execute(self, *args, **kwargs):
         """
         A shortcut for :meth:`run` with particular flags.
 
@@ -626,6 +627,7 @@ class Node(
         right here, right now, and as-is.
         """
         return self.run(
+            *args,
             run_data_tree=False,
             run_parent_trees_too=False,
             fetch_input=False,
@@ -635,7 +637,7 @@ class Node(
             **kwargs,
         )
 
-    def pull(self, run_parent_trees_too=False, **kwargs):
+    def pull(self, *args, run_parent_trees_too=False, **kwargs):
         """
         A shortcut for :meth:`run` with particular flags.
 
@@ -649,6 +651,7 @@ class Node(
                 first pull.
         """
         return self.run(
+            *args,
             run_data_tree=True,
             run_parent_trees_too=run_parent_trees_too,
             fetch_input=True,
@@ -658,12 +661,12 @@ class Node(
             **kwargs,
         )
 
-    def __call__(self, **kwargs) -> None:
+    def __call__(self, *args, **kwargs) -> None:
         """
         A shortcut for :meth:`pull` that automatically runs the entire set of upstream data
         dependencies all the way to the parent-most graph object.
         """
-        return self.pull(run_parent_trees_too=True, **kwargs)
+        return self.pull(*args, run_parent_trees_too=True, **kwargs)
 
     @property
     def ready(self) -> bool:
