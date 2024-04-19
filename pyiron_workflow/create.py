@@ -107,10 +107,8 @@ class Creator(metaclass=Singleton):
     @property
     def meta(self):
         if self._meta is None:
-            from pyiron_workflow.meta import (
-                from_list_node,
-                to_list_node,
-            )
+            from pyiron_workflow.transform import from_list_node
+            from pyiron_workflow.transform import to_list_node
             from pyiron_workflow.loops import while_loop
             from pyiron_workflow.loops import for_loop
             from pyiron_workflow.snippets.dotdict import DotDict
