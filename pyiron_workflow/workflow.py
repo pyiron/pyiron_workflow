@@ -244,9 +244,7 @@ class Workflow(ParentMost, Composite):
         for node in args:
             self.add_child(node)
         super()._after_node_setup(
-            overwrite_save=overwrite_save,
-            run_after_init=run_after_init,
-            **kwargs
+            overwrite_save=overwrite_save, run_after_init=run_after_init, **kwargs
         )
 
     @property

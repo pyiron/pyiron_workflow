@@ -332,7 +332,7 @@ class Node(
             *args,
             overwrite_save=overwrite_save,
             run_after_init=run_after_init,
-            **kwargs
+            **kwargs,
         )
 
     def _setup_node(self) -> None:
