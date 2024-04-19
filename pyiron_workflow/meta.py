@@ -65,6 +65,7 @@ def meta_node_class_factory(
 def meta_node_instance_factory(
     base_class: type[Meta],
     class_attributes: dict[str, Any],
+    *instance_args,
     class_name: Optional[str] = None,
     **instance_kwargs
 ):
@@ -72,7 +73,7 @@ def meta_node_instance_factory(
         base_class,
         class_attributes,
         class_name=class_name,
-    )(**instance_kwargs)
+    )(*instance_args, **instance_kwargs)
 
 
 def _sanitize_string_for_class_name(s, length_limit_to_hash=30):

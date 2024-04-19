@@ -96,10 +96,11 @@ def to_list_node_class(length: int, class_name: Optional[str] = None):
     )
 
 
-def to_list_node(length, class_name: Optional[str] = None, **node_kwargs):
+def to_list_node(length, *node_args, class_name: Optional[str] = None, **node_kwargs):
     return meta_node_instance_factory(
         InputsToList,
         {"_length": length},
+        *node_args,
         class_name=class_name,
         **node_kwargs
     )
@@ -117,10 +118,11 @@ def from_list_node_class(length: int, class_name: Optional[str] = None):
     )
 
 
-def from_list_node(length, class_name: Optional[str] = None, **node_kwargs):
+def from_list_node(length, *node_args, class_name: Optional[str] = None, **node_kwargs):
     return meta_node_instance_factory(
         ListToOutputs,
         {"_length": length},
+        *node_args,
         class_name=class_name,
         **node_kwargs
     )
