@@ -15,7 +15,7 @@ from __future__ import annotations
 import inspect
 import warnings
 from abc import ABC, abstractmethod
-from functools import lru_cache
+from functools import lru_cache, wraps
 from textwrap import dedent
 from types import FunctionType
 from typing import Any, get_args, get_type_hints, Literal, Optional, TYPE_CHECKING
@@ -77,6 +77,20 @@ class HasIOPreview(ABC):
         return DotDict(
             {"inputs": cls.preview_inputs(), "outputs": cls.preview_outputs()}
         )
+
+
+def builds_class_io(subclass_factory: callable[..., type[HasIOPreview]]):
+    """
+    A decorator for factories producing subclasses of `HasIOPreview` to invoke
+    :meth:`preview_io` after the class is created, thus ensuring the IO has been
+    constructed at the class level.
+    """
+    @wraps(subclass_factory)
+    def wrapped(*args, **kwargs):
+        node_class = subclass_factory(*args, **kwargs)
+        node_class.preview_io()
+        return node_class
+    return wrapped
 
 
 class ScrapesIO(HasIOPreview, ABC):
@@ -391,6 +405,7 @@ def decorated_node_decorator_factory(
     ):
         output_labels = None if len(output_labels) == 0 else output_labels
 
+        @builds_class_io
         def as_decorated_node(io_defining_function: callable):
             if not callable(io_defining_function):
                 raise AttributeError(
@@ -398,7 +413,7 @@ def decorated_node_decorator_factory(
                     f"but got {io_defining_function} instead of a callable."
                 )
 
-            decorated_node_class = type(
+            return type(
                 io_defining_function.__name__,
                 (parent_class,),  # Define parentage
                 {
@@ -409,8 +424,6 @@ def decorated_node_decorator_factory(
                     **parent_class_attr_overrides,
                 },
             )
-            decorated_node_class.preview_io()  # Construct everything
-            return decorated_node_class
 
         return as_decorated_node
 
