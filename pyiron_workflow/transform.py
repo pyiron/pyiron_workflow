@@ -7,15 +7,18 @@ from abc import ABC, abstractmethod
 from typing import Optional, Any
 
 from pyiron_workflow.channels import NOT_DATA
-from pyiron_workflow.meta import Meta, meta_node_class_factory, \
-    meta_node_instance_factory
+from pyiron_workflow.constructed import mix_and_construct_instance
+from pyiron_workflow.io_preview import StaticNode, builds_class_io
 
 
-class Transformer(Meta, ABC):
+class Transformer(StaticNode, ABC):
     """
     Transformers are a special case of :class:`Meta` nodes that turn many inputs into
     a single output or vice-versa.
     """
+
+    def to_dict(self):
+        pass  # Vestigial abstract method
 
 
 class FromManyInputs(Transformer, ABC):
@@ -83,63 +86,19 @@ class ToManyOutputs(Transformer):
 class ListTransformer(Transformer, ABC):
     _length: int = None  # Mandatory
 
-    @property
-    def _instance_constructor_args(self) -> tuple:
-        return self._length,
 
-
-def to_list_node_class(length: int, class_name: Optional[str] = None):
-    return meta_node_class_factory(
-        InputsToList,
-        {"_length": length},
-        class_name=class_name,
+@builds_class_io
+def _list_transformer_factory(base_class, n):
+    return type(
+        f"{base_class.__name__}{n}",
+        (base_class,),
+        {"_length": n}
     )
-
-
-def to_list_node(length, *node_args, class_name: Optional[str] = None, **node_kwargs):
-    return meta_node_instance_factory(
-        InputsToList,
-        {"_length": length},
-        *node_args,
-        class_name=class_name,
-        **node_kwargs
-    )
-
-
-def _to_list_node_constructor(label, class_name, length):
-    return to_list_node(length, class_name=class_name, label=label)
-
-
-def from_list_node_class(length: int, class_name: Optional[str] = None):
-    return meta_node_class_factory(
-        ListToOutputs,
-        {"_length": length},
-        class_name=class_name,
-    )
-
-
-def from_list_node(length, *node_args, class_name: Optional[str] = None, **node_kwargs):
-    return meta_node_instance_factory(
-        ListToOutputs,
-        {"_length": length},
-        *node_args,
-        class_name=class_name,
-        **node_kwargs
-    )
-
-
-def _from_list_node_constructor(label, class_name, length):
-    return from_list_node(length, class_name=class_name, label=label)
 
 
 class InputsToList(ListTransformer, FromManyInputs):
-    # _instance_constructor = staticmethod(_to_list_node_constructor)
     _output_name = "list"
     _output_type_hint = list
-
-    @property
-    def _instance_constructor(self) -> callable[[...], Meta]:
-        return _to_list_node_constructor
 
     @staticmethod
     def transform_from_input(inputs_as_dict: dict):
@@ -154,13 +113,8 @@ class InputsToList(ListTransformer, FromManyInputs):
 
 
 class ListToOutputs(ListTransformer, ToManyOutputs, ABC):
-    # _instance_constructor = staticmethod(_from_list_node_constructor)
     _input_name = "list"
     _input_type_hint = list
-
-    @property
-    def _instance_constructor(self) -> callable[[...], Meta]:
-        return _from_list_node_constructor
 
     @staticmethod
     def transform_to_output(input_data: list):
@@ -169,3 +123,31 @@ class ListToOutputs(ListTransformer, ToManyOutputs, ABC):
     @classmethod
     def _build_outputs_preview(cls) -> dict[str, Any]:
         return {f"item_{i}": None for i in range(cls._length)}
+
+
+def inputs_to_list_factory(n, /) -> type[InputsToList]:
+    return _list_transformer_factory(InputsToList, n)
+
+
+def inputs_to_list(n, /, *args, **kwargs) -> InputsToList:
+    return mix_and_construct_instance(
+        inputs_to_list_factory,
+        (n,),
+        {},
+        args,
+        kwargs,
+    )
+
+
+def list_to_outputs_factory(n, /) -> type[ListToOutputs]:
+    return _list_transformer_factory(ListToOutputs, n)
+
+
+def list_to_outputs(n, /, *args, **kwargs) -> ListToOutputs:
+    return mix_and_construct_instance(
+        list_to_outputs_factory,
+        (n,),
+        {},
+        args,
+        kwargs,
+    )

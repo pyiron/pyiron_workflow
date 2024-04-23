@@ -8,7 +8,7 @@ import pyiron_workflow
 from pyiron_workflow import Workflow
 from pyiron_workflow.function import Function
 from pyiron_workflow.macro import Macro
-from pyiron_workflow.transform import to_list_node, from_list_node
+from pyiron_workflow.transform import inputs_to_list, list_to_outputs
 from pyiron_workflow.node import Node
 
 
@@ -106,7 +106,7 @@ def for_loop(
             from {loop_body_class.__module__} import {loop_body_class.__name__}
 
             for label in [{output_labels}]:
-                to_list_node({length}, label=label, parent=self)
+                inputs_to_list({length}, label=label, parent=self)
 
             for n in range({length}):
                 body_node = {loop_body_class.__name__}(
