@@ -10,10 +10,22 @@ class Constructed(ABC):
     This is useful for classes which are not importable, but who have constructor
     functions that _are_, e.g. children of `StaticNode` that are dynamically created so
     their flexibility comes from the class.
+
+    Unlike overriding `__new__`, no changes are needed for the `__init__
     """
 
-    @staticmethod
+    @property
     @abstractmethod
+    def _instance_constructor_args(self) -> tuple:
+        """
+        The arguments to pass to :meth:`_instance_constructor`.
+
+        Should be a 3-tuple of the callable class factory, class factory args, and
+        class factory kwargs. On unpickling, instance args and kwargs get provided
+        by :meth:`__setstate__` from the pickled state, so these can be ignored.
+        """
+
+    @staticmethod
     def _instance_constructor(
         class_factory,
         factory_args,
@@ -35,18 +47,38 @@ class Constructed(ABC):
             (Constructed): A new instance of the factory result mixed with
                 :class:`Constructed`.
         """
-
-    @property
-    @abstractmethod
-    def _instance_constructor_args(self) -> tuple:
-        """The arguments to pass to :meth:`_instance_constructor"""
+        return construct_instance(
+            class_factory, factory_args, factory_kwargs, instance_args, instance_kwargs
+        )
 
     def __reduce__(self):
         return (
             self._instance_constructor,
-            self._instance_constructor_args,
+            (*self._instance_constructor_args, (), {}),
             self.__getstate__()
         )
+
+
+def construct_instance(
+    class_factory, factory_args, factory_kwargs, instance_args, instance_kwargs
+):
+    """
+    A constructor function for classes that inherit from :class:`Constructed`.
+
+    Args:
+        class_factory (callable): A method returning a new class, i.e. `return type...`.
+        factory_args (tuple): Args to pass to the factory method.
+        factory_kwargs (dict): Kwargs to pass to the factory method.
+        instance_args (tuple): Args to pass to the new instance.
+        instance_kwargs (dict): Kwargs to pass to the new instance.
+
+    Returns:
+        (Constructed): A new instance of the factory result mixed with
+            :class:`Constructed`.
+    """
+    return class_factory(*factory_args, **factory_kwargs)(
+        *instance_args, **instance_kwargs
+    )
 
 
 def mix_and_construct_instance(
