@@ -7,14 +7,14 @@ from abc import ABC, abstractmethod
 from typing import Optional, Any
 
 from pyiron_workflow.channels import NOT_DATA
-from pyiron_workflow.constructed import mix_and_construct_instance
+from pyiron_workflow.constructed import Constructed, construct_instance
 from pyiron_workflow.io_preview import StaticNode, builds_class_io
 
 
-class Transformer(StaticNode, ABC):
+class Transformer(Constructed, StaticNode, ABC):
     """
-    Transformers are a special case of :class:`Meta` nodes that turn many inputs into
-    a single output or vice-versa.
+    Transformers are a special :class:`Constructed` case of :class:`StaticNode` nodes
+    that turn many inputs into a single output or vice-versa.
     """
 
     def to_dict(self):
@@ -86,19 +86,39 @@ class ToManyOutputs(Transformer):
 class ListTransformer(Transformer, ABC):
     _length: int = None  # Mandatory
 
+    @staticmethod
+    @abstractmethod
+    def _base_class():
+        pass
+
+    @property
+    def _instance_constructor_args(self) -> tuple:
+        return (
+            _list_transformer_factory,
+            (self._base_class(), self._length,),
+            {},
+        )
+
 
 @builds_class_io
 def _list_transformer_factory(base_class, n):
     return type(
         f"{base_class.__name__}{n}",
         (base_class,),
-        {"_length": n}
+        {
+            "_length": n,
+            "__module__": base_class.__module__,
+        }
     )
 
 
 class InputsToList(ListTransformer, FromManyInputs):
     _output_name = "list"
     _output_type_hint = list
+
+    @staticmethod
+    def _base_class():
+        return InputsToList
 
     @staticmethod
     def transform_from_input(inputs_as_dict: dict):
@@ -117,6 +137,10 @@ class ListToOutputs(ListTransformer, ToManyOutputs, ABC):
     _input_type_hint = list
 
     @staticmethod
+    def _base_class():
+        return ListToOutputs
+
+    @staticmethod
     def transform_to_output(input_data: list):
         return {f"item_{i}": v for i, v in enumerate(input_data)}
 
@@ -130,9 +154,9 @@ def inputs_to_list_factory(n, /) -> type[InputsToList]:
 
 
 def inputs_to_list(n, /, *args, **kwargs) -> InputsToList:
-    return mix_and_construct_instance(
-        inputs_to_list_factory,
-        (n,),
+    return construct_instance(
+        _list_transformer_factory,
+        (InputsToList, n,),
         {},
         args,
         kwargs,
@@ -144,9 +168,9 @@ def list_to_outputs_factory(n, /) -> type[ListToOutputs]:
 
 
 def list_to_outputs(n, /, *args, **kwargs) -> ListToOutputs:
-    return mix_and_construct_instance(
-        list_to_outputs_factory,
-        (n,),
+    return construct_instance(
+        _list_transformer_factory,
+        (ListToOutputs, n,),
         {},
         args,
         kwargs,
