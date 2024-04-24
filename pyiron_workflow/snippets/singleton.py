@@ -50,7 +50,6 @@ class _RegisteredFactory(metaclass=Singleton):
         return (
             _FactoryTown().get_registered_factory,
             (self.factory_function,),
-            self.__getstate__(),
         )
 
 
