@@ -60,6 +60,7 @@ class TestConstructed(unittest.TestCase):
 
     def test_inheritance_mixin(self):
         by_inheritance = constructable_factory(42)(43, y=44)
+        print(by_inheritance.__getstate__())
         self.assertTupleEqual(
             (42, "baz", 43, 44),
             (by_inheritance.n, by_inheritance.s, by_inheritance.x, by_inheritance.y),

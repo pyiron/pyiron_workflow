@@ -99,7 +99,7 @@ class Constructed(ABC):
     def __getstate__(self):
         # Backwards compatibility
         try:
-            super().__getstate__()
+            return super().__getstate__()
         except AttributeError:
             return dict(self.__dict__)
 
