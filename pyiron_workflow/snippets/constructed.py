@@ -97,7 +97,6 @@ class Constructed(ABC):
         )
 
 
-
 def mix_and_construct_instance(
     class_factory,
     factory_args,
