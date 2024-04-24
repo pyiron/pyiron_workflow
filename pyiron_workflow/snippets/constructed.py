@@ -96,6 +96,20 @@ class Constructed(ABC):
             self.__getstate__()
         )
 
+    def __getstate__(self):
+        # Backwards compatibility
+        try:
+            super().__getstate__()
+        except AttributeError:
+            return dict(self.__dict__)
+
+    def __setstate__(self, state):
+        # Backwards compatibility
+        try:
+            super().__setstate__(state)
+        except AttributeError:
+            self.__dict__.update(**state)
+
 
 def mix_and_construct_instance(
     class_factory,
