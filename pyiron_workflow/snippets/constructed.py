@@ -32,7 +32,7 @@ class Constructed(ABC):
         class_instance_args: tuple = (),
         class_instance_kwargs: dict | None = None,
         class_subclass_kwargs: dict | None = None,
-        **kwargs
+        **kwargs,
     ):
         super(Constructed, cls).__init_subclass__(**kwargs)
 
@@ -93,7 +93,7 @@ class Constructed(ABC):
                 self._class_instance_kwargs,
                 self._class_subclass_kwargs,
             ),
-            self.__getstate__()
+            self.__getstate__(),
         )
 
     def __getstate__(self):
@@ -117,7 +117,7 @@ def mix_and_construct_instance(
     factory_kwargs,
     instance_args,
     instance_kwargs,
-    subclass_kwargs
+    subclass_kwargs,
 ):
     """
     A constructor function that dynamically mixes in :class:`Constructed` inheritance.
@@ -146,5 +146,5 @@ def mix_and_construct_instance(
         class_factory_kwargs=factory_kwargs,
         class_instance_args=instance_args,
         class_subclass_kwargs=subclass_kwargs,
-        **subclass_kwargs
+        **subclass_kwargs,
     )(*instance_args, **instance_kwargs)

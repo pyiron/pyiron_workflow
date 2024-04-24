@@ -34,6 +34,7 @@ class _RegisteredFactory(metaclass=Singleton):
 
     Used under-the-hood in the public facing decorator below.
     """
+
     def __init_subclass__(cls, /, factory_function: callable[..., type]):
         cls.factory_function = staticmethod(factory_function)
         cls.registry = {}
@@ -58,6 +59,7 @@ class _FactoryTown(metaclass=Singleton):
     A singleton to hold existing factories, so that if we wrap the same factory
     function more than once, we always get back the same factory.
     """
+
     factories = {}
 
     def get_registered_factory(
@@ -70,7 +72,7 @@ class _FactoryTown(metaclass=Singleton):
                 f"{_RegisteredFactory.__name__}{factory_function.__name__.title()}",
                 (_RegisteredFactory,),
                 {},
-                factory_function=factory_function
+                factory_function=factory_function,
             )
             factory = wraps(factory_function)(factory_class())
             self.factories[id(factory_function)] = factory
