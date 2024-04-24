@@ -85,11 +85,13 @@ def builds_class_io(subclass_factory: callable[..., type[HasIOPreview]]):
     :meth:`preview_io` after the class is created, thus ensuring the IO has been
     constructed at the class level.
     """
+
     @wraps(subclass_factory)
     def wrapped(*args, **kwargs):
         node_class = subclass_factory(*args, **kwargs)
         node_class.preview_io()
         return node_class
+
     return wrapped
 
 

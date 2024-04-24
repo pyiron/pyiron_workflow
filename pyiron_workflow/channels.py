@@ -616,13 +616,15 @@ class InputSignal(SignalChannel):
     def _has_required_args(func):
         return any(
             (
-                param.kind in (
+                param.kind
+                in (
                     inspect.Parameter.POSITIONAL_ONLY,
                     inspect.Parameter.POSITIONAL_OR_KEYWORD,
                     inspect.Parameter.KEYWORD_ONLY,
                 )
                 and param.default == inspect.Parameter.empty
-            ) for param in inspect.signature(func).parameters.values()
+            )
+            for param in inspect.signature(func).parameters.values()
         )
 
     @property

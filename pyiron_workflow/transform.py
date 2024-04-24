@@ -1,6 +1,7 @@
 """
 Transformer nodes convert many inputs into a single output, or vice-versa.
 """
+
 from __future__ import annotations
 
 from abc import ABC, abstractmethod
@@ -122,16 +123,12 @@ def _list_transformer_factory(base_class, n):
         length=n,
         class_factory=_list_transformer_factory,
         class_factory_args=(base_class, n),
-        class_factory_kwargs={}
+        class_factory_kwargs={},
     )
 
 
 class InputsToList(
-    ListTransformer,
-    FromManyInputs,
-    ABC,
-    output_name="list",
-    output_type_hint=list
+    ListTransformer, FromManyInputs, ABC, output_name="list", output_type_hint=list
 ):
 
     @staticmethod
@@ -140,15 +137,11 @@ class InputsToList(
 
     @classmethod
     def _build_inputs_preview(cls) -> dict[str, tuple[Any, Any]]:
-        return {
-            f"item_{i}": (None, NOT_DATA)
-            for i in range(cls._length)
-        }
+        return {f"item_{i}": (None, NOT_DATA) for i in range(cls._length)}
 
 
 class ListToOutputs(
-    ListTransformer, ToManyOutputs, ABC,
-    input_name="list", input_type_hint=list
+    ListTransformer, ToManyOutputs, ABC, input_name="list", input_type_hint=list
 ):
     @staticmethod
     def transform_to_output(input_data: list):
