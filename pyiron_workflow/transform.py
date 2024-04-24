@@ -7,8 +7,9 @@ from abc import ABC, abstractmethod
 from typing import Optional, Any
 
 from pyiron_workflow.channels import NOT_DATA
-from pyiron_workflow.constructed import Constructed, construct_instance
 from pyiron_workflow.io_preview import StaticNode, builds_class_io
+from pyiron_workflow.snippets.constructed import Constructed
+from pyiron_workflow.snippets.singleton import registered_factory
 
 
 class Transformer(Constructed, StaticNode, ABC):
@@ -22,16 +23,25 @@ class Transformer(Constructed, StaticNode, ABC):
 
 
 class FromManyInputs(Transformer, ABC):
-    _output_name: str = "data"
-    _output_type_hint: Optional[Any] = None
+
+    def __init_subclass__(
+        cls,
+        /,
+        output_name: str = "data",
+        output_type_hint: Optional[Any] = None,
+        **kwargs,
+    ):
+        super(FromManyInputs, cls).__init_subclass__(**kwargs)
+        cls._output_name = output_name
+        cls._output_type_hint = output_type_hint
 
     @staticmethod
     @abstractmethod
     def transform_from_input(inputs_as_dict: dict):
         pass
 
-    # _build_inputs_preview required
-    # Must be commensurate with the internal expectations of transform_from
+    # _build_inputs_preview required from parent class
+    # This must be commensurate with the internal expectations of transform_from_input
 
     @property
     def on_run(self) -> callable[..., Any | tuple]:
@@ -50,17 +60,26 @@ class FromManyInputs(Transformer, ABC):
         return run_output
 
 
-class ToManyOutputs(Transformer):
-    _input_name: str = "data"
-    _input_type_hint: Optional[Any] = None
-    _input_default: Any | NOT_DATA = NOT_DATA
+class ToManyOutputs(Transformer, ABC):
+    def __init_subclass__(
+        cls,
+        /,
+        input_name: str = "data",
+        input_type_hint: Optional[Any] = None,
+        input_default: Any | NOT_DATA = NOT_DATA,
+        **kwargs,
+    ):
+        super(ToManyOutputs, cls).__init_subclass__(**kwargs)
+        cls._input_name = input_name
+        cls._input_type_hint = input_type_hint
+        cls._input_default = input_default
 
     @staticmethod
     @abstractmethod
     def transform_to_output(input_data) -> dict[str, Any]:
         pass
 
-    # _build_outputs_preview still required
+    # _build_outputs_preview still required from parent class
     # Must be commensurate with the dictionary returned by transform_to_output
 
     @property
@@ -84,20 +103,14 @@ class ToManyOutputs(Transformer):
 
 
 class ListTransformer(Transformer, ABC):
-    _length: int = None  # Mandatory
-
-    @staticmethod
-    @abstractmethod
-    def _base_class():
-        pass
-
-    @property
-    def _instance_constructor_args(self) -> tuple:
-        return (
-            _list_transformer_factory,
-            (self._base_class(), self._length,),
-            {},
-        )
+    def __init_subclass__(
+        cls,
+        /,
+        length: int = None,
+        **kwargs,
+    ):
+        super(ListTransformer, cls).__init_subclass__(**kwargs)
+        cls._length = length
 
 
 @builds_class_io
@@ -105,20 +118,21 @@ def _list_transformer_factory(base_class, n):
     return type(
         f"{base_class.__name__}{n}",
         (base_class,),
-        {
-            "_length": n,
-            "__module__": base_class.__module__,
-        }
+        {},
+        length=n,
+        class_factory=_list_transformer_factory,
+        class_factory_args=(base_class, n),
+        class_factory_kwargs={}
     )
 
 
-class InputsToList(ListTransformer, FromManyInputs):
-    _output_name = "list"
-    _output_type_hint = list
-
-    @staticmethod
-    def _base_class():
-        return InputsToList
+class InputsToList(
+    ListTransformer,
+    FromManyInputs,
+    ABC,
+    output_name="list",
+    output_type_hint=list
+):
 
     @staticmethod
     def transform_from_input(inputs_as_dict: dict):
@@ -132,14 +146,10 @@ class InputsToList(ListTransformer, FromManyInputs):
         }
 
 
-class ListToOutputs(ListTransformer, ToManyOutputs, ABC):
-    _input_name = "list"
-    _input_type_hint = list
-
-    @staticmethod
-    def _base_class():
-        return ListToOutputs
-
+class ListToOutputs(
+    ListTransformer, ToManyOutputs, ABC,
+    input_name="list", input_type_hint=list
+):
     @staticmethod
     def transform_to_output(input_data: list):
         return {f"item_{i}": v for i, v in enumerate(input_data)}
@@ -149,29 +159,19 @@ class ListToOutputs(ListTransformer, ToManyOutputs, ABC):
         return {f"item_{i}": None for i in range(cls._length)}
 
 
+@registered_factory
 def inputs_to_list_factory(n, /) -> type[InputsToList]:
     return _list_transformer_factory(InputsToList, n)
 
 
-def inputs_to_list(n, /, *args, **kwargs) -> InputsToList:
-    return construct_instance(
-        _list_transformer_factory,
-        (InputsToList, n,),
-        {},
-        args,
-        kwargs,
-    )
+def inputs_to_list(n, *args, **kwargs):
+    return inputs_to_list_factory(n)(*args, **kwargs)
 
 
+@registered_factory
 def list_to_outputs_factory(n, /) -> type[ListToOutputs]:
     return _list_transformer_factory(ListToOutputs, n)
 
 
 def list_to_outputs(n, /, *args, **kwargs) -> ListToOutputs:
-    return construct_instance(
-        _list_transformer_factory,
-        (ListToOutputs, n,),
-        {},
-        args,
-        kwargs,
-    )
+    return list_to_outputs_factory(n)(*args, **kwargs)
