@@ -15,7 +15,7 @@ from pyiron_workflow.snippets.factory import (
 
 class HasN(ABC):
     def __init_subclass__(cls, /, n=0, s="foo", **kwargs):
-        super(HasN, cls).__init_subclass__(**kwargs)
+        super().__init_subclass__(**kwargs)
         cls.n = n
         cls.s = s
 
