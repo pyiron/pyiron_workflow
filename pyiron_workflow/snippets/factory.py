@@ -1,5 +1,31 @@
 """
 Tools for making dynamically generated classes unique, and their instances pickleable.
+
+Provides two main user-facing tools: :func:`classfactory`, which should be used
+_exclusively_ as a decorator (this restriction pertains to namespace requirements for
+re-importing), and `ClassFactory`, which can be used to instantiate a new factory from
+some existing factory function.
+
+In both cases, the decorated function/input argument should be a pickleable function
+taking only positional arguments, and returning a tuple suitable for use in dynamic
+class creation via :func:`builtins.type` -- i.e. taking a class name, a tuple of base
+classes, a dictionary of class attributes, and a dictionary of values to be expanded
+into kwargs for `__subclass_init__`.
+
+The resulting factory produces classes that are (a) pickleable, and (b) the same object
+as any previously built class with the same name. (Note: avoiding class degeneracy with
+respect to class name is the responsibility of the person writing the factory function.)
+
+These classes are then themselves pickleable, and produce instances which are in turn
+pickleable (so long as any data they've been fed as inputs or attributes is pickleable,
+i.e. here the only pickle-barrier we resolve is that of having come from a dynamically
+generated class).
+
+Since users need to build their own class factories returning classes with sensible
+names, we also provide a helper function :func:`sanitize_callable_name`, which makes
+sure a string is compliant with use as a class name. This is run internally on user-
+provided names, and failure for the user name and sanitized name to match will give a
+clear error message.
 """
 
 from __future__ import annotations
@@ -91,6 +117,7 @@ class InvalidFactorySignature(ValueError):
 
 
 class InvalidClassNameError(ValueError):
+    """When a string isn't a good class name"""
     pass
 
 
@@ -149,7 +176,7 @@ class _ClassFactory(metaclass=_SingleInstance):
             # factory_function attribute in the namespace, so we rely on directly
             # re-importing the factory
             return (
-                import_object,
+                _import_object,
                 (self.factory_function.__module__, self.factory_function.__qualname__)
             )
         else:
@@ -159,7 +186,7 @@ class _ClassFactory(metaclass=_SingleInstance):
             )
 
 
-def import_object(module_name, qualname):
+def _import_object(module_name, qualname):
     module = import_module(module_name)
     obj = module
     for name in qualname.split("."):
@@ -234,6 +261,50 @@ def classfactory(
         its resulting class(es) cannot be pickled, then the instances will not be able
         to be pickled. Here we only remove the trouble associated with pickling
         dynamically created classes.
+
+    Warnings:
+        Use _exclusively_ as a decorator. For an inline constructor for an existing
+        callable, use :class:`ClassFactory` instead.
+
+    Examples:
+        >>> import pickle
+        >>>
+        >>> from pyiron_workflow.snippets.factory import classfactory
+        >>>
+        >>> class HasN(ABC):
+        ...     '''Some class I want to make dynamically subclass.'''
+        ...     def __init_subclass__(cls, /, n=0, s="foo", **kwargs):
+        ...         super(HasN, cls).__init_subclass__(**kwargs)
+        ...         cls.n = n
+        ...         cls.s = s
+        ...
+        ...     def __init__(self, x, y=0):
+        ...         self.x = x
+        ...         self.y = y
+        >>>
+        >>> @classfactory
+        ... def has_n_factory(n, s="wrapped_function", /):
+        ...     return (
+        ...         f"{HasN.__name__}{n}{s}",  # New class name
+        ...         (HasN,),  # Base class(es)
+        ...         {},  # Class attributes dictionary
+        ...         {"n": n, "s": s}
+        ...         # dict of `builtins.type` kwargs (passed to `__init_subclass__`)
+        ...     )
+        >>>
+        >>> Has2 = has_n_factory(2, "my_dynamic_class")
+        >>> HasToo = has_n_factory(2, "my_dynamic_class")
+        >>> HasToo is Has2
+        True
+
+        >>> foo = Has2(42, y=-1)
+        >>> print(foo.n, foo.s, foo.x, foo.y)
+        2 my_dynamic_class 42 -1
+
+        >>> reloaded = pickle.loads(pickle.dumps(foo))  # doctest: +SKIP
+        >>> print(reloaded.n, reloaded.s, reloaded.x, reloaded.y)  # doctest: +SKIP
+        2 my_dynamic_class 42 -1  # doctest: +SKIP
+
     """
     factory = _FACTORY_TOWN.get_factory(factory_function)
     factory.factory_function._decorated_as_classfactory = True
@@ -241,6 +312,13 @@ def classfactory(
 
 
 class ClassFactory:
+    """
+    A constructor for new class factories.
+
+    Use on existing class factory callables, _not_ as a decorator.
+
+    Cf. the :func:`classfactory` decorator for more info.
+    """
     def __new__(cls, factory_function):
         return _FACTORY_TOWN.get_factory(factory_function)
 
