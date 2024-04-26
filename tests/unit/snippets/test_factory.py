@@ -63,8 +63,6 @@ class FactoryOwner:
             {"n": n, "s": s}
         )
 
-# TODO: edge case: a factory inside another function
-
 
 class TestClassfactory(unittest.TestCase):
 
@@ -230,6 +228,33 @@ class TestClassfactory(unittest.TestCase):
         self.assertEqual(foo.s, reloaded.s, msg=msg)
         self.assertEqual(foo.x, reloaded.x, msg=msg)
         self.assertEqual(foo.y, reloaded.y, msg=msg)
+
+    def test_factory_inside_a_function(self):
+        @classfactory
+        def internal_factory(n, s="unimportable_scope", /):
+            return (
+                f"{HasN.__name__}{n}{s}",
+                (HasN,),
+                {},
+                {"n": n, "s": s}
+            )
+
+        foo = internal_factory(2)(1, 0)
+        self.assertEqual(2, foo.n, msg="Nothing should stop the factory from working")
+        self.assertEqual(
+            "unimportable_scope",
+            foo.s,
+            msg="Nothing should stop the factory from working"
+        )
+        self.assertEqual(1, foo.x, msg="Nothing should stop the factory from working")
+        self.assertEqual(0, foo.y, msg="Nothing should stop the factory from working")
+        with self.assertRaises(
+            AttributeError,
+            msg="`internal_factory` is defined only locally inside the scope of "
+                "another function, so we don't expect it to be pickleable whether it's "
+                "a class factory or not!"
+        ):
+            pickle.loads(pickle.dumps(foo))
 
 
 class TestSanitization(unittest.TestCase):
