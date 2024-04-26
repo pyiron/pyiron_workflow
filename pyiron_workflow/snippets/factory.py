@@ -26,6 +26,8 @@ names, we also provide a helper function :func:`sanitize_callable_name`, which m
 sure a string is compliant with use as a class name. This is run internally on user-
 provided names, and failure for the user name and sanitized name to match will give a
 clear error message.
+
+Constructed classes can, in turn be used as bases in further class factories.
 """
 
 from __future__ import annotations
@@ -198,10 +200,6 @@ class _FactoryMade(ABC):
     """
     A mix-in to make class-factory-produced classes pickleable.
     """
-    def __init__(self, *args, **kwargs):
-        self.__instance_args = args
-        self.__instance_kwargs = kwargs
-        super().__init__(*args, **kwargs)
 
     def __init_subclass__(cls, /, class_factory, class_factory_args, **kwargs):
         super().__init_subclass__(**kwargs)
@@ -214,11 +212,14 @@ class _FactoryMade(ABC):
             (
                 self._class_factory,
                 self._class_factory_args,
-                self.__instance_args,
-                self.__instance_kwargs,
+                self.__getnewargs_ex__(),
             ),
             self.__getstate__(),
         )
+
+    def __getnewargs_ex__(self):
+        # Child classes can override this as needed
+        return (), {}
 
     def __getstate__(self):
         # Python <3.11 compatibility
@@ -235,8 +236,13 @@ class _FactoryMade(ABC):
             self.__dict__.update(**state)
 
 
-def _instantiate_from_factory(factory, factory_args, instance_args, instance_kwargs):
-    return factory(*factory_args)(*instance_args, **instance_kwargs)
+def _instantiate_from_factory(factory, factory_args, newargs_ex):
+    """
+    Recover the dynamic class, then invoke its `__new__` to avoid instantiation (and
+    the possibility of positional args in `__init__`).
+    """
+    cls = factory(*factory_args)
+    return cls.__new__(cls, *newargs_ex[0], **newargs_ex[1])
 
 
 def classfactory(
@@ -245,6 +251,16 @@ def classfactory(
     """
     A decorator for building dynamic class factories whose classes are unique and whose
     terminal instances can be pickled.
+
+    Under the hood, classes created by factories get dependence on
+    :class:`_FactoryMade` mixed in. This class leverages :meth:`__reduce__` and
+    :meth:`__init_subclass__` and uses up the class namespace :attr:`_class_factory`
+    and :attr:`_class_factory_args` to hold data (using up corresponding public
+    variable names in the :meth:`__init_subclass__` kwargs), so any interference with
+    these fields may cause unexpected side effects. For un-pickling, the dynamic class
+    gets recreated then its :meth:`__new__` is called using `__newargs_ex__`; a default
+    implementation returning no arguments is provided on :class:`_FactoryMade` but can
+    be overridden.
 
     Args:
         factory_function (callable[..., tuple[str, tuple[type, ...], dict, dict]]):
@@ -268,8 +284,7 @@ def classfactory(
         getting overwritten by the parent class defaults!
 
         Dynamically generated classes can, in turn, be used as base classes for further
-        `@classfactory` decorated factory functions. The only catch is that bases that
-        are already factory-made should appear to the left of new mix-ins.
+        `@classfactory` decorated factory functions.
 
     Warnings:
         Use _exclusively_ as a decorator. For an inline constructor for an existing

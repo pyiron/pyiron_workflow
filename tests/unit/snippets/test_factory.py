@@ -319,22 +319,34 @@ class TestClassfactory(unittest.TestCase):
             msg="Inheritance order should impact arg order, also completely as usual "
                 "for python classes"
         )
-        reloaded = pickle.loads(pickle.dumps(n2m3))
+        reloaded_nm = pickle.loads(pickle.dumps(n2m3))
         self.assertListEqual(
             [n2m3.m, n2m3.n, n2m3.s, n2m3.z, n2m3.x, n2m3.y],
-            [reloaded.m, reloaded.n, reloaded.s, reloaded.z, reloaded.x, reloaded.y],
+            [
+                reloaded_nm.m,
+                reloaded_nm.n,
+                reloaded_nm.s,
+                reloaded_nm.z,
+                reloaded_nm.x,
+                reloaded_nm.y
+            ],
             msg="Pickling behaviour should not care that one of the parents was itself "
                 "a factory made class."
         )
 
-        with self.assertRaises(
-            TypeError,
-            msg="To preserve pickle functionality, the inheritance order must have "
-                "already-factory-made classes appear to the left of new bases. This is "
-                "specific to the factory code and pertains to grabbing all the keyword "
-                "arguments for initialization"
-        ):
-            pickle.loads(pickle.dumps(m3n2))
+        reloaded_mn = pickle.loads(pickle.dumps(m3n2))
+        self.assertListEqual(
+            [m3n2.m, m3n2.n, m3n2.s, m3n2.z, m3n2.x, m3n2.y],
+            [
+                reloaded_mn.m,
+                reloaded_mn.n,
+                reloaded_mn.s,
+                reloaded_mn.z,
+                reloaded_mn.x,
+                reloaded_nm.y
+            ],
+            msg="Pickling behaviour should not care about the order of bases."
+        )
 
 
 class TestSanitization(unittest.TestCase):
