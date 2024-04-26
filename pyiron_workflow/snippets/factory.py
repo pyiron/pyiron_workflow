@@ -58,6 +58,15 @@ class _FactoryTown(metaclass=_SingleInstance):
 
     factories = {}
 
+    @classmethod
+    def clear(cls):
+        """
+        Remove factories.
+
+        Can be useful if you're
+        """
+        cls.factories = {}
+
     @staticmethod
     def _factory_address(factory_function: callable) -> str:
         return f"{factory_function.__module__}.{factory_function.__qualname__}"
@@ -148,6 +157,16 @@ class _ClassFactory(metaclass=_SingleInstance):
             self.class_registry[name] = factory_made
             return factory_made
 
+    @classmethod
+    def clear(cls):
+        """
+        Remove constructed classes.
+
+        Can be useful if you've updated the constructor and want to remove old
+        instances.
+        """
+        cls.class_registry = {}
+
     def _build_class(
         self, name, bases, class_dict, sc_init_kwargs, class_factory_args
     ) -> type[_FactoryMade]:
@@ -205,6 +224,7 @@ class _FactoryMade(ABC):
         super().__init_subclass__(**kwargs)
         cls._class_factory = class_factory
         cls._class_factory_args = class_factory_args
+        cls._factory_town = _FACTORY_TOWN
 
     def __reduce__(self):
         return (

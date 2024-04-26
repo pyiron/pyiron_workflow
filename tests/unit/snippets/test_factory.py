@@ -348,6 +348,47 @@ class TestClassfactory(unittest.TestCase):
             msg="Pickling behaviour should not care about the order of bases."
         )
 
+    def test_clearing_town(self):
+
+        self.assertGreater(len(Has2._factory_town.factories), 0, msg="Sanity check")
+
+        Has2._factory_town.clear()
+        self.assertEqual(
+            len(Has2._factory_town.factories),
+            0,
+            msg="Town should get cleared"
+        )
+
+        ClassFactory(undecorated_function)
+        self.assertEqual(
+            len(Has2._factory_town.factories),
+            1,
+            msg="Has2 exists in memory and the factory town has forgotten about it, "
+                "but it still knows about the factory town and can see the newly "
+                "created one."
+        )
+
+    def test_clearing_class_register(self):
+        self.assertGreater(
+            len(has_n_factory.class_registry),
+            0,
+            msg="Sanity. We expect to have created at least one class up in the header."
+        )
+        has_n_factory.clear()
+        self.assertEqual(
+            len(has_n_factory.class_registry),
+            0,
+            msg="Clear should remove all instances"
+        )
+        n_new = 3
+        for i in range(n_new):
+            has_n_factory(i)
+        self.assertEqual(
+            len(has_n_factory.class_registry),
+            n_new,
+            msg="Should see the new constructed classes"
+        )
+
 
 class TestSanitization(unittest.TestCase):
 
