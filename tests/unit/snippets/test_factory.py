@@ -19,7 +19,8 @@ class HasN(ABC):
         cls.n = n
         cls.s = s
 
-    def __init__(self, x, y=0):
+    def __init__(self, x, *args, y=0, **kwargs):
+        super().__init__(*args, **kwargs)
         self.x = x
         self.y = y
 
@@ -239,7 +240,7 @@ class TestClassfactory(unittest.TestCase):
                 {"n": n, "s": s}
             )
 
-        foo = internal_factory(2)(1, 0)
+        foo = internal_factory(2)(1, y=0)
         self.assertEqual(2, foo.n, msg="Nothing should stop the factory from working")
         self.assertEqual(
             "unimportable_scope",
