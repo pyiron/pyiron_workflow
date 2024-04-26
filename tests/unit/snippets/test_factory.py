@@ -51,7 +51,19 @@ def takes_kwargs(n, /, s="undecorated_function"):
         {"n": n, "s": s}
     )
 
-# TODO: edge cases like a decorated method or a factory inside another function
+
+class FactoryOwner:
+    @staticmethod
+    @classfactory
+    def has_n_factory(n, s="decorated_method", /):
+        return (
+            f"{HasN.__name__}{n}{s}",
+            (HasN,),
+            {},
+            {"n": n, "s": s}
+        )
+
+# TODO: edge case: a factory inside another function
 
 
 class TestClassfactory(unittest.TestCase):
@@ -102,8 +114,9 @@ class TestClassfactory(unittest.TestCase):
             self.assertIs(my_factory, reloaded)
 
         with self.subTest("From qualname by decoration"):
-            # TODO
-            pass
+            my_factory = FactoryOwner().has_n_factory
+            reloaded = pickle.loads(pickle.dumps(my_factory))
+            self.assertIs(my_factory, reloaded)
 
     def test_class_creation(self):
         n2 = has_n_factory(2, "something")
@@ -208,6 +221,15 @@ class TestClassfactory(unittest.TestCase):
             _FactoryMade,
             msg="Instances should get :class:`_FactoryMade` mixed in."
         )
+
+    def test_decorated_method(self):
+        msg = "It should be possible to have class factories as methods on a class"
+        foo = FactoryOwner().has_n_factory(2)(42, y=43)
+        reloaded = pickle.loads(pickle.dumps(foo))
+        self.assertEqual(foo.n, reloaded.n, msg=msg)
+        self.assertEqual(foo.s, reloaded.s, msg=msg)
+        self.assertEqual(foo.x, reloaded.x, msg=msg)
+        self.assertEqual(foo.y, reloaded.y, msg=msg)
 
 
 class TestSanitization(unittest.TestCase):
