@@ -256,11 +256,20 @@ def classfactory(
         (type[_ClassFactory]): A new callable that returns unique classes whose
             instances can be pickled.
 
-    Note:
+    Notes:
         If the :param:`factory_function` itself, or any data stored on instances of
         its resulting class(es) cannot be pickled, then the instances will not be able
         to be pickled. Here we only remove the trouble associated with pickling
         dynamically created classes.
+
+        If the `__init_subclass__` kwargs are exploited, remember that these are
+        subject to all the same "gotchas" as their regular non-factory use; namely, all
+        child classes must specify _all_ parent class kwargs in order to avoid them
+        getting overwritten by the parent class defaults!
+
+        Dynamically generated classes can, in turn, be used as base classes for further
+        `@classfactory` decorated factory functions. The only catch is that bases that
+        are already factory-made should appear to the left of new mix-ins.
 
     Warnings:
         Use _exclusively_ as a decorator. For an inline constructor for an existing

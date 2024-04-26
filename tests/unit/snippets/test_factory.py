@@ -65,6 +65,39 @@ class FactoryOwner:
         )
 
 
+Has2 = has_n_factory(2, "factory_made")  # For testing repeated inheritance
+
+
+class HasM(ABC):
+    def __init_subclass__(cls, /, m=0, **kwargs):
+        super(HasM, cls).__init_subclass__(**kwargs)
+        cls.m = m
+
+    def __init__(self, z, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        self.z = z
+
+
+@classfactory
+def has_n2_m_factory(m, /):
+    return (
+        f"HasN2M{m}",
+        (Has2, HasM),
+        {},
+        {"m": m, "n": Has2.n, "s": Has2.s}
+    )
+
+
+@classfactory
+def has_m_n2_factory(m, /):
+    return (
+        f"HasM{m}N2",
+        (HasM, Has2,),
+        {},
+        {"m": m}
+    )
+
+
 class TestClassfactory(unittest.TestCase):
 
     def test_factory_initialization(self):
@@ -256,6 +289,52 @@ class TestClassfactory(unittest.TestCase):
                 "a class factory or not!"
         ):
             pickle.loads(pickle.dumps(foo))
+
+    def test_repeated_inheritance(self):
+        n2m3 = has_n2_m_factory(3)(5, 6)
+        m3n2 = has_m_n2_factory(3)(5, 6)
+
+        self.assertListEqual(
+            [3, 2, "factory_made"],
+            [n2m3.m, n2m3.n, n2m3.s],
+            msg="Sanity check on class property inheritance"
+        )
+        self.assertListEqual(
+            [3, 0, "foo"],  # n and s defaults from HasN!
+            [m3n2.m, m3n2.n, m3n2.s],
+            msg="When exploiting __init_subclass__, each subclass must take care to "
+                "specify _all_ parent class __init_subclass__ kwargs, or they will "
+                "revert to the default behaviour. This is totally normal python "
+                "behaviour, and here we just verify that we're vulnerable to the same "
+                "'gotcha' as the rest of the language."
+        )
+        self.assertListEqual(
+            [5, 6],
+            [n2m3.x, n2m3.z],
+            msg="Sanity check on instance inheritance"
+        )
+        self.assertListEqual(
+            [m3n2.z, m3n2.x],
+            [n2m3.x, n2m3.z],
+            msg="Inheritance order should impact arg order, also completely as usual "
+                "for python classes"
+        )
+        reloaded = pickle.loads(pickle.dumps(n2m3))
+        self.assertListEqual(
+            [n2m3.m, n2m3.n, n2m3.s, n2m3.z, n2m3.x, n2m3.y],
+            [reloaded.m, reloaded.n, reloaded.s, reloaded.z, reloaded.x, reloaded.y],
+            msg="Pickling behaviour should not care that one of the parents was itself "
+                "a factory made class."
+        )
+
+        with self.assertRaises(
+            TypeError,
+            msg="To preserve pickle functionality, the inheritance order must have "
+                "already-factory-made classes appear to the left of new bases. This is "
+                "specific to the factory code and pertains to grabbing all the keyword "
+                "arguments for initialization"
+        ):
+            pickle.loads(pickle.dumps(m3n2))
 
 
 class TestSanitization(unittest.TestCase):
