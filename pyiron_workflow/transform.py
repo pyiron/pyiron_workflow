@@ -5,15 +5,14 @@ Transformer nodes convert many inputs into a single output, or vice-versa.
 from __future__ import annotations
 
 from abc import ABC, abstractmethod
-from typing import Optional, Any
+from typing import Any, ClassVar
 
 from pyiron_workflow.channels import NOT_DATA
 from pyiron_workflow.io_preview import StaticNode, builds_class_io
-from pyiron_workflow.snippets.constructed import Constructed
-from pyiron_workflow.snippets.singleton import registered_factory
+from pyiron_workflow.snippets.factory import classfactory
 
 
-class Transformer(Constructed, StaticNode, ABC):
+class Transformer(StaticNode, ABC):
     """
     Transformers are a special :class:`Constructed` case of :class:`StaticNode` nodes
     that turn many inputs into a single output or vice-versa.
@@ -24,17 +23,8 @@ class Transformer(Constructed, StaticNode, ABC):
 
 
 class FromManyInputs(Transformer, ABC):
-
-    def __init_subclass__(
-        cls,
-        /,
-        output_name: str = "data",
-        output_type_hint: Optional[Any] = None,
-        **kwargs,
-    ):
-        super(FromManyInputs, cls).__init_subclass__(**kwargs)
-        cls._output_name = output_name
-        cls._output_type_hint = output_type_hint
+    _output_name: ClassVar[str]  # Mandatory attribute for non-abstract subclasses
+    _output_type_hint: ClassVar[Any] = None
 
     @staticmethod
     @abstractmethod
@@ -62,18 +52,9 @@ class FromManyInputs(Transformer, ABC):
 
 
 class ToManyOutputs(Transformer, ABC):
-    def __init_subclass__(
-        cls,
-        /,
-        input_name: str = "data",
-        input_type_hint: Optional[Any] = None,
-        input_default: Any | NOT_DATA = NOT_DATA,
-        **kwargs,
-    ):
-        super(ToManyOutputs, cls).__init_subclass__(**kwargs)
-        cls._input_name = input_name
-        cls._input_type_hint = input_type_hint
-        cls._input_default = input_default
+    _input_name: ClassVar[str]  # Mandatory attribute for non-abstract subclasses
+    _input_type_hint: ClassVar[Any] = None
+    _input_default: ClassVar[Any | NOT_DATA] = NOT_DATA
 
     @staticmethod
     @abstractmethod
@@ -104,32 +85,12 @@ class ToManyOutputs(Transformer, ABC):
 
 
 class ListTransformer(Transformer, ABC):
-    def __init_subclass__(
-        cls,
-        /,
-        length: int = None,
-        **kwargs,
-    ):
-        super(ListTransformer, cls).__init_subclass__(**kwargs)
-        cls._length = length
+    _length: ClassVar[int]  # Mandatory attribute for non-abstract subclasses
 
 
-@builds_class_io
-def _list_transformer_factory(base_class, n):
-    return type(
-        f"{base_class.__name__}{n}",
-        (base_class,),
-        {},
-        length=n,
-        class_factory=_list_transformer_factory,
-        class_factory_args=(base_class, n),
-        class_factory_kwargs={},
-    )
-
-
-class InputsToList(
-    ListTransformer, FromManyInputs, ABC, output_name="list", output_type_hint=list
-):
+class InputsToList(ListTransformer, FromManyInputs, ABC):
+    _output_name: ClassVar[str] = "list"
+    _output_type_hint: ClassVar[Any] = list
 
     @staticmethod
     def transform_from_input(inputs_as_dict: dict):
@@ -140,9 +101,10 @@ class InputsToList(
         return {f"item_{i}": (None, NOT_DATA) for i in range(cls._length)}
 
 
-class ListToOutputs(
-    ListTransformer, ToManyOutputs, ABC, input_name="list", input_type_hint=list
-):
+class ListToOutputs(ListTransformer, ToManyOutputs, ABC):
+    _input_name: ClassVar[str] = "list"
+    _input_type_hint: ClassVar[Any] = list
+
     @staticmethod
     def transform_to_output(input_data: list):
         return {f"item_{i}": v for i, v in enumerate(input_data)}
@@ -152,19 +114,31 @@ class ListToOutputs(
         return {f"item_{i}": None for i in range(cls._length)}
 
 
-@registered_factory
-def inputs_to_list_factory(n, /) -> type[InputsToList]:
-    return _list_transformer_factory(InputsToList, n)
+@builds_class_io
+@classfactory
+def inputs_to_list_factory(n: int, /) -> type[InputsToList]:
+    return (
+        f"{InputsToList.__name__}{n}",
+        (InputsToList,),
+        {"_length": n},
+        {},
+    )
 
 
-def inputs_to_list(n, *args, **kwargs):
-    return inputs_to_list_factory(n)(*args, **kwargs)
+def inputs_to_list(n: int, *node_args, **node_kwargs):
+    return inputs_to_list_factory(n)(*node_args, **node_kwargs)
 
 
-@registered_factory
-def list_to_outputs_factory(n, /) -> type[ListToOutputs]:
-    return _list_transformer_factory(ListToOutputs, n)
+@builds_class_io
+@classfactory
+def list_to_outputs_factory(n: int, /) -> type[ListToOutputs]:
+    return (
+        f"{ListToOutputs.__name__}{n}",
+        (ListToOutputs,),
+        {"_length": n},
+        {},
+    )
 
 
-def list_to_outputs(n, /, *args, **kwargs) -> ListToOutputs:
-    return list_to_outputs_factory(n)(*args, **kwargs)
+def list_to_outputs(n: int, /, *node_args, **node_kwargs) -> ListToOutputs:
+    return list_to_outputs_factory(n)(*node_args, **node_kwargs)
