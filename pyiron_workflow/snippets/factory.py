@@ -71,9 +71,7 @@ class _FactoryTown(metaclass=_SingleInstance):
     def _factory_address(factory_function: callable) -> str:
         return f"{factory_function.__module__}.{factory_function.__qualname__}"
 
-    def get_factory(
-        self, factory_function: callable[..., type]
-    ) -> _ClassFactory:
+    def get_factory(self, factory_function: callable[..., type]) -> _ClassFactory:
 
         self._verify_function_only_takes_positional_args(factory_function)
 
@@ -96,10 +94,10 @@ class _FactoryTown(metaclass=_SingleInstance):
                 f"{factory_function.__module__}{factory_function.__qualname__}"
                 f"{factory_function.__name__.title()}"
                 f"{_ClassFactory.__name__}"
-            ).replace('_', ''),
+            ).replace("_", ""),
             (_ClassFactory,),
             {},
-            factory_function=factory_function
+            factory_function=factory_function,
         )
         return wraps(factory_function)(new_factory_class())
 
@@ -107,10 +105,8 @@ class _FactoryTown(metaclass=_SingleInstance):
     def _verify_function_only_takes_positional_args(factory_function: callable):
         parameters = signature(factory_function).parameters.values()
         if any(
-            p.kind not in [
-                Parameter.POSITIONAL_ONLY,
-                Parameter.VAR_POSITIONAL
-            ] for p in parameters
+            p.kind not in [Parameter.POSITIONAL_ONLY, Parameter.VAR_POSITIONAL]
+            for p in parameters
         ):
             raise InvalidFactorySignature(
                 f"{_ClassFactory.__name__} can only be subclassed using factory "
@@ -124,11 +120,13 @@ _FACTORY_TOWN = _FactoryTown()
 
 class InvalidFactorySignature(ValueError):
     """When the factory function's arguments are not purely positional"""
+
     pass
 
 
 class InvalidClassNameError(ValueError):
     """When a string isn't a good class name"""
+
     pass
 
 
@@ -136,6 +134,7 @@ class _ClassFactory(metaclass=_SingleInstance):
     """
     For making dynamically created classes the same class.
     """
+
     def __init_subclass__(cls, /, factory_function, **kwargs):
         super().__init_subclass__(**kwargs)
         cls.factory_function = staticmethod(factory_function)
@@ -175,9 +174,7 @@ class _ClassFactory(metaclass=_SingleInstance):
         sc_init_kwargs["class_factory"] = self
         sc_init_kwargs["class_factory_args"] = class_factory_args
 
-        if not any(
-            _FactoryMade in base.mro() for base in bases
-        ):
+        if not any(_FactoryMade in base.mro() for base in bases):
             bases = (_FactoryMade, *bases)
 
         return type(name, bases, class_dict, **sc_init_kwargs)
@@ -198,13 +195,10 @@ class _ClassFactory(metaclass=_SingleInstance):
             # re-importing the factory
             return (
                 _import_object,
-                (self.factory_function.__module__, self.factory_function.__qualname__)
+                (self.factory_function.__module__, self.factory_function.__qualname__),
             )
         else:
-            return (
-                _FACTORY_TOWN.get_factory,
-                (self.factory_function,)
-            )
+            return (_FACTORY_TOWN.get_factory, (self.factory_function,))
 
 
 def _import_object(module_name, qualname):
@@ -363,6 +357,7 @@ class ClassFactory:
 
     Cf. the :func:`classfactory` decorator for more info.
     """
+
     def __new__(cls, factory_function):
         return _FACTORY_TOWN.get_factory(factory_function)
 
@@ -372,12 +367,12 @@ def sanitize_callable_name(name: str):
     A helper class for sanitizing a string so it's appropriate as a class/function name.
     """
     # Replace non-alphanumeric characters except underscores
-    sanitized_name = sub(r'\W+', '_', name)
+    sanitized_name = sub(r"\W+", "_", name)
     # Ensure the name starts with a letter or underscore
     if (
         len(sanitized_name) > 0
         and not sanitized_name[0].isalpha()
-        and sanitized_name[0] != '_'
+        and sanitized_name[0] != "_"
     ):
-        sanitized_name = '_' + sanitized_name
+        sanitized_name = "_" + sanitized_name
     return sanitized_name
