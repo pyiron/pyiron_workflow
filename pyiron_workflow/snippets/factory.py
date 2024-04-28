@@ -215,7 +215,16 @@ def _import_object(module_name, qualname):
 class _FactoryMade(ABC):
     """
     A mix-in to make class-factory-produced classes pickleable.
+
+    If the factory is used as a decorator for another function, it will conflict with
+    this function (i.e. the owned function will be the true function, and will mismatch
+    with imports from that location, which will return the post-decorator factory made
+    class). This can be resolved by setting the
+    :attr:`_class_returns_from_decorated_function` attribute to be the decorated
+    function in the decorator definition.
     """
+
+    _class_returns_from_decorated_function: ClassVar[callable | None] = None
 
     def __init_subclass__(cls, /, class_factory, class_factory_args, **kwargs):
         super().__init_subclass__(**kwargs)
@@ -224,15 +233,29 @@ class _FactoryMade(ABC):
         cls._factory_town = _FACTORY_TOWN
 
     def __reduce__(self):
-        return (
-            _instantiate_from_factory,
-            (
-                self._class_factory,
-                self._class_factory_args,
-                self.__getnewargs_ex__(),
-            ),
-            self.__getstate__(),
-        )
+        if self._class_returns_from_decorated_function is not None:
+            # When we create a class by decorating some other function, this class
+            # conflicts with its own factory_function attribute in the namespace, so we
+            # rely on directly re-importing the factory
+            return (
+                _instantiate_from_decorated,
+                (
+                    self._class_returns_from_decorated_function.__module__,
+                    self._class_returns_from_decorated_function.__qualname__,
+                    self.__getnewargs_ex__()
+                ),
+                self.__getstate__(),
+            )
+        else:
+            return (
+                _instantiate_from_factory,
+                (
+                    self._class_factory,
+                    self._class_factory_args,
+                    self.__getnewargs_ex__(),
+                ),
+                self.__getstate__(),
+            )
 
     def __getnewargs_ex__(self):
         # Child classes can override this as needed
@@ -259,6 +282,14 @@ def _instantiate_from_factory(factory, factory_args, newargs_ex):
     the possibility of positional args in `__init__`).
     """
     cls = factory(*factory_args)
+    return cls.__new__(cls, *newargs_ex[0], **newargs_ex[1])
+
+
+def _instantiate_from_decorated(module, qualname, newargs_ex):
+    """
+    In case the class comes from a decorated function, we need to import it directly.
+    """
+    cls = _import_object(module, qualname)
     return cls.__new__(cls, *newargs_ex[0], **newargs_ex[1])
 
 
