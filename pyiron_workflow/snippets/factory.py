@@ -242,7 +242,7 @@ class _FactoryMade(ABC):
                 (
                     self._class_returns_from_decorated_function.__module__,
                     self._class_returns_from_decorated_function.__qualname__,
-                    self.__getnewargs_ex__()
+                    self.__getnewargs_ex__(),
                 ),
                 self.__getstate__(),
             )
