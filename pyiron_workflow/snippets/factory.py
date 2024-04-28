@@ -37,6 +37,7 @@ from functools import wraps
 from importlib import import_module
 from inspect import signature, Parameter
 from re import sub
+from typing import ClassVar
 
 
 class _SingleInstance(ABCMeta):
@@ -135,6 +136,8 @@ class _ClassFactory(metaclass=_SingleInstance):
     For making dynamically created classes the same class.
     """
 
+    _decorated_as_classfactory: ClassVar[bool] = False
+
     def __init_subclass__(cls, /, factory_function, **kwargs):
         super().__init_subclass__(**kwargs)
         cls.factory_function = staticmethod(factory_function)
@@ -189,10 +192,10 @@ class _ClassFactory(metaclass=_SingleInstance):
             )
 
     def __reduce__(self):
-        if hasattr(self.factory_function, "_decorated_as_classfactory"):
-            # When we decorate a function, this object conflicts with its own
-            # factory_function attribute in the namespace, so we rely on directly
-            # re-importing the factory
+        if self._decorated_as_classfactory:
+            # When we create a factory by decorating the factory function, this object
+            # conflicts with its own factory_function attribute in the namespace, so we
+            # rely on directly re-importing the factory
             return (
                 _import_object,
                 (self.factory_function.__module__, self.factory_function.__qualname__),
@@ -345,7 +348,7 @@ def classfactory(
 
     """
     factory = _FACTORY_TOWN.get_factory(factory_function)
-    factory.factory_function._decorated_as_classfactory = True
+    factory._decorated_as_classfactory = True
     return factory
 
 

@@ -1,5 +1,8 @@
+from __future__ import annotations
+
 from abc import ABC
 import pickle
+from typing import ClassVar
 import unittest
 
 from pyiron_workflow.snippets.factory import (
@@ -96,6 +99,35 @@ def has_m_n2_factory(m, /):
         {},
         {"m": m}
     )
+
+
+class DoesThing(ABC):
+    fnc: ClassVar[callable]
+    n: ClassVar[int]
+
+    def __call__(self, *args, **kwargs):
+        return self.fnc(*args, **kwargs) + self.n
+
+
+@classfactory
+def does_thing_factory(fnc, n, /):
+    return (
+        f"{DoesThing.__name__}{fnc.__name__}",
+        (DoesThing,),
+        {"fnc": staticmethod(fnc), "n": n},
+        {},
+    )
+
+
+def does_int_thing_decorator(n):
+    def wrapped(fnc):
+        return does_thing_factory(fnc, n)
+    return wrapped
+
+
+@does_int_thing_decorator(5)
+def adds_5(n: int):
+    return n
 
 
 class TestClassfactory(unittest.TestCase):
@@ -388,6 +420,12 @@ class TestClassfactory(unittest.TestCase):
             n_new,
             msg="Should see the new constructed classes"
         )
+
+    def test_other_decorators(self):
+        a5 = adds_5()
+        self.assertEqual(6, a5(1), msg="Should execute the function as part of call")
+
+        reloaded = pickle.loads(pickle.dumps(a5))
 
 
 class TestSanitization(unittest.TestCase):
