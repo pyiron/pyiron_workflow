@@ -109,8 +109,11 @@ class CloudpickleProcessPoolExecutor(ProcessPoolExecutor):
         >>> print(fs.done())
         True
 
+        >>> import time
+        >>> time.sleep(1)  # Debugging doctest on github CI for python3.10
         >>> print(instance.result.result)
         This was an arg
+
     """
 
     def submit(self, fn, /, *args, **kwargs):
