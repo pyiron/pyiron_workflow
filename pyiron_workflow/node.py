@@ -445,6 +445,9 @@ class Node(
         if fetch_input:
             self.inputs.fetch()
 
+        if self.parent is not None:
+            self.parent.register_child_starting(self)
+
         return super().run(
             check_readiness=check_readiness,
             force_local_execution=force_local_execution,
@@ -493,7 +496,7 @@ class Node(
             disconnected_pairs, starters = set_run_connections_according_to_linear_dag(
                 nodes
             )
-            starter = starters[0]
+            data_tree_starters = list(set(starters).intersection(data_tree_nodes))
         except Exception as e:
             # If the dag setup fails it will repair any connections it breaks before
             # raising the error, but we still need to repair our label changes
@@ -501,14 +504,48 @@ class Node(
                 node.label = label_map[modified_label]
             raise e
 
-        self.signals.disconnect_run()
-        # Don't let anything upstream trigger this node
-
         try:
-            # If you're the only one in the data tree, there's nothing upstream to run
-            # Otherwise...
-            if starter is not self:
-                starter.run()  # Now push from the top
+            parent_starting_nodes = (
+                self.parent.starting_nodes if self.parent is not None else None
+            )  # We need these for state recovery later, even if we crash
+
+            if len(data_tree_starters) == 1 and data_tree_starters[0] is self:
+                # If you're the only one in the data tree, there's nothing upstream to
+                # run.
+                pass
+            else:
+                for node in set(nodes.values()).difference(data_tree_nodes):
+                    # Disconnect any nodes not in the data tree to avoid unnecessary
+                    # execution
+                    node.signals.disconnect_run()
+
+                self.signals.disconnect_run()
+                # Don't let anything upstream trigger _this_ node
+
+                if self.parent is None:
+                    for starter in data_tree_starters:
+                        starter.run()  # Now push from the top
+                else:
+                    # Run the special exec connections from above with the parent
+
+                    # Workflow parents will attempt to automate execution on run,
+                    # undoing all our careful execution
+                    # This heinous hack breaks in and stops that behaviour
+                    # I recognize this is dirty, but let's be pragmatic about getting
+                    # the features playing together. Workflows and pull are anyhow
+                    # already both very annoying on their own...
+                    from pyiron_workflow.workflow import Workflow
+
+                    if isinstance(self.parent, Workflow):
+                        automated = self.parent.automate_execution
+                        self.parent.automate_execution = False
+
+                    self.parent.starting_nodes = data_tree_starters
+                    self.parent.run()
+
+                    # And revert our workflow hack
+                    if isinstance(self.parent, Workflow):
+                        self.parent.automate_execution = automated
         finally:
             # No matter what, restore the original connections and labels afterwards
             for modified_label, node in nodes.items():
@@ -516,17 +553,25 @@ class Node(
                 node.signals.disconnect_run()
             for c1, c2 in disconnected_pairs:
                 c1.connect(c2)
+            if self.parent is not None:
+                self.parent.starting_nodes = parent_starting_nodes
 
     def _finish_run(self, run_output: tuple | Future) -> Any | tuple:
         try:
-            return super()._finish_run(run_output=run_output)
+            processed_output = super()._finish_run(run_output=run_output)
+            if self.parent is not None:
+                self.parent.register_child_finished(self)
+            return processed_output
         finally:
             if self.save_after_run:
                 self.save()
 
     def _finish_run_and_emit_ran(self, run_output: tuple | Future) -> Any | tuple:
         processed_output = self._finish_run(run_output)
-        self.signals.output.ran()
+        if self.parent is None:
+            self.signals.output.ran()
+        else:
+            self.parent.register_child_emitting_ran(self)
         return processed_output
 
     _finish_run_and_emit_ran.__doc__ = (

@@ -6,6 +6,7 @@ sub-graph
 from __future__ import annotations
 
 from abc import ABC, abstractmethod
+from time import sleep
 from typing import Literal, Optional, TYPE_CHECKING
 
 from pyiron_workflow.create import HasCreator
@@ -16,7 +17,13 @@ from pyiron_workflow.snippets.colors import SeabornColors
 from pyiron_workflow.snippets.dotdict import DotDict
 
 if TYPE_CHECKING:
-    from pyiron_workflow.channels import Channel, InputData, OutputData
+    from pyiron_workflow.channels import (
+        Channel,
+        InputData,
+        OutputData,
+        InputSignal,
+        OutputSignal,
+    )
     from pyiron_workflow.create import Creator, Wrappers
 
 
@@ -69,6 +76,12 @@ class Composite(Node, SemanticParent, HasCreator, ABC):
          with an index and the assignment proceeds. (Default is true: disallow assigning
          to existing labels.)
         create (Creator): A tool for adding new nodes to this subgraph.
+        provenance_by_completion (list[str]): The child nodes (by label) in the order
+            that they completed on the last :meth:`run` call.
+        provenance_by_execution (list[str]): The child nodes (by label) in the order
+            that they started executing on the last :meth:`run` call.
+        running_children (list[str]): The names of children who are currently running.
+        signal_queue (list[
         starting_nodes (None | list[pyiron_workflow.node.Node]): A subset
          of the owned nodes to be used on running. Only necessary if the execution graph
          has been manually specified with `run` signals. (Default is an empty list.)
@@ -107,6 +120,12 @@ class Composite(Node, SemanticParent, HasCreator, ABC):
             **kwargs,
         )
         self.starting_nodes: list[Node] = []
+        self.provenance_by_execution: list[str] = []
+        self.provenance_by_completion: list[str] = []
+        self.running_children: list[str] = []
+        self.signal_queue: list[tuple] = []
+        self._child_sleep_interval = 0.01  # How long to wait when the signal_queue is
+        # empty but the running_children list is not
 
     def activate_strict_hints(self):
         super().activate_strict_hints()
@@ -130,9 +149,66 @@ class Composite(Node, SemanticParent, HasCreator, ABC):
 
     @staticmethod
     def run_graph(_composite: Composite):
+        # Reset provenance and run status trackers
+        _composite.provenance_by_execution = []
+        _composite.provenance_by_completion = []
+        _composite.running_children = []
+        _composite.signal_queue = []
+
         for node in _composite.starting_nodes:
             node.run()
+
+        while len(_composite.running_children) > 0 or len(_composite.signal_queue) > 0:
+            try:
+                ran_signal, receiver = _composite.signal_queue.pop(0)
+                receiver(ran_signal)
+            except IndexError:
+                # The signal queue is empty, but there is still someone running...
+                sleep(_composite._child_sleep_interval)
+
         return _composite
+
+    def register_child_starting(self, child: Node) -> None:
+        """
+        To be called by children when they start their run cycle.
+
+        Args:
+            child [Node]: The child that is finished and would like to fire its `ran`
+                signal. Should always be a child of `self`, but this is not explicitly
+                verified at runtime.
+        """
+        self.provenance_by_execution.append(child.label)
+        self.running_children.append(child.label)
+
+    def register_child_finished(self, child: Node) -> None:
+        """
+        To be called by children when they are finished their run.
+
+        Args:
+            child [Node]: The child that is finished and would like to fire its `ran`
+                signal. Should always be a child of `self`, but this is not explicitly
+                verified at runtime.
+        """
+        try:
+            self.running_children.remove(child.label)
+            self.provenance_by_completion.append(child.label)
+        except ValueError as e:
+            raise KeyError(
+                f"No element {child.label} to remove while {self.running_children}, "
+                f"{self.provenance_by_execution}, {self.provenance_by_completion}"
+            ) from e
+
+    def register_child_emitting_ran(self, child: Node) -> None:
+        """
+        To be called by children when they want to emit their `ran` signal.
+
+        Args:
+            child [Node]: The child that is finished and would like to fire its `ran`
+                signal. Should always be a child of `self`, but this is not explicitly
+                verified at runtime.
+        """
+        for conn in child.signals.output.ran.connections:
+            self.signal_queue.append((child.signals.output.ran, conn))
 
     @property
     def run_args(self) -> dict:
