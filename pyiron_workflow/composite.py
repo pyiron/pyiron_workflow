@@ -27,7 +27,7 @@ if TYPE_CHECKING:
     from pyiron_workflow.create import Creator, Wrappers
 
 
-class Composite(Node, SemanticParent, HasCreator, ABC):
+class Composite(SemanticParent, HasCreator, Node, ABC):
     """
     A base class for nodes that have internal graph structure -- i.e. they hold a
     collection of child nodes and their computation is to execute that graph.
@@ -100,8 +100,8 @@ class Composite(Node, SemanticParent, HasCreator, ABC):
 
     def __init__(
         self,
-        label: str,
         *args,
+        label: Optional[str] = None,
         parent: Optional[Composite] = None,
         overwrite_save: bool = False,
         run_after_init: bool = False,
@@ -110,15 +110,6 @@ class Composite(Node, SemanticParent, HasCreator, ABC):
         strict_naming: bool = True,
         **kwargs,
     ):
-        super().__init__(
-            *args,
-            label=label,
-            parent=parent,
-            save_after_run=save_after_run,
-            storage_backend=storage_backend,
-            strict_naming=strict_naming,
-            **kwargs,
-        )
         self.starting_nodes: list[Node] = []
         self.provenance_by_execution: list[str] = []
         self.provenance_by_completion: list[str] = []
@@ -126,6 +117,18 @@ class Composite(Node, SemanticParent, HasCreator, ABC):
         self.signal_queue: list[tuple] = []
         self._child_sleep_interval = 0.01  # How long to wait when the signal_queue is
         # empty but the running_children list is not
+
+        super().__init__(
+            label,
+            *args,
+            parent=parent,
+            overwrite_save=overwrite_save,
+            run_after_init=run_after_init,
+            storage_backend=storage_backend,
+            save_after_run=save_after_run,
+            strict_naming=strict_naming,
+            **kwargs,
+        )
 
     def activate_strict_hints(self):
         super().activate_strict_hints()

@@ -242,27 +242,11 @@ class Macro(Composite, DecoratedNode, ABC):
 
     """
 
-    def __init__(
-        self,
-        label: Optional[str] = None,
-        parent: Optional[Composite] = None,
-        overwrite_save: bool = False,
-        run_after_init: bool = False,
-        storage_backend: Optional[Literal["h5io", "tinybase"]] = None,
-        save_after_run: bool = False,
-        strict_naming: bool = True,
-        **kwargs,
-    ):
-        super().__init__(
-            label=label if label is not None else self.graph_creator.__name__,
-            parent=parent,
-            save_after_run=save_after_run,
-            storage_backend=storage_backend,
-            strict_naming=strict_naming,
-        )
+    def _setup_node(self) -> None:
+        super()._setup_node()
 
         ui_nodes = self._prepopulate_ui_nodes_from_graph_creator_signature(
-            storage_backend=storage_backend
+            storage_backend=self.storage_backend
         )
         returned_has_channel_objects = self.graph_creator(self, *ui_nodes)
         if returned_has_channel_objects is None:
@@ -281,8 +265,6 @@ class Macro(Composite, DecoratedNode, ABC):
 
         remaining_ui_nodes = self._purge_single_use_ui_nodes(ui_nodes)
         self._configure_graph_execution(remaining_ui_nodes)
-
-        self.set_input_values(**kwargs)
 
     @staticmethod
     @abstractmethod
@@ -319,16 +301,17 @@ class Macro(Composite, DecoratedNode, ABC):
     def _prepopulate_ui_nodes_from_graph_creator_signature(
         self, storage_backend: Literal["h5io", "tinybase"]
     ):
-        return tuple(
-            self.create.standard.UserInput(
+        ui_nodes = []
+        for label, (type_hint, default) in self.preview_inputs().items():
+            n = self.create.standard.UserInput(
                 default,
                 label=label,
                 parent=self,
-                type_hint=type_hint,
                 storage_backend=storage_backend,
             )
-            for label, (type_hint, default) in self.preview_inputs().items()
-        )
+            n.inputs.user_input.type_hint = type_hint
+            ui_nodes.append(n)
+        return tuple(ui_nodes)
 
     def _purge_single_use_ui_nodes(self, ui_nodes):
         """

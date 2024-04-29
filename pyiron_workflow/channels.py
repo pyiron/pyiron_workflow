@@ -593,14 +593,14 @@ class InputSignal(SignalChannel):
                 object. Must be a method on the owner.
         """
         super().__init__(label=label, owner=owner)
-        if self._is_method_on_owner(callback) and self._takes_zero_arguments(callback):
+        if self._is_method_on_owner(callback) and self._all_args_arg_optional(callback):
             self._callback: str = callback.__name__
         else:
             raise BadCallbackError(
                 f"The channel {self.label} on {self.owner.label} got an unexpected "
                 f"callback: {callback}. "
                 f"Lives on owner: {self._is_method_on_owner(callback)}; "
-                f"take no args: {self._takes_zero_arguments(callback)} "
+                f"all args are optional: {self._all_args_arg_optional(callback)} "
             )
 
     def _is_method_on_owner(self, callback):
@@ -609,17 +609,20 @@ class InputSignal(SignalChannel):
         except AttributeError:
             return False
 
-    def _takes_zero_arguments(self, callback):
-        return callable(callback) and self._no_positional_args(callback)
+    def _all_args_arg_optional(self, callback):
+        return callable(callback) and not self._has_required_args(callback)
 
     @staticmethod
-    def _no_positional_args(func):
-        return all(
-            [
-                parameter.default != inspect.Parameter.empty
-                or parameter.kind == inspect.Parameter.VAR_KEYWORD
-                for parameter in inspect.signature(func).parameters.values()
-            ]
+    def _has_required_args(func):
+        return any(
+            (
+                param.kind in (
+                    inspect.Parameter.POSITIONAL_ONLY,
+                    inspect.Parameter.POSITIONAL_OR_KEYWORD,
+                    inspect.Parameter.KEYWORD_ONLY,
+                )
+                and param.default == inspect.Parameter.empty
+            ) for param in inspect.signature(func).parameters.values()
         )
 
     @property

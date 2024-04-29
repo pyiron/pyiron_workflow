@@ -295,26 +295,6 @@ class Function(DecoratedNode, ABC):
         guaranteed.
     """
 
-    def __init__(
-        self,
-        *args,
-        label: Optional[str] = None,
-        parent: Optional[Composite] = None,
-        overwrite_save: bool = False,
-        run_after_init: bool = False,
-        storage_backend: Optional[Literal["h5io", "tinybase"]] = None,
-        save_after_run: bool = False,
-        **kwargs,
-    ):
-        super().__init__(
-            label=label if label is not None else self.node_function.__name__,
-            parent=parent,
-            save_after_run=save_after_run,
-            storage_backend=storage_backend,
-        )
-
-        self.set_input_values(*args, **kwargs)
-
     @staticmethod
     @abstractmethod
     def node_function(*args, **kwargs) -> callable:
@@ -349,54 +329,6 @@ class Function(DecoratedNode, ABC):
         ):
             out.value = value
         return function_output
-
-    def _convert_input_args_and_kwargs_to_input_kwargs(self, *args, **kwargs):
-        reverse_keys = list(self._get_input_args().keys())[::-1]
-        if len(args) > len(reverse_keys):
-            raise ValueError(
-                f"Received {len(args)} positional arguments, but the node {self.label}"
-                f"only accepts {len(reverse_keys)} inputs."
-            )
-
-        positional_keywords = reverse_keys[-len(args) :] if len(args) > 0 else []  # -0:
-        if len(set(positional_keywords).intersection(kwargs.keys())) > 0:
-            raise ValueError(
-                f"Cannot use {set(positional_keywords).intersection(kwargs.keys())} "
-                f"as both positional _and_ keyword arguments; args {args}, kwargs "
-                f"{kwargs}, reverse_keys {reverse_keys}, positional_keyworkds "
-                f"{positional_keywords}"
-            )
-
-        for arg in args:
-            key = positional_keywords.pop()
-            kwargs[key] = arg
-
-        return kwargs
-
-    def set_input_values(self, *args, **kwargs) -> None:
-        """
-        Match positional and keyword arguments to input channels and update input
-        values.
-
-        Args:
-            *args: Interpreted in the same order as node function arguments.
-            **kwargs: input label - input value (including channels for connection)
-             pairs.
-        """
-        kwargs = self._convert_input_args_and_kwargs_to_input_kwargs(*args, **kwargs)
-        return super().set_input_values(**kwargs)
-
-    def execute(self, *args, **kwargs):
-        kwargs = self._convert_input_args_and_kwargs_to_input_kwargs(*args, **kwargs)
-        return super().execute(**kwargs)
-
-    def pull(self, *args, run_parent_trees_too=False, **kwargs):
-        kwargs = self._convert_input_args_and_kwargs_to_input_kwargs(*args, **kwargs)
-        return super().pull(run_parent_trees_too=run_parent_trees_too, **kwargs)
-
-    def __call__(self, *args, **kwargs) -> None:
-        kwargs = self._convert_input_args_and_kwargs_to_input_kwargs(*args, **kwargs)
-        return super().__call__(**kwargs)
 
     def to_dict(self):
         return {

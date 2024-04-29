@@ -20,24 +20,11 @@ def add_one(x):
 class ANode(Node):
     """To de-abstract the class"""
 
-    def __init__(
-        self,
-        label,
-        overwrite_save=False,
-        run_after_init=False,
-        storage_backend: Optional[Literal["h5io", "tinybase"]] = None,
-        save_after_run: bool = False,
-        x=None,
-    ):
-        super().__init__(
-            label=label, save_after_run=save_after_run, storage_backend=storage_backend
-        )
+    def _setup_node(self) -> None:
         self._inputs = Inputs(InputData("x", self, type_hint=int))
         self._outputs = OutputsWithInjection(
             OutputDataWithInjection("y", self, type_hint=int),
         )
-        if x is not None:
-            self.inputs.x = x
 
     @property
     def inputs(self) -> Inputs:
@@ -65,12 +52,12 @@ class ANode(Node):
 
 class TestNode(unittest.TestCase):
     def setUp(self):
-        self.n1 = ANode("start", x=0)
-        self.n2 = ANode("middle", x=self.n1.outputs.y)
-        self.n3 = ANode("end", x=self.n2.outputs.y)
+        self.n1 = ANode(label="start", x=0)
+        self.n2 = ANode(label="middle", x=self.n1.outputs.y)
+        self.n3 = ANode(label="end", x=self.n2.outputs.y)
 
     def test_set_input_values(self):
-        n = ANode("some_node")
+        n = ANode()
         n.set_input_values(x=2)
         self.assertEqual(
             2,
@@ -78,8 +65,8 @@ class TestNode(unittest.TestCase):
             msg="Post-instantiation update of inputs should also work"
         )
 
-        n.set_input_values(y=3)
-        # Missing keys may throw a warning, but are otherwise allowed to pass
+        with self.assertRaises(ValueError, msg="Non-input-channel kwargs not allowed"):
+            n.set_input_values(z=3)
 
         with self.assertRaises(
             TypeError,
@@ -352,12 +339,12 @@ class TestNode(unittest.TestCase):
         )
         self.assertEqual(
             1,
-            ANode("right_away", run_after_init=True, x=0).outputs.y.value,
+            ANode(label="right_away", run_after_init=True, x=0).outputs.y.value,
             msg="With run_after_init, the node should run right away"
         )
 
     def test_graph_info(self):
-        n = ANode("n")
+        n = ANode()
 
         self.assertEqual(
             n.semantic_delimiter + n.label,
@@ -374,7 +361,7 @@ class TestNode(unittest.TestCase):
         )
 
     def test_single_value(self):
-        node = ANode("n")
+        node = ANode(label="n")
         self.assertIs(
             node.outputs.y,
             node.channel,
@@ -390,7 +377,7 @@ class TestNode(unittest.TestCase):
                 "on the single (with-injection) output"
         )
 
-        node2 = ANode("n2")
+        node2 = ANode(label="n2")
         node2.inputs.x = node
         self.assertListEqual(
             [node.outputs.y],
@@ -432,14 +419,14 @@ class TestNode(unittest.TestCase):
                     self.n1.save()
 
                     x = self.n1.inputs.x.value
-                    reloaded = ANode(self.n1.label, x=x, storage_backend=backend)
+                    reloaded = ANode(label=self.n1.label, x=x, storage_backend=backend)
                     self.assertEqual(
                         y,
                         reloaded.outputs.y.value,
                         msg="Nodes should load by default if they find a save file"
                     )
 
-                    clean_slate = ANode(self.n1.label, x=x, overwrite_save=True)
+                    clean_slate = ANode(label=self.n1.label, x=x, overwrite_save=True)
                     self.assertIs(
                         clean_slate.outputs.y.value,
                         NOT_DATA,
@@ -447,7 +434,10 @@ class TestNode(unittest.TestCase):
                     )
 
                     run_right_away = ANode(
-                        self.n1.label, x=x, run_after_init=True, storage_backend=backend
+                        label=self.n1.label,
+                        x=x,
+                        run_after_init=True,
+                        storage_backend=backend
                     )
                     self.assertEqual(
                         y,
@@ -462,11 +452,17 @@ class TestNode(unittest.TestCase):
                             "once"
                     ):
                         ANode(
-                            self.n1.label, x=x, run_after_init=True, storage_backend=backend
+                            label=self.n1.label,
+                            x=x,
+                            run_after_init=True,
+                            storage_backend=backend
                         )
 
                     force_run = ANode(
-                        self.n1.label, x=x, run_after_init=True, overwrite_save=True
+                        label=self.n1.label,
+                        x=x,
+                        run_after_init=True,
+                        overwrite_save=True
                     )
                     self.assertEqual(
                         y,
@@ -481,9 +477,14 @@ class TestNode(unittest.TestCase):
         for backend in Node.allowed_backends():
             with self.subTest(backend):
                 try:
-                    ANode("just_run", x=0, run_after_init=True, storage_backend=backend)
+                    ANode(
+                        label="just_run",
+                        x=0,
+                        run_after_init=True,
+                        storage_backend=backend
+                    )
                     saves = ANode(
-                        "run_and_save",
+                        label="run_and_save",
                         x=0,
                         run_after_init=True,
                         save_after_run=True,
@@ -491,7 +492,7 @@ class TestNode(unittest.TestCase):
                     )
                     y = saves.outputs.y.value
 
-                    not_reloaded = ANode("just_run", storage_backend=backend)
+                    not_reloaded = ANode(label="just_run", storage_backend=backend)
                     self.assertIs(
                         NOT_DATA,
                         not_reloaded.outputs.y.value,
@@ -499,7 +500,7 @@ class TestNode(unittest.TestCase):
                             "to load"
                     )
 
-                    find_saved = ANode("run_and_save", storage_backend=backend)
+                    find_saved = ANode(label="run_and_save", storage_backend=backend)
                     self.assertEqual(
                         y,
                         find_saved.outputs.y.value,
