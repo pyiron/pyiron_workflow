@@ -190,7 +190,8 @@ class _ClassFactory(metaclass=_SingleInstance):
         self, name, bases, class_dict, sc_init_kwargs, class_factory_args
     ) -> type[_FactoryMade]:
 
-        class_dict["__module__"] = self.factory_function.__module__
+        if "__module__" not in class_dict.keys():
+            class_dict["__module__"] = self.factory_function.__module__
         sc_init_kwargs["class_factory"] = self
         sc_init_kwargs["class_factory_args"] = class_factory_args
 
