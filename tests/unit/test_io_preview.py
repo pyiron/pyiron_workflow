@@ -3,26 +3,52 @@ from textwrap import dedent
 import unittest
 
 from pyiron_workflow.channels import NOT_DATA
-from pyiron_workflow.io_preview import (
-    ScrapesIO, decorated_node_decorator_factory, OutputLabelsNotValidated
-)
+from pyiron_workflow.io_preview import ScrapesIO, OutputLabelsNotValidated
+from pyiron_workflow.snippets.factory import classfactory
 
 
-class ScraperParent(ScrapesIO, ABC):
-
-    @staticmethod
-    @abstractmethod
-    def io_function(*args, **kwargs):
-        pass
-
+class ScrapesFromDecorated(ScrapesIO):
     @classmethod
-    def _io_defining_function(cls):
-        return cls.io_function
+    def _io_defining_function(cls) -> callable:
+        return cls._decorated_function
 
 
-as_scraper = decorated_node_decorator_factory(
-    ScraperParent, ScraperParent.io_function
-)
+@classfactory
+def scraper_factory(
+    io_defining_function,
+    validate_output_labels,
+    io_defining_function_uses_self,
+    /,
+    *output_labels,
+):
+    return (
+        io_defining_function.__name__,
+        (ScrapesFromDecorated,),  # Define parentage
+        {
+            "_decorated_function": staticmethod(io_defining_function),
+            "__module__": io_defining_function.__module__,
+            "_output_labels": None if len(output_labels) == 0 else output_labels,
+            "_validate_output_labels": validate_output_labels,
+            "_io_defining_function_uses_self": io_defining_function_uses_self
+        },
+        {},
+    )
+
+
+def as_scraper(
+    *output_labels,
+    validate_output_labels=True,
+    io_defining_function_uses_self=False,
+):
+    def scraper_decorator(fnc):
+        scraper_factory.clear(fnc.__name__)  # Force a fresh class
+        factory_made = scraper_factory(
+            fnc, validate_output_labels, io_defining_function_uses_self, *output_labels
+        )
+        factory_made._class_returns_from_decorated_function = fnc
+        factory_made.preview_io()
+        return factory_made
+    return scraper_decorator
 
 
 class TestIOPreview(unittest.TestCase):
