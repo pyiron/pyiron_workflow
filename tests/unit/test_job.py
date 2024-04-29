@@ -9,12 +9,6 @@ from pyiron_workflow.channels import NOT_DATA
 import pyiron_workflow.job  # To get the job classes registered
 
 
-@Workflow.wrap.as_function_node("t")
-def Sleep(t):
-    sleep(t)
-    return t
-
-
 class _WithAJob(unittest.TestCase, ABC):
     @abstractmethod
     def make_a_job_from_node(self, node):
@@ -58,7 +52,7 @@ class TestNodeOutputJob(_WithAJob):
     @unittest.skipIf(sys.version_info < (3, 11), "Storage will only work in 3.11+")
     def test_modal(self):
         modal_wf = Workflow("modal_wf")
-        modal_wf.sleep = Sleep(0)
+        modal_wf.sleep = Workflow.create.standard.Sleep(0)
         modal_wf.out = modal_wf.create.standard.UserInput(modal_wf.sleep)
         nj = self.make_a_job_from_node(modal_wf)
 
@@ -197,7 +191,7 @@ class TestStoredNodeJob(_WithAJob):
     @unittest.skipIf(sys.version_info < (3, 11), "Storage will only work in 3.11+")
     def test_modal(self):
         modal_wf = Workflow("modal_wf")
-        modal_wf.sleep = Sleep(0)
+        modal_wf.sleep = Workflow.create.standard.Sleep(0)
         modal_wf.out = modal_wf.create.standard.UserInput(modal_wf.sleep)
         nj = self.make_a_job_from_node(modal_wf)
 
