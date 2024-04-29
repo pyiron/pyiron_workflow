@@ -181,12 +181,18 @@ class TestStoredNodeJob(_WithAJob):
     def test_node(self):
         node = Workflow.create.standard.UserInput(42)
         nj = self.make_a_job_from_node(node)
-        nj.run()
-        self.assertEqual(
-            42,
-            nj.node.outputs.user_input.value,
-            msg="A single node should run just as well as a workflow"
-        )
+        try:
+            nj.run()
+            self.assertEqual(
+                42,
+                nj.node.outputs.user_input.value,
+                msg="A single node should run just as well as a workflow"
+            )
+        finally:
+            try:
+                node.storage.delete()
+            except FileNotFoundError:
+                pass
 
     @unittest.skipIf(sys.version_info < (3, 11), "Storage will only work in 3.11+")
     def test_modal(self):
@@ -195,29 +201,32 @@ class TestStoredNodeJob(_WithAJob):
         modal_wf.out = modal_wf.create.standard.UserInput(modal_wf.sleep)
         nj = self.make_a_job_from_node(modal_wf)
 
-        nj.run()
-        self.assertTrue(
-            nj.status.finished,
-            msg="The interpreter should not release until the job is done"
-        )
-        self.assertEqual(
-            0,
-            nj.node.outputs.out__user_input.value,
-            msg="The node should have run, and since it's modal there's no need to "
-                "update the instance"
-        )
+        try:
+            nj.run()
+            self.assertTrue(
+                nj.status.finished,
+                msg="The interpreter should not release until the job is done"
+            )
+            self.assertEqual(
+                0,
+                nj.node.outputs.out__user_input.value,
+                msg="The node should have run, and since it's modal there's no need to "
+                    "update the instance"
+            )
 
-        lj = self.pr.load(nj.job_name)
-        self.assertIsNot(
-            lj,
-            nj,
-            msg="The loaded job should be a new instance."
-        )
-        self.assertEqual(
-            nj.node.outputs.out__user_input.value,
-            lj.node.outputs.out__user_input.value,
-            msg="The loaded job should still have all the same values"
-        )
+            lj = self.pr.load(nj.job_name)
+            self.assertIsNot(
+                lj,
+                nj,
+                msg="The loaded job should be a new instance."
+            )
+            self.assertEqual(
+                nj.node.outputs.out__user_input.value,
+                lj.node.outputs.out__user_input.value,
+                msg="The loaded job should still have all the same values"
+            )
+        finally:
+            modal_wf.storage.delete()
 
     @unittest.skipIf(sys.version_info < (3, 11), "Storage will only work in 3.11+")
     def test_nonmodal(self):
@@ -225,31 +234,35 @@ class TestStoredNodeJob(_WithAJob):
         nonmodal_node.out = Workflow.create.standard.UserInput(42)
 
         nj = self.make_a_job_from_node(nonmodal_node)
-        nj.run(run_mode="non_modal")
-        self.assertFalse(
-            nj.status.finished,
-            msg=f"The local process should released immediately per non-modal "
-                f"style, but got status {nj.status}"
-        )
-        while not nj.status.finished:
-            sleep(0.1)
-        self.assertTrue(
-            nj.status.finished,
-            msg="The job status should update on completion"
-        )
-        self.assertIs(
-            nj.node.outputs.out__user_input.value,
-            NOT_DATA,
-            msg="As usual with remote processes, we expect to require a data read "
-                "before the local instance reflects its new state."
-        )
 
-        lj = self.pr.load(nj.job_name)
-        self.assertEqual(
-            42,
-            lj.node.outputs.out__user_input.value,
-            msg="The loaded job should have the finished values"
-        )
+        try:
+            nj.run(run_mode="non_modal")
+            self.assertFalse(
+                nj.status.finished,
+                msg=f"The local process should released immediately per non-modal "
+                    f"style, but got status {nj.status}"
+            )
+            while not nj.status.finished:
+                sleep(0.1)
+            self.assertTrue(
+                nj.status.finished,
+                msg="The job status should update on completion"
+            )
+            self.assertIs(
+                nj.node.outputs.out__user_input.value,
+                NOT_DATA,
+                msg="As usual with remote processes, we expect to require a data read "
+                    "before the local instance reflects its new state."
+            )
+
+            lj = self.pr.load(nj.job_name)
+            self.assertEqual(
+                42,
+                lj.node.outputs.out__user_input.value,
+                msg="The loaded job should have the finished values"
+            )
+        finally:
+            nonmodal_node.storage.delete()
 
     @unittest.skipIf(sys.version_info < (3, 11), "Storage will only work in 3.11+")
     def test_bad_workflow(self):
