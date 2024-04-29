@@ -2,6 +2,7 @@ import math
 import random
 import unittest
 
+import pyiron_workflow.loops
 from pyiron_workflow._tests import ensure_tests_in_python_path
 from pyiron_workflow.channels import OutputSignal
 from pyiron_workflow.function import Function
@@ -94,7 +95,7 @@ class TestTopology(unittest.TestCase):
 
         n = 5
 
-        bulk_loop = Workflow.create.meta.for_loop(
+        bulk_loop = pyiron_workflow.loops.for_loop(
             Workflow.create.demo.OptionallyAdd,
             n,
             iterate_on=("y",),
@@ -119,7 +120,7 @@ class TestTopology(unittest.TestCase):
         with self.subTest("Random"):
             random.seed(0)
 
-            RandomWhile = Workflow.create.meta.while_loop(
+            RandomWhile = pyiron_workflow.loops.while_loop(
                 loop_body_class=RandomFloat,
                 condition_class=GreaterThan,
                 internal_connection_map=[
@@ -148,7 +149,7 @@ class TestTopology(unittest.TestCase):
 
         with self.subTest("Self-data-loop"):
 
-            AddWhile = Workflow.create.meta.while_loop(
+            AddWhile = pyiron_workflow.loops.while_loop(
                 loop_body_class=Workflow.create.standard.Add,
                 condition_class=Workflow.create.standard.LessThan,
                 internal_connection_map=[
