@@ -5,6 +5,7 @@ Container classes for giving access to various workflow objects and tools
 from __future__ import annotations
 
 from abc import ABC
+from concurrent.futures import ProcessPoolExecutor, ThreadPoolExecutor
 from functools import wraps
 from importlib import import_module
 import pkgutil
@@ -58,7 +59,12 @@ class Creator(metaclass=Singleton):
         self._package_registry = bidict()
 
         self.Executor = Executor
+        # Standard lib
+        self.ProcessPoolExecutor = ProcessPoolExecutor
+        self.ThreadPoolExecutor = ThreadPoolExecutor
+        # Local cloudpickler
         self.CloudpickleProcessPoolExecutor = CloudpickleProcessPoolExecutor
+        # pympipool
         self.PyMPIExecutor = PyMPIExecutor
         self.PyMpiPoolExecutor = PyMpiPoolExecutor
 
