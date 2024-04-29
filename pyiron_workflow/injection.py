@@ -11,7 +11,7 @@ from __future__ import annotations
 from abc import ABC, abstractmethod
 from typing import Any, Optional, TYPE_CHECKING
 
-from pyiron_workflow.channels import OutputData, NOT_DATA, InputData
+from pyiron_workflow.channels import OutputData, NOT_DATA
 from pyiron_workflow.has_interface_mixins import HasChannel
 from pyiron_workflow.io import Outputs, HasIO
 
@@ -44,7 +44,7 @@ class OutputDataWithInjection(OutputData):
         default: Optional[Any] = NOT_DATA,
         type_hint: Optional[Any] = None,
         strict_hints: bool = True,
-        value_receiver: Optional[InputData] = None,
+        value_receiver: Optional[OutputData] = None,
     ):
         # Override parent method to give the new owner type hint
         super().__init__(

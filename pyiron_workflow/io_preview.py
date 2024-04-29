@@ -17,12 +17,17 @@ import warnings
 from abc import ABC, abstractmethod
 from textwrap import dedent
 from types import FunctionType
-from typing import Any, get_args, get_type_hints
+from typing import Any, get_args, get_type_hints, Literal, Optional, TYPE_CHECKING
 
-from pyiron_workflow.channels import NOT_DATA
+from pyiron_workflow.channels import InputData, NOT_DATA
+from pyiron_workflow.injection import OutputDataWithInjection, OutputsWithInjection
+from pyiron_workflow.io import Inputs
 from pyiron_workflow.node import Node
 from pyiron_workflow.output_parser import ParseOutput
 from pyiron_workflow.snippets.dotdict import DotDict
+
+if TYPE_CHECKING:
+    from pyiron_workflow.composite import Composite
 
 
 class HasIOPreview(ABC):
@@ -287,7 +292,60 @@ class OutputLabelsNotValidated(Warning):
 
 
 class StaticNode(Node, HasIOPreview, ABC):
-    """A node whose IO specification is available at the class level."""
+    """
+    A node whose IO specification is available at the class level.
+
+    Actual IO is then constructed from the preview at instantiation.
+    """
+
+    def __init__(
+        self,
+        label: str,
+        *args,
+        parent: Optional[Composite] = None,
+        overwrite_save: bool = False,
+        run_after_init: bool = False,
+        storage_backend: Optional[Literal["h5io", "tinybase"]] = None,
+        save_after_run: bool = False,
+        **kwargs,
+    ):
+        super().__init__(
+            label=label,
+            parent=parent,
+            save_after_run=save_after_run,
+            storage_backend=storage_backend,
+        )
+
+        self._inputs = Inputs(
+            *[
+                InputData(
+                    label=label,
+                    owner=self,
+                    default=default,
+                    type_hint=type_hint,
+                )
+                for label, (type_hint, default) in self.preview_inputs().items()
+            ]
+        )
+
+        self._outputs = OutputsWithInjection(
+            *[
+                OutputDataWithInjection(
+                    label=label,
+                    owner=self,
+                    type_hint=hint,
+                )
+                for label, hint in self.preview_outputs().items()
+            ]
+        )
+
+    @property
+    def inputs(self) -> Inputs:
+        return self._inputs
+
+    @property
+    def outputs(self) -> OutputsWithInjection:
+        return self._outputs
 
 
 class DecoratedNode(StaticNode, ScrapesIO, ABC):

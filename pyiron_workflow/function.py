@@ -3,9 +3,6 @@ from __future__ import annotations
 from abc import ABC, abstractmethod
 from typing import Any, Literal, Optional, TYPE_CHECKING
 
-from pyiron_workflow.channels import InputData
-from pyiron_workflow.injection import OutputDataWithInjection
-from pyiron_workflow.io import Inputs, Outputs
 from pyiron_workflow.io_preview import DecoratedNode, decorated_node_decorator_factory
 from pyiron_workflow.snippets.colors import SeabornColors
 
@@ -314,11 +311,7 @@ class Function(DecoratedNode, ABC):
             parent=parent,
             save_after_run=save_after_run,
             storage_backend=storage_backend,
-            # **kwargs,
         )
-
-        self._inputs = None
-        self._outputs = None
 
         self.set_input_values(*args, **kwargs)
 
@@ -336,39 +329,6 @@ class Function(DecoratedNode, ABC):
         preview = super(Function, cls).preview_outputs()
         return preview if len(preview) > 0 else {"None": type(None)}
         # If clause facilitates functions with no return value
-
-    @property
-    def outputs(self) -> Outputs:
-        if self._outputs is None:
-            self._outputs = Outputs(*self._build_output_channels())
-        return self._outputs
-
-    def _build_output_channels(self):
-        return [
-            OutputDataWithInjection(
-                label=label,
-                owner=self,
-                type_hint=hint,
-            )
-            for label, hint in self.preview_outputs().items()
-        ]
-
-    @property
-    def inputs(self) -> Inputs:
-        if self._inputs is None:
-            self._inputs = Inputs(*self._build_input_channels())
-        return self._inputs
-
-    def _build_input_channels(self):
-        return [
-            InputData(
-                label=label,
-                owner=self,
-                default=default,
-                type_hint=type_hint,
-            )
-            for label, (type_hint, default) in self.preview_inputs().items()
-        ]
 
     @property
     def on_run(self):

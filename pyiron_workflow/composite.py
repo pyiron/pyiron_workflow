@@ -247,31 +247,6 @@ class Composite(Node, SemanticParent, HasCreator, ABC):
         _, upstream_most_nodes = set_run_connections_according_to_dag(self.children)
         self.starting_nodes = upstream_most_nodes
 
-    @abstractmethod
-    def _get_linking_channel(
-        self,
-        child_reference_channel: InputData | OutputData,
-        composite_io_key: str,
-    ) -> InputData | OutputData:
-        """
-        Returns the channel that will be the link between the provided child channel,
-        and the composite's IO at the given key.
-
-        The returned channel should be fully compatible with the provided child channel,
-        i.e. same type, same type hint... (For instance, the child channel itself is a
-        valid return, which would create a composite IO panel that works by reference.)
-
-        Args:
-            child_reference_channel (InputData | OutputData): The child channel
-            composite_io_key (str): The key under which this channel will be stored on
-                the composite's IO.
-
-        Returns:
-            (Channel): A channel with the same type, type hint, etc. as the reference
-                channel passed in.
-        """
-        pass
-
     def add_child(
         self,
         child: Node,

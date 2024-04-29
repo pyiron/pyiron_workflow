@@ -9,7 +9,6 @@ from abc import ABC, abstractmethod
 import re
 from typing import Literal, Optional, TYPE_CHECKING
 
-from pyiron_workflow.channels import InputData, OutputData
 from pyiron_workflow.composite import Composite
 from pyiron_workflow.has_interface_mixins import HasChannel
 from pyiron_workflow.io import Outputs, Inputs
@@ -270,23 +269,15 @@ class Macro(Composite, DecoratedNode, ABC):
             returned_has_channel_objects = ()
         elif isinstance(returned_has_channel_objects, HasChannel):
             returned_has_channel_objects = (returned_has_channel_objects,)
-        self._inputs = Inputs(
-            *(self._get_linking_channel(n.inputs.user_input, n.label) for n in ui_nodes)
-        )
 
-        self._outputs = Outputs(
-            *(
-                self._get_linking_channel(c.channel, label)
-                for (c, label) in zip(
-                    (
-                        ()
-                        if returned_has_channel_objects is None
-                        else returned_has_channel_objects
-                    ),
-                    (() if self._output_labels is None else self._output_labels),
-                )
-            )
-        )
+        for node in ui_nodes:
+            self.inputs[node.label].value_receiver = node.inputs.user_input
+
+        for node, output_channel_label in zip(
+            returned_has_channel_objects,
+            () if self._output_labels is None else self._output_labels,
+        ):
+            node.channel.value_receiver = self.outputs[output_channel_label]
 
         remaining_ui_nodes = self._purge_single_use_ui_nodes(ui_nodes)
         self._configure_graph_execution(remaining_ui_nodes)
@@ -338,37 +329,6 @@ class Macro(Composite, DecoratedNode, ABC):
             )
             for label, (type_hint, default) in self.preview_inputs().items()
         )
-
-    def _get_linking_channel(
-        self,
-        child_reference_channel: InputData | OutputData,
-        composite_io_key: str,
-    ) -> InputData | OutputData:
-        """
-        Build IO by value: create a new channel just like the child's channel.
-
-        In the case of input data, we also form a value link from the composite channel
-        down to the child channel, so that the child will stay up-to-date.
-        """
-        composite_channel = child_reference_channel.__class__(
-            label=composite_io_key,
-            owner=self,
-            default=child_reference_channel.default,
-            type_hint=child_reference_channel.type_hint,
-        )
-        composite_channel.value = child_reference_channel.value
-
-        if isinstance(composite_channel, InputData):
-            composite_channel.strict_hints = child_reference_channel.strict_hints
-            composite_channel.value_receiver = child_reference_channel
-        elif isinstance(composite_channel, OutputData):
-            child_reference_channel.value_receiver = composite_channel
-        else:
-            raise TypeError(
-                "This should not be an accessible state, please contact the developers"
-            )
-
-        return composite_channel
 
     def _purge_single_use_ui_nodes(self, ui_nodes):
         """

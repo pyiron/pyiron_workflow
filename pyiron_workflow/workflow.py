@@ -261,16 +261,6 @@ class Workflow(Composite, ParentMost):
                 if v is None:
                     some_map[k] = (None, f"{k} disabled")
 
-    def _get_linking_channel(
-        self,
-        child_reference_channel: InputData | OutputData,
-        composite_io_key: str,
-    ) -> InputData | OutputData:
-        """
-        Build IO by reference: just return the child's channel itself.
-        """
-        return child_reference_channel
-
     @property
     def inputs(self) -> Inputs:
         return self._build_inputs()
@@ -318,14 +308,10 @@ class Workflow(Composite, ParentMost):
                         # Tuples indicate that the channel has been deactivated
                         # This is a necessary misdirection to keep the bidict working,
                         # as we can't simply map _multiple_ keys to `None`
-                        io[io_panel_key] = self._get_linking_channel(
-                            channel, io_panel_key
-                        )
+                        io[io_panel_key] = channel
                 except KeyError:
                     if not channel.connected:
-                        io[channel.scoped_label] = self._get_linking_channel(
-                            channel, channel.scoped_label
-                        )
+                        io[channel.scoped_label] = channel
         return io
 
     def run(
