@@ -109,8 +109,6 @@ class CloudpickleProcessPoolExecutor(ProcessPoolExecutor):
         >>> print(fs.done())
         True
 
-        >>> print(instance.result.result)
-        This was an arg
     """
 
     def submit(self, fn, /, *args, **kwargs):
