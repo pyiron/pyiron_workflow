@@ -1,4 +1,5 @@
 from concurrent.futures import Future
+import pickle
 import sys
 from time import sleep
 import unittest
@@ -441,27 +442,34 @@ class TestWorkflow(unittest.TestCase):
     def test_storage_values(self):
         for backend in Workflow.allowed_backends():
             with self.subTest(backend):
-                wf = Workflow("wf", storage_backend=backend)
                 try:
+                    print("Trying", backend)
+                    wf = Workflow("wf", storage_backend=backend)
                     wf.register("static.demo_nodes", domain="demo")
                     wf.inp = wf.create.demo.AddThree(x=0)
                     wf.out = wf.inp.outputs.add_three + 1
                     wf_out = wf()
                     three_result = wf.inp.three.outputs.add.value
 
-                    wf.save()
-
-                    reloaded = Workflow("wf", storage_backend=backend)
-                    self.assertEqual(
-                        wf_out.out__add,
-                        reloaded.outputs.out__add.value,
-                        msg="Workflow-level data should get reloaded"
-                    )
-                    self.assertEqual(
-                        three_result,
-                        reloaded.inp.three.value,
-                        msg="Child data arbitrarily deep should get reloaded"
-                    )
+                    if backend == "h5io":
+                        with self.assertRaises(
+                            TypeError,
+                            msg="h5io can't handle custom reconstructors"
+                        ):
+                            wf.save()
+                    else:
+                        wf.save()
+                        reloaded = Workflow("wf", storage_backend=backend)
+                        self.assertEqual(
+                            wf_out.out__add,
+                            reloaded.outputs.out__add.value,
+                            msg="Workflow-level data should get reloaded"
+                        )
+                        self.assertEqual(
+                            three_result,
+                            reloaded.inp.three.value,
+                            msg="Child data arbitrarily deep should get reloaded"
+                        )
                 finally:
                     # Clean up after ourselves
                     wf.storage.delete()
@@ -479,9 +487,20 @@ class TestWorkflow(unittest.TestCase):
         for backend in Workflow.allowed_backends():
             with self.subTest(backend):
                 try:
-                    wf.storage_backend = backend
-                    wf.save()
-                    Workflow(wf.label, storage_backend=backend)
+                    for backend in Workflow.allowed_backends():
+                        if backend == "h5io":
+                            with self.subTest(backend):
+                                with self.assertRaises(
+                                    TypeError,
+                                    msg="h5io can't handle custom reconstructors"
+                                ):
+                                    wf.storage_backend = backend
+                                    wf.save()
+                        else:
+                            with self.subTest(backend):
+                                wf.storage_backend = backend
+                                wf.save()
+                                Workflow(wf.label, storage_backend=backend)
                 finally:
                     wf.storage.delete()
 
@@ -499,24 +518,30 @@ class TestWorkflow(unittest.TestCase):
                             wf.save()
             finally:
                 wf.remove_child(wf.import_type_mismatch)
+                wf.storage.delete()
 
         if "h5io" in Workflow.allowed_backends():
             wf.add_child(PlusOne(label="local_but_importable"))
             try:
-                wf.storage_backend = "h5io"
-                wf.save()
-                Workflow(wf.label, storage_backend="h5io")
+                with self.assertRaises(
+                    TypeError, msg="h5io can't handle custom reconstructors"
+                ):
+                    wf.storage_backend = "h5io"
+                    wf.save()
             finally:
                 wf.storage.delete()
 
         if "tinybase" in Workflow.allowed_backends():
-            with self.assertRaises(
-                NotImplementedError,
-                msg="Storage docs for tinybase claim all children must be registered "
-                    "nodes"
-            ):
-                wf.storage_backend = "tinybase"
-                wf.save()
+            try:
+                with self.assertRaises(
+                    NotImplementedError,
+                    msg="Storage docs for tinybase claim all children must be registered "
+                        "nodes"
+                ):
+                    wf.storage_backend = "tinybase"
+                    wf.save()
+            finally:
+                wf.storage.delete()
 
         if "h5io" in Workflow.allowed_backends():
             with self.subTest("Instanced node"):
@@ -552,6 +577,19 @@ class TestWorkflow(unittest.TestCase):
                 finally:
                     wf.remove_child(wf.unimportable_scope)
                     wf.storage.delete()
+
+    def test_pickle(self):
+        wf = Workflow("wf")
+        wf.register("static.demo_nodes", domain="demo")
+        wf.inp = wf.create.demo.AddThree(x=0)
+        wf.out = wf.inp.outputs.add_three + 1
+        wf_out = wf()
+        reloaded = pickle.loads(pickle.dumps(wf))
+        self.assertDictEqual(
+            wf_out,
+            reloaded.outputs.to_value_dict(),
+            msg="Pickling should work"
+        )
 
 
 if __name__ == '__main__':

@@ -1,9 +1,8 @@
-import sys
 from concurrent.futures import Future
-
+import pickle
+import sys
 from time import sleep
 import unittest
-
 
 from pyiron_workflow._tests import ensure_tests_in_python_path
 from pyiron_workflow.channels import NOT_DATA
@@ -492,49 +491,48 @@ class TestMacro(unittest.TestCase):
 
                     modified_result = macro()
 
-                    macro.save()
-                    reloaded = Macro.create.demo.AddThree(
-                        label="m", storage_backend=backend
-                    )
-                    self.assertDictEqual(
-                        modified_result,
-                        reloaded.outputs.to_value_dict(),
-                        msg="Updated IO should have been (de)serialized"
-                    )
-                    self.assertSetEqual(
-                        set(macro.children.keys()),
-                        set(reloaded.children.keys()),
-                        msg="All nodes should have been (de)serialized."
-                    )  # Note that this snags the _new_ one in the case of h5io!
-                    self.assertEqual(
-                        Macro.create.demo.AddThree.__name__,
-                        reloaded.__class__.__name__,
-                        msg=f"LOOK OUT! This all (de)serialized nicely, but what we "
-                            f"loaded is _falsely_ claiming to be an "
-                            f"{Macro.create.demo.AddThree.__name__}. This is "
-                            f"not any sort of technical error -- what other class name "
-                            f"would we load? -- but is a deeper problem with saving "
-                            f"modified objects that we need ot figure out some better "
-                            f"solution for later."
-                    )
-                    rerun = reloaded()
-
                     if backend == "h5io":
+                        with self.assertRaises(
+                            TypeError, msg="h5io can't handle custom reconstructors"
+                        ):
+                            macro.save()
+                    else:
+                        macro.save()
+                        reloaded = Macro.create.demo.AddThree(
+                            label="m", storage_backend=backend
+                        )
                         self.assertDictEqual(
                             modified_result,
-                            rerun,
-                            msg="Rerunning should re-execute the _modified_ "
-                                "functionality"
+                            reloaded.outputs.to_value_dict(),
+                            msg="Updated IO should have been (de)serialized"
                         )
-                    elif backend == "tinybase":
-                        self.assertDictEqual(
-                            original_result,
-                            rerun,
-                            msg="Rerunning should re-execute the _original_ "
-                                "functionality"
+                        self.assertSetEqual(
+                            set(macro.children.keys()),
+                            set(reloaded.children.keys()),
+                            msg="All nodes should have been (de)serialized."
+                        )  # Note that this snags the _new_ one in the case of h5io!
+                        self.assertEqual(
+                            Macro.create.demo.AddThree.__name__,
+                            reloaded.__class__.__name__,
+                            msg=f"LOOK OUT! This all (de)serialized nicely, but what we "
+                                f"loaded is _falsely_ claiming to be an "
+                                f"{Macro.create.demo.AddThree.__name__}. This is "
+                                f"not any sort of technical error -- what other class name "
+                                f"would we load? -- but is a deeper problem with saving "
+                                f"modified objects that we need ot figure out some better "
+                                f"solution for later."
                         )
-                    else:
-                        raise ValueError(f"Unexpected backend {backend}?")
+                        rerun = reloaded()
+
+                        if backend == "tinybase":
+                            self.assertDictEqual(
+                                original_result,
+                                rerun,
+                                msg="Rerunning should re-execute the _original_ "
+                                    "functionality"
+                            )
+                        else:
+                            raise ValueError(f"Unexpected backend {backend}?")
                 finally:
                     macro.storage.delete()
 
@@ -560,6 +558,40 @@ class TestMacro(unittest.TestCase):
             def ReturnHasDot(macro):
                 macro.foo = macro.create.standard.UserInput()
                 return macro.foo.outputs.user_input
+
+    def test_pickle(self):
+        m = macro_node(add_three_macro)
+        m(1)
+        reloaded_m = pickle.loads(pickle.dumps(m))
+        self.assertTupleEqual(
+            m.child_labels,
+            reloaded_m.child_labels,
+            msg="Spot check values are getting reloaded correctly"
+        )
+        self.assertDictEqual(
+            m.outputs.to_value_dict(),
+            reloaded_m.outputs.to_value_dict(),
+            msg="Spot check values are getting reloaded correctly"
+        )
+        self.assertTrue(
+            reloaded_m.two.connected,
+            msg="The macro should reload with all its child connections"
+        )
+
+        self.assertTrue(m.two.connected, msg="Sanity check")
+        reloaded_two = pickle.loads(pickle.dumps(m.two))
+        self.assertFalse(
+            reloaded_two.connected,
+            msg="Children are expected to be de-parenting on serialization, so that if "
+                "we ship them off to another process, they don't drag their whole "
+                "graph with them"
+        )
+        self.assertEqual(
+            m.two.outputs.to_value_dict(),
+            reloaded_two.outputs.to_value_dict(),
+            msg="The remainder of the child node state should be recovering just "
+                "fine on (de)serialization, this is a spot-check"
+        )
 
 
 if __name__ == '__main__':

@@ -18,7 +18,9 @@ from abc import ABC, abstractmethod
 from functools import lru_cache, wraps
 from textwrap import dedent
 from types import FunctionType
-from typing import Any, get_args, get_type_hints, Literal, Optional, TYPE_CHECKING
+from typing import (
+    Any, ClassVar, get_args, get_type_hints, Literal, Optional, TYPE_CHECKING
+)
 
 from pyiron_workflow.channels import InputData, NOT_DATA
 from pyiron_workflow.injection import OutputDataWithInjection, OutputsWithInjection
@@ -130,9 +132,9 @@ class ScrapesIO(HasIOPreview, ABC):
     def _io_defining_function(cls) -> callable:
         """Must return a static class method."""
 
-    _output_labels: tuple[str] | None = None  # None: scrape them
-    _validate_output_labels: bool = True  # True: validate against source code
-    _io_defining_function_uses_self: bool = False  # False: use entire signature
+    _output_labels: ClassVar[tuple[str] | None] = None  # None: scrape them
+    _validate_output_labels: ClassVar[bool] = True  # True: validate against source code
+    _io_defining_function_uses_self: ClassVar[bool] = False  # False: use entire signature
 
     @classmethod
     def _build_inputs_preview(cls):

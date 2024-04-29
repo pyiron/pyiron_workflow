@@ -7,6 +7,7 @@ from pyiron_base import Project
 from pyiron_workflow import Workflow
 from pyiron_workflow.channels import NOT_DATA
 import pyiron_workflow.job  # To get the job classes registered
+from pyiron_workflow.node import Node
 
 
 class _WithAJob(unittest.TestCase, ABC):
@@ -42,11 +43,27 @@ class TestNodeOutputJob(_WithAJob):
     def test_node(self):
         node = Workflow.create.standard.UserInput(42)
         nj = self.make_a_job_from_node(node)
+
+        self.assertIsInstance(nj.get_input_node(), Node, msg="Sanity check")
+
         nj.run()
         self.assertEqual(
             42,
             nj.output.user_input,
             msg="A single node should run just as well as a workflow"
+        )
+
+        self.assertIsInstance(
+            nj.input["node"],
+            str,
+            msg="On saving, we convert the input to a bytestream so DataContainer can "
+                "handle storing it."
+        )
+        self.assertIsInstance(
+            nj.get_input_node(),
+            Node,
+            msg="But we might want to look at it again, so make sure this convenience "
+                "method works."
         )
 
     @unittest.skipIf(sys.version_info < (3, 11), "Storage will only work in 3.11+")
@@ -134,19 +151,13 @@ class TestNodeOutputJob(_WithAJob):
             return x + 1
 
         nj = self.make_a_job_from_node(not_importable_directy_from_module(42))
-        nj.run()
-        self.assertEqual(
-            43,
-            nj.output.y,
-            msg="Things should run fine locally"
-        )
         with self.assertRaises(
             AttributeError,
-            msg="We have promised that you'll hit trouble if you try to load a job "
-                "whose nodes are not all importable directly from their module"
-                # h5io also has this limitation, so I suspect that may be the source
+            msg="On saving we cloudpickle the node, then at run time we try to "
+                "recreate the dynamic class, but this doesn't work from the <locals> "
+                "scope, i.e. when the function is nested inside another function."
         ):
-            self.pr.load(nj.job_name)
+            nj.run()
 
     @unittest.skipIf(sys.version_info < (3, 11), "Storage will only work in 3.11+")
     def test_shorter_name(self):
