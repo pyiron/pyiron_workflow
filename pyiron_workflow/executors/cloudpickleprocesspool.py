@@ -111,7 +111,6 @@ class CloudpickleProcessPoolExecutor(ProcessPoolExecutor):
 
         >>> import time
         >>> time.sleep(1)  # Debugging doctest on github CI for python3.10
-        >>> print(instance.result)
         >>> print(instance.result.result)
         This was an arg
 
