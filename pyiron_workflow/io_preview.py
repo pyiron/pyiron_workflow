@@ -15,6 +15,7 @@ from __future__ import annotations
 import inspect
 import warnings
 from abc import ABC, abstractmethod
+from functools import lru_cache
 from textwrap import dedent
 from types import FunctionType
 from typing import Any, get_args, get_type_hints, Literal, Optional, TYPE_CHECKING
@@ -40,6 +41,16 @@ class HasIOPreview(ABC):
 
     @classmethod
     @abstractmethod
+    def _build_inputs_preview(cls) -> dict[str, tuple[Any, Any]]:
+        pass
+
+    @classmethod
+    @abstractmethod
+    def _build_outputs_preview(cls) -> dict[str, Any]:
+        pass
+
+    @classmethod
+    @lru_cache(maxsize=1)
     def preview_inputs(cls) -> dict[str, tuple[Any, Any]]:
         """
         Gives a class-level peek at the expected inputs.
@@ -48,9 +59,10 @@ class HasIOPreview(ABC):
             dict[str, tuple[Any, Any]]: The input name and a tuple of its
                 corresponding type hint and default value.
         """
+        return cls._build_inputs_preview()
 
     @classmethod
-    @abstractmethod
+    @lru_cache(maxsize=1)
     def preview_outputs(cls) -> dict[str, Any]:
         """
         Gives a class-level peek at the expected outputs.
@@ -58,6 +70,7 @@ class HasIOPreview(ABC):
         Returns:
             dict[str, tuple[Any, Any]]: The output name and its corresponding type hint.
         """
+        return cls._build_outputs_preview()
 
     @classmethod
     def preview_io(cls) -> DotDict[str:dict]:
@@ -105,35 +118,8 @@ class ScrapesIO(HasIOPreview, ABC):
     _validate_output_labels: bool = True  # True: validate against source code
     _io_defining_function_uses_self: bool = False  # False: use entire signature
 
-    __type_hints = None
-    __input_args = None
-    __init_keywords = None
-    __input_preview = None
-    __output_preview = None
-
     @classmethod
-    def preview_inputs(cls) -> dict[str, tuple[Any, Any]]:
-        if cls.__input_preview is None:
-            cls.__input_preview = cls._build_input_preview()
-        return cls.__input_preview
-
-    @classmethod
-    def preview_outputs(cls) -> dict[str, Any]:
-        """
-        Gives a class-level peek at the expected output channels.
-
-        Returns:
-            dict[str, tuple[Any, Any]]: The channel name and its corresponding type
-                hint.
-        """
-        if cls.__output_preview is None:
-            if cls._validate_output_labels:
-                cls._validate()  # Validate output on first call
-            cls.__output_preview = cls._build_output_preview()
-        return cls.__output_preview
-
-    @classmethod
-    def _build_input_preview(cls):
+    def _build_inputs_preview(cls):
         type_hints = cls._get_type_hints()
         scraped: dict[str, tuple[Any, Any]] = {}
         for i, (label, value) in enumerate(cls._get_input_args().items()):
@@ -161,7 +147,10 @@ class ScrapesIO(HasIOPreview, ABC):
         return scraped
 
     @classmethod
-    def _build_output_preview(cls):
+    def _build_outputs_preview(cls):
+        if cls._validate_output_labels:
+            cls._validate()  # Validate output on first call
+
         labels = cls._get_output_labels()
         if labels is None:
             labels = []
@@ -201,29 +190,25 @@ class ScrapesIO(HasIOPreview, ABC):
         return cls._output_labels
 
     @classmethod
+    @lru_cache(maxsize=1)
     def _get_type_hints(cls) -> dict:
         """
         The result of :func:`typing.get_type_hints` on the io-defining function
         """
-        if cls.__type_hints is None:
-            cls.__type_hints = get_type_hints(cls._io_defining_function())
-        return cls.__type_hints
+        return get_type_hints(cls._io_defining_function())
 
     @classmethod
+    @lru_cache(maxsize=1)
     def _get_input_args(cls):
-        if cls.__input_args is None:
-            cls.__input_args = inspect.signature(cls._io_defining_function()).parameters
-        return cls.__input_args
+        return inspect.signature(cls._io_defining_function()).parameters
 
     @classmethod
+    @lru_cache(maxsize=1)
     def _get_init_keywords(cls):
-        if cls.__init_keywords is None:
-            cls.__init_keywords = list(
-                inspect.signature(cls.__init__).parameters.keys()
-            )
-        return cls.__init_keywords
+        return list(inspect.signature(cls.__init__).parameters.keys())
 
     @classmethod
+    @lru_cache(maxsize=1)
     def _scrape_output_labels(cls):
         """
         Inspect :meth:`node_function` to scrape out strings representing the

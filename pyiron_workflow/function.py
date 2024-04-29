@@ -325,8 +325,8 @@ class Function(DecoratedNode, ABC):
         return cls.node_function
 
     @classmethod
-    def preview_outputs(cls) -> dict[str, Any]:
-        preview = super(Function, cls).preview_outputs()
+    def _build_outputs_preview(cls) -> dict[str, Any]:
+        preview = super(Function, cls)._build_outputs_preview()
         return preview if len(preview) > 0 else {"None": type(None)}
         # If clause facilitates functions with no return value
 
