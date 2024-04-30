@@ -192,6 +192,8 @@ class _ClassFactory(metaclass=_SingleInstance):
 
         if "__module__" not in class_dict.keys():
             class_dict["__module__"] = self.factory_function.__module__
+        if "__qualname__" not in class_dict.keys():
+            class_dict["__qualname__"] = f"{self.__qualname__}.{name}"
         sc_init_kwargs["class_factory"] = self
         sc_init_kwargs["class_factory_args"] = class_factory_args
 
