@@ -24,6 +24,18 @@ def PlusOne(x: int = 0):
     return x + 1
 
 
+@Workflow.wrap.as_function_node()
+def five(sleep_time=0.):
+    sleep(sleep_time)
+    five = 5
+    return five
+
+
+@Workflow.wrap.as_function_node("sum")
+def sum(a, b):
+    return a + b
+
+
 class TestWorkflow(unittest.TestCase):
     @classmethod
     def setUpClass(cls) -> None:
@@ -226,16 +238,6 @@ class TestWorkflow(unittest.TestCase):
 
     def test_parallel_execution(self):
         wf = Workflow("wf")
-
-        @Workflow.wrap.as_function_node()
-        def five(sleep_time=0.):
-            sleep(sleep_time)
-            five = 5
-            return five
-
-        @Workflow.wrap.as_function_node("sum")
-        def sum(a, b):
-            return a + b
 
         wf.slow = five(sleep_time=1)
         wf.fast = five()

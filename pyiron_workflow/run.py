@@ -6,7 +6,8 @@ interaction, etc.
 from __future__ import annotations
 
 from abc import ABC, abstractmethod
-from concurrent.futures import Executor as StdLibExecutor, Future
+from concurrent.futures import Executor as StdLibExecutor, Future, ThreadPoolExecutor
+from time import sleep
 from typing import Any, Optional
 
 from pyiron_workflow.has_interface_mixins import HasLabel, HasRun, UsesState
@@ -50,9 +51,9 @@ class Runnable(UsesState, HasLabel, HasRun, ABC):
     An abstract class for interfacing with executors, etc.
 
     Child classes must define :meth:`on_run` and :attr:`.Runnable.run_args`, then the
-    :meth:`run` will invoke `on_run(**run_args)`. The :class:`Runnable` class then
-    handles the status of the run, passing the call off for remote execution, handling
-    any returned futures object, etc.
+    :meth:`run` will invoke `self.on_run(*run_args[0], **run_args[1])`. The
+    :class:`Runnable` class then handles the status of the run, passing the call off
+    for remote execution, handling any returned futures object, etc.
 
     Child classes can optionally override :meth:`process_run_result` to do something
     with the returned value of :meth:`on_run`, but by default the returned value just
@@ -68,20 +69,19 @@ class Runnable(UsesState, HasLabel, HasRun, ABC):
         # This is a simply stop-gap as we work out more sophisticated ways to reference
         # (or create) an executor process without ever trying to pickle a `_thread.lock`
         self.future: None | Future = None
+        self._thread_pool_sleep_time = 1e-6
 
-    @property
     @abstractmethod
-    def on_run(self) -> callable[..., Any | tuple]:
+    def on_run(self, *args, **kwargs) -> Any:  #callable[..., Any | tuple]:
         """
         What the :meth:`run` method actually does!
         """
-        pass
 
     @property
     @abstractmethod
-    def run_args(self) -> dict:
+    def run_args(self) -> tuple[tuple, dict]:
         """
-        Any data needed for :meth:`on_run`, will be passed as **kwargs.
+        Any data needed for :meth:`on_run`, will be passed as (*args, **kwargs).
         """
 
     def process_run_result(self, run_output):
@@ -168,23 +168,32 @@ class Runnable(UsesState, HasLabel, HasRun, ABC):
         finished_callback: callable,
         force_local_execution: bool,
     ) -> Any | tuple | Future:
+        args, kwargs = self.run_args
+        if "self" in kwargs.keys():
+            raise ValueError(
+                f"{self.label} got 'self' as a run kwarg, but self is already the "
+                f"first positional argument passed to :meth:`on_run`."
+            )
         if force_local_execution or self.executor is None:
             # Run locally
-            run_output = self.on_run(**self.run_args)
+            run_output = self.on_run(*args, **kwargs)
             return finished_callback(run_output)
         else:
             # Just blindly try to execute -- as we nail down the executor interaction
             # we'll want to fail more cleanly here.
             executor = self._parse_executor(self.executor)
-            kwargs = self.run_args
-            if "self" in kwargs.keys():
-                raise ValueError(
-                    f"{self.label} got 'self' as a run argument, but self cannot "
-                    f"currently be combined with running on executors."
-                )
-            self.future = executor.submit(self.on_run, **kwargs)
+            if isinstance(self.executor, ThreadPoolExecutor):
+                self.future = executor.submit(self.thread_pool_run, *args, **kwargs)
+            else:
+                self.future = executor.submit(self.on_run, *args, **kwargs)
             self.future.add_done_callback(finished_callback)
             return self.future
+
+    def thread_pool_run(self, *args, **kwargs):
+        #
+        result = self.on_run(*args, **kwargs)
+        sleep(self._thread_pool_sleep_time)
+        return result
 
     @staticmethod
     def _parse_executor(executor) -> StdLibExecutor:

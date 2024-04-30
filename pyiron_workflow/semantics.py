@@ -93,32 +93,12 @@ class Semantic(UsesState, HasLabel, HasParent, ABC):
     def __getstate__(self):
         state = super().__getstate__()
         state["_parent"] = None
-        # Comment on moving this to semantics)
+        # Regarding removing parent from state:
         # Basically we want to avoid recursion during (de)serialization; when the
         # parent object is deserializing itself, _it_ should know who its children are
         # and inform them of this.
-        #
-        # Original comment when this behaviour belonged to node)
-        # I am not at all confident that removing the parent here is the _right_
-        # solution.
-        # In order to run composites on a parallel process, we ship off just the nodes
-        # and starting nodes.
-        # When the parallel process returns these, they're obviously different
-        # instances, so we re-parent them back to the receiving composite.
-        # At the same time, we want to make sure that the _old_ children get orphaned.
-        # Of course, we could do that directly in the composite method, but it also
-        # works to do it here.
-        # Something I like about this, is it also means that when we ship groups of
-        # nodes off to another process with cloudpickle, they're definitely not lugging
-        # along their parent, its connections, etc. with them!
-        # This is all working nicely as demonstrated over in the macro test suite.
-        # However, I have a bit of concern that when we start thinking about
-        # serialization for storage instead of serialization to another process, this
-        # might introduce a hard-to-track-down bug.
-        # For now, it works and I'm going to be super pragmatic and go for it, but
-        # for the record I am admitting that the current shallowness of my understanding
-        # may cause me/us headaches in the future.
-        # -Liam
+        # In the case the object gets passed to another process using __getstate__,
+        # this also avoids dragging our whole semantic parent graph along with us.
         return state
 
 
