@@ -324,12 +324,12 @@ class TestClassfactory(unittest.TestCase):
         self.assertEqual(1, foo.x, msg="Nothing should stop the factory from working")
         self.assertEqual(0, foo.y, msg="Nothing should stop the factory from working")
         with self.assertRaises(
-            AttributeError,
+            pickle.PicklingError,
             msg="`internal_factory` is defined only locally inside the scope of "
                 "another function, so we don't expect it to be pickleable whether it's "
                 "a class factory or not!"
         ):
-            pickle.loads(pickle.dumps(foo))
+            pickle.dumps(foo)
 
     def test_repeated_inheritance(self):
         n2m3 = has_n2_m_factory(3)(5, 6)
@@ -450,6 +450,24 @@ class TestClassfactory(unittest.TestCase):
         self.assertEqual(a5.n, reloaded.n)
         self.assertIs(a5.fnc, reloaded.fnc)
         self.assertEqual(a5.x, reloaded.x)
+
+    def test_early_failure_from_other_decorators_inside_functions(self):
+        @add_to_this_decorator(6)
+        def adds_6_plus_x(y: int):
+            return y
+
+        a6 = adds_6_plus_x(42)
+        self.assertEqual(
+            1 + 42 + 6,
+            a6.add_to_function(1),
+            msg="Nothing stops us from creating and running these"
+        )
+        with self.assertRaises(
+            pickle.PicklingError,
+            msg="But if we try unpickling from <locals> we'll hit trouble, so fail "
+                "early"
+        ):
+            pickle.dumps(a6)
 
 
 class TestSanitization(unittest.TestCase):

@@ -36,6 +36,7 @@ from abc import ABC, ABCMeta
 from functools import wraps
 from importlib import import_module
 from inspect import signature, Parameter
+import pickle
 from re import sub
 from typing import ClassVar
 
@@ -216,6 +217,16 @@ class _ClassFactory(metaclass=_SingleInstance):
             # When we create a factory by decorating the factory function, this object
             # conflicts with its own factory_function attribute in the namespace, so we
             # rely on directly re-importing the factory
+            if "<locals>" in self.factory_function.__qualname__:
+                raise pickle.PicklingError(
+                    f"Can't reduce {self.__class__.__name__}, because its factory "
+                    f"function is defined in a local scope: "
+                    f"{self.factory_function.__module__}."
+                    f"{self.factory_function.__qualname__}"
+                )
+                # Otherwise we get
+                # AttributeError: 'function' object has no attribute '<locals>'
+                # way late when we try to un-pickle, so fail earlier
             return (
                 _import_object,
                 (self.factory_function.__module__, self.factory_function.__qualname__),
@@ -257,6 +268,16 @@ class _FactoryMade(ABC):
             # When we create a class by decorating some other function, this class
             # conflicts with its own factory_function attribute in the namespace, so we
             # rely on directly re-importing the factory
+            if "<locals>" in self._class_returns_from_decorated_function.__qualname__:
+                raise pickle.PicklingError(
+                    f"Can't reduce {self.__class__.__name__}, because its factory "
+                    f"function is defined in a local scope: "
+                    f"{self._class_factory.__module__}."
+                    f"{self._class_factory.__qualname__}"
+                )
+                # Otherwise we get
+                # AttributeError: 'function' object has no attribute '<locals>'
+                # way late when we try to un-pickle
             return (
                 _instantiate_from_decorated,
                 (

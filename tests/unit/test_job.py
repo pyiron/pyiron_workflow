@@ -1,4 +1,5 @@
 from abc import ABC, abstractmethod
+import pickle
 import sys
 from time import sleep
 import unittest
@@ -152,7 +153,7 @@ class TestNodeOutputJob(_WithAJob):
 
         nj = self.make_a_job_from_node(not_importable_directy_from_module(42))
         with self.assertRaises(
-            AttributeError,
+            pickle.PicklingError,
             msg="On saving we cloudpickle the node, then at run time we try to "
                 "recreate the dynamic class, but this doesn't work from the <locals> "
                 "scope, i.e. when the function is nested inside another function."
