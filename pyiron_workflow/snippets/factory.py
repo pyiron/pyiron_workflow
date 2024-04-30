@@ -256,8 +256,8 @@ class _FactoryMade(ABC):
     def __reduce__(self):
         if (
             self._class_returns_from_decorated_function is not None
-            and
-            "<locals>" not in self._class_returns_from_decorated_function.__qualname__
+            and "<locals>"
+            not in self._class_returns_from_decorated_function.__qualname__
         ):
             # When we create a class by decorating some other function, this class
             # conflicts with its own factory_function attribute in the namespace, so we
