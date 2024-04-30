@@ -472,7 +472,8 @@ class Macro(Composite, StaticNode, ScrapesIO, ABC):
 
 
 @classfactory
-def macro_node_factory(graph_creator: callable, validate_output_labels: bool, /, *output_labels
+def macro_node_factory(
+    graph_creator: callable, validate_output_labels: bool, /, *output_labels
 ):
     return (
         graph_creator.__name__,
@@ -496,6 +497,7 @@ def as_macro_node(*output_labels, validate_output_labels=True):
         factory_made._class_returns_from_decorated_function = node_function
         factory_made.preview_io()
         return factory_made
+
     return decorator
 
 
@@ -504,18 +506,19 @@ def macro_node(
     *node_args,
     output_labels=None,
     validate_output_labels=True,
-    **node_kwargs
+    **node_kwargs,
 ):
     if output_labels is None:
         output_labels = ()
     elif isinstance(output_labels, str):
         output_labels = (output_labels,)
-    macro_node_factory.clear(node_function.__name__)   # Force a fresh class
+    macro_node_factory.clear(node_function.__name__)  # Force a fresh class
     factory_made = macro_node_factory(
         node_function, validate_output_labels, *output_labels
     )
     factory_made.preview_io()
     return factory_made(*node_args, **node_kwargs)
+
 
 # as_macro_node = decorated_node_decorator_factory(
 #     Macro,

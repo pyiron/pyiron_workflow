@@ -19,7 +19,13 @@ from functools import lru_cache, wraps
 from textwrap import dedent
 from types import FunctionType
 from typing import (
-    Any, ClassVar, get_args, get_type_hints, Literal, Optional, TYPE_CHECKING
+    Any,
+    ClassVar,
+    get_args,
+    get_type_hints,
+    Literal,
+    Optional,
+    TYPE_CHECKING,
 )
 
 from pyiron_workflow.channels import InputData, NOT_DATA
@@ -134,7 +140,9 @@ class ScrapesIO(HasIOPreview, ABC):
 
     _output_labels: ClassVar[tuple[str] | None] = None  # None: scrape them
     _validate_output_labels: ClassVar[bool] = True  # True: validate against source code
-    _io_defining_function_uses_self: ClassVar[bool] = False  # False: use entire signature
+    _io_defining_function_uses_self: ClassVar[bool] = (
+        False  # False: use entire signature
+    )
 
     @classmethod
     def _build_inputs_preview(cls):

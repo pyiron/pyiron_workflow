@@ -72,7 +72,7 @@ class Runnable(UsesState, HasLabel, HasRun, ABC):
         self._thread_pool_sleep_time = 1e-6
 
     @abstractmethod
-    def on_run(self, *args, **kwargs) -> Any:  #callable[..., Any | tuple]:
+    def on_run(self, *args, **kwargs) -> Any:  # callable[..., Any | tuple]:
         """
         What the :meth:`run` method actually does!
         """

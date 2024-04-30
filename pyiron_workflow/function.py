@@ -371,6 +371,7 @@ def as_function_node(*output_labels, validate_output_labels=True):
         factory_made._class_returns_from_decorated_function = node_function
         factory_made.preview_io()
         return factory_made
+
     return decorator
 
 
@@ -379,16 +380,15 @@ def function_node(
     *node_args,
     output_labels=None,
     validate_output_labels=True,
-    **node_kwargs
+    **node_kwargs,
 ):
     if output_labels is None:
         output_labels = ()
     elif isinstance(output_labels, str):
         output_labels = (output_labels,)
-    function_node_factory.clear(node_function.__name__)   # Force a fresh class
+    function_node_factory.clear(node_function.__name__)  # Force a fresh class
     factory_made = function_node_factory(
         node_function, validate_output_labels, *output_labels
     )
     factory_made.preview_io()
     return factory_made(*node_args, **node_kwargs)
-
