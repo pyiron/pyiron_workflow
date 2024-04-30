@@ -5,6 +5,8 @@ import pickle
 from typing import ClassVar
 import unittest
 
+import cloudpickle
+
 from pyiron_workflow.snippets.factory import (
     _ClassFactory,
     _FactoryMade,
@@ -324,12 +326,19 @@ class TestClassfactory(unittest.TestCase):
         self.assertEqual(1, foo.x, msg="Nothing should stop the factory from working")
         self.assertEqual(0, foo.y, msg="Nothing should stop the factory from working")
         with self.assertRaises(
-            pickle.PicklingError,
+            AttributeError,
             msg="`internal_factory` is defined only locally inside the scope of "
                 "another function, so we don't expect it to be pickleable whether it's "
                 "a class factory or not!"
         ):
             pickle.dumps(foo)
+
+        reloaded = cloudpickle.loads(cloudpickle.dumps(foo))
+        self.assertTupleEqual(
+            (foo.n, foo.s, foo.x, foo.y),
+            (reloaded.n, reloaded.s, reloaded.x, reloaded.y),
+            msg="Cloudpickle is powerful enough to overcome this <locals> limitation."
+        )
 
     def test_repeated_inheritance(self):
         n2m3 = has_n2_m_factory(3)(5, 6)
@@ -451,7 +460,7 @@ class TestClassfactory(unittest.TestCase):
         self.assertIs(a5.fnc, reloaded.fnc)
         self.assertEqual(a5.x, reloaded.x)
 
-    def test_early_failure_from_other_decorators_inside_functions(self):
+    def test_other_decorators_inside_locals(self):
         @add_to_this_decorator(6)
         def adds_6_plus_x(y: int):
             return y
@@ -463,11 +472,18 @@ class TestClassfactory(unittest.TestCase):
             msg="Nothing stops us from creating and running these"
         )
         with self.assertRaises(
-            pickle.PicklingError,
-            msg="But if we try unpickling from <locals> we'll hit trouble, so fail "
-                "early"
+            AttributeError,
+            msg="We can't find the <locals> function defined to import and recreate"
+                "the factory"
         ):
             pickle.dumps(a6)
+
+        reloaded = cloudpickle.loads(cloudpickle.dumps(a6))
+        self.assertTupleEqual(
+            (a6.n, a6.x),
+            (reloaded.n, reloaded.x),
+            msg="Cloudpickle is powerful enough to overcome this <locals> limitation."
+        )
 
 
 class TestSanitization(unittest.TestCase):
