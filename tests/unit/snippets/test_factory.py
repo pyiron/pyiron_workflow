@@ -340,6 +340,36 @@ class TestClassfactory(unittest.TestCase):
             msg="Cloudpickle is powerful enough to overcome this <locals> limitation."
         )
 
+        # And again with a factory from the instance constructor
+        def internally_undecorated(n, s="undecorated_unimportable", /):
+            return (
+                f"{HasN.__name__}{n}{s}",
+                (HasN,),
+                {},
+                {"n": n, "s": s}
+            )
+        factory_instance = ClassFactory(internally_undecorated)
+        bar = factory_instance(2)(1, y=0)
+        self.assertTupleEqual(
+            (2, "undecorated_unimportable", 1, 0),
+            (bar.n, bar.s, bar.x, bar.y),
+            msg="Sanity check"
+        )
+
+        with self.assertRaises(
+            AttributeError,
+            msg="The relevant factory function is only in <locals>"
+        ):
+            pickle.dumps(bar)
+
+        reloaded = cloudpickle.loads(cloudpickle.dumps(bar))
+        self.assertTupleEqual(
+            (bar.n, bar.s, bar.x, bar.y),
+            (reloaded.n, reloaded.s, reloaded.x, reloaded.y),
+            msg="Cloudpickle is powerful enough to overcome this <locals> limitation."
+        )
+
+
     def test_repeated_inheritance(self):
         n2m3 = has_n2_m_factory(3)(5, 6)
         m3n2 = has_m_n2_factory(3)(5, 6)
