@@ -7,21 +7,17 @@ from pyiron_workflow.channels import NOT_DATA
 
 class TestParallelSpeedup(unittest.TestCase):
     def test_speedup(self):
-        @Workflow.wrap.as_function_node()
-        def Wait(t):
-            sleep(t)
-            return True
 
         def make_workflow(label):
             wf = Workflow(label)
-            wf.a = Wait(t)
-            wf.b = Wait(t)
-            wf.c = Wait(t)
+            wf.a = Workflow.create.standard.Sleep(t)
+            wf.b = Workflow.create.standard.Sleep(t)
+            wf.c = Workflow.create.standard.Sleep(t)
             wf.d = wf.create.standard.UserInput(t)
             wf.automate_execution = False
             return wf
 
-        t = 2.5
+        t = 5
 
         wf = make_workflow("serial")
         wf.a >> wf.b >> wf.c >> wf.d
@@ -36,7 +32,7 @@ class TestParallelSpeedup(unittest.TestCase):
         wf.d << (wf.a, wf.b, wf.c)
         wf.starting_nodes = [wf.a, wf.b, wf.c]
 
-        with wf.create.Executor(max_workers=3, cores_per_worker=1) as executor:
+        with wf.create.ProcessPoolExecutor(max_workers=3) as executor:
             wf.a.executor = executor
             wf.b.executor = executor
             wf.c.executor = executor
