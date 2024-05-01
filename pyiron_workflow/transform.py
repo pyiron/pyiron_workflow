@@ -5,7 +5,8 @@ Transformer nodes convert many inputs into a single output, or vice-versa.
 from __future__ import annotations
 
 from abc import ABC, abstractmethod
-from typing import Any, ClassVar
+import itertools
+from typing import Any, ClassVar, Optional
 
 from pyiron_workflow.channels import NOT_DATA
 from pyiron_workflow.io_preview import StaticNode, builds_class_io
@@ -129,3 +130,94 @@ def list_to_outputs_factory(n: int, /) -> type[ListToOutputs]:
 
 def list_to_outputs(n: int, /, *node_args, **node_kwargs) -> ListToOutputs:
     return list_to_outputs_factory(n)(*node_args, **node_kwargs)
+
+
+class InputsToDict(FromManyInputs, ABC):
+    _output_name: ClassVar[str] = "dict"
+    _output_type_hint: ClassVar[Any] = dict
+    _input_specification: ClassVar[
+        list[str] | dict[str, tuple[Any | None, Any | NOT_DATA]]
+    ]
+
+    def on_run(self, **inputs_to_value_dict):
+        return inputs_to_value_dict
+
+    @classmethod
+    def _build_inputs_preview(cls) -> dict[str, tuple[Any | None, Any | NOT_DATA]]:
+        if isinstance(cls._input_specification, list):
+            return {key: (None, NOT_DATA) for key in cls._input_specification}
+        else:
+            return cls._input_specification
+
+    @staticmethod
+    def hash_specification(
+        input_specification: list[str] | dict[str, tuple[Any | None, Any | NOT_DATA]]
+    ):
+        """For generating unique subclass names."""
+
+        if isinstance(input_specification, list):
+            return hash(tuple(input_specification))
+        else:
+            flattened_tuple = tuple(
+                itertools.chain.from_iterable(
+                    (key, *value) for key, value in input_specification.items()
+                )
+            )
+            try:
+                return hash(flattened_tuple)
+            except Exception as e:
+                raise ValueError(
+                    f"To automatically generate a unique name for subclasses of "
+                    f"{InputsToDict.__name__}, the input specification must be fully "
+                    f"hashable, but it was not. Either pass fully hashable hints and "
+                    f"defaults, or explicitly provide a class name suffix. Received "
+                    f"specification: {input_specification}"
+                ) from e
+
+
+@classfactory
+def inputs_to_dict_factory(
+    input_specification: list[str] | dict[str, tuple[Any | None, Any | NOT_DATA]],
+    class_name_suffix: str | None,
+    /
+) -> type[InputsToDict]:
+    if class_name_suffix is None:
+        class_name_suffix = str(
+            InputsToDict.hash_specification(input_specification)
+        ).replace("-", "m")
+    return (
+        f"{InputsToDict.__name__}{class_name_suffix}",
+        (InputsToDict,),
+        {"_input_specification": input_specification},
+        {},
+    )
+
+
+def inputs_to_dict(
+    input_specification: list[str] | dict[str, tuple[Any | None, Any | NOT_DATA]],
+    *node_args,
+    class_name_suffix: Optional[str] = None,
+    **node_kwargs,
+):
+    """
+    Build a new :class:`InputsToDict` subclass and instantiate it.
+
+    Tries to automatically generate a subclass name by hashing the
+    :param:`input_specification`. If such hashing fails, you will instead _need_ to
+    provide an explicit :param:`class_name_suffix`
+
+    Args:
+        input_specification (list[str] | dict[str, tuple[Any | None, Any | NOT_DATA]]):
+            The input channel names, or full input specification in the form
+            `{key: (type_hint, default_value))}`.
+        *node_args: Other args for the node instance.
+        class_name_suffix (str | None): The suffix to use in the class name. (Default
+            is None, try to generate the suffix by hashing :param:`input_specification`.
+        **node_kwargs: Other kwargs for the node instance.
+
+    Returns:
+        (InputsToDict): A new node for transforming inputs into a dictionary.
+    """
+    return inputs_to_dict_factory(input_specification, class_name_suffix)(
+        *node_args, **node_kwargs
+    )
