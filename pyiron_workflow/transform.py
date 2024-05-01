@@ -82,11 +82,11 @@ class ToManyOutputs(Transformer, ABC):
         return run_output
 
 
-class ListTransformer(Transformer, ABC):
+class _HasLength(Transformer, ABC):
     _length: ClassVar[int]  # Mandatory attribute for non-abstract subclasses
 
 
-class InputsToList(ListTransformer, FromManyInputs, ABC):
+class InputsToList(_HasLength, FromManyInputs, ABC):
     _output_name: ClassVar[str] = "list"
     _output_type_hint: ClassVar[Any] = list
 
@@ -99,7 +99,7 @@ class InputsToList(ListTransformer, FromManyInputs, ABC):
         return {f"item_{i}": (None, NOT_DATA) for i in range(cls._length)}
 
 
-class ListToOutputs(ListTransformer, ToManyOutputs, ABC):
+class ListToOutputs(_HasLength, ToManyOutputs, ABC):
     _input_name: ClassVar[str] = "list"
     _input_type_hint: ClassVar[Any] = list
 
