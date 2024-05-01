@@ -1,4 +1,4 @@
-from pyiron_workflow.function import single_value_node
+from pyiron_workflow.function import function_node
 
 from pyiron_workflow.node_library.atomistic.calculator.data import (
     InputCalcMinimize,
@@ -7,7 +7,7 @@ from pyiron_workflow.node_library.atomistic.calculator.data import (
 )
 
 
-@single_value_node("generic")
+@function_node("generic")
 def static(structure=None, engine=None):  # , keys_to_store=None):
     output = engine(
         structure=structure,

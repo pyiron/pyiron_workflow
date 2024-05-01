@@ -5,7 +5,7 @@ from typing import Optional
 
 # from pyiron_atomistics.atomistics.structure.atoms import Atoms
 
-from pyiron_workflow.function import single_value_node, function_node
+from pyiron_workflow.function import function_node, function_node
 from pyiron_workflow.workflow import Workflow
 
 from pyiron_workflow.node_library.atomistic.calculator.data import (
@@ -20,7 +20,7 @@ from pyiron_workflow.node_library.dev_tools import wf_data_class
 from pyiron_atomistics.lammps.control import LammpsControl
 
 
-@single_value_node("calculator")
+@function_node("calculator")
 def Calc(parameters):
     from pyiron_atomistics.lammps.control import LammpsControl
 
@@ -28,45 +28,45 @@ def Calc(parameters):
 
     if isinstance(parameters, InputCalcMD):
         calculator.calc_md(**parameters)
-        calculator._mode = "md"
+        calculator.mode = "md"
     elif isinstance(parameters, InputCalcMinimize):
         calculator.calc_minimize(**parameters)
-        calculator._mode = "minimize"
+        calculator.mode = "minimize"
     elif isinstance(parameters, InputCalcStatic):
         calculator.calc_static(**parameters)
-        calculator._mode = "static"
+        calculator.mode = "static"
     else:
         raise TypeError(f"Unexpected parameters type {parameters}")
 
     return calculator
 
 
-@single_value_node("calculator")
+@function_node("calculator")
 def CalcStatic(calculator_input: Optional[InputCalcStatic | dict] = None):
     calculator_kwargs = parse_input_kwargs(calculator_input, InputCalcStatic)
     calculator = LammpsControl()
     calculator.calc_static(**calculator_kwargs)
-    calculator._mode = "static"
+    calculator.mode = "static"
 
     return calculator
 
 
-@single_value_node("calculator")
+@function_node("calculator")
 def CalcMinimize(calculator_input: Optional[InputCalcMinimize | dict] = None):
     calculator_kwargs = parse_input_kwargs(calculator_input, InputCalcMinimize)
     calculator = LammpsControl()
     calculator.calc_minimize(**calculator_kwargs)
-    calculator._mode = "static"
+    calculator.mode = "static"
 
     return calculator
 
 
-@single_value_node("calculator")
+@function_node("calculator")
 def CalcMD(calculator_input: Optional[InputCalcMD | dict] = None):
     calculator_kwargs = parse_input_kwargs(calculator_input, InputCalcMD)
     calculator = LammpsControl()
     calculator.calc_md(**calculator_kwargs)
-    calculator._mode = "md"
+    calculator.mode = "md"
 
     return calculator
 
@@ -89,13 +89,13 @@ def InitLammps(structure=None, potential=None, calculator=None, working_director
 
     calculator.write_file(file_name="control.inp", cwd=working_directory)
     bla = "bla"
-    # print("Lammps_init: ", calculator._mode, bla)
+    # print("Lammps_init: ", calculator.mode, bla)
 
-    # return os.path.abspath(working_directory), calculator._mode, bla
+    # return os.path.abspath(working_directory), calculator.mode, bla
     return os.path.abspath(working_directory), bla
 
 
-@single_value_node("log")
+@function_node("log")
 def ParseLogFile(log_file):
     from pymatgen.io.lammps.outputs import parse_lammps_log
 
@@ -107,7 +107,7 @@ def ParseLogFile(log_file):
     return log
 
 
-@single_value_node("dump")
+@function_node("dump")
 def ParseDumpFile(dump_file):
     from pymatgen.io.lammps.outputs import parse_lammps_dumps
 
@@ -171,7 +171,7 @@ class GenericOutput:
     forces = []
 
 
-@single_value_node()
+@function_node()
 def Collect(
     out_dump,
     out_log,
@@ -194,7 +194,7 @@ def Collect(
     elif isinstance(calc_mode, (InputCalcMinimize, InputCalcMD, InputCalcStatic)):
         calc_mode = calc_mode.__class__.__name__.replace("InputCalc", "").lower()
     elif isinstance(calc_mode, LammpsControl):
-        calc_mode = calc_mode._mode
+        calc_mode = calc_mode.mode
     else:
         raise ValueError(f"Unexpected calc_mode {calc_mode}")
 
@@ -217,7 +217,7 @@ def Collect(
     return generic
 
 
-@single_value_node("potential")
+@function_node("potential")
 def Potential(structure, name=None, index=0):
     from pyiron_atomistics.lammps.potential import list_potentials as lp
 
@@ -232,7 +232,7 @@ def Potential(structure, name=None, index=0):
     return pot
 
 
-@single_value_node("potentials")
+@function_node("potentials")
 def ListPotentials(structure):
     from pyiron_atomistics.lammps.potential import list_potentials as lp
 

@@ -1,4 +1,4 @@
-from pyiron_workflow.function import single_value_node
+from pyiron_workflow.function import function_node
 from typing import Optional, Union
 
 # Huge savings when replacing pyiron_atomistics atoms class with ase one!! (> 5s vs 40 ms)
@@ -6,12 +6,12 @@ from typing import Optional, Union
 from ase import Atoms
 
 
-@single_value_node("structure")
+@function_node("structure")
 def repeat(structure: Atoms, repeat_scalar: int = 1) -> Atoms:
     return structure.repeat(repeat_scalar)
 
 
-@single_value_node("structure")
+@function_node("structure")
 def apply_strain(
     structure: Optional[Atoms] = None, strain: Union[float, int] = 0
 ) -> Optional[Atoms]:
@@ -22,7 +22,7 @@ def apply_strain(
     return struct
 
 
-@single_value_node()
+@function_node()
 def create_vacancy(structure, index: int | None = 0):
     structure = structure.copy()
     if index is not None:
@@ -31,7 +31,7 @@ def create_vacancy(structure, index: int | None = 0):
     return structure
 
 
-@single_value_node("structure")
+@function_node("structure")
 def rotate_axis_angle(
     structure: Atoms,
     angle: float | int = 0,

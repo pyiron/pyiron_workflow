@@ -1,8 +1,8 @@
-from pyiron_workflow.function import single_value_node
+from pyiron_workflow.function import function_node
 from pyiron_workflow.workflow import Workflow
 
 
-@single_value_node("structure")
+@function_node("structure")
 def bulk(
     name,
     crystalstructure=None,
@@ -36,11 +36,11 @@ def cubic_bulk_cell(
         repeat,
     )
 
-    wf.structure = bulk(name=element, cubic=True)
-    wf.cell = repeat(structure=wf.structure, repeat_scalar=cell_size)
+    wf.bulk = bulk(name=element, cubic=True)
+    wf.cell = repeat(structure=wf.bulk, repeat_scalar=cell_size)
 
-    wf.cell_with_vacancies = create_vacancy(structure=wf.cell, index=vacancy_index)
-    return wf.cell_with_vacancies  # .outputs.structure
+    wf.structure = create_vacancy(structure=wf.cell, index=vacancy_index)
+    return wf.structure  # .outputs.structure
 
 
 nodes = [bulk, cubic_bulk_cell]
