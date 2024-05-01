@@ -234,10 +234,8 @@ class InputsToDataframe(_HasLength, FromManyInputs, ABC):
     _output_type_hint: ClassVar[Any] = DataFrame
 
     def on_run(self, *rows: dict[str, Any]) -> Any:
-        print(rows)
         df_dict = {}
         for i, row in enumerate(rows):
-            print(row)
             for key, value in row.items():
                 if i == 0:
                     df_dict[key] = [value]
