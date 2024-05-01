@@ -218,6 +218,6 @@ def inputs_to_dict(
     Returns:
         (InputsToDict): A new node for transforming inputs into a dictionary.
     """
-    return inputs_to_dict_factory(input_specification, class_name_suffix)(
-        *node_args, **node_kwargs
-    )
+    cls = inputs_to_dict_factory(input_specification, class_name_suffix)
+    cls.preview_io()
+    return cls(*node_args, **node_kwargs)
