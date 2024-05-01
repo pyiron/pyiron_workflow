@@ -8,6 +8,8 @@ from abc import ABC, abstractmethod
 import itertools
 from typing import Any, ClassVar, Optional
 
+from pandas import DataFrame
+
 from pyiron_workflow.channels import NOT_DATA
 from pyiron_workflow.io_preview import StaticNode, builds_class_io
 from pyiron_workflow.snippets.factory import classfactory
@@ -219,5 +221,50 @@ def inputs_to_dict(
         (InputsToDict): A new node for transforming inputs into a dictionary.
     """
     cls = inputs_to_dict_factory(input_specification, class_name_suffix)
+    cls.preview_io()
+    return cls(*node_args, **node_kwargs)
+
+
+class InputsToDataframe(_HasLength, FromManyInputs, ABC):
+    """
+    Turns inputs of dictionaries (all with the same keys) into a single
+    :class:`pandas.DataFrame`.
+    """
+    _output_name: ClassVar[str] = "df"
+    _output_type_hint: ClassVar[Any] = DataFrame
+
+    def on_run(self, *rows: dict[str, Any]) -> Any:
+        print(rows)
+        df_dict = {}
+        for i, row in enumerate(rows):
+            print(row)
+            for key, value in row.items():
+                if i == 0:
+                    df_dict[key] = [value]
+                else:
+                    df_dict[key].append(value)
+        return DataFrame(df_dict)
+
+    @property
+    def run_args(self) -> tuple[tuple, dict]:
+        return tuple(self.inputs.to_value_dict().values()), {}
+
+    @classmethod
+    def _build_inputs_preview(cls) -> dict[str, tuple[Any, Any]]:
+        return {f"row_{i}": (dict, NOT_DATA) for i in range(cls._length)}
+
+
+@classfactory
+def inputs_to_dataframe_factory(n: int, /) -> type[InputsToDataframe]:
+    return (
+        f"{InputsToDataframe.__name__}{n}",
+        (InputsToDataframe,),
+        {"_length": n},
+        {},
+    )
+
+
+def inputs_to_dataframe(n: int, *node_args, **node_kwargs):
+    cls = inputs_to_dataframe_factory(n)
     cls.preview_io()
     return cls(*node_args, **node_kwargs)
