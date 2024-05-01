@@ -26,20 +26,17 @@ class FromManyInputs(Transformer, ABC):
     _output_name: ClassVar[str]  # Mandatory attribute for non-abstract subclasses
     _output_type_hint: ClassVar[Any] = None
 
-    @staticmethod
-    @abstractmethod
-    def transform_from_input(inputs_as_dict: dict):
-        pass
-
     # _build_inputs_preview required from parent class
-    # This must be commensurate with the internal expectations of transform_from_input
+    # Inputs convert to `run_args` as a value dictionary
+    # This must be commensurate with the internal expectations of on_run
 
-    def on_run(self, **kwargs) -> callable[..., Any | tuple]:
-        return self.transform_from_input(**kwargs)
+    @abstractmethod
+    def on_run(self, **inputs_to_value_dict) -> Any:
+        """Must take inputs kwargs"""
 
     @property
     def run_args(self) -> tuple[tuple, dict]:
-        return (), {"inputs_as_dict": self.inputs.to_value_dict()}
+        return (), self.inputs.to_value_dict()
 
     @classmethod
     def _build_outputs_preview(cls) -> dict[str, Any]:
@@ -55,22 +52,16 @@ class ToManyOutputs(Transformer, ABC):
     _input_type_hint: ClassVar[Any] = None
     _input_default: ClassVar[Any | NOT_DATA] = NOT_DATA
 
-    @staticmethod
-    @abstractmethod
-    def transform_to_output(input_data) -> dict[str, Any]:
-        pass
-
     # _build_outputs_preview still required from parent class
     # Must be commensurate with the dictionary returned by transform_to_output
 
-    def on_run(self, **kwargs) -> callable[..., Any | tuple]:
-        return self.transform_to_output(**kwargs)
+    @abstractmethod
+    def on_run(self, input_object) -> callable[..., Any | tuple]:
+        """Must take the single object to be transformed"""
 
     @property
     def run_args(self) -> tuple[tuple, dict]:
-        return (), {
-            "input_data": self.inputs[self._input_name].value,
-        }
+        return (self.inputs[self._input_name].value, ), {}
 
     @classmethod
     def _build_inputs_preview(cls) -> dict[str, tuple[Any, Any]]:
@@ -90,9 +81,8 @@ class InputsToList(_HasLength, FromManyInputs, ABC):
     _output_name: ClassVar[str] = "list"
     _output_type_hint: ClassVar[Any] = list
 
-    @staticmethod
-    def transform_from_input(inputs_as_dict: dict):
-        return list(inputs_as_dict.values())
+    def on_run(self, **inputs_to_value_dict):
+        return list(inputs_to_value_dict.values())
 
     @classmethod
     def _build_inputs_preview(cls) -> dict[str, tuple[Any, Any]]:
@@ -103,9 +93,8 @@ class ListToOutputs(_HasLength, ToManyOutputs, ABC):
     _input_name: ClassVar[str] = "list"
     _input_type_hint: ClassVar[Any] = list
 
-    @staticmethod
-    def transform_to_output(input_data: list):
-        return {f"item_{i}": v for i, v in enumerate(input_data)}
+    def on_run(self, input_object: list):
+        return {f"item_{i}": v for i, v in enumerate(input_object)}
 
     @classmethod
     def _build_outputs_preview(cls) -> dict[str, Any]:
