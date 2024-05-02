@@ -1,8 +1,11 @@
 import pickle
 import unittest
 
+from pandas import DataFrame
+
 from pyiron_workflow.transform import (
     Transformer,
+    inputs_to_dataframe,
     inputs_to_dict,
     inputs_to_list,
     list_to_outputs,
@@ -82,6 +85,41 @@ class TestTransformer(unittest.TestCase):
             key = list(unhashable_spec.keys())[0]
             self.assertIs(unhashable_spec[key][0], n.inputs[key].type_hint)
             self.assertListEqual(unhashable_spec[key][1], n.inputs[key].value)
+
+    def test_inputs_to_dataframe(self):
+        l = 3
+        n = inputs_to_dataframe(l)
+        for i in range(l):
+            n.inputs[f"row_{i}"] = {"x": i, "xsq": i*i}
+        n()
+        self.assertIsInstance(
+            n.outputs.df.value,
+            DataFrame,
+            msg="Confirm output type"
+        )
+        self.assertListEqual(
+            [i*i for i in range(3)],
+            n.outputs.df.value["xsq"].to_list(),
+            msg="Spot check values"
+        )
+
+        d1 = {"a": 1, "b": 1}
+        d2 = {"a": 1, "c": 2}
+        with self.assertRaises(
+            KeyError,
+            msg="If the input rows don't have commensurate keys, we expect to get the "
+                "relevant pandas error"
+        ):
+            n(row_0=d1, row_1=d1, row_2=d2)
+
+        n = inputs_to_dataframe(l)  # Freshly instantiate to remove failed status
+        d3 = {"a": 1}
+        with self.assertRaises(
+            ValueError,
+            msg="If the input rows don't have commensurate length, we expect to get "
+                "the relevant pandas error"
+        ):
+            n(row_0=d1, row_1=d3, row_2=d1)
 
 
 if __name__ == '__main__':
