@@ -323,7 +323,10 @@ def dataclass_node_factory(dataclass: type, /) -> type[DataclassNode]:
     return (
         f"{DataclassNode.__name__}{dataclass.__name__}",
         (DataclassNode,),
-        {"dataclass": dataclass},
+        {
+            "dataclass": dataclass,
+            "_output_type_hint": dataclass,
+        },
         {},
     )
 
