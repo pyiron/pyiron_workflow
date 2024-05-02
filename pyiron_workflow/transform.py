@@ -13,7 +13,6 @@ from pandas import DataFrame
 
 from pyiron_workflow.channels import NOT_DATA
 from pyiron_workflow.io_preview import StaticNode, builds_class_io
-from pyiron_workflow.run import Runnable
 from pyiron_workflow.snippets.factory import classfactory
 
 
