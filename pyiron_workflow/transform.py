@@ -5,6 +5,7 @@ Transformer nodes convert many inputs into a single output, or vice-versa.
 from __future__ import annotations
 
 from abc import ABC, abstractmethod
+from dataclasses import is_dataclass, MISSING
 import itertools
 from typing import Any, ClassVar, Optional
 
@@ -12,6 +13,7 @@ from pandas import DataFrame
 
 from pyiron_workflow.channels import NOT_DATA
 from pyiron_workflow.io_preview import StaticNode, builds_class_io
+from pyiron_workflow.run import Runnable
 from pyiron_workflow.snippets.factory import classfactory
 
 
@@ -265,5 +267,76 @@ def inputs_to_dataframe_factory(n: int, /) -> type[InputsToDataframe]:
 
 def inputs_to_dataframe(n: int, *node_args, **node_kwargs):
     cls = inputs_to_dataframe_factory(n)
+    cls.preview_io()
+    return cls(*node_args, **node_kwargs)
+
+
+class InputsToDataclass(FromManyInputs, ABC):
+    """
+    Turns inputs of dictionaries (all with the same keys) into a single
+    :class:`pandas.DataFrame`.
+    """
+
+    dataclass: ClassVar[type]  # Mandatory in children, should pass `is_dataclass`
+    _output_name: ClassVar[str] = "dataclass"
+
+    @classmethod
+    @property
+    def _dataclass_fields(cls):
+        return cls.dataclass.__dataclass_fields__
+
+    def _setup_node(self) -> None:
+        super()._setup_node()
+        # Then leverage default factories from the dataclass
+        for name, channel in self.inputs.items():
+            if (
+                channel.value is NOT_DATA
+                and self._dataclass_fields[name].default_factory is not MISSING
+            ):
+                self.inputs[name] = self._dataclass_fields[name].default_factory()
+
+    def on_run(self, **inputs_to_value_dict):
+        return self.dataclass(**inputs_to_value_dict)
+
+    @property
+    def run_args(self) -> tuple[tuple, dict]:
+        return (), self.inputs.to_value_dict()
+
+    @classmethod
+    def _build_inputs_preview(cls) -> dict[str, tuple[Any, Any]]:
+        return {
+            name: (f.type, NOT_DATA if f.default is MISSING else f.default)
+            for name, f in cls._dataclass_fields.items()
+        }
+
+
+@classfactory
+def inputs_to_dataclass_factory(dataclass: type, /) -> type[InputsToDataclass]:
+    if not is_dataclass(dataclass):
+        raise TypeError(
+            f"{InputsToDataclass} expected to get a dataclass but {dataclass} failed "
+            f"`dataclasses.is_dataclass`."
+        )
+    if type(dataclass) is not type:
+        raise TypeError(
+            f"{InputsToDataclass} expected to get a dataclass but {dataclass} is not "
+            f"type `type`."
+        )
+    return (
+        f"{InputsToDataclass.__name__}{dataclass.__name__}",
+        (InputsToDataclass,),
+        {"dataclass": dataclass},
+        {},
+    )
+
+
+def as_inputs_to_dataclass_node(dataclass: type):
+    cls = inputs_to_dataclass_factory(dataclass)
+    cls.preview_io()
+    return cls
+
+
+def inputs_to_dataclass(dataclass: type, *node_args, **node_kwargs):
+    cls = inputs_to_dataclass_factory(dataclass)
     cls.preview_io()
     return cls(*node_args, **node_kwargs)
