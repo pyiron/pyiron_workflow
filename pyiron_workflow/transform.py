@@ -275,7 +275,7 @@ class DataclassNode(FromManyInputs, ABC):
     A base class for a node that converts inputs into a dataclass instance.
     """
 
-    dataclass: ClassVar[type]  # Mandatory in children, should pass `is_dataclass`
+    dataclass: ClassVar[type]  # Mandatory in children, must pass `is_dataclass`
     _output_name: ClassVar[str] = "dataclass"
 
     @classmethod
@@ -302,6 +302,7 @@ class DataclassNode(FromManyInputs, ABC):
 
     @classmethod
     def _build_inputs_preview(cls) -> dict[str, tuple[Any, Any]]:
+        # Make a channel for each field
         return {
             name: (f.type, NOT_DATA if f.default is MISSING else f.default)
             for name, f in cls._dataclass_fields.items()
@@ -332,12 +333,109 @@ def dataclass_node_factory(dataclass: type, /) -> type[DataclassNode]:
 
 
 def as_dataclass_node(dataclass: type):
+    """
+    Decorates a dataclass as a dataclass node -- i.e. a node whose inputs correspond
+    to dataclass fields and whose output is an instance of the dataclass.
+
+    The underlying dataclass can be accessed on the :attr:`.dataclass` class attribute
+    of the resulting node class.
+
+    Leverages defaults (default factories) on dataclass fields to populate input
+    channel values at class defintion (instantiation).
+
+    Args:
+        dataclass (type): A dataclass, i.e. class passing `dataclasses.is_dataclass`.
+
+    Returns:
+        (type[DataclassNode]): A :class:`DataclassNode` subclass whose instances
+            transform inputs to an instance of that dataclass.
+
+    Examples:
+        >>> from dataclasses import dataclass, field
+        >>>
+        >>> from pyiron_workflow import Workflow
+        >>>
+        >>> def some_list():
+        ...     return [1, 2, 3]
+        >>>
+        >>> @Workflow.wrap.as_dataclass_node
+        ... @dataclass
+        ... class Foo:
+        ...     necessary: str
+        ...     bar: str = "bar"
+        ...     answer: int = 42
+        ...     complex_: list = field(default_factory=some_list)
+        >>>
+        >>> f = Foo()
+        >>> print(f.readiness_report)
+        DataclassNodeFoo readiness: False
+        STATE:
+        running: False
+        failed: False
+        INPUTS:
+        necessary ready: False
+        bar ready: True
+        answer ready: True
+        complex_ ready: True
+
+        >>> f(necessary="input as a node kwarg")
+        Foo(necessary='input as a node kwarg', bar='bar', answer=42, complex_=[1, 2, 3])
+    """
     cls = dataclass_node_factory(dataclass)
     cls.preview_io()
     return cls
 
 
 def dataclass_node(dataclass: type, *node_args, **node_kwargs):
+    """
+    Builds a dataclass node from a dataclass -- i.e. a node whose inputs correspond
+    to dataclass fields and whose output is an instance of the dataclass.
+
+    The underlying dataclass can be accessed on the :attr:`.dataclass` class attribute
+    of the resulting node.
+
+    Leverages defaults (default factories) on dataclass fields to populate input
+    channel values at class defintion (instantiation).
+
+    Args:
+        dataclass (type): A dataclass, i.e. class passing `dataclasses.is_dataclass`.
+        *node_args: Other :class:`Node` positional arguments.
+        **node_kwargs: Other :class:`Node` keyword arguments.
+
+    Returns:
+        (DataclassNode): An instance of the dynamically created :class:`DataclassNode`
+            subclass.
+
+    Examples:
+        >>> from dataclasses import dataclass, field
+        >>>
+        >>> from pyiron_workflow import Workflow
+        >>>
+        >>> def some_list():
+        ...     return [1, 2, 3]
+        >>>
+        >>> @dataclass
+        ... class Foo:
+        ...     necessary: str
+        ...     bar: str = "bar"
+        ...     answer: int = 42
+        ...     complex_: list = field(default_factory=some_list)
+        >>>
+        >>> f = Workflow.create.transformer.dataclass_node(Foo, label="my_dc")
+        >>> print(f.readiness_report)
+        my_dc readiness: False
+        STATE:
+        running: False
+        failed: False
+        INPUTS:
+        necessary ready: False
+        bar ready: True
+        answer ready: True
+        complex_ ready: True
+
+        >>> f(necessary="input as a node kwarg")
+        Foo(necessary='input as a node kwarg', bar='bar', answer=42, complex_=[1, 2, 3])
+    """
     cls = dataclass_node_factory(dataclass)
     cls.preview_io()
     return cls(*node_args, **node_kwargs)
