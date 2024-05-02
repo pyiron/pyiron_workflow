@@ -6,7 +6,7 @@ from __future__ import annotations
 
 from abc import ABC
 from concurrent.futures import ProcessPoolExecutor, ThreadPoolExecutor
-from functools import wraps
+from functools import wraps, lru_cache
 from importlib import import_module
 import pkgutil
 from sys import version_info
@@ -101,6 +101,26 @@ class Creator(metaclass=Singleton):
                 }
             )
         return self._meta
+
+    @property
+    @lru_cache(maxsize=1)
+    def transformer(self):
+        from pyiron_workflow.transform import (
+            inputs_to_dataframe,
+            inputs_to_dict,
+            inputs_to_list,
+            list_to_outputs,
+        )
+        return DotDict(
+            {
+                f.__name__: f for f in [
+                    inputs_to_dataframe,
+                    inputs_to_dict,
+                    inputs_to_list,
+                    list_to_outputs,
+                ]
+            }
+        )
 
     def __getattr__(self, item):
         try:
