@@ -271,10 +271,9 @@ def inputs_to_dataframe(n: int, *node_args, **node_kwargs):
     return cls(*node_args, **node_kwargs)
 
 
-class InputsToDataclass(FromManyInputs, ABC):
+class DataclassNode(FromManyInputs, ABC):
     """
-    Turns inputs of dictionaries (all with the same keys) into a single
-    :class:`pandas.DataFrame`.
+    A base class for a node that converts inputs into a dataclass instance.
     """
 
     dataclass: ClassVar[type]  # Mandatory in children, should pass `is_dataclass`
@@ -311,32 +310,32 @@ class InputsToDataclass(FromManyInputs, ABC):
 
 
 @classfactory
-def inputs_to_dataclass_factory(dataclass: type, /) -> type[InputsToDataclass]:
+def dataclass_node_factory(dataclass: type, /) -> type[DataclassNode]:
     if not is_dataclass(dataclass):
         raise TypeError(
-            f"{InputsToDataclass} expected to get a dataclass but {dataclass} failed "
+            f"{DataclassNode} expected to get a dataclass but {dataclass} failed "
             f"`dataclasses.is_dataclass`."
         )
     if type(dataclass) is not type:
         raise TypeError(
-            f"{InputsToDataclass} expected to get a dataclass but {dataclass} is not "
+            f"{DataclassNode} expected to get a dataclass but {dataclass} is not "
             f"type `type`."
         )
     return (
-        f"{InputsToDataclass.__name__}{dataclass.__name__}",
-        (InputsToDataclass,),
+        f"{DataclassNode.__name__}{dataclass.__name__}",
+        (DataclassNode,),
         {"dataclass": dataclass},
         {},
     )
 
 
-def as_inputs_to_dataclass_node(dataclass: type):
-    cls = inputs_to_dataclass_factory(dataclass)
+def as_dataclass_node(dataclass: type):
+    cls = dataclass_node_factory(dataclass)
     cls.preview_io()
     return cls
 
 
-def inputs_to_dataclass(dataclass: type, *node_args, **node_kwargs):
-    cls = inputs_to_dataclass_factory(dataclass)
+def dataclass_node(dataclass: type, *node_args, **node_kwargs):
+    cls = dataclass_node_factory(dataclass)
     cls.preview_io()
     return cls(*node_args, **node_kwargs)

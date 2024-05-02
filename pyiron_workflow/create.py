@@ -96,7 +96,7 @@ class Creator(metaclass=Singleton):
     @lru_cache(maxsize=1)
     def transformer(self):
         from pyiron_workflow.transform import (
-            inputs_to_dataclass,
+            dataclass_node,
             inputs_to_dataframe,
             inputs_to_dict,
             inputs_to_list,
@@ -107,7 +107,7 @@ class Creator(metaclass=Singleton):
             {
                 f.__name__: f
                 for f in [
-                    inputs_to_dataclass,
+                    dataclass_node,
                     inputs_to_dataframe,
                     inputs_to_dict,
                     inputs_to_list,
@@ -318,9 +318,9 @@ class Wrappers(metaclass=Singleton):
 
     @property
     @lru_cache(maxsize=1)
-    def as_inputs_to_dataclass_node(self):
-        from pyiron_workflow.transform import as_inputs_to_dataclass_node
-        return as_inputs_to_dataclass_node
+    def as_dataclass_node(self):
+        from pyiron_workflow.transform import as_dataclass_node
+        return as_dataclass_node
 
 
 class HasCreator(ABC):
