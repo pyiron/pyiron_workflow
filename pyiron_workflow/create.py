@@ -111,9 +111,11 @@ class Creator(metaclass=Singleton):
             inputs_to_list,
             list_to_outputs,
         )
+
         return DotDict(
             {
-                f.__name__: f for f in [
+                f.__name__: f
+                for f in [
                     inputs_to_dataframe,
                     inputs_to_dict,
                     inputs_to_list,

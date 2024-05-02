@@ -64,7 +64,7 @@ class ToManyOutputs(Transformer, ABC):
 
     @property
     def run_args(self) -> tuple[tuple, dict]:
-        return (self.inputs[self._input_name].value, ), {}
+        return (self.inputs[self._input_name].value,), {}
 
     @classmethod
     def _build_inputs_preview(cls) -> dict[str, tuple[Any, Any]]:
@@ -181,7 +181,7 @@ class InputsToDict(FromManyInputs, ABC):
 def inputs_to_dict_factory(
     input_specification: list[str] | dict[str, tuple[Any | None, Any | NOT_DATA]],
     class_name_suffix: str | None,
-    /
+    /,
 ) -> type[InputsToDict]:
     if class_name_suffix is None:
         class_name_suffix = str(
@@ -230,6 +230,7 @@ class InputsToDataframe(_HasLength, FromManyInputs, ABC):
     Turns inputs of dictionaries (all with the same keys) into a single
     :class:`pandas.DataFrame`.
     """
+
     _output_name: ClassVar[str] = "df"
     _output_type_hint: ClassVar[Any] = DataFrame
 
