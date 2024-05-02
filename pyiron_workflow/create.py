@@ -57,11 +57,6 @@ class Creator(metaclass=Singleton):
 
         self.function_node = function_node
 
-        # Avoid circular imports by delaying import for children of Composite
-        self._macro_node = None
-        self._workflow = None
-        self._meta = None
-
         if version_info[0] == 3 and version_info[1] >= 10:
             # These modules use syntactic sugar for type hinting that is only supported
             # in python >=3.10
@@ -70,37 +65,32 @@ class Creator(metaclass=Singleton):
             self.register("pyiron_workflow.node_library.standard", "standard")
 
     @property
+    @lru_cache(maxsize=1)
     def macro_node(self):
-        if self._macro_node is None:
-            from pyiron_workflow.macro import macro_node
-
-            self._macro_node = macro_node
-        return self._macro_node
+        from pyiron_workflow.macro import macro_node
+        return macro_node
 
     @property
+    @lru_cache(maxsize=1)
     def Workflow(self):
-        if self._workflow is None:
-            from pyiron_workflow.workflow import Workflow
-
-            self._workflow = Workflow
-        return self._workflow
+        from pyiron_workflow.workflow import Workflow
+        return Workflow
 
     @property
+    @lru_cache(maxsize=1)
     def meta(self):
-        if self._meta is None:
-            from pyiron_workflow.transform import inputs_to_list, list_to_outputs
-            from pyiron_workflow.loops import for_loop, while_loop
-            from pyiron_workflow.snippets.dotdict import DotDict
+        from pyiron_workflow.transform import inputs_to_list, list_to_outputs
+        from pyiron_workflow.loops import for_loop, while_loop
+        from pyiron_workflow.snippets.dotdict import DotDict
 
-            self._meta = DotDict(
-                {
-                    for_loop.__name__: for_loop,
-                    inputs_to_list.__name__: inputs_to_list,
-                    list_to_outputs.__name__: list_to_outputs,
-                    while_loop.__name__: while_loop,
-                }
-            )
-        return self._meta
+        return DotDict(
+            {
+                for_loop.__name__: for_loop,
+                inputs_to_list.__name__: inputs_to_list,
+                list_to_outputs.__name__: list_to_outputs,
+                while_loop.__name__: while_loop,
+            }
+        )
 
     @property
     @lru_cache(maxsize=1)
@@ -316,19 +306,13 @@ class Wrappers(metaclass=Singleton):
     A container class giving access to the decorators that transform functions to nodes.
     """
 
-    def __init__(self):
-        self.as_function_node = as_function_node
-
-        # Avoid circular imports by delaying import when wrapping children of Composite
-        self._as_macro_node = None
+    as_function_node = staticmethod(as_function_node)
 
     @property
+    @lru_cache(maxsize=1)
     def as_macro_node(self):
-        if self._as_macro_node is None:
-            from pyiron_workflow.macro import as_macro_node
-
-            self._as_macro_node = as_macro_node
-        return self._as_macro_node
+        from pyiron_workflow.macro import as_macro_node
+        return as_macro_node
 
 
 class HasCreator(ABC):

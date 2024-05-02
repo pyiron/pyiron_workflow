@@ -3,6 +3,7 @@ Inspects code to automatically parse return values as strings
 """
 
 import ast
+from functools import lru_cache
 import inspect
 import re
 from textwrap import dedent
@@ -26,7 +27,6 @@ class ParseOutput:
 
     def __init__(self, function):
         self._func = function
-        self._source = None
         self._output = self.get_parsed_output()
 
     @property
@@ -57,10 +57,9 @@ class ParseOutput:
             return None
 
     @property
+    @lru_cache(maxsize=1)
     def source(self):
-        if self._source is None:
-            self._source = self.dedented_source_string.split("\n")[:-1]
-        return self._source
+        return self.dedented_source_string.split("\n")[:-1]
 
     def get_string(self, node):
         string = ""
