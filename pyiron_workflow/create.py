@@ -66,6 +66,12 @@ class Creator(metaclass=Singleton):
 
     @property
     @lru_cache(maxsize=1)
+    def for_node(self):
+        from pyiron_workflow.for_node import for_node
+        return for_node
+
+    @property
+    @lru_cache(maxsize=1)
     def macro_node(self):
         from pyiron_workflow.macro import macro_node
 
