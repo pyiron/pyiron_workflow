@@ -115,6 +115,19 @@ def dictionary_to_index_maps(
     return key_index_maps
 
 
+class UnmappedConflictError(ValueError):
+    """
+    When a for-node gets a body whose output label conflicts with looped a input
+    label and no map was provided to avoid this.
+    """
+
+
+class MapsToNonexistentOutputError(ValueError):
+    """
+    When a for-node tries to map body node output channels that don't exist.
+    """
+
+
 class For(Composite, StaticNode, ABC):
     _body_node_class: ClassVar[type[StaticNode]]
     _iter_on: ClassVar[tuple[str, ...]] = ()
@@ -122,6 +135,53 @@ class For(Composite, StaticNode, ABC):
 
     _iter_label_prefix: ClassVar[str] = "iter_"
     _zip_label_prefix: ClassVar[str] = "zip_"
+
+    def __init_subclass__(cls, output_column_map=None, **kwargs):
+        super().__init_subclass__(**kwargs)
+
+        unmapped_conflicts = set(
+            cls._body_node_class.preview_inputs().keys()
+        ).intersection(
+            cls._iter_on + cls._zip_on
+        ).intersection(
+            cls._body_node_class.preview_outputs().keys()
+        ).difference(
+            () if output_column_map is None else output_column_map.keys()
+        )
+        if len(unmapped_conflicts) > 0:
+            raise UnmappedConflictError(
+                f"The body node {cls._body_node_class.__name__} has channel labels "
+                f"{unmapped_conflicts} that appear as both (looped) input _and_ output "
+                f"for {cls.__name__}. All such channels require a map to produce new, "
+                f"unique column names for the output."
+            )
+
+        maps_to_nonexistent_output = set(
+            {} if output_column_map is None else output_column_map.keys()
+        ).difference(
+            cls._body_node_class.preview_outputs().keys()
+        )
+        if len(maps_to_nonexistent_output) > 0:
+            raise MapsToNonexistentOutputError(
+                f"{cls.__name__} tried to map body node output(s) "
+                f"{maps_to_nonexistent_output} to new column names, but "
+                f"{cls._body_node_class.__name__} has no such outputs."
+            )
+
+        cls._output_column_map = output_column_map
+
+    @classmethod
+    @property
+    @lru_cache(maxsize=1)
+    def output_column_map(cls) -> dict[str, str]:
+        """
+        How to transform body node output labels to dataframe column names.
+        """
+        map_ = {k: k for k in cls._body_node_class.preview_outputs().keys()}
+        overrides = {} if cls._output_column_map is None else cls._output_column_map
+        for body_label, column_name in overrides.items():
+            map_[body_label] = column_name
+        return map_
 
     def _setup_node(self) -> None:
         super()._setup_node()
@@ -193,7 +253,7 @@ class For(Composite, StaticNode, ABC):
         # Outputs
         row_specification.update(
             {
-                key: (hint, NOT_DATA)
+                self.output_column_map[key]: (hint, NOT_DATA)
                 for key, hint in self._body_node_class.preview_outputs().items()
             }
         )
@@ -223,13 +283,12 @@ class For(Composite, StaticNode, ABC):
         body_node.inputs[looped_input_label] = index_node
         row_collector.inputs[looped_input_label] = index_node
 
-    @staticmethod
     def _collect_output_from_body(
-        body_node: StaticNode, row_collector: InputsToDict
+        self, body_node: StaticNode, row_collector: InputsToDict
     ) -> None:
         """Pass body node output to the collector node."""
         for (label, body_out) in body_node.outputs.items():
-            row_collector.inputs[label] = body_out
+            row_collector.inputs[self.output_column_map[label]] = body_out
 
     @classmethod
     @lru_cache(maxsize=1)
@@ -248,33 +307,47 @@ class For(Composite, StaticNode, ABC):
         return {"df": DataFrame}
 
 
+def _for_node_class_name(
+    body_node_class: type[StaticNode],
+    iter_on: tuple[str, ...],
+    zip_on: tuple[str, ...]
+):
+    iter_fields = (
+                      "" if len(iter_on) == 0
+                      else "Iter" + "".join(k.title() for k in iter_on)
+    )
+    zip_fields = "" if len(zip_on) == 0 else "Zip" + "".join(k.title() for k in zip_on)
+    return f"{For.__name__}{body_node_class.__name__}{iter_fields}{zip_fields}"
+
+
 @classfactory
 def for_node_factory(
     body_node_class: type[StaticNode],
     iter_on: tuple[str, ...] = (),
     zip_on: tuple[str, ...] = (),
+    output_column_map: dict | None = None,
     /
 ):
-    # TODO: verify all iter and zips are in the body node input previews
-    # TODO: verify iter and zip on are not intersecting
-    iter_fields = (
-                      "" if len(iter_on) == 0
-                      else "Iter" + "".join(k.title() for k in iter_on)
-    )
-    zip_fields = "" if len(iter_on) == 0 else "Zip" + "".join(k.title() for k in zip_on)
     return (
-        f"{For.__name__}{body_node_class.__name__}{iter_fields}{zip_fields}",
+        _for_node_class_name(body_node_class, iter_on, zip_on),
         (For,),
         {
             "_body_node_class": body_node_class,
             "_iter_on": iter_on,
             "_zip_on": zip_on,
         },
-        {},
+        {"output_column_map": output_column_map},
     )
 
 
-def for_node(body_node_class, *node_args, iter_on=(), zip_on=(), **node_kwargs):
+def for_node(
+    body_node_class,
+    *node_args,
+    iter_on=(),
+    zip_on=(),
+    output_column_map: Optional[dict[str, str]] = None,
+    **node_kwargs,
+):
     """
     Makes a new :class:`For` node which internally creates instances of the
     :param:`body_node_class` and loops input onto them in nested and/or zipped loop(s).
@@ -292,6 +365,11 @@ def for_node(body_node_class, *node_args, iter_on=(), zip_on=(), **node_kwargs):
             nested-loop on.
         zip_on (tuple[str, ...]): Input labels in the :param:`body_node_class` to
             zip-loop on.
+        output_column_map (dict[str, str] | None): A map for generating dataframe
+            column names (values) from body node output channel labels (keys).
+            Necessary iff the body node has the same label for an output channel and
+            an input channel being looped over. (Default is None, just use the output
+            channel labels as columb names.)
         **node_kwargs: Regular keyword node arguments.
 
     Returns:
@@ -301,11 +379,11 @@ def for_node(body_node_class, *node_args, iter_on=(), zip_on=(), **node_kwargs):
         >>> from pyiron_workflow import Workflow
         >>>
         >>> @Workflow.wrap.as_function_node("together")
-        ... def Three(a: int, b: int, c: int, d: int, e: str = "foobar"):
+        ... def FiveTogether(a: int, b: int, c: int, d: int, e: str = "foobar"):
         ...     return (a, b, c, d, e),
         >>>
         >>> for_instance = Workflow.create.for_node(
-        ...     Three,
+        ...     FiveTogether,
         ...     iter_on=("a", "b"),
         ...     zip_on=("c", "d"),
         ...     a=[1, 2],
@@ -320,6 +398,7 @@ def for_node(body_node_class, *node_args, iter_on=(), zip_on=(), **node_kwargs):
         <class 'pandas.core.frame.DataFrame'>
 
     """
-    cls = for_node_factory(body_node_class, iter_on, zip_on)
+    for_node_factory.clear(_for_node_class_name(body_node_class, iter_on, zip_on))
+    cls = for_node_factory(body_node_class, iter_on, zip_on, output_column_map)
     cls.preview_io()
     return cls(*node_args, **node_kwargs)
