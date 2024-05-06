@@ -88,12 +88,11 @@ class Creator(metaclass=Singleton):
     @lru_cache(maxsize=1)
     def meta(self):
         from pyiron_workflow.transform import inputs_to_list, list_to_outputs
-        from pyiron_workflow.loops import for_loop, while_loop
+        from pyiron_workflow.loops import while_loop
         from pyiron_workflow.snippets.dotdict import DotDict
 
         return DotDict(
             {
-                for_loop.__name__: for_loop,
                 inputs_to_list.__name__: inputs_to_list,
                 list_to_outputs.__name__: list_to_outputs,
                 while_loop.__name__: while_loop,

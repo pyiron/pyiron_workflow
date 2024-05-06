@@ -105,26 +105,23 @@ class TestTopology(unittest.TestCase):
     def test_for_loop(self):
         Workflow.register("static.demo_nodes", "demo")
 
-        n = 5
-
-        bulk_loop = pyiron_workflow.loops.for_loop(
-            Workflow.create.demo.OptionallyAdd,
-            n,
-            iterate_on=("y",),
-        )()
-
         base = 42
-        to_add = list(range(n))
-        out = bulk_loop(
-            x=base,  # Sent equally to each body node
-            Y=to_add,  # Distributed across body nodes
+        to_add = list(range(5))
+        bulk_loop = Workflow.create.for_node(
+            Workflow.create.demo.OptionallyAdd,
+            iter_on=("y",),
+            x=base,  # Broadcast
+            y=to_add  # Scattered
         )
+        out = bulk_loop()
 
-        for output, expectation in zip(out.SUM, [base + v for v in to_add]):
+        for output, expectation in zip(
+            out.df["sum"].values.tolist(),
+            [base + v for v in to_add]
+        ):
             self.assertAlmostEqual(
                 output,
                 expectation,
-                msg="Output should be list result of each individiual result"
             )
 
     def test_while_loop(self):
