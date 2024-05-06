@@ -316,12 +316,14 @@ class Wrappers(metaclass=Singleton):
     @lru_cache(maxsize=1)
     def as_macro_node(self):
         from pyiron_workflow.macro import as_macro_node
+
         return as_macro_node
 
     @property
     @lru_cache(maxsize=1)
     def as_dataclass_node(self):
         from pyiron_workflow.transform import as_dataclass_node
+
         return as_dataclass_node
 
 
