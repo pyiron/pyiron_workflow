@@ -1,10 +1,15 @@
+from dataclasses import dataclass, field, is_dataclass
 import pickle
+import random
 import unittest
 
 from pandas import DataFrame
 
+from pyiron_workflow.channels import NOT_DATA
 from pyiron_workflow.transform import (
     Transformer,
+    as_dataclass_node,
+    dataclass_node,
     inputs_to_dataframe,
     inputs_to_dict,
     inputs_to_list,
@@ -120,6 +125,106 @@ class TestTransformer(unittest.TestCase):
                 "the relevant pandas error"
         ):
             n(row_0=d1, row_1=d3, row_2=d1)
+
+    def test_dataclass_node(self):
+        # Note: We'd need to declare the generator and classes outside the <locals> of
+        # this test function if we wanted them to be pickleable, but we test the
+        # pickleability of transformers elsewhere so just keep stuff tidy by declaring
+        # locally for this test
+
+        def some_generator():
+            return [1, 2, 3]
+
+        with self.subTest("From instantiator"):
+            @dataclass
+            class DC:
+                necessary: str
+                with_default: int = 42
+                with_factory: list = field(default_factory=some_generator)
+
+            n = dataclass_node(DC, label="direct_instance")
+            self.assertIs(
+                n.dataclass,
+                DC,
+                msg="Underlying dataclass should be accessible"
+            )
+            self.assertListEqual(
+                list(DC.__dataclass_fields__.keys()),
+                n.inputs.labels,
+                msg="Inputs should correspond exactly to fields"
+            )
+            self.assertIs(
+                DC,
+                n.outputs.dataclass.type_hint,
+                msg="Output type hint should get automatically set"
+            )
+            key = random.choice(n.inputs.labels)
+            self.assertIs(
+                DC.__dataclass_fields__[key].type,
+                n.inputs[key].type_hint,
+                msg="Spot-check input type hints are pulled from dataclass fields"
+            )
+            self.assertFalse(
+                n.inputs.necessary.ready,
+                msg="Fields with no default and no default factory should not be ready"
+            )
+            self.assertTrue(
+                n.inputs.with_default.ready,
+                msg="Fields with default should be ready"
+            )
+            self.assertTrue(
+                n.inputs.with_factory.ready,
+                msg="Fields with default factory should be ready"
+            )
+            self.assertListEqual(
+                n.inputs.with_factory.value,
+                some_generator(),
+                msg="Verify the generator is being used to set the intial value"
+            )
+            out = n(necessary="something")
+            self.assertIsInstance(
+                out,
+                DC,
+                msg="Node should output an instance of the dataclass"
+            )
+
+        with self.subTest("From decorator"):
+            @as_dataclass_node
+            @dataclass
+            class DecoratedDC:
+                necessary: str
+                with_default: int = 42
+                with_factory: list = field(default_factory=some_generator)
+
+            n_cls = DecoratedDC(label="decorated_instance")
+
+            self.assertTrue(
+                is_dataclass(n_cls.dataclass),
+                msg="Underlying dataclass should be available on node class"
+            )
+            prev = n_cls.preview_inputs()
+            key = random.choice(list(prev.keys()))
+            self.assertIs(
+                n_cls._dataclass_fields[key].type,
+                prev[key][0],
+                msg="Spot-check input type hints are pulled from dataclass fields"
+            )
+            self.assertIs(
+                prev["necessary"][1],
+                NOT_DATA,
+                msg="Field has no default"
+            )
+            self.assertEqual(
+                n_cls._dataclass_fields["with_default"].default,
+                prev["with_default"][1],
+                msg="Fields with default should get scraped"
+            )
+            self.assertIs(
+                prev["with_factory"][1],
+                NOT_DATA,
+                msg="Fields with default factory won't see their default until "
+                    "instantiation"
+            )
 
 
 if __name__ == '__main__':
