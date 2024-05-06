@@ -12,7 +12,7 @@ from pyiron_workflow.channels import NOT_DATA
 from pyiron_workflow.composite import Composite
 from pyiron_workflow.io_preview import StaticNode
 from pyiron_workflow.snippets.factory import classfactory
-from pyiron_workflow.transform import inputs_to_dict, inputs_to_dataframe
+from pyiron_workflow.transform import inputs_to_dict, inputs_to_dataframe, InputsToDict
 
 
 def dictionary_to_index_maps(
@@ -152,6 +152,26 @@ class For(Composite, StaticNode, ABC):
             zipped_keys=self._zip_on
         )
 
+        self._clean_existing_subgraph()
+
+        self.dataframe = inputs_to_dataframe(len(iter_maps))
+        self.dataframe.outputs.df.value_receiver = self.outputs.df
+
+        for n, channel_map in enumerate(iter_maps):
+            body_node = self._body_node_class(label=f"body_{n}", parent=self)
+            row_collector = self._build_collector_node(n)
+
+            self._connect_broadcast_input(body_node)
+            for label, i in channel_map.items():
+                self._connect_looped_input(body_node, row_collector, label, i)
+
+            self._collect_output_from_body(body_node, row_collector)
+
+            self.dataframe.inputs[f"row_{n}"] = row_collector
+
+        self.set_run_signals_to_dag_execution()
+
+    def _clean_existing_subgraph(self):
         for label in self.child_labels:
             if label not in self._input_node_labels:
                 self.remove_child(label)
@@ -164,46 +184,52 @@ class For(Composite, StaticNode, ABC):
                 self.children[label]()
         # TODO: Instead of deleting _everything_ each time, try and re-use stuff
 
-        self.dataframe = inputs_to_dataframe(len(iter_maps))
-        self.dataframe.outputs.df.value_receiver = self.outputs.df
-
-        for n, channel_map in enumerate(iter_maps):
-            body_node = self._body_node_class(label=f"body_{n}", parent=self)
-
-            # Iterated inputs
-            row_specification = {
-                key: (self._body_node_class.preview_inputs()[key], NOT_DATA)
-                for key in self._iter_on + self._zip_on
+    def _build_collector_node(self, row_number):
+        # Iterated inputs
+        row_specification = {
+            key: (self._body_node_class.preview_inputs()[key], NOT_DATA)
+            for key in self._iter_on + self._zip_on
+        }
+        # Outputs
+        row_specification.update(
+            {
+                key: (hint, NOT_DATA)
+                for key, hint in self._body_node_class.preview_outputs().items()
             }
-            # Outputs
-            row_specification.update(
-                {
-                    key: (hint, NOT_DATA)
-                    for key, hint in self._body_node_class.preview_outputs().items()
-                }
-            )
-            row_collector = inputs_to_dict(
-                row_specification,
-                parent=self,
-                label=f"row_collector_{n}"
-            )
-            self.dataframe.inputs[f"row_{n}"] = row_collector
-            for (label, body_out) in body_node.outputs.items():
-                row_collector.inputs[label] = body_out
+        )
+        return inputs_to_dict(
+            row_specification,
+            parent=self,
+            label=f"row_collector_{row_number}"
+        )
 
-            # Wire up the looped input
-            for looped_input_label, i in channel_map.items():
-                index_node = self.children[looped_input_label][i]  # Inject getitem node
-                body_node.inputs[looped_input_label] = index_node
-                row_collector.inputs[looped_input_label] = index_node
+    def _connect_broadcast_input(self, body_node: StaticNode) -> None:
+        """Connect broadcast macro input to each body node."""
+        for broadcast_label in set(self.preview_inputs().keys()).difference(
+            self._iter_on + self._zip_on
+        ):
+            self.inputs[broadcast_label].value_receiver = body_node.inputs[
+                broadcast_label]
 
-            # Wire up the broadcast input
-            for broadcast_label in set(self.preview_inputs().keys()).difference(
-                self._iter_on + self._zip_on
-            ):
-                self.inputs[broadcast_label].value_receiver = body_node.inputs[broadcast_label]
+    def _connect_looped_input(
+        self,
+        body_node: StaticNode,
+        row_collector: InputsToDict,
+        looped_input_label: str,
+        i: int
+    ) -> None:
+        """Get item from macro input and connect it to body and collector nodes."""
+        index_node = self.children[looped_input_label][i]  # Inject getitem node
+        body_node.inputs[looped_input_label] = index_node
+        row_collector.inputs[looped_input_label] = index_node
 
-            self.set_run_signals_to_dag_execution()
+    @staticmethod
+    def _collect_output_from_body(
+        body_node: StaticNode, row_collector: InputsToDict
+    ) -> None:
+        """Pass body node output to the collector node."""
+        for (label, body_out) in body_node.outputs.items():
+            row_collector.inputs[label] = body_out
 
     @classmethod
     @lru_cache(maxsize=1)
