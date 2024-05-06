@@ -5,6 +5,7 @@ Common-use nodes relying only on the standard library
 from __future__ import annotations
 
 import random
+from time import sleep
 
 from pyiron_workflow.channels import NOT_DATA, OutputSignal
 from pyiron_workflow.function import Function, as_function_node
@@ -50,6 +51,12 @@ class If(Function):
 @as_function_node("random")
 def RandomFloat():
     return random.random()
+
+
+@as_function_node("time")
+def Sleep(t):
+    sleep(t)
+    return t
 
 
 @as_function_node("slice")
@@ -291,6 +298,7 @@ nodes = [
     RandomFloat,
     RightMultiply,
     Round,
+    Sleep,
     Slice,
     String,
     Subtract,

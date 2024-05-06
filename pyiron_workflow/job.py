@@ -20,9 +20,12 @@ leveraged.
 
 from __future__ import annotations
 
+import base64
 import inspect
 import os
 import sys
+
+import cloudpickle
 
 from pyiron_base import TemplateJob, JOB_CLASS_DICT
 from pyiron_base.jobs.flex.pythonfunctioncontainer import (
@@ -103,24 +106,50 @@ class NodeOutputJob(PythonFunctionContainerJob):
                 f"Node not ready:{nl}{self.input['node'].readiness_report}"
             )
 
+    def save(self):
+        # DataContainer can't handle custom reconstructors, so convert the node to
+        # bytestream
+        self.input["node"] = base64.b64encode(
+            cloudpickle.dumps(self.input["node"])
+        ).decode("utf-8")
+        super().save()
+
     def run_static(self):
         # Overrides the parent method
         # Copy and paste except for the output update, which makes sure the output is
         # flat and not tested beneath "result"
+
+        # Unpack the node
+        input_dict = self.input.to_builtin()
+        input_dict["node"] = cloudpickle.loads(base64.b64decode(self.input["node"]))
+
         if (
             self._executor_type is not None
             and "executor" in inspect.signature(self._function).parameters.keys()
         ):
-            input_dict = self.input.to_builtin()
             del input_dict["executor"]
             output = self._function(
                 **input_dict, executor=self._get_executor(max_workers=self.server.cores)
             )
         else:
-            output = self._function(**self.input.to_builtin())
+            output = self._function(**input_dict)
         self.output.update(output)  # DIFFERS FROM PARENT METHOD
         self.to_hdf()
         self.status.finished = True
+
+    def get_input_node(self):
+        """
+        On saving, we turn the input node into a bytestream so that the DataContainer
+        can store it. You might want to look at it again though, so you can use this
+        to unpack it
+
+        Returns:
+            (Node): The input node as a node again
+        """
+        if isinstance(self.input["node"], Node):
+            return self.input["node"]
+        else:
+            return cloudpickle.loads(base64.b64decode(self.input["node"]))
 
 
 JOB_CLASS_DICT[NodeOutputJob.__name__] = NodeOutputJob.__module__

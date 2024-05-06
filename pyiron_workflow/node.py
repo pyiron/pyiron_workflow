@@ -126,18 +126,19 @@ class Node(
     - Nodes created from a registered package store their package identifier as a class
         attribute.
     - [ALPHA FEATURE] Nodes can be saved to and loaded from file if python >= 3.11.
+        - As long as you haven't put anything unpickleable on them, or defined them in
+            an unpicklable place (e.g. in the `<locals>` of another function), you can
+            simple (un)pickle nodes. There is no save/load interface for this right
+            now, just import pickle and do it.
         - Saving is triggered manually, or by setting a flag to save after the nodes
             runs.
-        - On instantiation, nodes will load automatically if they find saved content.
+        - At the end of instantiation, nodes will load automatically if they find saved
+            content.
           - Discovered content can instead be deleted with a kwarg.
           - You can't load saved content _and_ run after instantiation at once.
-        - The nodes must be somewhere importable, and the imported object must match
-            the type of the node being saved. This basically just rules out one edge
-            case where a node class is defined like
-            `SomeFunctionNode = Workflow.wrap.as_function_node()(some_function)`, since
-            then the new class gets the name `some_function`, which when imported is
-            the _function_ "some_function" and not the desired class "SomeFunctionNode".
-            This is checked for at save-time and will cause a nice early failure.
+        - The nodes must be defined somewhere importable, i.e. in a module, `__main__`,
+            and as a class property are all fine, but, e.g., inside the `<locals>` of
+            another function is not.
         - [ALPHA ISSUE] If the source code (cells, `.py` files...) for a saved graph is
             altered between saving and loading the graph, there are no guarantees about
             the loaded state; depending on the nature of the changes everything may
@@ -152,9 +153,14 @@ class Node(
             the entire graph may be saved at once.
         - [ALPHA ISSUE] There are two possible back-ends for saving: one leaning on
             `tinybase.storage.GenericStorage` (in practice,
-            `H5ioStorage(GenericStorage)`), and the other, default back-end that uses
-            the `h5io` module directly. The backend used is always the one on the graph
-            root.
+            `H5ioStorage(GenericStorage)`), that is the default, and the other that
+            uses the `h5io` module directly. The backend used is always the one on the
+            graph root.
+        - [ALPHA ISSUE] The `h5io` backend is deprecated -- it can't handle custom
+            reconstructors (i.e. when `__reduce__` returns a tuple with some
+            non-standard callable as its first entry), and basically all our nodes do
+            that now! `tinybase` gets around this by falling back on `cloudpickle` when
+            its own interactions with `h5io` fail.
         - [ALPHA ISSUE] Restrictions on data:
             - For the `h5io` backend: Most data that can be pickled will be fine, but
                 some classes will hit an edge case and throw an exception from `h5io`

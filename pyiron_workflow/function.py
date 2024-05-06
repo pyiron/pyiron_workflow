@@ -1,16 +1,14 @@
 from __future__ import annotations
 
 from abc import ABC, abstractmethod
-from typing import Any, Literal, Optional, TYPE_CHECKING
+from typing import Any
 
-from pyiron_workflow.io_preview import DecoratedNode, decorated_node_decorator_factory
+from pyiron_workflow.io_preview import StaticNode, ScrapesIO
 from pyiron_workflow.snippets.colors import SeabornColors
-
-if TYPE_CHECKING:
-    from pyiron_workflow.composite import Composite
+from pyiron_workflow.snippets.factory import classfactory
 
 
-class Function(DecoratedNode, ABC):
+class Function(StaticNode, ScrapesIO, ABC):
     """
     Function nodes wrap an arbitrary python function.
 
@@ -347,64 +345,50 @@ class Function(DecoratedNode, ABC):
         return SeabornColors.green
 
 
-as_function_node = decorated_node_decorator_factory(Function, Function.node_function)
+@classfactory
+def function_node_factory(
+    node_function: callable, validate_output_labels: bool, /, *output_labels
+):
+    return (
+        node_function.__name__,
+        (Function,),  # Define parentage
+        {
+            "node_function": staticmethod(node_function),
+            "__module__": node_function.__module__,
+            "_output_labels": None if len(output_labels) == 0 else output_labels,
+            "_validate_output_labels": validate_output_labels,
+        },
+        {},
+    )
+
+
+def as_function_node(*output_labels, validate_output_labels=True):
+    def decorator(node_function):
+        function_node_factory.clear(node_function.__name__)  # Force a fresh class
+        factory_made = function_node_factory(
+            node_function, validate_output_labels, *output_labels
+        )
+        factory_made._class_returns_from_decorated_function = node_function
+        factory_made.preview_io()
+        return factory_made
+
+    return decorator
 
 
 def function_node(
-    node_function: callable,
-    *args,
-    label: Optional[str] = None,
-    parent: Optional[Composite] = None,
-    overwrite_save: bool = False,
-    run_after_init: bool = False,
-    storage_backend: Optional[Literal["h5io", "tinybase"]] = None,
-    save_after_run: bool = False,
-    output_labels: Optional[str | tuple[str]] = None,
-    validate_output_labels: bool = True,
-    **kwargs,
+    node_function,
+    *node_args,
+    output_labels=None,
+    validate_output_labels=True,
+    **node_kwargs,
 ):
-    """
-    Dynamically creates a new child of :class:`Function` using the
-    provided :func:`node_function` and returns an instance of that.
-
-    Beyond the standard :class:`Function`, initialization allows the args...
-
-    Args:
-        node_function (callable): The function determining the behaviour of the node.
-        output_labels (Optional[str | list[str] | tuple[str]]): A name for each return
-            value of the node function OR a single label. (Default is None, which
-            scrapes output labels automatically from the source code of the wrapped
-            function.) This can be useful when returned values are not well named, e.g.
-            to make the output channel dot-accessible if it would otherwise have a label
-            that requires item-string-based access. Additionally, specifying a _single_
-            label for a wrapped function that returns a tuple of values ensures that a
-            _single_ output channel (holding the tuple) is created, instead of one
-            channel for each return value. The default approach of extracting labels
-            from the function source code also requires that the function body contain
-            _at most_ one `return` expression, so providing explicit labels can be used
-            to circumvent this (at your own risk), or to circumvent un-inspectable
-            source code (e.g. a function that exists only in memory).
-    """
-
-    if not callable(node_function):
-        raise AttributeError(
-            f"Expected `node_function` to be callable but got {node_function}"
-        )
-
     if output_labels is None:
         output_labels = ()
     elif isinstance(output_labels, str):
         output_labels = (output_labels,)
-
-    return as_function_node(
-        *output_labels, validate_output_labels=validate_output_labels
-    )(node_function)(
-        *args,
-        label=label,
-        parent=parent,
-        overwrite_save=overwrite_save,
-        run_after_init=run_after_init,
-        storage_backend=storage_backend,
-        save_after_run=save_after_run,
-        **kwargs,
+    function_node_factory.clear(node_function.__name__)  # Force a fresh class
+    factory_made = function_node_factory(
+        node_function, validate_output_labels, *output_labels
     )
+    factory_made.preview_io()
+    return factory_made(*node_args, **node_kwargs)

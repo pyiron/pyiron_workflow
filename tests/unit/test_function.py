@@ -1,3 +1,4 @@
+import pickle
 from typing import Optional, Union
 import unittest
 
@@ -504,6 +505,16 @@ class TestFunction(unittest.TestCase):
         )
         # Honestly, functions with no return should probably be made illegal to
         # encourage functional setups...
+
+    def test_pickle(self):
+        n = function_node(plus_one, 5, output_labels="p1")
+        n()
+        reloaded = pickle.loads(pickle.dumps(n))
+        self.assertListEqual(n.outputs.labels, reloaded.outputs.labels)
+        self.assertDictEqual(
+            n.outputs.to_value_dict(),
+            reloaded.outputs.to_value_dict()
+        )
 
 
 if __name__ == '__main__':

@@ -160,20 +160,38 @@ class _ClassFactory(metaclass=_SingleInstance):
             return factory_made
 
     @classmethod
-    def clear(cls):
+    def clear(cls, *class_names, skip_missing=True):
         """
-        Remove constructed classes.
+        Remove constructed class(es).
 
         Can be useful if you've updated the constructor and want to remove old
         instances.
+
+        Args:
+            *class_names (str): The names of classes to remove. Removes all of them
+                when empty.
+            skip_missing (bool): Whether to pass over key errors when a name is
+                requested that is not currently in the class registry. (Default is
+                True, let missing names pass silently.)
         """
-        cls.class_registry = {}
+        if len(class_names) == 0:
+            cls.class_registry = {}
+        else:
+            for name in class_names:
+                try:
+                    cls.class_registry.pop(name)
+                except KeyError as e:
+                    if skip_missing:
+                        continue
+                    else:
+                        raise KeyError(f"Could not find class {name}")
 
     def _build_class(
         self, name, bases, class_dict, sc_init_kwargs, class_factory_args
     ) -> type[_FactoryMade]:
 
-        class_dict["__module__"] = self.factory_function.__module__
+        if "__module__" not in class_dict.keys():
+            class_dict["__module__"] = self.factory_function.__module__
         sc_init_kwargs["class_factory"] = self
         sc_init_kwargs["class_factory_args"] = class_factory_args
 

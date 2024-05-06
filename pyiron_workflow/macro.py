@@ -12,13 +12,14 @@ from typing import Literal, Optional, TYPE_CHECKING
 from pyiron_workflow.composite import Composite
 from pyiron_workflow.has_interface_mixins import HasChannel
 from pyiron_workflow.io import Outputs, Inputs
-from pyiron_workflow.io_preview import DecoratedNode, decorated_node_decorator_factory
+from pyiron_workflow.io_preview import StaticNode, ScrapesIO
+from pyiron_workflow.snippets.factory import classfactory
 
 if TYPE_CHECKING:
     from pyiron_workflow.channels import Channel
 
 
-class Macro(Composite, DecoratedNode, ABC):
+class Macro(Composite, StaticNode, ScrapesIO, ABC):
     """
     A macro is a composite node that holds a graph with a fixed interface, like a
     pre-populated workflow that is the same every time you instantiate it.
@@ -470,74 +471,123 @@ class Macro(Composite, DecoratedNode, ABC):
             self.children[child].outputs[child_out].value_receiver = self.outputs[out]
 
 
-as_macro_node = decorated_node_decorator_factory(
-    Macro,
-    Macro.graph_creator,
-    decorator_docstring_additions="The first argument in the wrapped function is "
-    "`self`-like and will receive the macro instance "
-    "itself, and thus is ignored in the IO.",
-)
+@classfactory
+def macro_node_factory(
+    graph_creator: callable, validate_output_labels: bool, /, *output_labels
+):
+    return (
+        graph_creator.__name__,
+        (Macro,),  # Define parentage
+        {
+            "graph_creator": staticmethod(graph_creator),
+            "__module__": graph_creator.__module__,
+            "_output_labels": None if len(output_labels) == 0 else output_labels,
+            "_validate_output_labels": validate_output_labels,
+        },
+        {},
+    )
+
+
+def as_macro_node(*output_labels, validate_output_labels=True):
+    def decorator(node_function):
+        macro_node_factory.clear(node_function.__name__)  # Force a fresh class
+        factory_made = macro_node_factory(
+            node_function, validate_output_labels, *output_labels
+        )
+        factory_made._class_returns_from_decorated_function = node_function
+        factory_made.preview_io()
+        return factory_made
+
+    return decorator
 
 
 def macro_node(
-    graph_creator,
-    label: Optional[str] = None,
-    parent: Optional[Composite] = None,
-    overwrite_save: bool = False,
-    run_after_init: bool = False,
-    storage_backend: Optional[Literal["h5io", "tinybase"]] = None,
-    save_after_run: bool = False,
-    strict_naming: bool = True,
-    output_labels: Optional[str | list[str] | tuple[str]] = None,
-    validate_output_labels: bool = True,
-    **kwargs,
+    node_function,
+    *node_args,
+    output_labels=None,
+    validate_output_labels=True,
+    **node_kwargs,
 ):
-    """
-    Creates a new child of :class:`Macro` using the provided
-    :func:`graph_creator` and returns an instance of that.
-
-    Quacks like a :class:`Composite` for the sake of creating and registering nodes.
-
-    Beyond the standard :class:`Macro`, initialization allows the args...
-
-    Args:
-        graph_creator (callable): The function defining macro's graph.
-        output_labels (Optional[str | list[str] | tuple[str]]): A name for each return
-            value of the node function OR a single label. (Default is None, which
-            scrapes output labels automatically from the source code of the wrapped
-            function.) This can be useful when returned values are not well named, e.g.
-            to make the output channel dot-accessible if it would otherwise have a label
-            that requires item-string-based access. Additionally, specifying a _single_
-            label for a wrapped function that returns a tuple of values ensures that a
-            _single_ output channel (holding the tuple) is created, instead of one
-            channel for each return value. The default approach of extracting labels
-            from the function source code also requires that the function body contain
-            _at most_ one `return` expression, so providing explicit labels can be used
-            to circumvent this (at your own risk), or to circumvent un-inspectable
-            source code (e.g. a function that exists only in memory).
-    """
-    if not callable(graph_creator):
-        # `function_node` quacks like a class, even though it's a function and
-        # dynamically creates children of `Macro` by providing the necessary
-        # callable to the decorator
-        raise AttributeError(
-            f"Expected `graph_creator` to be callable but got {graph_creator}"
-        )
-
     if output_labels is None:
         output_labels = ()
     elif isinstance(output_labels, str):
         output_labels = (output_labels,)
-
-    return as_macro_node(*output_labels, validate_output_labels=validate_output_labels)(
-        graph_creator
-    )(
-        label=label,
-        parent=parent,
-        overwrite_save=overwrite_save,
-        run_after_init=run_after_init,
-        storage_backend=storage_backend,
-        save_after_run=save_after_run,
-        strict_naming=strict_naming,
-        **kwargs,
+    macro_node_factory.clear(node_function.__name__)  # Force a fresh class
+    factory_made = macro_node_factory(
+        node_function, validate_output_labels, *output_labels
     )
+    factory_made.preview_io()
+    return factory_made(*node_args, **node_kwargs)
+
+
+# as_macro_node = decorated_node_decorator_factory(
+#     Macro,
+#     Macro.graph_creator,
+#     decorator_docstring_additions="The first argument in the wrapped function is "
+#     "`self`-like and will receive the macro instance "
+#     "itself, and thus is ignored in the IO.",
+# )
+#
+#
+# def macro_node(
+#     graph_creator,
+#     label: Optional[str] = None,
+#     parent: Optional[Composite] = None,
+#     overwrite_save: bool = False,
+#     run_after_init: bool = False,
+#     storage_backend: Optional[Literal["h5io", "tinybase"]] = None,
+#     save_after_run: bool = False,
+#     strict_naming: bool = True,
+#     output_labels: Optional[str | list[str] | tuple[str]] = None,
+#     validate_output_labels: bool = True,
+#     **kwargs,
+# ):
+#     """
+#     Creates a new child of :class:`Macro` using the provided
+#     :func:`graph_creator` and returns an instance of that.
+#
+#     Quacks like a :class:`Composite` for the sake of creating and registering nodes.
+#
+#     Beyond the standard :class:`Macro`, initialization allows the args...
+#
+#     Args:
+#         graph_creator (callable): The function defining macro's graph.
+#         output_labels (Optional[str | list[str] | tuple[str]]): A name for each return
+#             value of the node function OR a single label. (Default is None, which
+#             scrapes output labels automatically from the source code of the wrapped
+#             function.) This can be useful when returned values are not well named, e.g.
+#             to make the output channel dot-accessible if it would otherwise have a label
+#             that requires item-string-based access. Additionally, specifying a _single_
+#             label for a wrapped function that returns a tuple of values ensures that a
+#             _single_ output channel (holding the tuple) is created, instead of one
+#             channel for each return value. The default approach of extracting labels
+#             from the function source code also requires that the function body contain
+#             _at most_ one `return` expression, so providing explicit labels can be used
+#             to circumvent this (at your own risk), or to circumvent un-inspectable
+#             source code (e.g. a function that exists only in memory).
+#     """
+#     if not callable(graph_creator):
+#         # `function_node` quacks like a class, even though it's a function and
+#         # dynamically creates children of `Macro` by providing the necessary
+#         # callable to the decorator
+#         raise AttributeError(
+#             f"Expected `graph_creator` to be callable but got {graph_creator}"
+#         )
+#
+#     if output_labels is None:
+#         output_labels = ()
+#     elif isinstance(output_labels, str):
+#         output_labels = (output_labels,)
+#
+#     return as_macro_node(*output_labels, validate_output_labels=validate_output_labels)(
+#         graph_creator
+#     )(
+#         label=label,
+#         parent=parent,
+#         overwrite_save=overwrite_save,
+#         run_after_init=run_after_init,
+#         storage_backend=storage_backend,
+#         save_after_run=save_after_run,
+#         strict_naming=strict_naming,
+#         **kwargs,
+#     )
