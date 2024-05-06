@@ -47,9 +47,8 @@ def dictionary_to_index_maps(
     """
 
     try:
-        nested_data_lengths = [] if nested_keys is None else list(
-            len(data[key]) for key in nested_keys
-        )
+        nested_data_lengths = [] if (nested_keys is None or len(nested_keys) == 0) \
+            else list(len(data[key]) for key in nested_keys)
     except TypeError as e:
         raise TypeError(
             f"Could not parse nested lengths -- Does one of the keys {nested_keys} "
@@ -58,7 +57,7 @@ def dictionary_to_index_maps(
     n_nest = math.prod(nested_data_lengths) if len(nested_data_lengths) > 0 else 0
 
     try:
-        n_zip = 0 if zipped_keys is None else min(
+        n_zip = 0 if (zipped_keys is None or len(zipped_keys) == 0) else min(
             len(data[key]) for key in zipped_keys
         )
     except TypeError as e:
