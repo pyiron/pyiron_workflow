@@ -11,7 +11,6 @@ from __future__ import annotations
 import typing
 from abc import ABC, abstractmethod
 import inspect
-from warnings import warn
 
 from pyiron_workflow.has_interface_mixins import HasChannel, HasLabel, UsesState
 from pyiron_workflow.has_to_dict import HasToDict
