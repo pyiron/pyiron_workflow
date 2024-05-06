@@ -11,7 +11,6 @@ from __future__ import annotations
 import typing
 from abc import ABC, abstractmethod
 import inspect
-from warnings import warn
 
 from pyiron_workflow.has_interface_mixins import HasChannel, HasLabel, UsesState
 from pyiron_workflow.has_to_dict import HasToDict
@@ -172,11 +171,6 @@ class Channel(UsesState, HasChannel, HasLabel, HasToDict, ABC):
                 self.connections.remove(other)
                 other.disconnect(self)
                 destroyed_connections.append((self, other))
-            else:
-                warn(
-                    f"The channel {self.label} was not connected to {other.label}, and"
-                    f"thus could not disconnect from it."
-                )
         return destroyed_connections
 
     def disconnect_all(self) -> list[tuple[Channel, Channel]]:
