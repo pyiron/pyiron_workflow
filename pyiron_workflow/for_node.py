@@ -129,6 +129,13 @@ class MapsToNonexistentOutputError(ValueError):
 
 
 class For(Composite, StaticNode, ABC):
+    """
+    Specifies fixed fields of some other node class to iterate over, but allows the
+    length of looped input to vary by dynamically destroying and recreating (most of)
+    its subgraph at run-time.
+
+    Collects looped output and collates them with looped input values in a dataframe.
+    """
     _body_node_class: ClassVar[type[StaticNode]]
     _iter_on: ClassVar[tuple[str, ...]] = ()
     _zip_on: ClassVar[tuple[str, ...]] = ()
@@ -387,15 +394,59 @@ def for_node(
         ...     iter_on=("a", "b"),
         ...     zip_on=("c", "d"),
         ...     a=[1, 2],
-        ...     b=[3, 4, 5],
-        ...     c=[6, 7],
-        ...     d=[7, 8, 9],
+        ...     b=[3, 4, 5, 6],
+        ...     c=[7, 8],
+        ...     d=[9, 10, 11],
         ...     e="e"
         ... )
         >>>
         >>> out = for_instance()
         >>> type(out.df)
         <class 'pandas.core.frame.DataFrame'>
+
+        Internally, the loop node has made a bunch of body nodes, as well as nodes to
+        index and collect data
+        >>> len(for_instance)
+        48
+
+        We get one dataframe row for each possible combination of looped input
+        >>> len(out.df)
+        16
+
+        We are stuck iterating on the fields we defined, but we can change the length
+        of the input and the loop node's body will get reconstructed at run-time to
+        accommodate this
+        >>> out = for_instance(a=[1], b=[3], d=[7])
+        >>> len(for_instance), len(out)
+        (12, 1)
+
+        Note that if we had simply returned each input individually, without any output
+        labels on the node, we'd need to specify a map on the for-node so that the
+        (looped) input and output columns on the resulting dataframe are all unique:
+        >>> @Workflow.wrap.as_function_node()
+        ... def FiveApart(a: int, b: int, c: int, d: int, e: str = "foobar"):
+        ...     return a, b, c, d, e,
+        >>>
+        >>> for_instance = Workflow.create.for_node(
+        ...     FiveApart,
+        ...     iter_on=("a", "b"),
+        ...     zip_on=("c", "d"),
+        ...     a=[1, 2],
+        ...     b=[3, 4, 5, 6],
+        ...     c=[7, 8],
+        ...     d=[9, 10, 11],
+        ...     e="e",
+        ...     output_column_map={
+        ...         "a": "out_a",
+        ...         "b": "out_b",
+        ...         "c": "out_c",
+        ...         "d": "out_d"
+        ...     }
+        ... )
+        >>>
+        >>> out = for_instance()
+        >>> out.df.columns
+        Index(['a', 'b', 'c', 'd', 'out_a', 'out_b', 'out_c', 'out_d', 'e'], dtype='object')
 
     """
     for_node_factory.clear(_for_node_class_name(body_node_class, iter_on, zip_on))
