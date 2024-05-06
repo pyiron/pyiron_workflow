@@ -139,9 +139,6 @@ class For(Composite, StaticNode, ABC):
     _iter_on: ClassVar[tuple[str, ...]] = ()
     _zip_on: ClassVar[tuple[str, ...]] = ()
 
-    _iter_label_prefix: ClassVar[str] = "iter_"
-    _zip_label_prefix: ClassVar[str] = "zip_"
-
     def __init_subclass__(cls, output_column_map=None, **kwargs):
         super().__init_subclass__(**kwargs)
 
