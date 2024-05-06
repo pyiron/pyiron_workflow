@@ -152,6 +152,7 @@ class TestNodeOutputJob(_WithAJob):
             return x + 1
 
         nj = self.make_a_job_from_node(not_importable_directy_from_module(42))
+
         nj.run()
         self.assertEqual(
             43,
