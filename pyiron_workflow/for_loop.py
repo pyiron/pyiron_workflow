@@ -48,8 +48,11 @@ def dictionary_to_index_maps(
     """
 
     try:
-        nested_data_lengths = [] if (nested_keys is None or len(nested_keys) == 0) \
+        nested_data_lengths = (
+            []
+            if (nested_keys is None or len(nested_keys) == 0)
             else list(len(data[key]) for key in nested_keys)
+        )
     except TypeError as e:
         raise TypeError(
             f"Could not parse nested lengths -- Does one of the keys {nested_keys} "
@@ -58,8 +61,10 @@ def dictionary_to_index_maps(
     n_nest = math.prod(nested_data_lengths) if len(nested_data_lengths) > 0 else 0
 
     try:
-        n_zip = 0 if (zipped_keys is None or len(zipped_keys) == 0) else min(
-            len(data[key]) for key in zipped_keys
+        n_zip = (
+            0
+            if (zipped_keys is None or len(zipped_keys) == 0)
+            else min(len(data[key]) for key in zipped_keys)
         )
     except TypeError as e:
         raise TypeError(
@@ -89,28 +94,27 @@ def dictionary_to_index_maps(
     if n_nest > 0 and n_zip > 0:
         key_index_maps = tuple(
             merge(nested_index_map(nested_indices), zipped_index_map(zipped_index))
-            for nested_indices, zipped_index
-            in itertools.product(nested_generator(), zipped_generator())
+            for nested_indices, zipped_index in itertools.product(
+                nested_generator(), zipped_generator()
+            )
         )
     elif n_nest > 0:
         key_index_maps = tuple(
-            nested_index_map(nested_indices)
-            for nested_indices
-            in nested_generator()
+            nested_index_map(nested_indices) for nested_indices in nested_generator()
         )
     elif n_zip > 0:
         key_index_maps = tuple(
-            zipped_index_map(zipped_index)
-            for zipped_index
-            in zipped_generator()
+            zipped_index_map(zipped_index) for zipped_index in zipped_generator()
         )
     else:
         if nested_keys is None and zipped_keys is None:
             raise ValueError(
-                "At least one of `nested_keys` or `zipped_keys` must be specified.")
+                "At least one of `nested_keys` or `zipped_keys` must be specified."
+            )
         else:
             raise ValueError(
-                "Received keys to iterate over, but all values had length 0.")
+                "Received keys to iterate over, but all values had length 0."
+            )
 
     return key_index_maps
 
@@ -139,6 +143,7 @@ class For(Composite, StaticNode, ABC):
     The :attr:`body_node_executor` gets applied to each body node instance on each
     run.
     """
+
     _body_node_class: ClassVar[type[StaticNode]]
     _iter_on: ClassVar[tuple[str, ...]] = ()
     _zip_on: ClassVar[tuple[str, ...]] = ()
@@ -146,14 +151,11 @@ class For(Composite, StaticNode, ABC):
     def __init_subclass__(cls, output_column_map=None, **kwargs):
         super().__init_subclass__(**kwargs)
 
-        unmapped_conflicts = set(
-            cls._body_node_class.preview_inputs().keys()
-        ).intersection(
-            cls._iter_on + cls._zip_on
-        ).intersection(
-            cls._body_node_class.preview_outputs().keys()
-        ).difference(
-            () if output_column_map is None else output_column_map.keys()
+        unmapped_conflicts = (
+            set(cls._body_node_class.preview_inputs().keys())
+            .intersection(cls._iter_on + cls._zip_on)
+            .intersection(cls._body_node_class.preview_outputs().keys())
+            .difference(() if output_column_map is None else output_column_map.keys())
         )
         if len(unmapped_conflicts) > 0:
             raise UnmappedConflictError(
@@ -165,9 +167,7 @@ class For(Composite, StaticNode, ABC):
 
         maps_to_nonexistent_output = set(
             {} if output_column_map is None else output_column_map.keys()
-        ).difference(
-            cls._body_node_class.preview_outputs().keys()
-        )
+        ).difference(cls._body_node_class.preview_outputs().keys())
         if len(maps_to_nonexistent_output) > 0:
             raise MapsToNonexistentOutputError(
                 f"{cls.__name__} tried to map body node output(s) "
@@ -221,9 +221,7 @@ class For(Composite, StaticNode, ABC):
         input_nodes = []
         for channel in self.inputs:
             n = self.create.standard.UserInput(
-                channel.default,
-                label=channel.label,
-                parent=self
+                channel.default, label=channel.label, parent=self
             )
             n.inputs.user_input.type_hint = channel.type_hint
             channel.value_receiver = n.inputs.user_input
@@ -242,7 +240,7 @@ class For(Composite, StaticNode, ABC):
         iter_maps = dictionary_to_index_maps(
             self.inputs.to_value_dict(),
             nested_keys=self._iter_on,
-            zipped_keys=self._zip_on
+            zipped_keys=self._zip_on,
         )
 
         self._clean_existing_subgraph()
@@ -292,9 +290,7 @@ class For(Composite, StaticNode, ABC):
             }
         )
         return inputs_to_dict(
-            row_specification,
-            parent=self,
-            label=f"row_collector_{row_number}"
+            row_specification, parent=self, label=f"row_collector_{row_number}"
         )
 
     def _connect_broadcast_input(self, body_node: StaticNode) -> None:
@@ -303,14 +299,15 @@ class For(Composite, StaticNode, ABC):
             self._iter_on + self._zip_on
         ):
             self.inputs[broadcast_label].value_receiver = body_node.inputs[
-                broadcast_label]
+                broadcast_label
+            ]
 
     def _connect_looped_input(
         self,
         body_node: StaticNode,
         row_collector: InputsToDict,
         looped_input_label: str,
-        i: int
+        i: int,
     ) -> None:
         """Get item from macro input and connect it to body and collector nodes."""
         index_node = self.children[looped_input_label][i]  # Inject getitem node
@@ -321,7 +318,7 @@ class For(Composite, StaticNode, ABC):
         self, body_node: StaticNode, row_collector: InputsToDict
     ) -> None:
         """Pass body node output to the collector node."""
-        for (label, body_out) in body_node.outputs.items():
+        for label, body_out in body_node.outputs.items():
             row_collector.inputs[self.output_column_map[label]] = body_out
 
     @classmethod
@@ -342,13 +339,10 @@ class For(Composite, StaticNode, ABC):
 
 
 def _for_node_class_name(
-    body_node_class: type[StaticNode],
-    iter_on: tuple[str, ...],
-    zip_on: tuple[str, ...]
+    body_node_class: type[StaticNode], iter_on: tuple[str, ...], zip_on: tuple[str, ...]
 ):
     iter_fields = (
-                      "" if len(iter_on) == 0
-                      else "Iter" + "".join(k.title() for k in iter_on)
+        "" if len(iter_on) == 0 else "Iter" + "".join(k.title() for k in iter_on)
     )
     zip_fields = "" if len(zip_on) == 0 else "Zip" + "".join(k.title() for k in zip_on)
     return f"{For.__name__}{body_node_class.__name__}{iter_fields}{zip_fields}"
@@ -360,7 +354,7 @@ def for_node_factory(
     iter_on: tuple[str, ...] = (),
     zip_on: tuple[str, ...] = (),
     output_column_map: dict | None = None,
-    /
+    /,
 ):
     return (
         _for_node_class_name(body_node_class, iter_on, zip_on),
