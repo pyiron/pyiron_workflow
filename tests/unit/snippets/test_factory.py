@@ -5,6 +5,8 @@ import pickle
 from typing import ClassVar
 import unittest
 
+import cloudpickle
+
 from pyiron_workflow.snippets.factory import (
     _ClassFactory,
     _FactoryMade,
@@ -329,7 +331,44 @@ class TestClassfactory(unittest.TestCase):
                 "another function, so we don't expect it to be pickleable whether it's "
                 "a class factory or not!"
         ):
-            pickle.loads(pickle.dumps(foo))
+            pickle.dumps(foo)
+
+        reloaded = cloudpickle.loads(cloudpickle.dumps(foo))
+        self.assertTupleEqual(
+            (foo.n, foo.s, foo.x, foo.y),
+            (reloaded.n, reloaded.s, reloaded.x, reloaded.y),
+            msg="Cloudpickle is powerful enough to overcome this <locals> limitation."
+        )
+
+        # And again with a factory from the instance constructor
+        def internally_undecorated(n, s="undecorated_unimportable", /):
+            return (
+                f"{HasN.__name__}{n}{s}",
+                (HasN,),
+                {},
+                {"n": n, "s": s}
+            )
+        factory_instance = ClassFactory(internally_undecorated)
+        bar = factory_instance(2)(1, y=0)
+        self.assertTupleEqual(
+            (2, "undecorated_unimportable", 1, 0),
+            (bar.n, bar.s, bar.x, bar.y),
+            msg="Sanity check"
+        )
+
+        with self.assertRaises(
+            AttributeError,
+            msg="The relevant factory function is only in <locals>"
+        ):
+            pickle.dumps(bar)
+
+        reloaded = cloudpickle.loads(cloudpickle.dumps(bar))
+        self.assertTupleEqual(
+            (bar.n, bar.s, bar.x, bar.y),
+            (reloaded.n, reloaded.s, reloaded.x, reloaded.y),
+            msg="Cloudpickle is powerful enough to overcome this <locals> limitation."
+        )
+
 
     def test_repeated_inheritance(self):
         n2m3 = has_n2_m_factory(3)(5, 6)
@@ -450,6 +489,31 @@ class TestClassfactory(unittest.TestCase):
         self.assertEqual(a5.n, reloaded.n)
         self.assertIs(a5.fnc, reloaded.fnc)
         self.assertEqual(a5.x, reloaded.x)
+
+    def test_other_decorators_inside_locals(self):
+        @add_to_this_decorator(6)
+        def adds_6_plus_x(y: int):
+            return y
+
+        a6 = adds_6_plus_x(42)
+        self.assertEqual(
+            1 + 42 + 6,
+            a6.add_to_function(1),
+            msg="Nothing stops us from creating and running these"
+        )
+        with self.assertRaises(
+            AttributeError,
+            msg="We can't find the <locals> function defined to import and recreate"
+                "the factory"
+        ):
+            pickle.dumps(a6)
+
+        reloaded = cloudpickle.loads(cloudpickle.dumps(a6))
+        self.assertTupleEqual(
+            (a6.n, a6.x),
+            (reloaded.n, reloaded.x),
+            msg="Cloudpickle is powerful enough to overcome this <locals> limitation."
+        )
 
 
 class TestSanitization(unittest.TestCase):

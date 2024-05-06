@@ -36,6 +36,7 @@ from abc import ABC, ABCMeta
 from functools import wraps
 from importlib import import_module
 from inspect import signature, Parameter
+import pickle
 from re import sub
 from typing import ClassVar
 
@@ -192,6 +193,8 @@ class _ClassFactory(metaclass=_SingleInstance):
 
         if "__module__" not in class_dict.keys():
             class_dict["__module__"] = self.factory_function.__module__
+        if "__qualname__" not in class_dict.keys():
+            class_dict["__qualname__"] = f"{self.__qualname__}.{name}"
         sc_init_kwargs["class_factory"] = self
         sc_init_kwargs["class_factory_args"] = class_factory_args
 
@@ -210,10 +213,10 @@ class _ClassFactory(metaclass=_SingleInstance):
             )
 
     def __reduce__(self):
-        if self._decorated_as_classfactory:
-            # When we create a factory by decorating the factory function, this object
-            # conflicts with its own factory_function attribute in the namespace, so we
-            # rely on directly re-importing the factory
+        if (
+            self._decorated_as_classfactory
+            and "<locals>" not in self.factory_function.__qualname__
+        ):
             return (
                 _import_object,
                 (self.factory_function.__module__, self.factory_function.__qualname__),
@@ -251,7 +254,11 @@ class _FactoryMade(ABC):
         cls._factory_town = _FACTORY_TOWN
 
     def __reduce__(self):
-        if self._class_returns_from_decorated_function is not None:
+        if (
+            self._class_returns_from_decorated_function is not None
+            and "<locals>"
+            not in self._class_returns_from_decorated_function.__qualname__
+        ):
             # When we create a class by decorating some other function, this class
             # conflicts with its own factory_function attribute in the namespace, so we
             # rely on directly re-importing the factory

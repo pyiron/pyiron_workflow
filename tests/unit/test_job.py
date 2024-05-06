@@ -1,4 +1,5 @@
 from abc import ABC, abstractmethod
+import pickle
 import sys
 from time import sleep
 import unittest
@@ -151,13 +152,14 @@ class TestNodeOutputJob(_WithAJob):
             return x + 1
 
         nj = self.make_a_job_from_node(not_importable_directy_from_module(42))
-        with self.assertRaises(
-            AttributeError,
-            msg="On saving we cloudpickle the node, then at run time we try to "
-                "recreate the dynamic class, but this doesn't work from the <locals> "
-                "scope, i.e. when the function is nested inside another function."
-        ):
-            nj.run()
+
+        nj.run()
+        self.assertEqual(
+            43,
+            nj.output.y,
+            msg="Factory made objects should be able to be cloudpickled even when they "
+                "can't be pickled."
+        )
 
     @unittest.skipIf(sys.version_info < (3, 11), "Storage will only work in 3.11+")
     def test_shorter_name(self):
