@@ -253,7 +253,7 @@ class For(Composite, StaticNode, ABC):
     def _build_collector_node(self, row_number):
         # Iterated inputs
         row_specification = {
-            key: (self._body_node_class.preview_inputs()[key], NOT_DATA)
+            key: (self._body_node_class.preview_inputs()[key][0], NOT_DATA)
             for key in self._iter_on + self._zip_on
         }
         # Outputs
