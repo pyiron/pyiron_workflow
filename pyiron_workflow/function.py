@@ -361,7 +361,7 @@ def function_node_factory(
         {},
     )
 
-
+  
 def as_function_node(*output_labels, validate_output_labels=True):
     def decorator(node_function):
         function_node_factory.clear(node_function.__name__)  # Force a fresh class
