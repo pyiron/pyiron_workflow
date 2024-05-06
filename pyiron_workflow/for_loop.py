@@ -1,10 +1,11 @@
 from __future__ import annotations
 
 from abc import ABC
+from concurrent.futures import Executor
 from functools import lru_cache
 import itertools
 import math
-from typing import Any, ClassVar, Optional
+from typing import Any, ClassVar, Literal, Optional
 
 from pandas import DataFrame
 
@@ -134,6 +135,9 @@ class For(Composite, StaticNode, ABC):
     its subgraph at run-time.
 
     Collects looped output and collates them with looped input values in a dataframe.
+
+    The :attr:`body_node_executor` gets applied to each body node instance on each
+    run.
     """
     _body_node_class: ClassVar[type[StaticNode]]
     _iter_on: ClassVar[tuple[str, ...]] = ()
@@ -186,6 +190,32 @@ class For(Composite, StaticNode, ABC):
             map_[body_label] = column_name
         return map_
 
+    def __init__(
+        self,
+        *args,
+        label: Optional[str] = None,
+        parent: Optional[Composite] = None,
+        overwrite_save: bool = False,
+        run_after_init: bool = False,
+        storage_backend: Optional[Literal["h5io", "tinybase"]] = None,
+        save_after_run: bool = False,
+        strict_naming: bool = True,
+        body_node_executor: Optional[Executor] = None,
+        **kwargs,
+    ):
+        super().__init__(
+            *args,
+            label=label,
+            parent=parent,
+            overwrite_save=overwrite_save,
+            run_after_init=run_after_init,
+            storage_backend=storage_backend,
+            save_after_run=save_after_run,
+            strict_naming=strict_naming,
+            **kwargs,
+        )
+        self.body_node_executor = None
+
     def _setup_node(self) -> None:
         super()._setup_node()
         input_nodes = []
@@ -222,6 +252,7 @@ class For(Composite, StaticNode, ABC):
 
         for n, channel_map in enumerate(iter_maps):
             body_node = self._body_node_class(label=f"body_{n}", parent=self)
+            body_node.executor = self.body_node_executor
             row_collector = self._build_collector_node(n)
 
             self._connect_broadcast_input(body_node)
@@ -360,6 +391,9 @@ def for_node(
 
     The internal node structure gets re-created each run, so the same inputs must
     consistently be iterated over, but their lengths can change freely.
+
+    An executor can be applied to all body node instances at run-time by assigning it
+    to the :attr:`body_node_executor` attribute of the for-node.
 
     Args:
         body_node_class type[StaticNode]: The class of node to loop on.

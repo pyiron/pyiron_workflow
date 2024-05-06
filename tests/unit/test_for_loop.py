@@ -1,4 +1,6 @@
+from concurrent.futures import ThreadPoolExecutor
 from itertools import product
+from time import perf_counter
 import unittest
 
 from pandas import DataFrame
@@ -10,6 +12,7 @@ from pyiron_workflow.for_loop import (
     MapsToNonexistentOutputError
 )
 from pyiron_workflow.function import as_function_node
+from pyiron_workflow.node_library.standard import Sleep
 
 
 class TestDictionaryToIndexMaps(unittest.TestCase):
@@ -291,6 +294,26 @@ class TestForNode(unittest.TestCase):
                         "not_a_key_on_the_body_node_outputs": "anything"
                     }
                 )
+
+    def test_body_node_executor(self):
+        t_sleep = 2
+        for_parallel = for_node(
+            Sleep,
+            iter_on=("t",)
+        )
+        t_start = perf_counter()
+        n_procs = 4
+        with ThreadPoolExecutor(max_workers=n_procs) as exe:
+            for_parallel.body_node_executor = exe
+            for_parallel(t=n_procs*[t_sleep])
+        dt = perf_counter() - t_start
+        grace = 1.1
+        self.assertLess(
+            dt,
+            grace * t_sleep,
+            msg=f"Parallelization over children should result in faster completion. "
+                f"Expected limit {grace} x {t_sleep} = {grace * t_sleep} -- got {dt}"
+        )
 
 
 if __name__ == "__main__":
