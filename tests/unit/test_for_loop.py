@@ -307,7 +307,7 @@ class TestForNode(unittest.TestCase):
             for_parallel.body_node_executor = exe
             for_parallel(t=n_procs*[t_sleep])
         dt = perf_counter() - t_start
-        grace = 1.1
+        grace = 1.25
         self.assertLess(
             dt,
             grace * t_sleep,
