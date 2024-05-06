@@ -108,21 +108,24 @@ class Node(
         the python process working directory
     - Nodes can run their computation using remote resources by setting an executor
         - Any executor must have a :meth:`submit` method with the same interface as
-            :class:`concurrent.futures.Executor`, must return a :class:`concurrent.futures.Future`
-            (or child thereof) object, and must be able to serialize dynamically
-            defined objects
+            :class:`concurrent.futures.Executor`, must return a
+            :class:`concurrent.futures.Future` (or child thereof) object.
+        - Standard available nodes are pickleable and work with
+            `concurrent.futures.ProcessPoolExecutor`, but if you define your node
+            somewhere that it can't be imported (e.g. `__main__` in a jupyter
+            notebook), or it is otherwise not pickleable (e.g. it holds un-pickleable
+            io data), you will need a more powerful executor, e.g. `pympipool.Executor`.
         - On executing this way, a futures object will be returned instead of the usual
             result, this future will also be stored as an attribute, and a callback will
             be registered with the executor
         - Post-execution processing -- e.g. updating output and firing signals -- will
             not occur until the futures object is finished and the callback fires.
-        - WARNING: Executors are currently only working when the node executable
-            function does not use `self`
         - NOTE: Executors are only allowed in a "push" paradigm, and you will get an
             exception if you try to :meth:`pull` and one of the upstream nodes uses an
             executor
-        - NOTE: Don't forget to :meth:`shutdown` any created executors outside of a `with`
-            context when you're done with them; we give a convenience method for this.
+        - NOTE: Don't forget to :meth:`shutdown` any created executors outside of a
+            `with` context when you're done with them; we give a convenience method for
+            this.
     - Nodes created from a registered package store their package identifier as a class
         attribute.
     - [ALPHA FEATURE] Nodes can be saved to and loaded from file if python >= 3.11.

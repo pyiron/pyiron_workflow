@@ -34,13 +34,12 @@ class FromManyInputs(Transformer, ABC):
     # _build_inputs_preview required from parent class
     # This must be commensurate with the internal expectations of transform_from_input
 
-    @property
-    def on_run(self) -> callable[..., Any | tuple]:
-        return self.transform_from_input
+    def on_run(self, **kwargs) -> callable[..., Any | tuple]:
+        return self.transform_from_input(**kwargs)
 
     @property
-    def run_args(self) -> dict:
-        return {"inputs_as_dict": self.inputs.to_value_dict()}
+    def run_args(self) -> tuple[tuple, dict]:
+        return (), {"inputs_as_dict": self.inputs.to_value_dict()}
 
     @classmethod
     def _build_outputs_preview(cls) -> dict[str, Any]:
@@ -64,13 +63,12 @@ class ToManyOutputs(Transformer, ABC):
     # _build_outputs_preview still required from parent class
     # Must be commensurate with the dictionary returned by transform_to_output
 
-    @property
-    def on_run(self) -> callable[..., Any | tuple]:
-        return self.transform_to_output
+    def on_run(self, **kwargs) -> callable[..., Any | tuple]:
+        return self.transform_to_output(**kwargs)
 
     @property
-    def run_args(self) -> dict:
-        return {
+    def run_args(self) -> tuple[tuple, dict]:
+        return (), {
             "input_data": self.inputs[self._input_name].value,
         }
 

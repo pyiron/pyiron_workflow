@@ -295,7 +295,7 @@ class Function(StaticNode, ScrapesIO, ABC):
 
     @staticmethod
     @abstractmethod
-    def node_function(*args, **kwargs) -> callable:
+    def node_function(**kwargs) -> callable:
         """What the node _does_."""
 
     @classmethod
@@ -308,14 +308,13 @@ class Function(StaticNode, ScrapesIO, ABC):
         return preview if len(preview) > 0 else {"None": type(None)}
         # If clause facilitates functions with no return value
 
-    @property
-    def on_run(self):
-        return self.node_function
+    def on_run(self, **kwargs):
+        return self.node_function(**kwargs)
 
     @property
-    def run_args(self) -> dict:
+    def run_args(self) -> tuple[tuple, dict]:
         kwargs = self.inputs.to_value_dict()
-        return kwargs
+        return (), kwargs
 
     def process_run_result(self, function_output: Any | tuple) -> Any | tuple:
         """
@@ -355,6 +354,7 @@ def function_node_factory(
         {
             "node_function": staticmethod(node_function),
             "__module__": node_function.__module__,
+            "__qualname__": node_function.__qualname__,
             "_output_labels": None if len(output_labels) == 0 else output_labels,
             "_validate_output_labels": validate_output_labels,
         },

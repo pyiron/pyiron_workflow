@@ -1,5 +1,7 @@
 import math
+import pickle
 import random
+import time
 import unittest
 
 import pyiron_workflow.loops
@@ -17,6 +19,16 @@ def RandomFloat() -> float:
 @Workflow.wrap.as_function_node("gt")
 def GreaterThan(x: float, threshold: float):
     return x > threshold
+
+
+def foo(x):
+    y = x + 2
+    return y
+
+
+@Workflow.wrap.as_function_node("my_output")
+def Bar(x):
+    return x * x
 
 
 class TestTopology(unittest.TestCase):
@@ -201,6 +213,58 @@ class TestTopology(unittest.TestCase):
         wf.before_pickling.executor = None
         wf.after_pickling = wf.create.demo.OptionallyAdd(2, y=3)
         wf()
+
+    def test_executors(self):
+        executors = [
+            Workflow.create.ProcessPoolExecutor,
+            Workflow.create.ThreadPoolExecutor,
+            Workflow.create.CloudpickleProcessPoolExecutor,
+            Workflow.create.PyMpiPoolExecutor
+        ]
+
+        wf = Workflow("executed")
+        wf.a = Workflow.create.standard.UserInput(42)  # Regular
+        wf.b = wf.a + 1  # Injected
+        wf.c = Workflow.create.function_node(foo, wf.b)  # Instantiated from function
+        wf.d = Bar(wf.c)  # From decorated function
+
+        reference_output = wf()
+
+        with self.subTest("Pickle sanity check"):
+            reloaded = pickle.loads(pickle.dumps(wf))
+            self.assertDictEqual(reference_output, reloaded.outputs.to_value_dict())
+
+        for exe_cls in executors:
+            with self.subTest(
+                f"{exe_cls.__module__}.{exe_cls.__qualname__} entire workflow"
+            ):
+                with exe_cls() as exe:
+                    wf.executor = exe
+                    self.assertDictEqual(
+                        reference_output,
+                        wf().result().outputs.to_value_dict()
+                    )
+                    self.assertFalse(
+                        wf.running,
+                        msg="The workflow should stop. For thread pool this required a "
+                            "little sleep"
+                    )
+            wf.executor = None
+
+            with self.subTest(f"{exe_cls.__module__}.{exe_cls.__qualname__} each node"):
+                with exe_cls() as exe:
+                    for child in wf:
+                        child.executor = exe
+                    executed_output = wf()
+                self.assertDictEqual(reference_output, executed_output)
+                self.assertFalse(
+                    any(n.running for n in wf),
+                    msg=f"All children should be done running -- for thread pools this "
+                        f"requires a very short sleep -- got "
+                        f"{[(n.label, n.running) for n in wf]}"
+                )
+            for child in wf:
+                child.executor = None
 
 
 if __name__ == '__main__':

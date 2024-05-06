@@ -34,13 +34,12 @@ class ANode(Node):
     def outputs(self) -> OutputsWithInjection:
         return self._outputs
 
-    @property
-    def on_run(self):
-        return add_one
+    def on_run(self, *args, **kwargs):
+        return add_one(*args)
 
     @property
     def run_args(self) -> dict:
-        return {"x": self.inputs.x.value}
+        return (self.inputs.x.value,), {}
 
     def process_run_result(self, run_output):
         self.outputs.y.value = run_output

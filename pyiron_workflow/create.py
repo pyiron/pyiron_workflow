@@ -5,6 +5,7 @@ Container classes for giving access to various workflow objects and tools
 from __future__ import annotations
 
 from abc import ABC
+from concurrent.futures import ProcessPoolExecutor, ThreadPoolExecutor
 from functools import wraps
 from importlib import import_module
 import pkgutil
@@ -13,30 +14,18 @@ from types import ModuleType
 from typing import Optional, TYPE_CHECKING
 
 from bidict import bidict
-from pyiron_workflow.snippets.singleton import Singleton
-
-# Import all the supported executors
-from pympipool import Executor as PyMpiPoolExecutor, PyMPIExecutor
-
-try:
-    from pympipool import PySlurmExecutor
-except ImportError:
-    PySlurmExecutor = None
-try:
-    from pympipool import PyFluxExecutor
-except ImportError:
-    PyFluxExecutor = None
+from pympipool import Executor as PyMpiPoolExecutor
 
 from pyiron_workflow.executors import CloudpickleProcessPoolExecutor
-
-# Then choose one executor to be "standard"
-Executor = PyMpiPoolExecutor
-
 from pyiron_workflow.function import function_node, as_function_node
 from pyiron_workflow.snippets.dotdict import DotDict
+from pyiron_workflow.snippets.singleton import Singleton
 
 if TYPE_CHECKING:
     from pyiron_workflow.node_package import NodePackage
+
+# Specify the standard executor
+Executor = PyMpiPoolExecutor
 
 
 class Creator(metaclass=Singleton):
@@ -58,8 +47,12 @@ class Creator(metaclass=Singleton):
         self._package_registry = bidict()
 
         self.Executor = Executor
+        # Standard lib
+        self.ProcessPoolExecutor = ProcessPoolExecutor
+        self.ThreadPoolExecutor = ThreadPoolExecutor
+        # Local cloudpickler
         self.CloudpickleProcessPoolExecutor = CloudpickleProcessPoolExecutor
-        self.PyMPIExecutor = PyMPIExecutor
+        # pympipool
         self.PyMpiPoolExecutor = PyMpiPoolExecutor
 
         self.function_node = function_node
@@ -75,18 +68,6 @@ class Creator(metaclass=Singleton):
             # If the CI skips testing on 3.9 gets dropped, we can think about removing
             # this if-clause and just letting users of python <3.10 hit an error.
             self.register("pyiron_workflow.node_library.standard", "standard")
-
-    @property
-    def PyFluxExecutor(self):
-        if PyFluxExecutor is None:
-            raise ImportError(f"{PyFluxExecutor.__name__} is not available")
-        return PyFluxExecutor
-
-    @property
-    def PySlurmExecutor(self):
-        if PySlurmExecutor is None:
-            raise ImportError(f"{PySlurmExecutor.__name__} is not available")
-        return PySlurmExecutor
 
     @property
     def macro_node(self):

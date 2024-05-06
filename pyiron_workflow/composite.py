@@ -5,7 +5,7 @@ sub-graph
 
 from __future__ import annotations
 
-from abc import ABC, abstractmethod
+from abc import ABC
 from time import sleep
 from typing import Literal, Optional, TYPE_CHECKING
 
@@ -146,30 +146,24 @@ class Composite(SemanticParent, HasCreator, Node, ABC):
             "nodes": {n.label: n.to_dict() for n in self.children.values()},
         }
 
-    @property
     def on_run(self):
-        return self.run_graph
-
-    @staticmethod
-    def run_graph(_composite: Composite):
         # Reset provenance and run status trackers
-        _composite.provenance_by_execution = []
-        _composite.provenance_by_completion = []
-        _composite.running_children = []
-        _composite.signal_queue = []
+        self.provenance_by_execution = []
+        self.provenance_by_completion = []
+        self.running_children = []
+        self.signal_queue = []
 
-        for node in _composite.starting_nodes:
+        for node in self.starting_nodes:
             node.run()
 
-        while len(_composite.running_children) > 0 or len(_composite.signal_queue) > 0:
+        while len(self.running_children) > 0 or len(self.signal_queue) > 0:
             try:
-                ran_signal, receiver = _composite.signal_queue.pop(0)
+                ran_signal, receiver = self.signal_queue.pop(0)
                 receiver(ran_signal)
             except IndexError:
                 # The signal queue is empty, but there is still someone running...
-                sleep(_composite._child_sleep_interval)
-
-        return _composite
+                sleep(self._child_sleep_interval)
+        return self
 
     def register_child_starting(self, child: Node) -> None:
         """
@@ -214,8 +208,8 @@ class Composite(SemanticParent, HasCreator, Node, ABC):
             self.signal_queue.append((child.signals.output.ran, conn))
 
     @property
-    def run_args(self) -> dict:
-        return {"_composite": self}
+    def run_args(self) -> tuple[tuple, dict]:
+        return (), {}
 
     def process_run_result(self, run_output):
         if run_output is not self:
@@ -227,7 +221,9 @@ class Composite(SemanticParent, HasCreator, Node, ABC):
         for node in self:
             node._parent = None
         other_self.running = False  # It's done now
-        self.__setstate__(other_self.__getstate__())
+        state = other_self.__getstate__()
+        state.pop("executor")  # Got overridden to None for __getstate__, so keep local
+        self.__setstate__(state)
 
     def disconnect_run(self) -> list[tuple[Channel, Channel]]:
         """

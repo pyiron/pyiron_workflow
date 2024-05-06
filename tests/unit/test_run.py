@@ -17,7 +17,7 @@ class ConcreteRunnable(Runnable):
 
     @property
     def run_args(self):
-        return {"foo": 42}
+        return (), {"foo": 42}
 
     def process_run_result(self, run_output):
         self.processed = dict(run_output)
