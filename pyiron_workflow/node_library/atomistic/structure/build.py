@@ -1,8 +1,8 @@
-from pyiron_workflow.function import function_node
+from pyiron_workflow.function import as_function_node
 from pyiron_workflow.workflow import Workflow
 
 
-@function_node("structure")
+@as_function_node("structure")
 def bulk(
     name,
     crystalstructure=None,
@@ -27,7 +27,7 @@ def bulk(
     )
 
 
-@Workflow.wrap_as.macro_node("structure")
+@Workflow.wrap.as_macro_node("structure")
 def cubic_bulk_cell(
     wf, element: str, cell_size: int = 1, vacancy_index: int | None = None
 ):

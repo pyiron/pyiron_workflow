@@ -1,7 +1,7 @@
-from pyiron_workflow.function import function_node
+from pyiron_workflow.function import as_function_node
 
 
-@function_node()
+@as_function_node()
 def static(atoms=None, engine=None, _internal=None, keys_to_store=None):
     from pyiron_workflow.node_library.atomistic.calculator.data import OutputCalcStatic
 
@@ -24,7 +24,7 @@ def static(atoms=None, engine=None, _internal=None, keys_to_store=None):
     return out.select(keys_to_store)
 
 
-@function_node("structure", "out")
+@as_function_node("structure", "out")
 def minimize(atoms=None, engine=None, fmax=0.005, log_file="tmp.log"):
     from ase.optimize import BFGS
     from pyiron_workflow.node_library.atomistic.calculator.data import (

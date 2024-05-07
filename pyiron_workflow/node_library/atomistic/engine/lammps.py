@@ -5,7 +5,7 @@ from typing import Optional
 
 # from pyiron_atomistics.atomistics.structure.atoms import Atoms
 
-from pyiron_workflow.function import function_node, function_node
+from pyiron_workflow.function import as_function_node
 from pyiron_workflow.workflow import Workflow
 
 from pyiron_workflow.node_library.atomistic.calculator.data import (
@@ -20,7 +20,7 @@ from pyiron_workflow.node_library.dev_tools import wf_data_class
 from pyiron_atomistics.lammps.control import LammpsControl
 
 
-@function_node("calculator")
+@as_function_node("calculator")
 def Calc(parameters):
     from pyiron_atomistics.lammps.control import LammpsControl
 
@@ -41,7 +41,7 @@ def Calc(parameters):
     return calculator
 
 
-@function_node("calculator")
+@as_function_node("calculator")
 def CalcStatic(calculator_input: Optional[InputCalcStatic | dict] = None):
     calculator_kwargs = parse_input_kwargs(calculator_input, InputCalcStatic)
     calculator = LammpsControl()
@@ -51,7 +51,7 @@ def CalcStatic(calculator_input: Optional[InputCalcStatic | dict] = None):
     return calculator
 
 
-@function_node("calculator")
+@as_function_node("calculator")
 def CalcMinimize(calculator_input: Optional[InputCalcMinimize | dict] = None):
     calculator_kwargs = parse_input_kwargs(calculator_input, InputCalcMinimize)
     calculator = LammpsControl()
@@ -61,7 +61,7 @@ def CalcMinimize(calculator_input: Optional[InputCalcMinimize | dict] = None):
     return calculator
 
 
-@function_node("calculator")
+@as_function_node("calculator")
 def CalcMD(calculator_input: Optional[InputCalcMD | dict] = None):
     calculator_kwargs = parse_input_kwargs(calculator_input, InputCalcMD)
     calculator = LammpsControl()
@@ -71,8 +71,8 @@ def CalcMD(calculator_input: Optional[InputCalcMD | dict] = None):
     return calculator
 
 
-# @Workflow.wrap_as.function_node("path", "calc_mode", "bla")
-@Workflow.wrap_as.function_node("path", "bla")
+# @Workflow.wrap.as_function_node("path", "calc_mode", "bla")
+@Workflow.wrap.as_function_node("path", "bla")
 def InitLammps(structure=None, potential=None, calculator=None, working_directory=None):
     import os
     from pyiron_atomistics.lammps.potential import LammpsPotential, LammpsPotentialFile
@@ -95,7 +95,7 @@ def InitLammps(structure=None, potential=None, calculator=None, working_director
     return os.path.abspath(working_directory), bla
 
 
-@function_node("log")
+@as_function_node("log")
 def ParseLogFile(log_file):
     from pymatgen.io.lammps.outputs import parse_lammps_log
 
@@ -107,7 +107,7 @@ def ParseLogFile(log_file):
     return log
 
 
-@function_node("dump")
+@as_function_node("dump")
 def ParseDumpFile(dump_file):
     from pymatgen.io.lammps.outputs import parse_lammps_dumps
 
@@ -124,7 +124,7 @@ class ShellOutput:
     log: FileObject = FileObject()
 
 
-@function_node("output", "dump", "log")
+@as_function_node("output", "dump", "log")
 def Shell(
     command: str,
     environment: Optional[dict] = None,
@@ -171,7 +171,7 @@ class GenericOutput:
     forces = []
 
 
-@function_node()
+@as_function_node()
 def Collect(
     out_dump,
     out_log,
@@ -217,7 +217,7 @@ def Collect(
     return generic
 
 
-@function_node("potential")
+@as_function_node("potential")
 def Potential(structure, name=None, index=0):
     from pyiron_atomistics.lammps.potential import list_potentials as lp
 
@@ -232,7 +232,7 @@ def Potential(structure, name=None, index=0):
     return pot
 
 
-@function_node("potentials")
+@as_function_node("potentials")
 def ListPotentials(structure):
     from pyiron_atomistics.lammps.potential import list_potentials as lp
 
@@ -249,7 +249,7 @@ def get_calculators():
     return calc_dict
 
 
-from pyiron_workflow.macro import macro_node
+from pyiron_workflow.macro import as_macro_node
 
 # from pyiron_workflow.node_library.atomistic.engine.lammps import get_calculators
 # from pyiron_workflow.node_library.dev_tools import set_replacer
@@ -257,7 +257,7 @@ from pyiron_workflow.macro import macro_node
 from ase import Atoms
 
 
-@macro_node("generic")
+@as_macro_node("generic")
 def Code(
     wf,
     structure=Atoms(),
