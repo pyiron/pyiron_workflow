@@ -8,10 +8,10 @@ from typing import Optional
 
 import numpy as np
 
-from pyiron_workflow.function import function_node
+from pyiron_workflow.function import as_function_node
 
 
-@function_node("fig")
+@as_function_node("fig")
 def Scatter(
     x: Optional[list | np.ndarray] = None, y: Optional[list | np.ndarray] = None
 ):

@@ -1,23 +1,14 @@
 from __future__ import annotations
 
-import inspect
-import warnings
-from functools import partialmethod
-from typing import Any, get_args, get_type_hints, Literal, Optional, TYPE_CHECKING
+from abc import ABC, abstractmethod
+from typing import Any
 
-from pyiron_workflow.channels import InputData, OutputData, NOT_DATA
-from pyiron_workflow.has_interface_mixins import HasChannel
-from pyiron_workflow.injection import OutputDataWithInjection
-from pyiron_workflow.io import Inputs, Outputs
-from pyiron_workflow.node import Node
-from pyiron_workflow.output_parser import ParseOutput
+from pyiron_workflow.io_preview import StaticNode, ScrapesIO
 from pyiron_workflow.snippets.colors import SeabornColors
-
-if TYPE_CHECKING:
-    from pyiron_workflow.composite import Composite
+from pyiron_workflow.snippets.factory import classfactory
 
 
-class Function(Node):
+class Function(StaticNode, ScrapesIO, ABC):
     """
     Function nodes wrap an arbitrary python function.
 
@@ -49,34 +40,16 @@ class Function(Node):
         the same input order as the wrapped function.
     - A default label can be scraped from the name of the wrapped function
 
-    Args:
-        node_function (callable): The function determining the behaviour of the node.
-        label (str): The node's label. (Defaults to the node function's name.)
-        output_labels (Optional[str | list[str] | tuple[str]]): A name for each return
-            value of the node function OR a single label. (Default is None, which
-            scrapes output labels automatically from the source code of the wrapped
-            function.) This can be useful when returned values are not well named, e.g.
-            to make the output channel dot-accessible if it would otherwise have a label
-            that requires item-string-based access. Additionally, specifying a _single_
-            label for a wrapped function that returns a tuple of values ensures that a
-            _single_ output channel (holding the tuple) is created, instead of one
-            channel for each return value. The default approach of extracting labels
-            from the function source code also requires that the function body contain
-            _at most_ one `return` expression, so providing explicit labels can be used
-            to circumvent this (at your own risk).
-        **kwargs: Any additional keyword arguments whose keyword matches the label of an
-            input channel will have their value assigned to that channel.
-
     Examples:
         At the most basic level, to use nodes all we need to do is provide the
         `Function` class with a function and labels for its output, like so:
 
-        >>> from pyiron_workflow.function import Function
+        >>> from pyiron_workflow.function import function_node
         >>>
         >>> def mwe(x, y):
         ...     return x+1, y-1
         >>>
-        >>> plus_minus_1 = Function(mwe)
+        >>> plus_minus_1 = function_node(mwe)
         >>>
         >>> print(plus_minus_1.outputs["x+1"])
         NOT_DATA
@@ -129,10 +102,10 @@ class Function(Node):
         >>> plus_minus_1.outputs.to_value_dict()
         {'x+1': 3, 'y-1': 2}
 
-        We can also, optionally, provide initial values for some or all of the input and
-        labels for the output:
+        We can also, optionally, provide initial values for some or all of the input
+        and labels for the output:
 
-        >>> plus_minus_1 = Function(mwe, output_labels=("p1", "m1"),  x=1)
+        >>> plus_minus_1 = function_node(mwe, output_labels=("p1", "m1"),  x=1)
         >>> plus_minus_1.inputs.y = 2
         >>> out = plus_minus_1.run()
         >>> out
@@ -147,8 +120,8 @@ class Function(Node):
         (3, 2)
 
         We can make our node even more sensible by adding type
-        hints (and, optionally, default values) when defining the function that the node
-        wraps.
+        hints (and, optionally, default values) when defining the function that the
+        node wraps.
         The node will automatically figure out defaults and type hints for the IO
         channels from inspection of the wrapped function.
 
@@ -159,7 +132,7 @@ class Function(Node):
         variety of common use cases.
         Note that getting "good" (i.e. dot-accessible) output labels can be achieved by
         using good variable names and returning those variables instead of using
-        :attr:`output_labels`.
+        :param:`output_labels`.
         If we try to assign a value of the wrong type, it will raise an error:
 
         >>> from typing import Union
@@ -171,7 +144,7 @@ class Function(Node):
         ...     p1, m1 = x+1, y-1
         ...     return p1, m1
         >>>
-        >>> plus_minus_1 = Function(hinted_example)
+        >>> plus_minus_1 = function_node(hinted_example)
         >>> try:
         ...     plus_minus_1.inputs.x =  "not an int or float"
         ... except TypeError as e:
@@ -207,21 +180,23 @@ class Function(Node):
         >>> plus_minus_1.ready, plus_minus_1.inputs.x.ready, plus_minus_1.inputs.y.ready
         (False, False, True)
 
-        In these examples, we've instantiated nodes directly from the base :class:`Function`
-        class, and populated their input directly with data.
+        In these examples, we've instantiated nodes directly from the base
+        :class:`Function` class, and populated their input directly with data.
         In practice, these nodes are meant to be part of complex workflows; that means
         both that you are likely to have particular nodes that get heavily re-used, and
         that you need the nodes to pass data to each other.
 
-        For reusable nodes, we want to create a sub-class of :class:`Function` that fixes some
-        of the node behaviour -- usually the :meth:`node_function` and :attr:`output_labels`.
+        For reusable nodes, we want to create a sub-class of :class:`Function`
+        that fixes some of the node behaviour -- i.e. the :meth:`node_function`.
 
-        This can be done most easily with the :func:`function_node` decorator, which takes a function
-        and returns a node class:
+        This can be done most easily with the :func:`as_function_node` decorator, which
+        takes a function and returns a node class. It also allows us to provide labels
+        for the return values, :param:output_labels, which are otherwise scraped from
+        the text of the function definition:
 
-        >>> from pyiron_workflow.function import function_node
+        >>> from pyiron_workflow.function import as_function_node
         >>>
-        >>> @function_node("p1", "m1")
+        >>> @as_function_node("p1", "m1")
         ... def my_mwe_node(
         ...     x: int | float, y: int | float = 1
         ... ) -> tuple[int | float, int | float]:
@@ -241,23 +216,15 @@ class Function(Node):
         already defined as a `staticmethod`:
 
         >>> from typing import Literal, Optional
+        >>> from pyiron_workflow.function import Function
         >>>
         >>> class AlphabetModThree(Function):
-        ...     def __init__(
-        ...         self,
-        ...         label: Optional[str] = None,
-        ...         **kwargs
-        ...     ):
-        ...         super().__init__(
-        ...             None,
-        ...             label=label,
-        ...             **kwargs
-        ...         )
         ...
         ...     @staticmethod
         ...     def node_function(i: int) -> Literal["a", "b", "c"]:
         ...         letter = ["a", "b", "c"][i % 3]
         ...         return letter
+
 
         Finally, let's put it all together by using both of these nodes at once.
         Instead of setting input to a particular data value, we'll set it to
@@ -268,7 +235,7 @@ class Function(Node):
         Let's put together a couple of nodes and then run in a "pull" paradigm to get
         the final node to run everything "upstream" then run itself:
 
-        >>> @function_node()
+        >>> @as_function_node()
         ... def adder_node(x: int = 0, y: int = 0) -> int:
         ...     sum = x + y
         ...     return sum
@@ -295,7 +262,7 @@ class Function(Node):
         (like cyclic graphs).
         Here's our simple example from above using this other paradigm:
 
-        >>> @function_node()
+        >>> @as_function_node()
         ... def adder_node(x: int = 0, y: int = 0) -> int:
         ...     sum = x + y
         ...     return sum
@@ -326,199 +293,28 @@ class Function(Node):
         guaranteed.
     """
 
-    def __init__(
-        self,
-        node_function: callable,
-        *args,
-        label: Optional[str] = None,
-        parent: Optional[Composite] = None,
-        overwrite_save: bool = False,
-        run_after_init: bool = False,
-        storage_backend: Optional[Literal["h5io", "tinybase"]] = None,
-        save_after_run: bool = False,
-        output_labels: Optional[str | list[str] | tuple[str]] = None,
-        **kwargs,
-    ):
-        if not callable(node_function):
-            # Children of `Function` may explicitly provide a `node_function` static
-            # method so the node has fixed behaviour.
-            # In this case, the `__init__` signature should be changed so that the
-            # `node_function` argument is just always `None` or some other non-callable.
-            # If a callable `node_function` is not received, you'd better have it as an
-            # attribute already!
-            if not hasattr(self, "node_function"):
-                raise AttributeError(
-                    f"If `None` is provided as a `node_function`, a `node_function` "
-                    f"property must be defined instead, e.g. when making child classes"
-                    f"of `Function` with specific behaviour"
-                )
-            self._type_hints = get_type_hints(self.node_function)
-        else:
-            # If a callable node function is received, use it
-            self.node_function = node_function
-            self._type_hints = get_type_hints(node_function)
+    @staticmethod
+    @abstractmethod
+    def node_function(**kwargs) -> callable:
+        """What the node _does_."""
 
-        super().__init__(
-            label=label if label is not None else self.node_function.__name__,
-            parent=parent,
-            save_after_run=save_after_run,
-            storage_backend=storage_backend,
-            # **kwargs,
-        )
+    @classmethod
+    def _io_defining_function(cls) -> callable:
+        return cls.node_function
 
-        self._inputs = None
-        self._outputs = None
-        self._output_labels = self._get_output_labels(output_labels)
-        # TODO: Parse output labels from the node function in case output_labels is None
+    @classmethod
+    def _build_outputs_preview(cls) -> dict[str, Any]:
+        preview = super(Function, cls)._build_outputs_preview()
+        return preview if len(preview) > 0 else {"None": type(None)}
+        # If clause facilitates functions with no return value
 
-        self.set_input_values(*args, **kwargs)
-
-    def _get_output_labels(self, output_labels: str | list[str] | tuple[str] | None):
-        """
-        If output labels are provided, turn convert them to a list if passed as a
-        string and return them, else scrape them from the source channel.
-
-        Note: When the user explicitly provides output channels, they are taking
-        responsibility that these are correct, e.g. in terms of quantity, order, etc.
-        """
-        if output_labels is None:
-            return self._scrape_output_labels()
-        elif isinstance(output_labels, str):
-            return [output_labels]
-        else:
-            return output_labels
-
-    def _scrape_output_labels(self):
-        """
-        Inspect the source code to scrape out strings representing the returned values.
-        _Only_ works for functions with a single `return` expression in their body.
-
-        Will return expressions and function calls just fine, thus best practice is to
-        create well-named variables and return those so that the output labels stay
-        dot-accessible.
-        """
-        parsed_outputs = ParseOutput(self.node_function).output
-        return [None] if parsed_outputs is None else parsed_outputs
+    def on_run(self, **kwargs):
+        return self.node_function(**kwargs)
 
     @property
-    def _input_args(self):
-        return inspect.signature(self.node_function).parameters
-
-    @property
-    def inputs(self) -> Inputs:
-        if self._inputs is None:
-            self._inputs = Inputs(*self._build_input_channels())
-        return self._inputs
-
-    @property
-    def outputs(self) -> Outputs:
-        if self._outputs is None:
-            self._outputs = Outputs(*self._build_output_channels(*self._output_labels))
-        return self._outputs
-
-    def _build_input_channels(self):
-        channels = []
-        type_hints = self._type_hints
-
-        for ii, (label, value) in enumerate(self._input_args.items()):
-            is_self = False
-            if label == "self":  # `self` is reserved for the node object
-                if ii == 0:
-                    is_self = True
-                else:
-                    warnings.warn(
-                        "`self` is used as an argument but not in the first"
-                        " position, so it is treated as a normal function"
-                        " argument. If it is to be treated as the node object,"
-                        " use it as a first argument"
-                    )
-            if label in self._init_keywords:
-                # We allow users to parse arbitrary kwargs as channel initialization
-                # So don't let them choose bad channel names
-                raise ValueError(
-                    f"The Input channel name {label} is not valid. Please choose a "
-                    f"name _not_ among {self._init_keywords}"
-                )
-
-            try:
-                type_hint = type_hints[label]
-                if is_self:
-                    warnings.warn("type hint for self ignored")
-            except KeyError:
-                type_hint = None
-
-            default = NOT_DATA  # The standard default in DataChannel
-            if value.default is not inspect.Parameter.empty:
-                if is_self:
-                    warnings.warn("default value for self ignored")
-                else:
-                    default = value.default
-
-            if not is_self:
-                channels.append(
-                    InputData(
-                        label=label,
-                        owner=self,
-                        default=default,
-                        type_hint=type_hint,
-                    )
-                )
-        return channels
-
-    @property
-    def _init_keywords(self):
-        return list(inspect.signature(self.__init__).parameters.keys())
-
-    def _build_output_channels(self, *return_labels: str):
-        try:
-            type_hints = self._type_hints["return"]
-            if len(return_labels) > 1:
-                type_hints = get_args(type_hints)
-                if not isinstance(type_hints, tuple):
-                    raise TypeError(
-                        f"With multiple return labels expected to get a tuple of type "
-                        f"hints, but got type {type(type_hints)}"
-                    )
-                if len(type_hints) != len(return_labels):
-                    raise ValueError(
-                        f"Expected type hints and return labels to have matching "
-                        f"lengths, but got {len(type_hints)} hints and "
-                        f"{len(return_labels)} labels: {type_hints}, {return_labels}"
-                    )
-            else:
-                # If there's only one hint, wrap it in a tuple so we can zip it with
-                # *return_labels and iterate over both at once
-                type_hints = (type_hints,)
-        except KeyError:
-            type_hints = [None] * len(return_labels)
-
-        channels = []
-        for label, hint in zip(return_labels, type_hints):
-            channels.append(
-                OutputDataWithInjection(
-                    label=label,
-                    owner=self,
-                    type_hint=hint,
-                )
-            )
-
-        return channels
-
-    @property
-    def on_run(self):
-        return self.node_function
-
-    @property
-    def run_args(self) -> dict:
+    def run_args(self) -> tuple[tuple, dict]:
         kwargs = self.inputs.to_value_dict()
-        if "self" in self._input_args:
-            if self.executor:
-                raise ValueError(
-                    f"Function node {self.label} uses the `self` argument, but this "
-                    f"can't yet be run with executors"
-                )
-            kwargs["self"] = self
-        return kwargs
+        return (), kwargs
 
     def process_run_result(self, function_output: Any | tuple) -> Any | tuple:
         """
@@ -530,54 +326,6 @@ class Function(Node):
         ):
             out.value = value
         return function_output
-
-    def _convert_input_args_and_kwargs_to_input_kwargs(self, *args, **kwargs):
-        reverse_keys = list(self._input_args.keys())[::-1]
-        if len(args) > len(reverse_keys):
-            raise ValueError(
-                f"Received {len(args)} positional arguments, but the node {self.label}"
-                f"only accepts {len(reverse_keys)} inputs."
-            )
-
-        positional_keywords = reverse_keys[-len(args) :] if len(args) > 0 else []  # -0:
-        if len(set(positional_keywords).intersection(kwargs.keys())) > 0:
-            raise ValueError(
-                f"Cannot use {set(positional_keywords).intersection(kwargs.keys())} "
-                f"as both positional _and_ keyword arguments; args {args}, kwargs "
-                f"{kwargs}, reverse_keys {reverse_keys}, positional_keyworkds "
-                f"{positional_keywords}"
-            )
-
-        for arg in args:
-            key = positional_keywords.pop()
-            kwargs[key] = arg
-
-        return kwargs
-
-    def set_input_values(self, *args, **kwargs) -> None:
-        """
-        Match positional and keyword arguments to input channels and update input
-        values.
-
-        Args:
-            *args: Interpreted in the same order as node function arguments.
-            **kwargs: input label - input value (including channels for connection)
-             pairs.
-        """
-        kwargs = self._convert_input_args_and_kwargs_to_input_kwargs(*args, **kwargs)
-        return super().set_input_values(**kwargs)
-
-    def execute(self, *args, **kwargs):
-        kwargs = self._convert_input_args_and_kwargs_to_input_kwargs(*args, **kwargs)
-        return super().execute(**kwargs)
-
-    def pull(self, *args, run_parent_trees_too=False, **kwargs):
-        kwargs = self._convert_input_args_and_kwargs_to_input_kwargs(*args, **kwargs)
-        return super().pull(run_parent_trees_too=run_parent_trees_too, **kwargs)
-
-    def __call__(self, *args, **kwargs) -> None:
-        kwargs = self._convert_input_args_and_kwargs_to_input_kwargs(*args, **kwargs)
-        return super().__call__(**kwargs)
 
     def to_dict(self):
         return {
@@ -596,46 +344,51 @@ class Function(Node):
         return SeabornColors.green
 
 
-def function_node(*output_labels: str):
-    """
-    A decorator for dynamically creating node classes from functions.
+@classfactory
+def function_node_factory(
+    node_function: callable, validate_output_labels: bool, /, *output_labels
+):
+    return (
+        node_function.__name__,
+        (Function,),  # Define parentage
+        {
+            "node_function": staticmethod(node_function),
+            "__module__": node_function.__module__,
+            "__qualname__": node_function.__qualname__,
+            "_output_labels": None if len(output_labels) == 0 else output_labels,
+            "_validate_output_labels": validate_output_labels,
+        },
+        {},
+    )
 
-    Decorates a function.
-    Returns a `Function` subclass whose name is the camel-case version of the function
-    node, and whose signature is modified to exclude the node function and output labels
-    (which are explicitly defined in the process of using the decorator).
-    """
-    output_labels = None if len(output_labels) == 0 else output_labels
 
-    # One really subtle thing is that we manually parse the function type hints right
-    # here and include these as a class-level attribute.
-    # This is because on (de)(cloud)pickling a function node, somehow the node function
-    # method attached to it gets its `__globals__` attribute changed; it retains stuff
-    # _inside_ the function, but loses imports it used from the _outside_ -- i.e. type
-    # hints! I (@liamhuber) don't deeply understand _why_ (de)pickling is modifying the
-    # __globals__ in this way, but the result is that type hints cannot be parsed after
-    # the change.
-    # The final piece of the puzzle here is that because the node function is a _class_
-    # level attribute, if you (de)pickle a node, _new_ instances of that node wind up
-    # having their node function's `__globals__` trimmed down in this way!
-    # So to keep the type hint parsing working, we snag and interpret all the type hints
-    # at wrapping time, when we are guaranteed to have all the globals available, and
-    # also slap them on as a class-level attribute. These get safely packed and returned
-    # when (de)pickling so we can keep processing type hints without trouble.
-    def as_node(node_function: callable):
-        return type(
-            node_function.__name__,
-            (Function,),  # Define parentage
-            {
-                "__init__": partialmethod(
-                    Function.__init__,
-                    None,
-                    output_labels=output_labels,
-                ),
-                "node_function": staticmethod(node_function),
-                "_type_hints": get_type_hints(node_function),
-                "__module__": node_function.__module__,
-            },
+def as_function_node(*output_labels, validate_output_labels=True):
+    def decorator(node_function):
+        function_node_factory.clear(node_function.__name__)  # Force a fresh class
+        factory_made = function_node_factory(
+            node_function, validate_output_labels, *output_labels
         )
+        factory_made._class_returns_from_decorated_function = node_function
+        factory_made.preview_io()
+        return factory_made
 
-    return as_node
+    return decorator
+
+
+def function_node(
+    node_function,
+    *node_args,
+    output_labels=None,
+    validate_output_labels=True,
+    **node_kwargs,
+):
+    if output_labels is None:
+        output_labels = ()
+    elif isinstance(output_labels, str):
+        output_labels = (output_labels,)
+    function_node_factory.clear(node_function.__name__)  # Force a fresh class
+    factory_made = function_node_factory(
+        node_function, validate_output_labels, *output_labels
+    )
+    factory_made.preview_io()
+    return factory_made(*node_args, **node_kwargs)

@@ -1,11 +1,10 @@
+import pickle
 from typing import Optional, Union
 import unittest
-import warnings
 
-from pyiron_workflow.channels import NOT_DATA, ChannelConnectionError
-from pyiron_workflow.function import Function, function_node
+from pyiron_workflow.channels import NOT_DATA
+from pyiron_workflow.function import function_node, as_function_node
 from pyiron_workflow.io import ConnectionCopyError, ValueCopyError
-from pyiron_workflow.create import Executor
 
 
 def throw_error(x: Optional[int] = None):
@@ -39,11 +38,11 @@ def multiple_branches(x):
 class TestFunction(unittest.TestCase):
     def test_instantiation(self):
         with self.subTest("Void function is allowable"):
-            void_node = Function(void)
+            void_node = function_node(void)
             self.assertEqual(len(void_node.outputs), 1)
 
         with self.subTest("Args and kwargs at initialization"):
-            node = Function(plus_one)
+            node = function_node(plus_one)
             self.assertIs(
                 NOT_DATA,
                 node.outputs.y.value,
@@ -64,7 +63,7 @@ class TestFunction(unittest.TestCase):
                     f"change or something?"
             )
 
-            node = Function(no_default, 1, y=2, output_labels="output")
+            node = function_node(no_default, 1, y=2, output_labels="output")
             node.run()
             self.assertEqual(
                 no_default(1, 2),
@@ -80,11 +79,11 @@ class TestFunction(unittest.TestCase):
 
             with self.assertRaises(ValueError):
                 # Can't pass more args than the function takes
-                Function(returns_multiple, 1, 2, 3)
+                function_node(returns_multiple, 1, 2, 3)
 
         with self.subTest("Initializing with connections"):
-            node = Function(plus_one, x=2)
-            node2 = Function(plus_one, x=node.outputs.y)
+            node = function_node(plus_one, x=2)
+            node2 = function_node(plus_one, x=node.outputs.y)
             self.assertIs(
                 node2.inputs.x.connections[0],
                 node.outputs.y,
@@ -95,14 +94,14 @@ class TestFunction(unittest.TestCase):
             self.assertEqual(4, node2.outputs.y.value, msg="Initialize from connection")
 
     def test_defaults(self):
-        with_defaults = Function(plus_one)
+        with_defaults = function_node(plus_one)
         self.assertEqual(
             with_defaults.inputs.x.value,
             1,
             msg=f"Expected to get the default provided in the underlying function but "
                 f"got {with_defaults.inputs.x.value}",
         )
-        without_defaults = Function(no_default)
+        without_defaults = function_node(no_default)
         self.assertIs(
             without_defaults.inputs.x.value,
             NOT_DATA,
@@ -117,37 +116,52 @@ class TestFunction(unittest.TestCase):
 
     def test_label_choices(self):
         with self.subTest("Automatically scrape output labels"):
-            n = Function(plus_one)
+            n = function_node(plus_one)
             self.assertListEqual(n.outputs.labels, ["y"])
 
         with self.subTest("Allow overriding them"):
-            n = Function(no_default, output_labels=("sum_plus_one",))
+            n = function_node(no_default, output_labels=("sum_plus_one",))
             self.assertListEqual(n.outputs.labels, ["sum_plus_one"])
 
         with self.subTest("Allow forcing _one_ output channel"):
-            n = Function(returns_multiple, output_labels="its_a_tuple")
+            n = function_node(
+                returns_multiple,
+                output_labels="its_a_tuple",
+                validate_output_labels=False,
+            )
             self.assertListEqual(n.outputs.labels, ["its_a_tuple"])
 
         with self.subTest("Fail on multiple return values"):
             with self.assertRaises(ValueError):
                 # Can't automatically parse output labels from a function with multiple
                 # return expressions
-                Function(multiple_branches)
+                function_node(multiple_branches)
 
         with self.subTest("Override output label scraping"):
-            switch = Function(multiple_branches, output_labels="bool")
+            with self.assertRaises(
+                ValueError,
+                msg="Multiple return branches can't be parsed"
+            ):
+                switch = function_node(multiple_branches, output_labels="bool")
+                self.assertListEqual(switch.outputs.labels, ["bool"])
+
+            switch = function_node(
+                multiple_branches,
+                output_labels="bool",
+                validate_output_labels=False
+            )
             self.assertListEqual(switch.outputs.labels, ["bool"])
 
     def test_default_label(self):
-        n = Function(plus_one)
+        n = function_node(plus_one)
         self.assertEqual(plus_one.__name__, n.label)
 
     def test_availability_of_node_function(self):
-        @function_node()
+        @as_function_node()
         def linear(x):
             return x
 
-        @function_node()
+        @as_function_node()
         def bilinear(x, y):
             xy = linear.node_function(x) * linear.node_function(y)
             return xy
@@ -160,7 +174,7 @@ class TestFunction(unittest.TestCase):
         )
 
     def test_statuses(self):
-        n = Function(plus_one)
+        n = function_node(plus_one)
         self.assertTrue(n.ready)
         self.assertFalse(n.running)
         self.assertFalse(n.failed)
@@ -176,64 +190,8 @@ class TestFunction(unittest.TestCase):
         self.assertFalse(n.running)
         self.assertTrue(n.failed)
 
-    def test_with_self(self):
-        def with_self(self, x: float) -> float:
-            # Note: Adding internal state to the node like this goes against the best
-            #  practice of keeping nodes "functional". Following python's paradigm of
-            #  giving users lots of power, we want to guarantee that this behaviour is
-            #  _possible_.
-            if "some_counter" in self._user_data:
-                self._user_data["some_counter"] += 1
-            else:
-                self._user_data["some_counter"] = 1
-            return x + 0.1
-
-        node = Function(with_self, output_labels="output")
-        self.assertTrue(
-            "x" in node.inputs.labels,
-            msg=f"Expected to find function input 'x' in the node input but got "
-                f"{node.inputs.labels}"
-        )
-        self.assertFalse(
-            "self" in node.inputs.labels,
-            msg="Expected 'self' to be filtered out of node input, but found it in the "
-                "input labels"
-        )
-        node.inputs.x = 1.0
-        node.run()
-        self.assertEqual(
-            node.outputs.output.value,
-            1.1,
-            msg="Basic node functionality appears to have failed"
-        )
-        self.assertEqual(
-            node._user_data["some_counter"],
-            1,
-            msg="Function functions should be able to modify attributes on the node "
-                "object."
-        )
-
-        node.executor = Executor()
-        with self.assertRaises(
-            ValueError,
-            msg="We haven't implemented any way to update a function node's `self` when"
-                "it runs on an executor, so trying to do so should fail hard"
-        ):
-            node.run()
-            node.executor_shutdown()  # Shouldn't get this far, but if we do shutdown
-        node.executor = None
-
-        def with_messed_self(x: float, self) -> float:
-            return x + 0.1
-
-        with warnings.catch_warnings(record=True) as warning_list:
-            node = Function(with_messed_self)
-            self.assertTrue("self" in node.inputs.labels)
-
-        self.assertEqual(len(warning_list), 1)
-
     def test_call(self):
-        node = Function(no_default, output_labels="output")
+        node = function_node(no_default, output_labels="output")
 
         with self.subTest("Ensure desired failures occur"):
             with self.assertRaises(ValueError):
@@ -267,30 +225,11 @@ class TestFunction(unittest.TestCase):
                 msg="__call__ should allow updating only _some_ input before running"
             )
 
-        with self.subTest("Check that bad kwargs don't stop good ones"):
-            with self.assertWarns(Warning):
-                original_label = node.label
-                node(4, label="won't get read", y=5, foobar="not a kwarg of any sort")
-
-                self.assertEqual(
-                    node.label,
-                    original_label,
-                    msg="You should only be able to update input on a call, that's "
-                        "what the warning is for!"
-                )
-                self.assertTupleEqual(
-                    (node.inputs.x.value, node.inputs.y.value),
-                    (4, 5),
-                    msg="The warning should not prevent other data from being parsed"
-                )
-
-            with self.assertWarns(Warning):
-                # It's also fine if you just have a typo in your kwarg or whatever,
-                # there should just be a warning that the data didn't get updated
-                node(some_randome_kwaaaaarg="foo")
+        with self.assertRaises(ValueError, msg="Check that bad kwargs raise an error"):
+            node(4, label="won't get read", y=5, foobar="not a kwarg of any sort")
 
     def test_return_value(self):
-        node = Function(plus_one)
+        node = function_node(plus_one)
 
         with self.subTest("Run on main process"):
             node.inputs.x = 2
@@ -312,14 +251,14 @@ class TestFunction(unittest.TestCase):
             )
 
     def test_copy_connections(self):
-        node = Function(plus_one)
+        node = function_node(plus_one)
 
-        upstream = Function(plus_one)
-        to_copy = Function(plus_one, x=upstream.outputs.y)
-        downstream = Function(plus_one, x=to_copy.outputs.y)
+        upstream = function_node(plus_one)
+        to_copy = function_node(plus_one, x=upstream.outputs.y)
+        downstream = function_node(plus_one, x=to_copy.outputs.y)
         upstream >> to_copy >> downstream
 
-        wrong_io = Function(
+        wrong_io = function_node(
             returns_multiple, x=upstream.outputs.y, y=upstream.outputs.y
         )
         downstream.inputs.x.connect(wrong_io.outputs.y)
@@ -336,7 +275,7 @@ class TestFunction(unittest.TestCase):
             y = x + 1
             return y
 
-        hinted_node = Function(plus_one_hinted)
+        hinted_node = function_node(plus_one_hinted)
 
         with self.subTest("Ensure failed copies fail cleanly"):
             with self.assertRaises(ConnectionCopyError, msg="Wrong labels"):
@@ -376,12 +315,12 @@ class TestFunction(unittest.TestCase):
             )
 
     def test_copy_values(self):
-        @function_node()
+        @as_function_node()
         def reference(x=0, y: int = 0, z: int | float = 0, omega=None, extra_here=None):
             out = 42
             return out
 
-        @function_node()
+        @as_function_node()
         def all_floats(x=1.1, y=1.1, z=1.1, omega=NOT_DATA, extra_there=None) -> float:
             out = 42.1
             return out
@@ -426,7 +365,7 @@ class TestFunction(unittest.TestCase):
         # Note also that these nodes each have extra channels the other doesn't that
         # are simply ignored
 
-        @function_node()
+        @as_function_node()
         def extra_channel(x=1, y=1, z=1, not_present=42):
             out = 42
             return out
@@ -449,8 +388,8 @@ class TestFunction(unittest.TestCase):
             ref._copy_values(extra, fail_hard=True)
             
     def test_easy_output_connection(self):
-        n1 = Function(plus_one)
-        n2 = Function(plus_one)
+        n1 = function_node(plus_one)
+        n2 = function_node(plus_one)
 
         n2.inputs.x = n1
 
@@ -468,7 +407,7 @@ class TestFunction(unittest.TestCase):
                 "in this case default->plus_one->plus_one = 1 + 1 +1 = 3"
         )
 
-        at_instantiation = Function(plus_one, x=n1)
+        at_instantiation = function_node(plus_one, x=n1)
         self.assertIn(
             n1.outputs.y, at_instantiation.inputs.x.connections,
             msg="The parsing of Single-output functions' output as a connection should "
@@ -478,11 +417,11 @@ class TestFunction(unittest.TestCase):
     def test_nested_declaration(self):
         # It's really just a silly case of running without a parent, where you don't
         # store references to all the nodes declared
-        node = Function(
+        node = function_node(
             plus_one,
-            x=Function(
+            x=function_node(
                 plus_one,
-                x=Function(
+                x=function_node(
                     plus_one,
                     x=2
                 )
@@ -504,7 +443,7 @@ class TestFunction(unittest.TestCase):
         def returns_foo() -> Foo:
             return Foo()
 
-        single_output = Function(returns_foo, output_labels="foo")
+        single_output = function_node(returns_foo, output_labels="foo")
 
         self.assertEqual(
             single_output.connected,
@@ -550,6 +489,32 @@ class TestFunction(unittest.TestCase):
             msg="Attribute injection should not work for private attributes"
         ):
             single_output._some_nonexistant_private_var
+
+    def test_void_return(self):
+        """Test extensions to the `ScrapesIO` mixin."""
+
+        @as_function_node()
+        def NoReturn(x):
+            y = x + 1
+
+        self.assertDictEqual(
+            {"None": type(None)},
+            NoReturn.preview_outputs(),
+            msg="Functions without a return value should be permissible, although it "
+                "is not interesting"
+        )
+        # Honestly, functions with no return should probably be made illegal to
+        # encourage functional setups...
+
+    def test_pickle(self):
+        n = function_node(plus_one, 5, output_labels="p1")
+        n()
+        reloaded = pickle.loads(pickle.dumps(n))
+        self.assertListEqual(n.outputs.labels, reloaded.outputs.labels)
+        self.assertDictEqual(
+            n.outputs.to_value_dict(),
+            reloaded.outputs.to_value_dict()
+        )
 
 
 if __name__ == '__main__':

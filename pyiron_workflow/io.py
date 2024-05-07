@@ -7,9 +7,9 @@ connections on the same footing.
 
 from __future__ import annotations
 
-import warnings
 from abc import ABC, abstractmethod
 from typing import Any
+import warnings
 
 from pyiron_workflow.channels import (
     Channel,
@@ -387,7 +387,7 @@ class HasIO(UsesState, HasLabel, HasRun, ABC):
         """
         self.signals.input.accumulate_and_run << others
 
-    def set_input_values(self, **kwargs) -> None:
+    def set_input_values(self, *args, **kwargs) -> None:
         """
         Match keywords to input channels and update their values.
 
@@ -395,17 +395,41 @@ class HasIO(UsesState, HasLabel, HasRun, ABC):
         keys.
 
         Args:
+            *args: values assigned to inputs in order of appearance.
             **kwargs: input key - input value (including channels for connection) pairs.
+
+        Raises:
+            (ValueError): If more args are received than there are inputs available.
+            (ValueError): If there is any overlap between channels receiving values
+                from `args` and those from `kwargs`.
+            (ValueError): If any of the `kwargs` keys do not match available input
+                labels.
         """
+        if len(args) > len(self.inputs.labels):
+            raise ValueError(
+                f"Received {len(args)} args, but only have {len(self.inputs.labels)} "
+                f"input channels available"
+            )
+        keyed_args = {label: value for label, value in zip(self.inputs.labels, args)}
+
+        if len(set(keyed_args.keys()).intersection(kwargs.keys())) > 0:
+            raise ValueError(
+                f"n args are interpreted using the first n input channels "
+                f"({self.inputs.labels}), but this conflicted with received kwargs "
+                f"({list(kwargs.keys())}) -- perhaps the input was ordered differently "
+                f"than expected?"
+            )
+
+        kwargs.update(keyed_args)
+
+        if len(set(kwargs.keys()).difference(self.inputs.labels)) > 0:
+            raise ValueError(
+                f"Tried to set input {list(kwargs.keys())}, but one or more label was "
+                f"not found among available inputs: {self.inputs.labels}"
+            )
+
         for k, v in kwargs.items():
-            if k in self.inputs.labels:
-                self.inputs[k] = v
-            else:
-                warnings.warn(
-                    f"The keyword '{k}' was not found among input labels. If you are "
-                    f"trying to update a class instance keyword, please use attribute "
-                    f"assignment directly instead of calling this method"
-                )
+            self.inputs[k] = v
 
     def copy_io(
         self,

@@ -1,11 +1,34 @@
 import math
+import pickle
 import random
+import time
 import unittest
 
+import pyiron_workflow.loops
 from pyiron_workflow._tests import ensure_tests_in_python_path
 from pyiron_workflow.channels import OutputSignal
 from pyiron_workflow.function import Function
 from pyiron_workflow.workflow import Workflow
+
+
+@Workflow.wrap.as_function_node("random")
+def RandomFloat() -> float:
+    return random.random()
+
+
+@Workflow.wrap.as_function_node("gt")
+def GreaterThan(x: float, threshold: float):
+    return x > threshold
+
+
+def foo(x):
+    y = x + 2
+    return y
+
+
+@Workflow.wrap.as_function_node("my_output")
+def Bar(x):
+    return x * x
 
 
 class TestTopology(unittest.TestCase):
@@ -19,7 +42,7 @@ class TestTopology(unittest.TestCase):
         Check that cyclic graphs run.
         """
 
-        @Workflow.wrap_as.function_node()
+        @Workflow.wrap.as_function_node()
         def randint(low=0, high=20):
             rand = random.randint(low, high)
             print(f"Generating random number between {low} and {high}...{rand}!")
@@ -32,17 +55,14 @@ class TestTopology(unittest.TestCase):
             """
 
             def __init__(self, **kwargs):
-                super().__init__(
-                    None,
-                    output_labels="value_gt_limit",
-                    **kwargs
-                )
+                super().__init__(**kwargs)
                 self.signals.output.true = OutputSignal("true", self)
                 self.signals.output.false = OutputSignal("false", self)
 
             @staticmethod
             def node_function(value, limit=10):
-                return value > limit
+                value_gt_limit = value > limit
+                return value_gt_limit
 
             def process_run_result(self, function_output):
                 """
@@ -57,7 +77,7 @@ class TestTopology(unittest.TestCase):
                     print(f"{self.inputs.value.value} <= {self.inputs.limit.value}")
                     self.signals.output.false()
 
-        @Workflow.wrap_as.function_node("sqrt")
+        @Workflow.wrap.as_function_node("sqrt")
         def sqrt(value=0):
             root_value = math.sqrt(value)
             print(f"sqrt({value}) = {root_value}")
@@ -85,50 +105,37 @@ class TestTopology(unittest.TestCase):
     def test_for_loop(self):
         Workflow.register("static.demo_nodes", "demo")
 
-        n = 5
-
-        bulk_loop = Workflow.create.meta.for_loop(
-            Workflow.create.demo.OptionallyAdd,
-            n,
-            iterate_on=("y",),
-        )()
-
         base = 42
-        to_add = list(range(n))
-        out = bulk_loop(
-            x=base,  # Sent equally to each body node
-            Y=to_add,  # Distributed across body nodes
+        to_add = list(range(5))
+        bulk_loop = Workflow.create.for_node(
+            Workflow.create.demo.OptionallyAdd,
+            iter_on=("y",),
+            x=base,  # Broadcast
+            y=to_add  # Scattered
         )
+        out = bulk_loop()
 
-        for output, expectation in zip(out.SUM, [base + v for v in to_add]):
+        for output, expectation in zip(
+            out.df["sum"].values.tolist(),
+            [base + v for v in to_add]
+        ):
             self.assertAlmostEqual(
                 output,
                 expectation,
-                msg="Output should be list result of each individiual result"
             )
 
     def test_while_loop(self):
-        import sys
-        limit = sys.getrecursionlimit()
-        sys.setrecursionlimit(2000)
 
         with self.subTest("Random"):
             random.seed(0)
 
-            @Workflow.wrap_as.function_node("random")
-            def RandomFloat() -> float:
-                return random.random()
-
-            @Workflow.wrap_as.function_node("gt")
-            def GreaterThan(x: float, threshold: float):
-                return x > threshold
-
-            RandomWhile = Workflow.create.meta.while_loop(
+            RandomWhile = pyiron_workflow.loops.while_loop(
                 loop_body_class=RandomFloat,
                 condition_class=GreaterThan,
                 internal_connection_map=[
                     ("RandomFloat", "random", "GreaterThan", "x")
                 ],
+                inputs_map={"GreaterThan__threshold": "threshold"},
                 outputs_map={"RandomFloat__random": "capped_result"}
             )
 
@@ -141,7 +148,7 @@ class TestTopology(unittest.TestCase):
             wf.random_while = RandomWhile()
 
             ## Give convenient labels
-            wf.inputs_map = {"random_while__GreaterThan__threshold": "threshold"}
+            wf.inputs_map = {"random_while__threshold": "threshold"}
             wf.outputs_map = {"random_while__capped_result": "capped_result"}
 
             self.assertAlmostEqual(
@@ -149,11 +156,9 @@ class TestTopology(unittest.TestCase):
                 0.014041700164018955,  # For this reason we set the random seed
             )
 
-            sys.setrecursionlimit(limit)
-
         with self.subTest("Self-data-loop"):
 
-            AddWhile = Workflow.create.meta.while_loop(
+            AddWhile = pyiron_workflow.loops.while_loop(
                 loop_body_class=Workflow.create.standard.Add,
                 condition_class=Workflow.create.standard.LessThan,
                 internal_connection_map=[
@@ -205,6 +210,58 @@ class TestTopology(unittest.TestCase):
         wf.before_pickling.executor = None
         wf.after_pickling = wf.create.demo.OptionallyAdd(2, y=3)
         wf()
+
+    def test_executors(self):
+        executors = [
+            Workflow.create.ProcessPoolExecutor,
+            Workflow.create.ThreadPoolExecutor,
+            Workflow.create.CloudpickleProcessPoolExecutor,
+            Workflow.create.PyMpiPoolExecutor
+        ]
+
+        wf = Workflow("executed")
+        wf.a = Workflow.create.standard.UserInput(42)  # Regular
+        wf.b = wf.a + 1  # Injected
+        wf.c = Workflow.create.function_node(foo, wf.b)  # Instantiated from function
+        wf.d = Bar(wf.c)  # From decorated function
+
+        reference_output = wf()
+
+        with self.subTest("Pickle sanity check"):
+            reloaded = pickle.loads(pickle.dumps(wf))
+            self.assertDictEqual(reference_output, reloaded.outputs.to_value_dict())
+
+        for exe_cls in executors:
+            with self.subTest(
+                f"{exe_cls.__module__}.{exe_cls.__qualname__} entire workflow"
+            ):
+                with exe_cls() as exe:
+                    wf.executor = exe
+                    self.assertDictEqual(
+                        reference_output,
+                        wf().result().outputs.to_value_dict()
+                    )
+                    self.assertFalse(
+                        wf.running,
+                        msg="The workflow should stop. For thread pool this required a "
+                            "little sleep"
+                    )
+            wf.executor = None
+
+            with self.subTest(f"{exe_cls.__module__}.{exe_cls.__qualname__} each node"):
+                with exe_cls() as exe:
+                    for child in wf:
+                        child.executor = exe
+                    executed_output = wf()
+                self.assertDictEqual(reference_output, executed_output)
+                self.assertFalse(
+                    any(n.running for n in wf),
+                    msg=f"All children should be done running -- for thread pools this "
+                        f"requires a very short sleep -- got "
+                        f"{[(n.label, n.running) for n in wf]}"
+                )
+            for child in wf:
+                child.executor = None
 
 
 if __name__ == '__main__':

@@ -227,8 +227,44 @@ class TestHasIO(unittest.TestCase):
     def test_set_input_values(self):
         has_io = Dummy()
         has_io.inputs["input_channel"] = InputData("input_channel", has_io)
-        has_io.set_input_values(input_channel="value")
-        self.assertEqual(has_io.inputs["input_channel"].value, "value")
+        has_io.inputs["more_input"] = InputData("more_input", has_io)
+
+        has_io.set_input_values("v1", "v2")
+        self.assertDictEqual(
+            {"input_channel": "v1", "more_input": "v2"},
+            has_io.inputs.to_value_dict(),
+            msg="Args should be set by order of channel appearance"
+        )
+        has_io.set_input_values(more_input="v4", input_channel="v3")
+        self.assertDictEqual(
+            {"input_channel": "v3", "more_input": "v4"},
+            has_io.inputs.to_value_dict(),
+            msg="Kwargs should be set by key-label matching"
+        )
+        has_io.set_input_values("v5", more_input="v6")
+        self.assertDictEqual(
+            {"input_channel": "v5", "more_input": "v6"},
+            has_io.inputs.to_value_dict(),
+            msg="Mixing and matching args and kwargs is permissible"
+        )
+
+        with self.assertRaises(
+            ValueError,
+            msg="More args than channels is disallowed"
+        ):
+            has_io.set_input_values(1, 2, 3)
+
+        with self.assertRaises(
+            ValueError,
+            msg="A channel updating from both args and kwargs is disallowed"
+        ):
+            has_io.set_input_values(1, input_channel=2)
+
+        with self.assertRaises(
+            ValueError,
+            msg="Kwargs not among input is disallowed"
+        ):
+            has_io.set_input_values(not_a_channel=42)
 
     def test_connected_and_disconnect(self):
         has_io1 = Dummy(label="io1")
@@ -287,7 +323,7 @@ class TestHasIO(unittest.TestCase):
         has_io1 << (has_io2, has_io3)
         print(has_io1.signals.input.accumulate_and_run.connections)
         self.assertListEqual(
-            [has_io2.signals.output.ran, has_io3.signals.output.ran],
+            [has_io3.signals.output.ran, has_io2.signals.output.ran],
             has_io1.signals.input.accumulate_and_run.connections,
             msg="Left shift should accommodate groups of connections"
         )

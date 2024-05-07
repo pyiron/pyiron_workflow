@@ -5,23 +5,21 @@ interface and are not intended to be internally modified after instantiation.
 
 from __future__ import annotations
 
-from functools import partialmethod
-import inspect
-from typing import get_type_hints, Literal, Optional, TYPE_CHECKING
+from abc import ABC, abstractmethod
+import re
+from typing import Literal, Optional, TYPE_CHECKING
 
-from bidict import bidict
-
-from pyiron_workflow.channels import InputData, OutputData, NOT_DATA
 from pyiron_workflow.composite import Composite
 from pyiron_workflow.has_interface_mixins import HasChannel
 from pyiron_workflow.io import Outputs, Inputs
-from pyiron_workflow.output_parser import ParseOutput
+from pyiron_workflow.io_preview import StaticNode, ScrapesIO
+from pyiron_workflow.snippets.factory import classfactory
 
 if TYPE_CHECKING:
     from pyiron_workflow.channels import Channel
 
 
-class Macro(Composite):
+class Macro(Composite, StaticNode, ScrapesIO, ABC):
     """
     A macro is a composite node that holds a graph with a fixed interface, like a
     pre-populated workflow that is the same every time you instantiate it.
@@ -30,23 +28,22 @@ class Macro(Composite):
     then builds a static IO interface for this graph.
     This callable must use the macro object itself as the first argument (e.g. adding
     nodes to it).
-    As with :class:`Workflow` objects, macros leverage `inputs_map` and `outputs_map` to
-    control macro-level IO access to child IO.
-    As with :class:`Workflow`, default behaviour is to expose all unconnected child IO.
-    The provided callable may optionally specify further args and kwargs, which are used
-    to pre-populate the macro with :class:`UserInput` nodes;
+    The provided callable may optionally specify further args and kwargs; these are
+    used to pre-populate the macro with :class:`UserInput` nodes, although they may
+    later be trimmed if the IO can be connected directly to child node IO without any
+    loss of functionality.
     This can be especially helpful when more than one child node needs access to the
     same input value.
     Similarly, the callable may return any number of child nodes' output channels (or
-    the node itself in the case of single-output nodes) and commensurate
-    :attr:`output_labels` to define macro-level output.
+    the node itself in the case of single-output nodes) as long as a commensurate
+    number of labels for these outputs were provided to the class constructor.
     These function-like definitions of the graph creator callable can be used
-    independently or together.
-    Each that is used switches its IO map to a "whitelist" paradigm, so any I/O _not_
-    provided in the callable signature/return values and output labels will be disabled.
-    Manual modifications of the IO maps inside the callable always take priority over
-    this whitelisting behaviour, so you always retain full control over what IO is
-    exposed, and the whitelisting is only for your convenience.
+    to build only input xor output, or both together.
+    Macro input channel labels are scraped from the signature of the graph creator;
+    for output, output labels can be provided explicitly as a class attribute or, as a
+    fallback, they are scraped from the graph creator code return statement (stripping
+    off the "{first argument}.", where {first argument} is whatever the name of the
+    first argument is.
 
     Macro IO is _value linked_ to the child IO, so that their values stay synchronized,
     but the child nodes of a macro form an isolated sub-graph.
@@ -61,15 +58,15 @@ class Macro(Composite):
     If only _one_ of these is specified, you'll get an error, but if you've provided
     both then no further checks of their validity/reasonableness are performed, so be
     careful.
-    Unlike :class:`Workflow`, this execution flow automation is set up once at instantiation;
+    Unlike :class:`Workflow`, this execution flow automation is set up once at
+    instantiation;
     If the macro is modified post-facto, you may need to manually re-invoke
     :meth:`configure_graph_execution`.
 
     Promises (in addition parent class promises):
 
     - IO is...
-        - Only built at instantiation, after child node replacement, or at request, so
-            it is "static" for improved efficiency
+        - Statically defined at the class level
         - By value, i.e. the macro has its own IO channel instances and children are
             duly encapsulated inside their own sub-graph
         - Value-linked to the values of their corresponding child nodes' IO -- i.e.
@@ -86,18 +83,19 @@ class Macro(Composite):
         Let's consider the simplest case of macros that just consecutively add 1 to
         their input:
 
-        >>> from pyiron_workflow.macro import Macro
+        >>> from pyiron_workflow.macro import macro_node, Macro
         >>>
         >>> def add_one(x):
         ...     result = x + 1
         ...     return result
         >>>
-        >>> def add_three_macro(macro):
-        ...     macro.one = macro.create.Function(add_one)
-        ...     macro.two = macro.create.Function(add_one, macro.one)
-        ...     macro.three = macro.create.Function(add_one, macro.two)
-        ...     macro.one >> macro.two >> macro.three
-        ...     macro.starting_nodes = [macro.one]
+        >>> def add_three_macro(self, one__x):
+        ...     self.one = self.create.function_node(add_one, x=one__x)
+        ...     self.two = self.create.function_node(add_one, self.one)
+        ...     self.three = self.create.function_node(add_one, self.two)
+        ...     self.one >> self.two >> self.three
+        ...     self.starting_nodes = [self.one]
+        ...     return self.three
 
         In this case we had _no need_ to specify the execution order and starting nodes
         --it's just an extremely simple DAG after all! -- but it's done here to
@@ -109,92 +107,110 @@ class Macro(Composite):
         io is constructed from unconnected owned-node IO by combining node and channel
         labels.
 
-        >>> macro = Macro(add_three_macro)
+        >>> macro = macro_node(add_three_macro, output_labels="three__result")
         >>> out = macro(one__x=3)
         >>> out.three__result
         6
 
-        If there's a particular macro we're going to use again and again, we might want
-        to consider making a new child class of :class:`Macro` that overrides the
-        :meth:`graph_creator` arg such that the same graph is always created. We could
-        override `__init__` the normal way, but it's even faster to just use
-        `partialmethod`:
-
-        >>> from functools import partialmethod
-        >>> class AddThreeMacro(Macro):
-        ...     @staticmethod
-        ...     def graph_creator(self):
-        ...         add_three_macro(self)
-        ...
-        ...     __init__ = partialmethod(
-        ...         Macro.__init__,
-        ...         None,  # We directly define the graph creator method on the class
-        ...     )
-        >>>
-        >>> macro = AddThreeMacro()
-        >>> macro(one__x=0).three__result
-        3
-
         We can also nest macros, rename their IO, and provide access to
         internally-connected IO by inputs and outputs maps:
 
-        >>> def nested_macro(macro):
-        ...     macro.a = macro.create.Function(add_one)
-        ...     macro.b = macro.create.Macro(add_three_macro, one__x=macro.a)
-        ...     macro.c = macro.create.Function(
-        ...         add_one, x=macro.b.outputs.three__result
+        >>> def nested_macro(self, inp):
+        ...     self.a = self.create.function_node(add_one, x=inp)
+        ...     self.b = self.create.macro_node(
+        ...         add_three_macro, one__x=self.a, output_labels="three__result"
         ...     )
+        ...     self.c = self.create.function_node(add_one, x=self.b)
+        ...     return self.c, self.b
         >>>
-        >>> macro = Macro(
-        ...     nested_macro,
-        ...     inputs_map={"a__x": "inp"},
-        ...     outputs_map={"c__result": "out", "b__three__result": "intermediate"},
+        >>> macro = macro_node(
+        ...     nested_macro, output_labels=("out", "intermediate")
         ... )
         >>> macro(inp=1)
-        {'intermediate': 5, 'out': 6}
+        {'out': 6, 'intermediate': 5}
 
         Macros and workflows automatically generate execution flows when their data
         is acyclic.
         Let's build a simple macro with two independent tracks:
 
-        >>> def modified_flow_macro(macro):
-        ...     macro.a = macro.create.Function(add_one, x=0)
-        ...     macro.b = macro.create.Function(add_one, x=0)
-        ...     macro.c = macro.create.Function(add_one, x=0)
+        >>> def modified_flow_macro(self, a__x=0, b__x=0):
+        ...     self.a = self.create.function_node(add_one, x=a__x)
+        ...     self.b = self.create.function_node(add_one, x=b__x)
+        ...     self.c = self.create.function_node(add_one, x=self.b)
+        ...     return self.a, self.c
         >>>
-        >>> m = Macro(modified_flow_macro)
-        >>> m(a__x=1, b__x=2, c__x=3)
-        {'a__result': 2, 'b__result': 3, 'c__result': 4}
+        >>> m = macro_node(modified_flow_macro, output_labels=("a", "c"))
+        >>> m(a__x=1, b__x=2)
+        {'a': 2, 'c': 4}
 
-        We can override which nodes get used to start by specifying the :attr:`starting_nodes`
-        property.
-        If we do this we also need to provide at least one connection among the run
-        signals, but beyond that the code doesn't hold our hands.
+        We can override which nodes get used to start by specifying the
+        :attr:`starting_nodes` property and (if necessary) reconfiguring the execution
+        signals.
+        Care should be taken here, as macro nodes may be creating extra input
+        nodes that need to be considered.
+        It's advisable to use :meth:`draw()` or to otherwise inspect the macro's
+        children and their connections before manually updating execution flows.
+
         Let's use this and then observe how the `a` sub-node no longer gets run:
 
-        >>> m.starting_nodes = [m.b]  # At least one starting node
-        >>> _ = m.b >> m.c  # At least one run signal
-        >>> # We catch and ignore output -- it's needed for chaining, but screws up
-        >>> # doctests -- you don't normally need to catch it like this!
-        >>> m(a__x=1000, b__x=2000, c__x=3000)
-        {'a__result': 2, 'b__result': 2001, 'c__result': 3001}
+        >>> _ = m.disconnect_run()
+        >>> m.starting_nodes = [m.b]
+        >>> _ = m.b >> m.c
+        >>> m(a__x=1000, b__x=2000)
+        {'a': 2, 'c': 2002}
+
+        (The `_` is just to catch and ignore output for the doctest, you don't
+        typically need this.)
 
         Note how the `a` node is no longer getting run, so the output is not updated!
         Manually controlling execution flow is necessary for cyclic graphs (cf. the
         while loop meta-node), but best to avoid when possible as it's easy to miss
         intended connections in complex graphs.
 
+        If there's a particular macro we're going to use again and again, we might want
+        to consider making a new class for it using the decorator, just like we do for
+        function nodes. If no output labels are explicitly provided, these are scraped
+        from the function return value, just like for function nodes (except the
+        initial `macro.` (or whatever the first argument is named) on any return values
+        is ignored):
+
+        >>> @Macro.wrap.as_macro_node()
+        ... def AddThreeMacro(self, x):
+        ...     add_three_macro(self, one__x=x)
+        ...     # We could also simply have decorated that function to begin with
+        ...     return self.three
+        >>>
+        >>> macro = AddThreeMacro()
+        >>> macro(x=0).three
+        3
+
+        Alternatively (and not recommended) is to make a new child class of
+        :class:`Macro` that overrides the :meth:`graph_creator` arg such that
+        the same graph is always created.
+
+        >>> class AddThreeMacro(Macro):
+        ...     _output_labels = ["three"]
+        ...
+        ...     @staticmethod
+        ...     def graph_creator(self, x):
+        ...         add_three_macro(self, one__x=x)
+        ...         return self.three
+        >>>
+        >>> macro = AddThreeMacro()
+        >>> macro(x=0).three
+        3
+
         We can also modify an existing macro at runtime by replacing nodes within it, as
         long as the replacement has fully compatible IO. There are three syntacic ways
         to do this. Let's explore these by going back to our `add_three_macro` and
         replacing each of its children with a node that adds 2 instead of 1.
 
-        >>> @Macro.wrap_as.function_node()
+        >>> @Macro.wrap.as_function_node()
         ... def add_two(x):
         ...     result = x + 2
         ...     return result
         >>>
-        >>> adds_six_macro = Macro(add_three_macro)
+        >>> adds_six_macro = macro_node(add_three_macro, output_labels="three__result")
         >>> # With the replace method
         >>> # (replacement target can be specified by label or instance,
         >>> # the replacing node can be specified by instance or class)
@@ -206,275 +222,120 @@ class Macro(Composite):
         >>> adds_six_macro(one__x=1)
         {'three__result': 7}
 
-        Instead of controlling the IO interface with dictionary maps, we can instead
-        provide a more :class:`Function(Node)`-like definition of the :meth:`graph_creator` by
-        adding args and/or kwargs to the signature (under the hood, this dynamically
-        creates new :class:`UserInput` nodes before running the rest of the graph creation),
-        and/or returning child channels (or whole children in the case of single-output
-        nodes) and providing commensurate :attr:`output_labels`.
-        This process switches us from the :class:`Workflow` default of exposing all
-        unconnected child IO, to a "whitelist" paradigm of _only_ showing the IO that
-        we exposed by our function defintion.
-        (Note: any `.inputs_map` or `.outputs_map` explicitly defined in the
-        :meth:`graph_creator` still takes precedence over this whitelisting! So you always
-        retain full control over what IO gets exposed.)
-        E.g., these two definitions are perfectly equivalent:
+        It's possible for the macro to hold nodes which are not publicly exposed for
+        data and signal connections, but which will still internally execute and store
+        data, e.g.:
 
-        >>> @Macro.wrap_as.macro_node("lout", "n_plus_2")
-        ... def LikeAFunction(macro, lin: list,  n: int = 1):
-        ...     macro.plus_two = n + 2
-        ...     macro.sliced_list = lin[n:macro.plus_two]
-        ...     macro.double_fork = 2 * n
-        ...     # ^ This is vestigial, just to show we don't need to blacklist it in a
-        ...     # whitelist-paradigm
-        ...     return macro.sliced_list, macro.plus_two.channel
+        >>> @Macro.wrap.as_macro_node("lout", "n_plus_2")
+        ... def LikeAFunction(self, lin: list,  n: int = 1):
+        ...     self.plus_two = n + 2
+        ...     self.sliced_list = lin[n:self.plus_two]
+        ...     self.double_fork = 2 * n
+        ...     return self.sliced_list, self.plus_two.channel
         >>>
-        >>> like_functions = LikeAFunction(lin=[1,2,3,4,5,6], n=2)
-        >>> like_functions()
-        {'n_plus_2': 4, 'lout': [3, 4]}
+        >>> like_functions = LikeAFunction(lin=[1,2,3,4,5,6], n=3)
+        >>> sorted(like_functions().items())
+        [('lout', [4, 5]), ('n_plus_2', 5)]
 
-        >>> @Macro.wrap_as.macro_node()
-        ... def WithIOMaps(macro):
-        ...     macro.list_in = macro.create.standard.UserInput()
-        ...     macro.list_in.inputs.user_input.type_hint = list
-        ...     macro.forked = macro.create.standard.UserInput(2)
-        ...     macro.forked.inputs.user_input.type_hint = int
-        ...     macro.n_plus_2 = macro.forked + 2
-        ...     macro.sliced_list = macro.list_in[macro.forked:macro.n_plus_2]
-        ...     macro.double_fork = 2 * macro.forked
-        ...     macro.inputs_map = {
-        ...         "list_in__user_input": "lin",
-        ...         macro.forked.inputs.user_input.scoped_label: "n",
-        ...         "n_plus_2__other": None,
-        ...         "list_in__user_input_Slice_forked__user_input_n_plus_2__add_None__step": None,
-        ...         macro.double_fork.inputs.other.scoped_label: None,
-        ...     }
-        ...     macro.outputs_map = {
-        ...         macro.sliced_list.outputs.getitem.scoped_label: "lout",
-        ...         macro.n_plus_2.outputs.add.scoped_label: "n_plus_2",
-        ...         "double_fork__rmul": None
-        ...     }
-        >>>
-        >>> with_maps = WithIOMaps(lin=[1,2,3,4,5,6], n=2)
-        >>> with_maps()
-        {'n_plus_2': 4, 'lout': [3, 4]}
+        >>> like_functions.double_fork.value
+        6
 
-        Here we've leveraged the macro-creating decorator, but this works the same way
-        using the :class:`Macro` class directly.
+
     """
 
-    def __init__(
-        self,
-        graph_creator: callable[[Macro], None],
-        label: Optional[str] = None,
-        parent: Optional[Composite] = None,
-        overwrite_save: bool = False,
-        run_after_init: bool = False,
-        storage_backend: Optional[Literal["h5io", "tinybase"]] = None,
-        save_after_run: bool = False,
-        strict_naming: bool = True,
-        inputs_map: Optional[dict | bidict] = None,
-        outputs_map: Optional[dict | bidict] = None,
-        output_labels: Optional[str | list[str] | tuple[str]] = None,
-        **kwargs,
-    ):
-        if not callable(graph_creator):
-            # Children of `Function` may explicitly provide a `node_function` static
-            # method so the node has fixed behaviour.
-            # In this case, the `__init__` signature should be changed so that the
-            # `node_function` argument is just always `None` or some other non-callable.
-            # If a callable `node_function` is not received, you'd better have it as an
-            # attribute already!
-            if not hasattr(self, "graph_creator"):
-                raise AttributeError(
-                    f"If `None` is provided as a `graph_creator`, a `graph_creator` "
-                    f"property must be defined instead, e.g. when making child classes"
-                    f"of `Macro` with specific behaviour"
-                )
-        else:
-            # If a callable graph creator is received, use it
-            self.graph_creator = graph_creator
-
-        super().__init__(
-            label=label if label is not None else self.graph_creator.__name__,
-            parent=parent,
-            save_after_run=save_after_run,
-            storage_backend=storage_backend,
-            strict_naming=strict_naming,
-            inputs_map=inputs_map,
-            outputs_map=outputs_map,
-        )
-        output_labels = self._validate_output_labels(output_labels)
+    def _setup_node(self) -> None:
+        super()._setup_node()
 
         ui_nodes = self._prepopulate_ui_nodes_from_graph_creator_signature(
-            storage_backend=storage_backend
+            storage_backend=self.storage_backend
         )
         returned_has_channel_objects = self.graph_creator(self, *ui_nodes)
-        self._configure_graph_execution()
+        if returned_has_channel_objects is None:
+            returned_has_channel_objects = ()
+        elif isinstance(returned_has_channel_objects, HasChannel):
+            returned_has_channel_objects = (returned_has_channel_objects,)
 
-        # Update IO map(s) if a function-like graph creator interface was used
-        if len(ui_nodes) > 0:
-            self._whitelist_inputs_map(*ui_nodes)
-        if returned_has_channel_objects is not None:
-            if not isinstance(returned_has_channel_objects, tuple):
-                returned_has_channel_objects = (returned_has_channel_objects,)
-            self._whitelist_outputs_map(output_labels, *returned_has_channel_objects)
+        for node in ui_nodes:
+            self.inputs[node.label].value_receiver = node.inputs.user_input
 
-        self._inputs: Inputs = self._build_inputs()
-        self._outputs: Outputs = self._build_outputs()
+        for node, output_channel_label in zip(
+            returned_has_channel_objects,
+            () if self._output_labels is None else self._output_labels,
+        ):
+            node.channel.value_receiver = self.outputs[output_channel_label]
 
-        self.set_input_values(**kwargs)
+        remaining_ui_nodes = self._purge_single_use_ui_nodes(ui_nodes)
+        self._configure_graph_execution(remaining_ui_nodes)
 
-    def _validate_output_labels(self, output_labels) -> tuple[str]:
-        """
-        Ensure that output_labels, if provided, are commensurate with graph creator
-        return values, if provided, and return them as a tuple.
-        """
-        graph_creator_returns = ParseOutput(self.graph_creator).output
-        output_labels = (
-            (output_labels,) if isinstance(output_labels, str) else output_labels
-        )
-        if graph_creator_returns is not None or output_labels is not None:
-            error_suffix = (
-                f"but {self.label} macro got return values: "
-                f"{graph_creator_returns} and labels: {output_labels}."
-            )
-            try:
-                if len(output_labels) != len(graph_creator_returns):
-                    raise ValueError(
-                        "The number of return values in the graph creator must exactly "
-                        "match the number of output labels provided, " + error_suffix
-                    )
-            except TypeError:
-                raise TypeError(
-                    f"Output labels and graph creator return values must either both "
-                    f"or neither be present, " + error_suffix
+    @staticmethod
+    @abstractmethod
+    def graph_creator(self, *args, **kwargs) -> callable:
+        """Build the graph the node will run."""
+
+    @classmethod
+    def _io_defining_function(cls) -> callable:
+        return cls.graph_creator
+
+    _io_defining_function_uses_self = True
+
+    @classmethod
+    def _scrape_output_labels(cls):
+        scraped_labels = super(Macro, cls)._scrape_output_labels()
+
+        if scraped_labels is not None:
+            # Strip off the first argument, e.g. self.foo just becomes foo
+            self_argument = list(cls._get_input_args().keys())[0]
+            cleaned_labels = [
+                re.sub(r"^" + re.escape(f"{self_argument}."), "", label)
+                for label in scraped_labels
+            ]
+            if any("." in label for label in cleaned_labels):
+                raise ValueError(
+                    f"Tried to scrape cleaned labels for {cls.__name__}, but at least "
+                    f"one of {cleaned_labels} still contains a '.' -- please provide "
+                    f"explicit labels"
                 )
-        return () if output_labels is None else tuple(output_labels)
+            return cleaned_labels
+        else:
+            return scraped_labels
 
     def _prepopulate_ui_nodes_from_graph_creator_signature(
         self, storage_backend: Literal["h5io", "tinybase"]
     ):
-        hints_dict = get_type_hints(self.graph_creator)
-        interface_nodes = ()
-        for i, (arg_name, inspected_value) in enumerate(
-            inspect.signature(self.graph_creator).parameters.items()
-        ):
-            if i == 0:
-                continue  # Skip the macro argument itself, it's like `self` here
-
-            default = (
-                NOT_DATA
-                if inspected_value.default is inspect.Parameter.empty
-                else inspected_value.default
+        ui_nodes = []
+        for label, (type_hint, default) in self.preview_inputs().items():
+            n = self.create.standard.UserInput(
+                default,
+                label=label,
+                parent=self,
+                storage_backend=storage_backend,
             )
-            node = self.create.standard.UserInput(
-                default, label=arg_name, parent=self, storage_backend=storage_backend
-            )
-            node.inputs.user_input.default = default
-            try:
-                node.inputs.user_input.type_hint = hints_dict[arg_name]
-            except KeyError:
-                pass  # If there's no hint that's fine
-            interface_nodes += (node,)
+            n.inputs.user_input.type_hint = type_hint
+            ui_nodes.append(n)
+        return tuple(ui_nodes)
 
-        return interface_nodes
-
-    def _whitelist_inputs_map(self, *ui_nodes) -> None:
+    def _purge_single_use_ui_nodes(self, ui_nodes):
         """
-        Updates the inputs map so each UI node's output channel is available directly
-        under the node label, and updates the map to disable all other input that
-        wasn't explicitly mapped already.
+        We (may) create UI nodes based on the :meth:`graph_creator` signature;
+        If these are connected to only a single node actually defined in the creator,
+        they are superfluous, and we can remove them -- linking the macro input
+        directly to the child node input.
         """
-        self.inputs_map = self._hide_non_whitelisted_io(
-            self._whitelist_map(
-                self.inputs_map, tuple(n.label for n in ui_nodes), ui_nodes
-            ),
-            "inputs",
-        )
-
-    def _whitelist_outputs_map(
-        self, output_labels: tuple[str], *creator_returns: HasChannel
-    ):
-        """
-        Updates the outputs map so objects returned by the graph creator directly
-        leverage the supplied output labels, and updates the map to disable all other
-        output that wasn't explicitly mapped already.
-        """
-        for new_label, ui_node in zip(output_labels, creator_returns):
-            if not isinstance(ui_node, HasChannel):
-                raise TypeError(
-                    f"Your node `{new_label}` does not have `channel`. There"
-                    + " are following nodes that can be returned:"
-                    + f" {self.node_labels}. More can be found from this page:"
-                    + " https://github.com/pyiron/pyiron_workflow"
-                )
-        self.outputs_map = self._hide_non_whitelisted_io(
-            self._whitelist_map(self.outputs_map, output_labels, creator_returns),
-            "outputs",
-        )
-
-    @staticmethod
-    def _whitelist_map(
-        io_map: bidict, new_labels: tuple[str], has_channel_objects: tuple[HasChannel]
-    ) -> bidict:
-        """
-        Update an IO map to give new labels to the channels of a bunch of :class:`HasChannel`
-        objects.
-        """
-        io_map = bidict({}) if io_map is None else io_map
-        for new_label, ui_node in zip(new_labels, has_channel_objects):
-            # White-list everything not already in the map
-            if ui_node.channel.scoped_label not in io_map.keys():
-                io_map[ui_node.channel.scoped_label] = new_label
-        return io_map
-
-    def _hide_non_whitelisted_io(
-        self, io_map: bidict, i_or_o: Literal["inputs", "outputs"]
-    ) -> dict:
-        """
-        Make a new map dictionary with `None` entries for each channel that isn't
-        already in the provided map bidict. I.e. blacklist things we didn't whitelist.
-        """
-        io_map = dict(io_map)
-        # We do it in two steps like this to leverage the bidict security on the setter
-        # Since bidict can't handle getting `None` (i.e. disable) for multiple keys
-        for node in self.children.values():
-            for channel in getattr(node, i_or_o):
-                if channel.scoped_label not in io_map.keys():
-                    io_map[channel.scoped_label] = None
-        return io_map
-
-    def _get_linking_channel(
-        self,
-        child_reference_channel: InputData | OutputData,
-        composite_io_key: str,
-    ) -> InputData | OutputData:
-        """
-        Build IO by value: create a new channel just like the child's channel.
-
-        In the case of input data, we also form a value link from the composite channel
-        down to the child channel, so that the child will stay up-to-date.
-        """
-        composite_channel = child_reference_channel.__class__(
-            label=composite_io_key,
-            owner=self,
-            default=child_reference_channel.default,
-            type_hint=child_reference_channel.type_hint,
-        )
-        composite_channel.value = child_reference_channel.value
-
-        if isinstance(composite_channel, InputData):
-            composite_channel.strict_hints = child_reference_channel.strict_hints
-            composite_channel.value_receiver = child_reference_channel
-        elif isinstance(composite_channel, OutputData):
-            child_reference_channel.value_receiver = composite_channel
-        else:
-            raise TypeError(
-                "This should not be an accessible state, please contact the developers"
-            )
-
-        return composite_channel
+        remaining_ui_nodes = list(ui_nodes)
+        for macro_input in self.inputs:
+            target_node = macro_input.value_receiver.owner
+            if (
+                target_node in ui_nodes  # Value link is a UI node
+                and target_node.channel.value_receiver is None  # That doesn't forward
+                # its value directly to the output
+                and len(target_node.channel.connections) <= 1  # And isn't forked to
+                # multiple children
+            ):
+                if len(target_node.channel.connections) == 1:
+                    macro_input.value_receiver = target_node.channel.connections[0]
+                self.remove_child(target_node)
+                remaining_ui_nodes.remove(target_node)
+        return tuple(remaining_ui_nodes)
 
     @property
     def inputs(self) -> Inputs:
@@ -518,7 +379,7 @@ class Macro(Composite):
             c if c is not old_connection else new_connection for c in channel
         ]
 
-    def _configure_graph_execution(self):
+    def _configure_graph_execution(self, ui_nodes):
         run_signals = self.disconnect_run()
 
         has_signals = len(run_signals) > 0
@@ -527,6 +388,10 @@ class Macro(Composite):
         if has_signals and has_starters:
             # Assume the user knows what they're doing
             self._reconnect_run(run_signals)
+            # Then put the UI upstream of the original starting nodes
+            for n in self.starting_nodes:
+                n << ui_nodes
+            self.starting_nodes = ui_nodes if len(ui_nodes) > 0 else self.starting_nodes
         elif not has_signals and not has_starters:
             # Automate construction of the execution graph
             self.set_run_signals_to_dag_execution()
@@ -606,37 +471,123 @@ class Macro(Composite):
             self.children[child].outputs[child_out].value_receiver = self.outputs[out]
 
 
-def macro_node(*output_labels, **node_class_kwargs):
-    """
-    A decorator for dynamically creating macro classes from graph-creating functions.
+@classfactory
+def macro_node_factory(
+    graph_creator: callable, validate_output_labels: bool, /, *output_labels
+):
+    return (
+        graph_creator.__name__,
+        (Macro,),  # Define parentage
+        {
+            "graph_creator": staticmethod(graph_creator),
+            "__module__": graph_creator.__module__,
+            "_output_labels": None if len(output_labels) == 0 else output_labels,
+            "_validate_output_labels": validate_output_labels,
+        },
+        {},
+    )
 
-    Decorates a function.
-    Returns a :class:`Macro` subclass whose name is the camel-case version of the
-    graph-creating function, and whose signature is modified to exclude this function
-    and provided kwargs.
 
-    Optionally takes output labels as args in case the node function uses the
-    like-a-function interface to define its IO. (The number of output labels must match
-    number of channel-like objects returned by the graph creating function _exactly_.)
-
-    Optionally takes any keyword arguments of :class:`Macro`.
-    """
-    output_labels = None if len(output_labels) == 0 else output_labels
-
-    def as_node(graph_creator: callable[[Macro, ...], Optional[tuple[HasChannel]]]):
-        return type(
-            graph_creator.__name__,
-            (Macro,),  # Define parentage
-            {
-                "__init__": partialmethod(
-                    Macro.__init__,
-                    None,
-                    output_labels=output_labels,
-                    **node_class_kwargs,
-                ),
-                "graph_creator": staticmethod(graph_creator),
-                "__module__": graph_creator.__module__,
-            },
+def as_macro_node(*output_labels, validate_output_labels=True):
+    def decorator(node_function):
+        macro_node_factory.clear(node_function.__name__)  # Force a fresh class
+        factory_made = macro_node_factory(
+            node_function, validate_output_labels, *output_labels
         )
+        factory_made._class_returns_from_decorated_function = node_function
+        factory_made.preview_io()
+        return factory_made
 
-    return as_node
+    return decorator
+
+
+def macro_node(
+    node_function,
+    *node_args,
+    output_labels=None,
+    validate_output_labels=True,
+    **node_kwargs,
+):
+    if output_labels is None:
+        output_labels = ()
+    elif isinstance(output_labels, str):
+        output_labels = (output_labels,)
+    macro_node_factory.clear(node_function.__name__)  # Force a fresh class
+    factory_made = macro_node_factory(
+        node_function, validate_output_labels, *output_labels
+    )
+    factory_made.preview_io()
+    return factory_made(*node_args, **node_kwargs)
+
+
+# as_macro_node = decorated_node_decorator_factory(
+#     Macro,
+#     Macro.graph_creator,
+#     decorator_docstring_additions="The first argument in the wrapped function is "
+#     "`self`-like and will receive the macro instance "
+#     "itself, and thus is ignored in the IO.",
+# )
+#
+#
+# def macro_node(
+#     graph_creator,
+#     label: Optional[str] = None,
+#     parent: Optional[Composite] = None,
+#     overwrite_save: bool = False,
+#     run_after_init: bool = False,
+#     storage_backend: Optional[Literal["h5io", "tinybase"]] = None,
+#     save_after_run: bool = False,
+#     strict_naming: bool = True,
+#     output_labels: Optional[str | list[str] | tuple[str]] = None,
+#     validate_output_labels: bool = True,
+#     **kwargs,
+# ):
+#     """
+#     Creates a new child of :class:`Macro` using the provided
+#     :func:`graph_creator` and returns an instance of that.
+#
+#     Quacks like a :class:`Composite` for the sake of creating and registering nodes.
+#
+#     Beyond the standard :class:`Macro`, initialization allows the args...
+#
+#     Args:
+#         graph_creator (callable): The function defining macro's graph.
+#         output_labels (Optional[str | list[str] | tuple[str]]): A name for each return
+#             value of the node function OR a single label. (Default is None, which
+#             scrapes output labels automatically from the source code of the wrapped
+#             function.) This can be useful when returned values are not well named, e.g.
+#             to make the output channel dot-accessible if it would otherwise have a label
+#             that requires item-string-based access. Additionally, specifying a _single_
+#             label for a wrapped function that returns a tuple of values ensures that a
+#             _single_ output channel (holding the tuple) is created, instead of one
+#             channel for each return value. The default approach of extracting labels
+#             from the function source code also requires that the function body contain
+#             _at most_ one `return` expression, so providing explicit labels can be used
+#             to circumvent this (at your own risk), or to circumvent un-inspectable
+#             source code (e.g. a function that exists only in memory).
+#     """
+#     if not callable(graph_creator):
+#         # `function_node` quacks like a class, even though it's a function and
+#         # dynamically creates children of `Macro` by providing the necessary
+#         # callable to the decorator
+#         raise AttributeError(
+#             f"Expected `graph_creator` to be callable but got {graph_creator}"
+#         )
+#
+#     if output_labels is None:
+#         output_labels = ()
+#     elif isinstance(output_labels, str):
+#         output_labels = (output_labels,)
+#
+#     return as_macro_node(*output_labels, validate_output_labels=validate_output_labels)(
+#         graph_creator
+#     )(
+#         label=label,
+#         parent=parent,
+#         overwrite_save=overwrite_save,
+#         run_after_init=run_after_init,
+#         storage_backend=storage_backend,
+#         save_after_run=save_after_run,
+#         strict_naming=strict_naming,
+#         **kwargs,
+#     )

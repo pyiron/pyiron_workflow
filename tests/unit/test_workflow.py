@@ -1,7 +1,10 @@
 from concurrent.futures import Future
+import pickle
 import sys
 from time import sleep
 import unittest
+
+from bidict import ValueDuplicationError
 
 from pyiron_workflow._tests import ensure_tests_in_python_path
 from pyiron_workflow.channels import NOT_DATA
@@ -16,9 +19,21 @@ def plus_one(x=0):
     return y
 
 
-@Workflow.wrap_as.function_node("y")
+@Workflow.wrap.as_function_node("y")
 def PlusOne(x: int = 0):
     return x + 1
+
+
+@Workflow.wrap.as_function_node()
+def five(sleep_time=0.):
+    sleep(sleep_time)
+    five = 5
+    return five
+
+
+@Workflow.wrap.as_function_node("sum")
+def sum(a, b):
+    return a + b
 
 
 class TestWorkflow(unittest.TestCase):
@@ -29,9 +44,9 @@ class TestWorkflow(unittest.TestCase):
 
     def test_io(self):
         wf = Workflow("wf")
-        wf.n1 = wf.create.Function(plus_one)
-        wf.n2 = wf.create.Function(plus_one)
-        wf.n3 = wf.create.Function(plus_one)
+        wf.n1 = wf.create.function_node(plus_one)
+        wf.n2 = wf.create.function_node(plus_one)
+        wf.n3 = wf.create.function_node(plus_one)
 
         inp = wf.inputs
         inp_again = wf.inputs
@@ -41,7 +56,7 @@ class TestWorkflow(unittest.TestCase):
 
         n_in = len(wf.inputs)
         n_out = len(wf.outputs)
-        wf.n4 = wf.create.Function(plus_one)
+        wf.n4 = wf.create.function_node(plus_one)
         self.assertEqual(
             n_in + 1, len(wf.inputs), msg="Workflow IO should be drawn from its nodes"
         )
@@ -71,6 +86,93 @@ class TestWorkflow(unittest.TestCase):
             wf.n2.outputs.y, wf.outputs.intermediate, msg="IO should be by reference"
         )
         self.assertNotIn(wf.n3.outputs.y, wf.outputs, msg="IO should be hidable")
+        
+    def test_io_maps(self):
+        # input and output, renaming, accessing connected, and deactivating disconnected
+        wf = Workflow("wf")
+        wf.n1 = Workflow.create.function_node(plus_one, x=0)
+        wf.n2 = Workflow.create.function_node(plus_one, x=wf.n1)
+        wf.n3 = Workflow.create.function_node(plus_one, x=wf.n2)
+        wf.m = Workflow.create.function_node(plus_one, x=42)
+        wf.inputs_map = {
+            "n1__x": "x",  # Rename
+            "n2__x": "intermediate_x",  # Expose
+            "m__x": None,  # Hide
+        }
+        wf.outputs_map = {
+            "n3__y": "y",  # Rename
+            "n2__y": "intermediate_y",  # Expose,
+            "m__y": None,  # Hide
+        }
+        self.assertIn("x", wf.inputs.labels, msg="Should be renamed")
+        self.assertIn("y", wf.outputs.labels, msg="Should be renamed")
+        self.assertIn("intermediate_x", wf.inputs.labels, msg="Should be exposed")
+        self.assertIn("intermediate_y", wf.outputs.labels, msg="Should be exposed")
+        self.assertNotIn("m__x", wf.inputs.labels, msg="Should be hidden")
+        self.assertNotIn("m__y", wf.outputs.labels, msg="Should be hidden")
+        self.assertNotIn("m__y", wf.outputs.labels, msg="Should be hidden")
+
+        wf.set_run_signals_to_dag_execution()
+        out = wf.run()
+        self.assertEqual(
+            3,
+            out.y,
+            msg="New names should be propagated to the returned value"
+        )
+        self.assertNotIn(
+            "m__y",
+            list(out.keys()),
+            msg="IO filtering should be evident in returned value"
+        )
+        self.assertEqual(
+            43,
+            wf.m.outputs.y.value,
+            msg="The child channel should still exist and have run"
+        )
+        self.assertEqual(
+            1,
+            wf.inputs.intermediate_x.value,
+            msg="IO should be up-to-date post-run"
+        )
+        self.assertEqual(
+            2,
+            wf.outputs.intermediate_y.value,
+            msg="IO should be up-to-date post-run"
+        )
+
+    def test_io_map_bijectivity(self):
+        wf = Workflow("wf")
+        with self.assertRaises(
+            ValueDuplicationError,
+            msg="Should not be allowed to map two children's channels to the same label"
+        ):
+            wf.inputs_map = {"n1__x": "x", "n2__x": "x"}
+
+        wf.inputs_map = {"n1__x": "x"}
+        with self.assertRaises(
+            ValueDuplicationError,
+            msg="Should not be allowed to update a second child's channel onto an "
+                "existing mapped channel"
+        ):
+            wf.inputs_map["n2__x"] = "x"
+
+        with self.subTest("Ensure we can use None to turn multiple off"):
+            wf.inputs_map = {"n1__x": None, "n2__x": None}  # At once
+            # Or in a row
+            wf.inputs_map = {}
+            wf.inputs_map["n1__x"] = None
+            wf.inputs_map["n2__x"] = None
+            wf.inputs_map["n3__x"] = None
+            self.assertEqual(
+                3,
+                len(wf.inputs_map),
+                msg="All entries should be stored"
+            )
+            self.assertEqual(
+                0,
+                len(wf.inputs),
+                msg="No IO should be left exposed"
+            )
 
     def test_is_parentmost(self):
         wf = Workflow("wf")
@@ -91,8 +193,8 @@ class TestWorkflow(unittest.TestCase):
     def test_with_executor(self):
 
         wf = Workflow("wf")
-        wf.a = wf.create.Function(plus_one)
-        wf.b = wf.create.Function(plus_one, x=wf.a)
+        wf.a = wf.create.function_node(plus_one)
+        wf.b = wf.create.function_node(plus_one, x=wf.a)
 
         original_a = wf.a
         wf.executor = wf.create.Executor()
@@ -137,16 +239,6 @@ class TestWorkflow(unittest.TestCase):
     def test_parallel_execution(self):
         wf = Workflow("wf")
 
-        @Workflow.wrap_as.function_node()
-        def five(sleep_time=0.):
-            sleep(sleep_time)
-            five = 5
-            return five
-
-        @Workflow.wrap_as.function_node("sum")
-        def sum(a, b):
-            return a + b
-
         wf.slow = five(sleep_time=1)
         wf.fast = five()
         wf.sum = sum(a=wf.fast, b=wf.slow)
@@ -189,10 +281,10 @@ class TestWorkflow(unittest.TestCase):
     def test_call(self):
         wf = Workflow("wf")
 
-        wf.a = wf.create.Function(plus_one)
-        wf.b = wf.create.Function(plus_one)
+        wf.a = wf.create.function_node(plus_one)
+        wf.b = wf.create.function_node(plus_one)
 
-        @Workflow.wrap_as.function_node("sum")
+        @Workflow.wrap.as_function_node("sum")
         def sum_(a, b):
             return a + b
 
@@ -219,8 +311,8 @@ class TestWorkflow(unittest.TestCase):
 
     def test_return_value(self):
         wf = Workflow("wf")
-        wf.a = wf.create.Function(plus_one)
-        wf.b = wf.create.Function(plus_one, x=wf.a)
+        wf.a = wf.create.function_node(plus_one)
+        wf.b = wf.create.function_node(plus_one, x=wf.a)
 
         with self.subTest("Run on main process"):
             return_on_call = wf(a__x=1)
@@ -241,7 +333,7 @@ class TestWorkflow(unittest.TestCase):
             )
 
     def test_execution_automation(self):
-        @Workflow.wrap_as.function_node("out")
+        @Workflow.wrap.as_function_node("out")
         def foo(x, y):
             return x + y
 
@@ -309,15 +401,17 @@ class TestWorkflow(unittest.TestCase):
                 cyclic()
 
     def test_pull_and_executors(self):
-        def add_three_macro(macro):
-            macro.one = Workflow.create.Function(plus_one)
-            macro.two = Workflow.create.Function(plus_one, x=macro.one)
-            macro.three = Workflow.create.Function(plus_one, x=macro.two)
+        @Workflow.wrap.as_macro_node("three__result")
+        def add_three_macro(self, one__x):
+            self.one = Workflow.create.function_node(plus_one, x=one__x)
+            self.two = Workflow.create.function_node(plus_one, x=self.one)
+            self.three = Workflow.create.function_node(plus_one, x=self.two)
+            return self.three
 
         wf = Workflow("pulling")
 
-        wf.n1 = Workflow.create.Function(plus_one, x=0)
-        wf.m = Workflow.create.Macro(add_three_macro, one__x=wf.n1)
+        wf.n1 = Workflow.create.function_node(plus_one, x=0)
+        wf.m = add_three_macro(one__x=wf.n1)
 
         self.assertEquals(
             (0 + 1) + (1 + 1),
@@ -350,27 +444,34 @@ class TestWorkflow(unittest.TestCase):
     def test_storage_values(self):
         for backend in Workflow.allowed_backends():
             with self.subTest(backend):
-                wf = Workflow("wf", storage_backend=backend)
                 try:
+                    print("Trying", backend)
+                    wf = Workflow("wf", storage_backend=backend)
                     wf.register("static.demo_nodes", domain="demo")
                     wf.inp = wf.create.demo.AddThree(x=0)
                     wf.out = wf.inp.outputs.add_three + 1
                     wf_out = wf()
                     three_result = wf.inp.three.outputs.add.value
 
-                    wf.save()
-
-                    reloaded = Workflow("wf", storage_backend=backend)
-                    self.assertEqual(
-                        wf_out.out__add,
-                        reloaded.outputs.out__add.value,
-                        msg="Workflow-level data should get reloaded"
-                    )
-                    self.assertEqual(
-                        three_result,
-                        reloaded.inp.three.value,
-                        msg="Child data arbitrarily deep should get reloaded"
-                    )
+                    if backend == "h5io":
+                        with self.assertRaises(
+                            TypeError,
+                            msg="h5io can't handle custom reconstructors"
+                        ):
+                            wf.save()
+                    else:
+                        wf.save()
+                        reloaded = Workflow("wf", storage_backend=backend)
+                        self.assertEqual(
+                            wf_out.out__add,
+                            reloaded.outputs.out__add.value,
+                            msg="Workflow-level data should get reloaded"
+                        )
+                        self.assertEqual(
+                            three_result,
+                            reloaded.inp.three.value,
+                            msg="Child data arbitrarily deep should get reloaded"
+                        )
                 finally:
                     # Clean up after ourselves
                     wf.storage.delete()
@@ -388,9 +489,20 @@ class TestWorkflow(unittest.TestCase):
         for backend in Workflow.allowed_backends():
             with self.subTest(backend):
                 try:
-                    wf.storage_backend = backend
-                    wf.save()
-                    Workflow(wf.label, storage_backend=backend)
+                    for backend in Workflow.allowed_backends():
+                        if backend == "h5io":
+                            with self.subTest(backend):
+                                with self.assertRaises(
+                                    TypeError,
+                                    msg="h5io can't handle custom reconstructors"
+                                ):
+                                    wf.storage_backend = backend
+                                    wf.save()
+                        else:
+                            with self.subTest(backend):
+                                wf.storage_backend = backend
+                                wf.save()
+                                Workflow(wf.label, storage_backend=backend)
                 finally:
                     wf.storage.delete()
 
@@ -408,31 +520,37 @@ class TestWorkflow(unittest.TestCase):
                             wf.save()
             finally:
                 wf.remove_child(wf.import_type_mismatch)
+                wf.storage.delete()
 
         if "h5io" in Workflow.allowed_backends():
             wf.add_child(PlusOne(label="local_but_importable"))
             try:
-                wf.storage_backend = "h5io"
-                wf.save()
-                Workflow(wf.label, storage_backend="h5io")
+                with self.assertRaises(
+                    TypeError, msg="h5io can't handle custom reconstructors"
+                ):
+                    wf.storage_backend = "h5io"
+                    wf.save()
             finally:
                 wf.storage.delete()
 
         if "tinybase" in Workflow.allowed_backends():
-            with self.assertRaises(
-                NotImplementedError,
-                msg="Storage docs for tinybase claim all children must be registered "
-                    "nodes"
-            ):
-                wf.storage_backend = "tinybase"
-                wf.save()
+            try:
+                with self.assertRaises(
+                    NotImplementedError,
+                    msg="Storage docs for tinybase claim all children must be registered "
+                        "nodes"
+                ):
+                    wf.storage_backend = "tinybase"
+                    wf.save()
+            finally:
+                wf.storage.delete()
 
         if "h5io" in Workflow.allowed_backends():
             with self.subTest("Instanced node"):
-                wf.direct_instance = Workflow.create.Function(plus_one)
+                wf.direct_instance = Workflow.create.function_node(plus_one)
                 try:
                     with self.assertRaises(
-                        TypeError,
+                        TypeNotFoundError,
                         msg="No direct node instances, only children with functions as "
                             "_class_ attribtues"
                     ):
@@ -443,7 +561,7 @@ class TestWorkflow(unittest.TestCase):
                     wf.storage.delete()
 
         with self.subTest("Unimportable node"):
-            @Workflow.wrap_as.function_node("y")
+            @Workflow.wrap.as_function_node("y")
             def UnimportableScope(x):
                 return x
 
@@ -461,6 +579,19 @@ class TestWorkflow(unittest.TestCase):
                 finally:
                     wf.remove_child(wf.unimportable_scope)
                     wf.storage.delete()
+
+    def test_pickle(self):
+        wf = Workflow("wf")
+        wf.register("static.demo_nodes", domain="demo")
+        wf.inp = wf.create.demo.AddThree(x=0)
+        wf.out = wf.inp.outputs.add_three + 1
+        wf_out = wf()
+        reloaded = pickle.loads(pickle.dumps(wf))
+        self.assertDictEqual(
+            wf_out,
+            reloaded.outputs.to_value_dict(),
+            msg="Pickling should work"
+        )
 
 
 if __name__ == '__main__':

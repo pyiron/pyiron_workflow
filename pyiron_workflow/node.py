@@ -10,7 +10,6 @@ from __future__ import annotations
 import sys
 from abc import ABC
 from concurrent.futures import Future
-import platform
 from typing import Any, Literal, Optional, TYPE_CHECKING
 import warnings
 
@@ -26,7 +25,6 @@ from pyiron_workflow.topology import (
     set_run_connections_according_to_linear_dag,
 )
 from pyiron_workflow.snippets.colors import SeabornColors
-from pyiron_workflow.snippets.has_post import AbstractHasPost
 from pyiron_workflow.working import HasWorkingDirectory
 
 if TYPE_CHECKING:
@@ -48,7 +46,6 @@ class Node(
     HasH5ioStorage,
     HasTinybaseStorage,
     ABC,
-    metaclass=AbstractHasPost,
 ):
     """
     Nodes are elements of a computational graph.
@@ -111,36 +108,40 @@ class Node(
         the python process working directory
     - Nodes can run their computation using remote resources by setting an executor
         - Any executor must have a :meth:`submit` method with the same interface as
-            :class:`concurrent.futures.Executor`, must return a :class:`concurrent.futures.Future`
-            (or child thereof) object, and must be able to serialize dynamically
-            defined objects
+            :class:`concurrent.futures.Executor`, must return a
+            :class:`concurrent.futures.Future` (or child thereof) object.
+        - Standard available nodes are pickleable and work with
+            `concurrent.futures.ProcessPoolExecutor`, but if you define your node
+            somewhere that it can't be imported (e.g. `__main__` in a jupyter
+            notebook), or it is otherwise not pickleable (e.g. it holds un-pickleable
+            io data), you will need a more powerful executor, e.g. `pympipool.Executor`.
         - On executing this way, a futures object will be returned instead of the usual
             result, this future will also be stored as an attribute, and a callback will
             be registered with the executor
         - Post-execution processing -- e.g. updating output and firing signals -- will
             not occur until the futures object is finished and the callback fires.
-        - WARNING: Executors are currently only working when the node executable
-            function does not use `self`
         - NOTE: Executors are only allowed in a "push" paradigm, and you will get an
             exception if you try to :meth:`pull` and one of the upstream nodes uses an
             executor
-        - NOTE: Don't forget to :meth:`shutdown` any created executors outside of a `with`
-            context when you're done with them; we give a convenience method for this.
+        - NOTE: Don't forget to :meth:`shutdown` any created executors outside of a
+            `with` context when you're done with them; we give a convenience method for
+            this.
     - Nodes created from a registered package store their package identifier as a class
         attribute.
     - [ALPHA FEATURE] Nodes can be saved to and loaded from file if python >= 3.11.
+        - As long as you haven't put anything unpickleable on them, or defined them in
+            an unpicklable place (e.g. in the `<locals>` of another function), you can
+            simple (un)pickle nodes. There is no save/load interface for this right
+            now, just import pickle and do it.
         - Saving is triggered manually, or by setting a flag to save after the nodes
             runs.
-        - On instantiation, nodes will load automatically if they find saved content.
+        - At the end of instantiation, nodes will load automatically if they find saved
+            content.
           - Discovered content can instead be deleted with a kwarg.
           - You can't load saved content _and_ run after instantiation at once.
-        - The nodes must be somewhere importable, and the imported object must match
-            the type of the node being saved. This basically just rules out one edge
-            case where a node class is defined like
-            `SomeFunctionNode = Workflow.wrap_as.function_node()(some_function)`, since
-            then the new class gets the name `some_function`, which when imported is
-            the _function_ "some_function" and not the desired class "SomeFunctionNode".
-            This is checked for at save-time and will cause a nice early failure.
+        - The nodes must be defined somewhere importable, i.e. in a module, `__main__`,
+            and as a class property are all fine, but, e.g., inside the `<locals>` of
+            another function is not.
         - [ALPHA ISSUE] If the source code (cells, `.py` files...) for a saved graph is
             altered between saving and loading the graph, there are no guarantees about
             the loaded state; depending on the nature of the changes everything may
@@ -155,9 +156,14 @@ class Node(
             the entire graph may be saved at once.
         - [ALPHA ISSUE] There are two possible back-ends for saving: one leaning on
             `tinybase.storage.GenericStorage` (in practice,
-            `H5ioStorage(GenericStorage)`), and the other, default back-end that uses
-            the `h5io` module directly. The backend used is always the one on the graph
-            root.
+            `H5ioStorage(GenericStorage)`), that is the default, and the other that
+            uses the `h5io` module directly. The backend used is always the one on the
+            graph root.
+        - [ALPHA ISSUE] The `h5io` backend is deprecated -- it can't handle custom
+            reconstructors (i.e. when `__reduce__` returns a tuple with some
+            non-standard callable as its first entry), and basically all our nodes do
+            that now! `tinybase` gets around this by falling back on `cloudpickle` when
+            its own interactions with `h5io` fail.
         - [ALPHA ISSUE] Restrictions on data:
             - For the `h5io` backend: Most data that can be pickled will be fine, but
                 some classes will hit an edge case and throw an exception from `h5io`
@@ -276,6 +282,22 @@ class Node(
             execution options are available as boolean flags.
         set_input_values: Allows input channels' values to be updated without any
             running.
+
+    Note:
+        :meth:`__init__` ends with a routine :meth:`_after_node_setup` that may,
+        depending on instantiation arguments, try to actually execute the node. Since
+        child classes may need to get things done before this point, we want to make
+        sure that this happens _after_ all the other setup. This can be accomplished
+        by children (a) sticking stuff that is independent of `super().__init__` calls
+        before the super call, and (b) overriding :meth:`_setup_node(self)` to do any
+        remaining, parameter-free setup. This latter function gets called prior to any
+        execution.
+
+        Initialization will also try to parse any outstanding `args` and `kwargs` as
+        input to the node's input channels. For node class developers, that means it's
+        also important that `Node` parentage appear to the right-most of the
+        inheritance set in the class definition, so that it's invokation of `__init__`
+        appears as late as possible with the minimal set of args and kwargs.
     """
 
     package_identifier = None
@@ -285,8 +307,8 @@ class Node(
 
     def __init__(
         self,
-        label: str,
         *args,
+        label: Optional[str] = None,
         parent: Optional[Composite] = None,
         overwrite_save: bool = False,
         run_after_init: bool = False,
@@ -295,27 +317,43 @@ class Node(
         **kwargs,
     ):
         """
-        A mixin class for objects that can form nodes in the graph representation of a
+        A parent class for objects that can form nodes in the graph representation of a
         computational workflow.
 
         Args:
             label (str): A name for this node.
-            *args: Arguments passed on with `super`.
+            *args: Interpreted as node input data, in order of input channels.
             parent: (Composite|None): The composite node that owns this as a child.
             run_after_init (bool): Whether to run at the end of initialization.
-            **kwargs: Keyword arguments passed on with `super`.
+            **kwargs: Interpreted as node input data, with keys corresponding to
+                channel labels.
         """
         super().__init__(
-            *args,
-            label=label,
+            label=self.__class__.__name__ if label is None else label,
             parent=parent,
             storage_backend=storage_backend,
-            **kwargs,
         )
         self.save_after_run = save_after_run
         self._user_data = {}  # A place for power-users to bypass node-injection
 
-    def __post__(
+        self._setup_node()
+        self._after_node_setup(
+            *args,
+            overwrite_save=overwrite_save,
+            run_after_init=run_after_init,
+            **kwargs,
+        )
+
+    def _setup_node(self) -> None:
+        """
+        Called _before_ :meth:`Node.__init__` finishes.
+
+        Child node classes can use this for any parameter-free node setup that should
+        happen _before_ :meth:`Node._after_node_setup` gets called.
+        """
+        pass
+
+    def _after_node_setup(
         self,
         *args,
         overwrite_save: bool = False,
@@ -341,12 +379,15 @@ class Node(
                 f"`overwrite_save=True`)"
             )
             self.load()
+            self.set_input_values(*args, **kwargs)
         elif run_after_init:
             try:
+                self.set_input_values(*args, **kwargs)
                 self.run()
             except ReadinessError:
                 pass
-        # Else neither loading nor running now -- no action required!
+        else:
+            self.set_input_values(*args, **kwargs)
         self.graph_root.tidy_working_directory()
 
     @property
@@ -383,6 +424,7 @@ class Node(
 
     def run(
         self,
+        *args,
         run_data_tree: bool = False,
         run_parent_trees_too: bool = False,
         fetch_input: bool = True,
@@ -413,7 +455,10 @@ class Node(
             run_parent_trees_too (bool): Whether to recursively run the data tree in
                 parent nodes (if any). (Default is False.)
             fetch_input (bool): Whether to first update inputs with the
-                highest-priority connections holding data. (Default is True.)
+                highest-priority connections holding data (i.e. the first valid
+                connection; and the most recently formed connections appear first
+                unless the connections list has been manually tampered with). (Default
+                is True.)
             check_readiness (bool): Whether to raise an exception if the node is not
                 :attr:`ready` to run after fetching new input. (Default is True.)
             force_local_execution (bool): Whether to ignore any executor settings and
@@ -435,13 +480,16 @@ class Node(
             Kwargs updating input channel values happens _first_ and will get
             overwritten by any subsequent graph-based data manipulation.
         """
-        self.set_input_values(**kwargs)
+        self.set_input_values(*args, **kwargs)
 
         if run_data_tree:
             self.run_data_tree(run_parent_trees_too=run_parent_trees_too)
 
         if fetch_input:
             self.inputs.fetch()
+
+        if self.parent is not None:
+            self.parent.register_child_starting(self)
 
         return super().run(
             check_readiness=check_readiness,
@@ -491,7 +539,7 @@ class Node(
             disconnected_pairs, starters = set_run_connections_according_to_linear_dag(
                 nodes
             )
-            starter = starters[0]
+            data_tree_starters = list(set(starters).intersection(data_tree_nodes))
         except Exception as e:
             # If the dag setup fails it will repair any connections it breaks before
             # raising the error, but we still need to repair our label changes
@@ -499,14 +547,48 @@ class Node(
                 node.label = label_map[modified_label]
             raise e
 
-        self.signals.disconnect_run()
-        # Don't let anything upstream trigger this node
-
         try:
-            # If you're the only one in the data tree, there's nothing upstream to run
-            # Otherwise...
-            if starter is not self:
-                starter.run()  # Now push from the top
+            parent_starting_nodes = (
+                self.parent.starting_nodes if self.parent is not None else None
+            )  # We need these for state recovery later, even if we crash
+
+            if len(data_tree_starters) == 1 and data_tree_starters[0] is self:
+                # If you're the only one in the data tree, there's nothing upstream to
+                # run.
+                pass
+            else:
+                for node in set(nodes.values()).difference(data_tree_nodes):
+                    # Disconnect any nodes not in the data tree to avoid unnecessary
+                    # execution
+                    node.signals.disconnect_run()
+
+                self.signals.disconnect_run()
+                # Don't let anything upstream trigger _this_ node
+
+                if self.parent is None:
+                    for starter in data_tree_starters:
+                        starter.run()  # Now push from the top
+                else:
+                    # Run the special exec connections from above with the parent
+
+                    # Workflow parents will attempt to automate execution on run,
+                    # undoing all our careful execution
+                    # This heinous hack breaks in and stops that behaviour
+                    # I recognize this is dirty, but let's be pragmatic about getting
+                    # the features playing together. Workflows and pull are anyhow
+                    # already both very annoying on their own...
+                    from pyiron_workflow.workflow import Workflow
+
+                    if isinstance(self.parent, Workflow):
+                        automated = self.parent.automate_execution
+                        self.parent.automate_execution = False
+
+                    self.parent.starting_nodes = data_tree_starters
+                    self.parent.run()
+
+                    # And revert our workflow hack
+                    if isinstance(self.parent, Workflow):
+                        self.parent.automate_execution = automated
         finally:
             # No matter what, restore the original connections and labels afterwards
             for modified_label, node in nodes.items():
@@ -514,17 +596,25 @@ class Node(
                 node.signals.disconnect_run()
             for c1, c2 in disconnected_pairs:
                 c1.connect(c2)
+            if self.parent is not None:
+                self.parent.starting_nodes = parent_starting_nodes
 
     def _finish_run(self, run_output: tuple | Future) -> Any | tuple:
         try:
-            return super()._finish_run(run_output=run_output)
+            processed_output = super()._finish_run(run_output=run_output)
+            if self.parent is not None:
+                self.parent.register_child_finished(self)
+            return processed_output
         finally:
             if self.save_after_run:
                 self.save()
 
     def _finish_run_and_emit_ran(self, run_output: tuple | Future) -> Any | tuple:
         processed_output = self._finish_run(run_output)
-        self.signals.output.ran()
+        if self.parent is None:
+            self.signals.output.ran()
+        else:
+            self.parent.register_child_emitting_ran(self)
         return processed_output
 
     _finish_run_and_emit_ran.__doc__ = (
@@ -535,7 +625,7 @@ class Node(
     """
     )
 
-    def execute(self, **kwargs):
+    def execute(self, *args, **kwargs):
         """
         A shortcut for :meth:`run` with particular flags.
 
@@ -546,6 +636,7 @@ class Node(
         right here, right now, and as-is.
         """
         return self.run(
+            *args,
             run_data_tree=False,
             run_parent_trees_too=False,
             fetch_input=False,
@@ -555,7 +646,7 @@ class Node(
             **kwargs,
         )
 
-    def pull(self, run_parent_trees_too=False, **kwargs):
+    def pull(self, *args, run_parent_trees_too=False, **kwargs):
         """
         A shortcut for :meth:`run` with particular flags.
 
@@ -569,6 +660,7 @@ class Node(
                 first pull.
         """
         return self.run(
+            *args,
             run_data_tree=True,
             run_parent_trees_too=run_parent_trees_too,
             fetch_input=True,
@@ -578,12 +670,12 @@ class Node(
             **kwargs,
         )
 
-    def __call__(self, **kwargs) -> None:
+    def __call__(self, *args, **kwargs) -> None:
         """
         A shortcut for :meth:`pull` that automatically runs the entire set of upstream data
         dependencies all the way to the parent-most graph object.
         """
-        return self.pull(run_parent_trees_too=True, **kwargs)
+        return self.pull(*args, run_parent_trees_too=True, **kwargs)
 
     @property
     def ready(self) -> bool:
@@ -647,16 +739,8 @@ class Node(
         Returns:
             (graphviz.graphs.Digraph): The resulting graph object.
 
-        Warnings:
-            Rendering a PDF format appears to not be working on Windows right now.
         """
-        if format == "pdf" and platform.system() == "Windows":
-            warnings.warn(
-                "Graphviz does not appear to be playing well with Windows right now,"
-                "this will probably fail and you will need to try a different format."
-                "If it _doesn't_ fail, please contact the developers by raising an "
-                "issue at github.com/pyiron/pyiron_workflow"
-            )
+
         if size is not None:
             size = f"{size[0]},{size[1]}"
         graph = GraphvizNode(self, depth=depth, rankdir=rankdir, size=size).graph

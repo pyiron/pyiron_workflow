@@ -2,9 +2,9 @@ channels:
   - conda-forge
 dependencies:
   - ase =3.22.1
-  - atomistics =0.1.23
+  - atomistics =0.1.27
   - lammps
-  - phonopy =2.21.2
-  - pyiron_atomistics =0.4.17
+  - phonopy =2.22.1
+  - pyiron_atomistics =0.5.4
   - pyiron-data =0.0.29
   - numpy =1.26.4

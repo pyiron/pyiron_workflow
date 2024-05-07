@@ -11,14 +11,15 @@ from pyiron_atomistics.atomistics.job.atomistic import AtomisticGenericJob
 from pyiron_atomistics.atomistics.structure.atoms import Atoms
 from pyiron_atomistics.lammps.lammps import Lammps as LammpsJob
 
-from pyiron_workflow.function import function_node
+from pyiron_workflow.function import as_function_node
 
 
-Bulk = function_node("structure")(_StructureFactory().bulk)
+Bulk = as_function_node("structure")(_StructureFactory().bulk)
 Bulk.__name__ = "Bulk"
+Bulk.__module__ = __name__
 
 
-@function_node("job")
+@as_function_node("job")
 def Lammps(structure: Optional[Atoms] = None) -> LammpsJob:
     pr = Project(".")
     job = pr.atomistics.job.Lammps("NOTAREALNAME")
@@ -84,7 +85,7 @@ def _run_and_remove_job(job, modifier: Optional[callable] = None, **modifier_kwa
     )
 
 
-@function_node(
+@as_function_node(
     "cells",
     "displacements",
     "energy_pot",
@@ -99,6 +100,7 @@ def _run_and_remove_job(job, modifier: Optional[callable] = None, **modifier_kwa
     "total_displacements",
     "unwrapped_positions",
     "volume",
+    validate_output_labels=False,
 )
 def CalcStatic(
     job: AtomisticGenericJob,
@@ -106,7 +108,7 @@ def CalcStatic(
     return _run_and_remove_job(job=job)
 
 
-@function_node(
+@as_function_node(
     "cells",
     "displacements",
     "energy_pot",
@@ -121,6 +123,7 @@ def CalcStatic(
     "total_displacements",
     "unwrapped_positions",
     "volume",
+    validate_output_labels=False,
 )
 def CalcMd(
     job: AtomisticGenericJob,
@@ -153,7 +156,7 @@ def CalcMd(
     )
 
 
-@function_node(
+@as_function_node(
     "cells",
     "displacements",
     "energy_pot",
@@ -167,6 +170,7 @@ def CalcMd(
     "total_displacements",
     "unwrapped_positions",
     "volume",
+    validate_output_labels=False,
 )
 def CalcMin(
     job: AtomisticGenericJob,
