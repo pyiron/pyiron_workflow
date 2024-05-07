@@ -4,6 +4,7 @@ dependencies:
   - ase =3.22.1
   - atomistics =0.1.27
   - lammps
+  - matgl = 0.9.2
   - phonopy =2.22.1
   - pyiron_atomistics =0.5.4
   - pyiron-data =0.0.29
