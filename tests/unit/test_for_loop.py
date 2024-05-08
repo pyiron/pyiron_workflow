@@ -1,3 +1,4 @@
+import random
 from concurrent.futures import ThreadPoolExecutor
 from itertools import product
 from time import perf_counter
@@ -12,7 +13,9 @@ from pyiron_workflow.for_loop import (
     MapsToNonexistentOutputError
 )
 from pyiron_workflow.function import as_function_node
-from pyiron_workflow.node_library.standard import Sleep
+from pyiron_workflow.macro import as_macro_node
+from pyiron_workflow.node_library.standard import Add, Sleep
+from pyiron_workflow.transform import inputs_to_list
 
 
 class TestDictionaryToIndexMaps(unittest.TestCase):
@@ -313,6 +316,41 @@ class TestForNode(unittest.TestCase):
             grace * t_sleep,
             msg=f"Parallelization over children should result in faster completion. "
                 f"Expected limit {grace} x {t_sleep} = {grace * t_sleep} -- got {dt}"
+        )
+
+    def test_with_connections(self):
+        length_y = 3
+
+        @as_macro_node()
+        def LoopInside(self, x: list, y: int):
+            self.to_list = inputs_to_list(
+                length_y, y, y, y
+            )
+            self.loop = for_node(
+                Add,
+                iter_on=("obj", "other",),
+                obj=x,
+                other=self.to_list
+            )
+            return self.loop
+
+        x, y = [1], 2
+        li = LoopInside([1], 2)
+        df = li().loop
+        self.assertIsInstance(df, DataFrame)
+        self.assertEqual(length_y * len(x), len(df))
+        self.assertEqual(
+            x[0] + y,
+            df["add"][0],
+            msg="Just make sure the loop is actually running"
+        )
+        x, y = [2, 3], 4
+        df = li(x, y).loop
+        self.assertEqual(length_y * len(x), len(df))
+        self.assertEqual(
+            x[-1] + y,
+            df["add"][len(df) - 1],
+            msg="And make sure that we can vary the length still"
         )
 
 
