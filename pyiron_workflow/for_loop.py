@@ -276,7 +276,7 @@ class For(Composite, StaticNode, ABC):
                 self.children[label].run(
                     run_data_tree=False,
                     run_parent_trees_too=False,
-                    fetch_input=False
+                    fetch_input=False,
                     # Data should simply be coming from the value link
                     # We just want to refresh the output
                 )
