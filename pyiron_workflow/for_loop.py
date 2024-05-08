@@ -273,7 +273,13 @@ class For(Composite, StaticNode, ABC):
                 # -- it will see data it can work with, but if that data happens to
                 # have the wrong length it may successfully auto-run on the wrong thing
                 # and throw an error!
-                self.children[label]()
+                self.children[label].run(
+                    run_data_tree=False,
+                    run_parent_trees_too=False,
+                    fetch_input=False
+                    # Data should simply be coming from the value link
+                    # We just want to refresh the output
+                )
         # TODO: Instead of deleting _everything_ each time, try and re-use stuff
 
     def _build_collector_node(self, row_number):
