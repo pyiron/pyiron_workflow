@@ -37,7 +37,6 @@ from pyiron_workflow.snippets.dotdict import DotDict
 
 if TYPE_CHECKING:
     from pandas import DataFrame
-
     from pyiron_workflow.composite import Composite
 
 
