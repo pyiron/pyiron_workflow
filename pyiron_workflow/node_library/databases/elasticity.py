@@ -1,9 +1,9 @@
-from pyiron_workflow.function import function_node
+from pyiron_workflow.function import as_function_node
 from typing import Optional
 
 
 @as_function_node("dataframe")
-def de_jong(max_index: int | None = None, filename="ec.json"):
+def DeJong(max_index: int | None = None, filename="ec.json"):
     """
     Expects the file to be the "ec.json" database referenced by:
     Ref. de Jong et al. https://www.nature.com/articles/sdata20159#MOESM77
@@ -37,5 +37,5 @@ def de_jong(max_index: int | None = None, filename="ec.json"):
 
 
 nodes = [
-    de_jong,
+    DeJong,
 ]

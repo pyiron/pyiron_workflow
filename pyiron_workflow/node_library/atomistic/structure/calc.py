@@ -6,9 +6,9 @@ from typing import Optional, Union
 from ase import Atoms
 
 
-@as_function_node("structure")
-def volume(structure: Optional[Atoms] = None) -> float:
+@as_function_node("volume")
+def Volume(structure: Optional[Atoms] = None) -> float:
     return structure.get_volume()
 
 
-nodes = [volume]
+nodes = [Volume]
