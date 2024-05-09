@@ -367,21 +367,39 @@ class StaticNode(Node, HasIOPreview, ABC):
     def outputs(self) -> OutputsWithInjection:
         return self._outputs
 
-    def iter(self, body_node_executor=None, **iterating_inputs) -> DataFrame:
+    def iter(
+        self,
+        body_node_executor=None,
+        output_column_map: Optional[dict[str, str]] = None,
+        **iterating_inputs
+    ) -> DataFrame:
         return self._loop(
             "iter_on",
             body_node_executor=body_node_executor,
+            output_column_map=output_column_map,
             **iterating_inputs
         )
 
-    def zip(self, body_node_executor=None, **iterating_inputs) -> DataFrame:
+    def zip(
+        self,
+        body_node_executor=None,
+        output_column_map: Optional[dict[str, str]] = None,
+        **iterating_inputs
+    ) -> DataFrame:
         return self._loop(
             "zip_on",
             body_node_executor=body_node_executor,
+            output_column_map=output_column_map,
             **iterating_inputs
         )
 
-    def _loop(self, loop_style_key, body_node_executor=None, **looping_inputs):
+    def _loop(
+        self,
+        loop_style_key,
+        body_node_executor=None,
+        output_column_map=None,
+        **looping_inputs
+    ):
         loop_on = tuple(looping_inputs.keys())
         self._guarantee_names_are_input_channels(loop_on)
 
@@ -395,6 +413,7 @@ class StaticNode(Node, HasIOPreview, ABC):
             self.__class__,
             **{
                 loop_style_key: loop_on,
+                "output_column_map": output_column_map,
                 **looping_inputs,
                 **broadcast_inputs
             }
