@@ -77,6 +77,12 @@ def Slice(start=None, stop=NOT_DATA, step=None):
     return s
 
 
+@as_function_node("object")
+def SetAttr(obj, key: str, val):
+    setattr(obj, key, val)
+    return obj
+
+
 # A bunch of (but not all) standard operators
 # Return values based on dunder methods, where available
 
@@ -298,6 +304,7 @@ nodes = [
     RandomFloat,
     RightMultiply,
     Round,
+    SetAttr,
     Sleep,
     Slice,
     String,
