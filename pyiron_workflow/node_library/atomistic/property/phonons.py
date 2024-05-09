@@ -35,8 +35,7 @@ class GenerateSupercellsParameters:
 
 @as_function_node()
 def GenerateSupercells(
-    phonopy: Phonopy,
-    parameters: GenerateSupercellsParameters
+    phonopy: Phonopy, parameters: GenerateSupercellsParameters
 ) -> list:
     from structuretoolkit.common import phonopy_to_atoms
 
@@ -56,12 +55,12 @@ def CreatePhonopy(
 
     self.phonopy = PhonopyObject(structure)
     self.cells = GenerateSupercells(
-        self.phonopy,
-        parameters=generate_supercells_parameters
+        self.phonopy, parameters=generate_supercells_parameters
     )
 
     from pyiron_workflow.node_library.atomistic.calculator.ase import Static
     from pyiron_workflow.for_loop import for_node
+
     self.gs = for_node(
         Static,
         iter_on=("atoms",),
@@ -79,11 +78,8 @@ def CreatePhonopy(
     self.forces = DictsToList(self.gs.outputs.df["out"], "forces")
 
     from pyiron_workflow.node_library.standard import SetAttr
-    self.phonopy_with_forces = SetAttr(
-        self.phonopy,
-        "forces",
-        self.forces
-    )
+
+    self.phonopy_with_forces = SetAttr(self.phonopy, "forces", self.forces)
 
     return self.phonopy_with_forces, self.gs
 

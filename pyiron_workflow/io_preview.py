@@ -371,26 +371,26 @@ class StaticNode(Node, HasIOPreview, ABC):
         self,
         body_node_executor=None,
         output_column_map: Optional[dict[str, str]] = None,
-        **iterating_inputs
+        **iterating_inputs,
     ) -> DataFrame:
         return self._loop(
             "iter_on",
             body_node_executor=body_node_executor,
             output_column_map=output_column_map,
-            **iterating_inputs
+            **iterating_inputs,
         )
 
     def zip(
         self,
         body_node_executor=None,
         output_column_map: Optional[dict[str, str]] = None,
-        **iterating_inputs
+        **iterating_inputs,
     ) -> DataFrame:
         return self._loop(
             "zip_on",
             body_node_executor=body_node_executor,
             output_column_map=output_column_map,
-            **iterating_inputs
+            **iterating_inputs,
         )
 
     def _loop(
@@ -398,7 +398,7 @@ class StaticNode(Node, HasIOPreview, ABC):
         loop_style_key,
         body_node_executor=None,
         output_column_map=None,
-        **looping_inputs
+        **looping_inputs,
     ):
         loop_on = tuple(looping_inputs.keys())
         self._guarantee_names_are_input_channels(loop_on)
@@ -409,14 +409,15 @@ class StaticNode(Node, HasIOPreview, ABC):
         }
 
         from pyiron_workflow.for_loop import for_node
+
         for_instance = for_node(
             self.__class__,
             **{
                 loop_style_key: loop_on,
                 "output_column_map": output_column_map,
                 **looping_inputs,
-                **broadcast_inputs
-            }
+                **broadcast_inputs,
+            },
         )
         for_instance.body_node_executor = body_node_executor
 

@@ -75,6 +75,7 @@ def CalcMD(calculator_input: Optional[InputCalcMD | dict] = None):
 def InitLammps(working_directory, structure=None, potential=None, calculator=None):
 
     from pathlib import Path
+
     Path(working_directory).mkdir(parents=True, exist_ok=True)
     # When this is a child node, it's running into trouble with it's parent's
     # `Node._after_node_setup: self.graph_root.tidy_working_directory()` call
@@ -83,7 +84,6 @@ def InitLammps(working_directory, structure=None, potential=None, calculator=Non
 
     import os
     from pyiron_atomistics.lammps.potential import LammpsPotential, LammpsPotentialFile
-
 
     pot = LammpsPotential()
     pot.df = LammpsPotentialFile().find_by_name(potential)
@@ -94,7 +94,7 @@ def InitLammps(working_directory, structure=None, potential=None, calculator=Non
         structure.write(f, format="lammps-data", specorder=pot.get_element_lst())
 
     calculator.write_file(file_name="control.inp", cwd=working_directory)
-    
+
     return os.path.abspath(working_directory)
 
 
