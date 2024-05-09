@@ -1,14 +1,14 @@
-from pyiron_workflow.function import function_node
+from pyiron_workflow.function import as_function_node
 
 
-@function_node("engine")
+@as_function_node("engine")
 def EMT():
     from ase.calculators.emt import EMT
 
     return EMT()
 
 
-@function_node("engine")
+@as_function_node("engine")
 def M3GNet():
     import matgl
     from matgl.ext.ase import M3GNetCalculator

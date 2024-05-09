@@ -1,4 +1,4 @@
-from pyiron_workflow.function import function_node
+from pyiron_workflow.function import as_function_node
 from typing import Optional, Union
 
 # Huge savings when replacing pyiron_atomistics atoms class with ase one!! (> 5s vs 40 ms)
@@ -6,24 +6,22 @@ from typing import Optional, Union
 from ase import Atoms
 
 
-@function_node("structure")
-def repeat(structure: Atoms, repeat_scalar: int = 1) -> Atoms:
+@as_function_node("structure")
+def Repeat(structure: Atoms, repeat_scalar: int = 1) -> Atoms:
     return structure.repeat(repeat_scalar)
 
 
-@function_node("structure")
-def apply_strain(
+@as_function_node("structure")
+def ApplyStrain(
     structure: Optional[Atoms] = None, strain: Union[float, int] = 0
 ) -> Optional[Atoms]:
-    # print("apply strain: ", strain)
     struct = structure.copy()
-    # struct.cell *= strain
     struct.apply_strain(strain)
     return struct
 
 
-@function_node()
-def create_vacancy(structure, index: int | None = 0):
+@as_function_node()
+def CreateVacancy(structure, index: int | None = 0):
     structure = structure.copy()
     if index is not None:
         del structure[index]
@@ -31,11 +29,11 @@ def create_vacancy(structure, index: int | None = 0):
     return structure
 
 
-@function_node("structure")
-def rotate_axis_angle(
+@as_function_node("structure")
+def RotateAxisAngle(
     structure: Atoms,
     angle: float | int = 0,
-    axis: list = [0, 0, 1],
+    axis: list | tuple = (0, 0, 1),
     center=(0, 0, 0),
     rotate_cell: bool = False,
 ):
@@ -61,8 +59,8 @@ def rotate_axis_angle(
 
 
 nodes = [
-    repeat,
-    apply_strain,
-    create_vacancy,
-    rotate_axis_angle,
+    Repeat,
+    ApplyStrain,
+    CreateVacancy,
+    RotateAxisAngle,
 ]

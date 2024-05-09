@@ -1,15 +1,13 @@
-import sys
 from concurrent.futures import Future
-from functools import partialmethod
-
+import pickle
+import sys
 from time import sleep
 import unittest
 
-
 from pyiron_workflow._tests import ensure_tests_in_python_path
 from pyiron_workflow.channels import NOT_DATA
-from pyiron_workflow.function import Function
-from pyiron_workflow.macro import Macro, macro_node
+from pyiron_workflow.function import function_node
+from pyiron_workflow.macro import Macro, macro_node, as_macro_node
 from pyiron_workflow.topology import CircularDataFlowError
 
 
@@ -18,36 +16,24 @@ def add_one(x):
     return result
 
 
-def add_three_macro(macro):
-    macro.one = Function(add_one)
-    Function(add_one, macro.one, label="two", parent=macro)
-    macro.add_child(Function(add_one, macro.two, label="three"))
+def add_three_macro(self, one__x):
+    self.one = function_node(add_one, x=one__x)
+    function_node(add_one, self.one, label="two", parent=self)
+    self.add_child(function_node(add_one, self.two, label="three"))
     # Cover a handful of addition methods,
     # although these are more thoroughly tested in Workflow tests
+    return self.three
 
 
 def wrong_return_macro(macro):
-    macro.one = Function(add_one)
+    macro.one = function_node(add_one)
     return 3
 
 
 class TestMacro(unittest.TestCase):
 
-    def test_static_input(self):
-        m = Macro(add_three_macro)
-        inp = m.inputs
-        inp_again = m.inputs
-        self.assertIs(
-            inp, inp_again, msg="Should not be rebuilding just to look at it"
-        )
-        m._rebuild_data_io()
-        new_inp = m.inputs
-        self.assertIsNot(
-            inp, new_inp, msg="After rebuild we should get a new object"
-        )
-
     def test_io_independence(self):
-        m = Macro(add_three_macro)
+        m = macro_node(add_three_macro, output_labels="three__result")
         self.assertIsNot(
             m.inputs.one__x,
             m.one.inputs.x,
@@ -65,7 +51,7 @@ class TestMacro(unittest.TestCase):
         )
 
     def test_value_links(self):
-        m = Macro(add_three_macro)
+        m = macro_node(add_three_macro, output_labels="three__result")
         self.assertIs(
             m.one.inputs.x,
             m.inputs.one__x.value_receiver,
@@ -96,21 +82,24 @@ class TestMacro(unittest.TestCase):
     def test_execution_automation(self):
         fully_automatic = add_three_macro
 
-        def fully_defined(macro):
-            add_three_macro(macro)
-            macro.one >> macro.two >> macro.three
-            macro.starting_nodes = [macro.one]
+        def fully_defined(self, one__x):
+            add_three_macro(self, one__x=one__x)
+            self.one >> self.two >> self.three
+            self.starting_nodes = [self.one]
+            return self.three
 
-        def only_order(macro):
-            add_three_macro(macro)
-            macro.two >> macro.three
+        def only_order(self, one__x):
+            add_three_macro(self, one__x=one__x)
+            self.two >> self.three
+            return self.three
 
-        def only_starting(macro):
-            add_three_macro(macro)
-            macro.starting_nodes = [macro.one]
+        def only_starting(self, one__x):
+            add_three_macro(self, one__x=one__x)
+            self.starting_nodes = [self.one]
+            return self.three
 
-        m_auto = Macro(fully_automatic)
-        m_user = Macro(fully_defined)
+        m_auto = macro_node(fully_automatic, output_labels="three__result")
+        m_user = macro_node(fully_defined, output_labels="three__result")
 
         x = 0
         expected = add_one(add_one(add_one(x)))
@@ -129,24 +118,24 @@ class TestMacro(unittest.TestCase):
             # We don't yet check for _crappy_ user-defined execution,
             # But we should make sure it's at least valid in principle
             with self.assertRaises(ValueError):
-                Macro(only_order)
+                macro_node(only_order, output_labels="three__result")
 
             with self.assertRaises(ValueError):
-                Macro(only_starting)
+                macro_node(only_starting, output_labels="three__result")
 
     def test_default_label(self):
-        m = Macro(add_three_macro)
+        m = macro_node(add_three_macro, output_labels="three__result")
         self.assertEqual(
             m.label,
             add_three_macro.__name__,
             msg="Label should be automatically generated"
         )
         label = "custom_name"
-        m2 = Macro(add_three_macro, label=label)
+        m2 = macro_node(add_three_macro, label=label, output_labels="three__result")
         self.assertEqual(m2.label, label, msg="Should be able to specify a label")
 
     def test_creation_from_decorator(self):
-        m = Macro(add_three_macro)
+        m = as_macro_node("three__result")(add_three_macro)()
 
         self.assertIs(
             m.outputs.three__result.value,
@@ -157,6 +146,7 @@ class TestMacro(unittest.TestCase):
 
         input_x = 1
         expected_value = add_one(add_one(add_one(input_x)))
+        print(m.inputs.labels, m.outputs.labels, m.child_labels)
         out = m(one__x=input_x)  # Take kwargs to set input at runtime
 
         self.assertEqual(
@@ -172,13 +162,12 @@ class TestMacro(unittest.TestCase):
 
     def test_creation_from_subclass(self):
         class MyMacro(Macro):
-            def build_graph(self):
-                add_three_macro(self)
+            _output_labels = ("three__result",)
 
-            __init__ = partialmethod(
-                Macro.__init__,
-                build_graph,
-            )
+            @staticmethod
+            def graph_creator(self, one__x):
+                add_three_macro(self, one__x)
+                return self.three
 
         x = 0
         m = MyMacro(one__x=x)
@@ -190,35 +179,35 @@ class TestMacro(unittest.TestCase):
         )
 
     def test_nesting(self):
-        def nested_macro(macro):
-            macro.a = Function(add_one)
-            macro.b = Macro(
+        def nested_macro(self, a__x):
+            self.a = function_node(add_one, a__x)
+            self.b = macro_node(
                 add_three_macro,
-                one__x=macro.a,
-                outputs_map={"two__result": "intermediate_result"}
+                one__x=self.a,
+                output_labels="three__result"
             )
-            macro.c = Macro(
+            self.c = macro_node(
                 add_three_macro,
-                one__x=macro.b.outputs.three__result,
-                outputs_map={"two__result": "intermediate_result"}
+                one__x=self.b.outputs.three__result,
+                output_labels="three__result"
             )
-            macro.d = Function(
+            self.d = function_node(
                 add_one,
-                x=macro.c.outputs.three__result,
+                x=self.c.outputs.three__result,
             )
-            macro.a >> macro.b >> macro.c >> macro.d
-            macro.starting_nodes = [macro.a]
+            self.a >> self.b >> self.c >> self.d
+            self.starting_nodes = [self.a]
             # This definition of the execution graph is not strictly necessary in this
             # simple DAG case; we just do it to make sure nesting definied/automatic
-            # macros works ok
-            macro.outputs_map = {"b__intermediate_result": "deep_output"}
+            # selfs works ok
+            return self.d
 
-        m = Macro(nested_macro)
+        m = macro_node(nested_macro, output_labels="d__result")
         self.assertEqual(m(a__x=0).d__result, 8)
 
     def test_with_executor(self):
-        macro = Macro(add_three_macro)
-        downstream = Function(add_one, x=macro.outputs.three__result)
+        macro = macro_node(add_three_macro, output_labels="three__result")
+        downstream = function_node(add_one, x=macro.outputs.three__result)
         macro >> downstream  # Manually specify since we'll run the macro but look
         # at the downstream output, and none of this is happening in a workflow
 
@@ -296,8 +285,8 @@ class TestMacro(unittest.TestCase):
         macro.executor_shutdown()
 
     def test_pulling_from_inside_a_macro(self):
-        upstream = Function(add_one, x=2)
-        macro = Macro(add_three_macro, one__x=upstream)
+        upstream = function_node(add_one, x=2)
+        macro = macro_node(add_three_macro, one__x=upstream, output_labels="three__result")
         macro.inputs.one__x = 0  # Set value
         # Now macro.one.inputs.x has both value and a connection
 
@@ -323,14 +312,14 @@ class TestMacro(unittest.TestCase):
 
         with self.subTest("When the local scope has cyclic data flow"):
             def cyclic_macro(macro):
-                macro.one = Function(add_one)
-                macro.two = Function(add_one, x=macro.one)
+                macro.one = function_node(add_one)
+                macro.two = function_node(add_one, x=macro.one)
                 macro.one.inputs.x = macro.two
                 macro.one >> macro.two
                 macro.starting_nodes = [macro.one]
                 # We need to manually specify execution since the data flow is cyclic
 
-            m = Macro(cyclic_macro)
+            m = macro_node(cyclic_macro)
 
             initial_labels = list(m.children.keys())
 
@@ -359,9 +348,11 @@ class TestMacro(unittest.TestCase):
             )
 
         with self.subTest("When the parent scope has cyclic data flow"):
-            n1 = Function(add_one, label="n1", x=0)
-            n2 = Function(add_one, label="n2", x=n1)
-            m = Macro(add_three_macro, label="m", one__x=n2)
+            n1 = function_node(add_one, label="n1", x=0)
+            n2 = function_node(add_one, label="n2", x=n1)
+            m = macro_node(
+                add_three_macro, label="m", one__x=n2, output_labels="three__result"
+            )
 
             self.assertEqual(
                 0 + 1 + 1 + (1 + 1 + 1),
@@ -404,9 +395,9 @@ class TestMacro(unittest.TestCase):
                 y = 1 / x
                 return y
 
-            n1 = Function(fail_at_zero, x=0)
-            n2 = Function(add_one, x=n1, label="n1")
-            n_not_used = Function(add_one)
+            n1 = function_node(fail_at_zero, x=0)
+            n2 = function_node(add_one, x=n1, label="n1")
+            n_not_used = function_node(add_one)
             n_not_used >> n2  # Just here to make sure it gets restored
 
             with self.assertRaises(
@@ -425,105 +416,60 @@ class TestMacro(unittest.TestCase):
                 msg="Original connections should get restored on upstream failure"
             )
 
-    def test_output_labels_vs_return_values(self):
-        def no_return(macro):
-            macro.foo = macro.create.standard.UserInput()
+    def test_efficient_signature_interface(self):
+        with self.subTest("Forked input"):
+            @as_macro_node("output")
+            def MutlipleUseInput(self, x):
+                self.n1 = self.create.standard.UserInput(x)
+                self.n2 = self.create.standard.UserInput(x)
+                return self.n1
 
-        Macro(no_return)  # Neither is fine
+            m = MutlipleUseInput()
+            self.assertEqual(
+                2 + 1,
+                len(m),
+                msg="Signature input that is forked to multiple children should result "
+                    "in the automatic creation of a new node to manage the forking."
 
-        with self.assertRaises(
-            TypeError,
-            msg="Output labels and return values must match"
-        ):
-            Macro(no_return, output_labels="not_None")
+            )
 
-        @macro_node("some_return")
-        def HasReturn(macro):
-            macro.foo = macro.create.standard.UserInput()
-            return macro.foo
+        with self.subTest("Single destination input"):
+            @as_macro_node("output")
+            def SingleUseInput(self, x):
+                self.n = self.create.standard.UserInput(x)
+                return self.n
 
-        HasReturn()  # Both is fine
+            m = SingleUseInput()
+            self.assertEqual(
+                1,
+                len(m),
+                msg=f"Signature input with only one destination should not create an "
+                    f"interface node. Found nodes {m.child_labels}"
+            )
 
-        with self.assertRaises(
-            TypeError,
-            msg="Output labels and return values must match"
-        ):
-            HasReturn(output_labels=None)  # Override those gotten by the decorator
+        with self.subTest("Mixed input"):
+            @as_macro_node("output")
+            def MixedUseInput(self, x, y):
+                self.n1 = self.create.standard.UserInput(x)
+                self.n2 = self.create.standard.UserInput(y)
+                self.n3 = self.create.standard.UserInput(y)
+                return self.n1
 
-        with self.assertRaises(
-            ValueError,
-            msg="Output labels and return values must have commensurate length"
-        ):
-            HasReturn(output_labels=["one_label", "too_many"])
+            m = MixedUseInput()
+            self.assertEqual(
+                3 + 1,
+                len(m),
+                msg=f"Mixing forked and single-use input should not cause problems. "
+                    f"Expected four children but found {m.child_labels}"
+            )
 
-    def test_maps_vs_functionlike_definitions(self):
-        """
-        Check that the full-detail IO maps and the white-listing like-a-function
-        approach are equivalent
-        """
-        @macro_node()
-        def WithIOMaps(macro):
-            macro.list_in = macro.create.standard.UserInput()
-            macro.list_in.inputs.user_input.type_hint = list
-            macro.forked = macro.create.standard.UserInput(2)
-            macro.forked.inputs.user_input.type_hint = int
-            macro.n_plus_2 = macro.forked + 2
-            macro.sliced_list = macro.list_in[macro.forked:macro.n_plus_2]
-            macro.double_fork = 2 * macro.forked
-            macro.inputs_map = {
-                "list_in__user_input": "lin",
-                macro.forked.inputs.user_input.scoped_label: "n",
-                "n_plus_2__other": None,
-                "list_in__user_input_Slice_forked__user_input_n_plus_2__add_None__step": None,
-                macro.double_fork.inputs.other.scoped_label: None,
-            }
-            macro.outputs_map = {
-                macro.sliced_list.outputs.getitem.scoped_label: "lout",
-                macro.n_plus_2.outputs.add.scoped_label: "n_plus_2",
-                "double_fork__rmul": None
-            }
+        with self.subTest("Pass through"):
+            @as_macro_node("output")
+            def PassThrough(self, x):
+                return x
 
-        @macro_node("lout", "n_plus_2")
-        def LikeAFunction(macro, lin: list,  n: int = 2):
-            macro.plus_two = n + 2
-            macro.sliced_list = lin[n:macro.plus_two]
-            macro.double_fork = 2 * n
-            # ^ This is vestigial, just to show we don't need to blacklist it
-            # Test returning both a single value node and an output channel,
-            # even though here we could just use the node both times
-            return macro.sliced_list, macro.plus_two.channel
-
-        n = 1  # Override the default
-        lin = [1, 2, 3, 4, 5, 6]
-        expected_input_labels = ["lin", "n"]
-        expected_result = {"n_plus_2": 3, "lout": [2, 3]}
-
-        for MacroClass in [WithIOMaps, LikeAFunction]:
-            with self.subTest(f"{MacroClass.__name__}"):
-                macro = MacroClass(n=n, lin=lin)
-                self.assertListEqual(macro.inputs.labels, expected_input_labels)
-                self.assertDictEqual(macro(), expected_result)
-
-        # Make sure whatever the user defines takes precedence, even over whitelists
-        override_io_maps = LikeAFunction(
-            my_lin=[1, 2, 3, 4],
-            inputs_map={
-                "n__user_input": None,
-                "lin__user_input": "my_lin",
-            },
-            outputs_map={
-                "sliced_list__getitem": None,
-                "plus_two__add": None,
-                "lin__user_input": "the_input_list",
-            }
-        )
-        # Manually set the required input data we hid from the macro IO
-        # (You wouldn't ever actually hide necessary IO like this, this is just for the
-        # silly test)
-        # override_io_maps.n.inputs.user_input = 1
-        # ^ If default is not working you'd need this
-        self.assertListEqual(override_io_maps.inputs.labels, ["my_lin"])
-        self.assertDictEqual(override_io_maps(), {"the_input_list": [1, 2, 3, 4]})
+            m = PassThrough()
+            print(m.child_labels, m.inputs, m.outputs)
 
     @unittest.skipIf(sys.version_info < (3, 11), "Storage will only work in 3.11+")
     def test_storage_for_modified_macros(self):
@@ -537,73 +483,115 @@ class TestMacro(unittest.TestCase):
                         label="m", x=0, storage_backend=backend
                     )
                     original_result = macro()
-                    macro.replace_child(macro.two, Macro.create.demo.AddPlusOne())
+                    macro.replace_child(
+                        macro.two,
+                        Macro.create.demo.AddPlusOne()
+                    )
 
-                    if backend == "h5io":
-                        # Go really wild and actually change the interface to the node
-                        # By replacing one of the terminal nodes
-                        macro.remove_child(macro.three)
-                        macro.five = Macro.create.standard.Add(macro.two, 1)
-                        macro.two >> macro.five
-                        macro._rebuild_data_io()  # Need this because of the
-                        # explicitly created node!
-                        # Note that it destroys our output labeling, since the new
-                        # output never existed
 
                     modified_result = macro()
 
-                    macro.save()
-                    reloaded = Macro.create.demo.AddThree(
-                        label="m", storage_backend=backend
-                    )
-                    self.assertDictEqual(
-                        modified_result,
-                        reloaded.outputs.to_value_dict(),
-                        msg="Updated IO should have been (de)serialized"
-                    )
-                    self.assertSetEqual(
-                        set(macro.children.keys()),
-                        set(reloaded.children.keys()),
-                        msg="All nodes should have been (de)serialized."
-                    )  # Note that this snags the _new_ one in the case of h5io!
-                    self.assertEqual(
-                        Macro.create.demo.AddThree.__name__,
-                        reloaded.__class__.__name__,
-                        msg=f"LOOK OUT! This all (de)serialized nicely, but what we "
-                            f"loaded is _falsely_ claiming to be an "
-                            f"{Macro.create.demo.AddThree.__name__}. This is "
-                            f"not any sort of technical error -- what other class name "
-                            f"would we load? -- but is a deeper problem with saving "
-                            f"modified objects that we need ot figure out some better "
-                            f"solution for later."
-                    )
-                    rerun = reloaded()
-
                     if backend == "h5io":
+                        with self.assertRaises(
+                            TypeError, msg="h5io can't handle custom reconstructors"
+                        ):
+                            macro.save()
+                    else:
+                        macro.save()
+                        reloaded = Macro.create.demo.AddThree(
+                            label="m", storage_backend=backend
+                        )
                         self.assertDictEqual(
                             modified_result,
-                            rerun,
-                            msg="Rerunning should re-execute the _modified_ "
-                                "functionality"
+                            reloaded.outputs.to_value_dict(),
+                            msg="Updated IO should have been (de)serialized"
                         )
-                    elif backend == "tinybase":
-                        self.assertDictEqual(
-                            original_result,
-                            rerun,
-                            msg="Rerunning should re-execute the _original_ "
-                                "functionality"
+                        self.assertSetEqual(
+                            set(macro.children.keys()),
+                            set(reloaded.children.keys()),
+                            msg="All nodes should have been (de)serialized."
+                        )  # Note that this snags the _new_ one in the case of h5io!
+                        self.assertEqual(
+                            Macro.create.demo.AddThree.__name__,
+                            reloaded.__class__.__name__,
+                            msg=f"LOOK OUT! This all (de)serialized nicely, but what we "
+                                f"loaded is _falsely_ claiming to be an "
+                                f"{Macro.create.demo.AddThree.__name__}. This is "
+                                f"not any sort of technical error -- what other class name "
+                                f"would we load? -- but is a deeper problem with saving "
+                                f"modified objects that we need ot figure out some better "
+                                f"solution for later."
                         )
-                    else:
-                        raise ValueError(f"Unexpected backend {backend}?")
+                        rerun = reloaded()
+
+                        if backend == "tinybase":
+                            self.assertDictEqual(
+                                original_result,
+                                rerun,
+                                msg="Rerunning should re-execute the _original_ "
+                                    "functionality"
+                            )
+                        else:
+                            raise ValueError(f"Unexpected backend {backend}?")
                 finally:
                     macro.storage.delete()
 
-    def test_wrong_return(self):
+    def test_output_label_stripping(self):
+        """Test extensions to the `ScrapesIO` mixin."""
+
+        @as_macro_node()
+        def OutputScrapedFromFilteredReturn(macro):
+            macro.foo = macro.create.standard.UserInput()
+            return macro.foo
+
+        self.assertListEqual(
+            ["foo"],
+            list(OutputScrapedFromFilteredReturn.preview_outputs().keys()),
+            msg="The first, self-like argument, should get stripped from output labels"
+        )
+
         with self.assertRaises(
-            TypeError,
-            msg="Macro returning object without channel did not raise an error"
+            ValueError,
+            msg="Return values with extra dots are not permissible as scraped labels"
         ):
-            Macro(wrong_return_macro)
+            @as_macro_node()
+            def ReturnHasDot(macro):
+                macro.foo = macro.create.standard.UserInput()
+                return macro.foo.outputs.user_input
+
+    def test_pickle(self):
+        m = macro_node(add_three_macro)
+        m(1)
+        reloaded_m = pickle.loads(pickle.dumps(m))
+        self.assertTupleEqual(
+            m.child_labels,
+            reloaded_m.child_labels,
+            msg="Spot check values are getting reloaded correctly"
+        )
+        self.assertDictEqual(
+            m.outputs.to_value_dict(),
+            reloaded_m.outputs.to_value_dict(),
+            msg="Spot check values are getting reloaded correctly"
+        )
+        self.assertTrue(
+            reloaded_m.two.connected,
+            msg="The macro should reload with all its child connections"
+        )
+
+        self.assertTrue(m.two.connected, msg="Sanity check")
+        reloaded_two = pickle.loads(pickle.dumps(m.two))
+        self.assertFalse(
+            reloaded_two.connected,
+            msg="Children are expected to be de-parenting on serialization, so that if "
+                "we ship them off to another process, they don't drag their whole "
+                "graph with them"
+        )
+        self.assertEqual(
+            m.two.outputs.to_value_dict(),
+            reloaded_two.outputs.to_value_dict(),
+            msg="The remainder of the child node state should be recovering just "
+                "fine on (de)serialization, this is a spot-check"
+        )
 
 
 if __name__ == '__main__':

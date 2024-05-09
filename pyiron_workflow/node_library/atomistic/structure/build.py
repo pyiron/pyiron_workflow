@@ -1,9 +1,8 @@
-from pyiron_workflow.function import function_node
 from pyiron_workflow.workflow import Workflow
 
 
-@function_node("structure")
-def bulk(
+@Workflow.wrap.as_function_node("structure")
+def Bulk(
     name,
     crystalstructure=None,
     a=None,
@@ -27,20 +26,23 @@ def bulk(
     )
 
 
-@Workflow.wrap_as.macro_node("structure")
-def cubic_bulk_cell(
+@Workflow.wrap.as_macro_node("structure")
+def CubicBulkCell(
     wf, element: str, cell_size: int = 1, vacancy_index: int | None = None
 ):
     from pyiron_workflow.node_library.atomistic.structure.transform import (
-        create_vacancy,
-        repeat,
+        CreateVacancy,
+        Repeat,
     )
 
-    wf.bulk = bulk(name=element, cubic=True)
-    wf.cell = repeat(structure=wf.bulk, repeat_scalar=cell_size)
+    wf.bulk = Bulk(name=element, cubic=True)
+    wf.cell = Repeat(structure=wf.bulk, repeat_scalar=cell_size)
 
-    wf.structure = create_vacancy(structure=wf.cell, index=vacancy_index)
-    return wf.structure  # .outputs.structure
+    wf.structure = CreateVacancy(structure=wf.cell, index=vacancy_index)
+    return wf.structure
 
 
-nodes = [bulk, cubic_bulk_cell]
+nodes = [
+    Bulk,
+    CubicBulkCell,
+]

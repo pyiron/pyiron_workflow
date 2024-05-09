@@ -372,10 +372,6 @@ class HasH5ioStorage(HasStorage, ABC):
         interfaces["h5io"] = H5ioStorage
         return interfaces
 
-    @classmethod
-    def default_backend(cls):
-        return "h5io"
-
 
 class HasTinybaseStorage(HasStorage, ABC):
     @classmethod
@@ -391,3 +387,7 @@ class HasTinybaseStorage(HasStorage, ABC):
     @abstractmethod
     def from_storage(self, storage: TinybaseStorage):
         pass
+
+    @classmethod
+    def default_backend(cls):
+        return "tinybase"

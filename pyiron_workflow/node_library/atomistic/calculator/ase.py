@@ -1,8 +1,8 @@
-from pyiron_workflow.function import function_node
+from pyiron_workflow.function import as_function_node
 
 
-@function_node()
-def static(atoms=None, engine=None, _internal=None, keys_to_store=None):
+@as_function_node("out")
+def Static(atoms, engine=None, keys_to_store=None):
     from pyiron_workflow.node_library.atomistic.calculator.data import OutputCalcStatic
 
     if engine is None:
@@ -17,15 +17,11 @@ def static(atoms=None, engine=None, _internal=None, keys_to_store=None):
     out.energy = atoms.get_potential_energy()
     out.forces = atoms.get_forces()
 
-    if _internal is not None:
-        out["iter_index"] = _internal[
-            "iter_index"
-        ]  # TODO: move _internal argument to decorator class
     return out.select(keys_to_store)
 
 
-@function_node("structure", "out")
-def minimize(atoms=None, engine=None, fmax=0.005, log_file="tmp.log"):
+@as_function_node("structure", "out")
+def Minimize(atoms, engine=None, fmax=0.005, log_file="tmp.log"):
     from ase.optimize import BFGS
     from pyiron_workflow.node_library.atomistic.calculator.data import (
         OutputCalcMinimize,
@@ -58,13 +54,13 @@ def minimize(atoms=None, engine=None, fmax=0.005, log_file="tmp.log"):
     out.final.forces = atoms_relaxed.get_forces()
     out.final.energy = atoms_relaxed.get_potential_energy()
     out.initial.energy = atoms.get_potential_energy()
-    print("energy: ", out.final.energy, out.initial.energy)
+    # print("energy: ", out.final.energy, out.initial.energy)
     # print("energy: ", out["energy"], "max_force: ", np.min(np.abs(out["forces"])))
 
     return atoms_relaxed, out
 
 
 nodes = [
-    static,
-    minimize,
+    Static,
+    Minimize,
 ]

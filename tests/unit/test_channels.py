@@ -147,8 +147,8 @@ class TestDataChannels(unittest.TestCase):
         self.no.value = NOT_DATA
         self.ni1.value = 1
 
-        self.ni1.connect(self.no_empty)
         self.ni1.connect(self.no)
+        self.ni1.connect(self.no_empty)
 
         self.assertEqual(
             self.ni1.value,
@@ -218,7 +218,7 @@ class TestDataChannels(unittest.TestCase):
         self.ni2.copy_connections(self.ni1)
         self.assertListEqual(
             self.ni2.connections,
-            [self.no_empty, *self.ni1.connections],
+            [*self.ni1.connections, self.no_empty],
             msg="Copying should be additive, existing connections should still be there"
         )
 

@@ -1,8 +1,8 @@
 from phonopy.units import VaspToTHz
-from pyiron_workflow.function import function_node
+from pyiron_workflow.function import as_function_node
 
 
-@function_node("task_generator")
+@as_function_node("task_generator")
 def ElasticMatrixTaskGenerator(
     structure, num_of_point=5, eps_range=0.05, sqrt_eta=True, fit_order=2
 ):
@@ -17,7 +17,7 @@ def ElasticMatrixTaskGenerator(
     )
 
 
-@function_node("task_generator")
+@as_function_node("task_generator")
 def EvcurveTaskGenerator(
     structure,
     num_points=11,
@@ -40,7 +40,7 @@ def EvcurveTaskGenerator(
     )
 
 
-@function_node("task_generator")
+@as_function_node("task_generator")
 def PhononsTaskGenerator(
     structure,
     interaction_range=10,
@@ -63,17 +63,17 @@ def PhononsTaskGenerator(
     )
 
 
-@function_node("result_dict")
+@as_function_node("result_dict")
 def AnalyseStructures(instance, output_dict):
     return instance.analyse_structures(output_dict=output_dict)
 
 
-@function_node("task_dict")
+@as_function_node("task_dict")
 def GenerateStructures(instance):
     return instance.generate_structures()
 
 
-@function_node("structure")
+@as_function_node("structure")
 def Bulk(element):
     from ase.build import bulk
 

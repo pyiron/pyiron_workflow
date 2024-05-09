@@ -11,7 +11,6 @@ from __future__ import annotations
 import typing
 from abc import ABC, abstractmethod
 import inspect
-from warnings import warn
 
 from pyiron_workflow.has_interface_mixins import HasChannel, HasLabel, UsesState
 from pyiron_workflow.has_to_dict import HasToDict
@@ -119,6 +118,9 @@ class Channel(UsesState, HasChannel, HasLabel, HasToDict, ABC):
         channels, i.e. they are instances of each others
         :attr:`connection_partner_type`.
 
+        New connections get _prepended_ to the connection lists, so they appear first
+        when searching over connections.
+
         Args:
             *others (Channel): The other channel objects to attempt to connect with.
 
@@ -132,8 +134,10 @@ class Channel(UsesState, HasChannel, HasLabel, HasToDict, ABC):
             if other in self.connections:
                 continue
             elif self._valid_connection(other):
-                self.connections.append(other)
-                other.connections.append(self)
+                # Prepend new connections
+                # so that connection searches run newest to oldest
+                self.connections.insert(0, other)
+                other.connections.insert(0, self)
             else:
                 if isinstance(other, self.connection_partner_type):
                     raise ChannelConnectionError(
@@ -167,11 +171,6 @@ class Channel(UsesState, HasChannel, HasLabel, HasToDict, ABC):
                 self.connections.remove(other)
                 other.disconnect(self)
                 destroyed_connections.append((self, other))
-            else:
-                warn(
-                    f"The channel {self.label} was not connected to {other.label}, and"
-                    f"thus could not disconnect from it."
-                )
         return destroyed_connections
 
     def disconnect_all(self) -> list[tuple[Channel, Channel]]:
@@ -505,10 +504,10 @@ class InputData(DataChannel):
 
     def fetch(self) -> None:
         """
-        Sets :attr:`value` to the first value among connections that is something other
-        than `NOT_DATA`; if no such value exists (e.g. because there are no connections
-        or because all the connected output channels have `NOT_DATA` as their value),
-        :attr:`value` remains unchanged.
+        Sets :attr:`value` to the first value among connections (i.e. the most recent)
+        that is something other than `NOT_DATA`; if no such value exists (e.g. because
+        there are no connections or because all the connected output channels have
+        `NOT_DATA` as their value), :attr:`value` remains unchanged.
         I.e., the connection with the highest priority for updating input data is the
         0th connection; build graphs accordingly.
 
@@ -588,14 +587,14 @@ class InputSignal(SignalChannel):
                 object. Must be a method on the owner.
         """
         super().__init__(label=label, owner=owner)
-        if self._is_method_on_owner(callback) and self._takes_zero_arguments(callback):
+        if self._is_method_on_owner(callback) and self._all_args_arg_optional(callback):
             self._callback: str = callback.__name__
         else:
             raise BadCallbackError(
                 f"The channel {self.label} on {self.owner.label} got an unexpected "
                 f"callback: {callback}. "
                 f"Lives on owner: {self._is_method_on_owner(callback)}; "
-                f"take no args: {self._takes_zero_arguments(callback)} "
+                f"all args are optional: {self._all_args_arg_optional(callback)} "
             )
 
     def _is_method_on_owner(self, callback):
@@ -604,17 +603,22 @@ class InputSignal(SignalChannel):
         except AttributeError:
             return False
 
-    def _takes_zero_arguments(self, callback):
-        return callable(callback) and self._no_positional_args(callback)
+    def _all_args_arg_optional(self, callback):
+        return callable(callback) and not self._has_required_args(callback)
 
     @staticmethod
-    def _no_positional_args(func):
-        return all(
-            [
-                parameter.default != inspect.Parameter.empty
-                or parameter.kind == inspect.Parameter.VAR_KEYWORD
-                for parameter in inspect.signature(func).parameters.values()
-            ]
+    def _has_required_args(func):
+        return any(
+            (
+                param.kind
+                in (
+                    inspect.Parameter.POSITIONAL_ONLY,
+                    inspect.Parameter.POSITIONAL_OR_KEYWORD,
+                    inspect.Parameter.KEYWORD_ONLY,
+                )
+                and param.default == inspect.Parameter.empty
+            )
+            for param in inspect.signature(func).parameters.values()
         )
 
     @property

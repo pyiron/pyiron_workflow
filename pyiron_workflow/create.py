@@ -4,6 +4,9 @@ Container classes for giving access to various workflow objects and tools
 
 from __future__ import annotations
 
+from abc import ABC
+from concurrent.futures import ProcessPoolExecutor, ThreadPoolExecutor
+from functools import wraps, lru_cache
 from importlib import import_module
 import pkgutil
 from sys import version_info
@@ -11,30 +14,18 @@ from types import ModuleType
 from typing import Optional, TYPE_CHECKING
 
 from bidict import bidict
-from pyiron_workflow.snippets.singleton import Singleton
-
-# Import all the supported executors
-from pympipool import Executor as PyMpiPoolExecutor, PyMPIExecutor
-
-try:
-    from pympipool import PySlurmExecutor
-except ImportError:
-    PySlurmExecutor = None
-try:
-    from pympipool import PyFluxExecutor
-except ImportError:
-    PyFluxExecutor = None
+from pympipool import Executor as PyMpiPoolExecutor
 
 from pyiron_workflow.executors import CloudpickleProcessPoolExecutor
-
-# Then choose one executor to be "standard"
-Executor = PyMpiPoolExecutor
-
-from pyiron_workflow.function import Function, function_node
+from pyiron_workflow.function import function_node, as_function_node
 from pyiron_workflow.snippets.dotdict import DotDict
+from pyiron_workflow.snippets.singleton import Singleton
 
 if TYPE_CHECKING:
     from pyiron_workflow.node_package import NodePackage
+
+# Specify the standard executor
+Executor = PyMpiPoolExecutor
 
 
 class Creator(metaclass=Singleton):
@@ -56,16 +47,15 @@ class Creator(metaclass=Singleton):
         self._package_registry = bidict()
 
         self.Executor = Executor
+        # Standard lib
+        self.ProcessPoolExecutor = ProcessPoolExecutor
+        self.ThreadPoolExecutor = ThreadPoolExecutor
+        # Local cloudpickler
         self.CloudpickleProcessPoolExecutor = CloudpickleProcessPoolExecutor
-        self.PyMPIExecutor = PyMPIExecutor
+        # pympipool
         self.PyMpiPoolExecutor = PyMpiPoolExecutor
 
-        self.Function = Function
-
-        # Avoid circular imports by delaying import for children of Composite
-        self._macro = None
-        self._workflow = None
-        self._meta = None
+        self.function_node = function_node
 
         if version_info[0] == 3 and version_info[1] >= 10:
             # These modules use syntactic sugar for type hinting that is only supported
@@ -75,53 +65,64 @@ class Creator(metaclass=Singleton):
             self.register("pyiron_workflow.node_library.standard", "standard")
 
     @property
-    def PyFluxExecutor(self):
-        if PyFluxExecutor is None:
-            raise ImportError(f"{PyFluxExecutor.__name__} is not available")
-        return PyFluxExecutor
+    @lru_cache(maxsize=1)
+    def for_node(self):
+        from pyiron_workflow.for_loop import for_node
+
+        return for_node
 
     @property
-    def PySlurmExecutor(self):
-        if PySlurmExecutor is None:
-            raise ImportError(f"{PySlurmExecutor.__name__} is not available")
-        return PySlurmExecutor
+    @lru_cache(maxsize=1)
+    def macro_node(self):
+        from pyiron_workflow.macro import macro_node
+
+        return macro_node
 
     @property
-    def Macro(self):
-        if self._macro is None:
-            from pyiron_workflow.macro import Macro
-
-            self._macro = Macro
-        return self._macro
-
-    @property
+    @lru_cache(maxsize=1)
     def Workflow(self):
-        if self._workflow is None:
-            from pyiron_workflow.workflow import Workflow
+        from pyiron_workflow.workflow import Workflow
 
-            self._workflow = Workflow
-        return self._workflow
+        return Workflow
 
     @property
+    @lru_cache(maxsize=1)
     def meta(self):
-        if self._meta is None:
-            from pyiron_workflow.meta import (
-                for_loop,
-                input_to_list,
-                list_to_output,
-                while_loop,
-            )
-            from pyiron_workflow.snippets.dotdict import DotDict
+        from pyiron_workflow.transform import inputs_to_list, list_to_outputs
+        from pyiron_workflow.loops import while_loop
+        from pyiron_workflow.snippets.dotdict import DotDict
 
-            self._meta = DotDict(
-                {
-                    for_loop.__name__: for_loop,
-                    input_to_list.__name__: input_to_list,
-                    list_to_output.__name__: list_to_output,
-                    while_loop.__name__: while_loop,
-                }
-            )
-        return self._meta
+        return DotDict(
+            {
+                inputs_to_list.__name__: inputs_to_list,
+                list_to_outputs.__name__: list_to_outputs,
+                while_loop.__name__: while_loop,
+            }
+        )
+
+    @property
+    @lru_cache(maxsize=1)
+    def transformer(self):
+        from pyiron_workflow.transform import (
+            dataclass_node,
+            inputs_to_dataframe,
+            inputs_to_dict,
+            inputs_to_list,
+            list_to_outputs,
+        )
+
+        return DotDict(
+            {
+                f.__name__: f
+                for f in [
+                    dataclass_node,
+                    inputs_to_dataframe,
+                    inputs_to_dict,
+                    inputs_to_list,
+                    list_to_outputs,
+                ]
+            }
+        )
 
     def __getattr__(self, item):
         try:
@@ -315,16 +316,33 @@ class Wrappers(metaclass=Singleton):
     A container class giving access to the decorators that transform functions to nodes.
     """
 
-    def __init__(self):
-        self.function_node = function_node
-
-        # Avoid circular imports by delaying import when wrapping children of Composite
-        self._macro_node = None
+    as_function_node = staticmethod(as_function_node)
 
     @property
-    def macro_node(self):
-        if self._macro_node is None:
-            from pyiron_workflow.macro import macro_node
+    @lru_cache(maxsize=1)
+    def as_macro_node(self):
+        from pyiron_workflow.macro import as_macro_node
 
-            self._macro_node = macro_node
-        return self._macro_node
+        return as_macro_node
+
+    @property
+    @lru_cache(maxsize=1)
+    def as_dataclass_node(self):
+        from pyiron_workflow.transform import as_dataclass_node
+
+        return as_dataclass_node
+
+
+class HasCreator(ABC):
+    """
+    A mixin class for creator (including both class-like and decorator) and
+    registration methods.
+    """
+
+    create = Creator()
+    wrap = Wrappers()
+
+    @classmethod
+    @wraps(Creator.register)
+    def register(cls, package_identifier: str, domain: Optional[str] = None) -> None:
+        cls.create.register(package_identifier=package_identifier, domain=domain)

@@ -5,26 +5,29 @@ sub-graph
 
 from __future__ import annotations
 
-from abc import ABC, abstractmethod
-from functools import wraps
+from abc import ABC
+from time import sleep
 from typing import Literal, Optional, TYPE_CHECKING
 
-from bidict import bidict
-
-from pyiron_workflow.create import Creator, Wrappers
-from pyiron_workflow.io import Outputs, Inputs
+from pyiron_workflow.create import HasCreator
 from pyiron_workflow.node import Node
-from pyiron_workflow.node_package import NodePackage
 from pyiron_workflow.semantics import SemanticParent
 from pyiron_workflow.topology import set_run_connections_according_to_dag
 from pyiron_workflow.snippets.colors import SeabornColors
 from pyiron_workflow.snippets.dotdict import DotDict
 
 if TYPE_CHECKING:
-    from pyiron_workflow.channels import Channel, InputData, OutputData
+    from pyiron_workflow.channels import (
+        Channel,
+        InputData,
+        OutputData,
+        InputSignal,
+        OutputSignal,
+    )
+    from pyiron_workflow.create import Creator, Wrappers
 
 
-class Composite(Node, SemanticParent, ABC):
+class Composite(SemanticParent, HasCreator, Node, ABC):
     """
     A base class for nodes that have internal graph structure -- i.e. they hold a
     collection of child nodes and their computation is to execute that graph.
@@ -68,26 +71,21 @@ class Composite(Node, SemanticParent, ABC):
             - Force a child node's IO to _not_ appear
 
     Attributes:
-        inputs/outputs_map (bidict|None): Maps in the form
-         `{"node_label__channel_label": "some_better_name"}` that expose canonically
-         named channels of child nodes under a new name. This can be used both for re-
-         naming regular IO (i.e. unconnected child channels), as well as forcing the
-         exposure of irregular IO (i.e. child channels that are already internally
-         connected to some other child channel). Non-`None` values provided at input
-         can be in regular dictionary form, but get re-cast as a clean bidict to ensure
-         the bijective nature of the maps (i.e. there is a 1:1 connection between any
-         IO exposed at the :class:`Composite` level and the underlying channels).
-        children (bidict.bidict[pyiron_workflow.node.Node]): The owned nodes that
-         form the composite subgraph.
         strict_naming (bool): When true, repeated assignment of a new node to an
          existing node label will raise an error, otherwise the label gets appended
          with an index and the assignment proceeds. (Default is true: disallow assigning
          to existing labels.)
         create (Creator): A tool for adding new nodes to this subgraph.
+        provenance_by_completion (list[str]): The child nodes (by label) in the order
+            that they completed on the last :meth:`run` call.
+        provenance_by_execution (list[str]): The child nodes (by label) in the order
+            that they started executing on the last :meth:`run` call.
+        running_children (list[str]): The names of children who are currently running.
+        signal_queue (list[
         starting_nodes (None | list[pyiron_workflow.node.Node]): A subset
          of the owned nodes to be used on running. Only necessary if the execution graph
          has been manually specified with `run` signals. (Default is an empty list.)
-        wrap_as (Wrappers): A tool for accessing node-creating decorators
+        wrap (Wrappers): A tool for accessing node-creating decorators
 
     Methods:
         add_child(node: Node): Add the node instance to this subgraph.
@@ -100,68 +98,37 @@ class Composite(Node, SemanticParent, ABC):
         register(): A short-cut to registering a new node package with the node creator.
     """
 
-    wrap_as = Wrappers()
-    create = Creator()
-
     def __init__(
         self,
-        label: str,
         *args,
+        label: Optional[str] = None,
         parent: Optional[Composite] = None,
         overwrite_save: bool = False,
         run_after_init: bool = False,
         storage_backend: Optional[Literal["h5io", "tinybase"]] = None,
         save_after_run: bool = False,
         strict_naming: bool = True,
-        inputs_map: Optional[dict | bidict] = None,
-        outputs_map: Optional[dict | bidict] = None,
         **kwargs,
     ):
+        self.starting_nodes: list[Node] = []
+        self.provenance_by_execution: list[str] = []
+        self.provenance_by_completion: list[str] = []
+        self.running_children: list[str] = []
+        self.signal_queue: list[tuple] = []
+        self._child_sleep_interval = 0.01  # How long to wait when the signal_queue is
+        # empty but the running_children list is not
+
         super().__init__(
+            label,
             *args,
-            label=label,
             parent=parent,
-            save_after_run=save_after_run,
+            overwrite_save=overwrite_save,
+            run_after_init=run_after_init,
             storage_backend=storage_backend,
+            save_after_run=save_after_run,
             strict_naming=strict_naming,
             **kwargs,
         )
-        self._inputs_map = None
-        self._outputs_map = None
-        self.inputs_map = inputs_map
-        self.outputs_map = outputs_map
-        self.starting_nodes: list[Node] = []
-
-    @property
-    def inputs_map(self) -> bidict | None:
-        self._deduplicate_nones(self._inputs_map)
-        return self._inputs_map
-
-    @inputs_map.setter
-    def inputs_map(self, new_map: dict | bidict | None):
-        self._deduplicate_nones(new_map)
-        if new_map is not None:
-            new_map = bidict(new_map)
-        self._inputs_map = new_map
-
-    @property
-    def outputs_map(self) -> bidict | None:
-        self._deduplicate_nones(self._outputs_map)
-        return self._outputs_map
-
-    @outputs_map.setter
-    def outputs_map(self, new_map: dict | bidict | None):
-        self._deduplicate_nones(new_map)
-        if new_map is not None:
-            new_map = bidict(new_map)
-        self._outputs_map = new_map
-
-    @staticmethod
-    def _deduplicate_nones(some_map: dict | bidict | None) -> dict | bidict | None:
-        if some_map is not None:
-            for k, v in some_map.items():
-                if v is None:
-                    some_map[k] = (None, f"{k} disabled")
 
     def activate_strict_hints(self):
         super().activate_strict_hints()
@@ -179,19 +146,70 @@ class Composite(Node, SemanticParent, ABC):
             "nodes": {n.label: n.to_dict() for n in self.children.values()},
         }
 
-    @property
     def on_run(self):
-        return self.run_graph
+        # Reset provenance and run status trackers
+        self.provenance_by_execution = []
+        self.provenance_by_completion = []
+        self.running_children = []
+        self.signal_queue = []
 
-    @staticmethod
-    def run_graph(_composite: Composite):
-        for node in _composite.starting_nodes:
+        for node in self.starting_nodes:
             node.run()
-        return _composite
+
+        while len(self.running_children) > 0 or len(self.signal_queue) > 0:
+            try:
+                ran_signal, receiver = self.signal_queue.pop(0)
+                receiver(ran_signal)
+            except IndexError:
+                # The signal queue is empty, but there is still someone running...
+                sleep(self._child_sleep_interval)
+        return self
+
+    def register_child_starting(self, child: Node) -> None:
+        """
+        To be called by children when they start their run cycle.
+
+        Args:
+            child [Node]: The child that is finished and would like to fire its `ran`
+                signal. Should always be a child of `self`, but this is not explicitly
+                verified at runtime.
+        """
+        self.provenance_by_execution.append(child.label)
+        self.running_children.append(child.label)
+
+    def register_child_finished(self, child: Node) -> None:
+        """
+        To be called by children when they are finished their run.
+
+        Args:
+            child [Node]: The child that is finished and would like to fire its `ran`
+                signal. Should always be a child of `self`, but this is not explicitly
+                verified at runtime.
+        """
+        try:
+            self.running_children.remove(child.label)
+            self.provenance_by_completion.append(child.label)
+        except ValueError as e:
+            raise KeyError(
+                f"No element {child.label} to remove while {self.running_children}, "
+                f"{self.provenance_by_execution}, {self.provenance_by_completion}"
+            ) from e
+
+    def register_child_emitting_ran(self, child: Node) -> None:
+        """
+        To be called by children when they want to emit their `ran` signal.
+
+        Args:
+            child [Node]: The child that is finished and would like to fire its `ran`
+                signal. Should always be a child of `self`, but this is not explicitly
+                verified at runtime.
+        """
+        for conn in child.signals.output.ran.connections:
+            self.signal_queue.append((child.signals.output.ran, conn))
 
     @property
-    def run_args(self) -> dict:
-        return {"_composite": self}
+    def run_args(self) -> tuple[tuple, dict]:
+        return (), {}
 
     def process_run_result(self, run_output):
         if run_output is not self:
@@ -203,7 +221,9 @@ class Composite(Node, SemanticParent, ABC):
         for node in self:
             node._parent = None
         other_self.running = False  # It's done now
-        self.__setstate__(other_self.__getstate__())
+        state = other_self.__getstate__()
+        state.pop("executor")  # Got overridden to None for __getstate__, so keep local
+        self.__setstate__(state)
 
     def disconnect_run(self) -> list[tuple[Channel, Channel]]:
         """
@@ -225,80 +245,6 @@ class Composite(Node, SemanticParent, ABC):
         """
         _, upstream_most_nodes = set_run_connections_according_to_dag(self.children)
         self.starting_nodes = upstream_most_nodes
-
-    def _build_io(
-        self,
-        i_or_o: Literal["inputs", "outputs"],
-        key_map: dict[str, str | None] | None,
-    ) -> Inputs | Outputs:
-        """
-        Build an IO panel for exposing child node IO to the outside world at the level
-        of the composite node's IO.
-
-        Args:
-            target [Literal["inputs", "outputs"]]: Whether this is I or O.
-            key_map [dict[str, str]|None]: A map between the default convention for
-                mapping child IO to composite IO (`"{node.label}__{channel.label}"`) and
-                whatever label you actually want to expose to the composite user. Also
-                allows non-standards channel exposure, i.e. exposing
-                internally-connected channels (which would not normally be exposed) by
-                providing a string-to-string map, or suppressing unconnected channels
-                (which normally would be exposed) by providing a string-None map.
-
-        Returns:
-            (Inputs|Outputs): The populated panel.
-        """
-        key_map = {} if key_map is None else key_map
-        io = Inputs() if i_or_o == "inputs" else Outputs()
-        for node in self.children.values():
-            panel = getattr(node, i_or_o)
-            for channel in panel:
-                try:
-                    io_panel_key = key_map[channel.scoped_label]
-                    if not isinstance(io_panel_key, tuple):
-                        # Tuples indicate that the channel has been deactivated
-                        # This is a necessary misdirection to keep the bidict working,
-                        # as we can't simply map _multiple_ keys to `None`
-                        io[io_panel_key] = self._get_linking_channel(
-                            channel, io_panel_key
-                        )
-                except KeyError:
-                    if not channel.connected:
-                        io[channel.scoped_label] = self._get_linking_channel(
-                            channel, channel.scoped_label
-                        )
-        return io
-
-    @abstractmethod
-    def _get_linking_channel(
-        self,
-        child_reference_channel: InputData | OutputData,
-        composite_io_key: str,
-    ) -> InputData | OutputData:
-        """
-        Returns the channel that will be the link between the provided child channel,
-        and the composite's IO at the given key.
-
-        The returned channel should be fully compatible with the provided child channel,
-        i.e. same type, same type hint... (For instance, the child channel itself is a
-        valid return, which would create a composite IO panel that works by reference.)
-
-        Args:
-            child_reference_channel (InputData | OutputData): The child channel
-            composite_io_key (str): The key under which this channel will be stored on
-                the composite's IO.
-
-        Returns:
-            (Channel): A channel with the same type, type hint, etc. as the reference
-                channel passed in.
-        """
-        pass
-
-    def _build_inputs(self) -> Inputs:
-        return self._build_io("inputs", self.inputs_map)
-
-    def _build_outputs(self) -> Outputs:
-        return self._build_io("outputs", self.outputs_map)
 
     def add_child(
         self,
@@ -386,69 +332,27 @@ class Composite(Node, SemanticParent, ABC):
         # first guaranteed to be an unconnected orphan, there is not yet any permanent
         # damage
         is_starting_node = owned_node in self.starting_nodes
+        # In case the replaced node interfaces with the composite's IO, catch value
+        # links
+        inbound_links = [
+            (sending_channel, replacement.inputs[sending_channel.value_receiver.label])
+            for sending_channel in self.inputs
+            if sending_channel.value_receiver in owned_node.inputs
+        ]
+        outbound_links = [
+            (replacement.outputs[sending_channel.label], sending_channel.value_receiver)
+            for sending_channel in owned_node.outputs
+            if sending_channel.value_receiver in self.outputs
+        ]
         self.remove_child(owned_node)
         replacement.label, owned_node.label = owned_node.label, replacement.label
         self.add_child(replacement)
         if is_starting_node:
             self.starting_nodes.append(replacement)
-
-        # Finally, make sure the IO is constructible with this new node, which will
-        # catch things like incompatible IO maps
-        try:
-            # Make sure node-level IO is pointing to the new node and that macro-level
-            # IO gets safely reconstructed
-            self._rebuild_data_io()
-        except Exception as e:
-            # If IO can't be successfully rebuilt using this node, revert changes and
-            # raise the exception
-            self.replace_child(replacement, owned_node)  # Guaranteed to work since
-            # replacement in the other direction was already a success
-            raise e
+        for sending_channel, receiving_channel in inbound_links + outbound_links:
+            sending_channel.value_receiver = receiving_channel
 
         return owned_node
-
-    def _rebuild_data_io(self):
-        """
-        Try to rebuild the IO.
-
-        If an error is encountered, revert back to the existing IO then raise it.
-        """
-        old_inputs = self.inputs
-        old_outputs = self.outputs
-        connection_changes = []  # For reversion if there's an error
-        try:
-            self._inputs = self._build_inputs()
-            self._outputs = self._build_outputs()
-            for old, new in [(old_inputs, self.inputs), (old_outputs, self.outputs)]:
-                for old_channel in old:
-                    if old_channel.connected:
-                        # If the old channel was connected to stuff, we'd better still
-                        # have a corresponding channel and be able to copy these, or we
-                        # should fail hard.
-                        # But, if it wasn't connected, we don't even care whether or not
-                        # we still have a corresponding channel to copy to
-                        new_channel = new[old_channel.label]
-                        new_channel.copy_connections(old_channel)
-                        swapped_conenctions = old_channel.disconnect_all()  # Purge old
-                        connection_changes.append(
-                            (new_channel, old_channel, swapped_conenctions)
-                        )
-        except Exception as e:
-            for new_channel, old_channel, swapped_conenctions in connection_changes:
-                new_channel.disconnect(*swapped_conenctions)
-                old_channel.connect(*swapped_conenctions)
-            self._inputs = old_inputs
-            self._outputs = old_outputs
-            e.message = (
-                f"Unable to rebuild IO for {self.label}; reverting to old IO."
-                f"{e.message}"
-            )
-            raise e
-
-    @classmethod
-    @wraps(Creator.register)
-    def register(cls, package_identifier: str, domain: Optional[str] = None) -> None:
-        cls.create.register(package_identifier=package_identifier, domain=domain)
 
     def executor_shutdown(self, wait=True, *, cancel_futures=False):
         """
@@ -500,27 +404,7 @@ class Composite(Node, SemanticParent, ABC):
         for label, node in self.children.items():
             node.to_storage(storage.create_group(label))
 
-        storage["inputs_map"] = self.inputs_map
-        storage["outputs_map"] = self.outputs_map
-
         super().to_storage(storage)
-
-    def from_storage(self, storage):
-        from pyiron_contrib.tinybase.storage import GenericStorage
-
-        self.inputs_map = (
-            storage["inputs_map"].to_object()
-            if isinstance(storage["inputs_map"], GenericStorage)
-            else storage["inputs_map"]
-        )
-        self.outputs_map = (
-            storage["outputs_map"].to_object()
-            if isinstance(storage["outputs_map"], GenericStorage)
-            else storage["outputs_map"]
-        )
-        self._rebuild_data_io()  # To apply any map that was saved
-
-        super().from_storage(storage)
 
     def tidy_working_directory(self):
         for node in self:
@@ -573,15 +457,6 @@ class Composite(Node, SemanticParent, ABC):
         state["_child_data_connections"] = self._child_data_connections
         state["_child_signal_connections"] = self._child_signal_connections
 
-        # Transform the IO maps into a datatype that plays well with h5io
-        # (Bidict implements a custom reconstructor, which hurts us)
-        state["_inputs_map"] = (
-            None if self._inputs_map is None else dict(self._inputs_map)
-        )
-        state["_outputs_map"] = (
-            None if self._outputs_map is None else dict(self._outputs_map)
-        )
-
         # Also remove the starting node instances
         del state["starting_nodes"]
         state["_starting_node_labels"] = self._starting_node_labels
@@ -592,15 +467,6 @@ class Composite(Node, SemanticParent, ABC):
         # Purge child connection info from the state
         child_data_connections = state.pop("_child_data_connections")
         child_signal_connections = state.pop("_child_signal_connections")
-
-        # Transform the IO maps back into the right class (bidict)
-        state["_inputs_map"] = (
-            None if state["_inputs_map"] is None else bidict(state["_inputs_map"])
-        )
-        state["_outputs_map"] = (
-            None if state["_outputs_map"] is None else bidict(state["_outputs_map"])
-        )
-
         # Restore starting nodes
         state["starting_nodes"] = [
             state[label] for label in state.pop("_starting_node_labels")
