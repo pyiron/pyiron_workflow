@@ -353,6 +353,21 @@ class TestForNode(unittest.TestCase):
             msg="And make sure that we can vary the length still"
         )
 
+    def test_node_access_points(self):
+        n = FiveTogether(1, 2, e="instance")
+
+        with self.subTest("Iter"):
+            df = n.iter(c=[3, 4], d=[5, 6])
+            self.assertIsInstance(df, DataFrame)
+            self.assertEqual(2 * 2, len(df))
+            self.assertTupleEqual(df["together"][1][0], (1, 2, 3, 6, "instance",))
+
+        with self.subTest("Zip"):
+            df = n.zip(c=[3, 4], d=[5, 6])
+            self.assertIsInstance(df, DataFrame)
+            self.assertEqual(2, len(df))
+            self.assertTupleEqual(df["together"][1][0], (1, 2, 4, 6, "instance",))
+
 
 if __name__ == "__main__":
     unittest.main()
