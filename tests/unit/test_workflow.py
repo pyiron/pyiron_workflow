@@ -413,7 +413,7 @@ class TestWorkflow(unittest.TestCase):
         wf.n1 = Workflow.create.function_node(plus_one, x=0)
         wf.m = add_three_macro(one__x=wf.n1)
 
-        self.assertEquals(
+        self.assertEqual(
             (0 + 1) + (1 + 1),
             wf.m.two.pull(run_parent_trees_too=True),
             msg="Sanity check, pulling here should work perfectly fine"
