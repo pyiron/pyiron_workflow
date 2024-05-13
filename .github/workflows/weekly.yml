@@ -8,5 +8,5 @@ on:
 
 jobs:
   codeql:
-    uses: pyiron/actions/.github/workflows/codeql.yml@actions-1.1.0b
+    uses: pyiron/actions/.github/workflows/codeql.yml@minimize_path_additions 
     secrets: inherit
