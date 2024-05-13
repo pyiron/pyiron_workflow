@@ -9,7 +9,7 @@ on:
 
 jobs:
   pyiron:
-    uses: pyiron/actions/.github/workflows/push-pull-main.yml@actions-1.1.0b
+    uses: pyiron/actions/.github/workflows/push-pull-main.yml@actions-2.0.7
     secrets: inherit
     with:
       docs-env-files: .ci_support/environment.yml
