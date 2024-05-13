@@ -8,5 +8,5 @@ on:
 
 jobs:
   pyiron:
-    uses: pyiron/actions/.github/workflows/pr-labeled.yml@minimize_path_additions 
+    uses: pyiron/actions/.github/workflows/pr-labeled.yml@pyiron_base_lessons 
     secrets: inherit
