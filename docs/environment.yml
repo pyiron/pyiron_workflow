@@ -6,6 +6,7 @@ dependencies:
 - nbsphinx
 - sphinx-gallery
 - sphinx-rtd-theme
+- versioneer
 - coveralls
 - coverage
 - bidict =0.23.1
