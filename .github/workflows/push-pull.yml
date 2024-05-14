@@ -9,7 +9,7 @@ on:
 
 jobs:
   pyiron:
-    uses: pyiron/actions/.github/workflows/push-pull.yml@actions-3.0.0
+    uses: pyiron/actions/.github/workflows/push-pull.yml@more_flags_for_alternates
     secrets: inherit
     with:
       docs-env-files: .ci_support/environment.yml
@@ -17,3 +17,6 @@ jobs:
       extra-python-paths: tests tests/benchmark tests/integration tests/static tests/unit  # For pympipool
       runner-alt2: 'macos-11'  # For pympipool
       python-version-alt3: 'exclude'  # No python 3.9
+      alternate-tests-env-files: .ci_support/lower_bound.yml
+      alternate-tests-python-version: '3.10'
+      alternate-tests-dir: tests/unit
