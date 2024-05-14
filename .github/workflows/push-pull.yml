@@ -9,11 +9,11 @@ on:
 
 jobs:
   pyiron:
-    uses: pyiron/actions/.github/workflows/push-pull.yml@free_python_path
+    uses: pyiron/actions/.github/workflows/push-pull.yml@bump_python
     secrets: inherit
     with:
       docs-env-files: .ci_support/environment.yml
       notebooks-env-files: .ci_support/environment.yml .ci_support/environment-notebooks.yml
       extra-python-paths: tests/benchmark tests/integration tests/static tests/unit
       runner-alt2: 'macos-11'
-      python-version-alt2: 'exclude'
+      python-version-alt3: 'exclude'  # No python 3.9
