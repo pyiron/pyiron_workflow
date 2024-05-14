@@ -17,6 +17,3 @@ jobs:
       tests-in-python-path: true
       runner-alt2: 'macos-11'
       python-version-alt2: 'exclude'
-      benchmark-timeout-minutes: 1
-      unit-test-timeout-minutes: 1
-      coveralls-and-codacy-timeout-minutes: 1
