@@ -9,11 +9,11 @@ on:
 
 jobs:
   pyiron:
-    uses: pyiron/actions/.github/workflows/push-pull-main.yml@actions-1.1.0b
+    uses: pyiron/actions/.github/workflows/push-pull.yml@actions-3.0.0
     secrets: inherit
     with:
       docs-env-files: .ci_support/environment.yml
       notebooks-env-files: .ci_support/environment.yml .ci_support/environment-notebooks.yml
-      tests-in-python-path: true
-      runner-alt2: 'macos-11'
-      python-version-alt2: 'exclude'
+      extra-python-paths: tests tests/benchmark tests/integration tests/static tests/unit  # For pympipool
+      runner-alt2: 'macos-11'  # For pympipool
+      python-version-alt3: 'exclude'  # No python 3.9
