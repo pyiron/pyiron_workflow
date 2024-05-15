@@ -12,7 +12,7 @@ dependencies:
 - pandas =2.2.2
 - pyiron_base =0.8.3
 - pyiron_contrib =0.1.16
-- pympipool =0.8.0
+- pympipool =0.8.2
 - python-graphviz =0.20.3
 - toposort =1.10
 - typeguard =4.2.1
