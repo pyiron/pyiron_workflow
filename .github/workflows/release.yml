@@ -2,10 +2,15 @@
 name: Release
 
 on:
-  release:
-    types: [ published ]
+  pull_request:
+#  release:
+#    types: [ published ]
 
 jobs:
   pyiron:
-    uses: pyiron/actions/.github/workflows/release.yml@actions-3.0.1 
+    uses: pyiron/actions/.github/workflows/pyproject-release.yml@actions-3.1.0
     secrets: inherit
+    with:
+      semantic-upper-bound: 'minor'
+      lower-bound-yaml: '.ci_support/lower_bound.yml'
+      publish-to-pypi: false
