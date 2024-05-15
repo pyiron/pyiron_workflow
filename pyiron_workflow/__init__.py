@@ -29,4 +29,8 @@ Planned:
 - GUI on top for code-lite/code-free visual scripting
 """
 
+from ._version import get_versions
+
+__version__ = get_versions()["version"]
+
 from pyiron_workflow.workflow import Workflow

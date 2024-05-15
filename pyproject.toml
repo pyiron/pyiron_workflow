@@ -1,0 +1,83 @@
+[build-system]
+requires = [
+    "bidict",
+    "cloudpickle",
+    "graphviz",
+    "h5io",
+    "h5io_browser",
+    "matplotlib",
+    "pandas",
+    "pyiron_base",
+    "pyiron_contrib",
+    "pympipool",
+    "toposort",
+    "typeguard",
+    "setuptools",
+    "versioneer[toml]==0.29",
+]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "pyiron_workflow"
+description = "pyiron_workflow - Graph-and-node based workflow tools."
+readme = "docs/README.md"
+keywords = [ "pyiron",]
+requires-python = ">=3.10, <3.13"
+classifiers = [
+    "Development Status :: 3 - Alpha",
+    "Topic :: Scientific/Engineering",
+    "License :: OSI Approved :: BSD License",
+    "Intended Audience :: Science/Research",
+    "Operating System :: OS Independent",
+    "Programming Language :: Python :: 3.10",
+    "Programming Language :: Python :: 3.11",
+    "Programming Language :: Python :: 3.12",
+]
+dependencies = [
+    "bidict==0.23.1",
+    "cloudpickle==3.0.0",
+    "graphviz==0.20.3",
+    "h5io==0.2.2",
+    "h5io_browser==0.0.12",
+    "matplotlib==3.8.4",
+    "pandas==2.2.0",
+    "pyiron_base==0.8.3",
+    "pyiron_contrib==0.1.16",
+    "pympipool==0.8.0",
+    "toposort==1.10",
+    "typeguard==4.2.1",
+]
+dynamic = [ "version",]
+authors = [
+    { name = "Liam Huber", email = "liamhuber@greyhavensolutions.com" },
+]
+
+[project.license]
+file = "LICENSE"
+
+[project.urls]
+Homepage = "https://github.com/pyiron/pyiron_workflow"
+Documentation = "https://pyiron-workflow.readthedocs.io"
+Repository = "https://github.com/pyiron/pyiron_workflow"
+
+[tool.versioneer]
+VCS = "git"
+style = "pep440-pre"
+versionfile_source = "pyiron_workflow/_version.py"
+parentdir_prefix = "pyiron_workflow"
+tag_prefix = "pyiron_workflow-"
+
+[tool.setuptools.packages.find]
+include = [ "pyiron_workflow*",]
+
+[tool.setuptools.dynamic.version]
+attr = "pyiron_workflow.__version__"
+
+[project.optional-dependencies]
+node_library = [
+    "ase==3.22.1",
+    "atomistics==0.1.27",
+    "numpy==1.26.4",
+    "phonopy==2.22.1",
+    "pyiron_atomistics==0.5.4",
+]
