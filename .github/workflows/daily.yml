@@ -3,12 +3,13 @@
 name: Daily
 
 on:
+  workflow_dispatch:
   schedule:
     - cron: '0 23 * * *'
 
 jobs:
   codeql:
-    uses: pyiron/actions/.github/workflows/tests-and-coverage.yml@main 
+    uses: pyiron/actions/.github/workflows/tests-and-coverage.yml@actions-3.1.0
     secrets: inherit
     with:
-      tests-in-python-path: true
+      extra-python-paths: tests tests/benchmark tests/integration tests/static tests/unit  # For pympipool
