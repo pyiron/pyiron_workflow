@@ -11,4 +11,4 @@ jobs:
     uses: pyiron/actions/.github/workflows/tests-and-coverage.yml@main 
     secrets: inherit
     with:
-      tests-in-python-path: true
+      extra-python-paths: tests tests/benchmark tests/integration tests/static tests/unit  # For pympipool
