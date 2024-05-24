@@ -9,7 +9,7 @@ on:
 
 jobs:
   codeql:
-    uses: pyiron/actions/.github/workflows/tests-and-coverage.yml@actions-3.1.0
+    uses: pyiron/actions/.github/workflows/tests-and-coverage.yml@actions-3.2.0
     secrets: inherit
     with:
       extra-python-paths: tests tests/benchmark tests/integration tests/static tests/unit  # For pympipool
