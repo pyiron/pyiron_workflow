@@ -1,0 +1,50 @@
+# This tests the latest conda-forge release rather than the local code
+# When included in a cron job, it will flag maintainers if the conda installation malfunctions
+# (e.g. because of a problem with dependencies)
+
+name: Test Conda Release
+
+on:
+  workflow_dispatch:
+  schedule:
+    - cron: '0 0 * * 1'
+
+jobs:
+  test-conda-release:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Get latest release tag
+        id: get-release
+        uses: actions/github-script@v7
+        with:
+          result-encoding: string
+          script: |
+            const response = await github.rest.repos.getLatestRelease({
+              owner: context.repo.owner,
+              repo: context.repo.repo
+            });
+            console.log(response.data.tag_name);
+            return response.data.tag_name
+      - name: Checkout release
+        uses: actions/checkout@v4
+        with:
+          ref: ${{ steps.get-release.outputs.result }}
+      - name: Create env from repo name
+        shell: bash -l {0}
+        run: |
+          echo -e "channels:\n- conda-forge\ndependencies:\n- ${{ github.event.repository.name }}" > ./just_this_package_environment.yml
+          cat ./just_this_package_environment.yml
+          echo `pwd`
+      - uses: pyiron/actions/cached-miniforge@main
+        with:
+          python-version: '3.12'
+          env-files: ./just_this_package_environment.yml
+          local-code-directory: ''
+      - uses: pyiron/actions/pyiron-config@main
+      - uses: pyiron/actions/add-to-python-path@main
+        with:  # This is specific to getting the pympipool tests to work
+          path-dirs: tests tests/benchmark tests/integration tests/static tests/unit
+      - name: Test
+        shell: bash -l {0}
+        run: |
+          python -m unittest discover tests/unit
