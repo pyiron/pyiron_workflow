@@ -9,12 +9,13 @@ from abc import ABC
 from time import sleep
 from typing import Literal, Optional, TYPE_CHECKING
 
+from pyiron_snippets.colors import SeabornColors
+from pyiron_snippets.dotdict import DotDict
+
 from pyiron_workflow.create import HasCreator
 from pyiron_workflow.node import Node
 from pyiron_workflow.semantics import SemanticParent
 from pyiron_workflow.topology import set_run_connections_according_to_dag
-from pyiron_workflow.snippets.colors import SeabornColors
-from pyiron_workflow.snippets.dotdict import DotDict
 
 if TYPE_CHECKING:
     from pyiron_workflow.channels import (

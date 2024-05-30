@@ -3,9 +3,10 @@ from __future__ import annotations
 from abc import ABC, abstractmethod
 from typing import Any
 
+from pyiron_snippets.colors import SeabornColors
+from pyiron_snippets.factory import classfactory
+
 from pyiron_workflow.io_preview import StaticNode, ScrapesIO
-from pyiron_workflow.snippets.colors import SeabornColors
-from pyiron_workflow.snippets.factory import classfactory
 
 
 class Function(StaticNode, ScrapesIO, ABC):

@@ -12,9 +12,10 @@ import typing
 from abc import ABC, abstractmethod
 import inspect
 
+from pyiron_snippets.singleton import Singleton
+
 from pyiron_workflow.has_interface_mixins import HasChannel, HasLabel, UsesState
 from pyiron_workflow.has_to_dict import HasToDict
-from pyiron_workflow.snippets.singleton import Singleton
 from pyiron_workflow.type_hinting import (
     valid_value,
     type_hint_is_as_or_more_specific_than,

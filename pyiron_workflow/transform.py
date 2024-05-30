@@ -10,10 +10,10 @@ import itertools
 from typing import Any, ClassVar, Optional
 
 from pandas import DataFrame
+from pyiron_snippets.factory import classfactory
 
 from pyiron_workflow.channels import NOT_DATA
 from pyiron_workflow.io_preview import StaticNode, builds_class_io
-from pyiron_workflow.snippets.factory import classfactory
 
 
 class Transformer(StaticNode, ABC):

@@ -8,11 +8,11 @@ import math
 from typing import Any, ClassVar, Literal, Optional
 
 from pandas import DataFrame
+from pyiron_snippets.factory import classfactory
 
 from pyiron_workflow.channels import NOT_DATA
 from pyiron_workflow.composite import Composite
 from pyiron_workflow.io_preview import StaticNode
-from pyiron_workflow.snippets.factory import classfactory
 from pyiron_workflow.transform import inputs_to_dict, inputs_to_dataframe, InputsToDict
 
 

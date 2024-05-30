@@ -11,6 +11,9 @@ from abc import ABC, abstractmethod
 from typing import Any
 import warnings
 
+from pyiron_snippets.logger import logger
+from pyiron_snippets.dotdict import DotDict
+
 from pyiron_workflow.channels import (
     Channel,
     DataChannel,
@@ -24,8 +27,6 @@ from pyiron_workflow.channels import (
 )
 from pyiron_workflow.has_interface_mixins import HasChannel, HasLabel, HasRun, UsesState
 from pyiron_workflow.has_to_dict import HasToDict
-from pyiron_workflow.snippets.logger import logger
-from pyiron_workflow.snippets.dotdict import DotDict
 
 
 class IO(HasToDict, ABC):

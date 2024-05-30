@@ -1,11 +1,12 @@
 from concurrent.futures import Future
 import os
 import sys
-from typing import Literal, Optional
 import unittest
 
+from pyiron_snippets.files import DirectoryObject
+
 from pyiron_workflow.channels import InputData, NOT_DATA
-from pyiron_workflow.snippets.files import DirectoryObject
+
 from pyiron_workflow.create import Executor
 from pyiron_workflow.injection import OutputDataWithInjection, OutputsWithInjection
 from pyiron_workflow.io import Inputs

@@ -13,6 +13,8 @@ from concurrent.futures import Future
 from typing import Any, Literal, Optional, TYPE_CHECKING
 import warnings
 
+from pyiron_snippets.colors import SeabornColors
+
 from pyiron_workflow.draw import Node as GraphvizNode
 from pyiron_workflow.has_to_dict import HasToDict
 from pyiron_workflow.injection import HasIOWithInjection
@@ -24,16 +26,15 @@ from pyiron_workflow.topology import (
     get_nodes_in_data_tree,
     set_run_connections_according_to_linear_dag,
 )
-from pyiron_workflow.snippets.colors import SeabornColors
 from pyiron_workflow.working import HasWorkingDirectory
 
 if TYPE_CHECKING:
     from pathlib import Path
 
     import graphviz
+    from pyiron_snippets.files import DirectoryObject
 
     from pyiron_workflow.composite import Composite
-    from pyiron_workflow.snippets.files import DirectoryObject
 
 
 class Node(

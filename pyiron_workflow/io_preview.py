@@ -28,12 +28,13 @@ from typing import (
     TYPE_CHECKING,
 )
 
+from pyiron_snippets.dotdict import DotDict
+
 from pyiron_workflow.channels import InputData, NOT_DATA
 from pyiron_workflow.injection import OutputDataWithInjection, OutputsWithInjection
 from pyiron_workflow.io import Inputs
 from pyiron_workflow.node import Node
 from pyiron_workflow.output_parser import ParseOutput
-from pyiron_workflow.snippets.dotdict import DotDict
 
 if TYPE_CHECKING:
     from pandas import DataFrame

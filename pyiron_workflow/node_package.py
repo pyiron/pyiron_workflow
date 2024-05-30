@@ -3,8 +3,9 @@ from __future__ import annotations
 from importlib import import_module
 from inspect import isclass
 
+from pyiron_snippets.dotdict import DotDict
+
 from pyiron_workflow.node import Node
-from pyiron_workflow.snippets.dotdict import DotDict
 
 
 NODE_PACKAGE_ATTRIBUTES = ("package_identifier",)
