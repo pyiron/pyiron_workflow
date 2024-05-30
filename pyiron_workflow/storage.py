@@ -13,9 +13,9 @@ from typing import Optional
 import warnings
 
 import h5io
+from pyiron_snippets.files import FileObject, DirectoryObject
 
 from pyiron_workflow.has_interface_mixins import HasLabel, HasParent
-from pyiron_workflow.snippets.files import FileObject, DirectoryObject
 
 
 class TypeNotFoundError(ImportError):

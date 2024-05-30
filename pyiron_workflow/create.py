@@ -14,12 +14,12 @@ from types import ModuleType
 from typing import Optional, TYPE_CHECKING
 
 from bidict import bidict
+from pyiron_snippets.dotdict import DotDict
+from pyiron_snippets.singleton import Singleton
 from pympipool import Executor as PyMpiPoolExecutor
 
 from pyiron_workflow.executors import CloudpickleProcessPoolExecutor
 from pyiron_workflow.function import function_node, as_function_node
-from pyiron_workflow.snippets.dotdict import DotDict
-from pyiron_workflow.snippets.singleton import Singleton
 
 if TYPE_CHECKING:
     from pyiron_workflow.node_package import NodePackage
@@ -88,9 +88,10 @@ class Creator(metaclass=Singleton):
     @property
     @lru_cache(maxsize=1)
     def meta(self):
+        from pyiron_snippets.dotdict import DotDict
+
         from pyiron_workflow.transform import inputs_to_list, list_to_outputs
         from pyiron_workflow.loops import while_loop
-        from pyiron_workflow.snippets.dotdict import DotDict
 
         return DotDict(
             {

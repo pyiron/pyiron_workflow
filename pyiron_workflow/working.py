@@ -6,8 +6,9 @@ from __future__ import annotations
 
 from abc import ABC
 
+from pyiron_snippets.files import DirectoryObject
+
 from pyiron_workflow.has_interface_mixins import HasLabel, HasParent
-from pyiron_workflow.snippets.files import DirectoryObject
 
 
 class HasWorkingDirectory(HasLabel, HasParent, ABC):
