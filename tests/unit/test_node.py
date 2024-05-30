@@ -1,7 +1,6 @@
 from concurrent.futures import Future
 import os
 import sys
-from typing import Literal, Optional
 import unittest
 
 from pyiron_snippets.files import DirectoryObject
