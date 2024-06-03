@@ -76,7 +76,7 @@ attr = "pyiron_workflow.__version__"
 
 [project.optional-dependencies]
 node_library = [
-    "ase==3.22.1",
+    "ase==3.23.0",
     "atomistics==0.1.27",
     "numpy==1.26.4",
     "phonopy==2.22.1",
