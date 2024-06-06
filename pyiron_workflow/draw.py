@@ -52,7 +52,7 @@ def _to_hex(rgb: tuple[int, int, int]) -> str:
 def _to_rgb(hex_: str) -> tuple[int, int, int]:
     """Hex to RGB color codes; no alpha values."""
     hex_ = hex_.lstrip("#")
-    return tuple(int(hex_[i:i + 2], 16) for i in (0, 2, 4))
+    return tuple(int(hex_[i : i + 2], 16) for i in (0, 2, 4))
 
 
 def blend_colours(color_a, color_b, fraction_a=0.5):
