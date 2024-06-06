@@ -8,7 +8,6 @@ from abc import ABC, abstractmethod
 from typing import Literal, Optional, TYPE_CHECKING
 
 import graphviz
-from matplotlib.colors import to_hex, to_rgb
 from pyiron_snippets.colors import SeabornColors
 
 if TYPE_CHECKING:
@@ -45,12 +44,23 @@ def reverse_rankdir(rankdir: Literal["LR", "TB"]):
         raise ValueError(f"Expected rankdir of 'LR' or 'TB' but got {rankdir}")
 
 
+def _to_hex(rgb: tuple[int, int, int]) -> str:
+    """RGB [0,255] to hex color codes; no alpha values."""
+    return "#{:02x}{:02x}{:02x}".format(*tuple(int(c) for c in rgb))
+
+
+def _to_rgb(hex_: str) -> tuple[int, int, int]:
+    """Hex to RGB color codes; no alpha values."""
+    hex_ = hex_.lstrip("#")
+    return tuple(int(hex_[i:i + 2], 16) for i in (0, 2, 4))
+
+
 def blend_colours(color_a, color_b, fraction_a=0.5):
     """Blends two hex code colours together"""
-    return to_hex(
+    return _to_hex(
         tuple(
             fraction_a * a + (1 - fraction_a) * b
-            for (a, b) in zip(to_rgb(color_a), to_rgb(color_b))
+            for (a, b) in zip(_to_rgb(color_a), _to_rgb(color_b))
         )
     )
 
