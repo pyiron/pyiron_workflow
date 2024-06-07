@@ -21,4 +21,4 @@ dependencies:
 - pympipool =0.8.0
 - python-graphviz =0.20.3
 - toposort =1.10
-- typeguard =4.2.1
+- typeguard =4.3.0
