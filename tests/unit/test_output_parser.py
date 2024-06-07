@@ -1,6 +1,6 @@
 import unittest
 
-import numpy as np
+import math
 
 from pyiron_workflow.output_parser import ParseOutput
 
@@ -40,14 +40,14 @@ class TestParseOutput(unittest.TestCase):
         with self.subTest("Function call returns"):
             def function_return(i, j):
                 return (
-                    np.arange(
-                        i, dtype=int
+                    math.log(
+                        10, base=2
                     ),
-                    np.shape(i, j)
+                    math.atan2(1, 2)
                 )
             self.assertListEqual(
                 ParseOutput(function_return).output,
-                ["np.arange( i, dtype=int )", "np.shape(i, j)"]
+                ["math.log( 10, base=2 )", "math.atan2(1, 2)"]
             )
 
         with self.subTest("Methods too"):
