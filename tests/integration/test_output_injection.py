@@ -82,19 +82,6 @@ class TestOutputInjection(unittest.TestCase):
             with self.subTest(f"{lhs.label} == {rhs.label}"):
                 self.assertEqual(lhs.value, rhs.value)
 
-    # This passes fine, but requires numpy so don't include it
-    # def test_matmul(self):
-    #     import numpy as np
-    #
-    #     a = np.random.rand(2, 2)
-    #     b = np.random.rand(2, 2)
-    #     self.wf.a = Workflow.create.standard.UserInput(a, run_after_init=True)
-    #     self.wf.b = Workflow.create.standard.UserInput(b, run_after_init=True)
-    #     self.assertListEqual(
-    #         (self.wf.a @ self.wf.b).value.tolist(),
-    #         (a @ b).tolist()
-    #     )
-
     def test_logic(self):
         # Note: We can't invert with not etc. because overloading __bool__ does not work
         self.true = Workflow.create.standard.UserInput(True, run_after_init=True)
