@@ -39,11 +39,11 @@ Nodes can be used by themselves and -- other than being "delayed" in that their 
 ```python
 >>> from pyiron_workflow import Workflow
 >>>
->>> @Workflow.wrap.as_function_node()
-... def add_one(x):
+>>> @Workflow.wrap.as_function_node("y")
+... def AddOne(x):
 ...     return x + 1
 >>>
->>> add_one(add_one(add_one(x=0)))()
+>>> AddOne(AddOne(AddOne(x=0)))()
 3
 
 ```
@@ -51,41 +51,53 @@ Nodes can be used by themselves and -- other than being "delayed" in that their 
 But the intent is to collect them together into a workflow and leverage existing nodes. We can directly perform (many but not quite all) python actions natively on output channels, can build up data graph topology by simply assigning values (to attributes or at instantiation), and can package things together into reusable macros with customizable IO interfaces:
 
 ```python
->>> from pyiron_workflow import Workflow
->>> Workflow.register("pyiron_workflow.node_library.plotting", "plotting")
->>>
->>> @Workflow.wrap.as_function_node()
-... def Arange(n: int):
-...     import numpy as np
-...     return np.arange(n)
->>>
->>> @Workflow.wrap.as_macro_node("fig")
-... def PlotShiftedSquare(self, n: int, shift: int = 0):
-...     self.arange = Arange(n)
-...     self.plot = self.create.plotting.Scatter(
-...         x=self.arange + shift,
-...         y=self.arange**2
-...     )
-...     return self.plot
+>>> import math
 >>> 
->>> wf = Workflow("plot_with_and_without_shift")
->>> wf.n = wf.create.standard.UserInput()
->>> wf.no_shift = PlotShiftedSquare(shift=0, n=wf.n)
->>> wf.shift = PlotShiftedSquare(shift=2, n=wf.n)
+>>> @Workflow.wrap.as_function_node("y")
+... def AddOne(x):
+...     return x + 1
 >>> 
->>> diagram = wf.draw()
+>>> @Workflow.wrap.as_function_node("permutations")
+... def Permutations(n, choose=None):
+...     return math.perm(n, choose)
 >>> 
->>> out = wf(shift__shift=3, n__user_input=10)
+>>> @Workflow.wrap.as_macro_node()
+... def PermutationDifference(self, n, choose=None):
+...     self.p = Permutations(n, choose=choose)
+...     self.plus_1 = AddOne(n)
+...     self.p_plus_1 = Permutations(self.plus_1, choose=choose)
+...     self.difference = self.p_plus_1 - self.p  
+...     return self.difference
+>>> 
+>>> wf = Workflow("toy_example")
+>>> 
+>>> wf.choose = Workflow.create.standard.UserInput(2)
+>>> wf.small = PermutationDifference(5, choose=wf.choose)
+>>> wf.large = PermutationDifference(25, choose=wf.choose)
+>>> 
+>>> wf()
+{'small__difference': 10, 'large__difference': 50}
 
 ```
 
-Which gives the workflow `diagram`
+Packaging as a workflow/macro makes it easy to re-run calculations:
 
-![](_static/readme_diagram.png)
+```python
+>>> wf(choose__user_input=5)
+{'small__difference': 600, 'large__difference': 1518000}
 
-And the resulting figure (when axes are not cleared)
+```
 
-![](_static/readme_fig.png)
+We can also visualize our workflow, at a high-level:
+
+![](_static/readme_diagram_shallow.png)
+
+Or diving in and resolving macro nodes to a specified depth:
+
+
+![](_static/readme_diagram_deep.png)
+
+(`diagram` in this case is a `graphviz.graphs.Digraph` object, which will render nicely in a Jupyter notebook, but in this case was saved as a png using the `diagram.render` method.)
 
 ## Installation
 
