@@ -13,7 +13,7 @@ jobs:
     secrets: inherit
     with:
       docs-env-files: .ci_support/environment.yml
-      notebooks-env-files: .ci_support/environment.yml .ci_support/environment-notebooks.yml
+      notebooks-env-files: .ci_support/environment.yml
       extra-python-paths: tests tests/benchmark tests/integration tests/static tests/unit  # For pympipool
       runner-alt2: 'macos-11'  # For pympipool
       python-version-alt3: 'exclude'  # No python 3.9

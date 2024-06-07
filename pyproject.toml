@@ -5,7 +5,6 @@ requires = [
     "graphviz",
     "h5io",
     "h5io_browser",
-    "matplotlib",
     "pandas",
     "pyiron_base",
     "pyiron_contrib",
@@ -39,7 +38,6 @@ dependencies = [
     "graphviz==0.20.3",
     "h5io==0.2.2",
     "h5io_browser==0.0.12",
-    "matplotlib==3.8.4",
     "pandas==2.2.2",
     "pyiron_base==0.8.3",
     "pyiron_contrib==0.1.16",
@@ -73,12 +71,3 @@ include = [ "pyiron_workflow*",]
 
 [tool.setuptools.dynamic.version]
 attr = "pyiron_workflow.__version__"
-
-[project.optional-dependencies]
-node_library = [
-    "ase==3.22.1",
-    "atomistics==0.1.27",
-    "numpy==1.26.4",
-    "phonopy==2.22.1",
-    "pyiron_atomistics==0.5.4",
-]
