@@ -103,7 +103,6 @@ Or diving in and resolving macro nodes to a specified depth:
 
 `conda install -c conda-forge pyiron_workflow`
 
-To unlock the associated node packages and ensure that the demo notebooks run, also make sure your conda environment has the packages listed in our [notebooks dependencies](../.ci_support/environment-notebooks.yml)
 
 ## Learning more
 
