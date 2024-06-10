@@ -7,7 +7,7 @@ dependencies:
 - cloudpickle =3.0.0
 - graphviz =9.0.0
 - h5io =0.2.2
-- h5io_browser =0.0.12
+- h5io_browser =0.0.14
 - pandas =2.2.2
 - pyiron_base =0.8.3
 - pyiron_contrib =0.1.16
