@@ -369,6 +369,8 @@ def for_node_factory(
             "_body_node_class": body_node_class,
             "_iter_on": iter_on,
             "_zip_on": zip_on,
+            "__doc__": "For node docstring:\n" + For.__doc__ +
+                       "\nBody node docstring:\n" + body_node_class.__doc__
         },
         {"output_column_map": output_column_map},
     )

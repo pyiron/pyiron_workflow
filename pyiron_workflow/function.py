@@ -358,6 +358,7 @@ def function_node_factory(
             "__qualname__": node_function.__qualname__,
             "_output_labels": None if len(output_labels) == 0 else output_labels,
             "_validate_output_labels": validate_output_labels,
+            "__doc__": node_function.__doc__,
         },
         {},
     )
