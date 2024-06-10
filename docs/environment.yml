@@ -16,7 +16,7 @@ dependencies:
 - h5io_browser =0.0.12
 - pandas =2.2.2
 - pyiron_base =0.8.3
-- pyiron_contrib =0.1.16
+- pyiron_contrib =0.1.17
 - pyiron_snippets =0.1.0
 - pympipool =0.8.0
 - python-graphviz =0.20.3
