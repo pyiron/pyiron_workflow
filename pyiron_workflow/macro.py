@@ -514,6 +514,7 @@ def as_macro_node(*output_labels: str, validate_output_labels: bool = True):
     Returns:
         callable: A decorator that converts a function into a Macro node.
     """
+
     def decorator(graph_creator):
         macro_node_factory.clear(graph_creator.__name__)  # Force a fresh class
         factory_made = macro_node_factory(

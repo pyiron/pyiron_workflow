@@ -54,9 +54,7 @@ class If(Function):
             TypeError: If the condition is NOT_DATA.
         """
         if condition is NOT_DATA:
-            raise TypeError(
-                f"Logic 'If' node expected data but got NOT_DATA as input."
-            )
+            raise TypeError(f"Logic 'If' node expected data but got NOT_DATA as input.")
         truth = bool(condition)
         return truth
 
@@ -504,7 +502,7 @@ def Power(obj, other):
     Returns:
         The result of obj raised to the power of other.
     """
-    return obj ** other
+    return obj**other
 
 
 @as_function_node("and")

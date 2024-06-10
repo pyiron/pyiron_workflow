@@ -392,6 +392,7 @@ def as_function_node(*output_labels: str, validate_output_labels=True):
         Callable: A decorator that converts a function into a :class:`Function` node
             subclass.
     """
+
     def decorator(node_function):
         function_node_factory.clear(node_function.__name__)  # Force a fresh class
         factory_made = function_node_factory(
