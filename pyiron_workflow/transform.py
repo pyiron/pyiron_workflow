@@ -117,6 +117,19 @@ def inputs_to_list_factory(n: int, /) -> type[InputsToList]:
 
 
 def inputs_to_list(n: int, *node_args, **node_kwargs):
+    """
+    Creates and returns an instance of a dynamically generated :class:`InputsToList`
+        subclass with a specified number of inputs.
+
+    Args:
+        n (int): Number of input channels.
+        *node_args: Positional arguments for the node instance.
+        **node_kwargs: Keyword arguments for the node instance.
+
+    Returns:
+        InputsToList: An instance of the dynamically created :class:`InputsToList`
+            subclass.
+    """
     return inputs_to_list_factory(n)(*node_args, **node_kwargs)
 
 
@@ -132,6 +145,19 @@ def list_to_outputs_factory(n: int, /) -> type[ListToOutputs]:
 
 
 def list_to_outputs(n: int, /, *node_args, **node_kwargs) -> ListToOutputs:
+    """
+    Creates and returns an instance of a dynamically generated :class:`ListToOutputs`
+    subclass with a specified number of outputs.
+
+    Args:
+        n (int): Number of output channels.
+        *node_args: Positional arguments for the node instance.
+        **node_kwargs: Keyword arguments for the node instance.
+
+    Returns:
+        ListToOutputs: An instance of the dynamically created :class:`ListToOutputs`
+            subclass.
+    """
     return list_to_outputs_factory(n)(*node_args, **node_kwargs)
 
 
@@ -265,6 +291,20 @@ def inputs_to_dataframe_factory(n: int, /) -> type[InputsToDataframe]:
 
 
 def inputs_to_dataframe(n: int, *node_args, **node_kwargs):
+    """
+    Creates and returns an instance of a dynamically generated
+    :class:`InputsToDataframe` subclass with a specified number of inputs, each being a
+    dictionary to form rows of the dataframe.
+
+    Args:
+        n (int): Number of input channels.
+        *node_args: Positional arguments for the node instance.
+        **node_kwargs: Keyword arguments for the node instance.
+
+    Returns:
+        InputsToDataframe: An instance of the dynamically created
+            :class:`InputsToDataframe` subclass.
+    """
     cls = inputs_to_dataframe_factory(n)
     cls.preview_io()
     return cls(*node_args, **node_kwargs)

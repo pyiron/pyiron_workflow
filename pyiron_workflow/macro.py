@@ -474,8 +474,21 @@ class Macro(Composite, StaticNode, ScrapesIO, ABC):
 
 @classfactory
 def macro_node_factory(
-    graph_creator: callable, validate_output_labels: bool, /, *output_labels
+    graph_creator: callable, validate_output_labels: bool, /, *output_labels: str
 ):
+    """
+    Create a new :class:`Macro` subclass using the given graph creator function.
+
+    Args:
+        graph_creator (callable): Function to create the graph for the :class:`Macro`.
+        validate_output_labels (bool): Whether to validate the output labels against
+            the return values of the wrapped function.
+        output_labels (tuple[str, ...]): Optional labels for the :class:`Macro`'s
+            outputs.
+
+    Returns:
+        type[Macro]: A new :class:`Macro` subclass.
+    """
     return (
         graph_creator.__name__,
         (Macro,),  # Define parentage
@@ -490,13 +503,23 @@ def macro_node_factory(
     )
 
 
-def as_macro_node(*output_labels, validate_output_labels=True):
-    def decorator(node_function):
-        macro_node_factory.clear(node_function.__name__)  # Force a fresh class
+def as_macro_node(*output_labels: str, validate_output_labels: bool = True):
+    """
+    Decorator to convert a function into a :class:`Macro` node.
+
+    Args:
+        *output_labels (str): Optional labels for the :class:`Macro`'s outputs.
+        validate_output_labels (bool): Whether to validate the output labels.
+
+    Returns:
+        callable: A decorator that converts a function into a Macro node.
+    """
+    def decorator(graph_creator):
+        macro_node_factory.clear(graph_creator.__name__)  # Force a fresh class
         factory_made = macro_node_factory(
-            node_function, validate_output_labels, *output_labels
+            graph_creator, validate_output_labels, *output_labels
         )
-        factory_made._class_returns_from_decorated_function = node_function
+        factory_made._class_returns_from_decorated_function = graph_creator
         factory_made.preview_io()
         return factory_made
 
@@ -504,19 +527,37 @@ def as_macro_node(*output_labels, validate_output_labels=True):
 
 
 def macro_node(
-    node_function,
+    graph_creator: callable,
     *node_args,
-    output_labels=None,
-    validate_output_labels=True,
+    output_labels: str | tuple[str, ...] | None = None,
+    validate_output_labels: bool = True,
     **node_kwargs,
 ):
+    """
+    Create and return a :class:`Macro` node instance using the given node function.
+
+    Args:
+        graph_creator (callable): Function to create the graph for the :class:`Macro`.
+        node_args: Positional arguments for the :class:`Macro` initialization --
+            parsed as node input data.
+        output_labels (str | tuple[str, ...] | None): Labels for the :class:`Macro`'s
+            outputs. Default is None, which scrapes these from the return statement in
+            the decorated function's source code.
+        validate_output_labels (bool): Whether to validate the output labels. Defaults
+            to True.
+        node_kwargs: Keyword arguments for the :class:`Macro` initialization --
+            parsed as node input data when the keyword matches an input channel.
+
+    Returns:
+        Macro: An instance of the :class:`Macro` subclass.
+    """
     if output_labels is None:
         output_labels = ()
     elif isinstance(output_labels, str):
         output_labels = (output_labels,)
-    macro_node_factory.clear(node_function.__name__)  # Force a fresh class
+    macro_node_factory.clear(graph_creator.__name__)  # Force a fresh class
     factory_made = macro_node_factory(
-        node_function, validate_output_labels, *output_labels
+        graph_creator, validate_output_labels, *output_labels
     )
     factory_made.preview_io()
     return factory_made(*node_args, **node_kwargs)
