@@ -12,7 +12,7 @@ dependencies:
 - bidict =0.23.1
 - cloudpickle =3.0.0
 - graphviz =9.0.0
-- h5io =0.2.2
+- h5io =0.2.3
 - h5io_browser =0.0.12
 - pandas =2.2.2
 - pyiron_base =0.8.3
