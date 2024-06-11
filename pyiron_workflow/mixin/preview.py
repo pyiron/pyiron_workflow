@@ -288,5 +288,7 @@ class ScrapesIO(HasIOPreview, ABC):
 
 
 def no_output_validation_warning(cls: type):
-    return f"Could not find the source code to validate {cls.__name__} output labels " \
-           f"against the number of returned values -- proceeding without validation"
+    return (
+        f"Could not find the source code to validate {cls.__name__} output labels "
+        f"against the number of returned values -- proceeding without validation"
+    )
