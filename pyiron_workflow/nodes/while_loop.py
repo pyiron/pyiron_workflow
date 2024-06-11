@@ -1,14 +1,11 @@
 from __future__ import annotations
 
-import random
 from textwrap import dedent
 from typing import Optional
 
 import pyiron_workflow
-from pyiron_workflow import Workflow
-from pyiron_workflow.function import Function
-from pyiron_workflow.macro import Macro
-from pyiron_workflow.transform import inputs_to_list, list_to_outputs
+from pyiron_workflow.nodes.function import Function
+from pyiron_workflow.nodes.macro import Macro
 from pyiron_workflow.node import Node
 
 

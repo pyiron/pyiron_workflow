@@ -16,8 +16,6 @@ import inspect
 import warnings
 from abc import ABC, abstractmethod
 from functools import lru_cache, wraps
-from textwrap import dedent
-from types import FunctionType
 from typing import (
     Any,
     ClassVar,
@@ -38,7 +36,7 @@ from pyiron_workflow.output_parser import ParseOutput
 
 if TYPE_CHECKING:
     from pandas import DataFrame
-    from pyiron_workflow.composite import Composite
+    from pyiron_workflow.nodes.composite import Composite
 
 
 class HasIOPreview(ABC):
@@ -408,7 +406,7 @@ class StaticNode(Node, HasIOPreview, ABC):
             for label in set(self.inputs.labels).difference(loop_on)
         }
 
-        from pyiron_workflow.for_loop import for_node
+        from pyiron_workflow.nodes.for_loop import for_node
 
         for_instance = for_node(
             self.__class__,

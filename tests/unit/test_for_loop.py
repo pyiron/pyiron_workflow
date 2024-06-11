@@ -5,16 +5,16 @@ import unittest
 
 from pandas import DataFrame
 
-from pyiron_workflow.for_loop import (
+from pyiron_workflow.nodes.for_loop import (
     dictionary_to_index_maps,
     for_node,
     UnmappedConflictError,
     MapsToNonexistentOutputError
 )
-from pyiron_workflow.function import as_function_node
-from pyiron_workflow.macro import as_macro_node
+from pyiron_workflow.nodes.function import as_function_node
+from pyiron_workflow.nodes.macro import as_macro_node
 from pyiron_workflow.nodes.standard import Add, Sleep
-from pyiron_workflow.transform import inputs_to_list
+from pyiron_workflow.nodes.transform import inputs_to_list
 
 
 class TestDictionaryToIndexMaps(unittest.TestCase):

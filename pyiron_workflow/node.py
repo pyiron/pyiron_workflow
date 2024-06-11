@@ -34,7 +34,7 @@ if TYPE_CHECKING:
     import graphviz
     from pyiron_snippets.files import DirectoryObject
 
-    from pyiron_workflow.composite import Composite
+    from pyiron_workflow.nodes.composite import Composite
 
 
 class Node(

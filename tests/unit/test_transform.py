@@ -6,7 +6,7 @@ import unittest
 from pandas import DataFrame
 
 from pyiron_workflow.channels import NOT_DATA
-from pyiron_workflow.transform import (
+from pyiron_workflow.nodes.transform import (
     Transformer,
     as_dataclass_node,
     dataclass_node,

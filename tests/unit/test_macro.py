@@ -6,8 +6,8 @@ import unittest
 
 from pyiron_workflow._tests import ensure_tests_in_python_path
 from pyiron_workflow.channels import NOT_DATA
-from pyiron_workflow.function import function_node
-from pyiron_workflow.macro import Macro, macro_node, as_macro_node
+from pyiron_workflow.nodes.function import function_node
+from pyiron_workflow.nodes.macro import Macro, macro_node, as_macro_node
 from pyiron_workflow.topology import CircularDataFlowError
 
 

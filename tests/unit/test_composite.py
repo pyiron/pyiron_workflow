@@ -2,9 +2,9 @@ import unittest
 
 from pyiron_workflow._tests import ensure_tests_in_python_path
 from pyiron_workflow.channels import NOT_DATA
-from pyiron_workflow.composite import Composite
+from pyiron_workflow.nodes.composite import Composite
 from pyiron_workflow.injection import OutputsWithInjection
-from pyiron_workflow.io import Inputs, ConnectionCopyError, ValueCopyError
+from pyiron_workflow.io import Inputs, ConnectionCopyError
 from pyiron_workflow.topology import CircularDataFlowError
 
 

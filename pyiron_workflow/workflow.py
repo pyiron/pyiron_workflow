@@ -10,13 +10,12 @@ from typing import Literal, Optional, TYPE_CHECKING
 
 from bidict import bidict
 
-from pyiron_workflow.composite import Composite
+from pyiron_workflow.nodes.composite import Composite
 from pyiron_workflow.io import Inputs, Outputs
 from pyiron_workflow.semantics import ParentMost
 
 
 if TYPE_CHECKING:
-    from pyiron_workflow.channels import InputData, OutputData
     from pyiron_workflow.io import IO
     from pyiron_workflow.node import Node
 
