@@ -13,8 +13,8 @@ from typing import Optional
 
 import h5io
 from pyiron_snippets.files import FileObject, DirectoryObject
-from pyiron_snippets.logger import logger
 
+from pyiron_workflow.logging import logger
 from pyiron_workflow.mixin.has_interface_mixins import HasLabel, HasParent
 
 

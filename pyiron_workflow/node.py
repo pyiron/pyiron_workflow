@@ -13,9 +13,9 @@ from concurrent.futures import Future
 from typing import Any, Literal, Optional, TYPE_CHECKING
 
 from pyiron_snippets.colors import SeabornColors
-from pyiron_snippets.logger import logger
 
 from pyiron_workflow.draw import Node as GraphvizNode
+from pyiron_workflow.logging import logger
 from pyiron_workflow.mixin.has_to_dict import HasToDict
 from pyiron_workflow.mixin.injection import HasIOWithInjection
 from pyiron_workflow.mixin.run import Runnable, ReadinessError
