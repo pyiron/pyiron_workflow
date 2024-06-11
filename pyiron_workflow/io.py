@@ -10,7 +10,6 @@ from __future__ import annotations
 from abc import ABC, abstractmethod
 from typing import Any
 
-from pyiron_snippets.logger import logger
 from pyiron_snippets.dotdict import DotDict
 
 from pyiron_workflow.channels import (
@@ -24,6 +23,7 @@ from pyiron_workflow.channels import (
     AccumulatingInputSignal,
     NOT_DATA,
 )
+from pyiron_workflow.logging import logger
 from pyiron_workflow.mixin.has_interface_mixins import (
     HasChannel,
     HasLabel,

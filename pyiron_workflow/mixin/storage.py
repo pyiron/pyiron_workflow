@@ -10,11 +10,11 @@ from importlib import import_module
 import os
 import sys
 from typing import Optional
-import warnings
 
 import h5io
 from pyiron_snippets.files import FileObject, DirectoryObject
 
+from pyiron_workflow.logging import logger
 from pyiron_workflow.mixin.has_interface_mixins import HasLabel, HasParent
 
 
@@ -347,7 +347,7 @@ class HasStorage(HasLabel, HasParent, ABC):
             module = self.__class__.__module__
             class_ = getattr(import_module(module), self.__class__.__name__)
             if module == "__main__":
-                warnings.warn(f"{self.label} is only defined in __main__")
+                logger.warning(f"{self.label} is only defined in __main__")
             return type(self) is class_
         except (ModuleNotFoundError, AttributeError):
             return False

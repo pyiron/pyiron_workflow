@@ -11,11 +11,11 @@ import sys
 from abc import ABC
 from concurrent.futures import Future
 from typing import Any, Literal, Optional, TYPE_CHECKING
-import warnings
 
 from pyiron_snippets.colors import SeabornColors
 
 from pyiron_workflow.draw import Node as GraphvizNode
+from pyiron_workflow.logging import logger
 from pyiron_workflow.mixin.has_to_dict import HasToDict
 from pyiron_workflow.mixin.injection import HasIOWithInjection
 from pyiron_workflow.mixin.run import Runnable, ReadinessError
@@ -374,7 +374,7 @@ class Node(
                 "label to work in a new space, or give up on running after init."
             )
         elif do_load:
-            warnings.warn(
+            logger.info(
                 f"A saved file was found for the node {self.label} -- attempting to "
                 f"load it...(To delete the saved file instead, use "
                 f"`overwrite_save=True`)"
@@ -781,7 +781,7 @@ class Node(
         if self.parent is not None:
             self.parent.replace_child(self, other)
         else:
-            warnings.warn(f"Could not replace_child {self.label}, as it has no parent.")
+            logger.info(f"Could not replace_child {self.label}, as it has no parent.")
 
     @property
     def storage_directory(self) -> DirectoryObject:
