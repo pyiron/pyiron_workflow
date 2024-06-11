@@ -50,6 +50,6 @@ from pyiron_workflow.nodes.transform import (
     inputs_to_dataframe,
     inputs_to_dict,
     inputs_to_list,
-    list_to_outputs
+    list_to_outputs,
 )
 from pyiron_workflow.nodes.while_loop import while_loop

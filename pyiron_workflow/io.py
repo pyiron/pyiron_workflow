@@ -24,7 +24,12 @@ from pyiron_workflow.channels import (
     AccumulatingInputSignal,
     NOT_DATA,
 )
-from pyiron_workflow.mixin.has_interface_mixins import HasChannel, HasLabel, HasRun, UsesState
+from pyiron_workflow.mixin.has_interface_mixins import (
+    HasChannel,
+    HasLabel,
+    HasRun,
+    UsesState,
+)
 from pyiron_workflow.mixin.has_to_dict import HasToDict
 
 

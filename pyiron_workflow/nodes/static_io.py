@@ -6,13 +6,17 @@ from typing import Optional, Literal, TYPE_CHECKING
 from pandas import DataFrame
 
 from pyiron_workflow.channels import InputData
-from pyiron_workflow.mixin.injection import OutputsWithInjection, OutputDataWithInjection
+from pyiron_workflow.mixin.injection import (
+    OutputsWithInjection,
+    OutputDataWithInjection,
+)
 from pyiron_workflow.io import Inputs
 from pyiron_workflow.mixin.preview import HasIOPreview
 from pyiron_workflow.node import Node
 
 if TYPE_CHECKING:
     from pyiron_workflow.nodes.composite import Composite
+
 
 class StaticNode(Node, HasIOPreview, ABC):
     """

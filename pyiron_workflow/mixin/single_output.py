@@ -8,7 +8,10 @@ from __future__ import annotations
 from abc import ABC, abstractmethod
 
 from pyiron_workflow.mixin.has_interface_mixins import HasChannel, HasLabel
-from pyiron_workflow.mixin.injection import OutputDataWithInjection, OutputsWithInjection
+from pyiron_workflow.mixin.injection import (
+    OutputDataWithInjection,
+    OutputsWithInjection,
+)
 
 
 class AmbiguousOutputError(ValueError):
