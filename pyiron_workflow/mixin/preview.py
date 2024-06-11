@@ -13,7 +13,6 @@ output without first having to instantiate them.
 from __future__ import annotations
 
 import inspect
-import warnings
 from abc import ABC, abstractmethod
 from functools import lru_cache, wraps
 from typing import (
@@ -25,6 +24,7 @@ from typing import (
 )
 
 from pyiron_snippets.dotdict import DotDict
+from pyiron_snippets.logger import logger
 
 from pyiron_workflow.channels import NOT_DATA
 from pyiron_workflow.output_parser import ParseOutput
@@ -252,7 +252,7 @@ class ScrapesIO(HasIOPreview, ABC):
             cls._validate_degeneracy()
             cls._validate_return_count()
         except OSError:
-            warnings.warn(
+            logger.warn(
                 f"Could not find the source code to validate {cls.__name__} output "
                 f"labels against the number of returned values -- proceeding without "
                 f"validation",
