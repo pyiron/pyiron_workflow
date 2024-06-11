@@ -8,7 +8,7 @@ from abc import ABC
 
 from pyiron_snippets.files import DirectoryObject
 
-from pyiron_workflow.has_interface_mixins import HasLabel, HasParent
+from pyiron_workflow.mixin.has_interface_mixins import HasLabel, HasParent
 
 
 class HasWorkingDirectory(HasLabel, HasParent, ABC):

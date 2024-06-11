@@ -8,10 +8,10 @@ from pyiron_snippets.files import DirectoryObject
 from pyiron_workflow.channels import InputData, NOT_DATA
 
 from pyiron_workflow.create import Executor
-from pyiron_workflow.injection import OutputDataWithInjection, OutputsWithInjection
+from pyiron_workflow.mixin.injection import OutputDataWithInjection, OutputsWithInjection
 from pyiron_workflow.io import Inputs
 from pyiron_workflow.node import Node
-from pyiron_workflow.single_output import AmbiguousOutputError
+from pyiron_workflow.mixin.single_output import AmbiguousOutputError
 
 
 def add_one(x):

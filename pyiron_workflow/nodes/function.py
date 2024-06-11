@@ -6,7 +6,7 @@ from typing import Any
 from pyiron_snippets.colors import SeabornColors
 from pyiron_snippets.factory import classfactory
 
-from pyiron_workflow.preview import ScrapesIO
+from pyiron_workflow.mixin.preview import ScrapesIO
 from pyiron_workflow.nodes.static_io import StaticNode
 
 

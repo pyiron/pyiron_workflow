@@ -12,9 +12,9 @@ from typing import Literal, TYPE_CHECKING
 from pyiron_snippets.factory import classfactory
 
 from pyiron_workflow.nodes.composite import Composite
-from pyiron_workflow.has_interface_mixins import HasChannel
+from pyiron_workflow.mixin.has_interface_mixins import HasChannel
 from pyiron_workflow.io import Outputs, Inputs
-from pyiron_workflow.preview import ScrapesIO
+from pyiron_workflow.mixin.preview import ScrapesIO
 from pyiron_workflow.nodes.static_io import StaticNode
 
 if TYPE_CHECKING:

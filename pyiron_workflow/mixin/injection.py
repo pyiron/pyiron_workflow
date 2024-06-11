@@ -12,7 +12,7 @@ from abc import ABC, abstractmethod
 from typing import Any, Optional, TYPE_CHECKING
 
 from pyiron_workflow.channels import OutputData, NOT_DATA
-from pyiron_workflow.has_interface_mixins import HasChannel
+from pyiron_workflow.mixin.has_interface_mixins import HasChannel
 from pyiron_workflow.io import Outputs, HasIO
 
 if TYPE_CHECKING:

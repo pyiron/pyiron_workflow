@@ -12,7 +12,7 @@ from bidict import bidict
 
 from pyiron_workflow.nodes.composite import Composite
 from pyiron_workflow.io import Inputs, Outputs
-from pyiron_workflow.semantics import ParentMost
+from pyiron_workflow.mixin.semantics import ParentMost
 
 
 if TYPE_CHECKING:

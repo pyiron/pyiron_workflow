@@ -10,7 +10,7 @@ from concurrent.futures import Executor as StdLibExecutor, Future, ThreadPoolExe
 from time import sleep
 from typing import Any, Optional
 
-from pyiron_workflow.has_interface_mixins import HasLabel, HasRun, UsesState
+from pyiron_workflow.mixin.has_interface_mixins import HasLabel, HasRun, UsesState
 
 
 def manage_status(status_managed_method):
