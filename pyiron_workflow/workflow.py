@@ -179,7 +179,7 @@ class Workflow(ParentMost, Composite):
         namespaces. These need to be registered first, like the standard package is
         automatically registered:
 
-        >>> Workflow.register("pyiron_workflow.node_library.standard", "standard")
+        >>> Workflow.register("pyiron_workflow.nodes.standard", "standard")
 
         When your workflow's data follows a directed-acyclic pattern, it will determine
         the execution flow automatically.

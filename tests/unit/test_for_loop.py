@@ -1,4 +1,3 @@
-import random
 from concurrent.futures import ThreadPoolExecutor
 from itertools import product
 from time import perf_counter
@@ -14,7 +13,7 @@ from pyiron_workflow.for_loop import (
 )
 from pyiron_workflow.function import as_function_node
 from pyiron_workflow.macro import as_macro_node
-from pyiron_workflow.node_library.standard import Add, Sleep
+from pyiron_workflow.nodes.standard import Add, Sleep
 from pyiron_workflow.transform import inputs_to_list
 
 

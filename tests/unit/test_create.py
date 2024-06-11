@@ -64,7 +64,7 @@ class TestCreator(unittest.TestCase):
                 msg="Should not be able to register different package to an existing "
                     "domain"
             ):
-                self.creator.register("pyiron_workflow.node_library.standard", "demo")
+                self.creator.register("pyiron_workflow.nodes.standard", "demo")
 
             with self.assertRaises(
                 AttributeError,

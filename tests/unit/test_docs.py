@@ -10,8 +10,6 @@ def load_tests(loader, tests, ignore):
     for importer, name, ispkg in pkgutil.walk_packages(
         pyiron_workflow.__path__, pyiron_workflow.__name__ + '.'
     ):
-        if "node_library" in name:
-            continue
         if sys.version_info < (3, 11) and "job" in name:
             continue
         tests.addTests(doctest.DocTestSuite(name))

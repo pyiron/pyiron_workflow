@@ -102,7 +102,7 @@ class OutputDataWithInjection(OutputData):
     # that should be unambiguously referring to an operation on values
 
     def __getattr__(self, name):
-        from pyiron_workflow.node_library.standard import GetAttr
+        from pyiron_workflow.nodes.standard import GetAttr
 
         if name == "to_hdf":
             raise AttributeError(
@@ -126,153 +126,153 @@ class OutputDataWithInjection(OutputData):
             isinstance(slice_input, HasChannel)
             for slice_input in [item.start, item.stop, item.step]
         ):
-            from pyiron_workflow.node_library.standard import Slice
+            from pyiron_workflow.nodes.standard import Slice
 
             item = self._node_injection(
                 Slice, item.start, item.stop, item.step, inject_self=False
             )
 
-        from pyiron_workflow.node_library.standard import GetItem
+        from pyiron_workflow.nodes.standard import GetItem
 
         return self._node_injection(GetItem, item)
 
     def __lt__(self, other):
-        from pyiron_workflow.node_library.standard import LessThan
+        from pyiron_workflow.nodes.standard import LessThan
 
         return self._node_injection(LessThan, other)
 
     def __le__(self, other):
-        from pyiron_workflow.node_library.standard import LessThanEquals
+        from pyiron_workflow.nodes.standard import LessThanEquals
 
         return self._node_injection(LessThanEquals, other)
 
     def eq(self, other):
-        from pyiron_workflow.node_library.standard import Equals
+        from pyiron_workflow.nodes.standard import Equals
 
         return self._node_injection(Equals, other)
 
     def __ne__(self, other):
-        from pyiron_workflow.node_library.standard import NotEquals
+        from pyiron_workflow.nodes.standard import NotEquals
 
         return self._node_injection(NotEquals, other)
 
     def __gt__(self, other):
-        from pyiron_workflow.node_library.standard import GreaterThan
+        from pyiron_workflow.nodes.standard import GreaterThan
 
         return self._node_injection(GreaterThan, other)
 
     def __ge__(self, other):
-        from pyiron_workflow.node_library.standard import GreaterThanEquals
+        from pyiron_workflow.nodes.standard import GreaterThanEquals
 
         return self._node_injection(GreaterThanEquals, other)
 
     def bool(self):
-        from pyiron_workflow.node_library.standard import Bool
+        from pyiron_workflow.nodes.standard import Bool
 
         return self._node_injection(Bool)
 
     def len(self):
-        from pyiron_workflow.node_library.standard import Length
+        from pyiron_workflow.nodes.standard import Length
 
         return self._node_injection(Length)
 
     def contains(self, other):
-        from pyiron_workflow.node_library.standard import Contains
+        from pyiron_workflow.nodes.standard import Contains
 
         return self._node_injection(Contains, other)
 
     def __add__(self, other):
-        from pyiron_workflow.node_library.standard import Add
+        from pyiron_workflow.nodes.standard import Add
 
         return self._node_injection(Add, other)
 
     def __sub__(self, other):
-        from pyiron_workflow.node_library.standard import Subtract
+        from pyiron_workflow.nodes.standard import Subtract
 
         return self._node_injection(Subtract, other)
 
     def __mul__(self, other):
-        from pyiron_workflow.node_library.standard import Multiply
+        from pyiron_workflow.nodes.standard import Multiply
 
         return self._node_injection(Multiply, other)
 
     def __rmul__(self, other):
-        from pyiron_workflow.node_library.standard import RightMultiply
+        from pyiron_workflow.nodes.standard import RightMultiply
 
         return self._node_injection(RightMultiply, other)
 
     def __matmul__(self, other):
-        from pyiron_workflow.node_library.standard import MatrixMultiply
+        from pyiron_workflow.nodes.standard import MatrixMultiply
 
         return self._node_injection(MatrixMultiply, other)
 
     def __truediv__(self, other):
-        from pyiron_workflow.node_library.standard import Divide
+        from pyiron_workflow.nodes.standard import Divide
 
         return self._node_injection(Divide, other)
 
     def __floordiv__(self, other):
-        from pyiron_workflow.node_library.standard import FloorDivide
+        from pyiron_workflow.nodes.standard import FloorDivide
 
         return self._node_injection(FloorDivide, other)
 
     def __mod__(self, other):
-        from pyiron_workflow.node_library.standard import Modulo
+        from pyiron_workflow.nodes.standard import Modulo
 
         return self._node_injection(Modulo, other)
 
     def __pow__(self, other):
-        from pyiron_workflow.node_library.standard import Power
+        from pyiron_workflow.nodes.standard import Power
 
         return self._node_injection(Power, other)
 
     def __and__(self, other):
-        from pyiron_workflow.node_library.standard import And
+        from pyiron_workflow.nodes.standard import And
 
         return self._node_injection(And, other)
 
     def __xor__(self, other):
-        from pyiron_workflow.node_library.standard import XOr
+        from pyiron_workflow.nodes.standard import XOr
 
         return self._node_injection(XOr, other)
 
     def __or__(self, other):
-        from pyiron_workflow.node_library.standard import Or
+        from pyiron_workflow.nodes.standard import Or
 
         return self._node_injection(Or, other)
 
     def __neg__(self):
-        from pyiron_workflow.node_library.standard import Negative
+        from pyiron_workflow.nodes.standard import Negative
 
         return self._node_injection(Negative)
 
     def __pos__(self):
-        from pyiron_workflow.node_library.standard import Positive
+        from pyiron_workflow.nodes.standard import Positive
 
         return self._node_injection(Positive)
 
     def __abs__(self):
-        from pyiron_workflow.node_library.standard import Absolute
+        from pyiron_workflow.nodes.standard import Absolute
 
         return self._node_injection(Absolute)
 
     def __invert__(self):
-        from pyiron_workflow.node_library.standard import Invert
+        from pyiron_workflow.nodes.standard import Invert
 
         return self._node_injection(Invert)
 
     def int(self):
-        from pyiron_workflow.node_library.standard import Int
+        from pyiron_workflow.nodes.standard import Int
 
         return self._node_injection(Int)
 
     def float(self):
-        from pyiron_workflow.node_library.standard import Float
+        from pyiron_workflow.nodes.standard import Float
 
         return self._node_injection(Float)
 
     def __round__(self):
-        from pyiron_workflow.node_library.standard import Round
+        from pyiron_workflow.nodes.standard import Round
 
         return self._node_injection(Round)
 

@@ -62,7 +62,7 @@ class Creator(metaclass=Singleton):
             # in python >=3.10
             # If the CI skips testing on 3.9 gets dropped, we can think about removing
             # this if-clause and just letting users of python <3.10 hit an error.
-            self.register("pyiron_workflow.node_library.standard", "standard")
+            self.register("pyiron_workflow.nodes.standard", "standard")
 
     @property
     @lru_cache(maxsize=1)
@@ -167,7 +167,7 @@ class Creator(metaclass=Singleton):
         Args:
             package_identifier (str): An identifier for the node package. (Right now
                 that's just a string version of the path to the module, e.g.
-                `pyiron_workflow.node_library.standard`.)
+                `pyiron_workflow.nodes.standard`.)
             domain (str|None): The attribute name at which to register the new package.
                 (Note: no sanitizing is done here except for splitting on "." to create
                 sub-domains, so if you provide a string that won't work as an attribute
