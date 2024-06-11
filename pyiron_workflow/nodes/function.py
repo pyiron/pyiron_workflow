@@ -6,7 +6,8 @@ from typing import Any
 from pyiron_snippets.colors import SeabornColors
 from pyiron_snippets.factory import classfactory
 
-from pyiron_workflow.io_preview import StaticNode, ScrapesIO
+from pyiron_workflow.mixin.preview import ScrapesIO
+from pyiron_workflow.nodes.static_io import StaticNode
 
 
 class Function(StaticNode, ScrapesIO, ABC):
@@ -45,7 +46,7 @@ class Function(StaticNode, ScrapesIO, ABC):
         At the most basic level, to use nodes all we need to do is provide the
         `Function` class with a function and labels for its output, like so:
 
-        >>> from pyiron_workflow.function import function_node
+        >>> from pyiron_workflow import function_node
         >>>
         >>> def mwe(x, y):
         ...     return x+1, y-1
@@ -195,7 +196,7 @@ class Function(StaticNode, ScrapesIO, ABC):
         for the return values, :param:output_labels, which are otherwise scraped from
         the text of the function definition:
 
-        >>> from pyiron_workflow.function import as_function_node
+        >>> from pyiron_workflow import as_function_node
         >>>
         >>> @as_function_node("p1", "m1")
         ... def my_mwe_node(
@@ -217,7 +218,7 @@ class Function(StaticNode, ScrapesIO, ABC):
         already defined as a `staticmethod`:
 
         >>> from typing import Literal, Optional
-        >>> from pyiron_workflow.function import Function
+        >>> from pyiron_workflow import Function
         >>>
         >>> class AlphabetModThree(Function):
         ...

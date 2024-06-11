@@ -4,7 +4,7 @@ import unittest
 from pyiron_snippets.factory import classfactory
 
 from pyiron_workflow.channels import NOT_DATA
-from pyiron_workflow.io_preview import ScrapesIO, OutputLabelsNotValidated
+from pyiron_workflow.mixin.preview import ScrapesIO, OutputLabelsNotValidated
 
 
 class ScrapesFromDecorated(ScrapesIO):

@@ -19,7 +19,7 @@ from pyiron_snippets.singleton import Singleton
 from pympipool import Executor as PyMpiPoolExecutor
 
 from pyiron_workflow.executors import CloudpickleProcessPoolExecutor
-from pyiron_workflow.function import function_node, as_function_node
+from pyiron_workflow.nodes.function import function_node, as_function_node
 
 if TYPE_CHECKING:
     from pyiron_workflow.node_package import NodePackage
@@ -62,19 +62,19 @@ class Creator(metaclass=Singleton):
             # in python >=3.10
             # If the CI skips testing on 3.9 gets dropped, we can think about removing
             # this if-clause and just letting users of python <3.10 hit an error.
-            self.register("pyiron_workflow.node_library.standard", "standard")
+            self.register("pyiron_workflow.nodes.standard", "standard")
 
     @property
     @lru_cache(maxsize=1)
     def for_node(self):
-        from pyiron_workflow.for_loop import for_node
+        from pyiron_workflow.nodes.for_loop import for_node
 
         return for_node
 
     @property
     @lru_cache(maxsize=1)
     def macro_node(self):
-        from pyiron_workflow.macro import macro_node
+        from pyiron_workflow.nodes.macro import macro_node
 
         return macro_node
 
@@ -88,8 +88,8 @@ class Creator(metaclass=Singleton):
     @property
     @lru_cache(maxsize=1)
     def meta(self):
-        from pyiron_workflow.transform import inputs_to_list, list_to_outputs
-        from pyiron_workflow.loops import while_loop
+        from pyiron_workflow.nodes.transform import inputs_to_list, list_to_outputs
+        from pyiron_workflow.nodes.while_loop import while_loop
 
         return DotDict(
             {
@@ -102,7 +102,7 @@ class Creator(metaclass=Singleton):
     @property
     @lru_cache(maxsize=1)
     def transformer(self):
-        from pyiron_workflow.transform import (
+        from pyiron_workflow.nodes.transform import (
             dataclass_node,
             inputs_to_dataframe,
             inputs_to_dict,
@@ -167,7 +167,7 @@ class Creator(metaclass=Singleton):
         Args:
             package_identifier (str): An identifier for the node package. (Right now
                 that's just a string version of the path to the module, e.g.
-                `pyiron_workflow.node_library.standard`.)
+                `pyiron_workflow.nodes.standard`.)
             domain (str|None): The attribute name at which to register the new package.
                 (Note: no sanitizing is done here except for splitting on "." to create
                 sub-domains, so if you provide a string that won't work as an attribute
@@ -320,14 +320,14 @@ class Wrappers(metaclass=Singleton):
     @property
     @lru_cache(maxsize=1)
     def as_macro_node(self):
-        from pyiron_workflow.macro import as_macro_node
+        from pyiron_workflow.nodes.macro import as_macro_node
 
         return as_macro_node
 
     @property
     @lru_cache(maxsize=1)
     def as_dataclass_node(self):
-        from pyiron_workflow.transform import as_dataclass_node
+        from pyiron_workflow.nodes.transform import as_dataclass_node
 
         return as_dataclass_node
 

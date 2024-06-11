@@ -15,7 +15,7 @@ import warnings
 import h5io
 from pyiron_snippets.files import FileObject, DirectoryObject
 
-from pyiron_workflow.has_interface_mixins import HasLabel, HasParent
+from pyiron_workflow.mixin.has_interface_mixins import HasLabel, HasParent
 
 
 class TypeNotFoundError(ImportError):

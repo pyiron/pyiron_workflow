@@ -1,13 +1,12 @@
 import math
 import pickle
 import random
-import time
 import unittest
 
-import pyiron_workflow.loops
 from pyiron_workflow._tests import ensure_tests_in_python_path
 from pyiron_workflow.channels import OutputSignal
-from pyiron_workflow.function import Function
+from pyiron_workflow.nodes.function import Function
+from pyiron_workflow.nodes.while_loop import while_loop
 from pyiron_workflow.workflow import Workflow
 
 
@@ -129,7 +128,7 @@ class TestTopology(unittest.TestCase):
         with self.subTest("Random"):
             random.seed(0)
 
-            RandomWhile = pyiron_workflow.loops.while_loop(
+            RandomWhile = while_loop(
                 loop_body_class=RandomFloat,
                 condition_class=GreaterThan,
                 internal_connection_map=[
@@ -158,7 +157,7 @@ class TestTopology(unittest.TestCase):
 
         with self.subTest("Self-data-loop"):
 
-            AddWhile = pyiron_workflow.loops.while_loop(
+            AddWhile = while_loop(
                 loop_body_class=Workflow.create.standard.Add,
                 condition_class=Workflow.create.standard.LessThan,
                 internal_connection_map=[

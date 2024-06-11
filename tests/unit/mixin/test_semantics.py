@@ -1,5 +1,5 @@
 import unittest
-from pyiron_workflow.semantics import (
+from pyiron_workflow.mixin.semantics import (
     Semantic, SemanticParent, ParentMost, CyclicPathError
 )
 

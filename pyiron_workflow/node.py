@@ -16,17 +16,17 @@ import warnings
 from pyiron_snippets.colors import SeabornColors
 
 from pyiron_workflow.draw import Node as GraphvizNode
-from pyiron_workflow.has_to_dict import HasToDict
-from pyiron_workflow.injection import HasIOWithInjection
-from pyiron_workflow.run import Runnable, ReadinessError
-from pyiron_workflow.semantics import Semantic
-from pyiron_workflow.single_output import ExploitsSingleOutput
-from pyiron_workflow.storage import HasH5ioStorage, HasTinybaseStorage
+from pyiron_workflow.mixin.has_to_dict import HasToDict
+from pyiron_workflow.mixin.injection import HasIOWithInjection
+from pyiron_workflow.mixin.run import Runnable, ReadinessError
+from pyiron_workflow.mixin.semantics import Semantic
+from pyiron_workflow.mixin.single_output import ExploitsSingleOutput
+from pyiron_workflow.mixin.storage import HasH5ioStorage, HasTinybaseStorage
 from pyiron_workflow.topology import (
     get_nodes_in_data_tree,
     set_run_connections_according_to_linear_dag,
 )
-from pyiron_workflow.working import HasWorkingDirectory
+from pyiron_workflow.mixin.working import HasWorkingDirectory
 
 if TYPE_CHECKING:
     from pathlib import Path
@@ -34,7 +34,7 @@ if TYPE_CHECKING:
     import graphviz
     from pyiron_snippets.files import DirectoryObject
 
-    from pyiron_workflow.composite import Composite
+    from pyiron_workflow.nodes.composite import Composite
 
 
 class Node(

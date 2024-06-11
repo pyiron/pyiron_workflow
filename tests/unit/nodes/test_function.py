@@ -3,7 +3,7 @@ from typing import Optional, Union
 import unittest
 
 from pyiron_workflow.channels import NOT_DATA
-from pyiron_workflow.function import function_node, as_function_node
+from pyiron_workflow.nodes.function import function_node, as_function_node
 from pyiron_workflow.io import ConnectionCopyError, ValueCopyError
 
 

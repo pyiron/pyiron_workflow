@@ -8,7 +8,7 @@ import random
 from time import sleep
 
 from pyiron_workflow.channels import NOT_DATA, OutputSignal
-from pyiron_workflow.function import Function, as_function_node
+from pyiron_workflow.nodes.function import Function, as_function_node
 
 
 @as_function_node()

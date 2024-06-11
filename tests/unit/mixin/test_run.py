@@ -4,7 +4,7 @@ import unittest
 from pyiron_workflow.executors.cloudpickleprocesspool import (
     CloudpickleProcessPoolExecutor
 )
-from pyiron_workflow.run import Runnable, ReadinessError
+from pyiron_workflow.mixin.run import Runnable, ReadinessError
 
 
 class ConcreteRunnable(Runnable):

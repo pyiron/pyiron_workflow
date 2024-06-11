@@ -14,16 +14,12 @@ from pyiron_snippets.dotdict import DotDict
 
 from pyiron_workflow.create import HasCreator
 from pyiron_workflow.node import Node
-from pyiron_workflow.semantics import SemanticParent
+from pyiron_workflow.mixin.semantics import SemanticParent
 from pyiron_workflow.topology import set_run_connections_according_to_dag
 
 if TYPE_CHECKING:
     from pyiron_workflow.channels import (
         Channel,
-        InputData,
-        OutputData,
-        InputSignal,
-        OutputSignal,
     )
     from pyiron_workflow.create import Creator, Wrappers
 

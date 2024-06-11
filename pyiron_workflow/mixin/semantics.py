@@ -19,7 +19,7 @@ from typing import Optional
 from bidict import bidict
 from pyiron_snippets.logger import logger
 
-from pyiron_workflow.has_interface_mixins import HasLabel, HasParent, UsesState
+from pyiron_workflow.mixin.has_interface_mixins import HasLabel, HasParent, UsesState
 
 
 class Semantic(UsesState, HasLabel, HasParent, ABC):

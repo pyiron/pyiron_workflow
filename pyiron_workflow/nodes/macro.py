@@ -11,10 +11,11 @@ from typing import Literal, TYPE_CHECKING
 
 from pyiron_snippets.factory import classfactory
 
-from pyiron_workflow.composite import Composite
-from pyiron_workflow.has_interface_mixins import HasChannel
+from pyiron_workflow.nodes.composite import Composite
+from pyiron_workflow.mixin.has_interface_mixins import HasChannel
 from pyiron_workflow.io import Outputs, Inputs
-from pyiron_workflow.io_preview import StaticNode, ScrapesIO
+from pyiron_workflow.mixin.preview import ScrapesIO
+from pyiron_workflow.nodes.static_io import StaticNode
 
 if TYPE_CHECKING:
     from pyiron_workflow.channels import Channel
@@ -84,8 +85,7 @@ class Macro(Composite, StaticNode, ScrapesIO, ABC):
         Let's consider the simplest case of macros that just consecutively add 1 to
         their input:
 
-        >>> from pyiron_workflow.macro import macro_node, Macro
-        >>>
+        >>> from pyiron_workflow import Macro, as_macro_node, macro_node
         >>> def add_one(x):
         ...     result = x + 1
         ...     return result

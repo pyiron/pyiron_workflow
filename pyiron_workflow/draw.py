@@ -315,7 +315,7 @@ class Node(WorkflowGraphvizMap):
         )
 
         if depth > 0:
-            from pyiron_workflow.composite import Composite
+            from pyiron_workflow.nodes.composite import Composite
 
             # Janky in-line import to avoid circular imports but only look for children
             # where they exist (since nodes sometimes now actually do something on
