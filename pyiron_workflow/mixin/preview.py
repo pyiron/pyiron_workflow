@@ -252,12 +252,7 @@ class ScrapesIO(HasIOPreview, ABC):
             cls._validate_degeneracy()
             cls._validate_return_count()
         except OSError:
-            logger.warn(
-                f"Could not find the source code to validate {cls.__name__} output "
-                f"labels against the number of returned values -- proceeding without "
-                f"validation",
-                OutputLabelsNotValidated,
-            )
+            logger.warn(no_output_validation_warning(cls))
 
     @classmethod
     def _validate_degeneracy(cls):
@@ -292,5 +287,6 @@ class ScrapesIO(HasIOPreview, ABC):
                 )
 
 
-class OutputLabelsNotValidated(Warning):
-    pass
+def no_output_validation_warning(cls: type):
+    return f"Could not find the source code to validate {cls.__name__} output labels " \
+           f"against the number of returned values -- proceeding without validation"

@@ -4,7 +4,8 @@ import unittest
 from pyiron_snippets.factory import classfactory
 
 from pyiron_workflow.channels import NOT_DATA
-from pyiron_workflow.mixin.preview import ScrapesIO, OutputLabelsNotValidated
+from pyiron_workflow.logging import logger
+from pyiron_workflow.mixin.preview import ScrapesIO, no_output_validation_warning
 
 
 class ScrapesFromDecorated(ScrapesIO):
@@ -187,9 +188,11 @@ class TestIOPreview(unittest.TestCase):
             ):
                 as_scraper()(f)
 
-            with self.assertWarns(
-                OutputLabelsNotValidated,
-                msg="If provided labels cannot be validated against the source code, "
-                    "a warning should be issued"
-            ):
-                as_scraper("y")(f)
+            with self.assertLogs(logger.name, level="WARNING") as log:
+                new_cls = as_scraper("y")(f)
+
+            self.assertIn(
+                f"WARNING:{logger.name}:" + no_output_validation_warning(new_cls),
+                log.output,
+                msg="Verify that the expected warning appears in the log"
+            )
