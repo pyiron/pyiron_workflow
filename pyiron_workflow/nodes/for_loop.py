@@ -12,7 +12,7 @@ from pyiron_snippets.factory import classfactory
 
 from pyiron_workflow.channels import NOT_DATA
 from pyiron_workflow.nodes.composite import Composite
-from pyiron_workflow.io_preview import StaticNode
+from pyiron_workflow.nodes.static_io import StaticNode
 from pyiron_workflow.nodes.transform import inputs_to_dict, inputs_to_dataframe, InputsToDict
 
 

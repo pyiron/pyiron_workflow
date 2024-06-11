@@ -13,7 +13,8 @@ from pandas import DataFrame
 from pyiron_snippets.factory import classfactory
 
 from pyiron_workflow.channels import NOT_DATA
-from pyiron_workflow.io_preview import StaticNode, builds_class_io
+from pyiron_workflow.io_preview import builds_class_io
+from pyiron_workflow.nodes.static_io import StaticNode
 
 
 class Transformer(StaticNode, ABC):
