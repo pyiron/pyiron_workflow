@@ -8,7 +8,7 @@ from pandas import DataFrame
 from pyiron_workflow.channels import InputData
 from pyiron_workflow.injection import OutputsWithInjection, OutputDataWithInjection
 from pyiron_workflow.io import Inputs
-from pyiron_workflow.io_preview import HasIOPreview
+from pyiron_workflow.preview import HasIOPreview
 from pyiron_workflow.node import Node
 
 if TYPE_CHECKING:
