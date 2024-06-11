@@ -349,6 +349,19 @@ class Function(StaticNode, ScrapesIO, ABC):
 def function_node_factory(
     node_function: callable, validate_output_labels: bool, /, *output_labels
 ):
+    """
+    Create a new :class:`Function` node class based on the given node function. This
+    function gets executed on each :meth:`run` of the resulting function.
+
+    Args:
+        node_function (callable): The function to be wrapped by the node.
+        validate_output_labels (bool): Flag to indicate if output labels should be
+            validated.
+        *output_labels: Optional labels for the function's output channels.
+
+    Returns:
+        type[Node]: A new node class.
+    """
     return (
         node_function.__name__,
         (Function,),  # Define parentage
@@ -358,12 +371,28 @@ def function_node_factory(
             "__qualname__": node_function.__qualname__,
             "_output_labels": None if len(output_labels) == 0 else output_labels,
             "_validate_output_labels": validate_output_labels,
+            "__doc__": node_function.__doc__,
         },
         {},
     )
 
 
-def as_function_node(*output_labels, validate_output_labels=True):
+def as_function_node(*output_labels: str, validate_output_labels=True):
+    """
+    Decorator to create a new :class:`Function` node class from a given function. This
+    function gets executed on each :meth:`run` of the resulting function.
+
+    Args:
+        *output_labels (str): Optional labels for the function's output channels.
+        validate_output_labels (bool): Flag to indicate if output labels should be
+            validated against the return values in the function node source code.
+            Defaults to True.
+
+    Returns:
+        Callable: A decorator that converts a function into a :class:`Function` node
+            subclass.
+    """
+
     def decorator(node_function):
         function_node_factory.clear(node_function.__name__)  # Force a fresh class
         factory_made = function_node_factory(
@@ -377,12 +406,32 @@ def as_function_node(*output_labels, validate_output_labels=True):
 
 
 def function_node(
-    node_function,
+    node_function: callable,
     *node_args,
-    output_labels=None,
-    validate_output_labels=True,
+    output_labels: str | tuple[str, ...] | None = None,
+    validate_output_labels: bool = True,
     **node_kwargs,
 ):
+    """
+    Create and initialize a new instance of a :class:`Function` node.
+
+    Args:
+        node_function (callable): The function to be wrapped by the node.
+        *node_args: Positional arguments for the :class:`Function` initialization --
+            parsed as node input data.
+        output_labels (str | tuple | Noen): Labels for the function's output
+            channels. Defaults to None, which tries to parse these from the return
+            statement.
+        validate_output_labels (bool): Flag to indicate if output labels should be
+            validated against the return values in the function source code. Defaults
+            to True. Disabling this may be useful if the source code is not available
+            or if the function has multiple return statements.
+        **node_kwargs: Keyword arguments for the :class:`Function` initialization --
+            parsed as node input data when the keyword matches an input channel.
+
+    Returns:
+        Function: An instance of the generated :class:`Function` node subclass.
+    """
     if output_labels is None:
         output_labels = ()
     elif isinstance(output_labels, str):

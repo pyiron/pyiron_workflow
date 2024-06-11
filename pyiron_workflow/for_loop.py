@@ -362,6 +362,13 @@ def for_node_factory(
     output_column_map: dict | None = None,
     /,
 ):
+    combined_docstring = (
+        "For node docstring:\n"
+        + (For.__doc__ if For.__doc__ is not None else "")
+        + "\nBody node docstring:\n"
+        + (body_node_class.__doc__ if body_node_class.__doc__ is not None else "")
+    )
+
     return (
         _for_node_class_name(body_node_class, iter_on, zip_on),
         (For,),
@@ -369,6 +376,7 @@ def for_node_factory(
             "_body_node_class": body_node_class,
             "_iter_on": iter_on,
             "_zip_on": zip_on,
+            "__doc__": combined_docstring,
         },
         {"output_column_map": output_column_map},
     )
