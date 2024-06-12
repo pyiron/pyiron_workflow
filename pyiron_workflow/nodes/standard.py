@@ -690,6 +690,7 @@ nodes = [
     Absolute,
     Add,
     And,
+    AppendToList,
     Bool,
     Bytes,
     Contains,
