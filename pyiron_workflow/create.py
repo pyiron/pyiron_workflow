@@ -89,13 +89,11 @@ class Creator(metaclass=Singleton):
     @lru_cache(maxsize=1)
     def meta(self):
         from pyiron_workflow.nodes.transform import inputs_to_list, list_to_outputs
-        from pyiron_workflow.nodes.while_loop import while_loop
 
         return DotDict(
             {
                 inputs_to_list.__name__: inputs_to_list,
                 list_to_outputs.__name__: list_to_outputs,
-                while_loop.__name__: while_loop,
             }
         )
 

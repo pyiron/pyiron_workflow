@@ -6,7 +6,6 @@ import unittest
 from pyiron_workflow._tests import ensure_tests_in_python_path
 from pyiron_workflow.channels import OutputSignal
 from pyiron_workflow.nodes.function import Function
-from pyiron_workflow.nodes.while_loop import while_loop
 from pyiron_workflow.workflow import Workflow
 
 
@@ -122,68 +121,6 @@ class TestTopology(unittest.TestCase):
                 output,
                 expectation,
             )
-
-    def test_while_loop(self):
-
-        with self.subTest("Random"):
-            random.seed(0)
-
-            RandomWhile = while_loop(
-                loop_body_class=RandomFloat,
-                condition_class=GreaterThan,
-                internal_connection_map=[
-                    ("RandomFloat", "random", "GreaterThan", "x")
-                ],
-                inputs_map={"GreaterThan__threshold": "threshold"},
-                outputs_map={"RandomFloat__random": "capped_result"}
-            )
-
-            # Define workflow
-
-            wf = Workflow("random_until_small_enough")
-
-            ## Wire together the while loop and its condition
-
-            wf.random_while = RandomWhile()
-
-            ## Give convenient labels
-            wf.inputs_map = {"random_while__threshold": "threshold"}
-            wf.outputs_map = {"random_while__capped_result": "capped_result"}
-
-            self.assertAlmostEqual(
-                wf(threshold=0.1).capped_result,
-                0.014041700164018955,  # For this reason we set the random seed
-            )
-
-        with self.subTest("Self-data-loop"):
-
-            AddWhile = while_loop(
-                loop_body_class=Workflow.create.standard.Add,
-                condition_class=Workflow.create.standard.LessThan,
-                internal_connection_map=[
-                    ("Add", "add", "LessThan", "obj"),
-                    ("Add", "add", "Add", "obj")
-                ],
-                inputs_map={
-                    "Add__obj": "a",
-                    "Add__other": "b",
-                    "LessThan__other": "cap",
-                },
-                outputs_map={"Add__add": "total"}
-            )
-
-            wf = Workflow("do_while")
-            wf.add_while = AddWhile()
-
-            wf.inputs_map = {
-                "add_while__a": "a",
-                "add_while__b": "b",
-                "add_while__cap": "cap"
-            }
-            wf.outputs_map = {"add_while__total": "total"}
-
-            out = wf(a=1, b=2, cap=10)
-            self.assertEqual(out.total, 11)
 
     def test_executor_and_creator_interaction(self):
         """
