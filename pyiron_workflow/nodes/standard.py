@@ -6,7 +6,6 @@ from __future__ import annotations
 
 import random
 from time import sleep
-from typing import Any
 
 from pyiron_workflow.channels import NOT_DATA, OutputSignal
 from pyiron_workflow.nodes.function import Function, as_function_node
