@@ -6,6 +6,7 @@ from __future__ import annotations
 
 import random
 from time import sleep
+from typing import Any
 
 from pyiron_workflow.channels import NOT_DATA, OutputSignal
 from pyiron_workflow.nodes.function import Function, as_function_node
@@ -71,6 +72,43 @@ class If(Function):
             self.signals.output.true()
         else:
             self.signals.output.false()
+
+
+@as_function_node("list")
+def AppendToList(existing: list | None = None, new_element=NOT_DATA):
+    """
+    Append a new element to a list.
+
+    Args:
+        existing (list | None): The list to append to. Defaults to None, which creates
+            an empty list.
+        new_element: The new element to append. This is mandatory input as the default
+            value of `NOT_DATA` will cause a readiness error.
+
+    Returns:
+        list: The input list with the new element appended
+
+    Examples:
+        This node is particularly useful for acyclic flows, where you want to bend the
+        suggestions of idempotency by looping the node's output back on itself:
+
+        >>> from pyiron_workflow import standard_nodes as std
+        >>>
+        >>> n = std.AppendToList()
+        >>> n.run(new_element="foo")
+        ['foo']
+
+        >>> n.run(existing=n, new_element="bar")
+        ['foo', 'bar']
+
+        >>> n.run(existing=n, new_element="baz")
+        ['foo', 'bar', 'baz']
+
+    """
+    existing = [] if existing is None else existing
+    if new_element is not NOT_DATA:
+        existing.append(new_element)
+    return existing
 
 
 @as_function_node("random")
