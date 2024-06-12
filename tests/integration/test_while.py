@@ -15,6 +15,8 @@ def AddWhileLessThan(self, a, b, cap):
     # Bespoke logic
     self.body = std.Add(obj=a, other=b)
     self.body.inputs.obj = self.body.outputs.add  # Higher priority connection
+    # The output is NOT_DATA on the first pass and `a` gets used,
+    # But after that the node will find and use its own output
     self.condition = std.LessThan(self.body, cap)
 
     # Universal logic
@@ -31,7 +33,7 @@ def AddWhileLessThan(self, a, b, cap):
     self.history.inputs.new_element = self.body
     self.body >> self.history
 
-    # Pretty universal for single-value body nodes,
+    # Returns are pretty universal for single-value body nodes,
     # assuming a log of the history is not desired as output,
     # but in general return values are also bespoke
     return self.body
