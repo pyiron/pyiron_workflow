@@ -441,7 +441,7 @@ class Workflow(ParentMost, Composite):
             self._inputs = old_inputs
             self._outputs = old_outputs
             e.message = (
-                f"Unable to rebuild IO for {self.label}; reverting to old IO."
+                f"Unable to rebuild IO for {self.full_label}; reverting to old IO."
                 f"{e.message}"
             )
             raise e
@@ -545,13 +545,14 @@ class Workflow(ParentMost, Composite):
             node.package_identifier is None for node in self
         ):
             raise NotImplementedError(
-                f"{self.__class__.__name__} can currently only save itself to file if "
-                f"_all_ of its child nodes were created via the creator and have an "
-                f"associated `package_identifier` -- otherwise we won't know how to "
-                f"re-instantiate them at load time! Right now this is as easy as "
-                f"moving your custom nodes to their own .py file and registering it "
-                f"like any other node package. Remember that this new module needs to "
-                f"be in your python path and importable at load time too."
+                f"{self.full_label} ({self.__class__.__name__}) can currently only "
+                f"save itself to file if _all_ of its child nodes were created via the "
+                f"creator and have an associated `package_identifier` -- otherwise we "
+                f"won't know how to re-instantiate them at load time! Right now this "
+                f"is as easy as moving your custom nodes to their own .py file and "
+                f"registering it like any other node package. Remember that this new "
+                f"module needs to be in your python path and importable at load time "
+                f"too."
             )
         super().save()
 

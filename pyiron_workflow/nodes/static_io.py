@@ -141,6 +141,6 @@ class StaticNode(Node, HasIOPreview, ABC):
         non_input_kwargs = set(presumed_input_keys).difference(self.inputs.labels)
         if len(non_input_kwargs) > 0:
             raise ValueError(
-                f"{self.label} cannot iterate on {non_input_kwargs} because they are "
-                f"not among input channels {self.inputs.labels}"
+                f"{self.full_label} cannot iterate on {non_input_kwargs} because "
+                f"they are not among input channels {self.inputs.labels}"
             )

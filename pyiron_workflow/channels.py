@@ -147,16 +147,19 @@ class Channel(UsesState, HasChannel, HasLabel, HasToDict, ABC):
             else:
                 if isinstance(other, self.connection_partner_type):
                     raise ChannelConnectionError(
-                        f"{other.label} ({other.__class__.__name__}) has the correct "
-                        f"type ({self.connection_partner_type.__name__} to connect "
-                        f"with {self.label} ({self.__class__.__name__}), but is not a "
-                        f"valid connection. Please check type hints, etc."
-                    )
+                        f"The channel {other.full_label} ({other.__class__.__name__}"
+                        f") has the correct type "
+                        f"({self.connection_partner_type.__name__}) to connect with "
+                        f"{self.full_label} ({self.__class__.__name__}), but is not "
+                        f"a valid connection. Please check type hints, etc."
+                        f"{other.full_label}.type_hint = {other.type_hint}; "
+                        f"{self.full_label}.type_hint = {self.type_hint}"
+                    ) from None
                 else:
                     raise TypeError(
                         f"Can only connect to {self.connection_partner_type.__name__} "
-                        f"objects, but {self.label} ({self.__class__.__name__}) got "
-                        f"{other} ({type(other)})"
+                        f"objects, but {self.full_label} ({self.__class__.__name__}) "
+                        f"got {other} ({type(other)})"
                     )
 
     def disconnect(self, *others: Channel) -> list[tuple[Channel, Channel]]:
@@ -374,8 +377,9 @@ class DataChannel(Channel, ABC):
             and not valid_value(new_value, self.type_hint)
         ):
             raise TypeError(
-                f"The channel {self.label} cannot take the value `{new_value}` because "
-                f"it is not compliant with the type hint {self.type_hint}"
+                f"The channel {self.full_label} cannot take the value `{new_value}` "
+                f"({type(new_value)}) because it is not compliant with the type hint "
+                f"{self.type_hint}"
             )
 
     @property
@@ -394,13 +398,14 @@ class DataChannel(Channel, ABC):
         if new_partner is not None:
             if not isinstance(new_partner, self.__class__):
                 raise TypeError(
-                    f"The {self.__class__.__name__} {self.label} got a coupling "
+                    f"The {self.__class__.__name__} {self.full_label} got a coupling "
                     f"partner {new_partner} but requires something of the same type"
                 )
 
             if new_partner is self:
                 raise ValueError(
-                    f"{self.__class__.__name__} {self.label} cannot couple to itself"
+                    f"{self.__class__.__name__} {self.full_label} cannot couple to "
+                    f"itself"
                 )
 
             if self._both_typed(new_partner) and new_partner.strict_hints:
@@ -408,10 +413,10 @@ class DataChannel(Channel, ABC):
                     self.type_hint, new_partner.type_hint
                 ):
                     raise ValueError(
-                        f"The channel {self.label} cannot take {new_partner.label} as "
-                        f"a value receiver because this type hint ({self.type_hint}) "
-                        f"is not as or more specific than the receiving type hint "
-                        f"({new_partner.type_hint})."
+                        f"The channel {self.full_label} cannot take "
+                        f"{new_partner.full_label} as a value receiver because this "
+                        f"type hint ({self.type_hint}) is not as or more specific than "
+                        f"the receiving type hint ({new_partner.type_hint})."
                     )
 
             new_partner.value = self.value
@@ -533,7 +538,7 @@ class InputData(DataChannel):
     def value(self, new_value):
         if self.owner.data_input_locked():
             raise RuntimeError(
-                f"Owner {self.owner.label} of {self.label} has its data input locked, "
+                f"Owner {self.full_label} has its data input locked, "
                 f"so value cannot be updated."
             )
         self._type_check_new_value(new_value)
@@ -597,8 +602,8 @@ class InputSignal(SignalChannel):
             self._callback: str = callback.__name__
         else:
             raise BadCallbackError(
-                f"The channel {self.label} on {self.owner.label} got an unexpected "
-                f"callback: {callback}. "
+                f"The channel {self.full_label} got an unexpected callback: "
+                f"{callback}. "
                 f"Lives on owner: {self._is_method_on_owner(callback)}; "
                 f"all args are optional: {self._all_args_arg_optional(callback)} "
             )

@@ -398,7 +398,7 @@ class Macro(Composite, StaticNode, ScrapesIO, ABC):
             self.set_run_signals_to_dag_execution()
         else:
             raise ValueError(
-                f"The macro '{self.label}' has {len(run_signals)} run signals "
+                f"The macro {self.full_label} has {len(run_signals)} run signals "
                 f"internally and {len(self.starting_nodes)} starting nodes. Either "
                 f"the entire execution graph must be specified manually, or both run "
                 f"signals and starting nodes must be left entirely unspecified for "
