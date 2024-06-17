@@ -86,6 +86,13 @@ class Semantic(UsesState, HasLabel, HasParent, ABC):
         return prefix + self.semantic_delimiter + self.label
 
     @property
+    def full_label(self) -> str:
+        """
+        A shortcut that combines the semantic path and label into a single string.
+        """
+        return self.semantic_path
+
+    @property
     def semantic_root(self) -> Semantic:
         """The parent-most object in this semantic path; may be self."""
         return self.parent.semantic_root if isinstance(self.parent, Semantic) else self

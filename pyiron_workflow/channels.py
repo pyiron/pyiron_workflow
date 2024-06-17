@@ -103,6 +103,11 @@ class Channel(UsesState, HasChannel, HasLabel, HasToDict, ABC):
         """A label combining the channel's usual label and its owner's label"""
         return f"{self.owner.label}__{self.label}"
 
+    @property
+    def full_label(self) -> str:
+        """A label combining the channel's usual label and its owner's semantic path"""
+        return f"{self.owner.full_label}.{self.label}"
+
     def _valid_connection(self, other: Channel) -> bool:
         """
         Logic for determining if a connection is valid.
