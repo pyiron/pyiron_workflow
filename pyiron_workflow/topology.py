@@ -45,9 +45,10 @@ def nodes_to_data_digraph(nodes: dict[str, Node]) -> dict[str, set[str]]:
 
     parent = next(iter(nodes.values())).parent  # Just grab any one
     if not all(n.parent is parent for n in nodes.values()):
+        node_identifiers = "\n".join([n.full_label for n in nodes.values()])
         raise ValueError(
-            "Nodes in a data digraph must all be siblings -- i.e. have the same "
-            "`parent` attribute."
+            f"Nodes in a data digraph must all be siblings -- i.e. have the same "
+            f"`parent` attribute. Some of these do not: {node_identifiers}"
         )
 
     for node in nodes.values():
@@ -59,18 +60,17 @@ def nodes_to_data_digraph(nodes: dict[str, Node]) -> dict[str, set[str]]:
                     upstream_node = nodes[upstream.owner.label]
                 except KeyError as e:
                     raise KeyError(
-                        f"The {channel.label} channel of {node.label} has a connection "
-                        f"to {upstream.label} channel of {upstream.owner.label}, but "
-                        f"{upstream.owner.label} was not found among nodes. All nodes "
-                        f"in the data flow dependency tree must be included."
+                        f"The channel {channel.full_label} has a connection to the "
+                        f"upstream channel {upstream.full_label}, but the upstream "
+                        f"owner {upstream.owner.label} was not found among nodes. "
+                        f"All nodes in the data flow dependency tree must be included."
                     )
                 if upstream_node is not upstream.owner:
                     raise ValueError(
-                        f"The {channel.label} channel of {node.label} has a connection "
-                        f"to {upstream.label} channel of {upstream.owner.label}, but "
-                        f"that channel's node is not the same as the nodes passed "
-                        f"here. All nodes in the data flow dependency tree must be "
-                        f"included."
+                        f"The channel {channel.full_label} has a connection to the "
+                        f"upstream channel {upstream.full_label}, but that channel's "
+                        f"node is not the same as the nodes passed  here. All nodes in "
+                        f"the data flow dependency tree must be included."
                     )
                 locally_scoped_dependencies.append(upstream.owner.label)
             node_dependencies.extend(locally_scoped_dependencies)
@@ -81,7 +81,8 @@ def nodes_to_data_digraph(nodes: dict[str, Node]) -> dict[str, set[str]]:
             # That self-dependency isn't caught, so we catch it manually here.
             raise CircularDataFlowError(
                 f"Detected a cycle in the data flow topology, unable to automate "
-                f"the execution of non-DAGs: {node.label} appears in its own input."
+                f"the execution of non-DAGs: {node.full_label} appears in its own "
+                f"input."
             )
         digraph[node.label] = node_dependencies
 

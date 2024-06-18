@@ -12,6 +12,10 @@ class DummyOwner:
         self.locked = False
         self.label = "owner_label"
 
+    @property
+    def full_label(self):
+        return self.label
+
     def update(self):
         self.foo.append(self.foo[-1] + 1)
 

@@ -44,6 +44,14 @@ class HasLabel(ABC):
     def label(self) -> str:
         """A label for the object."""
 
+    @property
+    def full_label(self) -> str:
+        """
+        A more verbose label based off the underlying label attribute (and possibly
+        other data) -- in the root class, it's just the same as the label.
+        """
+        return self.label
+
 
 class HasParent(ABC):
     """

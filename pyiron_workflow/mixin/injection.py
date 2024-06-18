@@ -113,10 +113,10 @@ class OutputDataWithInjection(OutputData):
             )
         if name.startswith("_"):
             raise AttributeError(
-                f"{OutputDataWithInjection.__name__} {self.label} tried to inject on "
-                f"the attribute {name}, but injecting on private attributes is "
-                f"forbidden -- if you really need it create a {GetAttr.__name__} node "
-                f"manually."
+                f"{self.full_label} ({OutputDataWithInjection.__name__}) tried to "
+                f"inject on the attribute {name}, but injecting on private attributes "
+                f"is forbidden -- if you really need it create a {GetAttr.__name__} "
+                f"node manually."
             )
         return self._node_injection(GetAttr, name)
 

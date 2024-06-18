@@ -151,7 +151,7 @@ class Function(StaticNode, ScrapesIO, ABC):
         ...     plus_minus_1.inputs.x =  "not an int or float"
         ... except TypeError as e:
         ...     print("TypeError:", e.args[0])
-        TypeError: The channel x cannot take the value `not an int or float` because it is not compliant with the type hint typing.Union[int, float]
+        TypeError: The channel /hinted_example.x cannot take the value `not an int or float` (<class 'str'>) because it is not compliant with the type hint typing.Union[int, float]
 
         We can turn off type hinting with the `strict_hints` boolean property, or just
         circumvent the type hinting by applying the new data directly to the private

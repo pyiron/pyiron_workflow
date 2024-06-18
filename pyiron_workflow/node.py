@@ -369,14 +369,15 @@ class Node(
 
         if do_load and run_after_init:
             raise ValueError(
-                "Can't both load _and_ run after init -- either delete the save file "
-                "(e.g. with with the `overwrite_save=True` kwarg), change the node "
-                "label to work in a new space, or give up on running after init."
+                f"{self.full_label} can't both load _and_ run after init -- either"
+                f" delete the save file (e.g. with with the `overwrite_save=True` "
+                f"kwarg), change the node label to work in a new space, or give up on "
+                f"running after init."
             )
         elif do_load:
             logger.info(
-                f"A saved file was found for the node {self.label} -- attempting to "
-                f"load it...(To delete the saved file instead, use "
+                f"A saved file was found for the node {self.full_label} -- "
+                f"attempting to load it...(To delete the saved file instead, use "
                 f"`overwrite_save=True`)"
             )
             self.load()
@@ -522,8 +523,9 @@ class Node(
             if node.executor is not None:
                 raise ValueError(
                     f"Running the data tree is pull-paradigm action, and is "
-                    f"incompatible with using executors. An executor request was found "
-                    f"on {node.label}"
+                    f"incompatible with using executors. While running "
+                    f"{self.full_label}, an executor request was found on "
+                    f"{node.full_label}"
                 )
 
         for node in data_tree_nodes:
