@@ -5,6 +5,9 @@ Common-use nodes relying only on the standard library
 from __future__ import annotations
 
 import random
+import os
+from pathlib import Path
+import shutil
 from time import sleep
 
 from pyiron_workflow.channels import NOT_DATA, OutputSignal
@@ -109,6 +112,56 @@ def AppendToList(existing: list | None = None, new_element=NOT_DATA):
         existing.append(new_element)
     return existing
 
+
+@as_function_node("started_at", "ended_at", "was_empty")
+def ChangeDirectory(
+    path: str | Path, delete_start: bool = False,
+) -> tuple[str, str, bool]:
+    """
+    Change directory.
+
+    Args:
+        path (str | Path): Where to go.
+        delete_start (bool): Whether to recursively remove the starting location. (Yes,
+            this is dangerous, be careful -- but it's useful for going in and out of
+            temp directories.)
+
+    Returns:
+        str: The absolute path to where we started.
+
+    Examples:
+        All the extra input and output allows use to go in and out of a location
+        leaving no trace if we created it to start with.
+        >>> import os
+        >>>
+        >>> from pyiron_workflow import standard_nodes as std
+        >>>
+        >>> go_in = std.ChangeDirectory(path="some_subdirectory")
+        >>> in_result = go_in.run()
+        >>> print(os.getcwd().replace(go_in.outputs.started_at.value, "some path..."))
+        some path.../some_subdirectory
+
+        >>> go_out = std.ChangeDirectory(
+        ...     path=go_in.outputs.started_at,
+        ...     delete_start=go_in.outputs.was_empty
+        ... )
+        >>> out_result = go_out.run();
+        >>> print(os.getcwd() == go_in.outputs.started_at.value)
+        True
+
+        >>> print(os.path.isdir("some_subdirectory"))
+        False
+
+    """
+    started_at = os.getcwd()
+    if isinstance(path, Path):
+        path = str(path.resolve())
+    os.makedirs(path, exist_ok=True)
+    was_empty = not any(os.scandir(path))
+    os.chdir(path)
+    if delete_start:
+        shutil.rmtree(started_at)
+    return started_at, path, was_empty
 
 @as_function_node("as_int")
 def Int(x):
