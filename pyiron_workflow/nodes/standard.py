@@ -110,6 +110,33 @@ def AppendToList(existing: list | None = None, new_element=NOT_DATA):
     return existing
 
 
+@as_function_node()
+def PureCall(fnc: callable):
+    """
+    Return a call without any arguments
+
+    Args:
+        fnc (callable): The callable object.
+
+    Returns:
+        An argument-free call on the callable object.
+
+    Examples:
+        This is particularly useful for snagging methods off objects inside a workflow.
+        >>> import datetime
+        >>>
+        >>> from pyiron_workflow import standard_nodes as std
+        >>>
+        >>> inp = std.UserInput(datetime.date(1977, 5, 25))
+        >>> pure_call = std.PureCall(inp.isoformat)
+        >>> pure_call()
+        '1977-05-25'
+
+        Where we got the method to call using an injected `GetAttr` node.
+    """
+    return fnc()
+
+
 @as_function_node("random")
 def RandomFloat():
     """
@@ -717,6 +744,7 @@ nodes = [
     Or,
     Positive,
     Power,
+    PureCall,
     RandomFloat,
     RightMultiply,
     Round,
