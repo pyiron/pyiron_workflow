@@ -793,6 +793,7 @@ nodes = [
     AppendToList,
     Bool,
     Bytes,
+    ChangeDirectory,
     Contains,
     Dir,
     Divide,
