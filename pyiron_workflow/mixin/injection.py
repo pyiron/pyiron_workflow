@@ -62,14 +62,12 @@ class OutputDataWithInjection(OutputData):
             other.channel.scoped_label if isinstance(other, HasChannel) else str(other)
         )
 
-    def get_injected_label(self, injection_class, other=None):
-        suffix = f"_{self._other_label(other)}" if other is not None else ""
-        return f"{self.scoped_label}_{injection_class.__name__}{suffix}"
-
     def _get_injection_label(self, injection_class, *args):
         other_labels = "_".join(self._other_label(other) for other in args)
         suffix = f"_{other_labels}" if len(args) > 0 else ""
-        return f"{self.scoped_label}_{injection_class.__name__}{suffix}"
+        nominal_label = f"{self.scoped_label}_{injection_class.__name__}{suffix}"
+        hashed = str(hash(nominal_label)).replace("-", "m")
+        return f"injected_{injection_class.__name__}_{hashed}"
 
     def _node_injection(self, injection_class, *args, inject_self=True):
         """
