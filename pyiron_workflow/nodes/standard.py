@@ -143,7 +143,7 @@ def ChangeDirectory(
         ...     os.getcwd().replace(
         ...         go_in.outputs.started_at.value, "some path..."
         ...     ).replace(
-        ...         os.pathsep, "/"  # For doctesting on windows...
+        ...          + os.path.sep, "/"  # For doctesting on windows...
         ...     )
         ... )
         some path.../some_subdirectory
