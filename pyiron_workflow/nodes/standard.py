@@ -115,7 +115,8 @@ def AppendToList(existing: list | None = None, new_element=NOT_DATA):
 
 @as_function_node("started_at", "ended_at", "was_empty")
 def ChangeDirectory(
-    path: str | Path, delete_start: bool = False,
+    path: str | Path,
+    delete_start: bool = False,
 ) -> tuple[str, str, bool]:
     """
     Change directory.
@@ -162,6 +163,7 @@ def ChangeDirectory(
     if delete_start:
         shutil.rmtree(started_at)
     return started_at, path, was_empty
+
 
 @as_function_node("as_int")
 def Int(x):
