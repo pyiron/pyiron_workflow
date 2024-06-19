@@ -5,6 +5,9 @@ Common-use nodes relying only on the standard library
 from __future__ import annotations
 
 import random
+import os
+from pathlib import Path
+import shutil
 from time import sleep
 
 from pyiron_workflow.channels import NOT_DATA, OutputSignal
@@ -108,6 +111,104 @@ def AppendToList(existing: list | None = None, new_element=NOT_DATA):
     if new_element is not NOT_DATA:
         existing.append(new_element)
     return existing
+
+
+@as_function_node("started_at", "ended_at", "was_empty")
+def ChangeDirectory(
+    path: str | Path,
+    delete_start: bool = False,
+) -> tuple[str, str, bool]:
+    """
+    Change directory.
+
+    Args:
+        path (str | Path): Where to go.
+        delete_start (bool): Whether to recursively remove the starting location. (Yes,
+            this is dangerous, be careful -- but it's useful for going in and out of
+            temp directories.)
+
+    Returns:
+        str: The absolute path to where we started.
+
+    Examples:
+        All the extra input and output allows use to go in and out of a location
+        leaving no trace if we created it to start with.
+        >>> import os
+        >>>
+        >>> from pyiron_workflow import standard_nodes as std
+        >>>
+        >>> go_in = std.ChangeDirectory(path="some_subdirectory")
+        >>> in_result = go_in.run()
+        >>> print(
+        ...     os.getcwd().replace(
+        ...         go_in.outputs.started_at.value, "some path..."
+        ...     ).replace(
+        ...          os.path.sep, "/"  # For doctesting on windows...
+        ...     )
+        ... )
+        some path.../some_subdirectory
+
+        >>> go_out = std.ChangeDirectory(
+        ...     path=go_in.outputs.started_at,
+        ...     delete_start=go_in.outputs.was_empty
+        ... )
+        >>> out_result = go_out.run();
+        >>> print(os.getcwd() == go_in.outputs.started_at.value)
+        True
+
+        >>> print(os.path.isdir("some_subdirectory"))
+        False
+
+    """
+    started_at = os.getcwd()
+    if isinstance(path, Path):
+        path = str(path.resolve())
+    os.makedirs(path, exist_ok=True)
+    was_empty = not any(os.scandir(path))
+    os.chdir(path)
+    if delete_start:
+        shutil.rmtree(started_at)
+    return started_at, path, was_empty
+
+
+@as_function_node("as_int")
+def Int(x):
+    """
+    Casts the input as an integer.
+
+    This is not necessarily uniquely, but at least particularly useful as a wrapper because
+    while many numpy types inherit from the root builtin type, `int64` (and related) do not.
+    Since python3, python `int` is not even of a fixed value based on a c-type.
+    Cf. https://github.com/numpy/numpy/issues/17283
+    """
+    return int(x)
+
+
+@as_function_node()
+def PureCall(fnc: callable):
+    """
+    Return a call without any arguments
+
+    Args:
+        fnc (callable): The callable object.
+
+    Returns:
+        An argument-free call on the callable object.
+
+    Examples:
+        This is particularly useful for snagging methods off objects inside a workflow.
+        >>> import datetime
+        >>>
+        >>> from pyiron_workflow import standard_nodes as std
+        >>>
+        >>> inp = std.UserInput(datetime.date(1977, 5, 25))
+        >>> pure_call = std.PureCall(inp.isoformat)
+        >>> pure_call()
+        '1977-05-25'
+
+        Where we got the method to call using an injected `GetAttr` node.
+    """
+    return fnc()
 
 
 @as_function_node("random")
@@ -717,6 +818,7 @@ nodes = [
     Or,
     Positive,
     Power,
+    PureCall,
     RandomFloat,
     RightMultiply,
     Round,
