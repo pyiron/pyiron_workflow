@@ -139,7 +139,13 @@ def ChangeDirectory(
         >>>
         >>> go_in = std.ChangeDirectory(path="some_subdirectory")
         >>> in_result = go_in.run()
-        >>> print(os.getcwd().replace(go_in.outputs.started_at.value, "some path..."))
+        >>> print(
+        ...     os.getcwd().replace(
+        ...         go_in.outputs.started_at.value, "some path..."
+        ...     ).replace(
+        ...         os.pathsep, "/"  # For doctesting on windows...
+        ...     )
+        ... )
         some path.../some_subdirectory
 
         >>> go_out = std.ChangeDirectory(
