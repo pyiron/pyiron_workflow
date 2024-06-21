@@ -220,6 +220,7 @@ class Composite(SemanticParent, HasCreator, Node, ABC):
         other_self.running = False  # It's done now
         state = other_self.__getstate__()
         state.pop("executor")  # Got overridden to None for __getstate__, so keep local
+        state.pop("_parent")  # Got overridden to None for __getstate__, so keep local
         self.__setstate__(state)
 
     def disconnect_run(self) -> list[tuple[Channel, Channel]]:
