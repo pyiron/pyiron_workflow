@@ -218,10 +218,14 @@ class Composite(SemanticParent, HasCreator, Node, ABC):
         for node in self:
             node._parent = None
         other_self.running = False  # It's done now
+        state = self._get_state_from_remote_other(other_self)
+        self.__setstate__(state)
+
+    def _get_state_from_remote_other(self, other_self):
         state = other_self.__getstate__()
         state.pop("executor")  # Got overridden to None for __getstate__, so keep local
         state.pop("_parent")  # Got overridden to None for __getstate__, so keep local
-        self.__setstate__(state)
+        return state
 
     def disconnect_run(self) -> list[tuple[Channel, Channel]]:
         """
