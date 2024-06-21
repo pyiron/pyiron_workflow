@@ -1,10 +1,12 @@
 from concurrent.futures import ThreadPoolExecutor
 from itertools import product
+import pickle
 from time import perf_counter
 import unittest
 
 from pandas import DataFrame
 
+from pyiron_workflow._tests import ensure_tests_in_python_path
 from pyiron_workflow.nodes.for_loop import (
     dictionary_to_index_maps,
     for_node,
@@ -111,6 +113,14 @@ def FiveTogether(
 
 
 class TestForNode(unittest.TestCase):
+
+    @classmethod
+    def setUpClass(cls) -> None:
+        super().setUpClass()
+        ensure_tests_in_python_path()
+        from static.demo_nodes import AddThree
+        cls.AddThree = AddThree
+
     def test_iter_only(self):
         for_instance = for_node(
             FiveTogether,
@@ -366,6 +376,15 @@ class TestForNode(unittest.TestCase):
             self.assertIsInstance(df, DataFrame)
             self.assertEqual(2, len(df))
             self.assertTupleEqual(df["together"][1][0], (1, 2, 4, 6, "instance",))
+
+    def test_macro_body(self):
+        n = for_node(
+            body_node_class=self.AddThree,
+            iter_on=("x",),
+            x=[1, 2, 3]
+        )
+        n()
+        pickle.loads(pickle.dumps(n))
 
 
 if __name__ == "__main__":
