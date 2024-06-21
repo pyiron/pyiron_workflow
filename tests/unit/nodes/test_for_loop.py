@@ -327,6 +327,14 @@ class TestForNode(unittest.TestCase):
                 f"Expected limit {grace} x {t_sleep} = {grace * t_sleep} -- got {dt}"
         )
 
+        reloaded = pickle.loads(pickle.dumps(for_parallel))
+        self.assertIsNone(
+            reloaded.body_node_executor,
+            msg="Just like regular nodes, until executors can be delayed creators "
+                "instead of actual executor nodes, we need to purge executors from "
+                "nodes on serialization or the thread lock/queue objects hit us"
+        )
+
     def test_with_connections(self):
         length_y = 3
 
