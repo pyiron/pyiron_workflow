@@ -495,6 +495,7 @@ def macro_node_factory(
         {
             "graph_creator": staticmethod(graph_creator),
             "__module__": graph_creator.__module__,
+            "__qualname__": graph_creator.__qualname__,
             "_output_labels": None if len(output_labels) == 0 else output_labels,
             "_validate_output_labels": validate_output_labels,
             "__doc__": graph_creator.__doc__,

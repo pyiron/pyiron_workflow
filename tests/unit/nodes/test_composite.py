@@ -1,3 +1,4 @@
+from concurrent.futures import ProcessPoolExecutor
 import unittest
 
 from pyiron_workflow._tests import ensure_tests_in_python_path
@@ -44,6 +45,8 @@ class TestComposite(unittest.TestCase):
     @classmethod
     def setUpClass(cls) -> None:
         ensure_tests_in_python_path()
+        from static.demo_nodes import AddThree
+        cls.AddThree = AddThree
         super().setUpClass()
 
     def setUp(self) -> None:
@@ -612,6 +615,25 @@ class TestComposite(unittest.TestCase):
         self.assertFalse(
             self.comp.import_ready,
             msg="Adding un-importable children should make the parent not import ready"
+        )
+
+    def test_with_executor(self):
+        self.comp.add_child(self.AddThree(label="sub_composite", x=0))
+        with ProcessPoolExecutor() as exe:
+            self.comp.sub_composite.executor = exe
+            self.comp.run()
+        self.comp.run()
+        self.assertIs(
+            self.comp.sub_composite.parent,
+            self.comp,
+            msg="After processing a remotely-executed self, the local self should "
+                "retain its parent"
+        )
+        self.assertIs(
+            self.comp.sub_composite.executor,
+            exe,
+            msg="After processing a remotely-executed self, the local self should "
+                "retain its executor"
         )
 
 

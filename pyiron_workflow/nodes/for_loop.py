@@ -347,6 +347,17 @@ class For(Composite, StaticNode, ABC):
     def _build_outputs_preview(cls) -> dict[str, Any]:
         return {"df": DataFrame}
 
+    def __getstate__(self):
+        state = super().__getstate__()
+        state["body_node_executor"] = None
+        return state
+
+    def _get_state_from_remote_other(self, other_self):
+        state = super()._get_state_from_remote_other(other_self)
+        state.pop("body_node_executor")  # Got overridden to None for __getstate__,
+        # so keep local
+        return state
+
 
 def _for_node_class_name(
     body_node_class: type[StaticNode], iter_on: tuple[str, ...], zip_on: tuple[str, ...]
