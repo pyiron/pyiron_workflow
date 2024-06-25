@@ -334,8 +334,12 @@ class SemanticParent(Semantic, ABC):
 
     def __setstate__(self, state):
         # Reconstruct children from state
+        # Remove them from the state as you go, so they don't hang around in the
+        # __dict__ after we set state -- they were only there to start with to guarantee
+        # that the state path and the semantic path matched (i.e. without ".children."
+        # in between)
         state["_children"] = bidict(
-            {label: state[label] for label in state.pop("child_labels")}
+            {label: state.pop(label) for label in state.pop("child_labels")}
         )
 
         super().__setstate__(state)
