@@ -347,9 +347,46 @@ class For(Composite, StaticNode, ABC):
     def _build_outputs_preview(cls) -> dict[str, Any]:
         return {"df": DataFrame}
 
+    @property
+    def _input_value_links(self):
+        """
+        Value connections between child output and macro in string representation based
+        on labels.
+
+        The string representation helps storage, and having it as a property ensures
+        the name is protected.
+        """
+        # Duplicated value linking behaviour from Macro class
+        return [
+            (c.label, (c.value_receiver.owner.label, c.value_receiver.label))
+            for c in self.inputs
+        ]
+
+    @property
+    def _output_value_links(self):
+        """
+        Value connections between macro and child input in string representation based
+        on labels.
+
+        The string representation helps storage, and having it as a property ensures
+        the name is protected.
+        """
+        # Duplicated value linking behaviour from Macro class
+        return [
+            ((c.owner.label, c.label), c.value_receiver.label)
+            for child in self
+            for c in child.outputs
+            if c.value_receiver is not None
+        ]
+
     def __getstate__(self):
         state = super().__getstate__()
         state["body_node_executor"] = None
+
+        # Duplicated value linking behaviour from Macro class
+        state["_input_value_links"] = self._input_value_links
+        state["_output_value_links"] = self._output_value_links
+
         return state
 
     def _get_state_from_remote_other(self, other_self):
@@ -357,6 +394,21 @@ class For(Composite, StaticNode, ABC):
         state.pop("body_node_executor")  # Got overridden to None for __getstate__,
         # so keep local
         return state
+
+    def __setstate__(self, state):
+        # Duplicated value linking behaviour from Macro class
+        # Purge value links from the state
+        input_links = state.pop("_input_value_links")
+        output_links = state.pop("_output_value_links")
+
+        super().__setstate__(state)
+
+        # Re-forge value links
+        for inp, (child, child_inp) in input_links:
+            self.inputs[inp].value_receiver = self.children[child].inputs[child_inp]
+
+        for (child, child_out), out in output_links:
+            self.children[child].outputs[child_out].value_receiver = self.outputs[out]
 
 
 def _for_node_class_name(
