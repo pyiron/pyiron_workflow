@@ -42,7 +42,7 @@ dependencies = [
     "pyiron_base==0.9.4",
     "pyiron_contrib==0.1.17",
     "pyiron_snippets==0.1.2",
-    "pympipool==0.8.4",
+    "pympipool==0.8.5",
     "toposort==1.10",
     "typeguard==4.3.0",
 ]
