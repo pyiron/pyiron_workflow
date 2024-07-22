@@ -41,7 +41,7 @@ dependencies = [
     "pandas==2.2.2",
     "pyiron_base==0.9.4",
     "pyiron_contrib==0.1.17",
-    "pyiron_snippets==0.1.2",
+    "pyiron_snippets==0.1.3",
     "pympipool==0.8.4",
     "toposort==1.10",
     "typeguard==4.3.0",
