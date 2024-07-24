@@ -38,8 +38,8 @@ class Creator(metaclass=Singleton):
     for parallel processing.
     This includes a very simple in-house executor that is useful for learning, but also
     choices from the :mod:`executorlib` packages.
-    Some :mod:`executorlib` executors may not be available on your machine (e.g. flux- 
-    and/or slurm-based executors), in which case these attributes will return `None` 
+    Some :mod:`executorlib` executors may not be available on your machine (e.g. flux-
+    and/or slurm-based executors), in which case these attributes will return `None`
     instead.
     """
 
