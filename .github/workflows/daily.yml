@@ -11,5 +11,3 @@ jobs:
   codeql:
     uses: pyiron/actions/.github/workflows/tests-and-coverage.yml@actions-3.2.1
     secrets: inherit
-    with:
-      extra-python-paths: tests tests/benchmark tests/integration tests/static tests/unit  # For executorlib
