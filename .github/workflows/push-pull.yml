@@ -15,7 +15,6 @@ jobs:
       docs-env-files: .ci_support/environment.yml
       notebooks-env-files: .ci_support/environment.yml
       extra-python-paths: tests tests/benchmark tests/integration tests/static tests/unit  # For executorlib
-      runner-alt2: 'macos-11'  # For executorlib
       python-version-alt3: 'exclude'  # No python 3.9
       alternate-tests-env-files: .ci_support/lower_bound.yml
       alternate-tests-python-version: '3.10'
