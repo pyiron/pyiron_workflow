@@ -25,7 +25,7 @@ if TYPE_CHECKING:
     from pyiron_workflow.node_package import NodePackage
 
 # Specify the standard executor
-Executor = ExecutorlibExecutor
+Executor = ProcessPoolExecutor
 
 
 class Creator(metaclass=Singleton):
