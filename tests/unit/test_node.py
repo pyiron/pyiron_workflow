@@ -1,4 +1,4 @@
-from concurrent.futures import Future
+from concurrent.futures import Future, ProcessPoolExecutor
 import os
 import sys
 import unittest
@@ -6,8 +6,6 @@ import unittest
 from pyiron_snippets.files import DirectoryObject
 
 from pyiron_workflow.channels import InputData, NOT_DATA
-
-from pyiron_workflow.create import Executor
 from pyiron_workflow.mixin.injection import OutputDataWithInjection, OutputsWithInjection
 from pyiron_workflow.io import Inputs
 from pyiron_workflow.node import Node
@@ -143,7 +141,7 @@ class TestNode(unittest.TestCase):
         )
 
     def test_force_local_execution(self):
-        self.n1.executor = Executor()
+        self.n1.executor = ProcessPoolExecutor()
         out = self.n1.run(force_local_execution=False)
         with self.subTest("Test running with an executor fulfills promises"):
             self.assertIsInstance(
@@ -179,7 +177,7 @@ class TestNode(unittest.TestCase):
                     "happens"
             )
 
-        self.n2.executor = Executor()
+        self.n2.executor = ProcessPoolExecutor()
         self.n2.inputs.x = 0
         self.assertEqual(
             1,

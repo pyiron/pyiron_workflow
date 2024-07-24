@@ -24,9 +24,6 @@ from pyiron_workflow.nodes.function import function_node, as_function_node
 if TYPE_CHECKING:
     from pyiron_workflow.node_package import NodePackage
 
-# Specify the standard executor
-Executor = ExecutorlibExecutor
-
 
 class Creator(metaclass=Singleton):
     """
@@ -47,7 +44,6 @@ class Creator(metaclass=Singleton):
         self._package_access = DotDict()
         self._package_registry = bidict()
 
-        self.Executor = Executor
         # Standard lib
         self.ProcessPoolExecutor = ProcessPoolExecutor
         self.ThreadPoolExecutor = ThreadPoolExecutor
