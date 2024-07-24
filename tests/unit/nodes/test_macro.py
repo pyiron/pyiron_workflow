@@ -212,7 +212,7 @@ class TestMacro(unittest.TestCase):
         # at the downstream output, and none of this is happening in a workflow
 
         original_one = macro.one
-        macro.executor = macro.create.Executor()
+        macro.executor = macro.create.ProcessPoolExecutor()
 
         self.assertIs(
             NOT_DATA,
