@@ -242,7 +242,7 @@ class Runnable(UsesState, HasLabel, HasRun, ABC):
         state["future"] = None
         # Don't pass the future -- with the future in the state things work fine for
         # the simple pyiron_workflow.executors.CloudpickleProcessPoolExecutor, but for
-        # the more complex pympipool.Executor we're getting:
+        # the more complex executorlib.Executor we're getting:
         # TypeError: cannot pickle '_thread.RLock' object
         if isinstance(self.executor, StdLibExecutor):
             state["executor"] = None

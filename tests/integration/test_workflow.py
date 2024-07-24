@@ -152,7 +152,7 @@ class TestTopology(unittest.TestCase):
             Workflow.create.ProcessPoolExecutor,
             Workflow.create.ThreadPoolExecutor,
             Workflow.create.CloudpickleProcessPoolExecutor,
-            Workflow.create.PyMpiPoolExecutor
+            Workflow.create.ExecutorlibExecutor
         ]
 
         wf = Workflow("executed")

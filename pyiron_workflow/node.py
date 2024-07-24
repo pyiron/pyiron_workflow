@@ -115,7 +115,8 @@ class Node(
             `concurrent.futures.ProcessPoolExecutor`, but if you define your node
             somewhere that it can't be imported (e.g. `__main__` in a jupyter
             notebook), or it is otherwise not pickleable (e.g. it holds un-pickleable
-            io data), you will need a more powerful executor, e.g. `pympipool.Executor`.
+            io data), you will need a more powerful executor, e.g.
+            `executorlib.Executor`.
         - On executing this way, a futures object will be returned instead of the usual
             result, this future will also be stored as an attribute, and a callback will
             be registered with the executor
