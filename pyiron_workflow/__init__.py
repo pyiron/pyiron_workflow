@@ -22,7 +22,7 @@ Key features:
 
 Planned:
 - Storage of executed workflows, including restarting from a partially executed workflow
-- Support for more complex remote execution, especially leveraging :mod:`pympipool`
+- Support for more complex remote execution, especially leveraging :mod:`executorlib`
 - Infrastructure that supports and encourages of FAIR principles for node packages and
   finished workflows
 - Ontological hinting for data channels in order to provide guided workflow design

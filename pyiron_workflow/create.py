@@ -16,16 +16,13 @@ from typing import Optional, TYPE_CHECKING
 from bidict import bidict
 from pyiron_snippets.dotdict import DotDict
 from pyiron_snippets.singleton import Singleton
-from executorlib import Executor as PyMpiPoolExecutor
+from executorlib import Executor as ExecutorlibExecutor
 
 from pyiron_workflow.executors import CloudpickleProcessPoolExecutor
 from pyiron_workflow.nodes.function import function_node, as_function_node
 
 if TYPE_CHECKING:
     from pyiron_workflow.node_package import NodePackage
-
-# Specify the standard executor
-Executor = PyMpiPoolExecutor
 
 
 class Creator(metaclass=Singleton):
@@ -47,14 +44,13 @@ class Creator(metaclass=Singleton):
         self._package_access = DotDict()
         self._package_registry = bidict()
 
-        self.Executor = Executor
         # Standard lib
         self.ProcessPoolExecutor = ProcessPoolExecutor
         self.ThreadPoolExecutor = ThreadPoolExecutor
         # Local cloudpickler
         self.CloudpickleProcessPoolExecutor = CloudpickleProcessPoolExecutor
-        # pympipool
-        self.PyMpiPoolExecutor = PyMpiPoolExecutor
+        # executorlib
+        self.ExecutorlibExecutor = ExecutorlibExecutor
 
         self.function_node = function_node
 
