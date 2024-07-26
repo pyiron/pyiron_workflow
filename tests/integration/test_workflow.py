@@ -138,7 +138,7 @@ class TestTopology(unittest.TestCase):
         wf.register("static.demo_nodes", "demo")
 
         wf.before_pickling = wf.create.demo.OptionallyAdd(1)
-        wf.before_pickling.executor = wf.create.Executor()
+        wf.before_pickling.executor = wf.create.ProcessPoolExecutor()
         wf()
         wf.before_pickling.future.result(timeout=120)  # Wait for it to finish
         wf.executor_shutdown()
@@ -152,7 +152,7 @@ class TestTopology(unittest.TestCase):
             Workflow.create.ProcessPoolExecutor,
             Workflow.create.ThreadPoolExecutor,
             Workflow.create.CloudpickleProcessPoolExecutor,
-            Workflow.create.PyMpiPoolExecutor
+            Workflow.create.ExecutorlibExecutor
         ]
 
         wf = Workflow("executed")

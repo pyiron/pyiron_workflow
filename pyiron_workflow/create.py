@@ -16,16 +16,13 @@ from typing import Optional, TYPE_CHECKING
 from bidict import bidict
 from pyiron_snippets.dotdict import DotDict
 from pyiron_snippets.singleton import Singleton
-from pympipool import Executor as PyMpiPoolExecutor
+from executorlib import Executor as ExecutorlibExecutor
 
 from pyiron_workflow.executors import CloudpickleProcessPoolExecutor
 from pyiron_workflow.nodes.function import function_node, as_function_node
 
 if TYPE_CHECKING:
     from pyiron_workflow.node_package import NodePackage
-
-# Specify the standard executor
-Executor = PyMpiPoolExecutor
 
 
 class Creator(metaclass=Singleton):
@@ -37,23 +34,23 @@ class Creator(metaclass=Singleton):
     In addition to node objects, the creator also provides workflow-compliant executors
     for parallel processing.
     This includes a very simple in-house executor that is useful for learning, but also
-    choices from the :mod:`pympipool` packages.
-    Some :mod:`pympipool` executors may not be available on your machine (e.g. flux- and/or
-     slurm-based executors), in which case these attributes will return `None` instead.
+    choices from the :mod:`executorlib` packages.
+    Some :mod:`executorlib` executors may not be available on your machine (e.g. flux-
+    and/or slurm-based executors), in which case these attributes will return `None`
+    instead.
     """
 
     def __init__(self):
         self._package_access = DotDict()
         self._package_registry = bidict()
 
-        self.Executor = Executor
         # Standard lib
         self.ProcessPoolExecutor = ProcessPoolExecutor
         self.ThreadPoolExecutor = ThreadPoolExecutor
         # Local cloudpickler
         self.CloudpickleProcessPoolExecutor = CloudpickleProcessPoolExecutor
-        # pympipool
-        self.PyMpiPoolExecutor = PyMpiPoolExecutor
+        # executorlib
+        self.ExecutorlibExecutor = ExecutorlibExecutor
 
         self.function_node = function_node
 

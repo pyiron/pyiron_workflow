@@ -42,7 +42,7 @@ jobs:
           local-code-directory: ''
       - uses: pyiron/actions/pyiron-config@actions-3.2.1
       - uses: pyiron/actions/add-to-python-path@actions-3.2.1
-        with:  # This is specific to getting the pympipool tests to work
+        with:  # This is specific to getting the executorlib tests to work
           path-dirs: tests tests/benchmark tests/integration tests/static tests/unit
       - name: Test
         shell: bash -l {0}
