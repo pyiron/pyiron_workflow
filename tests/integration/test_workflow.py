@@ -1,6 +1,7 @@
 import math
 import pickle
 import random
+import time
 import unittest
 
 from pyiron_workflow._tests import ensure_tests_in_python_path
@@ -62,18 +63,14 @@ class TestTopology(unittest.TestCase):
                 value_gt_limit = value > limit
                 return value_gt_limit
 
-            def process_run_result(self, function_output):
-                """
-                Process the output as usual, then fire signals accordingly.
-                """
-                super().process_run_result(function_output)
-
+            @property
+            def emitting_channels(self) -> tuple[OutputSignal]:
                 if self.outputs.value_gt_limit.value:
                     print(f"{self.inputs.value.value} > {self.inputs.limit.value}")
-                    self.signals.output.true()
+                    return (*super().emitting_channels, self.signals.output.true)
                 else:
                     print(f"{self.inputs.value.value} <= {self.inputs.limit.value}")
-                    self.signals.output.false()
+                    return (*super().emitting_channels, self.signals.output.false)
 
         @Workflow.wrap.as_function_node("sqrt")
         def sqrt(value=0):
@@ -84,6 +81,7 @@ class TestTopology(unittest.TestCase):
         wf = Workflow("rand_until_big_then_sqrt", automate_execution=False)
 
         wf.rand = randint()
+        wf.rand.use_cache = False
 
         wf.gt_switch = GreaterThanLimitSwitch()
         wf.gt_switch.inputs.value = wf.rand
@@ -160,6 +158,7 @@ class TestTopology(unittest.TestCase):
         wf.b = wf.a + 1  # Injected
         wf.c = Workflow.create.function_node(foo, wf.b)  # Instantiated from function
         wf.d = Bar(wf.c)  # From decorated function
+        wf.use_cache = False
 
         reference_output = wf()
 
@@ -198,6 +197,45 @@ class TestTopology(unittest.TestCase):
                 )
             for child in wf:
                 child.executor = None
+
+    def test_cache(self):
+        wf = Workflow("tmp")
+        wf.use_cache = True
+        wf.a = wf.create.standard.UserInput(0)
+        wf.b = wf.a + 1
+
+        first_out = wf()
+
+        @Workflow.wrap.as_function_node("as_string")
+        def Sleep(t):
+            time.sleep(t)
+            return "slept"
+
+        wf.c = Sleep(wf.b)
+
+        second_out = wf()
+        self.assertNotEqual(
+            first_out,
+            second_out,
+            msg="Even thought the _input_ hasn't changed, we expect to avoid the first "
+                "(cached) result by virtue of resetting the cache when the body of "
+                "the composite graph has changed"
+        )
+
+        t0 = time.perf_counter()
+        third_out = wf()
+        dt = time.perf_counter() - t0
+        self.assertEqual(
+            third_out,
+            second_out,
+            msg="This time there is no change and we expect the cached result"
+        )
+        self.assertLess(
+            dt,
+            0.1 * wf.c.inputs.t.value,
+            msg="And because it used the cache we expect it much faster than the sleep "
+                "time"
+        )
 
 
 if __name__ == '__main__':

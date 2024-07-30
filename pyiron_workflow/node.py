@@ -13,6 +13,7 @@ from concurrent.futures import Future
 from typing import Any, Literal, Optional, TYPE_CHECKING
 
 from pyiron_snippets.colors import SeabornColors
+from pyiron_snippets.dotdict import DotDict
 
 from pyiron_workflow.draw import Node as GraphvizNode
 from pyiron_workflow.logging import logger
@@ -34,6 +35,7 @@ if TYPE_CHECKING:
     import graphviz
     from pyiron_snippets.files import DirectoryObject
 
+    from pyiron_workflow.channels import OutputSignal
     from pyiron_workflow.nodes.composite import Composite
 
 
@@ -336,6 +338,8 @@ class Node(
             storage_backend=storage_backend,
         )
         self.save_after_run = save_after_run
+        self.use_cache = True
+        self.cached_inputs = None
         self._user_data = {}  # A place for power-users to bypass node-injection
 
         self._setup_node()
@@ -491,6 +495,20 @@ class Node(
         if fetch_input:
             self.inputs.fetch()
 
+        if self.use_cache and self.cache_hit:  # Read and use cache
+
+            if self.parent is None and emit_ran_signal:
+                self.emit()
+            elif self.parent is not None:
+                self.parent.register_child_starting(self)
+                self.parent.register_child_finished(self)
+                if emit_ran_signal:
+                    self.parent.register_child_emitting(self)
+
+            return self._outputs_to_run_return()
+        elif self.use_cache:  # Write cache and continue
+            self.cached_inputs = self.inputs.to_value_dict()
+
         if self.parent is not None:
             self.parent.register_child_starting(self)
 
@@ -602,6 +620,13 @@ class Node(
                 c1.connect(c2)
             if self.parent is not None:
                 self.parent.starting_nodes = parent_starting_nodes
+
+    @property
+    def cache_hit(self):
+        return self.inputs.to_value_dict() == self.cached_inputs
+
+    def _outputs_to_run_return(self):
+        return DotDict(self.outputs.to_value_dict())
 
     def _finish_run(self, run_output: tuple | Future) -> Any | tuple:
         try:

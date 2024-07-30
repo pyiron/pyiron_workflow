@@ -212,7 +212,7 @@ class Composite(SemanticParent, HasCreator, Node, ABC):
     def process_run_result(self, run_output):
         if run_output is not self:
             self._parse_remotely_executed_self(run_output)
-        return DotDict(self.outputs.to_value_dict())
+        return self._outputs_to_run_return()
 
     def _parse_remotely_executed_self(self, other_self):
         # Un-parent existing nodes before ditching them
@@ -260,6 +260,7 @@ class Composite(SemanticParent, HasCreator, Node, ABC):
                 f"Only new {Node.__name__} instances may be added, but got "
                 f"{type(child)}."
             )
+        self.cached_inputs = None  # Reset cache after graph change
         return super().add_child(child, label=label, strict_naming=strict_naming)
 
     def remove_child(self, child: Node | str) -> list[tuple[Channel, Channel]]:
@@ -277,6 +278,7 @@ class Composite(SemanticParent, HasCreator, Node, ABC):
         disconnected = child.disconnect()
         if child in self.starting_nodes:
             self.starting_nodes.remove(child)
+        self.cached_inputs = None  # Reset cache after graph change
         return disconnected
 
     def replace_child(
@@ -354,6 +356,10 @@ class Composite(SemanticParent, HasCreator, Node, ABC):
             self.starting_nodes.append(replacement)
         for sending_channel, receiving_channel in inbound_links + outbound_links:
             sending_channel.value_receiver = receiving_channel
+
+        # Clear caches
+        self.cached_inputs = None
+        replacement.cached_inputs = None
 
         return owned_node
 

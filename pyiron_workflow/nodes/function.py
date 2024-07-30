@@ -327,7 +327,13 @@ class Function(StaticNode, ScrapesIO, ABC):
             (function_output,) if len(self.outputs) == 1 else function_output,
         ):
             out.value = value
-        return function_output
+        return self._outputs_to_run_return()
+
+    def _outputs_to_run_return(self):
+        output = tuple(self.outputs.to_value_dict().values())
+        if len(output) == 1:
+            output = output[0]
+        return output
 
     def to_dict(self):
         return {
