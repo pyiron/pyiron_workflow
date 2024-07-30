@@ -153,7 +153,9 @@ def list_to_outputs_factory(n: int, use_cache: bool = True, /) -> type[ListToOut
     )
 
 
-def list_to_outputs(n: int, /, *node_args, use_cache: bool = True, **node_kwargs) -> ListToOutputs:
+def list_to_outputs(
+    n: int, /, *node_args, use_cache: bool = True, **node_kwargs
+) -> ListToOutputs:
     """
     Creates and returns an instance of a dynamically generated :class:`ListToOutputs`
     subclass with a specified number of outputs.

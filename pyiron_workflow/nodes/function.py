@@ -385,13 +385,17 @@ def function_node_factory(
             "_output_labels": None if len(output_labels) == 0 else output_labels,
             "_validate_output_labels": validate_output_labels,
             "__doc__": node_function.__doc__,
-            "use_cache": use_cache
+            "use_cache": use_cache,
         },
         {},
     )
 
 
-def as_function_node(*output_labels: str, validate_output_labels=True, use_cache=True,):
+def as_function_node(
+    *output_labels: str,
+    validate_output_labels=True,
+    use_cache=True,
+):
     """
     Decorator to create a new :class:`Function` node class from a given function. This
     function gets executed on each :meth:`run` of the resulting function.
