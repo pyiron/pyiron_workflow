@@ -5,7 +5,7 @@ from pyiron_workflow import Workflow
 from pyiron_workflow.channels import NOT_DATA
 
 
-class TestParallelSpeedup(unittest.TestCase):
+class TestSpeedup(unittest.TestCase):
     def test_speedup(self):
 
         def make_workflow(label):
@@ -24,9 +24,21 @@ class TestParallelSpeedup(unittest.TestCase):
         wf.starting_nodes = [wf.a]
         t0 = perf_counter()
         wf()
-        while wf.outputs.d__user_input.value is NOT_DATA:
+        while wf.running:
             sleep(0.001)
         dt_serial = perf_counter() - t0
+        t0_cache = perf_counter()
+        wf()
+        while wf.running:
+            sleep(0.001)
+        dt_cached_serial = perf_counter() - t0_cache
+
+        self.assertLess(
+            dt_cached_serial,
+            0.01 * t,
+            msg=f"The cache should be trivially fast compared to actual execution of "
+                f"a sleep node"
+        )
 
         wf = make_workflow("parallel")
         wf.d << (wf.a, wf.b, wf.c)
@@ -39,9 +51,15 @@ class TestParallelSpeedup(unittest.TestCase):
 
             t1 = perf_counter()
             wf()
-            while wf.outputs.d__user_input.value is NOT_DATA:
+            while wf.running:
                 sleep(0.001)
             dt_parallel = perf_counter() - t1
+
+            t1_cache = perf_counter()
+            wf()
+            while wf.running:
+                sleep(0.001)
+            dt_cached_parallel = perf_counter() - t1_cache
 
         self.assertLess(
             dt_parallel,
@@ -49,6 +67,12 @@ class TestParallelSpeedup(unittest.TestCase):
             msg=f"Expected the parallel solution to be at least 2x faster, but got"
                 f"{dt_parallel}  and {dt_serial} for parallel and serial times, "
                 f"respectively"
+        )
+        self.assertLess(
+            dt_cached_parallel,
+            0.01 * t,
+            msg=f"The cache should be trivially fast compared to actual execution of "
+                f"a sleep node"
         )
 
 
