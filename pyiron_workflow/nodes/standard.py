@@ -61,19 +61,12 @@ class If(Function):
         truth = bool(condition)
         return truth
 
-    def process_run_result(self, function_output):
-        """
-        Process the output as usual, then fire signals accordingly.
-
-        Args:
-            function_output: The result of the node function.
-        """
-        super().process_run_result(function_output)
-
+    @property
+    def emitting_channels(self) -> tuple[OutputSignal]:
         if self.outputs.truth.value:
-            self.signals.output.true()
+            return (*super().emitting_channels, self.signals.output.true)
         else:
-            self.signals.output.false()
+            return (*super().emitting_channels, self.signals.output.false)
 
 
 @as_function_node("list")

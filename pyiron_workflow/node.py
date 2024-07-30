@@ -616,9 +616,9 @@ class Node(
     def _finish_run_and_emit_ran(self, run_output: tuple | Future) -> Any | tuple:
         processed_output = self._finish_run(run_output)
         if self.parent is None:
-            self.signals.output.ran()
+            self.emit()
         else:
-            self.parent.register_child_emitting_ran(self)
+            self.parent.register_child_emitting(self)
         return processed_output
 
     _finish_run_and_emit_ran.__doc__ = (
@@ -628,6 +628,14 @@ class Node(
     Finally, fire the `ran` signal.
     """
     )
+
+    @property
+    def emitting_channels(self) -> tuple[OutputSignal]:
+        return (self.signals.output.ran,)
+
+    def emit(self):
+        for channel in self.emitting_channels:
+            channel()
 
     def execute(self, *args, **kwargs):
         """

@@ -155,8 +155,8 @@ class Composite(SemanticParent, HasCreator, Node, ABC):
 
         while len(self.running_children) > 0 or len(self.signal_queue) > 0:
             try:
-                ran_signal, receiver = self.signal_queue.pop(0)
-                receiver(ran_signal)
+                firing, receiving = self.signal_queue.pop(0)
+                receiving(firing)
             except IndexError:
                 # The signal queue is empty, but there is still someone running...
                 sleep(self._child_sleep_interval)
@@ -192,17 +192,18 @@ class Composite(SemanticParent, HasCreator, Node, ABC):
                 f"{self.provenance_by_execution}, {self.provenance_by_completion}"
             ) from e
 
-    def register_child_emitting_ran(self, child: Node) -> None:
+    def register_child_emitting(self, child: Node) -> None:
         """
-        To be called by children when they want to emit their `ran` signal.
+        To be called by children when they want to emit their signals.
 
         Args:
             child [Node]: The child that is finished and would like to fire its `ran`
-                signal. Should always be a child of `self`, but this is not explicitly
-                verified at runtime.
+                signal (and possibly others). Should always be a child of `self`, but
+                this is not explicitly verified at runtime.
         """
-        for conn in child.signals.output.ran.connections:
-            self.signal_queue.append((child.signals.output.ran, conn))
+        for firing in child.emitting_channels:
+            for receiving in firing.connections:
+                self.signal_queue.append((firing, receiving))
 
     @property
     def run_args(self) -> tuple[tuple, dict]:
