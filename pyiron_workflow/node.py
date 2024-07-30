@@ -130,6 +130,8 @@ class Node(
         - NOTE: Don't forget to :meth:`shutdown` any created executors outside of a
             `with` context when you're done with them; we give a convenience method for
             this.
+    - Nodes can optionally cache their input to skip running altogether and use
+        existing output when their current input matches the cached input.
     - Nodes created from a registered package store their package identifier as a class
         attribute.
     - [ALPHA FEATURE] Nodes can be saved to and loaded from file if python >= 3.11.
@@ -263,6 +265,11 @@ class Node(
             Additional signal channels in derived classes can be added to
             :attr:`signals.inputs` and  :attr:`signals.outputs` after this mixin class is
             initialized.
+        use_cache (bool): Whether or not to cache the inputs and, when the current
+            inputs match the cached input (by `==` comparison), to bypass running the
+            node and simply continue using the existing outputs. Note that you may be
+            able to trigger a false cache hit in some special case of non-idempotent
+            nodes working on mutable data.
 
     Methods:
         __call__: An alias for :meth:`pull` that aggressively runs upstream nodes even
