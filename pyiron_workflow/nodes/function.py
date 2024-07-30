@@ -327,7 +327,13 @@ class Function(StaticNode, ScrapesIO, ABC):
             (function_output,) if len(self.outputs) == 1 else function_output,
         ):
             out.value = value
-        return function_output
+        return self._outputs_to_run_return()
+
+    def _outputs_to_run_return(self):
+        output = tuple(self.outputs.to_value_dict().values())
+        if len(output) == 1:
+            output = output[0]
+        return output
 
     def to_dict(self):
         return {
@@ -348,7 +354,11 @@ class Function(StaticNode, ScrapesIO, ABC):
 
 @classfactory
 def function_node_factory(
-    node_function: callable, validate_output_labels: bool, /, *output_labels
+    node_function: callable,
+    validate_output_labels: bool,
+    use_cache: bool = True,
+    /,
+    *output_labels,
 ):
     """
     Create a new :class:`Function` node class based on the given node function. This
@@ -358,6 +368,8 @@ def function_node_factory(
         node_function (callable): The function to be wrapped by the node.
         validate_output_labels (bool): Flag to indicate if output labels should be
             validated.
+        use_cache (bool): Whether nodes of this type should default to caching their
+            values.
         *output_labels: Optional labels for the function's output channels.
 
     Returns:
@@ -373,12 +385,17 @@ def function_node_factory(
             "_output_labels": None if len(output_labels) == 0 else output_labels,
             "_validate_output_labels": validate_output_labels,
             "__doc__": node_function.__doc__,
+            "use_cache": use_cache,
         },
         {},
     )
 
 
-def as_function_node(*output_labels: str, validate_output_labels=True):
+def as_function_node(
+    *output_labels: str,
+    validate_output_labels=True,
+    use_cache=True,
+):
     """
     Decorator to create a new :class:`Function` node class from a given function. This
     function gets executed on each :meth:`run` of the resulting function.
@@ -388,6 +405,8 @@ def as_function_node(*output_labels: str, validate_output_labels=True):
         validate_output_labels (bool): Flag to indicate if output labels should be
             validated against the return values in the function node source code.
             Defaults to True.
+        use_cache (bool): Whether nodes of this type should default to caching their
+            values. (Default is True.)
 
     Returns:
         Callable: A decorator that converts a function into a :class:`Function` node
@@ -397,7 +416,7 @@ def as_function_node(*output_labels: str, validate_output_labels=True):
     def decorator(node_function):
         function_node_factory.clear(node_function.__name__)  # Force a fresh class
         factory_made = function_node_factory(
-            node_function, validate_output_labels, *output_labels
+            node_function, validate_output_labels, use_cache, *output_labels
         )
         factory_made._class_returns_from_decorated_function = node_function
         factory_made.preview_io()
@@ -411,6 +430,7 @@ def function_node(
     *node_args,
     output_labels: str | tuple[str, ...] | None = None,
     validate_output_labels: bool = True,
+    use_cache: bool = True,
     **node_kwargs,
 ):
     """
@@ -427,6 +447,8 @@ def function_node(
             validated against the return values in the function source code. Defaults
             to True. Disabling this may be useful if the source code is not available
             or if the function has multiple return statements.
+        use_cache (bool): Whether this node should default to caching its values.
+            (Default is True.)
         **node_kwargs: Keyword arguments for the :class:`Function` initialization --
             parsed as node input data when the keyword matches an input channel.
 
@@ -439,7 +461,7 @@ def function_node(
         output_labels = (output_labels,)
     function_node_factory.clear(node_function.__name__)  # Force a fresh class
     factory_made = function_node_factory(
-        node_function, validate_output_labels, *output_labels
+        node_function, validate_output_labels, use_cache, *output_labels
     )
     factory_made.preview_io()
     return factory_made(*node_args, **node_kwargs)

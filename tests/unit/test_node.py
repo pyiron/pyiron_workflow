@@ -102,6 +102,9 @@ class TestNode(unittest.TestCase):
         )
 
     def test_check_readiness(self):
+        n3_cache = self.n3.use_cache
+        self.n3.use_cache = False
+
         with self.assertRaises(
             ValueError,
             msg="When input is not data, we should fail early"
@@ -139,6 +142,8 @@ class TestNode(unittest.TestCase):
             msg="After manually resetting the failed state and providing good input, "
                 "running should proceed"
         )
+        
+        self.n3.use_cache = n3_cache
 
     def test_force_local_execution(self):
         self.n1.executor = ProcessPoolExecutor()

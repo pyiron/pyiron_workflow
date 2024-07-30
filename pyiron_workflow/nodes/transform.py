@@ -108,22 +108,27 @@ class ListToOutputs(_HasLength, ToManyOutputs, ABC):
 
 @builds_class_io
 @classfactory
-def inputs_to_list_factory(n: int, /) -> type[InputsToList]:
+def inputs_to_list_factory(n: int, use_cache: bool = True, /) -> type[InputsToList]:
     return (
         f"{InputsToList.__name__}{n}",
         (InputsToList,),
-        {"_length": n},
+        {
+            "_length": n,
+            "use_cache": use_cache,
+        },
         {},
     )
 
 
-def inputs_to_list(n: int, *node_args, **node_kwargs):
+def inputs_to_list(n: int, /, *node_args, use_cache: bool = True, **node_kwargs):
     """
     Creates and returns an instance of a dynamically generated :class:`InputsToList`
         subclass with a specified number of inputs.
 
     Args:
         n (int): Number of input channels.
+        use_cache (bool): Whether this node should default to caching its values.
+            (Default is True.)
         *node_args: Positional arguments for the node instance.
         **node_kwargs: Keyword arguments for the node instance.
 
@@ -131,27 +136,34 @@ def inputs_to_list(n: int, *node_args, **node_kwargs):
         InputsToList: An instance of the dynamically created :class:`InputsToList`
             subclass.
     """
-    return inputs_to_list_factory(n)(*node_args, **node_kwargs)
+    return inputs_to_list_factory(n, use_cache)(*node_args, **node_kwargs)
 
 
 @builds_class_io
 @classfactory
-def list_to_outputs_factory(n: int, /) -> type[ListToOutputs]:
+def list_to_outputs_factory(n: int, use_cache: bool = True, /) -> type[ListToOutputs]:
     return (
         f"{ListToOutputs.__name__}{n}",
         (ListToOutputs,),
-        {"_length": n},
+        {
+            "_length": n,
+            "use_cache": use_cache,
+        },
         {},
     )
 
 
-def list_to_outputs(n: int, /, *node_args, **node_kwargs) -> ListToOutputs:
+def list_to_outputs(
+    n: int, /, *node_args, use_cache: bool = True, **node_kwargs
+) -> ListToOutputs:
     """
     Creates and returns an instance of a dynamically generated :class:`ListToOutputs`
     subclass with a specified number of outputs.
 
     Args:
         n (int): Number of output channels.
+        use_cache (bool): Whether this node should default to caching its values.
+            (Default is True.)
         *node_args: Positional arguments for the node instance.
         **node_kwargs: Keyword arguments for the node instance.
 
@@ -159,7 +171,7 @@ def list_to_outputs(n: int, /, *node_args, **node_kwargs) -> ListToOutputs:
         ListToOutputs: An instance of the dynamically created :class:`ListToOutputs`
             subclass.
     """
-    return list_to_outputs_factory(n)(*node_args, **node_kwargs)
+    return list_to_outputs_factory(n, use_cache)(*node_args, **node_kwargs)
 
 
 class InputsToDict(FromManyInputs, ABC):
@@ -209,6 +221,7 @@ class InputsToDict(FromManyInputs, ABC):
 def inputs_to_dict_factory(
     input_specification: list[str] | dict[str, tuple[Any | None, Any | NOT_DATA]],
     class_name_suffix: str | None,
+    use_cache: bool = True,
     /,
 ) -> type[InputsToDict]:
     if class_name_suffix is None:
@@ -218,7 +231,10 @@ def inputs_to_dict_factory(
     return (
         f"{InputsToDict.__name__}{class_name_suffix}",
         (InputsToDict,),
-        {"_input_specification": input_specification},
+        {
+            "_input_specification": input_specification,
+            "use_cache": use_cache,
+        },
         {},
     )
 
@@ -227,6 +243,7 @@ def inputs_to_dict(
     input_specification: list[str] | dict[str, tuple[Any | None, Any | NOT_DATA]],
     *node_args,
     class_name_suffix: Optional[str] = None,
+    use_cache: bool = True,
     **node_kwargs,
 ):
     """
@@ -243,12 +260,14 @@ def inputs_to_dict(
         *node_args: Other args for the node instance.
         class_name_suffix (str | None): The suffix to use in the class name. (Default
             is None, try to generate the suffix by hashing :param:`input_specification`.
+        use_cache (bool): Whether this node should default to caching its values.
+            (Default is True.)
         **node_kwargs: Other kwargs for the node instance.
 
     Returns:
         (InputsToDict): A new node for transforming inputs into a dictionary.
     """
-    cls = inputs_to_dict_factory(input_specification, class_name_suffix)
+    cls = inputs_to_dict_factory(input_specification, class_name_suffix, use_cache)
     cls.preview_io()
     return cls(*node_args, **node_kwargs)
 
@@ -282,16 +301,21 @@ class InputsToDataframe(_HasLength, FromManyInputs, ABC):
 
 
 @classfactory
-def inputs_to_dataframe_factory(n: int, /) -> type[InputsToDataframe]:
+def inputs_to_dataframe_factory(
+    n: int, use_cache: bool = True, /
+) -> type[InputsToDataframe]:
     return (
         f"{InputsToDataframe.__name__}{n}",
         (InputsToDataframe,),
-        {"_length": n},
+        {
+            "_length": n,
+            "use_cache": use_cache,
+        },
         {},
     )
 
 
-def inputs_to_dataframe(n: int, *node_args, **node_kwargs):
+def inputs_to_dataframe(n: int, use_cache: bool = True, *node_args, **node_kwargs):
     """
     Creates and returns an instance of a dynamically generated
     :class:`InputsToDataframe` subclass with a specified number of inputs, each being a
@@ -299,6 +323,8 @@ def inputs_to_dataframe(n: int, *node_args, **node_kwargs):
 
     Args:
         n (int): Number of input channels.
+        use_cache (bool): Whether this node should default to caching its values.
+            (Default is True.)
         *node_args: Positional arguments for the node instance.
         **node_kwargs: Keyword arguments for the node instance.
 
@@ -306,7 +332,7 @@ def inputs_to_dataframe(n: int, *node_args, **node_kwargs):
         InputsToDataframe: An instance of the dynamically created
             :class:`InputsToDataframe` subclass.
     """
-    cls = inputs_to_dataframe_factory(n)
+    cls = inputs_to_dataframe_factory(n, use_cache)
     cls.preview_io()
     return cls(*node_args, **node_kwargs)
 
@@ -351,7 +377,9 @@ class DataclassNode(FromManyInputs, ABC):
 
 
 @classfactory
-def dataclass_node_factory(dataclass: type, /) -> type[DataclassNode]:
+def dataclass_node_factory(
+    dataclass: type, use_cache: bool = True, /
+) -> type[DataclassNode]:
     if not is_dataclass(dataclass):
         raise TypeError(
             f"{DataclassNode} expected to get a dataclass but {dataclass} failed "
@@ -369,12 +397,13 @@ def dataclass_node_factory(dataclass: type, /) -> type[DataclassNode]:
             "dataclass": dataclass,
             "_output_type_hint": dataclass,
             "__doc__": dataclass.__doc__,
+            "use_cache": use_cache,
         },
         {},
     )
 
 
-def as_dataclass_node(dataclass: type):
+def as_dataclass_node(dataclass: type, use_cache: bool = True):
     """
     Decorates a dataclass as a dataclass node -- i.e. a node whose inputs correspond
     to dataclass fields and whose output is an instance of the dataclass.
@@ -387,6 +416,8 @@ def as_dataclass_node(dataclass: type):
 
     Args:
         dataclass (type): A dataclass, i.e. class passing `dataclasses.is_dataclass`.
+        use_cache (bool): Whether nodes of this type should default to caching their
+            values. (Default is True.)
 
     Returns:
         (type[DataclassNode]): A :class:`DataclassNode` subclass whose instances
@@ -423,12 +454,12 @@ def as_dataclass_node(dataclass: type):
         >>> f(necessary="input as a node kwarg")
         Foo(necessary='input as a node kwarg', bar='bar', answer=42, complex_=[1, 2, 3])
     """
-    cls = dataclass_node_factory(dataclass)
+    cls = dataclass_node_factory(dataclass, use_cache)
     cls.preview_io()
     return cls
 
 
-def dataclass_node(dataclass: type, *node_args, **node_kwargs):
+def dataclass_node(dataclass: type, use_cache: bool = True, *node_args, **node_kwargs):
     """
     Builds a dataclass node from a dataclass -- i.e. a node whose inputs correspond
     to dataclass fields and whose output is an instance of the dataclass.
@@ -441,6 +472,8 @@ def dataclass_node(dataclass: type, *node_args, **node_kwargs):
 
     Args:
         dataclass (type): A dataclass, i.e. class passing `dataclasses.is_dataclass`.
+        use_cache (bool): Whether this node should default to caching its values.
+            (Default is True.)
         *node_args: Other :class:`Node` positional arguments.
         **node_kwargs: Other :class:`Node` keyword arguments.
 

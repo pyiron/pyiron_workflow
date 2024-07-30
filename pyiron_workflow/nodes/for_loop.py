@@ -427,6 +427,7 @@ def for_node_factory(
     iter_on: tuple[str, ...] = (),
     zip_on: tuple[str, ...] = (),
     output_column_map: dict | None = None,
+    use_cache: bool = True,
     /,
 ):
     combined_docstring = (
@@ -444,6 +445,7 @@ def for_node_factory(
             "_iter_on": iter_on,
             "_zip_on": zip_on,
             "__doc__": combined_docstring,
+            "use_cache": use_cache,
         },
         {"output_column_map": output_column_map},
     )
@@ -455,6 +457,7 @@ def for_node(
     iter_on=(),
     zip_on=(),
     output_column_map: Optional[dict[str, str]] = None,
+    use_cache: bool = True,
     **node_kwargs,
 ):
     """
@@ -482,6 +485,8 @@ def for_node(
             Necessary iff the body node has the same label for an output channel and
             an input channel being looped over. (Default is None, just use the output
             channel labels as columb names.)
+        use_cache (bool): Whether this node should default to caching its values.
+            (Default is True.)
         **node_kwargs: Regular keyword node arguments.
 
     Returns:
@@ -555,6 +560,8 @@ def for_node(
 
     """
     for_node_factory.clear(_for_node_class_name(body_node_class, iter_on, zip_on))
-    cls = for_node_factory(body_node_class, iter_on, zip_on, output_column_map)
+    cls = for_node_factory(
+        body_node_class, iter_on, zip_on, output_column_map, use_cache
+    )
     cls.preview_io()
     return cls(*node_args, **node_kwargs)

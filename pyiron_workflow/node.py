@@ -13,6 +13,7 @@ from concurrent.futures import Future
 from typing import Any, Literal, Optional, TYPE_CHECKING
 
 from pyiron_snippets.colors import SeabornColors
+from pyiron_snippets.dotdict import DotDict
 
 from pyiron_workflow.draw import Node as GraphvizNode
 from pyiron_workflow.logging import logger
@@ -34,6 +35,7 @@ if TYPE_CHECKING:
     import graphviz
     from pyiron_snippets.files import DirectoryObject
 
+    from pyiron_workflow.channels import OutputSignal
     from pyiron_workflow.nodes.composite import Composite
 
 
@@ -128,6 +130,8 @@ class Node(
         - NOTE: Don't forget to :meth:`shutdown` any created executors outside of a
             `with` context when you're done with them; we give a convenience method for
             this.
+    - Nodes can optionally cache their input to skip running altogether and use
+        existing output when their current input matches the cached input.
     - Nodes created from a registered package store their package identifier as a class
         attribute.
     - [ALPHA FEATURE] Nodes can be saved to and loaded from file if python >= 3.11.
@@ -261,6 +265,11 @@ class Node(
             Additional signal channels in derived classes can be added to
             :attr:`signals.inputs` and  :attr:`signals.outputs` after this mixin class is
             initialized.
+        use_cache (bool): Whether or not to cache the inputs and, when the current
+            inputs match the cached input (by `==` comparison), to bypass running the
+            node and simply continue using the existing outputs. Note that you may be
+            able to trigger a false cache hit in some special case of non-idempotent
+            nodes working on mutable data.
 
     Methods:
         __call__: An alias for :meth:`pull` that aggressively runs upstream nodes even
@@ -303,6 +312,7 @@ class Node(
     """
 
     package_identifier = None
+    use_cache = True
 
     # This isn't nice, just a technical necessity in the current implementation
     # Eventually, of course, this needs to be _at least_ file-format independent
@@ -336,6 +346,7 @@ class Node(
             storage_backend=storage_backend,
         )
         self.save_after_run = save_after_run
+        self.cached_inputs = None
         self._user_data = {}  # A place for power-users to bypass node-injection
 
         self._setup_node()
@@ -491,6 +502,20 @@ class Node(
         if fetch_input:
             self.inputs.fetch()
 
+        if self.use_cache and self.cache_hit:  # Read and use cache
+
+            if self.parent is None and emit_ran_signal:
+                self.emit()
+            elif self.parent is not None:
+                self.parent.register_child_starting(self)
+                self.parent.register_child_finished(self)
+                if emit_ran_signal:
+                    self.parent.register_child_emitting(self)
+
+            return self._outputs_to_run_return()
+        elif self.use_cache:  # Write cache and continue
+            self.cached_inputs = self.inputs.to_value_dict()
+
         if self.parent is not None:
             self.parent.register_child_starting(self)
 
@@ -603,6 +628,13 @@ class Node(
             if self.parent is not None:
                 self.parent.starting_nodes = parent_starting_nodes
 
+    @property
+    def cache_hit(self):
+        return self.inputs.to_value_dict() == self.cached_inputs
+
+    def _outputs_to_run_return(self):
+        return DotDict(self.outputs.to_value_dict())
+
     def _finish_run(self, run_output: tuple | Future) -> Any | tuple:
         try:
             processed_output = super()._finish_run(run_output=run_output)
@@ -616,9 +648,9 @@ class Node(
     def _finish_run_and_emit_ran(self, run_output: tuple | Future) -> Any | tuple:
         processed_output = self._finish_run(run_output)
         if self.parent is None:
-            self.signals.output.ran()
+            self.emit()
         else:
-            self.parent.register_child_emitting_ran(self)
+            self.parent.register_child_emitting(self)
         return processed_output
 
     _finish_run_and_emit_ran.__doc__ = (
@@ -628,6 +660,14 @@ class Node(
     Finally, fire the `ran` signal.
     """
     )
+
+    @property
+    def emitting_channels(self) -> tuple[OutputSignal]:
+        return (self.signals.output.ran,)
+
+    def emit(self):
+        for channel in self.emitting_channels:
+            channel()
 
     def execute(self, *args, **kwargs):
         """
