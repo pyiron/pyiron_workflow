@@ -312,6 +312,7 @@ class Node(
     """
 
     package_identifier = None
+    use_cache = True
 
     # This isn't nice, just a technical necessity in the current implementation
     # Eventually, of course, this needs to be _at least_ file-format independent
@@ -345,7 +346,6 @@ class Node(
             storage_backend=storage_backend,
         )
         self.save_after_run = save_after_run
-        self.use_cache = True
         self.cached_inputs = None
         self._user_data = {}  # A place for power-users to bypass node-injection
 

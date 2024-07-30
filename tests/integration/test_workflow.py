@@ -41,7 +41,7 @@ class TestTopology(unittest.TestCase):
         Check that cyclic graphs run.
         """
 
-        @Workflow.wrap.as_function_node()
+        @Workflow.wrap.as_function_node(use_cache=False)
         def randint(low=0, high=20):
             rand = random.randint(low, high)
             print(f"Generating random number between {low} and {high}...{rand}!")
@@ -81,7 +81,6 @@ class TestTopology(unittest.TestCase):
         wf = Workflow("rand_until_big_then_sqrt", automate_execution=False)
 
         wf.rand = randint()
-        wf.rand.use_cache = False
 
         wf.gt_switch = GreaterThanLimitSwitch()
         wf.gt_switch.inputs.value = wf.rand
