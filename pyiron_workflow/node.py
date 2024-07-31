@@ -630,7 +630,10 @@ class Node(
 
     @property
     def cache_hit(self):
-        return self.inputs.to_value_dict() == self.cached_inputs
+        try:
+            return self.inputs.to_value_dict() == self.cached_inputs
+        except:
+            return False
 
     def _outputs_to_run_return(self):
         return DotDict(self.outputs.to_value_dict())
