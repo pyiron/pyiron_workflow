@@ -5,7 +5,7 @@ Transformer nodes convert many inputs into a single output, or vice-versa.
 from __future__ import annotations
 
 from abc import ABC, abstractmethod
-from dataclasses import is_dataclass, MISSING
+from dataclasses import dataclass as as_dataclass, is_dataclass, MISSING
 import itertools
 from typing import Any, ClassVar, Optional
 
@@ -380,16 +380,13 @@ class DataclassNode(FromManyInputs, ABC):
 def dataclass_node_factory(
     dataclass: type, use_cache: bool = True, /
 ) -> type[DataclassNode]:
-    if not is_dataclass(dataclass):
-        raise TypeError(
-            f"{DataclassNode} expected to get a dataclass but {dataclass} failed "
-            f"`dataclasses.is_dataclass`."
-        )
     if type(dataclass) is not type:
         raise TypeError(
             f"{DataclassNode} expected to get a dataclass but {dataclass} is not "
             f"type `type`."
         )
+    if not is_dataclass(dataclass):
+        dataclass = as_dataclass(dataclass)
     return (
         f"{DataclassNode.__name__}{dataclass.__name__}",
         (DataclassNode,),
@@ -415,7 +412,9 @@ def as_dataclass_node(dataclass: type, use_cache: bool = True):
     channel values at class defintion (instantiation).
 
     Args:
-        dataclass (type): A dataclass, i.e. class passing `dataclasses.is_dataclass`.
+        dataclass (type): A dataclass, i.e. class passing `dataclasses.is_dataclass`,
+            or class definition that will be automatically wrapped with
+            `dataclasses.dataclass`.
         use_cache (bool): Whether nodes of this type should default to caching their
             values. (Default is True.)
 
@@ -432,7 +431,6 @@ def as_dataclass_node(dataclass: type, use_cache: bool = True):
         ...     return [1, 2, 3]
         >>>
         >>> @Workflow.wrap.as_dataclass_node
-        ... @dataclass
         ... class Foo:
         ...     necessary: str
         ...     bar: str = "bar"
@@ -471,7 +469,9 @@ def dataclass_node(dataclass: type, use_cache: bool = True, *node_args, **node_k
     channel values at class defintion (instantiation).
 
     Args:
-        dataclass (type): A dataclass, i.e. class passing `dataclasses.is_dataclass`.
+        dataclass (type): A dataclass, i.e. class passing `dataclasses.is_dataclass`,
+            or class variable that will be automatically passed to
+            `dataclasses.dataclass`.
         use_cache (bool): Whether this node should default to caching its values.
             (Default is True.)
         *node_args: Other :class:`Node` positional arguments.
@@ -489,8 +489,8 @@ def dataclass_node(dataclass: type, use_cache: bool = True, *node_args, **node_k
         >>> def some_list():
         ...     return [1, 2, 3]
         >>>
-        >>> @dataclass
-        ... class Foo:
+        >>> #@dataclass  # Works on actual dataclasses as well as dataclass-like classes
+        >>> class Foo:
         ...     necessary: str
         ...     bar: str = "bar"
         ...     answer: int = 42
