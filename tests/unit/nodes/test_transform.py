@@ -136,8 +136,9 @@ class TestTransformer(unittest.TestCase):
             return [1, 2, 3]
 
         with self.subTest("From instantiator"):
-            @dataclass
+
             class DC:
+                """Doesn't even have to be an actual dataclass, just dataclass-like"""
                 necessary: str
                 with_default: int = 42
                 with_factory: list = field(default_factory=some_generator)
@@ -147,6 +148,19 @@ class TestTransformer(unittest.TestCase):
                 n.dataclass,
                 DC,
                 msg="Underlying dataclass should be accessible"
+            )
+            self.assertTrue(
+                is_dataclass(n.dataclass),
+                msg="Underlying dataclass should be a real dataclass"
+            )
+            self.assertTrue(
+                is_dataclass(DC),
+                msg="Note that passing the underlying dataclass variable through the "
+                    "`dataclasses.dataclass` operator actually transforms it, so it "
+                    "too is now a real dataclass, even though it wasn't defined as "
+                    "one! This is just a side effect. I don't see it being harmful, "
+                    "but in case it gives some future reader trouble, I want to "
+                    "explicitly note the side effect here in the tests."
             )
             self.assertListEqual(
                 list(DC.__dataclass_fields__.keys()),
@@ -196,35 +210,44 @@ class TestTransformer(unittest.TestCase):
                 with_default: int = 42
                 with_factory: list = field(default_factory=some_generator)
 
-            n_cls = DecoratedDC(label="decorated_instance")
+            @as_dataclass_node
+            class DecoratedDCLike:
+                necessary: str
+                with_default: int = 42
+                with_factory: list = field(default_factory=some_generator)
 
-            self.assertTrue(
-                is_dataclass(n_cls.dataclass),
-                msg="Underlying dataclass should be available on node class"
-            )
-            prev = n_cls.preview_inputs()
-            key = random.choice(list(prev.keys()))
-            self.assertIs(
-                n_cls._dataclass_fields[key].type,
-                prev[key][0],
-                msg="Spot-check input type hints are pulled from dataclass fields"
-            )
-            self.assertIs(
-                prev["necessary"][1],
-                NOT_DATA,
-                msg="Field has no default"
-            )
-            self.assertEqual(
-                n_cls._dataclass_fields["with_default"].default,
-                prev["with_default"][1],
-                msg="Fields with default should get scraped"
-            )
-            self.assertIs(
-                prev["with_factory"][1],
-                NOT_DATA,
-                msg="Fields with default factory won't see their default until "
-                    "instantiation"
-            )
+            for n_cls, style in zip(
+                [DecoratedDC(label="dcinst"), DecoratedDCLike(label="dcinst")],
+                ["Actual dataclass", "Dataclass-like class"]
+            ):
+                with self.subTest(style):
+                    self.assertTrue(
+                        is_dataclass(n_cls.dataclass),
+                        msg="Underlying dataclass should be available on node class"
+                    )
+                    prev = n_cls.preview_inputs()
+                    key = random.choice(list(prev.keys()))
+                    self.assertIs(
+                        n_cls._dataclass_fields[key].type,
+                        prev[key][0],
+                        msg="Spot-check input type hints are pulled from dataclass fields"
+                    )
+                    self.assertIs(
+                        prev["necessary"][1],
+                        NOT_DATA,
+                        msg="Field has no default"
+                    )
+                    self.assertEqual(
+                        n_cls._dataclass_fields["with_default"].default,
+                        prev["with_default"][1],
+                        msg="Fields with default should get scraped"
+                    )
+                    self.assertIs(
+                        prev["with_factory"][1],
+                        NOT_DATA,
+                        msg="Fields with default factory won't see their default until "
+                            "instantiation"
+                    )
 
 
 if __name__ == '__main__':
