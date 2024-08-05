@@ -533,7 +533,7 @@ def for_node(
         Note that if we had simply returned each input individually, without any output
         labels on the node, we'd need to specify a map on the for-node so that the
         (looped) input and output columns on the resulting dataframe are all unique:
-        >>> @Workflow.wrap.as_function_node()
+        >>> @Workflow.wrap.as_function_node
         ... def FiveApart(a: int, b: int, c: int, d: int, e: str = "foobar"):
         ...     return a, b, c, d, e,
         >>>

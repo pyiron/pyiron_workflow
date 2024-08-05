@@ -158,11 +158,11 @@ class TestFunction(unittest.TestCase):
         self.assertEqual(plus_one.__name__, n.label)
 
     def test_availability_of_node_function(self):
-        @as_function_node()
+        @as_function_node
         def linear(x):
             return x
 
-        @as_function_node()
+        @as_function_node
         def bilinear(x, y):
             xy = linear.node_function(x) * linear.node_function(y)
             return xy
@@ -316,12 +316,12 @@ class TestFunction(unittest.TestCase):
             )
 
     def test_copy_values(self):
-        @as_function_node()
+        @as_function_node
         def reference(x=0, y: int = 0, z: int | float = 0, omega=None, extra_here=None):
             out = 42
             return out
 
-        @as_function_node()
+        @as_function_node
         def all_floats(x=1.1, y=1.1, z=1.1, omega=NOT_DATA, extra_there=None) -> float:
             out = 42.1
             return out
@@ -366,7 +366,7 @@ class TestFunction(unittest.TestCase):
         # Note also that these nodes each have extra channels the other doesn't that
         # are simply ignored
 
-        @as_function_node()
+        @as_function_node
         def extra_channel(x=1, y=1, z=1, not_present=42):
             out = 42
             return out
@@ -494,7 +494,7 @@ class TestFunction(unittest.TestCase):
     def test_void_return(self):
         """Test extensions to the `ScrapesIO` mixin."""
 
-        @as_function_node()
+        @as_function_node
         def NoReturn(x):
             y = x + 1
 

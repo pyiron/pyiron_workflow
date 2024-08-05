@@ -171,12 +171,12 @@ class Macro(Composite, StaticNode, ScrapesIO, ABC):
 
         If there's a particular macro we're going to use again and again, we might want
         to consider making a new class for it using the decorator, just like we do for
-        function nodes. If no output labels are explicitly provided, these are scraped
-        from the function return value, just like for function nodes (except the
-        initial `macro.` (or whatever the first argument is named) on any return values
-        is ignored):
+        function nodes. If no output labels are explicitly provided as arguments to the
+        decorator itself, these are scraped from the function return value, just like
+        for function nodes (except the initial `macro` (or `self` or whatever the first
+        argument is named) on any return values is ignored):
 
-        >>> @Macro.wrap.as_macro_node()
+        >>> @Macro.wrap.as_macro_node
         ... def AddThreeMacro(self, x):
         ...     add_three_macro(self, one__x=x)
         ...     # We could also simply have decorated that function to begin with
@@ -207,7 +207,7 @@ class Macro(Composite, StaticNode, ScrapesIO, ABC):
         to do this. Let's explore these by going back to our `add_three_macro` and
         replacing each of its children with a node that adds 2 instead of 1.
 
-        >>> @Macro.wrap.as_function_node()
+        >>> @Macro.wrap.as_function_node
         ... def add_two(x):
         ...     result = x + 2
         ...     return result

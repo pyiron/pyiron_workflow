@@ -12,12 +12,12 @@ class TestProvenance(unittest.TestCase):
     """
 
     def setUp(self) -> None:
-        @Workflow.wrap.as_function_node()
+        @Workflow.wrap.as_function_node
         def Slow(t):
             sleep(t)
             return t
 
-        @Workflow.wrap.as_macro_node()
+        @Workflow.wrap.as_macro_node
         def Provenance(self, t):
             self.fast = Workflow.create.standard.UserInput(t)
             self.slow = Slow(t)

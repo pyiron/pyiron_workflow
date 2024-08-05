@@ -31,6 +31,6 @@ def dynamic(x):
     return x + 1
 
 
-Dynamic = Workflow.wrap.as_function_node()(dynamic)
+Dynamic = Workflow.wrap.as_function_node(dynamic)
 
 nodes = [OptionallyAdd, AddThree, AddPlusOne, Dynamic]

@@ -24,7 +24,7 @@ def PlusOne(x: int = 0):
     return x + 1
 
 
-@Workflow.wrap.as_function_node()
+@Workflow.wrap.as_function_node
 def five(sleep_time=0.):
     sleep(sleep_time)
     five = 5

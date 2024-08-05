@@ -14,7 +14,7 @@ from pyiron_workflow.channels import NOT_DATA, OutputSignal
 from pyiron_workflow.nodes.function import Function, as_function_node
 
 
-@as_function_node()
+@as_function_node
 def UserInput(user_input):
     """
     Returns the user input as it is.
@@ -177,7 +177,7 @@ def Int(x):
     return int(x)
 
 
-@as_function_node()
+@as_function_node
 def PureCall(fnc: callable):
     """
     Return a call without any arguments

@@ -229,7 +229,7 @@ class TestForNode(unittest.TestCase):
         )
 
     def test_column_mapping(self):
-        @as_function_node()
+        @as_function_node
         def FiveApart(
             a: int = 0,
             b: int = 1,
@@ -338,7 +338,7 @@ class TestForNode(unittest.TestCase):
     def test_with_connections(self):
         length_y = 3
 
-        @as_macro_node()
+        @as_macro_node
         def LoopInside(self, x: list, y: int):
             self.to_list = inputs_to_list(
                 length_y, y, y, y
