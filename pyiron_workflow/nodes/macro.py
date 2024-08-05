@@ -15,6 +15,7 @@ from pyiron_workflow.nodes.composite import Composite
 from pyiron_workflow.mixin.has_interface_mixins import HasChannel
 from pyiron_workflow.io import Outputs, Inputs
 from pyiron_workflow.mixin.preview import ScrapesIO
+from pyiron_workflow.nodes.multiple_distpatch import dispatch_output_labels
 from pyiron_workflow.nodes.static_io import StaticNode
 
 if TYPE_CHECKING:
@@ -510,7 +511,7 @@ def macro_node_factory(
         {},
     )
 
-
+@dispatch_output_labels
 def as_macro_node(
     *output_labels: str, validate_output_labels: bool = True, use_cache: bool = True
 ):

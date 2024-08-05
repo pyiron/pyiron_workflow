@@ -539,7 +539,7 @@ class TestMacro(unittest.TestCase):
     def test_output_label_stripping(self):
         """Test extensions to the `ScrapesIO` mixin."""
 
-        @as_macro_node()
+        @as_macro_node
         def OutputScrapedFromFilteredReturn(macro):
             macro.foo = macro.create.standard.UserInput()
             return macro.foo
@@ -554,7 +554,7 @@ class TestMacro(unittest.TestCase):
             ValueError,
             msg="Return values with extra dots are not permissible as scraped labels"
         ):
-            @as_macro_node()
+            @as_macro_node
             def ReturnHasDot(macro):
                 macro.foo = macro.create.standard.UserInput()
                 return macro.foo.outputs.user_input
