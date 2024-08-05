@@ -13,7 +13,7 @@ class MultipleDispatchError(ValueError):
     """
 
 
-def parse_decorator_args(output_labels) -> tuple[tuple[str, ...], callable | None]:
+def _parse_output_labels(output_labels) -> tuple[tuple[str, ...], callable | None]:
     if len(output_labels) > 0 and callable(output_labels[0]):
         if len(output_labels) > 1:
             raise MultipleDispatchError(
@@ -24,3 +24,23 @@ def parse_decorator_args(output_labels) -> tuple[tuple[str, ...], callable | Non
         return (), output_labels[0]
     else:
         return output_labels, None
+
+
+def dispatch_output_labels(single_dispatch_decorator):
+    def multi_dispatch_decorator(
+        *output_labels,
+        **kwargs
+    ):
+        output_labels, to_decorate = _parse_output_labels(output_labels)
+
+        decorator = single_dispatch_decorator(
+            *output_labels,
+            **kwargs
+        )
+
+        if to_decorate is None:
+            return decorator
+        else:
+            return decorator(to_decorate)
+
+    return multi_dispatch_decorator

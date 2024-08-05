@@ -7,7 +7,7 @@ from pyiron_snippets.colors import SeabornColors
 from pyiron_snippets.factory import classfactory
 
 from pyiron_workflow.mixin.preview import ScrapesIO
-from pyiron_workflow.nodes.multiple_distpatch import parse_decorator_args
+from pyiron_workflow.nodes.multiple_distpatch import dispatch_output_labels
 from pyiron_workflow.nodes.static_io import StaticNode
 
 
@@ -392,6 +392,7 @@ def function_node_factory(
     )
 
 
+@dispatch_output_labels
 def as_function_node(
     *output_labels: str,
     validate_output_labels=True,
@@ -414,8 +415,6 @@ def as_function_node(
             subclass.
     """
 
-    output_labels, to_decorate = parse_decorator_args(output_labels)
-
     def decorator(node_function):
         function_node_factory.clear(node_function.__name__)  # Force a fresh class
         factory_made = function_node_factory(
@@ -425,10 +424,7 @@ def as_function_node(
         factory_made.preview_io()
         return factory_made
 
-    if to_decorate is None:
-        return decorator
-    else:
-        return decorator(to_decorate)
+    return decorator
 
 
 def function_node(
