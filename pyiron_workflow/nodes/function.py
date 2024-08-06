@@ -7,6 +7,7 @@ from pyiron_snippets.colors import SeabornColors
 from pyiron_snippets.factory import classfactory
 
 from pyiron_workflow.mixin.preview import ScrapesIO
+from pyiron_workflow.nodes.multiple_distpatch import dispatch_output_labels
 from pyiron_workflow.nodes.static_io import StaticNode
 
 
@@ -192,9 +193,10 @@ class Function(StaticNode, ScrapesIO, ABC):
         that fixes some of the node behaviour -- i.e. the :meth:`node_function`.
 
         This can be done most easily with the :func:`as_function_node` decorator, which
-        takes a function and returns a node class. It also allows us to provide labels
-        for the return values, :param:output_labels, which are otherwise scraped from
-        the text of the function definition:
+        takes a function and returns a node class. This can be used in the usual way,
+        but the decorator itself also optionally accepts some arguments. Namely, it
+        also allows us to provide labels for the return values, :param:output_labels,
+        which are otherwise scraped from the text of the function definition:
 
         >>> from pyiron_workflow import as_function_node
         >>>
@@ -237,7 +239,7 @@ class Function(StaticNode, ScrapesIO, ABC):
         Let's put together a couple of nodes and then run in a "pull" paradigm to get
         the final node to run everything "upstream" then run itself:
 
-        >>> @as_function_node()
+        >>> @as_function_node
         ... def adder_node(x: int = 0, y: int = 0) -> int:
         ...     sum = x + y
         ...     return sum
@@ -264,7 +266,7 @@ class Function(StaticNode, ScrapesIO, ABC):
         (like cyclic graphs).
         Here's our simple example from above using this other paradigm:
 
-        >>> @as_function_node()
+        >>> @as_function_node
         ... def adder_node(x: int = 0, y: int = 0) -> int:
         ...     sum = x + y
         ...     return sum
@@ -391,6 +393,7 @@ def function_node_factory(
     )
 
 
+@dispatch_output_labels
 def as_function_node(
     *output_labels: str,
     validate_output_labels=True,

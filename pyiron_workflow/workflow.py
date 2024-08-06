@@ -70,7 +70,7 @@ class Workflow(ParentMost, Composite):
 
         >>> from pyiron_workflow.workflow import Workflow
         >>>
-        >>> @Workflow.wrap.as_function_node()
+        >>> @Workflow.wrap.as_function_node
         ... def fnc(x=0):
         ...     return x + 1
         >>>

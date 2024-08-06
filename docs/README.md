@@ -61,7 +61,7 @@ But the intent is to collect them together into a workflow and leverage existing
 ... def Permutations(n, choose=None):
 ...     return math.perm(n, choose)
 >>> 
->>> @Workflow.wrap.as_macro_node()
+>>> @Workflow.wrap.as_macro_node
 ... def PermutationDifference(self, n, choose=None):
 ...     self.p = Permutations(n, choose=choose)
 ...     self.plus_1 = AddOne(n)

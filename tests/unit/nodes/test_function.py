@@ -3,8 +3,9 @@ from typing import Optional, Union
 import unittest
 
 from pyiron_workflow.channels import NOT_DATA
-from pyiron_workflow.nodes.function import function_node, as_function_node
+from pyiron_workflow.nodes.function import function_node, as_function_node, Function
 from pyiron_workflow.io import ConnectionCopyError, ValueCopyError
+from pyiron_workflow.nodes.multiple_distpatch import MultipleDispatchError
 
 
 def throw_error(x: Optional[int] = None):
@@ -157,11 +158,11 @@ class TestFunction(unittest.TestCase):
         self.assertEqual(plus_one.__name__, n.label)
 
     def test_availability_of_node_function(self):
-        @as_function_node()
+        @as_function_node
         def linear(x):
             return x
 
-        @as_function_node()
+        @as_function_node
         def bilinear(x, y):
             xy = linear.node_function(x) * linear.node_function(y)
             return xy
@@ -315,12 +316,12 @@ class TestFunction(unittest.TestCase):
             )
 
     def test_copy_values(self):
-        @as_function_node()
+        @as_function_node
         def reference(x=0, y: int = 0, z: int | float = 0, omega=None, extra_here=None):
             out = 42
             return out
 
-        @as_function_node()
+        @as_function_node
         def all_floats(x=1.1, y=1.1, z=1.1, omega=NOT_DATA, extra_there=None) -> float:
             out = 42.1
             return out
@@ -365,7 +366,7 @@ class TestFunction(unittest.TestCase):
         # Note also that these nodes each have extra channels the other doesn't that
         # are simply ignored
 
-        @as_function_node()
+        @as_function_node
         def extra_channel(x=1, y=1, z=1, not_present=42):
             out = 42
             return out
@@ -493,7 +494,7 @@ class TestFunction(unittest.TestCase):
     def test_void_return(self):
         """Test extensions to the `ScrapesIO` mixin."""
 
-        @as_function_node()
+        @as_function_node
         def NoReturn(x):
             y = x + 1
 
@@ -515,6 +516,39 @@ class TestFunction(unittest.TestCase):
             n.outputs.to_value_dict(),
             reloaded.outputs.to_value_dict()
         )
+
+    def test_decoration(self):
+        with self.subTest("@as_function_node(*output_labels, ...)"):
+            WithDecoratorSignature = as_function_node("z")(plus_one)
+            self.assertTrue(
+                issubclass(WithDecoratorSignature, Function),
+                msg="Sanity check"
+            )
+            self.assertListEqual(
+                ["z"],
+                list(WithDecoratorSignature.preview_outputs().keys()),
+                msg="Decorator should capture new output label"
+            )
+
+        with self.subTest("@as_function_node"):
+            WithoutDecoratorSignature = as_function_node(plus_one)
+            self.assertTrue(
+                issubclass(WithoutDecoratorSignature, Function),
+                msg="Sanity check"
+            )
+            self.assertListEqual(
+                ["y"],  # "Default" copied here from the function definition return
+                list(WithoutDecoratorSignature.preview_outputs().keys()),
+                msg="Decorator should capture new output label"
+            )
+
+        with self.assertRaises(
+            MultipleDispatchError,
+            msg="This shouldn't be accessible from a regular decorator usage pattern, "
+                "but make sure that mixing-and-matching argument-free calls and calls "
+                "directly providing the wrapped node fail cleanly"
+        ):
+            as_function_node(plus_one, "z")
 
 
 if __name__ == '__main__':

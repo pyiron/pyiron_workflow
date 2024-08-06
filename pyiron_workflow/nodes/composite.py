@@ -421,8 +421,8 @@ class Composite(SemanticParent, HasCreator, Node, ABC):
                     for n in self
                     for out in n.signals.output
                     for inp in out.connections
-                }
-            }
+                },
+            },
         }
 
     @property
