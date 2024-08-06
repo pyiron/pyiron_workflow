@@ -511,6 +511,7 @@ def macro_node_factory(
         {},
     )
 
+
 @dispatch_output_labels
 def as_macro_node(
     *output_labels: str, validate_output_labels: bool = True, use_cache: bool = True

@@ -14,10 +14,7 @@ class MultipleDispatchError(ValueError):
 
 
 def dispatch_output_labels(single_dispatch_decorator):
-    def multi_dispatch_decorator(
-        *output_labels,
-        **kwargs
-    ):
+    def multi_dispatch_decorator(*output_labels, **kwargs):
         if len(output_labels) > 0 and callable(output_labels[0]):
             if len(output_labels) > 1:
                 raise MultipleDispatchError(
