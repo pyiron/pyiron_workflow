@@ -507,20 +507,20 @@ class TestWorkflow(unittest.TestCase):
                         wf.storage.delete()
 
         with self.subTest("No unimportable nodes for either back-end"):
-            try:
-                wf.import_type_mismatch = wf.create.demo.dynamic()
-                for backend in Workflow.allowed_backends():
+            for backend in Workflow.allowed_backends():
+                try:
+                    wf.import_type_mismatch = wf.create.demo.dynamic()
                     with self.subTest(backend):
-                        with self.assertRaises(
-                            TypeNotFoundError,
-                            msg="Imported object is function but node type is node -- "
-                                "should fail early on save"
-                        ):
-                            wf.storage_backend = backend
-                            wf.save()
-            finally:
-                wf.remove_child(wf.import_type_mismatch)
-                wf.storage.delete()
+                            with self.assertRaises(
+                                TypeNotFoundError,
+                                msg="Imported object is function but node type is node "
+                                    "-- should fail early on save"
+                            ):
+                                wf.storage_backend = backend
+                                wf.save()
+                finally:
+                    wf.remove_child(wf.import_type_mismatch)
+                    wf.storage.delete()
 
         if "h5io" in Workflow.allowed_backends():
             wf.add_child(PlusOne(label="local_but_importable"))
