@@ -400,7 +400,7 @@ def dataclass_node_factory(
     )
 
 
-def as_dataclass_node(dataclass: type, use_cache: bool = True):
+def as_dataclass_node(dataclass: type):
     """
     Decorates a dataclass as a dataclass node -- i.e. a node whose inputs correspond
     to dataclass fields and whose output is an instance of the dataclass.
@@ -452,7 +452,7 @@ def as_dataclass_node(dataclass: type, use_cache: bool = True):
         >>> f(necessary="input as a node kwarg")
         Foo(necessary='input as a node kwarg', bar='bar', answer=42, complex_=[1, 2, 3])
     """
-    cls = dataclass_node_factory(dataclass, use_cache)
+    cls = dataclass_node_factory(dataclass)
     cls.preview_io()
     return cls
 
