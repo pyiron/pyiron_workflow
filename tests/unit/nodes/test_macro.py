@@ -495,7 +495,7 @@ class TestMacro(unittest.TestCase):
                             TypeError, msg="h5io can't handle custom reconstructors"
                         ):
                             macro.save()
-                    elif backend == "tinybase":
+                    elif backend in ["tinybase", "pickle"]:
                         macro.save()
                         reloaded = Macro.create.demo.AddThree(
                             label="m", storage_backend=backend
@@ -523,12 +523,33 @@ class TestMacro(unittest.TestCase):
                         )
                         rerun = reloaded()
 
-                        self.assertDictEqual(
-                            original_result,
-                            rerun,
-                            msg="Rerunning should re-execute the _original_ "
-                                "functionality"
-                        )
+                        if backend == "tinybase":
+                            self.assertIsInstance(
+                                reloaded.two,
+                                Macro.create.standard.Add,
+                                msg="tinybase is re-instantiating the original macro "
+                                    "class and then carefully loading particular "
+                                    "pieces of data; that means each child is"
+                            )
+                            self.assertDictEqual(
+                                original_result,
+                                rerun,
+                                msg="Rerunning re-executes the _original_ "
+                                    "functionality"
+                            )
+                        elif backend == "pickle":
+                            self.assertIsInstance(
+                                reloaded.two,
+                                Macro.create.demo.AddPlusOne,
+                                msg="pickle instantiates the macro node class, but "
+                                    "but then uses its serialized state, so we retain "
+                                    "the replaced node."
+                            )
+                            self.assertDictEqual(
+                                modified_result,
+                                rerun,
+                                msg="Rerunning re-executes the _replaced_ functionality"
+                            )
                     else:
                         raise ValueError(
                             f"Backend {backend} not recognized -- write a test for it"

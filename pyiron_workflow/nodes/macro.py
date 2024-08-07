@@ -302,7 +302,7 @@ class Macro(Composite, StaticNode, ScrapesIO, ABC):
             return scraped_labels
 
     def _prepopulate_ui_nodes_from_graph_creator_signature(
-        self, storage_backend: Literal["h5io", "tinybase"]
+        self, storage_backend: Literal["h5io", "tinybase", "pickle"]
     ):
         ui_nodes = []
         for label, (type_hint, default) in self.preview_inputs().items():
