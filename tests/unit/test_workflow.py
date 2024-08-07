@@ -446,7 +446,7 @@ class TestWorkflow(unittest.TestCase):
             with self.subTest(backend):
                 try:
                     print("Trying", backend)
-                    wf = Workflow("wf", storage_backend=backend)
+                    wf = Workflow("wf_values", storage_backend=backend)
                     wf.register("static.demo_nodes", domain="demo")
                     wf.inp = wf.create.demo.AddThree(x=0)
                     wf.out = wf.inp.outputs.add_three + 1
@@ -461,7 +461,7 @@ class TestWorkflow(unittest.TestCase):
                             wf.save()
                     else:
                         wf.save()
-                        reloaded = Workflow("wf", storage_backend=backend)
+                        reloaded = Workflow("wf_values", storage_backend=backend)
                         self.assertEqual(
                             wf_out.out__add,
                             reloaded.outputs.out__add.value,
