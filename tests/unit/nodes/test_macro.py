@@ -496,7 +496,7 @@ class TestMacro(unittest.TestCase):
                             TypeError, msg="h5io can't handle custom reconstructors"
                         ):
                             macro.save()
-                    else:
+                    elif backend == "tinybase":
                         macro.save()
                         reloaded = Macro.create.demo.AddThree(
                             label="m", storage_backend=backend
@@ -524,15 +524,16 @@ class TestMacro(unittest.TestCase):
                         )
                         rerun = reloaded()
 
-                        if backend == "tinybase":
-                            self.assertDictEqual(
-                                original_result,
-                                rerun,
-                                msg="Rerunning should re-execute the _original_ "
-                                    "functionality"
-                            )
-                        else:
-                            raise ValueError(f"Unexpected backend {backend}?")
+                        self.assertDictEqual(
+                            original_result,
+                            rerun,
+                            msg="Rerunning should re-execute the _original_ "
+                                "functionality"
+                        )
+                    else:
+                        raise ValueError(
+                            f"Backend {backend} not recognized -- write a test for it"
+                        )
                 finally:
                     macro.storage.delete()
 
