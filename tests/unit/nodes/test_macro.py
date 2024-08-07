@@ -488,7 +488,6 @@ class TestMacro(unittest.TestCase):
                         Macro.create.demo.AddPlusOne()
                     )
 
-
                     modified_result = macro()
 
                     if backend == "h5io":
