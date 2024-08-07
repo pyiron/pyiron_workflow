@@ -453,6 +453,7 @@ def as_dataclass_node(dataclass: type):
         Foo(necessary='input as a node kwarg', bar='bar', answer=42, complex_=[1, 2, 3])
     """
     cls = dataclass_node_factory(dataclass)
+    cls._class_returns_from_decorated_function = dataclass
     cls.preview_io()
     return cls
 
