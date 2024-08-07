@@ -388,10 +388,12 @@ def dataclass_node_factory(
     if not is_dataclass(dataclass):
         dataclass = as_dataclass(dataclass)
     return (
-        f"{DataclassNode.__name__}{dataclass.__name__}",
+        dataclass.__name__,
         (DataclassNode,),
         {
             "dataclass": dataclass,
+            "__module__": dataclass.__module__,
+            "__qualname__": dataclass.__qualname__,
             "_output_type_hint": dataclass,
             "__doc__": dataclass.__doc__,
             "use_cache": use_cache,
@@ -452,6 +454,7 @@ def as_dataclass_node(dataclass: type):
         >>> f(necessary="input as a node kwarg")
         Foo(necessary='input as a node kwarg', bar='bar', answer=42, complex_=[1, 2, 3])
     """
+    dataclass_node_factory.clear(dataclass.__name__)  # Force a fresh class
     cls = dataclass_node_factory(dataclass)
     cls._class_returns_from_decorated_function = dataclass
     cls.preview_io()
