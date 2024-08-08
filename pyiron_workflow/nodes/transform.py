@@ -387,13 +387,15 @@ def dataclass_node_factory(
         )
     if not is_dataclass(dataclass):
         dataclass = as_dataclass(dataclass)
+    module, qualname = dataclass.__module__, dataclass.__qualname__
+    dataclass.__qualname__ += ".dataclass"  # So output type hints know where to find it
     return (
         dataclass.__name__,
         (DataclassNode,),
         {
             "dataclass": dataclass,
-            "__module__": dataclass.__module__,
-            "__qualname__": dataclass.__qualname__,
+            "__module__": module,
+            "__qualname__": qualname,
             "_output_type_hint": dataclass,
             "__doc__": dataclass.__doc__,
             "use_cache": use_cache,
