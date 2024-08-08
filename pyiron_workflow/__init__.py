@@ -46,7 +46,7 @@ from pyiron_workflow.nodes.function import Function, as_function_node, function_
 from pyiron_workflow.logging import logger
 from pyiron_workflow.nodes.macro import Macro, as_macro_node, macro_node
 from pyiron_workflow.nodes.transform import (
-    # as_dataclass_node,  # Not pickling nicely yet
+    as_dataclass_node,
     dataclass_node,
     inputs_to_dataframe,
     inputs_to_dict,
