@@ -11,7 +11,7 @@ def load_tests(loader, tests, ignore):
         pyiron_workflow.__path__, pyiron_workflow.__name__ + '.'
     ):
         tests.addTests(doctest.DocTestSuite(name))
-        return tests
+    return tests
 
 
 class TestTriggerFromIDE(unittest.TestCase):
