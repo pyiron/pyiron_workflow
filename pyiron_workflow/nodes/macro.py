@@ -535,7 +535,8 @@ def as_macro_node(
             graph_creator, validate_output_labels, use_cache, *output_labels
         )
         factory_made._reduce_imports_as = (
-            graph_creator.__module__, graph_creator.__qualname__
+            graph_creator.__module__,
+            graph_creator.__qualname__,
         )
         factory_made.preview_io()
         return factory_made
