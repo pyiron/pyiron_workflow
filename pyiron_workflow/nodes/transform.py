@@ -455,8 +455,9 @@ def as_dataclass_node(dataclass: type):
         Foo(necessary='input as a node kwarg', bar='bar', answer=42, complex_=[1, 2, 3])
     """
     dataclass_node_factory.clear(dataclass.__name__)  # Force a fresh class
+    module, qualname = dataclass.__module__, dataclass.__qualname__
     cls = dataclass_node_factory(dataclass)
-    cls._class_returns_from_decorated_function = dataclass
+    cls._reduce_imports_as = (module, qualname)
     cls.preview_io()
     return cls
 
