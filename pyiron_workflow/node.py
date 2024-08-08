@@ -791,31 +791,3 @@ class Node(
 
     def tidy_storage_directory(self):
         self.tidy_working_directory()
-
-    def to_storage(self, storage):
-        storage["class_name"] = self.__class__.__name__
-        storage["label"] = self.label
-        storage["running"] = self.running
-        storage["failed"] = self.failed
-        storage["save_after_run"] = self.save_after_run
-
-        data_inputs = storage.create_group("inputs")
-        for label, channel in self.inputs.items():
-            channel.to_storage(data_inputs.create_group(label))
-
-        data_outputs = storage.create_group("outputs")
-        for label, channel in self.outputs.items():
-            channel.to_storage(data_outputs.create_group(label))
-
-    def from_storage(self, storage):
-        self.running = bool(storage["running"])
-        self.failed = bool(storage["failed"])
-        self.save_after_run = bool(storage["save_after_run"])
-
-        data_inputs = storage["inputs"]
-        for label in data_inputs.list_groups():
-            self.inputs[label].from_storage(data_inputs[label])
-
-        data_outputs = storage["outputs"]
-        for label in data_outputs.list_groups():
-            self.outputs[label].from_storage(data_outputs[label])

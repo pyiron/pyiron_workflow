@@ -424,13 +424,6 @@ class Composite(SemanticParent, HasCreator, Node, ABC):
             },
         }
 
-    def to_storage(self, storage):
-        storage["nodes"] = list(self.children.keys())
-        for label, node in self.children.items():
-            node.to_storage(storage.create_group(label))
-
-        super().to_storage(storage)
-
     def tidy_working_directory(self):
         for node in self:
             node.tidy_working_directory()
