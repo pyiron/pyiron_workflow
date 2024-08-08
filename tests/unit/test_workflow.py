@@ -12,6 +12,9 @@ from pyiron_workflow.mixin.semantics import ParentMostError
 from pyiron_workflow.mixin.storage import TypeNotFoundError
 from pyiron_workflow.workflow import Workflow
 
+ensure_tests_in_python_path()
+from static import demo_nodes
+
 
 def plus_one(x=0):
     y = x + 1
@@ -36,10 +39,6 @@ def sum(a, b):
 
 
 class TestWorkflow(unittest.TestCase):
-    @classmethod
-    def setUpClass(cls) -> None:
-        ensure_tests_in_python_path()
-        super().setUpClass()
 
     def test_io(self):
         wf = Workflow("wf")
@@ -445,8 +444,7 @@ class TestWorkflow(unittest.TestCase):
                 try:
                     print("Trying", backend)
                     wf = Workflow("wf", storage_backend=backend)
-                    wf.register("static.demo_nodes", domain="demo")
-                    wf.inp = wf.create.demo.AddThree(x=0)
+                    wf.inp = demo_nodes.AddThree(x=0)
                     wf.out = wf.inp.outputs.add_three + 1
                     wf_out = wf()
                     three_result = wf.inp.three.outputs.add.value
@@ -469,10 +467,9 @@ class TestWorkflow(unittest.TestCase):
 
     def test_storage_scopes(self):
         wf = Workflow("wf")
-        wf.register("static.demo_nodes", "demo")
 
         # Test invocation
-        wf.add_child(wf.create.demo.AddPlusOne(label="by_add"))
+        wf.add_child(demo_nodes.AddPlusOne(label="by_add"))
 
         for backend in Workflow.allowed_backends():
             with self.subTest(backend):
@@ -488,7 +485,7 @@ class TestWorkflow(unittest.TestCase):
         with self.subTest("No unimportable nodes for either back-end"):
             for backend in Workflow.allowed_backends():
                 try:
-                    wf.import_type_mismatch = wf.create.demo.dynamic()
+                    wf.import_type_mismatch = demo_nodes.Dynamic()
                     with self.subTest(backend):
                             with self.assertRaises(
                                 TypeNotFoundError,
@@ -510,8 +507,7 @@ class TestWorkflow(unittest.TestCase):
 
     def test_pickle(self):
         wf = Workflow("wf")
-        wf.register("static.demo_nodes", domain="demo")
-        wf.inp = wf.create.demo.AddThree(x=0)
+        wf.inp = demo_nodes.AddThree(x=0)
         wf.out = wf.inp.outputs.add_three + 1
         wf_out = wf()
         reloaded = pickle.loads(pickle.dumps(wf))

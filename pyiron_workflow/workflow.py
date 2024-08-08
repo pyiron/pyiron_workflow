@@ -174,18 +174,10 @@ class Workflow(ParentMost, Composite):
         >>> remove("demo")
         >>> remove("demo.png")
 
-        Workflows also give access to packages of pre-built nodes under different
-        namespaces. These need to be registered first, like the standard package is
-        automatically registered:
-
-        >>> Workflow.register("pyiron_workflow.nodes.standard", "standard")
-
         When your workflow's data follows a directed-acyclic pattern, it will determine
         the execution flow automatically.
         If you want or need more control, you can set the `automate_execution` flag to
         `False` and manually specify an execution flow.
-
-    TODO: Workflows can be serialized.
 
     TODO: Once you're satisfied with how a workflow is structured, you can export it
         as a macro node for use in other workflows. (Maybe we should allow for nested

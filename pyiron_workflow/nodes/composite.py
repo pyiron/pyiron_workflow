@@ -92,7 +92,6 @@ class Composite(SemanticParent, HasCreator, Node, ABC):
         replace_child(owned_node: Node | str, replacement: Node | type[Node]): Replaces an
             owned node with a new node, as long as the new node's IO is commensurate
             with the node being replaced.
-        register(): A short-cut to registering a new node package with the node creator.
     """
 
     def __init__(
@@ -424,13 +423,6 @@ class Composite(SemanticParent, HasCreator, Node, ABC):
                 },
             },
         }
-
-    @property
-    def package_requirements(self) -> set[str]:
-        """
-        A list of node package identifiers for children.
-        """
-        return set(n.package_identifier for n in self)
 
     def to_storage(self, storage):
         storage["nodes"] = list(self.children.keys())

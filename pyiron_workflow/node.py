@@ -7,7 +7,6 @@ The workhorse class for the entire concept.
 
 from __future__ import annotations
 
-import sys
 from abc import ABC
 from concurrent.futures import Future
 from typing import Any, Literal, Optional, TYPE_CHECKING
@@ -131,8 +130,6 @@ class Node(
             this.
     - Nodes can optionally cache their input to skip running altogether and use
         existing output when their current input matches the cached input.
-    - Nodes created from a registered package store their package identifier as a class
-        attribute.
     - [ALPHA FEATURE] Nodes can be saved to and loaded from file if python >= 3.11.
         - Save and load features wrap `(cloud)pickle` dumping and loading.
         - Everything in `pyiron_workflow` itself is (if not, alert developers),
@@ -194,8 +191,6 @@ class Node(
         label (str): A name for the node.
         outputs (pyiron_workflow.io.Outputs): **Abstract.** Children must define
             a property returning an :class:`Outputs` object.
-        package_identifier (str|None): (Class attribute) the identifier for the
-            package this node came from (if any).
         parent (pyiron_workflow.composite.Composite | None): The parent object
             owning this, if any.
         ready (bool): Whether the inputs are all ready and the node is neither
@@ -269,7 +264,6 @@ class Node(
         appears as late as possible with the minimal set of args and kwargs.
     """
 
-    package_identifier = None
     use_cache = True
 
     # This isn't nice, just a technical necessity in the current implementation
@@ -799,7 +793,6 @@ class Node(
         self.tidy_working_directory()
 
     def to_storage(self, storage):
-        storage["package_identifier"] = self.package_identifier
         storage["class_name"] = self.__class__.__name__
         storage["label"] = self.label
         storage["running"] = self.running
