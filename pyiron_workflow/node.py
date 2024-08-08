@@ -384,7 +384,7 @@ class Node(
             self.delete_storage()
             do_load = False
         else:
-            do_load = sys.version_info >= (3, 11) and self.storage.has_contents
+            do_load = sys.version_info >= (3, 11) and self.any_storage_has_contents
 
         if do_load and run_after_init:
             raise ValueError(
