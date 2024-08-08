@@ -420,7 +420,6 @@ class HasStorage(HasLabel, HasParent, ABC):
             for backend in self.allowed_backends()
         )
 
-
     @property
     def import_ready(self) -> bool:
         """
