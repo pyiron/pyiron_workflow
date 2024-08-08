@@ -229,13 +229,10 @@ class Channel(UsesState, HasChannel, HasLabel, HasToDict, ABC):
 
     def __getstate__(self):
         state = super().__getstate__()
-        # To avoid cyclic storage and avoid storing complex objects, purge some
-        # properties from the state
-        state["owner"] = None
-        # It is the responsibility of the owner to restore the owner property
         state["connections"] = []
         # It is the responsibility of the owner's parent to store and restore
-        # connections (if any)
+        # connections (if any), since these can extend beyond the owner and would thus
+        # bloat the data being sent cross-process if the owner is shipped off
         return state
 
 
