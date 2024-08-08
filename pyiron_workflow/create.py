@@ -9,7 +9,6 @@ from concurrent.futures import ProcessPoolExecutor, ThreadPoolExecutor
 from functools import wraps, lru_cache
 from importlib import import_module
 import pkgutil
-from sys import version_info
 from types import ModuleType
 from typing import Optional, TYPE_CHECKING
 
@@ -54,12 +53,7 @@ class Creator(metaclass=Singleton):
 
         self.function_node = function_node
 
-        if version_info[0] == 3 and version_info[1] >= 10:
-            # These modules use syntactic sugar for type hinting that is only supported
-            # in python >=3.10
-            # If the CI skips testing on 3.9 gets dropped, we can think about removing
-            # this if-clause and just letting users of python <3.10 hit an error.
-            self.register("pyiron_workflow.nodes.standard", "standard")
+        self.register("pyiron_workflow.nodes.standard", "standard")
 
     @property
     @lru_cache(maxsize=1)

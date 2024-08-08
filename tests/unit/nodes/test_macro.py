@@ -1,6 +1,5 @@
 from concurrent.futures import Future
 import pickle
-import sys
 from time import sleep
 import unittest
 
@@ -471,7 +470,6 @@ class TestMacro(unittest.TestCase):
             m = PassThrough()
             print(m.child_labels, m.inputs, m.outputs)
 
-    @unittest.skipIf(sys.version_info < (3, 11), "Storage will only work in 3.11+")
     def test_storage_for_modified_macros(self):
         ensure_tests_in_python_path()
         Macro.register("static.demo_nodes", domain="demo")

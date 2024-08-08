@@ -28,8 +28,6 @@ class TypeNotFoundError(ImportError):
 
 class StorageInterface:
     def __init__(self, owner: HasStorage):
-        if sys.version_info < (3, 11):
-            raise NotImplementedError("Storage is only available in python 3.11+")
         self._owner = owner
 
     @property

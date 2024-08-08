@@ -331,11 +331,11 @@ class Node(
         run_after_init: bool = False,
         **kwargs,
     ):
-        if overwrite_save and sys.version_info >= (3, 11):
+        if overwrite_save:
             self.delete_storage()
             do_load = False
         else:
-            do_load = sys.version_info >= (3, 11) and self.any_storage_has_contents
+            do_load = self.any_storage_has_contents
 
         if do_load and run_after_init:
             raise ValueError(
