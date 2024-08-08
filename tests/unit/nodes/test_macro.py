@@ -517,6 +517,7 @@ class TestMacro(unittest.TestCase):
                         self.assertIsInstance(
                             reloaded.two,
                             demo_nodes.AddPlusOne,
+
                             msg="pickle instantiates the macro node class, but "
                                 "but then uses its serialized state, so we retain "
                                 "the replaced node."
