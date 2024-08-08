@@ -8,7 +8,6 @@ dependencies:
 - executorlib =0.0.1
 - graphviz =9.0.0
 - h5io =0.2.2
-- h5io_browser =0.0.12
 - pandas =2.2.0
 - pyiron_base =0.8.3
 - pyiron_snippets =0.1.4
