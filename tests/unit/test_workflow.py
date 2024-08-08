@@ -223,7 +223,8 @@ class TestWorkflow(unittest.TestCase):
         )
         self.assertIsNone(
             original_a.parent,
-            msg="Original nodes should be orphaned"
+            msg=f"Original nodes should be orphaned, but {original_a.full_label} has "
+                f"parent {original_a.parent}"
             # Note: At time of writing, this is accomplished in Node.__getstate__,
             #       which feels a bit dangerous...
         )
