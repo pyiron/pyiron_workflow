@@ -229,13 +229,10 @@ class Channel(UsesState, HasChannel, HasLabel, HasToDict, ABC):
 
     def __getstate__(self):
         state = super().__getstate__()
-        # To avoid cyclic storage and avoid storing complex objects, purge some
-        # properties from the state
-        state["owner"] = None
-        # It is the responsibility of the owner to restore the owner property
         state["connections"] = []
         # It is the responsibility of the owner's parent to store and restore
-        # connections (if any)
+        # connections (if any), since these can extend beyond the owner and would thus
+        # bloat the data being sent cross-process if the owner is shipped off
         return state
 
 
@@ -481,24 +478,6 @@ class DataChannel(Channel, ABC):
 
     def deactivate_strict_hints(self) -> None:
         self.strict_hints = False
-
-    def to_storage(self, storage):
-        storage["strict_hints"] = self.strict_hints
-        storage["type_hint"] = self.type_hint
-        storage["default"] = self.default
-        storage["value"] = self.value
-
-    def from_storage(self, storage):
-        self.strict_hints = bool(storage["strict_hints"])
-        self.type_hint = storage["type_hint"]
-        self.default = storage["default"]
-        from pyiron_contrib.tinybase.storage import GenericStorage
-
-        self.value = (
-            storage["value"].to_object()
-            if isinstance(storage["value"], GenericStorage)
-            else storage["value"]
-        )
 
     def __getstate__(self):
         state = super().__getstate__()

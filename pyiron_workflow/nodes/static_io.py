@@ -32,7 +32,7 @@ class StaticNode(Node, HasIOPreview, ABC):
         parent: Optional[Composite] = None,
         overwrite_save: bool = False,
         run_after_init: bool = False,
-        storage_backend: Optional[Literal["h5io", "tinybase", "pickle"]] = None,
+        storage_backend: Optional[Literal["pickle"]] = None,
         save_after_run: bool = False,
         **kwargs,
     ):

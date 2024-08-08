@@ -204,7 +204,7 @@ class Workflow(ParentMost, Composite):
         *nodes: Node,
         overwrite_save: bool = False,
         run_after_init: bool = False,
-        storage_backend: Optional[Literal["h5io", "tinybase", "pickle"]] = None,
+        storage_backend: Optional[Literal["pickle"]] = None,
         save_after_run: bool = False,
         strict_naming: bool = True,
         inputs_map: Optional[dict | bidict] = None,
@@ -445,116 +445,6 @@ class Workflow(ParentMost, Composite):
                 f"{e.message}"
             )
             raise e
-
-    def to_storage(self, storage):
-        storage["package_requirements"] = list(self.package_requirements)
-        storage["automate_execution"] = self.automate_execution
-        storage["inputs_map"] = self.inputs_map
-        storage["outputs_map"] = self.outputs_map
-        super().to_storage(storage)
-
-        storage["_data_connections"] = self._data_connections
-
-        if not self.automate_execution:
-            storage["_signal_connections"] = self._signal_connections
-            storage["starting_nodes"] = [n.label for n in self.starting_nodes]
-
-    def from_storage(self, storage):
-        from pyiron_contrib.tinybase.storage import GenericStorage
-
-        self.inputs_map = (
-            storage["inputs_map"].to_object()
-            if isinstance(storage["inputs_map"], GenericStorage)
-            else storage["inputs_map"]
-        )
-        self.outputs_map = (
-            storage["outputs_map"].to_object()
-            if isinstance(storage["outputs_map"], GenericStorage)
-            else storage["outputs_map"]
-        )
-
-        self._reinstantiate_children(storage)
-        self.automate_execution = storage["automate_execution"]
-        super().from_storage(storage)
-        self._rebuild_data_io()  # To apply any map that was saved
-        self._rebuild_connections(storage)
-
-    def _reinstantiate_children(self, storage):
-        # Parents attempt to reload their data on instantiation,
-        # so there is no need to explicitly load any of these children
-        for package_identifier in storage["package_requirements"]:
-            self.register(package_identifier)
-
-        for child_label in storage["nodes"]:
-            child_data = storage[child_label]
-            pid = child_data["package_identifier"]
-            cls = child_data["class_name"]
-            self.create[pid][cls](
-                label=child_label, parent=self, storage_backend="tinybase"
-            )
-
-    def _rebuild_connections(self, storage):
-        self._rebuild_data_connections(storage)
-        if not self.automate_execution:
-            self._rebuild_execution_graph(storage)
-
-    def _rebuild_data_connections(self, storage):
-        for data_connection in storage["_data_connections"]:
-            (inp_label, inp_channel), (out_label, out_channel) = data_connection
-            self.children[inp_label].inputs[inp_channel].connect(
-                self.children[out_label].outputs[out_channel]
-            )
-
-    def _rebuild_execution_graph(self, storage):
-        for signal_connection in storage["_signal_connections"]:
-            (inp_label, inp_channel), (out_label, out_channel) = signal_connection
-            self.children[inp_label].signals.input[inp_channel].connect(
-                self.children[out_label].signals.output[out_channel]
-            )
-        self.starting_nodes = [
-            self.children[label] for label in storage["starting_nodes"]
-        ]
-
-    def __getstate__(self):
-        state = super().__getstate__()
-
-        # Transform the IO maps into a datatype that plays well with h5io
-        # (Bidict implements a custom reconstructor, which hurts us)
-        state["_inputs_map"] = (
-            None if self._inputs_map is None else dict(self._inputs_map)
-        )
-        state["_outputs_map"] = (
-            None if self._outputs_map is None else dict(self._outputs_map)
-        )
-
-        return state
-
-    def __setstate__(self, state):
-        # Transform the IO maps back into the right class (bidict)
-        state["_inputs_map"] = (
-            None if state["_inputs_map"] is None else bidict(state["_inputs_map"])
-        )
-        state["_outputs_map"] = (
-            None if state["_outputs_map"] is None else bidict(state["_outputs_map"])
-        )
-
-        super().__setstate__(state)
-
-    def save(self):
-        if self.storage_backend == "tinybase" and any(
-            node.package_identifier is None for node in self
-        ):
-            raise NotImplementedError(
-                f"{self.full_label} ({self.__class__.__name__}) can currently only "
-                f"save itself to file if _all_ of its child nodes were created via the "
-                f"creator and have an associated `package_identifier` -- otherwise we "
-                f"won't know how to re-instantiate them at load time! Right now this "
-                f"is as easy as moving your custom nodes to their own .py file and "
-                f"registering it like any other node package. Remember that this new "
-                f"module needs to be in your python path and importable at load time "
-                f"too."
-            )
-        super().save()
 
     @property
     def _owned_io_panels(self) -> list[IO]:
