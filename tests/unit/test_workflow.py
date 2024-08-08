@@ -443,7 +443,6 @@ class TestWorkflow(unittest.TestCase):
         for backend in Workflow.allowed_backends():
             with self.subTest(backend):
                 try:
-                    print("Trying", backend)
                     wf = Workflow("wf", storage_backend=backend)
                     wf.inp = demo_nodes.AddThree(x=0)
                     wf.out = wf.inp.outputs.add_three + 1
