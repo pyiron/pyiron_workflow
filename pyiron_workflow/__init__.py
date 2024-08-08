@@ -18,13 +18,11 @@ Key features:
     single-core, same-machine parallel processes)
 - Both acyclic (execution flow is automated) and cyclic (execution flow must be
     specified) graphs allowed
-- Easy extensibility by collecting packages of nodes together for sharing/reusing
+- Easy extensibility by collecting nodes together in a python module for sharing/reusing
 
 Planned:
 - Storage of executed workflows, including restarting from a partially executed workflow
 - Support for more complex remote execution, especially leveraging :mod:`executorlib`
-- Infrastructure that supports and encourages of FAIR principles for node packages and
-  finished workflows
 - Ontological hinting for data channels in order to provide guided workflow design
 - GUI on top for code-lite/code-free visual scripting
 """

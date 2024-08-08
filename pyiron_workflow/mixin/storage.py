@@ -211,12 +211,6 @@ class HasStorage(HasLabel, HasParent, ABC):
                 the loading does not use the same code as the node doing the saving, or the 
                 nodes in some node package have been modified), then all bets are off.
 
-            Note:
-                Saving and loading `Workflows` only works when all child nodes were created 
-                via the creator (and thus have a `package_identifier`). Right now, this is 
-                not a big barrier to custom nodes as all you need to do is move them into a 
-                .py file, make sure it's in your python path, and :func:`register` it as 
-                usual.
         """
 
     def save(self):

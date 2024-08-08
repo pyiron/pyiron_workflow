@@ -9,6 +9,8 @@ from pyiron_workflow.nodes.function import function_node
 from pyiron_workflow.nodes.macro import Macro, macro_node, as_macro_node
 from pyiron_workflow.topology import CircularDataFlowError
 
+ensure_tests_in_python_path()
+from static import demo_nodes
 
 def add_one(x):
     result = x + 1
@@ -471,25 +473,22 @@ class TestMacro(unittest.TestCase):
             print(m.child_labels, m.inputs, m.outputs)
 
     def test_storage_for_modified_macros(self):
-        ensure_tests_in_python_path()
-        Macro.register("static.demo_nodes", domain="demo")
-
         for backend in Macro.allowed_backends():
             with self.subTest(backend):
                 try:
-                    macro = Macro.create.demo.AddThree(
+                    macro = demo_nodes.AddThree(
                         label="m", x=0, storage_backend=backend
                     )
                     macro.replace_child(
                         macro.two,
-                        Macro.create.demo.AddPlusOne()
+                        demo_nodes.AddPlusOne()
                     )
 
                     modified_result = macro()
 
                     if backend == "pickle":
                         macro.save()
-                        reloaded = Macro.create.demo.AddThree(
+                        reloaded = demo_nodes.AddThree(
                             label="m", storage_backend=backend
                         )
                         self.assertDictEqual(
@@ -503,11 +502,11 @@ class TestMacro(unittest.TestCase):
                             msg="All nodes should have been (de)serialized."
                         )
                         self.assertEqual(
-                            Macro.create.demo.AddThree.__name__,
+                            demo_nodes.AddThree.__name__,
                             reloaded.__class__.__name__,
                             msg=f"LOOK OUT! This all (de)serialized nicely, but what we "
                                 f"loaded is _falsely_ claiming to be an "
-                                f"{Macro.create.demo.AddThree.__name__}. This is "
+                                f"{demo_nodes.AddThree.__name__}. This is "
                                 f"not any sort of technical error -- what other class name "
                                 f"would we load? -- but is a deeper problem with saving "
                                 f"modified objects that we need ot figure out some better "
@@ -517,7 +516,8 @@ class TestMacro(unittest.TestCase):
 
                         self.assertIsInstance(
                             reloaded.two,
-                            Macro.create.demo.AddPlusOne,
+                            demo_nodes.AddPlusOne,
+
                             msg="pickle instantiates the macro node class, but "
                                 "but then uses its serialized state, so we retain "
                                 "the replaced node."
