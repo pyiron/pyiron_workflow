@@ -482,7 +482,6 @@ class TestMacro(unittest.TestCase):
                     macro = Macro.create.demo.AddThree(
                         label="m", x=0, storage_backend=backend
                     )
-                    original_result = macro()
                     macro.replace_child(
                         macro.two,
                         Macro.create.demo.AddPlusOne()
@@ -490,12 +489,7 @@ class TestMacro(unittest.TestCase):
 
                     modified_result = macro()
 
-                    if backend == "h5io":
-                        with self.assertRaises(
-                            TypeError, msg="h5io can't handle custom reconstructors"
-                        ):
-                            macro.save()
-                    elif backend in ["tinybase", "pickle"]:
+                    if backend == "pickle":
                         macro.save()
                         reloaded = Macro.create.demo.AddThree(
                             label="m", storage_backend=backend
@@ -509,7 +503,7 @@ class TestMacro(unittest.TestCase):
                             set(macro.children.keys()),
                             set(reloaded.children.keys()),
                             msg="All nodes should have been (de)serialized."
-                        )  # Note that this snags the _new_ one in the case of h5io!
+                        )
                         self.assertEqual(
                             Macro.create.demo.AddThree.__name__,
                             reloaded.__class__.__name__,
@@ -523,33 +517,18 @@ class TestMacro(unittest.TestCase):
                         )
                         rerun = reloaded()
 
-                        if backend == "tinybase":
-                            self.assertIsInstance(
-                                reloaded.two,
-                                Macro.create.standard.Add,
-                                msg="tinybase is re-instantiating the original macro "
-                                    "class and then carefully loading particular "
-                                    "pieces of data; that means each child is"
-                            )
-                            self.assertDictEqual(
-                                original_result,
-                                rerun,
-                                msg="Rerunning re-executes the _original_ "
-                                    "functionality"
-                            )
-                        elif backend == "pickle":
-                            self.assertIsInstance(
-                                reloaded.two,
-                                Macro.create.demo.AddPlusOne,
-                                msg="pickle instantiates the macro node class, but "
-                                    "but then uses its serialized state, so we retain "
-                                    "the replaced node."
-                            )
-                            self.assertDictEqual(
-                                modified_result,
-                                rerun,
-                                msg="Rerunning re-executes the _replaced_ functionality"
-                            )
+                        self.assertIsInstance(
+                            reloaded.two,
+                            Macro.create.demo.AddPlusOne,
+                            msg="pickle instantiates the macro node class, but "
+                                "but then uses its serialized state, so we retain "
+                                "the replaced node."
+                        )
+                        self.assertDictEqual(
+                            modified_result,
+                            rerun,
+                            msg="Rerunning re-executes the _replaced_ functionality"
+                        )
                     else:
                         raise ValueError(
                             f"Backend {backend} not recognized -- write a test for it"

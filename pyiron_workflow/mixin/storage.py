@@ -13,7 +13,6 @@ import sys
 from typing import Optional
 
 import cloudpickle
-import h5io
 from pyiron_snippets.files import FileObject, DirectoryObject
 
 from pyiron_workflow.logging import logger
@@ -154,116 +153,6 @@ class PickleStorage(StorageInterface):
     @property
     def _has_cloudpickle_contents(self) -> bool:
         return os.path.isfile(self._cloudpickle_storage_file_path)
-
-
-class H5ioStorage(StorageInterface):
-
-    _H5IO_STORAGE_FILE_NAME = "h5io.h5"
-
-    def __init__(self, owner: HasH5ioStorage):
-        super().__init__(owner=owner)
-
-    @property
-    def owner(self) -> HasH5ioStorage:
-        return self._owner
-
-    @property
-    def _h5io_storage_file_path(self) -> str:
-        return str(
-            (self.owner.storage_directory.path / self._H5IO_STORAGE_FILE_NAME).resolve()
-        )
-
-    def _save(self):
-        os.makedirs(
-            os.path.dirname(self._h5io_storage_file_path), exist_ok=True
-        )  # Make sure the path to the storage location exists
-        h5io.write_hdf5(
-            fname=self._h5io_storage_file_path,
-            data=self.owner,
-            title=self.owner.label,
-            use_state=True,
-            overwrite=True,  # Don't worry about efficiency or updating yet
-        )
-
-    def _load(self):
-        inst = h5io.read_hdf5(
-            fname=self._h5io_storage_file_path, title=self.owner.label
-        )
-        self.owner.__setstate__(inst.__getstate__())
-
-    def _delete(self):
-        if self.has_contents:
-            FileObject(
-                self._H5IO_STORAGE_FILE_NAME, self.owner.storage_directory
-            ).delete()
-
-    @property
-    def _has_contents(self) -> bool:
-        return os.path.isfile(self._h5io_storage_file_path)
-
-
-class TinybaseStorage(StorageInterface):
-
-    _TINYBASE_STORAGE_FILE_NAME = "project.h5"
-
-    def __init__(self, owner: HasTinybaseStorage):
-        super().__init__(owner=owner)
-
-    @property
-    def owner(self) -> HasTinybaseStorage:
-        return self._owner
-
-    @property
-    def _tinybase_storage_file_path(self) -> str:
-        return str(
-            (
-                self.owner.storage_root.storage_directory.path
-                / self._TINYBASE_STORAGE_FILE_NAME
-            ).resolve()
-        )
-
-    @property
-    def _tinybase_storage(self):
-        from pyiron_contrib.tinybase.storage import H5ioStorage
-        from h5io_browser import Pointer
-
-        return H5ioStorage(
-            Pointer(self._tinybase_storage_file_path, h5_path=self.owner.storage_path),
-            None,
-        )
-
-    def _save(self):
-        os.makedirs(
-            os.path.dirname(self._tinybase_storage_file_path), exist_ok=True
-        )  # Make sure the path to the storage location exists
-        self.owner.to_storage(self._tinybase_storage)
-
-    def _load(self) -> HasTinybaseStorage:
-        tinybase_storage = self._tinybase_storage
-        if tinybase_storage["class_name"] != self.owner.__class__.__name__:
-            raise TypeError(
-                f"{self.owner.label} cannot load, as it has type "
-                f"{self.owner.__class__.__name__},  but the saved node has type "
-                f"{tinybase_storage['class_name']}"
-            )
-        self.owner.from_storage(tinybase_storage)
-
-    def _delete(self):
-        if self.has_contents:
-            up = self._tinybase_storage.close()
-            del up[self.owner.label]
-            if self.owner.parent is None:
-                FileObject(
-                    self._TINYBASE_STORAGE_FILE_NAME, self.owner.storage_directory
-                ).delete()
-
-    @property
-    def _has_contents(self) -> bool:
-        if os.path.isfile(self._tinybase_storage_file_path):
-            storage = self._tinybase_storage
-            return (len(storage.list_groups()) + len(storage.list_nodes())) > 0
-        else:
-            return False
 
 
 class HasStorage(HasLabel, HasParent, ABC):
@@ -462,27 +351,3 @@ class HasPickleStorage(HasStorage, ABC):
     @classmethod
     def default_backend(cls):
         return "pickle"
-
-
-class HasH5ioStorage(HasStorage, ABC):
-    @classmethod
-    def _storage_interfaces(cls):
-        interfaces = super(HasH5ioStorage, cls)._storage_interfaces()
-        interfaces["h5io"] = H5ioStorage
-        return interfaces
-
-
-class HasTinybaseStorage(HasStorage, ABC):
-    @classmethod
-    def _storage_interfaces(cls):
-        interfaces = super(HasTinybaseStorage, cls)._storage_interfaces()
-        interfaces["tinybase"] = TinybaseStorage
-        return interfaces
-
-    @abstractmethod
-    def to_storage(self, storage: TinybaseStorage):
-        pass
-
-    @abstractmethod
-    def from_storage(self, storage: TinybaseStorage):
-        pass

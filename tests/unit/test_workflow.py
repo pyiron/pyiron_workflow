@@ -453,25 +453,18 @@ class TestWorkflow(unittest.TestCase):
                     wf_out = wf()
                     three_result = wf.inp.three.outputs.add.value
 
-                    if backend == "h5io":
-                        with self.assertRaises(
-                            TypeError,
-                            msg="h5io can't handle custom reconstructors"
-                        ):
-                            wf.save()
-                    else:
-                        wf.save()
-                        reloaded = Workflow("wf", storage_backend=backend)
-                        self.assertEqual(
-                            wf_out.out__add,
-                            reloaded.outputs.out__add.value,
-                            msg="Workflow-level data should get reloaded"
-                        )
-                        self.assertEqual(
-                            three_result,
-                            reloaded.inp.three.value,
-                            msg="Child data arbitrarily deep should get reloaded"
-                        )
+                    wf.save()
+                    reloaded = Workflow("wf", storage_backend=backend)
+                    self.assertEqual(
+                        wf_out.out__add,
+                        reloaded.outputs.out__add.value,
+                        msg="Workflow-level data should get reloaded"
+                    )
+                    self.assertEqual(
+                        three_result,
+                        reloaded.inp.three.value,
+                        msg="Child data arbitrarily deep should get reloaded"
+                    )
                 finally:
                     # Clean up after ourselves
                     wf.storage.delete()
@@ -483,26 +476,15 @@ class TestWorkflow(unittest.TestCase):
 
         # Test invocation
         wf.add_child(wf.create.demo.AddPlusOne(label="by_add"))
-        # Note that the type hint `Optional[int]` from OptionallyAdd defines a custom
-        # reconstructor, which borks h5io
 
         for backend in Workflow.allowed_backends():
             with self.subTest(backend):
                 for backend in Workflow.allowed_backends():
                     try:
-                        if backend == "h5io":
-                            with self.subTest(backend):
-                                with self.assertRaises(
-                                    TypeError,
-                                    msg="h5io can't handle custom reconstructors"
-                                ):
-                                    wf.storage_backend = backend
-                                    wf.save()
-                        else:
-                            with self.subTest(backend):
-                                wf.storage_backend = backend
-                                wf.save()
-                                Workflow(wf.label, storage_backend=backend)
+                        with self.subTest(backend):
+                            wf.storage_backend = backend
+                            wf.save()
+                            Workflow(wf.label, storage_backend=backend)
                     finally:
                         wf.storage.delete()
 
@@ -522,63 +504,12 @@ class TestWorkflow(unittest.TestCase):
                     wf.remove_child(wf.import_type_mismatch)
                     wf.storage.delete()
 
-        if "h5io" in Workflow.allowed_backends():
-            wf.add_child(PlusOne(label="local_but_importable"))
-            try:
-                with self.assertRaises(
-                    TypeError, msg="h5io can't handle custom reconstructors"
-                ):
-                    wf.storage_backend = "h5io"
-                    wf.save()
-            finally:
-                wf.storage.delete()
-
-        if "tinybase" in Workflow.allowed_backends():
-            try:
-                with self.assertRaises(
-                    NotImplementedError,
-                    msg="Storage docs for tinybase claim all children must be registered "
-                        "nodes"
-                ):
-                    wf.storage_backend = "tinybase"
-                    wf.save()
-            finally:
-                wf.storage.delete()
-
-        if "h5io" in Workflow.allowed_backends():
-            with self.subTest("Instanced node"):
-                wf.direct_instance = Workflow.create.function_node(plus_one)
-                try:
-                    with self.assertRaises(
-                        TypeNotFoundError,
-                        msg="No direct node instances, only children with functions as "
-                            "_class_ attribtues"
-                    ):
-                        wf.storage_backend = "h5io"
-                        wf.save()
-                finally:
-                    wf.remove_child(wf.direct_instance)
-                    wf.storage.delete()
-
         with self.subTest("Unimportable node"):
             @Workflow.wrap.as_function_node("y")
             def UnimportableScope(x):
                 return x
 
             wf.unimportable_scope = UnimportableScope()
-
-            if "h5io" in Workflow.allowed_backends():
-                try:
-                    with self.assertRaises(
-                        TypeNotFoundError,
-                        msg="Nodes must live in an importable scope to save with the "
-                            "h5io backend"
-                    ):
-                        wf.storage_backend = "h5io"
-                        wf.save()
-                finally:
-                    wf.remove_child(wf.unimportable_scope)
-                    wf.storage.delete()
 
     def test_pickle(self):
         wf = Workflow("wf")

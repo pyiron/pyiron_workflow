@@ -22,11 +22,7 @@ from pyiron_workflow.mixin.injection import HasIOWithInjection
 from pyiron_workflow.mixin.run import Runnable, ReadinessError
 from pyiron_workflow.mixin.semantics import Semantic
 from pyiron_workflow.mixin.single_output import ExploitsSingleOutput
-from pyiron_workflow.mixin.storage import (
-    HasH5ioStorage,
-    HasTinybaseStorage,
-    HasPickleStorage,
-)
+from pyiron_workflow.mixin.storage import HasPickleStorage
 from pyiron_workflow.topology import (
     get_nodes_in_data_tree,
     set_run_connections_according_to_linear_dag,
@@ -50,8 +46,6 @@ class Node(
     HasIOWithInjection,
     ExploitsSingleOutput,
     HasWorkingDirectory,
-    HasH5ioStorage,
-    HasTinybaseStorage,
     HasPickleStorage,
     ABC,
 ):
@@ -140,11 +134,11 @@ class Node(
     - Nodes created from a registered package store their package identifier as a class
         attribute.
     - [ALPHA FEATURE] Nodes can be saved to and loaded from file if python >= 3.11.
-        - As long as you haven't put anything unpickleable on them, or defined them in
-            an unpicklable place (e.g. in the `<locals>` of another function), you can
-            simple (un)pickle nodes. There is no save/load interface for this right
-            now, just import pickle and do it. The "pickle" backend to the `Node.save`
-            method will fall back on `cloudpickle` as needed to overcome this.
+        - Save and load features wrap `(cloud)pickle` dumping and loading.
+        - Everything in `pyiron_workflow` itself is (if not, alert developers),
+            pickle-able (by exploiting `pyiron_snippets.factory`), but `pickle` will
+            fall back to `cloudpickle` if trouble is encountered, e.g. because some
+            IO data is not pickle-able.
         - Saving is triggered manually, or by setting a flag to save after the nodes
             runs.
         - At the end of instantiation, nodes will load automatically if they find saved
@@ -153,7 +147,9 @@ class Node(
           - You can't load saved content _and_ run after instantiation at once.
         - The nodes must be defined somewhere importable, i.e. in a module, `__main__`,
             and as a class property are all fine, but, e.g., inside the `<locals>` of
-            another function is not.
+            another function is not. If you did put them in `__main__`, make sure you
+            re-execute that content before trying to load or the load will (sensibly)
+            fail!
         - [ALPHA ISSUE] If the source code (cells, `.py` files...) for a saved graph is
             altered between saving and loading the graph, there are no guarantees about
             the loaded state; depending on the nature of the changes everything may
@@ -166,51 +162,6 @@ class Node(
             your graph this could be expensive in terms of storage space and/or time.
         - [ALPHA ISSUE] Similarly, there is no way to save only part of a graph; only
             the entire graph may be saved at once.
-        - [ALPHA ISSUE] There are three possible back-ends for saving: one leaning on
-            `tinybase.storage.GenericStorage` (in practice,
-            `H5ioStorage(GenericStorage)`), and the other that uses the `h5io` module
-            directly. The third (default) option is to use `(cloud)pickle`. The backend
-            used is always the one on the graph root.
-        - [ALPHA ISSUE] The `h5io` backend is deprecated -- it can't handle custom
-            reconstructors (i.e. when `__reduce__` returns a tuple with some
-            non-standard callable as its first entry), and basically all our nodes do
-            that now! `tinybase` gets around this by falling back on `cloudpickle` when
-            its own interactions with `h5io` fail.
-        - [ALPHA ISSUE] Restrictions on data:
-            - For the `h5io` backend: Most data that can be pickled will be fine, but
-                some classes will hit an edge case and throw an exception from `h5io`
-                (at a minimum, those classes which define a custom reconstructor hit,
-                this, but there also seems to be issues with dynamic methods, e.g. the
-                `Calculator` class and its children from `ase`).
-            - For the `tinybase` backend: Any data that can be pickled will be fine,
-                although it might get stored in a pickled state, which is not ideal for
-                long-term storage or sharing.
-        - [ALPHA ISSUE] Restrictions on workflows:
-            - For the `h5io` backend: all child nodes must be defined in an importable
-                location. This includes `__main__` in a jupyter notebook (as long as
-                the same `__main__` cells get executed prior to trying to load!) but
-                not, e.g., inside functions in `__main__`.
-            - For the `tinybase` backend: all child nodes must have been created via
-                the creator (i.e. `wf.create...`), which is to say they come from a
-                registered node package. The composite will run a check and fail early
-                in the save process if this is not the case. Fulfilling this
-                requirement is as simple as moving all the desired nodes off to a `.py`
-                file, registering it, and building the composite from  there.
-        - [ALPHA ISSUE] Restrictions to macros:
-            - For the `h5io` and `pickle` backends: there are none; if a macro is
-                modified, saved, and reloaded, the modifications will be reflected in
-                the loaded state.
-                Note there is a little bit of danger here, as the macro class still
-                corresponds to the un-modified macro class.
-            - For the `tinybase` backend: the macro will re-instantiate its original
-                nodes and try to update their data. Any modifications to the macro
-                prior to saving are completely disregarded; if the interface to the
-                macro was modified (e.g. different channel names in the IO), then this
-                will save fine but throw an exception on load; if the interface was
-                unchanged but the functionality changed (e.g. replacing a child node),
-                the original, unmodified macro will cleanly load and the loaded data
-                will _silently_ mis-represent the macro functionality (insofaras the
-                internal changes would cause a difference in the output data).
 
     This is an abstract class.
     Children *must* define how :attr:`inputs` and :attr:`outputs` are constructed, what will
@@ -258,9 +209,9 @@ class Node(
             received output from this call. (Default is False.)
         save_after_run (bool): Whether to trigger a save after each run of the node
             (currently causes the entire graph to save). (Default is False.)
-        storage_backend (Literal["h5io" | "tinybase", "pickle"] | None): The flag for
-            the backend to use for saving and loading; for nodes in a graph the value
-            on the root node is always used.
+        storage_backend (Literal["pickle"] | None): The flag for the backend to use for
+            saving and loading; for nodes in a graph the value on the root node is
+            always used.
         signals (pyiron_workflow.io.Signals): A container for input and output
             signals, which are channels for controlling execution flow. By default, has
             a :attr:`signals.inputs.run` channel which has a callback to the :meth:`run` method
@@ -331,7 +282,7 @@ class Node(
         parent: Optional[Composite] = None,
         overwrite_save: bool = False,
         run_after_init: bool = False,
-        storage_backend: Literal["h5io", "tinybase", "pickle"] | None = "pickle",
+        storage_backend: Literal["pickle"] | None = "pickle",
         save_after_run: bool = False,
         **kwargs,
     ):

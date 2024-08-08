@@ -482,24 +482,6 @@ class DataChannel(Channel, ABC):
     def deactivate_strict_hints(self) -> None:
         self.strict_hints = False
 
-    def to_storage(self, storage):
-        storage["strict_hints"] = self.strict_hints
-        storage["type_hint"] = self.type_hint
-        storage["default"] = self.default
-        storage["value"] = self.value
-
-    def from_storage(self, storage):
-        self.strict_hints = bool(storage["strict_hints"])
-        self.type_hint = storage["type_hint"]
-        self.default = storage["default"]
-        from pyiron_contrib.tinybase.storage import GenericStorage
-
-        self.value = (
-            storage["value"].to_object()
-            if isinstance(storage["value"], GenericStorage)
-            else storage["value"]
-        )
-
     def __getstate__(self):
         state = super().__getstate__()
         state["_value_receiver"] = None
