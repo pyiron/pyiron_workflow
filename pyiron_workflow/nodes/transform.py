@@ -443,7 +443,7 @@ def as_dataclass_node(dataclass: type):
         >>>
         >>> f = Foo()
         >>> print(f.readiness_report)
-        DataclassNodeFoo readiness: False
+        Foo readiness: False
         STATE:
         running: False
         failed: False
@@ -454,7 +454,7 @@ def as_dataclass_node(dataclass: type):
         complex_ ready: True
 
         >>> f(necessary="input as a node kwarg")
-        Foo(necessary='input as a node kwarg', bar='bar', answer=42, complex_=[1, 2, 3])
+        Foo.dataclass(necessary='input as a node kwarg', bar='bar', answer=42, complex_=[1, 2, 3])
     """
     dataclass_node_factory.clear(dataclass.__name__)  # Force a fresh class
     module, qualname = dataclass.__module__, dataclass.__qualname__
@@ -516,7 +516,7 @@ def dataclass_node(dataclass: type, use_cache: bool = True, *node_args, **node_k
         complex_ ready: True
 
         >>> f(necessary="input as a node kwarg")
-        Foo(necessary='input as a node kwarg', bar='bar', answer=42, complex_=[1, 2, 3])
+        Foo.dataclass(necessary='input as a node kwarg', bar='bar', answer=42, complex_=[1, 2, 3])
     """
     cls = dataclass_node_factory(dataclass)
     cls.preview_io()
