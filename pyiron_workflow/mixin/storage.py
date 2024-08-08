@@ -12,6 +12,7 @@ import pickle
 import sys
 from typing import Optional
 
+import cloudpickle
 import h5io
 from pyiron_snippets.files import FileObject, DirectoryObject
 
@@ -88,6 +89,7 @@ class StorageInterface:
 class PickleStorage(StorageInterface):
 
     _PICKLE_STORAGE_FILE_NAME = "pickle.pckl"
+    _CLOUDPICKLE_STORAGE_FILE_NAME = "cloudpickle.cpckl"
 
     def __init__(self, owner: HasPickleStorage):
         super().__init__(owner=owner)
@@ -97,12 +99,22 @@ class PickleStorage(StorageInterface):
         return self._owner
 
     def _save(self):
-        with open(self._pickle_storage_file_path, "wb") as file:
-            pickle.dump(self.owner, file)
+        try:
+            with open(self._pickle_storage_file_path, "wb") as file:
+                pickle.dump(self.owner, file)
+        except Exception:
+            self._delete()
+            with open(self._cloudpickle_storage_file_path, "wb") as file:
+                cloudpickle.dump(self.owner, file)
 
     def _load(self):
-        with open(self._pickle_storage_file_path, "rb") as file:
-            inst = pickle.load(file)
+        if self._has_pickle_contents:
+            with open(self._pickle_storage_file_path, "rb") as file:
+                inst = pickle.load(file)
+        elif self._has_cloudpickle_contents:
+            with open(self._cloudpickle_storage_file_path, "rb") as file:
+                inst = cloudpickle.load(file)
+
         if inst.__class__ != self.owner.__class__:
             raise TypeError(
                 f"{self.owner.label} cannot load, as it has type "
@@ -111,23 +123,37 @@ class PickleStorage(StorageInterface):
             )
         self.owner.__setstate__(inst.__getstate__())
 
+    def _delete_file(self, file: str):
+        FileObject(file, self.owner.storage_directory).delete()
+
     def _delete(self):
-        if self.has_contents:
-            FileObject(
-                self._PICKLE_STORAGE_FILE_NAME, self.owner.storage_directory
-            ).delete()
+        if self._has_pickle_contents:
+            self._delete_file(self._PICKLE_STORAGE_FILE_NAME)
+        elif self._has_cloudpickle_contents:
+            self._delete_file(self._CLOUDPICKLE_STORAGE_FILE_NAME)
+
+    def _storage_path(self, file: str):
+        return str((self.owner.storage_directory.path / file).resolve())
 
     @property
     def _pickle_storage_file_path(self) -> str:
-        return str(
-            (
-                self.owner.storage_directory.path / self._PICKLE_STORAGE_FILE_NAME
-            ).resolve()
-        )
+        return self._storage_path(self._PICKLE_STORAGE_FILE_NAME)
+
+    @property
+    def _cloudpickle_storage_file_path(self) -> str:
+        return self._storage_path(self._CLOUDPICKLE_STORAGE_FILE_NAME)
 
     @property
     def _has_contents(self) -> bool:
+        return self._has_pickle_contents or self._has_cloudpickle_contents
+
+    @property
+    def _has_pickle_contents(self) -> bool:
         return os.path.isfile(self._pickle_storage_file_path)
+
+    @property
+    def _has_cloudpickle_contents(self) -> bool:
+        return os.path.isfile(self._cloudpickle_storage_file_path)
 
 
 class H5ioStorage(StorageInterface):

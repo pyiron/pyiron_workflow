@@ -20,7 +20,7 @@ class ANode(Node):
     """To de-abstract the class"""
 
     def _setup_node(self) -> None:
-        self._inputs = Inputs(InputData("x", self, type_hint=int))
+        self._inputs = Inputs(InputData("x", self, type_hint=int),)
         self._outputs = OutputsWithInjection(
             OutputDataWithInjection("y", self, type_hint=int),
         )
@@ -472,7 +472,29 @@ class TestNode(unittest.TestCase):
                         force_run.outputs.y.value,
                         msg="Destroying the save should allow immediate re-running"
                     )
+
+                    hard_input = ANode(label="hard", storage_backend=backend)
+                    hard_input.inputs.x.type_hint = callable
+                    hard_input.inputs.x = lambda x: x * 2
+                    if backend == "pickle":
+                        hard_input.save()
+                        reloaded = ANode(
+                            label=hard_input.label,
+                            storage_backend=backend
+                        )
+                        self.assertEqual(
+                            reloaded.inputs.x.value(4),
+                            hard_input.inputs.x.value(4),
+                            msg="Cloud pickle should be strong enough to recover this"
+                        )
+                    else:
+                        with self.assertRaises(
+                            (TypeError, AttributeError),
+                            msg="Other backends are not powerful enough for some values"
+                        ):
+                            hard_input.save()
                 finally:
+                    hard_input.delete_storage()
                     self.n1.delete_storage()
 
     @unittest.skipIf(sys.version_info < (3, 11), "Storage will only work in 3.11+")
