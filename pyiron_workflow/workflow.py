@@ -446,31 +446,6 @@ class Workflow(ParentMost, Composite):
             )
             raise e
 
-    def __getstate__(self):
-        state = super().__getstate__()
-
-        # Transform the IO maps into a datatype that plays well with h5io
-        # (Bidict implements a custom reconstructor, which hurts us)
-        state["_inputs_map"] = (
-            None if self._inputs_map is None else dict(self._inputs_map)
-        )
-        state["_outputs_map"] = (
-            None if self._outputs_map is None else dict(self._outputs_map)
-        )
-
-        return state
-
-    def __setstate__(self, state):
-        # Transform the IO maps back into the right class (bidict)
-        state["_inputs_map"] = (
-            None if state["_inputs_map"] is None else bidict(state["_inputs_map"])
-        )
-        state["_outputs_map"] = (
-            None if state["_outputs_map"] is None else bidict(state["_outputs_map"])
-        )
-
-        super().__setstate__(state)
-
     @property
     def _owned_io_panels(self) -> list[IO]:
         # Workflow data IO is just pointers to child IO, not actually owned directly
