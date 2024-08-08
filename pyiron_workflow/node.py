@@ -331,7 +331,7 @@ class Node(
         parent: Optional[Composite] = None,
         overwrite_save: bool = False,
         run_after_init: bool = False,
-        storage_backend: Literal["h5io", "tinybase", "pickle"] | None = "h5io",
+        storage_backend: Literal["h5io", "tinybase", "pickle"] | None = "pickle",
         save_after_run: bool = False,
         **kwargs,
     ):

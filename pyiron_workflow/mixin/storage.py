@@ -444,6 +444,10 @@ class HasPickleStorage(HasStorage, ABC):
         interfaces["pickle"] = PickleStorage
         return interfaces
 
+    @classmethod
+    def default_backend(cls):
+        return "pickle"
+
 
 class HasH5ioStorage(HasStorage, ABC):
     @classmethod
@@ -467,7 +471,3 @@ class HasTinybaseStorage(HasStorage, ABC):
     @abstractmethod
     def from_storage(self, storage: TinybaseStorage):
         pass
-
-    @classmethod
-    def default_backend(cls):
-        return "tinybase"
