@@ -421,7 +421,9 @@ def as_function_node(
         factory_made = function_node_factory(
             node_function, validate_output_labels, use_cache, *output_labels
         )
-        factory_made._class_returns_from_decorated_function = node_function
+        factory_made._reduce_imports_as = (
+            node_function.__module__, node_function.__qualname__
+        )
         factory_made.preview_io()
         return factory_made
 
