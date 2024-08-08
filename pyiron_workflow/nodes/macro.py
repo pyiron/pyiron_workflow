@@ -411,17 +411,6 @@ class Macro(Composite, StaticNode, ScrapesIO, ABC):
         for pairs in run_signal_pairs_to_restore:
             pairs[0].connect(pairs[1])
 
-    def to_workfow(self):
-        raise NotImplementedError
-
-    def from_storage(self, storage):
-        super().from_storage(storage)
-        # Nodes instantiated in macros probably aren't aware of their parent at
-        # instantiation time, and thus may be clean (un-loaded) objects --
-        # reload their data
-        for label, node in self.children.items():
-            node.from_storage(storage[label])
-
     @property
     def _input_value_links(self):
         """
