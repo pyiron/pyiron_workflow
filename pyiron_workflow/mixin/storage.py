@@ -350,7 +350,15 @@ class HasStorage(HasLabel, HasParent, ABC):
         Raises:
             TypeError: when the saved node has a different class name.
         """
-        self.storage.load()
+        if self.storage.has_contents:
+            self.storage.load()
+        else:
+            # Check for saved content using any other backend
+            for backend in self.allowed_backends():
+                interface = self._storage_interfaces()[backend](self)
+                if interface.has_contents:
+                    interface.load()
+                    break
 
     save.__doc__ += _save_load_warnings
 
@@ -406,6 +414,13 @@ class HasStorage(HasLabel, HasParent, ABC):
         return self._storage_interfaces()[self.storage_backend](self)
 
     @property
+    def any_storage_has_contents(self):
+        return any(
+            self._storage_interfaces()[backend](self).has_contents
+            for backend in self.allowed_backends()
+        )
+
+    @property
     def import_ready(self) -> bool:
         """
         Checks whether `importlib` can find this node's class, and if so whether the
@@ -444,6 +459,9 @@ class HasPickleStorage(HasStorage, ABC):
         interfaces["pickle"] = PickleStorage
         return interfaces
 
+    @classmethod
+    def default_backend(cls):
+        return "pickle"
 
 class HasH5ioStorage(HasStorage, ABC):
     @classmethod
@@ -467,7 +485,3 @@ class HasTinybaseStorage(HasStorage, ABC):
     @abstractmethod
     def from_storage(self, storage: TinybaseStorage):
         pass
-
-    @classmethod
-    def default_backend(cls):
-        return "tinybase"

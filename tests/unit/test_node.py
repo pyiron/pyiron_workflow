@@ -498,6 +498,43 @@ class TestNode(unittest.TestCase):
                     self.n1.delete_storage()
 
     @unittest.skipIf(sys.version_info < (3, 11), "Storage will only work in 3.11+")
+    def test_storage_compatibility(self):
+        try:
+            self.n1.storage_backend = "tinybase"
+            self.n1.inputs.x = 42
+            self.n1.save()
+            new_n1 = ANode(label=self.n1.label, storage_backend="pickle")
+            self.assertEqual(
+                new_n1.inputs.x.value,
+                self.n1.inputs.x.value,
+                msg="Even though the new node has a different storage backend, it "
+                    "should still _load_ the data saved with a different backend. To "
+                    "really avoid loading, delete or move the existing save file, or "
+                    "give your new node a different label."
+            )
+            new_n1()
+            new_n1.save()  # With a different backend now
+
+            tiny_n1 = ANode(label=self.n1.label, storage_backend="tinybase")
+            self.assertIs(
+                tiny_n1.outputs.y.value,
+                NOT_DATA,
+                msg="By explicitly specifying a particular backend, we expect to "
+                    "recover that backend's save-file, even if it is outdated"
+            )
+
+            pick_n1 = ANode(label=self.n1.label, storage_backend="pickle")
+            self.assertEqual(
+                pick_n1.outputs.y.value,
+                new_n1.outputs.y.value,
+                msg="If we specify the more-recently-saved backend, we expect to load "
+                    "the corresponding save file, where output exists"
+            )
+        finally:
+            self.n1.delete_storage()
+
+
+    @unittest.skipIf(sys.version_info < (3, 11), "Storage will only work in 3.11+")
     def test_save_after_run(self):
         for backend in Node.allowed_backends():
             with self.subTest(backend):

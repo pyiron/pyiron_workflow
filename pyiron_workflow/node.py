@@ -331,7 +331,7 @@ class Node(
         parent: Optional[Composite] = None,
         overwrite_save: bool = False,
         run_after_init: bool = False,
-        storage_backend: Literal["h5io", "tinybase", "pickle"] | None = "h5io",
+        storage_backend: Literal["h5io", "tinybase", "pickle"] | None = "pickle",
         save_after_run: bool = False,
         **kwargs,
     ):
@@ -384,7 +384,7 @@ class Node(
             self.delete_storage()
             do_load = False
         else:
-            do_load = sys.version_info >= (3, 11) and self.storage.has_contents
+            do_load = sys.version_info >= (3, 11) and self.any_storage_has_contents
 
         if do_load and run_after_init:
             raise ValueError(
