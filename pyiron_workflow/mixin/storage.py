@@ -9,7 +9,6 @@ from abc import ABC, abstractmethod
 from importlib import import_module
 import os
 import pickle
-import sys
 from typing import Optional
 
 import cloudpickle
