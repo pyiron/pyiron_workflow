@@ -6,6 +6,7 @@ import unittest
 from pandas import DataFrame
 
 from pyiron_workflow.channels import NOT_DATA
+from pyiron_workflow.nodes.function import as_function_node
 from pyiron_workflow.nodes.transform import (
     Transformer,
     as_dataclass_node,
@@ -15,6 +16,15 @@ from pyiron_workflow.nodes.transform import (
     inputs_to_list,
     list_to_outputs,
 )
+
+@as_dataclass_node
+class MyData:
+    stuff: bool = False
+
+@as_function_node
+def Downstream(x: MyData.dataclass):
+    x.stuff = True
+    return x
 
 
 class TestTransformer(unittest.TestCase):
@@ -248,6 +258,35 @@ class TestTransformer(unittest.TestCase):
                         msg="Fields with default factory won't see their default until "
                             "instantiation"
                     )
+
+    def test_dataclass_typing_and_storage(self):
+        md = MyData()
+
+        with self.assertRaises(
+            TypeError,
+            msg="Wrongly typed input should not connect"
+        ):
+            Downstream(5)
+
+        ds = Downstream(md)
+        out = ds.pull()
+        self.assertTrue(
+            out.stuff,
+            msg="Sanity check"
+        )
+
+        rmd = pickle.loads(pickle.dumps(md))
+        self.assertIs(
+            rmd.outputs.dataclass.type_hint,
+            MyData.dataclass,
+            msg="Type hint should be findable on the scope of the node decorating it"
+        )
+        ds2 = Downstream(rmd)
+        out = ds2.pull()
+        self.assertTrue(
+            out.stuff,
+            msg="Flow should be able to survive (de)serialization"
+        )
 
 
 if __name__ == '__main__':

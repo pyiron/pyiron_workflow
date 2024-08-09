@@ -534,7 +534,10 @@ def as_macro_node(
         factory_made = macro_node_factory(
             graph_creator, validate_output_labels, use_cache, *output_labels
         )
-        factory_made._class_returns_from_decorated_function = graph_creator
+        factory_made._reduce_imports_as = (
+            graph_creator.__module__,
+            graph_creator.__qualname__,
+        )
         factory_made.preview_io()
         return factory_made
 
