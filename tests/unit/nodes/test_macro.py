@@ -532,7 +532,7 @@ class TestMacro(unittest.TestCase):
                             f"Backend {backend} not recognized -- write a test for it"
                         )
                 finally:
-                    macro.storage.delete()
+                    macro.delete_storage()
 
     def test_output_label_stripping(self):
         """Test extensions to the `ScrapesIO` mixin."""
