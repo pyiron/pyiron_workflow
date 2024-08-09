@@ -143,7 +143,8 @@ class Node(
         - As long as you haven't put anything unpickleable on them, or defined them in
             an unpicklable place (e.g. in the `<locals>` of another function), you can
             simple (un)pickle nodes. There is no save/load interface for this right
-            now, just import pickle and do it.
+            now, just import pickle and do it. The "pickle" backend to the `Node.save`
+            method will fall back on `cloudpickle` as needed to overcome this.
         - Saving is triggered manually, or by setting a flag to save after the nodes
             runs.
         - At the end of instantiation, nodes will load automatically if they find saved
@@ -168,8 +169,8 @@ class Node(
         - [ALPHA ISSUE] There are three possible back-ends for saving: one leaning on
             `tinybase.storage.GenericStorage` (in practice,
             `H5ioStorage(GenericStorage)`), and the other that uses the `h5io` module
-            directly. The third (default) option is to use `pickle`. The backend used
-            is always the one on the graph root.
+            directly. The third (default) option is to use `(cloud)pickle`. The backend
+            used is always the one on the graph root.
         - [ALPHA ISSUE] The `h5io` backend is deprecated -- it can't handle custom
             reconstructors (i.e. when `__reduce__` returns a tuple with some
             non-standard callable as its first entry), and basically all our nodes do
