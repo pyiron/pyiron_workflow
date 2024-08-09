@@ -463,6 +463,7 @@ class HasPickleStorage(HasStorage, ABC):
     def default_backend(cls):
         return "pickle"
 
+
 class HasH5ioStorage(HasStorage, ABC):
     @classmethod
     def _storage_interfaces(cls):
