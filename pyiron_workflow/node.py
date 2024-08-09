@@ -21,6 +21,7 @@ from pyiron_workflow.mixin.injection import HasIOWithInjection
 from pyiron_workflow.mixin.run import Runnable, ReadinessError
 from pyiron_workflow.mixin.semantics import Semantic
 from pyiron_workflow.mixin.single_output import ExploitsSingleOutput
+from pyiron_workflow.mixin.storage import HasPickleStorage
 from pyiron_workflow.topology import (
     get_nodes_in_data_tree,
     set_run_connections_according_to_linear_dag,
