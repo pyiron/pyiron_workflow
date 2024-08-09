@@ -1,6 +1,5 @@
 from concurrent.futures import Future
 import pickle
-import sys
 from time import sleep
 import unittest
 
@@ -10,6 +9,8 @@ from pyiron_workflow.nodes.function import function_node
 from pyiron_workflow.nodes.macro import Macro, macro_node, as_macro_node
 from pyiron_workflow.topology import CircularDataFlowError
 
+ensure_tests_in_python_path()
+from static import demo_nodes
 
 def add_one(x):
     result = x + 1
@@ -471,33 +472,23 @@ class TestMacro(unittest.TestCase):
             m = PassThrough()
             print(m.child_labels, m.inputs, m.outputs)
 
-    @unittest.skipIf(sys.version_info < (3, 11), "Storage will only work in 3.11+")
     def test_storage_for_modified_macros(self):
-        ensure_tests_in_python_path()
-        Macro.register("static.demo_nodes", domain="demo")
-
         for backend in Macro.allowed_backends():
             with self.subTest(backend):
                 try:
-                    macro = Macro.create.demo.AddThree(
+                    macro = demo_nodes.AddThree(
                         label="m", x=0, storage_backend=backend
                     )
-                    original_result = macro()
                     macro.replace_child(
                         macro.two,
-                        Macro.create.demo.AddPlusOne()
+                        demo_nodes.AddPlusOne()
                     )
 
                     modified_result = macro()
 
-                    if backend == "h5io":
-                        with self.assertRaises(
-                            TypeError, msg="h5io can't handle custom reconstructors"
-                        ):
-                            macro.save()
-                    elif backend in ["tinybase", "pickle"]:
+                    if backend == "pickle":
                         macro.save()
-                        reloaded = Macro.create.demo.AddThree(
+                        reloaded = demo_nodes.AddThree(
                             label="m", storage_backend=backend
                         )
                         self.assertDictEqual(
@@ -509,13 +500,13 @@ class TestMacro(unittest.TestCase):
                             set(macro.children.keys()),
                             set(reloaded.children.keys()),
                             msg="All nodes should have been (de)serialized."
-                        )  # Note that this snags the _new_ one in the case of h5io!
+                        )
                         self.assertEqual(
-                            Macro.create.demo.AddThree.__name__,
+                            demo_nodes.AddThree.__name__,
                             reloaded.__class__.__name__,
                             msg=f"LOOK OUT! This all (de)serialized nicely, but what we "
                                 f"loaded is _falsely_ claiming to be an "
-                                f"{Macro.create.demo.AddThree.__name__}. This is "
+                                f"{demo_nodes.AddThree.__name__}. This is "
                                 f"not any sort of technical error -- what other class name "
                                 f"would we load? -- but is a deeper problem with saving "
                                 f"modified objects that we need ot figure out some better "
@@ -523,33 +514,19 @@ class TestMacro(unittest.TestCase):
                         )
                         rerun = reloaded()
 
-                        if backend == "tinybase":
-                            self.assertIsInstance(
-                                reloaded.two,
-                                Macro.create.standard.Add,
-                                msg="tinybase is re-instantiating the original macro "
-                                    "class and then carefully loading particular "
-                                    "pieces of data; that means each child is"
-                            )
-                            self.assertDictEqual(
-                                original_result,
-                                rerun,
-                                msg="Rerunning re-executes the _original_ "
-                                    "functionality"
-                            )
-                        elif backend == "pickle":
-                            self.assertIsInstance(
-                                reloaded.two,
-                                Macro.create.demo.AddPlusOne,
-                                msg="pickle instantiates the macro node class, but "
-                                    "but then uses its serialized state, so we retain "
-                                    "the replaced node."
-                            )
-                            self.assertDictEqual(
-                                modified_result,
-                                rerun,
-                                msg="Rerunning re-executes the _replaced_ functionality"
-                            )
+                        self.assertIsInstance(
+                            reloaded.two,
+                            demo_nodes.AddPlusOne,
+
+                            msg="pickle instantiates the macro node class, but "
+                                "but then uses its serialized state, so we retain "
+                                "the replaced node."
+                        )
+                        self.assertDictEqual(
+                            modified_result,
+                            rerun,
+                            msg="Rerunning re-executes the _replaced_ functionality"
+                        )
                     else:
                         raise ValueError(
                             f"Backend {backend} not recognized -- write a test for it"

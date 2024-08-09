@@ -9,6 +9,8 @@ from pyiron_workflow.channels import OutputSignal
 from pyiron_workflow.nodes.function import Function
 from pyiron_workflow.workflow import Workflow
 
+ensure_tests_in_python_path()
+from static import demo_nodes
 
 @Workflow.wrap.as_function_node("random")
 def RandomFloat() -> float:
@@ -33,7 +35,6 @@ def Bar(x):
 class TestTopology(unittest.TestCase):
     @classmethod
     def setUpClass(cls) -> None:
-        ensure_tests_in_python_path()
         super().setUpClass()
 
     def test_manually_constructed_cyclic_graph(self):
@@ -98,12 +99,11 @@ class TestTopology(unittest.TestCase):
         )
 
     def test_for_loop(self):
-        Workflow.register("static.demo_nodes", "demo")
 
         base = 42
         to_add = list(range(5))
         bulk_loop = Workflow.create.for_node(
-            Workflow.create.demo.OptionallyAdd,
+            demo_nodes.OptionallyAdd,
             iter_on=("y",),
             x=base,  # Broadcast
             y=to_add  # Scattered
@@ -132,16 +132,15 @@ class TestTopology(unittest.TestCase):
         C.f. `pyiron_workflow.function._wrapper_factory` for more detail.
         """
         wf = Workflow("depickle")
-        wf.register("static.demo_nodes", "demo")
 
-        wf.before_pickling = wf.create.demo.OptionallyAdd(1)
+        wf.before_pickling = demo_nodes.OptionallyAdd(1)
         wf.before_pickling.executor = wf.create.ProcessPoolExecutor()
         wf()
         wf.before_pickling.future.result(timeout=120)  # Wait for it to finish
         wf.executor_shutdown()
 
         wf.before_pickling.executor = None
-        wf.after_pickling = wf.create.demo.OptionallyAdd(2, y=3)
+        wf.after_pickling = demo_nodes.OptionallyAdd(2, y=3)
         wf()
 
     def test_executors(self):

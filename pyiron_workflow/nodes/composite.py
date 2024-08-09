@@ -92,7 +92,6 @@ class Composite(SemanticParent, HasCreator, Node, ABC):
         replace_child(owned_node: Node | str, replacement: Node | type[Node]): Replaces an
             owned node with a new node, as long as the new node's IO is commensurate
             with the node being replaced.
-        register(): A short-cut to registering a new node package with the node creator.
     """
 
     def __init__(
@@ -102,7 +101,7 @@ class Composite(SemanticParent, HasCreator, Node, ABC):
         parent: Optional[Composite] = None,
         overwrite_save: bool = False,
         run_after_init: bool = False,
-        storage_backend: Optional[Literal["h5io", "tinybase", "pickle"]] = None,
+        storage_backend: Optional[Literal["pickle"]] = None,
         save_after_run: bool = False,
         strict_naming: bool = True,
         **kwargs,
@@ -424,20 +423,6 @@ class Composite(SemanticParent, HasCreator, Node, ABC):
                 },
             },
         }
-
-    @property
-    def package_requirements(self) -> set[str]:
-        """
-        A list of node package identifiers for children.
-        """
-        return set(n.package_identifier for n in self)
-
-    def to_storage(self, storage):
-        storage["nodes"] = list(self.children.keys())
-        for label, node in self.children.items():
-            node.to_storage(storage.create_group(label))
-
-        super().to_storage(storage)
 
     def tidy_working_directory(self):
         for node in self:

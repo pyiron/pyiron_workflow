@@ -346,10 +346,10 @@ class SemanticParent(Semantic, ABC):
 
         self._children = bidict(self._children)
 
-        # Children purge their parent information in their __getstate__ (this avoids
-        # recursion, which is mainly done to accommodate h5io as most other storage
-        # tools are able to store a reference to an object to overcom it), so now
-        # return it to them:
+        # Children purge their parent information in their __getstate__. This avoids
+        # recursion, so we don't need to ship an entire graph off to a second process,
+        # but rather can send just the requested object and its scope (semantic
+        # children). So, now return their parent to them:
         for child in self:
             child._parent = self
 

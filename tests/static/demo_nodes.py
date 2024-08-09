@@ -1,5 +1,5 @@
 """
-A demo node package for the purpose of testing node package registration.
+A demo node package for the purpose of testing.
 """
 
 from typing import Optional
@@ -32,5 +32,3 @@ def dynamic(x):
 
 
 Dynamic = Workflow.wrap.as_function_node(dynamic)
-
-nodes = [OptionallyAdd, AddThree, AddPlusOne, Dynamic]

@@ -578,16 +578,6 @@ class HasIO(UsesState, HasLabel, HasRun, ABC):
                             continue
         return old_values
 
-    def __setstate__(self, state):
-        super().__setstate__(state)
-
-        # Channels don't store their owner in their state, so repopulate it
-        # This is to accommodate h5io storage, which does not permit recursive
-        # properties -- if we stop depending on h5io, channels can store their owner
-        for io_panel in self._owned_io_panels:
-            for channel in io_panel:
-                channel.owner = self
-
     @property
     def _owned_io_panels(self) -> list[IO]:
         return [
