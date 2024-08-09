@@ -334,6 +334,7 @@ class HasStorage(HasLabel, HasParent, ABC):
 
 
 class HasPickleStorage(HasStorage, ABC):
+
     @classmethod
     def _storage_interfaces(cls):
         interfaces = super(HasPickleStorage, cls)._storage_interfaces()

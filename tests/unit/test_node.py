@@ -486,7 +486,6 @@ class TestNode(unittest.TestCase):
                     hard_input.delete_storage()
                     self.n1.delete_storage()
 
-
     def test_save_after_run(self):
         for backend in Node.allowed_backends():
             with self.subTest(backend):
