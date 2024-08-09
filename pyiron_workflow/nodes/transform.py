@@ -387,11 +387,15 @@ def dataclass_node_factory(
         )
     if not is_dataclass(dataclass):
         dataclass = as_dataclass(dataclass)
+    module, qualname = dataclass.__module__, dataclass.__qualname__
+    dataclass.__qualname__ += ".dataclass"  # So output type hints know where to find it
     return (
-        f"{DataclassNode.__name__}{dataclass.__name__}",
+        dataclass.__name__,
         (DataclassNode,),
         {
             "dataclass": dataclass,
+            "__module__": module,
+            "__qualname__": qualname,
             "_output_type_hint": dataclass,
             "__doc__": dataclass.__doc__,
             "use_cache": use_cache,
@@ -400,7 +404,7 @@ def dataclass_node_factory(
     )
 
 
-def as_dataclass_node(dataclass: type, use_cache: bool = True):
+def as_dataclass_node(dataclass: type):
     """
     Decorates a dataclass as a dataclass node -- i.e. a node whose inputs correspond
     to dataclass fields and whose output is an instance of the dataclass.
@@ -439,7 +443,7 @@ def as_dataclass_node(dataclass: type, use_cache: bool = True):
         >>>
         >>> f = Foo()
         >>> print(f.readiness_report)
-        DataclassNodeFoo readiness: False
+        Foo readiness: False
         STATE:
         running: False
         failed: False
@@ -450,9 +454,12 @@ def as_dataclass_node(dataclass: type, use_cache: bool = True):
         complex_ ready: True
 
         >>> f(necessary="input as a node kwarg")
-        Foo(necessary='input as a node kwarg', bar='bar', answer=42, complex_=[1, 2, 3])
+        Foo.dataclass(necessary='input as a node kwarg', bar='bar', answer=42, complex_=[1, 2, 3])
     """
-    cls = dataclass_node_factory(dataclass, use_cache)
+    dataclass_node_factory.clear(dataclass.__name__)  # Force a fresh class
+    module, qualname = dataclass.__module__, dataclass.__qualname__
+    cls = dataclass_node_factory(dataclass)
+    cls._reduce_imports_as = (module, qualname)
     cls.preview_io()
     return cls
 
@@ -509,7 +516,7 @@ def dataclass_node(dataclass: type, use_cache: bool = True, *node_args, **node_k
         complex_ ready: True
 
         >>> f(necessary="input as a node kwarg")
-        Foo(necessary='input as a node kwarg', bar='bar', answer=42, complex_=[1, 2, 3])
+        Foo.dataclass(necessary='input as a node kwarg', bar='bar', answer=42, complex_=[1, 2, 3])
     """
     cls = dataclass_node_factory(dataclass)
     cls.preview_io()
