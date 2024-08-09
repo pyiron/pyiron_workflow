@@ -8,6 +8,7 @@ from __future__ import annotations
 from abc import ABC, abstractmethod
 from importlib import import_module
 import os
+import pickle
 import sys
 from typing import Optional
 
@@ -82,6 +83,51 @@ class StorageInterface:
     @abstractmethod
     def _delete(self):
         """Remove an existing save-file for this backend"""
+
+
+class PickleStorage(StorageInterface):
+
+    _PICKLE_STORAGE_FILE_NAME = "pickle.pckl"
+
+    def __init__(self, owner: HasPickleStorage):
+        super().__init__(owner=owner)
+
+    @property
+    def owner(self) -> HasPickleStorage:
+        return self._owner
+
+    def _save(self):
+        with open(self._pickle_storage_file_path, "wb") as file:
+            pickle.dump(self.owner, file)
+
+    def _load(self):
+        with open(self._pickle_storage_file_path, "rb") as file:
+            inst = pickle.load(file)
+        if inst.__class__ != self.owner.__class__:
+            raise TypeError(
+                f"{self.owner.label} cannot load, as it has type "
+                f"{self.owner.__class__.__name__},  but the saved node has type "
+                f"{inst.__class__.__name__}"
+            )
+        self.owner.__setstate__(inst.__getstate__())
+
+    def _delete(self):
+        if self.has_contents:
+            FileObject(
+                self._PICKLE_STORAGE_FILE_NAME, self.owner.storage_directory
+            ).delete()
+
+    @property
+    def _pickle_storage_file_path(self) -> str:
+        return str(
+            (
+                self.owner.storage_directory.path / self._PICKLE_STORAGE_FILE_NAME
+            ).resolve()
+        )
+
+    @property
+    def _has_contents(self) -> bool:
+        return os.path.isfile(self._pickle_storage_file_path)
 
 
 class H5ioStorage(StorageInterface):
@@ -363,6 +409,14 @@ class HasStorage(HasLabel, HasParent, ABC):
             report_so_far + f"{newline}{tabspace}{self.label}: "
             f"{'ok' if self.import_ready else 'NOT IMPORTABLE'}"
         )
+
+
+class HasPickleStorage(HasStorage, ABC):
+    @classmethod
+    def _storage_interfaces(cls):
+        interfaces = super(HasPickleStorage, cls)._storage_interfaces()
+        interfaces["pickle"] = PickleStorage
+        return interfaces
 
 
 class HasH5ioStorage(HasStorage, ABC):

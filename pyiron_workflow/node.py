@@ -22,7 +22,11 @@ from pyiron_workflow.mixin.injection import HasIOWithInjection
 from pyiron_workflow.mixin.run import Runnable, ReadinessError
 from pyiron_workflow.mixin.semantics import Semantic
 from pyiron_workflow.mixin.single_output import ExploitsSingleOutput
-from pyiron_workflow.mixin.storage import HasH5ioStorage, HasTinybaseStorage
+from pyiron_workflow.mixin.storage import (
+    HasH5ioStorage,
+    HasTinybaseStorage,
+    HasPickleStorage,
+)
 from pyiron_workflow.topology import (
     get_nodes_in_data_tree,
     set_run_connections_according_to_linear_dag,
@@ -48,6 +52,7 @@ class Node(
     HasWorkingDirectory,
     HasH5ioStorage,
     HasTinybaseStorage,
+    HasPickleStorage,
     ABC,
 ):
     """
@@ -160,11 +165,11 @@ class Node(
             your graph this could be expensive in terms of storage space and/or time.
         - [ALPHA ISSUE] Similarly, there is no way to save only part of a graph; only
             the entire graph may be saved at once.
-        - [ALPHA ISSUE] There are two possible back-ends for saving: one leaning on
+        - [ALPHA ISSUE] There are three possible back-ends for saving: one leaning on
             `tinybase.storage.GenericStorage` (in practice,
-            `H5ioStorage(GenericStorage)`), that is the default, and the other that
-            uses the `h5io` module directly. The backend used is always the one on the
-            graph root.
+            `H5ioStorage(GenericStorage)`), and the other that uses the `h5io` module
+            directly. The third (default) option is to use `pickle`. The backend used
+            is always the one on the graph root.
         - [ALPHA ISSUE] The `h5io` backend is deprecated -- it can't handle custom
             reconstructors (i.e. when `__reduce__` returns a tuple with some
             non-standard callable as its first entry), and basically all our nodes do
@@ -191,8 +196,9 @@ class Node(
                 requirement is as simple as moving all the desired nodes off to a `.py`
                 file, registering it, and building the composite from  there.
         - [ALPHA ISSUE] Restrictions to macros:
-            - For the `h5io` backend: there are none; if a macro is modified, saved,
-                and reloaded, the modifications will be reflected in the loaded state.
+            - For the `h5io` and `pickle` backends: there are none; if a macro is
+                modified, saved, and reloaded, the modifications will be reflected in
+                the loaded state.
                 Note there is a little bit of danger here, as the macro class still
                 corresponds to the un-modified macro class.
             - For the `tinybase` backend: the macro will re-instantiate its original
@@ -251,9 +257,9 @@ class Node(
             received output from this call. (Default is False.)
         save_after_run (bool): Whether to trigger a save after each run of the node
             (currently causes the entire graph to save). (Default is False.)
-        storage_backend (Literal["h5io" | "tinybase"] | None): The flag for the the
-            backend to use for saving and loading; for nodes in a graph the value on
-            the root node is always used.
+        storage_backend (Literal["h5io" | "tinybase", "pickle"] | None): The flag for
+            the backend to use for saving and loading; for nodes in a graph the value
+            on the root node is always used.
         signals (pyiron_workflow.io.Signals): A container for input and output
             signals, which are channels for controlling execution flow. By default, has
             a :attr:`signals.inputs.run` channel which has a callback to the :meth:`run` method
@@ -324,7 +330,7 @@ class Node(
         parent: Optional[Composite] = None,
         overwrite_save: bool = False,
         run_after_init: bool = False,
-        storage_backend: Literal["h5io", "tinybase"] | None = "h5io",
+        storage_backend: Literal["h5io", "tinybase", "pickle"] | None = "h5io",
         save_after_run: bool = False,
         **kwargs,
     ):
