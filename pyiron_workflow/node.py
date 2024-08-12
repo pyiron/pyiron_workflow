@@ -599,7 +599,7 @@ class Node(
             return processed_output
         finally:
             if self.save_after_run:
-                self.save()
+                self.save_checkpoint()
 
     def _finish_run_and_emit_ran(self, run_output: tuple | Future) -> Any | tuple:
         processed_output = self._finish_run(run_output)
@@ -836,6 +836,12 @@ class Node(
         self.storage.save(self)
 
     save.__doc__ += _save_load_warnings
+
+    def save_checkpoint(self):
+        """
+        Triggers a save on the parent-most node.
+        """
+        self.graph_root.save()
 
     def load(self):
         """
