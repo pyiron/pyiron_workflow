@@ -33,7 +33,7 @@ class StaticNode(Node, HasIOPreview, ABC):
         overwrite_save: bool = False,
         run_after_init: bool = False,
         storage_backend: Optional[Literal["pickle"]] = None,
-        save_after_run: bool = False,
+        checkpoint: bool = False,
         **kwargs,
     ):
         super().__init__(
@@ -43,7 +43,7 @@ class StaticNode(Node, HasIOPreview, ABC):
             overwrite_save=overwrite_save,
             run_after_init=run_after_init,
             storage_backend=storage_backend,
-            save_after_run=save_after_run,
+            checkpoint=checkpoint,
             **kwargs,
         )
 

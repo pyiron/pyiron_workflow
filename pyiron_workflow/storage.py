@@ -25,24 +25,8 @@ class TypeNotFoundError(ImportError):
 
 class StorageInterface(ABC):
 
-    def save(self, obj: Node):
-        root = obj.storage_root
-        if not root.import_ready:
-            raise TypeNotFoundError(
-                f"{obj.label} cannot be saved with the "
-                f"{obj.storage_backend} because it (or one of its children) has "
-                f"a type that cannot be imported. Did you dynamically define this "
-                f"object? \n"
-                f"Import readiness report: \n"
-                f"{obj.report_import_readiness()}"
-            )
-        if root is self:
-            self._save(obj)
-        else:
-            root.storage._save(root)
-
     @abstractmethod
-    def _save(self, obj: Node):
+    def save(self, obj: Node):
         pass
 
     def load(self, obj: Node):
@@ -78,7 +62,17 @@ class PickleStorage(StorageInterface):
     _PICKLE_STORAGE_FILE_NAME = "pickle.pckl"
     _CLOUDPICKLE_STORAGE_FILE_NAME = "cloudpickle.cpckl"
 
-    def _save(self, obj: Node):
+    def save(self, obj: Node):
+        if not obj.import_ready:
+            raise TypeNotFoundError(
+                f"{obj.label} cannot be saved with the "
+                f"{obj.storage_backend} because it (or one of its children) has "
+                f"a type that cannot be imported. Did you dynamically define this "
+                f"object? \n"
+                f"Import readiness report: \n"
+                f"{obj.report_import_readiness()}"
+            )
+
         try:
             with open(self._pickle_storage_file_path(obj), "wb") as file:
                 pickle.dump(obj, file)
