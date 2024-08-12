@@ -827,23 +827,25 @@ class Node(
 
     """
 
-    def save(self):
+    def save(self, backend: str | StorageInterface = "pickle"):
         """
         Writes the node to file (using HDF5) such that a new node instance of the same
         type can :meth:`load()` the data to return to the same state as the save point,
         i.e. the same data IO channel values, the same flags, etc.
         """
-        self.storage.save(self)
+        if isinstance(backend, str):
+            backend = self._storage_interfaces()[backend]()
+        backend.save(self)
 
     save.__doc__ += _save_load_warnings
 
-    def save_checkpoint(self):
+    def save_checkpoint(self, backend: str | StorageInterface = "pickle"):
         """
         Triggers a save on the parent-most node.
         """
-        self.graph_root.save()
+        self.graph_root.save(backend=backend)
 
-    def load(self):
+    def load(self, backend: str | StorageInterface = "pickle"):
         """
         Loads the node file (from HDF5) such that this node restores its state at time
         of loading.
@@ -851,14 +853,17 @@ class Node(
         Raises:
             TypeError: when the saved node has a different class name.
         """
-        if self.storage.has_contents(self):
-            self.storage.load(self)
+        if isinstance(backend, str):
+            backend = self._storage_interfaces()[backend]()
+
+        if backend.has_contents(self):
+            backend.load(self)
         else:
             # Check for saved content using any other backend
-            for backend in self.allowed_backends():
-                interface = self._storage_interfaces()[backend]()
-                if interface.has_contents(self):
-                    interface.load(self)
+            for backend_class in self.allowed_backends():
+                backend = self._storage_interfaces()[backend_class]()
+                if backend.has_contents(self):
+                    backend.load(self)
                     break
 
     load.__doc__ += _save_load_warnings
