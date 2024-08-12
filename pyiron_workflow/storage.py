@@ -1,6 +1,5 @@
 """
-A bit of abstraction to declutter the node class while we support two very different
-back ends.
+A bit of abstraction connecting generic storage routines to nodes.
 """
 
 from __future__ import annotations

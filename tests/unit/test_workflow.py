@@ -9,7 +9,7 @@ from pyiron_snippets.dotdict import DotDict
 from pyiron_workflow._tests import ensure_tests_in_python_path
 from pyiron_workflow.channels import NOT_DATA
 from pyiron_workflow.mixin.semantics import ParentMostError
-from pyiron_workflow.mixin.storage import TypeNotFoundError
+from pyiron_workflow.storage import TypeNotFoundError
 from pyiron_workflow.workflow import Workflow
 
 ensure_tests_in_python_path()
