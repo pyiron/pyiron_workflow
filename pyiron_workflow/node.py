@@ -943,5 +943,5 @@ class Node(
         tabspace = tabs * "\t"
         return (
             report_so_far + f"{newline}{tabspace}{self.label}: "
-                            f"{'ok' if self.import_ready else 'NOT IMPORTABLE'}"
+            f"{'ok' if self.import_ready else 'NOT IMPORTABLE'}"
         )
