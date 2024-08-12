@@ -24,7 +24,7 @@ class TypeNotFoundError(ImportError):
     """
 
 
-class StorageInterface:
+class StorageInterface(ABC):
 
     def save(self, obj: Node):
         root = obj.storage_root
