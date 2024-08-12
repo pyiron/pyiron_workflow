@@ -107,9 +107,9 @@ class PickleStorage(StorageInterface):
         FileObject(file, obj.storage_directory).delete()
 
     def _delete(self, obj: Node):
-        if self._has_pickle_contents:
+        if self._has_pickle_contents(obj):
             self._delete_file(self._PICKLE_STORAGE_FILE_NAME, obj)
-        elif self._has_cloudpickle_contents:
+        elif self._has_cloudpickle_contents(obj):
             self._delete_file(self._CLOUDPICKLE_STORAGE_FILE_NAME, obj)
 
     def _storage_path(self, file: str, obj: Node):
