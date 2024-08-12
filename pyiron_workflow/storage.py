@@ -36,7 +36,7 @@ class StorageInterface(ABC):
                 f"Import readiness report: \n"
                 f"{obj.report_import_readiness()}"
             )
-        if root is self:
+        if root is obj:
             self._save(obj)
         else:
             root.storage._save(root)
