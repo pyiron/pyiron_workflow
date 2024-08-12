@@ -6,16 +6,15 @@ back ends.
 from __future__ import annotations
 
 from abc import ABC, abstractmethod
-from importlib import import_module
 import os
 import pickle
-from typing import Optional
+from typing import TYPE_CHECKING
 
 import cloudpickle
-from pyiron_snippets.files import FileObject, DirectoryObject
+from pyiron_snippets.files import FileObject
 
-from pyiron_workflow.logging import logger
-from pyiron_workflow.mixin.has_interface_mixins import HasLabel, HasParent
+if TYPE_CHECKING:
+    from pyiron_workflow.node import Node
 
 
 class TypeNotFoundError(ImportError):
@@ -27,7 +26,7 @@ class TypeNotFoundError(ImportError):
 
 class StorageInterface:
 
-    def save(self, obj: HasStorage):
+    def save(self, obj: Node):
         root = obj.storage_root
         if not root.import_ready:
             raise TypeNotFoundError(
@@ -44,34 +43,34 @@ class StorageInterface:
             root.storage._save(root)
 
     @abstractmethod
-    def _save(self, obj: HasStorage):
+    def _save(self, obj: Node):
         pass
 
-    def load(self, obj: HasStorage):
+    def load(self, obj: Node):
         # Misdirection is strictly for symmetry with _save, so child classes define the
         # private method in both cases
         return self._load(obj)
 
     @abstractmethod
-    def _load(self, obj: HasStorage):
+    def _load(self, obj: Node):
         pass
 
-    def has_contents(self, obj: HasStorage) -> bool:
+    def has_contents(self, obj: Node) -> bool:
         has_contents = self._has_contents(obj)
         obj.tidy_storage_directory()
         return has_contents
 
     @abstractmethod
-    def _has_contents(self, obj: HasStorage) -> bool:
+    def _has_contents(self, obj: Node) -> bool:
         """Whether a save file exists for this backend"""
 
-    def delete(self, obj: HasStorage):
+    def delete(self, obj: Node):
         if self.has_contents:
             self._delete(obj)
         obj.tidy_storage_directory()
 
     @abstractmethod
-    def _delete(self, obj: HasStorage):
+    def _delete(self, obj: Node):
         """Remove an existing save-file for this backend"""
 
 
@@ -80,7 +79,7 @@ class PickleStorage(StorageInterface):
     _PICKLE_STORAGE_FILE_NAME = "pickle.pckl"
     _CLOUDPICKLE_STORAGE_FILE_NAME = "cloudpickle.cpckl"
 
-    def _save(self, obj: HasStorage):
+    def _save(self, obj: Node):
         try:
             with open(self._pickle_storage_file_path(obj), "wb") as file:
                 pickle.dump(obj, file)
@@ -89,7 +88,7 @@ class PickleStorage(StorageInterface):
             with open(self._cloudpickle_storage_file_path(obj), "wb") as file:
                 cloudpickle.dump(obj, file)
 
-    def _load(self, obj: HasStorage):
+    def _load(self, obj: Node):
         if self._has_pickle_contents(obj):
             with open(self._pickle_storage_file_path(obj), "rb") as file:
                 inst = pickle.load(file)
@@ -105,222 +104,29 @@ class PickleStorage(StorageInterface):
             )
         obj.__setstate__(inst.__getstate__())
 
-    def _delete_file(self, file: str, obj: HasStorage):
+    def _delete_file(self, file: str, obj: Node):
         FileObject(file, obj.storage_directory).delete()
 
-    def _delete(self, obj: HasStorage):
+    def _delete(self, obj: Node):
         if self._has_pickle_contents:
             self._delete_file(self._PICKLE_STORAGE_FILE_NAME, obj)
         elif self._has_cloudpickle_contents:
             self._delete_file(self._CLOUDPICKLE_STORAGE_FILE_NAME, obj)
 
-    def _storage_path(self, file: str, obj: HasStorage):
+    def _storage_path(self, file: str, obj: Node):
         return str((obj.storage_directory.path / file).resolve())
 
-    def _pickle_storage_file_path(self, obj: HasStorage) -> str:
+    def _pickle_storage_file_path(self, obj: Node) -> str:
         return self._storage_path(self._PICKLE_STORAGE_FILE_NAME, obj)
 
-    def _cloudpickle_storage_file_path(self, obj: HasStorage) -> str:
+    def _cloudpickle_storage_file_path(self, obj: Node) -> str:
         return self._storage_path(self._CLOUDPICKLE_STORAGE_FILE_NAME, obj)
 
-    def _has_contents(self, obj: HasStorage) -> bool:
+    def _has_contents(self, obj: Node) -> bool:
         return self._has_pickle_contents(obj) or self._has_cloudpickle_contents(obj)
 
-    def _has_pickle_contents(self, obj: HasStorage) -> bool:
+    def _has_pickle_contents(self, obj: Node) -> bool:
         return os.path.isfile(self._pickle_storage_file_path(obj))
 
-    def _has_cloudpickle_contents(self, obj: HasStorage) -> bool:
+    def _has_cloudpickle_contents(self, obj: Node) -> bool:
         return os.path.isfile(self._cloudpickle_storage_file_path(obj))
-
-
-class HasStorage(HasLabel, HasParent, ABC):
-    @classmethod
-    def allowed_backends(cls):
-        return tuple(cls._storage_interfaces().keys())
-
-    @classmethod
-    def _storage_interfaces(cls):
-        return {}
-
-    @classmethod
-    def default_backend(cls):
-        raise NotImplementedError("Exactly one child must define a preferred backend")
-
-    def __init__(self, *args, storage_backend: Optional[str] = None, **kwargs):
-        self._storage_backend = None
-        super().__init__(*args, **kwargs)
-        self.storage_backend = storage_backend
-
-    @property
-    @abstractmethod
-    def storage_directory(self) -> DirectoryObject:
-        # Effectively the working directory, but I want to avoid inheriting from that
-        # Clearly there is some bad architecture here, but we'll deal with it later
-        pass
-
-    @property
-    @abstractmethod
-    def storage_path(self) -> str:
-        # Effectively the graph path, but I want to avoid inheriting from that
-        # Clearly there is some bad architecture here, but we'll deal with it later
-        pass
-
-    @abstractmethod
-    def tidy_storage_directory(self):
-        # Effectively tidy working directory, but I want to avoid inheriting from that
-        # Clearly there is some bad architecture here, but we'll deal with it later
-        pass
-
-    _save_load_warnings = """
-            HERE BE DRAGONS!!!
-
-            Warning:
-                This almost certainly only fails for subclasses of :class:`Node` that don't
-                override `node_function` or `macro_creator` directly, as these are expected 
-                to be part of the class itself (and thus already present on our instantiated 
-                object) and are never stored. Nodes created using the provided decorators 
-                should all work.
-
-            Warning:
-                If you modify a `Macro` class in any way (changing its IO maps, rewiring 
-                internal connections, or replacing internal nodes), don't expect 
-                saving/loading to work.
-
-            Warning:
-                If the underlying source code has changed since saving (i.e. the node doing 
-                the loading does not use the same code as the node doing the saving, or the 
-                nodes in some node package have been modified), then all bets are off.
-
-        """
-
-    def save(self):
-        """
-        Writes the node to file (using HDF5) such that a new node instance of the same
-        type can :meth:`load()` the data to return to the same state as the save point,
-        i.e. the same data IO channel values, the same flags, etc.
-        """
-        self.storage.save(self)
-
-    save.__doc__ += _save_load_warnings
-
-    def load(self):
-        """
-        Loads the node file (from HDF5) such that this node restores its state at time
-        of loading.
-
-        Raises:
-            TypeError: when the saved node has a different class name.
-        """
-        if self.storage.has_contents(self):
-            self.storage.load(self)
-        else:
-            # Check for saved content using any other backend
-            for backend in self.allowed_backends():
-                interface = self._storage_interfaces()[backend]()
-                if interface.has_contents(self):
-                    interface.load(self)
-                    break
-
-    save.__doc__ += _save_load_warnings
-
-    def delete_storage(self):
-        """Remove save files for _all_ available backends."""
-        for backend in self.allowed_backends():
-            interface = self._storage_interfaces()[backend]()
-            try:
-                interface.delete(self)
-            except FileNotFoundError:
-                pass
-
-    @property
-    def storage_root(self):
-        """The parent-most object that has storage."""
-        parent = self.parent
-        if isinstance(parent, HasStorage):
-            return parent.storage_root
-        else:
-            return self
-
-    @property
-    def storage_backend(self):
-        storage_root = self.storage_root
-        if storage_root is self:
-            backend = self._storage_backend
-        else:
-            backend = storage_root.storage_backend
-        return self.default_backend() if backend is None else backend
-
-    @storage_backend.setter
-    def storage_backend(self, new_backend):
-        storage_root = self.storage_root
-        if new_backend is not None:
-            if new_backend not in self.allowed_backends():
-                raise ValueError(
-                    f"{self.label} got the storage backend {new_backend}, but only "
-                    f"{self.allowed_backends()} are permitted."
-                )
-            elif (
-                storage_root is not self and new_backend != storage_root.storage_backend
-            ):
-                raise ValueError(
-                    f"Storage backends should only be set on the storage root "
-                    f"({self.storage_root.label}), not on child ({self.label})"
-                )
-        self._storage_backend = new_backend
-
-    @property
-    def storage(self) -> StorageInterface:
-        if self.storage_backend is None:
-            raise ValueError(f"{self.label} does not have a storage backend set")
-        return self._storage_interfaces()[self.storage_backend]()
-
-    @property
-    def any_storage_has_contents(self):
-        return any(
-            self._storage_interfaces()[backend]().has_contents(self)
-            for backend in self.allowed_backends()
-        )
-
-    @property
-    def import_ready(self) -> bool:
-        """
-        Checks whether `importlib` can find this node's class, and if so whether the
-        imported object matches the node's type.
-
-        Returns:
-            (bool): Whether the imported module and name of this node's class match
-                its type.
-        """
-        try:
-            module = self.__class__.__module__
-            class_ = getattr(import_module(module), self.__class__.__name__)
-            if module == "__main__":
-                logger.warning(f"{self.label} is only defined in __main__")
-            return type(self) is class_
-        except (ModuleNotFoundError, AttributeError):
-            return False
-
-    @property
-    def import_readiness_report(self):
-        print(self.report_import_readiness())
-
-    def report_import_readiness(self, tabs=0, report_so_far=""):
-        newline = "\n" if len(report_so_far) > 0 else ""
-        tabspace = tabs * "\t"
-        return (
-            report_so_far + f"{newline}{tabspace}{self.label}: "
-            f"{'ok' if self.import_ready else 'NOT IMPORTABLE'}"
-        )
-
-
-class HasPickleStorage(HasStorage, ABC):
-
-    @classmethod
-    def _storage_interfaces(cls):
-        interfaces = super(HasPickleStorage, cls)._storage_interfaces()
-        interfaces["pickle"] = PickleStorage
-        return interfaces
-
-    @classmethod
-    def default_backend(cls):
-        return "pickle"
