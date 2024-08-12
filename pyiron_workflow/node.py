@@ -868,12 +868,15 @@ class Node(
 
     load.__doc__ += _save_load_warnings
 
-    def delete_storage(self):
+    def delete_storage(self, backend: StorageInterface | None = None):
         """Remove save files for _all_ available backends."""
-        for backend in self.allowed_backends():
-            interface = self._storage_interfaces()[backend]()
+        if isinstance(backend, StorageInterface):
+            backend.delete(self)
+
+        for backend_class in self.allowed_backends():
+            backend = self._storage_interfaces()[backend_class]()
             try:
-                interface.delete(self)
+                backend.delete(self)
             except FileNotFoundError:
                 pass
 
