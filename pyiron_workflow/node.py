@@ -202,8 +202,8 @@ class Node(
             node. Must be specified in child classes.
         running (bool): Whether the node has called :meth:`run` and has not yet
             received output from this call. (Default is False.)
-        save_after_run (bool): Whether to trigger a save after each run of the node
-            (currently causes the entire graph to save). (Default is False.)
+        checkpoint (bool): Whether to trigger a save of the entire graph after each run
+            of the node. (Default is False.)
         storage_backend (Literal["pickle"] | None): The flag for the backend to use for
             saving and loading; for nodes in a graph the value on the root node is
             always used.
@@ -277,7 +277,7 @@ class Node(
         overwrite_save: bool = False,
         run_after_init: bool = False,
         storage_backend: Literal["pickle"] | None = "pickle",
-        save_after_run: bool = False,
+        checkpoint: bool = False,
         **kwargs,
     ):
         """
@@ -298,7 +298,7 @@ class Node(
         )
         self._storage_backend = None
         self.storage_backend = storage_backend
-        self.save_after_run = save_after_run
+        self.checkpoint = checkpoint
         self.cached_inputs = None
         self._user_data = {}  # A place for power-users to bypass node-injection
 
@@ -598,7 +598,7 @@ class Node(
                 self.parent.register_child_finished(self)
             return processed_output
         finally:
-            if self.save_after_run:
+            if self.checkpoint:
                 self.save_checkpoint()
 
     def _finish_run_and_emit_ran(self, run_output: tuple | Future) -> Any | tuple:

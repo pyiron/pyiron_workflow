@@ -486,7 +486,7 @@ class TestNode(unittest.TestCase):
                     hard_input.delete_storage()
                     self.n1.delete_storage()
 
-    def test_save_after_run(self):
+    def test_checkpoint(self):
         for backend in Node.allowed_backends():
             with self.subTest(backend):
                 try:
@@ -500,7 +500,7 @@ class TestNode(unittest.TestCase):
                         label="run_and_save",
                         x=0,
                         run_after_init=True,
-                        save_after_run=True,
+                        checkpoint=True,
                         storage_backend=backend
                     )
                     y = saves.outputs.y.value

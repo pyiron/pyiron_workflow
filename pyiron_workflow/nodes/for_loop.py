@@ -202,7 +202,7 @@ class For(Composite, StaticNode, ABC):
         overwrite_save: bool = False,
         run_after_init: bool = False,
         storage_backend: Optional[Literal["pickle"]] = None,
-        save_after_run: bool = False,
+        checkpoint: bool = False,
         strict_naming: bool = True,
         body_node_executor: Optional[Executor] = None,
         **kwargs,
@@ -214,7 +214,7 @@ class For(Composite, StaticNode, ABC):
             overwrite_save=overwrite_save,
             run_after_init=run_after_init,
             storage_backend=storage_backend,
-            save_after_run=save_after_run,
+            checkpoint=checkpoint,
             strict_naming=strict_naming,
             **kwargs,
         )
