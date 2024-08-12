@@ -521,7 +521,7 @@ class TestNode(unittest.TestCase):
                             "on instantiation"
                     )
                 finally:
-                    saves.storage.delete()  # Clean up
+                    saves.delete_storage()  # Clean up
 
 
 if __name__ == '__main__':
