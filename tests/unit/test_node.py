@@ -406,9 +406,8 @@ class TestNode(unittest.TestCase):
 
         for backend in Node.allowed_backends():
             with self.subTest(backend):
-                self.n1.storage_backend = backend
                 try:
-                    self.n1.save()
+                    self.n1.save(backend=backend)
 
                     x = self.n1.inputs.x.value
                     reloaded = ANode(label=self.n1.label, x=x, storage_backend=backend)

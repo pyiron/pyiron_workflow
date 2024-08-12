@@ -476,8 +476,7 @@ class TestWorkflow(unittest.TestCase):
                 for backend in Workflow.allowed_backends():
                     try:
                         with self.subTest(backend):
-                            wf.storage_backend = backend
-                            wf.save()
+                            wf.save(backend=backend)
                             Workflow(wf.label, storage_backend=backend)
                     finally:
                         wf.delete_storage()
@@ -492,8 +491,7 @@ class TestWorkflow(unittest.TestCase):
                                 msg="Imported object is function but node type is node "
                                     "-- should fail early on save"
                             ):
-                                wf.storage_backend = backend
-                                wf.save()
+                                wf.save(backend=backend)
                 finally:
                     wf.remove_child(wf.import_type_mismatch)
                     wf.delete_storage()

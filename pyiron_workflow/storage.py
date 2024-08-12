@@ -65,8 +65,8 @@ class PickleStorage(StorageInterface):
     def save(self, obj: Node):
         if not obj.import_ready:
             raise TypeNotFoundError(
-                f"{obj.label} cannot be saved with the "
-                f"{obj.storage_backend} because it (or one of its children) has "
+                f"{obj.label} cannot be saved with the storage interface "
+                f"{self.__class__.__name__} because it (or one of its children) has "
                 f"a type that cannot be imported. Did you dynamically define this "
                 f"object? \n"
                 f"Import readiness report: \n"
