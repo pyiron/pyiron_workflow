@@ -103,7 +103,7 @@ class Composite(SemanticParent, HasCreator, Node, ABC):
         storage_backend: Literal["pickle"] | StorageInterface | None = None,
         overwrite_save: bool = False,
         run_after_init: bool = False,
-        checkpoint: bool = False,
+        checkpoint: Literal["pickle"] | StorageInterface | None = None,
         strict_naming: bool = True,
         **kwargs,
     ):

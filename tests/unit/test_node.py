@@ -499,7 +499,7 @@ class TestNode(unittest.TestCase):
                         label="run_and_save",
                         x=0,
                         run_after_init=True,
-                        checkpoint=True,
+                        checkpoint=backend,
                         storage_backend=backend
                     )
                     y = saves.outputs.y.value

@@ -198,7 +198,7 @@ class Workflow(ParentMost, Composite):
         storage_backend: Literal["pickle"] | StorageInterface | None = "pickle",
         overwrite_save: bool = False,
         run_after_init: bool = False,
-        checkpoint: bool = False,
+        checkpoint: Literal["pickle"] | StorageInterface | None = None,
         strict_naming: bool = True,
         inputs_map: Optional[dict | bidict] = None,
         outputs_map: Optional[dict | bidict] = None,

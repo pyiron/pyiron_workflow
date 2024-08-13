@@ -202,8 +202,9 @@ class Node(
             node. Must be specified in child classes.
         running (bool): Whether the node has called :meth:`run` and has not yet
             received output from this call. (Default is False.)
-        checkpoint (bool): Whether to trigger a save of the entire graph after each run
-            of the node. (Default is False.)
+        checkpoint (Literal["pickle"] | StorageInterface | None): Whether to trigger a
+            save of the entire graph after each run of the node, and if so what storage
+            back end to use. (Default is None, don't do any checkpoint saving.)
         storage_backend (Literal["pickle"] | None): The flag for the backend to use for
             saving and loading; for nodes in a graph the value on the root node is
             always used.
@@ -277,7 +278,7 @@ class Node(
         storage_backend: Literal["pickle"] | StorageInterface | None = "pickle",
         overwrite_save: bool = False,
         run_after_init: bool = False,
-        checkpoint: bool = False,
+        checkpoint: Literal["pickle"] | StorageInterface | None = None,
         **kwargs,
     ):
         """
@@ -289,6 +290,9 @@ class Node(
             *args: Interpreted as node input data, in order of input channels.
             parent: (Composite|None): The composite node that owns this as a child.
             run_after_init (bool): Whether to run at the end of initialization.
+            checkpoint (Literal["pickle"] | StorageInterface | None): The storage
+                back end to use for saving the overall graph at the end of this node's
+                run. (Default is None, don't do checkpoint saves.)
             **kwargs: Interpreted as node input data, with keys corresponding to
                 channel labels.
         """
@@ -598,8 +602,8 @@ class Node(
                 self.parent.register_child_finished(self)
             return processed_output
         finally:
-            if self.checkpoint:
-                self.save_checkpoint()
+            if self.checkpoint is not None:
+                self.save_checkpoint(self.checkpoint)
 
     def _finish_run_and_emit_ran(self, run_output: tuple | Future) -> Any | tuple:
         processed_output = self._finish_run(run_output)
