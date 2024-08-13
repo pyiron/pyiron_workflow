@@ -800,10 +800,6 @@ class Node(
     def allowed_backends(cls):
         return tuple(cls._storage_interfaces().keys())
 
-    @classmethod
-    def default_backend(cls):
-        return "pickle"
-
     @property
     def storage_directory(self) -> DirectoryObject:
         return self.working_directory
