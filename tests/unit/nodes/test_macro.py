@@ -5,12 +5,13 @@ import unittest
 
 from pyiron_workflow._tests import ensure_tests_in_python_path
 from pyiron_workflow.channels import NOT_DATA
-from pyiron_workflow.nodes.function import function_node
+from pyiron_workflow.nodes.function import function_node, as_function_node
 from pyiron_workflow.nodes.macro import Macro, macro_node, as_macro_node
 from pyiron_workflow.topology import CircularDataFlowError
 
 ensure_tests_in_python_path()
 from static import demo_nodes
+
 
 def add_one(x):
     result = x + 1
@@ -29,6 +30,11 @@ def add_three_macro(self, one__x):
 def wrong_return_macro(macro):
     macro.one = function_node(add_one)
     return 3
+
+
+@as_function_node
+def SomeNode(x):
+    return x
 
 
 class TestMacro(unittest.TestCase):
@@ -587,6 +593,58 @@ class TestMacro(unittest.TestCase):
             reloaded_two.outputs.to_value_dict(),
             msg="The remainder of the child node state should be recovering just "
                 "fine on (de)serialization, this is a spot-check"
+        )
+
+    def test_autoload(self):
+        existing_node = SomeNode()
+        existing_node(42)
+        # Name clashes with a macro-node name
+        existing_node.save("pickle")
+
+        @as_macro_node
+        def AutoloadsChildren(self, x):
+            self.some_child = SomeNode(x, autoload="pickle")
+            return self.some_child
+
+        self.assertEqual(
+            AutoloadsChildren().some_child.outputs.x.value,
+            existing_node.outputs.x.value,
+            msg="Autoloading macro children can result in a child node coming with "
+                "pre-loaded data if the child's label at instantiation results in a "
+                "match with some already-saved node (if the load is compatible). This "
+                "is almost certainly undesirable"
+        )
+
+        @as_macro_node
+        def AutofailsChildren(self, x):
+            self.some_child = function_node(
+                add_one,
+                x,
+                label=SomeNode.__name__,
+                autoload="pickle"
+            )
+            return self.some_child
+
+        with self.assertRaises(
+            TypeError,
+            msg="When the macro auto-loads a child but the loaded type is not "
+                "compatible with the child type, we will even get an error at macro "
+                "instantiation time! Autoloading macro children is really not wise."
+        ):
+            AutofailsChildren()
+
+        @as_macro_node
+        def DoesntAutoloadChildren(self, x):
+            self.some_child = SomeNode(x)
+            return self.some_child
+
+        self.assertIs(
+            DoesntAutoloadChildren().some_child.outputs.x.value,
+            NOT_DATA,
+            msg="Despite having the same label as a saved node at instantiation time, "
+                "without autoloading children, our macro safely gets a fresh instance. "
+                "Since this is clearly preferable, here we leave autoload to take its "
+                "default value (which for macros should thus not autoload.)"
         )
 
 
