@@ -278,9 +278,9 @@ class Node(
         *args,
         label: Optional[str] = None,
         parent: Optional[Composite] = None,
-        autoload: Literal["pickle"] | StorageInterface | None = "pickle",
-        overwrite_save: bool = False,
-        run_after_init: bool = False,
+        delete_existing_savefiles: bool = False,
+        autoload: Literal["pickle"] | StorageInterface | None = None,
+        autorun: bool = False,
         checkpoint: Literal["pickle"] | StorageInterface | None = None,
         **kwargs,
     ):
@@ -292,10 +292,14 @@ class Node(
             label (str): A name for this node.
             *args: Interpreted as node input data, in order of input channels.
             parent: (Composite|None): The composite node that owns this as a child.
+            delete_existing_savefiles (bool): Whether to look for and delete any
+                matching save files at instantiation. Uses all default storage
+                back ends and anything passed to :param:`autoload`. (Default is False,
+                leave those files alone!)
             autoload (Literal["pickle"] | StorageInterface | None): The back end
                 to use for checking whether node data can be loaded from file. A None
                 value indicates no auto-loading. (Default is "pickle".)
-            run_after_init (bool): Whether to run at the end of initialization.
+            autorun (bool): Whether to run at the end of initialization.
             checkpoint (Literal["pickle"] | StorageInterface | None): The storage
                 back end to use for saving the overall graph at the end of this node's
                 run. (Default is None, don't do checkpoint saves.)
@@ -313,9 +317,9 @@ class Node(
         self._setup_node()
         self._after_node_setup(
             *args,
+            delete_existing_savefiles=delete_existing_savefiles,
             autoload=autoload,
-            overwrite_save=overwrite_save,
-            run_after_init=run_after_init,
+            autorun=autorun,
             **kwargs,
         )
 
@@ -331,21 +335,21 @@ class Node(
     def _after_node_setup(
         self,
         *args,
+        delete_existing_savefiles: bool = False,
         autoload: Literal["pickle"] | StorageInterface | None = None,
-        overwrite_save: bool = False,
-        run_after_init: bool = False,
+        autorun: bool = False,
         **kwargs,
     ):
-        if overwrite_save:
+        if delete_existing_savefiles:
             self.delete_storage(backend=autoload)
             do_load = False
         else:
             do_load = autoload is not None and self.any_storage_has_contents(autoload)
 
-        if do_load and run_after_init:
+        if do_load and autorun:
             raise ValueError(
                 f"{self.full_label} can't both load _and_ run after init -- either"
-                f" delete the save file (e.g. with with the `overwrite_save=True` "
+                f" delete the save file (e.g. with with the `delete_existing_savefiles=True` "
                 f"kwarg), change the node label to work in a new space, or give up on "
                 f"running after init."
             )
@@ -353,11 +357,11 @@ class Node(
             logger.info(
                 f"A saved file was found for the node {self.full_label} -- "
                 f"attempting to load it...(To delete the saved file instead, use "
-                f"`overwrite_save=True`)"
+                f"`delete_existing_savefiles=True`)"
             )
             self.load(backend=autoload)
             self.set_input_values(*args, **kwargs)
-        elif run_after_init:
+        elif autorun:
             try:
                 self.set_input_values(*args, **kwargs)
                 self.run()

@@ -333,7 +333,7 @@ class TestNode(unittest.TestCase):
             # No matter what happens in the tests, clean up after yourself
             self.n1.working_directory.delete()
 
-    def test_run_after_init(self):
+    def test_autorun(self):
         self.assertIs(
             self.n1.outputs.y.value,
             NOT_DATA,
@@ -341,8 +341,8 @@ class TestNode(unittest.TestCase):
         )
         self.assertEqual(
             1,
-            ANode(label="right_away", run_after_init=True, x=0).outputs.y.value,
-            msg="With run_after_init, the node should run right away"
+            ANode(label="right_away", autorun=True, x=0).outputs.y.value,
+            msg="With autorun, the node should run right away"
         )
 
     def test_graph_info(self):
@@ -417,7 +417,7 @@ class TestNode(unittest.TestCase):
                         msg="Nodes should load by default if they find a save file"
                     )
 
-                    clean_slate = ANode(label=self.n1.label, x=x, overwrite_save=True)
+                    clean_slate = ANode(label=self.n1.label, x=x, delete_existing_savefiles=True)
                     self.assertIs(
                         clean_slate.outputs.y.value,
                         NOT_DATA,
@@ -427,7 +427,7 @@ class TestNode(unittest.TestCase):
                     run_right_away = ANode(
                         label=self.n1.label,
                         x=x,
-                        run_after_init=True,
+                        autorun=True,
                     )
                     self.assertEqual(
                         y,
@@ -444,15 +444,15 @@ class TestNode(unittest.TestCase):
                         ANode(
                             label=self.n1.label,
                             x=x,
-                            run_after_init=True,
+                            autorun=True,
                             autoload=backend
                         )
 
                     force_run = ANode(
                         label=self.n1.label,
                         x=x,
-                        run_after_init=True,
-                        overwrite_save=True
+                        autorun=True,
+                        delete_existing_savefiles=True
                     )
                     self.assertEqual(
                         y,
@@ -481,8 +481,8 @@ class TestNode(unittest.TestCase):
                         ):
                             hard_input.save()
                 finally:
-                    hard_input.delete_storage(backend)
                     self.n1.delete_storage(backend)
+                    hard_input.delete_storage(backend)
 
     def test_checkpoint(self):
         for backend in Node.allowed_backends():
@@ -491,12 +491,12 @@ class TestNode(unittest.TestCase):
                     ANode(
                         label="just_run",
                         x=0,
-                        run_after_init=True,
+                        autorun=True,
                     )
                     saves = ANode(
                         label="run_and_save",
                         x=0,
-                        run_after_init=True,
+                        autorun=True,
                         checkpoint=backend,
                     )
                     y = saves.outputs.y.value

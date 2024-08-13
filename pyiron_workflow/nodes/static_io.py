@@ -26,28 +26,6 @@ class StaticNode(Node, HasIOPreview, ABC):
     Actual IO is then constructed from the preview at instantiation.
     """
 
-    def __init__(
-        self,
-        *args,
-        label: Optional[str] = None,
-        parent: Optional[Composite] = None,
-        overwrite_save: bool = False,
-        run_after_init: bool = False,
-        autoload: Literal["pickle"] | StorageInterface | None = None,
-        checkpoint: Literal["pickle"] | StorageInterface | None = None,
-        **kwargs,
-    ):
-        super().__init__(
-            *args,
-            label=label,
-            parent=parent,
-            autoload=autoload,
-            overwrite_save=overwrite_save,
-            run_after_init=run_after_init,
-            checkpoint=checkpoint,
-            **kwargs,
-        )
-
     def _setup_node(self) -> None:
         super()._setup_node()
 
