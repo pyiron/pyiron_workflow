@@ -601,51 +601,54 @@ class TestMacro(unittest.TestCase):
         # Name clashes with a macro-node name
         existing_node.save("pickle")
 
-        @as_macro_node
-        def AutoloadsChildren(self, x):
-            self.some_child = SomeNode(x, autoload="pickle")
-            return self.some_child
+        try:
+            @as_macro_node
+            def AutoloadsChildren(self, x):
+                self.some_child = SomeNode(x, autoload="pickle")
+                return self.some_child
 
-        self.assertEqual(
-            AutoloadsChildren().some_child.outputs.x.value,
-            existing_node.outputs.x.value,
-            msg="Autoloading macro children can result in a child node coming with "
-                "pre-loaded data if the child's label at instantiation results in a "
-                "match with some already-saved node (if the load is compatible). This "
-                "is almost certainly undesirable"
-        )
-
-        @as_macro_node
-        def AutofailsChildren(self, x):
-            self.some_child = function_node(
-                add_one,
-                x,
-                label=SomeNode.__name__,
-                autoload="pickle"
+            self.assertEqual(
+                AutoloadsChildren().some_child.outputs.x.value,
+                existing_node.outputs.x.value,
+                msg="Autoloading macro children can result in a child node coming with "
+                    "pre-loaded data if the child's label at instantiation results in a "
+                    "match with some already-saved node (if the load is compatible). This "
+                    "is almost certainly undesirable"
             )
-            return self.some_child
 
-        with self.assertRaises(
-            TypeError,
-            msg="When the macro auto-loads a child but the loaded type is not "
-                "compatible with the child type, we will even get an error at macro "
-                "instantiation time! Autoloading macro children is really not wise."
-        ):
-            AutofailsChildren()
+            @as_macro_node
+            def AutofailsChildren(self, x):
+                self.some_child = function_node(
+                    add_one,
+                    x,
+                    label=SomeNode.__name__,
+                    autoload="pickle"
+                )
+                return self.some_child
 
-        @as_macro_node
-        def DoesntAutoloadChildren(self, x):
-            self.some_child = SomeNode(x)
-            return self.some_child
+            with self.assertRaises(
+                TypeError,
+                msg="When the macro auto-loads a child but the loaded type is not "
+                    "compatible with the child type, we will even get an error at macro "
+                    "instantiation time! Autoloading macro children is really not wise."
+            ):
+                AutofailsChildren()
 
-        self.assertIs(
-            DoesntAutoloadChildren().some_child.outputs.x.value,
-            NOT_DATA,
-            msg="Despite having the same label as a saved node at instantiation time, "
-                "without autoloading children, our macro safely gets a fresh instance. "
-                "Since this is clearly preferable, here we leave autoload to take its "
-                "default value (which for macros should thus not autoload.)"
-        )
+            @as_macro_node
+            def DoesntAutoloadChildren(self, x):
+                self.some_child = SomeNode(x)
+                return self.some_child
+
+            self.assertIs(
+                DoesntAutoloadChildren().some_child.outputs.x.value,
+                NOT_DATA,
+                msg="Despite having the same label as a saved node at instantiation time, "
+                    "without autoloading children, our macro safely gets a fresh instance. "
+                    "Since this is clearly preferable, here we leave autoload to take its "
+                    "default value (which for macros should thus not autoload.)"
+            )
+        finally:
+            existing_node.delete_storage("pickle")
 
 
 if __name__ == '__main__':
