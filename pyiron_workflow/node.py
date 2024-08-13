@@ -278,7 +278,7 @@ class Node(
         *args,
         label: Optional[str] = None,
         parent: Optional[Composite] = None,
-        autoload: Literal["pickle"] | StorageInterface | None = "pickle",
+        autoload: Literal["pickle"] | StorageInterface | None = None,
         delete_existing_savefiles: bool = False,
         run_after_init: bool = False,
         checkpoint: Literal["pickle"] | StorageInterface | None = None,
