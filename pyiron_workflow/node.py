@@ -878,8 +878,12 @@ class Node(
 
     load.__doc__ += _save_load_warnings
 
-    def delete_storage(self, backend: StorageInterface | None = None):
+    def delete_storage(
+        self, backend: Literal["pickle"] | StorageInterface | None = None
+    ):
         """Remove save files for _all_ available backends."""
+        if isinstance(backend, str):
+            self._storage_interfaces()[backend]().delete(self)
         if isinstance(backend, StorageInterface):
             backend.delete(self)
 
