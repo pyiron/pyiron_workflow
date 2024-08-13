@@ -340,9 +340,7 @@ class Node(
             self.delete_storage(backend=autoload)
             do_load = False
         else:
-            do_load = autoload is not None and self.any_storage_has_contents(
-                autoload
-            )
+            do_load = autoload is not None and self.any_storage_has_contents(autoload)
 
         if do_load and run_after_init:
             raise ValueError(
