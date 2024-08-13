@@ -879,9 +879,15 @@ class Node(
     ):
         """Remove save files for _all_ available backends."""
         if isinstance(backend, str):
-            self._storage_interfaces()[backend]().delete(self)
+            try:
+                self._storage_interfaces()[backend]().delete(self)
+            except FileNotFoundError:
+                pass
         if isinstance(backend, StorageInterface):
-            backend.delete(self)
+            try:
+                backend.delete(self)
+            except FileNotFoundError:
+                pass
 
         for backend_class in self.allowed_backends():
             backend = self._storage_interfaces()[backend_class]()
