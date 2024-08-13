@@ -138,8 +138,11 @@ class Node(
             IO data is not pickle-able.
         - Saving is triggered manually, or by setting a flag to save after the nodes
             runs.
-        - At the end of instantiation, nodes will load automatically if they find saved
-            content.
+        - At the end of instantiation, nodes can load automatically if they find saved
+            content (default on the base class is to _not_ search for this. One good
+            reason is that new macros might instantiate a child node that _happens_ to
+            share a name with a saved node, but the intent is obviously not to load
+            this.)
           - Discovered content can instead be deleted with a kwarg.
           - You can't load saved content _and_ run after instantiation at once.
         - The nodes must be defined somewhere importable, i.e. in a module, `__main__`,

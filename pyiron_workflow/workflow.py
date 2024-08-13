@@ -48,6 +48,10 @@ class Workflow(ParentMost, Composite):
     you should consider reformulating it as a :class:`Macro`, which operates somewhat more
     efficiently.
 
+    Because they are parent-most objects, and thus not being instantiated inside other
+    (macro) nodes, they break the default behaviour of their parent class and _do_
+    attempt to auto-load saved content at instantiation.
+
     Promises (in addition parent class promises):
 
     - Workflows are living, their IO always reflects their current state of child nodes
