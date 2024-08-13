@@ -878,19 +878,16 @@ class Node(
         self, backend: Literal["pickle"] | StorageInterface | None = None
     ):
         """Remove save files for _all_ available backends."""
+        backends_to_check = [
+            self._storage_interfaces()[backend_class]()
+            for backend_class in self.allowed_backends()
+        ]
         if isinstance(backend, str):
-            try:
-                self._storage_interfaces()[backend]().delete(self)
-            except FileNotFoundError:
-                pass
-        if isinstance(backend, StorageInterface):
-            try:
-                backend.delete(self)
-            except FileNotFoundError:
-                pass
+            backends_to_check.append(self._storage_interfaces()[backend]())
+        elif isinstance(backend, StorageInterface):
+            backends_to_check.append(backend)
 
-        for backend_class in self.allowed_backends():
-            backend = self._storage_interfaces()[backend_class]()
+        for backend in backends_to_check:
             try:
                 backend.delete(self)
             except FileNotFoundError:
