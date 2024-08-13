@@ -476,9 +476,7 @@ class TestMacro(unittest.TestCase):
         for backend in Macro.allowed_backends():
             with self.subTest(backend):
                 try:
-                    macro = demo_nodes.AddThree(
-                        label="m", x=0, storage_backend=backend
-                    )
+                    macro = demo_nodes.AddThree(label="m", x=0)
                     macro.replace_child(
                         macro.two,
                         demo_nodes.AddPlusOne()
@@ -487,7 +485,7 @@ class TestMacro(unittest.TestCase):
                     modified_result = macro()
 
                     if backend == "pickle":
-                        macro.save()
+                        macro.save(backend)
                         reloaded = demo_nodes.AddThree(
                             label="m", storage_backend=backend
                         )
@@ -532,7 +530,7 @@ class TestMacro(unittest.TestCase):
                             f"Backend {backend} not recognized -- write a test for it"
                         )
                 finally:
-                    macro.delete_storage()
+                    macro.delete_storage(backend)
 
     def test_output_label_stripping(self):
         """Test extensions to the `ScrapesIO` mixin."""

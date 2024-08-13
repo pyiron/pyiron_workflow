@@ -13,6 +13,7 @@ from pyiron_snippets.factory import classfactory
 from pyiron_workflow.channels import NOT_DATA
 from pyiron_workflow.nodes.composite import Composite
 from pyiron_workflow.nodes.static_io import StaticNode
+from pyiron_workflow.storage import StorageInterface
 from pyiron_workflow.nodes.transform import (
     inputs_to_dict,
     inputs_to_dataframe,
@@ -199,10 +200,10 @@ class For(Composite, StaticNode, ABC):
         *args,
         label: Optional[str] = None,
         parent: Optional[Composite] = None,
+        storage_backend: Literal["pickle"] | StorageInterface | None = None,
         overwrite_save: bool = False,
         run_after_init: bool = False,
-        storage_backend: Optional[Literal["pickle"]] = None,
-        checkpoint: bool = False,
+        checkpoint: Literal["pickle"] | StorageInterface | None = None,
         strict_naming: bool = True,
         body_node_executor: Optional[Executor] = None,
         **kwargs,

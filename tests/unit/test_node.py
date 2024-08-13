@@ -406,9 +406,8 @@ class TestNode(unittest.TestCase):
 
         for backend in Node.allowed_backends():
             with self.subTest(backend):
-                self.n1.storage_backend = backend
                 try:
-                    self.n1.save()
+                    self.n1.save(backend=backend)
 
                     x = self.n1.inputs.x.value
                     reloaded = ANode(label=self.n1.label, x=x, storage_backend=backend)
@@ -429,7 +428,6 @@ class TestNode(unittest.TestCase):
                         label=self.n1.label,
                         x=x,
                         run_after_init=True,
-                        storage_backend=backend
                     )
                     self.assertEqual(
                         y,
@@ -440,8 +438,8 @@ class TestNode(unittest.TestCase):
                     run_right_away.save()
                     with self.assertRaises(
                         ValueError,
-                        msg="Should be able to both immediately run _and_ load a node at "
-                            "once"
+                        msg="Should not be able to both immediately run _and_ load a "
+                            "node at once"
                     ):
                         ANode(
                             label=self.n1.label,
@@ -462,7 +460,7 @@ class TestNode(unittest.TestCase):
                         msg="Destroying the save should allow immediate re-running"
                     )
 
-                    hard_input = ANode(label="hard", storage_backend=backend)
+                    hard_input = ANode(label="hard")
                     hard_input.inputs.x.type_hint = callable
                     hard_input.inputs.x = lambda x: x * 2
                     if backend == "pickle":
@@ -483,8 +481,8 @@ class TestNode(unittest.TestCase):
                         ):
                             hard_input.save()
                 finally:
-                    hard_input.delete_storage()
-                    self.n1.delete_storage()
+                    hard_input.delete_storage(backend)
+                    self.n1.delete_storage(backend)
 
     def test_checkpoint(self):
         for backend in Node.allowed_backends():
@@ -494,14 +492,12 @@ class TestNode(unittest.TestCase):
                         label="just_run",
                         x=0,
                         run_after_init=True,
-                        storage_backend=backend
                     )
                     saves = ANode(
                         label="run_and_save",
                         x=0,
                         run_after_init=True,
-                        checkpoint=True,
-                        storage_backend=backend
+                        checkpoint=backend,
                     )
                     y = saves.outputs.y.value
 
@@ -521,7 +517,7 @@ class TestNode(unittest.TestCase):
                             "on instantiation"
                     )
                 finally:
-                    saves.delete_storage()  # Clean up
+                    saves.delete_storage(backend)  # Clean up
 
 
 if __name__ == '__main__':

@@ -18,6 +18,7 @@ from pyiron_workflow.mixin.semantics import ParentMost
 if TYPE_CHECKING:
     from pyiron_workflow.io import IO
     from pyiron_workflow.node import Node
+    from pyiron_workflow.storage import StorageInterface
 
 
 class Workflow(ParentMost, Composite):
@@ -194,10 +195,10 @@ class Workflow(ParentMost, Composite):
         self,
         label: str,
         *nodes: Node,
+        storage_backend: Literal["pickle"] | StorageInterface | None = "pickle",
         overwrite_save: bool = False,
         run_after_init: bool = False,
-        storage_backend: Optional[Literal["pickle"]] = None,
-        checkpoint: bool = False,
+        checkpoint: Literal["pickle"] | StorageInterface | None = None,
         strict_naming: bool = True,
         inputs_map: Optional[dict | bidict] = None,
         outputs_map: Optional[dict | bidict] = None,
@@ -227,6 +228,7 @@ class Workflow(ParentMost, Composite):
     def _after_node_setup(
         self,
         *args,
+        storage_backend: Literal["pickle"] | StorageInterface | None = None,
         overwrite_save: bool = False,
         run_after_init: bool = False,
         **kwargs,
@@ -235,7 +237,10 @@ class Workflow(ParentMost, Composite):
         for node in args:
             self.add_child(node)
         super()._after_node_setup(
-            overwrite_save=overwrite_save, run_after_init=run_after_init, **kwargs
+            storage_backend=storage_backend,
+            overwrite_save=overwrite_save,
+            run_after_init=run_after_init,
+            **kwargs,
         )
 
     @property

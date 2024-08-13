@@ -202,11 +202,12 @@ class Node(
             node. Must be specified in child classes.
         running (bool): Whether the node has called :meth:`run` and has not yet
             received output from this call. (Default is False.)
-        checkpoint (bool): Whether to trigger a save of the entire graph after each run
-            of the node. (Default is False.)
-        storage_backend (Literal["pickle"] | None): The flag for the backend to use for
-            saving and loading; for nodes in a graph the value on the root node is
-            always used.
+        checkpoint (Literal["pickle"] | StorageInterface | None): Whether to trigger a
+            save of the entire graph after each run of the node, and if so what storage
+            back end to use. (Default is None, don't do any checkpoint saving.)
+        storage_backend (Literal["pickle"] | StorageInterface | None): Whether to check
+            for a matching saved node and what storage back end to use to do so (no
+            auto-loading if the back end is `None`.)
         signals (pyiron_workflow.io.Signals): A container for input and output
             signals, which are channels for controlling execution flow. By default, has
             a :attr:`signals.inputs.run` channel which has a callback to the :meth:`run` method
@@ -274,10 +275,10 @@ class Node(
         *args,
         label: Optional[str] = None,
         parent: Optional[Composite] = None,
+        storage_backend: Literal["pickle"] | StorageInterface | None = "pickle",
         overwrite_save: bool = False,
         run_after_init: bool = False,
-        storage_backend: Literal["pickle"] | None = "pickle",
-        checkpoint: bool = False,
+        checkpoint: Literal["pickle"] | StorageInterface | None = None,
         **kwargs,
     ):
         """
@@ -288,7 +289,13 @@ class Node(
             label (str): A name for this node.
             *args: Interpreted as node input data, in order of input channels.
             parent: (Composite|None): The composite node that owns this as a child.
+            storage_backend (Literal["pickle"] | StorageInterface | None): The back end
+                to use for checking whether node data can be loaded from file. A None
+                value indicates no auto-loading. (Default is "pickle".)
             run_after_init (bool): Whether to run at the end of initialization.
+            checkpoint (Literal["pickle"] | StorageInterface | None): The storage
+                back end to use for saving the overall graph at the end of this node's
+                run. (Default is None, don't do checkpoint saves.)
             **kwargs: Interpreted as node input data, with keys corresponding to
                 channel labels.
         """
@@ -296,8 +303,6 @@ class Node(
             label=self.__class__.__name__ if label is None else label,
             parent=parent,
         )
-        self._storage_backend = None
-        self.storage_backend = storage_backend
         self.checkpoint = checkpoint
         self.cached_inputs = None
         self._user_data = {}  # A place for power-users to bypass node-injection
@@ -305,6 +310,7 @@ class Node(
         self._setup_node()
         self._after_node_setup(
             *args,
+            storage_backend=storage_backend,
             overwrite_save=overwrite_save,
             run_after_init=run_after_init,
             **kwargs,
@@ -322,15 +328,18 @@ class Node(
     def _after_node_setup(
         self,
         *args,
+        storage_backend: Literal["pickle"] | StorageInterface | None = None,
         overwrite_save: bool = False,
         run_after_init: bool = False,
         **kwargs,
     ):
         if overwrite_save:
-            self.delete_storage()
+            self.delete_storage(backend=storage_backend)
             do_load = False
         else:
-            do_load = self.any_storage_has_contents
+            do_load = storage_backend is not None and self.any_storage_has_contents(
+                storage_backend
+            )
 
         if do_load and run_after_init:
             raise ValueError(
@@ -345,7 +354,7 @@ class Node(
                 f"attempting to load it...(To delete the saved file instead, use "
                 f"`overwrite_save=True`)"
             )
-            self.load()
+            self.load(backend=storage_backend)
             self.set_input_values(*args, **kwargs)
         elif run_after_init:
             try:
@@ -598,8 +607,8 @@ class Node(
                 self.parent.register_child_finished(self)
             return processed_output
         finally:
-            if self.checkpoint:
-                self.save_checkpoint()
+            if self.checkpoint is not None:
+                self.save_checkpoint(self.checkpoint)
 
     def _finish_run_and_emit_ran(self, run_output: tuple | Future) -> Any | tuple:
         processed_output = self._finish_run(run_output)
@@ -790,10 +799,6 @@ class Node(
     def allowed_backends(cls):
         return tuple(cls._storage_interfaces().keys())
 
-    @classmethod
-    def default_backend(cls):
-        return "pickle"
-
     @property
     def storage_directory(self) -> DirectoryObject:
         return self.working_directory
@@ -827,23 +832,25 @@ class Node(
 
     """
 
-    def save(self):
+    def save(self, backend: str | StorageInterface = "pickle"):
         """
         Writes the node to file (using HDF5) such that a new node instance of the same
         type can :meth:`load()` the data to return to the same state as the save point,
         i.e. the same data IO channel values, the same flags, etc.
         """
-        self.storage.save(self)
+        if isinstance(backend, str):
+            backend = self._storage_interfaces()[backend]()
+        backend.save(self)
 
     save.__doc__ += _save_load_warnings
 
-    def save_checkpoint(self):
+    def save_checkpoint(self, backend: str | StorageInterface = "pickle"):
         """
         Triggers a save on the parent-most node.
         """
-        self.graph_root.save()
+        self.graph_root.save(backend=backend)
 
-    def load(self):
+    def load(self, backend: str | StorageInterface = "pickle"):
         """
         Loads the node file (from HDF5) such that this node restores its state at time
         of loading.
@@ -851,24 +858,37 @@ class Node(
         Raises:
             TypeError: when the saved node has a different class name.
         """
-        if self.storage.has_contents(self):
-            self.storage.load(self)
+        if isinstance(backend, str):
+            backend = self._storage_interfaces()[backend]()
+
+        if backend.has_contents(self):
+            backend.load(self)
         else:
             # Check for saved content using any other backend
-            for backend in self.allowed_backends():
-                interface = self._storage_interfaces()[backend]()
-                if interface.has_contents(self):
-                    interface.load(self)
+            for backend_class in self.allowed_backends():
+                backend = self._storage_interfaces()[backend_class]()
+                if backend.has_contents(self):
+                    backend.load(self)
                     break
 
     load.__doc__ += _save_load_warnings
 
-    def delete_storage(self):
+    def delete_storage(
+        self, backend: Literal["pickle"] | StorageInterface | None = None
+    ):
         """Remove save files for _all_ available backends."""
-        for backend in self.allowed_backends():
-            interface = self._storage_interfaces()[backend]()
+        backends_to_check = [
+            self._storage_interfaces()[backend_class]()
+            for backend_class in self.allowed_backends()
+        ]
+        if isinstance(backend, str):
+            backends_to_check.append(self._storage_interfaces()[backend]())
+        elif isinstance(backend, StorageInterface):
+            backends_to_check.append(backend)
+
+        for backend in backends_to_check:
             try:
-                interface.delete(self)
+                backend.delete(self)
             except FileNotFoundError:
                 pass
 
@@ -881,45 +901,20 @@ class Node(
         else:
             return self
 
-    @property
-    def storage_backend(self):
-        storage_root = self.storage_root
-        if storage_root is self:
-            backend = self._storage_backend
+    def any_storage_has_contents(
+        self, backend: Literal["pickle"] | StorageInterface | None
+    ):
+        if isinstance(backend, str) and self._storage_interfaces()[
+            backend
+        ]().has_contents(self):
+            return True
+        elif isinstance(backend, StorageInterface) and backend.has_contents(self):
+            return True
         else:
-            backend = storage_root.storage_backend
-        return self.default_backend() if backend is None else backend
-
-    @storage_backend.setter
-    def storage_backend(self, new_backend):
-        storage_root = self.storage_root
-        if new_backend is not None:
-            if new_backend not in self.allowed_backends():
-                raise ValueError(
-                    f"{self.label} got the storage backend {new_backend}, but only "
-                    f"{self.allowed_backends()} are permitted."
-                )
-            elif (
-                storage_root is not self and new_backend != storage_root.storage_backend
-            ):
-                raise ValueError(
-                    f"Storage backends should only be set on the storage root "
-                    f"({self.storage_root.label}), not on child ({self.label})"
-                )
-        self._storage_backend = new_backend
-
-    @property
-    def storage(self) -> StorageInterface:
-        if self.storage_backend is None:
-            raise ValueError(f"{self.label} does not have a storage backend set")
-        return self._storage_interfaces()[self.storage_backend]()
-
-    @property
-    def any_storage_has_contents(self):
-        return any(
-            self._storage_interfaces()[backend]().has_contents(self)
-            for backend in self.allowed_backends()
-        )
+            return any(
+                self._storage_interfaces()[backend]().has_contents(self)
+                for backend in self.allowed_backends()
+            )
 
     @property
     def import_ready(self) -> bool:

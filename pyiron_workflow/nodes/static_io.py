@@ -16,6 +16,7 @@ from pyiron_workflow.node import Node
 
 if TYPE_CHECKING:
     from pyiron_workflow.nodes.composite import Composite
+    from pyiron_workflow.storage import StorageInterface
 
 
 class StaticNode(Node, HasIOPreview, ABC):
@@ -32,17 +33,17 @@ class StaticNode(Node, HasIOPreview, ABC):
         parent: Optional[Composite] = None,
         overwrite_save: bool = False,
         run_after_init: bool = False,
-        storage_backend: Optional[Literal["pickle"]] = None,
-        checkpoint: bool = False,
+        storage_backend: Literal["pickle"] | StorageInterface | None = None,
+        checkpoint: Literal["pickle"] | StorageInterface | None = None,
         **kwargs,
     ):
         super().__init__(
             *args,
             label=label,
             parent=parent,
+            storage_backend=storage_backend,
             overwrite_save=overwrite_save,
             run_after_init=run_after_init,
-            storage_backend=storage_backend,
             checkpoint=checkpoint,
             **kwargs,
         )
