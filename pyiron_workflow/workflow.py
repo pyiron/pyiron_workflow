@@ -195,7 +195,7 @@ class Workflow(ParentMost, Composite):
         self,
         label: str,
         *nodes: Node,
-        storage_backend: Literal["pickle"] | StorageInterface | None = "pickle",
+        autoload: Literal["pickle"] | StorageInterface | None = "pickle",
         overwrite_save: bool = False,
         run_after_init: bool = False,
         checkpoint: Literal["pickle"] | StorageInterface | None = None,
@@ -220,7 +220,7 @@ class Workflow(ParentMost, Composite):
             overwrite_save=overwrite_save,
             run_after_init=run_after_init,
             checkpoint=checkpoint,
-            storage_backend=storage_backend,
+            autoload=autoload,
             strict_naming=strict_naming,
             **kwargs,
         )
@@ -228,7 +228,7 @@ class Workflow(ParentMost, Composite):
     def _after_node_setup(
         self,
         *args,
-        storage_backend: Literal["pickle"] | StorageInterface | None = None,
+        autoload: Literal["pickle"] | StorageInterface | None = None,
         overwrite_save: bool = False,
         run_after_init: bool = False,
         **kwargs,
@@ -237,7 +237,7 @@ class Workflow(ParentMost, Composite):
         for node in args:
             self.add_child(node)
         super()._after_node_setup(
-            storage_backend=storage_backend,
+            autoload=autoload,
             overwrite_save=overwrite_save,
             run_after_init=run_after_init,
             **kwargs,

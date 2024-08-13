@@ -487,7 +487,7 @@ class TestMacro(unittest.TestCase):
                     if backend == "pickle":
                         macro.save(backend)
                         reloaded = demo_nodes.AddThree(
-                            label="m", storage_backend=backend
+                            label="m", autoload=backend
                         )
                         self.assertDictEqual(
                             modified_result,

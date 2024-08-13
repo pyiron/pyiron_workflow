@@ -33,7 +33,7 @@ class StaticNode(Node, HasIOPreview, ABC):
         parent: Optional[Composite] = None,
         overwrite_save: bool = False,
         run_after_init: bool = False,
-        storage_backend: Literal["pickle"] | StorageInterface | None = None,
+        autoload: Literal["pickle"] | StorageInterface | None = None,
         checkpoint: Literal["pickle"] | StorageInterface | None = None,
         **kwargs,
     ):
@@ -41,7 +41,7 @@ class StaticNode(Node, HasIOPreview, ABC):
             *args,
             label=label,
             parent=parent,
-            storage_backend=storage_backend,
+            autoload=autoload,
             overwrite_save=overwrite_save,
             run_after_init=run_after_init,
             checkpoint=checkpoint,

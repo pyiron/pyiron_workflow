@@ -410,7 +410,7 @@ class TestNode(unittest.TestCase):
                     self.n1.save(backend=backend)
 
                     x = self.n1.inputs.x.value
-                    reloaded = ANode(label=self.n1.label, x=x, storage_backend=backend)
+                    reloaded = ANode(label=self.n1.label, x=x, autoload=backend)
                     self.assertEqual(
                         y,
                         reloaded.outputs.y.value,
@@ -445,7 +445,7 @@ class TestNode(unittest.TestCase):
                             label=self.n1.label,
                             x=x,
                             run_after_init=True,
-                            storage_backend=backend
+                            autoload=backend
                         )
 
                     force_run = ANode(
@@ -467,7 +467,7 @@ class TestNode(unittest.TestCase):
                         hard_input.save()
                         reloaded = ANode(
                             label=hard_input.label,
-                            storage_backend=backend
+                            autoload=backend
                         )
                         self.assertEqual(
                             reloaded.inputs.x.value(4),
@@ -501,7 +501,7 @@ class TestNode(unittest.TestCase):
                     )
                     y = saves.outputs.y.value
 
-                    not_reloaded = ANode(label="just_run", storage_backend=backend)
+                    not_reloaded = ANode(label="just_run", autoload=backend)
                     self.assertIs(
                         NOT_DATA,
                         not_reloaded.outputs.y.value,
@@ -509,7 +509,7 @@ class TestNode(unittest.TestCase):
                             "to load"
                     )
 
-                    find_saved = ANode(label="run_and_save", storage_backend=backend)
+                    find_saved = ANode(label="run_and_save", autoload=backend)
                     self.assertEqual(
                         y,
                         find_saved.outputs.y.value,

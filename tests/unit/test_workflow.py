@@ -450,7 +450,7 @@ class TestWorkflow(unittest.TestCase):
                     three_result = wf.inp.three.outputs.add.value
 
                     wf.save(backend)
-                    reloaded = Workflow("wf", storage_backend=backend)
+                    reloaded = Workflow("wf", autoload=backend)
                     self.assertEqual(
                         wf_out.out__add,
                         reloaded.outputs.out__add.value,
@@ -477,7 +477,7 @@ class TestWorkflow(unittest.TestCase):
                     try:
                         with self.subTest(backend):
                             wf.save(backend=backend)
-                            Workflow(wf.label, storage_backend=backend)
+                            Workflow(wf.label, autoload=backend)
                     finally:
                         wf.delete_storage(backend)
 

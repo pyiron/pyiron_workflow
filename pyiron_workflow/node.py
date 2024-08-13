@@ -205,7 +205,7 @@ class Node(
         checkpoint (Literal["pickle"] | StorageInterface | None): Whether to trigger a
             save of the entire graph after each run of the node, and if so what storage
             back end to use. (Default is None, don't do any checkpoint saving.)
-        storage_backend (Literal["pickle"] | StorageInterface | None): Whether to check
+        autoload (Literal["pickle"] | StorageInterface | None): Whether to check
             for a matching saved node and what storage back end to use to do so (no
             auto-loading if the back end is `None`.)
         signals (pyiron_workflow.io.Signals): A container for input and output
@@ -275,7 +275,7 @@ class Node(
         *args,
         label: Optional[str] = None,
         parent: Optional[Composite] = None,
-        storage_backend: Literal["pickle"] | StorageInterface | None = "pickle",
+        autoload: Literal["pickle"] | StorageInterface | None = "pickle",
         overwrite_save: bool = False,
         run_after_init: bool = False,
         checkpoint: Literal["pickle"] | StorageInterface | None = None,
@@ -289,7 +289,7 @@ class Node(
             label (str): A name for this node.
             *args: Interpreted as node input data, in order of input channels.
             parent: (Composite|None): The composite node that owns this as a child.
-            storage_backend (Literal["pickle"] | StorageInterface | None): The back end
+            autoload (Literal["pickle"] | StorageInterface | None): The back end
                 to use for checking whether node data can be loaded from file. A None
                 value indicates no auto-loading. (Default is "pickle".)
             run_after_init (bool): Whether to run at the end of initialization.
@@ -310,7 +310,7 @@ class Node(
         self._setup_node()
         self._after_node_setup(
             *args,
-            storage_backend=storage_backend,
+            autoload=autoload,
             overwrite_save=overwrite_save,
             run_after_init=run_after_init,
             **kwargs,
@@ -328,17 +328,17 @@ class Node(
     def _after_node_setup(
         self,
         *args,
-        storage_backend: Literal["pickle"] | StorageInterface | None = None,
+        autoload: Literal["pickle"] | StorageInterface | None = None,
         overwrite_save: bool = False,
         run_after_init: bool = False,
         **kwargs,
     ):
         if overwrite_save:
-            self.delete_storage(backend=storage_backend)
+            self.delete_storage(backend=autoload)
             do_load = False
         else:
-            do_load = storage_backend is not None and self.any_storage_has_contents(
-                storage_backend
+            do_load = autoload is not None and self.any_storage_has_contents(
+                autoload
             )
 
         if do_load and run_after_init:
@@ -354,7 +354,7 @@ class Node(
                 f"attempting to load it...(To delete the saved file instead, use "
                 f"`overwrite_save=True`)"
             )
-            self.load(backend=storage_backend)
+            self.load(backend=autoload)
             self.set_input_values(*args, **kwargs)
         elif run_after_init:
             try:
