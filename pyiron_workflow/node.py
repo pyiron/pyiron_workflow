@@ -280,7 +280,7 @@ class Node(
         parent: Optional[Composite] = None,
         delete_existing_savefiles: bool = False,
         autoload: Literal["pickle"] | StorageInterface | None = None,
-        run_after_init: bool = False,
+        autorun: bool = False,
         checkpoint: Literal["pickle"] | StorageInterface | None = None,
         **kwargs,
     ):
@@ -299,7 +299,7 @@ class Node(
             autoload (Literal["pickle"] | StorageInterface | None): The back end
                 to use for checking whether node data can be loaded from file. A None
                 value indicates no auto-loading. (Default is "pickle".)
-            run_after_init (bool): Whether to run at the end of initialization.
+            autorun (bool): Whether to run at the end of initialization.
             checkpoint (Literal["pickle"] | StorageInterface | None): The storage
                 back end to use for saving the overall graph at the end of this node's
                 run. (Default is None, don't do checkpoint saves.)
@@ -319,7 +319,7 @@ class Node(
             *args,
             delete_existing_savefiles=delete_existing_savefiles,
             autoload=autoload,
-            run_after_init=run_after_init,
+            autorun=autorun,
             **kwargs,
         )
 
@@ -337,7 +337,7 @@ class Node(
         *args,
         delete_existing_savefiles: bool = False,
         autoload: Literal["pickle"] | StorageInterface | None = None,
-        run_after_init: bool = False,
+        autorun: bool = False,
         **kwargs,
     ):
         if delete_existing_savefiles:
@@ -346,7 +346,7 @@ class Node(
         else:
             do_load = autoload is not None and self.any_storage_has_contents(autoload)
 
-        if do_load and run_after_init:
+        if do_load and autorun:
             raise ValueError(
                 f"{self.full_label} can't both load _and_ run after init -- either"
                 f" delete the save file (e.g. with with the `delete_existing_savefiles=True` "
@@ -361,7 +361,7 @@ class Node(
             )
             self.load(backend=autoload)
             self.set_input_values(*args, **kwargs)
-        elif run_after_init:
+        elif autorun:
             try:
                 self.set_input_values(*args, **kwargs)
                 self.run()

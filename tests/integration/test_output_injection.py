@@ -10,9 +10,9 @@ class TestOutputInjection(unittest.TestCase):
     """
     def setUp(self) -> None:
         self.wf = Workflow("injection")
-        self.int = Workflow.create.standard.UserInput(42, run_after_init=True)
+        self.int = Workflow.create.standard.UserInput(42, autorun=True)
         self.list = Workflow.create.standard.UserInput(
-            list(range(10)), run_after_init=True
+            list(range(10)), autorun=True
         )
 
     def test_equality(self):
@@ -84,8 +84,8 @@ class TestOutputInjection(unittest.TestCase):
 
     def test_logic(self):
         # Note: We can't invert with not etc. because overloading __bool__ does not work
-        self.true = Workflow.create.standard.UserInput(True, run_after_init=True)
-        self.false = Workflow.create.standard.UserInput(False, run_after_init=True)
+        self.true = Workflow.create.standard.UserInput(True, autorun=True)
+        self.false = Workflow.create.standard.UserInput(False, autorun=True)
 
         with self.subTest("True expressions"):
             for expression in [
@@ -120,7 +120,7 @@ class TestOutputInjection(unittest.TestCase):
                     self.assertFalse(expression.value)
 
     def test_casts(self):
-        self.float = Workflow.create.standard.UserInput(42.2, run_after_init=True)
+        self.float = Workflow.create.standard.UserInput(42.2, autorun=True)
 
         self.assertIsInstance(self.int.float().value, float)
         self.assertIsInstance(self.float.int().value, int)
@@ -129,14 +129,14 @@ class TestOutputInjection(unittest.TestCase):
     def test_access(self):
 
         self.dict = Workflow.create.standard.UserInput(
-            {"foo": 42}, run_after_init=True
+            {"foo": 42}, autorun=True
         )
 
         class Something:
             myattr = 1
 
         self.obj = Workflow.create.standard.UserInput(
-            Something(), run_after_init=True
+            Something(), autorun=True
         )
 
         self.assertIsInstance(self.list[0].value, int)

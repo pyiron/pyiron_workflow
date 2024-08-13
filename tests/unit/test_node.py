@@ -333,7 +333,7 @@ class TestNode(unittest.TestCase):
             # No matter what happens in the tests, clean up after yourself
             self.n1.working_directory.delete()
 
-    def test_run_after_init(self):
+    def test_autorun(self):
         self.assertIs(
             self.n1.outputs.y.value,
             NOT_DATA,
@@ -341,8 +341,8 @@ class TestNode(unittest.TestCase):
         )
         self.assertEqual(
             1,
-            ANode(label="right_away", run_after_init=True, x=0).outputs.y.value,
-            msg="With run_after_init, the node should run right away"
+            ANode(label="right_away", autorun=True, x=0).outputs.y.value,
+            msg="With autorun, the node should run right away"
         )
 
     def test_graph_info(self):
@@ -427,7 +427,7 @@ class TestNode(unittest.TestCase):
                     run_right_away = ANode(
                         label=self.n1.label,
                         x=x,
-                        run_after_init=True,
+                        autorun=True,
                     )
                     self.assertEqual(
                         y,
@@ -444,14 +444,14 @@ class TestNode(unittest.TestCase):
                         ANode(
                             label=self.n1.label,
                             x=x,
-                            run_after_init=True,
+                            autorun=True,
                             autoload=backend
                         )
 
                     force_run = ANode(
                         label=self.n1.label,
                         x=x,
-                        run_after_init=True,
+                        autorun=True,
                         delete_existing_savefiles=True
                     )
                     self.assertEqual(
@@ -491,12 +491,12 @@ class TestNode(unittest.TestCase):
                     ANode(
                         label="just_run",
                         x=0,
-                        run_after_init=True,
+                        autorun=True,
                     )
                     saves = ANode(
                         label="run_and_save",
                         x=0,
-                        run_after_init=True,
+                        autorun=True,
                         checkpoint=backend,
                     )
                     y = saves.outputs.y.value

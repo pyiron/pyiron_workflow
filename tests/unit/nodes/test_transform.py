@@ -29,7 +29,7 @@ def Downstream(x: MyData.dataclass):
 
 class TestTransformer(unittest.TestCase):
     def test_pickle(self):
-        n = inputs_to_list(3, "a", "b", "c", run_after_init=True)
+        n = inputs_to_list(3, "a", "b", "c", autorun=True)
         self.assertListEqual(
             ["a", "b", "c"],
             n.outputs.list.value,
@@ -44,18 +44,18 @@ class TestTransformer(unittest.TestCase):
         self.assertIsInstance(reloaded, Transformer)
 
     def test_inputs_to_list(self):
-        n = inputs_to_list(3, "a", "b", "c", run_after_init=True)
+        n = inputs_to_list(3, "a", "b", "c", autorun=True)
         self.assertListEqual(["a", "b", "c"], n.outputs.list.value)
 
     def test_list_to_outputs(self):
         l = ["a", "b", "c", "d", "e"]
-        n = list_to_outputs(5, l, run_after_init=True)
+        n = list_to_outputs(5, l, autorun=True)
         self.assertEqual(l, n.outputs.to_list())
 
     def test_inputs_to_dict(self):
         with self.subTest("List specification"):
             d = {"c1": 4, "c2": 5}
-            n = inputs_to_dict(list(d.keys()), **d, run_after_init=True)
+            n = inputs_to_dict(list(d.keys()), **d, autorun=True)
             self.assertDictEqual(
                 d,
                 n.outputs.dict.value,
@@ -67,7 +67,7 @@ class TestTransformer(unittest.TestCase):
             default = 42
             hint = int
             spec = {k: (int, default) for k in d.keys()}
-            n = inputs_to_dict(spec, run_after_init=True)
+            n = inputs_to_dict(spec, autorun=True)
             self.assertIs(
                 n.inputs[list(d.keys())[0]].type_hint,
                 hint,

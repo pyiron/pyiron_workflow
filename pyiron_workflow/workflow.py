@@ -201,7 +201,7 @@ class Workflow(ParentMost, Composite):
         *nodes: Node,
         delete_existing_savefiles: bool = False,
         autoload: Literal["pickle"] | StorageInterface | None = "pickle",
-        run_after_init: bool = False,
+        autorun: bool = False,
         checkpoint: Literal["pickle"] | StorageInterface | None = None,
         strict_naming: bool = True,
         inputs_map: Optional[dict | bidict] = None,
@@ -223,7 +223,7 @@ class Workflow(ParentMost, Composite):
             parent=None,
             delete_existing_savefiles=delete_existing_savefiles,
             autoload=autoload,
-            run_after_init=run_after_init,
+            autorun=autorun,
             checkpoint=checkpoint,
             strict_naming=strict_naming,
             **kwargs,
@@ -234,7 +234,7 @@ class Workflow(ParentMost, Composite):
         *args,
         delete_existing_savefiles: bool = False,
         autoload: Literal["pickle"] | StorageInterface | None = None,
-        run_after_init: bool = False,
+        autorun: bool = False,
         **kwargs,
     ):
 
@@ -243,7 +243,7 @@ class Workflow(ParentMost, Composite):
         super()._after_node_setup(
             autoload=autoload,
             delete_existing_savefiles=delete_existing_savefiles,
-            run_after_init=run_after_init,
+            autorun=autorun,
             **kwargs,
         )
 

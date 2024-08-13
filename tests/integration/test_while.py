@@ -42,7 +42,7 @@ def AddWhileLessThan(self, a, b, cap):
 class TestWhileLoop(unittest.TestCase):
     def test_while_loop(self):
         a, b, cap = 0, 2, 5
-        n = AddWhileLessThan(a, b, cap, run_after_init=True)
+        n = AddWhileLessThan(a, b, cap, autorun=True)
         self.assertGreaterEqual(
             6,
             n.outputs.greater.value,
