@@ -205,9 +205,9 @@ class Node(
         checkpoint (Literal["pickle"] | StorageInterface | None): Whether to trigger a
             save of the entire graph after each run of the node, and if so what storage
             back end to use. (Default is None, don't do any checkpoint saving.)
-        storage_backend (Literal["pickle"] | None): The flag for the backend to use for
-            saving and loading; for nodes in a graph the value on the root node is
-            always used.
+        storage_backend (Literal["pickle"] | StorageInterface | None): Whether to check
+            for a matching saved node and what storage back end to use to do so (no
+            auto-loading if the back end is `None`.)
         signals (pyiron_workflow.io.Signals): A container for input and output
             signals, which are channels for controlling execution flow. By default, has
             a :attr:`signals.inputs.run` channel which has a callback to the :meth:`run` method
@@ -289,6 +289,9 @@ class Node(
             label (str): A name for this node.
             *args: Interpreted as node input data, in order of input channels.
             parent: (Composite|None): The composite node that owns this as a child.
+            storage_backend (Literal["pickle"] | StorageInterface | None): The back end
+                to use for checking whether node data can be loaded from file. A None
+                value indicates no auto-loading. (Default is "pickle".)
             run_after_init (bool): Whether to run at the end of initialization.
             checkpoint (Literal["pickle"] | StorageInterface | None): The storage
                 back end to use for saving the overall graph at the end of this node's

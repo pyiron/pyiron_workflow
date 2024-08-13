@@ -228,7 +228,7 @@ class Workflow(ParentMost, Composite):
     def _after_node_setup(
         self,
         *args,
-        storage_backend: Optional[Literal["pickle"]] = None,
+        storage_backend: Literal["pickle"] | StorageInterface | None = None,
         overwrite_save: bool = False,
         run_after_init: bool = False,
         **kwargs,
