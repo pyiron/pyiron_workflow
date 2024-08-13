@@ -481,8 +481,8 @@ class TestNode(unittest.TestCase):
                         ):
                             hard_input.save()
                 finally:
-                    hard_input.delete_storage()
-                    self.n1.delete_storage()
+                    hard_input.delete_storage(backend)
+                    self.n1.delete_storage(backend)
 
     def test_checkpoint(self):
         for backend in Node.allowed_backends():
@@ -517,7 +517,7 @@ class TestNode(unittest.TestCase):
                             "on instantiation"
                     )
                 finally:
-                    saves.delete_storage()  # Clean up
+                    saves.delete_storage(backend)  # Clean up
 
 
 if __name__ == '__main__':

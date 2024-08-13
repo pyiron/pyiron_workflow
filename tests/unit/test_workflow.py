@@ -463,7 +463,7 @@ class TestWorkflow(unittest.TestCase):
                     )
                 finally:
                     # Clean up after ourselves
-                    wf.delete_storage()
+                    wf.delete_storage(backend)
 
     def test_storage_scopes(self):
         wf = Workflow("wf")
@@ -479,7 +479,7 @@ class TestWorkflow(unittest.TestCase):
                             wf.save(backend=backend)
                             Workflow(wf.label, storage_backend=backend)
                     finally:
-                        wf.delete_storage()
+                        wf.delete_storage(backend)
 
         with self.subTest("No unimportable nodes for either back-end"):
             for backend in Workflow.allowed_backends():
@@ -494,7 +494,7 @@ class TestWorkflow(unittest.TestCase):
                                 wf.save(backend=backend)
                 finally:
                     wf.remove_child(wf.import_type_mismatch)
-                    wf.delete_storage()
+                    wf.delete_storage(backend)
 
         with self.subTest("Unimportable node"):
             @Workflow.wrap.as_function_node("y")
