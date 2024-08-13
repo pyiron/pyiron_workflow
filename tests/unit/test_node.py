@@ -481,8 +481,8 @@ class TestNode(unittest.TestCase):
                         ):
                             hard_input.save()
                 finally:
-                    hard_input.delete_storage(backend)
                     self.n1.delete_storage(backend)
+                    hard_input.delete_storage(backend)
 
     def test_checkpoint(self):
         for backend in Node.allowed_backends():
