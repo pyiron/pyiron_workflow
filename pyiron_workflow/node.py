@@ -279,7 +279,7 @@ class Node(
         label: Optional[str] = None,
         parent: Optional[Composite] = None,
         autoload: Literal["pickle"] | StorageInterface | None = "pickle",
-        overwrite_save: bool = False,
+        delete_existing_savefiles: bool = False,
         run_after_init: bool = False,
         checkpoint: Literal["pickle"] | StorageInterface | None = None,
         **kwargs,
@@ -314,7 +314,7 @@ class Node(
         self._after_node_setup(
             *args,
             autoload=autoload,
-            overwrite_save=overwrite_save,
+            delete_existing_savefiles=delete_existing_savefiles,
             run_after_init=run_after_init,
             **kwargs,
         )
@@ -332,11 +332,11 @@ class Node(
         self,
         *args,
         autoload: Literal["pickle"] | StorageInterface | None = None,
-        overwrite_save: bool = False,
+        delete_existing_savefiles: bool = False,
         run_after_init: bool = False,
         **kwargs,
     ):
-        if overwrite_save:
+        if delete_existing_savefiles:
             self.delete_storage(backend=autoload)
             do_load = False
         else:
@@ -345,7 +345,7 @@ class Node(
         if do_load and run_after_init:
             raise ValueError(
                 f"{self.full_label} can't both load _and_ run after init -- either"
-                f" delete the save file (e.g. with with the `overwrite_save=True` "
+                f" delete the save file (e.g. with with the `delete_existing_savefiles=True` "
                 f"kwarg), change the node label to work in a new space, or give up on "
                 f"running after init."
             )
@@ -353,7 +353,7 @@ class Node(
             logger.info(
                 f"A saved file was found for the node {self.full_label} -- "
                 f"attempting to load it...(To delete the saved file instead, use "
-                f"`overwrite_save=True`)"
+                f"`delete_existing_savefiles=True`)"
             )
             self.load(backend=autoload)
             self.set_input_values(*args, **kwargs)

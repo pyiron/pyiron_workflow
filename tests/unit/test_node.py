@@ -417,7 +417,7 @@ class TestNode(unittest.TestCase):
                         msg="Nodes should load by default if they find a save file"
                     )
 
-                    clean_slate = ANode(label=self.n1.label, x=x, overwrite_save=True)
+                    clean_slate = ANode(label=self.n1.label, x=x, delete_existing_savefiles=True)
                     self.assertIs(
                         clean_slate.outputs.y.value,
                         NOT_DATA,
@@ -452,7 +452,7 @@ class TestNode(unittest.TestCase):
                         label=self.n1.label,
                         x=x,
                         run_after_init=True,
-                        overwrite_save=True
+                        delete_existing_savefiles=True
                     )
                     self.assertEqual(
                         y,
