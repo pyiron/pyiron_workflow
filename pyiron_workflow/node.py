@@ -274,9 +274,9 @@ class Node(
         *args,
         label: Optional[str] = None,
         parent: Optional[Composite] = None,
+        storage_backend: Literal["pickle"] | StorageInterface | None = "pickle",
         overwrite_save: bool = False,
         run_after_init: bool = False,
-        storage_backend: Literal["pickle"] | None = "pickle",
         checkpoint: bool = False,
         **kwargs,
     ):
@@ -296,8 +296,6 @@ class Node(
             label=self.__class__.__name__ if label is None else label,
             parent=parent,
         )
-        self._storage_backend = None
-        self.storage_backend = storage_backend
         self.checkpoint = checkpoint
         self.cached_inputs = None
         self._user_data = {}  # A place for power-users to bypass node-injection
@@ -305,6 +303,7 @@ class Node(
         self._setup_node()
         self._after_node_setup(
             *args,
+            storage_backend=storage_backend,
             overwrite_save=overwrite_save,
             run_after_init=run_after_init,
             **kwargs,
@@ -322,15 +321,16 @@ class Node(
     def _after_node_setup(
         self,
         *args,
+        storage_backend: Literal["pickle"] | StorageInterface | None = None,
         overwrite_save: bool = False,
         run_after_init: bool = False,
         **kwargs,
     ):
         if overwrite_save:
-            self.delete_storage()
+            self.delete_storage(backend=storage_backend)
             do_load = False
         else:
-            do_load = self.any_storage_has_contents
+            do_load = storage_backend is not None and self.any_storage_has_contents
 
         if do_load and run_after_init:
             raise ValueError(
@@ -345,7 +345,7 @@ class Node(
                 f"attempting to load it...(To delete the saved file instead, use "
                 f"`overwrite_save=True`)"
             )
-            self.load()
+            self.load(backend=storage_backend)
             self.set_input_values(*args, **kwargs)
         elif run_after_init:
             try:
@@ -888,39 +888,6 @@ class Node(
             return parent.storage_root
         else:
             return self
-
-    @property
-    def storage_backend(self):
-        storage_root = self.storage_root
-        if storage_root is self:
-            backend = self._storage_backend
-        else:
-            backend = storage_root.storage_backend
-        return self.default_backend() if backend is None else backend
-
-    @storage_backend.setter
-    def storage_backend(self, new_backend):
-        storage_root = self.storage_root
-        if new_backend is not None:
-            if new_backend not in self.allowed_backends():
-                raise ValueError(
-                    f"{self.label} got the storage backend {new_backend}, but only "
-                    f"{self.allowed_backends()} are permitted."
-                )
-            elif (
-                storage_root is not self and new_backend != storage_root.storage_backend
-            ):
-                raise ValueError(
-                    f"Storage backends should only be set on the storage root "
-                    f"({self.storage_root.label}), not on child ({self.label})"
-                )
-        self._storage_backend = new_backend
-
-    @property
-    def storage(self) -> StorageInterface:
-        if self.storage_backend is None:
-            raise ValueError(f"{self.label} does not have a storage backend set")
-        return self._storage_interfaces()[self.storage_backend]()
 
     @property
     def any_storage_has_contents(self):

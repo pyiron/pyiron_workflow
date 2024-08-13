@@ -7,7 +7,7 @@ from __future__ import annotations
 
 from abc import ABC, abstractmethod
 import re
-from typing import Literal, TYPE_CHECKING
+from typing import TYPE_CHECKING
 
 from pyiron_snippets.factory import classfactory
 
@@ -248,9 +248,7 @@ class Macro(Composite, StaticNode, ScrapesIO, ABC):
     def _setup_node(self) -> None:
         super()._setup_node()
 
-        ui_nodes = self._prepopulate_ui_nodes_from_graph_creator_signature(
-            storage_backend=self.storage_backend
-        )
+        ui_nodes = self._prepopulate_ui_nodes_from_graph_creator_signature()
         returned_has_channel_objects = self.graph_creator(self, *ui_nodes)
         if returned_has_channel_objects is None:
             returned_has_channel_objects = ()
@@ -301,16 +299,13 @@ class Macro(Composite, StaticNode, ScrapesIO, ABC):
         else:
             return scraped_labels
 
-    def _prepopulate_ui_nodes_from_graph_creator_signature(
-        self, storage_backend: Literal["pickle"]
-    ):
+    def _prepopulate_ui_nodes_from_graph_creator_signature(self):
         ui_nodes = []
         for label, (type_hint, default) in self.preview_inputs().items():
             n = self.create.standard.UserInput(
                 default,
                 label=label,
                 parent=self,
-                storage_backend=storage_backend,
             )
             n.inputs.user_input.type_hint = type_hint
             ui_nodes.append(n)
