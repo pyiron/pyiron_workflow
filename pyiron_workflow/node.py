@@ -278,8 +278,8 @@ class Node(
         *args,
         label: Optional[str] = None,
         parent: Optional[Composite] = None,
-        autoload: Literal["pickle"] | StorageInterface | None = None,
         delete_existing_savefiles: bool = False,
+        autoload: Literal["pickle"] | StorageInterface | None = None,
         run_after_init: bool = False,
         checkpoint: Literal["pickle"] | StorageInterface | None = None,
         **kwargs,
@@ -292,6 +292,10 @@ class Node(
             label (str): A name for this node.
             *args: Interpreted as node input data, in order of input channels.
             parent: (Composite|None): The composite node that owns this as a child.
+            delete_existing_savefiles (bool): Whether to look for and delete any
+                matching save files at instantiation. Uses all default storage
+                back ends and anything passed to :param:`autoload`. (Default is False,
+                leave those files alone!)
             autoload (Literal["pickle"] | StorageInterface | None): The back end
                 to use for checking whether node data can be loaded from file. A None
                 value indicates no auto-loading. (Default is "pickle".)
@@ -313,8 +317,8 @@ class Node(
         self._setup_node()
         self._after_node_setup(
             *args,
-            autoload=autoload,
             delete_existing_savefiles=delete_existing_savefiles,
+            autoload=autoload,
             run_after_init=run_after_init,
             **kwargs,
         )
@@ -331,8 +335,8 @@ class Node(
     def _after_node_setup(
         self,
         *args,
-        autoload: Literal["pickle"] | StorageInterface | None = None,
         delete_existing_savefiles: bool = False,
+        autoload: Literal["pickle"] | StorageInterface | None = None,
         run_after_init: bool = False,
         **kwargs,
     ):
