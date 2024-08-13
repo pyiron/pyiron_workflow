@@ -428,7 +428,6 @@ class TestNode(unittest.TestCase):
                         label=self.n1.label,
                         x=x,
                         run_after_init=True,
-                        storage_backend=backend
                     )
                     self.assertEqual(
                         y,
@@ -439,8 +438,8 @@ class TestNode(unittest.TestCase):
                     run_right_away.save()
                     with self.assertRaises(
                         ValueError,
-                        msg="Should be able to both immediately run _and_ load a node at "
-                            "once"
+                        msg="Should not be able to both immediately run _and_ load a "
+                            "node at once"
                     ):
                         ANode(
                             label=self.n1.label,
@@ -461,7 +460,7 @@ class TestNode(unittest.TestCase):
                         msg="Destroying the save should allow immediate re-running"
                     )
 
-                    hard_input = ANode(label="hard", storage_backend=backend)
+                    hard_input = ANode(label="hard")
                     hard_input.inputs.x.type_hint = callable
                     hard_input.inputs.x = lambda x: x * 2
                     if backend == "pickle":
@@ -493,14 +492,12 @@ class TestNode(unittest.TestCase):
                         label="just_run",
                         x=0,
                         run_after_init=True,
-                        storage_backend=backend
                     )
                     saves = ANode(
                         label="run_and_save",
                         x=0,
                         run_after_init=True,
                         checkpoint=backend,
-                        storage_backend=backend
                     )
                     y = saves.outputs.y.value
 

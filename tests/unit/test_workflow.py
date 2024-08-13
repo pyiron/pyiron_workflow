@@ -443,13 +443,13 @@ class TestWorkflow(unittest.TestCase):
         for backend in Workflow.allowed_backends():
             with self.subTest(backend):
                 try:
-                    wf = Workflow("wf", storage_backend=backend)
+                    wf = Workflow("wf")
                     wf.inp = demo_nodes.AddThree(x=0)
                     wf.out = wf.inp.outputs.add_three + 1
                     wf_out = wf()
                     three_result = wf.inp.three.outputs.add.value
 
-                    wf.save()
+                    wf.save(backend)
                     reloaded = Workflow("wf", storage_backend=backend)
                     self.assertEqual(
                         wf_out.out__add,
