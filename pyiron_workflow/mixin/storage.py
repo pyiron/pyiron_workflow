@@ -8,9 +8,11 @@ from __future__ import annotations
 from abc import ABC, abstractmethod
 from importlib import import_module
 import os
+import pickle
 import sys
 from typing import Optional
 
+import cloudpickle
 import h5io
 from pyiron_snippets.files import FileObject, DirectoryObject
 
@@ -82,6 +84,76 @@ class StorageInterface:
     @abstractmethod
     def _delete(self):
         """Remove an existing save-file for this backend"""
+
+
+class PickleStorage(StorageInterface):
+
+    _PICKLE_STORAGE_FILE_NAME = "pickle.pckl"
+    _CLOUDPICKLE_STORAGE_FILE_NAME = "cloudpickle.cpckl"
+
+    def __init__(self, owner: HasPickleStorage):
+        super().__init__(owner=owner)
+
+    @property
+    def owner(self) -> HasPickleStorage:
+        return self._owner
+
+    def _save(self):
+        try:
+            with open(self._pickle_storage_file_path, "wb") as file:
+                pickle.dump(self.owner, file)
+        except Exception:
+            self._delete()
+            with open(self._cloudpickle_storage_file_path, "wb") as file:
+                cloudpickle.dump(self.owner, file)
+
+    def _load(self):
+        if self._has_pickle_contents:
+            with open(self._pickle_storage_file_path, "rb") as file:
+                inst = pickle.load(file)
+        elif self._has_cloudpickle_contents:
+            with open(self._cloudpickle_storage_file_path, "rb") as file:
+                inst = cloudpickle.load(file)
+
+        if inst.__class__ != self.owner.__class__:
+            raise TypeError(
+                f"{self.owner.label} cannot load, as it has type "
+                f"{self.owner.__class__.__name__},  but the saved node has type "
+                f"{inst.__class__.__name__}"
+            )
+        self.owner.__setstate__(inst.__getstate__())
+
+    def _delete_file(self, file: str):
+        FileObject(file, self.owner.storage_directory).delete()
+
+    def _delete(self):
+        if self._has_pickle_contents:
+            self._delete_file(self._PICKLE_STORAGE_FILE_NAME)
+        elif self._has_cloudpickle_contents:
+            self._delete_file(self._CLOUDPICKLE_STORAGE_FILE_NAME)
+
+    def _storage_path(self, file: str):
+        return str((self.owner.storage_directory.path / file).resolve())
+
+    @property
+    def _pickle_storage_file_path(self) -> str:
+        return self._storage_path(self._PICKLE_STORAGE_FILE_NAME)
+
+    @property
+    def _cloudpickle_storage_file_path(self) -> str:
+        return self._storage_path(self._CLOUDPICKLE_STORAGE_FILE_NAME)
+
+    @property
+    def _has_contents(self) -> bool:
+        return self._has_pickle_contents or self._has_cloudpickle_contents
+
+    @property
+    def _has_pickle_contents(self) -> bool:
+        return os.path.isfile(self._pickle_storage_file_path)
+
+    @property
+    def _has_cloudpickle_contents(self) -> bool:
+        return os.path.isfile(self._cloudpickle_storage_file_path)
 
 
 class H5ioStorage(StorageInterface):
@@ -278,7 +350,15 @@ class HasStorage(HasLabel, HasParent, ABC):
         Raises:
             TypeError: when the saved node has a different class name.
         """
-        self.storage.load()
+        if self.storage.has_contents:
+            self.storage.load()
+        else:
+            # Check for saved content using any other backend
+            for backend in self.allowed_backends():
+                interface = self._storage_interfaces()[backend](self)
+                if interface.has_contents:
+                    interface.load()
+                    break
 
     save.__doc__ += _save_load_warnings
 
@@ -334,6 +414,13 @@ class HasStorage(HasLabel, HasParent, ABC):
         return self._storage_interfaces()[self.storage_backend](self)
 
     @property
+    def any_storage_has_contents(self):
+        return any(
+            self._storage_interfaces()[backend](self).has_contents
+            for backend in self.allowed_backends()
+        )
+
+    @property
     def import_ready(self) -> bool:
         """
         Checks whether `importlib` can find this node's class, and if so whether the
@@ -365,6 +452,18 @@ class HasStorage(HasLabel, HasParent, ABC):
         )
 
 
+class HasPickleStorage(HasStorage, ABC):
+    @classmethod
+    def _storage_interfaces(cls):
+        interfaces = super(HasPickleStorage, cls)._storage_interfaces()
+        interfaces["pickle"] = PickleStorage
+        return interfaces
+
+    @classmethod
+    def default_backend(cls):
+        return "pickle"
+
+
 class HasH5ioStorage(HasStorage, ABC):
     @classmethod
     def _storage_interfaces(cls):
@@ -387,7 +486,3 @@ class HasTinybaseStorage(HasStorage, ABC):
     @abstractmethod
     def from_storage(self, storage: TinybaseStorage):
         pass
-
-    @classmethod
-    def default_backend(cls):
-        return "tinybase"

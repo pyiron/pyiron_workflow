@@ -46,7 +46,7 @@ def as_scraper(
         factory_made = scraper_factory(
             fnc, validate_output_labels, io_defining_function_uses_self, *output_labels
         )
-        factory_made._class_returns_from_decorated_function = fnc
+        factory_made._reduce_imports_as = (fnc.__module__, fnc.__qualname__)
         factory_made.preview_io()
         return factory_made
     return scraper_decorator
