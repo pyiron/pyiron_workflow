@@ -337,7 +337,10 @@ class Node(
             self.delete_storage(backend=storage_backend)
             do_load = False
         else:
-            do_load = storage_backend is not None and self.any_storage_has_contents
+            do_load = (
+                storage_backend is not None
+                and self.any_storage_has_contents(storage_backend)
+            )
 
         if do_load and run_after_init:
             raise ValueError(
@@ -896,12 +899,24 @@ class Node(
         else:
             return self
 
-    @property
-    def any_storage_has_contents(self):
-        return any(
-            self._storage_interfaces()[backend]().has_contents(self)
-            for backend in self.allowed_backends()
-        )
+    def any_storage_has_contents(
+        self, backend: Literal["pickle"] | StorageInterface | None
+    ):
+        if (
+            isinstance(backend, str)
+            and self._storage_interfaces()[backend]().has_contents(self)
+        ):
+            return True
+        elif (
+            isinstance(backend, StorageInterface)
+            and backend.has_contents(self)
+        ):
+            return True
+        else:
+            return any(
+                self._storage_interfaces()[backend]().has_contents(self)
+                for backend in self.allowed_backends()
+            )
 
     @property
     def import_ready(self) -> bool:
