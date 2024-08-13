@@ -887,15 +887,6 @@ class Node(
             except FileNotFoundError:
                 pass
 
-    @property
-    def storage_root(self):
-        """The parent-most object that has storage."""
-        parent = self.parent
-        if isinstance(parent, Node):
-            return parent.storage_root
-        else:
-            return self
-
     def any_storage_has_contents(
         self, backend: Literal["pickle"] | StorageInterface | None
     ):
