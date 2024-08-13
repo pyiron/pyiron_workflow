@@ -240,7 +240,7 @@ class Workflow(ParentMost, Composite):
             storage_backend=storage_backend,
             overwrite_save=overwrite_save,
             run_after_init=run_after_init,
-            **kwargs
+            **kwargs,
         )
 
     @property
