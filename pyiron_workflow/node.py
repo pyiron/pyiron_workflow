@@ -342,33 +342,23 @@ class Node(
     ):
         if delete_existing_savefiles:
             self.delete_storage(backend=autoload)
-            do_load = False
-        else:
-            do_load = autoload is not None and self.any_storage_has_contents(autoload)
 
-        if do_load and autorun:
-            raise ValueError(
-                f"{self.full_label} can't both load _and_ run after init -- either"
-                f" delete the save file (e.g. with with the `delete_existing_savefiles=True` "
-                f"kwarg), change the node label to work in a new space, or give up on "
-                f"running after init."
-            )
-        elif do_load:
+        if autoload is not None and self.any_storage_has_contents(autoload):
             logger.info(
                 f"A saved file was found for the node {self.full_label} -- "
                 f"attempting to load it...(To delete the saved file instead, use "
                 f"`delete_existing_savefiles=True`)"
             )
             self.load(backend=autoload)
-            self.set_input_values(*args, **kwargs)
-        elif autorun:
+
+        self.set_input_values(*args, **kwargs)
+
+        if autorun:
             try:
-                self.set_input_values(*args, **kwargs)
                 self.run()
             except ReadinessError:
                 pass
-        else:
-            self.set_input_values(*args, **kwargs)
+
         self.graph_root.tidy_working_directory()
 
     @property

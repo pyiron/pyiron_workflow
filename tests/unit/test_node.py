@@ -436,17 +436,29 @@ class TestNode(unittest.TestCase):
                     )
 
                     run_right_away.save()
-                    with self.assertRaises(
-                        ValueError,
-                        msg="Should not be able to both immediately run _and_ load a "
-                            "node at once"
-                    ):
-                        ANode(
-                            label=self.n1.label,
-                            x=x,
-                            autorun=True,
-                            autoload=backend
-                        )
+                    load_and_rerun_origal_input = ANode(
+                        label=self.n1.label,
+                        autorun=True,
+                        autoload=backend
+                    )
+                    self.assertEqual(
+                        load_and_rerun_origal_input.outputs.y.value,
+                        run_right_away.outputs.y.value,
+                        msg="Loading and then running immediately is fine, and should "
+                            "recover existing input"
+                    )
+                    load_and_rerun_new_input = ANode(
+                        label=self.n1.label,
+                        x=x + 1,
+                        autorun=True,
+                        autoload=backend
+                    )
+                    self.assertEqual(
+                        load_and_rerun_new_input.outputs.y.value,
+                        run_right_away.outputs.y.value + 1,
+                        msg="Loading and then running immediately is fine, and should "
+                            "notice the new input"
+                    )
 
                     force_run = ANode(
                         label=self.n1.label,
