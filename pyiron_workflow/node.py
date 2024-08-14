@@ -823,14 +823,21 @@ class Node(
         """
         self.graph_root.save(backend=backend)
 
-    def load(self, backend: str | StorageInterface = "pickle"):
+    def load(
+        self,
+        backend: str | StorageInterface = "pickle",
+        only_requested=False
+    ):
         """
         Loads the node file and set the loaded state as the node's own.
 
         Raises:
             TypeError: when the saved node has a different class name.
         """
-        for backend in available_backends(backend=backend):
+        for backend in available_backends(
+            backend=backend,
+            only_requested=only_requested
+        ):
             if backend.has_contents(self):
                 inst = backend.load(self)
                 break
