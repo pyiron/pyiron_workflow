@@ -851,7 +851,7 @@ class Node(
         backend: Literal["pickle"] | StorageInterface | None = None,
         only_requested: bool = False
     ):
-        """Remove save files for _all_ available backends."""
+        """Remove save file(s)."""
         for backend in available_backends(
             backend=backend,
             only_requested=only_requested
