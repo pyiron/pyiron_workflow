@@ -33,7 +33,6 @@ if TYPE_CHECKING:
     from pathlib import Path
 
     import graphviz
-    from pyiron_snippets.files import DirectoryObject
 
     from pyiron_workflow.channels import OutputSignal
     from pyiron_workflow.nodes.composite import Composite

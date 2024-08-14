@@ -5,7 +5,6 @@ A bit of abstraction connecting generic storage routines to nodes.
 from __future__ import annotations
 
 from abc import ABC, abstractmethod
-from pathlib import Path
 import pickle
 from typing import TYPE_CHECKING
 
