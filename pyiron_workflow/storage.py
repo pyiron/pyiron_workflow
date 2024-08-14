@@ -75,19 +75,19 @@ class PickleStorage(StorageInterface):
             )
 
         try:
-            with open(self._pickle_storage_file_path(obj), "wb") as file:
+            with open(self._storage_file(self._PICKLE, obj), "wb") as file:
                 pickle.dump(obj, file)
         except Exception:
             self._delete(obj)
-            with open(self._cloudpickle_storage_file_path(obj), "wb") as file:
+            with open(self._storage_file(self._CLOUDPICKLE, obj), "wb") as file:
                 cloudpickle.dump(obj, file)
 
     def _load(self, obj: Node):
         if self._has_pickle_contents(obj):
-            with open(self._pickle_storage_file_path(obj), "rb") as file:
+            with open(self._storage_file(self._PICKLE, obj), "rb") as file:
                 inst = pickle.load(file)
         elif self._has_cloudpickle_contents(obj):
-            with open(self._cloudpickle_storage_file_path(obj), "rb") as file:
+            with open(self._storage_file(self._CLOUDPICKLE, obj), "rb") as file:
                 inst = cloudpickle.load(file)
 
         if inst.__class__ != obj.__class__:
@@ -110,17 +110,11 @@ class PickleStorage(StorageInterface):
     def _storage_file(self, file: str, obj: Node):
         return str((obj.storage_directory.path / file).resolve())
 
-    def _pickle_storage_file_path(self, obj: Node) -> str:
-        return self._storage_file(self._PICKLE, obj)
-
-    def _cloudpickle_storage_file_path(self, obj: Node) -> str:
-        return self._storage_file(self._CLOUDPICKLE, obj)
-
     def _has_contents(self, obj: Node) -> bool:
         return self._has_pickle_contents(obj) or self._has_cloudpickle_contents(obj)
 
     def _has_pickle_contents(self, obj: Node) -> bool:
-        return os.path.isfile(self._pickle_storage_file_path(obj))
+        return os.path.isfile(self._storage_file(self._PICKLE, obj))
 
     def _has_cloudpickle_contents(self, obj: Node) -> bool:
-        return os.path.isfile(self._cloudpickle_storage_file_path(obj))
+        return os.path.isfile(self._storage_file(self._CLOUDPICKLE, obj))
