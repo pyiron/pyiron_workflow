@@ -24,8 +24,8 @@ class TypeNotFoundError(ImportError):
 class StorageInterface(ABC):
 
     def save(self, node: Node):
-        dir = node.as_path()
-        dir.mkdir(parents=True, exist_ok=True)
+        directory = node.as_path()
+        directory.mkdir(parents=True, exist_ok=True)
         try:
             self._save(node)
         except Exception as e:
@@ -33,8 +33,8 @@ class StorageInterface(ABC):
         finally:
             # If nothing got written due to the exception, clean up the directory
             # (as long as there's nothing else in it)
-            if not any(dir.iterdir()):
-                dir.rmdir()
+            if not any(directory.iterdir()):
+                directory.rmdir()
 
     @abstractmethod
     def _save(self, node: Node):
@@ -56,9 +56,9 @@ class StorageInterface(ABC):
     def delete(self, node: Node):
         if self.has_contents(node):
             self._delete(node)
-        dir = node.as_path()
-        if dir.exists() and not any(dir.iterdir()):
-            dir.rmdir()
+        directory = node.as_path()
+        if directory.exists() and not any(directory.iterdir()):
+            directory.rmdir()
 
     @abstractmethod
     def _delete(self, node: Node):
@@ -81,12 +81,12 @@ class PickleStorage(StorageInterface):
                 f"{node.report_import_readiness()}"
             )
 
-        dir = node.as_path()
+        directory = node.as_path()
         for file, save_method in [
             (self._PICKLE, pickle.dump),
             (self._CLOUDPICKLE, cloudpickle.dump),
         ]:
-            p = dir / file
+            p = directory / file
             try:
                 with open(p, "wb") as filehandle:
                     save_method(node, filehandle)
@@ -96,12 +96,12 @@ class PickleStorage(StorageInterface):
         raise e
 
     def _load(self, node: Node) -> Node:
-        dir = node.as_path()
+        directory = node.as_path()
         for file, load_method in [
             (self._PICKLE, pickle.load),
             (self._CLOUDPICKLE, cloudpickle.load),
         ]:
-            p = dir / file
+            p = directory / file
             if p.exists():
                 with open(p, "rb") as filehandle:
                     inst = load_method(filehandle)
