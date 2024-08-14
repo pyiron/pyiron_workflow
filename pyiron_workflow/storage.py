@@ -44,7 +44,7 @@ class StorageInterface(ABC):
         pass
 
     def delete(self, node: Node):
-        if self.has_contents:
+        if self.has_contents(node):
             self._delete(node)
         self.tidy_storage_directory(node)
 
