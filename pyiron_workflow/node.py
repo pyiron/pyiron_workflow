@@ -876,10 +876,7 @@ class Node(
             backends_to_check.append(backend)
 
         for backend in backends_to_check:
-            try:
-                backend.delete(self)
-            except FileNotFoundError:
-                pass
+            backend.delete(self)
 
     def any_storage_has_contents(
         self, backend: Literal["pickle"] | StorageInterface | None
