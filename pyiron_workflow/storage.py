@@ -6,6 +6,7 @@ from __future__ import annotations
 
 from abc import ABC, abstractmethod
 import os
+from pathlib import Path
 import pickle
 from typing import TYPE_CHECKING
 
@@ -59,8 +60,8 @@ class StorageInterface(ABC):
 
 class PickleStorage(StorageInterface):
 
-    _PICKLE_STORAGE_FILE_NAME = "pickle.pckl"
-    _CLOUDPICKLE_STORAGE_FILE_NAME = "cloudpickle.cpckl"
+    _PICKLE = "pickle.pckl"
+    _CLOUDPICKLE = "cloudpickle.cpckl"
 
     def save(self, obj: Node):
         if not obj.import_ready:
@@ -102,18 +103,18 @@ class PickleStorage(StorageInterface):
 
     def _delete(self, obj: Node):
         if self._has_pickle_contents(obj):
-            self._delete_file(self._PICKLE_STORAGE_FILE_NAME, obj)
+            self._delete_file(self._PICKLE, obj)
         elif self._has_cloudpickle_contents(obj):
-            self._delete_file(self._CLOUDPICKLE_STORAGE_FILE_NAME, obj)
+            self._delete_file(self._CLOUDPICKLE, obj)
 
     def _storage_path(self, file: str, obj: Node):
         return str((obj.storage_directory.path / file).resolve())
 
     def _pickle_storage_file_path(self, obj: Node) -> str:
-        return self._storage_path(self._PICKLE_STORAGE_FILE_NAME, obj)
+        return self._storage_path(self._PICKLE, obj)
 
     def _cloudpickle_storage_file_path(self, obj: Node) -> str:
-        return self._storage_path(self._CLOUDPICKLE_STORAGE_FILE_NAME, obj)
+        return self._storage_path(self._CLOUDPICKLE, obj)
 
     def _has_contents(self, obj: Node) -> bool:
         return self._has_pickle_contents(obj) or self._has_cloudpickle_contents(obj)
