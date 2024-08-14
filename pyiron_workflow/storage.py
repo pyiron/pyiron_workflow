@@ -39,14 +39,9 @@ class StorageInterface(ABC):
     def _load(self, obj: Node):
         pass
 
-    def has_contents(self, obj: Node) -> bool:
-        has_contents = self._has_contents(obj)
-        obj.tidy_storage_directory()
-        return has_contents
-
     @abstractmethod
-    def _has_contents(self, obj: Node) -> bool:
-        """Whether a save file exists for this backend"""
+    def has_contents(self, obj: Node) -> bool:
+        pass
 
     def delete(self, obj: Node):
         if self.has_contents:
@@ -83,10 +78,10 @@ class PickleStorage(StorageInterface):
                 cloudpickle.dump(obj, file)
 
     def _load(self, obj: Node):
-        if self._has_pickle_contents(obj):
+        if self._has_contents(self._PICKLE, obj):
             with open(self._storage_file(self._PICKLE, obj), "rb") as file:
                 inst = pickle.load(file)
-        elif self._has_cloudpickle_contents(obj):
+        elif self._has_contents(self._CLOUDPICKLE, obj):
             with open(self._storage_file(self._CLOUDPICKLE, obj), "rb") as file:
                 inst = cloudpickle.load(file)
 
@@ -102,19 +97,18 @@ class PickleStorage(StorageInterface):
         FileObject(file, obj.storage_directory).delete()
 
     def _delete(self, obj: Node):
-        if self._has_pickle_contents(obj):
+        if self._has_contents(self._PICKLE, obj):
             self._delete_file(self._PICKLE, obj)
-        elif self._has_cloudpickle_contents(obj):
+        elif self._has_contents(self._CLOUDPICKLE, obj):
             self._delete_file(self._CLOUDPICKLE, obj)
 
     def _storage_file(self, file: str, obj: Node):
         return str((obj.storage_directory.path / file).resolve())
 
-    def _has_contents(self, obj: Node) -> bool:
-        return self._has_pickle_contents(obj) or self._has_cloudpickle_contents(obj)
+    def has_contents(self, obj: Node) -> bool:
+        return any(
+            self._has_contents(file, obj) for file in [self._PICKLE, self._CLOUDPICKLE]
+        )
 
-    def _has_pickle_contents(self, obj: Node) -> bool:
-        return os.path.isfile(self._storage_file(self._PICKLE, obj))
-
-    def _has_cloudpickle_contents(self, obj: Node) -> bool:
-        return os.path.isfile(self._storage_file(self._CLOUDPICKLE, obj))
+    def _has_contents(self, file: str, obj: Node) -> bool:
+        return os.path.isfile(self._storage_file(file, obj))
