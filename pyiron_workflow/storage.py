@@ -11,7 +11,7 @@ import pickle
 from typing import TYPE_CHECKING
 
 import cloudpickle
-from pyiron_snippets.files import FileObject
+from pyiron_snippets.files import DirectoryObject, FileObject
 
 if TYPE_CHECKING:
     from pyiron_workflow.node import Node
@@ -46,11 +46,19 @@ class StorageInterface(ABC):
     def delete(self, obj: Node):
         if self.has_contents:
             self._delete(obj)
-        obj.tidy_storage_directory()
+        self.tidy_storage_directory(obj)
 
     @abstractmethod
     def _delete(self, obj: Node):
         """Remove an existing save-file for this backend"""
+
+    @staticmethod
+    def storage_directory(obj: Node) -> DirectoryObject:
+        return obj.working_directory
+
+    @staticmethod
+    def tidy_storage_directory(obj: Node):
+        obj.tidy_working_directory()
 
 
 class PickleStorage(StorageInterface):
@@ -94,7 +102,7 @@ class PickleStorage(StorageInterface):
         obj.__setstate__(inst.__getstate__())
 
     def _delete_file(self, file: str, obj: Node):
-        FileObject(file, obj.storage_directory).delete()
+        FileObject(file, self.storage_directory(obj)).delete()
 
     def _delete(self, obj: Node):
         if self._has_contents(self._PICKLE, obj):
@@ -103,7 +111,7 @@ class PickleStorage(StorageInterface):
             self._delete_file(self._CLOUDPICKLE, obj)
 
     def _storage_file(self, file: str, obj: Node):
-        return str((obj.storage_directory.path / file).resolve())
+        return str((self.storage_directory(obj).path / file).resolve())
 
     def has_contents(self, obj: Node) -> bool:
         return any(

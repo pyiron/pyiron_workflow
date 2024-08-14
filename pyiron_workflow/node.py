@@ -794,13 +794,6 @@ class Node(
     def allowed_backends(cls):
         return tuple(cls._storage_interfaces().keys())
 
-    @property
-    def storage_directory(self) -> DirectoryObject:
-        return self.working_directory
-
-    def tidy_storage_directory(self):
-        self.tidy_working_directory()
-
     _save_load_warnings = """
         HERE BE DRAGONS!!!
 
