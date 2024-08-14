@@ -25,7 +25,7 @@ class TypeNotFoundError(ImportError):
 class StorageInterface(ABC):
 
     def save(self, node: Node):
-        dir = self._canonical_node_directory(node)
+        dir = node.as_path()
         dir.mkdir(parents=True, exist_ok=True)
         try:
             self._save(node)
@@ -57,21 +57,13 @@ class StorageInterface(ABC):
     def delete(self, node: Node):
         if self.has_contents(node):
             self._delete(node)
-        dir = self._canonical_node_directory(node)
+        dir = node.as_path()
         if dir.exists() and not any(dir.iterdir()):
             dir.rmdir()
 
     @abstractmethod
     def _delete(self, node: Node):
         """Remove an existing save-file for this backend"""
-
-    @classmethod
-    def _canonical_node_directory(cls, node: Node, start: Path | None = None) -> Path:
-        return (
-            Path.cwd() if start is None else start
-        ).joinpath(
-            *node.semantic_path.split(node.semantic_delimiter)
-        )
 
 
 class PickleStorage(StorageInterface):
@@ -90,7 +82,7 @@ class PickleStorage(StorageInterface):
                 f"{node.report_import_readiness()}"
             )
 
-        dir = self._canonical_node_directory(node)
+        dir = node.as_path()
         for file, save_method in [
             (self._PICKLE, pickle.dump),
             (self._CLOUDPICKLE, cloudpickle.dump),
@@ -105,26 +97,23 @@ class PickleStorage(StorageInterface):
         raise e
 
     def _load(self, node: Node) -> Node:
-        dir = self._canonical_node_directory(node)
+        dir = node.as_path()
         for file, load_method in [
             (self._PICKLE, pickle.load),
             (self._CLOUDPICKLE, cloudpickle.load),
         ]:
             p = (dir / file)
             if p.exists():
-                print("Looking at ", p)
                 with open(p, "rb") as filehandle:
                     inst = load_method(filehandle)
                 return inst
 
     def _delete(self, node: Node):
-        (self._canonical_node_directory(node) / self._PICKLE).unlink(missing_ok=True)
-        (
-            self._canonical_node_directory(node) / self._CLOUDPICKLE
-        ).unlink(missing_ok=True)
+        (node.as_path() / self._PICKLE).unlink(missing_ok=True)
+        (node.as_path() / self._CLOUDPICKLE).unlink(missing_ok=True)
 
     def has_contents(self, node: Node) -> bool:
         return any(
-            (self._canonical_node_directory(node) / file).exists()
+            (node.as_path() / file).exists()
             for file in [self._PICKLE, self._CLOUDPICKLE]
         )
