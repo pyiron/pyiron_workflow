@@ -11,7 +11,6 @@ import pickle
 from typing import TYPE_CHECKING
 
 import cloudpickle
-from pyiron_snippets.files import DirectoryObject, FileObject
 
 if TYPE_CHECKING:
     from pyiron_workflow.node import Node
@@ -110,7 +109,7 @@ class PickleStorage(StorageInterface):
         return inst
 
     def _delete_file(self, file: str, node: Node):
-        FileObject(file, DirectoryObject(self._canonical_node_directory(node))).delete()
+        (self._canonical_node_directory(node) / file).unlink(missing_ok=True)
 
     def _delete(self, node: Node):
         if self._has_contents(self._PICKLE, node):
