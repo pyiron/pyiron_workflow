@@ -798,10 +798,6 @@ class Node(
     def storage_directory(self) -> DirectoryObject:
         return self.working_directory
 
-    @property
-    def storage_path(self) -> str:
-        return self.graph_path
-
     def tidy_storage_directory(self):
         self.tidy_working_directory()
 
