@@ -52,13 +52,21 @@ class StorageInterface(ABC):
     def _delete(self, obj: Node):
         """Remove an existing save-file for this backend"""
 
-    @staticmethod
-    def storage_directory(obj: Node) -> DirectoryObject:
-        return obj.working_directory
+    @classmethod
+    def _canonical_node_directory(cls, node: Node, start: Path | None = None) -> Path:
+        return (
+            Path.cwd() if start is None else start
+        ).joinpath(
+            *node.semantic_path.split(node.semantic_delimiter)
+        )
 
-    @staticmethod
-    def tidy_storage_directory(obj: Node):
-        obj.tidy_working_directory()
+    def storage_directory(self, obj: Node) -> DirectoryObject:
+        return DirectoryObject(self._canonical_node_directory(obj))
+
+    def tidy_storage_directory(self, obj: Node):
+        dir = self.storage_directory(obj)
+        if dir.is_empty():
+            dir.delete()
 
 
 class PickleStorage(StorageInterface):
