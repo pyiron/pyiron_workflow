@@ -849,21 +849,16 @@ class Node(
     def delete_storage(
         self,
         backend: Literal["pickle"] | StorageInterface | None = None,
-        only_requested: bool = False
+        only_requested: bool = False,
     ):
         """Remove save file(s)."""
         for backend in available_backends(
-            backend=backend,
-            only_requested=only_requested
+            backend=backend, only_requested=only_requested
         ):
             backend.delete(self)
 
-    def has_savefile(
-        self, backend: Literal["pickle"] | StorageInterface | None = None
-    ):
-        return any(
-            be.has_contents(self) for be in available_backends(backend=backend)
-        )
+    def has_savefile(self, backend: Literal["pickle"] | StorageInterface | None = None):
+        return any(be.has_contents(self) for be in available_backends(backend=backend))
 
     @property
     def import_ready(self) -> bool:

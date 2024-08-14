@@ -103,9 +103,7 @@ class Semantic(UsesState, HasLabel, HasParent, ABC):
         The semantic path as a :class:`pathlib.Path`, with a filesystem :param:`root`
         (default is the current working directory).
         """
-        return (
-            Path.cwd() if root is None else Path(root)
-        ).joinpath(
+        return (Path.cwd() if root is None else Path(root)).joinpath(
             *self.semantic_path.split(self.semantic_delimiter)
         )
 

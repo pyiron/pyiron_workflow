@@ -101,7 +101,7 @@ class PickleStorage(StorageInterface):
             (self._PICKLE, pickle.load),
             (self._CLOUDPICKLE, cloudpickle.load),
         ]:
-            p = (dir / file)
+            p = dir / file
             if p.exists():
                 with open(p, "rb") as filehandle:
                     inst = load_method(filehandle)
@@ -120,7 +120,7 @@ class PickleStorage(StorageInterface):
 
 def available_backends(
     backend: Literal["pickle"] | StorageInterface | None = None,
-    only_requested: bool = False
+    only_requested: bool = False,
 ) -> Generator[StorageInterface, None, None]:
     """
     A generator for accessing available :class:`StorageInterface` instances, starting
