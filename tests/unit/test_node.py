@@ -8,6 +8,7 @@ from pyiron_workflow.channels import InputData, NOT_DATA
 from pyiron_workflow.mixin.injection import OutputDataWithInjection, OutputsWithInjection
 from pyiron_workflow.io import Inputs
 from pyiron_workflow.node import Node
+from pyiron_workflow.storage import available_backends, PickleStorage
 from pyiron_workflow.mixin.single_output import AmbiguousOutputError
 
 
@@ -404,10 +405,19 @@ class TestNode(unittest.TestCase):
         )
         y = self.n1()
 
-        for backend in Node.allowed_backends():
+        self.assertFalse(self.n1.has_savefile())
+
+        with self.assertRaises(
+            FileNotFoundError,
+            msg="We just verified there is no save file, so loading should fail."
+        ):
+            self.n1.load()
+
+        for backend in available_backends():
             with self.subTest(backend):
                 try:
                     self.n1.save(backend=backend)
+                    self.assertTrue(self.n1.has_savefile())
 
                     x = self.n1.inputs.x.value
                     reloaded = ANode(label=self.n1.label, x=x, autoload=backend)
@@ -475,7 +485,7 @@ class TestNode(unittest.TestCase):
                     hard_input = ANode(label="hard")
                     hard_input.inputs.x.type_hint = callable
                     hard_input.inputs.x = lambda x: x * 2
-                    if backend == "pickle":
+                    if isinstance(backend, PickleStorage):
                         hard_input.save()
                         reloaded = ANode(
                             label=hard_input.label,
@@ -497,7 +507,7 @@ class TestNode(unittest.TestCase):
                     hard_input.delete_storage(backend)
 
     def test_checkpoint(self):
-        for backend in Node.allowed_backends():
+        for backend in available_backends():
             with self.subTest(backend):
                 try:
                     ANode(

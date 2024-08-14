@@ -1,4 +1,6 @@
+from pathlib import Path
 import unittest
+
 from pyiron_workflow.mixin.semantics import (
     Semantic, SemanticParent, ParentMost, CyclicPathError
 )
@@ -72,6 +74,28 @@ class TestSemantics(unittest.TestCase):
         self.assertEqual(self.middle1.semantic_root, self.root)
         self.assertEqual(self.middle2.semantic_root, self.root)
         self.assertEqual(self.child2.semantic_root, self.root)
+
+    def test_as_path(self):
+        self.assertEqual(
+            self.root.as_path(),
+            Path.cwd() / self.root.label,
+            msg="Default None root"
+        )
+        self.assertEqual(
+            self.child1.as_path(root=".."),
+            Path("..") / self.root.label / self.child1.label,
+            msg="String root"
+        )
+        self.assertEqual(
+            self.middle2.as_path(root=Path("..", "..")),
+            (
+                Path("..", "..") /
+                self.root.label /
+                self.middle1.label /
+                self.middle2.label
+            ),
+            msg="Path root"
+        )
 
 
 if __name__ == '__main__':

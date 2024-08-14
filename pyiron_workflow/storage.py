@@ -5,12 +5,10 @@ A bit of abstraction connecting generic storage routines to nodes.
 from __future__ import annotations
 
 from abc import ABC, abstractmethod
-import os
 import pickle
-from typing import TYPE_CHECKING
+from typing import Generator, Literal, TYPE_CHECKING
 
 import cloudpickle
-from pyiron_snippets.files import FileObject
 
 if TYPE_CHECKING:
     from pyiron_workflow.node import Node
@@ -25,101 +23,136 @@ class TypeNotFoundError(ImportError):
 
 class StorageInterface(ABC):
 
+    def save(self, node: Node):
+        directory = node.as_path()
+        directory.mkdir(parents=True, exist_ok=True)
+        try:
+            self._save(node)
+        except Exception as e:
+            raise e
+        finally:
+            # If nothing got written due to the exception, clean up the directory
+            # (as long as there's nothing else in it)
+            if not any(directory.iterdir()):
+                directory.rmdir()
+
     @abstractmethod
-    def save(self, obj: Node):
+    def _save(self, node: Node):
         pass
 
-    def load(self, obj: Node):
+    def load(self, node: Node) -> Node:
         # Misdirection is strictly for symmetry with _save, so child classes define the
         # private method in both cases
-        return self._load(obj)
+        return self._load(node)
 
     @abstractmethod
-    def _load(self, obj: Node):
+    def _load(self, node: Node):
         pass
 
-    def has_contents(self, obj: Node) -> bool:
-        has_contents = self._has_contents(obj)
-        obj.tidy_storage_directory()
-        return has_contents
+    @abstractmethod
+    def has_contents(self, node: Node) -> bool:
+        pass
+
+    def delete(self, node: Node):
+        if self.has_contents(node):
+            self._delete(node)
+        directory = node.as_path()
+        if directory.exists() and not any(directory.iterdir()):
+            directory.rmdir()
 
     @abstractmethod
-    def _has_contents(self, obj: Node) -> bool:
-        """Whether a save file exists for this backend"""
-
-    def delete(self, obj: Node):
-        if self.has_contents:
-            self._delete(obj)
-        obj.tidy_storage_directory()
-
-    @abstractmethod
-    def _delete(self, obj: Node):
+    def _delete(self, node: Node):
         """Remove an existing save-file for this backend"""
 
 
 class PickleStorage(StorageInterface):
 
-    _PICKLE_STORAGE_FILE_NAME = "pickle.pckl"
-    _CLOUDPICKLE_STORAGE_FILE_NAME = "cloudpickle.cpckl"
+    _PICKLE = "pickle.pckl"
+    _CLOUDPICKLE = "cloudpickle.cpckl"
 
-    def save(self, obj: Node):
-        if not obj.import_ready:
+    def _save(self, node: Node):
+        if not node.import_ready:
             raise TypeNotFoundError(
-                f"{obj.label} cannot be saved with the storage interface "
+                f"{node.label} cannot be saved with the storage interface "
                 f"{self.__class__.__name__} because it (or one of its children) has "
                 f"a type that cannot be imported. Did you dynamically define this "
-                f"object? \n"
+                f"nodeect? \n"
                 f"Import readiness report: \n"
-                f"{obj.report_import_readiness()}"
+                f"{node.report_import_readiness()}"
             )
 
-        try:
-            with open(self._pickle_storage_file_path(obj), "wb") as file:
-                pickle.dump(obj, file)
-        except Exception:
-            self._delete(obj)
-            with open(self._cloudpickle_storage_file_path(obj), "wb") as file:
-                cloudpickle.dump(obj, file)
+        directory = node.as_path()
+        for file, save_method in [
+            (self._PICKLE, pickle.dump),
+            (self._CLOUDPICKLE, cloudpickle.dump),
+        ]:
+            p = directory / file
+            try:
+                with open(p, "wb") as filehandle:
+                    save_method(node, filehandle)
+                return
+            except Exception as e:
+                p.unlink(missing_ok=True)
+        raise e
 
-    def _load(self, obj: Node):
-        if self._has_pickle_contents(obj):
-            with open(self._pickle_storage_file_path(obj), "rb") as file:
-                inst = pickle.load(file)
-        elif self._has_cloudpickle_contents(obj):
-            with open(self._cloudpickle_storage_file_path(obj), "rb") as file:
-                inst = cloudpickle.load(file)
+    def _load(self, node: Node) -> Node:
+        directory = node.as_path()
+        for file, load_method in [
+            (self._PICKLE, pickle.load),
+            (self._CLOUDPICKLE, cloudpickle.load),
+        ]:
+            p = directory / file
+            if p.exists():
+                with open(p, "rb") as filehandle:
+                    inst = load_method(filehandle)
+                return inst
 
-        if inst.__class__ != obj.__class__:
-            raise TypeError(
-                f"{obj.label} cannot load, as it has type "
-                f"{obj.__class__.__name__},  but the saved node has type "
-                f"{inst.__class__.__name__}"
-            )
-        obj.__setstate__(inst.__getstate__())
+    def _delete(self, node: Node):
+        (node.as_path() / self._PICKLE).unlink(missing_ok=True)
+        (node.as_path() / self._CLOUDPICKLE).unlink(missing_ok=True)
 
-    def _delete_file(self, file: str, obj: Node):
-        FileObject(file, obj.storage_directory).delete()
+    def has_contents(self, node: Node) -> bool:
+        return any(
+            (node.as_path() / file).exists()
+            for file in [self._PICKLE, self._CLOUDPICKLE]
+        )
 
-    def _delete(self, obj: Node):
-        if self._has_pickle_contents(obj):
-            self._delete_file(self._PICKLE_STORAGE_FILE_NAME, obj)
-        elif self._has_cloudpickle_contents(obj):
-            self._delete_file(self._CLOUDPICKLE_STORAGE_FILE_NAME, obj)
 
-    def _storage_path(self, file: str, obj: Node):
-        return str((obj.storage_directory.path / file).resolve())
+def available_backends(
+    backend: Literal["pickle"] | StorageInterface | None = None,
+    only_requested: bool = False,
+) -> Generator[StorageInterface, None, None]:
+    """
+    A generator for accessing available :class:`StorageInterface` instances, starting
+    with the one requested.
 
-    def _pickle_storage_file_path(self, obj: Node) -> str:
-        return self._storage_path(self._PICKLE_STORAGE_FILE_NAME, obj)
+    Args:
+        backend (Literal["pickle"] | StorageInterface | None): The interface to yield
+            first.
+        only_requested (bool): Stop after yielding whatever was specified by
+            :param:`backend`.
 
-    def _cloudpickle_storage_file_path(self, obj: Node) -> str:
-        return self._storage_path(self._CLOUDPICKLE_STORAGE_FILE_NAME, obj)
+    Yields:
+        StorageInterface: An interface for serializing :class:`Node`.
+    """
 
-    def _has_contents(self, obj: Node) -> bool:
-        return self._has_pickle_contents(obj) or self._has_cloudpickle_contents(obj)
+    standard_backends = {"pickle": PickleStorage}
 
-    def _has_pickle_contents(self, obj: Node) -> bool:
-        return os.path.isfile(self._pickle_storage_file_path(obj))
+    def yield_requested():
+        if isinstance(backend, str):
+            yield standard_backends[backend]()
+        elif isinstance(backend, StorageInterface):
+            yield backend
 
-    def _has_cloudpickle_contents(self, obj: Node) -> bool:
-        return os.path.isfile(self._cloudpickle_storage_file_path(obj))
+    if backend is not None:
+        yield from yield_requested()
+        if only_requested:
+            return
+
+    for key, value in standard_backends.items():
+        if (
+            backend is None
+            or (isinstance(backend, str) and key != backend)
+            or (isinstance(backend, StorageInterface) and value != backend)
+        ):
+            yield value()

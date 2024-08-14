@@ -9,7 +9,7 @@ from pyiron_snippets.dotdict import DotDict
 from pyiron_workflow._tests import ensure_tests_in_python_path
 from pyiron_workflow.channels import NOT_DATA
 from pyiron_workflow.mixin.semantics import ParentMostError
-from pyiron_workflow.storage import TypeNotFoundError
+from pyiron_workflow.storage import available_backends, TypeNotFoundError
 from pyiron_workflow.workflow import Workflow
 
 ensure_tests_in_python_path()
@@ -440,7 +440,7 @@ class TestWorkflow(unittest.TestCase):
         wf.executor_shutdown()
 
     def test_storage_values(self):
-        for backend in Workflow.allowed_backends():
+        for backend in available_backends():
             with self.subTest(backend):
                 try:
                     wf = Workflow("wf")
@@ -471,18 +471,16 @@ class TestWorkflow(unittest.TestCase):
         # Test invocation
         wf.add_child(demo_nodes.AddPlusOne(label="by_add"))
 
-        for backend in Workflow.allowed_backends():
-            with self.subTest(backend):
-                for backend in Workflow.allowed_backends():
-                    try:
-                        with self.subTest(backend):
-                            wf.save(backend=backend)
-                            Workflow(wf.label, autoload=backend)
-                    finally:
-                        wf.delete_storage(backend)
+        for backend in available_backends():
+            try:
+                with self.subTest(backend):
+                    wf.save(backend=backend)
+                    Workflow(wf.label, autoload=backend)
+            finally:
+                wf.delete_storage(backend)
 
         with self.subTest("No unimportable nodes for either back-end"):
-            for backend in Workflow.allowed_backends():
+            for backend in available_backends():
                 try:
                     wf.import_type_mismatch = demo_nodes.Dynamic()
                     with self.subTest(backend):
