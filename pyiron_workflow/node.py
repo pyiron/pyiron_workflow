@@ -359,8 +359,6 @@ class Node(
             except ReadinessError:
                 pass
 
-        self.graph_root.tidy_working_directory()
-
     @property
     def graph_path(self) -> str:
         """
