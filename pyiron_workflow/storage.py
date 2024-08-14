@@ -26,8 +26,14 @@ class TypeNotFoundError(ImportError):
 
 class StorageInterface(ABC):
 
-    @abstractmethod
     def save(self, node: Node):
+        dir = DirectoryObject(self._canonical_node_directory(node))
+        self._save(node)
+        if dir.is_empty():
+            dir.delete()
+
+    @abstractmethod
+    def _save(self, node: Node):
         pass
 
     def load(self, node: Node) -> Node:
@@ -46,7 +52,10 @@ class StorageInterface(ABC):
     def delete(self, node: Node):
         if self.has_contents(node):
             self._delete(node)
-        self.tidy_storage_directory(node)
+        if self._canonical_node_directory(node).exists():
+            dir = DirectoryObject(self._canonical_node_directory(node))
+            if dir.is_empty():
+                dir.delete()
 
     @abstractmethod
     def _delete(self, node: Node):
@@ -60,21 +69,13 @@ class StorageInterface(ABC):
             *node.semantic_path.split(node.semantic_delimiter)
         )
 
-    def storage_directory(self, node: Node) -> DirectoryObject:
-        return DirectoryObject(self._canonical_node_directory(node))
-
-    def tidy_storage_directory(self, node: Node):
-        dir = self.storage_directory(node)
-        if dir.is_empty():
-            dir.delete()
-
 
 class PickleStorage(StorageInterface):
 
     _PICKLE = "pickle.pckl"
     _CLOUDPICKLE = "cloudpickle.cpckl"
 
-    def save(self, node: Node):
+    def _save(self, node: Node):
         if not node.import_ready:
             raise TypeNotFoundError(
                 f"{node.label} cannot be saved with the storage interface "
@@ -103,7 +104,7 @@ class PickleStorage(StorageInterface):
         return inst
 
     def _delete_file(self, file: str, node: Node):
-        FileObject(file, self.storage_directory(node)).delete()
+        FileObject(file, DirectoryObject(self._canonical_node_directory(node))).delete()
 
     def _delete(self, node: Node):
         if self._has_contents(self._PICKLE, node):
@@ -112,7 +113,7 @@ class PickleStorage(StorageInterface):
             self._delete_file(self._CLOUDPICKLE, node)
 
     def _storage_file(self, file: str, node: Node):
-        return str((self.storage_directory(node).path / file).resolve())
+        return str((self._canonical_node_directory(node) / file).resolve())
 
     def has_contents(self, node: Node) -> bool:
         return any(
