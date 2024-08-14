@@ -5,7 +5,6 @@ A bit of abstraction connecting generic storage routines to nodes.
 from __future__ import annotations
 
 from abc import ABC, abstractmethod
-import os
 from pathlib import Path
 import pickle
 from typing import TYPE_CHECKING
@@ -91,39 +90,41 @@ class PickleStorage(StorageInterface):
                 f"{node.report_import_readiness()}"
             )
 
-        try:
-            with open(self._storage_file(self._PICKLE, node), "wb") as file:
-                pickle.dump(node, file)
-        except Exception:
-            self._delete(node)
-            with open(self._storage_file(self._CLOUDPICKLE, node), "wb") as file:
-                cloudpickle.dump(node, file)
+        dir = self._canonical_node_directory(node)
+        for file, save_method in [
+            (self._PICKLE, pickle.dump),
+            (self._CLOUDPICKLE, cloudpickle.dump),
+        ]:
+            p = dir / file
+            try:
+                with open(p, "wb") as filehandle:
+                    save_method(node, filehandle)
+                return
+            except Exception as e:
+                p.unlink(missing_ok=True)
+        raise e
 
     def _load(self, node: Node) -> Node:
-        if self._has_contents(self._PICKLE, node):
-            with open(self._storage_file(self._PICKLE, node), "rb") as file:
-                inst = pickle.load(file)
-        elif self._has_contents(self._CLOUDPICKLE, node):
-            with open(self._storage_file(self._CLOUDPICKLE, node), "rb") as file:
-                inst = cloudpickle.load(file)
-        return inst
-
-    def _delete_file(self, file: str, node: Node):
-        (self._canonical_node_directory(node) / file).unlink(missing_ok=True)
+        dir = self._canonical_node_directory(node)
+        for file, load_method in [
+            (self._PICKLE, pickle.load),
+            (self._CLOUDPICKLE, cloudpickle.load),
+        ]:
+            p = (dir / file)
+            if p.exists():
+                print("Looking at ", p)
+                with open(p, "rb") as filehandle:
+                    inst = load_method(filehandle)
+                return inst
 
     def _delete(self, node: Node):
-        if self._has_contents(self._PICKLE, node):
-            self._delete_file(self._PICKLE, node)
-        elif self._has_contents(self._CLOUDPICKLE, node):
-            self._delete_file(self._CLOUDPICKLE, node)
-
-    def _storage_file(self, file: str, node: Node):
-        return str((self._canonical_node_directory(node) / file).resolve())
+        (self._canonical_node_directory(node) / self._PICKLE).unlink(missing_ok=True)
+        (
+            self._canonical_node_directory(node) / self._CLOUDPICKLE
+        ).unlink(missing_ok=True)
 
     def has_contents(self, node: Node) -> bool:
         return any(
-            self._has_contents(file, node) for file in [self._PICKLE, self._CLOUDPICKLE]
+            (self._canonical_node_directory(node) / file).exists()
+            for file in [self._PICKLE, self._CLOUDPICKLE]
         )
-
-    def _has_contents(self, file: str, node: Node) -> bool:
-        return os.path.isfile(self._storage_file(file, node))
