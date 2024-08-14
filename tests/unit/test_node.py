@@ -407,6 +407,12 @@ class TestNode(unittest.TestCase):
 
         self.assertFalse(self.n1.has_savefile())
 
+        with self.assertRaises(
+            FileNotFoundError,
+            msg="We just verified there is no save file, so loading should fail."
+        ):
+            self.n1.load()
+
         for backend in available_backends():
             with self.subTest(backend):
                 try:
