@@ -6,7 +6,7 @@ from __future__ import annotations
 
 from abc import ABC, abstractmethod
 import pickle
-from typing import TYPE_CHECKING
+from typing import Generator, Literal, TYPE_CHECKING
 
 import cloudpickle
 
@@ -116,3 +116,43 @@ class PickleStorage(StorageInterface):
             (node.as_path() / file).exists()
             for file in [self._PICKLE, self._CLOUDPICKLE]
         )
+
+
+def available_backends(
+    backend: Literal["pickle"] | StorageInterface | None = None,
+    only_requested: bool = False
+) -> Generator[StorageInterface, None, None]:
+    """
+    A generator for accessing available :class:`StorageInterface` instances, starting
+    with the one requested.
+
+    Args:
+        backend (Literal["pickle"] | StorageInterface | None): The interface to yield
+            first.
+        only_requested (bool): Stop after yielding whatever was specified by
+            :param:`backend`.
+
+    Yields:
+        StorageInterface: An interface for serializing :class:`Node`.
+    """
+
+    standard_backends = {"pickle": PickleStorage}
+
+    def yield_requested():
+        if isinstance(backend, str):
+            yield standard_backends[backend]()
+        elif isinstance(backend, StorageInterface):
+            yield backend
+
+    if backend is not None:
+        yield from yield_requested()
+        if only_requested:
+            return
+
+    for key, value in standard_backends.items():
+        if (
+            backend is None
+            or (isinstance(backend, str) and key != backend)
+            or (isinstance(backend, StorageInterface) and value != backend)
+        ):
+            yield value()

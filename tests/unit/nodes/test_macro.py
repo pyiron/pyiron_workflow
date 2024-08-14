@@ -7,6 +7,7 @@ from pyiron_workflow._tests import ensure_tests_in_python_path
 from pyiron_workflow.channels import NOT_DATA
 from pyiron_workflow.nodes.function import function_node, as_function_node
 from pyiron_workflow.nodes.macro import Macro, macro_node, as_macro_node
+from pyiron_workflow.storage import available_backends, PickleStorage
 from pyiron_workflow.topology import CircularDataFlowError
 
 ensure_tests_in_python_path()
@@ -479,7 +480,7 @@ class TestMacro(unittest.TestCase):
             print(m.child_labels, m.inputs, m.outputs)
 
     def test_storage_for_modified_macros(self):
-        for backend in Macro.allowed_backends():
+        for backend in available_backends():
             with self.subTest(backend):
                 try:
                     macro = demo_nodes.AddThree(label="m", x=0)
@@ -490,7 +491,7 @@ class TestMacro(unittest.TestCase):
 
                     modified_result = macro()
 
-                    if backend == "pickle":
+                    if isinstance(backend, PickleStorage):
                         macro.save(backend)
                         reloaded = demo_nodes.AddThree(
                             label="m", autoload=backend

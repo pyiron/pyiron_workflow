@@ -22,7 +22,7 @@ from pyiron_workflow.mixin.injection import HasIOWithInjection
 from pyiron_workflow.mixin.run import Runnable, ReadinessError
 from pyiron_workflow.mixin.semantics import Semantic
 from pyiron_workflow.mixin.single_output import ExploitsSingleOutput
-from pyiron_workflow.storage import StorageInterface, PickleStorage
+from pyiron_workflow.storage import StorageInterface, PickleStorage, available_backends
 from pyiron_workflow.topology import (
     get_nodes_in_data_tree,
     set_run_connections_according_to_linear_dag,
@@ -342,13 +342,16 @@ class Node(
         if delete_existing_savefiles:
             self.delete_storage(backend=autoload)
 
-        if autoload is not None and self.any_storage_has_contents(autoload):
-            logger.info(
-                f"A saved file was found for the node {self.full_label} -- "
-                f"attempting to load it...(To delete the saved file instead, use "
-                f"`delete_existing_savefiles=True`)"
-            )
-            self.load(backend=autoload)
+        if autoload is not None:
+            for backend in available_backends(backend=autoload):
+                if backend.has_contents(self):
+                    logger.info(
+                        f"A saved file was found for the node {self.full_label} -- "
+                        f"attempting to load it...(To delete the saved file instead, "
+                        f"use `delete_existing_savefiles=True`) "
+                    )
+                    self.load(backend=autoload)
+                    break
 
         self.set_input_values(*args, **kwargs)
 
@@ -783,14 +786,6 @@ class Node(
         else:
             logger.info(f"Could not replace_child {self.label}, as it has no parent.")
 
-    @classmethod
-    def _storage_interfaces(cls):
-        return {"pickle": PickleStorage}
-
-    @classmethod
-    def allowed_backends(cls):
-        return tuple(cls._storage_interfaces().keys())
-
     _save_load_warnings = """
         HERE BE DRAGONS!!!
 
@@ -815,13 +810,10 @@ class Node(
 
     def save(self, backend: str | StorageInterface = "pickle"):
         """
-        Writes the node to file (using HDF5) such that a new node instance of the same
-        type can :meth:`load()` the data to return to the same state as the save point,
-        i.e. the same data IO channel values, the same flags, etc.
+        Writes the node to file using the requested interface as a back end.
         """
-        if isinstance(backend, str):
-            backend = self._storage_interfaces()[backend]()
-        backend.save(self)
+        for backend in available_backends(backend=backend, only_requested=True):
+            backend.save(self)
 
     save.__doc__ += _save_load_warnings
 
@@ -838,18 +830,11 @@ class Node(
         Raises:
             TypeError: when the saved node has a different class name.
         """
-        if isinstance(backend, str):
-            backend = self._storage_interfaces()[backend]()
-
-        if backend.has_contents(self):
-            inst = backend.load(self)
-        else:
-            # Check for saved content using any other backend
-            for backend_class in self.allowed_backends():
-                backend = self._storage_interfaces()[backend_class]()
-                if backend.has_contents(self):
-                    inst = backend.load(self)
-                    break
+        for backend in available_backends(backend=backend):
+            if backend.has_contents(self):
+                inst = backend.load(self)
+                break
+            raise FileNotFoundError(f"{self.label} could not find saved content.")
 
         if inst.__class__ != self.__class__:
             raise TypeError(
@@ -862,35 +847,23 @@ class Node(
     load.__doc__ += _save_load_warnings
 
     def delete_storage(
-        self, backend: Literal["pickle"] | StorageInterface | None = None
+        self,
+        backend: Literal["pickle"] | StorageInterface | None = None,
+        only_requested: bool = False
     ):
         """Remove save files for _all_ available backends."""
-        backends_to_check = [
-            self._storage_interfaces()[backend_class]()
-            for backend_class in self.allowed_backends()
-        ]
-        if isinstance(backend, str):
-            backends_to_check.append(self._storage_interfaces()[backend]())
-        elif isinstance(backend, StorageInterface):
-            backends_to_check.append(backend)
-
-        for backend in backends_to_check:
+        for backend in available_backends(
+            backend=backend,
+            only_requested=only_requested
+        ):
             backend.delete(self)
 
-    def any_storage_has_contents(
-        self, backend: Literal["pickle"] | StorageInterface | None
+    def has_savefile(
+        self, backend: Literal["pickle"] | StorageInterface | None = None
     ):
-        if isinstance(backend, str) and self._storage_interfaces()[
-            backend
-        ]().has_contents(self):
-            return True
-        elif isinstance(backend, StorageInterface) and backend.has_contents(self):
-            return True
-        else:
-            return any(
-                self._storage_interfaces()[backend]().has_contents(self)
-                for backend in self.allowed_backends()
-            )
+        return any(
+            be.has_contents(self) for be in available_backends(backend=backend)
+        )
 
     @property
     def import_ready(self) -> bool:
