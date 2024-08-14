@@ -107,14 +107,14 @@ class PickleStorage(StorageInterface):
         elif self._has_cloudpickle_contents(obj):
             self._delete_file(self._CLOUDPICKLE, obj)
 
-    def _storage_path(self, file: str, obj: Node):
+    def _storage_file(self, file: str, obj: Node):
         return str((obj.storage_directory.path / file).resolve())
 
     def _pickle_storage_file_path(self, obj: Node) -> str:
-        return self._storage_path(self._PICKLE, obj)
+        return self._storage_file(self._PICKLE, obj)
 
     def _cloudpickle_storage_file_path(self, obj: Node) -> str:
-        return self._storage_path(self._CLOUDPICKLE, obj)
+        return self._storage_file(self._CLOUDPICKLE, obj)
 
     def _has_contents(self, obj: Node) -> bool:
         return self._has_pickle_contents(obj) or self._has_cloudpickle_contents(obj)
