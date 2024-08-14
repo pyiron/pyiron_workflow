@@ -23,6 +23,22 @@ class TypeNotFoundError(ImportError):
 
 class StorageInterface(ABC):
 
+    @abstractmethod
+    def _save(self, node: Node):
+        pass
+
+    @abstractmethod
+    def _load(self, node: Node):
+        pass
+
+    @abstractmethod
+    def _delete(self, node: Node):
+        """Remove an existing save-file for this backend"""
+
+    @abstractmethod
+    def has_contents(self, node: Node) -> bool:
+        pass
+
     def save(self, node: Node):
         directory = node.as_path()
         directory.mkdir(parents=True, exist_ok=True)
@@ -36,22 +52,10 @@ class StorageInterface(ABC):
             if not any(directory.iterdir()):
                 directory.rmdir()
 
-    @abstractmethod
-    def _save(self, node: Node):
-        pass
-
     def load(self, node: Node) -> Node:
         # Misdirection is strictly for symmetry with _save, so child classes define the
         # private method in both cases
         return self._load(node)
-
-    @abstractmethod
-    def _load(self, node: Node):
-        pass
-
-    @abstractmethod
-    def has_contents(self, node: Node) -> bool:
-        pass
 
     def delete(self, node: Node):
         if self.has_contents(node):
@@ -59,10 +63,6 @@ class StorageInterface(ABC):
         directory = node.as_path()
         if directory.exists() and not any(directory.iterdir()):
             directory.rmdir()
-
-    @abstractmethod
-    def _delete(self, node: Node):
-        """Remove an existing save-file for this backend"""
 
 
 class PickleStorage(StorageInterface):
