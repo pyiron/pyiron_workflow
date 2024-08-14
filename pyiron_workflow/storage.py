@@ -27,10 +27,17 @@ class TypeNotFoundError(ImportError):
 class StorageInterface(ABC):
 
     def save(self, node: Node):
-        dir = DirectoryObject(self._canonical_node_directory(node))
-        self._save(node)
-        if dir.is_empty():
-            dir.delete()
+        dir = self._canonical_node_directory(node)
+        dir.mkdir(parents=True, exist_ok=True)
+        try:
+            self._save(node)
+        except Exception as e:
+            raise e
+        finally:
+            # If nothing got written due to the exception, clean up the directory
+            # (as long as there's nothing else in it)
+            if not any(dir.iterdir()):
+                dir.rmdir()
 
     @abstractmethod
     def _save(self, node: Node):
@@ -52,10 +59,9 @@ class StorageInterface(ABC):
     def delete(self, node: Node):
         if self.has_contents(node):
             self._delete(node)
-        if self._canonical_node_directory(node).exists():
-            dir = DirectoryObject(self._canonical_node_directory(node))
-            if dir.is_empty():
-                dir.delete()
+        dir = self._canonical_node_directory(node)
+        if dir.exists() and not any(dir.iterdir()):
+            dir.rmdir()
 
     @abstractmethod
     def _delete(self, node: Node):
