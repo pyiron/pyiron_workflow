@@ -30,7 +30,7 @@ class StorageInterface(ABC):
     def save(self, obj: Node):
         pass
 
-    def load(self, obj: Node):
+    def load(self, obj: Node) -> Node:
         # Misdirection is strictly for symmetry with _save, so child classes define the
         # private method in both cases
         return self._load(obj)
@@ -85,21 +85,14 @@ class PickleStorage(StorageInterface):
             with open(self._storage_file(self._CLOUDPICKLE, obj), "wb") as file:
                 cloudpickle.dump(obj, file)
 
-    def _load(self, obj: Node):
+    def _load(self, obj: Node) -> Node:
         if self._has_contents(self._PICKLE, obj):
             with open(self._storage_file(self._PICKLE, obj), "rb") as file:
                 inst = pickle.load(file)
         elif self._has_contents(self._CLOUDPICKLE, obj):
             with open(self._storage_file(self._CLOUDPICKLE, obj), "rb") as file:
                 inst = cloudpickle.load(file)
-
-        if inst.__class__ != obj.__class__:
-            raise TypeError(
-                f"{obj.label} cannot load, as it has type "
-                f"{obj.__class__.__name__},  but the saved node has type "
-                f"{inst.__class__.__name__}"
-            )
-        obj.__setstate__(inst.__getstate__())
+        return inst
 
     def _delete_file(self, file: str, obj: Node):
         FileObject(file, self.storage_directory(obj)).delete()

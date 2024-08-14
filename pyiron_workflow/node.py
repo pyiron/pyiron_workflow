@@ -836,8 +836,7 @@ class Node(
 
     def load(self, backend: str | StorageInterface = "pickle"):
         """
-        Loads the node file (from HDF5) such that this node restores its state at time
-        of loading.
+        Loads the node file and set the loaded state as the node's own.
 
         Raises:
             TypeError: when the saved node has a different class name.
@@ -846,14 +845,22 @@ class Node(
             backend = self._storage_interfaces()[backend]()
 
         if backend.has_contents(self):
-            backend.load(self)
+            inst = backend.load(self)
         else:
             # Check for saved content using any other backend
             for backend_class in self.allowed_backends():
                 backend = self._storage_interfaces()[backend_class]()
                 if backend.has_contents(self):
-                    backend.load(self)
+                    inst = backend.load(self)
                     break
+
+        if inst.__class__ != self.__class__:
+            raise TypeError(
+                f"{self.label} cannot load, as it has type "
+                f"{self.__class__.__name__},  but the saved node has type "
+                f"{inst.__class__.__name__}"
+            )
+        self.__setstate__(inst.__getstate__())
 
     load.__doc__ += _save_load_warnings
 
