@@ -812,12 +812,13 @@ class Node(
         self,
         backend: str | StorageInterface = "pickle",
         filename: str | Path | None = None,
+        **kwargs,
     ):
         """
         Writes the node to file using the requested interface as a back end.
         """
         for backend in available_backends(backend=backend, only_requested=True):
-            backend.save(node=self, filename=filename)
+            backend.save(node=self, filename=filename, **kwargs)
 
     save.__doc__ += _save_load_warnings
 
@@ -831,6 +832,7 @@ class Node(
         self,
         backend: str | StorageInterface = "pickle",
         only_requested=False,
+        **kwargs
     ):
         """
         Loads the node file and set the loaded state as the node's own.
@@ -842,7 +844,7 @@ class Node(
             backend=backend,
             only_requested=only_requested
         ):
-            inst = backend.load(node=self)
+            inst = backend.load(node=self, **kwargs)
             if inst is not None:
                 break
         if inst is None:
@@ -862,15 +864,24 @@ class Node(
         self,
         backend: Literal["pickle"] | StorageInterface | None = None,
         only_requested: bool = False,
+        **kwargs
     ):
         """Remove save file(s)."""
         for backend in available_backends(
             backend=backend, only_requested=only_requested
         ):
-            backend.delete(node=self)
+            backend.delete(node=self, **kwargs)
 
-    def has_savefile(self, backend: Literal["pickle"] | StorageInterface | None = None):
-        return any(be.has_contents(self) for be in available_backends(backend=backend))
+    def has_savefile(
+        self,
+        backend: Literal["pickle"] | StorageInterface | None = None,
+        only_requested: bool = False,
+        **kwargs
+    ):
+        return any(
+            be.has_contents(self, **kwargs)
+            for be in available_backends(backend=backend, only_requested=only_requested)
+        )
 
     @property
     def import_ready(self) -> bool:

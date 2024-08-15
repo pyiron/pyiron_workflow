@@ -489,7 +489,7 @@ class TestWorkflow(unittest.TestCase):
                                 msg="Imported object is function but node type is node "
                                     "-- should fail early on save"
                             ):
-                                wf.save(backend=backend)
+                                wf.save(backend=backend, cloudpickle_fallback=False)
                 finally:
                     wf.remove_child(wf.import_type_mismatch)
                     wf.delete_storage(backend)
