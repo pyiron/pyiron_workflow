@@ -45,7 +45,6 @@ class StorageInterface(ABC):
                 extension.)
             **kwargs: Additional keyword arguments.
         """
-        pass
 
     @abstractmethod
     def _load(self, filename: Path, /, **kwargs) -> Node:
@@ -59,7 +58,6 @@ class StorageInterface(ABC):
         Returns:
             Node: The node stored there.
         """
-        pass
 
     @abstractmethod
     def _has_saved_content(self, filename: Path, /, **kwargs) -> bool:
@@ -73,7 +71,6 @@ class StorageInterface(ABC):
         Returns:
             bool: Whether a commensurate file was found.
         """
-        pass
 
     @abstractmethod
     def _delete(self, filename: Path, /, **kwargs):
