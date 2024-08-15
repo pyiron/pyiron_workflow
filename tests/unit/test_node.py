@@ -1,8 +1,5 @@
 from concurrent.futures import Future, ProcessPoolExecutor
-import os
 import unittest
-
-from pyiron_snippets.files import DirectoryObject
 
 from pyiron_workflow.channels import InputData, NOT_DATA
 from pyiron_workflow.mixin.injection import OutputDataWithInjection, OutputsWithInjection
@@ -273,40 +270,10 @@ class TestNode(unittest.TestCase):
                 "made a ran/run connection"
         )
 
-    def test_working_directory(self):
-        self.assertTrue(
-            self.n1._working_directory is None,
-            msg="Sanity check -- No working directory should be made unless asked for"
-        )
-        self.assertFalse(
-            os.path.isdir(self.n1.label),
-            msg="Sanity check -- No working directory should be made unless asked for"
-        )
-        self.assertIsInstance(
-            self.n1.working_directory,
-            DirectoryObject,
-            msg="Directory should be created on first access"
-        )
-        self.assertTrue(
-            str(self.n1.working_directory.path).endswith(self.n1.label),
-            msg="Directory name should be based off of label"
-        )
-        self.assertTrue(
-            os.path.isdir(self.n1.label),
-            msg="Now we asked for it, it should be there"
-        )
-        self.n1.working_directory.delete()
-        self.assertFalse(
-            os.path.isdir(self.n1.label),
-            msg="Just want to make sure we cleaned up after ourselves"
-        )
-
     def test_draw(self):
         try:
             self.n1.draw()
-            self.assertFalse(
-                any(self.n1.working_directory.path.iterdir())
-            )
+            self.assertFalse(self.n1.as_path().exists())
 
             for fmt in ["pdf", "png"]:
                 with self.subTest(f"Testing with format {fmt}"):
@@ -315,7 +282,7 @@ class TestNode(unittest.TestCase):
                     # That name is just an implementation detail, update it as
                     # needed
                     self.assertTrue(
-                        self.n1.working_directory.path.joinpath(
+                        self.n1.as_path().joinpath(
                             expected_name
                         ).is_file(),
                         msg="If `save` is called, expect the rendered image to "
@@ -326,13 +293,16 @@ class TestNode(unittest.TestCase):
             self.n1.draw(filename=user_specified_name, format=fmt)
             expected_name = user_specified_name + "." + fmt
             self.assertTrue(
-                self.n1.working_directory.path.joinpath(expected_name).is_file(),
+                self.n1.as_path().joinpath(expected_name).is_file(),
                 msg="If the user specifies a filename, we should assume they want the "
                     "thing saved"
             )
         finally:
             # No matter what happens in the tests, clean up after yourself
-            self.n1.working_directory.delete()
+            if self.n1.as_path().exists():
+                for p in self.n1.as_path().iterdir():
+                    p.unlink()
+                self.n1.as_path().rmdir()
 
     def test_autorun(self):
         self.assertIs(

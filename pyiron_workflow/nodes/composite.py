@@ -425,11 +425,6 @@ class Composite(SemanticParent, HasCreator, Node, ABC):
             },
         }
 
-    def tidy_working_directory(self):
-        for node in self:
-            node.tidy_working_directory()
-        super().tidy_working_directory()
-
     def _get_connections_as_strings(
         self, panel_getter: callable
     ) -> list[tuple[tuple[str, str], tuple[str, str]]]:

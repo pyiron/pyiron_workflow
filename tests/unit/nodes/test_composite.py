@@ -388,14 +388,6 @@ class TestComposite(unittest.TestCase):
                     "cleanly"
             )
 
-    def test_working_directory(self):
-        self.comp.plus_one = Composite.create.function_node(plus_one)
-        self.assertTrue(
-            str(self.comp.plus_one.working_directory.path).endswith(self.comp.plus_one.label),
-            msg="Child nodes should have their own working directories nested inside"
-        )
-        self.comp.working_directory.delete()  # Clean up
-
     def test_length(self):
         self.comp.child = Composite.create.function_node(plus_one)
         l1 = len(self.comp)

@@ -27,7 +27,6 @@ from pyiron_workflow.topology import (
     get_nodes_in_data_tree,
     set_run_connections_according_to_linear_dag,
 )
-from pyiron_workflow.mixin.working import HasWorkingDirectory
 
 if TYPE_CHECKING:
     from pathlib import Path
@@ -44,7 +43,6 @@ class Node(
     Runnable,
     HasIOWithInjection,
     ExploitsSingleOutput,
-    HasWorkingDirectory,
     ABC,
 ):
     """
@@ -104,8 +102,6 @@ class Node(
     - Nodes can be instructed to run at the end of their initialization, but will exit
         cleanly if they get to checking their readiness and find they are not ready
     - Nodes have a label by which they are identified
-    - Nodes may open a working directory related to their label, their parent(age) and
-        the python process working directory
     - Nodes can run their computation using remote resources by setting an executor
         - Any executor must have a :meth:`submit` method with the same interface as
             :class:`concurrent.futures.Executor`, must return a
@@ -169,10 +165,6 @@ class Node(
     They may optionally add additional signal channels to the signals IO.
 
     TODO:
-
-        - Allow saving/loading at locations _other_ than the interpreter's working
-            directory combined with the node's working directory, i.e. decouple the
-            working directory from the interpreter's `cwd`.
         - Integration with more powerful tools for remote execution (anything obeying
             the standard interface of a :meth:`submit` method taking the callable and
             arguments and returning a futures object should work, as long as it can
@@ -708,8 +700,8 @@ class Node(
         A selection of the :func:`graphviz.Graph.render` method options are exposed, and if
         :param:`view` or :param:`filename` is provided, this will be called before returning the
         graph.
-        The graph file and rendered image will be stored in the node's working
-        directory.
+        The graph file and rendered image will be stored in a directory based of the
+        node's semantic path, unless a :param:`directory` is explicitly set.
         This is purely for convenience -- since we directly return a graphviz object
         you can instead use this to leverage the full power of graphviz.
 
@@ -749,7 +741,7 @@ class Node(
             size = f"{size[0]},{size[1]}"
         graph = GraphvizNode(self, depth=depth, rankdir=rankdir, size=size).graph
         if save or view or filename is not None:
-            directory = self.working_directory.path if directory is None else directory
+            directory = self.as_path() if directory is None else Path(directory)
             filename = self.label + "_graph" if filename is None else filename
             graph.render(
                 view=view,
