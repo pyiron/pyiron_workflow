@@ -43,7 +43,7 @@ class StorageInterface(ABC):
             node (Node): The node to save
             filename (Path | None): The path to the save location (WITHOUT file
                 extension.)
-            **kwargs: Additional keyword arguments passed to the save method.
+            **kwargs: Additional keyword arguments.
         """
         pass
 
@@ -54,7 +54,7 @@ class StorageInterface(ABC):
 
         Args:
             filename (Path): The path to the file to load (WITHOUT file extension).
-            **kwargs: Additional keyword arguments passed to the save method.
+            **kwargs: Additional keyword arguments.
 
         Returns:
             Node: The node stored there.
@@ -68,7 +68,7 @@ class StorageInterface(ABC):
 
         Args:
             filename (Path): The path to the file to look for (WITHOUT file extension).
-            **kwargs: Additional keyword arguments passed to the save method.
+            **kwargs: Additional keyword arguments.
 
         Returns:
             bool: Whether a commensurate file was found.
@@ -82,7 +82,7 @@ class StorageInterface(ABC):
 
         Args:
             filename (Path): The path to the file to delete (WITHOUT file extension).
-            **kwargs: Additional keyword arguments passed to the save method.
+            **kwargs: Additional keyword arguments.
         """
 
     def save(
@@ -98,7 +98,7 @@ class StorageInterface(ABC):
             node (Node): The node to save
             filename (Path | None): The path to the save location (WITHOUT file
                 extension.)
-            **kwargs: Additional keyword arguments passed to the save method.
+            **kwargs: Additional keyword arguments.
         """
         filename = self._parse_filename(
             node=node if filename is None else None,
@@ -130,7 +130,7 @@ class StorageInterface(ABC):
             filename (str | Path | None): The path to the file to load (without file
                 extension). Uses the canonical filename based on the node's semantic
                 path instead if this is None.
-            **kwargs: Additional keyword arguments passed to the load method.
+            **kwargs: Additional keyword arguments.
 
         Returns:
             Node: The loaded node.
@@ -153,8 +153,7 @@ class StorageInterface(ABC):
             node (Node | None): The node to check. Optional if filename is provided.
             filename (str | Path | None): The path to the file to check (without file
                 extension). Optional if the node is provided.
-            **kwargs: Additional keyword arguments passed to the has_saved_content
-                method.
+            **kwargs: Additional keyword arguments.
 
         Returns:
             bool: True if contents exist, False otherwise.
@@ -178,7 +177,7 @@ class StorageInterface(ABC):
                 Optional if filename is provided.
             filename (str | Path | None): The path to the file to delete (without file
                 extension). Optional if the node is provided.
-            **kwargs: Additional keyword arguments passed to the delete method.
+            **kwargs: Additional keyword arguments.
        """
         filename = self._parse_filename(node=node, filename=filename)
         if self._has_saved_content(filename, **kwargs):
