@@ -9,6 +9,7 @@ from __future__ import annotations
 
 from abc import ABC
 from concurrent.futures import Future
+from importlib import import_module
 from typing import Any, Literal, Optional, TYPE_CHECKING
 
 from pyiron_snippets.colors import SeabornColors
@@ -21,7 +22,7 @@ from pyiron_workflow.mixin.injection import HasIOWithInjection
 from pyiron_workflow.mixin.run import Runnable, ReadinessError
 from pyiron_workflow.mixin.semantics import Semantic
 from pyiron_workflow.mixin.single_output import ExploitsSingleOutput
-from pyiron_workflow.mixin.storage import HasPickleStorage
+from pyiron_workflow.storage import StorageInterface, available_backends
 from pyiron_workflow.topology import (
     get_nodes_in_data_tree,
     set_run_connections_according_to_linear_dag,
@@ -32,7 +33,6 @@ if TYPE_CHECKING:
     from pathlib import Path
 
     import graphviz
-    from pyiron_snippets.files import DirectoryObject
 
     from pyiron_workflow.channels import OutputSignal
     from pyiron_workflow.nodes.composite import Composite
@@ -45,7 +45,6 @@ class Node(
     HasIOWithInjection,
     ExploitsSingleOutput,
     HasWorkingDirectory,
-    HasPickleStorage,
     ABC,
 ):
     """
@@ -138,8 +137,11 @@ class Node(
             IO data is not pickle-able.
         - Saving is triggered manually, or by setting a flag to save after the nodes
             runs.
-        - At the end of instantiation, nodes will load automatically if they find saved
-            content.
+        - At the end of instantiation, nodes can load automatically if they find saved
+            content (default on the base class is to _not_ search for this. One good
+            reason is that new macros might instantiate a child node that _happens_ to
+            share a name with a saved node, but the intent is obviously not to load
+            this.)
           - Discovered content can instead be deleted with a kwarg.
           - You can't load saved content _and_ run after instantiation at once.
         - The nodes must be defined somewhere importable, i.e. in a module, `__main__`,
@@ -202,11 +204,12 @@ class Node(
             node. Must be specified in child classes.
         running (bool): Whether the node has called :meth:`run` and has not yet
             received output from this call. (Default is False.)
-        save_after_run (bool): Whether to trigger a save after each run of the node
-            (currently causes the entire graph to save). (Default is False.)
-        storage_backend (Literal["pickle"] | None): The flag for the backend to use for
-            saving and loading; for nodes in a graph the value on the root node is
-            always used.
+        checkpoint (Literal["pickle"] | StorageInterface | None): Whether to trigger a
+            save of the entire graph after each run of the node, and if so what storage
+            back end to use. (Default is None, don't do any checkpoint saving.)
+        autoload (Literal["pickle"] | StorageInterface | None): Whether to check
+            for a matching saved node and what storage back end to use to do so (no
+            auto-loading if the back end is `None`.)
         signals (pyiron_workflow.io.Signals): A container for input and output
             signals, which are channels for controlling execution flow. By default, has
             a :attr:`signals.inputs.run` channel which has a callback to the :meth:`run` method
@@ -274,10 +277,10 @@ class Node(
         *args,
         label: Optional[str] = None,
         parent: Optional[Composite] = None,
-        overwrite_save: bool = False,
-        run_after_init: bool = False,
-        storage_backend: Literal["pickle"] | None = "pickle",
-        save_after_run: bool = False,
+        delete_existing_savefiles: bool = False,
+        autoload: Literal["pickle"] | StorageInterface | None = None,
+        autorun: bool = False,
+        checkpoint: Literal["pickle"] | StorageInterface | None = None,
         **kwargs,
     ):
         """
@@ -288,24 +291,34 @@ class Node(
             label (str): A name for this node.
             *args: Interpreted as node input data, in order of input channels.
             parent: (Composite|None): The composite node that owns this as a child.
-            run_after_init (bool): Whether to run at the end of initialization.
+            delete_existing_savefiles (bool): Whether to look for and delete any
+                matching save files at instantiation. Uses all default storage
+                back ends and anything passed to :param:`autoload`. (Default is False,
+                leave those files alone!)
+            autoload (Literal["pickle"] | StorageInterface | None): The back end
+                to use for checking whether node data can be loaded from file. A None
+                value indicates no auto-loading. (Default is "pickle".)
+            autorun (bool): Whether to run at the end of initialization.
+            checkpoint (Literal["pickle"] | StorageInterface | None): The storage
+                back end to use for saving the overall graph at the end of this node's
+                run. (Default is None, don't do checkpoint saves.)
             **kwargs: Interpreted as node input data, with keys corresponding to
                 channel labels.
         """
         super().__init__(
             label=self.__class__.__name__ if label is None else label,
             parent=parent,
-            storage_backend=storage_backend,
         )
-        self.save_after_run = save_after_run
+        self.checkpoint = checkpoint
         self.cached_inputs = None
         self._user_data = {}  # A place for power-users to bypass node-injection
 
         self._setup_node()
         self._after_node_setup(
             *args,
-            overwrite_save=overwrite_save,
-            run_after_init=run_after_init,
+            delete_existing_savefiles=delete_existing_savefiles,
+            autoload=autoload,
+            autorun=autorun,
             **kwargs,
         )
 
@@ -321,40 +334,32 @@ class Node(
     def _after_node_setup(
         self,
         *args,
-        overwrite_save: bool = False,
-        run_after_init: bool = False,
+        delete_existing_savefiles: bool = False,
+        autoload: Literal["pickle"] | StorageInterface | None = None,
+        autorun: bool = False,
         **kwargs,
     ):
-        if overwrite_save:
-            self.delete_storage()
-            do_load = False
-        else:
-            do_load = self.any_storage_has_contents
+        if delete_existing_savefiles:
+            self.delete_storage(backend=autoload)
 
-        if do_load and run_after_init:
-            raise ValueError(
-                f"{self.full_label} can't both load _and_ run after init -- either"
-                f" delete the save file (e.g. with with the `overwrite_save=True` "
-                f"kwarg), change the node label to work in a new space, or give up on "
-                f"running after init."
-            )
-        elif do_load:
-            logger.info(
-                f"A saved file was found for the node {self.full_label} -- "
-                f"attempting to load it...(To delete the saved file instead, use "
-                f"`overwrite_save=True`)"
-            )
-            self.load()
-            self.set_input_values(*args, **kwargs)
-        elif run_after_init:
+        if autoload is not None:
+            for backend in available_backends(backend=autoload):
+                if backend.has_saved_content(self):
+                    logger.info(
+                        f"A saved file was found for the node {self.full_label} -- "
+                        f"attempting to load it...(To delete the saved file instead, "
+                        f"use `delete_existing_savefiles=True`) "
+                    )
+                    self.load(backend=autoload)
+                    break
+
+        self.set_input_values(*args, **kwargs)
+
+        if autorun:
             try:
-                self.set_input_values(*args, **kwargs)
                 self.run()
             except ReadinessError:
                 pass
-        else:
-            self.set_input_values(*args, **kwargs)
-        self.graph_root.tidy_working_directory()
 
     @property
     def graph_path(self) -> str:
@@ -597,8 +602,8 @@ class Node(
                 self.parent.register_child_finished(self)
             return processed_output
         finally:
-            if self.save_after_run:
-                self.save()
+            if self.checkpoint is not None:
+                self.save_checkpoint(self.checkpoint)
 
     def _finish_run_and_emit_ran(self, run_output: tuple | Future) -> Any | tuple:
         processed_output = self._finish_run(run_output)
@@ -781,13 +786,178 @@ class Node(
         else:
             logger.info(f"Could not replace_child {self.label}, as it has no parent.")
 
-    @property
-    def storage_directory(self) -> DirectoryObject:
-        return self.working_directory
+    _save_load_warnings = """
+        HERE BE DRAGONS!!!
+
+        Warning:
+            This almost certainly only fails for subclasses of :class:`Node` that don't
+            override `node_function` or `macro_creator` directly, as these are expected 
+            to be part of the class itself (and thus already present on our instantiated 
+            object) and are never stored. Nodes created using the provided decorators 
+            should all work.
+
+        Warning:
+            If you modify a `Macro` class in any way (changing its IO maps, rewiring 
+            internal connections, or replacing internal nodes), don't expect 
+            saving/loading to work.
+
+        Warning:
+            If the underlying source code has changed since saving (i.e. the node doing 
+            the loading does not use the same code as the node doing the saving, or the 
+            nodes in some node package have been modified), then all bets are off.
+
+    """
+
+    def save(
+        self,
+        backend: str | StorageInterface = "pickle",
+        filename: str | Path | None = None,
+        **kwargs,
+    ):
+        """
+        Writes the node to file using the requested interface as a back end.
+
+        Args:
+            backend (str | StorageInterface): The interface to use for serializing the
+                node. (Default is "pickle", which loads the standard pickling back end.)
+            filename (str | Path | None): The name of the file (without extensions) at
+                which to save the node. (Default is None, which uses the node's
+                semantic path.)
+            **kwargs: Back end-specific keyword arguments.
+        """
+        for backend in available_backends(backend=backend, only_requested=True):
+            backend.save(node=self, filename=filename, **kwargs)
+
+    save.__doc__ += _save_load_warnings
+
+    def save_checkpoint(self, backend: str | StorageInterface = "pickle"):
+        """
+        Triggers a save on the parent-most node.
+
+        Args:
+            backend (str | StorageInterface): The interface to use for serializing the
+                node. (Default is "pickle", which loads the standard pickling back end.)
+        """
+        self.graph_root.save(backend=backend)
+
+    def load(
+        self, backend: str | StorageInterface = "pickle", only_requested=False, **kwargs
+    ):
+        """
+
+        Loads the node file and set the loaded state as the node's own.
+
+        Args:
+            backend (str | StorageInterface): The interface to use for serializing the
+                node. (Default is "pickle", which loads the standard pickling back end.)
+            only_requested (bool): Whether to _only_ try loading from the specified
+                backend, or to loop through all available backends. (Default is False,
+                try to load whatever you can find.)
+            **kwargs: back end-specific arguments (only likely to work in combination
+                with :param:`only_requested`, otherwise there's nothing to be specific
+                _to_.)
+
+        Raises:
+            FileNotFoundError: when nothing got loaded.
+            TypeError: when the saved node has a different class name.
+        """
+        for backend in available_backends(
+            backend=backend, only_requested=only_requested
+        ):
+            inst = backend.load(node=self, **kwargs)
+            if inst is not None:
+                break
+        if inst is None:
+            raise FileNotFoundError(f"{self.label} could not find saved content.")
+
+        if inst.__class__ != self.__class__:
+            raise TypeError(
+                f"{self.label} cannot load, as it has type "
+                f"{self.__class__.__name__},  but the saved node has type "
+                f"{inst.__class__.__name__}"
+            )
+        self.__setstate__(inst.__getstate__())
+
+    load.__doc__ += _save_load_warnings
+
+    def delete_storage(
+        self,
+        backend: Literal["pickle"] | StorageInterface | None = None,
+        only_requested: bool = False,
+        **kwargs,
+    ):
+        """
+        Remove save file(s).
+
+        Args:
+            backend (str | StorageInterface): The interface to use for serializing the
+                node. (Default is "pickle", which loads the standard pickling back end.)
+            only_requested (bool): Whether to _only_ try loading from the specified
+                backend, or to loop through all available backends. (Default is False,
+                try to load whatever you can find.)
+            **kwargs: back end-specific arguments (only likely to work in combination
+                with :param:`only_requested`, otherwise there's nothing to be specific
+                _to_.)
+        """
+        for backend in available_backends(
+            backend=backend, only_requested=only_requested
+        ):
+            backend.delete(node=self, **kwargs)
+
+    def has_saved_content(
+        self,
+        backend: Literal["pickle"] | StorageInterface | None = None,
+        only_requested: bool = False,
+        **kwargs,
+    ):
+        """
+        Whether any save files can be found at the canonical location for this node.
+
+        Args:
+            backend (str | StorageInterface): The interface to use for serializing the
+                node. (Default is "pickle", which loads the standard pickling back end.)
+            only_requested (bool): Whether to _only_ try loading from the specified
+                backend, or to loop through all available backends. (Default is False,
+                try to load whatever you can find.)
+            **kwargs: back end-specific arguments (only likely to work in combination
+                with :param:`only_requested`, otherwise there's nothing to be specific
+                _to_.)
+
+        Returns:
+            bool: Whether any save files were found
+        """
+        return any(
+            be.has_saved_content(self, **kwargs)
+            for be in available_backends(backend=backend, only_requested=only_requested)
+        )
 
     @property
-    def storage_path(self) -> str:
-        return self.graph_path
+    def import_ready(self) -> bool:
+        """
+        Checks whether `importlib` can find this node's class, and if so whether the
+        imported object matches the node's type.
 
-    def tidy_storage_directory(self):
-        self.tidy_working_directory()
+        Returns:
+            (bool): Whether the imported module and name of this node's class match
+                its type.
+        """
+        try:
+            module = self.__class__.__module__
+            class_ = getattr(import_module(module), self.__class__.__name__)
+            if module == "__main__":
+                logger.warning(f"{self.label} is only defined in __main__")
+            return type(self) is class_
+        except (ModuleNotFoundError, AttributeError):
+            return False
+
+    @property
+    def import_readiness_report(self):
+        print(self.report_import_readiness())
+
+    def report_import_readiness(self, tabs=0, report_so_far=""):
+        newline = "\n" if len(report_so_far) > 0 else ""
+        tabspace = tabs * "\t"
+        return (
+            report_so_far + f"{newline}{tabspace}{self.label}: "
+            f"{'ok' if self.import_ready else 'NOT IMPORTABLE'}"
+        )

@@ -9,7 +9,7 @@ from pyiron_snippets.dotdict import DotDict
 from pyiron_workflow._tests import ensure_tests_in_python_path
 from pyiron_workflow.channels import NOT_DATA
 from pyiron_workflow.mixin.semantics import ParentMostError
-from pyiron_workflow.mixin.storage import TypeNotFoundError
+from pyiron_workflow.storage import available_backends, TypeNotFoundError
 from pyiron_workflow.workflow import Workflow
 
 ensure_tests_in_python_path()
@@ -440,17 +440,17 @@ class TestWorkflow(unittest.TestCase):
         wf.executor_shutdown()
 
     def test_storage_values(self):
-        for backend in Workflow.allowed_backends():
+        for backend in available_backends():
             with self.subTest(backend):
                 try:
-                    wf = Workflow("wf", storage_backend=backend)
+                    wf = Workflow("wf")
                     wf.inp = demo_nodes.AddThree(x=0)
                     wf.out = wf.inp.outputs.add_three + 1
                     wf_out = wf()
                     three_result = wf.inp.three.outputs.add.value
 
-                    wf.save()
-                    reloaded = Workflow("wf", storage_backend=backend)
+                    wf.save(backend)
+                    reloaded = Workflow("wf", autoload=backend)
                     self.assertEqual(
                         wf_out.out__add,
                         reloaded.outputs.out__add.value,
@@ -463,7 +463,7 @@ class TestWorkflow(unittest.TestCase):
                     )
                 finally:
                     # Clean up after ourselves
-                    wf.storage.delete()
+                    wf.delete_storage(backend)
 
     def test_storage_scopes(self):
         wf = Workflow("wf")
@@ -471,19 +471,16 @@ class TestWorkflow(unittest.TestCase):
         # Test invocation
         wf.add_child(demo_nodes.AddPlusOne(label="by_add"))
 
-        for backend in Workflow.allowed_backends():
-            with self.subTest(backend):
-                for backend in Workflow.allowed_backends():
-                    try:
-                        with self.subTest(backend):
-                            wf.storage_backend = backend
-                            wf.save()
-                            Workflow(wf.label, storage_backend=backend)
-                    finally:
-                        wf.storage.delete()
+        for backend in available_backends():
+            try:
+                with self.subTest(backend):
+                    wf.save(backend=backend)
+                    Workflow(wf.label, autoload=backend)
+            finally:
+                wf.delete_storage(backend)
 
         with self.subTest("No unimportable nodes for either back-end"):
-            for backend in Workflow.allowed_backends():
+            for backend in available_backends():
                 try:
                     wf.import_type_mismatch = demo_nodes.Dynamic()
                     with self.subTest(backend):
@@ -492,11 +489,10 @@ class TestWorkflow(unittest.TestCase):
                                 msg="Imported object is function but node type is node "
                                     "-- should fail early on save"
                             ):
-                                wf.storage_backend = backend
-                                wf.save()
+                                wf.save(backend=backend, cloudpickle_fallback=False)
                 finally:
                     wf.remove_child(wf.import_type_mismatch)
-                    wf.storage.delete()
+                    wf.delete_storage(backend)
 
         with self.subTest("Unimportable node"):
             @Workflow.wrap.as_function_node("y")

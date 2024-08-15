@@ -18,6 +18,7 @@ from pyiron_workflow.mixin.semantics import ParentMost
 if TYPE_CHECKING:
     from pyiron_workflow.io import IO
     from pyiron_workflow.node import Node
+    from pyiron_workflow.storage import StorageInterface
 
 
 class Workflow(ParentMost, Composite):
@@ -46,6 +47,10 @@ class Workflow(ParentMost, Composite):
     They are flexible and great for development, but once you have a setup you like,
     you should consider reformulating it as a :class:`Macro`, which operates somewhat more
     efficiently.
+
+    Because they are parent-most objects, and thus not being instantiated inside other
+    (macro) nodes, they break the default behaviour of their parent class and _do_
+    attempt to auto-load saved content at instantiation.
 
     Promises (in addition parent class promises):
 
@@ -194,10 +199,10 @@ class Workflow(ParentMost, Composite):
         self,
         label: str,
         *nodes: Node,
-        overwrite_save: bool = False,
-        run_after_init: bool = False,
-        storage_backend: Optional[Literal["pickle"]] = None,
-        save_after_run: bool = False,
+        delete_existing_savefiles: bool = False,
+        autoload: Literal["pickle"] | StorageInterface | None = "pickle",
+        autorun: bool = False,
+        checkpoint: Literal["pickle"] | StorageInterface | None = None,
         strict_naming: bool = True,
         inputs_map: Optional[dict | bidict] = None,
         outputs_map: Optional[dict | bidict] = None,
@@ -216,10 +221,10 @@ class Workflow(ParentMost, Composite):
             *nodes,
             label=label,
             parent=None,
-            overwrite_save=overwrite_save,
-            run_after_init=run_after_init,
-            save_after_run=save_after_run,
-            storage_backend=storage_backend,
+            delete_existing_savefiles=delete_existing_savefiles,
+            autoload=autoload,
+            autorun=autorun,
+            checkpoint=checkpoint,
             strict_naming=strict_naming,
             **kwargs,
         )
@@ -227,15 +232,19 @@ class Workflow(ParentMost, Composite):
     def _after_node_setup(
         self,
         *args,
-        overwrite_save: bool = False,
-        run_after_init: bool = False,
+        delete_existing_savefiles: bool = False,
+        autoload: Literal["pickle"] | StorageInterface | None = None,
+        autorun: bool = False,
         **kwargs,
     ):
 
         for node in args:
             self.add_child(node)
         super()._after_node_setup(
-            overwrite_save=overwrite_save, run_after_init=run_after_init, **kwargs
+            autoload=autoload,
+            delete_existing_savefiles=delete_existing_savefiles,
+            autorun=autorun,
+            **kwargs,
         )
 
     @property

@@ -22,6 +22,7 @@ if TYPE_CHECKING:
         Channel,
     )
     from pyiron_workflow.create import Creator, Wrappers
+    from pyiron_workflow.storage import StorageInterface
 
 
 class Composite(SemanticParent, HasCreator, Node, ABC):
@@ -99,10 +100,10 @@ class Composite(SemanticParent, HasCreator, Node, ABC):
         *args,
         label: Optional[str] = None,
         parent: Optional[Composite] = None,
-        overwrite_save: bool = False,
-        run_after_init: bool = False,
-        storage_backend: Optional[Literal["pickle"]] = None,
-        save_after_run: bool = False,
+        delete_existing_savefiles: bool = False,
+        autoload: Literal["pickle"] | StorageInterface | None = None,
+        autorun: bool = False,
+        checkpoint: Literal["pickle"] | StorageInterface | None = None,
         strict_naming: bool = True,
         **kwargs,
     ):
@@ -118,10 +119,10 @@ class Composite(SemanticParent, HasCreator, Node, ABC):
             label,
             *args,
             parent=parent,
-            overwrite_save=overwrite_save,
-            run_after_init=run_after_init,
-            storage_backend=storage_backend,
-            save_after_run=save_after_run,
+            delete_existing_savefiles=delete_existing_savefiles,
+            autoload=autoload,
+            autorun=autorun,
+            checkpoint=checkpoint,
             strict_naming=strict_naming,
             **kwargs,
         )

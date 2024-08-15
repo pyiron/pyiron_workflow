@@ -92,7 +92,7 @@ class OutputDataWithInjection(OutputData):
             # Fall back on creating a new node in case parent is None or node nexists
             node_args = (self, *args) if inject_self else args
             return injection_class(
-                *node_args, parent=self.owner.parent, label=label, run_after_init=True
+                *node_args, parent=self.owner.parent, label=label, autorun=True
             )
 
     # We don't wrap __all__ the operators, because you might really want the string or

@@ -16,6 +16,7 @@ from pyiron_workflow.node import Node
 
 if TYPE_CHECKING:
     from pyiron_workflow.nodes.composite import Composite
+    from pyiron_workflow.storage import StorageInterface
 
 
 class StaticNode(Node, HasIOPreview, ABC):
@@ -24,28 +25,6 @@ class StaticNode(Node, HasIOPreview, ABC):
 
     Actual IO is then constructed from the preview at instantiation.
     """
-
-    def __init__(
-        self,
-        *args,
-        label: Optional[str] = None,
-        parent: Optional[Composite] = None,
-        overwrite_save: bool = False,
-        run_after_init: bool = False,
-        storage_backend: Optional[Literal["pickle"]] = None,
-        save_after_run: bool = False,
-        **kwargs,
-    ):
-        super().__init__(
-            *args,
-            label=label,
-            parent=parent,
-            overwrite_save=overwrite_save,
-            run_after_init=run_after_init,
-            storage_backend=storage_backend,
-            save_after_run=save_after_run,
-            **kwargs,
-        )
 
     def _setup_node(self) -> None:
         super()._setup_node()
