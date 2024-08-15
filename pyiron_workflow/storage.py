@@ -25,7 +25,7 @@ class TypeNotFoundError(ImportError):
 class StorageInterface(ABC):
 
     @abstractmethod
-    def _save(self, node: Node, filename: Path):
+    def _save(self, node: Node, filename: Path, /, **kwargs):
         """
         Save a node to file.
 
@@ -37,7 +37,7 @@ class StorageInterface(ABC):
         pass
 
     @abstractmethod
-    def _load(self, filename: Path) -> Node:
+    def _load(self, filename: Path, /, **kwargs) -> Node:
         """
         Instantiate a node from file.
 
@@ -50,22 +50,27 @@ class StorageInterface(ABC):
         pass
 
     @abstractmethod
-    def _has_contents(self, filename: Path) -> bool:
+    def _has_contents(self, filename: Path, /, **kwargs) -> bool:
         pass
 
     @abstractmethod
-    def _delete(self, filename: Path):
+    def _delete(self, filename: Path, /, **kwargs):
         """Remove an existing save-file for this backend"""
 
-    def save(self, node: Node, filename: str | Path | None = None):
+    def save(
+        self,
+        node: Node,
+        filename: str | Path | None = None,
+        **kwargs
+    ):
         filename = self._parse_filename(
             node=node if filename is None else None,
-            filename=filename
+            filename=filename,
         )
         filename.parent.mkdir(parents=True, exist_ok=True)
 
         try:
-            self._save(node, filename)
+            self._save(node, filename, **kwargs)
         except Exception as e:
             raise e
         finally:
@@ -77,21 +82,34 @@ class StorageInterface(ABC):
     def load(
         self,
         node: Node | None = None,
-        filename: str | Path | None = None
+        filename: str | Path | None = None,
+        **kwargs
     ) -> Node:
-        return self._load(self._parse_filename(node=node, filename=filename))
+        return self._load(
+            self._parse_filename(node=node, filename=filename),
+            **kwargs
+        )
 
     def has_contents(
         self,
         node: Node | None = None,
-        filename: str | Path | None = None
+        filename: str | Path | None = None,
+        **kwargs,
     ):
-        return self._has_contents(self._parse_filename(node=node, filename=filename))
+        return self._has_contents(
+            self._parse_filename(node=node, filename=filename),
+            **kwargs
+        )
 
-    def delete(self, node: Node | None = None, filename: str | Path | None = None):
+    def delete(
+        self,
+        node: Node | None = None,
+        filename: str | Path | None = None,
+        **kwargs
+    ):
         filename = self._parse_filename(node=node, filename=filename)
-        if self._has_contents(filename):
-            self._delete(filename)
+        if self._has_contents(filename, **kwargs):
+            self._delete(filename, **kwargs)
         if filename.parent.exists() and not any(filename.parent.iterdir()):
             filename.parent.rmdir()
 
@@ -125,21 +143,33 @@ class PickleStorage(StorageInterface):
     _PICKLE = ".pckl"
     _CLOUDPICKLE = ".cpckl"
 
-    def _save(self, node: Node, filename: Path):
-        if not node.import_ready:
+    def __init__(self, cloudpickle_fallback: bool = True):
+        self.cloudpickle_fallback = cloudpickle_fallback
+
+    def _fallback(self, cpf: bool | None):
+        return self.cloudpickle_fallback if cpf is None else cpf
+
+    def _save(
+        self,
+        node: Node,
+        filename: Path,
+        cloudpickle_fallback: bool | None = None
+    ):
+        if not self._fallback(cloudpickle_fallback) and not node.import_ready:
             raise TypeNotFoundError(
                 f"{node.label} cannot be saved with the storage interface "
                 f"{self.__class__.__name__} because it (or one of its children) has "
-                f"a type that cannot be imported. Did you dynamically define this "
-                f"nodeect? \n"
+                f"a type that cannot be imported. Is this node defined inside <locals>? "
+                f"\n"
                 f"Import readiness report: \n"
                 f"{node.report_import_readiness()}"
             )
 
-        for suffix, save_method in [
-            (self._PICKLE, pickle.dump),
-            (self._CLOUDPICKLE, cloudpickle.dump),
-        ]:
+        attacks = [(self._PICKLE, pickle.dump)]
+        if self._fallback(cloudpickle_fallback):
+            attacks += [(self._CLOUDPICKLE, cloudpickle.dump)]
+
+        for suffix, save_method in attacks:
             p = filename.with_suffix(suffix)
             try:
                 with open(p, "wb") as filehandle:
@@ -149,25 +179,38 @@ class PickleStorage(StorageInterface):
                 p.unlink(missing_ok=True)
         raise e
 
-    def _load(self, filename: Path) -> Node:
-        for suffix, load_method in [
-            (self._PICKLE, pickle.load),
-            (self._CLOUDPICKLE, cloudpickle.load),
-        ]:
+    def _load(self, filename: Path, cloudpickle_fallback: bool | None = None) -> Node:
+        attacks = [(self._PICKLE, pickle.load)]
+        if self._fallback(cloudpickle_fallback):
+            attacks += [(self._CLOUDPICKLE, cloudpickle.load)]
+
+        for suffix, load_method in attacks:
             p = filename.with_suffix(suffix)
             if p.exists():
                 with open(p, "rb") as filehandle:
                     inst = load_method(filehandle)
                 return inst
 
-    def _delete(self, filename: Path):
-        for suffix in [self._PICKLE, self._CLOUDPICKLE]:
+    def _delete(self, filename: Path, cloudpickle_fallback: bool | None = None):
+        suffixes = (
+            [self._PICKLE, self._CLOUDPICKLE] if self._fallback(cloudpickle_fallback)
+            else [self._PICKLE]
+        )
+        for suffix in suffixes:
             filename.with_suffix(suffix).unlink(missing_ok=True)
 
-    def _has_contents(self, filename: Path) -> bool:
+    def _has_contents(
+        self,
+        filename: Path,
+        cloudpickle_fallback: bool | None = None
+    ) -> bool:
+        suffixes = (
+            [self._PICKLE, self._CLOUDPICKLE] if self._fallback(cloudpickle_fallback)
+            else [self._PICKLE]
+        )
         return any(
             filename.with_suffix(suffix).exists()
-            for suffix in [self._PICKLE, self._CLOUDPICKLE]
+            for suffix in suffixes
         )
 
 

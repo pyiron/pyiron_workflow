@@ -111,7 +111,7 @@ class TestPickleStorage(unittest.TestCase):
 
 
 class TestPickleStorage(unittest.TestCase):
-    def test_importability(self):
+    def test_cloudpickle(self):
         @as_function_node
         def Unimportable(x):
             return x + 1
@@ -119,14 +119,21 @@ class TestPickleStorage(unittest.TestCase):
         u = Unimportable()
 
         try:
-            interface = PickleStorage()
+            interface = PickleStorage(cloudpickle_fallback=False)
             with self.assertRaises(
                 TypeNotFoundError,
                 msg="We can't import from <locals>, so this is unpicklable"
             ):
                 interface.save(u)
+
+            interface.save(u, cloudpickle_fallback=True)
+            self.assertFalse(interface.has_contents(u))
+            self.assertTrue(interface.has_contents(u, cloudpickle_fallback=True))
+
+            new_u = interface.load(node=u, cloudpickle_fallback=True)
+            self.assertIsInstance(new_u, Unimportable)
         finally:
-            interface.delete(node=u)
+            interface.delete(node=u, cloudpickle_fallback=True)
 
 
 if __name__ == "__main__":
