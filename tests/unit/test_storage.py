@@ -60,7 +60,7 @@ class TestAvailableBackends(unittest.TestCase):
         self.assertIs(backends[0], my_interface)
 
 
-class TestPickleStorage(unittest.TestCase):
+class TestStorage(unittest.TestCase):
 
     def setUp(self):
         self.node = UserInput(label="test_node")
