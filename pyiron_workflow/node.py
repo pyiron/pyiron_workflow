@@ -816,6 +816,14 @@ class Node(
     ):
         """
         Writes the node to file using the requested interface as a back end.
+
+        Args:
+            backend (str | StorageInterface): The interface to use for serializing the
+                node. (Default is "pickle", which loads the standard pickling back end.)
+            filename (str | Path | None): The name of the file (without extensions) at
+                which to save the node. (Default is None, which uses the node's
+                semantic path.)
+            **kwargs: Back end-specific keyword arguments.
         """
         for backend in available_backends(backend=backend, only_requested=True):
             backend.save(node=self, filename=filename, **kwargs)
@@ -825,6 +833,10 @@ class Node(
     def save_checkpoint(self, backend: str | StorageInterface = "pickle"):
         """
         Triggers a save on the parent-most node.
+
+        Args:
+            backend (str | StorageInterface): The interface to use for serializing the
+                node. (Default is "pickle", which loads the standard pickling back end.)
         """
         self.graph_root.save(backend=backend)
 
@@ -835,9 +847,21 @@ class Node(
         **kwargs
     ):
         """
+
         Loads the node file and set the loaded state as the node's own.
 
+        Args:
+            backend (str | StorageInterface): The interface to use for serializing the
+                node. (Default is "pickle", which loads the standard pickling back end.)
+            only_requested (bool): Whether to _only_ try loading from the specified
+                backend, or to loop through all available backends. (Default is False,
+                try to load whatever you can find.)
+            **kwargs: back end-specific arguments (only likely to work in combination
+                with :param:`only_requested`, otherwise there's nothing to be specific
+                _to_.)
+
         Raises:
+            FileNotFoundError: when nothing got loaded.
             TypeError: when the saved node has a different class name.
         """
         for backend in available_backends(
@@ -866,7 +890,19 @@ class Node(
         only_requested: bool = False,
         **kwargs
     ):
-        """Remove save file(s)."""
+        """
+        Remove save file(s).
+
+        Args:
+            backend (str | StorageInterface): The interface to use for serializing the
+                node. (Default is "pickle", which loads the standard pickling back end.)
+            only_requested (bool): Whether to _only_ try loading from the specified
+                backend, or to loop through all available backends. (Default is False,
+                try to load whatever you can find.)
+            **kwargs: back end-specific arguments (only likely to work in combination
+                with :param:`only_requested`, otherwise there's nothing to be specific
+                _to_.)
+        """
         for backend in available_backends(
             backend=backend, only_requested=only_requested
         ):
@@ -878,6 +914,22 @@ class Node(
         only_requested: bool = False,
         **kwargs
     ):
+        """
+        Whether any save files can be found at the canonical location for this node.
+
+        Args:
+            backend (str | StorageInterface): The interface to use for serializing the
+                node. (Default is "pickle", which loads the standard pickling back end.)
+            only_requested (bool): Whether to _only_ try loading from the specified
+                backend, or to loop through all available backends. (Default is False,
+                try to load whatever you can find.)
+            **kwargs: back end-specific arguments (only likely to work in combination
+                with :param:`only_requested`, otherwise there's nothing to be specific
+                _to_.)
+
+        Returns:
+            bool: Whether any save files were found
+        """
         return any(
             be.has_contents(self, **kwargs)
             for be in available_backends(backend=backend, only_requested=only_requested)

@@ -23,6 +23,16 @@ class TypeNotFoundError(ImportError):
 
 
 class StorageInterface(ABC):
+    """
+    Abstract base class defining the interface for saving, loading, and managing node
+    storage.
+
+    Public methods accept `**kwargs` so that specific implementations can have extra
+    behaviour. In general, whatever can be set for the kwargs should also be able to
+    be specified at initialization as a default, so that users can configure a storage
+    back-end the way they want and then run it from there -- kwargs are just exposed to
+    make special instances of use easier.
+    """
 
     @abstractmethod
     def _save(self, node: Node, filename: Path, /, **kwargs):
@@ -33,6 +43,7 @@ class StorageInterface(ABC):
             node (Node): The node to save
             filename (Path | None): The path to the save location (WITHOUT file
                 extension.)
+            **kwargs: Additional keyword arguments passed to the save method.
         """
         pass
 
@@ -43,6 +54,7 @@ class StorageInterface(ABC):
 
         Args:
             filename (Path): The path to the file to load (WITHOUT file extension).
+            **kwargs: Additional keyword arguments passed to the save method.
 
         Returns:
             Node: The node stored there.
@@ -51,11 +63,27 @@ class StorageInterface(ABC):
 
     @abstractmethod
     def _has_contents(self, filename: Path, /, **kwargs) -> bool:
+        """
+        Check for a save file matching this storage interface.
+
+        Args:
+            filename (Path): The path to the file to look for (WITHOUT file extension).
+            **kwargs: Additional keyword arguments passed to the save method.
+
+        Returns:
+            bool: Whether a commensurate file was found.
+        """
         pass
 
     @abstractmethod
     def _delete(self, filename: Path, /, **kwargs):
-        """Remove an existing save-file for this backend"""
+        """
+        Remove an existing save-file for this backend.
+
+        Args:
+            filename (Path): The path to the file to delete (WITHOUT file extension).
+            **kwargs: Additional keyword arguments passed to the save method.
+        """
 
     def save(
         self,
@@ -63,6 +91,15 @@ class StorageInterface(ABC):
         filename: str | Path | None = None,
         **kwargs
     ):
+        """
+        Save a node to file.
+
+        Args:
+            node (Node): The node to save
+            filename (Path | None): The path to the save location (WITHOUT file
+                extension.)
+            **kwargs: Additional keyword arguments passed to the save method.
+        """
         filename = self._parse_filename(
             node=node if filename is None else None,
             filename=filename,
@@ -85,6 +122,19 @@ class StorageInterface(ABC):
         filename: str | Path | None = None,
         **kwargs
     ) -> Node:
+        """
+        Load a node from a file.
+
+        Args:
+            node (Node | None): The node to load. Optional if filename is provided.
+            filename (str | Path | None): The path to the file to load (without file
+                extension). Uses the canonical filename based on the node's semantic
+                path instead if this is None.
+            **kwargs: Additional keyword arguments passed to the load method.
+
+        Returns:
+            Node: The loaded node.
+        """
         return self._load(
             self._parse_filename(node=node, filename=filename),
             **kwargs
@@ -96,6 +146,18 @@ class StorageInterface(ABC):
         filename: str | Path | None = None,
         **kwargs,
     ):
+        """
+        Check if a file has contents related to a node.
+
+        Args:
+            node (Node | None): The node to check. Optional if filename is provided.
+            filename (str | Path | None): The path to the file to check (without file
+                extension). Optional if the node is provided.
+            **kwargs: Additional keyword arguments passed to the has_contents method.
+
+        Returns:
+            bool: True if contents exist, False otherwise.
+        """
         return self._has_contents(
             self._parse_filename(node=node, filename=filename),
             **kwargs
@@ -107,6 +169,16 @@ class StorageInterface(ABC):
         filename: str | Path | None = None,
         **kwargs
     ):
+        """
+        Delete a file associated with a node.
+
+        Args:
+            node (Node | None): The node whose associated file is to be deleted.
+                Optional if filename is provided.
+            filename (str | Path | None): The path to the file to delete (without file
+                extension). Optional if the node is provided.
+            **kwargs: Additional keyword arguments passed to the delete method.
+       """
         filename = self._parse_filename(node=node, filename=filename)
         if self._has_contents(filename, **kwargs):
             self._delete(filename, **kwargs)
@@ -114,6 +186,10 @@ class StorageInterface(ABC):
             filename.parent.rmdir()
 
     def _parse_filename(self, node: Node | None, filename: str | Path | None = None):
+        """
+        Make sure the node xor filename was provided, and if it's the node, convert it
+        into a canonical filename by exploiting the node's semantic path.
+        """
         if node is None and filename is None:
             raise ValueError(
                 "At least one of node or filename must be specified, or we can't know "
