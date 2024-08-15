@@ -1,7 +1,7 @@
 from __future__ import annotations
 
 from abc import ABC
-from typing import Optional, Literal, TYPE_CHECKING
+from typing import Optional
 
 from pandas import DataFrame
 
@@ -13,10 +13,6 @@ from pyiron_workflow.mixin.injection import (
 from pyiron_workflow.io import Inputs
 from pyiron_workflow.mixin.preview import HasIOPreview
 from pyiron_workflow.node import Node
-
-if TYPE_CHECKING:
-    from pyiron_workflow.nodes.composite import Composite
-    from pyiron_workflow.storage import StorageInterface
 
 
 class StaticNode(Node, HasIOPreview, ABC):
