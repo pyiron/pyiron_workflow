@@ -841,10 +841,7 @@ class Node(
         self.graph_root.save(backend=backend)
 
     def load(
-        self,
-        backend: str | StorageInterface = "pickle",
-        only_requested=False,
-        **kwargs
+        self, backend: str | StorageInterface = "pickle", only_requested=False, **kwargs
     ):
         """
 
@@ -865,8 +862,7 @@ class Node(
             TypeError: when the saved node has a different class name.
         """
         for backend in available_backends(
-            backend=backend,
-            only_requested=only_requested
+            backend=backend, only_requested=only_requested
         ):
             inst = backend.load(node=self, **kwargs)
             if inst is not None:
@@ -888,7 +884,7 @@ class Node(
         self,
         backend: Literal["pickle"] | StorageInterface | None = None,
         only_requested: bool = False,
-        **kwargs
+        **kwargs,
     ):
         """
         Remove save file(s).
@@ -912,7 +908,7 @@ class Node(
         self,
         backend: Literal["pickle"] | StorageInterface | None = None,
         only_requested: bool = False,
-        **kwargs
+        **kwargs,
     ):
         """
         Whether any save files can be found at the canonical location for this node.
