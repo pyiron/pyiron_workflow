@@ -22,13 +22,13 @@ By allowing (but not demanding, in the case of data DAGs) users to specify the e
 
 By scraping type hints from decorated functions, both new data values and new graph connections are (optionally) required to conform to hints, making workflows strongly typed.
 
-Individual node computations can be shipped off to parallel processes for scalability. (This is a beta-feature at time of writing; the `Executor` executor from [`executorlib`](https://github.com/pyiron/exectorlib) is supported and tested; automated execution flows to not yet fully leverage the efficiency possible in parallel execution, and `executorlib`'s more powerful flux- and slurm- based executors have not been tested and may fail.)
+Individual node computations can be shipped off to parallel processes for scalability. (This is a beta-feature at time of writing; standard python executors like `concurrent.futures.ThreadPoolExecutor` and `ProcessPoolExecutor` work, and the `Executor` executor from [`executorlib`](https://github.com/pyiron/exectorlib) is supported and tested; `executorlib`'s more powerful flux- and slurm- based executors have not been tested and may fail.)
 
 Once you're happy with a workflow, it can be easily turned it into a macro for use in other workflows. This allows the clean construction of increasingly complex computation graphs by composing simpler graphs.
 
-Nodes (including macros) can be stored in plain text as python code, and imported by future workflows for easy access. This encourages and supports an ecosystem of useful nodes, so you don't need to re-invent the wheel. When these python files are in a properly managed git repository and released in a stable channel (e.g. conda-forge), they moderately fulfill [FAIR](https://en.wikipedia.org/wiki/FAIR_data) principles.
+Nodes (including macros) can be stored in plain text as python code, and imported by future workflows for easy access. This encourages and supports an ecosystem of useful nodes, so you don't need to re-invent the wheel. When these python files are in a properly managed git repository and released in a stable channel (e.g. conda-forge), they fulfill most requirements of the [FAIR](https://en.wikipedia.org/wiki/FAIR_data) principles.
 
-Executed or partially-executed graphs can be stored to file, either by explicit call or automatically after running. When creating a new node(/macro/workflow), the working directory is automatically inspected for a save-file and the node will try to reload itself if one is found. (This is an alpha-feature, so it is currently only possible to save entire graphs at once and not individual nodes within a graph, and there are no safety rails to protect you from changing the node source code between saving and loading (which may cause errors/inconsistencies depending on the nature of the changes).) 
+Executed or partially-executed graphs can be stored to file, either by explicit call or automatically after running. These can be reloaded (automatically on instantiation, in the case of workflows) and examined/rerun, etc. 
 
 ## Example
 
