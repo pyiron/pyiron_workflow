@@ -405,7 +405,7 @@ class TestNode(unittest.TestCase):
         )
         y = self.n1()
 
-        self.assertFalse(self.n1.has_savefile())
+        self.assertFalse(self.n1.has_saved_content())
 
         with self.assertRaises(
             FileNotFoundError,
@@ -417,7 +417,7 @@ class TestNode(unittest.TestCase):
             with self.subTest(backend):
                 try:
                     self.n1.save(backend=backend)
-                    self.assertTrue(self.n1.has_savefile())
+                    self.assertTrue(self.n1.has_saved_content())
 
                     x = self.n1.inputs.x.value
                     reloaded = ANode(label=self.n1.label, x=x, autoload=backend)

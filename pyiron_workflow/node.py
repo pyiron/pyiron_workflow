@@ -344,7 +344,7 @@ class Node(
 
         if autoload is not None:
             for backend in available_backends(backend=autoload):
-                if backend.has_contents(self):
+                if backend.has_saved_content(self):
                     logger.info(
                         f"A saved file was found for the node {self.full_label} -- "
                         f"attempting to load it...(To delete the saved file instead, "
@@ -808,32 +808,66 @@ class Node(
 
     """
 
-    def save(self, backend: str | StorageInterface = "pickle"):
+    def save(
+        self,
+        backend: str | StorageInterface = "pickle",
+        filename: str | Path | None = None,
+        **kwargs,
+    ):
         """
         Writes the node to file using the requested interface as a back end.
+
+        Args:
+            backend (str | StorageInterface): The interface to use for serializing the
+                node. (Default is "pickle", which loads the standard pickling back end.)
+            filename (str | Path | None): The name of the file (without extensions) at
+                which to save the node. (Default is None, which uses the node's
+                semantic path.)
+            **kwargs: Back end-specific keyword arguments.
         """
         for backend in available_backends(backend=backend, only_requested=True):
-            backend.save(self)
+            backend.save(node=self, filename=filename, **kwargs)
 
     save.__doc__ += _save_load_warnings
 
     def save_checkpoint(self, backend: str | StorageInterface = "pickle"):
         """
         Triggers a save on the parent-most node.
+
+        Args:
+            backend (str | StorageInterface): The interface to use for serializing the
+                node. (Default is "pickle", which loads the standard pickling back end.)
         """
         self.graph_root.save(backend=backend)
 
-    def load(self, backend: str | StorageInterface = "pickle"):
+    def load(
+        self, backend: str | StorageInterface = "pickle", only_requested=False, **kwargs
+    ):
         """
+
         Loads the node file and set the loaded state as the node's own.
 
+        Args:
+            backend (str | StorageInterface): The interface to use for serializing the
+                node. (Default is "pickle", which loads the standard pickling back end.)
+            only_requested (bool): Whether to _only_ try loading from the specified
+                backend, or to loop through all available backends. (Default is False,
+                try to load whatever you can find.)
+            **kwargs: back end-specific arguments (only likely to work in combination
+                with :param:`only_requested`, otherwise there's nothing to be specific
+                _to_.)
+
         Raises:
+            FileNotFoundError: when nothing got loaded.
             TypeError: when the saved node has a different class name.
         """
-        for backend in available_backends(backend=backend):
-            if backend.has_contents(self):
-                inst = backend.load(self)
+        for backend in available_backends(
+            backend=backend, only_requested=only_requested
+        ):
+            inst = backend.load(node=self, **kwargs)
+            if inst is not None:
                 break
+        if inst is None:
             raise FileNotFoundError(f"{self.label} could not find saved content.")
 
         if inst.__class__ != self.__class__:
@@ -850,15 +884,52 @@ class Node(
         self,
         backend: Literal["pickle"] | StorageInterface | None = None,
         only_requested: bool = False,
+        **kwargs,
     ):
-        """Remove save file(s)."""
+        """
+        Remove save file(s).
+
+        Args:
+            backend (str | StorageInterface): The interface to use for serializing the
+                node. (Default is "pickle", which loads the standard pickling back end.)
+            only_requested (bool): Whether to _only_ try loading from the specified
+                backend, or to loop through all available backends. (Default is False,
+                try to load whatever you can find.)
+            **kwargs: back end-specific arguments (only likely to work in combination
+                with :param:`only_requested`, otherwise there's nothing to be specific
+                _to_.)
+        """
         for backend in available_backends(
             backend=backend, only_requested=only_requested
         ):
-            backend.delete(self)
+            backend.delete(node=self, **kwargs)
 
-    def has_savefile(self, backend: Literal["pickle"] | StorageInterface | None = None):
-        return any(be.has_contents(self) for be in available_backends(backend=backend))
+    def has_saved_content(
+        self,
+        backend: Literal["pickle"] | StorageInterface | None = None,
+        only_requested: bool = False,
+        **kwargs,
+    ):
+        """
+        Whether any save files can be found at the canonical location for this node.
+
+        Args:
+            backend (str | StorageInterface): The interface to use for serializing the
+                node. (Default is "pickle", which loads the standard pickling back end.)
+            only_requested (bool): Whether to _only_ try loading from the specified
+                backend, or to loop through all available backends. (Default is False,
+                try to load whatever you can find.)
+            **kwargs: back end-specific arguments (only likely to work in combination
+                with :param:`only_requested`, otherwise there's nothing to be specific
+                _to_.)
+
+        Returns:
+            bool: Whether any save files were found
+        """
+        return any(
+            be.has_saved_content(self, **kwargs)
+            for be in available_backends(backend=backend, only_requested=only_requested)
+        )
 
     @property
     def import_ready(self) -> bool:

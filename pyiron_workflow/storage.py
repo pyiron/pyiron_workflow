@@ -5,6 +5,7 @@ A bit of abstraction connecting generic storage routines to nodes.
 from __future__ import annotations
 
 from abc import ABC, abstractmethod
+from pathlib import Path
 import pickle
 from typing import Generator, Literal, TYPE_CHECKING
 
@@ -22,71 +23,209 @@ class TypeNotFoundError(ImportError):
 
 
 class StorageInterface(ABC):
+    """
+    Abstract base class defining the interface for saving, loading, and managing node
+    storage.
 
-    def save(self, node: Node):
-        directory = node.as_path()
-        directory.mkdir(parents=True, exist_ok=True)
+    Public methods accept `**kwargs` so that specific implementations can have extra
+    behaviour. In general, whatever can be set for the kwargs should also be able to
+    be specified at initialization as a default, so that users can configure a storage
+    back-end the way they want and then run it from there -- kwargs are just exposed to
+    make special instances of use easier.
+    """
+
+    @abstractmethod
+    def _save(self, node: Node, filename: Path, /, **kwargs):
+        """
+        Save a node to file.
+
+        Args:
+            node (Node): The node to save
+            filename (Path | None): The path to the save location (WITHOUT file
+                extension.)
+            **kwargs: Additional keyword arguments.
+        """
+
+    @abstractmethod
+    def _load(self, filename: Path, /, **kwargs) -> Node:
+        """
+        Instantiate a node from file.
+
+        Args:
+            filename (Path): The path to the file to load (WITHOUT file extension).
+            **kwargs: Additional keyword arguments.
+
+        Returns:
+            Node: The node stored there.
+        """
+
+    @abstractmethod
+    def _has_saved_content(self, filename: Path, /, **kwargs) -> bool:
+        """
+        Check for a save file matching this storage interface.
+
+        Args:
+            filename (Path): The path to the file to look for (WITHOUT file extension).
+            **kwargs: Additional keyword arguments.
+
+        Returns:
+            bool: Whether a commensurate file was found.
+        """
+
+    @abstractmethod
+    def _delete(self, filename: Path, /, **kwargs):
+        """
+        Remove an existing save-file for this backend.
+
+        Args:
+            filename (Path): The path to the file to delete (WITHOUT file extension).
+            **kwargs: Additional keyword arguments.
+        """
+
+    def save(self, node: Node, filename: str | Path | None = None, **kwargs):
+        """
+        Save a node to file.
+
+        Args:
+            node (Node): The node to save
+            filename (Path | None): The path to the save location (WITHOUT file
+                extension.)
+            **kwargs: Additional keyword arguments.
+        """
+        filename = self._parse_filename(
+            node=node if filename is None else None,
+            filename=filename,
+        )
+        filename.parent.mkdir(parents=True, exist_ok=True)
+
         try:
-            self._save(node)
+            self._save(node, filename, **kwargs)
         except Exception as e:
             raise e
         finally:
             # If nothing got written due to the exception, clean up the directory
             # (as long as there's nothing else in it)
-            if not any(directory.iterdir()):
-                directory.rmdir()
+            if not any(filename.parent.iterdir()):
+                filename.parent.rmdir()
 
-    @abstractmethod
-    def _save(self, node: Node):
-        pass
+    def load(
+        self, node: Node | None = None, filename: str | Path | None = None, **kwargs
+    ) -> Node:
+        """
+        Load a node from a file.
 
-    def load(self, node: Node) -> Node:
-        # Misdirection is strictly for symmetry with _save, so child classes define the
-        # private method in both cases
-        return self._load(node)
+        Args:
+            node (Node | None): The node to load. Optional if filename is provided.
+            filename (str | Path | None): The path to the file to load (without file
+                extension). Uses the canonical filename based on the node's semantic
+                path instead if this is None.
+            **kwargs: Additional keyword arguments.
 
-    @abstractmethod
-    def _load(self, node: Node):
-        pass
+        Returns:
+            Node: The loaded node.
+        """
+        return self._load(self._parse_filename(node=node, filename=filename), **kwargs)
 
-    @abstractmethod
-    def has_contents(self, node: Node) -> bool:
-        pass
+    def has_saved_content(
+        self,
+        node: Node | None = None,
+        filename: str | Path | None = None,
+        **kwargs,
+    ):
+        """
+        Check if a file has contents related to a node.
 
-    def delete(self, node: Node):
-        if self.has_contents(node):
-            self._delete(node)
-        directory = node.as_path()
-        if directory.exists() and not any(directory.iterdir()):
-            directory.rmdir()
+        Args:
+            node (Node | None): The node to check. Optional if filename is provided.
+            filename (str | Path | None): The path to the file to check (without file
+                extension). Optional if the node is provided.
+            **kwargs: Additional keyword arguments.
 
-    @abstractmethod
-    def _delete(self, node: Node):
-        """Remove an existing save-file for this backend"""
+        Returns:
+            bool: True if contents exist, False otherwise.
+        """
+        return self._has_saved_content(
+            self._parse_filename(node=node, filename=filename), **kwargs
+        )
+
+    def delete(
+        self, node: Node | None = None, filename: str | Path | None = None, **kwargs
+    ):
+        """
+        Delete a file associated with a node.
+
+        Args:
+            node (Node | None): The node whose associated file is to be deleted.
+                Optional if filename is provided.
+            filename (str | Path | None): The path to the file to delete (without file
+                extension). Optional if the node is provided.
+            **kwargs: Additional keyword arguments.
+        """
+        filename = self._parse_filename(node=node, filename=filename)
+        if self._has_saved_content(filename, **kwargs):
+            self._delete(filename, **kwargs)
+        if filename.parent.exists() and not any(filename.parent.iterdir()):
+            filename.parent.rmdir()
+
+    def _parse_filename(self, node: Node | None, filename: str | Path | None = None):
+        """
+        Make sure the node xor filename was provided, and if it's the node, convert it
+        into a canonical filename by exploiting the node's semantic path.
+        """
+        if node is None and filename is None:
+            raise ValueError(
+                "At least one of node or filename must be specified, or we can't know "
+                "where to load from."
+            )
+        elif node is None and filename is not None:
+            if isinstance(filename, Path):
+                return filename
+            elif isinstance(filename, str):
+                return Path(filename)
+            else:
+                raise TypeError(
+                    f"Expected filename to be str, pathlib.Path, or None, but got "
+                    f"{filename}"
+                )
+        elif node is not None and filename is None:
+            return node.as_path() / self.__class__.__name__.lower()
+        elif node is not None and filename is not None:
+            raise ValueError(
+                f"Both the node ({node.full_label}) and filename ({filename}) were "
+                f"specified for loading -- please only specify one or the other."
+            )
 
 
 class PickleStorage(StorageInterface):
 
-    _PICKLE = "pickle.pckl"
-    _CLOUDPICKLE = "cloudpickle.cpckl"
+    _PICKLE = ".pckl"
+    _CLOUDPICKLE = ".cpckl"
 
-    def _save(self, node: Node):
-        if not node.import_ready:
+    def __init__(self, cloudpickle_fallback: bool = True):
+        self.cloudpickle_fallback = cloudpickle_fallback
+
+    def _fallback(self, cpf: bool | None):
+        return self.cloudpickle_fallback if cpf is None else cpf
+
+    def _save(
+        self, node: Node, filename: Path, cloudpickle_fallback: bool | None = None
+    ):
+        if not self._fallback(cloudpickle_fallback) and not node.import_ready:
             raise TypeNotFoundError(
                 f"{node.label} cannot be saved with the storage interface "
                 f"{self.__class__.__name__} because it (or one of its children) has "
-                f"a type that cannot be imported. Did you dynamically define this "
-                f"nodeect? \n"
+                f"a type that cannot be imported. Is this node defined inside <locals>? "
+                f"\n"
                 f"Import readiness report: \n"
                 f"{node.report_import_readiness()}"
             )
 
-        directory = node.as_path()
-        for file, save_method in [
-            (self._PICKLE, pickle.dump),
-            (self._CLOUDPICKLE, cloudpickle.dump),
-        ]:
-            p = directory / file
+        attacks = [(self._PICKLE, pickle.dump)]
+        if self._fallback(cloudpickle_fallback):
+            attacks += [(self._CLOUDPICKLE, cloudpickle.dump)]
+
+        for suffix, save_method in attacks:
+            p = filename.with_suffix(suffix)
             try:
                 with open(p, "wb") as filehandle:
                     save_method(node, filehandle)
@@ -95,27 +234,36 @@ class PickleStorage(StorageInterface):
                 p.unlink(missing_ok=True)
         raise e
 
-    def _load(self, node: Node) -> Node:
-        directory = node.as_path()
-        for file, load_method in [
-            (self._PICKLE, pickle.load),
-            (self._CLOUDPICKLE, cloudpickle.load),
-        ]:
-            p = directory / file
+    def _load(self, filename: Path, cloudpickle_fallback: bool | None = None) -> Node:
+        attacks = [(self._PICKLE, pickle.load)]
+        if self._fallback(cloudpickle_fallback):
+            attacks += [(self._CLOUDPICKLE, cloudpickle.load)]
+
+        for suffix, load_method in attacks:
+            p = filename.with_suffix(suffix)
             if p.exists():
                 with open(p, "rb") as filehandle:
                     inst = load_method(filehandle)
                 return inst
 
-    def _delete(self, node: Node):
-        (node.as_path() / self._PICKLE).unlink(missing_ok=True)
-        (node.as_path() / self._CLOUDPICKLE).unlink(missing_ok=True)
-
-    def has_contents(self, node: Node) -> bool:
-        return any(
-            (node.as_path() / file).exists()
-            for file in [self._PICKLE, self._CLOUDPICKLE]
+    def _delete(self, filename: Path, cloudpickle_fallback: bool | None = None):
+        suffixes = (
+            [self._PICKLE, self._CLOUDPICKLE]
+            if self._fallback(cloudpickle_fallback)
+            else [self._PICKLE]
         )
+        for suffix in suffixes:
+            filename.with_suffix(suffix).unlink(missing_ok=True)
+
+    def _has_saved_content(
+        self, filename: Path, cloudpickle_fallback: bool | None = None
+    ) -> bool:
+        suffixes = (
+            [self._PICKLE, self._CLOUDPICKLE]
+            if self._fallback(cloudpickle_fallback)
+            else [self._PICKLE]
+        )
+        return any(filename.with_suffix(suffix).exists() for suffix in suffixes)
 
 
 def available_backends(
