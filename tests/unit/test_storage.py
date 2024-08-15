@@ -75,29 +75,29 @@ class TestPickleStorage(unittest.TestCase):
         with self.subTest("By Node"):
             try:
                 self.storage.save(self.node)
-                self.assertTrue(self.storage.has_contents(node=self.node))
+                self.assertTrue(self.storage.has_saved_content(node=self.node))
                 loaded_node = self.storage.load(node=self.node)
                 self.assertIsNot(loaded_node, self.node, msg="Should be a new instance")
                 self.assertEqual(loaded_node.label, self.node.label)
             finally:
                 self.storage.delete(node=self.node)
-                self.assertFalse(self.storage.has_contents(node=self.node))
+                self.assertFalse(self.storage.has_saved_content(node=self.node))
 
         with self.subTest("By filename"):
             try:
                 self.storage.save(self.node, self.filename)
-                self.assertFalse(self.storage.has_contents(node=self.node))
-                self.assertTrue(self.storage.has_contents(filename=self.filename))
+                self.assertFalse(self.storage.has_saved_content(node=self.node))
+                self.assertTrue(self.storage.has_saved_content(filename=self.filename))
                 loaded_node = self.storage.load(filename=self.filename)
                 self.assertEqual(loaded_node.label, self.node.label)
             finally:
                 self.storage.delete(filename=self.filename)
-                self.assertFalse(self.storage.has_contents(filename=self.filename))
+                self.assertFalse(self.storage.has_saved_content(filename=self.filename))
 
     def test_input_validity(self):
         for method in [
             self.storage.load,
-            self.storage.has_contents,
+            self.storage.has_saved_content,
             self.storage.delete
         ]:
             with self.subTest(method.__name__):
@@ -127,8 +127,8 @@ class TestPickleStorage(unittest.TestCase):
                 interface.save(u)
 
             interface.save(u, cloudpickle_fallback=True)
-            self.assertFalse(interface.has_contents(u))
-            self.assertTrue(interface.has_contents(u, cloudpickle_fallback=True))
+            self.assertFalse(interface.has_saved_content(u))
+            self.assertTrue(interface.has_saved_content(u, cloudpickle_fallback=True))
 
             new_u = interface.load(node=u, cloudpickle_fallback=True)
             self.assertIsInstance(new_u, Unimportable)

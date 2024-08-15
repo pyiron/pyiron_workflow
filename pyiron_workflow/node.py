@@ -344,7 +344,7 @@ class Node(
 
         if autoload is not None:
             for backend in available_backends(backend=autoload):
-                if backend.has_contents(self):
+                if backend.has_saved_content(self):
                     logger.info(
                         f"A saved file was found for the node {self.full_label} -- "
                         f"attempting to load it...(To delete the saved file instead, "
@@ -908,7 +908,7 @@ class Node(
         ):
             backend.delete(node=self, **kwargs)
 
-    def has_savefile(
+    def has_saved_content(
         self,
         backend: Literal["pickle"] | StorageInterface | None = None,
         only_requested: bool = False,
@@ -931,7 +931,7 @@ class Node(
             bool: Whether any save files were found
         """
         return any(
-            be.has_contents(self, **kwargs)
+            be.has_saved_content(self, **kwargs)
             for be in available_backends(backend=backend, only_requested=only_requested)
         )
 

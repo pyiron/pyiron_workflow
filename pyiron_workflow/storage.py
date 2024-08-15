@@ -62,7 +62,7 @@ class StorageInterface(ABC):
         pass
 
     @abstractmethod
-    def _has_contents(self, filename: Path, /, **kwargs) -> bool:
+    def _has_saved_content(self, filename: Path, /, **kwargs) -> bool:
         """
         Check for a save file matching this storage interface.
 
@@ -140,7 +140,7 @@ class StorageInterface(ABC):
             **kwargs
         )
 
-    def has_contents(
+    def has_saved_content(
         self,
         node: Node | None = None,
         filename: str | Path | None = None,
@@ -153,12 +153,13 @@ class StorageInterface(ABC):
             node (Node | None): The node to check. Optional if filename is provided.
             filename (str | Path | None): The path to the file to check (without file
                 extension). Optional if the node is provided.
-            **kwargs: Additional keyword arguments passed to the has_contents method.
+            **kwargs: Additional keyword arguments passed to the has_saved_content
+                method.
 
         Returns:
             bool: True if contents exist, False otherwise.
         """
-        return self._has_contents(
+        return self._has_saved_content(
             self._parse_filename(node=node, filename=filename),
             **kwargs
         )
@@ -180,7 +181,7 @@ class StorageInterface(ABC):
             **kwargs: Additional keyword arguments passed to the delete method.
        """
         filename = self._parse_filename(node=node, filename=filename)
-        if self._has_contents(filename, **kwargs):
+        if self._has_saved_content(filename, **kwargs):
             self._delete(filename, **kwargs)
         if filename.parent.exists() and not any(filename.parent.iterdir()):
             filename.parent.rmdir()
@@ -275,7 +276,7 @@ class PickleStorage(StorageInterface):
         for suffix in suffixes:
             filename.with_suffix(suffix).unlink(missing_ok=True)
 
-    def _has_contents(
+    def _has_saved_content(
         self,
         filename: Path,
         cloudpickle_fallback: bool | None = None
