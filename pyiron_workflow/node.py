@@ -808,12 +808,16 @@ class Node(
 
     """
 
-    def save(self, backend: str | StorageInterface = "pickle"):
+    def save(
+        self,
+        backend: str | StorageInterface = "pickle",
+        filename: str | Path | None = None,
+    ):
         """
         Writes the node to file using the requested interface as a back end.
         """
         for backend in available_backends(backend=backend, only_requested=True):
-            backend.save(self)
+            backend.save(node=self, filename=filename)
 
     save.__doc__ += _save_load_warnings
 
@@ -826,7 +830,7 @@ class Node(
     def load(
         self,
         backend: str | StorageInterface = "pickle",
-        only_requested=False
+        only_requested=False,
     ):
         """
         Loads the node file and set the loaded state as the node's own.
@@ -838,9 +842,10 @@ class Node(
             backend=backend,
             only_requested=only_requested
         ):
-            if backend.has_contents(self):
-                inst = backend.load(self)
+            inst = backend.load(node=self)
+            if inst is not None:
                 break
+        if inst is None:
             raise FileNotFoundError(f"{self.label} could not find saved content.")
 
         if inst.__class__ != self.__class__:
@@ -862,7 +867,7 @@ class Node(
         for backend in available_backends(
             backend=backend, only_requested=only_requested
         ):
-            backend.delete(self)
+            backend.delete(node=self)
 
     def has_savefile(self, backend: Literal["pickle"] | StorageInterface | None = None):
         return any(be.has_contents(self) for be in available_backends(backend=backend))

@@ -5,6 +5,7 @@ A bit of abstraction connecting generic storage routines to nodes.
 from __future__ import annotations
 
 from abc import ABC, abstractmethod
+from pathlib import Path
 import pickle
 from typing import Generator, Literal, TYPE_CHECKING
 
@@ -24,53 +25,107 @@ class TypeNotFoundError(ImportError):
 class StorageInterface(ABC):
 
     @abstractmethod
-    def _save(self, node: Node):
+    def _save(self, node: Node, filename: Path):
+        """
+        Save a node to file.
+
+        Args:
+            node (Node): The node to save
+            filename (Path | None): The path to the save location (WITHOUT file
+                extension.)
+        """
         pass
 
     @abstractmethod
-    def _load(self, node: Node):
+    def _load(self, filename: Path) -> Node:
+        """
+        Instantiate a node from file.
+
+        Args:
+            filename (Path): The path to the file to load (WITHOUT file extension).
+
+        Returns:
+            Node: The node stored there.
+        """
         pass
 
     @abstractmethod
-    def _delete(self, node: Node):
+    def _has_contents(self, filename: Path) -> bool:
+        pass
+
+    @abstractmethod
+    def _delete(self, filename: Path):
         """Remove an existing save-file for this backend"""
 
-    @abstractmethod
-    def has_contents(self, node: Node) -> bool:
-        pass
+    def save(self, node: Node, filename: str | Path | None = None):
+        filename = self._parse_filename(
+            node=node if filename is None else None,
+            filename=filename
+        )
+        filename.parent.mkdir(parents=True, exist_ok=True)
 
-    def save(self, node: Node):
-        directory = node.as_path()
-        directory.mkdir(parents=True, exist_ok=True)
         try:
-            self._save(node)
+            self._save(node, filename)
         except Exception as e:
             raise e
         finally:
             # If nothing got written due to the exception, clean up the directory
             # (as long as there's nothing else in it)
-            if not any(directory.iterdir()):
-                directory.rmdir()
+            if not any(filename.parent.iterdir()):
+                filename.parent.rmdir()
 
-    def load(self, node: Node) -> Node:
-        # Misdirection is strictly for symmetry with _save, so child classes define the
-        # private method in both cases
-        return self._load(node)
+    def load(
+        self,
+        node: Node | None = None,
+        filename: str | Path | None = None
+    ) -> Node:
+        return self._load(self._parse_filename(node=node, filename=filename))
 
-    def delete(self, node: Node):
-        if self.has_contents(node):
-            self._delete(node)
-        directory = node.as_path()
-        if directory.exists() and not any(directory.iterdir()):
-            directory.rmdir()
+    def has_contents(
+        self,
+        node: Node | None = None,
+        filename: str | Path | None = None
+    ):
+        return self._has_contents(self._parse_filename(node=node, filename=filename))
+
+    def delete(self, node: Node | None = None, filename: str | Path | None = None):
+        filename = self._parse_filename(node=node, filename=filename)
+        if self._has_contents(filename):
+            self._delete(filename)
+        if filename.parent.exists() and not any(filename.parent.iterdir()):
+            filename.parent.rmdir()
+
+    def _parse_filename(self, node: Node | None, filename: str | Path | None = None):
+        if node is None and filename is None:
+            raise ValueError(
+                "At least one of node or filename must be specified, or we can't know "
+                "where to load from."
+            )
+        elif node is None and filename is not None:
+            if isinstance(filename, Path):
+                return filename
+            elif isinstance(filename, str):
+                return Path(filename)
+            else:
+                raise TypeError(
+                    f"Expected filename to be str, pathlib.Path, or None, but got "
+                    f"{filename}"
+                )
+        elif node is not None and filename is None:
+            return node.as_path() / self.__class__.__name__.lower()
+        elif node is not None and filename is not None:
+            raise ValueError(
+                f"Both the node ({node.full_label}) and filename ({filename}) were "
+                f"specified for loading -- please only specify one or the other."
+            )
 
 
 class PickleStorage(StorageInterface):
 
-    _PICKLE = "pickle.pckl"
-    _CLOUDPICKLE = "cloudpickle.cpckl"
+    _PICKLE = ".pckl"
+    _CLOUDPICKLE = ".cpckl"
 
-    def _save(self, node: Node):
+    def _save(self, node: Node, filename: Path):
         if not node.import_ready:
             raise TypeNotFoundError(
                 f"{node.label} cannot be saved with the storage interface "
@@ -81,12 +136,11 @@ class PickleStorage(StorageInterface):
                 f"{node.report_import_readiness()}"
             )
 
-        directory = node.as_path()
-        for file, save_method in [
+        for suffix, save_method in [
             (self._PICKLE, pickle.dump),
             (self._CLOUDPICKLE, cloudpickle.dump),
         ]:
-            p = directory / file
+            p = filename.with_suffix(suffix)
             try:
                 with open(p, "wb") as filehandle:
                     save_method(node, filehandle)
@@ -95,26 +149,25 @@ class PickleStorage(StorageInterface):
                 p.unlink(missing_ok=True)
         raise e
 
-    def _load(self, node: Node) -> Node:
-        directory = node.as_path()
-        for file, load_method in [
+    def _load(self, filename: Path) -> Node:
+        for suffix, load_method in [
             (self._PICKLE, pickle.load),
             (self._CLOUDPICKLE, cloudpickle.load),
         ]:
-            p = directory / file
+            p = filename.with_suffix(suffix)
             if p.exists():
                 with open(p, "rb") as filehandle:
                     inst = load_method(filehandle)
                 return inst
 
-    def _delete(self, node: Node):
-        (node.as_path() / self._PICKLE).unlink(missing_ok=True)
-        (node.as_path() / self._CLOUDPICKLE).unlink(missing_ok=True)
+    def _delete(self, filename: Path):
+        for suffix in [self._PICKLE, self._CLOUDPICKLE]:
+            filename.with_suffix(suffix).unlink(missing_ok=True)
 
-    def has_contents(self, node: Node) -> bool:
+    def _has_contents(self, filename: Path) -> bool:
         return any(
-            (node.as_path() / file).exists()
-            for file in [self._PICKLE, self._CLOUDPICKLE]
+            filename.with_suffix(suffix).exists()
+            for suffix in [self._PICKLE, self._CLOUDPICKLE]
         )
 
 
