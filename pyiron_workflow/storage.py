@@ -82,12 +82,7 @@ class StorageInterface(ABC):
             **kwargs: Additional keyword arguments.
         """
 
-    def save(
-        self,
-        node: Node,
-        filename: str | Path | None = None,
-        **kwargs
-    ):
+    def save(self, node: Node, filename: str | Path | None = None, **kwargs):
         """
         Save a node to file.
 
@@ -114,10 +109,7 @@ class StorageInterface(ABC):
                 filename.parent.rmdir()
 
     def load(
-        self,
-        node: Node | None = None,
-        filename: str | Path | None = None,
-        **kwargs
+        self, node: Node | None = None, filename: str | Path | None = None, **kwargs
     ) -> Node:
         """
         Load a node from a file.
@@ -132,10 +124,7 @@ class StorageInterface(ABC):
         Returns:
             Node: The loaded node.
         """
-        return self._load(
-            self._parse_filename(node=node, filename=filename),
-            **kwargs
-        )
+        return self._load(self._parse_filename(node=node, filename=filename), **kwargs)
 
     def has_saved_content(
         self,
@@ -156,15 +145,11 @@ class StorageInterface(ABC):
             bool: True if contents exist, False otherwise.
         """
         return self._has_saved_content(
-            self._parse_filename(node=node, filename=filename),
-            **kwargs
+            self._parse_filename(node=node, filename=filename), **kwargs
         )
 
     def delete(
-        self,
-        node: Node | None = None,
-        filename: str | Path | None = None,
-        **kwargs
+        self, node: Node | None = None, filename: str | Path | None = None, **kwargs
     ):
         """
         Delete a file associated with a node.
@@ -175,7 +160,7 @@ class StorageInterface(ABC):
             filename (str | Path | None): The path to the file to delete (without file
                 extension). Optional if the node is provided.
             **kwargs: Additional keyword arguments.
-       """
+        """
         filename = self._parse_filename(node=node, filename=filename)
         if self._has_saved_content(filename, **kwargs):
             self._delete(filename, **kwargs)
@@ -223,10 +208,7 @@ class PickleStorage(StorageInterface):
         return self.cloudpickle_fallback if cpf is None else cpf
 
     def _save(
-        self,
-        node: Node,
-        filename: Path,
-        cloudpickle_fallback: bool | None = None
+        self, node: Node, filename: Path, cloudpickle_fallback: bool | None = None
     ):
         if not self._fallback(cloudpickle_fallback) and not node.import_ready:
             raise TypeNotFoundError(
@@ -266,25 +248,22 @@ class PickleStorage(StorageInterface):
 
     def _delete(self, filename: Path, cloudpickle_fallback: bool | None = None):
         suffixes = (
-            [self._PICKLE, self._CLOUDPICKLE] if self._fallback(cloudpickle_fallback)
+            [self._PICKLE, self._CLOUDPICKLE]
+            if self._fallback(cloudpickle_fallback)
             else [self._PICKLE]
         )
         for suffix in suffixes:
             filename.with_suffix(suffix).unlink(missing_ok=True)
 
     def _has_saved_content(
-        self,
-        filename: Path,
-        cloudpickle_fallback: bool | None = None
+        self, filename: Path, cloudpickle_fallback: bool | None = None
     ) -> bool:
         suffixes = (
-            [self._PICKLE, self._CLOUDPICKLE] if self._fallback(cloudpickle_fallback)
+            [self._PICKLE, self._CLOUDPICKLE]
+            if self._fallback(cloudpickle_fallback)
             else [self._PICKLE]
         )
-        return any(
-            filename.with_suffix(suffix).exists()
-            for suffix in suffixes
-        )
+        return any(filename.with_suffix(suffix).exists() for suffix in suffixes)
 
 
 def available_backends(
