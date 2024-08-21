@@ -217,14 +217,14 @@ class TestTransformer(unittest.TestCase):
             @dataclass
             class DecoratedDC:
                 necessary: str
-                with_default: int = 42
                 with_factory: list = field(default_factory=some_generator)
+                with_default: int = 42
 
             @as_dataclass_node
             class DecoratedDCLike:
                 necessary: str
-                with_default: int = 42
                 with_factory: list = field(default_factory=some_generator)
+                with_default: int = 42
 
             for n_cls, style in zip(
                 [DecoratedDC(label="dcinst"), DecoratedDCLike(label="dcinst")],

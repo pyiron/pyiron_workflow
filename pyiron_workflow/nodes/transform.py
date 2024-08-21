@@ -385,8 +385,16 @@ def dataclass_node_factory(
             f"{DataclassNode} expected to get a dataclass but {dataclass} is not "
             f"type `type`."
         )
-    if not is_dataclass(dataclass):
-        dataclass = as_dataclass(dataclass)
+    dataclass = as_dataclass(dataclass)
+    # Classes inheriting from a dataclass will pass the `dataclasses.is_dataclass` test
+    # BUT they won't themselves _act_ as dataclass definitions! I.e. if you introduce
+    # new fields in a sub-dataclass, or update defaults, this won't register _unless_
+    # that new class is _also_ wrapped as a @dataclasses.dataclass!
+    # This is not our fault, it's just a python thing. But is our _problem_.
+    # To make sure dataclass nodes inheriting from other dataclass nodes still act as
+    # dataclasses, just cast everything as a dataclass -- re-casting an
+    # already-dataclass is not harmful
+    # Composition is preferable over inheritance, but we want inheritance to be possible
     module, qualname = dataclass.__module__, dataclass.__qualname__
     dataclass.__qualname__ += ".dataclass"  # So output type hints know where to find it
     return (
