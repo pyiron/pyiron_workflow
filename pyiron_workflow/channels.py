@@ -430,7 +430,9 @@ class DataChannel(Channel, ABC):
             (bool): Whether the value is data and matches the type hint.
         """
         return self._value_is_data and (
-            valid_value(self.value, self.type_hint) if self._has_hint else True
+            valid_value(self.value, self.type_hint)
+            if self._has_hint and self.strict_hints
+            else True
         )
 
     @property
