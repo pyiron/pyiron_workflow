@@ -5,7 +5,7 @@ Transformer nodes convert many inputs into a single output, or vice-versa.
 from __future__ import annotations
 
 from abc import ABC, abstractmethod
-from dataclasses import dataclass as as_dataclass, is_dataclass, MISSING
+from dataclasses import dataclass as as_dataclass, MISSING
 import itertools
 from typing import Any, ClassVar, Optional
 
