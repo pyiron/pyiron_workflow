@@ -75,6 +75,7 @@ Each time it runs, the `Function` node is taking its input, passing it to the fu
 <class 'pyiron_workflow.nodes.standard.Add'>
 >>> combined()
 'Welcome One and Greetings All'
+
 ```
 
 <aside style="background-color: #a86932; border-left: 5px solid #ccc; padding: 10px;">
