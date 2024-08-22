@@ -86,7 +86,7 @@ Sets of nodes can be collected under the umbrella of a living `Workflow` object,
 
 ```python
 >>> wf = Workflow("readme")
->>> wf.greeting = Workflow.create.standard.UserInput("Bonjuor")
+>>> wf.greeting = Workflow.create.standard.UserInput("Hi")
 >>> wf.first = HelloWorld(greeting=wf.greeting)
 >>> wf.second = HelloWorld(greeting=wf.greeting)
 >>> wf.combined = wf.first + " and " + wf.second
@@ -130,7 +130,7 @@ Not only does this give us a bit more control with how people interface with the
 >>>
 >>> composed = Composition()
 >>> composed(greeting="Hi")
-{'compose': 'Hi You and Hi World', 'simple': 'Hi you'}
+{'compose': 'Hi You and Hi World', 'simple': 'Hi there'}
 
 ```
 
