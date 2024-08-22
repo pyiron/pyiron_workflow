@@ -17,7 +17,6 @@ from pyiron_snippets.dotdict import DotDict
 
 from pyiron_workflow.draw import Node as GraphvizNode
 from pyiron_workflow.logging import logger
-from pyiron_workflow.mixin.has_to_dict import HasStateDisplay
 from pyiron_workflow.mixin.injection import HasIOWithInjection
 from pyiron_workflow.mixin.run import Runnable, ReadinessError
 from pyiron_workflow.mixin.semantics import Semantic
