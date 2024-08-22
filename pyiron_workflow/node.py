@@ -284,7 +284,7 @@ class Node(
             parent=parent,
         )
         self.checkpoint = checkpoint
-        self.cached_inputs = None
+        self._cached_inputs = None
         self._user_data = {}  # A place for power-users to bypass node-injection
 
         self._setup_node()
@@ -445,7 +445,7 @@ class Node(
 
             return self._outputs_to_run_return()
         elif self.use_cache:  # Write cache and continue
-            self.cached_inputs = self.inputs.to_value_dict()
+            self._cached_inputs = self.inputs.to_value_dict()
 
         if self.parent is not None:
             self.parent.register_child_starting(self)
@@ -562,7 +562,7 @@ class Node(
     @property
     def cache_hit(self):
         try:
-            return self.inputs.to_value_dict() == self.cached_inputs
+            return self.inputs.to_value_dict() == self._cached_inputs
         except:
             return False
 

@@ -254,7 +254,7 @@ class Composite(SemanticParent, HasCreator, Node, ABC):
                 f"Only new {Node.__name__} instances may be added, but got "
                 f"{type(child)}."
             )
-        self.cached_inputs = None  # Reset cache after graph change
+        self._cached_inputs = None  # Reset cache after graph change
         return super().add_child(child, label=label, strict_naming=strict_naming)
 
     def remove_child(self, child: Node | str) -> list[tuple[Channel, Channel]]:
@@ -272,7 +272,7 @@ class Composite(SemanticParent, HasCreator, Node, ABC):
         disconnected = child.disconnect()
         if child in self.starting_nodes:
             self.starting_nodes.remove(child)
-        self.cached_inputs = None  # Reset cache after graph change
+        self._cached_inputs = None  # Reset cache after graph change
         return disconnected
 
     def replace_child(
@@ -352,8 +352,8 @@ class Composite(SemanticParent, HasCreator, Node, ABC):
             sending_channel.value_receiver = receiving_channel
 
         # Clear caches
-        self.cached_inputs = None
-        replacement.cached_inputs = None
+        self._cached_inputs = None
+        replacement._cached_inputs = None
 
         return owned_node
 
