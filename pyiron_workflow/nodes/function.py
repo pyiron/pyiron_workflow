@@ -337,17 +337,6 @@ class Function(StaticNode, ScrapesIO, ABC):
             output = output[0]
         return output
 
-    def to_dict(self):
-        return {
-            "label": self.label,
-            "ready": self.ready,
-            "connected": self.connected,
-            "fully_connected": self.fully_connected,
-            "inputs": self.inputs.to_dict(),
-            "outputs": self.outputs.to_dict(),
-            "signals": self.signals.to_dict(),
-        }
-
     @property
     def color(self) -> str:
         """For drawing the graph"""

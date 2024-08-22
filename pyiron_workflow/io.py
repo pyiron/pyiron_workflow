@@ -28,12 +28,11 @@ from pyiron_workflow.mixin.has_interface_mixins import (
     HasChannel,
     HasLabel,
     HasRun,
-    UsesState,
 )
-from pyiron_workflow.mixin.has_to_dict import HasToDict
+from pyiron_workflow.mixin.has_to_dict import HasStateDisplay
 
 
-class IO(HasToDict, ABC):
+class IO(HasStateDisplay, ABC):
     """
     IO is a convenience layer for holding and accessing multiple input/output channels.
     It allows key and dot-based access to the underlying channels.
@@ -156,14 +155,6 @@ class IO(HasToDict, ABC):
     def __str__(self):
         return f"{self.__class__.__name__} {self.labels}"
 
-    def to_dict(self):
-        return {
-            "label": self.__class__.__name__,
-            "connected": self.connected,
-            "fully_connected": self.fully_connected,
-            "channels": {l: c.to_dict() for l, c in self.channel_dict.items()},
-        }
-
     def __getstate__(self):
         # Compatibility with python <3.11
         return dict(self.__dict__)
@@ -172,6 +163,13 @@ class IO(HasToDict, ABC):
         # Because we override getattr, we need to use __dict__ assignment directly in
         # __setstate__ the same way we need it in __init__
         self.__dict__["channel_dict"] = state["channel_dict"]
+
+    def display_state(self, state=None, ignore_private=True):
+        state = dict(self.__getstate__()) if state is None else state
+        for k, v in state["channel_dict"].items():
+            state[k] = v
+        del state["channel_dict"]
+        return super().display_state(state=state, ignore_private=ignore_private)
 
 
 class DataIO(IO, ABC):
@@ -188,11 +186,6 @@ class DataIO(IO, ABC):
     @property
     def ready(self):
         return all([c.ready for c in self])
-
-    def to_dict(self):
-        d = super().to_dict()
-        d["ready"] = self.ready
-        return d
 
     def activate_strict_hints(self):
         [c.activate_strict_hints() for c in self]
@@ -251,7 +244,7 @@ class OutputSignals(SignalIO):
         return OutputSignal
 
 
-class Signals:
+class Signals(HasStateDisplay):
     """
     A meta-container for input and output signal IO containers.
 
@@ -285,17 +278,11 @@ class Signals:
     def fully_connected(self):
         return self.input.fully_connected and self.output.fully_connected
 
-    def to_dict(self):
-        return {
-            "input": self.input.to_dict(),
-            "output": self.output.to_dict(),
-        }
-
     def __str__(self):
         return f"{str(self.input)}\n{str(self.output)}"
 
 
-class HasIO(UsesState, HasLabel, HasRun, ABC):
+class HasIO(HasStateDisplay, HasLabel, HasRun, ABC):
     """
     A mixin for classes that provide data and signal IO.
 

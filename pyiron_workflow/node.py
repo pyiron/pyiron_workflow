@@ -17,7 +17,7 @@ from pyiron_snippets.dotdict import DotDict
 
 from pyiron_workflow.draw import Node as GraphvizNode
 from pyiron_workflow.logging import logger
-from pyiron_workflow.mixin.has_to_dict import HasToDict
+from pyiron_workflow.mixin.has_to_dict import HasStateDisplay
 from pyiron_workflow.mixin.injection import HasIOWithInjection
 from pyiron_workflow.mixin.run import Runnable, ReadinessError
 from pyiron_workflow.mixin.semantics import Semantic
@@ -38,10 +38,9 @@ if TYPE_CHECKING:
 
 
 class Node(
-    HasToDict,
+    HasIOWithInjection,
     Semantic,
     Runnable,
-    HasIOWithInjection,
     ExploitsSingleOutput,
     ABC,
 ):
@@ -937,3 +936,11 @@ class Node(
             report_so_far + f"{newline}{tabspace}{self.label}: "
             f"{'ok' if self.import_ready else 'NOT IMPORTABLE'}"
         )
+
+    def display_state(self, state=None, ignore_private=True):
+        state = dict(self.__getstate__()) if state is None else state
+        if self.parent is not None:
+            state["parent"] = self.parent.full_label
+        if len(state["_user_data"]) > 0:
+            self._make_entry_public(state, "_user_data", "user_data")
+        return super().display_state(state=state, ignore_private=ignore_private)

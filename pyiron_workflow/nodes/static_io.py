@@ -119,3 +119,10 @@ class StaticNode(Node, HasIOPreview, ABC):
                 f"{self.full_label} cannot iterate on {non_input_kwargs} because "
                 f"they are not among input channels {self.inputs.labels}"
             )
+
+    def display_state(self, state=None, ignore_private=True):
+        state = dict(self.__getstate__()) if state is None else state
+        self._make_entry_public(state, "_inputs", "inputs")
+        self._make_entry_public(state, "_outputs", "outputs")
+        self._make_entry_public(state, "_signals", "signals")
+        return super().display_state(state=state, ignore_private=ignore_private)
