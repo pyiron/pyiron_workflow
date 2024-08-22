@@ -1,7 +1,7 @@
 from __future__ import annotations
 
 from abc import ABC
-from typing import Optional, Literal, TYPE_CHECKING
+from typing import Optional
 
 from pandas import DataFrame
 
@@ -14,9 +14,6 @@ from pyiron_workflow.io import Inputs
 from pyiron_workflow.mixin.preview import HasIOPreview
 from pyiron_workflow.node import Node
 
-if TYPE_CHECKING:
-    from pyiron_workflow.nodes.composite import Composite
-
 
 class StaticNode(Node, HasIOPreview, ABC):
     """
@@ -24,28 +21,6 @@ class StaticNode(Node, HasIOPreview, ABC):
 
     Actual IO is then constructed from the preview at instantiation.
     """
-
-    def __init__(
-        self,
-        *args,
-        label: Optional[str] = None,
-        parent: Optional[Composite] = None,
-        overwrite_save: bool = False,
-        run_after_init: bool = False,
-        storage_backend: Optional[Literal["h5io", "tinybase", "pickle"]] = None,
-        save_after_run: bool = False,
-        **kwargs,
-    ):
-        super().__init__(
-            *args,
-            label=label,
-            parent=parent,
-            overwrite_save=overwrite_save,
-            run_after_init=run_after_init,
-            storage_backend=storage_backend,
-            save_after_run=save_after_run,
-            **kwargs,
-        )
 
     def _setup_node(self) -> None:
         super()._setup_node()
@@ -144,3 +119,10 @@ class StaticNode(Node, HasIOPreview, ABC):
                 f"{self.full_label} cannot iterate on {non_input_kwargs} because "
                 f"they are not among input channels {self.inputs.labels}"
             )
+
+    def display_state(self, state=None, ignore_private=True):
+        state = dict(self.__getstate__()) if state is None else state
+        self._make_entry_public(state, "_inputs", "inputs")
+        self._make_entry_public(state, "_outputs", "outputs")
+        self._make_entry_public(state, "_signals", "signals")
+        return super().display_state(state=state, ignore_private=ignore_private)

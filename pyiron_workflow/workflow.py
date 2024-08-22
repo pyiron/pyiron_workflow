@@ -18,6 +18,7 @@ from pyiron_workflow.mixin.semantics import ParentMost
 if TYPE_CHECKING:
     from pyiron_workflow.io import IO
     from pyiron_workflow.node import Node
+    from pyiron_workflow.storage import StorageInterface
 
 
 class Workflow(ParentMost, Composite):
@@ -27,15 +28,16 @@ class Workflow(ParentMost, Composite):
     and modifying their connections).
 
     Nodes can be added to the workflow at instantiation or with dot-assignment later on.
-    They are then accessible either under the :attr:`nodes` dot-dictionary, or just directly
-    by dot-access on the workflow object itself.
+    They are then accessible either under the :attr:`nodes` dot-dictionary, or just
+    directly by dot-access on the workflow object itself.
 
-    Using the :attr:`input` and :attr:`output` attributes, the workflow gives by-reference access
-    to all the IO channels among its nodes which are currently unconnected.
+    Using the :attr:`input` and :attr:`output` attributes, the workflow gives
+    by-reference access to all the IO channels among its nodes which are currently
+    unconnected.
 
     The :class:`Workflow` class acts as a single-point-of-import for us;
-    Directly from the class we can use the :meth:`create` method to instantiate workflow
-    objects.
+    Directly from the class we can use the :meth:`create` method to instantiate
+    workflow objects.
     When called from a workflow _instance_, any created nodes get their parent set to
     the workflow instance being used.
 
@@ -44,13 +46,21 @@ class Workflow(ParentMost, Composite):
     they sit at the top of any data dependency tree and may never have a parent of
     their own.
     They are flexible and great for development, but once you have a setup you like,
-    you should consider reformulating it as a :class:`Macro`, which operates somewhat more
-    efficiently.
+    you should consider reformulating it as a :class:`Macro`, which operates somewhat
+    more efficiently.
+
+    Because they are parent-most objects, and thus not being instantiated inside other
+    (macro) nodes, they break the default behaviour of their parent class and _do_
+    attempt to auto-load saved content at instantiation.
 
     Promises (in addition parent class promises):
 
     - Workflows are living, their IO always reflects their current state of child nodes
     - Workflows are parent-most objects, they cannot be a sub-graph of a larger graph
+    - Bijective maps can be used to...
+        - Rename IO
+        - Force a child node's IO to appear
+        - Force a child node's IO to _not_ appear
 
     Attribute:
         inputs/outputs_map (bidict|None): Maps in the form
@@ -174,18 +184,10 @@ class Workflow(ParentMost, Composite):
         >>> remove("demo")
         >>> remove("demo.png")
 
-        Workflows also give access to packages of pre-built nodes under different
-        namespaces. These need to be registered first, like the standard package is
-        automatically registered:
-
-        >>> Workflow.register("pyiron_workflow.nodes.standard", "standard")
-
         When your workflow's data follows a directed-acyclic pattern, it will determine
         the execution flow automatically.
         If you want or need more control, you can set the `automate_execution` flag to
         `False` and manually specify an execution flow.
-
-    TODO: Workflows can be serialized.
 
     TODO: Once you're satisfied with how a workflow is structured, you can export it
         as a macro node for use in other workflows. (Maybe we should allow for nested
@@ -202,10 +204,10 @@ class Workflow(ParentMost, Composite):
         self,
         label: str,
         *nodes: Node,
-        overwrite_save: bool = False,
-        run_after_init: bool = False,
-        storage_backend: Optional[Literal["h5io", "tinybase", "pickle"]] = None,
-        save_after_run: bool = False,
+        delete_existing_savefiles: bool = False,
+        autoload: Literal["pickle"] | StorageInterface | None = "pickle",
+        autorun: bool = False,
+        checkpoint: Literal["pickle"] | StorageInterface | None = None,
         strict_naming: bool = True,
         inputs_map: Optional[dict | bidict] = None,
         outputs_map: Optional[dict | bidict] = None,
@@ -224,10 +226,10 @@ class Workflow(ParentMost, Composite):
             *nodes,
             label=label,
             parent=None,
-            overwrite_save=overwrite_save,
-            run_after_init=run_after_init,
-            save_after_run=save_after_run,
-            storage_backend=storage_backend,
+            delete_existing_savefiles=delete_existing_savefiles,
+            autoload=autoload,
+            autorun=autorun,
+            checkpoint=checkpoint,
             strict_naming=strict_naming,
             **kwargs,
         )
@@ -235,15 +237,19 @@ class Workflow(ParentMost, Composite):
     def _after_node_setup(
         self,
         *args,
-        overwrite_save: bool = False,
-        run_after_init: bool = False,
+        delete_existing_savefiles: bool = False,
+        autoload: Literal["pickle"] | StorageInterface | None = None,
+        autorun: bool = False,
         **kwargs,
     ):
 
         for node in args:
             self.add_child(node)
         super()._after_node_setup(
-            overwrite_save=overwrite_save, run_after_init=run_after_init, **kwargs
+            autoload=autoload,
+            delete_existing_savefiles=delete_existing_savefiles,
+            autorun=autorun,
+            **kwargs,
         )
 
     @property
@@ -445,116 +451,6 @@ class Workflow(ParentMost, Composite):
                 f"{e.message}"
             )
             raise e
-
-    def to_storage(self, storage):
-        storage["package_requirements"] = list(self.package_requirements)
-        storage["automate_execution"] = self.automate_execution
-        storage["inputs_map"] = self.inputs_map
-        storage["outputs_map"] = self.outputs_map
-        super().to_storage(storage)
-
-        storage["_data_connections"] = self._data_connections
-
-        if not self.automate_execution:
-            storage["_signal_connections"] = self._signal_connections
-            storage["starting_nodes"] = [n.label for n in self.starting_nodes]
-
-    def from_storage(self, storage):
-        from pyiron_contrib.tinybase.storage import GenericStorage
-
-        self.inputs_map = (
-            storage["inputs_map"].to_object()
-            if isinstance(storage["inputs_map"], GenericStorage)
-            else storage["inputs_map"]
-        )
-        self.outputs_map = (
-            storage["outputs_map"].to_object()
-            if isinstance(storage["outputs_map"], GenericStorage)
-            else storage["outputs_map"]
-        )
-
-        self._reinstantiate_children(storage)
-        self.automate_execution = storage["automate_execution"]
-        super().from_storage(storage)
-        self._rebuild_data_io()  # To apply any map that was saved
-        self._rebuild_connections(storage)
-
-    def _reinstantiate_children(self, storage):
-        # Parents attempt to reload their data on instantiation,
-        # so there is no need to explicitly load any of these children
-        for package_identifier in storage["package_requirements"]:
-            self.register(package_identifier)
-
-        for child_label in storage["nodes"]:
-            child_data = storage[child_label]
-            pid = child_data["package_identifier"]
-            cls = child_data["class_name"]
-            self.create[pid][cls](
-                label=child_label, parent=self, storage_backend="tinybase"
-            )
-
-    def _rebuild_connections(self, storage):
-        self._rebuild_data_connections(storage)
-        if not self.automate_execution:
-            self._rebuild_execution_graph(storage)
-
-    def _rebuild_data_connections(self, storage):
-        for data_connection in storage["_data_connections"]:
-            (inp_label, inp_channel), (out_label, out_channel) = data_connection
-            self.children[inp_label].inputs[inp_channel].connect(
-                self.children[out_label].outputs[out_channel]
-            )
-
-    def _rebuild_execution_graph(self, storage):
-        for signal_connection in storage["_signal_connections"]:
-            (inp_label, inp_channel), (out_label, out_channel) = signal_connection
-            self.children[inp_label].signals.input[inp_channel].connect(
-                self.children[out_label].signals.output[out_channel]
-            )
-        self.starting_nodes = [
-            self.children[label] for label in storage["starting_nodes"]
-        ]
-
-    def __getstate__(self):
-        state = super().__getstate__()
-
-        # Transform the IO maps into a datatype that plays well with h5io
-        # (Bidict implements a custom reconstructor, which hurts us)
-        state["_inputs_map"] = (
-            None if self._inputs_map is None else dict(self._inputs_map)
-        )
-        state["_outputs_map"] = (
-            None if self._outputs_map is None else dict(self._outputs_map)
-        )
-
-        return state
-
-    def __setstate__(self, state):
-        # Transform the IO maps back into the right class (bidict)
-        state["_inputs_map"] = (
-            None if state["_inputs_map"] is None else bidict(state["_inputs_map"])
-        )
-        state["_outputs_map"] = (
-            None if state["_outputs_map"] is None else bidict(state["_outputs_map"])
-        )
-
-        super().__setstate__(state)
-
-    def save(self):
-        if self.storage_backend == "tinybase" and any(
-            node.package_identifier is None for node in self
-        ):
-            raise NotImplementedError(
-                f"{self.full_label} ({self.__class__.__name__}) can currently only "
-                f"save itself to file if _all_ of its child nodes were created via the "
-                f"creator and have an associated `package_identifier` -- otherwise we "
-                f"won't know how to re-instantiate them at load time! Right now this "
-                f"is as easy as moving your custom nodes to their own .py file and "
-                f"registering it like any other node package. Remember that this new "
-                f"module needs to be in your python path and importable at load time "
-                f"too."
-            )
-        super().save()
 
     @property
     def _owned_io_panels(self) -> list[IO]:

@@ -7,9 +7,9 @@ The workhorse class for the entire concept.
 
 from __future__ import annotations
 
-import sys
 from abc import ABC
 from concurrent.futures import Future
+from importlib import import_module
 from typing import Any, Literal, Optional, TYPE_CHECKING
 
 from pyiron_snippets.colors import SeabornColors
@@ -17,42 +17,30 @@ from pyiron_snippets.dotdict import DotDict
 
 from pyiron_workflow.draw import Node as GraphvizNode
 from pyiron_workflow.logging import logger
-from pyiron_workflow.mixin.has_to_dict import HasToDict
 from pyiron_workflow.mixin.injection import HasIOWithInjection
 from pyiron_workflow.mixin.run import Runnable, ReadinessError
 from pyiron_workflow.mixin.semantics import Semantic
 from pyiron_workflow.mixin.single_output import ExploitsSingleOutput
-from pyiron_workflow.mixin.storage import (
-    HasH5ioStorage,
-    HasTinybaseStorage,
-    HasPickleStorage,
-)
+from pyiron_workflow.storage import StorageInterface, available_backends
 from pyiron_workflow.topology import (
     get_nodes_in_data_tree,
     set_run_connections_according_to_linear_dag,
 )
-from pyiron_workflow.mixin.working import HasWorkingDirectory
 
 if TYPE_CHECKING:
     from pathlib import Path
 
     import graphviz
-    from pyiron_snippets.files import DirectoryObject
 
     from pyiron_workflow.channels import OutputSignal
     from pyiron_workflow.nodes.composite import Composite
 
 
 class Node(
-    HasToDict,
+    HasIOWithInjection,
     Semantic,
     Runnable,
-    HasIOWithInjection,
     ExploitsSingleOutput,
-    HasWorkingDirectory,
-    HasH5ioStorage,
-    HasTinybaseStorage,
-    HasPickleStorage,
     ABC,
 ):
     """
@@ -77,11 +65,14 @@ class Node(
             - Running can be triggered in an instantaneous (i.e. "or" applied to
                 incoming signals) or accumulating way (i.e. "and" applied to incoming
                 signals).
+            - Which signals emitted at the end of a run are extensible and customizable
         - If the node has exactly one output channel, most standard python operations
             (attribute access, math, etc.) will fall back on attempting the same
             operation on this single output, if the operation failed on the node.
             Practically, that means that such "single-output" nodes get the same
             to form IO connections and inject new nodes that output channels have.
+            - In addition to operations, some methods exist for common routines, e.g.
+                casting the value as `int`.
     - When running their computation, nodes may or may not:
         - First update their input data values using kwargs
             - (Note that since this happens first, if the "fetching" step later occurs,
@@ -103,17 +94,16 @@ class Node(
             python process that owns the node)
             - If computation is non-local, the node status will stay running and the
                 futures object returned by the executor will be accessible
-        - Emit their run-completed output signal to trigger runs in nodes downstream in
+        - Emit their post-run output signal(s) to trigger runs in nodes downstream in
             the execution flow
     - Running the node (and all aliases of running) return a representation of data
-        held by the output channels
+        held by the output channels (or a futures object)
     - If an error is encountered _after_ reaching the state of actually computing the
         node's task, the status will get set to failure
     - Nodes can be instructed to run at the end of their initialization, but will exit
         cleanly if they get to checking their readiness and find they are not ready
-    - Nodes have a label by which they are identified
-    - Nodes may open a working directory related to their label, their parent(age) and
-        the python process working directory
+    - Nodes have a label by which they are identified within their scope, and a full
+        label which is unique among the entire semantic graph they exist within
     - Nodes can run their computation using remote resources by setting an executor
         - Any executor must have a :meth:`submit` method with the same interface as
             :class:`concurrent.futures.Executor`, must return a
@@ -136,97 +126,34 @@ class Node(
             `with` context when you're done with them; we give a convenience method for
             this.
     - Nodes can optionally cache their input to skip running altogether and use
-        existing output when their current input matches the cached input.
-    - Nodes created from a registered package store their package identifier as a class
-        attribute.
-    - [ALPHA FEATURE] Nodes can be saved to and loaded from file if python >= 3.11.
-        - As long as you haven't put anything unpickleable on them, or defined them in
-            an unpicklable place (e.g. in the `<locals>` of another function), you can
-            simple (un)pickle nodes. There is no save/load interface for this right
-            now, just import pickle and do it. The "pickle" backend to the `Node.save`
-            method will fall back on `cloudpickle` as needed to overcome this.
-        - Saving is triggered manually, or by setting a flag to save after the nodes
-            runs.
-        - At the end of instantiation, nodes will load automatically if they find saved
-            content.
-          - Discovered content can instead be deleted with a kwarg.
-          - You can't load saved content _and_ run after instantiation at once.
-        - The nodes must be defined somewhere importable, i.e. in a module, `__main__`,
-            and as a class property are all fine, but, e.g., inside the `<locals>` of
-            another function is not.
-        - [ALPHA ISSUE] If the source code (cells, `.py` files...) for a saved graph is
-            altered between saving and loading the graph, there are no guarantees about
-            the loaded state; depending on the nature of the changes everything may
-            work fine with the new node definition, the graph may load but silently
-            behave unexpectedly (e.g. if node functionality has changed but the
-            interface is the same), or may crash on loading (e.g. if IO channel labels
-            have changed).
-        - [ALPHA ISSUE] There is no filtering available, saving a node stores all of
-            its IO and does the same thing recursively for its children; depending on
-            your graph this could be expensive in terms of storage space and/or time.
-        - [ALPHA ISSUE] Similarly, there is no way to save only part of a graph; only
-            the entire graph may be saved at once.
-        - [ALPHA ISSUE] There are three possible back-ends for saving: one leaning on
-            `tinybase.storage.GenericStorage` (in practice,
-            `H5ioStorage(GenericStorage)`), and the other that uses the `h5io` module
-            directly. The third (default) option is to use `(cloud)pickle`. The backend
-            used is always the one on the graph root.
-        - [ALPHA ISSUE] The `h5io` backend is deprecated -- it can't handle custom
-            reconstructors (i.e. when `__reduce__` returns a tuple with some
-            non-standard callable as its first entry), and basically all our nodes do
-            that now! `tinybase` gets around this by falling back on `cloudpickle` when
-            its own interactions with `h5io` fail.
-        - [ALPHA ISSUE] Restrictions on data:
-            - For the `h5io` backend: Most data that can be pickled will be fine, but
-                some classes will hit an edge case and throw an exception from `h5io`
-                (at a minimum, those classes which define a custom reconstructor hit,
-                this, but there also seems to be issues with dynamic methods, e.g. the
-                `Calculator` class and its children from `ase`).
-            - For the `tinybase` backend: Any data that can be pickled will be fine,
-                although it might get stored in a pickled state, which is not ideal for
-                long-term storage or sharing.
-        - [ALPHA ISSUE] Restrictions on workflows:
-            - For the `h5io` backend: all child nodes must be defined in an importable
-                location. This includes `__main__` in a jupyter notebook (as long as
-                the same `__main__` cells get executed prior to trying to load!) but
-                not, e.g., inside functions in `__main__`.
-            - For the `tinybase` backend: all child nodes must have been created via
-                the creator (i.e. `wf.create...`), which is to say they come from a
-                registered node package. The composite will run a check and fail early
-                in the save process if this is not the case. Fulfilling this
-                requirement is as simple as moving all the desired nodes off to a `.py`
-                file, registering it, and building the composite from  there.
-        - [ALPHA ISSUE] Restrictions to macros:
-            - For the `h5io` and `pickle` backends: there are none; if a macro is
-                modified, saved, and reloaded, the modifications will be reflected in
-                the loaded state.
-                Note there is a little bit of danger here, as the macro class still
-                corresponds to the un-modified macro class.
-            - For the `tinybase` backend: the macro will re-instantiate its original
-                nodes and try to update their data. Any modifications to the macro
-                prior to saving are completely disregarded; if the interface to the
-                macro was modified (e.g. different channel names in the IO), then this
-                will save fine but throw an exception on load; if the interface was
-                unchanged but the functionality changed (e.g. replacing a child node),
-                the original, unmodified macro will cleanly load and the loaded data
-                will _silently_ mis-represent the macro functionality (insofaras the
-                internal changes would cause a difference in the output data).
+        existing output when their current input matches (`==`) the cached input (this
+        is the default behavior).
+    - Nodes can be saved to and loaded from file.
+        - All storage operations can specify a storage backend interface, but only
+            the interface for saving and loading via `(cloud)pickle` dumping and
+            loading is available at present.
+        - Everything in `pyiron_workflow` itself is (if not, alert developers),
+            pickle-able (by exploiting `pyiron_snippets.factory`), but `pickle` will
+            fall back to `cloudpickle` if trouble is encountered, e.g. because some
+            IO data is not pickle-able.
+        - Saving is triggered manually, or by setting a flag to make a checkpoint save
+            of the entire graph after the node runs.
+        - The pickle storage interface comes with all the same caveats as pickle and
+            is not suitable for storage over indefinitely long time periods.
+            - E.g., if the source code (cells, `.py` files...) for a saved graph is
+                altered between saving and loading the graph, there are no guarantees
+                about the loaded state; depending on the nature of the changes
+                everything may work fine with the new node definition, the graph may
+                load but silently behave unexpectedly (e.g. if node functionality has
+                changed but the interface is the same), or may crash on loading
+                (e.g. if IO channel labels have changed).
+        - If the loaded class does not match the current class, loading fails hard.
 
     This is an abstract class.
-    Children *must* define how :attr:`inputs` and :attr:`outputs` are constructed, what will
-    happen :meth:`on_run`, the :attr:`run_args` that will get passed to :meth:`on_run`, and how to
-    :meth:`process_run_result` once :meth:`on_run` finishes.
+    Children *must* define how :attr:`inputs` and :attr:`outputs` are constructed,
+    what will happen :meth:`on_run`, the :attr:`run_args` that will get passed to
+    :meth:`on_run`, and how to :meth:`process_run_result` once :meth:`on_run` finishes.
     They may optionally add additional signal channels to the signals IO.
-
-    TODO:
-
-        - Allow saving/loading at locations _other_ than the interpreter's working
-            directory combined with the node's working directory, i.e. decouple the
-            working directory from the interpreter's `cwd`.
-        - Integration with more powerful tools for remote execution (anything obeying
-            the standard interface of a :meth:`submit` method taking the callable and
-            arguments and returning a futures object should work, as long as it can
-            handle serializing dynamically defined objects.
 
     Attributes:
         connected (bool): Whether _any_ of the IO (including signals) are connected.
@@ -243,8 +170,6 @@ class Node(
         label (str): A name for the node.
         outputs (pyiron_workflow.io.Outputs): **Abstract.** Children must define
             a property returning an :class:`Outputs` object.
-        package_identifier (str|None): (Class attribute) the identifier for the
-            package this node came from (if any).
         parent (pyiron_workflow.composite.Composite | None): The parent object
             owning this, if any.
         ready (bool): Whether the inputs are all ready and the node is neither
@@ -256,22 +181,23 @@ class Node(
             node. Must be specified in child classes.
         running (bool): Whether the node has called :meth:`run` and has not yet
             received output from this call. (Default is False.)
-        save_after_run (bool): Whether to trigger a save after each run of the node
-            (currently causes the entire graph to save). (Default is False.)
-        storage_backend (Literal["h5io" | "tinybase", "pickle"] | None): The flag for
-            the backend to use for saving and loading; for nodes in a graph the value
-            on the root node is always used.
+        checkpoint (Literal["pickle"] | StorageInterface | None): Whether to trigger a
+            save of the entire graph after each run of the node, and if so what storage
+            back end to use. (Default is None, don't do any checkpoint saving.)
+        autoload (Literal["pickle"] | StorageInterface | None): Whether to check
+            for a matching saved node and what storage back end to use to do so (no
+            auto-loading if the back end is `None`.)
         signals (pyiron_workflow.io.Signals): A container for input and output
             signals, which are channels for controlling execution flow. By default, has
-            a :attr:`signals.inputs.run` channel which has a callback to the :meth:`run` method
-            that fires whenever _any_ of its connections sends a signal to it, a
-            :attr:`signals.inputs.accumulate_and_run` channel which has a callback to the
-            :meth:`run` method but only fires after _all_ its connections send at least one
-            signal to it, and `signals.outputs.ran` which gets called when the `run`
-            method is finished.
+            a :attr:`signals.inputs.run` channel which has a callback to the
+            :meth:`run` method that fires whenever _any_ of its connections sends a
+            signal to it, a :attr:`signals.inputs.accumulate_and_run` channel which has
+            a callback to the :meth:`run` method but only fires after _all_ its
+            connections send at least one signal to it, and `signals.outputs.ran`
+            which gets called when the `run` method is finished.
             Additional signal channels in derived classes can be added to
-            :attr:`signals.inputs` and  :attr:`signals.outputs` after this mixin class is
-            initialized.
+            :attr:`signals.inputs` and  :attr:`signals.outputs` after this mixin class
+            is initialized.
         use_cache (bool): Whether or not to cache the inputs and, when the current
             inputs match the cached input (by `==` comparison), to bypass running the
             node and simply continue using the existing outputs. Note that you may be
@@ -285,19 +211,19 @@ class Node(
         disconnect: Remove all connections, including signals.
         draw: Use graphviz to visualize the node, its IO and, if composite in nature,
             its internal structure.
-        execute: An alias for :meth:`run`, but with flags to run right here, right now, and
-            with the input it currently has.
+        execute: An alias for :meth:`run`, but with flags to run right here, right now,
+            and with the input it currently has.
         on_run: **Abstract.** Do the thing. What thing must be specified by child
             classes.
-        pull: An alias for :meth:`run` that runs everything upstream, then runs this node
-            (but doesn't fire off the `ran` signal, so nothing happens farther
+        pull: An alias for :meth:`run` that runs everything upstream, then runs this
+            node (but doesn't fire off the `ran` signal, so nothing happens farther
             downstream). "Upstream" may optionally break out of the local scope to run
             parent nodes' dependencies as well (all the way until the parent-most
             object is encountered).
         replace_with: If the node belongs to a parent, attempts to replace itself in
             that parent with a new provided node.
-        run: Run the node function from :meth:`on_run`. Handles status automatically. Various
-            execution options are available as boolean flags.
+        run: Run the node function from :meth:`on_run`. Handles status automatically.
+            Various execution options are available as boolean flags.
         set_input_values: Allows input channels' values to be updated without any
             running.
 
@@ -318,21 +244,17 @@ class Node(
         appears as late as possible with the minimal set of args and kwargs.
     """
 
-    package_identifier = None
     use_cache = True
-
-    # This isn't nice, just a technical necessity in the current implementation
-    # Eventually, of course, this needs to be _at least_ file-format independent
 
     def __init__(
         self,
         *args,
         label: Optional[str] = None,
         parent: Optional[Composite] = None,
-        overwrite_save: bool = False,
-        run_after_init: bool = False,
-        storage_backend: Literal["h5io", "tinybase", "pickle"] | None = "pickle",
-        save_after_run: bool = False,
+        delete_existing_savefiles: bool = False,
+        autoload: Literal["pickle"] | StorageInterface | None = None,
+        autorun: bool = False,
+        checkpoint: Literal["pickle"] | StorageInterface | None = None,
         **kwargs,
     ):
         """
@@ -343,24 +265,34 @@ class Node(
             label (str): A name for this node.
             *args: Interpreted as node input data, in order of input channels.
             parent: (Composite|None): The composite node that owns this as a child.
-            run_after_init (bool): Whether to run at the end of initialization.
+            delete_existing_savefiles (bool): Whether to look for and delete any
+                matching save files at instantiation. Uses all default storage
+                back ends and anything passed to :param:`autoload`. (Default is False,
+                leave those files alone!)
+            autoload (Literal["pickle"] | StorageInterface | None): The back end
+                to use for checking whether node data can be loaded from file. A None
+                value indicates no auto-loading. (Default is "pickle".)
+            autorun (bool): Whether to run at the end of initialization.
+            checkpoint (Literal["pickle"] | StorageInterface | None): The storage
+                back end to use for saving the overall graph at the end of this node's
+                run. (Default is None, don't do checkpoint saves.)
             **kwargs: Interpreted as node input data, with keys corresponding to
                 channel labels.
         """
         super().__init__(
             label=self.__class__.__name__ if label is None else label,
             parent=parent,
-            storage_backend=storage_backend,
         )
-        self.save_after_run = save_after_run
-        self.cached_inputs = None
+        self.checkpoint = checkpoint
+        self._cached_inputs = None
         self._user_data = {}  # A place for power-users to bypass node-injection
 
         self._setup_node()
         self._after_node_setup(
             *args,
-            overwrite_save=overwrite_save,
-            run_after_init=run_after_init,
+            delete_existing_savefiles=delete_existing_savefiles,
+            autoload=autoload,
+            autorun=autorun,
             **kwargs,
         )
 
@@ -376,40 +308,32 @@ class Node(
     def _after_node_setup(
         self,
         *args,
-        overwrite_save: bool = False,
-        run_after_init: bool = False,
+        delete_existing_savefiles: bool = False,
+        autoload: Literal["pickle"] | StorageInterface | None = None,
+        autorun: bool = False,
         **kwargs,
     ):
-        if overwrite_save and sys.version_info >= (3, 11):
-            self.delete_storage()
-            do_load = False
-        else:
-            do_load = sys.version_info >= (3, 11) and self.any_storage_has_contents
+        if delete_existing_savefiles:
+            self.delete_storage(backend=autoload)
 
-        if do_load and run_after_init:
-            raise ValueError(
-                f"{self.full_label} can't both load _and_ run after init -- either"
-                f" delete the save file (e.g. with with the `overwrite_save=True` "
-                f"kwarg), change the node label to work in a new space, or give up on "
-                f"running after init."
-            )
-        elif do_load:
-            logger.info(
-                f"A saved file was found for the node {self.full_label} -- "
-                f"attempting to load it...(To delete the saved file instead, use "
-                f"`overwrite_save=True`)"
-            )
-            self.load()
-            self.set_input_values(*args, **kwargs)
-        elif run_after_init:
+        if autoload is not None:
+            for backend in available_backends(backend=autoload):
+                if backend.has_saved_content(self):
+                    logger.info(
+                        f"A saved file was found for the node {self.full_label} -- "
+                        f"attempting to load it...(To delete the saved file instead, "
+                        f"use `delete_existing_savefiles=True`) "
+                    )
+                    self.load(backend=autoload)
+                    break
+
+        self.set_input_values(*args, **kwargs)
+
+        if autorun:
             try:
-                self.set_input_values(*args, **kwargs)
                 self.run()
             except ReadinessError:
                 pass
-        else:
-            self.set_input_values(*args, **kwargs)
-        self.graph_root.tidy_working_directory()
 
     @property
     def graph_path(self) -> str:
@@ -521,7 +445,7 @@ class Node(
 
             return self._outputs_to_run_return()
         elif self.use_cache:  # Write cache and continue
-            self.cached_inputs = self.inputs.to_value_dict()
+            self._cached_inputs = self.inputs.to_value_dict()
 
         if self.parent is not None:
             self.parent.register_child_starting(self)
@@ -638,7 +562,7 @@ class Node(
     @property
     def cache_hit(self):
         try:
-            return self.inputs.to_value_dict() == self.cached_inputs
+            return self.inputs.to_value_dict() == self._cached_inputs
         except:
             return False
 
@@ -652,8 +576,8 @@ class Node(
                 self.parent.register_child_finished(self)
             return processed_output
         finally:
-            if self.save_after_run:
-                self.save()
+            if self.checkpoint is not None:
+                self.save_checkpoint(self.checkpoint)
 
     def _finish_run_and_emit_ran(self, run_output: tuple | Future) -> Any | tuple:
         processed_output = self._finish_run(run_output)
@@ -758,8 +682,8 @@ class Node(
         A selection of the :func:`graphviz.Graph.render` method options are exposed, and if
         :param:`view` or :param:`filename` is provided, this will be called before returning the
         graph.
-        The graph file and rendered image will be stored in the node's working
-        directory.
+        The graph file and rendered image will be stored in a directory based of the
+        node's semantic path, unless a :param:`directory` is explicitly set.
         This is purely for convenience -- since we directly return a graphviz object
         you can instead use this to leverage the full power of graphviz.
 
@@ -799,7 +723,7 @@ class Node(
             size = f"{size[0]},{size[1]}"
         graph = GraphvizNode(self, depth=depth, rankdir=rankdir, size=size).graph
         if save or view or filename is not None:
-            directory = self.working_directory.path if directory is None else directory
+            directory = self.as_path() if directory is None else Path(directory)
             filename = self.label + "_graph" if filename is None else filename
             graph.render(
                 view=view,
@@ -836,42 +760,186 @@ class Node(
         else:
             logger.info(f"Could not replace_child {self.label}, as it has no parent.")
 
-    @property
-    def storage_directory(self) -> DirectoryObject:
-        return self.working_directory
+    _save_load_warnings = """
+        HERE BE DRAGONS!!!
+
+        Warning:
+            This almost certainly only fails for subclasses of :class:`Node` that don't
+            override `node_function` or `macro_creator` directly, as these are expected 
+            to be part of the class itself (and thus already present on our instantiated 
+            object) and are never stored. Nodes created using the provided decorators 
+            should all work.
+
+        Warning:
+            If you modify a `Macro` class in any way (changing its IO maps, rewiring 
+            internal connections, or replacing internal nodes), don't expect 
+            saving/loading to work.
+
+        Warning:
+            If the underlying source code has changed since saving (i.e. the node doing 
+            the loading does not use the same code as the node doing the saving, or the 
+            nodes in some node package have been modified), then all bets are off.
+
+    """
+
+    def save(
+        self,
+        backend: str | StorageInterface = "pickle",
+        filename: str | Path | None = None,
+        **kwargs,
+    ):
+        """
+        Writes the node to file using the requested interface as a back end.
+
+        Args:
+            backend (str | StorageInterface): The interface to use for serializing the
+                node. (Default is "pickle", which loads the standard pickling back end.)
+            filename (str | Path | None): The name of the file (without extensions) at
+                which to save the node. (Default is None, which uses the node's
+                semantic path.)
+            **kwargs: Back end-specific keyword arguments.
+        """
+        for backend in available_backends(backend=backend, only_requested=True):
+            backend.save(node=self, filename=filename, **kwargs)
+
+    save.__doc__ += _save_load_warnings
+
+    def save_checkpoint(self, backend: str | StorageInterface = "pickle"):
+        """
+        Triggers a save on the parent-most node.
+
+        Args:
+            backend (str | StorageInterface): The interface to use for serializing the
+                node. (Default is "pickle", which loads the standard pickling back end.)
+        """
+        self.graph_root.save(backend=backend)
+
+    def load(
+        self, backend: str | StorageInterface = "pickle", only_requested=False, **kwargs
+    ):
+        """
+
+        Loads the node file and set the loaded state as the node's own.
+
+        Args:
+            backend (str | StorageInterface): The interface to use for serializing the
+                node. (Default is "pickle", which loads the standard pickling back end.)
+            only_requested (bool): Whether to _only_ try loading from the specified
+                backend, or to loop through all available backends. (Default is False,
+                try to load whatever you can find.)
+            **kwargs: back end-specific arguments (only likely to work in combination
+                with :param:`only_requested`, otherwise there's nothing to be specific
+                _to_.)
+
+        Raises:
+            FileNotFoundError: when nothing got loaded.
+            TypeError: when the saved node has a different class name.
+        """
+        for backend in available_backends(
+            backend=backend, only_requested=only_requested
+        ):
+            inst = backend.load(node=self, **kwargs)
+            if inst is not None:
+                break
+        if inst is None:
+            raise FileNotFoundError(f"{self.label} could not find saved content.")
+
+        if inst.__class__ != self.__class__:
+            raise TypeError(
+                f"{self.label} cannot load, as it has type "
+                f"{self.__class__.__name__},  but the saved node has type "
+                f"{inst.__class__.__name__}"
+            )
+        self.__setstate__(inst.__getstate__())
+
+    load.__doc__ += _save_load_warnings
+
+    def delete_storage(
+        self,
+        backend: Literal["pickle"] | StorageInterface | None = None,
+        only_requested: bool = False,
+        **kwargs,
+    ):
+        """
+        Remove save file(s).
+
+        Args:
+            backend (str | StorageInterface): The interface to use for serializing the
+                node. (Default is "pickle", which loads the standard pickling back end.)
+            only_requested (bool): Whether to _only_ try loading from the specified
+                backend, or to loop through all available backends. (Default is False,
+                try to load whatever you can find.)
+            **kwargs: back end-specific arguments (only likely to work in combination
+                with :param:`only_requested`, otherwise there's nothing to be specific
+                _to_.)
+        """
+        for backend in available_backends(
+            backend=backend, only_requested=only_requested
+        ):
+            backend.delete(node=self, **kwargs)
+
+    def has_saved_content(
+        self,
+        backend: Literal["pickle"] | StorageInterface | None = None,
+        only_requested: bool = False,
+        **kwargs,
+    ):
+        """
+        Whether any save files can be found at the canonical location for this node.
+
+        Args:
+            backend (str | StorageInterface): The interface to use for serializing the
+                node. (Default is "pickle", which loads the standard pickling back end.)
+            only_requested (bool): Whether to _only_ try loading from the specified
+                backend, or to loop through all available backends. (Default is False,
+                try to load whatever you can find.)
+            **kwargs: back end-specific arguments (only likely to work in combination
+                with :param:`only_requested`, otherwise there's nothing to be specific
+                _to_.)
+
+        Returns:
+            bool: Whether any save files were found
+        """
+        return any(
+            be.has_saved_content(self, **kwargs)
+            for be in available_backends(backend=backend, only_requested=only_requested)
+        )
 
     @property
-    def storage_path(self) -> str:
-        return self.graph_path
+    def import_ready(self) -> bool:
+        """
+        Checks whether `importlib` can find this node's class, and if so whether the
+        imported object matches the node's type.
 
-    def tidy_storage_directory(self):
-        self.tidy_working_directory()
+        Returns:
+            (bool): Whether the imported module and name of this node's class match
+                its type.
+        """
+        try:
+            module = self.__class__.__module__
+            class_ = getattr(import_module(module), self.__class__.__name__)
+            if module == "__main__":
+                logger.warning(f"{self.label} is only defined in __main__")
+            return type(self) is class_
+        except (ModuleNotFoundError, AttributeError):
+            return False
 
-    def to_storage(self, storage):
-        storage["package_identifier"] = self.package_identifier
-        storage["class_name"] = self.__class__.__name__
-        storage["label"] = self.label
-        storage["running"] = self.running
-        storage["failed"] = self.failed
-        storage["save_after_run"] = self.save_after_run
+    @property
+    def import_readiness_report(self):
+        print(self.report_import_readiness())
 
-        data_inputs = storage.create_group("inputs")
-        for label, channel in self.inputs.items():
-            channel.to_storage(data_inputs.create_group(label))
+    def report_import_readiness(self, tabs=0, report_so_far=""):
+        newline = "\n" if len(report_so_far) > 0 else ""
+        tabspace = tabs * "\t"
+        return (
+            report_so_far + f"{newline}{tabspace}{self.label}: "
+            f"{'ok' if self.import_ready else 'NOT IMPORTABLE'}"
+        )
 
-        data_outputs = storage.create_group("outputs")
-        for label, channel in self.outputs.items():
-            channel.to_storage(data_outputs.create_group(label))
-
-    def from_storage(self, storage):
-        self.running = bool(storage["running"])
-        self.failed = bool(storage["failed"])
-        self.save_after_run = bool(storage["save_after_run"])
-
-        data_inputs = storage["inputs"]
-        for label in data_inputs.list_groups():
-            self.inputs[label].from_storage(data_inputs[label])
-
-        data_outputs = storage["outputs"]
-        for label in data_outputs.list_groups():
-            self.outputs[label].from_storage(data_outputs[label])
+    def display_state(self, state=None, ignore_private=True):
+        state = dict(self.__getstate__()) if state is None else state
+        if self.parent is not None:
+            state["parent"] = self.parent.full_label
+        if len(state["_user_data"]) > 0:
+            self._make_entry_public(state, "_user_data", "user_data")
+        return super().display_state(state=state, ignore_private=ignore_private)

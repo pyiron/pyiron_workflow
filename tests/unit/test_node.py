@@ -1,14 +1,11 @@
 from concurrent.futures import Future, ProcessPoolExecutor
-import os
-import sys
 import unittest
-
-from pyiron_snippets.files import DirectoryObject
 
 from pyiron_workflow.channels import InputData, NOT_DATA
 from pyiron_workflow.mixin.injection import OutputDataWithInjection, OutputsWithInjection
 from pyiron_workflow.io import Inputs
 from pyiron_workflow.node import Node
+from pyiron_workflow.storage import available_backends, PickleStorage
 from pyiron_workflow.mixin.single_output import AmbiguousOutputError
 
 
@@ -273,40 +270,10 @@ class TestNode(unittest.TestCase):
                 "made a ran/run connection"
         )
 
-    def test_working_directory(self):
-        self.assertTrue(
-            self.n1._working_directory is None,
-            msg="Sanity check -- No working directory should be made unless asked for"
-        )
-        self.assertFalse(
-            os.path.isdir(self.n1.label),
-            msg="Sanity check -- No working directory should be made unless asked for"
-        )
-        self.assertIsInstance(
-            self.n1.working_directory,
-            DirectoryObject,
-            msg="Directory should be created on first access"
-        )
-        self.assertTrue(
-            str(self.n1.working_directory.path).endswith(self.n1.label),
-            msg="Directory name should be based off of label"
-        )
-        self.assertTrue(
-            os.path.isdir(self.n1.label),
-            msg="Now we asked for it, it should be there"
-        )
-        self.n1.working_directory.delete()
-        self.assertFalse(
-            os.path.isdir(self.n1.label),
-            msg="Just want to make sure we cleaned up after ourselves"
-        )
-
     def test_draw(self):
         try:
             self.n1.draw()
-            self.assertFalse(
-                any(self.n1.working_directory.path.iterdir())
-            )
+            self.assertFalse(self.n1.as_path().exists())
 
             for fmt in ["pdf", "png"]:
                 with self.subTest(f"Testing with format {fmt}"):
@@ -315,7 +282,7 @@ class TestNode(unittest.TestCase):
                     # That name is just an implementation detail, update it as
                     # needed
                     self.assertTrue(
-                        self.n1.working_directory.path.joinpath(
+                        self.n1.as_path().joinpath(
                             expected_name
                         ).is_file(),
                         msg="If `save` is called, expect the rendered image to "
@@ -326,15 +293,18 @@ class TestNode(unittest.TestCase):
             self.n1.draw(filename=user_specified_name, format=fmt)
             expected_name = user_specified_name + "." + fmt
             self.assertTrue(
-                self.n1.working_directory.path.joinpath(expected_name).is_file(),
+                self.n1.as_path().joinpath(expected_name).is_file(),
                 msg="If the user specifies a filename, we should assume they want the "
                     "thing saved"
             )
         finally:
             # No matter what happens in the tests, clean up after yourself
-            self.n1.working_directory.delete()
+            if self.n1.as_path().exists():
+                for p in self.n1.as_path().iterdir():
+                    p.unlink()
+                self.n1.as_path().rmdir()
 
-    def test_run_after_init(self):
+    def test_autorun(self):
         self.assertIs(
             self.n1.outputs.y.value,
             NOT_DATA,
@@ -342,8 +312,8 @@ class TestNode(unittest.TestCase):
         )
         self.assertEqual(
             1,
-            ANode(label="right_away", run_after_init=True, x=0).outputs.y.value,
-            msg="With run_after_init, the node should run right away"
+            ANode(label="right_away", autorun=True, x=0).outputs.y.value,
+            msg="With autorun, the node should run right away"
         )
 
     def test_graph_info(self):
@@ -397,16 +367,6 @@ class TestNode(unittest.TestCase):
         ):
             node.channel
 
-    @unittest.skipIf(sys.version_info >= (3, 11), "Storage should only work in 3.11+")
-    def test_storage_failure(self):
-        with self.assertRaises(
-            NotImplementedError,
-            msg="Storage is only available in python 3.11+, so we should fail hard and "
-                "clean here"
-        ):
-            self.n1.storage
-
-    @unittest.skipIf(sys.version_info < (3, 11), "Storage will only work in 3.11+")
     def test_storage(self):
         self.assertIs(
             self.n1.outputs.y.value,
@@ -415,21 +375,29 @@ class TestNode(unittest.TestCase):
         )
         y = self.n1()
 
-        for backend in Node.allowed_backends():
+        self.assertFalse(self.n1.has_saved_content())
+
+        with self.assertRaises(
+            FileNotFoundError,
+            msg="We just verified there is no save file, so loading should fail."
+        ):
+            self.n1.load()
+
+        for backend in available_backends():
             with self.subTest(backend):
-                self.n1.storage_backend = backend
                 try:
-                    self.n1.save()
+                    self.n1.save(backend=backend)
+                    self.assertTrue(self.n1.has_saved_content())
 
                     x = self.n1.inputs.x.value
-                    reloaded = ANode(label=self.n1.label, x=x, storage_backend=backend)
+                    reloaded = ANode(label=self.n1.label, x=x, autoload=backend)
                     self.assertEqual(
                         y,
                         reloaded.outputs.y.value,
                         msg="Nodes should load by default if they find a save file"
                     )
 
-                    clean_slate = ANode(label=self.n1.label, x=x, overwrite_save=True)
+                    clean_slate = ANode(label=self.n1.label, x=x, delete_existing_savefiles=True)
                     self.assertIs(
                         clean_slate.outputs.y.value,
                         NOT_DATA,
@@ -439,8 +407,7 @@ class TestNode(unittest.TestCase):
                     run_right_away = ANode(
                         label=self.n1.label,
                         x=x,
-                        run_after_init=True,
-                        storage_backend=backend
+                        autorun=True,
                     )
                     self.assertEqual(
                         y,
@@ -449,23 +416,35 @@ class TestNode(unittest.TestCase):
                     )
 
                     run_right_away.save()
-                    with self.assertRaises(
-                        ValueError,
-                        msg="Should be able to both immediately run _and_ load a node at "
-                            "once"
-                    ):
-                        ANode(
-                            label=self.n1.label,
-                            x=x,
-                            run_after_init=True,
-                            storage_backend=backend
-                        )
+                    load_and_rerun_origal_input = ANode(
+                        label=self.n1.label,
+                        autorun=True,
+                        autoload=backend
+                    )
+                    self.assertEqual(
+                        load_and_rerun_origal_input.outputs.y.value,
+                        run_right_away.outputs.y.value,
+                        msg="Loading and then running immediately is fine, and should "
+                            "recover existing input"
+                    )
+                    load_and_rerun_new_input = ANode(
+                        label=self.n1.label,
+                        x=x + 1,
+                        autorun=True,
+                        autoload=backend
+                    )
+                    self.assertEqual(
+                        load_and_rerun_new_input.outputs.y.value,
+                        run_right_away.outputs.y.value + 1,
+                        msg="Loading and then running immediately is fine, and should "
+                            "notice the new input"
+                    )
 
                     force_run = ANode(
                         label=self.n1.label,
                         x=x,
-                        run_after_init=True,
-                        overwrite_save=True
+                        autorun=True,
+                        delete_existing_savefiles=True
                     )
                     self.assertEqual(
                         y,
@@ -473,14 +452,14 @@ class TestNode(unittest.TestCase):
                         msg="Destroying the save should allow immediate re-running"
                     )
 
-                    hard_input = ANode(label="hard", storage_backend=backend)
+                    hard_input = ANode(label="hard")
                     hard_input.inputs.x.type_hint = callable
                     hard_input.inputs.x = lambda x: x * 2
-                    if backend == "pickle":
+                    if isinstance(backend, PickleStorage):
                         hard_input.save()
                         reloaded = ANode(
                             label=hard_input.label,
-                            storage_backend=backend
+                            autoload=backend
                         )
                         self.assertEqual(
                             reloaded.inputs.x.value(4),
@@ -494,67 +473,27 @@ class TestNode(unittest.TestCase):
                         ):
                             hard_input.save()
                 finally:
-                    hard_input.delete_storage()
-                    self.n1.delete_storage()
+                    self.n1.delete_storage(backend)
+                    hard_input.delete_storage(backend)
 
-    @unittest.skipIf(sys.version_info < (3, 11), "Storage will only work in 3.11+")
-    def test_storage_compatibility(self):
-        try:
-            self.n1.storage_backend = "tinybase"
-            self.n1.inputs.x = 42
-            self.n1.save()
-            new_n1 = ANode(label=self.n1.label, storage_backend="pickle")
-            self.assertEqual(
-                new_n1.inputs.x.value,
-                self.n1.inputs.x.value,
-                msg="Even though the new node has a different storage backend, it "
-                    "should still _load_ the data saved with a different backend. To "
-                    "really avoid loading, delete or move the existing save file, or "
-                    "give your new node a different label."
-            )
-            new_n1()
-            new_n1.save()  # With a different backend now
-
-            tiny_n1 = ANode(label=self.n1.label, storage_backend="tinybase")
-            self.assertIs(
-                tiny_n1.outputs.y.value,
-                NOT_DATA,
-                msg="By explicitly specifying a particular backend, we expect to "
-                    "recover that backend's save-file, even if it is outdated"
-            )
-
-            pick_n1 = ANode(label=self.n1.label, storage_backend="pickle")
-            self.assertEqual(
-                pick_n1.outputs.y.value,
-                new_n1.outputs.y.value,
-                msg="If we specify the more-recently-saved backend, we expect to load "
-                    "the corresponding save file, where output exists"
-            )
-        finally:
-            self.n1.delete_storage()
-
-
-    @unittest.skipIf(sys.version_info < (3, 11), "Storage will only work in 3.11+")
-    def test_save_after_run(self):
-        for backend in Node.allowed_backends():
+    def test_checkpoint(self):
+        for backend in available_backends():
             with self.subTest(backend):
                 try:
                     ANode(
                         label="just_run",
                         x=0,
-                        run_after_init=True,
-                        storage_backend=backend
+                        autorun=True,
                     )
                     saves = ANode(
                         label="run_and_save",
                         x=0,
-                        run_after_init=True,
-                        save_after_run=True,
-                        storage_backend=backend
+                        autorun=True,
+                        checkpoint=backend,
                     )
                     y = saves.outputs.y.value
 
-                    not_reloaded = ANode(label="just_run", storage_backend=backend)
+                    not_reloaded = ANode(label="just_run", autoload=backend)
                     self.assertIs(
                         NOT_DATA,
                         not_reloaded.outputs.y.value,
@@ -562,7 +501,7 @@ class TestNode(unittest.TestCase):
                             "to load"
                     )
 
-                    find_saved = ANode(label="run_and_save", storage_backend=backend)
+                    find_saved = ANode(label="run_and_save", autoload=backend)
                     self.assertEqual(
                         y,
                         find_saved.outputs.y.value,
@@ -570,7 +509,7 @@ class TestNode(unittest.TestCase):
                             "on instantiation"
                     )
                 finally:
-                    saves.storage.delete()  # Clean up
+                    saves.delete_storage(backend)  # Clean up
 
 
 if __name__ == '__main__':

@@ -8,6 +8,9 @@ from pyiron_workflow.mixin.injection import OutputsWithInjection
 from pyiron_workflow.io import Inputs, ConnectionCopyError
 from pyiron_workflow.topology import CircularDataFlowError
 
+ensure_tests_in_python_path()
+from static import demo_nodes
+
 
 def plus_one(x: int = 0) -> int:
     y = x + 1
@@ -42,12 +45,6 @@ class AComposite(Composite):
 
 
 class TestComposite(unittest.TestCase):
-    @classmethod
-    def setUpClass(cls) -> None:
-        ensure_tests_in_python_path()
-        from static.demo_nodes import AddThree
-        cls.AddThree = AddThree
-        super().setUpClass()
 
     def setUp(self) -> None:
         self.comp = AComposite("my_composite")
@@ -76,27 +73,6 @@ class TestComposite(unittest.TestCase):
             from_instance.parent,
             msg="Wrappers are not creators, wrapping from the instance makes no "
                 "difference"
-        )
-
-    def test_creator_access_and_registration(self):
-        self.comp.register("static.demo_nodes", "demo")
-
-        # Test invocation
-        self.comp.add_child(self.comp.create.demo.OptionallyAdd(label="by_add"))
-        # Test invocation with attribute assignment
-        self.comp.by_assignment = self.comp.create.demo.OptionallyAdd()
-        node = self.comp.create.demo.OptionallyAdd()
-
-        self.assertSetEqual(
-            set(self.comp.children.keys()),
-            set(["by_add", "by_assignment"]),
-            msg=f"Expected one node label generated automatically from the add_child call "
-                f"and the other from the attribute assignment, but got "
-                f"{self.comp.children.keys()}"
-        )
-        self.assertIsNone(
-            node.parent,
-            msg="Just creating should not parent the created nodes"
         )
 
     def test_node_addition(self):
@@ -412,14 +388,6 @@ class TestComposite(unittest.TestCase):
                     "cleanly"
             )
 
-    def test_working_directory(self):
-        self.comp.plus_one = Composite.create.function_node(plus_one)
-        self.assertTrue(
-            str(self.comp.plus_one.working_directory.path).endswith(self.comp.plus_one.label),
-            msg="Child nodes should have their own working directories nested inside"
-        )
-        self.comp.working_directory.delete()  # Clean up
-
     def test_length(self):
         self.comp.child = Composite.create.function_node(plus_one)
         l1 = len(self.comp)
@@ -576,14 +544,13 @@ class TestComposite(unittest.TestCase):
             )
 
     def test_import_ready(self):
-        self.comp.register("static.demo_nodes", "demo")
 
-        totally_findable = Composite.create.demo.OptionallyAdd()
+        totally_findable = demo_nodes.OptionallyAdd()
         self.assertTrue(
             totally_findable.import_ready,
             msg="The node class is well defined and in an importable module"
         )
-        bad_class = Composite.create.demo.dynamic()
+        bad_class = demo_nodes.Dynamic()
         self.assertFalse(
             bad_class.import_ready,
             msg="The node is in an importable location, but the imported object is not "
@@ -618,7 +585,7 @@ class TestComposite(unittest.TestCase):
         )
 
     def test_with_executor(self):
-        self.comp.add_child(self.AddThree(label="sub_composite", x=0))
+        self.comp.add_child(demo_nodes.AddThree(label="sub_composite", x=0))
         with ProcessPoolExecutor() as exe:
             self.comp.sub_composite.executor = exe
             self.comp.run()

@@ -14,8 +14,8 @@ import inspect
 
 from pyiron_snippets.singleton import Singleton
 
-from pyiron_workflow.mixin.has_interface_mixins import HasChannel, HasLabel, UsesState
-from pyiron_workflow.mixin.has_to_dict import HasToDict
+from pyiron_workflow.mixin.has_interface_mixins import HasChannel, HasLabel
+from pyiron_workflow.mixin.has_to_dict import HasStateDisplay
 from pyiron_workflow.type_hinting import (
     valid_value,
     type_hint_is_as_or_more_specific_than,
@@ -29,7 +29,7 @@ class ChannelConnectionError(Exception):
     pass
 
 
-class Channel(UsesState, HasChannel, HasLabel, HasToDict, ABC):
+class Channel(HasChannel, HasLabel, HasStateDisplay, ABC):
     """
     Channels facilitate the flow of information (data or control signals) into and
     out of :class:`HasIO` objects (namely nodes).
@@ -220,23 +220,19 @@ class Channel(UsesState, HasChannel, HasLabel, HasToDict, ABC):
             self.disconnect(*new_connections)
             raise e
 
-    def to_dict(self) -> dict:
-        return {
-            "label": self.label,
-            "connected": self.connected,
-            "connections": [f"{c.owner.label}.{c.label}" for c in self.connections],
-        }
-
     def __getstate__(self):
         state = super().__getstate__()
-        # To avoid cyclic storage and avoid storing complex objects, purge some
-        # properties from the state
-        state["owner"] = None
-        # It is the responsibility of the owner to restore the owner property
         state["connections"] = []
         # It is the responsibility of the owner's parent to store and restore
-        # connections (if any)
+        # connections (if any), since these can extend beyond the owner and would thus
+        # bloat the data being sent cross-process if the owner is shipped off
         return state
+
+    def display_state(self, state=None, ignore_private=True):
+        state = dict(self.__getstate__()) if state is None else state
+        state["owner"] = state["owner"].full_label  # JSON can't handle recursion
+        state["connections"] = [c.full_label for c in self.connections]
+        return super().display_state(state=state, ignore_private=ignore_private)
 
 
 class NotData(metaclass=Singleton):
@@ -433,7 +429,9 @@ class DataChannel(Channel, ABC):
             (bool): Whether the value is data and matches the type hint.
         """
         return self._value_is_data and (
-            valid_value(self.value, self.type_hint) if self._has_hint else True
+            valid_value(self.value, self.type_hint)
+            if self._has_hint and self.strict_hints
+            else True
         )
 
     @property
@@ -469,36 +467,11 @@ class DataChannel(Channel, ABC):
     def __str__(self):
         return str(self.value)
 
-    def to_dict(self) -> dict:
-        d = super().to_dict()
-        d["value"] = repr(self.value)
-        d["ready"] = self.ready
-        d["type_hint"] = str(self.type_hint)
-        return d
-
     def activate_strict_hints(self) -> None:
         self.strict_hints = True
 
     def deactivate_strict_hints(self) -> None:
         self.strict_hints = False
-
-    def to_storage(self, storage):
-        storage["strict_hints"] = self.strict_hints
-        storage["type_hint"] = self.type_hint
-        storage["default"] = self.default
-        storage["value"] = self.value
-
-    def from_storage(self, storage):
-        self.strict_hints = bool(storage["strict_hints"])
-        self.type_hint = storage["type_hint"]
-        self.default = storage["default"]
-        from pyiron_contrib.tinybase.storage import GenericStorage
-
-        self.value = (
-            storage["value"].to_object()
-            if isinstance(storage["value"], GenericStorage)
-            else storage["value"]
-        )
 
     def __getstate__(self):
         state = super().__getstate__()
@@ -506,6 +479,11 @@ class DataChannel(Channel, ABC):
         # Value receivers live in the scope of Macros, so (re)storing them is the
         # owning macro's responsibility
         return state
+
+    def display_state(self, state=None, ignore_private=True):
+        state = dict(self.__getstate__()) if state is None else state
+        self._make_entry_public(state, "_value", "value")
+        return super().display_state(state=state, ignore_private=ignore_private)
 
 
 class InputData(DataChannel):
@@ -641,11 +619,6 @@ class InputSignal(SignalChannel):
 
     def __str__(self):
         return f"{self.label} runs {self.callback.__name__}"
-
-    def to_dict(self) -> dict:
-        d = super().to_dict()
-        d["callback"] = self.callback.__name__
-        return d
 
     def _connect_output_signal(self, signal: OutputSignal):
         self.connect(signal)

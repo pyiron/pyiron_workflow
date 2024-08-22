@@ -13,6 +13,7 @@ from pyiron_snippets.factory import classfactory
 from pyiron_workflow.channels import NOT_DATA
 from pyiron_workflow.nodes.composite import Composite
 from pyiron_workflow.nodes.static_io import StaticNode
+from pyiron_workflow.storage import StorageInterface
 from pyiron_workflow.nodes.transform import (
     inputs_to_dict,
     inputs_to_dataframe,
@@ -199,10 +200,10 @@ class For(Composite, StaticNode, ABC):
         *args,
         label: Optional[str] = None,
         parent: Optional[Composite] = None,
-        overwrite_save: bool = False,
-        run_after_init: bool = False,
-        storage_backend: Optional[Literal["h5io", "tinybase", "pickle"]] = None,
-        save_after_run: bool = False,
+        autoload: Literal["pickle"] | StorageInterface | None = None,
+        delete_existing_savefiles: bool = False,
+        autorun: bool = False,
+        checkpoint: Literal["pickle"] | StorageInterface | None = None,
         strict_naming: bool = True,
         body_node_executor: Optional[Executor] = None,
         **kwargs,
@@ -211,14 +212,14 @@ class For(Composite, StaticNode, ABC):
             *args,
             label=label,
             parent=parent,
-            overwrite_save=overwrite_save,
-            run_after_init=run_after_init,
-            storage_backend=storage_backend,
-            save_after_run=save_after_run,
+            delete_existing_savefiles=delete_existing_savefiles,
+            autorun=autorun,
+            autoload=autoload,
+            checkpoint=checkpoint,
             strict_naming=strict_naming,
             **kwargs,
         )
-        self.body_node_executor = None
+        self.body_node_executor = body_node_executor
 
     def _setup_node(self) -> None:
         super()._setup_node()

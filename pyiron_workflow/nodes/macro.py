@@ -7,7 +7,7 @@ from __future__ import annotations
 
 from abc import ABC, abstractmethod
 import re
-from typing import Literal, TYPE_CHECKING
+from typing import TYPE_CHECKING
 
 from pyiron_snippets.factory import classfactory
 
@@ -51,8 +51,8 @@ class Macro(Composite, StaticNode, ScrapesIO, ABC):
     Macro IO is _value linked_ to the child IO, so that their values stay synchronized,
     but the child nodes of a macro form an isolated sub-graph.
 
-    As with function nodes, subclasses of :class:`Macro` may define a method for creating the
-    graph.
+    As with function nodes, subclasses of :class:`Macro` may define a method for
+    creating the graph.
 
     As with :class:`Workflow``, all DAG macros can determine their execution flow
     automatically, if you have cycles in your data flow, or otherwise want more control
@@ -248,9 +248,7 @@ class Macro(Composite, StaticNode, ScrapesIO, ABC):
     def _setup_node(self) -> None:
         super()._setup_node()
 
-        ui_nodes = self._prepopulate_ui_nodes_from_graph_creator_signature(
-            storage_backend=self.storage_backend
-        )
+        ui_nodes = self._prepopulate_ui_nodes_from_graph_creator_signature()
         returned_has_channel_objects = self.graph_creator(self, *ui_nodes)
         if returned_has_channel_objects is None:
             returned_has_channel_objects = ()
@@ -301,16 +299,13 @@ class Macro(Composite, StaticNode, ScrapesIO, ABC):
         else:
             return scraped_labels
 
-    def _prepopulate_ui_nodes_from_graph_creator_signature(
-        self, storage_backend: Literal["h5io", "tinybase", "pickle"]
-    ):
+    def _prepopulate_ui_nodes_from_graph_creator_signature(self):
         ui_nodes = []
         for label, (type_hint, default) in self.preview_inputs().items():
             n = self.create.standard.UserInput(
                 default,
                 label=label,
                 parent=self,
-                storage_backend=storage_backend,
             )
             n.inputs.user_input.type_hint = type_hint
             ui_nodes.append(n)
@@ -410,17 +405,6 @@ class Macro(Composite, StaticNode, ScrapesIO, ABC):
         self.disconnect_run()
         for pairs in run_signal_pairs_to_restore:
             pairs[0].connect(pairs[1])
-
-    def to_workfow(self):
-        raise NotImplementedError
-
-    def from_storage(self, storage):
-        super().from_storage(storage)
-        # Nodes instantiated in macros probably aren't aware of their parent at
-        # instantiation time, and thus may be clean (un-loaded) objects --
-        # reload their data
-        for label, node in self.children.items():
-            node.from_storage(storage[label])
 
     @property
     def _input_value_links(self):

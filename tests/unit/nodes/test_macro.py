@@ -1,14 +1,17 @@
 from concurrent.futures import Future
 import pickle
-import sys
 from time import sleep
 import unittest
 
 from pyiron_workflow._tests import ensure_tests_in_python_path
 from pyiron_workflow.channels import NOT_DATA
-from pyiron_workflow.nodes.function import function_node
+from pyiron_workflow.nodes.function import function_node, as_function_node
 from pyiron_workflow.nodes.macro import Macro, macro_node, as_macro_node
+from pyiron_workflow.storage import available_backends, PickleStorage
 from pyiron_workflow.topology import CircularDataFlowError
+
+ensure_tests_in_python_path()
+from static import demo_nodes
 
 
 def add_one(x):
@@ -28,6 +31,11 @@ def add_three_macro(self, one__x):
 def wrong_return_macro(macro):
     macro.one = function_node(add_one)
     return 3
+
+
+@as_function_node
+def SomeNode(x):
+    return x
 
 
 class TestMacro(unittest.TestCase):
@@ -471,34 +479,22 @@ class TestMacro(unittest.TestCase):
             m = PassThrough()
             print(m.child_labels, m.inputs, m.outputs)
 
-    @unittest.skipIf(sys.version_info < (3, 11), "Storage will only work in 3.11+")
     def test_storage_for_modified_macros(self):
-        ensure_tests_in_python_path()
-        Macro.register("static.demo_nodes", domain="demo")
-
-        for backend in Macro.allowed_backends():
+        for backend in available_backends():
             with self.subTest(backend):
                 try:
-                    macro = Macro.create.demo.AddThree(
-                        label="m", x=0, storage_backend=backend
-                    )
-                    original_result = macro()
+                    macro = demo_nodes.AddThree(label="m", x=0)
                     macro.replace_child(
                         macro.two,
-                        Macro.create.demo.AddPlusOne()
+                        demo_nodes.AddPlusOne()
                     )
 
                     modified_result = macro()
 
-                    if backend == "h5io":
-                        with self.assertRaises(
-                            TypeError, msg="h5io can't handle custom reconstructors"
-                        ):
-                            macro.save()
-                    elif backend in ["tinybase", "pickle"]:
-                        macro.save()
-                        reloaded = Macro.create.demo.AddThree(
-                            label="m", storage_backend=backend
+                    if isinstance(backend, PickleStorage):
+                        macro.save(backend)
+                        reloaded = demo_nodes.AddThree(
+                            label="m", autoload=backend
                         )
                         self.assertDictEqual(
                             modified_result,
@@ -509,13 +505,13 @@ class TestMacro(unittest.TestCase):
                             set(macro.children.keys()),
                             set(reloaded.children.keys()),
                             msg="All nodes should have been (de)serialized."
-                        )  # Note that this snags the _new_ one in the case of h5io!
+                        )
                         self.assertEqual(
-                            Macro.create.demo.AddThree.__name__,
+                            demo_nodes.AddThree.__name__,
                             reloaded.__class__.__name__,
                             msg=f"LOOK OUT! This all (de)serialized nicely, but what we "
                                 f"loaded is _falsely_ claiming to be an "
-                                f"{Macro.create.demo.AddThree.__name__}. This is "
+                                f"{demo_nodes.AddThree.__name__}. This is "
                                 f"not any sort of technical error -- what other class name "
                                 f"would we load? -- but is a deeper problem with saving "
                                 f"modified objects that we need ot figure out some better "
@@ -523,39 +519,25 @@ class TestMacro(unittest.TestCase):
                         )
                         rerun = reloaded()
 
-                        if backend == "tinybase":
-                            self.assertIsInstance(
-                                reloaded.two,
-                                Macro.create.standard.Add,
-                                msg="tinybase is re-instantiating the original macro "
-                                    "class and then carefully loading particular "
-                                    "pieces of data; that means each child is"
-                            )
-                            self.assertDictEqual(
-                                original_result,
-                                rerun,
-                                msg="Rerunning re-executes the _original_ "
-                                    "functionality"
-                            )
-                        elif backend == "pickle":
-                            self.assertIsInstance(
-                                reloaded.two,
-                                Macro.create.demo.AddPlusOne,
-                                msg="pickle instantiates the macro node class, but "
-                                    "but then uses its serialized state, so we retain "
-                                    "the replaced node."
-                            )
-                            self.assertDictEqual(
-                                modified_result,
-                                rerun,
-                                msg="Rerunning re-executes the _replaced_ functionality"
-                            )
+                        self.assertIsInstance(
+                            reloaded.two,
+                            demo_nodes.AddPlusOne,
+
+                            msg="pickle instantiates the macro node class, but "
+                                "but then uses its serialized state, so we retain "
+                                "the replaced node."
+                        )
+                        self.assertDictEqual(
+                            modified_result,
+                            rerun,
+                            msg="Rerunning re-executes the _replaced_ functionality"
+                        )
                     else:
                         raise ValueError(
                             f"Backend {backend} not recognized -- write a test for it"
                         )
                 finally:
-                    macro.storage.delete()
+                    macro.delete_storage(backend)
 
     def test_output_label_stripping(self):
         """Test extensions to the `ScrapesIO` mixin."""
@@ -613,6 +595,61 @@ class TestMacro(unittest.TestCase):
             msg="The remainder of the child node state should be recovering just "
                 "fine on (de)serialization, this is a spot-check"
         )
+
+    def test_autoload(self):
+        existing_node = SomeNode()
+        existing_node(42)
+        # Name clashes with a macro-node name
+        existing_node.save("pickle")
+
+        try:
+            @as_macro_node
+            def AutoloadsChildren(self, x):
+                self.some_child = SomeNode(x, autoload="pickle")
+                return self.some_child
+
+            self.assertEqual(
+                AutoloadsChildren().some_child.outputs.x.value,
+                existing_node.outputs.x.value,
+                msg="Autoloading macro children can result in a child node coming with "
+                    "pre-loaded data if the child's label at instantiation results in a "
+                    "match with some already-saved node (if the load is compatible). This "
+                    "is almost certainly undesirable"
+            )
+
+            @as_macro_node
+            def AutofailsChildren(self, x):
+                self.some_child = function_node(
+                    add_one,
+                    x,
+                    label=SomeNode.__name__,
+                    autoload="pickle"
+                )
+                return self.some_child
+
+            with self.assertRaises(
+                TypeError,
+                msg="When the macro auto-loads a child but the loaded type is not "
+                    "compatible with the child type, we will even get an error at macro "
+                    "instantiation time! Autoloading macro children is really not wise."
+            ):
+                AutofailsChildren()
+
+            @as_macro_node
+            def DoesntAutoloadChildren(self, x):
+                self.some_child = SomeNode(x)
+                return self.some_child
+
+            self.assertIs(
+                DoesntAutoloadChildren().some_child.outputs.x.value,
+                NOT_DATA,
+                msg="Despite having the same label as a saved node at instantiation time, "
+                    "without autoloading children, our macro safely gets a fresh instance. "
+                    "Since this is clearly preferable, here we leave autoload to take its "
+                    "default value (which for macros should thus not autoload.)"
+            )
+        finally:
+            existing_node.delete_storage("pickle")
 
 
 if __name__ == '__main__':

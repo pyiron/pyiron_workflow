@@ -1,6 +1,5 @@
 from concurrent.futures import Future
 import pickle
-import sys
 from time import sleep
 import unittest
 
@@ -10,8 +9,11 @@ from pyiron_snippets.dotdict import DotDict
 from pyiron_workflow._tests import ensure_tests_in_python_path
 from pyiron_workflow.channels import NOT_DATA
 from pyiron_workflow.mixin.semantics import ParentMostError
-from pyiron_workflow.mixin.storage import TypeNotFoundError
+from pyiron_workflow.storage import available_backends, TypeNotFoundError
 from pyiron_workflow.workflow import Workflow
+
+ensure_tests_in_python_path()
+from static import demo_nodes
 
 
 def plus_one(x=0):
@@ -37,10 +39,6 @@ def sum(a, b):
 
 
 class TestWorkflow(unittest.TestCase):
-    @classmethod
-    def setUpClass(cls) -> None:
-        ensure_tests_in_python_path()
-        super().setUpClass()
 
     def test_io(self):
         wf = Workflow("wf")
@@ -225,7 +223,8 @@ class TestWorkflow(unittest.TestCase):
         )
         self.assertIsNone(
             original_a.parent,
-            msg="Original nodes should be orphaned"
+            msg=f"Original nodes should be orphaned, but {original_a.full_label} has "
+                f"parent {original_a.parent}"
             # Note: At time of writing, this is accomplished in Node.__getstate__,
             #       which feels a bit dangerous...
         )
@@ -440,125 +439,60 @@ class TestWorkflow(unittest.TestCase):
         wf.m.two.pull(run_parent_trees_too=False)
         wf.executor_shutdown()
 
-    @unittest.skipIf(sys.version_info < (3, 11), "Storage will only work in 3.11+")
     def test_storage_values(self):
-        for backend in Workflow.allowed_backends():
+        for backend in available_backends():
             with self.subTest(backend):
                 try:
-                    print("Trying", backend)
-                    wf = Workflow("wf", storage_backend=backend)
-                    wf.register("static.demo_nodes", domain="demo")
-                    wf.inp = wf.create.demo.AddThree(x=0)
+                    wf = Workflow("wf")
+                    wf.inp = demo_nodes.AddThree(x=0)
                     wf.out = wf.inp.outputs.add_three + 1
                     wf_out = wf()
                     three_result = wf.inp.three.outputs.add.value
 
-                    if backend == "h5io":
-                        with self.assertRaises(
-                            TypeError,
-                            msg="h5io can't handle custom reconstructors"
-                        ):
-                            wf.save()
-                    else:
-                        wf.save()
-                        reloaded = Workflow("wf", storage_backend=backend)
-                        self.assertEqual(
-                            wf_out.out__add,
-                            reloaded.outputs.out__add.value,
-                            msg="Workflow-level data should get reloaded"
-                        )
-                        self.assertEqual(
-                            three_result,
-                            reloaded.inp.three.value,
-                            msg="Child data arbitrarily deep should get reloaded"
-                        )
+                    wf.save(backend)
+                    reloaded = Workflow("wf", autoload=backend)
+                    self.assertEqual(
+                        wf_out.out__add,
+                        reloaded.outputs.out__add.value,
+                        msg="Workflow-level data should get reloaded"
+                    )
+                    self.assertEqual(
+                        three_result,
+                        reloaded.inp.three.value,
+                        msg="Child data arbitrarily deep should get reloaded"
+                    )
                 finally:
                     # Clean up after ourselves
-                    wf.storage.delete()
+                    wf.delete_storage(backend)
 
-    @unittest.skipIf(sys.version_info < (3, 11), "Storage will only work in 3.11+")
     def test_storage_scopes(self):
         wf = Workflow("wf")
-        wf.register("static.demo_nodes", "demo")
 
         # Test invocation
-        wf.add_child(wf.create.demo.AddPlusOne(label="by_add"))
-        # Note that the type hint `Optional[int]` from OptionallyAdd defines a custom
-        # reconstructor, which borks h5io
+        wf.add_child(demo_nodes.AddPlusOne(label="by_add"))
 
-        for backend in Workflow.allowed_backends():
-            with self.subTest(backend):
-                for backend in Workflow.allowed_backends():
-                    try:
-                        if backend == "h5io":
-                            with self.subTest(backend):
-                                with self.assertRaises(
-                                    TypeError,
-                                    msg="h5io can't handle custom reconstructors"
-                                ):
-                                    wf.storage_backend = backend
-                                    wf.save()
-                        else:
-                            with self.subTest(backend):
-                                wf.storage_backend = backend
-                                wf.save()
-                                Workflow(wf.label, storage_backend=backend)
-                    finally:
-                        wf.storage.delete()
+        for backend in available_backends():
+            try:
+                with self.subTest(backend):
+                    wf.save(backend=backend)
+                    Workflow(wf.label, autoload=backend)
+            finally:
+                wf.delete_storage(backend)
 
         with self.subTest("No unimportable nodes for either back-end"):
-            for backend in Workflow.allowed_backends():
+            for backend in available_backends():
                 try:
-                    wf.import_type_mismatch = wf.create.demo.dynamic()
+                    wf.import_type_mismatch = demo_nodes.Dynamic()
                     with self.subTest(backend):
                             with self.assertRaises(
                                 TypeNotFoundError,
                                 msg="Imported object is function but node type is node "
                                     "-- should fail early on save"
                             ):
-                                wf.storage_backend = backend
-                                wf.save()
+                                wf.save(backend=backend, cloudpickle_fallback=False)
                 finally:
                     wf.remove_child(wf.import_type_mismatch)
-                    wf.storage.delete()
-
-        if "h5io" in Workflow.allowed_backends():
-            wf.add_child(PlusOne(label="local_but_importable"))
-            try:
-                with self.assertRaises(
-                    TypeError, msg="h5io can't handle custom reconstructors"
-                ):
-                    wf.storage_backend = "h5io"
-                    wf.save()
-            finally:
-                wf.storage.delete()
-
-        if "tinybase" in Workflow.allowed_backends():
-            try:
-                with self.assertRaises(
-                    NotImplementedError,
-                    msg="Storage docs for tinybase claim all children must be registered "
-                        "nodes"
-                ):
-                    wf.storage_backend = "tinybase"
-                    wf.save()
-            finally:
-                wf.storage.delete()
-
-        if "h5io" in Workflow.allowed_backends():
-            with self.subTest("Instanced node"):
-                wf.direct_instance = Workflow.create.function_node(plus_one)
-                try:
-                    with self.assertRaises(
-                        TypeNotFoundError,
-                        msg="No direct node instances, only children with functions as "
-                            "_class_ attribtues"
-                    ):
-                        wf.storage_backend = "h5io"
-                        wf.save()
-                finally:
-                    wf.remove_child(wf.direct_instance)
-                    wf.storage.delete()
+                    wf.delete_storage(backend)
 
         with self.subTest("Unimportable node"):
             @Workflow.wrap.as_function_node("y")
@@ -567,23 +501,9 @@ class TestWorkflow(unittest.TestCase):
 
             wf.unimportable_scope = UnimportableScope()
 
-            if "h5io" in Workflow.allowed_backends():
-                try:
-                    with self.assertRaises(
-                        TypeNotFoundError,
-                        msg="Nodes must live in an importable scope to save with the "
-                            "h5io backend"
-                    ):
-                        wf.storage_backend = "h5io"
-                        wf.save()
-                finally:
-                    wf.remove_child(wf.unimportable_scope)
-                    wf.storage.delete()
-
     def test_pickle(self):
         wf = Workflow("wf")
-        wf.register("static.demo_nodes", domain="demo")
-        wf.inp = wf.create.demo.AddThree(x=0)
+        wf.inp = demo_nodes.AddThree(x=0)
         wf.out = wf.inp.outputs.add_three + 1
         wf_out = wf()
         reloaded = pickle.loads(pickle.dumps(wf))

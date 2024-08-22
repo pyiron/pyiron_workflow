@@ -337,6 +337,12 @@ class TestDataChannels(unittest.TestCase):
         self.ni1._value = "Not numeric at all"  # Bypass type checking
         self.assertFalse(self.ni1.ready)
 
+        self.ni1.strict_hints = False
+        self.assertTrue(
+            self.ni1.ready,
+            msg="Without checking the hint, we should only car that there's data"
+        )
+
     def test_if_not_data(self):
         if NOT_DATA:
             a = 0

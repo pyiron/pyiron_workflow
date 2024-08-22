@@ -14,6 +14,7 @@ different drives or machines) belong to the same semantic group.
 from __future__ import annotations
 
 from abc import ABC
+from pathlib import Path
 from typing import Optional
 
 from bidict import bidict
@@ -96,6 +97,15 @@ class Semantic(UsesState, HasLabel, HasParent, ABC):
     def semantic_root(self) -> Semantic:
         """The parent-most object in this semantic path; may be self."""
         return self.parent.semantic_root if isinstance(self.parent, Semantic) else self
+
+    def as_path(self, root: Path | str | None = None) -> Path:
+        """
+        The semantic path as a :class:`pathlib.Path`, with a filesystem :param:`root`
+        (default is the current working directory).
+        """
+        return (Path.cwd() if root is None else Path(root)).joinpath(
+            *self.semantic_path.split(self.semantic_delimiter)
+        )
 
     def __getstate__(self):
         state = super().__getstate__()
@@ -346,10 +356,10 @@ class SemanticParent(Semantic, ABC):
 
         self._children = bidict(self._children)
 
-        # Children purge their parent information in their __getstate__ (this avoids
-        # recursion, which is mainly done to accommodate h5io as most other storage
-        # tools are able to store a reference to an object to overcom it), so now
-        # return it to them:
+        # Children purge their parent information in their __getstate__. This avoids
+        # recursion, so we don't need to ship an entire graph off to a second process,
+        # but rather can send just the requested object and its scope (semantic
+        # children). So, now return their parent to them:
         for child in self:
             child._parent = self
 

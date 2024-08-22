@@ -20,8 +20,11 @@ from pyiron_workflow.topology import set_run_connections_according_to_dag
 if TYPE_CHECKING:
     from pyiron_workflow.channels import (
         Channel,
+        InputSignal,
+        OutputSignal,
     )
     from pyiron_workflow.create import Creator, Wrappers
+    from pyiron_workflow.storage import StorageInterface
 
 
 class Composite(SemanticParent, HasCreator, Node, ABC):
@@ -47,6 +50,7 @@ class Composite(SemanticParent, HasCreator, Node, ABC):
             - Iterating over the composite instance
         - Can be removed by method
         - Each have a unique label (within the scope of this composite)
+            - WARNING: _Unless_ you go in and manually change the `.label` of a child!
         - Have no other parent
         - Can be replaced in-place with another node that has commensurate IO
         - Have their working directory nested inside the composite's
@@ -58,14 +62,10 @@ class Composite(SemanticParent, HasCreator, Node, ABC):
             leveraging a helper tool that automates this process for data DAGs --
             details are left to child classes)
         - Returns a dot-dictionary of output IO
-    - Composite IO...
-        - Is some subset of the child nodes IO
-            - Default channel labels indicate both child and child's channel labels
-            - Default behaviour is to expose all unconnected child nodes' IO
-        - Bijective maps can be used to...
-            - Rename IO
-            - Force a child node's IO to appear
-            - Force a child node's IO to _not_ appear
+    - Composite IO is some subset of the child nodes IO
+        - Default channel labels indicate both child and child's channel labels
+        - Default behaviour is to expose all unconnected child nodes' IO
+
 
     Attributes:
         strict_naming (bool): When true, repeated assignment of a new node to an
@@ -78,7 +78,8 @@ class Composite(SemanticParent, HasCreator, Node, ABC):
         provenance_by_execution (list[str]): The child nodes (by label) in the order
             that they started executing on the last :meth:`run` call.
         running_children (list[str]): The names of children who are currently running.
-        signal_queue (list[
+        signal_queue (list[tuple[OutputSignal, InputSignal]]): Pending signal event
+            pairs from child execution flow connections.
         starting_nodes (None | list[pyiron_workflow.node.Node]): A subset
          of the owned nodes to be used on running. Only necessary if the execution graph
          has been manually specified with `run` signals. (Default is an empty list.)
@@ -92,7 +93,6 @@ class Composite(SemanticParent, HasCreator, Node, ABC):
         replace_child(owned_node: Node | str, replacement: Node | type[Node]): Replaces an
             owned node with a new node, as long as the new node's IO is commensurate
             with the node being replaced.
-        register(): A short-cut to registering a new node package with the node creator.
     """
 
     def __init__(
@@ -100,10 +100,10 @@ class Composite(SemanticParent, HasCreator, Node, ABC):
         *args,
         label: Optional[str] = None,
         parent: Optional[Composite] = None,
-        overwrite_save: bool = False,
-        run_after_init: bool = False,
-        storage_backend: Optional[Literal["h5io", "tinybase", "pickle"]] = None,
-        save_after_run: bool = False,
+        delete_existing_savefiles: bool = False,
+        autoload: Literal["pickle"] | StorageInterface | None = None,
+        autorun: bool = False,
+        checkpoint: Literal["pickle"] | StorageInterface | None = None,
         strict_naming: bool = True,
         **kwargs,
     ):
@@ -111,7 +111,7 @@ class Composite(SemanticParent, HasCreator, Node, ABC):
         self.provenance_by_execution: list[str] = []
         self.provenance_by_completion: list[str] = []
         self.running_children: list[str] = []
-        self.signal_queue: list[tuple] = []
+        self.signal_queue: list[tuple[OutputSignal, InputSignal]] = []
         self._child_sleep_interval = 0.01  # How long to wait when the signal_queue is
         # empty but the running_children list is not
 
@@ -119,10 +119,10 @@ class Composite(SemanticParent, HasCreator, Node, ABC):
             label,
             *args,
             parent=parent,
-            overwrite_save=overwrite_save,
-            run_after_init=run_after_init,
-            storage_backend=storage_backend,
-            save_after_run=save_after_run,
+            delete_existing_savefiles=delete_existing_savefiles,
+            autoload=autoload,
+            autorun=autorun,
+            checkpoint=checkpoint,
             strict_naming=strict_naming,
             **kwargs,
         )
@@ -136,12 +136,6 @@ class Composite(SemanticParent, HasCreator, Node, ABC):
         super().deactivate_strict_hints()
         for node in self:
             node.deactivate_strict_hints()
-
-    def to_dict(self):
-        return {
-            "label": self.label,
-            "nodes": {n.label: n.to_dict() for n in self.children.values()},
-        }
 
     def on_run(self):
         # Reset provenance and run status trackers
@@ -260,7 +254,7 @@ class Composite(SemanticParent, HasCreator, Node, ABC):
                 f"Only new {Node.__name__} instances may be added, but got "
                 f"{type(child)}."
             )
-        self.cached_inputs = None  # Reset cache after graph change
+        self._cached_inputs = None  # Reset cache after graph change
         return super().add_child(child, label=label, strict_naming=strict_naming)
 
     def remove_child(self, child: Node | str) -> list[tuple[Channel, Channel]]:
@@ -278,7 +272,7 @@ class Composite(SemanticParent, HasCreator, Node, ABC):
         disconnected = child.disconnect()
         if child in self.starting_nodes:
             self.starting_nodes.remove(child)
-        self.cached_inputs = None  # Reset cache after graph change
+        self._cached_inputs = None  # Reset cache after graph change
         return disconnected
 
     def replace_child(
@@ -358,8 +352,8 @@ class Composite(SemanticParent, HasCreator, Node, ABC):
             sending_channel.value_receiver = receiving_channel
 
         # Clear caches
-        self.cached_inputs = None
-        replacement.cached_inputs = None
+        self._cached_inputs = None
+        replacement._cached_inputs = None
 
         return owned_node
 
@@ -424,25 +418,6 @@ class Composite(SemanticParent, HasCreator, Node, ABC):
                 },
             },
         }
-
-    @property
-    def package_requirements(self) -> set[str]:
-        """
-        A list of node package identifiers for children.
-        """
-        return set(n.package_identifier for n in self)
-
-    def to_storage(self, storage):
-        storage["nodes"] = list(self.children.keys())
-        for label, node in self.children.items():
-            node.to_storage(storage.create_group(label))
-
-        super().to_storage(storage)
-
-    def tidy_working_directory(self):
-        for node in self:
-            node.tidy_working_directory()
-        super().tidy_working_directory()
 
     def _get_connections_as_strings(
         self, panel_getter: callable
