@@ -55,4 +55,5 @@ from pyiron_workflow.storage import (
     StorageInterface,
     PickleStorage,
     available_backends,
+    TypeNotFoundError,
 )
