@@ -20,6 +20,8 @@ from pyiron_workflow.topology import set_run_connections_according_to_dag
 if TYPE_CHECKING:
     from pyiron_workflow.channels import (
         Channel,
+        InputSignal,
+        OutputSignal,
     )
     from pyiron_workflow.create import Creator, Wrappers
     from pyiron_workflow.storage import StorageInterface
@@ -48,6 +50,7 @@ class Composite(SemanticParent, HasCreator, Node, ABC):
             - Iterating over the composite instance
         - Can be removed by method
         - Each have a unique label (within the scope of this composite)
+            - WARNING: _Unless_ you go in and manually change the `.label` of a child!
         - Have no other parent
         - Can be replaced in-place with another node that has commensurate IO
         - Have their working directory nested inside the composite's
@@ -59,14 +62,10 @@ class Composite(SemanticParent, HasCreator, Node, ABC):
             leveraging a helper tool that automates this process for data DAGs --
             details are left to child classes)
         - Returns a dot-dictionary of output IO
-    - Composite IO...
-        - Is some subset of the child nodes IO
-            - Default channel labels indicate both child and child's channel labels
-            - Default behaviour is to expose all unconnected child nodes' IO
-        - Bijective maps can be used to...
-            - Rename IO
-            - Force a child node's IO to appear
-            - Force a child node's IO to _not_ appear
+    - Composite IO is some subset of the child nodes IO
+        - Default channel labels indicate both child and child's channel labels
+        - Default behaviour is to expose all unconnected child nodes' IO
+
 
     Attributes:
         strict_naming (bool): When true, repeated assignment of a new node to an
@@ -79,7 +78,8 @@ class Composite(SemanticParent, HasCreator, Node, ABC):
         provenance_by_execution (list[str]): The child nodes (by label) in the order
             that they started executing on the last :meth:`run` call.
         running_children (list[str]): The names of children who are currently running.
-        signal_queue (list[
+        signal_queue (list[tuple[OutputSignal, InputSignal]]): Pending signal event
+            pairs from child execution flow connections.
         starting_nodes (None | list[pyiron_workflow.node.Node]): A subset
          of the owned nodes to be used on running. Only necessary if the execution graph
          has been manually specified with `run` signals. (Default is an empty list.)
@@ -111,7 +111,7 @@ class Composite(SemanticParent, HasCreator, Node, ABC):
         self.provenance_by_execution: list[str] = []
         self.provenance_by_completion: list[str] = []
         self.running_children: list[str] = []
-        self.signal_queue: list[tuple] = []
+        self.signal_queue: list[tuple[OutputSignal, InputSignal]] = []
         self._child_sleep_interval = 0.01  # How long to wait when the signal_queue is
         # empty but the running_children list is not
 

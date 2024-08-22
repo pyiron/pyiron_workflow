@@ -67,11 +67,14 @@ class Node(
             - Running can be triggered in an instantaneous (i.e. "or" applied to
                 incoming signals) or accumulating way (i.e. "and" applied to incoming
                 signals).
+            - Which signals emitted at the end of a run are extensible and customizable
         - If the node has exactly one output channel, most standard python operations
             (attribute access, math, etc.) will fall back on attempting the same
             operation on this single output, if the operation failed on the node.
             Practically, that means that such "single-output" nodes get the same
             to form IO connections and inject new nodes that output channels have.
+            - In addition to operations, some methods exist for common routines, e.g.
+                casting the value as `int`.
     - When running their computation, nodes may or may not:
         - First update their input data values using kwargs
             - (Note that since this happens first, if the "fetching" step later occurs,
@@ -93,15 +96,16 @@ class Node(
             python process that owns the node)
             - If computation is non-local, the node status will stay running and the
                 futures object returned by the executor will be accessible
-        - Emit their run-completed output signal to trigger runs in nodes downstream in
+        - Emit their post-run output signal(s) to trigger runs in nodes downstream in
             the execution flow
     - Running the node (and all aliases of running) return a representation of data
-        held by the output channels
+        held by the output channels (or a futures object)
     - If an error is encountered _after_ reaching the state of actually computing the
         node's task, the status will get set to failure
     - Nodes can be instructed to run at the end of their initialization, but will exit
         cleanly if they get to checking their readiness and find they are not ready
-    - Nodes have a label by which they are identified
+    - Nodes have a label by which they are identified within their scope, and a full
+        label which is unique among the entire semantic graph they exist within
     - Nodes can run their computation using remote resources by setting an executor
         - Any executor must have a :meth:`submit` method with the same interface as
             :class:`concurrent.futures.Executor`, must return a
@@ -124,51 +128,34 @@ class Node(
             `with` context when you're done with them; we give a convenience method for
             this.
     - Nodes can optionally cache their input to skip running altogether and use
-        existing output when their current input matches the cached input.
-    - [ALPHA FEATURE] Nodes can be saved to and loaded from file if python >= 3.11.
-        - Save and load features wrap `(cloud)pickle` dumping and loading.
+        existing output when their current input matches (`==`) the cached input (this
+        is the default behavior).
+    - Nodes can be saved to and loaded from file.
+        - All storage operations can specify a storage backend interface, but only
+            the interface for saving and loading via `(cloud)pickle` dumping and
+            loading is available at present.
         - Everything in `pyiron_workflow` itself is (if not, alert developers),
             pickle-able (by exploiting `pyiron_snippets.factory`), but `pickle` will
             fall back to `cloudpickle` if trouble is encountered, e.g. because some
             IO data is not pickle-able.
-        - Saving is triggered manually, or by setting a flag to save after the nodes
-            runs.
-        - At the end of instantiation, nodes can load automatically if they find saved
-            content (default on the base class is to _not_ search for this. One good
-            reason is that new macros might instantiate a child node that _happens_ to
-            share a name with a saved node, but the intent is obviously not to load
-            this.)
-          - Discovered content can instead be deleted with a kwarg.
-          - You can't load saved content _and_ run after instantiation at once.
-        - The nodes must be defined somewhere importable, i.e. in a module, `__main__`,
-            and as a class property are all fine, but, e.g., inside the `<locals>` of
-            another function is not. If you did put them in `__main__`, make sure you
-            re-execute that content before trying to load or the load will (sensibly)
-            fail!
-        - [ALPHA ISSUE] If the source code (cells, `.py` files...) for a saved graph is
-            altered between saving and loading the graph, there are no guarantees about
-            the loaded state; depending on the nature of the changes everything may
-            work fine with the new node definition, the graph may load but silently
-            behave unexpectedly (e.g. if node functionality has changed but the
-            interface is the same), or may crash on loading (e.g. if IO channel labels
-            have changed).
-        - [ALPHA ISSUE] There is no filtering available, saving a node stores all of
-            its IO and does the same thing recursively for its children; depending on
-            your graph this could be expensive in terms of storage space and/or time.
-        - [ALPHA ISSUE] Similarly, there is no way to save only part of a graph; only
-            the entire graph may be saved at once.
+        - Saving is triggered manually, or by setting a flag to make a checkpoint save
+            of the entire graph after the node runs.
+        - The pickle storage interface comes with all the same caveats as pickle and
+            is not suitable for storage over indefinitely long time periods.
+            - E.g., if the source code (cells, `.py` files...) for a saved graph is
+                altered between saving and loading the graph, there are no guarantees
+                about the loaded state; depending on the nature of the changes
+                everything may work fine with the new node definition, the graph may
+                load but silently behave unexpectedly (e.g. if node functionality has
+                changed but the interface is the same), or may crash on loading
+                (e.g. if IO channel labels have changed).
+        - If the loaded class does not match the current class, loading fails hard.
 
     This is an abstract class.
-    Children *must* define how :attr:`inputs` and :attr:`outputs` are constructed, what will
-    happen :meth:`on_run`, the :attr:`run_args` that will get passed to :meth:`on_run`, and how to
-    :meth:`process_run_result` once :meth:`on_run` finishes.
+    Children *must* define how :attr:`inputs` and :attr:`outputs` are constructed,
+    what will happen :meth:`on_run`, the :attr:`run_args` that will get passed to
+    :meth:`on_run`, and how to :meth:`process_run_result` once :meth:`on_run` finishes.
     They may optionally add additional signal channels to the signals IO.
-
-    TODO:
-        - Integration with more powerful tools for remote execution (anything obeying
-            the standard interface of a :meth:`submit` method taking the callable and
-            arguments and returning a futures object should work, as long as it can
-            handle serializing dynamically defined objects.
 
     Attributes:
         connected (bool): Whether _any_ of the IO (including signals) are connected.
@@ -204,15 +191,15 @@ class Node(
             auto-loading if the back end is `None`.)
         signals (pyiron_workflow.io.Signals): A container for input and output
             signals, which are channels for controlling execution flow. By default, has
-            a :attr:`signals.inputs.run` channel which has a callback to the :meth:`run` method
-            that fires whenever _any_ of its connections sends a signal to it, a
-            :attr:`signals.inputs.accumulate_and_run` channel which has a callback to the
-            :meth:`run` method but only fires after _all_ its connections send at least one
-            signal to it, and `signals.outputs.ran` which gets called when the `run`
-            method is finished.
+            a :attr:`signals.inputs.run` channel which has a callback to the
+            :meth:`run` method that fires whenever _any_ of its connections sends a
+            signal to it, a :attr:`signals.inputs.accumulate_and_run` channel which has
+            a callback to the :meth:`run` method but only fires after _all_ its
+            connections send at least one signal to it, and `signals.outputs.ran`
+            which gets called when the `run` method is finished.
             Additional signal channels in derived classes can be added to
-            :attr:`signals.inputs` and  :attr:`signals.outputs` after this mixin class is
-            initialized.
+            :attr:`signals.inputs` and  :attr:`signals.outputs` after this mixin class
+            is initialized.
         use_cache (bool): Whether or not to cache the inputs and, when the current
             inputs match the cached input (by `==` comparison), to bypass running the
             node and simply continue using the existing outputs. Note that you may be
@@ -226,19 +213,19 @@ class Node(
         disconnect: Remove all connections, including signals.
         draw: Use graphviz to visualize the node, its IO and, if composite in nature,
             its internal structure.
-        execute: An alias for :meth:`run`, but with flags to run right here, right now, and
-            with the input it currently has.
+        execute: An alias for :meth:`run`, but with flags to run right here, right now,
+            and with the input it currently has.
         on_run: **Abstract.** Do the thing. What thing must be specified by child
             classes.
-        pull: An alias for :meth:`run` that runs everything upstream, then runs this node
-            (but doesn't fire off the `ran` signal, so nothing happens farther
+        pull: An alias for :meth:`run` that runs everything upstream, then runs this
+            node (but doesn't fire off the `ran` signal, so nothing happens farther
             downstream). "Upstream" may optionally break out of the local scope to run
             parent nodes' dependencies as well (all the way until the parent-most
             object is encountered).
         replace_with: If the node belongs to a parent, attempts to replace itself in
             that parent with a new provided node.
-        run: Run the node function from :meth:`on_run`. Handles status automatically. Various
-            execution options are available as boolean flags.
+        run: Run the node function from :meth:`on_run`. Handles status automatically.
+            Various execution options are available as boolean flags.
         set_input_values: Allows input channels' values to be updated without any
             running.
 
@@ -260,9 +247,6 @@ class Node(
     """
 
     use_cache = True
-
-    # This isn't nice, just a technical necessity in the current implementation
-    # Eventually, of course, this needs to be _at least_ file-format independent
 
     def __init__(
         self,

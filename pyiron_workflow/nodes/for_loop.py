@@ -219,7 +219,7 @@ class For(Composite, StaticNode, ABC):
             strict_naming=strict_naming,
             **kwargs,
         )
-        self.body_node_executor = None
+        self.body_node_executor = body_node_executor
 
     def _setup_node(self) -> None:
         super()._setup_node()
