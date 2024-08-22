@@ -51,8 +51,8 @@ class Macro(Composite, StaticNode, ScrapesIO, ABC):
     Macro IO is _value linked_ to the child IO, so that their values stay synchronized,
     but the child nodes of a macro form an isolated sub-graph.
 
-    As with function nodes, subclasses of :class:`Macro` may define a method for creating the
-    graph.
+    As with function nodes, subclasses of :class:`Macro` may define a method for
+    creating the graph.
 
     As with :class:`Workflow``, all DAG macros can determine their execution flow
     automatically, if you have cycles in your data flow, or otherwise want more control

@@ -19,8 +19,8 @@ from pyiron_workflow.nodes.static_io import StaticNode
 
 class Transformer(StaticNode, ABC):
     """
-    Transformers are a special :class:`Constructed` case of :class:`StaticNode` nodes
-    that turn many inputs into a single output or vice-versa.
+    Transformers are a special case of :class:`StaticNode` nodes that turn many inputs
+    into a single output or vice-versa.
     """
 
     def to_dict(self):

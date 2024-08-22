@@ -28,15 +28,16 @@ class Workflow(ParentMost, Composite):
     and modifying their connections).
 
     Nodes can be added to the workflow at instantiation or with dot-assignment later on.
-    They are then accessible either under the :attr:`nodes` dot-dictionary, or just directly
-    by dot-access on the workflow object itself.
+    They are then accessible either under the :attr:`nodes` dot-dictionary, or just
+    directly by dot-access on the workflow object itself.
 
-    Using the :attr:`input` and :attr:`output` attributes, the workflow gives by-reference access
-    to all the IO channels among its nodes which are currently unconnected.
+    Using the :attr:`input` and :attr:`output` attributes, the workflow gives
+    by-reference access to all the IO channels among its nodes which are currently
+    unconnected.
 
     The :class:`Workflow` class acts as a single-point-of-import for us;
-    Directly from the class we can use the :meth:`create` method to instantiate workflow
-    objects.
+    Directly from the class we can use the :meth:`create` method to instantiate
+    workflow objects.
     When called from a workflow _instance_, any created nodes get their parent set to
     the workflow instance being used.
 
@@ -45,8 +46,8 @@ class Workflow(ParentMost, Composite):
     they sit at the top of any data dependency tree and may never have a parent of
     their own.
     They are flexible and great for development, but once you have a setup you like,
-    you should consider reformulating it as a :class:`Macro`, which operates somewhat more
-    efficiently.
+    you should consider reformulating it as a :class:`Macro`, which operates somewhat
+    more efficiently.
 
     Because they are parent-most objects, and thus not being instantiated inside other
     (macro) nodes, they break the default behaviour of their parent class and _do_
@@ -56,6 +57,10 @@ class Workflow(ParentMost, Composite):
 
     - Workflows are living, their IO always reflects their current state of child nodes
     - Workflows are parent-most objects, they cannot be a sub-graph of a larger graph
+    - Bijective maps can be used to...
+        - Rename IO
+        - Force a child node's IO to appear
+        - Force a child node's IO to _not_ appear
 
     Attribute:
         inputs/outputs_map (bidict|None): Maps in the form
