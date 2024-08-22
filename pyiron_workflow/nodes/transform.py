@@ -23,9 +23,6 @@ class Transformer(StaticNode, ABC):
     into a single output or vice-versa.
     """
 
-    def to_dict(self):
-        pass  # Vestigial abstract method
-
 
 class FromManyInputs(Transformer, ABC):
     _output_name: ClassVar[str]  # Mandatory attribute for non-abstract subclasses

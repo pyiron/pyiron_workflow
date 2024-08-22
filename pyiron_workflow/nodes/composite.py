@@ -137,12 +137,6 @@ class Composite(SemanticParent, HasCreator, Node, ABC):
         for node in self:
             node.deactivate_strict_hints()
 
-    def to_dict(self):
-        return {
-            "label": self.label,
-            "nodes": {n.label: n.to_dict() for n in self.children.values()},
-        }
-
     def on_run(self):
         # Reset provenance and run status trackers
         self.provenance_by_execution = []
