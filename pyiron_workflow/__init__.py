@@ -57,3 +57,4 @@ from pyiron_workflow.storage import (
     available_backends,
     TypeNotFoundError,
 )
+from pyiron_workflow.find import find_nodes
