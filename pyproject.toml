@@ -31,7 +31,7 @@ classifiers = [
 dependencies = [
     "bidict==0.23.1",
     "cloudpickle==3.0.0",
-    "executorlib==0.0.1",
+    "executorlib==0.0.2",
     "graphviz==0.20.3",
     "pandas==2.2.2",
     "pyiron_snippets==0.1.4",
