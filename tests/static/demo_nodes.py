@@ -5,6 +5,7 @@ A demo node package for the purpose of testing.
 from typing import Optional
 
 from pyiron_workflow import Workflow
+from pyiron_workflow.nodes.standard import Add as NotDefinedLocally
 
 
 @Workflow.wrap.as_function_node("sum")
@@ -32,3 +33,9 @@ def dynamic(x):
 
 
 Dynamic = Workflow.wrap.as_function_node(dynamic)
+
+
+@Workflow.wrap.as_function_node("y")
+def _APrivateNode(x):
+    """A node, but named to indicate it is private"""
+    return x + 1
