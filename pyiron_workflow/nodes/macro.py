@@ -459,7 +459,7 @@ class Macro(Composite, StaticNode, ScrapesIO, ABC):
 
     @classmethod
     def _extra_info(cls) -> str:
-        return getsource(cls.node_function)
+        return getsource(cls.graph_creator)
 
 
 @classfactory
