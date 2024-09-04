@@ -14,7 +14,7 @@ def _get_subclasses(
     base_class: type,
     get_private: bool = False,
     get_abstract: bool = False,
-    get_local_only: bool = True,
+    get_imports_too: bool = False,
 ):
     if isinstance(source, (str, Path)):
         source = Path(source)
@@ -32,16 +32,21 @@ def _get_subclasses(
     else:
         raise ValueError("Input must be a module or a valid file path")
 
-
     return [
         obj for name, obj in inspect.getmembers(module, inspect.isclass)
         if (
             issubclass(obj, base_class) and
             (get_private or not name.startswith('_')) and
             (get_abstract or not inspect.isabstract(obj)) and
-            (obj.__module__ == module.__name__ or not get_local_only)
+            (get_imports_too or _locally_defined(obj, module))
         )
     ]
+
+
+def _locally_defined(obj, module):
+    obj_module_name = obj.__module__
+    obj_module = importlib.import_module(obj_module_name)
+    return obj_module.__file__ == module.__file__
 
 
 def find_nodes(source: str | Path | ModuleType) -> list[type[Node]]:
