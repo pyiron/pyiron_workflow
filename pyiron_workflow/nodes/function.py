@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 from abc import ABC, abstractmethod
+from inspect import getsource
 from typing import Any
 
 from pyiron_snippets.colors import SeabornColors
@@ -341,6 +342,10 @@ class Function(StaticNode, ScrapesIO, ABC):
     def color(self) -> str:
         """For drawing the graph"""
         return SeabornColors.green
+
+    @classmethod
+    def _extra_info(cls) -> str:
+        return getsource(cls.node_function)
 
 
 @classfactory

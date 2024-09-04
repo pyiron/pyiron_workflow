@@ -10,6 +10,7 @@ from __future__ import annotations
 from abc import ABC
 from concurrent.futures import Future
 from importlib import import_module
+from inspect import getsource
 from typing import Any, Literal, Optional, TYPE_CHECKING
 
 from pyiron_snippets.colors import SeabornColors
@@ -943,3 +944,10 @@ class Node(
         if len(state["_user_data"]) > 0:
             self._make_entry_public(state, "_user_data", "user_data")
         return super().display_state(state=state, ignore_private=ignore_private)
+
+    @classmethod
+    def _extra_info(cls) -> str:
+        """
+        Any additional info that may be particularly useful for users of the node class.
+        """
+        return ""

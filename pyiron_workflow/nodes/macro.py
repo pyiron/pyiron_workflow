@@ -6,6 +6,7 @@ interface and are not intended to be internally modified after instantiation.
 from __future__ import annotations
 
 from abc import ABC, abstractmethod
+from inspect import getsource
 import re
 from typing import TYPE_CHECKING
 
@@ -455,6 +456,10 @@ class Macro(Composite, StaticNode, ScrapesIO, ABC):
 
         for (child, child_out), out in output_links:
             self.children[child].outputs[child_out].value_receiver = self.outputs[out]
+
+    @classmethod
+    def _extra_info(cls) -> str:
+        return getsource(cls.node_function)
 
 
 @classfactory
