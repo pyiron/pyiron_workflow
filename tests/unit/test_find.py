@@ -18,7 +18,9 @@ class TestFind(unittest.TestCase):
         only generate new classes when they are strictly needed), but we don't have it
         now.
         """
-        demo_nodes_file = str(Path("../static/demo_nodes.py").resolve())
+        demo_nodes_file = str(
+            Path(__file__).parent.joinpath("..", "static", "demo_nodes.py").resolve()
+        )
         found_by_string = find_nodes(demo_nodes_file)
         path = Path(demo_nodes_file)
         found_by_path = find_nodes(path)
