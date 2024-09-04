@@ -33,12 +33,13 @@ def _get_subclasses(
         raise ValueError("Input must be a module or a valid file path")
 
     return [
-        obj for name, obj in inspect.getmembers(module, inspect.isclass)
+        obj
+        for name, obj in inspect.getmembers(module, inspect.isclass)
         if (
-            issubclass(obj, base_class) and
-            (get_private or not name.startswith('_')) and
-            (get_abstract or not inspect.isabstract(obj)) and
-            (get_imports_too or _locally_defined(obj, module))
+            issubclass(obj, base_class)
+            and (get_private or not name.startswith("_"))
+            and (get_abstract or not inspect.isabstract(obj))
+            and (get_imports_too or _locally_defined(obj, module))
         )
     ]
 
