@@ -251,13 +251,7 @@ class For(Composite, StaticNode, ABC):
 
         self._clean_existing_subgraph()
 
-        for n, channel_map in enumerate(iter_maps):
-            body_node = self._body_node_class(label=f"body_{n}", parent=self)
-            body_node.executor = self.body_node_executor
-
-            self._connect_broadcast_input(body_node)
-            for label, i in channel_map.items():
-                self._connect_looped_input(body_node, label, i)
+        self._create_and_connect_input_to_body_nodes(iter_maps)
 
         if self._output_as_dataframe:
             self._collect_output_as_dataframe(iter_maps)
@@ -284,6 +278,15 @@ class For(Composite, StaticNode, ABC):
                     # We just want to refresh the output
                 )
         # TODO: Instead of deleting _everything_ each time, try and re-use stuff
+
+    def _create_and_connect_input_to_body_nodes(self, iter_maps):
+        for n, channel_map in enumerate(iter_maps):
+            body_node = self._body_node_class(label=f"body_{n}", parent=self)
+            body_node.executor = self.body_node_executor
+
+            self._connect_broadcast_input(body_node)
+            for label, i in channel_map.items():
+                self._connect_looped_input(body_node, label, i)
 
     def _build_collector_node(self, row_number):
         # Iterated inputs
