@@ -17,6 +17,7 @@ from pyiron_workflow.storage import StorageInterface
 from pyiron_workflow.nodes.transform import (
     inputs_to_dict,
     inputs_to_dataframe,
+    inputs_to_list,
     InputsToDict,
 )
 
@@ -256,7 +257,7 @@ class For(Composite, StaticNode, ABC):
         if self._output_as_dataframe:
             self._collect_output_as_dataframe(iter_maps)
         else:
-            raise NotImplementedError("WIP body graph for list output")
+            self._collect_output_as_lists(iter_maps)
 
         self.set_run_signals_to_dag_execution()
 
@@ -332,6 +333,46 @@ class For(Composite, StaticNode, ABC):
             row_specification, parent=self, label=f"row_collector_{row_number}"
         )
 
+    def _collect_output_as_lists(self, iter_maps):
+        n_rows = len(iter_maps)
+
+        for label, hint in self._body_node_class.preview_outputs().items():
+            mapped_label = self.output_column_map[label]
+            column_collector = inputs_to_list(
+                n_rows,
+                label=f"column_collector_{mapped_label}",
+                parent=self,
+            )
+            column_collector.outputs.list.type_hint = (
+                list if hint is None else list[hint]
+            )
+            column_collector.outputs.list.value_receiver = self.outputs[mapped_label]
+
+            for n, channel_map in enumerate(iter_maps):
+                column_collector.inputs[f"item_{n}"] = self[
+                    self._body_name(n)
+                ].outputs[label]
+
+        for label in self._zip_on + self._iter_on:
+            column_collector = inputs_to_list(
+                n_rows,
+                label=f"column_collector_{label}",
+                parent=self,
+            )
+            hint = self._body_node_class.preview_inputs()[label][0]
+            column_collector.outputs.list.type_hint = (
+                list if hint is None else list[hint]
+            )
+            column_collector.outputs.list.value_receiver = self.outputs[label]
+            for n, channel_map in enumerate(iter_maps):
+                column_collector.inputs[f"item_{n}"] = self[label][n]
+
+
+        # RAD! The output is getting returned, but I still need to pass the corresponding
+        # iterated input somehow this is where we certainly need to iterate over
+        # itermaps
+        # TODO: Also de-stringify all the row/column/child names for transformers
+
 
     @classmethod
     @lru_cache(maxsize=1)
@@ -356,7 +397,7 @@ class For(Composite, StaticNode, ABC):
                     hint = list if hint is None else list[hint]
                     preview[label] = hint
             for label, hint in cls._body_node_class.preview_outputs().items():
-                preview[cls.output_column_map[label]] = hint
+                preview[cls.output_column_map[label]] = list if hint is None else list[hint]
             return preview
 
     @property
