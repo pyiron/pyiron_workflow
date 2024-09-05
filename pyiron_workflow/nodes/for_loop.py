@@ -349,9 +349,9 @@ class For(Composite, StaticNode, ABC):
             column_collector.outputs.list.value_receiver = self.outputs[mapped_label]
 
             for n, channel_map in enumerate(iter_maps):
-                column_collector.inputs[f"item_{n}"] = self[
-                    self._body_name(n)
-                ].outputs[label]
+                column_collector.inputs[f"item_{n}"] = self[self._body_name(n)].outputs[
+                    label
+                ]
 
         for label in self._zip_on + self._iter_on:
             column_collector = inputs_to_list(
@@ -367,12 +367,10 @@ class For(Composite, StaticNode, ABC):
             for n, channel_map in enumerate(iter_maps):
                 column_collector.inputs[f"item_{n}"] = self[label][n]
 
-
         # RAD! The output is getting returned, but I still need to pass the corresponding
         # iterated input somehow this is where we certainly need to iterate over
         # itermaps
         # TODO: Also de-stringify all the row/column/child names for transformers
-
 
     @classmethod
     @lru_cache(maxsize=1)
@@ -397,7 +395,9 @@ class For(Composite, StaticNode, ABC):
                     hint = list if hint is None else list[hint]
                     preview[label] = hint
             for label, hint in cls._body_node_class.preview_outputs().items():
-                preview[cls.output_column_map[label]] = list if hint is None else list[hint]
+                preview[cls.output_column_map[label]] = (
+                    list if hint is None else list[hint]
+                )
             return preview
 
     @property
@@ -625,7 +625,7 @@ def for_node(
         zip_on,
         output_as_dataframe,
         output_column_map,
-        use_cache
+        use_cache,
     )
     cls.preview_io()
     return cls(*node_args, **node_kwargs)
