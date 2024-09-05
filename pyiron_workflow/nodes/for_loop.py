@@ -333,22 +333,16 @@ class For(Composite, StaticNode, ABC):
         self.dataframe.outputs.df.value_receiver = self.outputs.df
 
         for n, channel_map in enumerate(iter_maps):
-            body_node = self[self._body_name(n)]
 
             row_collector = self._build_collector_node(n)
             for label, i in channel_map.items():
                 row_collector.inputs[label] = self.children[label][i]
 
-            self._collect_output_from_body(body_node, row_collector)
+            for label, body_out in self[self._body_name(n)].outputs.items():
+                row_collector.inputs[self.output_column_map[label]] = body_out
 
             self.dataframe.inputs[f"row_{n}"] = row_collector
 
-    def _collect_output_from_body(
-        self, body_node: StaticNode, row_collector: InputsToDict
-    ) -> None:
-        """Pass body node output to the collector node."""
-        for label, body_out in body_node.outputs.items():
-            row_collector.inputs[self.output_column_map[label]] = body_out
 
     @classmethod
     @lru_cache(maxsize=1)
