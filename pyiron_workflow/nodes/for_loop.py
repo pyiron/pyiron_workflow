@@ -281,12 +281,16 @@ class For(Composite, StaticNode, ABC):
 
     def _create_and_connect_input_to_body_nodes(self, iter_maps):
         for n, channel_map in enumerate(iter_maps):
-            body_node = self._body_node_class(label=f"body_{n}", parent=self)
+            body_node = self._body_node_class(label=self._body_name(n), parent=self)
             body_node.executor = self.body_node_executor
 
             self._connect_broadcast_input(body_node)
             for label, i in channel_map.items():
                 self._connect_looped_input(body_node, label, i)
+
+    @staticmethod
+    def _body_name(n: int):
+        return f"body_{n}"
 
     def _build_collector_node(self, row_number):
         # Iterated inputs
@@ -329,7 +333,7 @@ class For(Composite, StaticNode, ABC):
         self.dataframe.outputs.df.value_receiver = self.outputs.df
 
         for n, channel_map in enumerate(iter_maps):
-            body_node = self[f"body_{n}"]
+            body_node = self[self._body_name(n)]
 
             row_collector = self._build_collector_node(n)
             for label, i in channel_map.items():
