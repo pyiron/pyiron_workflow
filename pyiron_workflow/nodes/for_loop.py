@@ -260,11 +260,14 @@ class For(Composite, StaticNode, ABC):
         for n, channel_map in enumerate(iter_maps):
             body_node = self._body_node_class(label=f"body_{n}", parent=self)
             body_node.executor = self.body_node_executor
-            row_collector = self._build_collector_node(n)
 
             self._connect_broadcast_input(body_node)
             for label, i in channel_map.items():
-                self._connect_looped_input(body_node, row_collector, label, i)
+                self._connect_looped_input(body_node, label, i)
+
+            row_collector = self._build_collector_node(n)
+            for label in channel_map.keys():
+                row_collector.inputs[label] = self.children[label][i]
 
             self._collect_output_from_body(body_node, row_collector)
 
@@ -320,14 +323,12 @@ class For(Composite, StaticNode, ABC):
     def _connect_looped_input(
         self,
         body_node: StaticNode,
-        row_collector: InputsToDict,
         looped_input_label: str,
         i: int,
     ) -> None:
         """Get item from macro input and connect it to body and collector nodes."""
         index_node = self.children[looped_input_label][i]  # Inject getitem node
         body_node.inputs[looped_input_label] = index_node
-        row_collector.inputs[looped_input_label] = index_node
 
     def _collect_output_from_body(
         self, body_node: StaticNode, row_collector: InputsToDict
