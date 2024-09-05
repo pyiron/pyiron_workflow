@@ -306,7 +306,7 @@ class For(Composite, StaticNode, ABC):
 
         for n, channel_map in enumerate(iter_maps):
 
-            row_collector = self._build_collector_node(n)
+            row_collector = self._build_row_collector_node(n)
             for label, i in channel_map.items():
                 row_collector.inputs[label] = self.children[label][i]
 
@@ -315,7 +315,7 @@ class For(Composite, StaticNode, ABC):
 
             self.dataframe.inputs[f"row_{n}"] = row_collector
 
-    def _build_collector_node(self, row_number) -> InputsToDict:
+    def _build_row_collector_node(self, row_number) -> InputsToDict:
         # Iterated inputs
         row_specification = {
             key: (self._body_node_class.preview_inputs()[key][0], NOT_DATA)
