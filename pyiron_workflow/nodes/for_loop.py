@@ -152,6 +152,7 @@ class For(Composite, StaticNode, ABC):
     _body_node_class: ClassVar[type[StaticNode]]
     _iter_on: ClassVar[tuple[str, ...]] = ()
     _zip_on: ClassVar[tuple[str, ...]] = ()
+    _output_as_dataframe: ClassVar[bool] = True
 
     def __init_subclass__(cls, output_column_map=None, **kwargs):
         super().__init_subclass__(**kwargs)
@@ -346,7 +347,10 @@ class For(Composite, StaticNode, ABC):
 
     @classmethod
     def _build_outputs_preview(cls) -> dict[str, Any]:
-        return {"df": DataFrame}
+        if cls._output_as_dataframe:
+            return {"df": DataFrame}
+        else:
+            raise NotImplementedError("WIP class data")
 
     @property
     def _input_value_links(self):
@@ -427,6 +431,7 @@ def for_node_factory(
     body_node_class: type[StaticNode],
     iter_on: tuple[str, ...] = (),
     zip_on: tuple[str, ...] = (),
+    output_as_dataframe: bool = True,
     output_column_map: dict | None = None,
     use_cache: bool = True,
     /,
@@ -445,6 +450,7 @@ def for_node_factory(
             "_body_node_class": body_node_class,
             "_iter_on": iter_on,
             "_zip_on": zip_on,
+            "_output_as_dataframe": output_as_dataframe,
             "__doc__": combined_docstring,
             "use_cache": use_cache,
         },
@@ -453,10 +459,11 @@ def for_node_factory(
 
 
 def for_node(
-    body_node_class,
+    body_node_class: type[StaticNode],
     *node_args,
-    iter_on=(),
-    zip_on=(),
+    iter_on: tuple[str, ...] = (),
+    zip_on: tuple[str, ...] = (),
+    output_as_dataframe: bool = True,
     output_column_map: Optional[dict[str, str]] = None,
     use_cache: bool = True,
     **node_kwargs,
@@ -481,6 +488,9 @@ def for_node(
             nested-loop on.
         zip_on (tuple[str, ...]): Input labels in the :param:`body_node_class` to
             zip-loop on.
+        output_as_dataframe (bool): Whether to package the output (and iterated input)
+            as a dataframe, or leave them as individual lists. (Default is True,
+            package as dataframe.)
         output_column_map (dict[str, str] | None): A map for generating dataframe
             column names (values) from body node output channel labels (keys).
             Necessary iff the body node has the same label for an output channel and
@@ -562,7 +572,12 @@ def for_node(
     """
     for_node_factory.clear(_for_node_class_name(body_node_class, iter_on, zip_on))
     cls = for_node_factory(
-        body_node_class, iter_on, zip_on, output_column_map, use_cache
+        body_node_class,
+        iter_on,
+        zip_on,
+        output_as_dataframe,
+        output_column_map,
+        use_cache
     )
     cls.preview_io()
     return cls(*node_args, **node_kwargs)
