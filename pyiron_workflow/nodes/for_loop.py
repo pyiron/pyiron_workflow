@@ -292,23 +292,6 @@ class For(Composite, StaticNode, ABC):
     def _body_name(n: int):
         return f"body_{n}"
 
-    def _build_collector_node(self, row_number):
-        # Iterated inputs
-        row_specification = {
-            key: (self._body_node_class.preview_inputs()[key][0], NOT_DATA)
-            for key in self._iter_on + self._zip_on
-        }
-        # Outputs
-        row_specification.update(
-            {
-                self.output_column_map[key]: (hint, NOT_DATA)
-                for key, hint in self._body_node_class.preview_outputs().items()
-            }
-        )
-        return inputs_to_dict(
-            row_specification, parent=self, label=f"row_collector_{row_number}"
-        )
-
     def _connect_broadcast_input(self, body_node: StaticNode) -> None:
         """Connect broadcast macro input to each body node."""
         for broadcast_label in set(self.preview_inputs().keys()).difference(
@@ -342,6 +325,23 @@ class For(Composite, StaticNode, ABC):
                 row_collector.inputs[self.output_column_map[label]] = body_out
 
             self.dataframe.inputs[f"row_{n}"] = row_collector
+
+    def _build_collector_node(self, row_number):
+        # Iterated inputs
+        row_specification = {
+            key: (self._body_node_class.preview_inputs()[key][0], NOT_DATA)
+            for key in self._iter_on + self._zip_on
+        }
+        # Outputs
+        row_specification.update(
+            {
+                self.output_column_map[key]: (hint, NOT_DATA)
+                for key, hint in self._body_node_class.preview_outputs().items()
+            }
+        )
+        return inputs_to_dict(
+            row_specification, parent=self, label=f"row_collector_{row_number}"
+        )
 
 
     @classmethod
