@@ -364,13 +364,9 @@ class For(Composite, StaticNode, ABC):
                 list if hint is None else list[hint]
             )
             column_collector.outputs.list.value_receiver = self.outputs[label]
-            for n, channel_map in enumerate(iter_maps):
-                column_collector.inputs[f"item_{n}"] = self[label][n]
-
-        # RAD! The output is getting returned, but I still need to pass the corresponding
-        # iterated input somehow this is where we certainly need to iterate over
-        # itermaps
-        # TODO: Also de-stringify all the row/column/child names for transformers
+        for n, channel_map in enumerate(iter_maps):
+            for label, i in channel_map.items():
+                self[f"column_collector_{label}"].inputs[f"item_{n}"] = self[label][i]
 
     @classmethod
     @lru_cache(maxsize=1)
