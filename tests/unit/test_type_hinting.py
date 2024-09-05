@@ -53,6 +53,7 @@ class TestTypeHinting(unittest.TestCase):
             (tuple[str, int], tuple[str, int, float], False),
             (list[int], typing.List[int], True),
             (typing.List, list[int], False),
+            (list[int], list, True),
             (dict[str, int], typing.Dict[str, int], True),
             (dict[int, str], typing.Dict[str, int], False),
             (typing.Callable[[int, float], None], typing.Callable, True),
