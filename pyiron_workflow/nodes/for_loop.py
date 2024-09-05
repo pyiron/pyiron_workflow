@@ -251,6 +251,9 @@ class For(Composite, StaticNode, ABC):
 
         self._clean_existing_subgraph()
 
+        if not self._output_as_dataframe:
+            raise NotImplementedError("WIP body graph for list output")
+
         self.dataframe = inputs_to_dataframe(len(iter_maps))
         self.dataframe.outputs.df.value_receiver = self.outputs.df
 
@@ -350,7 +353,14 @@ class For(Composite, StaticNode, ABC):
         if cls._output_as_dataframe:
             return {"df": DataFrame}
         else:
-            raise NotImplementedError("WIP class data")
+            preview = {}
+            for label, (hint, default) in cls._body_node_class.preview_inputs().items():
+                if label in cls._zip_on + cls._iter_on:
+                    hint = list if hint is None else list[hint]
+                    preview[label] = hint
+            for label, hint in cls._body_node_class.preview_outputs().items():
+                preview[cls.output_column_map[label]] = hint
+            return preview
 
     @property
     def _input_value_links(self):
