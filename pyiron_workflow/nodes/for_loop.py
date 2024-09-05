@@ -281,35 +281,24 @@ class For(Composite, StaticNode, ABC):
 
     def _create_and_connect_input_to_body_nodes(self, iter_maps):
         for n, channel_map in enumerate(iter_maps):
+            # Make the body node
             body_node = self._body_node_class(label=self._body_name(n), parent=self)
             body_node.executor = self.body_node_executor
 
-            self._connect_broadcast_input(body_node)
-            for label, i in channel_map.items():
-                self._connect_looped_input(body_node, label, i)
+            # Broadcast macro input to body node
+            for bcast_label in set(self.preview_inputs().keys()).difference(
+                self._iter_on + self._zip_on
+            ):
+                self.inputs[bcast_label].value_receiver = body_node.inputs[bcast_label]
+
+            # Get item from macro input and connect it to body node
+            for looped_label, i in channel_map.items():
+                index_node = self.children[looped_label][i]  # Inject getitem node
+                body_node.inputs[looped_label] = index_node
 
     @staticmethod
     def _body_name(n: int):
         return f"body_{n}"
-
-    def _connect_broadcast_input(self, body_node: StaticNode) -> None:
-        """Connect broadcast macro input to each body node."""
-        for broadcast_label in set(self.preview_inputs().keys()).difference(
-            self._iter_on + self._zip_on
-        ):
-            self.inputs[broadcast_label].value_receiver = body_node.inputs[
-                broadcast_label
-            ]
-
-    def _connect_looped_input(
-        self,
-        body_node: StaticNode,
-        looped_input_label: str,
-        i: int,
-    ) -> None:
-        """Get item from macro input and connect it to body and collector nodes."""
-        index_node = self.children[looped_input_label][i]  # Inject getitem node
-        body_node.inputs[looped_input_label] = index_node
 
     def _collect_output_as_dataframe(self, iter_maps):
         self.dataframe = inputs_to_dataframe(len(iter_maps))
@@ -326,7 +315,7 @@ class For(Composite, StaticNode, ABC):
 
             self.dataframe.inputs[f"row_{n}"] = row_collector
 
-    def _build_collector_node(self, row_number):
+    def _build_collector_node(self, row_number) -> InputsToDict:
         # Iterated inputs
         row_specification = {
             key: (self._body_node_class.preview_inputs()[key][0], NOT_DATA)
