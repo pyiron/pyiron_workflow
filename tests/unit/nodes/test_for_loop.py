@@ -112,7 +112,7 @@ def FiveTogether(
     return (a, b, c, d, e,),
 
 
-class TestForNode(unittest.TestCase):
+class TestForNodeDataclass(unittest.TestCase):
 
     @classmethod
     def setUpClass(cls) -> None:
@@ -127,6 +127,7 @@ class TestForNode(unittest.TestCase):
             iter_on=("a", "b",),
             a=[42, 43, 44],
             b=[13, 14],
+            output_as_dataframe=True,
         )
         out = for_instance(e="iter")
         self.assertIsInstance(out.df, DataFrame,)
@@ -150,7 +151,8 @@ class TestForNode(unittest.TestCase):
         for_instance = for_node(
             FiveTogether,
             zip_on=("c", "d",),
-            e="zip"
+            e="zip",
+            output_as_dataframe=True,
         )
         out = for_instance(c=[100, 101], d=[-1, -2, -3])
         self.assertEqual(
@@ -176,7 +178,8 @@ class TestForNode(unittest.TestCase):
             a=[42, 43, 44],
             b=[13, 14],
             zip_on=("c", "d",),
-            e="both"
+            e="both",
+            output_as_dataframe=True,
         )
         out = for_instance(c=[100, 101], d=[-1, -2, -3])
         self.assertEqual(
@@ -215,7 +218,8 @@ class TestForNode(unittest.TestCase):
             b=[13, 14],
             zip_on=("c", "d",),
             c=[100, 101],
-            d=[-1, -2, -3]
+            d=[-1, -2, -3],
+            output_as_dataframe=True,
         )
         self.assertEqual(
             3 * 2 * 2,
@@ -254,7 +258,8 @@ class TestForNode(unittest.TestCase):
                     "b": "out_b",
                     "c": "out_c",
                     "d": "out_d"
-                }
+                },
+                output_as_dataframe=True,
             )
             self.assertEqual(
                 4 + 5,  # loop inputs + outputs
@@ -281,7 +286,8 @@ class TestForNode(unittest.TestCase):
                         "b": "out_b",
                         "c": "out_c",
                         "d": "out_d"
-                    }
+                    },
+                    output_as_dataframe=True,
                 )
 
         with self.subTest("Excessive map"):
@@ -304,14 +310,16 @@ class TestForNode(unittest.TestCase):
                         "c": "out_c",
                         "d": "out_d",
                         "not_a_key_on_the_body_node_outputs": "anything"
-                    }
+                    },
+                    output_as_dataframe=True,
                 )
 
     def test_body_node_executor(self):
         t_sleep = 2
         for_parallel = for_node(
             Sleep,
-            iter_on=("t",)
+            iter_on=("t",),
+            output_as_dataframe=True,
         )
         t_start = perf_counter()
         n_procs = 4
@@ -347,7 +355,8 @@ class TestForNode(unittest.TestCase):
                 Add,
                 iter_on=("obj", "other",),
                 obj=x,
-                other=self.to_list
+                other=self.to_list,
+                output_as_dataframe=True,
             )
             return self.loop
 
@@ -389,7 +398,288 @@ class TestForNode(unittest.TestCase):
         n = for_node(
             body_node_class=self.AddThree,
             iter_on=("x",),
-            x=[1, 2, 3]
+            x=[1, 2, 3],
+            output_as_dataframe=True,
+        )
+        n()
+        pickle.loads(pickle.dumps(n))
+
+
+class TestForNodeLists(unittest.TestCase):
+
+    @classmethod
+    def setUpClass(cls) -> None:
+        super().setUpClass()
+        ensure_tests_in_python_path()
+        from static.demo_nodes import AddThree
+        cls.AddThree = AddThree
+
+    def test_iter_only(self):
+        for_instance = for_node(
+            FiveTogether,
+            iter_on=("a", "b",),
+            a=[42, 43, 44],
+            b=[13, 14],
+            output_as_dataframe=False,
+        )
+        out = for_instance(e="iter")
+        self.assertIsInstance(out.together, list,)
+        self.assertEqual(
+            len(out.together),
+            3 * 2,
+            msg="Expect nested loops"
+        )
+        self.assertListEqual(
+            list(out.keys()),
+            ["a", "b", "together"],
+            msg="Output lists should cover only output and _looped_ input"
+        )
+        self.assertTupleEqual(
+            out.together[1],
+            ((42, 14, 2, 3, "iter"),),
+            msg="Iter should get nested, broadcast broadcast, else take default"
+        )
+
+    def test_zip_only(self):
+        for_instance = for_node(
+            FiveTogether,
+            zip_on=("c", "d",),
+            e="zip",
+            output_as_dataframe=False,
+        )
+        out = for_instance(c=[100, 101], d=[-1, -2, -3])
+        self.assertEqual(
+            len(out.together),
+            2,
+            msg="Expect zipping with the python convention of truncating to shortest"
+        )
+        self.assertListEqual(
+            list(out.keys()),
+            ["c", "d", "together"],
+            msg="Output lists should cover only output and _looped_ input"
+        )
+        self.assertTupleEqual(
+            out.together[1],
+            ((0, 1, 101, -2, "zip"),),
+            msg="Zipped should get zipped, broadcast broadcast, else take default"
+        )
+
+    def test_iter_and_zip(self):
+        for_instance = for_node(
+            FiveTogether,
+            iter_on=("a", "b",),
+            a=[42, 43, 44],
+            b=[13, 14],
+            zip_on=("c", "d",),
+            e="both",
+            output_as_dataframe=False,
+        )
+        out = for_instance(c=[100, 101], d=[-1, -2, -3])
+        self.assertEqual(
+            len(out.together),
+            3 * 2 * 2,
+            msg="Zipped stuff is nested with the individually nested fields"
+        )
+        self.assertListEqual(
+            list(out.keys()),
+            ["a", "b", "c", "d", "together"],
+            msg="Output lists should cover only output and _looped_ input"
+        )
+        # We don't actually care if the order of nesting changes, but make sure the
+        # iters are getting nested and zipped stay together
+        self.assertTupleEqual(
+            out.together[0],
+            ((42, 13, 100, -1, "both"),),
+            msg="All start"
+        )
+        self.assertTupleEqual(
+            out.together[1],
+            ((42, 13, 101, -2, "both"),),
+            msg="Bump zipped together"
+        )
+        self.assertTupleEqual(
+            out.together[2],
+            ((42, 14, 100, -1, "both"),),
+            msg="Back to start of zipped, bump _one_ iter"
+        )
+
+    def test_dynamic_length(self):
+        for_instance = for_node(
+            FiveTogether,
+            iter_on=("a", "b",),
+            a=[42, 43, 44],
+            b=[13, 14],
+            zip_on=("c", "d",),
+            c=[100, 101],
+            d=[-1, -2, -3],
+            output_as_dataframe=False,
+        )
+        self.assertEqual(
+            3 * 2 * 2,
+            len(for_instance().together),
+            msg="Sanity check"
+        )
+        self.assertEqual(
+            1,
+            len(for_instance(a=[0], b=[1], c=[2]).together),
+            msg="Should be able to re-run with different input lengths"
+        )
+
+    def test_column_mapping(self):
+        @as_function_node
+        def FiveApart(
+            a: int = 0,
+            b: int = 1,
+            c: int = 2,
+            d: int = 3,
+            e: str = "foobar",
+        ):
+            return a, b, c, d, e,
+
+        with self.subTest("Successful map"):
+            for_instance = for_node(
+                FiveApart,
+                iter_on=("a", "b"),
+                zip_on=("c", "d"),
+                a=[1, 2],
+                b=[3, 4, 5],
+                c=[7, 8],
+                d=[9, 10, 11],
+                e="e",
+                output_column_map={
+                    "a": "out_a",
+                    "b": "out_b",
+                    "c": "out_c",
+                    "d": "out_d"
+                },
+                output_as_dataframe=False,
+            )
+            self.assertEqual(
+                4 + 5,  # loop inputs + outputs
+                len(for_instance()),
+                msg="When all conflicting names are remapped, we should have no trouble"
+            )
+
+        with self.subTest("Insufficient map"):
+            with self.assertRaises(
+                UnmappedConflictError,
+                msg="Leaving conflicting channels unmapped should raise an error"
+            ):
+                for_node(
+                    FiveApart,
+                    iter_on=("a", "b"),
+                    zip_on=("c", "d"),
+                    a=[1, 2],
+                    b=[3, 4, 5],
+                    c=[7, 8],
+                    d=[9, 10, 11],
+                    e="e",
+                    output_column_map={
+                        # "a": "out_a",
+                        "b": "out_b",
+                        "c": "out_c",
+                        "d": "out_d"
+                    },
+                    output_as_dataframe=False,
+                )
+
+        with self.subTest("Excessive map"):
+            with self.assertRaises(
+                MapsToNonexistentOutputError,
+                msg="Trying to map something that isn't there should raise an error"
+            ):
+                for_node(
+                    FiveApart,
+                    iter_on=("a", "b"),
+                    zip_on=("c", "d"),
+                    a=[1, 2],
+                    b=[3, 4, 5],
+                    c=[7, 8],
+                    d=[9, 10, 11],
+                    e="e",
+                    output_column_map={
+                        "a": "out_a",
+                        "b": "out_b",
+                        "c": "out_c",
+                        "d": "out_d",
+                        "not_a_key_on_the_body_node_outputs": "anything"
+                    },
+                    output_as_dataframe=False,
+                )
+
+    def test_body_node_executor(self):
+        t_sleep = 2
+        for_parallel = for_node(
+            Sleep,
+            iter_on=("t",),
+            output_as_dataframe=False,
+        )
+        t_start = perf_counter()
+        n_procs = 4
+        with ThreadPoolExecutor(max_workers=n_procs) as exe:
+            for_parallel.body_node_executor = exe
+            for_parallel(t=n_procs*[t_sleep])
+        dt = perf_counter() - t_start
+        grace = 1.25
+        self.assertLess(
+            dt,
+            grace * t_sleep,
+            msg=f"Parallelization over children should result in faster completion. "
+                f"Expected limit {grace} x {t_sleep} = {grace * t_sleep} -- got {dt}"
+        )
+
+        reloaded = pickle.loads(pickle.dumps(for_parallel))
+        self.assertIsNone(
+            reloaded.body_node_executor,
+            msg="Just like regular nodes, until executors can be delayed creators "
+                "instead of actual executor nodes, we need to purge executors from "
+                "nodes on serialization or the thread lock/queue objects hit us"
+        )
+
+    def test_with_connections(self):
+        length_y = 3
+
+        @as_macro_node
+        def LoopInside(self, x: list, y: int):
+            self.to_list = inputs_to_list(
+                length_y, y, y, y
+            )
+            self.loop = for_node(
+                Add,
+                iter_on=("obj", "other",),
+                obj=x,
+                other=self.to_list,
+                output_as_dataframe=False,
+            )
+            out = self.loop.outputs.add
+            return out
+
+        x, y = [1], 2
+        li = LoopInside([1], 2)
+        l = li().out
+        print(li)
+        self.assertIsInstance(l, list)
+        self.assertEqual(length_y * len(x), len(l))
+        self.assertEqual(
+            x[0] + y,
+            l[0],
+            msg="Just make sure the loop is actually running"
+        )
+        x, y = [2, 3], 4
+        l = li(x, y).out
+        self.assertEqual(length_y * len(x), len(l))
+        self.assertEqual(
+            x[-1] + y,
+            l[len(l) - 1],
+            msg="And make sure that we can vary the length still"
+        )
+
+    def test_macro_body(self):
+        n = for_node(
+            body_node_class=self.AddThree,
+            iter_on=("x",),
+            x=[1, 2, 3],
+            output_as_dataframe=False,
         )
         n()
         pickle.loads(pickle.dumps(n))
