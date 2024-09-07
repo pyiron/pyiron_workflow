@@ -56,6 +56,70 @@ class StaticNode(Node, HasIOPreview, ABC):
     def outputs(self) -> OutputsWithInjection:
         return self._outputs
 
+    @classmethod
+    def for_node(
+        cls,
+        *node_args,
+        iter_on: tuple[str, ...] | str = (),
+        zip_on: tuple[str, ...] | str = (),
+        output_as_dataframe: bool = True,
+        output_column_map: Optional[dict[str, str]] = None,
+        use_cache: bool = True,
+        **node_kwargs,
+    ):
+        """
+        A shortcut for creating for-node instances.
+
+        Args:
+            *node_args: Regular positional node arguments.
+            iter_on (tuple[str, ...] | str): Input label(s) in the :param:`body_node_class`
+                to nested-loop on.
+            zip_on (tuple[str, ...] | str): Input label(s) in the :param:`body_node_class`
+                to zip-loop on.
+            output_as_dataframe (bool): Whether to package the output (and iterated input)
+                as a dataframe, or leave them as individual lists. (Default is True,
+                package as dataframe.)
+            output_column_map (dict[str, str] | None): A map for generating dataframe
+                column names (values) from body node output channel labels (keys).
+                Necessary iff the body node has the same label for an output channel and
+                an input channel being looped over. (Default is None, just use the output
+                channel labels as columb names.)
+            use_cache (bool): Whether this node should default to caching its values.
+                (Default is True.)
+            **node_kwargs: Regular keyword node arguments.
+
+        Returns:
+            (For): An instance of a dynamically-subclassed :class:`For` node using
+                _this class_ as the `For.body_node_class`.
+
+        Examples:
+            >>> from pyiron_workflow import Workflow
+            >>>
+            >>> n = Workflow.create.standard.Add.for_node(
+            ...     iter_on="other",
+            ...     obj=1,
+            ...     other=[1, 2],
+            ...     output_as_dataframe=False,
+            ... )
+            >>>
+            >>> out = n()
+            >>> out.add
+            [2, 3]
+
+        """
+        from pyiron_workflow.nodes.for_loop import for_node
+
+        return for_node(
+            cls,
+            *node_args,
+            iter_on=iter_on,
+            zip_on=zip_on,
+            output_as_dataframe=output_as_dataframe,
+            output_column_map=output_column_map,
+            use_cache=use_cache,
+            **node_kwargs,
+        )
+
     def iter(
         self,
         body_node_executor=None,
