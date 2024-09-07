@@ -372,6 +372,10 @@ class DataclassNode(FromManyInputs, ABC):
             for name, f in cls._dataclass_fields.items()
         }
 
+    @classmethod
+    def _extra_info(cls) -> str:
+        return cls.dataclass.__doc__
+
 
 @classfactory
 def dataclass_node_factory(
