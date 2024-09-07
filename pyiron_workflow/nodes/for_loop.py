@@ -336,11 +336,14 @@ class For(Composite, StaticNode, ABC):
     def _collect_output_as_lists(self, iter_maps):
         n_rows = len(iter_maps)
 
+        def column_collector_name(s: str):
+            return f"column_collector_{s}"
+
         for label, hint in self._body_node_class.preview_outputs().items():
             mapped_label = self.output_column_map[label]
             column_collector = inputs_to_list(
                 n_rows,
-                label=f"column_collector_{mapped_label}",
+                label=column_collector_name(mapped_label),
                 parent=self,
             )
             column_collector.outputs.list.type_hint = (
@@ -356,7 +359,7 @@ class For(Composite, StaticNode, ABC):
         for label in self._zip_on + self._iter_on:
             column_collector = inputs_to_list(
                 n_rows,
-                label=f"column_collector_{label}",
+                label=column_collector_name(label),
                 parent=self,
             )
             hint = self._body_node_class.preview_inputs()[label][0]
@@ -366,7 +369,7 @@ class For(Composite, StaticNode, ABC):
             column_collector.outputs.list.value_receiver = self.outputs[label]
         for n, channel_map in enumerate(iter_maps):
             for label, i in channel_map.items():
-                self[f"column_collector_{label}"].inputs[f"item_{n}"] = self[label][i]
+                self[column_collector_name(label)].inputs[f"item_{n}"] = self[label][i]
 
     @classmethod
     @lru_cache(maxsize=1)
