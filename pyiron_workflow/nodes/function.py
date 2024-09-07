@@ -381,8 +381,7 @@ def function_node_factory(
             "_output_labels": None if len(output_labels) == 0 else output_labels,
             "_validate_output_labels": validate_output_labels,
             "__doc__": Function._io_defining_documentation(
-                node_function,
-                "node_function"
+                node_function, "node_function"
             ),
             "use_cache": use_cache,
         },

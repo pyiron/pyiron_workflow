@@ -303,8 +303,7 @@ class ScrapesIO(HasIOPreview, ABC):
             source = f"SOURCE NOT AVAILABLE -- {type(e).__name__}: {e}"
 
         doc = (
-            "" if io_defining_function.__doc__ is None
-            else io_defining_function.__doc__
+            "" if io_defining_function.__doc__ is None else io_defining_function.__doc__
         )
 
         docs = f"{title.upper()} INFO:\n\n"
@@ -318,7 +317,6 @@ class ScrapesIO(HasIOPreview, ABC):
         docs += source
         docs += "\n"
         return docs
-
 
 
 def no_output_validation_warning(cls: type):
