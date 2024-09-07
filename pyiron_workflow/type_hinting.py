@@ -53,6 +53,9 @@ def type_hint_is_as_or_more_specific_than(hint, other) -> bool:
             return issubclass(hint, other)
         except TypeError:
             return hint == other
+    elif other_origin is None and hint_origin is not None:
+        # When the hint adds specificity to an empty origin
+        return hint_origin == other
     elif hint_origin == other_origin:
         # If they both have an origin, break into arguments and treat cases
         hint_args = typing.get_args(hint)

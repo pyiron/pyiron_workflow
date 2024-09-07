@@ -5,6 +5,7 @@ from time import perf_counter
 import unittest
 
 from pandas import DataFrame
+from pyiron_snippets.dotdict import DotDict
 
 from pyiron_workflow._tests import ensure_tests_in_python_path
 from pyiron_workflow.nodes.for_loop import (
@@ -121,112 +122,162 @@ class TestForNode(unittest.TestCase):
         from static.demo_nodes import AddThree
         cls.AddThree = AddThree
 
+    @staticmethod
+    def _get_column(
+        output: DotDict,
+        output_as_dataframe: bool,
+        column_name: str ="together"
+    ):
+        """
+        Facilitate testing different output types
+
+        Args:
+            output (DotDict): The result of running a for node.
+            as_dataframe (bool): Whether the output is formatted as DF or list.
+            column_name (str): The name of the output column you're looking for.
+            (Default is "together" to work with the locally defined FiveTogether node.)
+
+        Returns:
+
+        """
+        if output_as_dataframe:
+            return output.df[column_name].to_list()
+        else:  # output as lists
+            return output[column_name]
+
     def test_iter_only(self):
-        for_instance = for_node(
-            FiveTogether,
-            iter_on=("a", "b",),
-            a=[42, 43, 44],
-            b=[13, 14],
-        )
-        out = for_instance(e="iter")
-        self.assertIsInstance(out.df, DataFrame,)
-        self.assertEqual(
-            len(out.df),
-            3 * 2,
-            msg="Expect nested loops"
-        )
-        self.assertListEqual(
-            out.df.columns.tolist(),
-            ["a", "b", "together"],
-            msg="Dataframe should only hold output and _looped_ input"
-        )
-        self.assertTupleEqual(
-            out.df["together"][1],
-            ((42, 14, 2, 3, "iter"),),
-            msg="Iter should get nested, broadcast broadcast, else take default"
-        )
+        for output_as_dataframe in [True, False]:
+            with self.subTest(f"output_as_dataframe {output_as_dataframe}"):
+                for_instance = for_node(
+                    FiveTogether,
+                    iter_on=("a", "b",),
+                    a=[42, 43, 44],
+                    b=[13, 14],
+                    output_as_dataframe=output_as_dataframe,
+                )
+                self.assertIsNone(
+                    for_instance.nrows,
+                    msg="Haven't run yet, so there is no size"
+                )
+                self.assertIsNone(
+                    for_instance.ncols,
+                    msg="Haven't run yet, so there is no size"
+                )
+                out = for_instance(e="iter")
+                self.assertIsInstance(
+                    out[list(out.keys())[0]],
+                    DataFrame if output_as_dataframe else list,
+                    msg="Expected output type to correspond to boolean request"
+                )
+                self.assertEqual(
+                    for_instance.nrows,
+                    3 * 2,
+                    msg="Expect nested loops"
+                )
+                self.assertEqual(
+                    for_instance.ncols,
+                    1 + 2,
+                    msg="Dataframe should only hold output and _looped_ input"
+                )
+                self.assertTupleEqual(
+                    self._get_column(out, output_as_dataframe=output_as_dataframe)[1],
+                    ((42, 14, 2, 3, "iter"),),
+                    msg="Iter should get nested, broadcast broadcast, else take default"
+                )
 
     def test_zip_only(self):
-        for_instance = for_node(
-            FiveTogether,
-            zip_on=("c", "d",),
-            e="zip"
-        )
-        out = for_instance(c=[100, 101], d=[-1, -2, -3])
-        self.assertEqual(
-            len(out.df),
-            2,
-            msg="Expect zipping with the python convention of truncating to shortest"
-        )
-        self.assertListEqual(
-            out.df.columns.tolist(),
-            ["c", "d", "together"],
-            msg="Dataframe should only hold output and _looped_ input"
-        )
-        self.assertTupleEqual(
-            out.df["together"][1],
-            ((0, 1, 101, -2, "zip"),),
-            msg="Zipped should get zipped, broadcast broadcast, else take default"
-        )
+        for output_as_dataframe in [True, False]:
+            with self.subTest(f"output_as_dataframe {output_as_dataframe}"):
+                for_instance = for_node(
+                    FiveTogether,
+                    zip_on=("c", "d",),
+                    e="zip",
+                    output_as_dataframe=output_as_dataframe,
+                )
+                out = for_instance(c=[100, 101], d=[-1, -2, -3])
+                self.assertEqual(
+                    for_instance.nrows,
+                    2,
+                    msg="Expect zipping with the python convention of truncating to "
+                        "shortest"
+                )
+                self.assertEqual(
+                    for_instance.ncols,
+                    1 + 2,
+                    msg="Dataframe should only hold output and _looped_ input"
+                )
+                self.assertTupleEqual(
+                    self._get_column(out, output_as_dataframe)[1],
+                    ((0, 1, 101, -2, "zip"),),
+                    msg="Zipped should get zipped, broadcast broadcast, else take default"
+                )
 
     def test_iter_and_zip(self):
-        for_instance = for_node(
-            FiveTogether,
-            iter_on=("a", "b",),
-            a=[42, 43, 44],
-            b=[13, 14],
-            zip_on=("c", "d",),
-            e="both"
-        )
-        out = for_instance(c=[100, 101], d=[-1, -2, -3])
-        self.assertEqual(
-            len(out.df),
-            3 * 2 * 2,
-            msg="Zipped stuff is nested with the individually nested fields"
-        )
-        self.assertListEqual(
-            out.df.columns.tolist(),
-            ["a", "b", "c", "d", "together"],
-            msg="Dataframe should only hold output and _looped_ input"
-        )
-        # We don't actually care if the order of nesting changes, but make sure the
-        # iters are getting nested and zipped stay together
-        self.assertTupleEqual(
-            out.df["together"][0],
-            ((42, 13, 100, -1, "both"),),
-            msg="All start"
-        )
-        self.assertTupleEqual(
-            out.df["together"][1],
-            ((42, 13, 101, -2, "both"),),
-            msg="Bump zipped together"
-        )
-        self.assertTupleEqual(
-            out.df["together"][2],
-            ((42, 14, 100, -1, "both"),),
-            msg="Back to start of zipped, bump _one_ iter"
-        )
+        for output_as_dataframe in [True, False]:
+            with self.subTest(f"output_as_dataframe {output_as_dataframe}"):
+                for_instance = for_node(
+                    FiveTogether,
+                    iter_on=("a", "b",),
+                    a=[42, 43, 44],
+                    b=[13, 14],
+                    zip_on=("c", "d",),
+                    e="both",
+                    output_as_dataframe=output_as_dataframe,
+                )
+                out = for_instance(c=[100, 101], d=[-1, -2, -3])
+                self.assertEqual(
+                    for_instance.nrows,
+                    3 * 2 * 2,
+                    msg="Zipped stuff is nested with the individually nested fields"
+                )
+                self.assertEqual(
+                    for_instance.ncols,
+                    1 + 4,
+                    msg="Dataframe should only hold output and _looped_ input"
+                )
+                # We don't actually care if the order of nesting changes, but make sure the
+                # iters are getting nested and zipped stay together
+                self.assertTupleEqual(
+                    self._get_column(out, output_as_dataframe)[0],
+                    ((42, 13, 100, -1, "both"),),
+                    msg="All start"
+                )
+                self.assertTupleEqual(
+                    self._get_column(out, output_as_dataframe)[1],
+                    ((42, 13, 101, -2, "both"),),
+                    msg="Bump zipped together"
+                )
+                self.assertTupleEqual(
+                    self._get_column(out, output_as_dataframe)[2],
+                    ((42, 14, 100, -1, "both"),),
+                    msg="Back to start of zipped, bump _one_ iter"
+                )
 
     def test_dynamic_length(self):
-        for_instance = for_node(
-            FiveTogether,
-            iter_on=("a", "b",),
-            a=[42, 43, 44],
-            b=[13, 14],
-            zip_on=("c", "d",),
-            c=[100, 101],
-            d=[-1, -2, -3]
-        )
-        self.assertEqual(
-            3 * 2 * 2,
-            len(for_instance().df),
-            msg="Sanity check"
-        )
-        self.assertEqual(
-            1,
-            len(for_instance(a=[0], b=[1], c=[2]).df),
-            msg="Should be able to re-run with different input lengths"
-        )
+        for output_as_dataframe in [True, False]:
+            with self.subTest(f"output_as_dataframe {output_as_dataframe}"):
+                for_instance = for_node(
+                    FiveTogether,
+                    iter_on=("a", "b",),
+                    a=[42, 43, 44],
+                    b=[13, 14],
+                    zip_on=("c", "d",),
+                    c=[100, 101],
+                    d=[-1, -2, -3],
+                    output_as_dataframe=output_as_dataframe,
+                )
+                for_instance()
+                self.assertEqual(
+                    for_instance.nrows,
+                    3 * 2 * 2,
+                    msg="Sanity check"
+                )
+                for_instance(a=[0], b=[1], c=[2])
+                self.assertEqual(
+                    for_instance.nrows,
+                    1,
+                    msg="Should be able to re-run with different input lengths"
+                )
 
     def test_column_mapping(self):
         @as_function_node
@@ -239,103 +290,115 @@ class TestForNode(unittest.TestCase):
         ):
             return a, b, c, d, e,
 
-        with self.subTest("Successful map"):
-            for_instance = for_node(
-                FiveApart,
-                iter_on=("a", "b"),
-                zip_on=("c", "d"),
-                a=[1, 2],
-                b=[3, 4, 5],
-                c=[7, 8],
-                d=[9, 10, 11],
-                e="e",
-                output_column_map={
-                    "a": "out_a",
-                    "b": "out_b",
-                    "c": "out_c",
-                    "d": "out_d"
-                }
-            )
-            self.assertEqual(
-                4 + 5,  # loop inputs + outputs
-                len(for_instance().df.columns),
-                msg="When all conflicting names are remapped, we should have no trouble"
-            )
+        for output_as_dataframe in [True, False]:
+            with self.subTest(f"output_as_dataframe {output_as_dataframe}"):
+                with self.subTest("Successful map"):
+                    for_instance = for_node(
+                        FiveApart,
+                        iter_on=("a", "b"),
+                        zip_on=("c", "d"),
+                        a=[1, 2],
+                        b=[3, 4, 5],
+                        c=[7, 8],
+                        d=[9, 10, 11],
+                        e="e",
+                        output_column_map={
+                            "a": "out_a",
+                            "b": "out_b",
+                            "c": "out_c",
+                            "d": "out_d"
+                        },
+                        output_as_dataframe=output_as_dataframe,
+                    )
+                    for_instance()
+                    self.assertEqual(
+                        for_instance.ncols,
+                        4 + 5,  # loop inputs + outputs
+                        msg="When all conflicting names are remapped, we should have no "
+                            "trouble"
+                    )
 
-        with self.subTest("Insufficient map"):
-            with self.assertRaises(
-                UnmappedConflictError,
-                msg="Leaving conflicting channels unmapped should raise an error"
-            ):
-                for_node(
-                    FiveApart,
-                    iter_on=("a", "b"),
-                    zip_on=("c", "d"),
-                    a=[1, 2],
-                    b=[3, 4, 5],
-                    c=[7, 8],
-                    d=[9, 10, 11],
-                    e="e",
-                    output_column_map={
-                        # "a": "out_a",
-                        "b": "out_b",
-                        "c": "out_c",
-                        "d": "out_d"
-                    }
-                )
+                with self.subTest("Insufficient map"):
+                    with self.assertRaises(
+                        UnmappedConflictError,
+                        msg="Leaving conflicting channels unmapped should raise an error"
+                    ):
+                        for_node(
+                            FiveApart,
+                            iter_on=("a", "b"),
+                            zip_on=("c", "d"),
+                            a=[1, 2],
+                            b=[3, 4, 5],
+                            c=[7, 8],
+                            d=[9, 10, 11],
+                            e="e",
+                            output_column_map={
+                                # "a": "out_a",
+                                "b": "out_b",
+                                "c": "out_c",
+                                "d": "out_d"
+                            },
+                            output_as_dataframe=output_as_dataframe,
+                        )
 
-        with self.subTest("Excessive map"):
-            with self.assertRaises(
-                MapsToNonexistentOutputError,
-                msg="Trying to map something that isn't there should raise an error"
-            ):
-                for_node(
-                    FiveApart,
-                    iter_on=("a", "b"),
-                    zip_on=("c", "d"),
-                    a=[1, 2],
-                    b=[3, 4, 5],
-                    c=[7, 8],
-                    d=[9, 10, 11],
-                    e="e",
-                    output_column_map={
-                        "a": "out_a",
-                        "b": "out_b",
-                        "c": "out_c",
-                        "d": "out_d",
-                        "not_a_key_on_the_body_node_outputs": "anything"
-                    }
-                )
+                with self.subTest("Excessive map"):
+                    with self.assertRaises(
+                        MapsToNonexistentOutputError,
+                        msg="Trying to map something that isn't there should raise an error"
+                    ):
+                        for_node(
+                            FiveApart,
+                            iter_on=("a", "b"),
+                            zip_on=("c", "d"),
+                            a=[1, 2],
+                            b=[3, 4, 5],
+                            c=[7, 8],
+                            d=[9, 10, 11],
+                            e="e",
+                            output_column_map={
+                                "a": "out_a",
+                                "b": "out_b",
+                                "c": "out_c",
+                                "d": "out_d",
+                                "not_a_key_on_the_body_node_outputs": "anything"
+                            },
+                            output_as_dataframe=output_as_dataframe,
+                        )
 
     def test_body_node_executor(self):
         t_sleep = 2
-        for_parallel = for_node(
-            Sleep,
-            iter_on=("t",)
-        )
-        t_start = perf_counter()
-        n_procs = 4
-        with ThreadPoolExecutor(max_workers=n_procs) as exe:
-            for_parallel.body_node_executor = exe
-            for_parallel(t=n_procs*[t_sleep])
-        dt = perf_counter() - t_start
-        grace = 1.25
-        self.assertLess(
-            dt,
-            grace * t_sleep,
-            msg=f"Parallelization over children should result in faster completion. "
-                f"Expected limit {grace} x {t_sleep} = {grace * t_sleep} -- got {dt}"
-        )
 
-        reloaded = pickle.loads(pickle.dumps(for_parallel))
-        self.assertIsNone(
-            reloaded.body_node_executor,
-            msg="Just like regular nodes, until executors can be delayed creators "
-                "instead of actual executor nodes, we need to purge executors from "
-                "nodes on serialization or the thread lock/queue objects hit us"
-        )
+        for output_as_dataframe in [True, False]:
+            with self.subTest(f"output_as_dataframe {output_as_dataframe}"):
+                for_parallel = for_node(
+                    Sleep,
+                    iter_on=("t",),
+                    output_as_dataframe=output_as_dataframe,
+                )
+                t_start = perf_counter()
+                n_procs = 4
+                with ThreadPoolExecutor(max_workers=n_procs) as exe:
+                    for_parallel.body_node_executor = exe
+                    for_parallel(t=n_procs*[t_sleep])
+                dt = perf_counter() - t_start
+                grace = 1.25
+                self.assertLess(
+                    dt,
+                    grace * t_sleep,
+                    msg=f"Parallelization over children should result in faster "
+                        f"completion. Expected limit {grace} x {t_sleep} = "
+                        f"{grace * t_sleep} -- got {dt}"
+                )
 
-    def test_with_connections(self):
+                reloaded = pickle.loads(pickle.dumps(for_parallel))
+                self.assertIsNone(
+                    reloaded.body_node_executor,
+                    msg="Just like regular nodes, until executors can be delayed creators "
+                        "instead of actual executor nodes, we need to purge executors from "
+                        "nodes on serialization or the thread lock/queue objects hit us"
+                )
+
+    def test_with_connections_dataframe(self):
         length_y = 3
 
         @as_macro_node
@@ -347,7 +410,8 @@ class TestForNode(unittest.TestCase):
                 Add,
                 iter_on=("obj", "other",),
                 obj=x,
-                other=self.to_list
+                other=self.to_list,
+                output_as_dataframe=True,
             )
             return self.loop
 
@@ -370,6 +434,44 @@ class TestForNode(unittest.TestCase):
             msg="And make sure that we can vary the length still"
         )
 
+    def test_with_connections_list(self):
+        length_y = 3
+
+        @as_macro_node
+        def LoopInside(self, x: list, y: int):
+            self.to_list = inputs_to_list(
+                length_y, y, y, y
+            )
+            self.loop = for_node(
+                Add,
+                iter_on=("obj", "other",),
+                obj=x,
+                other=self.to_list,
+                output_as_dataframe=False,
+            )
+            out = self.loop.outputs.add
+            return out
+
+        x, y = [1], 2
+        li = LoopInside([1], 2)
+        l = li().out
+        print(li)
+        self.assertIsInstance(l, list)
+        self.assertEqual(length_y * len(x), len(l))
+        self.assertEqual(
+            x[0] + y,
+            l[0],
+            msg="Just make sure the loop is actually running"
+        )
+        x, y = [2, 3], 4
+        l = li(x, y).out
+        self.assertEqual(length_y * len(x), len(l))
+        self.assertEqual(
+            x[-1] + y,
+            l[len(l) - 1],
+            msg="And make sure that we can vary the length still"
+        )
+
     def test_node_access_points(self):
         n = FiveTogether(1, 2, e="instance")
 
@@ -377,22 +479,31 @@ class TestForNode(unittest.TestCase):
             df = n.iter(c=[3, 4], d=[5, 6])
             self.assertIsInstance(df, DataFrame)
             self.assertEqual(2 * 2, len(df))
-            self.assertTupleEqual(df["together"][1][0], (1, 2, 3, 6, "instance",))
+            self.assertTupleEqual(
+                df["together"][1][0],
+                (1, 2, 3, 6, "instance",)
+            )
 
         with self.subTest("Zip"):
             df = n.zip(c=[3, 4], d=[5, 6])
             self.assertIsInstance(df, DataFrame)
             self.assertEqual(2, len(df))
-            self.assertTupleEqual(df["together"][1][0], (1, 2, 4, 6, "instance",))
+            self.assertTupleEqual(
+                df["together"][1][0],
+                (1, 2, 4, 6, "instance",)
+            )
 
     def test_macro_body(self):
-        n = for_node(
-            body_node_class=self.AddThree,
-            iter_on=("x",),
-            x=[1, 2, 3]
-        )
-        n()
-        pickle.loads(pickle.dumps(n))
+        for output_as_dataframe in [True, False]:
+            with self.subTest(f"output_as_dataframe {output_as_dataframe}"):
+                n = for_node(
+                    body_node_class=self.AddThree,
+                    iter_on=("x",),
+                    x=[1, 2, 3],
+                    output_as_dataframe=output_as_dataframe,
+                )
+                n()
+                pickle.loads(pickle.dumps(n))
 
 
 if __name__ == "__main__":

@@ -17,6 +17,7 @@ from pyiron_workflow.storage import StorageInterface
 from pyiron_workflow.nodes.transform import (
     inputs_to_dict,
     inputs_to_dataframe,
+    inputs_to_list,
     InputsToDict,
 )
 
@@ -152,6 +153,7 @@ class For(Composite, StaticNode, ABC):
     _body_node_class: ClassVar[type[StaticNode]]
     _iter_on: ClassVar[tuple[str, ...]] = ()
     _zip_on: ClassVar[tuple[str, ...]] = ()
+    _output_as_dataframe: ClassVar[bool] = True
 
     def __init_subclass__(cls, output_column_map=None, **kwargs):
         super().__init_subclass__(**kwargs)
@@ -250,21 +252,12 @@ class For(Composite, StaticNode, ABC):
 
         self._clean_existing_subgraph()
 
-        self.dataframe = inputs_to_dataframe(len(iter_maps))
-        self.dataframe.outputs.df.value_receiver = self.outputs.df
+        self._create_and_connect_input_to_body_nodes(iter_maps)
 
-        for n, channel_map in enumerate(iter_maps):
-            body_node = self._body_node_class(label=f"body_{n}", parent=self)
-            body_node.executor = self.body_node_executor
-            row_collector = self._build_collector_node(n)
-
-            self._connect_broadcast_input(body_node)
-            for label, i in channel_map.items():
-                self._connect_looped_input(body_node, row_collector, label, i)
-
-            self._collect_output_from_body(body_node, row_collector)
-
-            self.dataframe.inputs[f"row_{n}"] = row_collector
+        if self._output_as_dataframe:
+            self._collect_output_as_dataframe(iter_maps)
+        else:
+            self._collect_output_as_lists(iter_maps)
 
         self.set_run_signals_to_dag_execution()
 
@@ -287,7 +280,43 @@ class For(Composite, StaticNode, ABC):
                 )
         # TODO: Instead of deleting _everything_ each time, try and re-use stuff
 
-    def _build_collector_node(self, row_number):
+    def _create_and_connect_input_to_body_nodes(self, iter_maps):
+        for n, channel_map in enumerate(iter_maps):
+            # Make the body node
+            body_node = self._body_node_class(label=self._body_name(n), parent=self)
+            body_node.executor = self.body_node_executor
+
+            # Broadcast macro input to body node
+            for bcast_label in set(self.preview_inputs().keys()).difference(
+                self._iter_on + self._zip_on
+            ):
+                self.inputs[bcast_label].value_receiver = body_node.inputs[bcast_label]
+
+            # Get item from macro input and connect it to body node
+            for looped_label, i in channel_map.items():
+                index_node = self.children[looped_label][i]  # Inject getitem node
+                body_node.inputs[looped_label] = index_node
+
+    @staticmethod
+    def _body_name(n: int):
+        return f"body_{n}"
+
+    def _collect_output_as_dataframe(self, iter_maps):
+        self.dataframe = inputs_to_dataframe(len(iter_maps))
+        self.dataframe.outputs.df.value_receiver = self.outputs.df
+
+        for n, channel_map in enumerate(iter_maps):
+
+            row_collector = self._build_row_collector_node(n)
+            for label, i in channel_map.items():
+                row_collector.inputs[label] = self.children[label][i]
+
+            for label, body_out in self[self._body_name(n)].outputs.items():
+                row_collector.inputs[self.output_column_map[label]] = body_out
+
+            self.dataframe.inputs[f"row_{n}"] = row_collector
+
+    def _build_row_collector_node(self, row_number) -> InputsToDict:
         # Iterated inputs
         row_specification = {
             key: (self._body_node_class.preview_inputs()[key][0], NOT_DATA)
@@ -304,33 +333,43 @@ class For(Composite, StaticNode, ABC):
             row_specification, parent=self, label=f"row_collector_{row_number}"
         )
 
-    def _connect_broadcast_input(self, body_node: StaticNode) -> None:
-        """Connect broadcast macro input to each body node."""
-        for broadcast_label in set(self.preview_inputs().keys()).difference(
-            self._iter_on + self._zip_on
-        ):
-            self.inputs[broadcast_label].value_receiver = body_node.inputs[
-                broadcast_label
-            ]
+    def _collect_output_as_lists(self, iter_maps):
+        n_rows = len(iter_maps)
 
-    def _connect_looped_input(
-        self,
-        body_node: StaticNode,
-        row_collector: InputsToDict,
-        looped_input_label: str,
-        i: int,
-    ) -> None:
-        """Get item from macro input and connect it to body and collector nodes."""
-        index_node = self.children[looped_input_label][i]  # Inject getitem node
-        body_node.inputs[looped_input_label] = index_node
-        row_collector.inputs[looped_input_label] = index_node
+        def column_collector_name(s: str):
+            return f"column_collector_{s}"
 
-    def _collect_output_from_body(
-        self, body_node: StaticNode, row_collector: InputsToDict
-    ) -> None:
-        """Pass body node output to the collector node."""
-        for label, body_out in body_node.outputs.items():
-            row_collector.inputs[self.output_column_map[label]] = body_out
+        for label, hint in self._body_node_class.preview_outputs().items():
+            mapped_label = self.output_column_map[label]
+            column_collector = inputs_to_list(
+                n_rows,
+                label=column_collector_name(mapped_label),
+                parent=self,
+            )
+            column_collector.outputs.list.type_hint = (
+                list if hint is None else list[hint]
+            )
+            column_collector.outputs.list.value_receiver = self.outputs[mapped_label]
+
+            for n, channel_map in enumerate(iter_maps):
+                column_collector.inputs[f"item_{n}"] = self[self._body_name(n)].outputs[
+                    label
+                ]
+
+        for label in self._zip_on + self._iter_on:
+            column_collector = inputs_to_list(
+                n_rows,
+                label=column_collector_name(label),
+                parent=self,
+            )
+            hint = self._body_node_class.preview_inputs()[label][0]
+            column_collector.outputs.list.type_hint = (
+                list if hint is None else list[hint]
+            )
+            column_collector.outputs.list.value_receiver = self.outputs[label]
+        for n, channel_map in enumerate(iter_maps):
+            for label, i in channel_map.items():
+                self[column_collector_name(label)].inputs[f"item_{n}"] = self[label][i]
 
     @classmethod
     @lru_cache(maxsize=1)
@@ -346,7 +385,19 @@ class For(Composite, StaticNode, ABC):
 
     @classmethod
     def _build_outputs_preview(cls) -> dict[str, Any]:
-        return {"df": DataFrame}
+        if cls._output_as_dataframe:
+            return {"df": DataFrame}
+        else:
+            preview = {}
+            for label, (hint, default) in cls._body_node_class.preview_inputs().items():
+                if label in cls._zip_on + cls._iter_on:
+                    hint = list if hint is None else list[hint]
+                    preview[label] = hint
+            for label, hint in cls._body_node_class.preview_outputs().items():
+                preview[cls.output_column_map[label]] = (
+                    list if hint is None else list[hint]
+                )
+            return preview
 
     @property
     def _input_value_links(self):
@@ -411,6 +462,26 @@ class For(Composite, StaticNode, ABC):
         for (child, child_out), out in output_links:
             self.children[child].outputs[child_out].value_receiver = self.outputs[out]
 
+    @property
+    def nrows(self) -> int | None:
+        if self.outputs.ready:
+            if self._output_as_dataframe:
+                return len(self.outputs.df.value)
+            else:
+                return len(self.outputs[self.outputs.labels[0]].value)
+        else:
+            return None
+
+    @property
+    def ncols(self) -> int | None:
+        if self.outputs.ready:
+            if self._output_as_dataframe:
+                return len(self.outputs.df.value.columns)
+            else:
+                return len(self.outputs)
+        else:
+            return None
+
 
 def _for_node_class_name(
     body_node_class: type[StaticNode], iter_on: tuple[str, ...], zip_on: tuple[str, ...]
@@ -427,6 +498,7 @@ def for_node_factory(
     body_node_class: type[StaticNode],
     iter_on: tuple[str, ...] = (),
     zip_on: tuple[str, ...] = (),
+    output_as_dataframe: bool = True,
     output_column_map: dict | None = None,
     use_cache: bool = True,
     /,
@@ -445,6 +517,7 @@ def for_node_factory(
             "_body_node_class": body_node_class,
             "_iter_on": iter_on,
             "_zip_on": zip_on,
+            "_output_as_dataframe": output_as_dataframe,
             "__doc__": combined_docstring,
             "use_cache": use_cache,
         },
@@ -453,10 +526,11 @@ def for_node_factory(
 
 
 def for_node(
-    body_node_class,
+    body_node_class: type[StaticNode],
     *node_args,
-    iter_on=(),
-    zip_on=(),
+    iter_on: tuple[str, ...] = (),
+    zip_on: tuple[str, ...] = (),
+    output_as_dataframe: bool = True,
     output_column_map: Optional[dict[str, str]] = None,
     use_cache: bool = True,
     **node_kwargs,
@@ -481,6 +555,9 @@ def for_node(
             nested-loop on.
         zip_on (tuple[str, ...]): Input labels in the :param:`body_node_class` to
             zip-loop on.
+        output_as_dataframe (bool): Whether to package the output (and iterated input)
+            as a dataframe, or leave them as individual lists. (Default is True,
+            package as dataframe.)
         output_column_map (dict[str, str] | None): A map for generating dataframe
             column names (values) from body node output channel labels (keys).
             Necessary iff the body node has the same label for an output channel and
@@ -562,7 +639,12 @@ def for_node(
     """
     for_node_factory.clear(_for_node_class_name(body_node_class, iter_on, zip_on))
     cls = for_node_factory(
-        body_node_class, iter_on, zip_on, output_column_map, use_cache
+        body_node_class,
+        iter_on,
+        zip_on,
+        output_as_dataframe,
+        output_column_map,
+        use_cache,
     )
     cls.preview_io()
     return cls(*node_args, **node_kwargs)

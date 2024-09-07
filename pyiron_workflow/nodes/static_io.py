@@ -103,6 +103,8 @@ class StaticNode(Node, HasIOPreview, ABC):
             self.__class__,
             **{
                 loop_style_key: loop_on,
+                "output_as_dataframe": True,  # These methods terminate at the user
+                # So force the user-friendly dataframe output.
                 "output_column_map": output_column_map,
                 **looping_inputs,
                 **broadcast_inputs,
