@@ -16,7 +16,7 @@ from pyiron_workflow.nodes.for_loop import (
 )
 from pyiron_workflow.nodes.function import as_function_node
 from pyiron_workflow.nodes.macro import as_macro_node
-from pyiron_workflow.nodes.standard import Add, Sleep
+from pyiron_workflow.nodes.standard import Add, Multiply, Sleep
 from pyiron_workflow.nodes.transform import inputs_to_list
 
 
@@ -492,6 +492,27 @@ class TestForNode(unittest.TestCase):
                 df["together"][1][0],
                 (1, 2, 4, 6, "instance",)
             )
+
+    def test_shortcut(self):
+        loop1 = Add.for_node(
+            iter_on="other",
+            obj=1,
+            other=[1, 2],
+            output_as_dataframe=False,
+        )
+        loop2 = Multiply.for_node(
+            zip_on=("obj", "other"),
+            obj=loop1.outputs.add,
+            other=[1, 2],
+            output_as_dataframe=False,
+        )
+        out = loop2()
+        self.assertListEqual(
+            out.mul,
+            [(1+1)*1, (1+2)*2],
+            msg="We should be able to call for_node right from node classes to bypass "
+                "needing to provide the `body_node_class` argument"
+        )
 
     def test_macro_body(self):
         for output_as_dataframe in [True, False]:
