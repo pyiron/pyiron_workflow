@@ -372,7 +372,7 @@ class TestForNode(unittest.TestCase):
             with self.subTest(f"output_as_dataframe {output_as_dataframe}"):
                 for_parallel = for_node(
                     Sleep,
-                    iter_on=("t",),
+                    iter_on="t",
                     output_as_dataframe=output_as_dataframe,
                 )
                 t_start = perf_counter()
@@ -498,12 +498,36 @@ class TestForNode(unittest.TestCase):
             with self.subTest(f"output_as_dataframe {output_as_dataframe}"):
                 n = for_node(
                     body_node_class=self.AddThree,
-                    iter_on=("x",),
+                    iter_on="x",
                     x=[1, 2, 3],
                     output_as_dataframe=output_as_dataframe,
                 )
+                print(n.preview_io())
                 n()
                 pickle.loads(pickle.dumps(n))
+
+    def test_repeated_creation(self):
+        n1 = for_node(
+            body_node_class=FiveTogether,
+            iter_on="a",
+            a=[1, 2],
+            output_as_dataframe=True,
+        )
+        n2 = for_node(
+            body_node_class=FiveTogether,
+            iter_on="a",
+            a=[1, 2],
+            output_as_dataframe=False,
+        )
+        n3 = for_node(
+            body_node_class=FiveTogether,
+            iter_on="a",
+            a=[1, 2],
+            output_as_dataframe=True,
+        )
+        self.assertTrue(n1._output_as_dataframe)
+        self.assertFalse(n2._output_as_dataframe)
+        self.assertTrue(n3._output_as_dataframe)
 
 
 if __name__ == "__main__":

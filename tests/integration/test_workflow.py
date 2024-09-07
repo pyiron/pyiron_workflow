@@ -104,7 +104,7 @@ class TestTopology(unittest.TestCase):
         to_add = list(range(5))
         bulk_loop = Workflow.create.for_node(
             demo_nodes.OptionallyAdd,
-            iter_on=("y",),
+            iter_on="y",
             x=base,  # Broadcast
             y=to_add  # Scattered
         )

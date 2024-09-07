@@ -484,20 +484,24 @@ class For(Composite, StaticNode, ABC):
 
 
 def _for_node_class_name(
-    body_node_class: type[StaticNode], iter_on: tuple[str, ...], zip_on: tuple[str, ...]
+    body_node_class: type[StaticNode],
+    iter_on: tuple[str, ...],
+    zip_on: tuple[str, ...],
+    output_as_dataframe: bool,
 ):
     iter_fields = (
         "" if len(iter_on) == 0 else "Iter" + "".join(k.title() for k in iter_on)
     )
     zip_fields = "" if len(zip_on) == 0 else "Zip" + "".join(k.title() for k in zip_on)
-    return f"{For.__name__}{body_node_class.__name__}{iter_fields}{zip_fields}"
+    out = "DataOut" if output_as_dataframe else "ListOut"
+    return f"{For.__name__}{body_node_class.__name__}{iter_fields}{zip_fields}{out}"
 
 
 @classfactory
 def for_node_factory(
     body_node_class: type[StaticNode],
-    iter_on: tuple[str, ...] = (),
-    zip_on: tuple[str, ...] = (),
+    iter_on: tuple[str, ...] | str = (),
+    zip_on: tuple[str, ...] | str = (),
     output_as_dataframe: bool = True,
     output_column_map: dict | None = None,
     use_cache: bool = True,
@@ -510,8 +514,11 @@ def for_node_factory(
         + (body_node_class.__doc__ if body_node_class.__doc__ is not None else "")
     )
 
+    iter_on = (iter_on,) if isinstance(iter_on, str) else iter_on
+    zip_on = (zip_on,) if isinstance(zip_on, str) else zip_on
+
     return (
-        _for_node_class_name(body_node_class, iter_on, zip_on),
+        _for_node_class_name(body_node_class, iter_on, zip_on, output_as_dataframe),
         (For,),
         {
             "_body_node_class": body_node_class,
@@ -528,8 +535,8 @@ def for_node_factory(
 def for_node(
     body_node_class: type[StaticNode],
     *node_args,
-    iter_on: tuple[str, ...] = (),
-    zip_on: tuple[str, ...] = (),
+    iter_on: tuple[str, ...] | str = (),
+    zip_on: tuple[str, ...] | str = (),
     output_as_dataframe: bool = True,
     output_column_map: Optional[dict[str, str]] = None,
     use_cache: bool = True,
@@ -551,10 +558,10 @@ def for_node(
     Args:
         body_node_class type[StaticNode]: The class of node to loop on.
         *node_args: Regular positional node arguments.
-        iter_on (tuple[str, ...]): Input labels in the :param:`body_node_class` to
-            nested-loop on.
-        zip_on (tuple[str, ...]): Input labels in the :param:`body_node_class` to
-            zip-loop on.
+        iter_on (tuple[str, ...] | str): Input label(s) in the :param:`body_node_class`
+            to nested-loop on.
+        zip_on (tuple[str, ...] | str): Input label(s) in the :param:`body_node_class`
+            to zip-loop on.
         output_as_dataframe (bool): Whether to package the output (and iterated input)
             as a dataframe, or leave them as individual lists. (Default is True,
             package as dataframe.)
@@ -637,7 +644,9 @@ def for_node(
         Index(['a', 'b', 'c', 'd', 'out_a', 'out_b', 'out_c', 'out_d', 'e'], dtype='object')
 
     """
-    for_node_factory.clear(_for_node_class_name(body_node_class, iter_on, zip_on))
+    for_node_factory.clear(
+        _for_node_class_name(body_node_class, iter_on, zip_on, output_as_dataframe)
+    )
     cls = for_node_factory(
         body_node_class,
         iter_on,
