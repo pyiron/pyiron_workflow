@@ -484,13 +484,17 @@ class For(Composite, StaticNode, ABC):
 
 
 def _for_node_class_name(
-    body_node_class: type[StaticNode], iter_on: tuple[str, ...], zip_on: tuple[str, ...]
+    body_node_class: type[StaticNode],
+    iter_on: tuple[str, ...],
+    zip_on: tuple[str, ...],
+    output_as_dataframe: bool,
 ):
     iter_fields = (
         "" if len(iter_on) == 0 else "Iter" + "".join(k.title() for k in iter_on)
     )
     zip_fields = "" if len(zip_on) == 0 else "Zip" + "".join(k.title() for k in zip_on)
-    return f"{For.__name__}{body_node_class.__name__}{iter_fields}{zip_fields}"
+    out = "DataOut" if output_as_dataframe else "ListOut"
+    return f"{For.__name__}{body_node_class.__name__}{iter_fields}{zip_fields}{out}"
 
 
 @classfactory
@@ -511,7 +515,7 @@ def for_node_factory(
     )
 
     return (
-        _for_node_class_name(body_node_class, iter_on, zip_on),
+        _for_node_class_name(body_node_class, iter_on, zip_on, output_as_dataframe),
         (For,),
         {
             "_body_node_class": body_node_class,
@@ -637,7 +641,9 @@ def for_node(
         Index(['a', 'b', 'c', 'd', 'out_a', 'out_b', 'out_c', 'out_d', 'e'], dtype='object')
 
     """
-    for_node_factory.clear(_for_node_class_name(body_node_class, iter_on, zip_on))
+    for_node_factory.clear(
+        _for_node_class_name(body_node_class, iter_on, zip_on, output_as_dataframe)
+    )
     cls = for_node_factory(
         body_node_class,
         iter_on,
