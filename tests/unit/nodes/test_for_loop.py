@@ -509,19 +509,19 @@ class TestForNode(unittest.TestCase):
     def test_repeated_creation(self):
         n1 = for_node(
             body_node_class=FiveTogether,
-            iter_on=("a",),
+            iter_on="a",
             a=[1, 2],
             output_as_dataframe=True,
         )
         n2 = for_node(
             body_node_class=FiveTogether,
-            iter_on=("a",),
+            iter_on="a",
             a=[1, 2],
             output_as_dataframe=False,
         )
         n3 = for_node(
             body_node_class=FiveTogether,
-            iter_on=("a",),
+            iter_on="a",
             a=[1, 2],
             output_as_dataframe=True,
         )
