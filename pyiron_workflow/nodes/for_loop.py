@@ -459,6 +459,26 @@ class For(Composite, StaticNode, ABC):
         for (child, child_out), out in output_links:
             self.children[child].outputs[child_out].value_receiver = self.outputs[out]
 
+    @property
+    def nrows(self) -> int | None:
+        if self.outputs.ready:
+            if self._output_as_dataframe:
+                return len(self.outputs.df.value)
+            else:
+                return len(self.outputs[self.outputs.labels[0]].value)
+        else:
+            return None
+
+    @property
+    def ncols(self) -> int | None:
+        if self.outputs.ready:
+            if self._output_as_dataframe:
+                return len(self.outputs.df.value.columns)
+            else:
+                return len(self.outputs)
+        else:
+            return None
+
 
 def _for_node_class_name(
     body_node_class: type[StaticNode], iter_on: tuple[str, ...], zip_on: tuple[str, ...]
