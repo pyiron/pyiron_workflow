@@ -286,6 +286,40 @@ class ScrapesIO(HasIOPreview, ABC):
                     f"present, " + error_suffix
                 )
 
+    @staticmethod
+    def _io_defining_documentation(io_defining_function: callable, title: str):
+        """
+        A helper method for building a docstring for classes that have their IO defined
+        by some function.
+        """
+        try:
+            signature = str(inspect.signature(io_defining_function))
+        except Exception as e:
+            signature = f"SIGNATURE NOT AVAILABLE -- {type(e).__name__}: {e}"
+
+        try:
+            source = inspect.getsource(io_defining_function)
+        except Exception as e:
+            source = f"SOURCE NOT AVAILABLE -- {type(e).__name__}: {e}"
+
+        doc = (
+            "" if io_defining_function.__doc__ is None
+            else io_defining_function.__doc__
+        )
+
+        docs = f"{title.upper()} INFO:\n\n"
+        docs += "Signature:\n\n"
+        docs += signature
+        docs += "\n\n"
+        docs += "Docstring:\n\n"
+        docs += doc
+        docs += "\n"
+        docs += "Source:\n\n"
+        docs += source
+        docs += "\n"
+        return docs
+
+
 
 def no_output_validation_warning(cls: type):
     return (
