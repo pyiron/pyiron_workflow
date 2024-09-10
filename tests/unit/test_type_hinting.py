@@ -1,6 +1,7 @@
 import typing
 import unittest
 
+from pint import UnitRegistry
 
 from pyiron_workflow.type_hinting import (
     type_hint_is_as_or_more_specific_than, valid_value
@@ -16,6 +17,8 @@ class TestTypeHinting(unittest.TestCase):
             def __call__(self):
                 return None
 
+        ureg = UnitRegistry()
+
         for hint, good, bad in (
                 (int | float, 1, "foo"),
                 (typing.Union[int, float], 2.0, "bar"),
@@ -29,6 +32,7 @@ class TestTypeHinting(unittest.TestCase):
                 (typing.Callable, Bar(), Foo()),
                 (tuple[int, float], (1, 1.1), ("fo", 0)),
                 (dict[str, int], {'a': 1}, {'a': 'b'}),
+                (int, 1 * ureg.seconds, 1.0 * ureg.seconds)  # Disregard unit, look@type
         ):
             with self.subTest(msg=f"Good {good} vs hint {hint}"):
                 self.assertTrue(valid_value(good, hint))
