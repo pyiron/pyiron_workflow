@@ -10,6 +10,7 @@ import itertools
 from typing import Any, ClassVar, Optional
 
 from pandas import DataFrame
+from pyiron_snippets.colors import SeabornColors
 from pyiron_snippets.factory import classfactory
 
 from pyiron_workflow.channels import NOT_DATA
@@ -22,6 +23,11 @@ class Transformer(StaticNode, ABC):
     Transformers are a special case of :class:`StaticNode` nodes that turn many inputs
     into a single output or vice-versa.
     """
+
+    @property
+    def color(self) -> str:
+        """For drawing the graph"""
+        return SeabornColors.blue
 
 
 class FromManyInputs(Transformer, ABC):
