@@ -7,10 +7,13 @@ import types
 import typing
 from collections.abc import Callable
 
+from pint import Quantity
 from typeguard import check_type, TypeCheckError
 
 
 def valid_value(value, type_hint) -> bool:
+    value = value.magnitude if isinstance(value, Quantity) else value  # De-unit it
+
     try:
         return isinstance(value, type_hint)
     except TypeError:
