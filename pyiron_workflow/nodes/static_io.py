@@ -4,6 +4,7 @@ from abc import ABC
 from typing import Optional
 
 from pandas import DataFrame
+from pyiron_snippets.colors import SeabornColors
 
 from pyiron_workflow.channels import InputData
 from pyiron_workflow.mixin.injection import (
@@ -192,3 +193,8 @@ class StaticNode(Node, HasIOPreview, ABC):
         self._make_entry_public(state, "_outputs", "outputs")
         self._make_entry_public(state, "_signals", "signals")
         return super().display_state(state=state, ignore_private=ignore_private)
+
+    @property
+    def color(self) -> str:
+        """For drawing the graph"""
+        return SeabornColors.pink
