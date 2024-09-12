@@ -29,7 +29,7 @@ from pyiron_workflow.mixin.has_interface_mixins import (
     HasLabel,
     HasRun,
 )
-from pyiron_workflow.mixin.has_to_dict import HasStateDisplay
+from pyiron_workflow.mixin.display_state import HasStateDisplay
 
 
 class IO(HasStateDisplay, ABC):

@@ -15,7 +15,7 @@ import inspect
 from pyiron_snippets.singleton import Singleton
 
 from pyiron_workflow.mixin.has_interface_mixins import HasChannel, HasLabel
-from pyiron_workflow.mixin.has_to_dict import HasStateDisplay
+from pyiron_workflow.mixin.display_state import HasStateDisplay
 from pyiron_workflow.type_hinting import (
     valid_value,
     type_hint_is_as_or_more_specific_than,
