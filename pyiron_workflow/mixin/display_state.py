@@ -1,3 +1,7 @@
+"""
+Simple display capabilities to make it easier for humans to see what's happening.
+"""
+
 from abc import ABC
 from json import dumps
 

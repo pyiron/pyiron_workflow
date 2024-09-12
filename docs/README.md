@@ -159,3 +159,44 @@ To explore other benefits of `pyiron_workflow`, look at the `quickstart.ipynb` i
 - Iterating over data with for-loops
 
 For more advanced topics, like cyclic graphs, check the `deepdive.ipynb` notebook, explore the docstrings, or look at the
+
+## Structure
+
+This section is targeted at readers who want to contribute to the core platform of `pyiron_workflow`, or power-users who have hit a behaviour or edge case they want to understand more deeply and need some hints where to look.
+
+The core classes responsible for structuring workflows as a graph are `pyiron_workflow.channels.Channel` and `pyiron_workflow.node.Node` which form the edges and (unsurprisingly) nodes of the computational graph.
+Each node holds multiple channels which specify how it interfaces with other nodes.
+
+As far as possible, the different tasks and roles of a node have been decomposed, such that `pyiron_workflow.node.Node` (and to a lesser extent `pyiron_workflow.channels.Channel`) inherits individual pieces of behaviour from simpler, specialized classes.
+All of these classes that are upstream of nodes (and channels) are stored in the `pyiron_workflow.mixin` sub-module.
+They range from extremely simple mix-ins like `pyiron_workflow.has_interface_mixins.has_label`, which does nothing more than guarantee that child classes have `label: str` and `full_label: str` attributes, to complex mix-ins like `pyiron_workflow.run.Runnable`, which provides the capability for children to use the `run()` method, along with specifying what else needs to be implemented for this to be possible and provided other associated tools and methods.
+Each of these mix-in modules has a rationale for its existence -- it's "why" -- as the module-level docstring, and provides insight into the promises the mix-in makes as class-level docstrings.
+The node class brings together these individual capabilities and controls their interactions, but to understand each inherited power on its own, review these modules.
+
+Everything(*) _downstream_ in the inheritance tree from nodes is in the `pyiron_workflow.nodes` sub-module.
+Where `pyiron_workflow.mixin` defines the core capabilities of `pyiron_workflow.nodes.Node`, `pyiron_workflow.nodes` provides specialization and diversification of roles.
+A key player is `pyiron_workflow.nodes.static_io.StaticNode`, which holds tools facilitating and ensuring that node IO is specified at the _class_ level -- a critical capability if we start thinking about assessing node interoperability and guided workflow design, where we don't want to need to first instantiate nodes to find out whether they'll work!
+It also holds familiar user facing nodes like `pyiron_workflow.nodes.function.Function`, which makes sure each run of the node executes a particular python function, and `pyiron_workflow.nodes.macro.Macro` which inherits from the more generic `pyiron_workflow.nodes.composite.Composite` and holds its own sub-graph and executes _that_ when you run the node.
+Other than `pyiron_workflow.nodes.multiple_dispatch`, which holds some helpers for making sure we can make both calls like `@as_function_node` _and_ `@as_function_node()`, the submodules here all define different node classes somewhere on the spectrum between abstract mix-in or base classes down to the user-facing, extremely specific `pyiron_workflow.nodes.standard` library of nodes to be included in user workflows!
+
+(*) Ok, not quite _everything_ downstream from `pyiron_workflow.node.Node` is in `pyiron_workflow.nodes`.
+There is also `pyiron_workflow.workflow.Workflow` -- the main entry point for users.
+Unlike literally every other node, workflow objects have dynamic and variable IO and _cannot_ be inserted as part of any other workflow (i.e. they must be a parent-most object in their workflow graph).
+Otherwise, they inherit from `pyiron_workflow.nodes.composite.Composite` just like macros, and behave in a similar way.
+In principle the classes should be refactored so that nodes and workflows both inherit from shared capability, but that workflows are themselves not directly nodes -- i.e. pull the `pyiron_workflow.nodes.static_io.StaticNode` behaviour right up into `pyiron_workflow.node.Node`, and spin off some ur-ancestor for `pyiron_workflow.node.Node` and `pyiron_workflow.workflow.Workflow`.
+There is an open issue to this effect: https://github.com/pyiron/pyiron_workflow/issues/360.
+
+Just like nodes, there are more-specific children for `pyiron_workflow.channels.Channel`.
+In general, they can be divided along two sets of axes: input/output and data/signal.
+The input/output division is clear, and is just to ensure that no connections are made between, e.g., two input nodes.
+Where we _do_ need to pass data from input-to-input, for instance from the outer IO layer of a "walled garden" macro down to its child nodes (cf. the user documentation for more details), we exploit the `pyiron_workflow.channels.DataChannel.value_receiver: pyiron_workflow.channel.DataChannel | None` attribute to keep two like-typed channels synchronized.
+For `pyiron_workflow.channels.SignalChannel`, there is no equivalent -- these control execution flow and it is nonsensical to have a connection between two inputs or two outputs.
+In fact, most of the time you won't think about signal channels at all; for directed acyclic graphs (DAGs), appropriate execution flow can be automatically determined from the structure of the data channel connections and signals channel connections are fully automated.
+Direct management of signal channels only comes up for cyclic graphs or conditional execution patterns (cf. `pyiron_workflow.nodes.standard.If`).
+
+The `pyiron_workflow.executors` sub-module holds objects to the `pyiron_workflow.node.Node.executor: concurrent.futures.Executor` attribute, and the remaining top-level modules are quite independent and can each be explored on its own.
+Some are simple things we put onto nodes, like `pyiron_workflow.io` which are just containers for holding channels, or things that take a node and do something with it, like `pyiron_workflow.draw`.
+
+Stuff that didn't fit in the narrative flow but is interesting anyhow:
+- Nodes (except for workflows) are required to have a static _interface_, but what they do internally is free to change! A simple example is to think of a function node, which might return `True` under some input conditions, or `False` under others. A more complex example that is worth examining is the `pyiron_workflow.nodes.for_loop.For` node. It is composite and executes its subgraph, but at each run it internally modifies its children in order to accommodate for the length of input it is given! This is bold, but perfectly permissible since the IO channels for the for-node stay the same throughout.
+- The main user-interface for `pyiron_workflow` is `pyiron_workflow.Workflow`, but there are other tools available in `pyiron_workflow.__init__` that specify the full API and may be useful to power-users and node developers; changes that don't impact the interface or behaviour of the publicly available tools there are free from the constraints of semantic versioning, but if a change touches anything listed there we should aim for backwards compatibility.
