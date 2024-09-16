@@ -22,7 +22,7 @@ By allowing (but not demanding, in the case of data DAGs) users to specify the e
 
 By scraping type hints from decorated functions, both new data values and new graph connections are (optionally) required to conform to hints, making workflows strongly typed.
 
-Individual node computations can be shipped off to parallel processes for scalability. (This is a beta-feature at time of writing; standard python executors like `concurrent.futures.ThreadPoolExecutor` and `ProcessPoolExecutor` work, and the `Executor` executor from [`executorlib`](https://github.com/pyiron/exectorlib) is supported and tested; `executorlib`'s more powerful flux- and slurm- based executors have not been tested and may fail.)
+Individual node computations can be shipped off to parallel processes for scalability. (This is a beta-feature at time of writing; standard python executors like `concurrent.futures.ThreadPoolExecutor` and `ProcessPoolExecutor` work, and the `Executor` executor from [`executorlib`](https://github.com/pyiron/executorlib) is supported and tested; `executorlib`'s more powerful flux- and slurm- based executors have not been tested and may fail.)
 
 Once you're happy with a workflow, it can be easily turned it into a macro for use in other workflows. This allows the clean construction of increasingly complex computation graphs by composing simpler graphs.
 
