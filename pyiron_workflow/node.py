@@ -10,7 +10,6 @@ from __future__ import annotations
 from abc import ABC, abstractmethod
 from concurrent.futures import Future
 from importlib import import_module
-from inspect import getsource
 from typing import Any, Literal, Optional, TYPE_CHECKING
 
 import cloudpickle
