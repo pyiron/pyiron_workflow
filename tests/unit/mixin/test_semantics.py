@@ -97,6 +97,39 @@ class TestSemantics(unittest.TestCase):
             msg="Path root"
         )
 
+    def test_detached_parent_path(self):
+        orphan = Semantic("orphan")
+        orphan.__setstate__(self.child2.__getstate__())
+        self.assertIsNone(
+            orphan.parent,
+            msg="We still should not explicitly have a parent"
+        )
+        self.assertListEqual(
+            orphan.detached_parent_path.split(orphan.semantic_delimiter),
+            self.child2.semantic_path.split(orphan.semantic_delimiter)[:-1],
+            msg="Despite not having a parent, the detached path should store semantic "
+                "path info through the get/set state routine"
+        )
+        self.assertEqual(
+            orphan.semantic_path,
+            self.child2.semantic_path,
+            msg="The detached path should carry through to semantic path in the "
+                "absence of a parent"
+        )
+        orphan.label = "orphan"  # Re-set label after getting state
+        orphan.parent = self.child2.parent
+        self.assertIsNone(
+            orphan.detached_parent_path,
+            msg="Detached paths aren't necessary and shouldn't co-exist with the "
+                "presence of a parent"
+        )
+        self.assertListEqual(
+            orphan.semantic_path.split(orphan.semantic_delimiter)[:-1],
+            self.child2.semantic_path.split(self.child2.semantic_delimiter)[:-1],
+            msg="Sanity check -- except for the now-different labels, we should be "
+                "recovering the usual semantic path on setting a parent."
+        )
+
 
 if __name__ == '__main__':
     unittest.main()
