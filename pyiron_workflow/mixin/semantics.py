@@ -65,12 +65,11 @@ class Semantic(UsesState, HasLabel, HasParent, ABC):
             # Exit early if nothing is changing
             return
 
-        if new_parent is not None:
-            if not isinstance(new_parent, SemanticParent):
-                raise ValueError(
-                    f"Expected None or a {SemanticParent.__name__} for the parent of "
-                    f"{self.label}, but got {new_parent}"
-                )
+        if new_parent is not None and not isinstance(new_parent, SemanticParent):
+            raise ValueError(
+                f"Expected None or a {SemanticParent.__name__} for the parent of "
+                f"{self.label}, but got {new_parent}"
+            )
 
         if (
             self._parent is not None
