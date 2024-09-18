@@ -141,7 +141,9 @@ class Composite(SemanticParent, HasCreator, Node, ABC):
         # Reset provenance and run status trackers
         self.provenance_by_execution = []
         self.provenance_by_completion = []
-        self.running_children = []
+        self.running_children = [
+            n.label for n in self if n.running
+        ]
         self.signal_queue = []
 
         for node in self.starting_nodes:

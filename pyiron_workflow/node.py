@@ -13,6 +13,7 @@ from importlib import import_module
 from inspect import getsource
 from typing import Any, Literal, Optional, TYPE_CHECKING
 
+import cloudpickle
 from pyiron_snippets.colors import SeabornColors
 from pyiron_snippets.dotdict import DotDict
 
@@ -188,6 +189,9 @@ class Node(
         autoload (Literal["pickle"] | StorageInterface | None): Whether to check
             for a matching saved node and what storage back end to use to do so (no
             auto-loading if the back end is `None`.)
+        serialize_result (bool): Cloudpickle the output of running the node; this is
+            useful if the run is happening in a parallel process and the parent process
+            may be killed before it is finished.
         signals (pyiron_workflow.io.Signals): A container for input and output
             signals, which are channels for controlling execution flow. By default, has
             a :attr:`signals.inputs.run` channel which has a callback to the
@@ -277,6 +281,9 @@ class Node(
             checkpoint (Literal["pickle"] | StorageInterface | None): The storage
                 back end to use for saving the overall graph at the end of this node's
                 run. (Default is None, don't do checkpoint saves.)
+            serialize_result (bool): Cloudpickle the output of running the node; this
+                is useful if the run is happening in a parallel process and the parent
+                process may be killed before it is finished. (Default is False.)
             **kwargs: Interpreted as node input data, with keys corresponding to
                 channel labels.
         """
@@ -285,6 +292,10 @@ class Node(
             parent=parent,
         )
         self.checkpoint = checkpoint
+        self.serialize_result = False
+        self._do_clean: bool = True  # Power-user override for cleaning up serialized
+        # results (or not).
+
         self._cached_inputs = None
         self._user_data = {}  # A place for power-users to bypass node-injection
 
@@ -369,7 +380,16 @@ class Node(
         )
 
     def on_run(self, *args, **kwargs) -> Any:
-        return self._on_run(*args, **kwargs)
+        save_result: bool = args[0]
+        save_file: Path = args[1]
+        args = args[2:]
+        result = self._on_run(*args, **kwargs)
+        if save_result:
+            save_file.parent.mkdir(parents=True, exist_ok=True)
+            save_file.touch(exist_ok=False)
+            with save_file.open(mode="wb") as f:
+                cloudpickle.dump(result, f)
+        return result
 
     @abstractmethod
     def _on_run(self, *args, **kwargs) -> Any:
@@ -377,7 +397,9 @@ class Node(
 
     @property
     def run_args(self) -> tuple[tuple, dict]:
-        return self._run_args
+        args, kwargs = self._run_args
+        args = (self.serialize_result, self._temporary_results_file) + args
+        return args, kwargs
 
     @property
     @abstractmethod
@@ -442,6 +464,10 @@ class Node(
             Kwargs updating input channel values happens _first_ and will get
             overwritten by any subsequent graph-based data manipulation.
         """
+        if self.running and self._temporary_results_file.is_file():
+            # Bypass running and just load the results
+            return self._load_and_finish(emit_ran_signal)
+
         self.set_input_values(*args, **kwargs)
 
         if run_data_tree:
@@ -467,13 +493,14 @@ class Node(
         if self.parent is not None:
             self.parent.register_child_starting(self)
 
-        return super().run(
+        foo = super().run(
             check_readiness=check_readiness,
             force_local_execution=force_local_execution,
             _finished_callback=(
                 self._finish_run_and_emit_ran if emit_ran_signal else self._finish_run
             ),
         )
+        return foo
 
     def run_data_tree(self, run_parent_trees_too=False) -> None:
         """
@@ -595,6 +622,8 @@ class Node(
         finally:
             if self.checkpoint is not None:
                 self.save_checkpoint(self.checkpoint)
+            if self._temporary_results_file.is_file():
+                self._clean_temporary_results()
 
     def _finish_run_and_emit_ran(self, run_output: tuple | Future) -> Any | tuple:
         processed_output = self._finish_run(run_output)
@@ -611,6 +640,29 @@ class Node(
     Finally, fire the `ran` signal.
     """
     )
+
+    def _load_and_finish(self, emit_ran_signal: bool):
+        _finished_callback = (
+            self._finish_run_and_emit_ran if emit_ran_signal else self._finish_run
+        )
+        with self._temporary_results_file.open("rb") as f:
+            result = cloudpickle.load(f)
+        return _finished_callback(result)
+
+    @property
+    def _temporary_results_file(self) -> Path:
+        return self.as_path().joinpath("TMP_RESULT.CPKL")
+
+    def _clean_temporary_results(self):
+        if self._do_clean:
+            self._temporary_results_file.unlink()
+
+        # Recursively remove empty directories
+        root_directory = self.semantic_root.as_path().parent
+        for parent in self._temporary_results_file.parents:
+            if parent == root_directory or any(parent.iterdir()):
+                break
+            parent.rmdir()
 
     @property
     def emitting_channels(self) -> tuple[OutputSignal]:
