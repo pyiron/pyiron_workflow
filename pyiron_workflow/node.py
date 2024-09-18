@@ -492,14 +492,13 @@ class Node(
         if self.parent is not None:
             self.parent.register_child_starting(self)
 
-        foo = super().run(
+        return super().run(
             check_readiness=check_readiness,
             force_local_execution=force_local_execution,
             _finished_callback=(
                 self._finish_run_and_emit_ran if emit_ran_signal else self._finish_run
             ),
         )
-        return foo
 
     def run_data_tree(self, run_parent_trees_too=False) -> None:
         """
