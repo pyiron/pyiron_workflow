@@ -313,7 +313,7 @@ class Function(StaticNode, ScrapesIO, ABC):
         return preview if len(preview) > 0 else {"None": type(None)}
         # If clause facilitates functions with no return value
 
-    def on_run(self, **kwargs):
+    def _on_run(self, **kwargs):
         return self.node_function(**kwargs)
 
     @property

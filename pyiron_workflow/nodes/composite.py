@@ -137,7 +137,7 @@ class Composite(SemanticParent, HasCreator, Node, ABC):
         for node in self:
             node.deactivate_strict_hints()
 
-    def on_run(self):
+    def _on_run(self):
         # Reset provenance and run status trackers
         self.provenance_by_execution = []
         self.provenance_by_completion = []

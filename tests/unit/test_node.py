@@ -30,7 +30,7 @@ class ANode(Node):
     def outputs(self) -> OutputsWithInjection:
         return self._outputs
 
-    def on_run(self, *args, **kwargs):
+    def _on_run(self, *args, **kwargs):
         return add_one(*args)
 
     @property

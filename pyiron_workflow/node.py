@@ -7,7 +7,7 @@ The workhorse class for the entire concept.
 
 from __future__ import annotations
 
-from abc import ABC
+from abc import ABC, abstractmethod
 from concurrent.futures import Future
 from importlib import import_module
 from inspect import getsource
@@ -152,8 +152,8 @@ class Node(
 
     This is an abstract class.
     Children *must* define how :attr:`inputs` and :attr:`outputs` are constructed,
-    what will happen :meth:`on_run`, the :attr:`run_args` that will get passed to
-    :meth:`on_run`, and how to :meth:`process_run_result` once :meth:`on_run` finishes.
+    what will happen :meth:`_on_run`, the :attr:`run_args` that will get passed to
+    :meth:`_on_run`, and how to :meth:`process_run_result` once :meth:`_on_run` finishes.
     They may optionally add additional signal channels to the signals IO.
 
     Attributes:
@@ -214,8 +214,8 @@ class Node(
             its internal structure.
         execute: An alias for :meth:`run`, but with flags to run right here, right now,
             and with the input it currently has.
-        on_run: **Abstract.** Do the thing. What thing must be specified by child
-            classes.
+        on_run: What the node does on running, leans on abstract `_on_run` method
+            defined by children.
         pull: An alias for :meth:`run` that runs everything upstream, then runs this
             node (but doesn't fire off the `ran` signal, so nothing happens farther
             downstream). "Upstream" may optionally break out of the local scope to run
@@ -367,6 +367,13 @@ class Node(
             f"should be neither running nor failed, and all input values should"
             f" conform to type hints.\n" + self.readiness_report
         )
+
+    def on_run(self, *args, **kwargs) -> Any:
+        return self._on_run(*args, **kwargs)
+
+    @abstractmethod
+    def _on_run(self, *args, **kwargs) -> Any:
+        pass
 
     def run(
         self,
