@@ -72,11 +72,15 @@ class Semantic(UsesState, HasLabel, HasParent, ABC):
                     f"{self.label}, but got {new_parent}"
                 )
 
-        if self._parent is not None and new_parent is not self._parent:
+        if (
+            self._parent is not None
+            and new_parent is not self._parent
+            and self in self._parent.children
+        ):
             self._parent.remove_child(self)
         self._parent = new_parent
         self._detached_parent_path = None
-        if self._parent is not None:
+        if self._parent is not None and self not in self._parent.children:
             self._parent.add_child(self)
 
     @property
@@ -269,8 +273,7 @@ class SemanticParent(Semantic, ABC):
             # Finally, update label and reflexively form the parent-child relationship
             child.label = label
             self.children[child.label] = child
-            child._parent = self
-            child._detached_parent_path = None
+            child.parent = self
         return child
 
     @staticmethod
@@ -346,7 +349,7 @@ class SemanticParent(Semantic, ABC):
                 f"{Semantic.__name__} but got {child}"
             )
 
-        child._parent = None
+        child.parent = None
 
         return child
 
@@ -391,8 +394,7 @@ class SemanticParent(Semantic, ABC):
         # but rather can send just the requested object and its scope (semantic
         # children). So, now return their parent to them:
         for child in self:
-            child._parent = self
-            child._detached_parent_path = None
+            child.parent = self
 
 
 class ParentMostError(TypeError):
