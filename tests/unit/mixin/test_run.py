@@ -43,7 +43,7 @@ class ConcreteRunnable(Runnable):
 
 
 class FailingRunnable(ConcreteRunnable):
-    def _on_run(self, **kwargs):
+    def on_run(self, **kwargs):
         raise RuntimeError()
 
 

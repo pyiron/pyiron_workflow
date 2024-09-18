@@ -152,7 +152,7 @@ class Node(
 
     This is an abstract class.
     Children *must* define how :attr:`inputs` and :attr:`outputs` are constructed,
-    what will happen :meth:`_on_run`, the :attr:`run_args` that will get passed to
+    what will happen :meth:`_on_run`, the :attr:`_run_args` that will get passed to
     :meth:`_on_run`, and how to :meth:`process_run_result` once :meth:`_on_run` finishes.
     They may optionally add additional signal channels to the signals IO.
 
@@ -178,8 +178,8 @@ class Node(
         graph_path (str): The file-path-like path of node labels from the parent-most
             node down to this node.
         graph_root (Node): The parent-most node in this graph.
-        run_args (dict): **Abstract** the argmuments to use for actually running the
-            node. Must be specified in child classes.
+        run_args (dict): What to pass to the `on_run` method when :meth:`run` is called.
+            Leans on the abstract :attr:`_run_args` defined in child classes.
         running (bool): Whether the node has called :meth:`run` and has not yet
             received output from this call. (Default is False.)
         checkpoint (Literal["pickle"] | StorageInterface | None): Whether to trigger a
@@ -373,6 +373,15 @@ class Node(
 
     @abstractmethod
     def _on_run(self, *args, **kwargs) -> Any:
+        pass
+
+    @property
+    def run_args(self) -> tuple[tuple, dict]:
+        return self._run_args
+
+    @property
+    @abstractmethod
+    def _run_args(self, *args, **kwargs) -> Any:
         pass
 
     def run(

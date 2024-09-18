@@ -200,7 +200,7 @@ class Composite(SemanticParent, HasCreator, Node, ABC):
                 self.signal_queue.append((firing, receiving))
 
     @property
-    def run_args(self) -> tuple[tuple, dict]:
+    def _run_args(self) -> tuple[tuple, dict]:
         return (), {}
 
     def process_run_result(self, run_output):

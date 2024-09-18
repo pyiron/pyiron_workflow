@@ -35,7 +35,7 @@ class FromManyInputs(Transformer, ABC):
     _output_type_hint: ClassVar[Any] = None
 
     # _build_inputs_preview required from parent class
-    # Inputs convert to `run_args` as a value dictionary
+    # Inputs convert to `_run_args` as a value dictionary
     # This must be commensurate with the internal expectations of _on_run
 
     @abstractmethod
@@ -43,7 +43,7 @@ class FromManyInputs(Transformer, ABC):
         """Must take inputs kwargs"""
 
     @property
-    def run_args(self) -> tuple[tuple, dict]:
+    def _run_args(self) -> tuple[tuple, dict]:
         return (), self.inputs.to_value_dict()
 
     @classmethod
@@ -68,7 +68,7 @@ class ToManyOutputs(Transformer, ABC):
         """Must take the single object to be transformed"""
 
     @property
-    def run_args(self) -> tuple[tuple, dict]:
+    def _run_args(self) -> tuple[tuple, dict]:
         return (self.inputs[self._input_name].value,), {}
 
     @classmethod
@@ -295,7 +295,7 @@ class InputsToDataframe(_HasLength, FromManyInputs, ABC):
         return DataFrame(df_dict)
 
     @property
-    def run_args(self) -> tuple[tuple, dict]:
+    def _run_args(self) -> tuple[tuple, dict]:
         return tuple(self.inputs.to_value_dict().values()), {}
 
     @classmethod
@@ -367,7 +367,7 @@ class DataclassNode(FromManyInputs, ABC):
         return self.dataclass(**inputs_to_value_dict)
 
     @property
-    def run_args(self) -> tuple[tuple, dict]:
+    def _run_args(self) -> tuple[tuple, dict]:
         return (), self.inputs.to_value_dict()
 
     @classmethod
