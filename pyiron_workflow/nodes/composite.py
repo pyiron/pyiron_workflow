@@ -212,6 +212,7 @@ class Composite(SemanticParent, HasCreator, Node, ABC):
         # Un-parent existing nodes before ditching them
         for node in self:
             node._parent = None
+            node._detached_parent_path = None
         other_self.running = False  # It's done now
         state = self._get_state_from_remote_other(other_self)
         self.__setstate__(state)

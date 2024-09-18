@@ -38,6 +38,7 @@ class Semantic(UsesState, HasLabel, HasParent, ABC):
     ):
         self._label = None
         self._parent = None
+        self._detached_parent_path = None
         self.label = label
         self.parent = parent
         super().__init__(*args, **kwargs)
@@ -64,17 +65,21 @@ class Semantic(UsesState, HasLabel, HasParent, ABC):
             # Exit early if nothing is changing
             return
 
-        if new_parent is not None:
-            if not isinstance(new_parent, SemanticParent):
-                raise ValueError(
-                    f"Expected None or a {SemanticParent.__name__} for the parent of "
-                    f"{self.label}, but got {new_parent}"
-                )
+        if new_parent is not None and not isinstance(new_parent, SemanticParent):
+            raise ValueError(
+                f"Expected None or a {SemanticParent.__name__} for the parent of "
+                f"{self.label}, but got {new_parent}"
+            )
 
-        if self._parent is not None and new_parent is not self._parent:
+        if (
+            self._parent is not None
+            and new_parent is not self._parent
+            and self in self._parent.children
+        ):
             self._parent.remove_child(self)
         self._parent = new_parent
-        if self._parent is not None:
+        self._detached_parent_path = None
+        if self._parent is not None and self not in self._parent.children:
             self._parent.add_child(self)
 
     @property
@@ -83,8 +88,33 @@ class Semantic(UsesState, HasLabel, HasParent, ABC):
         The path of node labels from the graph root (parent-most node) down to this
         node.
         """
-        prefix = self.parent.semantic_path if isinstance(self.parent, Semantic) else ""
+        if self.parent is None and self.detached_parent_path is None:
+            prefix = ""
+        elif self.parent is None and self.detached_parent_path is not None:
+            prefix = self.detached_parent_path
+        elif self.parent is not None and self.detached_parent_path is None:
+            prefix = self.parent.semantic_path
+        else:
+            raise ValueError(
+                f"The parent and detached path should not be able to take non-None "
+                f"values simultaneously, but got {self.parent} and "
+                f"{self.detached_parent_path}, respectively. Please raise an issue on GitHub "
+                f"outlining how your reached this state."
+            )
         return prefix + self.semantic_delimiter + self.label
+
+    @property
+    def detached_parent_path(self) -> str | None:
+        """
+        The get/set state cycle of :class:`Semantic` de-parents objects, but we may
+        still be interested in the semantic path -- e.g. if we `pickle` dump and load
+        the object we will lose parent information, but this will still hold what the
+        path _was_ before the orphaning process.
+
+        The detached path will get cleared if a new parent is set, but is otherwise
+        used as the root for the purposes of finding the semantic path.
+        """
+        return self._detached_parent_path
 
     @property
     def full_label(self) -> str:
@@ -109,6 +139,8 @@ class Semantic(UsesState, HasLabel, HasParent, ABC):
 
     def __getstate__(self):
         state = super().__getstate__()
+        if self.parent is not None:
+            state["_detached_parent_path"] = self.parent.semantic_path
         state["_parent"] = None
         # Regarding removing parent from state:
         # Basically we want to avoid recursion during (de)serialization; when the
@@ -240,7 +272,7 @@ class SemanticParent(Semantic, ABC):
             # Finally, update label and reflexively form the parent-child relationship
             child.label = label
             self.children[child.label] = child
-            child._parent = self
+            child.parent = self
         return child
 
     @staticmethod
@@ -316,7 +348,7 @@ class SemanticParent(Semantic, ABC):
                 f"{Semantic.__name__} but got {child}"
             )
 
-        child._parent = None
+        child.parent = None
 
         return child
 
@@ -361,7 +393,7 @@ class SemanticParent(Semantic, ABC):
         # but rather can send just the requested object and its scope (semantic
         # children). So, now return their parent to them:
         for child in self:
-            child._parent = self
+            child.parent = self
 
 
 class ParentMostError(TypeError):
