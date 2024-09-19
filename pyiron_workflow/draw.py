@@ -174,7 +174,7 @@ class DataChannel(_Channel):
     @property
     def style(self) -> str:
         if len(self.channel.connections) == 0 and self.channel.value is NotData():
-            return "dashed"
+            return "bold"
         return "filled"
 
 
