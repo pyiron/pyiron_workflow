@@ -413,4 +413,7 @@ class Node(WorkflowGraphvizMap):
 
     @property
     def color(self) -> str:
+        bright_red = "#FF0000"
+        if self.node.failed:
+            return bright_red
         return self.node.color
