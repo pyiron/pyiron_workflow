@@ -113,7 +113,6 @@ class _Channel(WorkflowGraphvizMap, ABC):
         self._parent = parent
         self._name = self.parent.name + local_name
         self._label = local_name + self._build_label_suffix()
-        self.channel: WorkflowChannel = channel
 
         self.graph.node(
             name=self.name,
