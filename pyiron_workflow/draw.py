@@ -10,6 +10,8 @@ from typing import Literal, Optional, TYPE_CHECKING
 import graphviz
 from pyiron_snippets.colors import SeabornColors
 
+from pyiron_workflow.channels import NotData
+
 if TYPE_CHECKING:
     from pyiron_workflow.channels import Channel as WorkflowChannel
     from pyiron_workflow.io import DataIO, SignalIO
@@ -120,7 +122,7 @@ class _Channel(WorkflowGraphvizMap, ABC):
             label=self.label,
             shape=self.shape,
             color=self.color,
-            style="filled",
+            style=self.style,
             fontname="helvetica",
         )
 
@@ -154,6 +156,10 @@ class _Channel(WorkflowGraphvizMap, ABC):
     def graph(self) -> graphviz.graphs.Digraph:
         return self.parent.graph
 
+    @property
+    def style(self) -> str:
+        return "filled"
+
 
 class DataChannel(_Channel):
     @property
@@ -164,6 +170,12 @@ class DataChannel(_Channel):
     @property
     def shape(self) -> str:
         return "oval"
+
+    @property
+    def style(self) -> str:
+        if len(self.channel.connections) == 0 and self.channel.value is NotData():
+            return "dashed"
+        return "filled"
 
 
 class SignalChannel(_Channel):
