@@ -17,16 +17,29 @@ if TYPE_CHECKING:
 
 
 def directed_graph(
-    name, label, rankdir, color_start, color_end, gradient_angle, size=None
+    name,
+    label,
+    rankdir,
+    color_start,
+    color_end,
+    gradient_angle,
+    size=None,
+    style="filled",
+    fillcolor_start=None,
+    fillcolor_end=None,
 ):
     """A shortcut method for instantiating the type of graphviz graph we want"""
+    if fillcolor_start is None:
+        fillcolor_start = color_start
+    if fillcolor_end is None:
+        fillcolor_end = color_end
     digraph = graphviz.graphs.Digraph(name=name)
     digraph.attr(
         label=label,
         compound="true",
         rankdir=rankdir,
-        style="filled",
-        fillcolor=f"{color_start}:{color_end}",
+        style=style,
+        fillcolor=f"{fillcolor_start}:{fillcolor_end}",
         color=f"{color_start}:{color_end}",
         gradientangle=gradient_angle,
         fontname="helvetica",
@@ -301,10 +314,13 @@ class Node(WorkflowGraphvizMap):
             self.name,
             self.label,
             rankdir=self.rankdir,
-            color_start=lighten_hex_color(self.color),
-            color_end=lighten_hex_color(self.color),
+            color_start=self.color,
+            color_end=self.color,
             gradient_angle="0",
             size=size,
+            style=self.style,
+            fillcolor_start=self.fillcolor,
+            fillcolor_end=self.fillcolor,
         )
 
         self.inputs = Inputs(self)
@@ -416,4 +432,13 @@ class Node(WorkflowGraphvizMap):
         bright_red = "#FF0000"
         if self.node.failed:
             return bright_red
-        return self.node.color
+        else:
+            return self.fillcolor
+
+    @property
+    def fillcolor(self) -> str:
+        return lighten_hex_color(self.node.color)
+
+    @property
+    def style(self) -> str:
+        return "filled, bold"
