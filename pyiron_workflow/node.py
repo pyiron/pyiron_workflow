@@ -480,7 +480,7 @@ class Node(
             self.parent.register_child_starting(self)
         return super()._run(
             finished_callback=finished_callback,
-            force_local_execution=force_local_execution
+            force_local_execution=force_local_execution,
         )
 
     def run_data_tree(self, run_parent_trees_too=False) -> None:
