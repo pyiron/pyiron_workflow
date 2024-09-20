@@ -179,7 +179,7 @@ class Runnable(UsesState, HasLabel, HasRun, ABC):
             return finished_callback(run_output)
         else:
             if isinstance(executor, ThreadPoolExecutor):
-                self.future = executor.submit(self.thread_pool_run, *args, **kwargs)
+                self.future = executor.submit(self._thread_pool_run, *args, **kwargs)
             else:
                 self.future = executor.submit(self.on_run, *args, **kwargs)
             self.future.add_done_callback(finished_callback)
@@ -210,7 +210,7 @@ class Runnable(UsesState, HasLabel, HasRun, ABC):
         finally:
             self._run_finally()
 
-    def thread_pool_run(self, *args, **kwargs):
+    def _thread_pool_run(self, *args, **kwargs):
         #
         result = self.on_run(*args, **kwargs)
         sleep(self._thread_pool_sleep_time)
