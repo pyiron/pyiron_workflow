@@ -375,7 +375,6 @@ class Node(
         run_parent_trees_too: bool = False,
         fetch_input: bool = True,
         check_readiness: bool = True,
-        force_local_execution: bool = False,
         emit_ran_signal: bool = True,
         **kwargs,
     ):
@@ -407,8 +406,6 @@ class Node(
                 is True.)
             check_readiness (bool): Whether to raise an exception if the node is not
                 :attr:`ready` to run after fetching new input. (Default is True.)
-            force_local_execution (bool): Whether to ignore any executor settings and
-                force the computation to run locally. (Default is False.)
             emit_ran_signal (bool): Whether to fire off all the output `ran` signal
                 afterwards. (Default is True.)
             **kwargs: Keyword arguments matching input channel labels; used to update
@@ -430,7 +427,6 @@ class Node(
 
         return super().run(
             check_readiness=check_readiness,
-            force_local_execution=force_local_execution,
             run_data_tree=run_data_tree,
             run_parent_trees_too=run_parent_trees_too,
             fetch_input=fetch_input,
@@ -471,17 +467,10 @@ class Node(
 
         return super()._before_run(check_readiness=check_readiness)
 
-    def _run(
-        self,
-        finished_callback: callable,
-        force_local_execution: bool,
-    ) -> Any | tuple | Future:
+    def _run(self, finished_callback: callable) -> Any | tuple | Future:
         if self.parent is not None:
             self.parent.register_child_starting(self)
-        return super()._run(
-            finished_callback=finished_callback,
-            force_local_execution=force_local_execution,
-        )
+        return super()._run(finished_callback=finished_callback)
 
     def run_data_tree(self, run_parent_trees_too=False) -> None:
         """
@@ -644,7 +633,6 @@ class Node(
             run_parent_trees_too=False,
             fetch_input=False,
             check_readiness=False,
-            force_local_execution=True,
             emit_ran_signal=False,
             **kwargs,
         )
@@ -668,7 +656,6 @@ class Node(
             run_parent_trees_too=run_parent_trees_too,
             fetch_input=True,
             check_readiness=True,
-            force_local_execution=False,
             emit_ran_signal=False,
             **kwargs,
         )

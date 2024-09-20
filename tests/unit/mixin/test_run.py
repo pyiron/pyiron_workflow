@@ -98,12 +98,11 @@ class TestRunnable(unittest.TestCase):
 
     def test_runnable_run_local(self):
         runnable = ConcreteRunnable()
-        runnable.executor = CloudpickleProcessPoolExecutor()
 
-        result = runnable.run(force_local_execution=True)
+        result = runnable.run()
         self.assertIsNone(
             runnable.future,
-            msg="The local execution flag should override the executor"
+            msg="Without an executor, we expect no future"
         )
         self.assertDictEqual(
             runnable.expected_run_output,
@@ -120,7 +119,7 @@ class TestRunnable(unittest.TestCase):
         runnable = ConcreteRunnable()
         runnable.executor = CloudpickleProcessPoolExecutor()
 
-        result = runnable.run(force_local_execution=False)
+        result = runnable.run()
         self.assertIsInstance(
             result,
             Future,
@@ -146,10 +145,7 @@ class TestRunnable(unittest.TestCase):
         runnable = ConcreteRunnable()
         runnable.executor = CloudpickleProcessPoolExecutor()
 
-        result = runnable.run(
-            force_local_execution=False,
-            _finished_callback=runnable.custom_callback,
-        )
+        result = runnable.run(_finished_callback=runnable.custom_callback)
         self.assertDictEqual(
             runnable.expected_run_output,
             result.result(timeout=30),

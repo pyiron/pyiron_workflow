@@ -339,7 +339,6 @@ class Workflow(ParentMost, Composite):
     def run(
         self,
         check_readiness: bool = True,
-        force_local_execution: bool = False,
         **kwargs,
     ):
         # Note: Workflows may have neither parents nor siblings, so we don't need to
@@ -352,7 +351,6 @@ class Workflow(ParentMost, Composite):
             run_parent_trees_too=False,
             fetch_input=False,
             check_readiness=check_readiness,
-            force_local_execution=force_local_execution,
             emit_ran_signal=False,
             **kwargs,
         )

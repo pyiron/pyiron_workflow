@@ -97,7 +97,6 @@ class Runnable(UsesState, HasLabel, HasRun, ABC):
     def run(
         self,
         check_readiness: bool = True,
-        force_local_execution: bool = False,
         _finished_callback: Optional[callable] = None,
         **kwargs,
     ) -> Any | tuple | Future:
@@ -115,9 +114,6 @@ class Runnable(UsesState, HasLabel, HasRun, ABC):
         Args:
             check_readiness (bool): Whether to raise a `ReadinessError` if not
                 :attr:`ready`. (Default is True.)
-            force_local_execution (bool): Whether to run on the main process regardless
-                of the value of :attr:`executor`. (Default is False, use an
-                :attr:`executor` if provided.)
             _finished_callback (callable): What to do with the output of :meth:`on_run`
                 after the execution is complete (including waiting for the future to
                 finish!). This method is responsible for updating the status
@@ -136,7 +132,6 @@ class Runnable(UsesState, HasLabel, HasRun, ABC):
                     if _finished_callback is None
                     else _finished_callback
                 ),
-                force_local_execution=force_local_execution,
             )
             return out
         except Exception as e:
@@ -178,7 +173,6 @@ class Runnable(UsesState, HasLabel, HasRun, ABC):
     def _run(
         self,
         finished_callback: callable,
-        force_local_execution: bool,
     ) -> Any | tuple | Future:
         args, kwargs = self.run_args
         if "self" in kwargs.keys():
@@ -186,13 +180,10 @@ class Runnable(UsesState, HasLabel, HasRun, ABC):
                 f"{self.label} got 'self' as a run kwarg, but self is already the "
                 f"first positional argument passed to :meth:`on_run`."
             )
-        if force_local_execution or self.executor is None:
-            # Run locally
+        if self.executor is None:
             run_output = self.on_run(*args, **kwargs)
             return finished_callback(run_output)
         else:
-            # Just blindly try to execute -- as we nail down the executor interaction
-            # we'll want to fail more cleanly here.
             executor = self._parse_executor(self.executor)
             if isinstance(self.executor, ThreadPoolExecutor):
                 self.future = executor.submit(self.thread_pool_run, *args, **kwargs)
