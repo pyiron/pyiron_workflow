@@ -132,10 +132,11 @@ class Runnable(UsesState, HasLabel, HasRun, ABC):
         try:
             out = self._run(
                 finished_callback=(
-                    self._finish_run if _finished_callback is None
+                    self._finish_run
+                    if _finished_callback is None
                     else _finished_callback
                 ),
-                force_local_execution=force_local_execution
+                force_local_execution=force_local_execution,
             )
             return out
         except Exception as e:
