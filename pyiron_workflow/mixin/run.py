@@ -13,32 +13,6 @@ from typing import Any, Optional
 from pyiron_workflow.mixin.has_interface_mixins import HasLabel, HasRun, UsesState
 
 
-def manage_status(status_managed_method):
-    """
-    Decorates methods of runnables that might be time-consuming, i.e. their main run
-    functionality.
-
-    Sets :attr:`running` to true until the method completes and either fails or returns
-    something other than a :class:`concurrent.futures.Future` instance; sets `failed`
-    to true if the method raises an exception.
-    """
-
-    def wrapped_method(runnable: Runnable, *args, **kwargs):
-        runnable.running = True
-        try:
-            out = status_managed_method(runnable, *args, **kwargs)
-            return out
-        except Exception as e:
-            runnable.failed = True
-            out = None
-            raise e
-        finally:
-            # Leave the status as running if the method returns a future
-            runnable.running = isinstance(out, Future)
-
-    return wrapped_method
-
-
 class ReadinessError(ValueError):
     """
     To be raised when :class:`Runnable` calls run and requests a readiness check, but
@@ -154,12 +128,24 @@ class Runnable(UsesState, HasLabel, HasRun, ABC):
         if stop_early:
             return result
 
-        return self._run(
-            finished_callback=(
-                self._finish_run if _finished_callback is None else _finished_callback
-            ),
-            force_local_execution=force_local_execution,
-        )
+        self.running = True
+        try:
+            out = self._run(
+                finished_callback=(
+                    self._finish_run
+                    if _finished_callback is None
+                    else _finished_callback
+                ),
+                force_local_execution=force_local_execution,
+            )
+            return out
+        except Exception as e:
+            self.failed = True
+            out = None
+            raise e
+        finally:
+            # Leave the status as running if the method returns a future
+            self.running = isinstance(out, Future)
 
     def _before_run(self, /, check_readiness, **kwargs) -> tuple[bool, Any]:
         """
@@ -189,7 +175,6 @@ class Runnable(UsesState, HasLabel, HasRun, ABC):
             f"should be neither running nor failed.\n" + self.readiness_report
         )
 
-    @manage_status
     def _run(
         self,
         finished_callback: callable,
