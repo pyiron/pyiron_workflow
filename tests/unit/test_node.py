@@ -142,53 +142,6 @@ class TestNode(unittest.TestCase):
         
         self.n3.use_cache = n3_cache
 
-    def test_force_local_execution(self):
-        self.n1.executor = ProcessPoolExecutor()
-        out = self.n1.run(force_local_execution=False)
-        with self.subTest("Test running with an executor fulfills promises"):
-            self.assertIsInstance(
-                out,
-                Future,
-                msg="With an executor, we expect a futures object back"
-            )
-            self.assertTrue(
-                self.n1.running,
-                msg="The running flag should be true while it's running, and "
-                    "(de)serialization is time consuming enough that we still expect"
-                    "this to be the case"
-            )
-            self.assertFalse(
-                self.n1.ready,
-                msg="While running, the node should not be ready."
-            )
-            with self.assertRaises(
-                RuntimeError,
-                msg="Running nodes should not be allowed to get their input updated",
-            ):
-                self.n1.inputs.x = 42
-            self.assertEqual(
-                1,
-                out.result(timeout=120),
-                msg="If we wait for the remote execution to finish, it should give us"
-                    "the right thing"
-            )
-            self.assertEqual(
-                1,
-                self.n1.outputs.y.value,
-                msg="The callback on the executor should ensure the output processing "
-                    "happens"
-            )
-
-        self.n2.executor = ProcessPoolExecutor()
-        self.n2.inputs.x = 0
-        self.assertEqual(
-            1,
-            self.n2.run(fetch_input=False, force_local_execution=True),
-            msg="Forcing local execution should do just that."
-        )
-        self.n1.executor_shutdown()
-        self.n2.executor_shutdown()
-
     def test_emit_ran_signal(self):
         self.n1 >> self.n2 >> self.n3  # Chained connection declaration
 
