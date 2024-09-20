@@ -157,13 +157,6 @@ class Runnable(UsesState, HasLabel, HasRun, ABC):
             raise ReadinessError(self._readiness_error_message)
         return False, None
 
-    @property
-    def _readiness_error_message(self) -> str:
-        return (
-            f"{self.label} received a run command but is not ready. The runnable "
-            f"should be neither running nor failed.\n" + self.readiness_report
-        )
-
     def _run(
         self,
         finished_callback: callable,
@@ -199,11 +192,36 @@ class Runnable(UsesState, HasLabel, HasRun, ABC):
     def _run_finally(self):
         pass
 
+    def _finish_run(self, run_output: tuple | Future) -> Any | tuple:
+        """
+        Switch the status, then process and return the run result.
+
+        Sets the :attr:`failed` status to true if an exception is encountered.
+        """
+        if isinstance(run_output, Future):
+            run_output = run_output.result()
+
+        self.running = False
+        try:
+            return self.process_run_result(run_output)
+        except Exception as e:
+            self._run_exception()
+            raise e
+        finally:
+            self._run_finally()
+
     def thread_pool_run(self, *args, **kwargs):
         #
         result = self.on_run(*args, **kwargs)
         sleep(self._thread_pool_sleep_time)
         return result
+
+    @property
+    def _readiness_error_message(self) -> str:
+        return (
+            f"{self.label} received a run command but is not ready. The runnable "
+            f"should be neither running nor failed.\n" + self.readiness_report
+        )
 
     @staticmethod
     def _parse_executor(executor) -> StdLibExecutor:
@@ -229,24 +247,6 @@ class Runnable(UsesState, HasLabel, HasRun, ABC):
             raise NotImplementedError(
                 f"Expected an instance of {StdLibExecutor}, but got {executor}."
             )
-
-    def _finish_run(self, run_output: tuple | Future) -> Any | tuple:
-        """
-        Switch the status, then process and return the run result.
-
-        Sets the :attr:`failed` status to true if an exception is encountered.
-        """
-        if isinstance(run_output, Future):
-            run_output = run_output.result()
-
-        self.running = False
-        try:
-            return self.process_run_result(run_output)
-        except Exception as e:
-            self._run_exception()
-            raise e
-        finally:
-            self._run_finally()
 
     def __getstate__(self):
         state = super().__getstate__()
