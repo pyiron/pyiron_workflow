@@ -29,6 +29,7 @@ from pyiron_workflow.topology import (
 )
 
 if TYPE_CHECKING:
+    from concurrent.futures import Executor
     from pathlib import Path
 
     import graphviz
@@ -467,10 +468,14 @@ class Node(
 
         return super()._before_run(check_readiness=check_readiness)
 
-    def _run(self, finished_callback: callable) -> Any | tuple | Future:
+    def _run(
+        self,
+        finished_callback: callable,
+        executor: Executor,
+    ) -> Any | tuple | Future:
         if self.parent is not None:
             self.parent.register_child_starting(self)
-        return super()._run(finished_callback=finished_callback)
+        return super()._run(finished_callback=finished_callback, executor=executor)
 
     def run_data_tree(self, run_parent_trees_too=False) -> None:
         """

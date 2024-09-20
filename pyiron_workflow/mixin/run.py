@@ -124,23 +124,17 @@ class Runnable(UsesState, HasLabel, HasRun, ABC):
         if stop_early:
             return result
 
+        executor = (
+            None if self.executor is None else self._parse_executor(self.executor)
+        )
+        finished_callback = (
+            self._finish_run
+            if _finished_callback is None
+            else _finished_callback
+        )
+
         self.running = True
-        try:
-            out = self._run(
-                finished_callback=(
-                    self._finish_run
-                    if _finished_callback is None
-                    else _finished_callback
-                ),
-            )
-            return out
-        except Exception as e:
-            self.failed = True
-            out = None
-            raise e
-        finally:
-            # Leave the status as running if the method returns a future
-            self.running = isinstance(out, Future)
+        return self._run(finished_callback=finished_callback, executor=executor)
 
     def _before_run(self, /, check_readiness, **kwargs) -> tuple[bool, Any]:
         """
@@ -173,6 +167,7 @@ class Runnable(UsesState, HasLabel, HasRun, ABC):
     def _run(
         self,
         finished_callback: callable,
+        executor: StdLibExecutor | None,
     ) -> Any | tuple | Future:
         args, kwargs = self.run_args
         if "self" in kwargs.keys():
@@ -180,12 +175,17 @@ class Runnable(UsesState, HasLabel, HasRun, ABC):
                 f"{self.label} got 'self' as a run kwarg, but self is already the "
                 f"first positional argument passed to :meth:`on_run`."
             )
-        if self.executor is None:
-            run_output = self.on_run(*args, **kwargs)
+
+        if executor is None:
+            try:
+                run_output = self.on_run(*args, **kwargs)
+            except Exception as e:
+                self.running = False
+                self.failed = True
+                raise e
             return finished_callback(run_output)
         else:
-            executor = self._parse_executor(self.executor)
-            if isinstance(self.executor, ThreadPoolExecutor):
+            if isinstance(executor, ThreadPoolExecutor):
                 self.future = executor.submit(self.thread_pool_run, *args, **kwargs)
             else:
                 self.future = executor.submit(self.on_run, *args, **kwargs)
