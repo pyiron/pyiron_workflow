@@ -2,19 +2,26 @@
 Common-use nodes relying only on the standard library
 """
 
-from __future__ import annotations
+from __future__ import annotations as _annotations
 
-import random
-import os
-from pathlib import Path
-import shutil
-from time import sleep
+import random as _random
+import os as _os
+from pathlib import Path as _Path
+import shutil as _shutil
+from time import sleep as _sleep
 
-from pyiron_workflow.channels import NOT_DATA, OutputSignal
-from pyiron_workflow.nodes.function import Function, as_function_node
+from pyiron_workflow.channels import (
+    NOT_DATA as _NOT_DATA, 
+    OutputSignal as _OutputSignal,
+)
+
+from pyiron_workflow.nodes.function import (
+    Function as _Function, 
+    as_function_node as _as_function_node,
+)
 
 
-@as_function_node
+@_as_function_node
 def UserInput(user_input):
     """
     Returns the user input as it is.
@@ -28,7 +35,7 @@ def UserInput(user_input):
     return user_input
 
 
-class If(Function):
+class If(_Function):
     """
     Has two extra signal channels: true and false. Evaluates the input as a boolean and
     fires the corresponding output signal after running.
@@ -39,8 +46,8 @@ class If(Function):
 
     def __init__(self, **kwargs):
         super().__init__(**kwargs)
-        self.signals.output.true = OutputSignal("true", self)
-        self.signals.output.false = OutputSignal("false", self)
+        self.signals.output.true = _OutputSignal("true", self)
+        self.signals.output.false = _OutputSignal("false", self)
 
     @staticmethod
     def node_function(condition):
@@ -56,21 +63,21 @@ class If(Function):
         Raises:
             TypeError: If the condition is NOT_DATA.
         """
-        if condition is NOT_DATA:
+        if condition is _NOT_DATA:
             raise TypeError(f"Logic 'If' node expected data but got NOT_DATA as input.")
         truth = bool(condition)
         return truth
 
     @property
-    def emitting_channels(self) -> tuple[OutputSignal]:
+    def emitting_channels(self) -> tuple[_OutputSignal]:
         if self.outputs.truth.value:
             return (*super().emitting_channels, self.signals.output.true)
         else:
             return (*super().emitting_channels, self.signals.output.false)
 
 
-@as_function_node("list")
-def AppendToList(existing: list | None = None, new_element=NOT_DATA):
+@_as_function_node("list")
+def AppendToList(existing: list | None = None, new_element=_NOT_DATA):
     """
     Append a new element to a list.
 
@@ -101,14 +108,14 @@ def AppendToList(existing: list | None = None, new_element=NOT_DATA):
 
     """
     existing = [] if existing is None else existing
-    if new_element is not NOT_DATA:
+    if new_element is not _NOT_DATA:
         existing.append(new_element)
     return existing
 
 
-@as_function_node("started_at", "ended_at", "was_empty")
+@_as_function_node("started_at", "ended_at", "was_empty")
 def ChangeDirectory(
-    path: str | Path,
+    path: str | _Path,
     delete_start: bool = False,
 ) -> tuple[str, str, bool]:
     """
@@ -153,18 +160,18 @@ def ChangeDirectory(
         False
 
     """
-    started_at = os.getcwd()
-    if isinstance(path, Path):
+    started_at = _os.getcwd()
+    if isinstance(path, _Path):
         path = str(path.resolve())
-    os.makedirs(path, exist_ok=True)
-    was_empty = not any(os.scandir(path))
-    os.chdir(path)
+    _os.makedirs(path, exist_ok=True)
+    was_empty = not any(_os.scandir(path))
+    _os.chdir(path)
     if delete_start:
-        shutil.rmtree(started_at)
+        _shutil.rmtree(started_at)
     return started_at, path, was_empty
 
 
-@as_function_node("as_int")
+@_as_function_node("as_int")
 def Int(x):
     """
     Casts the input as an integer.
@@ -177,7 +184,7 @@ def Int(x):
     return int(x)
 
 
-@as_function_node
+@_as_function_node
 def PureCall(fnc: callable):
     """
     Return a call without any arguments
@@ -204,7 +211,7 @@ def PureCall(fnc: callable):
     return fnc()
 
 
-@as_function_node("random")
+@_as_function_node("random")
 def RandomFloat():
     """
     Generates a random float between 0 and 1.
@@ -212,10 +219,10 @@ def RandomFloat():
     Returns:
         float: A random float between 0 and 1.
     """
-    return random.random()
+    return _random.random()
 
 
-@as_function_node("time")
+@_as_function_node("time")
 def Sleep(t):
     """
     Sleeps for the given number of seconds.
@@ -226,12 +233,12 @@ def Sleep(t):
     Returns:
         float: The same number of seconds slept.
     """
-    sleep(t)
+    _sleep(t)
     return t
 
 
-@as_function_node("slice")
-def Slice(start=None, stop=NOT_DATA, step=None):
+@_as_function_node("slice")
+def Slice(start=None, stop=_NOT_DATA, step=None):
     """
     Creates a slice object.
 
@@ -265,7 +272,7 @@ def Slice(start=None, stop=NOT_DATA, step=None):
     return s
 
 
-@as_function_node("object")
+@_as_function_node("object")
 def SetAttr(obj, key: str, val):
     """
     Sets an attribute on an object.
@@ -282,7 +289,7 @@ def SetAttr(obj, key: str, val):
     return obj
 
 
-@as_function_node("str")
+@_as_function_node("str")
 def String(obj):
     """
     Converts an object to its string representation.
@@ -296,7 +303,7 @@ def String(obj):
     return str(obj)
 
 
-@as_function_node("bytes")
+@_as_function_node("bytes")
 def Bytes(obj):
     """
     Converts an object to its bytes representation.
@@ -310,7 +317,7 @@ def Bytes(obj):
     return bytes(obj)
 
 
-@as_function_node("lt")
+@_as_function_node("lt")
 def LessThan(obj, other):
     """
     Compares if obj is less than other.
@@ -325,7 +332,7 @@ def LessThan(obj, other):
     return obj < other
 
 
-@as_function_node("le")
+@_as_function_node("le")
 def LessThanEquals(obj, other):
     """
     Compares if obj is less than or equal to other.
@@ -340,7 +347,7 @@ def LessThanEquals(obj, other):
     return obj <= other
 
 
-@as_function_node("eq")
+@_as_function_node("eq")
 def Equals(obj, other):
     """
     Compares if obj is equal to other.
@@ -355,7 +362,7 @@ def Equals(obj, other):
     return obj == other
 
 
-@as_function_node("neq")
+@_as_function_node("neq")
 def NotEquals(obj, other):
     """
     Compares if obj is not equal to other.
@@ -370,7 +377,7 @@ def NotEquals(obj, other):
     return obj != other
 
 
-@as_function_node("gt")
+@_as_function_node("gt")
 def GreaterThan(obj, other):
     """
     Compares if obj is greater than other.
@@ -385,7 +392,7 @@ def GreaterThan(obj, other):
     return obj > other
 
 
-@as_function_node("ge")
+@_as_function_node("ge")
 def GreaterThanEquals(obj, other):
     """
     Compares if obj is greater than or equal to other.
@@ -400,7 +407,7 @@ def GreaterThanEquals(obj, other):
     return obj >= other
 
 
-@as_function_node("hash")
+@_as_function_node("hash")
 def Hash(obj):
     """
     Returns the hash value of an object.
@@ -414,7 +421,7 @@ def Hash(obj):
     return hash(obj)
 
 
-@as_function_node("bool")
+@_as_function_node("bool")
 def Bool(obj):
     """
     Converts an object to its boolean representation.
@@ -428,7 +435,7 @@ def Bool(obj):
     return bool(obj)
 
 
-@as_function_node("getattr")
+@_as_function_node("getattr")
 def GetAttr(obj, name):
     """
     Gets an attribute from an object.
@@ -443,7 +450,7 @@ def GetAttr(obj, name):
     return getattr(obj, name)
 
 
-@as_function_node("getitem")
+@_as_function_node("getitem")
 def GetItem(obj, item):
     """
     Gets an item from an object.
@@ -458,7 +465,7 @@ def GetItem(obj, item):
     return obj[item]
 
 
-@as_function_node("dir")
+@_as_function_node("dir")
 def Dir(obj):
     """
     Returns a list of valid attributes for the object.
@@ -472,7 +479,7 @@ def Dir(obj):
     return dir(obj)
 
 
-@as_function_node("len")
+@_as_function_node("len")
 def Length(obj):
     """
     Returns the length of an object.
@@ -486,7 +493,7 @@ def Length(obj):
     return len(obj)
 
 
-@as_function_node("in")
+@_as_function_node("in")
 def Contains(obj, other):
     """
     Checks if obj contains other.
@@ -501,7 +508,7 @@ def Contains(obj, other):
     return other in obj
 
 
-@as_function_node("add")
+@_as_function_node("add")
 def Add(obj, other):
     """
     Adds obj and other.
@@ -516,7 +523,7 @@ def Add(obj, other):
     return obj + other
 
 
-@as_function_node("sub")
+@_as_function_node("sub")
 def Subtract(obj, other):
     """
     Subtracts other from obj.
@@ -531,7 +538,7 @@ def Subtract(obj, other):
     return obj - other
 
 
-@as_function_node("mul")
+@_as_function_node("mul")
 def Multiply(obj, other):
     """
     Multiplies obj by other.
@@ -546,7 +553,7 @@ def Multiply(obj, other):
     return obj * other
 
 
-@as_function_node("rmul")
+@_as_function_node("rmul")
 def RightMultiply(obj, other):
     """
     Multiplies other by obj (reversed operands).
@@ -561,7 +568,7 @@ def RightMultiply(obj, other):
     return other * obj
 
 
-@as_function_node("matmul")
+@_as_function_node("matmul")
 def MatrixMultiply(obj, other):
     """
     Performs matrix multiplication on obj and other.
@@ -576,7 +583,7 @@ def MatrixMultiply(obj, other):
     return obj @ other
 
 
-@as_function_node("truediv")
+@_as_function_node("truediv")
 def Divide(obj, other):
     """
     Divides obj by other.
@@ -591,7 +598,7 @@ def Divide(obj, other):
     return obj / other
 
 
-@as_function_node("floordiv")
+@_as_function_node("floordiv")
 def FloorDivide(obj, other):
     """
     Performs floor division on obj by other.
@@ -606,7 +613,7 @@ def FloorDivide(obj, other):
     return obj // other
 
 
-@as_function_node("mod")
+@_as_function_node("mod")
 def Modulo(obj, other):
     """
     Calculates the modulo of obj by other.
@@ -621,7 +628,7 @@ def Modulo(obj, other):
     return obj % other
 
 
-@as_function_node("pow")
+@_as_function_node("pow")
 def Power(obj, other):
     """
     Raises obj to the power of other.
@@ -636,7 +643,7 @@ def Power(obj, other):
     return obj**other
 
 
-@as_function_node("and")
+@_as_function_node("and")
 def And(obj, other):
     """
     Performs a bitwise AND operation on obj and other.
@@ -651,7 +658,7 @@ def And(obj, other):
     return obj & other
 
 
-@as_function_node("xor")
+@_as_function_node("xor")
 def XOr(obj, other):
     """
     Performs a bitwise XOR operation on obj and other.
@@ -666,7 +673,7 @@ def XOr(obj, other):
     return obj ^ other
 
 
-@as_function_node("or")
+@_as_function_node("or")
 def Or(obj, other):
     """
     Performs a bitwise OR operation on obj and other.
@@ -681,7 +688,7 @@ def Or(obj, other):
     return obj | other
 
 
-@as_function_node("neg")
+@_as_function_node("neg")
 def Negative(obj):
     """
     Negates an object.
@@ -695,7 +702,7 @@ def Negative(obj):
     return -obj
 
 
-@as_function_node("pos")
+@_as_function_node("pos")
 def Positive(obj):
     """
     Returns the positive of an object.
@@ -709,7 +716,7 @@ def Positive(obj):
     return +obj
 
 
-@as_function_node("abs")
+@_as_function_node("abs")
 def Absolute(obj):
     """
     Returns the absolute value of an object.
@@ -723,7 +730,7 @@ def Absolute(obj):
     return abs(obj)
 
 
-@as_function_node("invert")
+@_as_function_node("invert")
 def Invert(obj):
     """
     Inverts the bits of an object.
@@ -737,7 +744,7 @@ def Invert(obj):
     return ~obj
 
 
-@as_function_node("int")
+@_as_function_node("int")
 def Int(obj):
     """
     Converts an object to an integer.
@@ -751,7 +758,7 @@ def Int(obj):
     return int(obj)
 
 
-@as_function_node("float")
+@_as_function_node("float")
 def Float(obj):
     """
     Converts an object to a float.
@@ -765,7 +772,7 @@ def Float(obj):
     return float(obj)
 
 
-@as_function_node("round")
+@_as_function_node("round")
 def Round(obj):
     """
     Rounds a number to the nearest integer.
