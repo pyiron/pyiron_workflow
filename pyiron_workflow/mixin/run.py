@@ -211,7 +211,6 @@ class Runnable(UsesState, HasLabel, HasRun, ABC):
             self._run_finally()
 
     def _thread_pool_run(self, *args, **kwargs):
-        #
         result = self.on_run(*args, **kwargs)
         sleep(self._thread_pool_sleep_time)
         return result
