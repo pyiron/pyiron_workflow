@@ -476,6 +476,28 @@ class Node(
             self.parent.register_child_starting(self)
         return super()._run(finished_callback=finished_callback, executor=executor)
 
+    def _run_finally(self):
+        if self.parent is not None:
+            self.parent.register_child_finished(self)
+        if self.checkpoint is not None:
+            self.save_checkpoint(self.checkpoint)
+
+    def _finish_run_and_emit_ran(self, run_output: tuple | Future) -> Any | tuple:
+        processed_output = self._finish_run(run_output)
+        if self.parent is None:
+            self.emit()
+        else:
+            self.parent.register_child_emitting(self)
+        return processed_output
+
+    _finish_run_and_emit_ran.__doc__ = (
+        Runnable._finish_run.__doc__
+        + """
+
+    Finally, emit :attr:`emitting_channels` signals.
+    """
+    )
+
     def run_data_tree(self, run_parent_trees_too=False) -> None:
         """
         Use topological analysis to build a tree of all upstream dependencies and run
@@ -586,28 +608,6 @@ class Node(
 
     def _outputs_to_run_return(self):
         return DotDict(self.outputs.to_value_dict())
-
-    def _run_finally(self):
-        if self.parent is not None:
-            self.parent.register_child_finished(self)
-        if self.checkpoint is not None:
-            self.save_checkpoint(self.checkpoint)
-
-    def _finish_run_and_emit_ran(self, run_output: tuple | Future) -> Any | tuple:
-        processed_output = self._finish_run(run_output)
-        if self.parent is None:
-            self.emit()
-        else:
-            self.parent.register_child_emitting(self)
-        return processed_output
-
-    _finish_run_and_emit_ran.__doc__ = (
-        Runnable._finish_run.__doc__
-        + """
-
-    Finally, emit :attr:`emitting_channels` signals.
-    """
-    )
 
     @property
     def emitting_channels(self) -> tuple[OutputSignal]:
