@@ -180,8 +180,8 @@ class Runnable(UsesState, HasLabel, HasRun, ABC):
             try:
                 run_output = self.on_run(*args, **kwargs)
             except Exception as e:
-                self.running = False
-                self.failed = True
+                self._run_exception()
+                self._run_finally()
                 raise e
             return finished_callback(run_output)
         else:
@@ -191,6 +191,13 @@ class Runnable(UsesState, HasLabel, HasRun, ABC):
                 self.future = executor.submit(self.on_run, *args, **kwargs)
             self.future.add_done_callback(finished_callback)
             return self.future
+
+    def _run_exception(self):
+        self.running = False
+        self.failed = True
+
+    def _run_finally(self):
+        pass
 
     def thread_pool_run(self, *args, **kwargs):
         #
@@ -237,8 +244,10 @@ class Runnable(UsesState, HasLabel, HasRun, ABC):
             processed_output = self.process_run_result(run_output)
             return processed_output
         except Exception as e:
-            self.failed = True
+            self._run_exception()
             raise e
+        finally:
+            self._run_finally()
 
     def __getstate__(self):
         state = super().__getstate__()
