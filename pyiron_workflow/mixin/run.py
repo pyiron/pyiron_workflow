@@ -241,8 +241,7 @@ class Runnable(UsesState, HasLabel, HasRun, ABC):
 
         self.running = False
         try:
-            processed_output = self.process_run_result(run_output)
-            return processed_output
+            return self.process_run_result(run_output)
         except Exception as e:
             self._run_exception()
             raise e
