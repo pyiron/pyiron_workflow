@@ -594,11 +594,13 @@ class Node(
                 self.save_checkpoint(self.checkpoint)
 
     def _finish_run_and_emit_ran(self, run_output: tuple | Future) -> Any | tuple:
-        processed_output = self._finish_run(run_output)
-        if self.parent is None:
-            self.emit()
-        else:
-            self.parent.register_child_emitting(self)
+        try:
+            processed_output = self._finish_run(run_output)
+        finally:
+            if self.parent is None:
+                self.emit()
+            else:
+                self.parent.register_child_emitting(self)
         return processed_output
 
     _finish_run_and_emit_ran.__doc__ = (
@@ -611,7 +613,10 @@ class Node(
 
     @property
     def emitting_channels(self) -> tuple[OutputSignal]:
-        return (self.signals.output.ran,)
+        if self.failed:
+            return (self.signals.output.failed,)
+        else:
+            return (self.signals.output.ran,)
 
     def emit(self):
         for channel in self.emitting_channels:

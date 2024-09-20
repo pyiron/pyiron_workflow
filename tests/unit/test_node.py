@@ -159,6 +159,24 @@ class TestNode(unittest.TestCase):
                 "execution"
         )
 
+    def test_failure_signal(self):
+        n = ANode(label="failing")
+        n.inputs.x._value = "cannot add 1 to this"  # Bypass type hint with private
+
+        class Counter:
+            def __init__(self):
+                self.count = 0
+
+            def add(self):
+                self.count += 1
+        c = Counter()
+        n.signals.output.failed.connections = [c.add]
+        self.assertEqual(
+            c.count,
+            1,
+            msg="Failed signal should fire after type error"
+        )
+
     def test_execute(self):
         self.n1.outputs.y = 0  # Prime the upstream data source for fetching
         self.n2 >> self.n3
