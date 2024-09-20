@@ -125,11 +125,15 @@ class Runnable(UsesState, HasLabel, HasRun, ABC):
         check_readiness: bool = True,
         force_local_execution: bool = False,
         _finished_callback: Optional[callable] = None,
+        **kwargs,
     ) -> Any | tuple | Future:
         """
         Checks that the runnable is :attr:`ready` (if requested), then executes the
         functionality of defined in :meth:`on_run` by passing it whatever is returned
         by :meth:`run_args`.
+
+        Can stop early if :meth:`_before_run` called here returns `True` as its first
+        argument.
 
         Handles the status of the runnable, communicating with any remote
         computing resources, and processing the result.
@@ -146,14 +150,37 @@ class Runnable(UsesState, HasLabel, HasRun, ABC):
                 (:attr:`running`/:attr:`failed`) and should only be set by expert users.
                 (Default is :meth:`_finish_run`.)
         """
-        if check_readiness and not self.ready:
-            raise ReadinessError(self._readiness_error_message)
+        stop_early, result = self._before_run(check_readiness=check_readiness, **kwargs)
+        if stop_early:
+            return result
+
         return self._run(
             finished_callback=(
                 self._finish_run if _finished_callback is None else _finished_callback
             ),
             force_local_execution=force_local_execution,
         )
+
+    def _before_run(self, /, check_readiness, **kwargs) -> tuple[bool, Any]:
+        """
+        Things to do _before_ running.
+
+        Args:
+            check_readiness (bool): Whether to raise a `ReadinessError` if not
+                :attr:`ready`.
+            **kwargs: Keyword arguments used by child classes in overriding this
+                function.
+
+        Returns:
+            (bool): Whether to exit the parent run call early.
+            (Any): What to return on an early-exit.
+
+        Raises:
+            (ReadinessError): If :param:`check_readiness` but not :attr:`ready`.
+        """
+        if check_readiness and not self.ready:
+            raise ReadinessError(self._readiness_error_message)
+        return False, None
 
     @property
     def _readiness_error_message(self) -> str:

@@ -428,6 +428,27 @@ class Node(
         """
         self.set_input_values(*args, **kwargs)
 
+        return super().run(
+            check_readiness=check_readiness,
+            force_local_execution=force_local_execution,
+            run_data_tree=run_data_tree,
+            run_parent_trees_too=run_parent_trees_too,
+            fetch_input=fetch_input,
+            emit_ran_signal=emit_ran_signal,
+            _finished_callback=(
+                self._finish_run_and_emit_ran if emit_ran_signal else self._finish_run
+            ),
+        )
+
+    def _before_run(
+        self,
+        /,
+        check_readiness: bool,
+        run_data_tree: bool,
+        run_parent_trees_too: bool,
+        fetch_input: bool,
+        emit_ran_signal: bool,
+    ) -> tuple[bool, Any]:
         if run_data_tree:
             self.run_data_tree(run_parent_trees_too=run_parent_trees_too)
 
@@ -444,19 +465,22 @@ class Node(
                 if emit_ran_signal:
                     self.parent.register_child_emitting(self)
 
-            return self._outputs_to_run_return()
+            return True, self._outputs_to_run_return()
         elif self.use_cache:  # Write cache and continue
             self._cached_inputs = self.inputs.to_value_dict()
 
+        return super()._before_run(check_readiness=check_readiness)
+
+    def _run(
+        self,
+        finished_callback: callable,
+        force_local_execution: bool,
+    ) -> Any | tuple | Future:
         if self.parent is not None:
             self.parent.register_child_starting(self)
-
-        return super().run(
-            check_readiness=check_readiness,
-            force_local_execution=force_local_execution,
-            _finished_callback=(
-                self._finish_run_and_emit_ran if emit_ran_signal else self._finish_run
-            ),
+        return super()._run(
+            finished_callback=finished_callback,
+            force_local_execution=force_local_execution
         )
 
     def run_data_tree(self, run_parent_trees_too=False) -> None:
@@ -592,7 +616,7 @@ class Node(
         Runnable._finish_run.__doc__
         + """
 
-    Finally, fire the `ran` signal.
+    Finally, emit :attr:`emitting_channels` signals.
     """
     )
 
