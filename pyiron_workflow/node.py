@@ -614,7 +614,10 @@ class Node(
 
     @property
     def emitting_channels(self) -> tuple[OutputSignal]:
-        return (self.signals.output.ran,)
+        if self.failed:
+            return (self.signals.output.failed,)
+        else:
+            return (self.signals.output.ran,)
 
     def emit(self):
         for channel in self.emitting_channels:
