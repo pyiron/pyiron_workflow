@@ -10,7 +10,6 @@ from __future__ import annotations
 from abc import ABC
 from concurrent.futures import Future
 from importlib import import_module
-from inspect import getsource
 from typing import Any, Literal, Optional, TYPE_CHECKING
 
 from pyiron_snippets.colors import SeabornColors
@@ -29,6 +28,7 @@ from pyiron_workflow.topology import (
 )
 
 if TYPE_CHECKING:
+    from concurrent.futures import Executor
     from pathlib import Path
 
     import graphviz
@@ -467,10 +467,37 @@ class Node(
 
         return super()._before_run(check_readiness=check_readiness)
 
-    def _run(self, finished_callback: callable) -> Any | tuple | Future:
+    def _run(
+        self,
+        finished_callback: callable,
+        executor: Executor,
+    ) -> Any | tuple | Future:
         if self.parent is not None:
             self.parent.register_child_starting(self)
-        return super()._run(finished_callback=finished_callback)
+        return super()._run(finished_callback=finished_callback, executor=executor)
+
+    def _run_finally(self):
+        super()._run_finally()
+        if self.parent is not None:
+            self.parent.register_child_finished(self)
+        if self.checkpoint is not None:
+            self.save_checkpoint(self.checkpoint)
+
+    def _finish_run_and_emit_ran(self, run_output: tuple | Future) -> Any | tuple:
+        processed_output = self._finish_run(run_output)
+        if self.parent is None:
+            self.emit()
+        else:
+            self.parent.register_child_emitting(self)
+        return processed_output
+
+    _finish_run_and_emit_ran.__doc__ = (
+        Runnable._finish_run.__doc__
+        + """
+
+    Finally, emit :attr:`emitting_channels` signals.
+    """
+    )
 
     def run_data_tree(self, run_parent_trees_too=False) -> None:
         """
@@ -582,32 +609,6 @@ class Node(
 
     def _outputs_to_run_return(self):
         return DotDict(self.outputs.to_value_dict())
-
-    def _finish_run(self, run_output: tuple | Future) -> Any | tuple:
-        try:
-            processed_output = super()._finish_run(run_output=run_output)
-            if self.parent is not None:
-                self.parent.register_child_finished(self)
-            return processed_output
-        finally:
-            if self.checkpoint is not None:
-                self.save_checkpoint(self.checkpoint)
-
-    def _finish_run_and_emit_ran(self, run_output: tuple | Future) -> Any | tuple:
-        processed_output = self._finish_run(run_output)
-        if self.parent is None:
-            self.emit()
-        else:
-            self.parent.register_child_emitting(self)
-        return processed_output
-
-    _finish_run_and_emit_ran.__doc__ = (
-        Runnable._finish_run.__doc__
-        + """
-
-    Finally, emit :attr:`emitting_channels` signals.
-    """
-    )
 
     @property
     def emitting_channels(self) -> tuple[OutputSignal]:

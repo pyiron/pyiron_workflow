@@ -124,23 +124,15 @@ class Runnable(UsesState, HasLabel, HasRun, ABC):
         if stop_early:
             return result
 
+        executor = (
+            None if self.executor is None else self._parse_executor(self.executor)
+        )
+        finished_callback = (
+            self._finish_run if _finished_callback is None else _finished_callback
+        )
+
         self.running = True
-        try:
-            out = self._run(
-                finished_callback=(
-                    self._finish_run
-                    if _finished_callback is None
-                    else _finished_callback
-                ),
-            )
-            return out
-        except Exception as e:
-            self.failed = True
-            out = None
-            raise e
-        finally:
-            # Leave the status as running if the method returns a future
-            self.running = isinstance(out, Future)
+        return self._run(finished_callback=finished_callback, executor=executor)
 
     def _before_run(self, /, check_readiness, **kwargs) -> tuple[bool, Any]:
         """
@@ -163,40 +155,92 @@ class Runnable(UsesState, HasLabel, HasRun, ABC):
             raise ReadinessError(self._readiness_error_message)
         return False, None
 
-    @property
-    def _readiness_error_message(self) -> str:
-        return (
-            f"{self.label} received a run command but is not ready. The runnable "
-            f"should be neither running nor failed.\n" + self.readiness_report
-        )
-
     def _run(
         self,
         finished_callback: callable,
+        executor: StdLibExecutor | None,
     ) -> Any | tuple | Future:
+        """
+        What happens while the status is :attr:`running`, namely invoking
+        :meth:`self.on_run` using :attr:`self.run_args`, either locally or on an
+        executor.
+
+        Args:
+            finished_callback (callable): What t
+            executor (concurrent.futures.Executor|None): Optionally, executor on which
+                to run.
+
+        Returns:
+            (Any | Future): The result of :meth:`on_run`, or a futures object from
+                the executor.
+        """
         args, kwargs = self.run_args
         if "self" in kwargs.keys():
             raise ValueError(
                 f"{self.label} got 'self' as a run kwarg, but self is already the "
                 f"first positional argument passed to :meth:`on_run`."
             )
-        if self.executor is None:
-            run_output = self.on_run(*args, **kwargs)
+
+        if executor is None:
+            try:
+                run_output = self.on_run(*args, **kwargs)
+            except Exception as e:
+                self._run_exception()
+                self._run_finally()
+                raise e
             return finished_callback(run_output)
         else:
-            executor = self._parse_executor(self.executor)
-            if isinstance(self.executor, ThreadPoolExecutor):
-                self.future = executor.submit(self.thread_pool_run, *args, **kwargs)
+            if isinstance(executor, ThreadPoolExecutor):
+                self.future = executor.submit(self._thread_pool_run, *args, **kwargs)
             else:
                 self.future = executor.submit(self.on_run, *args, **kwargs)
             self.future.add_done_callback(finished_callback)
             return self.future
 
-    def thread_pool_run(self, *args, **kwargs):
-        #
+    def _run_exception(self):
+        """
+        What to do if an exception is encountered inside :meth:`_run` or
+        :meth:`_finish_run.
+        """
+        self.running = False
+        self.failed = True
+
+    def _run_finally(self):
+        """
+        What to do after :meth:`_finish_run` (whether an exception is encountered or
+        not), or in :meth:`_run` after an exception is encountered.
+        """
+
+    def _finish_run(self, run_output: tuple | Future) -> Any | tuple:
+        """
+        Switch the status, then process and return the run result.
+        """
+        if isinstance(run_output, Future):
+            run_output = run_output.result()
+
+        self.running = False
+        try:
+            return self.process_run_result(run_output)
+        except Exception as e:
+            self._run_exception()
+            raise e
+        finally:
+            self._run_finally()
+
+    def _thread_pool_run(self, *args, **kwargs):
+        """
+        A poor attempt at avoiding (probably) thread races
+        """
         result = self.on_run(*args, **kwargs)
         sleep(self._thread_pool_sleep_time)
         return result
+
+    @property
+    def _readiness_error_message(self) -> str:
+        return (
+            f"{self.label} received a run command but is not ready. The runnable "
+            f"should be neither running nor failed.\n" + self.readiness_report
+        )
 
     @staticmethod
     def _parse_executor(executor) -> StdLibExecutor:
@@ -222,23 +266,6 @@ class Runnable(UsesState, HasLabel, HasRun, ABC):
             raise NotImplementedError(
                 f"Expected an instance of {StdLibExecutor}, but got {executor}."
             )
-
-    def _finish_run(self, run_output: tuple | Future) -> Any | tuple:
-        """
-        Switch the status, then process and return the run result.
-
-        Sets the :attr:`failed` status to true if an exception is encountered.
-        """
-        if isinstance(run_output, Future):
-            run_output = run_output.result()
-
-        self.running = False
-        try:
-            processed_output = self.process_run_result(run_output)
-            return processed_output
-        except Exception as e:
-            self.failed = True
-            raise e
 
     def __getstate__(self):
         state = super().__getstate__()
