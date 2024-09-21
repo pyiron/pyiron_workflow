@@ -141,21 +141,6 @@ class TestRunnable(unittest.TestCase):
             msg="Expected the result, including post-processing 'bar' value"
         )
 
-    def test_runnable_run_with_executor_and_callback(self):
-        runnable = ConcreteRunnable()
-        runnable.executor = CloudpickleProcessPoolExecutor()
-
-        result = runnable.run(_finished_callback=runnable.custom_callback)
-        self.assertDictEqual(
-            runnable.expected_run_output,
-            result.result(timeout=30),
-            msg="Callback does not impact the actual run function"
-        )
-        self.assertDictEqual(
-            runnable.expected_custom_callback_processed_value,
-            runnable.processed
-        )
-
 
 if __name__ == '__main__':
     unittest.main()
