@@ -172,7 +172,10 @@ class TestNode(unittest.TestCase):
 
         c = Counter()
         n.signals.output.failed.connections = [c.add]
-        n.run(check_readiness=False)
+        try:
+            n.run(check_readiness=False)
+        except TypeError:
+            pass  # Expected -- we're _trying_ to get failure to fire
         self.assertEqual(
             c.count,
             1,
