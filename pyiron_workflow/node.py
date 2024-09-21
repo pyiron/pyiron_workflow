@@ -477,6 +477,7 @@ class Node(
         return super()._run(finished_callback=finished_callback, executor=executor)
 
     def _run_finally(self):
+        super()._run_finally()
         if self.parent is not None:
             self.parent.register_child_finished(self)
         if self.checkpoint is not None:
