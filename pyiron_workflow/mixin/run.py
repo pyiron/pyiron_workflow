@@ -160,6 +160,20 @@ class Runnable(UsesState, HasLabel, HasRun, ABC):
         finished_callback: callable,
         executor: StdLibExecutor | None,
     ) -> Any | tuple | Future:
+        """
+        What happens while the status is :attr:`running`, namely invoking
+        :meth:`self.on_run` using :attr:`self.run_args`, either locally or on an
+        executor.
+
+        Args:
+            finished_callback (callable): What t
+            executor (concurrent.futures.Executor|None): Optionally, executor on which
+                to run.
+
+        Returns:
+            (Any | Future): The result of :meth:`on_run`, or a futures object from
+                the executor.
+        """
         args, kwargs = self.run_args
         if "self" in kwargs.keys():
             raise ValueError(
@@ -184,17 +198,22 @@ class Runnable(UsesState, HasLabel, HasRun, ABC):
             return self.future
 
     def _run_exception(self):
+        """
+        What to do if an exception is encountered inside :meth:`_run` or
+        :meth:`_finish_run.
+        """
         self.running = False
         self.failed = True
 
     def _run_finally(self):
-        pass
+        """
+        What to do after :meth:`_finish_run` (whether an exception is encountered or
+        not), or in :meth:`_run` after an exception is encountered.
+        """
 
     def _finish_run(self, run_output: tuple | Future) -> Any | tuple:
         """
         Switch the status, then process and return the run result.
-
-        Sets the :attr:`failed` status to true if an exception is encountered.
         """
         if isinstance(run_output, Future):
             run_output = run_output.result()
@@ -209,6 +228,9 @@ class Runnable(UsesState, HasLabel, HasRun, ABC):
             self._run_finally()
 
     def _thread_pool_run(self, *args, **kwargs):
+        """
+        A poor attempt at avoiding (probably) thread races
+        """
         result = self.on_run(*args, **kwargs)
         sleep(self._thread_pool_sleep_time)
         return result
