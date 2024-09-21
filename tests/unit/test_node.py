@@ -167,10 +167,12 @@ class TestNode(unittest.TestCase):
             def __init__(self):
                 self.count = 0
 
-            def add(self):
+            def add(self, signal):
                 self.count += 1
+
         c = Counter()
         n.signals.output.failed.connections = [c.add]
+        n.run(check_readiness=False)
         self.assertEqual(
             c.count,
             1,
