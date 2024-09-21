@@ -135,8 +135,7 @@ class Runnable(UsesState, HasLabel, HasRun, ABC):
         finish_run_kwargs = _none_to_dict(finish_run_kwargs)
 
         stop_early, result = self._before_run(
-            check_readiness=check_readiness,
-            **before_run_kwargs
+            check_readiness=check_readiness, **before_run_kwargs
         )
         if stop_early:
             return result
@@ -151,7 +150,7 @@ class Runnable(UsesState, HasLabel, HasRun, ABC):
             run_exception_kwargs=run_exception_kwargs,
             run_finally_kwargs=run_finally_kwargs,
             finish_run_kwargs=finish_run_kwargs,
-            **run_kwargs
+            **run_kwargs,
         )
 
     def _before_run(self, /, check_readiness, **kwargs) -> tuple[bool, Any]:
@@ -182,7 +181,7 @@ class Runnable(UsesState, HasLabel, HasRun, ABC):
         run_exception_kwargs: dict,
         run_finally_kwargs: dict,
         finish_run_kwargs: dict,
-        **kwargs
+        **kwargs,
     ) -> Any | tuple | Future:
         """
         What happens while the status is :attr:`running`, namely invoking
@@ -215,7 +214,7 @@ class Runnable(UsesState, HasLabel, HasRun, ABC):
                 run_output,
                 run_exception_kwargs=run_exception_kwargs,
                 run_finally_kwargs=run_finally_kwargs,
-                **finish_run_kwargs
+                **finish_run_kwargs,
             )
         else:
             if isinstance(executor, ThreadPoolExecutor):
@@ -231,7 +230,7 @@ class Runnable(UsesState, HasLabel, HasRun, ABC):
                     self._finish_run,
                     run_exception_kwargs=run_exception_kwargs,
                     run_finally_kwargs=run_finally_kwargs,
-                    **finish_run_kwargs
+                    **finish_run_kwargs,
                 )
             )
             return self.future
@@ -256,7 +255,7 @@ class Runnable(UsesState, HasLabel, HasRun, ABC):
         /,
         run_exception_kwargs: dict,
         run_finally_kwargs: dict,
-        **kwargs
+        **kwargs,
     ) -> Any | tuple:
         """
         Switch the status, then process and return the run result.
