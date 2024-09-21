@@ -128,9 +128,7 @@ class Runnable(UsesState, HasLabel, HasRun, ABC):
             None if self.executor is None else self._parse_executor(self.executor)
         )
         finished_callback = (
-            self._finish_run
-            if _finished_callback is None
-            else _finished_callback
+            self._finish_run if _finished_callback is None else _finished_callback
         )
 
         self.running = True
