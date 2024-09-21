@@ -7,6 +7,7 @@ from __future__ import annotations
 
 from abc import ABC, abstractmethod
 from concurrent.futures import Executor as StdLibExecutor, Future, ThreadPoolExecutor
+from functools import partial
 from time import sleep
 from typing import Any, Optional
 
@@ -97,8 +98,10 @@ class Runnable(UsesState, HasLabel, HasRun, ABC):
     def run(
         self,
         check_readiness: bool = True,
-        _finished_callback: Optional[callable] = None,
         before_run_kwargs: dict | None = None,
+        run_kwargs: dict | None = None,
+        run_exception_kwargs: dict | None = None,
+        run_finally_kwargs: dict | None = None,
         finish_run_kwargs: dict | None = None,
     ) -> Any | tuple | Future:
         """
@@ -121,7 +124,16 @@ class Runnable(UsesState, HasLabel, HasRun, ABC):
                 (:attr:`running`/:attr:`failed`) and should only be set by expert users.
                 (Default is :meth:`_finish_run`.)
         """
-        before_run_kwargs = {} if before_run_kwargs is None else before_run_kwargs
+
+        def _none_to_dict(inp):
+            return {} if inp is None else inp
+
+        before_run_kwargs = _none_to_dict(before_run_kwargs)
+        run_kwargs = _none_to_dict(run_kwargs)
+        run_exception_kwargs = _none_to_dict(run_exception_kwargs)
+        run_finally_kwargs = _none_to_dict(run_finally_kwargs)
+        finish_run_kwargs = _none_to_dict(finish_run_kwargs)
+
         stop_early, result = self._before_run(
             check_readiness=check_readiness,
             **before_run_kwargs
@@ -132,12 +144,15 @@ class Runnable(UsesState, HasLabel, HasRun, ABC):
         executor = (
             None if self.executor is None else self._parse_executor(self.executor)
         )
-        finished_callback = (
-            self._finish_run if _finished_callback is None else _finished_callback
-        )
 
         self.running = True
-        return self._run(finished_callback=finished_callback, executor=executor)
+        return self._run(
+            executor=executor,
+            run_exception_kwargs=run_exception_kwargs,
+            run_finally_kwargs=run_finally_kwargs,
+            finish_run_kwargs=finish_run_kwargs,
+            **run_kwargs
+        )
 
     def _before_run(self, /, check_readiness, **kwargs) -> tuple[bool, Any]:
         """
@@ -162,8 +177,12 @@ class Runnable(UsesState, HasLabel, HasRun, ABC):
 
     def _run(
         self,
-        finished_callback: callable,
+        /,
         executor: StdLibExecutor | None,
+        run_exception_kwargs: dict,
+        run_finally_kwargs: dict,
+        finish_run_kwargs: dict,
+        **kwargs
     ) -> Any | tuple | Future:
         """
         What happens while the status is :attr:`running`, namely invoking
@@ -171,7 +190,6 @@ class Runnable(UsesState, HasLabel, HasRun, ABC):
         executor.
 
         Args:
-            finished_callback (callable): What t
             executor (concurrent.futures.Executor|None): Optionally, executor on which
                 to run.
 
@@ -179,8 +197,8 @@ class Runnable(UsesState, HasLabel, HasRun, ABC):
             (Any | Future): The result of :meth:`on_run`, or a futures object from
                 the executor.
         """
-        args, kwargs = self.run_args
-        if "self" in kwargs.keys():
+        on_run_args, on_run_kwargs = self.run_args
+        if "self" in on_run_kwargs.keys():
             raise ValueError(
                 f"{self.label} got 'self' as a run kwarg, but self is already the "
                 f"first positional argument passed to :meth:`on_run`."
@@ -188,21 +206,37 @@ class Runnable(UsesState, HasLabel, HasRun, ABC):
 
         if executor is None:
             try:
-                run_output = self.on_run(*args, **kwargs)
+                run_output = self.on_run(*on_run_args, **on_run_kwargs)
             except Exception as e:
-                self._run_exception()
-                self._run_finally()
+                self._run_exception(**run_exception_kwargs)
+                self._run_finally(**run_finally_kwargs)
                 raise e
-            return finished_callback(run_output)
+            return self._finish_run(
+                run_output,
+                run_exception_kwargs=run_exception_kwargs,
+                run_finally_kwargs=run_finally_kwargs,
+                **finish_run_kwargs
+            )
         else:
             if isinstance(executor, ThreadPoolExecutor):
-                self.future = executor.submit(self._thread_pool_run, *args, **kwargs)
+                self.future = executor.submit(
+                    self._thread_pool_run, *on_run_args, **on_run_kwargs
+                )
             else:
-                self.future = executor.submit(self.on_run, *args, **kwargs)
-            self.future.add_done_callback(finished_callback)
+                self.future = executor.submit(
+                    self.on_run, *on_run_args, **on_run_kwargs
+                )
+            self.future.add_done_callback(
+                partial(
+                    self._finish_run,
+                    run_exception_kwargs=run_exception_kwargs,
+                    run_finally_kwargs=run_finally_kwargs,
+                    **finish_run_kwargs
+                )
+            )
             return self.future
 
-    def _run_exception(self):
+    def _run_exception(self, /, **kwargs):
         """
         What to do if an exception is encountered inside :meth:`_run` or
         :meth:`_finish_run.
@@ -210,13 +244,20 @@ class Runnable(UsesState, HasLabel, HasRun, ABC):
         self.running = False
         self.failed = True
 
-    def _run_finally(self):
+    def _run_finally(self, /, **kwargs):
         """
         What to do after :meth:`_finish_run` (whether an exception is encountered or
         not), or in :meth:`_run` after an exception is encountered.
         """
 
-    def _finish_run(self, run_output: tuple | Future) -> Any | tuple:
+    def _finish_run(
+        self,
+        run_output: tuple | Future,
+        /,
+        run_exception_kwargs: dict,
+        run_finally_kwargs: dict,
+        **kwargs
+    ) -> Any | tuple:
         """
         Switch the status, then process and return the run result.
         """
@@ -227,10 +268,10 @@ class Runnable(UsesState, HasLabel, HasRun, ABC):
         try:
             return self.process_run_result(run_output)
         except Exception as e:
-            self._run_exception()
+            self._run_exception(**run_exception_kwargs)
             raise e
         finally:
-            self._run_finally()
+            self._run_finally(**run_finally_kwargs)
 
     def _thread_pool_run(self, *args, **kwargs):
         """
