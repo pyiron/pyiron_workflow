@@ -98,7 +98,8 @@ class Runnable(UsesState, HasLabel, HasRun, ABC):
         self,
         check_readiness: bool = True,
         _finished_callback: Optional[callable] = None,
-        **kwargs,
+        before_run_kwargs: dict | None = None,
+        finish_run_kwargs: dict | None = None,
     ) -> Any | tuple | Future:
         """
         Checks that the runnable is :attr:`ready` (if requested), then executes the
@@ -120,7 +121,11 @@ class Runnable(UsesState, HasLabel, HasRun, ABC):
                 (:attr:`running`/:attr:`failed`) and should only be set by expert users.
                 (Default is :meth:`_finish_run`.)
         """
-        stop_early, result = self._before_run(check_readiness=check_readiness, **kwargs)
+        before_run_kwargs = {} if before_run_kwargs is None else before_run_kwargs
+        stop_early, result = self._before_run(
+            check_readiness=check_readiness,
+            **before_run_kwargs
+        )
         if stop_early:
             return result
 

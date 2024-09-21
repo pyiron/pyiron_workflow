@@ -427,10 +427,12 @@ class Node(
 
         return super().run(
             check_readiness=check_readiness,
-            run_data_tree=run_data_tree,
-            run_parent_trees_too=run_parent_trees_too,
-            fetch_input=fetch_input,
-            emit_ran_signal=emit_ran_signal,
+            before_run_kwargs={
+                "run_data_tree": run_data_tree,
+                "run_parent_trees_too": run_parent_trees_too,
+                "fetch_input": fetch_input,
+                "emit_ran_signal": emit_ran_signal,
+            },
             _finished_callback=(
                 self._finish_run_and_emit_ran if emit_ran_signal else self._finish_run
             ),
