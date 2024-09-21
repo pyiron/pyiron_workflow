@@ -427,13 +427,15 @@ class Node(
 
         return super().run(
             check_readiness=check_readiness,
-            run_data_tree=run_data_tree,
-            run_parent_trees_too=run_parent_trees_too,
-            fetch_input=fetch_input,
-            emit_ran_signal=emit_ran_signal,
-            _finished_callback=(
-                self._finish_run_and_emit_ran if emit_ran_signal else self._finish_run
-            ),
+            before_run_kwargs={
+                "run_data_tree": run_data_tree,
+                "run_parent_trees_too": run_parent_trees_too,
+                "fetch_input": fetch_input,
+                "emit_ran_signal": emit_ran_signal,
+            },
+            run_finally_kwargs={
+                "emit_ran_signal": emit_ran_signal,
+            },
         )
 
     def _before_run(
@@ -469,35 +471,32 @@ class Node(
 
     def _run(
         self,
-        finished_callback: callable,
-        executor: Executor,
+        executor: Executor | None,
+        run_exception_kwargs: dict,
+        run_finally_kwargs: dict,
+        finish_run_kwargs: dict,
     ) -> Any | tuple | Future:
         if self.parent is not None:
             self.parent.register_child_starting(self)
-        return super()._run(finished_callback=finished_callback, executor=executor)
+        return super()._run(
+            executor=executor,
+            run_exception_kwargs=run_exception_kwargs,
+            run_finally_kwargs=run_finally_kwargs,
+            finish_run_kwargs=finish_run_kwargs,
+        )
 
-    def _run_finally(self):
+    def _run_finally(self, /, emit_ran_signal):
         super()._run_finally()
         if self.parent is not None:
             self.parent.register_child_finished(self)
         if self.checkpoint is not None:
             self.save_checkpoint(self.checkpoint)
 
-    def _finish_run_and_emit_ran(self, run_output: tuple | Future) -> Any | tuple:
-        processed_output = self._finish_run(run_output)
-        if self.parent is None:
-            self.emit()
-        else:
-            self.parent.register_child_emitting(self)
-        return processed_output
-
-    _finish_run_and_emit_ran.__doc__ = (
-        Runnable._finish_run.__doc__
-        + """
-
-    Finally, emit :attr:`emitting_channels` signals.
-    """
-    )
+        if emit_ran_signal:
+            if self.parent is None:
+                self.emit()
+            else:
+                self.parent.register_child_emitting(self)
 
     def run_data_tree(self, run_parent_trees_too=False) -> None:
         """
@@ -612,7 +611,10 @@ class Node(
 
     @property
     def emitting_channels(self) -> tuple[OutputSignal]:
-        return (self.signals.output.ran,)
+        if self.failed:
+            return (self.signals.output.failed,)
+        else:
+            return (self.signals.output.ran,)
 
     def emit(self):
         for channel in self.emitting_channels:

@@ -299,6 +299,7 @@ class HasIO(HasStateDisplay, HasLabel, HasRun, ABC):
             "accumulate_and_run", self, self.run
         )
         self._signals.output.ran = OutputSignal("ran", self)
+        self._signals.output.failed = OutputSignal("failed", self)
 
     @property
     @abstractmethod
