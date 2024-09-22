@@ -205,7 +205,7 @@ class SemanticParent(Semantic, ABC):
             msg += f"({self._children.keys()})."
             matches = get_close_matches(key, self._children.keys(), cutoff=0.8)
             if len(matches) > 0:
-                msg += f" Did you mean {matches[0]} instead of {key}?"
+                msg += f" Did you mean {matches[0]} and not {key}?"
             raise AttributeError(msg)
 
     def __iter__(self):
