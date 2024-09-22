@@ -77,7 +77,7 @@ class IO(HasStateDisplay, ABC):
             # Raise an attribute error from getattr to make sure hasattr works well!
             raise AttributeError(
                 f"Could not find attribute {item} on {self.__class__.__name__} object "
-                f"nor in its channels ({self.labels})"
+                f"nor in its channels ({self.labels})."
             )
 
     def __setattr__(self, key, value):
