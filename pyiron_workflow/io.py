@@ -415,14 +415,18 @@ class HasIO(HasStateDisplay, HasLabel, HasRun, ABC):
 
         kwargs.update(keyed_args)
 
-        if len(set(kwargs.keys()).difference(self.inputs.labels)) > 0:
-            raise ValueError(
-                f"Tried to set input {list(kwargs.keys())}, but one or more label was "
-                f"not found among available inputs: {self.inputs.labels}"
-            )
+        self._ensure_all_input_keys_present(kwargs.keys(), self.inputs.labels)
 
         for k, v in kwargs.items():
             self.inputs[k] = v
+
+    @staticmethod
+    def _ensure_all_input_keys_present(used_keys, available_keys):
+        diff = set(used_keys).difference(available_keys)
+        if len(diff) > 0:
+            raise ValueError(
+                f"{diff} not found among available inputs: {available_keys}"
+            )
 
     def copy_io(
         self,
