@@ -18,7 +18,7 @@ class TestSemantics(unittest.TestCase):
         with self.assertRaises(AttributeError) as context:
             _ = self.middle1.Middle_sub
         self.assertIn(
-            "Did you mean middle_sub",
+            "Did you mean middle_sub and not Middle_sub",
             str(context.exception),
             msg="middle_sub must be suggested as it is close to Middle_sub"
         )
