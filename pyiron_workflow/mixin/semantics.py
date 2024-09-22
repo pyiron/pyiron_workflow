@@ -18,6 +18,7 @@ from pathlib import Path
 from typing import Optional
 
 from bidict import bidict
+from difflib import get_close_matches
 
 from pyiron_workflow.logging import logger
 from pyiron_workflow.mixin.has_interface_mixins import HasLabel, HasParent, UsesState
@@ -199,11 +200,13 @@ class SemanticParent(Semantic, ABC):
             return self._children[key]
         except KeyError:
             # Raise an attribute error from getattr to make sure hasattr works well!
-            raise AttributeError(
-                f"Could not find attribute {key} on {self.label} "
-                f"({self.__class__.__name__}) or among its children "
-                f"({self._children.keys()})"
-            )
+            msg = f"Could not find attribute '{key}' on {self.label} "
+            msg += f"({self.__class__.__name__}) or among its children "
+            msg += f"({self._children.keys()})."
+            matches = get_close_matches(key, self._children.keys(), cutoff=0.8)
+            if len(matches) > 0:
+                msg += f" Did you mean '{matches[0]}' and not '{key}'?"
+            raise AttributeError(msg)
 
     def __iter__(self):
         return self.children.values().__iter__()
