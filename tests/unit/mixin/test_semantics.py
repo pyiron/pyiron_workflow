@@ -14,6 +14,22 @@ class TestSemantics(unittest.TestCase):
         self.middle2 = SemanticParent("middle_sub", parent=self.middle1)
         self.child2 = Semantic("child2", parent=self.middle2)
 
+    def test_getattr(self):
+        with self.assertRaises(AttributeError) as context:
+            _ = self.middle1.Middle_sub
+        self.assertIn(
+            "Did you mean middle_sub",
+            str(context.exception),
+            msg="middle_sub must be suggested as it is close to Middle_sub"
+        )
+        with self.assertRaises(AttributeError) as context:
+            _ = self.middle1.my_neighbor_stinks
+        self.assertNotIn(
+            "Did you mean",
+            str(context.exception),
+            msg="Nothings should be suggested for my_neighbor_stinks"
+        )
+
     def test_label_validity(self):
         with self.assertRaises(TypeError, msg="Label must be a string"):
             Semantic(label=123)
