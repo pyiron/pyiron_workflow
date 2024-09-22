@@ -420,7 +420,8 @@ class HasIO(HasStateDisplay, HasLabel, HasRun, ABC):
         for k, v in kwargs.items():
             self.inputs[k] = v
 
-    def _ensure_all_input_keys_present(self, used_keys, available_keys):
+    @staticmethod
+    def _ensure_all_input_keys_present(used_keys, available_keys):
         diff = set(used_keys).difference(available_keys)
         if len(diff) > 0:
             raise ValueError(
