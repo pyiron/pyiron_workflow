@@ -98,6 +98,7 @@ class Runnable(UsesState, HasLabel, HasRun, ABC):
     def run(
         self,
         check_readiness: bool = True,
+        raise_run_exceptions: bool = True,
         before_run_kwargs: dict | None = None,
         run_kwargs: dict | None = None,
         run_exception_kwargs: dict | None = None,
@@ -118,11 +119,8 @@ class Runnable(UsesState, HasLabel, HasRun, ABC):
         Args:
             check_readiness (bool): Whether to raise a `ReadinessError` if not
                 :attr:`ready`. (Default is True.)
-            _finished_callback (callable): What to do with the output of :meth:`on_run`
-                after the execution is complete (including waiting for the future to
-                finish!). This method is responsible for updating the status
-                (:attr:`running`/:attr:`failed`) and should only be set by expert users.
-                (Default is :meth:`_finish_run`.)
+            raise_run_exceptions (bool): Whether to raise exceptions encountered while
+                :attr:`running`. (Default is True.)
         """
 
         def _none_to_dict(inp):
@@ -147,6 +145,7 @@ class Runnable(UsesState, HasLabel, HasRun, ABC):
         self.running = True
         return self._run(
             executor=executor,
+            raise_run_exceptions=raise_run_exceptions,
             run_exception_kwargs=run_exception_kwargs,
             run_finally_kwargs=run_finally_kwargs,
             finish_run_kwargs=finish_run_kwargs,
@@ -178,6 +177,7 @@ class Runnable(UsesState, HasLabel, HasRun, ABC):
         self,
         /,
         executor: StdLibExecutor | None,
+        raise_run_exceptions: bool,
         run_exception_kwargs: dict,
         run_finally_kwargs: dict,
         finish_run_kwargs: dict,
@@ -191,6 +191,7 @@ class Runnable(UsesState, HasLabel, HasRun, ABC):
         Args:
             executor (concurrent.futures.Executor|None): Optionally, executor on which
                 to run.
+            raise_run_exceptions (bool): Whether to raise encountered exceptions.
 
         Returns:
             (Any | Future): The result of :meth:`on_run`, or a futures object from
@@ -209,9 +210,13 @@ class Runnable(UsesState, HasLabel, HasRun, ABC):
             except Exception as e:
                 self._run_exception(**run_exception_kwargs)
                 self._run_finally(**run_finally_kwargs)
-                raise e
+                if raise_run_exceptions:
+                    raise e
+                else:
+                    run_output = None
             return self._finish_run(
                 run_output,
+                raise_run_exceptions=raise_run_exceptions,
                 run_exception_kwargs=run_exception_kwargs,
                 run_finally_kwargs=run_finally_kwargs,
                 **finish_run_kwargs,
@@ -228,6 +233,7 @@ class Runnable(UsesState, HasLabel, HasRun, ABC):
             self.future.add_done_callback(
                 partial(
                     self._finish_run,
+                    raise_run_exceptions=raise_run_exceptions,
                     run_exception_kwargs=run_exception_kwargs,
                     run_finally_kwargs=run_finally_kwargs,
                     **finish_run_kwargs,
@@ -253,6 +259,7 @@ class Runnable(UsesState, HasLabel, HasRun, ABC):
         self,
         run_output: tuple | Future,
         /,
+        raise_run_exceptions: bool,
         run_exception_kwargs: dict,
         run_finally_kwargs: dict,
         **kwargs,
@@ -260,15 +267,15 @@ class Runnable(UsesState, HasLabel, HasRun, ABC):
         """
         Switch the status, then process and return the run result.
         """
-        if isinstance(run_output, Future):
-            run_output = run_output.result()
-
         self.running = False
         try:
+            if isinstance(run_output, Future):
+                run_output = run_output.result()
             return self.process_run_result(run_output)
         except Exception as e:
             self._run_exception(**run_exception_kwargs)
-            raise e
+            if raise_run_exceptions:
+                raise e
         finally:
             self._run_finally(**run_finally_kwargs)
 

@@ -6,7 +6,7 @@ This class is intended as the single point of entry for users making an import.
 
 from __future__ import annotations
 
-from typing import Literal, Optional, TYPE_CHECKING
+from typing import Literal, Optional, TYPE_CHECKING, Any
 
 from bidict import bidict
 
@@ -336,6 +336,25 @@ class Workflow(ParentMost, Composite):
                         io[channel.scoped_label] = channel
         return io
 
+    def _before_run(
+        self,
+        /,
+        check_readiness: bool,
+        run_data_tree: bool,
+        run_parent_trees_too: bool,
+        fetch_input: bool,
+        emit_ran_signal: bool,
+    ) -> tuple[bool, Any]:
+        if self.automate_execution:
+            self.set_run_signals_to_dag_execution()
+        return super()._before_run(
+            check_readiness=check_readiness,
+            run_data_tree=run_data_tree,
+            run_parent_trees_too=run_parent_trees_too,
+            fetch_input=fetch_input,
+            emit_ran_signal=emit_ran_signal,
+        )
+
     def run(
         self,
         check_readiness: bool = True,
@@ -344,8 +363,7 @@ class Workflow(ParentMost, Composite):
         # Note: Workflows may have neither parents nor siblings, so we don't need to
         # worry about running their data trees first, fetching their input, nor firing
         # their `ran` signal, hence the change in signature from Node.run
-        if self.automate_execution:
-            self.set_run_signals_to_dag_execution()
+
         return super().run(
             run_data_tree=False,
             run_parent_trees_too=False,

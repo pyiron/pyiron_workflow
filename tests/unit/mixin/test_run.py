@@ -96,6 +96,14 @@ class TestRunnable(unittest.TestCase):
             msg="Encountering an error should set status to failed"
         )
 
+        runnable.failed = False
+        runnable.run(raise_run_exceptions=False)
+        self.assertTrue(
+            runnable.failed,
+            msg="We should be able to stop the exception from getting raised, but the "
+                "status should still be failed"
+        )
+
     def test_runnable_run_local(self):
         runnable = ConcreteRunnable()
 
