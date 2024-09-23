@@ -32,7 +32,7 @@ def Bar(x):
     return x * x
 
 
-class TestTopology(unittest.TestCase):
+class TestWorkflow(unittest.TestCase):
     @classmethod
     def setUpClass(cls) -> None:
         super().setUpClass()
