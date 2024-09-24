@@ -121,64 +121,6 @@ class StaticNode(Node, HasIOPreview, ABC):
             **node_kwargs,
         )
 
-    def iter(
-        self,
-        body_node_executor=None,
-        output_column_map: Optional[dict[str, str]] = None,
-        **iterating_inputs,
-    ) -> DataFrame:
-        return self._loop(
-            "iter_on",
-            body_node_executor=body_node_executor,
-            output_column_map=output_column_map,
-            **iterating_inputs,
-        )
-
-    def zip(
-        self,
-        body_node_executor=None,
-        output_column_map: Optional[dict[str, str]] = None,
-        **iterating_inputs,
-    ) -> DataFrame:
-        return self._loop(
-            "zip_on",
-            body_node_executor=body_node_executor,
-            output_column_map=output_column_map,
-            **iterating_inputs,
-        )
-
-    def _loop(
-        self,
-        loop_style_key,
-        body_node_executor=None,
-        output_column_map=None,
-        **looping_inputs,
-    ):
-        loop_on = tuple(looping_inputs.keys())
-        self._guarantee_names_are_input_channels(loop_on)
-
-        broadcast_inputs = {
-            label: self.inputs[label].value
-            for label in set(self.inputs.labels).difference(loop_on)
-        }
-
-        from pyiron_workflow.nodes.for_loop import for_node
-
-        for_instance = for_node(
-            self.__class__,
-            **{
-                loop_style_key: loop_on,
-                "output_as_dataframe": True,  # These methods terminate at the user
-                # So force the user-friendly dataframe output.
-                "output_column_map": output_column_map,
-                **looping_inputs,
-                **broadcast_inputs,
-            },
-        )
-        for_instance.body_node_executor = body_node_executor
-
-        return for_instance().df
-
     def _guarantee_names_are_input_channels(self, presumed_input_keys: tuple[str]):
         non_input_kwargs = set(presumed_input_keys).difference(self.inputs.labels)
         if len(non_input_kwargs) > 0:
