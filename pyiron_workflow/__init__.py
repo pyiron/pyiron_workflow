@@ -39,6 +39,7 @@ from pyiron_workflow.workflow import Workflow
 # Node developer entry points
 from pyiron_workflow.channels import NOT_DATA
 from pyiron_workflow.nodes import standard as standard_nodes
+from pyiron_workflow.nodes.composite import FailedChildError
 from pyiron_workflow.nodes.for_loop import for_node, for_node_factory
 from pyiron_workflow.nodes.function import Function, as_function_node, function_node
 from pyiron_workflow.logging import logger
