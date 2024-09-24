@@ -289,19 +289,37 @@ class TestWorkflow(unittest.TestCase):
                     with self.subTest("Failure status expecations"):
                         self.assertEqual(status, expectation)
 
-        with self.subTest("Check messaging"):
+        with self.subTest("Let it fail"):
             try:
                 wf(raise_run_exceptions=True)
             except FailedChildError as e:
-                self.assertIn(
-                    wf.c_fails.run.full_label,
-                    str(e),
-                    msg="Failed node should be identified"
-                )
-                self.assertIn(
-                    wf.e_fails.run.full_label,
-                    str(e),
-                    msg="Indeed, _both_ failed nodes should be identified"
+                with self.subTest("Check messaging"):
+                    self.assertIn(
+                        wf.c_fails.run.full_label,
+                        str(e),
+                        msg="Failed node should be identified"
+                    )
+                    self.assertIn(
+                        wf.e_fails.run.full_label,
+                        str(e),
+                        msg="Indeed, _both_ failed nodes should be identified"
+                    )
+
+                with self.subTest("Check recovery file"):
+                    self.assertTrue(
+                        wf.has_saved_content(
+                            filename=wf.as_path().joinpath("recovery")
+                        ),
+                        msg="Expect a recovery file to be written for the parent-most"
+                            "object when a child fails"
+                    )
+            finally:
+                wf.delete_storage(filename=wf.as_path().joinpath("recovery"))
+                self.assertFalse(
+                    wf.as_path().exists(),
+                    msg="The parent-most object is the _only_ one who should have "
+                        "written a recovery file, so after removing that the whole "
+                        "node directory for the workflow should be cleaned up."
                 )
 
 
