@@ -5,7 +5,8 @@ import time
 import unittest
 
 from pyiron_workflow._tests import ensure_tests_in_python_path
-from pyiron_workflow.channels import OutputSignal
+from pyiron_workflow.channels import OutputSignal, NOT_DATA
+from pyiron_workflow.nodes.composite import FailedChildError
 from pyiron_workflow.nodes.function import Function
 from pyiron_workflow.workflow import Workflow
 
@@ -32,7 +33,7 @@ def Bar(x):
     return x * x
 
 
-class TestTopology(unittest.TestCase):
+class TestWorkflow(unittest.TestCase):
     @classmethod
     def setUpClass(cls) -> None:
         super().setUpClass()
@@ -234,6 +235,74 @@ class TestTopology(unittest.TestCase):
             msg="And because it used the cache we expect it much faster than the sleep "
                 "time"
         )
+
+    def test_failure(self):
+        """
+        We allow a node to continue in the wake of failure, and have a signal to
+        indicate that the node failed.
+
+        Let's push this to the limits by (a) having the failure occur on a remote
+        process, and (b) chaining a second error downstream by leveraging the `failed`
+        signal.
+        """
+        wf = Workflow("test")
+        wf.a = Workflow.create.standard.UserInput(1)
+        wf.b = Workflow.create.standard.UserInput("two")
+        wf.c_fails = wf.a + wf.b  # Type error
+        wf.d_if_success = Workflow.create.standard.UserInput(0)
+        wf.d_if_failure = Workflow.create.standard.UserInput("But what's the question?")
+        wf.e_fails = Workflow.create.standard.Add(wf.d_if_failure, 42)  # Type error
+
+        wf.a >> wf.b >> wf.c_fails >> wf.d_if_success
+        wf.c_fails.signals.output.failed >> wf.d_if_failure >> wf.e_fails
+        wf.starting_nodes = [wf.a]
+        wf.automate_execution = False
+
+        with self.subTest("Check completion"):
+            with Workflow.create.ProcessPoolExecutor() as exe:
+                wf.c_fails.executor = exe
+                wf(raise_run_exceptions=False)
+
+                for data, expectation in [
+                    (wf.a.outputs.user_input.value, wf.a.inputs.user_input.value),
+                    (wf.b.outputs.user_input.value, wf.b.inputs.user_input.value),
+                    (wf.c_fails.outputs.add.value, NOT_DATA),
+                    (wf.d_if_success.outputs.user_input.value, NOT_DATA),  # Never ran
+                    (
+                        wf.d_if_failure.outputs.user_input.value,
+                        wf.d_if_failure.inputs.user_input.value
+                    ),
+                    (wf.e_fails.outputs.add.value, NOT_DATA),
+                ]:
+                    with self.subTest("Data expecations"):
+                        self.assertEqual(data, expectation)
+
+                for status, expectation in [
+                    (wf.a.failed, False),
+                    (wf.b.failed, False),
+                    (wf.c_fails.failed, True),
+                    (wf.d_if_success.failed, False),
+                    (wf.d_if_failure.failed, False),
+                    (wf.e_fails.failed, True),
+                    (wf.failed, True),
+                ]:
+                    with self.subTest("Failure status expecations"):
+                        self.assertEqual(status, expectation)
+
+        with self.subTest("Check messaging"):
+            try:
+                wf(raise_run_exceptions=True)
+            except FailedChildError as e:
+                self.assertIn(
+                    wf.c_fails.run.full_label,
+                    str(e),
+                    msg="Failed node should be identified"
+                )
+                self.assertIn(
+                    wf.e_fails.run.full_label,
+                    str(e),
+                    msg="Indeed, _both_ failed nodes should be identified"
+                )
 
 
 if __name__ == '__main__':

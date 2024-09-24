@@ -27,6 +27,10 @@ if TYPE_CHECKING:
     from pyiron_workflow.storage import StorageInterface
 
 
+class FailedChildError(RuntimeError):
+    """Raise when one or more child nodes raise exceptions."""
+
+
 class Composite(SemanticParent, HasCreator, Node, ABC):
     """
     A base class for nodes that have internal graph structure -- i.e. they hold a
@@ -147,13 +151,27 @@ class Composite(SemanticParent, HasCreator, Node, ABC):
         for node in self.starting_nodes:
             node.run()
 
+        errors = {}
         while len(self.running_children) > 0 or len(self.signal_queue) > 0:
             try:
                 firing, receiving = self.signal_queue.pop(0)
-                receiving(firing)
+                try:
+                    receiving(firing)
+                except Exception as e:
+                    errors[receiving.full_label] = e
             except IndexError:
                 # The signal queue is empty, but there is still someone running...
                 sleep(self._child_sleep_interval)
+
+        if len(errors) == 1:
+            raise FailedChildError(
+                f"{self.full_label} encountered error in child: {errors}"
+            ) from next(iter(errors.values()))
+        elif len(errors) > 1:
+            raise FailedChildError(
+                f"{self.full_label} encountered multiple errors in children: {errors}"
+            ) from None
+
         return self
 
     def register_child_starting(self, child: Node) -> None:

@@ -375,6 +375,7 @@ class Node(
         run_parent_trees_too: bool = False,
         fetch_input: bool = True,
         check_readiness: bool = True,
+        raise_run_exceptions: bool = True,
         emit_ran_signal: bool = True,
         **kwargs,
     ):
@@ -427,6 +428,7 @@ class Node(
 
         return super().run(
             check_readiness=check_readiness,
+            raise_run_exceptions=raise_run_exceptions,
             before_run_kwargs={
                 "run_data_tree": run_data_tree,
                 "run_parent_trees_too": run_parent_trees_too,
@@ -472,6 +474,7 @@ class Node(
     def _run(
         self,
         executor: Executor | None,
+        raise_run_exceptions: bool,
         run_exception_kwargs: dict,
         run_finally_kwargs: dict,
         finish_run_kwargs: dict,
@@ -480,6 +483,7 @@ class Node(
             self.parent.register_child_starting(self)
         return super()._run(
             executor=executor,
+            raise_run_exceptions=raise_run_exceptions,
             run_exception_kwargs=run_exception_kwargs,
             run_finally_kwargs=run_finally_kwargs,
             finish_run_kwargs=finish_run_kwargs,
