@@ -834,7 +834,11 @@ class Node(
         self.graph_root.save(backend=backend)
 
     def load(
-        self, backend: str | StorageInterface = "pickle", only_requested=False, **kwargs
+        self,
+        backend: str | StorageInterface = "pickle",
+        only_requested=False,
+        filename: str | Path | None = None,
+        **kwargs,
     ):
         """
 
@@ -846,6 +850,9 @@ class Node(
             only_requested (bool): Whether to _only_ try loading from the specified
                 backend, or to loop through all available backends. (Default is False,
                 try to load whatever you can find.)
+            filename (str | Path | None): The name of the file (without extensions) at
+                which to save the node. (Default is None, which uses the node's
+                semantic path.)
             **kwargs: back end-specific arguments (only likely to work in combination
                 with :param:`only_requested`, otherwise there's nothing to be specific
                 _to_.)
@@ -857,7 +864,9 @@ class Node(
         for backend in available_backends(
             backend=backend, only_requested=only_requested
         ):
-            inst = backend.load(node=self, **kwargs)
+            inst = backend.load(
+                node=self if filename is None else None, filename=filename, **kwargs
+            )
             if inst is not None:
                 break
         if inst is None:
@@ -877,6 +886,7 @@ class Node(
         self,
         backend: Literal["pickle"] | StorageInterface | None = None,
         only_requested: bool = False,
+        filename: str | Path | None = None,
         **kwargs,
     ):
         """
@@ -888,6 +898,9 @@ class Node(
             only_requested (bool): Whether to _only_ try loading from the specified
                 backend, or to loop through all available backends. (Default is False,
                 try to load whatever you can find.)
+            filename (str | Path | None): The name of the file (without extensions) at
+                which to save the node. (Default is None, which uses the node's
+                semantic path.)
             **kwargs: back end-specific arguments (only likely to work in combination
                 with :param:`only_requested`, otherwise there's nothing to be specific
                 _to_.)
@@ -895,12 +908,15 @@ class Node(
         for backend in available_backends(
             backend=backend, only_requested=only_requested
         ):
-            backend.delete(node=self, **kwargs)
+            backend.delete(
+                node=self if filename is None else None, filename=filename, **kwargs
+            )
 
     def has_saved_content(
         self,
         backend: Literal["pickle"] | StorageInterface | None = None,
         only_requested: bool = False,
+        filename: str | Path | None = None,
         **kwargs,
     ):
         """
@@ -912,6 +928,9 @@ class Node(
             only_requested (bool): Whether to _only_ try loading from the specified
                 backend, or to loop through all available backends. (Default is False,
                 try to load whatever you can find.)
+            filename (str | Path | None): The name of the file (without extensions) at
+                which to save the node. (Default is None, which uses the node's
+                semantic path.)
             **kwargs: back end-specific arguments (only likely to work in combination
                 with :param:`only_requested`, otherwise there's nothing to be specific
                 _to_.)
@@ -920,7 +939,9 @@ class Node(
             bool: Whether any save files were found
         """
         return any(
-            be.has_saved_content(self, **kwargs)
+            be.has_saved_content(
+                node=self if filename is None else None, filename=filename, **kwargs
+            )
             for be in available_backends(backend=backend, only_requested=only_requested)
         )
 
