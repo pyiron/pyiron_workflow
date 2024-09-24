@@ -513,12 +513,11 @@ class Node(
         if (
             self.failed
             and raise_run_exceptions
-            and self.recovery is not None 
+            and self.recovery is not None
             and self.graph_root is self
         ):
             self.save(
-                backend=self.recovery,
-                filename=self.as_path().joinpath("recovery")
+                backend=self.recovery, filename=self.as_path().joinpath("recovery")
             )
 
     def run_data_tree(self, run_parent_trees_too=False) -> None:
