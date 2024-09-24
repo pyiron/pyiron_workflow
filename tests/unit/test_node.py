@@ -183,6 +183,67 @@ class TestNode(unittest.TestCase):
             msg="Failed signal should fire after type error"
         )
 
+    def test_failure_recovery(self):
+        n = ANode(label="failing")
+        n.use_cache = False
+        n.inputs.x._value = "cannot add 1 to this"  # Bypass type hint with private
+
+        try:
+            n.run(check_readiness=False, raise_run_exceptions=False)
+            self.assertFalse(
+                n.as_path().exists(),
+                msg="When the run exception is not raised, we don't expect any "
+                    "recovery file to be needed"
+            )
+
+            default_recovery = n.recovery
+            n.recovery = None
+            try:
+                n.run(check_readiness=False)
+            except TypeError:
+                pass  # Expected -- we're _trying_ to get failure to fire
+            self.assertFalse(
+                n.has_saved_content(filename=n.as_path().joinpath("recovery")),
+                msg="Without a recovery back end specified, we don't expect a file to "
+                    "be saved on failure."
+            )
+
+            n.recovery = default_recovery
+            try:
+                n.run(check_readiness=False)
+            except TypeError:
+                pass  # Expected -- we're _trying_ to get failure to fire
+            self.assertTrue(
+                n.has_saved_content(filename=n.as_path().joinpath("recovery")),
+                msg="Expect a recovery file to be saved on failure"
+            )
+
+            reloaded = ANode(label="failing", autoload=True)
+            self.assertIs(
+                reloaded.inputs.x.value,
+                NOT_DATA,
+                msg="We don't anticipate _auto_ loading from recovery files"
+            )
+            self.assertFalse(reloaded.failed, msg="Sanity check")
+            reloaded.load(filename=reloaded.as_path().joinpath("recovery"))
+            self.assertTrue(
+                reloaded.failed,
+                msg="Expect to have reloaded the failed node."
+            )
+            self.assertEqual(
+                reloaded.inputs.x.value,
+                n.inputs.x.value,
+                msg="Expect data to have been reloaded from the failed node"
+            )
+
+        finally:
+            n.delete_storage(filename=n.as_path().joinpath("recovery"))
+            self.assertFalse(
+                n.as_path().exists(),
+                msg="The recovery file should have been the only thing in the node "
+                    "directory, so cleaning should remove the directory entirely."
+            )
+
     def test_execute(self):
         self.n1.outputs.y = 0  # Prime the upstream data source for fetching
         self.n2 >> self.n3

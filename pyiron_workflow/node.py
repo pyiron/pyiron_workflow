@@ -178,6 +178,10 @@ class Node(
         graph_path (str): The file-path-like path of node labels from the parent-most
             node down to this node.
         graph_root (Node): The parent-most node in this graph.
+        recovery: (Literal["pickle"] | StorageInterface | None): The storage
+            backend to use for saving a "recovery" file if the node execution crashes
+            and this is the parent-most node. Default is `"pickle"`, setting `None`
+            will prevent any file from being saved.
         run_args (dict): **Abstract** the argmuments to use for actually running the
             node. Must be specified in child classes.
         running (bool): Whether the node has called :meth:`run` and has not yet
@@ -285,6 +289,7 @@ class Node(
             parent=parent,
         )
         self.checkpoint = checkpoint
+        self.recovery: Literal["pickle"] | StorageInterface | None = "pickle"
         self._cached_inputs = None
         self._user_data = {}  # A place for power-users to bypass node-injection
 
@@ -407,6 +412,8 @@ class Node(
                 is True.)
             check_readiness (bool): Whether to raise an exception if the node is not
                 :attr:`ready` to run after fetching new input. (Default is True.)
+            raise_run_exceptions (bool): Whether to raise exceptions encountered during
+                the run, or just ignore them. (Default is True, raise them!)
             emit_ran_signal (bool): Whether to fire off all the output `ran` signal
                 afterwards. (Default is True.)
             **kwargs: Keyword arguments matching input channel labels; used to update
@@ -437,6 +444,7 @@ class Node(
             },
             run_finally_kwargs={
                 "emit_ran_signal": emit_ran_signal,
+                "raise_run_exceptions": raise_run_exceptions,
             },
         )
 
@@ -489,7 +497,7 @@ class Node(
             finish_run_kwargs=finish_run_kwargs,
         )
 
-    def _run_finally(self, /, emit_ran_signal):
+    def _run_finally(self, /, emit_ran_signal: bool, raise_run_exceptions: bool):
         super()._run_finally()
         if self.parent is not None:
             self.parent.register_child_finished(self)
@@ -501,6 +509,17 @@ class Node(
                 self.emit()
             else:
                 self.parent.register_child_emitting(self)
+
+        if (
+            self.failed
+            and raise_run_exceptions
+            and self.recovery is not None 
+            and self.graph_root is self
+        ):
+            self.save(
+                backend=self.recovery,
+                filename=self.as_path().joinpath("recovery")
+            )
 
     def run_data_tree(self, run_parent_trees_too=False) -> None:
         """
