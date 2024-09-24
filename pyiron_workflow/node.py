@@ -838,7 +838,7 @@ class Node(
         backend: str | StorageInterface = "pickle",
         only_requested=False,
         filename: str | Path | None = None,
-        **kwargs
+        **kwargs,
     ):
         """
 
@@ -865,9 +865,7 @@ class Node(
             backend=backend, only_requested=only_requested
         ):
             inst = backend.load(
-                node=self if filename is None else None,
-                filename=filename,
-                **kwargs
+                node=self if filename is None else None, filename=filename, **kwargs
             )
             if inst is not None:
                 break
@@ -911,9 +909,7 @@ class Node(
             backend=backend, only_requested=only_requested
         ):
             backend.delete(
-                node=self if filename is None else None,
-                filename=filename,
-                **kwargs
+                node=self if filename is None else None, filename=filename, **kwargs
             )
 
     def has_saved_content(
@@ -944,9 +940,7 @@ class Node(
         """
         return any(
             be.has_saved_content(
-                node=self if filename is None else None,
-                filename=filename,
-                **kwargs
+                node=self if filename is None else None, filename=filename, **kwargs
             )
             for be in available_backends(backend=backend, only_requested=only_requested)
         )
