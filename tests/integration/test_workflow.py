@@ -254,8 +254,7 @@ class TestWorkflow(unittest.TestCase):
         wf.e_fails = Workflow.create.standard.Add(wf.d_if_failure, 42)  # Type error
 
         wf.a >> wf.b >> wf.c_fails >> wf.d_if_success
-        wf.c_fails.signals.output.failed.connect(wf.d_if_failure.signals.input.run)
-        wf.d_if_failure >> wf.e_fails
+        wf.c_fails.signals.output.failed >> wf.d_if_failure >> wf.e_fails
         wf.starting_nodes = [wf.a]
         wf.automate_execution = False
 
