@@ -1,4 +1,5 @@
 from concurrent.futures import Future, ProcessPoolExecutor
+import pathlib
 import unittest
 
 from pyiron_workflow.channels import InputData, NOT_DATA
@@ -451,6 +452,33 @@ class TestNode(unittest.TestCase):
                 finally:
                     self.n1.delete_storage(backend)
                     hard_input.delete_storage(backend)
+
+    def test_storage_to_filename(self):
+        y = self.n1()
+        fname = "foo"
+
+        for backend in available_backends():
+            with self.subTest(backend):
+                try:
+                    self.n1.save(backend=backend, filename=fname)
+                    self.assertFalse(
+                        self.n1.has_saved_content(backend=backend),
+                        msg="There should be no content at the default location"
+                    )
+                    self.assertTrue(
+                        self.n1.has_saved_content(backend=backend, filename=fname),
+                        msg="There should be content at the specified file location"
+                    )
+                    new = ANode()
+                    new.load(filename=fname)
+                    self.assertEqual(new.label, self.n1.label)
+                    self.assertEqual(new.outputs.y.value, y)
+                finally:
+                    self.n1.delete_storage(backend=backend, filename=fname)
+                self.assertFalse(
+                    self.n1.has_saved_content(backend=backend, filename=fname),
+                    msg="Deleting storage should have cleaned up the file"
+                )
 
     def test_checkpoint(self):
         for backend in available_backends():
