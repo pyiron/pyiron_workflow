@@ -31,11 +31,11 @@ class ANode(Node):
     def outputs(self) -> OutputsWithInjection:
         return self._outputs
 
-    def on_run(self, *args, **kwargs):
+    def _on_run(self, *args, **kwargs):
         return add_one(*args)
 
     @property
-    def run_args(self) -> dict:
+    def _run_args(self) -> dict:
         return (self.inputs.x.value,), {}
 
     def process_run_result(self, run_output):
@@ -579,6 +579,36 @@ class TestNode(unittest.TestCase):
                     )
                 finally:
                     saves.delete_storage(backend)  # Clean up
+
+    def test_result_serialization(self):
+        """
+        This is actually only a useful feature if you have an executor which will
+        continue the process _after_ the parent python process has been shut down
+        (e.g. you sent the run code off to a slurm queue using `executorlib`.), but
+        we'll ensure that the plumbing works here by faking things a bit.
+        """
+        n = ANode(label="test", x=42)
+        n.serialize_result = True
+        n.use_cache = False
+        n._do_clean = False  # Power-user override to prevent the serialization from
+        # being removed
+        out = n()
+        self.assertTrue(
+            n._temporary_result_file.is_file(),
+            msg="Sanity check that we've saved the output"
+        )
+        # Now fake it
+        n.running = True
+        n._do_clean = True  # This time clean up after yourself
+        reloaded = n()
+        self.assertEqual(out, reloaded)
+        self.assertFalse(n.running)
+        self.assertFalse(n._temporary_result_file.is_file())
+        self.assertFalse(
+            n.as_path().is_dir(),
+            msg="Actually, we expect cleanup to have removed empty directories up to "
+                "and including the node's own directory"
+        )
 
 
 if __name__ == '__main__':

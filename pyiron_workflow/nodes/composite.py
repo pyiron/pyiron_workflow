@@ -141,7 +141,7 @@ class Composite(SemanticParent, HasCreator, Node, ABC):
         for node in self:
             node.deactivate_strict_hints()
 
-    def on_run(self):
+    def _on_run(self):
         # Reset provenance and run status trackers
         self.provenance_by_execution = []
         self.provenance_by_completion = []
@@ -218,7 +218,7 @@ class Composite(SemanticParent, HasCreator, Node, ABC):
                 self.signal_queue.append((firing, receiving))
 
     @property
-    def run_args(self) -> tuple[tuple, dict]:
+    def _run_args(self) -> tuple[tuple, dict]:
         return (), {}
 
     def process_run_result(self, run_output):

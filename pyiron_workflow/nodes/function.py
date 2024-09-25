@@ -313,11 +313,11 @@ class Function(StaticNode, ScrapesIO, ABC):
         return preview if len(preview) > 0 else {"None": type(None)}
         # If clause facilitates functions with no return value
 
-    def on_run(self, **kwargs):
+    def _on_run(self, **kwargs):
         return self.node_function(**kwargs)
 
     @property
-    def run_args(self) -> tuple[tuple, dict]:
+    def _run_args(self) -> tuple[tuple, dict]:
         kwargs = self.inputs.to_value_dict()
         return (), kwargs
 
