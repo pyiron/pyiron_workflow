@@ -628,6 +628,21 @@ class Node(
         except:
             return False
 
+    @property
+    def _temporary_result_file(self):
+        return self.as_path().joinpath("run_result.tmp")
+
+    def _temporary_result_pickle(self, results):
+        self._temporary_result_file.parent.mkdir(parents=True, exist_ok=True)
+        self._temporary_result_file.touch(exist_ok=False)
+        with self._temporary_result_file.open("wb") as f:
+            cloudpickle.dump(results, f)
+
+    def _temporary_result_unpickle(self):
+        with self._temporary_result_file.open("rb") as f:
+            results = cloudpickle.load(f)
+        return results
+
     def _outputs_to_run_return(self):
         return DotDict(self.outputs.to_value_dict())
 
@@ -993,6 +1008,26 @@ class Node(
             report_so_far + f"{newline}{tabspace}{self.label}: "
             f"{'ok' if self.import_ready else 'NOT IMPORTABLE'}"
         )
+
+    def _clean_graph_directory(self):
+        """
+        Delete the temporary results file (if any), and then go from this node's
+        semantic directory up to its semantic root's directory removing any empty
+        directories. Note: doesn't do a sophisticated walk, so sibling empty
+        directories will cause a parent to identify as non-empty.
+        """
+        self._temporary_result_file.unlink(missing_ok=True)
+
+        # Recursively remove empty directories
+        root_directory = self.semantic_root.as_path().parent
+        for parent in self._temporary_result_file.parents:
+            if (
+                parent == root_directory
+                or not parent.exists()
+                or any(parent.iterdir())
+            ):
+                break
+            parent.rmdir()
 
     def display_state(self, state=None, ignore_private=True):
         state = dict(self.__getstate__()) if state is None else state
