@@ -470,7 +470,7 @@ class Node(
                 run_finally_kwargs={
                     "emit_ran_signal": emit_ran_signal,
                     "raise_run_exceptions": raise_run_exceptions,
-                }
+                },
             )
 
         self.set_input_values(*args, **kwargs)
@@ -1066,11 +1066,7 @@ class Node(
         # Recursively remove empty directories
         root_directory = self.semantic_root.as_path().parent
         for parent in self._temporary_result_file.parents:
-            if (
-                parent == root_directory
-                or not parent.exists()
-                or any(parent.iterdir())
-            ):
+            if parent == root_directory or not parent.exists() or any(parent.iterdir()):
                 break
             parent.rmdir()
 
