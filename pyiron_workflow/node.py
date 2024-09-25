@@ -382,8 +382,7 @@ class Node(
 
     def on_run(self, *args, **kwargs) -> Any:
         save_result: bool = args[0]
-        save_file: Path = args[1]
-        args = args[2:]
+        args = args[1:]
         result = self._on_run(*args, **kwargs)
         if save_result:
             self._temporary_result_pickle(result)
@@ -396,7 +395,7 @@ class Node(
     @property
     def run_args(self) -> tuple[tuple, dict]:
         args, kwargs = self._run_args
-        args = (self.serialize_result, self._temporary_result_file) + args
+        args = (self.serialize_result,) + args
         return args, kwargs
 
     @property
