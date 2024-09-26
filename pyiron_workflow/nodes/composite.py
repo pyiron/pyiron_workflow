@@ -151,6 +151,11 @@ class Composite(SemanticParent, HasCreator, Node, ABC):
         for node in self.starting_nodes:
             node.run()
 
+        self._run_while_children_or_signals_exist()
+
+        return self
+
+    def _run_while_children_or_signals_exist(self):
         errors = {}
         while len(self.running_children) > 0 or len(self.signal_queue) > 0:
             try:
@@ -171,8 +176,6 @@ class Composite(SemanticParent, HasCreator, Node, ABC):
             raise FailedChildError(
                 f"{self.full_label} encountered multiple errors in children: {errors}"
             ) from None
-
-        return self
 
     def register_child_starting(self, child: Node) -> None:
         """
