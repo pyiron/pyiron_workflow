@@ -461,16 +461,21 @@ class Node(
             Kwargs updating input channel values happens _first_ and will get
             overwritten by any subsequent graph-based data manipulation.
         """
-        if self.running and self._temporary_result_file.is_file():
-            return self._finish_run(
-                self._temporary_result_unpickle(),
-                raise_run_exceptions=raise_run_exceptions,
-                run_exception_kwargs={},
-                run_finally_kwargs={
-                    "emit_ran_signal": emit_ran_signal,
-                    "raise_run_exceptions": raise_run_exceptions,
-                },
-            )
+        if self.running and self.serialize_result:
+            if self._temporary_result_file.is_file():
+                return self._finish_run(
+                    self._temporary_result_unpickle(),
+                    raise_run_exceptions=raise_run_exceptions,
+                    run_exception_kwargs={},
+                    run_finally_kwargs={
+                        "emit_ran_signal": emit_ran_signal,
+                        "raise_run_exceptions": raise_run_exceptions,
+                    },
+                )
+            else:
+                raise ValueError(
+                    f"{self.full_label} is still waiting for a serialized result"
+                )
 
         self.set_input_values(*args, **kwargs)
 
