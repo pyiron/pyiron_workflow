@@ -148,8 +148,14 @@ class Composite(SemanticParent, HasCreator, Node, ABC):
         self.running_children = [n.label for n in self if n.running]
         self.signal_queue = []
 
-        for node in self.starting_nodes:
-            node.run()
+        if len(self.running_children) > 0:  # Start from a broken process
+            for label in self.running_children:
+                self.children[label].run()
+                # Running children will find serialized result and proceed,
+                # or raise an error because they're already running
+        else:  # Start fresh
+            for node in self.starting_nodes:
+                node.run()
 
         self._run_while_children_or_signals_exist()
 
@@ -219,6 +225,33 @@ class Composite(SemanticParent, HasCreator, Node, ABC):
         for firing in child.emitting_channels:
             for receiving in firing.connections:
                 self.signal_queue.append((firing, receiving))
+
+    def resume_from_broken_process(self):
+        """
+        For use in conjunction with one or more children having `serialize_result`.
+
+        When such a child is running on a parallel process with an executor that can
+        survive the shutdown of the parent python process (e.g. a child node is being
+        run on slurm, then you kill this composite node's python process), we want to
+        be able to load the checkpoint save file for this node, and see whether those
+        children have their results available now -- if not, we raise an exception, if
+        so we simply continue running.
+        """
+        if not self.running or not any(n.running for n in self):
+            raise ValueError(
+                f"To resume a broken process, e.g. from reloading a checkpoint save "
+                f"when at least one child is set to `serialize_result`, we expect "
+                f"this node {self.full_label} to be running ({self.running}) and at "
+                f"least one child node to be running ({sum(n.running for n in self)} "
+                f"are)."
+            )
+        self.running = False
+        cache_usage = self.use_cache
+        self.use_cache = False  # Force it to re-run
+        try:
+            return self.run()
+        finally:
+            self.use_cache = cache_usage
 
     @property
     def _run_args(self) -> tuple[tuple, dict]:
