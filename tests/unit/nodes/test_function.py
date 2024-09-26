@@ -1,3 +1,4 @@
+from pathlib import Path
 import pickle
 from typing import Optional, Union
 import unittest
@@ -176,6 +177,7 @@ class TestFunction(unittest.TestCase):
 
     def test_statuses(self):
         n = function_node(plus_one)
+        n.recovery = None  # The test intentionally fails, and we don't want a file
         self.assertTrue(n.ready)
         self.assertFalse(n.running)
         self.assertFalse(n.failed)
@@ -471,7 +473,15 @@ class TestFunction(unittest.TestCase):
             AttributeError,
             msg="Aggressive running hits the problem that no such attribute exists"
         ):
-            single_output.doesnt_exists_anywhere
+            injected = single_output.doesnt_exists_anywhere
+        # The injected node fails at runtime and generates a recovery file
+        # We want to clean it up, but this is a pain because the node failed during
+        # instantiation, so we have no good reference to the node object, and it's
+        # injection label relies on a hash which can vary
+        # Still, we know we're injecting a get attribute node, so we can manage:
+        for p in Path(".").glob("injected_GetAttr*"):
+            p.joinpath("recovery.cpckl").unlink()
+            p.rmdir()
 
         self.assertEqual(
             injection(),

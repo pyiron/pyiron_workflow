@@ -104,6 +104,7 @@ class TestTransformer(unittest.TestCase):
     def test_inputs_to_dataframe(self):
         l = 3
         n = inputs_to_dataframe(l)
+        n.recovery = None  # Some tests intentionally fail, and we don't want a file
         for i in range(l):
             n.inputs[f"row_{i}"] = {"x": i, "xsq": i*i}
         n()
@@ -128,6 +129,7 @@ class TestTransformer(unittest.TestCase):
             n(row_0=d1, row_1=d1, row_2=d2)
 
         n = inputs_to_dataframe(l)  # Freshly instantiate to remove failed status
+        n.recovery = None  # Next test intentionally fails, and we don't want a file
         d3 = {"a": 1}
         with self.assertRaises(
             ValueError,

@@ -102,49 +102,48 @@ class TestNode(unittest.TestCase):
     def test_check_readiness(self):
         n3_cache = self.n3.use_cache
         self.n3.use_cache = False
+        self.n3.recovery = None  # We intentionally raise errors,
+        # but don't care about generating a file
 
-        try:
-            with self.assertRaises(
-                ValueError,
-                msg="When input is not data, we should fail early"
-            ):
-                self.n3.run(run_data_tree=False, fetch_input=False, check_readiness=True)
+        with self.assertRaises(
+            ValueError,
+            msg="When input is not data, we should fail early"
+        ):
+            self.n3.run(run_data_tree=False, fetch_input=False, check_readiness=True)
 
-            self.assertFalse(
-                self.n3.failed,
-                msg="The benefit of the readiness check should be that we don't actually "
-                    "qualify as failed"
-            )
+        self.assertFalse(
+            self.n3.failed,
+            msg="The benefit of the readiness check should be that we don't actually "
+                "qualify as failed"
+        )
 
-            with self.assertRaises(
-                TypeError,
-                msg="If we bypass the check, we should get the failing function error"
-            ):
-                self.n3.run(run_data_tree=False, fetch_input=False, check_readiness=False)
+        with self.assertRaises(
+            TypeError,
+            msg="If we bypass the check, we should get the failing function error"
+        ):
+            self.n3.run(run_data_tree=False, fetch_input=False, check_readiness=False)
 
-            self.assertTrue(
-                self.n3.failed,
-                msg="If the node operation itself fails, the status should be failed"
-            )
+        self.assertTrue(
+            self.n3.failed,
+            msg="If the node operation itself fails, the status should be failed"
+        )
 
-            self.n3.inputs.x = 0
-            with self.assertRaises(
-                ValueError,
-                msg="When status is failed, we should fail early, even if input data is ok"
-            ):
-                self.n3.run(run_data_tree=False, fetch_input=False, check_readiness=True)
+        self.n3.inputs.x = 0
+        with self.assertRaises(
+            ValueError,
+            msg="When status is failed, we should fail early, even if input data is ok"
+        ):
+            self.n3.run(run_data_tree=False, fetch_input=False, check_readiness=True)
 
-            self.n3.failed = False
-            self.assertEqual(
-                1,
-                self.n3.run(run_data_tree=False, fetch_input=False, check_readiness=True),
-                msg="After manually resetting the failed state and providing good input, "
-                    "running should proceed"
-            )
+        self.n3.failed = False
+        self.assertEqual(
+            1,
+            self.n3.run(run_data_tree=False, fetch_input=False, check_readiness=True),
+            msg="After manually resetting the failed state and providing good input, "
+                "running should proceed"
+        )
 
-            self.n3.use_cache = n3_cache
-        finally:
-            self.n3.delete_storage(filename=self.n3.as_path().joinpath("recovery"))
+        self.n3.use_cache = n3_cache
 
     def test_emit_ran_signal(self):
         self.n1 >> self.n2 >> self.n3  # Chained connection declaration
@@ -262,16 +261,14 @@ class TestNode(unittest.TestCase):
                 "made a ran/run connection"
         )
 
-        try:
-            self.n2.inputs.x._value = "manually override the desired int"
-            with self.assertRaises(
-                TypeError,
-                msg="Execute should be running without a readiness check and hitting the "
-                    "string + int error"
-            ):
-                self.n2.execute()
-        finally:
-            self.n2.delete_storage(filename=self.n2.as_path().joinpath("recovery"))
+        self.n2.inputs.x._value = "manually override the desired int"
+        self.n2.recovery = None  # We are intentionally about to fail, no need for file
+        with self.assertRaises(
+            TypeError,
+            msg="Execute should be running without a readiness check and hitting the "
+                "string + int error"
+        ):
+            self.n2.execute()
 
     def test_pull(self):
         self.n2 >> self.n3

@@ -404,6 +404,7 @@ class TestMacro(unittest.TestCase):
                 return y
 
             n1 = function_node(fail_at_zero, x=0)
+            n1.recovery = None  # We expect it to fail and don't want a file
             n2 = function_node(add_one, x=n1, label="n1")
             n_not_used = function_node(add_one)
             n_not_used >> n2  # Just here to make sure it gets restored
