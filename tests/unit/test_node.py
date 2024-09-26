@@ -102,6 +102,8 @@ class TestNode(unittest.TestCase):
     def test_check_readiness(self):
         n3_cache = self.n3.use_cache
         self.n3.use_cache = False
+        self.n3.recovery = None  # We intentionally raise errors,
+        # but don't care about generating a file
 
         with self.assertRaises(
             ValueError,
@@ -140,7 +142,7 @@ class TestNode(unittest.TestCase):
             msg="After manually resetting the failed state and providing good input, "
                 "running should proceed"
         )
-        
+
         self.n3.use_cache = n3_cache
 
     def test_emit_ran_signal(self):
@@ -176,7 +178,8 @@ class TestNode(unittest.TestCase):
         try:
             n.run(check_readiness=False)
         except TypeError:
-            pass  # Expected -- we're _trying_ to get failure to fire
+            # Expected -- we're _trying_ to get failure to fire
+            n.delete_storage(filename=n.as_path().joinpath("recovery"))
         self.assertEqual(
             c.count,
             1,
@@ -259,6 +262,7 @@ class TestNode(unittest.TestCase):
         )
 
         self.n2.inputs.x._value = "manually override the desired int"
+        self.n2.recovery = None  # We are intentionally about to fail, no need for file
         with self.assertRaises(
             TypeError,
             msg="Execute should be running without a readiness check and hitting the "
