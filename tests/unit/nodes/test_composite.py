@@ -629,6 +629,7 @@ class TestComposite(unittest.TestCase):
 
         self.assertFalse(self.comp.child._temporary_result_file.is_file())
         self.assertEqual(self.comp.child.outputs.y.value, 42 + 1)
+        self.comp.delete_storage()  # Get rid of the checkpoint save
         self.assertFalse(
             self.comp.as_path().is_dir(),
             msg="Actually, we expect cleanup to have removed empty directories up to "
