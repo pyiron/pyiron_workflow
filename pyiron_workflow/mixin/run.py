@@ -295,28 +295,29 @@ class Runnable(UsesState, HasLabel, HasRun, ABC):
         )
 
     @staticmethod
-    def _parse_executor(executor) -> StdLibExecutor:
+    def _parse_executor(
+        executor: StdLibExecutor | (type[StdLibExecutor], tuple, dict)
+    ) -> StdLibExecutor:
         """
-        We may want to allow users to specify how to build an executor rather than
-        actually providing an executor instance -- so here we can interpret these.
+        If you've already got an executor, you're done. But if you get an executor
+        class and some args and kwargs, turn them into an executor!
 
-        NOTE:
-            `concurrent.futures.Executor` _won't_ actually work, because we need
-            stuff with :mod:`cloudpickle` support. We're leaning on this for a guaranteed
-            interface (has `submit` and returns a `Future`), and leaving it to the user
-            to provide an executor that will actually work!!!
-
-        NOTE:
-            If, in the future, this parser is extended to instantiate new executors from
-            instructions, these new instances may not be caught by the
-            `executor_shutdown` method. This will require some re-engineering to make
-            sure we don't have dangling executors.
+        This is because executors can't be serialized, but their classes, args, and
+        kwargs probably can -- so this lets us delay executor instantiation.
         """
         if isinstance(executor, StdLibExecutor):
             return executor
+        elif (
+            isinstance(executor, tuple)
+            and issubclass(executor[0], StdLibExecutor)
+            and isinstance(executor[1], tuple)
+            and isinstance(executor[2], dict)
+        ):
+            return executor[0](*executor[1], **executor[2])
         else:
             raise NotImplementedError(
-                f"Expected an instance of {StdLibExecutor}, but got {executor}."
+                f"Expected an instance of {StdLibExecutor}, or a tuple of such a class, "
+                f"a tuple of args, and a dict of kwargs -- but got {executor}."
             )
 
     def __getstate__(self):
