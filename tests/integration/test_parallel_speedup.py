@@ -85,14 +85,18 @@ class TestSpeedup(unittest.TestCase):
         for n in wf:
             n.executor = (Workflow.create.ThreadPoolExecutor, (), {})
 
+        wf.save()
+        reloaded = Workflow("test")
+
         t0 = perf_counter()
-        wf()
+        reloaded()
         dt = perf_counter() - t0
         self.assertLess(
             dt,
             1.1 * t,
             msg="Expected the sleeps to run in parallel with minimal overhead (since "
-                "it's just a thread pool executor)"
+                "it's just a thread pool executor) -- the advantage is that the "
+                "constructors should survive (de)serialization"
         )
 
 
