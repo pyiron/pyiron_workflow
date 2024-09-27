@@ -433,7 +433,8 @@ class For(Composite, StaticNode, ABC):
 
     def __getstate__(self):
         state = super().__getstate__()
-        state["body_node_executor"] = None
+        if isinstance(self.body_node_executor, Executor):
+            state["body_node_executor"] = None
 
         # Duplicated value linking behaviour from Macro class
         state["_input_value_links"] = self._input_value_links
