@@ -126,9 +126,16 @@ class TestRunnable(unittest.TestCase):
     def test_runnable_run_with_executor(self):
         runnable = ConcreteRunnable()
 
+        def maybe_get_executor(get_executor):
+            if get_executor:
+                return CloudpickleProcessPoolExecutor()
+            else:
+                return "This should result in an error!"
+
         for label, executor in [
             ("Instance", CloudpickleProcessPoolExecutor()),
-            ("Instructutions", (CloudpickleProcessPoolExecutor, (), {}))
+            ("Argument free instructions", (CloudpickleProcessPoolExecutor, (), {})),
+            ("Argument instructions", (maybe_get_executor, (True,), {})),
         ]:
             with self.subTest(label):
                 runnable.executor = executor
@@ -160,6 +167,14 @@ class TestRunnable(unittest.TestCase):
             msg="That's not an executor at all"
         ):
             runnable.executor = 42
+            runnable.run()
+
+        with self.assertRaises(
+            TypeError,
+            msg="Callables are ok, but if they don't return an executor we should get "
+                "and error."
+        ):
+            runnable.executor = (maybe_get_executor, (False,), {})
             runnable.run()
 
 

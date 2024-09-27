@@ -296,24 +296,36 @@ class Runnable(UsesState, HasLabel, HasRun, ABC):
 
     @staticmethod
     def _parse_executor(
-        executor: StdLibExecutor | (type[StdLibExecutor], tuple, dict)
+        executor: StdLibExecutor | (callable[..., StdLibExecutor], tuple, dict)
     ) -> StdLibExecutor:
         """
-        If you've already got an executor, you're done. But if you get an executor
-        class and some args and kwargs, turn them into an executor!
+        If you've already got an executor, you're done. But if you get callable and
+        some args and kwargs, turn them into an executor!
 
-        This is because executors can't be serialized, but their classes, args, and
-        kwargs probably can -- so this lets us delay executor instantiation.
+        This is because executors can't be serialized, but you might want to use an
+        executor on the far side of serialization. The most straightforward example is
+        to simply pass an executor class and its args and kwargs, but in a more
+        sophisticated case perhaps you want some function that accesses the _same_
+        executor on multiple invocations such that multiple nodes are sharing the same
+        executor. The functionality here isn't intended to hold your hand for this, but
+        should be flexible enough that you _can_ do it if you want to.
         """
         if isinstance(executor, StdLibExecutor):
             return executor
         elif (
             isinstance(executor, tuple)
-            and issubclass(executor[0], StdLibExecutor)
+            and callable(executor[0])
             and isinstance(executor[1], tuple)
             and isinstance(executor[2], dict)
         ):
-            return executor[0](*executor[1], **executor[2])
+            executor = executor[0](*executor[1], **executor[2])
+            if not isinstance(executor, StdLibExecutor):
+                raise TypeError(
+                    f"Executor parsing got a callable and expected it to return a "
+                    f"`concurrent.futures.Executor` instance, but instead got "
+                    f"{executor}."
+                )
+            return executor
         else:
             raise NotImplementedError(
                 f"Expected an instance of {StdLibExecutor}, or a tuple of such a class, "
