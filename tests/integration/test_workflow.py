@@ -321,7 +321,7 @@ class TestWorkflow(unittest.TestCase):
                         f"written a recovery file, so after removing that the whole "
                         f"node directory for the workflow should be cleaned up."
                         f"Instead, {wf.as_path()} exists and has content "
-                        f"{[f for f in wf.as_path().iterdir()]}"
+                        f"{[f for f in wf.as_path().iterdir()] if wf.as_path().is_dir() else None}"
                 )
 
 
