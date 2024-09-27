@@ -295,28 +295,41 @@ class Runnable(UsesState, HasLabel, HasRun, ABC):
         )
 
     @staticmethod
-    def _parse_executor(executor) -> StdLibExecutor:
+    def _parse_executor(
+        executor: StdLibExecutor | (callable[..., StdLibExecutor], tuple, dict)
+    ) -> StdLibExecutor:
         """
-        We may want to allow users to specify how to build an executor rather than
-        actually providing an executor instance -- so here we can interpret these.
+        If you've already got an executor, you're done. But if you get callable and
+        some args and kwargs, turn them into an executor!
 
-        NOTE:
-            `concurrent.futures.Executor` _won't_ actually work, because we need
-            stuff with :mod:`cloudpickle` support. We're leaning on this for a guaranteed
-            interface (has `submit` and returns a `Future`), and leaving it to the user
-            to provide an executor that will actually work!!!
-
-        NOTE:
-            If, in the future, this parser is extended to instantiate new executors from
-            instructions, these new instances may not be caught by the
-            `executor_shutdown` method. This will require some re-engineering to make
-            sure we don't have dangling executors.
+        This is because executors can't be serialized, but you might want to use an
+        executor on the far side of serialization. The most straightforward example is
+        to simply pass an executor class and its args and kwargs, but in a more
+        sophisticated case perhaps you want some function that accesses the _same_
+        executor on multiple invocations such that multiple nodes are sharing the same
+        executor. The functionality here isn't intended to hold your hand for this, but
+        should be flexible enough that you _can_ do it if you want to.
         """
         if isinstance(executor, StdLibExecutor):
             return executor
+        elif (
+            isinstance(executor, tuple)
+            and callable(executor[0])
+            and isinstance(executor[1], tuple)
+            and isinstance(executor[2], dict)
+        ):
+            executor = executor[0](*executor[1], **executor[2])
+            if not isinstance(executor, StdLibExecutor):
+                raise TypeError(
+                    f"Executor parsing got a callable and expected it to return a "
+                    f"`concurrent.futures.Executor` instance, but instead got "
+                    f"{executor}."
+                )
+            return executor
         else:
             raise NotImplementedError(
-                f"Expected an instance of {StdLibExecutor}, but got {executor}."
+                f"Expected an instance of {StdLibExecutor}, or a tuple of such a class, "
+                f"a tuple of args, and a dict of kwargs -- but got {executor}."
             )
 
     def __getstate__(self):
