@@ -317,9 +317,11 @@ class TestWorkflow(unittest.TestCase):
                 wf.delete_storage(filename=wf.as_path().joinpath("recovery"))
                 self.assertFalse(
                     wf.as_path().exists(),
-                    msg="The parent-most object is the _only_ one who should have "
-                        "written a recovery file, so after removing that the whole "
-                        "node directory for the workflow should be cleaned up."
+                    msg=f"The parent-most object is the _only_ one who should have "
+                        f"written a recovery file, so after removing that the whole "
+                        f"node directory for the workflow should be cleaned up."
+                        f"Instead, {wf.as_path()} exists and has content "
+                        f"{list[wf.as_path().iterdir()]}"
                 )
 
 
