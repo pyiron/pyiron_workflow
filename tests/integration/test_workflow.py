@@ -314,6 +314,7 @@ class TestWorkflow(unittest.TestCase):
                             "object when a child fails"
                     )
             finally:
+                wf.delete_storage()
                 wf.delete_storage(filename=wf.as_path().joinpath("recovery"))
                 self.assertFalse(
                     wf.as_path().exists(),
