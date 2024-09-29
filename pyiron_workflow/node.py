@@ -193,9 +193,9 @@ class Node(
         autoload (Literal["pickle"] | StorageInterface | None): Whether to check
             for a matching saved node and what storage back end to use to do so (no
             auto-loading if the back end is `None`.)
-        _serialize_result (bool): Cloudpickle the output of running the node; this is
-            useful if the run is happening in a parallel process and the parent process
-            may be killed before it is finished. (Default is False.)
+        _serialize_result (bool): (IN DEVELOPMENT) Cloudpickle the output of running
+            the node; this is useful if the run is happening in a parallel process and
+            the parent process may be killed before it is finished. (Default is False.)
         signals (pyiron_workflow.io.Signals): A container for input and output
             signals, which are channels for controlling execution flow. By default, has
             a :attr:`signals.inputs.run` channel which has a callback to the
@@ -294,7 +294,8 @@ class Node(
         )
         self.checkpoint = checkpoint
         self.recovery: Literal["pickle"] | StorageInterface | None = "pickle"
-        self._serialize_result = False
+        self._serialize_result = False  # Advertised, but private to indicate
+        # under-development status -- API may change to be more user-friendly
         self._do_clean: bool = False  # Power-user override for cleaning up temporary
         # serialized results and empty directories (or not).
         self._cached_inputs = None
