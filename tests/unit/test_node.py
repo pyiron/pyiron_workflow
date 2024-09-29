@@ -589,7 +589,6 @@ class TestNode(unittest.TestCase):
         """
         n = ANode(label="test", x=42)
         n._serialize_result = True
-        n.use_cache = False
         n._do_clean = False  # Power-user override to prevent the serialization from
         # being removed
         out = n()
@@ -599,6 +598,7 @@ class TestNode(unittest.TestCase):
         )
         # Now fake it
         n.running = True
+        n.use_cache = False
         n._do_clean = True  # This time clean up after yourself
         reloaded = n()
         self.assertEqual(out, reloaded)
