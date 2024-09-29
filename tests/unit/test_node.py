@@ -604,7 +604,6 @@ class TestNode(unittest.TestCase):
         self.assertEqual(out, reloaded)
         self.assertFalse(n.running)
         self.assertFalse(n._temporary_result_file.is_file())
-        n.delete_storage()  # Get rid of the checkpoint file
         self.assertFalse(
             n.as_path().is_dir(),
             msg="Actually, we expect cleanup to have removed empty directories up to "
