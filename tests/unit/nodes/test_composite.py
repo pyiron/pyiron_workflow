@@ -615,7 +615,7 @@ class TestComposite(unittest.TestCase):
         self.comp.child = Composite.create.function_node(plus_one, x=42)
         self.comp.starting_nodes = [self.comp.child]
 
-        self.comp.child.serialize_result = True
+        self.comp.child._serialize_result = True
         self.comp.child.use_cache = False
         self.comp.child._do_clean = False
 

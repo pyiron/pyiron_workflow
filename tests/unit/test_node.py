@@ -588,7 +588,7 @@ class TestNode(unittest.TestCase):
         we'll ensure that the plumbing works here by faking things a bit.
         """
         n = ANode(label="test", x=42)
-        n.serialize_result = True
+        n._serialize_result = True
         n.use_cache = False
         n._do_clean = False  # Power-user override to prevent the serialization from
         # being removed

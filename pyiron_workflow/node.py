@@ -193,7 +193,7 @@ class Node(
         autoload (Literal["pickle"] | StorageInterface | None): Whether to check
             for a matching saved node and what storage back end to use to do so (no
             auto-loading if the back end is `None`.)
-        serialize_result (bool): Cloudpickle the output of running the node; this is
+        _serialize_result (bool): Cloudpickle the output of running the node; this is
             useful if the run is happening in a parallel process and the parent process
             may be killed before it is finished. (Default is False.)
         signals (pyiron_workflow.io.Signals): A container for input and output
@@ -294,7 +294,7 @@ class Node(
         )
         self.checkpoint = checkpoint
         self.recovery: Literal["pickle"] | StorageInterface | None = "pickle"
-        self.serialize_result = False
+        self._serialize_result = False
         self._do_clean: bool = False  # Power-user override for cleaning up temporary
         # serialized results and empty directories (or not).
         self._cached_inputs = None
@@ -395,7 +395,7 @@ class Node(
     @property
     def run_args(self) -> tuple[tuple, dict]:
         args, kwargs = self._run_args
-        args = (self.serialize_result,) + args
+        args = (self._serialize_result,) + args
         return args, kwargs
 
     @property
@@ -461,7 +461,7 @@ class Node(
             Kwargs updating input channel values happens _first_ and will get
             overwritten by any subsequent graph-based data manipulation.
         """
-        if self.running and self.serialize_result:
+        if self.running and self._serialize_result:
             if self._temporary_result_file.is_file():
                 return self._finish_run(
                     self._temporary_result_unpickle(),
@@ -535,7 +535,7 @@ class Node(
     ) -> Any | tuple | Future:
         if self.parent is not None:
             self.parent.register_child_starting(self)
-        if self.serialize_result:
+        if self._serialize_result:
             self.save_checkpoint(
                 "pickle" if self.checkpoint is None else self.checkpoint
             )
