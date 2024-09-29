@@ -207,7 +207,7 @@ class Runnable(UsesState, HasLabel, HasRun, ABC):
         if executor is None:
             try:
                 run_output = self.on_run(*on_run_args, **on_run_kwargs)
-            except Exception as e:
+            except (Exception, KeyboardInterrupt) as e:
                 self._run_exception(**run_exception_kwargs)
                 self._run_finally(**run_finally_kwargs)
                 if raise_run_exceptions:
