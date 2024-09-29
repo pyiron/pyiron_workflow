@@ -36,14 +36,14 @@ class FromManyInputs(Transformer, ABC):
 
     # _build_inputs_preview required from parent class
     # Inputs convert to `run_args` as a value dictionary
-    # This must be commensurate with the internal expectations of on_run
+    # This must be commensurate with the internal expectations of _on_run
 
     @abstractmethod
-    def on_run(self, **inputs_to_value_dict) -> Any:
+    def _on_run(self, **inputs_to_value_dict) -> Any:
         """Must take inputs kwargs"""
 
     @property
-    def run_args(self) -> tuple[tuple, dict]:
+    def _run_args(self) -> tuple[tuple, dict]:
         return (), self.inputs.to_value_dict()
 
     @classmethod
@@ -64,11 +64,11 @@ class ToManyOutputs(Transformer, ABC):
     # Must be commensurate with the dictionary returned by transform_to_output
 
     @abstractmethod
-    def on_run(self, input_object) -> callable[..., Any | tuple]:
+    def _on_run(self, input_object) -> callable[..., Any | tuple]:
         """Must take the single object to be transformed"""
 
     @property
-    def run_args(self) -> tuple[tuple, dict]:
+    def _run_args(self) -> tuple[tuple, dict]:
         return (self.inputs[self._input_name].value,), {}
 
     @classmethod
@@ -89,7 +89,7 @@ class InputsToList(_HasLength, FromManyInputs, ABC):
     _output_name: ClassVar[str] = "list"
     _output_type_hint: ClassVar[Any] = list
 
-    def on_run(self, **inputs_to_value_dict):
+    def _on_run(self, **inputs_to_value_dict):
         return list(inputs_to_value_dict.values())
 
     @classmethod
@@ -101,7 +101,7 @@ class ListToOutputs(_HasLength, ToManyOutputs, ABC):
     _input_name: ClassVar[str] = "list"
     _input_type_hint: ClassVar[Any] = list
 
-    def on_run(self, input_object: list):
+    def _on_run(self, input_object: list):
         return {f"item_{i}": v for i, v in enumerate(input_object)}
 
     @classmethod
@@ -184,7 +184,7 @@ class InputsToDict(FromManyInputs, ABC):
         list[str] | dict[str, tuple[Any | None, Any | NOT_DATA]]
     ]
 
-    def on_run(self, **inputs_to_value_dict):
+    def _on_run(self, **inputs_to_value_dict):
         return inputs_to_value_dict
 
     @classmethod
@@ -284,7 +284,7 @@ class InputsToDataframe(_HasLength, FromManyInputs, ABC):
     _output_name: ClassVar[str] = "df"
     _output_type_hint: ClassVar[Any] = DataFrame
 
-    def on_run(self, *rows: dict[str, Any]) -> Any:
+    def _on_run(self, *rows: dict[str, Any]) -> Any:
         df_dict = {}
         for i, row in enumerate(rows):
             for key, value in row.items():
@@ -295,7 +295,7 @@ class InputsToDataframe(_HasLength, FromManyInputs, ABC):
         return DataFrame(df_dict)
 
     @property
-    def run_args(self) -> tuple[tuple, dict]:
+    def _run_args(self) -> tuple[tuple, dict]:
         return tuple(self.inputs.to_value_dict().values()), {}
 
     @classmethod
@@ -363,11 +363,11 @@ class DataclassNode(FromManyInputs, ABC):
             ):
                 self.inputs[name] = self._dataclass_fields[name].default_factory()
 
-    def on_run(self, **inputs_to_value_dict):
+    def _on_run(self, **inputs_to_value_dict):
         return self.dataclass(**inputs_to_value_dict)
 
     @property
-    def run_args(self) -> tuple[tuple, dict]:
+    def _run_args(self) -> tuple[tuple, dict]:
         return (), self.inputs.to_value_dict()
 
     @classmethod

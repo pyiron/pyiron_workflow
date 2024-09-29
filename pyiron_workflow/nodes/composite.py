@@ -141,16 +141,27 @@ class Composite(SemanticParent, HasCreator, Node, ABC):
         for node in self:
             node.deactivate_strict_hints()
 
-    def on_run(self):
+    def _on_run(self):
         # Reset provenance and run status trackers
         self.provenance_by_execution = []
         self.provenance_by_completion = []
-        self.running_children = []
+        self.running_children = [n.label for n in self if n.running]
         self.signal_queue = []
 
-        for node in self.starting_nodes:
-            node.run()
+        if len(self.running_children) > 0:  # Start from a broken process
+            for label in self.running_children:
+                self.children[label].run()
+                # Running children will find serialized result and proceed,
+                # or raise an error because they're already running
+        else:  # Start fresh
+            for node in self.starting_nodes:
+                node.run()
 
+        self._run_while_children_or_signals_exist()
+
+        return self
+
+    def _run_while_children_or_signals_exist(self):
         errors = {}
         while len(self.running_children) > 0 or len(self.signal_queue) > 0:
             try:
@@ -171,8 +182,6 @@ class Composite(SemanticParent, HasCreator, Node, ABC):
             raise FailedChildError(
                 f"{self.full_label} encountered multiple errors in children: {errors}"
             ) from None
-
-        return self
 
     def register_child_starting(self, child: Node) -> None:
         """
@@ -218,7 +227,7 @@ class Composite(SemanticParent, HasCreator, Node, ABC):
                 self.signal_queue.append((firing, receiving))
 
     @property
-    def run_args(self) -> tuple[tuple, dict]:
+    def _run_args(self) -> tuple[tuple, dict]:
         return (), {}
 
     def process_run_result(self, run_output):

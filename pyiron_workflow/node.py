@@ -7,11 +7,12 @@ The workhorse class for the entire concept.
 
 from __future__ import annotations
 
-from abc import ABC
+from abc import ABC, abstractmethod
 from concurrent.futures import Future
 from importlib import import_module
 from typing import Any, Literal, Optional, TYPE_CHECKING
 
+import cloudpickle
 from pyiron_snippets.colors import SeabornColors
 from pyiron_snippets.dotdict import DotDict
 
@@ -152,8 +153,8 @@ class Node(
 
     This is an abstract class.
     Children *must* define how :attr:`inputs` and :attr:`outputs` are constructed,
-    what will happen :meth:`on_run`, the :attr:`run_args` that will get passed to
-    :meth:`on_run`, and how to :meth:`process_run_result` once :meth:`on_run` finishes.
+    what will happen :meth:`_on_run`, the :attr:`run_args` that will get passed to
+    :meth:`_on_run`, and how to :meth:`process_run_result` once :meth:`_on_run` finishes.
     They may optionally add additional signal channels to the signals IO.
 
     Attributes:
@@ -192,6 +193,9 @@ class Node(
         autoload (Literal["pickle"] | StorageInterface | None): Whether to check
             for a matching saved node and what storage back end to use to do so (no
             auto-loading if the back end is `None`.)
+        _serialize_result (bool): (IN DEVELOPMENT) Cloudpickle the output of running
+            the node; this is useful if the run is happening in a parallel process and
+            the parent process may be killed before it is finished. (Default is False.)
         signals (pyiron_workflow.io.Signals): A container for input and output
             signals, which are channels for controlling execution flow. By default, has
             a :attr:`signals.inputs.run` channel which has a callback to the
@@ -218,7 +222,7 @@ class Node(
             its internal structure.
         execute: An alias for :meth:`run`, but with flags to run right here, right now,
             and with the input it currently has.
-        on_run: **Abstract.** Do the thing. What thing must be specified by child
+        _on_run: **Abstract.** Do the thing. What thing must be specified by child
             classes.
         pull: An alias for :meth:`run` that runs everything upstream, then runs this
             node (but doesn't fire off the `ran` signal, so nothing happens farther
@@ -227,7 +231,7 @@ class Node(
             object is encountered).
         replace_with: If the node belongs to a parent, attempts to replace itself in
             that parent with a new provided node.
-        run: Run the node function from :meth:`on_run`. Handles status automatically.
+        run: Run the node function from :meth:`_on_run`. Handles status automatically.
             Various execution options are available as boolean flags.
         set_input_values: Allows input channels' values to be updated without any
             running.
@@ -290,6 +294,10 @@ class Node(
         )
         self.checkpoint = checkpoint
         self.recovery: Literal["pickle"] | StorageInterface | None = "pickle"
+        self._serialize_result = False  # Advertised, but private to indicate
+        # under-development status -- API may change to be more user-friendly
+        self._do_clean: bool = False  # Power-user override for cleaning up temporary
+        # serialized results and empty directories (or not).
         self._cached_inputs = None
         self._user_data = {}  # A place for power-users to bypass node-injection
 
@@ -373,6 +381,29 @@ class Node(
             f" conform to type hints.\n" + self.readiness_report
         )
 
+    def on_run(self, *args, **kwargs) -> Any:
+        save_result: bool = args[0]
+        args = args[1:]
+        result = self._on_run(*args, **kwargs)
+        if save_result:
+            self._temporary_result_pickle(result)
+        return result
+
+    @abstractmethod
+    def _on_run(self, *args, **kwargs) -> Any:
+        pass
+
+    @property
+    def run_args(self) -> tuple[tuple, dict]:
+        args, kwargs = self._run_args
+        args = (self._serialize_result,) + args
+        return args, kwargs
+
+    @property
+    @abstractmethod
+    def _run_args(self, *args, **kwargs) -> Any:
+        pass
+
     def run(
         self,
         *args,
@@ -431,6 +462,22 @@ class Node(
             Kwargs updating input channel values happens _first_ and will get
             overwritten by any subsequent graph-based data manipulation.
         """
+        if self.running and self._serialize_result:
+            if self._temporary_result_file.is_file():
+                return self._finish_run(
+                    self._temporary_result_unpickle(),
+                    raise_run_exceptions=raise_run_exceptions,
+                    run_exception_kwargs={},
+                    run_finally_kwargs={
+                        "emit_ran_signal": emit_ran_signal,
+                        "raise_run_exceptions": raise_run_exceptions,
+                    },
+                )
+            else:
+                raise ValueError(
+                    f"{self.full_label} is still waiting for a serialized result"
+                )
+
         self.set_input_values(*args, **kwargs)
 
         return super().run(
@@ -519,6 +566,9 @@ class Node(
             self.save(
                 backend=self.recovery, filename=self.as_path().joinpath("recovery")
             )
+
+        if self._do_clean:
+            self._clean_graph_directory()
 
     def run_data_tree(self, run_parent_trees_too=False) -> None:
         """
@@ -627,6 +677,21 @@ class Node(
             return self.inputs.to_value_dict() == self._cached_inputs
         except:
             return False
+
+    @property
+    def _temporary_result_file(self):
+        return self.as_path().joinpath("run_result.tmp")
+
+    def _temporary_result_pickle(self, results):
+        self._temporary_result_file.parent.mkdir(parents=True, exist_ok=True)
+        self._temporary_result_file.touch(exist_ok=False)
+        with self._temporary_result_file.open("wb") as f:
+            cloudpickle.dump(results, f)
+
+    def _temporary_result_unpickle(self):
+        with self._temporary_result_file.open("rb") as f:
+            results = cloudpickle.load(f)
+        return results
 
     def _outputs_to_run_return(self):
         return DotDict(self.outputs.to_value_dict())
@@ -993,6 +1058,22 @@ class Node(
             report_so_far + f"{newline}{tabspace}{self.label}: "
             f"{'ok' if self.import_ready else 'NOT IMPORTABLE'}"
         )
+
+    def _clean_graph_directory(self):
+        """
+        Delete the temporary results file (if any), and then go from this node's
+        semantic directory up to its semantic root's directory removing any empty
+        directories. Note: doesn't do a sophisticated walk, so sibling empty
+        directories will cause a parent to identify as non-empty.
+        """
+        self._temporary_result_file.unlink(missing_ok=True)
+
+        # Recursively remove empty directories
+        root_directory = self.semantic_root.as_path().parent
+        for parent in self._temporary_result_file.parents:
+            if parent == root_directory or not parent.exists() or any(parent.iterdir()):
+                break
+            parent.rmdir()
 
     def display_state(self, state=None, ignore_private=True):
         state = dict(self.__getstate__()) if state is None else state
