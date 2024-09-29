@@ -433,7 +433,8 @@ class For(Composite, StaticNode, ABC):
 
     def __getstate__(self):
         state = super().__getstate__()
-        state["body_node_executor"] = None
+        if isinstance(self.body_node_executor, Executor):
+            state["body_node_executor"] = None
 
         # Duplicated value linking behaviour from Macro class
         state["_input_value_links"] = self._input_value_links
@@ -443,8 +444,9 @@ class For(Composite, StaticNode, ABC):
 
     def _get_state_from_remote_other(self, other_self):
         state = super()._get_state_from_remote_other(other_self)
-        state.pop("body_node_executor")  # Got overridden to None for __getstate__,
-        # so keep local
+        if state["body_node_executor"] is None and self.body_node_executor is not None:
+            state.pop("body_node_executor")  # May have been overridden to None for
+            # __getstate__ to avoid serializing an executor instance, so keep local
         return state
 
     def __setstate__(self, state):

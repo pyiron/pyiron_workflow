@@ -125,29 +125,57 @@ class TestRunnable(unittest.TestCase):
 
     def test_runnable_run_with_executor(self):
         runnable = ConcreteRunnable()
-        runnable.executor = CloudpickleProcessPoolExecutor()
 
-        result = runnable.run()
-        self.assertIsInstance(
-            result,
-            Future,
-            msg="With an executor, a future should be returned"
-        )
-        self.assertIs(
-            result,
-            runnable.future,
-            msg="With an executor, the future attribute should get populated"
-        )
-        self.assertDictEqual(
-            runnable.expected_run_output,
-            result.result(timeout=30),
-            msg="Expected the result (after waiting for it to compute, of course)"
-        )
-        self.assertDictEqual(
-            runnable.expected_processed_value,
-            runnable.processed,
-            msg="Expected the result, including post-processing 'bar' value"
-        )
+        def maybe_get_executor(get_executor):
+            if get_executor:
+                return CloudpickleProcessPoolExecutor()
+            else:
+                return "This should result in an error!"
+
+        for label, executor in [
+            ("Instance", CloudpickleProcessPoolExecutor()),
+            ("Argument free instructions", (CloudpickleProcessPoolExecutor, (), {})),
+            ("Argument instructions", (maybe_get_executor, (True,), {})),
+        ]:
+            with self.subTest(label):
+                runnable.executor = executor
+
+                result = runnable.run()
+                self.assertIsInstance(
+                    result,
+                    Future,
+                    msg="With an executor, a future should be returned"
+                )
+                self.assertIs(
+                    result,
+                    runnable.future,
+                    msg="With an executor, the future attribute should get populated"
+                )
+                self.assertDictEqual(
+                    runnable.expected_run_output,
+                    result.result(timeout=30),
+                    msg="Expected the result (after waiting for it to compute, of course)"
+                )
+                self.assertDictEqual(
+                    runnable.expected_processed_value,
+                    runnable.processed,
+                    msg="Expected the result, including post-processing 'bar' value"
+                )
+
+        with self.assertRaises(
+            NotImplementedError,
+            msg="That's not an executor at all"
+        ):
+            runnable.executor = 42
+            runnable.run()
+
+        with self.assertRaises(
+            TypeError,
+            msg="Callables are ok, but if they don't return an executor we should get "
+                "and error."
+        ):
+            runnable.executor = (maybe_get_executor, (False,), {})
+            runnable.run()
 
 
 if __name__ == '__main__':

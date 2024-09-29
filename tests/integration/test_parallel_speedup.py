@@ -75,6 +75,30 @@ class TestSpeedup(unittest.TestCase):
                 f"a sleep node"
         )
 
+    def test_executor_instructions(self):
+        t = 2
+        wf = Workflow("test")
+        wf.sleep1 = Workflow.create.standard.Sleep(t)
+        wf.sleep2 = Workflow.create.standard.Sleep(t)
+        wf.sleep3 = Workflow.create.standard.Sleep(t)
+        wf.sleep4 = Workflow.create.standard.Sleep(t)
+        for n in wf:
+            n.executor = (Workflow.create.ThreadPoolExecutor, (), {})
+
+        wf.save()
+        reloaded = Workflow("test")
+
+        t0 = perf_counter()
+        reloaded()
+        dt = perf_counter() - t0
+        self.assertLess(
+            dt,
+            1.1 * t,
+            msg="Expected the sleeps to run in parallel with minimal overhead (since "
+                "it's just a thread pool executor) -- the advantage is that the "
+                "constructors should survive (de)serialization"
+        )
+
 
 if __name__ == '__main__':
     unittest.main()

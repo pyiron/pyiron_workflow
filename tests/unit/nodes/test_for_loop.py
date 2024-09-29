@@ -550,6 +550,33 @@ class TestForNode(unittest.TestCase):
         self.assertFalse(n2._output_as_dataframe)
         self.assertTrue(n3._output_as_dataframe)
 
+    def test_executor_deserialization(self):
+
+        for title, executor, expected in [
+            ("Instance", ThreadPoolExecutor(), None),
+            ("Instructions", (ThreadPoolExecutor, (), {}), (ThreadPoolExecutor, (), {}))
+        ]:
+            with self.subTest(title):
+                n = for_node(
+                    body_node_class=FiveTogether,
+                    iter_on="a",
+                    label=title,
+                )
+                n.body_node_executor = executor
+
+                try:
+                    n.save(backend="pickle")
+                    n.load(backend="pickle")
+                    self.assertEqual(
+                        n.body_node_executor,
+                        expected,
+                        msg="Executor instances should get removed on "
+                            "(de)serialization, but instructions on how to build one "
+                            "should not."
+                    )
+                finally:
+                    n.delete_storage()
+
 
 if __name__ == "__main__":
     unittest.main()
