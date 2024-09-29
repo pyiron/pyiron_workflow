@@ -295,7 +295,7 @@ class Node(
         self.checkpoint = checkpoint
         self.recovery: Literal["pickle"] | StorageInterface | None = "pickle"
         self.serialize_result = False
-        self._do_clean: bool = True  # Power-user override for cleaning up temporary
+        self._do_clean: bool = False  # Power-user override for cleaning up temporary
         # serialized results and empty directories (or not).
         self._cached_inputs = None
         self._user_data = {}  # A place for power-users to bypass node-injection
