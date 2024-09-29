@@ -535,10 +535,6 @@ class Node(
     ) -> Any | tuple | Future:
         if self.parent is not None:
             self.parent.register_child_starting(self)
-        if self._serialize_result:
-            self.save_checkpoint(
-                "pickle" if self.checkpoint is None else self.checkpoint
-            )
         return super()._run(
             executor=executor,
             raise_run_exceptions=raise_run_exceptions,
