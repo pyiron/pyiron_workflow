@@ -444,6 +444,10 @@ class Node(WorkflowGraphvizMap):
         bright_red = "#FF0000"
         if self.node.failed:
             return bright_red
+        elif self.node.running:
+            return SeabornColors.orange
+        elif self.node.cache_hit and self.node.outputs.ready:  # Successfully ran
+            return SeabornColors.green
         else:
             return self.fillcolor
 
