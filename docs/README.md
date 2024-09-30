@@ -17,18 +17,19 @@
 `pyiron_workflow` is a framework for constructing workflows as computational graphs from simple python functions. Its objective is to make it as easy as possible to create reliable, reusable, and sharable workflows, with a special focus on research workflows for HPC environments.
 
 Nodes are formed from python functions with simple decorators, and the resulting nodes can have their data inputs and outputs connected. 
+Unlike regular python, they operate in a delayed way.
 
 By allowing (but not demanding, in the case of data DAGs) users to specify the execution flow, both cyclic and acyclic graphs are supported. 
 
 By scraping type hints from decorated functions, both new data values and new graph connections are (optionally) required to conform to hints, making workflows strongly typed.
 
-Individual node computations can be shipped off to parallel processes for scalability. (This is a beta-feature at time of writing; standard python executors like `concurrent.futures.ThreadPoolExecutor` and `ProcessPoolExecutor` work, and the `Executor` executor from [`executorlib`](https://github.com/pyiron/executorlib) is supported and tested; `executorlib`'s more powerful flux- and slurm- based executors have not been tested and may fail.)
+Individual node computations can be shipped off to parallel processes for scalability. Standard python executors like `concurrent.futures.ThreadPoolExecutor` and `ProcessPoolExecutor` work, but so does, e.g., the `Executor` executor from [`executorlib`](https://github.com/pyiron/executorlib), which facilitates running on HPC. It is also straightforward to run an entire graph on a remote process, e.g. a SLURM allocation, by locally saving the graph and remotely loading, running, and re-saving. Cf. [this notebook](../notebooks/hpc_example.ipynb) for some simple examples.
 
 Once you're happy with a workflow, it can be easily turned it into a macro for use in other workflows. This allows the clean construction of increasingly complex computation graphs by composing simpler graphs.
 
 Nodes (including macros) can be stored in plain text as python code, and imported by future workflows for easy access. This encourages and supports an ecosystem of useful nodes, so you don't need to re-invent the wheel. When these python files are in a properly managed git repository and released in a stable channel (e.g. conda-forge), they fulfill most requirements of the [FAIR](https://en.wikipedia.org/wiki/FAIR_data) principles.
 
-Executed or partially-executed graphs can be stored to file, either by explicit call or automatically after running. These can be reloaded (automatically on instantiation, in the case of workflows) and examined/rerun, etc. 
+Executed or partially-executed graphs can be stored to file, either by explicit call or automatically after running. These can be reloaded (automatically on instantiation, in the case of workflows) and examined/rerun, etc. If your workflow fails, it will (by default) save a recovery file for you to restore it at the time of failure.
 
 ## Installation
 
