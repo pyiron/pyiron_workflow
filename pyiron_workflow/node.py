@@ -76,6 +76,8 @@ class Node(
             - In addition to operations, some methods exist for common routines, e.g.
                 casting the value as `int`.
     - When running their computation, nodes may or may not:
+        - If already running, check for serialized results from a process that
+            survived the death of their original process
         - First update their input data values using kwargs
             - (Note that since this happens first, if the "fetching" step later occurs,
                 any values provided here will get overwritten by data that is flowing
@@ -100,10 +102,12 @@ class Node(
             the execution flow
     - Running the node (and all aliases of running) return a representation of data
         held by the output channels (or a futures object)
-    - If an error is encountered _after_ reaching the state of actually computing the
+    - If an error is encountered _after_ reaching the state of actually running the
         node's task, the status will get set to failure
     - Nodes can be instructed to run at the end of their initialization, but will exit
         cleanly if they get to checking their readiness and find they are not ready
+    - Nodes can suppress raising errors they encounter by setting a runtime keyword
+        argument.
     - Nodes have a label by which they are identified within their scope, and a full
         label which is unique among the entire semantic graph they exist within
     - Nodes can run their computation using remote resources by setting an executor
@@ -140,6 +144,10 @@ class Node(
             IO data is not pickle-able.
         - Saving is triggered manually, or by setting a flag to make a checkpoint save
             of the entire graph after the node runs.
+        - Saving the entire graph can be set to happen at the end of a particular
+            node's run with a checkpoint flag.
+        - A specially named recovery file for the entire graph will (by default) be
+            automatically saved if the node raises an exception.
         - The pickle storage interface comes with all the same caveats as pickle and
             is not suitable for storage over indefinitely long time periods.
             - E.g., if the source code (cells, `.py` files...) for a saved graph is

@@ -33,6 +33,18 @@ class Runnable(UsesState, HasLabel, HasRun, ABC):
     Child classes can optionally override :meth:`process_run_result` to do something
     with the returned value of :meth:`on_run`, but by default the returned value just
     passes cleanly through the function.
+
+    The `run` cycle is broken down into sub-steps:
+    - `_before_run`: prior to the `running` status being set to `True`
+    - `_run`: after the `running` status has been set to `True`
+    - `_finish_run`: what is done to the results of running, and when `running` is
+        set to `False`
+    - `_run_exception`: What to do if an encountered
+    - `_run_finally`: What to do after _every_ run, regardless of whether an exception
+        was encountered
+
+    Child classes can extend the behavior of these sub-steps, including introducing
+    new keyword arguments.
     """
 
     def __init__(self, *args, **kwargs):
