@@ -424,6 +424,11 @@ class Composite(SemanticParent, HasCreator, Node, ABC):
         return SeabornColors.brown
 
     @property
+    def gui_color(self) -> str:
+        """For nodes in the gui"""
+        return "#eacf9f"
+
+    @property
     def graph_as_dict(self) -> dict:
         """
         A nested dictionary representation of the computation graph using full labels
