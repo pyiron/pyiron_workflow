@@ -31,7 +31,7 @@ class Transformer(StaticNode, ABC):
 
     @property
     def gui_color(self) -> str:
-        """"""For nodes in the gui, pyiron-xyflow in reactflow.py""""""
+        """For nodes in the gui, pyiron-xyflow in reactflow.py"""
         color_light_purple = "#cb9fea"
         return color_light_purple
 
