@@ -343,6 +343,12 @@ class Function(StaticNode, ScrapesIO, ABC):
         """For drawing the graph"""
         return SeabornColors.green
 
+    @property
+    def gui_color(self) -> str:
+        """For nodes in the gui, pyiron-xyflow in reactflow.py"""
+        color_light_green = "#a2ea9f"
+        return color_light_green
+
     @classmethod
     def _extra_info(cls) -> str:
         return getsource(cls.node_function)

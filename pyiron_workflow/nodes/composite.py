@@ -424,6 +424,12 @@ class Composite(SemanticParent, HasCreator, Node, ABC):
         return SeabornColors.brown
 
     @property
+    def gui_color(self) -> str:
+        """For nodes in the gui, pyiron-xyflow in reactflow.py"""
+        color_light_orange = "#eacf9f"
+        return color_light_orange
+
+    @property
     def graph_as_dict(self) -> dict:
         """
         A nested dictionary representation of the computation graph using full labels
