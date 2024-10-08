@@ -426,7 +426,8 @@ class Composite(SemanticParent, HasCreator, Node, ABC):
     @property
     def gui_color(self) -> str:
         """For nodes in the gui"""
-        return "#eacf9f"
+        color_light_orange = "#eacf9f"
+        return color_light_orange
 
     @property
     def graph_as_dict(self) -> dict:
