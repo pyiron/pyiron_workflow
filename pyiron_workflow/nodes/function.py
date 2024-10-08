@@ -346,7 +346,8 @@ class Function(StaticNode, ScrapesIO, ABC):
     @property
     def gui_color(self) -> str:
         """For nodes in the gui"""
-        return "#a2ea9f"
+        color_light_green = "#a2ea9f"
+        return color_light_green
 
     @classmethod
     def _extra_info(cls) -> str:
