@@ -425,7 +425,7 @@ class Composite(SemanticParent, HasCreator, Node, ABC):
 
     @property
     def gui_color(self) -> str:
-        """"""For nodes in the gui, pyiron-xyflow in reactflow.py""""""
+        """For nodes in the gui, pyiron-xyflow in reactflow.py"""
         color_light_orange = "#eacf9f"
         return color_light_orange
 
