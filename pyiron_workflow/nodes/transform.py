@@ -32,7 +32,8 @@ class Transformer(StaticNode, ABC):
     @property
     def gui_color(self) -> str:
         """For nodes in the gui"""
-        return "#cb9fea"
+        color_light_purple = "#cb9fea"
+        return color_light_purple
 
 
 class FromManyInputs(Transformer, ABC):
