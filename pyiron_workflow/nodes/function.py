@@ -345,7 +345,7 @@ class Function(StaticNode, ScrapesIO, ABC):
 
     @property
     def gui_color(self) -> str:
-        """For nodes in the gui"""
+        """For nodes in the gui, pyiron-xyflow in reactflow.py"""
         color_light_green = "#a2ea9f"
         return color_light_green
 
