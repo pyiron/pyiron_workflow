@@ -27,6 +27,27 @@ if TYPE_CHECKING:
     from pyiron_workflow.storage import StorageInterface
 
 
+def get_graph_as_dict(composite: Composite) -> dict:
+    return {
+        "object": composite,
+        "nodes": {n.full_label: n for n in composite},
+        "edges": {
+            "data": {
+                (out.full_label, inp.full_label): (out, inp)
+                for n in composite
+                for out in n.outputs
+                for inp in out.connections
+            },
+            "signal": {
+                (out.full_label, inp.full_label): (out, inp)
+                for n in composite
+                for out in n.signals.output
+                for inp in out.connections
+            },
+        },
+    }
+
+
 class FailedChildError(RuntimeError):
     """Raise when one or more child nodes raise exceptions."""
 
@@ -429,23 +450,7 @@ class Composite(SemanticParent, HasCreator, Node, ABC):
         A nested dictionary representation of the computation graph using full labels
         as keys and objects as values.
         """
-        return {
-            "nodes": {n.full_label: n for n in self},
-            "edges": {
-                "data": {
-                    (out.full_label, inp.full_label): (out, inp)
-                    for n in self
-                    for out in n.outputs
-                    for inp in out.connections
-                },
-                "signal": {
-                    (out.full_label, inp.full_label): (out, inp)
-                    for n in self
-                    for out in n.signals.output
-                    for inp in out.connections
-                },
-            },
-        }
+        return get_graph_as_dict(self)
 
     def _get_connections_as_strings(
         self, panel_getter: callable
