@@ -28,9 +28,11 @@ if TYPE_CHECKING:
 
 
 def get_graph_as_dict(composite: Composite) -> dict:
+    if not hasattr(composite, "_children"):
+        return composite
     return {
         "object": composite,
-        "nodes": {n.full_label: n for n in composite},
+        "nodes": {n.full_label: get_graph_as_dict(n) for n in composite},
         "edges": {
             "data": {
                 (out.full_label, inp.full_label): (out, inp)
