@@ -27,12 +27,12 @@ if TYPE_CHECKING:
     from pyiron_workflow.storage import StorageInterface
 
 
-def get_graph_as_dict(composite: Composite) -> dict:
-    if not hasattr(composite, "_children"):
+def _get_graph_as_dict(composite: Composite) -> dict:
+    if not isinstance(composite, Composite):
         return composite
     return {
         "object": composite,
-        "nodes": {n.full_label: get_graph_as_dict(n) for n in composite},
+        "nodes": {n.full_label: _get_graph_as_dict(n) for n in composite},
         "edges": {
             "data": {
                 (out.full_label, inp.full_label): (out, inp)
@@ -452,7 +452,7 @@ class Composite(SemanticParent, HasCreator, Node, ABC):
         A nested dictionary representation of the computation graph using full labels
         as keys and objects as values.
         """
-        return get_graph_as_dict(self)
+        return _get_graph_as_dict(self)
 
     def _get_connections_as_strings(
         self, panel_getter: callable
