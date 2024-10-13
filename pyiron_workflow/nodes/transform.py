@@ -29,6 +29,12 @@ class Transformer(StaticNode, ABC):
         """For drawing the graph"""
         return SeabornColors.blue
 
+    @property
+    def gui_color(self) -> str:
+        """For nodes in the gui, pyiron-xyflow in reactflow.py"""
+        color_light_purple = "#cb9fea"
+        return color_light_purple
+
 
 class FromManyInputs(Transformer, ABC):
     _output_name: ClassVar[str]  # Mandatory attribute for non-abstract subclasses
