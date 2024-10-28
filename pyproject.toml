@@ -37,7 +37,7 @@ dependencies = [
     "pint==0.24.3",
     "pyiron_snippets==0.1.4",
     "toposort==1.10",
-    "typeguard==4.3.0",
+    "typeguard==4.4.0",
 ]
 dynamic = [ "version",]
 authors = [
