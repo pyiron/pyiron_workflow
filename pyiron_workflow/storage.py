@@ -224,6 +224,7 @@ class PickleStorage(StorageInterface):
         if self._fallback(cloudpickle_fallback):
             attacks += [(self._CLOUDPICKLE, cloudpickle.dump)]
 
+        e = None
         for suffix, save_method in attacks:
             p = filename.with_suffix(suffix)
             try:
@@ -232,7 +233,8 @@ class PickleStorage(StorageInterface):
                 return
             except Exception as e:
                 p.unlink(missing_ok=True)
-        raise e
+        if e is not None:
+            raise e
 
     def _load(self, filename: Path, cloudpickle_fallback: bool | None = None) -> Node:
         attacks = [(self._PICKLE, pickle.load)]
