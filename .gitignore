@@ -10,3 +10,4 @@ apidoc/
 .ipynb_checkpoints/
 test_times.dat
 tests/integration/test_notebooks.py
+.vscode
