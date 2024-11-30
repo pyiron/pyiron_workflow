@@ -188,7 +188,7 @@ class SemanticParent(Semantic, ABC):
         super().__init__(*args, label=label, parent=parent, **kwargs)
 
     @property
-    def children(self) -> bidict[str:Semantic]:
+    def children(self) -> bidict[str, Semantic]:
         return self._children
 
     @property
