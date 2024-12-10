@@ -64,3 +64,19 @@ include = [ "pyiron_workflow*",]
 
 [tool.setuptools.dynamic.version]
 attr = "pyiron_workflow.__version__"
+
+[tool.ruff.lint]
+select = [
+    # pycodestyle
+    "E",
+    # Pyflakes
+    "F",
+    # pyupgrade
+    "UP",
+    # flake8-bugbear
+    "B",
+    # flake8-simplify
+    "SIM",
+    # isort
+    "I",
+]
