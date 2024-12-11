@@ -83,3 +83,4 @@ select = [
     # isort
     "I",
 ]
+ignore = ["E501"] #ignore line-length violations
