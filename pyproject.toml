@@ -65,6 +65,9 @@ include = [ "pyiron_workflow*",]
 [tool.setuptools.dynamic.version]
 attr = "pyiron_workflow.__version__"
 
+[tool.ruff]
+exclude = ["docs", "notebooks", "setup.py"]
+
 [tool.ruff.lint]
 select = [
     # pycodestyle
