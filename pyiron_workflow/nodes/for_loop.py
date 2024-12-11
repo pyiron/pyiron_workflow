@@ -1,11 +1,11 @@
 from __future__ import annotations
 
+import itertools
+import math
 from abc import ABC
 from concurrent.futures import Executor
 from functools import lru_cache
-import itertools
-import math
-from typing import Any, ClassVar, Literal, Optional
+from typing import Any, ClassVar, Literal
 
 from pandas import DataFrame
 from pyiron_snippets.factory import classfactory
@@ -13,19 +13,19 @@ from pyiron_snippets.factory import classfactory
 from pyiron_workflow.channels import NOT_DATA
 from pyiron_workflow.nodes.composite import Composite
 from pyiron_workflow.nodes.static_io import StaticNode
-from pyiron_workflow.storage import StorageInterface
 from pyiron_workflow.nodes.transform import (
-    inputs_to_dict,
-    inputs_to_dataframe,
-    inputs_to_list,
     InputsToDict,
+    inputs_to_dataframe,
+    inputs_to_dict,
+    inputs_to_list,
 )
+from pyiron_workflow.storage import StorageInterface
 
 
 def dictionary_to_index_maps(
     data: dict,
-    nested_keys: Optional[list[str] | tuple[str, ...]] = None,
-    zipped_keys: Optional[list[str] | tuple[str, ...]] = None,
+    nested_keys: list[str] | tuple[str, ...] | None = None,
+    zipped_keys: list[str] | tuple[str, ...] | None = None,
 ):
     """
     Given a dictionary where some data is iterable, and list(s) of keys over
@@ -191,7 +191,7 @@ class For(Composite, StaticNode, ABC):
         """
         How to transform body node output labels to dataframe column names.
         """
-        map_ = {k: k for k in cls._body_node_class.preview_outputs().keys()}
+        map_ = {k: k for k in cls._body_node_class.preview_outputs()}
         overrides = {} if cls._output_column_map is None else cls._output_column_map
         for body_label, column_name in overrides.items():
             map_[body_label] = column_name
@@ -200,14 +200,14 @@ class For(Composite, StaticNode, ABC):
     def __init__(
         self,
         *args,
-        label: Optional[str] = None,
-        parent: Optional[Composite] = None,
+        label: str | None = None,
+        parent: Composite | None = None,
         autoload: Literal["pickle"] | StorageInterface | None = None,
         delete_existing_savefiles: bool = False,
         autorun: bool = False,
         checkpoint: Literal["pickle"] | StorageInterface | None = None,
         strict_naming: bool = True,
-        body_node_executor: Optional[Executor] = None,
+        body_node_executor: Executor | None = None,
         **kwargs,
     ):
         super().__init__(
@@ -389,7 +389,7 @@ class For(Composite, StaticNode, ABC):
             return {"df": DataFrame}
         else:
             preview = {}
-            for label, (hint, default) in cls._body_node_class.preview_inputs().items():
+            for label, (hint, _default) in cls._body_node_class.preview_inputs().items():
                 if label in cls._zip_on + cls._iter_on:
                     hint = list if hint is None else list[hint]
                     preview[label] = hint
@@ -540,7 +540,7 @@ def for_node(
     iter_on: tuple[str, ...] | str = (),
     zip_on: tuple[str, ...] | str = (),
     output_as_dataframe: bool = True,
-    output_column_map: Optional[dict[str, str]] = None,
+    output_column_map: dict[str, str] | None = None,
     use_cache: bool = True,
     **node_kwargs,
 ):

@@ -8,7 +8,7 @@ import typing
 from collections.abc import Callable
 
 from pint import Quantity
-from typeguard import check_type, TypeCheckError
+from typeguard import TypeCheckError, check_type
 
 
 def valid_value(value, type_hint) -> bool:
@@ -28,7 +28,7 @@ def valid_value(value, type_hint) -> bool:
 
 
 def type_hint_to_tuple(type_hint) -> tuple:
-    if isinstance(type_hint, (types.UnionType, typing._UnionGenericAlias)):
+    if isinstance(type_hint, types.UnionType | typing._UnionGenericAlias):
         return typing.get_args(type_hint)
     else:
         return (type_hint,)
@@ -76,7 +76,7 @@ def type_hint_is_as_or_more_specific_than(hint, other) -> bool:
                 return all(
                     [
                         type_hint_is_as_or_more_specific_than(h, o)
-                        for o, h in zip(other_args, hint_args)
+                        for o, h in zip(other_args, hint_args, strict=False)
                     ]
                 )
             else:

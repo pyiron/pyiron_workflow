@@ -1,7 +1,7 @@
-from dataclasses import dataclass, field, is_dataclass
 import pickle
 import random
 import unittest
+from dataclasses import dataclass, field, is_dataclass
 
 from pandas import DataFrame
 
@@ -16,6 +16,7 @@ from pyiron_workflow.nodes.transform import (
     inputs_to_list,
     list_to_outputs,
 )
+
 
 @as_dataclass_node
 class MyData:
@@ -66,7 +67,7 @@ class TestTransformer(unittest.TestCase):
             d = {"c1": 4, "c2": 5}
             default = 42
             hint = int
-            spec = {k: (int, default) for k in d.keys()}
+            spec = {k: (int, default) for k in d}
             n = inputs_to_dict(spec, autorun=True)
             self.assertIs(
                 n.inputs[list(d.keys())[0]].type_hint,
@@ -74,7 +75,7 @@ class TestTransformer(unittest.TestCase):
                 msg="Spot check hint recognition"
             )
             self.assertDictEqual(
-                {k: default for k in d.keys()},
+                {k: default for k in d},
                 n.outputs.dict.value,
                 msg="Verify structure and ability to pass defaults"
             )
@@ -230,7 +231,7 @@ class TestTransformer(unittest.TestCase):
 
             for n_cls, style in zip(
                 [DecoratedDC(label="dcinst"), DecoratedDCLike(label="dcinst")],
-                ["Actual dataclass", "Dataclass-like class"]
+                ["Actual dataclass", "Dataclass-like class"], strict=False
             ):
                 with self.subTest(style):
                     self.assertTrue(

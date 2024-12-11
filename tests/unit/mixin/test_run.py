@@ -1,10 +1,10 @@
-from concurrent.futures import Future
 import unittest
+from concurrent.futures import Future
 
 from pyiron_workflow.executors.cloudpickleprocesspool import (
-    CloudpickleProcessPoolExecutor
+    CloudpickleProcessPoolExecutor,
 )
-from pyiron_workflow.mixin.run import Runnable, ReadinessError
+from pyiron_workflow.mixin.run import ReadinessError, Runnable
 
 
 class ConcreteRunnable(Runnable):

@@ -1,13 +1,13 @@
-from concurrent.futures import Future
 import pickle
-from time import sleep
 import unittest
+from concurrent.futures import Future
+from time import sleep
 
 from pyiron_workflow._tests import ensure_tests_in_python_path
 from pyiron_workflow.channels import NOT_DATA
-from pyiron_workflow.nodes.function import function_node, as_function_node
-from pyiron_workflow.nodes.macro import Macro, macro_node, as_macro_node
-from pyiron_workflow.storage import available_backends, PickleStorage
+from pyiron_workflow.nodes.function import as_function_node, function_node
+from pyiron_workflow.nodes.macro import Macro, as_macro_node, macro_node
+from pyiron_workflow.storage import PickleStorage, available_backends
 from pyiron_workflow.topology import CircularDataFlowError
 
 ensure_tests_in_python_path()
@@ -279,7 +279,7 @@ class TestMacro(unittest.TestCase):
         self.assertIs(
             downstream.inputs.x.connections[0],
             macro.outputs.three__result,
-            msg=f"The macro output should still be connected to downstream"
+            msg="The macro output should still be connected to downstream"
         )
         sleep(0.2)  # Give a moment for the ran signal to emit and downstream to run
         # I'm a bit surprised this sleep is necessary
@@ -349,7 +349,7 @@ class TestMacro(unittest.TestCase):
             )
             self.assertTrue(
                 all(
-                    c is ic for (c, ic) in zip(grab_connections(m), initial_connections)
+                    c is ic for (c, ic) in zip(grab_connections(m), initial_connections, strict=False)
                 ),
                 msg="Connections should be restored after failing to pull because of "
                     "cyclic data flow"
@@ -380,7 +380,7 @@ class TestMacro(unittest.TestCase):
                 all(
                     c is ic
                     for (c, ic) in zip(
-                        grab_x_and_run(n1) + grab_x_and_run(n2), initial_connections
+                        grab_x_and_run(n1) + grab_x_and_run(n2), initial_connections, strict=False
                     )
                 ),
                 msg="Connections should be restored after failing to pull because of "

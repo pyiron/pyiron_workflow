@@ -1,11 +1,11 @@
-from concurrent.futures import ProcessPoolExecutor
 import unittest
+from concurrent.futures import ProcessPoolExecutor
 
 from pyiron_workflow._tests import ensure_tests_in_python_path
 from pyiron_workflow.channels import NOT_DATA
-from pyiron_workflow.nodes.composite import Composite
+from pyiron_workflow.io import ConnectionCopyError, Inputs
 from pyiron_workflow.mixin.injection import OutputsWithInjection
-from pyiron_workflow.io import Inputs, ConnectionCopyError
+from pyiron_workflow.nodes.composite import Composite
 from pyiron_workflow.topology import CircularDataFlowError
 
 ensure_tests_in_python_path()
@@ -619,7 +619,7 @@ class TestComposite(unittest.TestCase):
         self.comp.child.use_cache = False
         self.comp.child._do_clean = False
 
-        out = self.comp.run()
+        self.comp.run()
         self.assertTrue(self.comp.child._temporary_result_file.is_file())
         self.assertEqual(self.comp.child.outputs.y.value, 42 + 1)
 

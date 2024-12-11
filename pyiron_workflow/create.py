@@ -8,12 +8,12 @@ from abc import ABC
 from concurrent.futures import ProcessPoolExecutor, ThreadPoolExecutor
 from functools import lru_cache
 
+from executorlib import Executor as ExecutorlibExecutor
 from pyiron_snippets.dotdict import DotDict
 from pyiron_snippets.singleton import Singleton
-from executorlib import Executor as ExecutorlibExecutor
 
 from pyiron_workflow.executors import CloudpickleProcessPoolExecutor
-from pyiron_workflow.nodes.function import function_node, as_function_node
+from pyiron_workflow.nodes.function import as_function_node, function_node
 
 
 class Creator(metaclass=Singleton):

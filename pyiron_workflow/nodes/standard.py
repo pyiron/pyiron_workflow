@@ -4,10 +4,10 @@ Common-use nodes relying only on the standard library
 
 from __future__ import annotations
 
-import random
 import os
-from pathlib import Path
+import random
 import shutil
+from pathlib import Path
 from time import sleep
 
 from pyiron_workflow.channels import NOT_DATA, OutputSignal
@@ -57,7 +57,7 @@ class If(Function):
             TypeError: If the condition is NOT_DATA.
         """
         if condition is NOT_DATA:
-            raise TypeError(f"Logic 'If' node expected data but got NOT_DATA as input.")
+            raise TypeError("Logic 'If' node expected data but got NOT_DATA as input.")
         truth = bool(condition)
         return truth
 
