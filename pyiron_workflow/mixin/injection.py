@@ -9,11 +9,11 @@ to inject new nodes into the graph dynamically.
 from __future__ import annotations
 
 from abc import ABC, abstractmethod
-from typing import Any, Optional, TYPE_CHECKING
+from typing import TYPE_CHECKING, Any, Optional
 
-from pyiron_workflow.channels import OutputData, NOT_DATA
+from pyiron_workflow.channels import NOT_DATA, OutputData
+from pyiron_workflow.io import HasIO, Outputs
 from pyiron_workflow.mixin.has_interface_mixins import HasChannel
-from pyiron_workflow.io import Outputs, HasIO
 
 if TYPE_CHECKING:
     from pyiron_workflow.node import Node

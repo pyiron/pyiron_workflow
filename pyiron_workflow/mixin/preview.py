@@ -16,11 +16,11 @@ import inspect
 from abc import ABC, abstractmethod
 from functools import lru_cache, wraps
 from typing import (
+    TYPE_CHECKING,
     Any,
     ClassVar,
     get_args,
     get_type_hints,
-    TYPE_CHECKING,
 )
 
 from pyiron_snippets.dotdict import DotDict

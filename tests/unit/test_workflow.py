@@ -1,7 +1,7 @@
-from concurrent.futures import Future
 import pickle
-from time import sleep
 import unittest
+from concurrent.futures import Future
+from time import sleep
 
 from bidict import ValueDuplicationError
 from pyiron_snippets.dotdict import DotDict
@@ -9,7 +9,7 @@ from pyiron_snippets.dotdict import DotDict
 from pyiron_workflow._tests import ensure_tests_in_python_path
 from pyiron_workflow.channels import NOT_DATA
 from pyiron_workflow.mixin.semantics import ParentMostError
-from pyiron_workflow.storage import available_backends, TypeNotFoundError
+from pyiron_workflow.storage import TypeNotFoundError, available_backends
 from pyiron_workflow.workflow import Workflow
 
 ensure_tests_in_python_path()

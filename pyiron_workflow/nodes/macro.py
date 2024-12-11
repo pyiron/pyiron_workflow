@@ -5,17 +5,17 @@ interface and are not intended to be internally modified after instantiation.
 
 from __future__ import annotations
 
+import re
 from abc import ABC, abstractmethod
 from inspect import getsource
-import re
 from typing import TYPE_CHECKING
 
 from pyiron_snippets.factory import classfactory
 
-from pyiron_workflow.nodes.composite import Composite
+from pyiron_workflow.io import Inputs, Outputs
 from pyiron_workflow.mixin.has_interface_mixins import HasChannel
-from pyiron_workflow.io import Outputs, Inputs
 from pyiron_workflow.mixin.preview import ScrapesIO
+from pyiron_workflow.nodes.composite import Composite
 from pyiron_workflow.nodes.multiple_distpatch import dispatch_output_labels
 from pyiron_workflow.nodes.static_io import StaticNode
 

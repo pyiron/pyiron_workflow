@@ -7,14 +7,14 @@ from __future__ import annotations
 
 from abc import ABC
 from time import sleep
-from typing import Literal, Optional, TYPE_CHECKING
+from typing import TYPE_CHECKING, Literal, Optional
 
 from pyiron_snippets.colors import SeabornColors
 from pyiron_snippets.dotdict import DotDict
 
 from pyiron_workflow.create import HasCreator
-from pyiron_workflow.node import Node
 from pyiron_workflow.mixin.semantics import SemanticParent
+from pyiron_workflow.node import Node
 from pyiron_workflow.topology import set_run_connections_according_to_dag
 
 if TYPE_CHECKING:

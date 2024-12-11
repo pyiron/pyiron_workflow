@@ -4,10 +4,10 @@ A bit of abstraction connecting generic storage routines to nodes.
 
 from __future__ import annotations
 
+import pickle
 from abc import ABC, abstractmethod
 from pathlib import Path
-import pickle
-from typing import Generator, Literal, TYPE_CHECKING
+from typing import TYPE_CHECKING, Generator, Literal
 
 import cloudpickle
 

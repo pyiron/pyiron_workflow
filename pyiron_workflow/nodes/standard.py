@@ -4,10 +4,10 @@ Common-use nodes relying only on the standard library
 
 from __future__ import annotations
 
-import random
 import os
-from pathlib import Path
+import random
 import shutil
+from pathlib import Path
 from time import sleep
 
 from pyiron_workflow.channels import NOT_DATA, OutputSignal

@@ -1,9 +1,9 @@
 from __future__ import annotations
 
-import inspect
 import importlib.util
-from pathlib import Path
+import inspect
 import sys
+from pathlib import Path
 from types import ModuleType
 
 from pyiron_workflow.node import Node

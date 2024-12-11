@@ -6,14 +6,13 @@ This class is intended as the single point of entry for users making an import.
 
 from __future__ import annotations
 
-from typing import Literal, Optional, TYPE_CHECKING, Any
+from typing import TYPE_CHECKING, Any, Literal, Optional
 
 from bidict import bidict
 
-from pyiron_workflow.nodes.composite import Composite
 from pyiron_workflow.io import Inputs, Outputs
 from pyiron_workflow.mixin.semantics import ParentMost
-
+from pyiron_workflow.nodes.composite import Composite
 
 if TYPE_CHECKING:
     from pyiron_workflow.io import IO

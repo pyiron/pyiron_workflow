@@ -8,7 +8,7 @@ import typing
 from collections.abc import Callable
 
 from pint import Quantity
-from typeguard import check_type, TypeCheckError
+from typeguard import TypeCheckError, check_type
 
 
 def valid_value(value, type_hint) -> bool:

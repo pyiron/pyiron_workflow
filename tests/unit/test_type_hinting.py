@@ -4,7 +4,8 @@ import unittest
 from pint import UnitRegistry
 
 from pyiron_workflow.type_hinting import (
-    type_hint_is_as_or_more_specific_than, valid_value
+    type_hint_is_as_or_more_specific_than,
+    valid_value,
 )
 
 

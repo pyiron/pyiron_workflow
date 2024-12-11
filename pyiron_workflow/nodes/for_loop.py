@@ -1,10 +1,10 @@
 from __future__ import annotations
 
+import itertools
+import math
 from abc import ABC
 from concurrent.futures import Executor
 from functools import lru_cache
-import itertools
-import math
 from typing import Any, ClassVar, Literal, Optional
 
 from pandas import DataFrame
@@ -13,13 +13,13 @@ from pyiron_snippets.factory import classfactory
 from pyiron_workflow.channels import NOT_DATA
 from pyiron_workflow.nodes.composite import Composite
 from pyiron_workflow.nodes.static_io import StaticNode
-from pyiron_workflow.storage import StorageInterface
 from pyiron_workflow.nodes.transform import (
-    inputs_to_dict,
-    inputs_to_dataframe,
-    inputs_to_list,
     InputsToDict,
+    inputs_to_dataframe,
+    inputs_to_dict,
+    inputs_to_list,
 )
+from pyiron_workflow.storage import StorageInterface
 
 
 def dictionary_to_index_maps(

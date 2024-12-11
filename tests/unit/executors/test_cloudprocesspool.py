@@ -1,10 +1,10 @@
-from functools import partialmethod
-from concurrent.futures import TimeoutError
-from time import sleep
 import unittest
+from concurrent.futures import TimeoutError
+from functools import partialmethod
+from time import sleep
 
 from pyiron_workflow.executors.cloudpickleprocesspool import (
-    CloudpickleProcessPoolExecutor
+    CloudpickleProcessPoolExecutor,
 )
 
 

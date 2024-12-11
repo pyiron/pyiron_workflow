@@ -1,18 +1,18 @@
+import pickle
+import unittest
 from concurrent.futures import ThreadPoolExecutor
 from itertools import product
-import pickle
 from time import perf_counter
-import unittest
 
 from pandas import DataFrame
 from pyiron_snippets.dotdict import DotDict
 
 from pyiron_workflow._tests import ensure_tests_in_python_path
 from pyiron_workflow.nodes.for_loop import (
+    MapsToNonexistentOutputError,
+    UnmappedConflictError,
     dictionary_to_index_maps,
     for_node,
-    UnmappedConflictError,
-    MapsToNonexistentOutputError
 )
 from pyiron_workflow.nodes.function import as_function_node
 from pyiron_workflow.nodes.macro import as_macro_node

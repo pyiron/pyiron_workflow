@@ -1,10 +1,19 @@
 import unittest
 
 from pyiron_workflow.channels import (
-    DataChannel, InputData, InputSignal, OutputData, OutputSignal
+    DataChannel,
+    InputData,
+    InputSignal,
+    OutputData,
+    OutputSignal,
 )
 from pyiron_workflow.io import (
-    Inputs, Outputs, Signals, HasIO, ConnectionCopyError, ValueCopyError
+    ConnectionCopyError,
+    HasIO,
+    Inputs,
+    Outputs,
+    Signals,
+    ValueCopyError,
 )
 
 

@@ -8,7 +8,7 @@ from __future__ import annotations
 
 from typing import TYPE_CHECKING
 
-from toposort import toposort, toposort_flatten, CircularDependencyError
+from toposort import CircularDependencyError, toposort, toposort_flatten
 
 if TYPE_CHECKING:
     from pyiron_workflow.channels import SignalChannel

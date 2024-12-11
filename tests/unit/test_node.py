@@ -1,13 +1,16 @@
-from concurrent.futures import Future, ProcessPoolExecutor
 import pathlib
 import unittest
+from concurrent.futures import Future, ProcessPoolExecutor
 
-from pyiron_workflow.channels import InputData, NOT_DATA
-from pyiron_workflow.mixin.injection import OutputDataWithInjection, OutputsWithInjection
+from pyiron_workflow.channels import NOT_DATA, InputData
 from pyiron_workflow.io import Inputs
-from pyiron_workflow.node import Node
-from pyiron_workflow.storage import available_backends, PickleStorage
+from pyiron_workflow.mixin.injection import (
+    OutputDataWithInjection,
+    OutputsWithInjection,
+)
 from pyiron_workflow.mixin.single_output import AmbiguousOutputError
+from pyiron_workflow.node import Node
+from pyiron_workflow.storage import PickleStorage, available_backends
 
 
 def add_one(x):

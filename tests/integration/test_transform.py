@@ -5,7 +5,7 @@ from pyiron_workflow.nodes.transform import (
     inputs_to_list,
     inputs_to_list_factory,
     list_to_outputs,
-    list_to_outputs_factory
+    list_to_outputs_factory,
 )
 
 

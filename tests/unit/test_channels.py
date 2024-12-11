@@ -1,8 +1,15 @@
 import unittest
 
 from pyiron_workflow.channels import (
-    Channel, InputData, OutputData, InputSignal, AccumulatingInputSignal, OutputSignal,
-    NOT_DATA, ChannelConnectionError, BadCallbackError
+    NOT_DATA,
+    AccumulatingInputSignal,
+    BadCallbackError,
+    Channel,
+    ChannelConnectionError,
+    InputData,
+    InputSignal,
+    OutputData,
+    OutputSignal,
 )
 
 

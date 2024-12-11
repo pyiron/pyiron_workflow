@@ -1,13 +1,13 @@
-from concurrent.futures import Future
 import pickle
-from time import sleep
 import unittest
+from concurrent.futures import Future
+from time import sleep
 
 from pyiron_workflow._tests import ensure_tests_in_python_path
 from pyiron_workflow.channels import NOT_DATA
-from pyiron_workflow.nodes.function import function_node, as_function_node
-from pyiron_workflow.nodes.macro import Macro, macro_node, as_macro_node
-from pyiron_workflow.storage import available_backends, PickleStorage
+from pyiron_workflow.nodes.function import as_function_node, function_node
+from pyiron_workflow.nodes.macro import Macro, as_macro_node, macro_node
+from pyiron_workflow.storage import PickleStorage, available_backends
 from pyiron_workflow.topology import CircularDataFlowError
 
 ensure_tests_in_python_path()

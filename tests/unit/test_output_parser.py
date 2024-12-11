@@ -1,6 +1,5 @@
-import unittest
-
 import math
+import unittest
 
 from pyiron_workflow.output_parser import ParseOutput
 

@@ -14,11 +14,11 @@ different drives or machines) belong to the same semantic group.
 from __future__ import annotations
 
 from abc import ABC
+from difflib import get_close_matches
 from pathlib import Path
 from typing import Optional
 
 from bidict import bidict
-from difflib import get_close_matches
 
 from pyiron_workflow.logging import logger
 from pyiron_workflow.mixin.has_interface_mixins import HasLabel, HasParent, UsesState

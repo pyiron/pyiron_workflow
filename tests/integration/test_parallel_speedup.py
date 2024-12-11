@@ -1,5 +1,5 @@
-from time import perf_counter, sleep
 import unittest
+from time import perf_counter, sleep
 
 from pyiron_workflow import Workflow
 from pyiron_workflow.channels import NOT_DATA

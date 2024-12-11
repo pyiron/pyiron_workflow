@@ -5,13 +5,14 @@ import time
 import unittest
 
 from pyiron_workflow._tests import ensure_tests_in_python_path
-from pyiron_workflow.channels import OutputSignal, NOT_DATA
+from pyiron_workflow.channels import NOT_DATA, OutputSignal
 from pyiron_workflow.nodes.composite import FailedChildError
 from pyiron_workflow.nodes.function import Function
 from pyiron_workflow.workflow import Workflow
 
 ensure_tests_in_python_path()
 from static import demo_nodes
+
 
 @Workflow.wrap.as_function_node("random")
 def RandomFloat() -> float:

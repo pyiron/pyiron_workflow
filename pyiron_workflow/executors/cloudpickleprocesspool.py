@@ -1,5 +1,5 @@
 from concurrent.futures import Future, ProcessPoolExecutor
-from concurrent.futures.process import _global_shutdown, _WorkItem, BrokenProcessPool
+from concurrent.futures.process import BrokenProcessPool, _global_shutdown, _WorkItem
 from sys import version_info
 
 import cloudpickle

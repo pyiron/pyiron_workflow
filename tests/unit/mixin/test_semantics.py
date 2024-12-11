@@ -1,8 +1,11 @@
-from pathlib import Path
 import unittest
+from pathlib import Path
 
 from pyiron_workflow.mixin.semantics import (
-    Semantic, SemanticParent, ParentMost, CyclicPathError
+    CyclicPathError,
+    ParentMost,
+    Semantic,
+    SemanticParent,
 )
 
 

@@ -6,7 +6,8 @@ interaction, etc.
 from __future__ import annotations
 
 from abc import ABC, abstractmethod
-from concurrent.futures import Executor as StdLibExecutor, Future, ThreadPoolExecutor
+from concurrent.futures import Executor as StdLibExecutor
+from concurrent.futures import Future, ThreadPoolExecutor
 from functools import partial
 from time import sleep
 from typing import Any, Optional

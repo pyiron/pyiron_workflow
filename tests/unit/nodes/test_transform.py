@@ -1,7 +1,7 @@
-from dataclasses import dataclass, field, is_dataclass
 import pickle
 import random
 import unittest
+from dataclasses import dataclass, field, is_dataclass
 
 from pandas import DataFrame
 
@@ -16,6 +16,7 @@ from pyiron_workflow.nodes.transform import (
     inputs_to_list,
     list_to_outputs,
 )
+
 
 @as_dataclass_node
 class MyData:

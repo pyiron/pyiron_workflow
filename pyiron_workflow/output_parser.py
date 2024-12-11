@@ -3,9 +3,9 @@ Inspects code to automatically parse return values as strings
 """
 
 import ast
-from functools import lru_cache
 import inspect
 import re
+from functools import lru_cache
 from textwrap import dedent
 
 

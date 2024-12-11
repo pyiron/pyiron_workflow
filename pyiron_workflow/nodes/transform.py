@@ -4,9 +4,10 @@ Transformer nodes convert many inputs into a single output, or vice-versa.
 
 from __future__ import annotations
 
-from abc import ABC, abstractmethod
-from dataclasses import dataclass as as_dataclass, MISSING
 import itertools
+from abc import ABC, abstractmethod
+from dataclasses import MISSING
+from dataclasses import dataclass as as_dataclass
 from typing import Any, ClassVar, Optional
 
 from pandas import DataFrame

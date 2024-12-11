@@ -5,7 +5,7 @@ Functions for drawing the graph.
 from __future__ import annotations
 
 from abc import ABC, abstractmethod
-from typing import Literal, Optional, TYPE_CHECKING
+from typing import TYPE_CHECKING, Literal, Optional
 
 import graphviz
 from pyiron_snippets.colors import SeabornColors

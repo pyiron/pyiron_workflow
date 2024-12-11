@@ -1,11 +1,11 @@
-from pathlib import Path
 import pickle
-from typing import Optional, Union
 import unittest
+from pathlib import Path
+from typing import Optional, Union
 
 from pyiron_workflow.channels import NOT_DATA
-from pyiron_workflow.nodes.function import function_node, as_function_node, Function
 from pyiron_workflow.io import ConnectionCopyError, ValueCopyError
+from pyiron_workflow.nodes.function import Function, as_function_node, function_node
 from pyiron_workflow.nodes.multiple_distpatch import MultipleDispatchError
 
 

@@ -13,23 +13,23 @@ from typing import Any
 from pyiron_snippets.dotdict import DotDict
 
 from pyiron_workflow.channels import (
+    NOT_DATA,
+    AccumulatingInputSignal,
     Channel,
     DataChannel,
     InputData,
-    OutputData,
-    SignalChannel,
     InputSignal,
+    OutputData,
     OutputSignal,
-    AccumulatingInputSignal,
-    NOT_DATA,
+    SignalChannel,
 )
 from pyiron_workflow.logging import logger
+from pyiron_workflow.mixin.display_state import HasStateDisplay
 from pyiron_workflow.mixin.has_interface_mixins import (
     HasChannel,
     HasLabel,
     HasRun,
 )
-from pyiron_workflow.mixin.display_state import HasStateDisplay
 
 
 class IO(HasStateDisplay, ABC):

@@ -10,7 +10,7 @@ from __future__ import annotations
 from abc import ABC, abstractmethod
 from concurrent.futures import Future
 from importlib import import_module
-from typing import Any, Literal, Optional, TYPE_CHECKING
+from typing import TYPE_CHECKING, Any, Literal, Optional
 
 import cloudpickle
 from pyiron_snippets.colors import SeabornColors
@@ -19,7 +19,7 @@ from pyiron_snippets.dotdict import DotDict
 from pyiron_workflow.draw import Node as GraphvizNode
 from pyiron_workflow.logging import logger
 from pyiron_workflow.mixin.injection import HasIOWithInjection
-from pyiron_workflow.mixin.run import Runnable, ReadinessError
+from pyiron_workflow.mixin.run import ReadinessError, Runnable
 from pyiron_workflow.mixin.semantics import Semantic
 from pyiron_workflow.mixin.single_output import ExploitsSingleOutput
 from pyiron_workflow.storage import StorageInterface, available_backends
