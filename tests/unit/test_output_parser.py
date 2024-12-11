@@ -73,10 +73,7 @@ class TestParseOutput(unittest.TestCase):
 
     def test_multiple_branches(self):
         def bifurcating(x):
-            if x > 5:
-                return True
-            else:
-                return False
+            return x > 5
         with self.assertRaises(ValueError):
             ParseOutput(bifurcating)
 

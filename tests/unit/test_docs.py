@@ -6,7 +6,7 @@ import pyiron_workflow
 
 
 def load_tests(loader, tests, ignore):
-    for importer, name, ispkg in pkgutil.walk_packages(
+    for _importer, name, _ispkg in pkgutil.walk_packages(
         pyiron_workflow.__path__, pyiron_workflow.__name__ + '.'
     ):
         tests.addTests(doctest.DocTestSuite(name))

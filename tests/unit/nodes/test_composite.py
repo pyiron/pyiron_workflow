@@ -619,7 +619,7 @@ class TestComposite(unittest.TestCase):
         self.comp.child.use_cache = False
         self.comp.child._do_clean = False
 
-        out = self.comp.run()
+        self.comp.run()
         self.assertTrue(self.comp.child._temporary_result_file.is_file())
         self.assertEqual(self.comp.child.outputs.y.value, 42 + 1)
 

@@ -281,7 +281,7 @@ class Macro(Composite, StaticNode, ScrapesIO, ABC):
 
     @classmethod
     def _scrape_output_labels(cls):
-        scraped_labels = super(Macro, cls)._scrape_output_labels()
+        scraped_labels = super()._scrape_output_labels()
 
         if scraped_labels is not None:
             # Strip off the first argument, e.g. self.foo just becomes foo

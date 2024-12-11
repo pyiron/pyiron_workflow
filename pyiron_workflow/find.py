@@ -16,7 +16,7 @@ def _get_subclasses(
     get_abstract: bool = False,
     get_imports_too: bool = False,
 ):
-    if isinstance(source, (str, Path)):
+    if isinstance(source, str | Path):
         source = Path(source)
         if source.is_file():
             # Load the module from the file

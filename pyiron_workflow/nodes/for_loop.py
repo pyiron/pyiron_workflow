@@ -191,7 +191,7 @@ class For(Composite, StaticNode, ABC):
         """
         How to transform body node output labels to dataframe column names.
         """
-        map_ = {k: k for k in cls._body_node_class.preview_outputs().keys()}
+        map_ = {k: k for k in cls._body_node_class.preview_outputs()}
         overrides = {} if cls._output_column_map is None else cls._output_column_map
         for body_label, column_name in overrides.items():
             map_[body_label] = column_name
@@ -389,7 +389,7 @@ class For(Composite, StaticNode, ABC):
             return {"df": DataFrame}
         else:
             preview = {}
-            for label, (hint, default) in cls._body_node_class.preview_inputs().items():
+            for label, (hint, _default) in cls._body_node_class.preview_inputs().items():
                 if label in cls._zip_on + cls._iter_on:
                     hint = list if hint is None else list[hint]
                     preview[label] = hint

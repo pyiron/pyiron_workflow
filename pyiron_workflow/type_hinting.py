@@ -28,7 +28,7 @@ def valid_value(value, type_hint) -> bool:
 
 
 def type_hint_to_tuple(type_hint) -> tuple:
-    if isinstance(type_hint, (types.UnionType, typing._UnionGenericAlias)):
+    if isinstance(type_hint, types.UnionType | typing._UnionGenericAlias):
         return typing.get_args(type_hint)
     else:
         return (type_hint,)

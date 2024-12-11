@@ -30,10 +30,7 @@ def void():
 
 
 def multiple_branches(x):
-    if x < 10:
-        return True
-    else:
-        return False
+    return x < 10
 
 
 class TestFunction(unittest.TestCase):
@@ -437,10 +434,7 @@ class TestFunction(unittest.TestCase):
             connected = True  # Overlaps with an attribute of the node
 
             def __getitem__(self, item):
-                if item == 0:
-                    return True
-                else:
-                    return False
+                return item == 0
 
         def returns_foo() -> Foo:
             return Foo()
@@ -472,7 +466,7 @@ class TestFunction(unittest.TestCase):
             AttributeError,
             msg="Aggressive running hits the problem that no such attribute exists"
         ):
-            injected = single_output.doesnt_exists_anywhere
+            pass
         # The injected node fails at runtime and generates a recovery file
         # We want to clean it up, but this is a pain because the node failed during
         # instantiation, so we have no good reference to the node object, and it's
@@ -505,7 +499,7 @@ class TestFunction(unittest.TestCase):
 
         @as_function_node
         def NoReturn(x):
-            y = x + 1
+            x + 1
 
         self.assertDictEqual(
             {"None": type(None)},

@@ -351,10 +351,7 @@ class TestDataChannels(unittest.TestCase):
         )
 
     def test_if_not_data(self):
-        if NOT_DATA:
-            a = 0
-        else:
-            a = 1
+        a = 0 if NOT_DATA else 1
         self.assertEqual(
             a, 1, msg="NOT_DATA failed behave like None in the if-statement"
         )

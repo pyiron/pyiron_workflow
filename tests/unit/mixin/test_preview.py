@@ -57,7 +57,7 @@ class TestIOPreview(unittest.TestCase):
     def test_void(self):
         @as_scraper()
         def AbsenceOfIOIsPermissible():
-            nothing = None
+            pass
 
     def test_preview_inputs(self):
         @as_scraper()
@@ -72,14 +72,13 @@ class TestIOPreview(unittest.TestCase):
                 "without type hints and/or defaults provided."
         )
 
-        with self.subTest("Protected"):
-            with self.assertRaises(
-                ValueError,
-                msg="Inputs must not overlap with __init__ signature terms"
-            ):
-                @as_scraper()
-                def Selfish(self, x):
-                    return x
+        with self.subTest("Protected"), self.assertRaises(
+            ValueError,
+            msg="Inputs must not overlap with __init__ signature terms"
+        ):
+            @as_scraper()
+            def Selfish(self, x):
+                return x
 
     def test_preview_outputs(self):
 
@@ -132,7 +131,7 @@ class TestIOPreview(unittest.TestCase):
             ):
                 @as_scraper("xo", "yo")
                 def LabelsMismatchScraped(x) -> tuple[int, float]:
-                    y, z = 5.0, 5
+                    _y, _z = 5.0, 5
                     return x
 
             @as_scraper("x0", "x1", validate_output_labels=False)
@@ -153,17 +152,11 @@ class TestIOPreview(unittest.TestCase):
             ):
                 @as_scraper("truth")
                 def Branched(x) -> bool:
-                    if x <= 0:
-                        return False
-                    else:
-                        return True
+                    return not x <= 0
 
             @as_scraper("truth", validate_output_labels=False)
             def Branched(x) -> bool:
-                if x <= 0:
-                    return False
-                else:
-                    return True
+                return not x <= 0
             self.assertDictEqual(
                 {"truth": bool},
                 Branched.preview_outputs(),

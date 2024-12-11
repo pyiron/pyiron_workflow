@@ -169,18 +169,17 @@ class TestWorkflow(unittest.TestCase):
         for exe_cls in executors:
             with self.subTest(
                 f"{exe_cls.__module__}.{exe_cls.__qualname__} entire workflow"
-            ):
-                with exe_cls() as exe:
-                    wf.executor = exe
-                    self.assertDictEqual(
-                        reference_output,
-                        wf().result().outputs.to_value_dict()
-                    )
-                    self.assertFalse(
-                        wf.running,
-                        msg="The workflow should stop. For thread pool this required a "
-                            "little sleep"
-                    )
+            ), exe_cls() as exe:
+                wf.executor = exe
+                self.assertDictEqual(
+                    reference_output,
+                    wf().result().outputs.to_value_dict()
+                )
+                self.assertFalse(
+                    wf.running,
+                    msg="The workflow should stop. For thread pool this required a "
+                        "little sleep"
+                )
             wf.executor = None
 
             with self.subTest(f"{exe_cls.__module__}.{exe_cls.__qualname__} each node"):

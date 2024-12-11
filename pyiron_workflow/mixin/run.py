@@ -5,6 +5,7 @@ interaction, etc.
 
 from __future__ import annotations
 
+import contextlib
 from abc import ABC, abstractmethod
 from concurrent.futures import Executor as StdLibExecutor
 from concurrent.futures import Future, ThreadPoolExecutor
@@ -103,10 +104,8 @@ class Runnable(UsesState, HasLabel, HasRun, ABC):
 
     def executor_shutdown(self, wait=True, *, cancel_futures=False):
         """Invoke shutdown on the executor (if present)."""
-        try:
+        with contextlib.suppress(AttributeError):
             self.executor.shutdown(wait=wait, cancel_futures=cancel_futures)
-        except AttributeError:
-            pass
 
     def run(
         self,
@@ -211,7 +210,7 @@ class Runnable(UsesState, HasLabel, HasRun, ABC):
                 the executor.
         """
         on_run_args, on_run_kwargs = self.run_args
-        if "self" in on_run_kwargs.keys():
+        if "self" in on_run_kwargs:
             raise ValueError(
                 f"{self.label} got 'self' as a run kwarg, but self is already the "
                 f"first positional argument passed to :meth:`on_run`."

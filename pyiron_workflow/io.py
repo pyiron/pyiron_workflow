@@ -7,6 +7,7 @@ connections on the same footing.
 
 from __future__ import annotations
 
+import contextlib
 from abc import ABC, abstractmethod
 from typing import Any
 
@@ -81,7 +82,7 @@ class IO(HasStateDisplay, ABC):
             )
 
     def __setattr__(self, key, value):
-        if key in self.channel_dict.keys():
+        if key in self.channel_dict:
             self._assign_value_to_existing_channel(self.channel_dict[key], value)
         elif isinstance(value, self._channel_class):
             if key != value.label:
@@ -227,14 +228,10 @@ class InputSignals(SignalIO):
     def disconnect_run(self) -> list[tuple[Channel, Channel]]:
         """Disconnect all `run` and `accumulate_and_run` signals, if they exist."""
         disconnected = []
-        try:
+        with contextlib.suppress(AttributeError):
             disconnected += self.run.disconnect_all()
-        except AttributeError:
-            pass
-        try:
+        with contextlib.suppress(AttributeError):
             disconnected += self.accumulate_and_run.disconnect_all()
-        except AttributeError:
-            pass
         return disconnected
 
 

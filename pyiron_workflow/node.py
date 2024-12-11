@@ -7,6 +7,7 @@ The workhorse class for the entire concept.
 
 from __future__ import annotations
 
+import contextlib
 from abc import ABC, abstractmethod
 from concurrent.futures import Future
 from importlib import import_module
@@ -352,10 +353,8 @@ class Node(
         self.set_input_values(*args, **kwargs)
 
         if autorun:
-            try:
+            with contextlib.suppress(ReadinessError):
                 self.run()
-            except ReadinessError:
-                pass
 
     @property
     def graph_path(self) -> str:
