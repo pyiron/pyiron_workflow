@@ -66,7 +66,7 @@ include = [ "pyiron_workflow*",]
 attr = "pyiron_workflow.__version__"
 
 [tool.ruff]
-exclude = ["docs", "notebooks", "setup.py"]
+exclude = ["docs", "notebooks", "setup.py", "_version.py"]
 
 [tool.ruff.lint]
 select = [
