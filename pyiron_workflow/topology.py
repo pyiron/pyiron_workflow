@@ -58,7 +58,7 @@ def nodes_to_data_digraph(nodes: dict[str, Node]) -> dict[str, set[str]]:
             for upstream in channel.connections:
                 try:
                     upstream_node = nodes[upstream.owner.label]
-                except KeyError as e:
+                except KeyError:
                     raise KeyError(
                         f"The channel {channel.full_label} has a connection to the "
                         f"upstream channel {upstream.full_label}, but the upstream "

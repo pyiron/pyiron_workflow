@@ -197,7 +197,7 @@ class ScrapesIO(HasIOPreview, ABC):
             type_hints = [None] * len(labels)
             # Note that this nicely differs from `NoneType`, which is the hint when
             # `None` is actually the hint!
-        return {label: hint for label, hint in zip(labels, type_hints)}
+        return {label: hint for label, hint in zip(labels, type_hints, strict=False)}
 
     @classmethod
     def _get_output_labels(cls):
@@ -282,8 +282,8 @@ class ScrapesIO(HasIOPreview, ABC):
                     )
             except TypeError:
                 raise TypeError(
-                    f"Output labels and return values must either both or neither be "
-                    f"present, " + error_suffix
+                    "Output labels and return values must either both or neither be "
+                    "present, " + error_suffix
                 )
 
     @staticmethod

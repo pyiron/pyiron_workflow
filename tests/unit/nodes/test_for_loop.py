@@ -93,7 +93,7 @@ class TestDictionaryToIndexMaps(unittest.TestCase):
             )
             for z_idx, z_idx2 in zip(
                 range(len(data["zipped1"])),
-                range(len(data["zipped2"]))
+                range(len(data["zipped2"])), strict=False
             )
         )
         self.assertEqual(

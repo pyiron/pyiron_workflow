@@ -6,8 +6,9 @@ from __future__ import annotations
 
 import pickle
 from abc import ABC, abstractmethod
+from collections.abc import Generator
 from pathlib import Path
-from typing import TYPE_CHECKING, Generator, Literal
+from typing import TYPE_CHECKING, Literal
 
 import cloudpickle
 
@@ -231,7 +232,7 @@ class PickleStorage(StorageInterface):
                 with open(p, "wb") as filehandle:
                     save_method(node, filehandle)
                 return
-            except Exception as e:
+            except Exception:
                 p.unlink(missing_ok=True)
         if e is not None:
             raise e

@@ -1,7 +1,6 @@
 import pickle
 import unittest
 from pathlib import Path
-from typing import Optional, Union
 
 from pyiron_workflow.channels import NOT_DATA
 from pyiron_workflow.io import ConnectionCopyError, ValueCopyError
@@ -9,11 +8,11 @@ from pyiron_workflow.nodes.function import Function, as_function_node, function_
 from pyiron_workflow.nodes.multiple_distpatch import MultipleDispatchError
 
 
-def throw_error(x: Optional[int] = None):
+def throw_error(x: int | None = None):
     raise RuntimeError
 
 
-def plus_one(x=1) -> Union[int, float]:
+def plus_one(x=1) -> int | float:
     y = x + 1
     return y
 
@@ -61,8 +60,8 @@ class TestFunction(unittest.TestCase):
             self.assertEqual(
                 node.outputs.y.value,
                 11,
-                msg=f"Expected the run to update the output -- did the test function"
-                    f"change or something?"
+                msg="Expected the run to update the output -- did the test function"
+                    "change or something?"
             )
 
             node = function_node(no_default, 1, y=2, output_labels="output")

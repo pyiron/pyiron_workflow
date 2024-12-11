@@ -19,16 +19,16 @@ class TestOutputInjection(unittest.TestCase):
         with self.subTest("True expressions"):
             for expression in [
                 self.int < 100,
-                0 < self.int,
+                self.int > 0,
                 self.int <= 100,
                 self.int <= 42,
-                0 <= self.int,
+                self.int >= 0,
                 self.int.eq(42),
                 self.int != 43,
                 self.int > 0,
-                100 > self.int,
+                self.int < 100,
                 self.int >= 0,
-                100 >= self.int,
+                self.int <= 100,
                 self.int >= 42,
             ]:
                 with self.subTest(expression.label):
@@ -37,15 +37,15 @@ class TestOutputInjection(unittest.TestCase):
         with self.subTest("False expressions"):
             for expression in [
                 self.int > 100,
-                0 > self.int,
+                self.int < 0,
                 self.int >= 100,
-                0 >= self.int,
+                self.int <= 0,
                 self.int != 42,
                 self.int.eq(43),
                 self.int < 0,
-                100 < self.int,
+                self.int > 100,
                 self.int <= 0,
-                100 <= self.int,
+                self.int >= 100,
             ]:
                 with self.subTest(expression.label):
                     self.assertFalse(expression.value)

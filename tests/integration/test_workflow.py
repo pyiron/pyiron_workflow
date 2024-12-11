@@ -114,7 +114,7 @@ class TestWorkflow(unittest.TestCase):
 
         for output, expectation in zip(
             out.df["sum"].values.tolist(),
-            [base + v for v in to_add]
+            [base + v for v in to_add], strict=False
         ):
             self.assertAlmostEqual(
                 output,

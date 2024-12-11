@@ -10,7 +10,7 @@ from __future__ import annotations
 from abc import ABC, abstractmethod
 from concurrent.futures import Future
 from importlib import import_module
-from typing import TYPE_CHECKING, Any, Literal, Optional
+from typing import TYPE_CHECKING, Any, Literal
 
 import cloudpickle
 from pyiron_snippets.colors import SeabornColors
@@ -266,8 +266,8 @@ class Node(
     def __init__(
         self,
         *args,
-        label: Optional[str] = None,
-        parent: Optional[Composite] = None,
+        label: str | None = None,
+        parent: Composite | None = None,
         delete_existing_savefiles: bool = False,
         autoload: Literal["pickle"] | StorageInterface | None = None,
         autorun: bool = False,
@@ -376,7 +376,7 @@ class Node(
 
     @property
     def readiness_report(self) -> str:
-        input_readiness_report = f"INPUTS:\n" + "\n".join(
+        input_readiness_report = "INPUTS:\n" + "\n".join(
             [f"{k} ready: {v.ready}" for k, v in self.inputs.items()]
         )
         return super().readiness_report + input_readiness_report
@@ -778,12 +778,12 @@ class Node(
         self,
         depth: int = 1,
         rankdir: Literal["LR", "TB"] = "LR",
-        size: Optional[tuple] = None,
+        size: tuple | None = None,
         save: bool = False,
         view: bool = False,
-        directory: Optional[Path | str] = None,
-        filename: Optional[Path | str] = None,
-        format: Optional[str] = None,
+        directory: Path | str | None = None,
+        filename: Path | str | None = None,
+        format: str | None = None,
         cleanup: bool = True,
     ) -> graphviz.graphs.Digraph:
         """

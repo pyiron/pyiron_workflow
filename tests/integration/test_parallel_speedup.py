@@ -2,7 +2,6 @@ import unittest
 from time import perf_counter, sleep
 
 from pyiron_workflow import Workflow
-from pyiron_workflow.channels import NOT_DATA
 
 
 class TestSpeedup(unittest.TestCase):
@@ -36,8 +35,8 @@ class TestSpeedup(unittest.TestCase):
         self.assertLess(
             dt_cached_serial,
             0.01 * t,
-            msg=f"The cache should be trivially fast compared to actual execution of "
-                f"a sleep node"
+            msg="The cache should be trivially fast compared to actual execution of "
+                "a sleep node"
         )
 
         wf = make_workflow("parallel")
@@ -71,8 +70,8 @@ class TestSpeedup(unittest.TestCase):
         self.assertLess(
             dt_cached_parallel,
             0.01 * t,
-            msg=f"The cache should be trivially fast compared to actual execution of "
-                f"a sleep node"
+            msg="The cache should be trivially fast compared to actual execution of "
+                "a sleep node"
         )
 
     def test_executor_instructions(self):

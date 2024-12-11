@@ -1,6 +1,5 @@
 import doctest
 import pkgutil
-import sys
 import unittest
 
 import pyiron_workflow

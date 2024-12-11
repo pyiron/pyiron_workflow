@@ -279,7 +279,7 @@ class TestMacro(unittest.TestCase):
         self.assertIs(
             downstream.inputs.x.connections[0],
             macro.outputs.three__result,
-            msg=f"The macro output should still be connected to downstream"
+            msg="The macro output should still be connected to downstream"
         )
         sleep(0.2)  # Give a moment for the ran signal to emit and downstream to run
         # I'm a bit surprised this sleep is necessary
@@ -349,7 +349,7 @@ class TestMacro(unittest.TestCase):
             )
             self.assertTrue(
                 all(
-                    c is ic for (c, ic) in zip(grab_connections(m), initial_connections)
+                    c is ic for (c, ic) in zip(grab_connections(m), initial_connections, strict=False)
                 ),
                 msg="Connections should be restored after failing to pull because of "
                     "cyclic data flow"
@@ -380,7 +380,7 @@ class TestMacro(unittest.TestCase):
                 all(
                     c is ic
                     for (c, ic) in zip(
-                        grab_x_and_run(n1) + grab_x_and_run(n2), initial_connections
+                        grab_x_and_run(n1) + grab_x_and_run(n2), initial_connections, strict=False
                     )
                 ),
                 msg="Connections should be restored after failing to pull because of "

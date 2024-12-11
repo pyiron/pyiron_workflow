@@ -57,7 +57,7 @@ class If(Function):
             TypeError: If the condition is NOT_DATA.
         """
         if condition is NOT_DATA:
-            raise TypeError(f"Logic 'If' node expected data but got NOT_DATA as input.")
+            raise TypeError("Logic 'If' node expected data but got NOT_DATA as input.")
         truth = bool(condition)
         return truth
 

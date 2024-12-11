@@ -403,7 +403,7 @@ class HasIO(HasStateDisplay, HasLabel, HasRun, ABC):
                 f"Received {len(args)} args, but only have {len(self.inputs.labels)} "
                 f"input channels available"
             )
-        keyed_args = {label: value for label, value in zip(self.inputs.labels, args)}
+        keyed_args = {label: value for label, value in zip(self.inputs.labels, args, strict=False)}
 
         if len(set(keyed_args.keys()).intersection(kwargs.keys())) > 0:
             raise ValueError(
@@ -497,7 +497,7 @@ class HasIO(HasStateDisplay, HasLabel, HasRun, ABC):
                 pairs (for reverting changes).
         """
         new_connections = []
-        for my_panel, other_panel in zip(self._owned_io_panels, other._owned_io_panels):
+        for my_panel, other_panel in zip(self._owned_io_panels, other._owned_io_panels, strict=False):
             for key, channel in other_panel.items():
                 for target in channel.connections:
                     try:

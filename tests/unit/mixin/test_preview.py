@@ -172,7 +172,7 @@ class TestIOPreview(unittest.TestCase):
 
         with self.subTest("Uninspectable function"):
             def _uninspectable():
-                template = dedent(f"""
+                template = dedent("""
                     def __source_code_not_available(x):
                         return x
                 """)

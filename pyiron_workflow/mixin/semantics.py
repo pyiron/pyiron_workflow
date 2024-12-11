@@ -16,7 +16,6 @@ from __future__ import annotations
 from abc import ABC
 from difflib import get_close_matches
 from pathlib import Path
-from typing import Optional
 
 from bidict import bidict
 
@@ -35,7 +34,7 @@ class Semantic(UsesState, HasLabel, HasParent, ABC):
     semantic_delimiter = "/"
 
     def __init__(
-        self, label: str, *args, parent: Optional[SemanticParent] = None, **kwargs
+        self, label: str, *args, parent: SemanticParent | None = None, **kwargs
     ):
         self._label = None
         self._parent = None
@@ -179,7 +178,7 @@ class SemanticParent(Semantic, ABC):
         self,
         label: str,
         *args,
-        parent: Optional[SemanticParent] = None,
+        parent: SemanticParent | None = None,
         strict_naming: bool = True,
         **kwargs,
     ):
@@ -220,8 +219,8 @@ class SemanticParent(Semantic, ABC):
     def add_child(
         self,
         child: Semantic,
-        label: Optional[str] = None,
-        strict_naming: Optional[bool] = None,
+        label: str | None = None,
+        strict_naming: bool | None = None,
     ) -> Semantic:
         """
         Add a child, optionally assigning it a new label in the process.

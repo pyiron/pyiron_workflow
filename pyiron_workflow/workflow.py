@@ -6,7 +6,7 @@ This class is intended as the single point of entry for users making an import.
 
 from __future__ import annotations
 
-from typing import TYPE_CHECKING, Any, Literal, Optional
+from typing import TYPE_CHECKING, Any, Literal
 
 from bidict import bidict
 
@@ -208,8 +208,8 @@ class Workflow(ParentMost, Composite):
         autorun: bool = False,
         checkpoint: Literal["pickle"] | StorageInterface | None = None,
         strict_naming: bool = True,
-        inputs_map: Optional[dict | bidict] = None,
-        outputs_map: Optional[dict | bidict] = None,
+        inputs_map: dict | bidict | None = None,
+        outputs_map: dict | bidict | None = None,
         automate_execution: bool = True,
         **kwargs,
     ):

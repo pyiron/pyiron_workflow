@@ -340,10 +340,10 @@ class DataChannel(Channel, ABC):
         self,
         label: str,
         owner: HasIO,
-        default: typing.Optional[typing.Any] = NOT_DATA,
-        type_hint: typing.Optional[typing.Any] = None,
+        default: typing.Any | None = NOT_DATA,
+        type_hint: typing.Any | None = None,
         strict_hints: bool = True,
-        value_receiver: typing.Optional[InputData] = None,
+        value_receiver: InputData | None = None,
     ):
         super().__init__(label=label, owner=owner)
         self._value = NOT_DATA
@@ -614,7 +614,7 @@ class InputSignal(SignalChannel):
     def callback(self) -> callable:
         return getattr(self.owner, self._callback)
 
-    def __call__(self, other: typing.Optional[OutputSignal] = None) -> None:
+    def __call__(self, other: OutputSignal | None = None) -> None:
         self.callback()
 
     def __str__(self):

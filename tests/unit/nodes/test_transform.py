@@ -231,7 +231,7 @@ class TestTransformer(unittest.TestCase):
 
             for n_cls, style in zip(
                 [DecoratedDC(label="dcinst"), DecoratedDCLike(label="dcinst")],
-                ["Actual dataclass", "Dataclass-like class"]
+                ["Actual dataclass", "Dataclass-like class"], strict=False
             ):
                 with self.subTest(style):
                     self.assertTrue(

@@ -10,7 +10,7 @@ from concurrent.futures import Executor as StdLibExecutor
 from concurrent.futures import Future, ThreadPoolExecutor
 from functools import partial
 from time import sleep
-from typing import Any, Optional
+from typing import Any
 
 from pyiron_workflow.mixin.has_interface_mixins import HasLabel, HasRun, UsesState
 

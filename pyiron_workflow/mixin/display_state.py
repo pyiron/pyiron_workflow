@@ -65,12 +65,12 @@ class HasStateDisplay(UsesState, ABC):
 
     @staticmethod
     def _make_entry_public(state: dict, private_key: str, public_key: str):
-        if private_key not in state.keys():
+        if private_key not in state:
             raise ValueError(
                 f"Can't make {private_key} public, it was not found among "
                 f"{list(state.keys())}"
             )
-        if public_key in state.keys():
+        if public_key in state:
             raise ValueError(
                 f"Can't make {private_key} public, {public_key} is already a key in"
                 f" the dict!"

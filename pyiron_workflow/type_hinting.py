@@ -76,7 +76,7 @@ def type_hint_is_as_or_more_specific_than(hint, other) -> bool:
                 return all(
                     [
                         type_hint_is_as_or_more_specific_than(h, o)
-                        for o, h in zip(other_args, hint_args)
+                        for o, h in zip(other_args, hint_args, strict=False)
                     ]
                 )
             else:

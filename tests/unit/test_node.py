@@ -1,6 +1,4 @@
-import pathlib
 import unittest
-from concurrent.futures import Future, ProcessPoolExecutor
 
 from pyiron_workflow.channels import NOT_DATA, InputData
 from pyiron_workflow.io import Inputs

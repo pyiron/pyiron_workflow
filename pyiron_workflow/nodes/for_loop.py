@@ -5,7 +5,7 @@ import math
 from abc import ABC
 from concurrent.futures import Executor
 from functools import lru_cache
-from typing import Any, ClassVar, Literal, Optional
+from typing import Any, ClassVar, Literal
 
 from pandas import DataFrame
 from pyiron_snippets.factory import classfactory
@@ -24,8 +24,8 @@ from pyiron_workflow.storage import StorageInterface
 
 def dictionary_to_index_maps(
     data: dict,
-    nested_keys: Optional[list[str] | tuple[str, ...]] = None,
-    zipped_keys: Optional[list[str] | tuple[str, ...]] = None,
+    nested_keys: list[str] | tuple[str, ...] | None = None,
+    zipped_keys: list[str] | tuple[str, ...] | None = None,
 ):
     """
     Given a dictionary where some data is iterable, and list(s) of keys over
@@ -200,14 +200,14 @@ class For(Composite, StaticNode, ABC):
     def __init__(
         self,
         *args,
-        label: Optional[str] = None,
-        parent: Optional[Composite] = None,
+        label: str | None = None,
+        parent: Composite | None = None,
         autoload: Literal["pickle"] | StorageInterface | None = None,
         delete_existing_savefiles: bool = False,
         autorun: bool = False,
         checkpoint: Literal["pickle"] | StorageInterface | None = None,
         strict_naming: bool = True,
-        body_node_executor: Optional[Executor] = None,
+        body_node_executor: Executor | None = None,
         **kwargs,
     ):
         super().__init__(
@@ -540,7 +540,7 @@ def for_node(
     iter_on: tuple[str, ...] | str = (),
     zip_on: tuple[str, ...] | str = (),
     output_as_dataframe: bool = True,
-    output_column_map: Optional[dict[str, str]] = None,
+    output_column_map: dict[str, str] | None = None,
     use_cache: bool = True,
     **node_kwargs,
 ):

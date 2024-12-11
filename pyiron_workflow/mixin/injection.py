@@ -9,7 +9,7 @@ to inject new nodes into the graph dynamically.
 from __future__ import annotations
 
 from abc import ABC, abstractmethod
-from typing import TYPE_CHECKING, Any, Optional
+from typing import TYPE_CHECKING, Any
 
 from pyiron_workflow.channels import NOT_DATA, OutputData
 from pyiron_workflow.io import HasIO, Outputs
@@ -41,10 +41,10 @@ class OutputDataWithInjection(OutputData):
         self,
         label: str,
         owner: Node,
-        default: Optional[Any] = NOT_DATA,
-        type_hint: Optional[Any] = None,
+        default: Any | None = NOT_DATA,
+        type_hint: Any | None = None,
         strict_hints: bool = True,
-        value_receiver: Optional[OutputData] = None,
+        value_receiver: OutputData | None = None,
     ):
         # Override parent method to give the new owner type hint
         super().__init__(

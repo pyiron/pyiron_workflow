@@ -431,7 +431,7 @@ class TestHasIO(unittest.TestCase):
                 to_copy, connections_fail_hard=True, values_fail_hard=False
             )
             for copier_panel, copied_panel in zip(
-                copier._owned_io_panels, to_copy._owned_io_panels
+                copier._owned_io_panels, to_copy._owned_io_panels, strict=False
             ):
                 for copier_channel in copier_panel:
                     try:
