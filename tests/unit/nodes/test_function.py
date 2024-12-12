@@ -30,7 +30,10 @@ def void():
 
 
 def multiple_branches(x):
-    return x < 10
+    if x < 10:  # noqa: SIM103
+        return True
+    else:
+        return False
 
 
 class TestFunction(unittest.TestCase):
@@ -466,7 +469,7 @@ class TestFunction(unittest.TestCase):
             AttributeError,
             msg="Aggressive running hits the problem that no such attribute exists"
         ):
-            pass
+            injected = single_output.doesnt_exists_anywhere  # noqa: F841
         # The injected node fails at runtime and generates a recovery file
         # We want to clean it up, but this is a pain because the node failed during
         # instantiation, so we have no good reference to the node object, and it's

@@ -57,7 +57,7 @@ class TestIOPreview(unittest.TestCase):
     def test_void(self):
         @as_scraper()
         def AbsenceOfIOIsPermissible():
-            pass
+            nothing = None  # noqa: F841
 
     def test_preview_inputs(self):
         @as_scraper()
@@ -152,7 +152,10 @@ class TestIOPreview(unittest.TestCase):
             ):
                 @as_scraper("truth")
                 def Branched(x) -> bool:
-                    return not x <= 0
+                    if x <= 0:  # noqa: SIM103
+                        return False
+                    else:
+                        return True
 
             @as_scraper("truth", validate_output_labels=False)
             def Branched(x) -> bool:
