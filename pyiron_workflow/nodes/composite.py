@@ -424,11 +424,7 @@ class Composite(SemanticParent, HasCreator, Node, ABC):
             super().__setattr__(key, node)
         elif isinstance(node, Node):
             self.add_child(node, label=key)
-        elif (
-            isinstance(node, type)
-            and issubclass(node, Node)
-            and key in self.children
-        ):
+        elif isinstance(node, type) and issubclass(node, Node) and key in self.children:
             # When a class is assigned to an existing node, try a replacement
             self.replace_child(key, node)
         else:

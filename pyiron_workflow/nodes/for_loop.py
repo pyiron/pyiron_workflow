@@ -389,7 +389,10 @@ class For(Composite, StaticNode, ABC):
             return {"df": DataFrame}
         else:
             preview = {}
-            for label, (hint, _default) in cls._body_node_class.preview_inputs().items():
+            for label, (
+                hint,
+                _default,
+            ) in cls._body_node_class.preview_inputs().items():
                 if label in cls._zip_on + cls._iter_on:
                     hint = list if hint is None else list[hint]
                     preview[label] = hint

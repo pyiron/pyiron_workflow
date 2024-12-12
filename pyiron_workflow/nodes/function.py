@@ -327,7 +327,8 @@ class Function(StaticNode, ScrapesIO, ABC):
         """
         for out, value in zip(
             self.outputs,
-            (function_output,) if len(self.outputs) == 1 else function_output, strict=False,
+            (function_output,) if len(self.outputs) == 1 else function_output,
+            strict=False,
         ):
             out.value = value
         return self._outputs_to_run_return()
