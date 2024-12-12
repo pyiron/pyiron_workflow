@@ -197,7 +197,7 @@ class SemanticParent(Semantic, ABC):
     def __getattr__(self, key):
         try:
             return self._children[key]
-        except KeyError:
+        except KeyError as key_error:
             # Raise an attribute error from getattr to make sure hasattr works well!
             msg = f"Could not find attribute '{key}' on {self.label} "
             msg += f"({self.__class__.__name__}) or among its children "
@@ -205,7 +205,7 @@ class SemanticParent(Semantic, ABC):
             matches = get_close_matches(key, self._children.keys(), cutoff=0.8)
             if len(matches) > 0:
                 msg += f" Did you mean '{matches[0]}' and not '{key}'?"
-            raise AttributeError(msg)
+            raise AttributeError(msg) from key_error
 
     def __iter__(self):
         return self.children.values().__iter__()

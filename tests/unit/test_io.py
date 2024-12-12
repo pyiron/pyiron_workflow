@@ -414,14 +414,13 @@ class TestHasIO(unittest.TestCase):
             "custom_signal", copier, copier.update,
         )
 
-        with self.subTest("Bad hint causes connection error"):
-            with self.assertRaises(
+        with self.subTest("Bad hint causes connection error"),self.assertRaises(
                 ConnectionCopyError,
                 msg="Can't connect channels with incommensurate type hints",
-            ):
-                copier.copy_io(
-                    to_copy, connections_fail_hard=True, values_fail_hard=False
-                )
+        ):
+            copier.copy_io(
+                to_copy, connections_fail_hard=True, values_fail_hard=False
+            )
 
         # Bring the copier's type hint in-line with the object being copied
         copier.inputs.hinted_input.type_hint = float
@@ -452,15 +451,14 @@ class TestHasIO(unittest.TestCase):
                         # We only need to check shared channels
                         pass
 
-        with self.subTest("Force failure on value copy fail"):
-            with self.assertRaises(
+        with self.subTest("Force failure on value copy fail"),self.assertRaises(
                 ValueCopyError,
                 msg="The copier doesn't have channels to hold all the values that need"
                     "copying, so we should fail"
-            ):
-                copier.copy_io(
-                    to_copy, connections_fail_hard=True, values_fail_hard=True
-                )
+        ):
+            copier.copy_io(
+                to_copy, connections_fail_hard=True, values_fail_hard=True
+            )
 
 
 if __name__ == '__main__':

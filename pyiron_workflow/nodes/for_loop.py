@@ -351,7 +351,7 @@ class For(Composite, StaticNode, ABC):
             )
             column_collector.outputs.list.value_receiver = self.outputs[mapped_label]
 
-            for n, channel_map in enumerate(iter_maps):
+            for n, _ in enumerate(iter_maps):
                 column_collector.inputs[f"item_{n}"] = self[self._body_name(n)].outputs[
                     label
                 ]

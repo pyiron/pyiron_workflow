@@ -318,28 +318,26 @@ class TestForNode(unittest.TestCase):
                             "trouble"
                     )
 
-                with self.subTest("Insufficient map"):
-                    with self.assertRaises(
+                with self.subTest("Insufficient map"), self.assertRaises(
                         UnmappedConflictError,
-                        msg="Leaving conflicting channels unmapped should raise an error"
-                    ):
-                        for_node(
-                            FiveApart,
-                            iter_on=("a", "b"),
-                            zip_on=("c", "d"),
-                            a=[1, 2],
-                            b=[3, 4, 5],
-                            c=[7, 8],
-                            d=[9, 10, 11],
-                            e="e",
-                            output_column_map={
-                                # "a": "out_a",
-                                "b": "out_b",
-                                "c": "out_c",
-                                "d": "out_d"
-                            },
-                            output_as_dataframe=output_as_dataframe,
-                        )
+                        msg="Leaving conflicting channels unmapped should raise an error"):
+                    for_node(
+                        FiveApart,
+                        iter_on=("a", "b"),
+                        zip_on=("c", "d"),
+                        a=[1, 2],
+                        b=[3, 4, 5],
+                        c=[7, 8],
+                        d=[9, 10, 11],
+                        e="e",
+                        output_column_map={
+                            # "a": "out_a",
+                            "b": "out_b",
+                            "c": "out_c",
+                            "d": "out_d"
+                        },
+                        output_as_dataframe=output_as_dataframe,
+                    )
 
                 with self.subTest("Excessive map"), self.assertRaises(
                     MapsToNonexistentOutputError,

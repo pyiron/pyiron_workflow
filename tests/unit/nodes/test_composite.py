@@ -1,6 +1,8 @@
 import unittest
 from concurrent.futures import ProcessPoolExecutor
 
+from static import demo_nodes
+
 from pyiron_workflow._tests import ensure_tests_in_python_path
 from pyiron_workflow.channels import NOT_DATA
 from pyiron_workflow.io import ConnectionCopyError, Inputs
@@ -9,7 +11,6 @@ from pyiron_workflow.nodes.composite import Composite
 from pyiron_workflow.topology import CircularDataFlowError
 
 ensure_tests_in_python_path()
-from static import demo_nodes
 
 
 def plus_one(x: int = 0) -> int:
@@ -92,7 +93,7 @@ class TestComposite(unittest.TestCase):
             ["foo", "baz", "boa"],
             msg="Reassignment should remove the original instance"
         )
-                
+   
     def test_node_access(self):
         node = Composite.create.function_node(plus_one)
         self.comp.child = node
@@ -111,7 +112,7 @@ class TestComposite(unittest.TestCase):
             node,
             msg="Access should be possible by item on children collection"
         )
-        
+
         for n in self.comp:
             self.assertIs(
                 node,
@@ -126,7 +127,7 @@ class TestComposite(unittest.TestCase):
                 "always looking for children. If attribute access is actually desired, "
                 " it can be accomplished with a `GetAttr` node."
         ):
-            self.comp.not_a_child_or_attribute
+            self.comp.not_a_child_or_attribute  # noqa: B018
 
     def test_node_removal(self):
         self.comp.owned = Composite.create.function_node(plus_one)

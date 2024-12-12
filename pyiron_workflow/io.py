@@ -74,12 +74,12 @@ class IO(HasStateDisplay, ABC):
     def __getattr__(self, item) -> Channel:
         try:
             return self.channel_dict[item]
-        except KeyError:
+        except KeyError as key_error:
             # Raise an attribute error from getattr to make sure hasattr works well!
             raise AttributeError(
                 f"Could not find attribute {item} on {self.__class__.__name__} object "
                 f"nor in its channels ({self.labels})"
-            )
+            ) from key_error
 
     def __setattr__(self, key, value):
         if key in self.channel_dict:

@@ -22,7 +22,7 @@ class TestTypeHinting(unittest.TestCase):
 
         for hint, good, bad in (
                 (int | float, 1, "foo"),
-                (typing.Union[int, float], 2.0, "bar"),
+                (int | float, 2.0, "bar"),
                 (typing.Literal[1, 2], 2, 3),
                 (typing.Literal[1, 2], 1, "baz"),
                 (Foo, Foo(), Foo),

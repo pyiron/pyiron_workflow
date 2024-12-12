@@ -3,6 +3,8 @@ import unittest
 from concurrent.futures import Future
 from time import sleep
 
+from static import demo_nodes
+
 from pyiron_workflow._tests import ensure_tests_in_python_path
 from pyiron_workflow.channels import NOT_DATA
 from pyiron_workflow.nodes.function import as_function_node, function_node
@@ -11,7 +13,6 @@ from pyiron_workflow.storage import PickleStorage, available_backends
 from pyiron_workflow.topology import CircularDataFlowError
 
 ensure_tests_in_python_path()
-from static import demo_nodes
 
 
 def add_one(x):

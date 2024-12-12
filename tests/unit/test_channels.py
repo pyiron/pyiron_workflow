@@ -522,9 +522,8 @@ class TestSignalChannels(unittest.TestCase):
                 owner.classmethod_with_args,
                 doesnt_belong_to_owner,
             ]:
-                with self.subTest(callback.__name__):
-                    with self.assertRaises(BadCallbackError):
-                        InputSignal(label="inp", owner=owner, callback=callback)
+                with self.subTest(callback.__name__), self.assertRaises(BadCallbackError):
+                    InputSignal(label="inp", owner=owner, callback=callback)
 
 
 if __name__ == '__main__':

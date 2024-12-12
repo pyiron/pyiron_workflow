@@ -404,16 +404,19 @@ class DataChannel(Channel, ABC):
                     f"itself"
                 )
 
-            if self._both_typed(new_partner) and new_partner.strict_hints:
-                if not type_hint_is_as_or_more_specific_than(
+            if (
+                self._both_typed(new_partner)
+                and new_partner.strict_hints
+                and not type_hint_is_as_or_more_specific_than(
                     self.type_hint, new_partner.type_hint
-                ):
-                    raise ValueError(
-                        f"The channel {self.full_label} cannot take "
-                        f"{new_partner.full_label} as a value receiver because this "
-                        f"type hint ({self.type_hint}) is not as or more specific than "
-                        f"the receiving type hint ({new_partner.type_hint})."
-                    )
+                )
+            ):
+                raise ValueError(
+                    f"The channel {self.full_label} cannot take "
+                    f"{new_partner.full_label} as a value receiver because this "
+                    f"type hint ({self.type_hint}) is not as or more specific than "
+                    f"the receiving type hint ({new_partner.type_hint})."
+                )
 
             new_partner.value = self.value
 

@@ -132,11 +132,10 @@ class TestFunction(unittest.TestCase):
             )
             self.assertListEqual(n.outputs.labels, ["its_a_tuple"])
 
-        with self.subTest("Fail on multiple return values"):
-            with self.assertRaises(ValueError):
-                # Can't automatically parse output labels from a function with multiple
-                # return expressions
-                function_node(multiple_branches)
+        with self.subTest("Fail on multiple return values"), self.assertRaises(ValueError):
+            # Can't automatically parse output labels from a function with multiple
+            # return expressions
+            function_node(multiple_branches)
 
         with self.subTest("Override output label scraping"):
             with self.assertRaises(
@@ -388,7 +387,7 @@ class TestFunction(unittest.TestCase):
             msg="Missing a channel that holds data is also grounds for failure"
         ):
             ref._copy_values(extra, fail_hard=True)
-            
+
     def test_easy_output_connection(self):
         n1 = function_node(plus_one)
         n2 = function_node(plus_one)
@@ -430,7 +429,7 @@ class TestFunction(unittest.TestCase):
             )
         )
         self.assertEqual(2 + 1 + 1 + 1, node.pull())
-        
+
     def test_single_output_item_and_attribute_access(self):
         class Foo:
             some_attribute = "exists"
@@ -495,7 +494,7 @@ class TestFunction(unittest.TestCase):
             AttributeError,
             msg="Attribute injection should not work for private attributes"
         ):
-            single_output._some_nonexistant_private_var
+            single_output._some_nonexistant_private_var  # noqa: B018
 
     def test_void_return(self):
         """Test extensions to the `ScrapesIO` mixin."""

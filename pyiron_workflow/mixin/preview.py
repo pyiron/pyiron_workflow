@@ -280,11 +280,11 @@ class ScrapesIO(HasIOPreview, ABC):
                         "The number of return values must exactly match the number of "
                         "output labels provided, " + error_suffix
                     )
-            except TypeError:
+            except TypeError as type_error:
                 raise TypeError(
                     "Output labels and return values must either both or neither be "
                     "present, " + error_suffix
-                )
+                ) from type_error
 
     @staticmethod
     def _io_defining_documentation(io_defining_function: callable, title: str):

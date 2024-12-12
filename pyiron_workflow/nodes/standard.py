@@ -166,19 +166,6 @@ def ChangeDirectory(
     return started_at, path, was_empty
 
 
-@as_function_node("as_int")
-def Int(x):
-    """
-    Casts the input as an integer.
-
-    This is not necessarily uniquely, but at least particularly useful as a wrapper because
-    while many numpy types inherit from the root builtin type, `int64` (and related) do not.
-    Since python3, python `int` is not even of a fixed value based on a c-type.
-    Cf. https://github.com/numpy/numpy/issues/17283
-    """
-    return int(x)
-
-
 @as_function_node
 def PureCall(fnc: callable):
     """

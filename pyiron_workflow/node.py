@@ -682,7 +682,7 @@ class Node(
     def cache_hit(self):
         try:
             return self.inputs.to_value_dict() == self._cached_inputs
-        except:
+        except Exception:
             return False
 
     @property
@@ -908,8 +908,10 @@ class Node(
                 semantic path.)
             **kwargs: Back end-specific keyword arguments.
         """
-        for backend in available_backends(backend=backend, only_requested=True):
-            backend.save(node=self, filename=filename, **kwargs)
+        for selected_backend in available_backends(
+            backend=backend, only_requested=True
+        ):
+            selected_backend.save(node=self, filename=filename, **kwargs)
 
     save.__doc__ += _save_load_warnings
 
@@ -951,10 +953,10 @@ class Node(
             FileNotFoundError: when nothing got loaded.
             TypeError: when the saved node has a different class name.
         """
-        for backend in available_backends(
+        for selected_backend in available_backends(
             backend=backend, only_requested=only_requested
         ):
-            inst = backend.load(
+            inst = selected_backend.load(
                 node=self if filename is None else None, filename=filename, **kwargs
             )
             if inst is not None:
@@ -995,10 +997,10 @@ class Node(
                 with :param:`only_requested`, otherwise there's nothing to be specific
                 _to_.)
         """
-        for backend in available_backends(
+        for selected_backend in available_backends(
             backend=backend, only_requested=only_requested
         ):
-            backend.delete(
+            selected_backend.delete(
                 node=self if filename is None else None, filename=filename, **kwargs
             )
 

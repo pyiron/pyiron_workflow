@@ -58,13 +58,13 @@ def nodes_to_data_digraph(nodes: dict[str, Node]) -> dict[str, set[str]]:
             for upstream in channel.connections:
                 try:
                     upstream_node = nodes[upstream.owner.label]
-                except KeyError:
+                except KeyError as key_error:
                     raise KeyError(
                         f"The channel {channel.full_label} has a connection to the "
                         f"upstream channel {upstream.full_label}, but the upstream "
                         f"owner {upstream.owner.label} was not found among nodes. "
                         f"All nodes in the data flow dependency tree must be included."
-                    )
+                    ) from key_error
                 if upstream_node is not upstream.owner:
                     raise ValueError(
                         f"The channel {channel.full_label} has a connection to the "
@@ -230,9 +230,9 @@ def get_nodes_in_data_tree(node: Node) -> set[Node]:
             for connection in channel.connections:
                 nodes = nodes.union(get_nodes_in_data_tree(connection.owner))
         return nodes
-    except RecursionError:
+    except RecursionError as recursion_error:
         raise CircularDataFlowError(
             f"Detected a cycle in the data flow topology, unable to automate the "
             f"execution of non-DAGs: finding the upstream nodes for {node.label} hit a "
             f"recursion error."
-        )
+        ) from recursion_error

@@ -5,6 +5,7 @@ from time import sleep
 
 from bidict import ValueDuplicationError
 from pyiron_snippets.dotdict import DotDict
+from static import demo_nodes
 
 from pyiron_workflow._tests import ensure_tests_in_python_path
 from pyiron_workflow.channels import NOT_DATA
@@ -13,7 +14,6 @@ from pyiron_workflow.storage import TypeNotFoundError, available_backends
 from pyiron_workflow.workflow import Workflow
 
 ensure_tests_in_python_path()
-from static import demo_nodes
 
 
 def plus_one(x=0):
