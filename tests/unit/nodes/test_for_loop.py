@@ -1,18 +1,18 @@
+import pickle
+import unittest
 from concurrent.futures import ThreadPoolExecutor
 from itertools import product
-import pickle
 from time import perf_counter
-import unittest
 
 from pandas import DataFrame
 from pyiron_snippets.dotdict import DotDict
 
 from pyiron_workflow._tests import ensure_tests_in_python_path
 from pyiron_workflow.nodes.for_loop import (
+    MapsToNonexistentOutputError,
+    UnmappedConflictError,
     dictionary_to_index_maps,
     for_node,
-    UnmappedConflictError,
-    MapsToNonexistentOutputError
 )
 from pyiron_workflow.nodes.function import as_function_node
 from pyiron_workflow.nodes.macro import as_macro_node
@@ -93,7 +93,7 @@ class TestDictionaryToIndexMaps(unittest.TestCase):
             )
             for z_idx, z_idx2 in zip(
                 range(len(data["zipped1"])),
-                range(len(data["zipped2"]))
+                range(len(data["zipped2"])), strict=False
             )
         )
         self.assertEqual(
@@ -318,52 +318,49 @@ class TestForNode(unittest.TestCase):
                             "trouble"
                     )
 
-                with self.subTest("Insufficient map"):
-                    with self.assertRaises(
+                with self.subTest("Insufficient map"), self.assertRaises(
                         UnmappedConflictError,
-                        msg="Leaving conflicting channels unmapped should raise an error"
-                    ):
-                        for_node(
-                            FiveApart,
-                            iter_on=("a", "b"),
-                            zip_on=("c", "d"),
-                            a=[1, 2],
-                            b=[3, 4, 5],
-                            c=[7, 8],
-                            d=[9, 10, 11],
-                            e="e",
-                            output_column_map={
-                                # "a": "out_a",
-                                "b": "out_b",
-                                "c": "out_c",
-                                "d": "out_d"
-                            },
-                            output_as_dataframe=output_as_dataframe,
-                        )
+                        msg="Leaving conflicting channels unmapped should raise an error"):
+                    for_node(
+                        FiveApart,
+                        iter_on=("a", "b"),
+                        zip_on=("c", "d"),
+                        a=[1, 2],
+                        b=[3, 4, 5],
+                        c=[7, 8],
+                        d=[9, 10, 11],
+                        e="e",
+                        output_column_map={
+                            # "a": "out_a",
+                            "b": "out_b",
+                            "c": "out_c",
+                            "d": "out_d"
+                        },
+                        output_as_dataframe=output_as_dataframe,
+                    )
 
-                with self.subTest("Excessive map"):
-                    with self.assertRaises(
-                        MapsToNonexistentOutputError,
-                        msg="Trying to map something that isn't there should raise an error"
-                    ):
-                        for_node(
-                            FiveApart,
-                            iter_on=("a", "b"),
-                            zip_on=("c", "d"),
-                            a=[1, 2],
-                            b=[3, 4, 5],
-                            c=[7, 8],
-                            d=[9, 10, 11],
-                            e="e",
-                            output_column_map={
-                                "a": "out_a",
-                                "b": "out_b",
-                                "c": "out_c",
-                                "d": "out_d",
-                                "not_a_key_on_the_body_node_outputs": "anything"
-                            },
-                            output_as_dataframe=output_as_dataframe,
-                        )
+                with self.subTest("Excessive map"), self.assertRaises(
+                    MapsToNonexistentOutputError,
+                    msg="Trying to map something that isn't there should raise an error"
+                ):
+                    for_node(
+                        FiveApart,
+                        iter_on=("a", "b"),
+                        zip_on=("c", "d"),
+                        a=[1, 2],
+                        b=[3, 4, 5],
+                        c=[7, 8],
+                        d=[9, 10, 11],
+                        e="e",
+                        output_column_map={
+                            "a": "out_a",
+                            "b": "out_b",
+                            "c": "out_c",
+                            "d": "out_d",
+                            "not_a_key_on_the_body_node_outputs": "anything"
+                        },
+                        output_as_dataframe=output_as_dataframe,
+                    )
 
     def test_body_node_executor(self):
         t_sleep = 2

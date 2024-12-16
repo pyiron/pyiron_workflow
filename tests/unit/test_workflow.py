@@ -1,19 +1,19 @@
-from concurrent.futures import Future
 import pickle
-from time import sleep
 import unittest
+from concurrent.futures import Future
+from time import sleep
 
 from bidict import ValueDuplicationError
 from pyiron_snippets.dotdict import DotDict
+from static import demo_nodes
 
 from pyiron_workflow._tests import ensure_tests_in_python_path
 from pyiron_workflow.channels import NOT_DATA
 from pyiron_workflow.mixin.semantics import ParentMostError
-from pyiron_workflow.storage import available_backends, TypeNotFoundError
+from pyiron_workflow.storage import TypeNotFoundError, available_backends
 from pyiron_workflow.workflow import Workflow
 
 ensure_tests_in_python_path()
-from static import demo_nodes
 
 
 def plus_one(x=0):
@@ -483,13 +483,12 @@ class TestWorkflow(unittest.TestCase):
             for backend in available_backends():
                 try:
                     wf.import_type_mismatch = demo_nodes.Dynamic()
-                    with self.subTest(backend):
-                            with self.assertRaises(
-                                TypeNotFoundError,
-                                msg="Imported object is function but node type is node "
-                                    "-- should fail early on save"
-                            ):
-                                wf.save(backend=backend, cloudpickle_fallback=False)
+                    with self.subTest(backend), self.assertRaises(
+                        TypeNotFoundError,
+                        msg="Imported object is function but node type is node "
+                            "-- should fail early on save"
+                    ):
+                        wf.save(backend=backend, cloudpickle_fallback=False)
                 finally:
                     wf.remove_child(wf.import_type_mismatch)
                     wf.delete_storage(backend)

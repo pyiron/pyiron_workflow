@@ -1,6 +1,6 @@
+import unittest
 from concurrent.futures import ThreadPoolExecutor
 from time import sleep
-import unittest
 
 from pyiron_workflow.workflow import Workflow
 

@@ -4,11 +4,7 @@ from tempfile import TemporaryDirectory
 
 from pyiron_workflow.nodes.function import as_function_node
 from pyiron_workflow.nodes.standard import UserInput
-from pyiron_workflow.storage import (
-    available_backends,
-    PickleStorage,
-    TypeNotFoundError
-)
+from pyiron_workflow.storage import PickleStorage, TypeNotFoundError, available_backends
 
 
 class TestAvailableBackends(unittest.TestCase):

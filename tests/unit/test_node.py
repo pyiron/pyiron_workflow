@@ -1,13 +1,15 @@
-from concurrent.futures import Future, ProcessPoolExecutor
-import pathlib
+import contextlib
 import unittest
 
-from pyiron_workflow.channels import InputData, NOT_DATA
-from pyiron_workflow.mixin.injection import OutputDataWithInjection, OutputsWithInjection
+from pyiron_workflow.channels import NOT_DATA, InputData
 from pyiron_workflow.io import Inputs
-from pyiron_workflow.node import Node
-from pyiron_workflow.storage import available_backends, PickleStorage
+from pyiron_workflow.mixin.injection import (
+    OutputDataWithInjection,
+    OutputsWithInjection,
+)
 from pyiron_workflow.mixin.single_output import AmbiguousOutputError
+from pyiron_workflow.node import Node
+from pyiron_workflow.storage import PickleStorage, available_backends
 
 
 def add_one(x):
@@ -201,10 +203,9 @@ class TestNode(unittest.TestCase):
 
             default_recovery = n.recovery
             n.recovery = None
-            try:
+            with contextlib.suppress(TypeError):
+                # Expected -- we're _trying_ to get failure to fire
                 n.run(check_readiness=False)
-            except TypeError:
-                pass  # Expected -- we're _trying_ to get failure to fire
             self.assertFalse(
                 n.has_saved_content(filename=n.as_path().joinpath("recovery")),
                 msg="Without a recovery back end specified, we don't expect a file to "
@@ -212,10 +213,9 @@ class TestNode(unittest.TestCase):
             )
 
             n.recovery = default_recovery
-            try:
+            with contextlib.suppress(TypeError):
+                # Expected -- we're _trying_ to get failure to fire
                 n.run(check_readiness=False)
-            except TypeError:
-                pass  # Expected -- we're _trying_ to get failure to fire
             self.assertTrue(
                 n.has_saved_content(filename=n.as_path().joinpath("recovery")),
                 msg="Expect a recovery file to be saved on failure"
@@ -407,7 +407,7 @@ class TestNode(unittest.TestCase):
             msg="With multiple outputs, trying to exploit the `HasChannel` interface "
                 "should fail cleanly"
         ):
-            node.channel
+            node.channel  # noqa: B018
 
     def test_storage(self):
         self.assertIs(

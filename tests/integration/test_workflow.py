@@ -4,14 +4,16 @@ import random
 import time
 import unittest
 
+from static import demo_nodes
+
 from pyiron_workflow._tests import ensure_tests_in_python_path
-from pyiron_workflow.channels import OutputSignal, NOT_DATA
+from pyiron_workflow.channels import NOT_DATA, OutputSignal
 from pyiron_workflow.nodes.composite import FailedChildError
 from pyiron_workflow.nodes.function import Function
 from pyiron_workflow.workflow import Workflow
 
 ensure_tests_in_python_path()
-from static import demo_nodes
+
 
 @Workflow.wrap.as_function_node("random")
 def RandomFloat() -> float:
@@ -113,7 +115,7 @@ class TestWorkflow(unittest.TestCase):
 
         for output, expectation in zip(
             out.df["sum"].values.tolist(),
-            [base + v for v in to_add]
+            [base + v for v in to_add], strict=False
         ):
             self.assertAlmostEqual(
                 output,
@@ -168,18 +170,17 @@ class TestWorkflow(unittest.TestCase):
         for exe_cls in executors:
             with self.subTest(
                 f"{exe_cls.__module__}.{exe_cls.__qualname__} entire workflow"
-            ):
-                with exe_cls() as exe:
-                    wf.executor = exe
-                    self.assertDictEqual(
-                        reference_output,
-                        wf().result().outputs.to_value_dict()
-                    )
-                    self.assertFalse(
-                        wf.running,
-                        msg="The workflow should stop. For thread pool this required a "
-                            "little sleep"
-                    )
+            ), exe_cls() as exe:
+                wf.executor = exe
+                self.assertDictEqual(
+                    reference_output,
+                    wf().result().outputs.to_value_dict()
+                )
+                self.assertFalse(
+                    wf.running,
+                    msg="The workflow should stop. For thread pool this required a "
+                        "little sleep"
+                )
             wf.executor = None
 
             with self.subTest(f"{exe_cls.__module__}.{exe_cls.__qualname__} each node"):
@@ -258,36 +259,35 @@ class TestWorkflow(unittest.TestCase):
         wf.starting_nodes = [wf.a]
         wf.automate_execution = False
 
-        with self.subTest("Check completion"):
-            with Workflow.create.ProcessPoolExecutor() as exe:
-                wf.c_fails.executor = exe
-                wf(raise_run_exceptions=False)
+        with self.subTest("Check completion"), Workflow.create.ProcessPoolExecutor() as exe:
+            wf.c_fails.executor = exe
+            wf(raise_run_exceptions=False)
 
-                for data, expectation in [
-                    (wf.a.outputs.user_input.value, wf.a.inputs.user_input.value),
-                    (wf.b.outputs.user_input.value, wf.b.inputs.user_input.value),
-                    (wf.c_fails.outputs.add.value, NOT_DATA),
-                    (wf.d_if_success.outputs.user_input.value, NOT_DATA),  # Never ran
-                    (
-                        wf.d_if_failure.outputs.user_input.value,
-                        wf.d_if_failure.inputs.user_input.value
-                    ),
-                    (wf.e_fails.outputs.add.value, NOT_DATA),
-                ]:
-                    with self.subTest("Data expecations"):
-                        self.assertEqual(data, expectation)
+            for data, expectation in [
+                (wf.a.outputs.user_input.value, wf.a.inputs.user_input.value),
+                (wf.b.outputs.user_input.value, wf.b.inputs.user_input.value),
+                (wf.c_fails.outputs.add.value, NOT_DATA),
+                (wf.d_if_success.outputs.user_input.value, NOT_DATA),  # Never ran
+                (
+                    wf.d_if_failure.outputs.user_input.value,
+                    wf.d_if_failure.inputs.user_input.value
+                ),
+                (wf.e_fails.outputs.add.value, NOT_DATA),
+            ]:
+                with self.subTest("Data expecations"):
+                    self.assertEqual(data, expectation)
 
-                for status, expectation in [
-                    (wf.a.failed, False),
-                    (wf.b.failed, False),
-                    (wf.c_fails.failed, True),
-                    (wf.d_if_success.failed, False),
-                    (wf.d_if_failure.failed, False),
-                    (wf.e_fails.failed, True),
-                    (wf.failed, True),
-                ]:
-                    with self.subTest("Failure status expecations"):
-                        self.assertEqual(status, expectation)
+            for status, expectation in [
+                (wf.a.failed, False),
+                (wf.b.failed, False),
+                (wf.c_fails.failed, True),
+                (wf.d_if_success.failed, False),
+                (wf.d_if_failure.failed, False),
+                (wf.e_fails.failed, True),
+                (wf.failed, True),
+            ]:
+                with self.subTest("Failure status expecations"):
+                    self.assertEqual(status, expectation)
 
         with self.subTest("Let it fail"):
             try:

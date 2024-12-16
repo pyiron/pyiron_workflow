@@ -309,7 +309,7 @@ class Function(StaticNode, ScrapesIO, ABC):
 
     @classmethod
     def _build_outputs_preview(cls) -> dict[str, Any]:
-        preview = super(Function, cls)._build_outputs_preview()
+        preview = super()._build_outputs_preview()
         return preview if len(preview) > 0 else {"None": type(None)}
         # If clause facilitates functions with no return value
 
@@ -328,6 +328,7 @@ class Function(StaticNode, ScrapesIO, ABC):
         for out, value in zip(
             self.outputs,
             (function_output,) if len(self.outputs) == 1 else function_output,
+            strict=False,
         ):
             out.value = value
         return self._outputs_to_run_return()

@@ -8,17 +8,17 @@ Nodes get the attention, but channels are the real heroes.
 
 from __future__ import annotations
 
+import inspect
 import typing
 from abc import ABC, abstractmethod
-import inspect
 
 from pyiron_snippets.singleton import Singleton
 
-from pyiron_workflow.mixin.has_interface_mixins import HasChannel, HasLabel
 from pyiron_workflow.mixin.display_state import HasStateDisplay
+from pyiron_workflow.mixin.has_interface_mixins import HasChannel, HasLabel
 from pyiron_workflow.type_hinting import (
-    valid_value,
     type_hint_is_as_or_more_specific_than,
+    valid_value,
 )
 
 if typing.TYPE_CHECKING:
@@ -340,10 +340,10 @@ class DataChannel(Channel, ABC):
         self,
         label: str,
         owner: HasIO,
-        default: typing.Optional[typing.Any] = NOT_DATA,
-        type_hint: typing.Optional[typing.Any] = None,
+        default: typing.Any | None = NOT_DATA,
+        type_hint: typing.Any | None = None,
         strict_hints: bool = True,
-        value_receiver: typing.Optional[InputData] = None,
+        value_receiver: InputData | None = None,
     ):
         super().__init__(label=label, owner=owner)
         self._value = NOT_DATA
@@ -404,16 +404,19 @@ class DataChannel(Channel, ABC):
                     f"itself"
                 )
 
-            if self._both_typed(new_partner) and new_partner.strict_hints:
-                if not type_hint_is_as_or_more_specific_than(
+            if (
+                self._both_typed(new_partner)
+                and new_partner.strict_hints
+                and not type_hint_is_as_or_more_specific_than(
                     self.type_hint, new_partner.type_hint
-                ):
-                    raise ValueError(
-                        f"The channel {self.full_label} cannot take "
-                        f"{new_partner.full_label} as a value receiver because this "
-                        f"type hint ({self.type_hint}) is not as or more specific than "
-                        f"the receiving type hint ({new_partner.type_hint})."
-                    )
+                )
+            ):
+                raise ValueError(
+                    f"The channel {self.full_label} cannot take "
+                    f"{new_partner.full_label} as a value receiver because this "
+                    f"type hint ({self.type_hint}) is not as or more specific than "
+                    f"the receiving type hint ({new_partner.type_hint})."
+                )
 
             new_partner.value = self.value
 
@@ -614,7 +617,7 @@ class InputSignal(SignalChannel):
     def callback(self) -> callable:
         return getattr(self.owner, self._callback)
 
-    def __call__(self, other: typing.Optional[OutputSignal] = None) -> None:
+    def __call__(self, other: OutputSignal | None = None) -> None:
         self.callback()
 
     def __str__(self):

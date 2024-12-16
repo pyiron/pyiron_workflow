@@ -4,10 +4,10 @@ Common-use nodes relying only on the standard library
 
 from __future__ import annotations
 
-import random
 import os
-from pathlib import Path
+import random
 import shutil
+from pathlib import Path
 from time import sleep
 
 from pyiron_workflow.channels import NOT_DATA, OutputSignal
@@ -57,7 +57,7 @@ class If(Function):
             TypeError: If the condition is NOT_DATA.
         """
         if condition is NOT_DATA:
-            raise TypeError(f"Logic 'If' node expected data but got NOT_DATA as input.")
+            raise TypeError("Logic 'If' node expected data but got NOT_DATA as input.")
         truth = bool(condition)
         return truth
 
@@ -164,19 +164,6 @@ def ChangeDirectory(
     if delete_start:
         shutil.rmtree(started_at)
     return started_at, path, was_empty
-
-
-@as_function_node("as_int")
-def Int(x):
-    """
-    Casts the input as an integer.
-
-    This is not necessarily uniquely, but at least particularly useful as a wrapper because
-    while many numpy types inherit from the root builtin type, `int64` (and related) do not.
-    Since python3, python `int` is not even of a fixed value based on a c-type.
-    Cf. https://github.com/numpy/numpy/issues/17283
-    """
-    return int(x)
 
 
 @as_function_node

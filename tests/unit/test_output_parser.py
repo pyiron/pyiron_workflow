@@ -1,6 +1,5 @@
-import unittest
-
 import math
+import unittest
 
 from pyiron_workflow.output_parser import ParseOutput
 
@@ -74,7 +73,7 @@ class TestParseOutput(unittest.TestCase):
 
     def test_multiple_branches(self):
         def bifurcating(x):
-            if x > 5:
+            if x > 5:  # noqa: SIM103
                 return True
             else:
                 return False

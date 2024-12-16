@@ -1,5 +1,5 @@
-from pathlib import Path
 import unittest
+from pathlib import Path
 
 from pyiron_workflow._tests import ensure_tests_in_python_path
 from pyiron_workflow.find import find_nodes

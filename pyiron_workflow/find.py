@@ -1,9 +1,9 @@
 from __future__ import annotations
 
-import inspect
 import importlib.util
-from pathlib import Path
+import inspect
 import sys
+from pathlib import Path
 from types import ModuleType
 
 from pyiron_workflow.node import Node
@@ -16,7 +16,7 @@ def _get_subclasses(
     get_abstract: bool = False,
     get_imports_too: bool = False,
 ):
-    if isinstance(source, (str, Path)):
+    if isinstance(source, str | Path):
         source = Path(source)
         if source.is_file():
             # Load the module from the file

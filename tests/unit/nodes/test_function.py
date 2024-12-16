@@ -1,19 +1,18 @@
-from pathlib import Path
 import pickle
-from typing import Optional, Union
 import unittest
+from pathlib import Path
 
 from pyiron_workflow.channels import NOT_DATA
-from pyiron_workflow.nodes.function import function_node, as_function_node, Function
 from pyiron_workflow.io import ConnectionCopyError, ValueCopyError
+from pyiron_workflow.nodes.function import Function, as_function_node, function_node
 from pyiron_workflow.nodes.multiple_distpatch import MultipleDispatchError
 
 
-def throw_error(x: Optional[int] = None):
+def throw_error(x: int | None = None):
     raise RuntimeError
 
 
-def plus_one(x=1) -> Union[int, float]:
+def plus_one(x=1) -> int | float:
     y = x + 1
     return y
 
@@ -31,7 +30,7 @@ def void():
 
 
 def multiple_branches(x):
-    if x < 10:
+    if x < 10:  # noqa: SIM103
         return True
     else:
         return False
@@ -61,8 +60,8 @@ class TestFunction(unittest.TestCase):
             self.assertEqual(
                 node.outputs.y.value,
                 11,
-                msg=f"Expected the run to update the output -- did the test function"
-                    f"change or something?"
+                msg="Expected the run to update the output -- did the test function"
+                    "change or something?"
             )
 
             node = function_node(no_default, 1, y=2, output_labels="output")
@@ -133,11 +132,10 @@ class TestFunction(unittest.TestCase):
             )
             self.assertListEqual(n.outputs.labels, ["its_a_tuple"])
 
-        with self.subTest("Fail on multiple return values"):
-            with self.assertRaises(ValueError):
-                # Can't automatically parse output labels from a function with multiple
-                # return expressions
-                function_node(multiple_branches)
+        with self.subTest("Fail on multiple return values"), self.assertRaises(ValueError):
+            # Can't automatically parse output labels from a function with multiple
+            # return expressions
+            function_node(multiple_branches)
 
         with self.subTest("Override output label scraping"):
             with self.assertRaises(
@@ -389,7 +387,7 @@ class TestFunction(unittest.TestCase):
             msg="Missing a channel that holds data is also grounds for failure"
         ):
             ref._copy_values(extra, fail_hard=True)
-            
+
     def test_easy_output_connection(self):
         n1 = function_node(plus_one)
         n2 = function_node(plus_one)
@@ -431,17 +429,14 @@ class TestFunction(unittest.TestCase):
             )
         )
         self.assertEqual(2 + 1 + 1 + 1, node.pull())
-        
+
     def test_single_output_item_and_attribute_access(self):
         class Foo:
             some_attribute = "exists"
             connected = True  # Overlaps with an attribute of the node
 
             def __getitem__(self, item):
-                if item == 0:
-                    return True
-                else:
-                    return False
+                return item == 0
 
         def returns_foo() -> Foo:
             return Foo()
@@ -473,7 +468,7 @@ class TestFunction(unittest.TestCase):
             AttributeError,
             msg="Aggressive running hits the problem that no such attribute exists"
         ):
-            injected = single_output.doesnt_exists_anywhere
+            injected = single_output.doesnt_exists_anywhere  # noqa: F841
         # The injected node fails at runtime and generates a recovery file
         # We want to clean it up, but this is a pain because the node failed during
         # instantiation, so we have no good reference to the node object, and it's
@@ -499,14 +494,14 @@ class TestFunction(unittest.TestCase):
             AttributeError,
             msg="Attribute injection should not work for private attributes"
         ):
-            single_output._some_nonexistant_private_var
+            single_output._some_nonexistant_private_var  # noqa: B018
 
     def test_void_return(self):
         """Test extensions to the `ScrapesIO` mixin."""
 
         @as_function_node
         def NoReturn(x):
-            y = x + 1
+            x + 1
 
         self.assertDictEqual(
             {"None": type(None)},

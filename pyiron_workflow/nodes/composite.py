@@ -7,14 +7,14 @@ from __future__ import annotations
 
 from abc import ABC
 from time import sleep
-from typing import Literal, Optional, TYPE_CHECKING
+from typing import TYPE_CHECKING, Literal
 
 from pyiron_snippets.colors import SeabornColors
 from pyiron_snippets.dotdict import DotDict
 
 from pyiron_workflow.create import HasCreator
-from pyiron_workflow.node import Node
 from pyiron_workflow.mixin.semantics import SemanticParent
+from pyiron_workflow.node import Node
 from pyiron_workflow.topology import set_run_connections_according_to_dag
 
 if TYPE_CHECKING:
@@ -23,7 +23,6 @@ if TYPE_CHECKING:
         InputSignal,
         OutputSignal,
     )
-    from pyiron_workflow.create import Creator, Wrappers
     from pyiron_workflow.storage import StorageInterface
 
 
@@ -125,8 +124,8 @@ class Composite(SemanticParent, HasCreator, Node, ABC):
     def __init__(
         self,
         *args,
-        label: Optional[str] = None,
-        parent: Optional[Composite] = None,
+        label: str | None = None,
+        parent: Composite | None = None,
         delete_existing_savefiles: bool = False,
         autoload: Literal["pickle"] | StorageInterface | None = None,
         autorun: bool = False,
@@ -297,8 +296,8 @@ class Composite(SemanticParent, HasCreator, Node, ABC):
     def add_child(
         self,
         child: Node,
-        label: Optional[str] = None,
-        strict_naming: Optional[bool] = None,
+        label: str | None = None,
+        strict_naming: bool | None = None,
     ) -> Node:
         if not isinstance(child, Node):
             raise TypeError(
@@ -425,11 +424,7 @@ class Composite(SemanticParent, HasCreator, Node, ABC):
             super().__setattr__(key, node)
         elif isinstance(node, Node):
             self.add_child(node, label=key)
-        elif (
-            isinstance(node, type)
-            and issubclass(node, Node)
-            and key in self.children.keys()
-        ):
+        elif isinstance(node, type) and issubclass(node, Node) and key in self.children:
             # When a class is assigned to an existing node, try a replacement
             self.replace_child(key, node)
         else:

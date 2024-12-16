@@ -14,11 +14,10 @@ different drives or machines) belong to the same semantic group.
 from __future__ import annotations
 
 from abc import ABC
+from difflib import get_close_matches
 from pathlib import Path
-from typing import Optional
 
 from bidict import bidict
-from difflib import get_close_matches
 
 from pyiron_workflow.logging import logger
 from pyiron_workflow.mixin.has_interface_mixins import HasLabel, HasParent, UsesState
@@ -35,7 +34,7 @@ class Semantic(UsesState, HasLabel, HasParent, ABC):
     semantic_delimiter = "/"
 
     def __init__(
-        self, label: str, *args, parent: Optional[SemanticParent] = None, **kwargs
+        self, label: str, *args, parent: SemanticParent | None = None, **kwargs
     ):
         self._label = None
         self._parent = None
@@ -179,7 +178,7 @@ class SemanticParent(Semantic, ABC):
         self,
         label: str,
         *args,
-        parent: Optional[SemanticParent] = None,
+        parent: SemanticParent | None = None,
         strict_naming: bool = True,
         **kwargs,
     ):
@@ -198,7 +197,7 @@ class SemanticParent(Semantic, ABC):
     def __getattr__(self, key):
         try:
             return self._children[key]
-        except KeyError:
+        except KeyError as key_error:
             # Raise an attribute error from getattr to make sure hasattr works well!
             msg = f"Could not find attribute '{key}' on {self.label} "
             msg += f"({self.__class__.__name__}) or among its children "
@@ -206,7 +205,7 @@ class SemanticParent(Semantic, ABC):
             matches = get_close_matches(key, self._children.keys(), cutoff=0.8)
             if len(matches) > 0:
                 msg += f" Did you mean '{matches[0]}' and not '{key}'?"
-            raise AttributeError(msg)
+            raise AttributeError(msg) from key_error
 
     def __iter__(self):
         return self.children.values().__iter__()
@@ -220,8 +219,8 @@ class SemanticParent(Semantic, ABC):
     def add_child(
         self,
         child: Semantic,
-        label: Optional[str] = None,
-        strict_naming: Optional[bool] = None,
+        label: str | None = None,
+        strict_naming: bool | None = None,
     ) -> Semantic:
         """
         Add a child, optionally assigning it a new label in the process.

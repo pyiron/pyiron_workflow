@@ -1,5 +1,5 @@
 from concurrent.futures import Future, ProcessPoolExecutor
-from concurrent.futures.process import _global_shutdown, _WorkItem, BrokenProcessPool
+from concurrent.futures.process import BrokenProcessPool, _global_shutdown, _WorkItem
 from sys import version_info
 
 import cloudpickle
@@ -195,8 +195,7 @@ class CloudpickleProcessPoolExecutor(ProcessPoolExecutor):
             )
         else:
             raise TypeError(
-                "submit expected at least 1 positional argument, "
-                "got %d" % (len(args) - 1)
+                "submit expected at least 1 positional argument, got {len(args) - 1}"
             )
 
         with self._shutdown_lock:
