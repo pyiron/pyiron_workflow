@@ -13,6 +13,7 @@ from pyiron_workflow.workflow import Workflow
 ensure_tests_in_python_path()
 from static import demo_nodes
 
+
 @Workflow.wrap.as_function_node("random")
 def RandomFloat() -> float:
     return random.random()
@@ -107,13 +108,12 @@ class TestWorkflow(unittest.TestCase):
             demo_nodes.OptionallyAdd,
             iter_on="y",
             x=base,  # Broadcast
-            y=to_add  # Scattered
+            y=to_add,  # Scattered
         )
         out = bulk_loop()
 
         for output, expectation in zip(
-            out.df["sum"].values.tolist(),
-            [base + v for v in to_add]
+            out.df["sum"].values.tolist(), [base + v for v in to_add]
         ):
             self.assertAlmostEqual(
                 output,
@@ -149,7 +149,7 @@ class TestWorkflow(unittest.TestCase):
             Workflow.create.ProcessPoolExecutor,
             Workflow.create.ThreadPoolExecutor,
             Workflow.create.CloudpickleProcessPoolExecutor,
-            Workflow.create.ExecutorlibExecutor
+            Workflow.create.ExecutorlibExecutor,
         ]
 
         wf = Workflow("executed")
@@ -172,13 +172,12 @@ class TestWorkflow(unittest.TestCase):
                 with exe_cls() as exe:
                     wf.executor = exe
                     self.assertDictEqual(
-                        reference_output,
-                        wf().result().outputs.to_value_dict()
+                        reference_output, wf().result().outputs.to_value_dict()
                     )
                     self.assertFalse(
                         wf.running,
                         msg="The workflow should stop. For thread pool this required a "
-                            "little sleep"
+                        "little sleep",
                     )
             wf.executor = None
 
@@ -191,8 +190,8 @@ class TestWorkflow(unittest.TestCase):
                 self.assertFalse(
                     any(n.running for n in wf),
                     msg=f"All children should be done running -- for thread pools this "
-                        f"requires a very short sleep -- got "
-                        f"{[(n.label, n.running) for n in wf]}"
+                    f"requires a very short sleep -- got "
+                    f"{[(n.label, n.running) for n in wf]}",
                 )
             for child in wf:
                 child.executor = None
@@ -217,8 +216,8 @@ class TestWorkflow(unittest.TestCase):
             first_out,
             second_out,
             msg="Even thought the _input_ hasn't changed, we expect to avoid the first "
-                "(cached) result by virtue of resetting the cache when the body of "
-                "the composite graph has changed"
+            "(cached) result by virtue of resetting the cache when the body of "
+            "the composite graph has changed",
         )
 
         t0 = time.perf_counter()
@@ -227,13 +226,13 @@ class TestWorkflow(unittest.TestCase):
         self.assertEqual(
             third_out,
             second_out,
-            msg="This time there is no change and we expect the cached result"
+            msg="This time there is no change and we expect the cached result",
         )
         self.assertLess(
             dt,
             0.1 * wf.c.inputs.t.value,
             msg="And because it used the cache we expect it much faster than the sleep "
-                "time"
+            "time",
         )
 
     def test_failure(self):
@@ -270,7 +269,7 @@ class TestWorkflow(unittest.TestCase):
                     (wf.d_if_success.outputs.user_input.value, NOT_DATA),  # Never ran
                     (
                         wf.d_if_failure.outputs.user_input.value,
-                        wf.d_if_failure.inputs.user_input.value
+                        wf.d_if_failure.inputs.user_input.value,
                     ),
                     (wf.e_fails.outputs.add.value, NOT_DATA),
                 ]:
@@ -297,12 +296,12 @@ class TestWorkflow(unittest.TestCase):
                     self.assertIn(
                         wf.c_fails.run.full_label,
                         str(e),
-                        msg="Failed node should be identified"
+                        msg="Failed node should be identified",
                     )
                     self.assertIn(
                         wf.e_fails.run.full_label,
                         str(e),
-                        msg="Indeed, _both_ failed nodes should be identified"
+                        msg="Indeed, _both_ failed nodes should be identified",
                     )
 
                 with self.subTest("Check recovery file"):
@@ -311,7 +310,7 @@ class TestWorkflow(unittest.TestCase):
                             filename=wf.as_path().joinpath("recovery")
                         ),
                         msg="Expect a recovery file to be written for the parent-most"
-                            "object when a child fails"
+                        "object when a child fails",
                     )
             finally:
                 wf.delete_storage()
@@ -319,12 +318,12 @@ class TestWorkflow(unittest.TestCase):
                 self.assertFalse(
                     wf.as_path().exists(),
                     msg=f"The parent-most object is the _only_ one who should have "
-                        f"written a recovery file, so after removing that the whole "
-                        f"node directory for the workflow should be cleaned up."
-                        f"Instead, {wf.as_path()} exists and has content "
-                        f"{[f for f in wf.as_path().iterdir()] if wf.as_path().is_dir() else None}"
+                    f"written a recovery file, so after removing that the whole "
+                    f"node directory for the workflow should be cleaned up."
+                    f"Instead, {wf.as_path()} exists and has content "
+                    f"{[f for f in wf.as_path().iterdir()] if wf.as_path().is_dir() else None}",
                 )
 
 
-if __name__ == '__main__':
+if __name__ == "__main__":
     unittest.main()
