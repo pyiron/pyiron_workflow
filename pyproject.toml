@@ -64,3 +64,10 @@ include = [ "pyiron_workflow*",]
 
 [tool.setuptools.dynamic.version]
 attr = "pyiron_workflow.__version__"
+
+[tool.black]
+extend-exclude = '''
+(
+  ^/docs
+)
+'''
