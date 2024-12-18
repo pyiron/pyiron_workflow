@@ -49,7 +49,7 @@ class TestFunction(unittest.TestCase):
                 NOT_DATA,
                 node.outputs.y.value,
                 msg="Sanity check that output just has the standard not-data value at "
-                    "instantiation",
+                "instantiation",
             )
             node.inputs.x = 10
             self.assertIs(
@@ -62,7 +62,7 @@ class TestFunction(unittest.TestCase):
                 node.outputs.y.value,
                 11,
                 msg=f"Expected the run to update the output -- did the test function"
-                    f"change or something?"
+                f"change or something?",
             )
 
             node = function_node(no_default, 1, y=2, output_labels="output")
@@ -70,13 +70,13 @@ class TestFunction(unittest.TestCase):
             self.assertEqual(
                 no_default(1, 2),
                 node.outputs.output.value,
-                msg="Nodes should allow input initialization by arg _and_ kwarg"
+                msg="Nodes should allow input initialization by arg _and_ kwarg",
             )
             node(2, y=3)
             self.assertEqual(
                 no_default(2, 3),
                 node.outputs.output.value,
-                msg="Nodes should allow input update on call by arg and kwarg"
+                msg="Nodes should allow input update on call by arg and kwarg",
             )
 
             with self.assertRaises(ValueError):
@@ -89,7 +89,7 @@ class TestFunction(unittest.TestCase):
             self.assertIs(
                 node2.inputs.x.connections[0],
                 node.outputs.y,
-                msg="Should be able to make a connection at initialization"
+                msg="Should be able to make a connection at initialization",
             )
             node >> node2
             node.run()
@@ -101,19 +101,19 @@ class TestFunction(unittest.TestCase):
             with_defaults.inputs.x.value,
             1,
             msg=f"Expected to get the default provided in the underlying function but "
-                f"got {with_defaults.inputs.x.value}",
+            f"got {with_defaults.inputs.x.value}",
         )
         without_defaults = function_node(no_default)
         self.assertIs(
             without_defaults.inputs.x.value,
             NOT_DATA,
             msg=f"Expected values with no default specified to start as {NOT_DATA} but "
-                f"got {without_defaults.inputs.x.value}",
+            f"got {without_defaults.inputs.x.value}",
         )
         self.assertFalse(
             without_defaults.ready,
             msg="I guess we should test for behaviour and not implementation... Without"
-                "defaults, the node should not be ready!"
+            "defaults, the node should not be ready!",
         )
 
     def test_label_choices(self):
@@ -141,16 +141,13 @@ class TestFunction(unittest.TestCase):
 
         with self.subTest("Override output label scraping"):
             with self.assertRaises(
-                ValueError,
-                msg="Multiple return branches can't be parsed"
+                ValueError, msg="Multiple return branches can't be parsed"
             ):
                 switch = function_node(multiple_branches, output_labels="bool")
                 self.assertListEqual(switch.outputs.labels, ["bool"])
 
             switch = function_node(
-                multiple_branches,
-                output_labels="bool",
-                validate_output_labels=False
+                multiple_branches, output_labels="bool", validate_output_labels=False
             )
             self.assertListEqual(switch.outputs.labels, ["bool"])
 
@@ -172,7 +169,7 @@ class TestFunction(unittest.TestCase):
             bilinear(2, 3).run(),
             2 * 3,
             msg="Children of `Function` should have their `node_function` exposed for "
-                "use at the class level"
+            "use at the class level",
         )
 
     def test_statuses(self):
@@ -186,7 +183,7 @@ class TestFunction(unittest.TestCase):
         with self.assertRaises(
             TypeError,
             msg="We expect the int+str type error because there were no type hints "
-                "guarding this function from running with bad data"
+            "guarding this function from running with bad data",
         ):
             n.run()
         self.assertFalse(n.ready)
@@ -210,12 +207,12 @@ class TestFunction(unittest.TestCase):
             self.assertEqual(
                 node.inputs.x.value,
                 1,
-                msg="__call__ should accept args to update input"
+                msg="__call__ should accept args to update input",
             )
             self.assertEqual(
                 node.inputs.y.value,
                 2,
-                msg="__call__ should accept kwargs to update input"
+                msg="__call__ should accept kwargs to update input",
             )
             self.assertEqual(
                 node.outputs.output.value, 1 + 2 + 1, msg="__call__ should run things"
@@ -225,7 +222,7 @@ class TestFunction(unittest.TestCase):
             self.assertEqual(
                 no_default(3, 2),
                 node.outputs.output.value,
-                msg="__call__ should allow updating only _some_ input before running"
+                msg="__call__ should allow updating only _some_ input before running",
             )
 
         with self.assertRaises(ValueError, msg="Check that bad kwargs raise an error"):
@@ -241,14 +238,14 @@ class TestFunction(unittest.TestCase):
                 return_on_explicit_run,
                 plus_one(2),
                 msg="On explicit run, the most recent input data should be used and "
-                    "the result should be returned"
+                "the result should be returned",
             )
 
             return_on_call = node(1)
             self.assertEqual(
                 return_on_call,
                 plus_one(1),
-                msg="Run output should be returned on call"
+                msg="Run output should be returned on call",
                 # This is a duplicate test, since __call__ just invokes run, but it is
                 # such a core promise that let's just double-check it
             )
@@ -286,16 +283,16 @@ class TestFunction(unittest.TestCase):
             self.assertFalse(
                 node.connected,
                 msg="The x-input connection should have been copied, but should be "
-                    "removed when the copy fails."
+                "removed when the copy fails.",
             )
 
             with self.assertRaises(
                 ConnectionCopyError,
                 msg="An unhinted channel is not a valid connection for a hinted "
-                    "channel, and should raise and exception"
+                "channel, and should raise and exception",
             ):
                 hinted_node._copy_connections(to_copy)
-        hinted_node.disconnect()# Make sure you've got a clean slate
+        hinted_node.disconnect()  # Make sure you've got a clean slate
         node.disconnect()  # Make sure you've got a clean slate
 
         with self.subTest("Ensure that failures can be continued past"):
@@ -307,14 +304,14 @@ class TestFunction(unittest.TestCase):
             self.assertFalse(
                 hinted_node.inputs.connected,
                 msg="Without hard failure the copy should be allowed to proceed, but "
-                    "we don't actually expect any connections to get copied since the "
-                    "only one available had type hint problems"
+                "we don't actually expect any connections to get copied since the "
+                "only one available had type hint problems",
             )
             self.assertTrue(
                 hinted_node.outputs.connected,
                 msg="Without hard failure the copy should be allowed to proceed, so "
-                    "the output should connect fine since feeding hinted to un-hinted "
-                    "is a-ok"
+                "the output should connect fine since feeding hinted to un-hinted "
+                "is a-ok",
             )
 
     def test_copy_values(self):
@@ -341,29 +338,23 @@ class TestFunction(unittest.TestCase):
 
         ref._copy_values(floats)
         self.assertEqual(
-            ref.inputs.x.value,
-            1.1,
-            msg="Untyped channels should copy freely"
+            ref.inputs.x.value, 1.1, msg="Untyped channels should copy freely"
         )
         self.assertEqual(
             ref.inputs.y.value,
             0,
-            msg="Typed channels should ignore values where the type check fails"
+            msg="Typed channels should ignore values where the type check fails",
         )
         self.assertEqual(
             ref.inputs.z.value,
             1.1,
-            msg="Typed channels should copy values that conform to their hint"
+            msg="Typed channels should copy values that conform to their hint",
         )
         self.assertEqual(
-            ref.inputs.omega.value,
-            None,
-            msg="NOT_DATA should be ignored when copying"
+            ref.inputs.omega.value, None, msg="NOT_DATA should be ignored when copying"
         )
         self.assertEqual(
-            ref.outputs.out.value,
-            42.1,
-            msg="Output data should also get copied"
+            ref.outputs.out.value, 42.1, msg="Output data should also get copied"
         )
         # Note also that these nodes each have extra channels the other doesn't that
         # are simply ignored
@@ -378,18 +369,17 @@ class TestFunction(unittest.TestCase):
 
         ref.inputs.x = 0  # Revert the value
         with self.assertRaises(
-            ValueCopyError,
-            msg="Type hint should prevent update when we fail hard"
+            ValueCopyError, msg="Type hint should prevent update when we fail hard"
         ):
             ref._copy_values(floats, fail_hard=True)
 
         ref._copy_values(extra)  # No problem
         with self.assertRaises(
             ValueCopyError,
-            msg="Missing a channel that holds data is also grounds for failure"
+            msg="Missing a channel that holds data is also grounds for failure",
         ):
             ref._copy_values(extra, fail_hard=True)
-            
+
     def test_easy_output_connection(self):
         n1 = function_node(plus_one)
         n2 = function_node(plus_one)
@@ -397,41 +387,37 @@ class TestFunction(unittest.TestCase):
         n2.inputs.x = n1
 
         self.assertIn(
-            n1.outputs.y, n2.inputs.x.connections,
+            n1.outputs.y,
+            n2.inputs.x.connections,
             msg="Single-output functions should be able to make connections between "
-                "their output and another node's input by passing themselves"
+            "their output and another node's input by passing themselves",
         )
 
         n1 >> n2
         n1.run()
         self.assertEqual(
-            n2.outputs.y.value, 3,
+            n2.outputs.y.value,
+            3,
             msg="Single-output function connections should pass data just like usual; "
-                "in this case default->plus_one->plus_one = 1 + 1 +1 = 3"
+            "in this case default->plus_one->plus_one = 1 + 1 +1 = 3",
         )
 
         at_instantiation = function_node(plus_one, x=n1)
         self.assertIn(
-            n1.outputs.y, at_instantiation.inputs.x.connections,
+            n1.outputs.y,
+            at_instantiation.inputs.x.connections,
             msg="The parsing of Single-output functions' output as a connection should "
-                "also work from assignment at instantiation"
+            "also work from assignment at instantiation",
         )
 
     def test_nested_declaration(self):
         # It's really just a silly case of running without a parent, where you don't
         # store references to all the nodes declared
         node = function_node(
-            plus_one,
-            x=function_node(
-                plus_one,
-                x=function_node(
-                    plus_one,
-                    x=2
-                )
-            )
+            plus_one, x=function_node(plus_one, x=function_node(plus_one, x=2))
         )
         self.assertEqual(2 + 1 + 1 + 1, node.pull())
-        
+
     def test_single_output_item_and_attribute_access(self):
         class Foo:
             some_attribute = "exists"
@@ -451,7 +437,7 @@ class TestFunction(unittest.TestCase):
         self.assertEqual(
             single_output.connected,
             False,
-            msg="Should return the _node_ attribute, not acting on the output channel"
+            msg="Should return the _node_ attribute, not acting on the output channel",
         )
 
         injection = single_output[0]  # Should pass cleanly, even though it tries to run
@@ -460,18 +446,18 @@ class TestFunction(unittest.TestCase):
         self.assertEqual(
             single_output.some_attribute.value,  # The call runs the dynamic node
             "exists",
-            msg="Should fall back to acting on the output channel and creating a node"
+            msg="Should fall back to acting on the output channel and creating a node",
         )
 
         self.assertEqual(
             single_output.connected,
             True,
-            msg="Should now be connected to the dynamically created nodes"
+            msg="Should now be connected to the dynamically created nodes",
         )
 
         with self.assertRaises(
             AttributeError,
-            msg="Aggressive running hits the problem that no such attribute exists"
+            msg="Aggressive running hits the problem that no such attribute exists",
         ):
             injected = single_output.doesnt_exists_anywhere
         # The injected node fails at runtime and generates a recovery file
@@ -484,20 +470,18 @@ class TestFunction(unittest.TestCase):
             p.rmdir()
 
         self.assertEqual(
-            injection(),
-            True,
-            msg="Should be able to query injection later"
+            injection(), True, msg="Should be able to query injection later"
         )
 
         self.assertEqual(
             single_output["some other key"].value,
             False,
-            msg="Should fall back to looking on the single value"
+            msg="Should fall back to looking on the single value",
         )
 
         with self.assertRaises(
             AttributeError,
-            msg="Attribute injection should not work for private attributes"
+            msg="Attribute injection should not work for private attributes",
         ):
             single_output._some_nonexistant_private_var
 
@@ -512,7 +496,7 @@ class TestFunction(unittest.TestCase):
             {"None": type(None)},
             NoReturn.preview_outputs(),
             msg="Functions without a return value should be permissible, although it "
-                "is not interesting"
+            "is not interesting",
         )
         # Honestly, functions with no return should probably be made illegal to
         # encourage functional setups...
@@ -523,43 +507,40 @@ class TestFunction(unittest.TestCase):
         reloaded = pickle.loads(pickle.dumps(n))
         self.assertListEqual(n.outputs.labels, reloaded.outputs.labels)
         self.assertDictEqual(
-            n.outputs.to_value_dict(),
-            reloaded.outputs.to_value_dict()
+            n.outputs.to_value_dict(), reloaded.outputs.to_value_dict()
         )
 
     def test_decoration(self):
         with self.subTest("@as_function_node(*output_labels, ...)"):
             WithDecoratorSignature = as_function_node("z")(plus_one)
             self.assertTrue(
-                issubclass(WithDecoratorSignature, Function),
-                msg="Sanity check"
+                issubclass(WithDecoratorSignature, Function), msg="Sanity check"
             )
             self.assertListEqual(
                 ["z"],
                 list(WithDecoratorSignature.preview_outputs().keys()),
-                msg="Decorator should capture new output label"
+                msg="Decorator should capture new output label",
             )
 
         with self.subTest("@as_function_node"):
             WithoutDecoratorSignature = as_function_node(plus_one)
             self.assertTrue(
-                issubclass(WithoutDecoratorSignature, Function),
-                msg="Sanity check"
+                issubclass(WithoutDecoratorSignature, Function), msg="Sanity check"
             )
             self.assertListEqual(
                 ["y"],  # "Default" copied here from the function definition return
                 list(WithoutDecoratorSignature.preview_outputs().keys()),
-                msg="Decorator should capture new output label"
+                msg="Decorator should capture new output label",
             )
 
         with self.assertRaises(
             MultipleDispatchError,
             msg="This shouldn't be accessible from a regular decorator usage pattern, "
-                "but make sure that mixing-and-matching argument-free calls and calls "
-                "directly providing the wrapped node fail cleanly"
+            "but make sure that mixing-and-matching argument-free calls and calls "
+            "directly providing the wrapped node fail cleanly",
         ):
             as_function_node(plus_one, "z")
 
 
-if __name__ == '__main__':
+if __name__ == "__main__":
     unittest.main()
