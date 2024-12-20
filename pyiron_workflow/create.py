@@ -4,7 +4,6 @@ Container classes for giving access to various workflow objects and tools
 
 from __future__ import annotations
 
-from abc import ABC
 from concurrent.futures import ProcessPoolExecutor, ThreadPoolExecutor
 
 from executorlib import Executor as ExecutorlibExecutor
