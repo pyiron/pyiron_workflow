@@ -122,7 +122,7 @@ class Wrappers(metaclass=Singleton):
         return as_dataclass_node
 
 
-class HasCreator(ABC):
+class HasCreator:
     """
     A mixin class for creator (including both class-like and decorator).
     """
