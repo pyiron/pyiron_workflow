@@ -37,6 +37,8 @@ __version__ = get_versions()["version"]
 # API
 
 # User entry point
+from pyiron_workflow.workflow import Workflow  # ruff: isort: skip
+
 # Node developer entry points
 from pyiron_workflow.channels import NOT_DATA
 from pyiron_workflow.find import (
@@ -62,4 +64,3 @@ from pyiron_workflow.storage import (
     TypeNotFoundError,
     available_backends,
 )
-from pyiron_workflow.workflow import Workflow
