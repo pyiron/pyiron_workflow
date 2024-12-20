@@ -451,21 +451,21 @@ class TestForNode(unittest.TestCase):
 
         x, y = [1], 2
         li = LoopInside([1], 2)
-        l = li().out
+        li_out = li().out
         print(li)
-        self.assertIsInstance(l, list)
-        self.assertEqual(length_y * len(x), len(l))
+        self.assertIsInstance(li_out, list)
+        self.assertEqual(length_y * len(x), len(li_out))
         self.assertEqual(
             x[0] + y,
-            l[0],
+            li_out[0],
             msg="Just make sure the loop is actually running"
         )
         x, y = [2, 3], 4
-        l = li(x, y).out
-        self.assertEqual(length_y * len(x), len(l))
+        li_out = li(x, y).out
+        self.assertEqual(length_y * len(x), len(li_out))
         self.assertEqual(
             x[-1] + y,
-            l[len(l) - 1],
+            li_out[len(li_out) - 1],
             msg="And make sure that we can vary the length still"
         )
 
