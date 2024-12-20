@@ -49,9 +49,9 @@ class TestTransformer(unittest.TestCase):
         self.assertListEqual(["a", "b", "c"], n.outputs.list.value)
 
     def test_list_to_outputs(self):
-        l = ["a", "b", "c", "d", "e"]
-        n = list_to_outputs(5, l, autorun=True)
-        self.assertEqual(l, n.outputs.to_list())
+        lst = ["a", "b", "c", "d", "e"]
+        n = list_to_outputs(len(lst), lst, autorun=True)
+        self.assertEqual(lst, n.outputs.to_list())
 
     def test_inputs_to_dict(self):
         with self.subTest("List specification"):
@@ -103,10 +103,10 @@ class TestTransformer(unittest.TestCase):
             self.assertListEqual(unhashable_spec[key][1], n.inputs[key].value)
 
     def test_inputs_to_dataframe(self):
-        l = 3
-        n = inputs_to_dataframe(l)
+        length = 3
+        n = inputs_to_dataframe(length)
         n.recovery = None  # Some tests intentionally fail, and we don't want a file
-        for i in range(l):
+        for i in range(length):
             n.inputs[f"row_{i}"] = {"x": i, "xsq": i*i}
         n()
         self.assertIsInstance(
@@ -115,7 +115,7 @@ class TestTransformer(unittest.TestCase):
             msg="Confirm output type"
         )
         self.assertListEqual(
-            [i*i for i in range(3)],
+            [i*i for i in range(length)],
             n.outputs.df.value["xsq"].to_list(),
             msg="Spot check values"
         )
@@ -129,7 +129,7 @@ class TestTransformer(unittest.TestCase):
         ):
             n(row_0=d1, row_1=d1, row_2=d2)
 
-        n = inputs_to_dataframe(l)  # Freshly instantiate to remove failed status
+        n = inputs_to_dataframe(length)  # Freshly instantiate to remove failed status
         n.recovery = None  # Next test intentionally fails, and we don't want a file
         d3 = {"a": 1}
         with self.assertRaises(
