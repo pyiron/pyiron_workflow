@@ -52,7 +52,7 @@ class TestParseOutput(unittest.TestCase):
 
             self.assertListEqual(
                 ParseOutput(function_return).output,
-                ["math.log( 10, base=2 )", "math.atan2(1, 2)"],
+                ["math.log(10, base=2)", "math.atan2(1, 2)"],
             )
 
         with self.subTest("Methods too"):
