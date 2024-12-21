@@ -90,7 +90,6 @@ class Creator:
                 ]
             }
         )
-        return super().__dir__() + list(self._package_access.keys())
 
 
 class Wrappers:
