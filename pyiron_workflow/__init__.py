@@ -27,9 +27,6 @@ Planned:
 - GUI on top for code-lite/code-free visual scripting
 """
 
-# deactivate: imported but unused
-# flake8: noqa: F401
-
 from ._version import get_versions
 
 __version__ = get_versions()["version"]
