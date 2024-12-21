@@ -13,6 +13,7 @@ def bad():
     """
     return
 
+
 def error():
     """
     >>> 1/0

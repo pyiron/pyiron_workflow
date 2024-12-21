@@ -8,5 +8,5 @@ class TestModule(unittest.TestCase):
         # level
 
 
-if __name__ == '__main__':
+if __name__ == "__main__":
     unittest.main()

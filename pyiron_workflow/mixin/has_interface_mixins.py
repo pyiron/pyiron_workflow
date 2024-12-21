@@ -17,7 +17,7 @@ if TYPE_CHECKING:
     from pyiron_workflow.channels import Channel
 
 
-class UsesState(ABC):
+class UsesState:
     """
     A mixin for any class using :meth:`__getstate__` or :meth:`__setstate__`.
 

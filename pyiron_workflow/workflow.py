@@ -241,7 +241,6 @@ class Workflow(ParentMost, Composite):
         autorun: bool = False,
         **kwargs,
     ):
-
         for node in args:
             self.add_child(node)
         super()._after_node_setup(

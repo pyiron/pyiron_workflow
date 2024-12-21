@@ -4,9 +4,7 @@ Container classes for giving access to various workflow objects and tools
 
 from __future__ import annotations
 
-from abc import ABC
 from concurrent.futures import ProcessPoolExecutor, ThreadPoolExecutor
-from functools import lru_cache
 
 from executorlib import Executor as ExecutorlibExecutor
 from pyiron_snippets.dotdict import DotDict
@@ -32,7 +30,6 @@ class Creator(metaclass=Singleton):
     """
 
     def __init__(self):
-
         # Standard lib
         self.ProcessPoolExecutor = ProcessPoolExecutor
         self.ThreadPoolExecutor = ThreadPoolExecutor
@@ -44,35 +41,30 @@ class Creator(metaclass=Singleton):
         self.function_node = function_node
 
     @property
-    @lru_cache(maxsize=1)
     def standard(self):
         from pyiron_workflow.nodes import standard
 
         return standard
 
     @property
-    @lru_cache(maxsize=1)
     def for_node(self):
         from pyiron_workflow.nodes.for_loop import for_node
 
         return for_node
 
     @property
-    @lru_cache(maxsize=1)
     def macro_node(self):
         from pyiron_workflow.nodes.macro import macro_node
 
         return macro_node
 
     @property
-    @lru_cache(maxsize=1)
     def Workflow(self):
         from pyiron_workflow.workflow import Workflow
 
         return Workflow
 
     @property
-    @lru_cache(maxsize=1)
     def meta(self):
         from pyiron_workflow.nodes.transform import inputs_to_list, list_to_outputs
 
@@ -84,7 +76,6 @@ class Creator(metaclass=Singleton):
         )
 
     @property
-    @lru_cache(maxsize=1)
     def transformer(self):
         from pyiron_workflow.nodes.transform import (
             dataclass_node,
@@ -117,21 +108,19 @@ class Wrappers(metaclass=Singleton):
     as_function_node = staticmethod(as_function_node)
 
     @property
-    @lru_cache(maxsize=1)
     def as_macro_node(self):
         from pyiron_workflow.nodes.macro import as_macro_node
 
         return as_macro_node
 
     @property
-    @lru_cache(maxsize=1)
     def as_dataclass_node(self):
         from pyiron_workflow.nodes.transform import as_dataclass_node
 
         return as_dataclass_node
 
 
-class HasCreator(ABC):
+class HasCreator:
     """
     A mixin class for creator (including both class-like and decorator).
     """

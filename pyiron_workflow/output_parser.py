@@ -5,7 +5,6 @@ Inspects code to automatically parse return values as strings
 import ast
 import inspect
 import re
-from functools import lru_cache
 from textwrap import dedent
 
 
@@ -57,7 +56,6 @@ class ParseOutput:
             return None
 
     @property
-    @lru_cache(maxsize=1)
     def source(self):
         return self.dedented_source_string.split("\n")[:-1]
 

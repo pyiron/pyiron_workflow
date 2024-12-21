@@ -518,7 +518,6 @@ class Node(
             self.inputs.fetch()
 
         if self.use_cache and self.cache_hit:  # Read and use cache
-
             if self.parent is None and emit_ran_signal:
                 self.emit()
             elif self.parent is not None:

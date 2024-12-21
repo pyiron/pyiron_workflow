@@ -6,7 +6,6 @@ from pyiron_workflow import Workflow
 
 class TestSpeedup(unittest.TestCase):
     def test_speedup(self):
-
         def make_workflow(label):
             wf = Workflow(label)
             wf.a = Workflow.create.standard.Sleep(t)
@@ -36,7 +35,7 @@ class TestSpeedup(unittest.TestCase):
             dt_cached_serial,
             0.01 * t,
             msg="The cache should be trivially fast compared to actual execution of "
-                "a sleep node"
+            "a sleep node",
         )
 
         wf = make_workflow("parallel")
@@ -65,13 +64,13 @@ class TestSpeedup(unittest.TestCase):
             0.5 * dt_serial,
             msg=f"Expected the parallel solution to be at least 2x faster, but got"
                 f"{dt_parallel}  and {dt_serial} for parallel and serial times, "
-                f"respectively"
+                f"respectively",
         )
         self.assertLess(
             dt_cached_parallel,
             0.01 * t,
             msg="The cache should be trivially fast compared to actual execution of "
-                "a sleep node"
+                "a sleep node",
         )
 
     def test_executor_instructions(self):
@@ -95,9 +94,9 @@ class TestSpeedup(unittest.TestCase):
             1.1 * t,
             msg="Expected the sleeps to run in parallel with minimal overhead (since "
                 "it's just a thread pool executor) -- the advantage is that the "
-                "constructors should survive (de)serialization"
+                "constructors should survive (de)serialization",
         )
 
 
-if __name__ == '__main__':
+if __name__ == "__main__":
     unittest.main()

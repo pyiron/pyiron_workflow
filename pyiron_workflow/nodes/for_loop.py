@@ -306,7 +306,6 @@ class For(Composite, StaticNode, ABC):
         self.dataframe.outputs.df.value_receiver = self.outputs.df
 
         for n, channel_map in enumerate(iter_maps):
-
             row_collector = self._build_row_collector_node(n)
             for label, i in channel_map.items():
                 row_collector.inputs[label] = self.children[label][i]

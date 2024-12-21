@@ -21,19 +21,19 @@ class TestTypeHinting(unittest.TestCase):
         ureg = UnitRegistry()
 
         for hint, good, bad in (
-                (int | float, 1, "foo"),
-                (int | float, 2.0, "bar"),
-                (typing.Literal[1, 2], 2, 3),
-                (typing.Literal[1, 2], 1, "baz"),
-                (Foo, Foo(), Foo),
-                (type[Bar], Bar, Bar()),
-                # (callable, Bar(), Foo()),  # Misses the bad!
-                # Can't hint args and returns without typing.Callable anyhow, so that's
-                # what people should be using regardless
-                (typing.Callable, Bar(), Foo()),
-                (tuple[int, float], (1, 1.1), ("fo", 0)),
-                (dict[str, int], {'a': 1}, {'a': 'b'}),
-                (int, 1 * ureg.seconds, 1.0 * ureg.seconds)  # Disregard unit, look@type
+            (int | float, 1, "foo"),
+            (int | float, 2.0, "bar"),
+            (typing.Literal[1, 2], 2, 3),
+            (typing.Literal[1, 2], 1, "baz"),
+            (Foo, Foo(), Foo),
+            (type[Bar], Bar, Bar()),
+            # (callable, Bar(), Foo()),  # Misses the bad!
+            # Can't hint args and returns without typing.Callable anyhow, so that's
+            # what people should be using regardless
+            (typing.Callable, Bar(), Foo()),
+            (tuple[int, float], (1, 1.1), ("fo", 0)),
+            (dict[str, int], {"a": 1}, {"a": "b"}),
+            (int, 1 * ureg.seconds, 1.0 * ureg.seconds),  # Disregard unit, look@type
         ):
             with self.subTest(msg=f"Good {good} vs hint {hint}"):
                 self.assertTrue(valid_value(good, hint))
@@ -63,29 +63,29 @@ class TestTypeHinting(unittest.TestCase):
             (dict[int, str], dict[str, int], False),
             (typing.Callable[[int, float], None], typing.Callable, True),
             (
-                    typing.Callable[[int, float], None],
-                    typing.Callable[[float, int], None],
-                    False
+                typing.Callable[[int, float], None],
+                typing.Callable[[float, int], None],
+                False,
             ),
             (
-                    typing.Callable[[int, float], float],
-                    typing.Callable[[int, float], float | str],
-                    True
+                typing.Callable[[int, float], float],
+                typing.Callable[[int, float], float | str],
+                True,
             ),
             (
-                    typing.Callable[[int, float, str], float],
-                    typing.Callable[[int, float], float],
-                    False
+                typing.Callable[[int, float, str], float],
+                typing.Callable[[int, float], float],
+                False,
             ),
         ]:
             with self.subTest(
-                    target=target, reference=reference, expected=is_more_specific
+                target=target, reference=reference, expected=is_more_specific
             ):
                 self.assertEqual(
                     type_hint_is_as_or_more_specific_than(target, reference),
-                    is_more_specific
+                    is_more_specific,
                 )
 
 
-if __name__ == '__main__':
+if __name__ == "__main__":
     unittest.main()

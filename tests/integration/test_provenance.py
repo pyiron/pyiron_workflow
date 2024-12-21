@@ -39,70 +39,65 @@ class TestProvenance(unittest.TestCase):
             out = self.wf()
 
         self.assertDictEqual(
-            self.expected_post,
-            out,
-            msg="Sanity check that the graph is executing ok"
+            self.expected_post, out, msg="Sanity check that the graph is executing ok"
         )
 
         self.assertListEqual(
-            ['time', 'prov', 'post'],
+            ["time", "prov", "post"],
             self.wf.provenance_by_execution,
-            msg="Even with a child running on an executor, provenance should log"
+            msg="Even with a child running on an executor, provenance should log",
         )
 
         self.assertListEqual(
             self.wf.provenance_by_execution,
             self.wf.provenance_by_completion,
-            msg="The workflow itself is serial and these should be identical."
+            msg="The workflow itself is serial and these should be identical.",
         )
 
         self.assertListEqual(
-            ['t', 'slow', 'fast', 'double'],
+            ["t", "slow", "fast", "double"],
             self.wf.prov.provenance_by_execution,
             msg="Later connections get priority over earlier connections, so we expect "
-                "the t-node to trigger 'slow' before 'fast'"
+                "the t-node to trigger 'slow' before 'fast'",
         )
 
         self.assertListEqual(
             self.wf.prov.provenance_by_execution,
             self.wf.prov.provenance_by_completion,
             msg="The macro is running on an executor, but its children are in serial,"
-                "so completion and execution order should be the same"
+                "so completion and execution order should be the same",
         )
 
     def test_execution_vs_completion(self):
-
         with ThreadPoolExecutor(max_workers=2) as exe:
             self.wf.prov.fast.executor = exe
             self.wf.prov.slow.executor = exe
             out = self.wf()
 
         self.assertDictEqual(
-            self.expected_post,
-            out,
-            msg="Sanity check that the graph is executing ok"
+            self.expected_post, out, msg="Sanity check that the graph is executing ok"
         )
 
         self.assertListEqual(
-            ['t', 'slow', 'fast', 'double'],
+            ["t", "slow", "fast", "double"],
             self.wf.prov.provenance_by_execution,
             msg="Later connections get priority over earlier connections, so we expect "
-                "the t-node to trigger 'slow' before 'fast'"
+                "the t-node to trigger 'slow' before 'fast'",
         )
 
         self.assertListEqual(
-            ['t', 'fast', 'slow', 'double'],
+            ["t", "fast", "slow", "double"],
             self.wf.prov.provenance_by_completion,
             msg="Since 'slow' is slow it shouldn't _finish_ until after 'fast' (but "
-                "still before 'double' since 'double' depends on 'slow')"
+                "still before 'double' since 'double' depends on 'slow')",
         )
 
         self.assertListEqual(
             self.wf.provenance_by_execution,
             self.wf.provenance_by_completion,
-            msg="The workflow itself is serial and these should be identical."
+            msg="The workflow itself is serial and these should be identical.",
         )
 
 
-if __name__ == '__main__':
+if __name__ == "__main__":
     unittest.main()

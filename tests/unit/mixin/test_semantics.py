@@ -23,14 +23,14 @@ class TestSemantics(unittest.TestCase):
         self.assertIn(
             "Did you mean 'middle_sub' and not 'Middle_sub'",
             str(context.exception),
-            msg="middle_sub must be suggested as it is close to Middle_sub"
+            msg="middle_sub must be suggested as it is close to Middle_sub",
         )
         with self.assertRaises(AttributeError) as context:
             _ = self.middle1.my_neighbor_stinks
         self.assertNotIn(
             "Did you mean",
             str(context.exception),
-            msg="Nothings should be suggested for my_neighbor_stinks"
+            msg="Nothings should be suggested for my_neighbor_stinks",
         )
 
     def test_label_validity(self):
@@ -39,8 +39,7 @@ class TestSemantics(unittest.TestCase):
 
     def test_label_delimiter(self):
         with self.assertRaises(
-            ValueError,
-            msg=f"Delimiter '{Semantic.semantic_delimiter}' not allowed"
+            ValueError, msg=f"Delimiter '{Semantic.semantic_delimiter}' not allowed"
         ):
             Semantic(f"invalid{Semantic.semantic_delimiter}label")
 
@@ -51,7 +50,7 @@ class TestSemantics(unittest.TestCase):
             msg="This is just a hard-code to the current value, update it freely so "
                 "the test passes; if it fails it's just a reminder that your change is "
                 "not backwards compatible, and the next release number should reflect "
-                "this."
+                "this.",
         )
 
     def test_parent(self):
@@ -61,14 +60,12 @@ class TestSemantics(unittest.TestCase):
 
         with self.subTest(f"{ParentMost.__name__} exceptions"):
             with self.assertRaises(
-                TypeError,
-                msg=f"{ParentMost.__name__} instances can't have parent"
+                TypeError, msg=f"{ParentMost.__name__} instances can't have parent"
             ):
                 self.root.parent = SemanticParent(label="foo")
 
             with self.assertRaises(
-                TypeError,
-                msg=f"{ParentMost.__name__} instances can't be children"
+                TypeError, msg=f"{ParentMost.__name__} instances can't be children"
             ):
                 some_parent = SemanticParent(label="bar")
                 some_parent.add_child(self.root)
@@ -96,59 +93,56 @@ class TestSemantics(unittest.TestCase):
 
     def test_as_path(self):
         self.assertEqual(
-            self.root.as_path(),
-            Path.cwd() / self.root.label,
-            msg="Default None root"
+            self.root.as_path(), Path.cwd() / self.root.label, msg="Default None root"
         )
         self.assertEqual(
             self.child1.as_path(root=".."),
             Path("..") / self.root.label / self.child1.label,
-            msg="String root"
+            msg="String root",
         )
         self.assertEqual(
             self.middle2.as_path(root=Path("..", "..")),
             (
-                Path("..", "..") /
-                self.root.label /
-                self.middle1.label /
-                self.middle2.label
+                Path("..", "..")
+                / self.root.label
+                / self.middle1.label
+                / self.middle2.label
             ),
-            msg="Path root"
+            msg="Path root",
         )
 
     def test_detached_parent_path(self):
         orphan = Semantic("orphan")
         orphan.__setstate__(self.child2.__getstate__())
         self.assertIsNone(
-            orphan.parent,
-            msg="We still should not explicitly have a parent"
+            orphan.parent, msg="We still should not explicitly have a parent"
         )
         self.assertListEqual(
             orphan.detached_parent_path.split(orphan.semantic_delimiter),
             self.child2.semantic_path.split(orphan.semantic_delimiter)[:-1],
             msg="Despite not having a parent, the detached path should store semantic "
-                "path info through the get/set state routine"
+                "path info through the get/set state routine",
         )
         self.assertEqual(
             orphan.semantic_path,
             self.child2.semantic_path,
             msg="The detached path should carry through to semantic path in the "
-                "absence of a parent"
+                "absence of a parent",
         )
         orphan.label = "orphan"  # Re-set label after getting state
         orphan.parent = self.child2.parent
         self.assertIsNone(
             orphan.detached_parent_path,
             msg="Detached paths aren't necessary and shouldn't co-exist with the "
-                "presence of a parent"
+                "presence of a parent",
         )
         self.assertListEqual(
             orphan.semantic_path.split(orphan.semantic_delimiter)[:-1],
             self.child2.semantic_path.split(self.child2.semantic_delimiter)[:-1],
             msg="Sanity check -- except for the now-different labels, we should be "
-                "recovering the usual semantic path on setting a parent."
+                "recovering the usual semantic path on setting a parent.",
         )
 
 
-if __name__ == '__main__':
+if __name__ == "__main__":
     unittest.main()

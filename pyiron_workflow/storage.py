@@ -198,7 +198,6 @@ class StorageInterface(ABC):
 
 
 class PickleStorage(StorageInterface):
-
     _PICKLE = ".pckl"
     _CLOUDPICKLE = ".cpckl"
 

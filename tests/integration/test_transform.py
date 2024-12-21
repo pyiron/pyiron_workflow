@@ -18,7 +18,7 @@ class TestTransform(unittest.TestCase):
         self.assertListEqual(
             list(range(3)),
             out.outputs.to_list(),
-            msg="Expected behaviour here is an autoencoder"
+            msg="Expected behaviour here is an autoencoder",
         )
 
         inp_class = inputs_to_list_factory(n)
@@ -28,18 +28,16 @@ class TestTransform(unittest.TestCase):
             inp_class,
             inp.__class__,
             msg="Regardless of origin, we expect to be constructing the exact same "
-                "class"
+                "class",
         )
         self.assertIs(out_class, out.__class__)
 
         reloaded = pickle.loads(pickle.dumps(out))
         self.assertEqual(
-            out.label,
-            reloaded.label,
-            msg="Transformers should be pickleable"
+            out.label, reloaded.label, msg="Transformers should be pickleable"
         )
         self.assertDictEqual(
             out.outputs.to_value_dict(),
             reloaded.outputs.to_value_dict(),
-            msg="Transformers should be pickleable"
+            msg="Transformers should be pickleable",
         )

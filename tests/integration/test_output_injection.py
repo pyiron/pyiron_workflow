@@ -8,12 +8,11 @@ class TestOutputInjection(unittest.TestCase):
     """
     I.e. the process of inserting new nodes on-the-fly by modifying output channels"
     """
+
     def setUp(self) -> None:
         self.wf = Workflow("injection")
         self.int = Workflow.create.standard.UserInput(42, autorun=True)
-        self.list = Workflow.create.standard.UserInput(
-            list(range(10)), autorun=True
-        )
+        self.list = Workflow.create.standard.UserInput(list(range(10)), autorun=True)
 
     def test_equality(self):
         with self.subTest("True expressions"):
@@ -76,7 +75,7 @@ class TestOutputInjection(unittest.TestCase):
             (x // 43, 0 * x),
             ((x + 1) % x, x + 1 - x),
             (-x, -1 * x),
-            (+x, (-x)**2 / x),
+            (+x, (-x) ** 2 / x),
             (x, abs(-x)),
         ]:
             with self.subTest(f"{lhs.label} == {rhs.label}"):
@@ -127,29 +126,24 @@ class TestOutputInjection(unittest.TestCase):
         self.assertEqual(self.int.value, round(self.float).value)
 
     def test_access(self):
-
-        self.dict = Workflow.create.standard.UserInput(
-            {"foo": 42}, autorun=True
-        )
+        self.dict = Workflow.create.standard.UserInput({"foo": 42}, autorun=True)
 
         class Something:
             myattr = 1
 
-        self.obj = Workflow.create.standard.UserInput(
-            Something(), autorun=True
-        )
+        self.obj = Workflow.create.standard.UserInput(Something(), autorun=True)
 
         self.assertIsInstance(self.list[0].value, int)
         self.assertEqual(5, self.list[:5].len().value)
         self.assertEqual(4, self.list[1:5].len().value)
         self.assertEqual(3, self.list[-3:].len().value)
         self.assertEqual(2, self.list[1:5:2].len().value)
-        
+
         self.assertEqual(42, self.dict["foo"].value)
         self.assertEqual(1, self.obj.myattr.value)
 
     def test_chaining(self):
-        self.assertFalse((self.list[:self.int//42][0] != 0).value)
+        self.assertFalse((self.list[: self.int // 42][0] != 0).value)
 
     def test_repeated_access_in_parent_scope(self):
         wf = Workflow("output_manipulation")
@@ -162,13 +156,9 @@ class TestOutputInjection(unittest.TestCase):
         self.assertIs(
             a,
             b,
-            msg="The same operation should re-access an existing node in the parent"
+            msg="The same operation should re-access an existing node in the parent",
         )
-        self.assertIsNot(
-            a,
-            c,
-            msg="Unique operations should yield unique nodes"
-        )
+        self.assertIsNot(a, c, msg="Unique operations should yield unique nodes")
 
     def test_without_parent(self):
         d1 = self.list[5]
@@ -179,14 +169,14 @@ class TestOutputInjection(unittest.TestCase):
             d1,
             d2,
             msg="Outside the scope of a parent, we can't expect to re-access an "
-                "equivalent node"
+                "equivalent node",
         )
         self.assertEqual(
             d1.label,
             d2.label,
-            msg="Equivalent operations should nonetheless generate equal labels"
+            msg="Equivalent operations should nonetheless generate equal labels",
         )
 
 
-if __name__ == '__main__':
+if __name__ == "__main__":
     unittest.main()

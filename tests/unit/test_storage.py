@@ -8,7 +8,6 @@ from pyiron_workflow.storage import PickleStorage, TypeNotFoundError, available_
 
 
 class TestAvailableBackends(unittest.TestCase):
-
     def test_default_backend(self):
         backends = list(available_backends())
         self.assertIsInstance(
@@ -16,7 +15,7 @@ class TestAvailableBackends(unittest.TestCase):
             PickleStorage,
             msg="If more standard backends are added, this will fail -- that's fine, "
                 "just update the test to make sure you're getting the defaults you now "
-                "expect."
+                "expect.",
         )
 
     def test_specific_backend(self):
@@ -26,7 +25,7 @@ class TestAvailableBackends(unittest.TestCase):
             1,
             msg="Once more standard backends are available, we should test that string "
                 "access results in the the correct priority assignment among these "
-                "defaults."
+                "defaults.",
         )
         self.assertIsInstance(backends[0], PickleStorage)
 
@@ -34,15 +33,11 @@ class TestAvailableBackends(unittest.TestCase):
         my_interface = PickleStorage()
         backends = list(available_backends(my_interface))
         self.assertEqual(
-            len(backends),
-            2,
-            msg="We expect both the one we passed, and all defaults"
+            len(backends), 2, msg="We expect both the one we passed, and all defaults"
         )
         self.assertIs(backends[0], my_interface)
         self.assertIsNot(
-            backends[0],
-            backends[1],
-            msg="They should be separate instances"
+            backends[0], backends[1], msg="They should be separate instances"
         )
 
     def test_exclusive_backend(self):
@@ -51,13 +46,12 @@ class TestAvailableBackends(unittest.TestCase):
         self.assertEqual(
             len(backends),
             1,
-            msg="We expect to filter out everything except the one we asked for"
+            msg="We expect to filter out everything except the one we asked for",
         )
         self.assertIs(backends[0], my_interface)
 
 
 class TestStorage(unittest.TestCase):
-
     def setUp(self):
         self.node = UserInput(label="test_node")
         self.storage = PickleStorage()
@@ -94,7 +88,7 @@ class TestStorage(unittest.TestCase):
         for method in [
             self.storage.load,
             self.storage.has_saved_content,
-            self.storage.delete
+            self.storage.delete,
         ]:
             with self.subTest(method.__name__):
                 with self.assertRaises(ValueError):
@@ -118,7 +112,7 @@ class TestPickleStorage(unittest.TestCase):
             interface = PickleStorage(cloudpickle_fallback=False)
             with self.assertRaises(
                 TypeNotFoundError,
-                msg="We can't import from <locals>, so this is unpicklable"
+                msg="We can't import from <locals>, so this is unpicklable",
             ):
                 interface.save(u)
 
@@ -134,4 +128,3 @@ class TestPickleStorage(unittest.TestCase):
 
 if __name__ == "__main__":
     unittest.main()
-
