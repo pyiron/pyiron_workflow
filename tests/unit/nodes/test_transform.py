@@ -22,6 +22,7 @@ from pyiron_workflow.nodes.transform import (
 class MyData:
     stuff: bool = False
 
+
 @as_function_node
 def Downstream(x: MyData.dataclass):
     x.stuff = True
@@ -31,16 +32,12 @@ def Downstream(x: MyData.dataclass):
 class TestTransformer(unittest.TestCase):
     def test_pickle(self):
         n = inputs_to_list(3, "a", "b", "c", autorun=True)
-        self.assertListEqual(
-            ["a", "b", "c"],
-            n.outputs.list.value,
-            msg="Sanity check"
-        )
+        self.assertListEqual(["a", "b", "c"], n.outputs.list.value, msg="Sanity check")
         reloaded = pickle.loads(pickle.dumps(n))
         self.assertListEqual(
             n.outputs.list.value,
             reloaded.outputs.list.value,
-            msg="Transformer nodes should be (un)pickleable"
+            msg="Transformer nodes should be (un)pickleable",
         )
         self.assertIsInstance(reloaded, Transformer)
 
@@ -60,7 +57,7 @@ class TestTransformer(unittest.TestCase):
             self.assertDictEqual(
                 d,
                 n.outputs.dict.value,
-                msg="Verify structure and ability to pass kwargs"
+                msg="Verify structure and ability to pass kwargs",
             )
 
         with self.subTest("Dict specification"):
@@ -72,27 +69,25 @@ class TestTransformer(unittest.TestCase):
             self.assertIs(
                 n.inputs[list(d.keys())[0]].type_hint,
                 hint,
-                msg="Spot check hint recognition"
+                msg="Spot check hint recognition",
             )
             self.assertDictEqual(
                 {k: default for k in d},
                 n.outputs.dict.value,
-                msg="Verify structure and ability to pass defaults"
+                msg="Verify structure and ability to pass defaults",
             )
 
         with self.subTest("Explicit suffix"):
             suffix = "MyName"
             n = inputs_to_dict(["c1", "c2"], class_name_suffix="MyName")
-            self.assertTrue(
-                n.__class__.__name__.endswith(suffix)
-            )
+            self.assertTrue(n.__class__.__name__.endswith(suffix))
 
         with self.subTest("Only hashable"):
             unhashable_spec = {"c1": (list, ["an item"])}
             with self.assertRaises(
                 ValueError,
                 msg="List instances are not hashable, we should not be able to auto-"
-                    "generate a class name from this."
+                    "generate a class name from this.",
             ):
                 inputs_to_dict(unhashable_spec)
 
@@ -107,17 +102,13 @@ class TestTransformer(unittest.TestCase):
         n = inputs_to_dataframe(length)
         n.recovery = None  # Some tests intentionally fail, and we don't want a file
         for i in range(length):
-            n.inputs[f"row_{i}"] = {"x": i, "xsq": i*i}
+            n.inputs[f"row_{i}"] = {"x": i, "xsq": i * i}
         n()
-        self.assertIsInstance(
-            n.outputs.df.value,
-            DataFrame,
-            msg="Confirm output type"
-        )
+        self.assertIsInstance(n.outputs.df.value, DataFrame, msg="Confirm output type")
         self.assertListEqual(
-            [i*i for i in range(length)],
+            [i * i for i in range(length)],
             n.outputs.df.value["xsq"].to_list(),
-            msg="Spot check values"
+            msg="Spot check values",
         )
 
         d1 = {"a": 1, "b": 1}
@@ -125,7 +116,7 @@ class TestTransformer(unittest.TestCase):
         with self.assertRaises(
             KeyError,
             msg="If the input rows don't have commensurate keys, we expect to get the "
-                "relevant pandas error"
+            "relevant pandas error",
         ):
             n(row_0=d1, row_1=d1, row_2=d2)
 
@@ -135,7 +126,7 @@ class TestTransformer(unittest.TestCase):
         with self.assertRaises(
             ValueError,
             msg="If the input rows don't have commensurate length, we expect to get "
-                "the relevant pandas error"
+                "the relevant pandas error",
         ):
             n(row_0=d1, row_1=d3, row_2=d1)
 
@@ -152,19 +143,18 @@ class TestTransformer(unittest.TestCase):
 
             class DC:
                 """Doesn't even have to be an actual dataclass, just dataclass-like"""
+
                 necessary: str
                 with_default: int = 42
                 with_factory: list = field(default_factory=some_generator)
 
             n = dataclass_node(DC, label="direct_instance")
             self.assertIs(
-                n.dataclass,
-                DC,
-                msg="Underlying dataclass should be accessible"
+                n.dataclass, DC, msg="Underlying dataclass should be accessible"
             )
             self.assertTrue(
                 is_dataclass(n.dataclass),
-                msg="Underlying dataclass should be a real dataclass"
+                msg="Underlying dataclass should be a real dataclass",
             )
             self.assertTrue(
                 is_dataclass(DC),
@@ -173,49 +163,47 @@ class TestTransformer(unittest.TestCase):
                     "too is now a real dataclass, even though it wasn't defined as "
                     "one! This is just a side effect. I don't see it being harmful, "
                     "but in case it gives some future reader trouble, I want to "
-                    "explicitly note the side effect here in the tests."
+                    "explicitly note the side effect here in the tests.",
             )
             self.assertListEqual(
                 list(DC.__dataclass_fields__.keys()),
                 n.inputs.labels,
-                msg="Inputs should correspond exactly to fields"
+                msg="Inputs should correspond exactly to fields",
             )
             self.assertIs(
                 DC,
                 n.outputs.dataclass.type_hint,
-                msg="Output type hint should get automatically set"
+                msg="Output type hint should get automatically set",
             )
             key = random.choice(n.inputs.labels)
             self.assertIs(
                 DC.__dataclass_fields__[key].type,
                 n.inputs[key].type_hint,
-                msg="Spot-check input type hints are pulled from dataclass fields"
+                msg="Spot-check input type hints are pulled from dataclass fields",
             )
             self.assertFalse(
                 n.inputs.necessary.ready,
-                msg="Fields with no default and no default factory should not be ready"
+                msg="Fields with no default and no default factory should not be ready",
             )
             self.assertTrue(
-                n.inputs.with_default.ready,
-                msg="Fields with default should be ready"
+                n.inputs.with_default.ready, msg="Fields with default should be ready"
             )
             self.assertTrue(
                 n.inputs.with_factory.ready,
-                msg="Fields with default factory should be ready"
+                msg="Fields with default factory should be ready",
             )
             self.assertListEqual(
                 n.inputs.with_factory.value,
                 some_generator(),
-                msg="Verify the generator is being used to set the intial value"
+                msg="Verify the generator is being used to set the intial value",
             )
             out = n(necessary="something")
             self.assertIsInstance(
-                out,
-                DC,
-                msg="Node should output an instance of the dataclass"
+                out, DC, msg="Node should output an instance of the dataclass"
             )
 
         with self.subTest("From decorator"):
+
             @as_dataclass_node
             @dataclass
             class DecoratedDC:
@@ -231,66 +219,58 @@ class TestTransformer(unittest.TestCase):
 
             for n_cls, style in zip(
                 [DecoratedDC(label="dcinst"), DecoratedDCLike(label="dcinst")],
-                ["Actual dataclass", "Dataclass-like class"], strict=False
+                ["Actual dataclass", "Dataclass-like class"],
+                strict=False,
             ):
                 with self.subTest(style):
                     self.assertTrue(
                         is_dataclass(n_cls.dataclass),
-                        msg="Underlying dataclass should be available on node class"
+                        msg="Underlying dataclass should be available on node class",
                     )
                     prev = n_cls.preview_inputs()
                     key = random.choice(list(prev.keys()))
                     self.assertIs(
                         n_cls._dataclass_fields[key].type,
                         prev[key][0],
-                        msg="Spot-check input type hints are pulled from dataclass fields"
+                        msg="Spot-check input type hints are pulled from dataclass fields",
                     )
                     self.assertIs(
-                        prev["necessary"][1],
-                        NOT_DATA,
-                        msg="Field has no default"
+                        prev["necessary"][1], NOT_DATA, msg="Field has no default"
                     )
                     self.assertEqual(
                         n_cls._dataclass_fields["with_default"].default,
                         prev["with_default"][1],
-                        msg="Fields with default should get scraped"
+                        msg="Fields with default should get scraped",
                     )
                     self.assertIs(
                         prev["with_factory"][1],
                         NOT_DATA,
                         msg="Fields with default factory won't see their default until "
-                            "instantiation"
+                            "instantiation",
                     )
 
     def test_dataclass_typing_and_storage(self):
         md = MyData()
 
-        with self.assertRaises(
-            TypeError,
-            msg="Wrongly typed input should not connect"
-        ):
+        with self.assertRaises(TypeError, msg="Wrongly typed input should not connect"):
             Downstream(5)
 
         ds = Downstream(md)
         out = ds.pull()
-        self.assertTrue(
-            out.stuff,
-            msg="Sanity check"
-        )
+        self.assertTrue(out.stuff, msg="Sanity check")
 
         rmd = pickle.loads(pickle.dumps(md))
         self.assertIs(
             rmd.outputs.dataclass.type_hint,
             MyData.dataclass,
-            msg="Type hint should be findable on the scope of the node decorating it"
+            msg="Type hint should be findable on the scope of the node decorating it",
         )
         ds2 = Downstream(rmd)
         out = ds2.pull()
         self.assertTrue(
-            out.stuff,
-            msg="Flow should be able to survive (de)serialization"
+            out.stuff, msg="Flow should be able to survive (de)serialization"
         )
 
 
-if __name__ == '__main__':
+if __name__ == "__main__":
     unittest.main()

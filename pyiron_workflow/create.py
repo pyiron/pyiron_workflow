@@ -30,7 +30,6 @@ class Creator(metaclass=Singleton):
     """
 
     def __init__(self):
-
         # Standard lib
         self.ProcessPoolExecutor = ProcessPoolExecutor
         self.ThreadPoolExecutor = ThreadPoolExecutor

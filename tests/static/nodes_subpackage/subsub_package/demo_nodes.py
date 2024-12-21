@@ -2,7 +2,6 @@
 A demo node package for the purpose of testing.
 """
 
-
 from pyiron_workflow import Workflow
 
 
