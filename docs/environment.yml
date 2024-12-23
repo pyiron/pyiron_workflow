@@ -11,7 +11,7 @@ dependencies:
 - coverage
 - bidict =0.23.1
 - cloudpickle =3.1.0
-- executorlib =0.0.5
+- executorlib =0.0.6
 - graphviz =9.0.0
 - pandas =2.2.3
 - pint =0.24.4
