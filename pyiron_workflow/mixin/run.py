@@ -308,7 +308,7 @@ class Runnable(UsesState, HasLabel, HasRun, ABC):
 
     @staticmethod
     def _parse_executor(
-        executor: StdLibExecutor | (callable[..., StdLibExecutor], tuple, dict)
+        executor: StdLibExecutor | (callable[..., StdLibExecutor], tuple, dict),
     ) -> StdLibExecutor:
         """
         If you've already got an executor, you're done. But if you get callable and

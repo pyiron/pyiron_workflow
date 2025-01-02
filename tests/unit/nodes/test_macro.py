@@ -40,23 +40,22 @@ def SomeNode(x):
 
 
 class TestMacro(unittest.TestCase):
-
     def test_io_independence(self):
         m = macro_node(add_three_macro, output_labels="three__result")
         self.assertIsNot(
             m.inputs.one__x,
             m.one.inputs.x,
-            msg="Expect input to be by value, not by reference"
+            msg="Expect input to be by value, not by reference",
         )
         self.assertIsNot(
             m.outputs.three__result,
             m.three.outputs.result,
-            msg="Expect output to be by value, not by reference"
+            msg="Expect output to be by value, not by reference",
         )
         self.assertFalse(
             m.connected,
             msg="Macro should talk to its children by value links _not_ graph "
-                "connections"
+            "connections",
         )
 
     def test_value_links(self):
@@ -64,12 +63,12 @@ class TestMacro(unittest.TestCase):
         self.assertIs(
             m.one.inputs.x,
             m.inputs.one__x.value_receiver,
-            msg="Sanity check that value link exists"
+            msg="Sanity check that value link exists",
         )
         self.assertIs(
             m.outputs.three__result,
             m.three.outputs.result.value_receiver,
-            msg="Sanity check that value link exists"
+            msg="Sanity check that value link exists",
         )
         self.assertNotEqual(
             42, m.one.inputs.x.value, msg="Sanity check that we start from expected"
@@ -77,7 +76,7 @@ class TestMacro(unittest.TestCase):
         self.assertNotEqual(
             42,
             m.three.outputs.result.value,
-            msg="Sanity check that we start from expected"
+            msg="Sanity check that we start from expected",
         )
         m.inputs.one__x.value = 0
         self.assertEqual(
@@ -115,12 +114,12 @@ class TestMacro(unittest.TestCase):
         self.assertEqual(
             m_auto(one__x=x).three__result,
             expected,
-            "DAG macros should run fine without user specification of execution."
+            "DAG macros should run fine without user specification of execution.",
         )
         self.assertEqual(
             m_user(one__x=x).three__result,
             expected,
-            "Macros should run fine if the user nicely specifies the exeuction graph."
+            "Macros should run fine if the user nicely specifies the exeuction graph.",
         )
 
         with self.subTest("Partially specified execution should fail"):
@@ -137,7 +136,7 @@ class TestMacro(unittest.TestCase):
         self.assertEqual(
             m.label,
             add_three_macro.__name__,
-            msg="Label should be automatically generated"
+            msg="Label should be automatically generated",
         )
         label = "custom_name"
         m2 = macro_node(add_three_macro, label=label, output_labels="three__result")
@@ -150,7 +149,7 @@ class TestMacro(unittest.TestCase):
             m.outputs.three__result.value,
             NOT_DATA,
             msg="Output should be accessible with the usual naming convention, but we "
-                "have not run yet so there shouldn't be any data"
+                "have not run yet so there shouldn't be any data",
         )
 
         input_x = 1
@@ -161,12 +160,12 @@ class TestMacro(unittest.TestCase):
         self.assertEqual(
             out.three__result,
             expected_value,
-            msg="Macros should return the output, just like other nodes"
+            msg="Macros should return the output, just like other nodes",
         )
         self.assertEqual(
             m.outputs.three__result.value,
             expected_value,
-            msg="Macros should get output updated, just like other nodes"
+            msg="Macros should get output updated, just like other nodes",
         )
 
     def test_creation_from_subclass(self):
@@ -184,21 +183,19 @@ class TestMacro(unittest.TestCase):
         self.assertEqual(
             m.outputs.three__result.value,
             add_one(add_one(add_one(x))),
-            msg="Subclasses should be able to simply override the graph_creator arg"
+            msg="Subclasses should be able to simply override the graph_creator arg",
         )
 
     def test_nesting(self):
         def nested_macro(self, a__x):
             self.a = function_node(add_one, a__x)
             self.b = macro_node(
-                add_three_macro,
-                one__x=self.a,
-                output_labels="three__result"
+                add_three_macro, one__x=self.a, output_labels="three__result"
             )
             self.c = macro_node(
                 add_three_macro,
                 one__x=self.b.outputs.three__result,
-                output_labels="three__result"
+                output_labels="three__result",
             )
             self.d = function_node(
                 add_one,
@@ -226,32 +223,27 @@ class TestMacro(unittest.TestCase):
         self.assertIs(
             NOT_DATA,
             macro.outputs.three__result.value,
-            msg="Sanity check that test is in right starting condition"
+            msg="Sanity check that test is in right starting condition",
         )
 
         result = macro.run(one__x=0)
         self.assertIsInstance(
-            result,
-            Future,
-            msg="Should be running as a parallel process"
+            result, Future, msg="Should be running as a parallel process"
         )
         self.assertIs(
             NOT_DATA,
             downstream.outputs.result.value,
             msg="Downstream events should not yet have triggered either, we should wait"
-                "for the callback when the result is ready"
+                "for the callback when the result is ready",
         )
 
         returned_nodes = result.result(timeout=120)  # Wait for the process to finish
         sleep(1)
-        self.assertFalse(
-            macro.running,
-            msg="Macro should be done running"
-        )
+        self.assertFalse(macro.running, msg="Macro should be done running")
         self.assertIsNot(
             original_one,
             returned_nodes.one,
-            msg="Executing in a parallel process should be returning new instances"
+            msg="Executing in a parallel process should be returning new instances",
         )
         # self.assertIs(
         #     returned_nodes.one,
@@ -261,26 +253,26 @@ class TestMacro(unittest.TestCase):
         self.assertIs(
             macro,
             macro.one.parent,
-            msg="Returned nodes should get the macro as their parent"
+            msg="Returned nodes should get the macro as their parent",
             # Once upon a time there was some evidence that this test was failing
             # stochastically, but I just ran the whole test suite 6 times and this test
             # 8 times and it always passed fine, so maybe the issue is resolved...
         )
         self.assertIsNone(
             original_one.parent,
-            msg="Original nodes should be orphaned"
+            msg="Original nodes should be orphaned",
             # Note: At time of writing, this is accomplished in Node.__getstate__,
             #       which feels a bit dangerous...
         )
         self.assertEqual(
             0 + 3,
             macro.outputs.three__result.value,
-            msg="And of course we expect the calculation to actually run"
+            msg="And of course we expect the calculation to actually run",
         )
         self.assertIs(
             downstream.inputs.x.connections[0],
             macro.outputs.three__result,
-            msg="The macro output should still be connected to downstream"
+            msg="The macro output should still be connected to downstream",
         )
         sleep(0.2)  # Give a moment for the ran signal to emit and downstream to run
         # I'm a bit surprised this sleep is necessary
@@ -288,14 +280,16 @@ class TestMacro(unittest.TestCase):
             0 + 3 + 1,
             downstream.outputs.result.value,
             msg="The finishing callback should also fire off the ran signal triggering"
-                "downstream execution"
+                "downstream execution",
         )
 
         macro.executor_shutdown()
 
     def test_pulling_from_inside_a_macro(self):
         upstream = function_node(add_one, x=2)
-        macro = macro_node(add_three_macro, one__x=upstream, output_labels="three__result")
+        macro = macro_node(
+            add_three_macro, one__x=upstream, output_labels="three__result"
+        )
         macro.inputs.one__x = 0  # Set value
         # Now macro.one.inputs.x has both value and a connection
 
@@ -304,14 +298,14 @@ class TestMacro(unittest.TestCase):
             macro.two.pull(run_parent_trees_too=False),
             msg="Without running parent trees, the pulling should only run upstream "
                 "nodes _inside_ the scope of the macro, relying on the explicit input"
-                "value"
+                "value",
         )
 
         self.assertEqual(
             (2 + 1) + 1 + 1,
             macro.two.pull(run_parent_trees_too=True),
             msg="Running with parent trees, the pulling should also run the parents "
-                "data dependencies first"
+                "data dependencies first",
         )
 
     def test_recovery_after_failed_pull(self):
@@ -320,6 +314,7 @@ class TestMacro(unittest.TestCase):
             return node.inputs.x.connections + node.signals.input.run.connections
 
         with self.subTest("When the local scope has cyclic data flow"):
+
             def cyclic_macro(macro):
                 macro.one = function_node(add_one)
                 macro.two = function_node(add_one, x=macro.one)
@@ -338,22 +333,24 @@ class TestMacro(unittest.TestCase):
             initial_connections = grab_connections(m)
 
             with self.assertRaises(
-                CircularDataFlowError,
-                msg="Pull should only work for DAG workflows"
+                CircularDataFlowError, msg="Pull should only work for DAG workflows"
             ):
                 m.two.pull()
             self.assertListEqual(
                 initial_labels,
                 list(m.children.keys()),
                 msg="Labels should be restored after failing to pull because of "
-                    "acyclicity"
+                    "acyclicity",
             )
             self.assertTrue(
                 all(
-                    c is ic for (c, ic) in zip(grab_connections(m), initial_connections, strict=False)
+                    c is ic
+                    for (c, ic) in zip(
+                        grab_connections(m), initial_connections, strict=False
+                    )
                 ),
                 msg="Connections should be restored after failing to pull because of "
-                    "cyclic data flow"
+                    "cyclic data flow",
             )
 
         with self.subTest("When the parent scope has cyclic data flow"):
@@ -366,7 +363,7 @@ class TestMacro(unittest.TestCase):
             self.assertEqual(
                 0 + 1 + 1 + (1 + 1 + 1),
                 m.three.pull(run_parent_trees_too=True),
-                msg="Sanity check, without cyclic data flows pulling here should be ok"
+                msg="Sanity check, without cyclic data flows pulling here should be ok",
             )
 
             n1.inputs.x = n2
@@ -374,32 +371,33 @@ class TestMacro(unittest.TestCase):
             initial_connections = grab_x_and_run(n1) + grab_x_and_run(n2)
             with self.assertRaises(
                 CircularDataFlowError,
-                msg="Once the outer scope has circular data flows, pulling should fail"
+                msg="Once the outer scope has circular data flows, pulling should fail",
             ):
                 m.three.pull(run_parent_trees_too=True)
             self.assertTrue(
                 all(
                     c is ic
                     for (c, ic) in zip(
-                        grab_x_and_run(n1) + grab_x_and_run(n2), initial_connections, strict=False
+                        grab_x_and_run(n1) + grab_x_and_run(n2),
+                        initial_connections,
+                        strict=False,
                     )
                 ),
                 msg="Connections should be restored after failing to pull because of "
-                    "cyclic data flow in the outer scope"
+                    "cyclic data flow in the outer scope",
             )
             self.assertEqual(
-                "n1",
-                n1.label,
-                msg="Labels should get restored in the outer scope"
+                "n1", n1.label, msg="Labels should get restored in the outer scope"
             )
             self.assertEqual(
                 "one",
                 m.one.label,
                 msg="Labels should not have even gotten perturbed to start with in the"
-                    "inner scope"
+                    "inner scope",
             )
 
         with self.subTest("When a node breaks upstream"):
+
             def fail_at_zero(x):
                 y = 1 / x
                 return y
@@ -411,23 +409,23 @@ class TestMacro(unittest.TestCase):
             n_not_used >> n2  # Just here to make sure it gets restored
 
             with self.assertRaises(
-                ZeroDivisionError,
-                msg="The underlying error should get raised"
+                ZeroDivisionError, msg="The underlying error should get raised"
             ):
                 n2.pull()
             self.assertEqual(
                 "n1",
                 n2.label,
-                msg="Original labels should get restored on upstream failure"
+                msg="Original labels should get restored on upstream failure",
             )
             self.assertIs(
                 n_not_used,
                 n2.signals.input.run.connections[0].owner,
-                msg="Original connections should get restored on upstream failure"
+                msg="Original connections should get restored on upstream failure",
             )
 
     def test_efficient_signature_interface(self):
         with self.subTest("Forked input"):
+
             @as_macro_node("output")
             def MutlipleUseInput(self, x):
                 self.n1 = self.create.standard.UserInput(x)
@@ -439,11 +437,11 @@ class TestMacro(unittest.TestCase):
                 2 + 1,
                 len(m),
                 msg="Signature input that is forked to multiple children should result "
-                    "in the automatic creation of a new node to manage the forking."
-
+                    "in the automatic creation of a new node to manage the forking.",
             )
 
         with self.subTest("Single destination input"):
+
             @as_macro_node("output")
             def SingleUseInput(self, x):
                 self.n = self.create.standard.UserInput(x)
@@ -454,10 +452,11 @@ class TestMacro(unittest.TestCase):
                 1,
                 len(m),
                 msg=f"Signature input with only one destination should not create an "
-                    f"interface node. Found nodes {m.child_labels}"
+                    f"interface node. Found nodes {m.child_labels}",
             )
 
         with self.subTest("Mixed input"):
+
             @as_macro_node("output")
             def MixedUseInput(self, x, y):
                 self.n1 = self.create.standard.UserInput(x)
@@ -470,10 +469,11 @@ class TestMacro(unittest.TestCase):
                 3 + 1,
                 len(m),
                 msg=f"Mixing forked and single-use input should not cause problems. "
-                    f"Expected four children but found {m.child_labels}"
+                f"Expected four children but found {m.child_labels}",
             )
 
         with self.subTest("Pass through"):
+
             @as_macro_node("output")
             def PassThrough(self, x):
                 return x
@@ -486,27 +486,22 @@ class TestMacro(unittest.TestCase):
             with self.subTest(backend):
                 try:
                     macro = demo_nodes.AddThree(label="m", x=0)
-                    macro.replace_child(
-                        macro.two,
-                        demo_nodes.AddPlusOne()
-                    )
+                    macro.replace_child(macro.two, demo_nodes.AddPlusOne())
 
                     modified_result = macro()
 
                     if isinstance(backend, PickleStorage):
                         macro.save(backend)
-                        reloaded = demo_nodes.AddThree(
-                            label="m", autoload=backend
-                        )
+                        reloaded = demo_nodes.AddThree(label="m", autoload=backend)
                         self.assertDictEqual(
                             modified_result,
                             reloaded.outputs.to_value_dict(),
-                            msg="Updated IO should have been (de)serialized"
+                            msg="Updated IO should have been (de)serialized",
                         )
                         self.assertSetEqual(
                             set(macro.children.keys()),
                             set(reloaded.children.keys()),
-                            msg="All nodes should have been (de)serialized."
+                            msg="All nodes should have been (de)serialized.",
                         )
                         self.assertEqual(
                             demo_nodes.AddThree.__name__,
@@ -517,22 +512,21 @@ class TestMacro(unittest.TestCase):
                                 f"not any sort of technical error -- what other class name "
                                 f"would we load? -- but is a deeper problem with saving "
                                 f"modified objects that we need ot figure out some better "
-                                f"solution for later."
+                                f"solution for later.",
                         )
                         rerun = reloaded()
 
                         self.assertIsInstance(
                             reloaded.two,
                             demo_nodes.AddPlusOne,
-
                             msg="pickle instantiates the macro node class, but "
                                 "but then uses its serialized state, so we retain "
-                                "the replaced node."
+                                "the replaced node.",
                         )
                         self.assertDictEqual(
                             modified_result,
                             rerun,
-                            msg="Rerunning re-executes the _replaced_ functionality"
+                            msg="Rerunning re-executes the _replaced_ functionality",
                         )
                     else:
                         raise ValueError(
@@ -552,13 +546,14 @@ class TestMacro(unittest.TestCase):
         self.assertListEqual(
             ["foo"],
             list(OutputScrapedFromFilteredReturn.preview_outputs().keys()),
-            msg="The first, self-like argument, should get stripped from output labels"
+            msg="The first, self-like argument, should get stripped from output labels",
         )
 
         with self.assertRaises(
             ValueError,
-            msg="Return values with extra dots are not permissible as scraped labels"
+            msg="Return values with extra dots are not permissible as scraped labels",
         ):
+
             @as_macro_node
             def ReturnHasDot(macro):
                 macro.foo = macro.create.standard.UserInput()
@@ -571,16 +566,16 @@ class TestMacro(unittest.TestCase):
         self.assertTupleEqual(
             m.child_labels,
             reloaded_m.child_labels,
-            msg="Spot check values are getting reloaded correctly"
+            msg="Spot check values are getting reloaded correctly",
         )
         self.assertDictEqual(
             m.outputs.to_value_dict(),
             reloaded_m.outputs.to_value_dict(),
-            msg="Spot check values are getting reloaded correctly"
+            msg="Spot check values are getting reloaded correctly",
         )
         self.assertTrue(
             reloaded_m.two.connected,
-            msg="The macro should reload with all its child connections"
+            msg="The macro should reload with all its child connections",
         )
 
         self.assertTrue(m.two.connected, msg="Sanity check")
@@ -589,13 +584,13 @@ class TestMacro(unittest.TestCase):
             reloaded_two.connected,
             msg="Children are expected to be de-parenting on serialization, so that if "
                 "we ship them off to another process, they don't drag their whole "
-                "graph with them"
+                "graph with them",
         )
         self.assertEqual(
             m.two.outputs.to_value_dict(),
             reloaded_two.outputs.to_value_dict(),
             msg="The remainder of the child node state should be recovering just "
-                "fine on (de)serialization, this is a spot-check"
+                "fine on (de)serialization, this is a spot-check",
         )
 
     def test_autoload(self):
@@ -605,6 +600,7 @@ class TestMacro(unittest.TestCase):
         existing_node.save("pickle")
 
         try:
+
             @as_macro_node
             def AutoloadsChildren(self, x):
                 self.some_child = SomeNode(x, autoload="pickle")
@@ -616,16 +612,13 @@ class TestMacro(unittest.TestCase):
                 msg="Autoloading macro children can result in a child node coming with "
                     "pre-loaded data if the child's label at instantiation results in a "
                     "match with some already-saved node (if the load is compatible). This "
-                    "is almost certainly undesirable"
+                    "is almost certainly undesirable",
             )
 
             @as_macro_node
             def AutofailsChildren(self, x):
                 self.some_child = function_node(
-                    add_one,
-                    x,
-                    label=SomeNode.__name__,
-                    autoload="pickle"
+                    add_one, x, label=SomeNode.__name__, autoload="pickle"
                 )
                 return self.some_child
 
@@ -633,7 +626,7 @@ class TestMacro(unittest.TestCase):
                 TypeError,
                 msg="When the macro auto-loads a child but the loaded type is not "
                     "compatible with the child type, we will even get an error at macro "
-                    "instantiation time! Autoloading macro children is really not wise."
+                    "instantiation time! Autoloading macro children is really not wise.",
             ):
                 AutofailsChildren()
 
@@ -648,11 +641,11 @@ class TestMacro(unittest.TestCase):
                 msg="Despite having the same label as a saved node at instantiation time, "
                     "without autoloading children, our macro safely gets a fresh instance. "
                     "Since this is clearly preferable, here we leave autoload to take its "
-                    "default value (which for macros should thus not autoload.)"
+                    "default value (which for macros should thus not autoload.)",
             )
         finally:
             existing_node.delete_storage("pickle")
 
 
-if __name__ == '__main__':
+if __name__ == "__main__":
     unittest.main()

@@ -27,9 +27,6 @@ Planned:
 - GUI on top for code-lite/code-free visual scripting
 """
 
-# deactivate: imported but unused
-# flake8: noqa: F401
-
 from ._version import get_versions
 
 __version__ = get_versions()["version"]
@@ -37,6 +34,8 @@ __version__ = get_versions()["version"]
 # API
 
 # User entry point
+from pyiron_workflow.workflow import Workflow  # ruff: isort: skip
+
 # Node developer entry points
 from pyiron_workflow.channels import NOT_DATA
 from pyiron_workflow.find import (
@@ -62,4 +61,3 @@ from pyiron_workflow.storage import (
     TypeNotFoundError,
     available_backends,
 )
-from pyiron_workflow.workflow import Workflow

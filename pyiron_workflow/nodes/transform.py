@@ -197,7 +197,7 @@ class InputsToDict(FromManyInputs, ABC):
 
     @staticmethod
     def hash_specification(
-        input_specification: list[str] | dict[str, tuple[Any | None, Any | NOT_DATA]]
+        input_specification: list[str] | dict[str, tuple[Any | None, Any | NOT_DATA]],
     ):
         """For generating unique subclass names."""
 

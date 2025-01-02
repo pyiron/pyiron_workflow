@@ -142,7 +142,7 @@ def _set_run_connections_according_to_linear_dag(nodes: dict[str, Node]) -> list
 
 
 def set_run_connections_according_to_linear_dag(
-    nodes: dict[str, Node]
+    nodes: dict[str, Node],
 ) -> tuple[list[tuple[SignalChannel, SignalChannel]], list[Node]]:
     """
     Given a set of nodes that all have the same parent, have no upstream data
@@ -194,7 +194,7 @@ def _set_run_connections_according_to_dag(nodes: dict[str, Node]) -> list[Node]:
 
 
 def set_run_connections_according_to_dag(
-    nodes: dict[str, Node]
+    nodes: dict[str, Node],
 ) -> tuple[list[tuple[SignalChannel, SignalChannel]], list[Node]]:
     """
     Given a set of nodes that all have the same parent, have no upstream data

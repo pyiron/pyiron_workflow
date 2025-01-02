@@ -27,19 +27,20 @@ class TestFind(unittest.TestCase):
 
         ensure_tests_in_python_path()
         from static import demo_nodes
+
         found_by_module = find_nodes(demo_nodes)
 
         self.assertListEqual(
             [o.__name__ for o in found_by_path],
             [o.__name__ for o in found_by_string],
             msg=f"You should find the same thing regardless of source representation;"
-                f"by path got {found_by_path} and by string got {found_by_string}"
+                f"by path got {found_by_path} and by string got {found_by_string}",
         )
         self.assertListEqual(
             [o.__name__ for o in found_by_string],
             [o.__name__ for o in found_by_module],
             msg=f"You should find the same thing regardless of source representation;"
-                f"by string got {found_by_string} and by module got {found_by_module}"
+                f"by string got {found_by_string} and by module got {found_by_module}",
         )
         self.assertListEqual(
             [o.__name__ for o in found_by_string],
@@ -47,13 +48,13 @@ class TestFind(unittest.TestCase):
                 demo_nodes.AddPlusOne.__name__,
                 demo_nodes.AddThree.__name__,
                 demo_nodes.Dynamic.__name__,
-                demo_nodes.OptionallyAdd.__name__
+                demo_nodes.OptionallyAdd.__name__,
             ],
             msg=f"Should match a hand-selected expectation list that ignores the "
                 f"private and non-local nodes. If you update the demo nodes this may "
-                f"fail and need to be trivially updated. Got {found_by_module}"
+                f"fail and need to be trivially updated. Got {found_by_module}",
         )
 
 
-if __name__ == '__main__':
+if __name__ == "__main__":
     unittest.main()

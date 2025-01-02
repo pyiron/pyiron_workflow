@@ -7,7 +7,7 @@ import pyiron_workflow
 
 def load_tests(loader, tests, ignore):
     for _importer, name, _ispkg in pkgutil.walk_packages(
-        pyiron_workflow.__path__, pyiron_workflow.__name__ + '.'
+        pyiron_workflow.__path__, pyiron_workflow.__name__ + "."
     ):
         tests.addTests(doctest.DocTestSuite(name))
     return tests
@@ -22,5 +22,5 @@ class TestTriggerFromIDE(unittest.TestCase):
         pass
 
 
-if __name__ == '__main__':
+if __name__ == "__main__":
     unittest.main()
