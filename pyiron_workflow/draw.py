@@ -5,7 +5,7 @@ Functions for drawing the graph.
 from __future__ import annotations
 
 from abc import ABC, abstractmethod
-from typing import Literal, Optional, TYPE_CHECKING
+from typing import TYPE_CHECKING, Literal
 
 import graphviz
 from pyiron_snippets.colors import SeabornColors
@@ -75,7 +75,7 @@ def blend_colours(color_a, color_b, fraction_a=0.5):
     return _to_hex(
         tuple(
             fraction_a * a + (1 - fraction_a) * b
-            for (a, b) in zip(_to_rgb(color_a), _to_rgb(color_b))
+            for (a, b) in zip(_to_rgb(color_a), _to_rgb(color_b), strict=False)
         )
     )
 
@@ -312,10 +312,10 @@ class Node(WorkflowGraphvizMap):
     def __init__(
         self,
         node: WorkflowNode,
-        parent: Optional[Node] = None,
+        parent: Node | None = None,
         depth: int = 1,
         rankdir: Literal["LR", "TB"] = "LR",
-        size: Optional[str] = None,
+        size: str | None = None,
     ):
         self.node = node
         self._parent = parent

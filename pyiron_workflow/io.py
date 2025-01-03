@@ -7,29 +7,30 @@ connections on the same footing.
 
 from __future__ import annotations
 
+import contextlib
 from abc import ABC, abstractmethod
 from typing import Any
 
 from pyiron_snippets.dotdict import DotDict
 
 from pyiron_workflow.channels import (
+    NOT_DATA,
+    AccumulatingInputSignal,
     Channel,
     DataChannel,
     InputData,
-    OutputData,
-    SignalChannel,
     InputSignal,
+    OutputData,
     OutputSignal,
-    AccumulatingInputSignal,
-    NOT_DATA,
+    SignalChannel,
 )
 from pyiron_workflow.logging import logger
+from pyiron_workflow.mixin.display_state import HasStateDisplay
 from pyiron_workflow.mixin.has_interface_mixins import (
     HasChannel,
     HasLabel,
     HasRun,
 )
-from pyiron_workflow.mixin.display_state import HasStateDisplay
 
 
 class IO(HasStateDisplay, ABC):
@@ -73,15 +74,15 @@ class IO(HasStateDisplay, ABC):
     def __getattr__(self, item) -> Channel:
         try:
             return self.channel_dict[item]
-        except KeyError:
+        except KeyError as key_error:
             # Raise an attribute error from getattr to make sure hasattr works well!
             raise AttributeError(
                 f"Could not find attribute {item} on {self.__class__.__name__} object "
                 f"nor in its channels ({self.labels})"
-            )
+            ) from key_error
 
     def __setattr__(self, key, value):
-        if key in self.channel_dict.keys():
+        if key in self.channel_dict:
             self._assign_value_to_existing_channel(self.channel_dict[key], value)
         elif isinstance(value, self._channel_class):
             if key != value.label:
@@ -227,14 +228,10 @@ class InputSignals(SignalIO):
     def disconnect_run(self) -> list[tuple[Channel, Channel]]:
         """Disconnect all `run` and `accumulate_and_run` signals, if they exist."""
         disconnected = []
-        try:
+        with contextlib.suppress(AttributeError):
             disconnected += self.run.disconnect_all()
-        except AttributeError:
-            pass
-        try:
+        with contextlib.suppress(AttributeError):
             disconnected += self.accumulate_and_run.disconnect_all()
-        except AttributeError:
-            pass
         return disconnected
 
 
@@ -403,7 +400,9 @@ class HasIO(HasStateDisplay, HasLabel, HasRun, ABC):
                 f"Received {len(args)} args, but only have {len(self.inputs.labels)} "
                 f"input channels available"
             )
-        keyed_args = {label: value for label, value in zip(self.inputs.labels, args)}
+        keyed_args = {
+            label: value for label, value in zip(self.inputs.labels, args, strict=False)
+        }
 
         if len(set(keyed_args.keys()).intersection(kwargs.keys())) > 0:
             raise ValueError(
@@ -497,7 +496,9 @@ class HasIO(HasStateDisplay, HasLabel, HasRun, ABC):
                 pairs (for reverting changes).
         """
         new_connections = []
-        for my_panel, other_panel in zip(self._owned_io_panels, other._owned_io_panels):
+        for my_panel, other_panel in zip(
+            self._owned_io_panels, other._owned_io_panels, strict=False
+        ):
             for key, channel in other_panel.items():
                 for target in channel.connections:
                     try:

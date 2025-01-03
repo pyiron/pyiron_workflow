@@ -16,11 +16,11 @@ import inspect
 from abc import ABC, abstractmethod
 from functools import lru_cache, wraps
 from typing import (
+    TYPE_CHECKING,
     Any,
     ClassVar,
     get_args,
     get_type_hints,
-    TYPE_CHECKING,
 )
 
 from pyiron_snippets.dotdict import DotDict
@@ -197,7 +197,7 @@ class ScrapesIO(HasIOPreview, ABC):
             type_hints = [None] * len(labels)
             # Note that this nicely differs from `NoneType`, which is the hint when
             # `None` is actually the hint!
-        return {label: hint for label, hint in zip(labels, type_hints)}
+        return {label: hint for label, hint in zip(labels, type_hints, strict=False)}
 
     @classmethod
     def _get_output_labels(cls):
@@ -280,11 +280,11 @@ class ScrapesIO(HasIOPreview, ABC):
                         "The number of return values must exactly match the number of "
                         "output labels provided, " + error_suffix
                     )
-            except TypeError:
+            except TypeError as type_error:
                 raise TypeError(
-                    f"Output labels and return values must either both or neither be "
-                    f"present, " + error_suffix
-                )
+                    "Output labels and return values must either both or neither be "
+                    "present, " + error_suffix
+                ) from type_error
 
     @staticmethod
     def _io_defining_documentation(io_defining_function: callable, title: str):

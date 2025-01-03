@@ -1,10 +1,10 @@
-from concurrent.futures import Future
 import unittest
+from concurrent.futures import Future
 
 from pyiron_workflow.executors.cloudpickleprocesspool import (
-    CloudpickleProcessPoolExecutor
+    CloudpickleProcessPoolExecutor,
 )
-from pyiron_workflow.mixin.run import Runnable, ReadinessError
+from pyiron_workflow.mixin.run import ReadinessError, Runnable
 
 
 class ConcreteRunnable(Runnable):
@@ -53,7 +53,7 @@ class TestRunnable(unittest.TestCase):
 
         self.assertTrue(
             runnable.ready,
-            msg="Freshly instantiated, it is neither running nor failed!"
+            msg="Freshly instantiated, it is neither running nor failed!",
         )
 
         with self.subTest("Running"):
@@ -83,7 +83,7 @@ class TestRunnable(unittest.TestCase):
                 result,
                 msg="We should be able to bypass the readiness check with a flag, and "
                     "in this simple case expect to get perfectly normal behaviour "
-                    "afterwards"
+                    "afterwards",
             )
 
     def test_failure(self):
@@ -92,8 +92,7 @@ class TestRunnable(unittest.TestCase):
         with self.assertRaises(RuntimeError):
             runnable.run()
         self.assertTrue(
-            runnable.failed,
-            msg="Encountering an error should set status to failed"
+            runnable.failed, msg="Encountering an error should set status to failed"
         )
 
         runnable.failed = False
@@ -101,7 +100,7 @@ class TestRunnable(unittest.TestCase):
         self.assertTrue(
             runnable.failed,
             msg="We should be able to stop the exception from getting raised, but the "
-                "status should still be failed"
+                "status should still be failed",
         )
 
     def test_runnable_run_local(self):
@@ -109,18 +108,15 @@ class TestRunnable(unittest.TestCase):
 
         result = runnable.run()
         self.assertIsNone(
-            runnable.future,
-            msg="Without an executor, we expect no future"
+            runnable.future, msg="Without an executor, we expect no future"
         )
         self.assertDictEqual(
-            runnable.expected_run_output,
-            result,
-            msg="Expected the result"
+            runnable.expected_run_output, result, msg="Expected the result"
         )
         self.assertDictEqual(
             runnable.expected_processed_value,
             runnable.processed,
-            msg="Expected the result, including post-processing 'bar' value"
+            msg="Expected the result, including post-processing 'bar' value",
         )
 
     def test_runnable_run_with_executor(self):
@@ -142,29 +138,26 @@ class TestRunnable(unittest.TestCase):
 
                 result = runnable.run()
                 self.assertIsInstance(
-                    result,
-                    Future,
-                    msg="With an executor, a future should be returned"
+                    result, Future, msg="With an executor, a future should be returned"
                 )
                 self.assertIs(
                     result,
                     runnable.future,
-                    msg="With an executor, the future attribute should get populated"
+                    msg="With an executor, the future attribute should get populated",
                 )
                 self.assertDictEqual(
                     runnable.expected_run_output,
                     result.result(timeout=30),
-                    msg="Expected the result (after waiting for it to compute, of course)"
+                    msg="Expected the result (after waiting for it to compute, of course)",
                 )
                 self.assertDictEqual(
                     runnable.expected_processed_value,
                     runnable.processed,
-                    msg="Expected the result, including post-processing 'bar' value"
+                    msg="Expected the result, including post-processing 'bar' value",
                 )
 
         with self.assertRaises(
-            NotImplementedError,
-            msg="That's not an executor at all"
+            NotImplementedError, msg="That's not an executor at all"
         ):
             runnable.executor = 42
             runnable.run()
@@ -172,11 +165,11 @@ class TestRunnable(unittest.TestCase):
         with self.assertRaises(
             TypeError,
             msg="Callables are ok, but if they don't return an executor we should get "
-                "and error."
+                "and error.",
         ):
             runnable.executor = (maybe_get_executor, (False,), {})
             runnable.run()
 
 
-if __name__ == '__main__':
+if __name__ == "__main__":
     unittest.main()

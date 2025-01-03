@@ -5,17 +5,17 @@ interface and are not intended to be internally modified after instantiation.
 
 from __future__ import annotations
 
+import re
 from abc import ABC, abstractmethod
 from inspect import getsource
-import re
 from typing import TYPE_CHECKING
 
 from pyiron_snippets.factory import classfactory
 
-from pyiron_workflow.nodes.composite import Composite
+from pyiron_workflow.io import Inputs, Outputs
 from pyiron_workflow.mixin.has_interface_mixins import HasChannel
-from pyiron_workflow.io import Outputs, Inputs
 from pyiron_workflow.mixin.preview import ScrapesIO
+from pyiron_workflow.nodes.composite import Composite
 from pyiron_workflow.nodes.multiple_distpatch import dispatch_output_labels
 from pyiron_workflow.nodes.static_io import StaticNode
 
@@ -262,6 +262,7 @@ class Macro(Composite, StaticNode, ScrapesIO, ABC):
         for node, output_channel_label in zip(
             returned_has_channel_objects,
             () if self._output_labels is None else self._output_labels,
+            strict=False,
         ):
             node.channel.value_receiver = self.outputs[output_channel_label]
 
@@ -281,7 +282,7 @@ class Macro(Composite, StaticNode, ScrapesIO, ABC):
 
     @classmethod
     def _scrape_output_labels(cls):
-        scraped_labels = super(Macro, cls)._scrape_output_labels()
+        scraped_labels = super()._scrape_output_labels()
 
         if scraped_labels is not None:
             # Strip off the first argument, e.g. self.foo just becomes foo
@@ -358,6 +359,7 @@ class Macro(Composite, StaticNode, ScrapesIO, ABC):
         for old_data, io_panel in zip(
             local_connection_data,
             [self.inputs, self.outputs, self.signals.input, self.signals.output],
+            strict=False,
             # Get fresh copies of the IO panels post-update
         ):
             for original_channel, label, connections in old_data:

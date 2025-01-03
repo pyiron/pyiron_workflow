@@ -7,10 +7,11 @@ The workhorse class for the entire concept.
 
 from __future__ import annotations
 
+import contextlib
 from abc import ABC, abstractmethod
 from concurrent.futures import Future
 from importlib import import_module
-from typing import Any, Literal, Optional, TYPE_CHECKING
+from typing import TYPE_CHECKING, Any, Literal
 
 import cloudpickle
 from pyiron_snippets.colors import SeabornColors
@@ -19,7 +20,7 @@ from pyiron_snippets.dotdict import DotDict
 from pyiron_workflow.draw import Node as GraphvizNode
 from pyiron_workflow.logging import logger
 from pyiron_workflow.mixin.injection import HasIOWithInjection
-from pyiron_workflow.mixin.run import Runnable, ReadinessError
+from pyiron_workflow.mixin.run import ReadinessError, Runnable
 from pyiron_workflow.mixin.semantics import Semantic
 from pyiron_workflow.mixin.single_output import ExploitsSingleOutput
 from pyiron_workflow.storage import StorageInterface, available_backends
@@ -266,8 +267,8 @@ class Node(
     def __init__(
         self,
         *args,
-        label: Optional[str] = None,
-        parent: Optional[Composite] = None,
+        label: str | None = None,
+        parent: Composite | None = None,
         delete_existing_savefiles: bool = False,
         autoload: Literal["pickle"] | StorageInterface | None = None,
         autorun: bool = False,
@@ -352,10 +353,8 @@ class Node(
         self.set_input_values(*args, **kwargs)
 
         if autorun:
-            try:
+            with contextlib.suppress(ReadinessError):
                 self.run()
-            except ReadinessError:
-                pass
 
     @property
     def graph_path(self) -> str:
@@ -376,7 +375,7 @@ class Node(
 
     @property
     def readiness_report(self) -> str:
-        input_readiness_report = f"INPUTS:\n" + "\n".join(
+        input_readiness_report = "INPUTS:\n" + "\n".join(
             [f"{k} ready: {v.ready}" for k, v in self.inputs.items()]
         )
         return super().readiness_report + input_readiness_report
@@ -519,7 +518,6 @@ class Node(
             self.inputs.fetch()
 
         if self.use_cache and self.cache_hit:  # Read and use cache
-
             if self.parent is None and emit_ran_signal:
                 self.emit()
             elif self.parent is not None:
@@ -683,7 +681,7 @@ class Node(
     def cache_hit(self):
         try:
             return self.inputs.to_value_dict() == self._cached_inputs
-        except:
+        except Exception:
             return False
 
     @property
@@ -778,12 +776,12 @@ class Node(
         self,
         depth: int = 1,
         rankdir: Literal["LR", "TB"] = "LR",
-        size: Optional[tuple] = None,
+        size: tuple | None = None,
         save: bool = False,
         view: bool = False,
-        directory: Optional[Path | str] = None,
-        filename: Optional[Path | str] = None,
-        format: Optional[str] = None,
+        directory: Path | str | None = None,
+        filename: Path | str | None = None,
+        format: str | None = None,
         cleanup: bool = True,
     ) -> graphviz.graphs.Digraph:
         """
@@ -909,8 +907,10 @@ class Node(
                 semantic path.)
             **kwargs: Back end-specific keyword arguments.
         """
-        for backend in available_backends(backend=backend, only_requested=True):
-            backend.save(node=self, filename=filename, **kwargs)
+        for selected_backend in available_backends(
+            backend=backend, only_requested=True
+        ):
+            selected_backend.save(node=self, filename=filename, **kwargs)
 
     save.__doc__ += _save_load_warnings
 
@@ -952,10 +952,10 @@ class Node(
             FileNotFoundError: when nothing got loaded.
             TypeError: when the saved node has a different class name.
         """
-        for backend in available_backends(
+        for selected_backend in available_backends(
             backend=backend, only_requested=only_requested
         ):
-            inst = backend.load(
+            inst = selected_backend.load(
                 node=self if filename is None else None, filename=filename, **kwargs
             )
             if inst is not None:
@@ -996,10 +996,10 @@ class Node(
                 with :param:`only_requested`, otherwise there's nothing to be specific
                 _to_.)
         """
-        for backend in available_backends(
+        for selected_backend in available_backends(
             backend=backend, only_requested=only_requested
         ):
-            backend.delete(
+            selected_backend.delete(
                 node=self if filename is None else None, filename=filename, **kwargs
             )
 

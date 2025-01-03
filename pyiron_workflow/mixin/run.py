@@ -5,11 +5,13 @@ interaction, etc.
 
 from __future__ import annotations
 
+import contextlib
 from abc import ABC, abstractmethod
-from concurrent.futures import Executor as StdLibExecutor, Future, ThreadPoolExecutor
+from concurrent.futures import Executor as StdLibExecutor
+from concurrent.futures import Future, ThreadPoolExecutor
 from functools import partial
 from time import sleep
-from typing import Any, Optional
+from typing import Any
 
 from pyiron_workflow.mixin.has_interface_mixins import HasLabel, HasRun, UsesState
 
@@ -102,10 +104,8 @@ class Runnable(UsesState, HasLabel, HasRun, ABC):
 
     def executor_shutdown(self, wait=True, *, cancel_futures=False):
         """Invoke shutdown on the executor (if present)."""
-        try:
+        with contextlib.suppress(AttributeError):
             self.executor.shutdown(wait=wait, cancel_futures=cancel_futures)
-        except AttributeError:
-            pass
 
     def run(
         self,
@@ -210,7 +210,7 @@ class Runnable(UsesState, HasLabel, HasRun, ABC):
                 the executor.
         """
         on_run_args, on_run_kwargs = self.run_args
-        if "self" in on_run_kwargs.keys():
+        if "self" in on_run_kwargs:
             raise ValueError(
                 f"{self.label} got 'self' as a run kwarg, but self is already the "
                 f"first positional argument passed to :meth:`on_run`."
@@ -308,7 +308,7 @@ class Runnable(UsesState, HasLabel, HasRun, ABC):
 
     @staticmethod
     def _parse_executor(
-        executor: StdLibExecutor | (callable[..., StdLibExecutor], tuple, dict)
+        executor: StdLibExecutor | (callable[..., StdLibExecutor], tuple, dict),
     ) -> StdLibExecutor:
         """
         If you've already got an executor, you're done. But if you get callable and

@@ -1,7 +1,8 @@
 import pickle
 import unittest
 
-from pyiron_workflow import as_macro_node, standard_nodes as std
+from pyiron_workflow import as_macro_node
+from pyiron_workflow import standard_nodes as std
 
 
 @as_macro_node("greater")
@@ -43,37 +44,31 @@ class TestWhileLoop(unittest.TestCase):
     def test_while_loop(self):
         a, b, cap = 0, 2, 5
         n = AddWhileLessThan(a, b, cap, autorun=True)
-        self.assertGreaterEqual(
-            6,
-            n.outputs.greater.value,
-            msg="Verify output"
-        )
+        self.assertGreaterEqual(6, n.outputs.greater.value, msg="Verify output")
         self.assertListEqual(
-            [2, 4, 6],
-            n.history.outputs.list.value,
-            msg="Verify loop history logging"
+            [2, 4, 6], n.history.outputs.list.value, msg="Verify loop history logging"
         )
         self.assertListEqual(
             [
-                'body',
-                'history',
-                'condition',
-                'switch',
-                'body',
-                'history',
-                'condition',
-                'switch',
-                'body',
-                'history',
-                'condition',
-                'switch'
+                "body",
+                "history",
+                "condition",
+                "switch",
+                "body",
+                "history",
+                "condition",
+                "switch",
+                "body",
+                "history",
+                "condition",
+                "switch",
             ],
             n.provenance_by_execution,
-            msg="Verify execution order -- the same nodes get run repeatedly in acyclic"
+            msg="Verify execution order -- the same nodes get run repeatedly in acyclic",
         )
         reloaded = pickle.loads(pickle.dumps(n))
         self.assertListEqual(
             reloaded.history.outputs.list.value,
             n.history.outputs.list.value,
-            msg="Should be able to save and re-load cyclic graphs just like usual"
+            msg="Should be able to save and re-load cyclic graphs just like usual",
         )

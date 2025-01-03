@@ -1,10 +1,10 @@
-from functools import partialmethod
-from concurrent.futures import TimeoutError
-from time import sleep
 import unittest
+from concurrent.futures import TimeoutError
+from functools import partialmethod
+from time import sleep
 
 from pyiron_workflow.executors.cloudpickleprocesspool import (
-    CloudpickleProcessPoolExecutor
+    CloudpickleProcessPoolExecutor,
 )
 
 
@@ -12,6 +12,7 @@ class Foo:
     """
     A base class to be dynamically modified for testing CloudpickleProcessPoolExecutor.
     """
+
     def __init__(self, fnc: callable):
         self.fnc = fnc
         self.result = None
@@ -31,23 +32,18 @@ def dynamic_foo():
 
     Overrides the `fnc` input of `Foo` with the decorated function.
     """
+
     def as_dynamic_foo(fnc: callable):
         return type(
             "DynamicFoo",
             (Foo,),  # Define parentage
-            {
-                "__init__": partialmethod(
-                    Foo.__init__,
-                    fnc
-                )
-            },
+            {"__init__": partialmethod(Foo.__init__, fnc)},
         )
 
     return as_dynamic_foo
 
 
 class TestCloudpickleProcessPoolExecutor(unittest.TestCase):
-
     def test_unpickleable_callable(self):
         """
         We should be able to use an unpickleable callable -- in this case, a method of
@@ -62,13 +58,10 @@ class TestCloudpickleProcessPoolExecutor(unittest.TestCase):
 
         dynamic_42 = slowly_returns_42()  # Instantiate the dynamically defined class
         self.assertIsInstance(
-            dynamic_42,
-            Foo,
-            msg="Just a sanity check that the test is set up right"
+            dynamic_42, Foo, msg="Just a sanity check that the test is set up right"
         )
         self.assertIsNone(
-            dynamic_42.result,
-            msg="Just a sanity check that the test is set up right"
+            dynamic_42.result, msg="Just a sanity check that the test is set up right"
         )
         executor = CloudpickleProcessPoolExecutor()
         fs = executor.submit(dynamic_42.run)
@@ -103,7 +96,7 @@ class TestCloudpickleProcessPoolExecutor(unittest.TestCase):
         self.assertIsInstance(
             fs.result(timeout=120),
             Foo,
-            msg="The custom future should be unpickling the result"
+            msg="The custom future should be unpickling the result",
         )
         self.assertEqual(fs.result(timeout=120).result, "it was an inside job!")
 
@@ -157,7 +150,7 @@ class TestCloudpickleProcessPoolExecutor(unittest.TestCase):
         self.assertEqual(
             fs.result(timeout=60),
             fortytwo,
-            msg="waiting long enough should get the result"
+            msg="waiting long enough should get the result",
         )
 
         with self.assertRaises(TimeoutError):
@@ -165,5 +158,5 @@ class TestCloudpickleProcessPoolExecutor(unittest.TestCase):
             fs.result(timeout=0.0001)
 
 
-if __name__ == '__main__':
+if __name__ == "__main__":
     unittest.main()

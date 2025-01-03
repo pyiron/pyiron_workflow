@@ -1,15 +1,16 @@
-from concurrent.futures import ProcessPoolExecutor
 import unittest
+from concurrent.futures import ProcessPoolExecutor
+
+from static import demo_nodes
 
 from pyiron_workflow._tests import ensure_tests_in_python_path
 from pyiron_workflow.channels import NOT_DATA
-from pyiron_workflow.nodes.composite import Composite
+from pyiron_workflow.io import ConnectionCopyError, Inputs
 from pyiron_workflow.mixin.injection import OutputsWithInjection
-from pyiron_workflow.io import Inputs, ConnectionCopyError
+from pyiron_workflow.nodes.composite import Composite
 from pyiron_workflow.topology import CircularDataFlowError
 
 ensure_tests_in_python_path()
-from static import demo_nodes
 
 
 def plus_one(x: int = 0) -> int:
@@ -45,7 +46,6 @@ class AComposite(Composite):
 
 
 class TestComposite(unittest.TestCase):
-
     def setUp(self) -> None:
         self.comp = AComposite("my_composite")
         super().setUp()
@@ -58,11 +58,11 @@ class TestComposite(unittest.TestCase):
         from_class = foo()
         self.assertEqual(from_class.run(), 1, msg="Node should be fully functioning")
         self.assertIsNone(
-            from_class.parent,
-            msg="Wrapping from the class should give no parent"
+            from_class.parent, msg="Wrapping from the class should give no parent"
         )
 
         comp = self.comp
+
         @comp.wrap.as_function_node("y")
         def bar(x: int = 0) -> int:
             return x + 2
@@ -72,51 +72,47 @@ class TestComposite(unittest.TestCase):
         self.assertIsNone(
             from_instance.parent,
             msg="Wrappers are not creators, wrapping from the instance makes no "
-                "difference"
+                "difference",
         )
 
     def test_node_addition(self):
         # Validate the four ways to add a node
         self.comp.add_child(Composite.create.function_node(plus_one, label="foo"))
-        self.comp.baz = self.comp.create.function_node(plus_one, label="whatever_baz_gets_used")
+        self.comp.baz = self.comp.create.function_node(
+            plus_one, label="whatever_baz_gets_used"
+        )
         Composite.create.function_node(plus_one, label="qux", parent=self.comp)
         self.assertListEqual(
             list(self.comp.children.keys()),
             ["foo", "baz", "qux"],
-            msg="Expected every above syntax to add a node OK"
+            msg="Expected every above syntax to add a node OK",
         )
         print(self.comp.children)
         self.comp.boa = self.comp.qux
         self.assertListEqual(
             list(self.comp.children.keys()),
             ["foo", "baz", "boa"],
-            msg="Reassignment should remove the original instance"
+            msg="Reassignment should remove the original instance",
         )
-                
+
     def test_node_access(self):
         node = Composite.create.function_node(plus_one)
         self.comp.child = node
         self.assertIs(
-            self.comp.child,
-            node,
-            msg="Access should be possible by attribute"
+            self.comp.child, node, msg="Access should be possible by attribute"
         )
-        self.assertIs(
-            self.comp["child"],
-            node,
-            msg="Access should be possible by item"
-        )
+        self.assertIs(self.comp["child"], node, msg="Access should be possible by item")
         self.assertIs(
             self.comp.children["child"],
             node,
-            msg="Access should be possible by item on children collection"
+            msg="Access should be possible by item on children collection",
         )
-        
+
         for n in self.comp:
             self.assertIs(
                 node,
                 n,
-                msg="Should be able to iterate through (the one and only) nodes"
+                msg="Should be able to iterate through (the one and only) nodes",
             )
 
         with self.assertRaises(
@@ -124,9 +120,9 @@ class TestComposite(unittest.TestCase):
             msg="Composites should override the attribute access portion of their "
                 "`HasIOWithInjection` mixin to guarantee that attribute access is "
                 "always looking for children. If attribute access is actually desired, "
-                " it can be accomplished with a `GetAttr` node."
+                " it can be accomplished with a `GetAttr` node.",
         ):
-            self.comp.not_a_child_or_attribute
+            self.comp.not_a_child_or_attribute  # noqa: B018
 
     def test_node_removal(self):
         self.comp.owned = Composite.create.function_node(plus_one)
@@ -143,12 +139,12 @@ class TestComposite(unittest.TestCase):
         self.assertListEqual(
             [(node.inputs.x, self.comp.owned.outputs.y)],
             disconnected,
-            msg="Removal should return destroyed connections"
+            msg="Removal should return destroyed connections",
         )
         self.assertListEqual(
             self.comp.starting_nodes,
             [],
-            msg="Removal should also remove from starting nodes"
+            msg="Removal should also remove from starting nodes",
         )
 
         node_owned = self.comp.owned
@@ -156,12 +152,10 @@ class TestComposite(unittest.TestCase):
         self.assertEqual(
             node_owned.parent,
             None,
-            msg="Should be able to remove nodes by label as well as by object"
+            msg="Should be able to remove nodes by label as well as by object",
         )
         self.assertListEqual(
-            [],
-            disconnections,
-            msg="node1 should have no connections left"
+            [], disconnections, msg="node1 should have no connections left"
         )
 
     def test_label_uniqueness(self):
@@ -175,7 +169,7 @@ class TestComposite(unittest.TestCase):
         with self.assertRaises(
             AttributeError,
             msg="The provided label is ok, but then assigning to baz should give "
-                "trouble since that name is already occupied"
+                "trouble since that name is already occupied",
         ):
             self.comp.foo = Composite.create.function_node(plus_one, label="whatever")
 
@@ -206,13 +200,13 @@ class TestComposite(unittest.TestCase):
         self.assertEqual(
             2,
             len(self.comp),
-            msg="Without strict naming, we should be able to add to an existing name"
+            msg="Without strict naming, we should be able to add to an existing name",
         )
         self.assertListEqual(
             ["foo", "foo0"],
             list(self.comp.children.keys()),
             msg="When adding a node with an existing name and relaxed naming, the new "
-                "node should get an index on its label so each label is still unique"
+                "node should get an index on its label so each label is still unique",
         )
 
     def test_singular_ownership(self):
@@ -229,9 +223,7 @@ class TestComposite(unittest.TestCase):
         comp1.remove_child(node2)
         comp2.add_child(node2)
         self.assertEqual(
-            node2.parent,
-            comp2,
-            msg="Freed nodes should be able to join other parents"
+            node2.parent, comp2, msg="Freed nodes should be able to join other parents"
         )
 
     def test_replace(self):
@@ -270,7 +262,7 @@ class TestComposite(unittest.TestCase):
             self.comp.replace_child(n1, replacement)
             out = self.comp.run(n1__x=0)
             self.assertEqual(
-                (0+2) + 1 + 1, out.n3__y, msg="Should be able to replace by instance"
+                (0 + 2) + 1 + 1, out.n3__y, msg="Should be able to replace by instance"
             )
             self.assertEqual(
                 0 - 2, out.n1__minus, msg="Replacement output should also appear"
@@ -301,16 +293,16 @@ class TestComposite(unittest.TestCase):
                 self.comp.n3,
                 replacement,
                 msg="Sanity check -- when replacing with class, a _new_ instance "
-                    "should be created"
+                    "should be created",
             )
             self.comp.replace_child(self.comp.n3, n3)
 
             self.comp.n1 = x_plus_minus_z
             self.assertEqual(
-                (0+2) + 1 + 1,
+                (0 + 2) + 1 + 1,
                 self.comp.run(n1__x=0).n3__y,
                 msg="Assigning a new _class_ to an existing node should be a shortcut "
-                    "for replacement"
+                    "for replacement",
             )
             self.comp.replace_child(self.comp.n1, n1)  # Return to original state
 
@@ -319,7 +311,7 @@ class TestComposite(unittest.TestCase):
                 (0 + 10) + 1 + 1,
                 self.comp.run(n1__z=0).n3__y,
                 msg="Different IO should be compatible as long as what's missing is "
-                    "not connected"
+                    "not connected",
             )
             self.comp.replace_child(self.comp.n1, n1)
 
@@ -328,7 +320,7 @@ class TestComposite(unittest.TestCase):
                 (0 + 1) + 1 + 100,
                 self.comp.run(n1__x=0).n3__z,
                 msg="Different IO should be compatible as long as what's missing is "
-                    "not connected"
+                    "not connected",
             )
             self.comp.replace_child(self.comp.n3, n3)
 
@@ -339,23 +331,20 @@ class TestComposite(unittest.TestCase):
             another_node = x_plus_minus_z(parent=another_comp)
 
             with self.assertRaises(
-                ValueError,
-                msg="Should fail when replacement has a parent"
+                ValueError, msg="Should fail when replacement has a parent"
             ):
                 self.comp.replace_child(self.comp.n1, another_node)
 
             another_comp.remove_child(another_node)
             another_node.inputs.x = replacement.outputs.y
             with self.assertRaises(
-                ValueError,
-                msg="Should fail when replacement is connected"
+                ValueError, msg="Should fail when replacement is connected"
             ):
                 self.comp.replace_child(self.comp.n1, another_node)
 
             another_node.disconnect()
             with self.assertRaises(
-                ValueError,
-                msg="Should fail if the node being replaced isn't a child"
+                ValueError, msg="Should fail if the node being replaced isn't a child"
             ):
                 self.comp.replace_child(replacement, another_node)
 
@@ -364,20 +353,19 @@ class TestComposite(unittest.TestCase):
                 return x + 1.1
 
             with self.assertRaises(
-                TypeError,
-                msg="Should not be able to replace with the wrong type hints"
+                TypeError, msg="Should not be able to replace with the wrong type hints"
             ):
                 self.comp.n1 = wrong_hint
 
             with self.assertRaises(
                 ConnectionCopyError,
-                msg="Should not be able to replace with any missing connected channels"
+                msg="Should not be able to replace with any missing connected channels",
             ):
                 self.comp.n2 = different_input_channel
 
             with self.assertRaises(
                 ConnectionCopyError,
-                msg="Should not be able to replace with any missing connected channels"
+                msg="Should not be able to replace with any missing connected channels",
             ):
                 self.comp.n2 = different_output_channel
 
@@ -385,7 +373,7 @@ class TestComposite(unittest.TestCase):
                 3,
                 self.comp.run().n3__y,
                 msg="Failed replacements should always restore the original state "
-                    "cleanly"
+                    "cleanly",
             )
 
     def test_length(self):
@@ -395,7 +383,7 @@ class TestComposite(unittest.TestCase):
         self.assertEqual(
             l1 + 1,
             len(self.comp),
-            msg="Expected length to count the number of children"
+            msg="Expected length to count the number of children",
         )
 
     def test_run(self):
@@ -409,12 +397,12 @@ class TestComposite(unittest.TestCase):
         self.assertEqual(
             2,
             self.comp.n2.outputs.y.value,
-            msg="Expected to start from starting node and propagate"
+            msg="Expected to start from starting node and propagate",
         )
         self.assertIs(
             NOT_DATA,
             self.comp.n3.outputs.y.value,
-            msg="n3 was omitted from the execution diagram, it should not have run"
+            msg="n3 was omitted from the execution diagram, it should not have run",
         )
 
     def test_set_run_signals_to_dag(self):
@@ -425,25 +413,19 @@ class TestComposite(unittest.TestCase):
         self.comp.set_run_signals_to_dag_execution()
         self.comp.run()
         self.assertEqual(
-            1,
-            self.comp.n1.outputs.y.value,
-            msg="Expected all nodes to run"
+            1, self.comp.n1.outputs.y.value, msg="Expected all nodes to run"
         )
         self.assertEqual(
-            2,
-            self.comp.n2.outputs.y.value,
-            msg="Expected all nodes to run"
+            2, self.comp.n2.outputs.y.value, msg="Expected all nodes to run"
         )
         self.assertEqual(
-            43,
-            self.comp.n3.outputs.y.value,
-            msg="Expected all nodes to run"
+            43, self.comp.n3.outputs.y.value, msg="Expected all nodes to run"
         )
 
         self.comp.n1.inputs.x = self.comp.n2
         with self.assertRaises(
             CircularDataFlowError,
-            msg="Should not be able to automate graphs with circular data"
+            msg="Should not be able to automate graphs with circular data",
         ):
             self.comp.set_run_signals_to_dag_execution()
 
@@ -459,7 +441,7 @@ class TestComposite(unittest.TestCase):
             1,
             self.comp.outputs.n1__y.value,
             msg="Sanity check that the output has been filled and is stored under the "
-                "name we think it is"
+                "name we think it is",
         )
         # Make sure the returned object is functionally a dot-dict
         self.assertEqual(1, out["n1__y"], msg="Should work with item-access")
@@ -468,12 +450,12 @@ class TestComposite(unittest.TestCase):
         self.assertIs(
             not_dottable_name_node,
             self.comp.children[not_dottable_string],
-            msg="Should be able to access the node by item"
+            msg="Should be able to access the node by item",
         )
         self.assertEqual(
             43,
             out[not_dottable_string + "__y"],
-            msg="Should always be able to fall back to item access with crazy labels"
+            msg="Should always be able to fall back to item access with crazy labels",
         )
 
     def test_de_activate_strict_connections(self):
@@ -481,17 +463,17 @@ class TestComposite(unittest.TestCase):
         self.comp.sub_comp.n1 = Composite.create.function_node(plus_one, x=0)
         self.assertTrue(
             self.comp.sub_comp.n1.inputs.x.strict_hints,
-            msg="Sanity check that test starts in the expected condition"
+            msg="Sanity check that test starts in the expected condition",
         )
         self.comp.deactivate_strict_hints()
         self.assertFalse(
             self.comp.sub_comp.n1.inputs.x.strict_hints,
-            msg="Deactivating should propagate to children"
+            msg="Deactivating should propagate to children",
         )
         self.comp.activate_strict_hints()
         self.assertTrue(
             self.comp.sub_comp.n1.inputs.x.strict_hints,
-            msg="Activating should propagate to children"
+            msg="Activating should propagate to children",
         )
 
     def test_graph_info(self):
@@ -504,57 +486,56 @@ class TestComposite(unittest.TestCase):
             self.assertEqual(
                 top.semantic_delimiter + top.label,
                 top.graph_path,
-                msg="The parent-most node should be its own path."
+                msg="The parent-most node should be its own path.",
             )
             self.assertTrue(
                 top.middle_composite.graph_path.startswith(top.graph_path),
-                msg="The path should go to the parent-most object."
+                msg="The path should go to the parent-most object.",
             )
             self.assertTrue(
                 top.middle_function.graph_path.startswith(top.graph_path),
-                msg="The path should go to the parent-most object."
+                msg="The path should go to the parent-most object.",
             )
             self.assertTrue(
                 top.middle_composite.deep_node.graph_path.startswith(top.graph_path),
                 msg="The path should go to the parent-most object, recursively from "
-                    "all depths."
+                    "all depths.",
             )
 
         with self.subTest("test_graph_root"):
             self.assertIs(
                 top,
                 top.graph_root,
-                msg="The parent-most node should be its own graph_root."
+                msg="The parent-most node should be its own graph_root.",
             )
             self.assertIs(
                 top,
                 top.middle_composite.graph_root,
-                msg="The parent-most node should be the graph_root."
+                msg="The parent-most node should be the graph_root.",
             )
             self.assertIs(
                 top,
                 top.middle_function.graph_root,
-                msg="The parent-most node should be the graph_root."
+                msg="The parent-most node should be the graph_root.",
             )
             self.assertIs(
                 top,
                 top.middle_composite.deep_node.graph_root,
                 msg="The parent-most node should be the graph_root, recursively accessible "
-                    "from all depths."
+                "from all depths.",
             )
 
     def test_import_ready(self):
-
         totally_findable = demo_nodes.OptionallyAdd()
         self.assertTrue(
             totally_findable.import_ready,
-            msg="The node class is well defined and in an importable module"
+            msg="The node class is well defined and in an importable module",
         )
         bad_class = demo_nodes.Dynamic()
         self.assertFalse(
             bad_class.import_ready,
             msg="The node is in an importable location, but the imported object is not "
-                "the node class (but rather the node function)"
+                "the node class (but rather the node function)",
         )
         with self.subTest(msg="Made up module"):
             og_module = totally_findable.__class__.__module__
@@ -563,7 +544,7 @@ class TestComposite(unittest.TestCase):
                 self.assertFalse(
                     totally_findable.import_ready,
                     msg="The node class is well defined, but the module is not in the "
-                        "python path so import fails"
+                    "python path so import fails",
                 )
             finally:
                 totally_findable.__class__.__module__ = og_module  # Fix what you broke
@@ -571,17 +552,17 @@ class TestComposite(unittest.TestCase):
         self.assertTrue(
             self.comp.import_ready,
             msg="Sanity check on initial condition -- tests are in the path, so this "
-                "is importable"
+                "is importable",
         )
         self.comp.totally_findable = totally_findable
         self.assertTrue(
             self.comp.import_ready,
-            msg="Adding importable children should leave the parent import-ready"
+            msg="Adding importable children should leave the parent import-ready",
         )
         self.comp.bad_class = bad_class
         self.assertFalse(
             self.comp.import_ready,
-            msg="Adding un-importable children should make the parent not import ready"
+            msg="Adding un-importable children should make the parent not import ready",
         )
 
     def test_with_executor(self):
@@ -594,13 +575,13 @@ class TestComposite(unittest.TestCase):
             self.comp.sub_composite.parent,
             self.comp,
             msg="After processing a remotely-executed self, the local self should "
-                "retain its parent"
+                "retain its parent",
         )
         self.assertIs(
             self.comp.sub_composite.executor,
             exe,
             msg="After processing a remotely-executed self, the local self should "
-                "retain its executor"
+                "retain its executor",
         )
 
     def test_result_serialization(self):
@@ -619,7 +600,7 @@ class TestComposite(unittest.TestCase):
         self.comp.child.use_cache = False
         self.comp.child._do_clean = False
 
-        out = self.comp.run()
+        self.comp.run()
         self.assertTrue(self.comp.child._temporary_result_file.is_file())
         self.assertEqual(self.comp.child.outputs.y.value, 42 + 1)
 
@@ -632,9 +613,9 @@ class TestComposite(unittest.TestCase):
         self.assertFalse(
             self.comp.as_path().is_dir(),
             msg="Actually, we expect cleanup to have removed empty directories up to "
-                "and including the semantic root's own directory"
+                "and including the semantic root's own directory",
         )
 
 
-if __name__ == '__main__':
+if __name__ == "__main__":
     unittest.main()

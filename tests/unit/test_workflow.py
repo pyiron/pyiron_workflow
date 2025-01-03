@@ -1,19 +1,19 @@
-from concurrent.futures import Future
 import pickle
-from time import sleep
 import unittest
+from concurrent.futures import Future
+from time import sleep
 
 from bidict import ValueDuplicationError
 from pyiron_snippets.dotdict import DotDict
+from static import demo_nodes
 
 from pyiron_workflow._tests import ensure_tests_in_python_path
 from pyiron_workflow.channels import NOT_DATA
 from pyiron_workflow.mixin.semantics import ParentMostError
-from pyiron_workflow.storage import available_backends, TypeNotFoundError
+from pyiron_workflow.storage import TypeNotFoundError, available_backends
 from pyiron_workflow.workflow import Workflow
 
 ensure_tests_in_python_path()
-from static import demo_nodes
 
 
 def plus_one(x=0):
@@ -27,7 +27,7 @@ def PlusOne(x: int = 0):
 
 
 @Workflow.wrap.as_function_node
-def five(sleep_time=0.):
+def five(sleep_time=0.0):
     sleep(sleep_time)
     five = 5
     return five
@@ -39,7 +39,6 @@ def sum(a, b):
 
 
 class TestWorkflow(unittest.TestCase):
-
     def test_io(self):
         wf = Workflow("wf")
         wf.n1 = wf.create.function_node(plus_one)
@@ -48,9 +47,7 @@ class TestWorkflow(unittest.TestCase):
 
         inp = wf.inputs
         inp_again = wf.inputs
-        self.assertIsNot(
-            inp, inp_again, msg="Workflow input should always get rebuilt"
-        )
+        self.assertIsNot(inp, inp_again, msg="Workflow input should always get rebuilt")
 
         n_in = len(wf.inputs)
         n_out = len(wf.outputs)
@@ -67,7 +64,7 @@ class TestWorkflow(unittest.TestCase):
         wf.n3.inputs.x = wf.n2.outputs.y
         wf.n2.inputs.x = wf.n1.outputs.y
         self.assertEqual(
-            n_in -2, len(wf.inputs), msg="New connections should get reflected"
+            n_in - 2, len(wf.inputs), msg="New connections should get reflected"
         )
         self.assertEqual(
             n_out - 2, len(wf.outputs), msg="New connections should get reflected"
@@ -84,7 +81,7 @@ class TestWorkflow(unittest.TestCase):
             wf.n2.outputs.y, wf.outputs.intermediate, msg="IO should be by reference"
         )
         self.assertNotIn(wf.n3.outputs.y, wf.outputs, msg="IO should be hidable")
-        
+
     def test_io_maps(self):
         # input and output, renaming, accessing connected, and deactivating disconnected
         wf = Workflow("wf")
@@ -113,36 +110,30 @@ class TestWorkflow(unittest.TestCase):
         wf.set_run_signals_to_dag_execution()
         out = wf.run()
         self.assertEqual(
-            3,
-            out.y,
-            msg="New names should be propagated to the returned value"
+            3, out.y, msg="New names should be propagated to the returned value"
         )
         self.assertNotIn(
             "m__y",
             list(out.keys()),
-            msg="IO filtering should be evident in returned value"
+            msg="IO filtering should be evident in returned value",
         )
         self.assertEqual(
             43,
             wf.m.outputs.y.value,
-            msg="The child channel should still exist and have run"
+            msg="The child channel should still exist and have run",
         )
         self.assertEqual(
-            1,
-            wf.inputs.intermediate_x.value,
-            msg="IO should be up-to-date post-run"
+            1, wf.inputs.intermediate_x.value, msg="IO should be up-to-date post-run"
         )
         self.assertEqual(
-            2,
-            wf.outputs.intermediate_y.value,
-            msg="IO should be up-to-date post-run"
+            2, wf.outputs.intermediate_y.value, msg="IO should be up-to-date post-run"
         )
 
     def test_io_map_bijectivity(self):
         wf = Workflow("wf")
         with self.assertRaises(
             ValueDuplicationError,
-            msg="Should not be allowed to map two children's channels to the same label"
+            msg="Should not be allowed to map two children's channels to the same label",
         ):
             wf.inputs_map = {"n1__x": "x", "n2__x": "x"}
 
@@ -150,7 +141,7 @@ class TestWorkflow(unittest.TestCase):
         with self.assertRaises(
             ValueDuplicationError,
             msg="Should not be allowed to update a second child's channel onto an "
-                "existing mapped channel"
+                "existing mapped channel",
         ):
             wf.inputs_map["n2__x"] = "x"
 
@@ -161,35 +152,25 @@ class TestWorkflow(unittest.TestCase):
             wf.inputs_map["n1__x"] = None
             wf.inputs_map["n2__x"] = None
             wf.inputs_map["n3__x"] = None
-            self.assertEqual(
-                3,
-                len(wf.inputs_map),
-                msg="All entries should be stored"
-            )
-            self.assertEqual(
-                0,
-                len(wf.inputs),
-                msg="No IO should be left exposed"
-            )
+            self.assertEqual(3, len(wf.inputs_map), msg="All entries should be stored")
+            self.assertEqual(0, len(wf.inputs), msg="No IO should be left exposed")
 
     def test_is_parentmost(self):
         wf = Workflow("wf")
         wf2 = Workflow("wf2")
 
         with self.assertRaises(
-            ParentMostError,
-            msg="Workflows are promised in the docs to be parent-most"
+            ParentMostError, msg="Workflows are promised in the docs to be parent-most"
         ):
             wf.parent = wf2
 
         with self.assertRaises(
             ParentMostError,
-            msg="We want to catch parent-most failures early when assigning children"
+            msg="We want to catch parent-most failures early when assigning children",
         ):
             wf.sub_wf = wf2
 
     def test_with_executor(self):
-
         wf = Workflow("wf")
         wf.a = wf.create.function_node(plus_one)
         wf.b = wf.create.function_node(plus_one, x=wf.a)
@@ -200,38 +181,34 @@ class TestWorkflow(unittest.TestCase):
         self.assertIs(
             NOT_DATA,
             wf.outputs.b__y.value,
-            msg="Sanity check that test is in right starting condition"
+            msg="Sanity check that test is in right starting condition",
         )
 
         result = wf(a__x=0)
         self.assertIsInstance(
-            result,
-            Future,
-            msg="Should be running as a parallel process"
+            result, Future, msg="Should be running as a parallel process"
         )
 
         returned_nodes = result.result(timeout=120)  # Wait for the process to finish
         self.assertIsNot(
             original_a,
             returned_nodes.a,
-            msg="Executing in a parallel process should be returning new instances"
+            msg="Executing in a parallel process should be returning new instances",
         )
         self.assertIs(
-            wf,
-            wf.a.parent,
-            msg="Returned nodes should get the macro as their parent"
+            wf, wf.a.parent, msg="Returned nodes should get the macro as their parent"
         )
         self.assertIsNone(
             original_a.parent,
             msg=f"Original nodes should be orphaned, but {original_a.full_label} has "
-                f"parent {original_a.parent}"
+                f"parent {original_a.parent}",
             # Note: At time of writing, this is accomplished in Node.__getstate__,
             #       which feels a bit dangerous...
         )
         self.assertEqual(
             0 + 1 + 1,
             wf.outputs.b__y.value,
-            msg="And of course we expect the calculation to actually run"
+            msg="And of course we expect the calculation to actually run",
         )
         wf.executor_shutdown()
 
@@ -246,33 +223,27 @@ class TestWorkflow(unittest.TestCase):
 
         wf.slow.run()
         wf.fast.run()
-        self.assertTrue(
-            wf.slow.running,
-            msg="The slow node should still be running"
-        )
+        self.assertTrue(wf.slow.running, msg="The slow node should still be running")
         self.assertEqual(
             wf.fast.outputs.five.value,
             5,
-            msg="The slow node should not prohibit the completion of the fast node"
+            msg="The slow node should not prohibit the completion of the fast node",
         )
         self.assertEqual(
             wf.sum.outputs.sum.value,
             NOT_DATA,
-            msg="The slow node _should_ hold up the downstream node to which it inputs"
+            msg="The slow node _should_ hold up the downstream node to which it inputs",
         )
 
         wf.slow.future.result(timeout=120)  # Wait for it to finish
-        self.assertFalse(
-            wf.slow.running,
-            msg="The slow node should be done running"
-        )
+        self.assertFalse(wf.slow.running, msg="The slow node should be done running")
 
         wf.sum.run()
         self.assertEqual(
             wf.sum.outputs.sum.value,
             5 + 5,
             msg="After the slow node completes, its output should be updated as a "
-                "callback, and downstream nodes should proceed"
+                "callback, and downstream nodes should proceed",
         )
 
         wf.executor_shutdown()
@@ -292,14 +263,14 @@ class TestWorkflow(unittest.TestCase):
         self.assertEqual(
             wf.a.outputs.y.value + wf.b.outputs.y.value,
             wf.sum.outputs.sum.value,
-            msg="Sanity check"
+            msg="Sanity check",
         )
         wf(a__x=42, b__x=42)
         self.assertEqual(
             plus_one(42) + plus_one(42),
             wf.sum.outputs.sum.value,
             msg="Workflow should accept input channel kwargs and update inputs "
-                "accordingly"
+                "accordingly",
             # Since the nodes run automatically, there is no need for wf.run() here
         )
 
@@ -319,7 +290,7 @@ class TestWorkflow(unittest.TestCase):
                 return_on_call,
                 DotDict({"b__y": 1 + 2}),
                 msg="Run output should be returned on call. Expecting a DotDict of "
-                    "output values"
+                    "output values",
             )
 
             wf.inputs.a__x = 2
@@ -328,7 +299,7 @@ class TestWorkflow(unittest.TestCase):
                 return_on_explicit_run["b__y"],
                 2 + 2,
                 msg="On explicit run, the most recent input data should be used and "
-                    "the result should be returned"
+                    "the result should be returned",
             )
 
     def test_execution_automation(self):
@@ -346,13 +317,12 @@ class TestWorkflow(unittest.TestCase):
             return wf
 
         def matches_expectations(results):
-            expected = {'n2l__out': -9, 'n2m__out': 3, 'n2r__out': 12}
+            expected = {"n2l__out": -9, "n2m__out": 3, "n2r__out": 12}
             return all(expected[k] == v for k, v in results.items())
 
         auto = make_workflow()
         self.assertTrue(
-            matches_expectations(auto()),
-            msg="DAGs should run automatically"
+            matches_expectations(auto()), msg="DAGs should run automatically"
         )
 
         user = make_workflow()
@@ -363,29 +333,29 @@ class TestWorkflow(unittest.TestCase):
         user.starting_nodes = [user.n1l]
         self.assertTrue(
             matches_expectations(user()),
-            msg="Users shoudl be allowed to ask to run things manually"
+            msg="Users shoudl be allowed to ask to run things manually",
         )
 
         self.assertIn(
             user.n1r.signals.output.ran,
             user.n2r.signals.input.run.connections,
-            msg="Expected execution signals as manually defined"
+            msg="Expected execution signals as manually defined",
         )
         user.automate_execution = True
         self.assertTrue(
             matches_expectations(user()),
-            msg="Users should be able to switch back to automatic execution"
+            msg="Users should be able to switch back to automatic execution",
         )
         self.assertNotIn(
             user.n1r.signals.output.ran,
             user.n2r.signals.input.run.connections,
-            msg="Expected old execution signals to be overwritten"
+            msg="Expected old execution signals to be overwritten",
         )
         self.assertIn(
             user.n1r.signals.output.ran,
             user.n2r.signals.input.accumulate_and_run.connections,
             msg="The automated flow uses a non-linear accumulating approach, so the "
-                "accumulating run signal is the one that should hold a connection"
+                "accumulating run signal is the one that should hold a connection",
         )
 
         with self.subTest("Make sure automated cyclic graphs throw an error"):
@@ -415,13 +385,12 @@ class TestWorkflow(unittest.TestCase):
         self.assertEqual(
             (0 + 1) + (1 + 1),
             wf.m.two.pull(run_parent_trees_too=True),
-            msg="Sanity check, pulling here should work perfectly fine"
+            msg="Sanity check, pulling here should work perfectly fine",
         )
 
         wf.m.one.executor = wf.create.ProcessPoolExecutor()
         with self.assertRaises(
-            ValueError,
-            msg="Should not be able to pull with executor in local scope"
+            ValueError, msg="Should not be able to pull with executor in local scope"
         ):
             wf.m.two.pull()
             wf.m.one.executor_shutdown()  # Shouldn't get this far, but if so, shutdown
@@ -429,8 +398,7 @@ class TestWorkflow(unittest.TestCase):
 
         wf.n1.executor = wf.create.ProcessPoolExecutor()
         with self.assertRaises(
-            ValueError,
-            msg="Should not be able to pull with executor in parent scope"
+            ValueError, msg="Should not be able to pull with executor in parent scope"
         ):
             wf.m.two.pull(run_parent_trees_too=True)
 
@@ -454,12 +422,12 @@ class TestWorkflow(unittest.TestCase):
                     self.assertEqual(
                         wf_out.out__add,
                         reloaded.outputs.out__add.value,
-                        msg="Workflow-level data should get reloaded"
+                        msg="Workflow-level data should get reloaded",
                     )
                     self.assertEqual(
                         three_result,
                         reloaded.inp.three.value,
-                        msg="Child data arbitrarily deep should get reloaded"
+                        msg="Child data arbitrarily deep should get reloaded",
                     )
                 finally:
                     # Clean up after ourselves
@@ -483,18 +451,21 @@ class TestWorkflow(unittest.TestCase):
             for backend in available_backends():
                 try:
                     wf.import_type_mismatch = demo_nodes.Dynamic()
-                    with self.subTest(backend):
-                            with self.assertRaises(
-                                TypeNotFoundError,
-                                msg="Imported object is function but node type is node "
-                                    "-- should fail early on save"
-                            ):
-                                wf.save(backend=backend, cloudpickle_fallback=False)
+                    with (
+                        self.subTest(backend),
+                        self.assertRaises(
+                            TypeNotFoundError,
+                            msg="Imported object is function but node type is node "
+                            "-- should fail early on save",
+                        ),
+                    ):
+                        wf.save(backend=backend, cloudpickle_fallback=False)
                 finally:
                     wf.remove_child(wf.import_type_mismatch)
                     wf.delete_storage(backend)
 
         with self.subTest("Unimportable node"):
+
             @Workflow.wrap.as_function_node("y")
             def UnimportableScope(x):
                 return x
@@ -508,11 +479,9 @@ class TestWorkflow(unittest.TestCase):
         wf_out = wf()
         reloaded = pickle.loads(pickle.dumps(wf))
         self.assertDictEqual(
-            wf_out,
-            reloaded.outputs.to_value_dict(),
-            msg="Pickling should work"
+            wf_out, reloaded.outputs.to_value_dict(), msg="Pickling should work"
         )
 
 
-if __name__ == '__main__':
+if __name__ == "__main__":
     unittest.main()

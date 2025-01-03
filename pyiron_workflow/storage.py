@@ -4,10 +4,11 @@ A bit of abstraction connecting generic storage routines to nodes.
 
 from __future__ import annotations
 
-from abc import ABC, abstractmethod
-from pathlib import Path
 import pickle
-from typing import Generator, Literal, TYPE_CHECKING
+from abc import ABC, abstractmethod
+from collections.abc import Generator
+from pathlib import Path
+from typing import TYPE_CHECKING, Literal
 
 import cloudpickle
 
@@ -197,7 +198,6 @@ class StorageInterface(ABC):
 
 
 class PickleStorage(StorageInterface):
-
     _PICKLE = ".pckl"
     _CLOUDPICKLE = ".cpckl"
 
@@ -231,7 +231,7 @@ class PickleStorage(StorageInterface):
                 with open(p, "wb") as filehandle:
                     save_method(node, filehandle)
                 return
-            except Exception as e:
+            except Exception:
                 p.unlink(missing_ok=True)
         if e is not None:
             raise e

@@ -1,17 +1,16 @@
 from __future__ import annotations
 
 from abc import ABC
-from typing import Optional
 
 from pandas import DataFrame
 from pyiron_snippets.colors import SeabornColors
 
 from pyiron_workflow.channels import InputData
-from pyiron_workflow.mixin.injection import (
-    OutputsWithInjection,
-    OutputDataWithInjection,
-)
 from pyiron_workflow.io import Inputs
+from pyiron_workflow.mixin.injection import (
+    OutputDataWithInjection,
+    OutputsWithInjection,
+)
 from pyiron_workflow.mixin.preview import HasIOPreview
 from pyiron_workflow.node import Node
 
@@ -64,7 +63,7 @@ class StaticNode(Node, HasIOPreview, ABC):
         iter_on: tuple[str, ...] | str = (),
         zip_on: tuple[str, ...] | str = (),
         output_as_dataframe: bool = True,
-        output_column_map: Optional[dict[str, str]] = None,
+        output_column_map: dict[str, str] | None = None,
         use_cache: bool = True,
         **node_kwargs,
     ):
@@ -124,7 +123,7 @@ class StaticNode(Node, HasIOPreview, ABC):
     def iter(
         self,
         body_node_executor=None,
-        output_column_map: Optional[dict[str, str]] = None,
+        output_column_map: dict[str, str] | None = None,
         **iterating_inputs,
     ) -> DataFrame:
         return self._loop(
@@ -137,7 +136,7 @@ class StaticNode(Node, HasIOPreview, ABC):
     def zip(
         self,
         body_node_executor=None,
-        output_column_map: Optional[dict[str, str]] = None,
+        output_column_map: dict[str, str] | None = None,
         **iterating_inputs,
     ) -> DataFrame:
         return self._loop(

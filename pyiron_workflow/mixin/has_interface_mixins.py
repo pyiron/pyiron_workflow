@@ -11,13 +11,13 @@ possible coupling between different components of a composed class.
 from __future__ import annotations
 
 from abc import ABC, abstractmethod
-from typing import Any, TYPE_CHECKING
+from typing import TYPE_CHECKING, Any
 
 if TYPE_CHECKING:
     from pyiron_workflow.channels import Channel
 
 
-class UsesState(ABC):
+class UsesState:
     """
     A mixin for any class using :meth:`__getstate__` or :meth:`__setstate__`.
 

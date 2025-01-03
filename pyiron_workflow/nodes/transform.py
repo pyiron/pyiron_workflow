@@ -4,10 +4,11 @@ Transformer nodes convert many inputs into a single output, or vice-versa.
 
 from __future__ import annotations
 
-from abc import ABC, abstractmethod
-from dataclasses import dataclass as as_dataclass, MISSING
 import itertools
-from typing import Any, ClassVar, Optional
+from abc import ABC, abstractmethod
+from dataclasses import MISSING
+from dataclasses import dataclass as as_dataclass
+from typing import Any, ClassVar
 
 from pandas import DataFrame
 from pyiron_snippets.colors import SeabornColors
@@ -196,7 +197,7 @@ class InputsToDict(FromManyInputs, ABC):
 
     @staticmethod
     def hash_specification(
-        input_specification: list[str] | dict[str, tuple[Any | None, Any | NOT_DATA]]
+        input_specification: list[str] | dict[str, tuple[Any | None, Any | NOT_DATA]],
     ):
         """For generating unique subclass names."""
 
@@ -245,7 +246,7 @@ def inputs_to_dict_factory(
 def inputs_to_dict(
     input_specification: list[str] | dict[str, tuple[Any | None, Any | NOT_DATA]],
     *node_args,
-    class_name_suffix: Optional[str] = None,
+    class_name_suffix: str | None = None,
     use_cache: bool = True,
     **node_kwargs,
 ):

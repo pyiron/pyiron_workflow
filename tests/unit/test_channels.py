@@ -1,8 +1,15 @@
 import unittest
 
 from pyiron_workflow.channels import (
-    Channel, InputData, OutputData, InputSignal, AccumulatingInputSignal, OutputSignal,
-    NOT_DATA, ChannelConnectionError, BadCallbackError
+    NOT_DATA,
+    AccumulatingInputSignal,
+    BadCallbackError,
+    Channel,
+    ChannelConnectionError,
+    InputData,
+    InputSignal,
+    OutputData,
+    OutputSignal,
 )
 
 
@@ -25,6 +32,7 @@ class DummyOwner:
 
 class InputChannel(Channel):
     """Just to de-abstract the base class"""
+
     def __str__(self):
         return "non-abstract input"
 
@@ -35,6 +43,7 @@ class InputChannel(Channel):
 
 class OutputChannel(Channel):
     """Just to de-abstract the base class"""
+
     def __str__(self):
         return "non-abstract output"
 
@@ -44,22 +53,17 @@ class OutputChannel(Channel):
 
 
 class TestChannel(unittest.TestCase):
-
     def setUp(self) -> None:
         self.inp = InputChannel("inp", DummyOwner())
         self.out = OutputChannel("out", DummyOwner())
         self.out2 = OutputChannel("out2", DummyOwner())
 
     def test_connection_validity(self):
-        with self.assertRaises(
-            TypeError,
-            msg="Can't connect to non-channels"
-        ):
+        with self.assertRaises(TypeError, msg="Can't connect to non-channels"):
             self.inp.connect("not an owner")
 
         with self.assertRaises(
-            TypeError,
-            msg="Can't connect to channels that are not the partner type"
+            TypeError, msg="Can't connect to channels that are not the partner type"
         ):
             self.inp.connect(InputChannel("also_input", DummyOwner()))
 
@@ -72,25 +76,21 @@ class TestChannel(unittest.TestCase):
         self.assertIs(
             self.inp.connections[0],
             self.out,
-            msg="Connecting a conjugate pair should work fine"
+            msg="Connecting a conjugate pair should work fine",
         )
         self.assertIs(
-            self.out.connections[0],
-            self.inp,
-            msg="Promised connection to be reflexive"
+            self.out.connections[0], self.inp, msg="Promised connection to be reflexive"
         )
         self.out.disconnect_all()
         self.assertListEqual(
-            [],
-            self.inp.connections,
-            msg="Promised disconnection to be reflexive too"
+            [], self.inp.connections, msg="Promised disconnection to be reflexive too"
         )
 
         self.out.connect(self.inp)
         self.assertIs(
             self.inp.connections[0],
             self.out,
-            msg="Connecting should work in either direction"
+            msg="Connecting should work in either direction",
         )
 
     def test_connect_and_disconnect(self):
@@ -101,7 +101,7 @@ class TestChannel(unittest.TestCase):
             [(self.inp, self.out2), (self.inp, self.out)],
             disconnected,
             msg="Broken connection pairs should be returned in the order they were "
-                "broken"
+            "broken",
         )
 
     def test_iterability(self):
@@ -111,12 +111,11 @@ class TestChannel(unittest.TestCase):
             self.assertIs(
                 self.inp.connections[i],
                 conn,
-                msg="Promised channels to be iterable over connections"
+                msg="Promised channels to be iterable over connections",
             )
 
 
 class TestDataChannels(unittest.TestCase):
-
     def setUp(self) -> None:
         self.ni1 = InputData(
             label="numeric", owner=DummyOwner(), default=1, type_hint=int | float
@@ -144,7 +143,7 @@ class TestDataChannels(unittest.TestCase):
         self.assertEqual(
             len(so2.default),
             len(self.so1.default) - 1,
-            msg="Mutable defaults should avoid sharing between different instances"
+            msg="Mutable defaults should avoid sharing between different instances",
         )
 
     def test_fetch(self):
@@ -155,16 +154,14 @@ class TestDataChannels(unittest.TestCase):
         self.ni1.connect(self.no_empty)
 
         self.assertEqual(
-            self.ni1.value,
-            1,
-            msg="Data should not be getting pushed on connection"
+            self.ni1.value, 1, msg="Data should not be getting pushed on connection"
         )
 
         self.ni1.fetch()
         self.assertEqual(
             self.ni1.value,
             1,
-            msg="NOT_DATA values should not be getting pulled, so no update expected"
+            msg="NOT_DATA values should not be getting pulled, so no update expected",
         )
 
         self.no.value = 3
@@ -173,7 +170,7 @@ class TestDataChannels(unittest.TestCase):
             self.ni1.value,
             3,
             msg="Data fetch should to first connected value that's actually data,"
-                "in this case skipping over no_empty"
+                "in this case skipping over no_empty",
         )
 
         self.no_empty.value = 4
@@ -182,7 +179,7 @@ class TestDataChannels(unittest.TestCase):
             self.ni1.value,
             4,
             msg="As soon as no_empty actually has data, it's position as 0th "
-                "element in the connections list should give it priority"
+                "element in the connections list should give it priority",
         )
 
     def test_connection_validity(self):
@@ -193,18 +190,18 @@ class TestDataChannels(unittest.TestCase):
         self.assertIn(
             self.no,
             self.ni1.connections,
-            msg="Input types should be allowed to be a super-set of output types"
+            msg="Input types should be allowed to be a super-set of output types",
         )
 
         with self.assertRaises(
             ChannelConnectionError,
-            msg="Input types should not be allowed to be a sub-set of output types"
+            msg="Input types should not be allowed to be a sub-set of output types",
         ):
             self.no.connect(self.ni2)
 
         with self.assertRaises(
             ChannelConnectionError,
-            msg="Totally different type hints should not allow connections"
+            msg="Totally different type hints should not allow connections",
         ):
             self.so1.connect(self.ni2)
 
@@ -213,7 +210,7 @@ class TestDataChannels(unittest.TestCase):
         self.assertIn(
             self.so1,
             self.ni2.connections,
-            msg="With strict connections turned off, we should allow type-violations"
+            msg="With strict connections turned off, we should allow type-violations",
         )
 
     def test_copy_connections(self):
@@ -223,7 +220,7 @@ class TestDataChannels(unittest.TestCase):
         self.assertListEqual(
             self.ni2.connections,
             [*self.ni1.connections, self.no_empty],
-            msg="Copying should be additive, existing connections should still be there"
+            msg="Copying should be additive, existing connections should still be there",
         )
 
         self.ni2.disconnect(*self.ni1.connections)
@@ -231,14 +228,14 @@ class TestDataChannels(unittest.TestCase):
         with self.assertRaises(
             ChannelConnectionError,
             msg="Should not be able to connect to so1 because of type hint "
-                "incompatibility"
+                "incompatibility",
         ):
             self.ni2.copy_connections(self.ni1)
         self.assertListEqual(
             self.ni2.connections,
             [self.no_empty],
             msg="On failing, copy should revert the copying channel to its orignial "
-                "state"
+                "state",
         )
 
     def test_value_receiver(self):
@@ -253,25 +250,23 @@ class TestDataChannels(unittest.TestCase):
         self.assertEqual(
             new_value,
             self.ni2.value,
-            msg="Value-linked owners should automatically get new values"
+            msg="Value-linked owners should automatically get new values",
         )
 
         self.ni2.value = 3
         self.assertEqual(
             self.ni1.value,
             new_value,
-            msg="Coupling is uni-directional, the partner should not push values back"
+            msg="Coupling is uni-directional, the partner should not push values back",
         )
 
         with self.assertRaises(
-            TypeError,
-            msg="Only data channels of the same class are valid partners"
+            TypeError, msg="Only data channels of the same class are valid partners"
         ):
             self.ni1.value_receiver = self.no
 
         with self.assertRaises(
-            ValueError,
-            msg="Must not couple to self to avoid infinite recursion"
+            ValueError, msg="Must not couple to self to avoid infinite recursion"
         ):
             self.ni1.value_receiver = self.ni1
 
@@ -298,14 +293,13 @@ class TestDataChannels(unittest.TestCase):
         self.ni1.owner.locked = True
         with self.assertRaises(
             RuntimeError,
-            msg="Input data should be locked while its owner has data_input_locked"
+            msg="Input data should be locked while its owner has data_input_locked",
         ):
             self.ni1.value = 3
         self.ni1.owner.locked = False
 
         with self.assertRaises(
-            TypeError,
-            msg="Should not be able to take values of the wrong type"
+            TypeError, msg="Should not be able to take values of the wrong type"
         ):
             self.ni2.value = [2]
 
@@ -323,12 +317,12 @@ class TestDataChannels(unittest.TestCase):
                 without_default.value,
                 NOT_DATA,
                 msg=f"Without a default, spec is to have a NOT_DATA value but got "
-                    f"{type(without_default.value)}"
+                    f"{type(without_default.value)}",
             )
             self.assertFalse(
                 without_default.ready,
                 msg="Even without type hints, readiness should be false when the value "
-                    "is NOT_DATA"
+                    "is NOT_DATA",
             )
 
         self.ni1.value = 1
@@ -340,14 +334,11 @@ class TestDataChannels(unittest.TestCase):
         self.ni1.strict_hints = False
         self.assertTrue(
             self.ni1.ready,
-            msg="Without checking the hint, we should only car that there's data"
+            msg="Without checking the hint, we should only car that there's data",
         )
 
     def test_if_not_data(self):
-        if NOT_DATA:
-            a = 0
-        else:
-            a = 1
+        a = 0 if NOT_DATA else 1
         self.assertEqual(
             a, 1, msg="NOT_DATA failed behave like None in the if-statement"
         )
@@ -376,7 +367,9 @@ class TestSignalChannels(unittest.TestCase):
             self.assertEqual(len(self.out.connections), 0)
 
         with self.subTest("No connections to non-SignalChannels"):
-            bad = InputData(label="numeric", owner=DummyOwner(), default=1, type_hint=int)
+            bad = InputData(
+                label="numeric", owner=DummyOwner(), default=1, type_hint=int
+            )
             with self.assertRaises(TypeError):
                 self.inp.connect(bad)
 
@@ -399,7 +392,7 @@ class TestSignalChannels(unittest.TestCase):
         with self.assertRaises(
             TypeError,
             msg="For an aggregating input signal, it _matters_ who called it, so "
-                "receiving an output signal is not optional"
+                "receiving an output signal is not optional",
         ):
             agg()
 
@@ -407,55 +400,43 @@ class TestSignalChannels(unittest.TestCase):
         agg.connect(self.out, out2)
 
         self.assertEqual(
-            2,
-            len(agg.connections),
-            msg="Sanity check on initial conditions"
+            2, len(agg.connections), msg="Sanity check on initial conditions"
         )
         self.assertEqual(
-            0,
-            len(agg.received_signals),
-            msg="Sanity check on initial conditions"
+            0, len(agg.received_signals), msg="Sanity check on initial conditions"
         )
+        self.assertListEqual([0], owner.foo, msg="Sanity check on initial conditions")
+
+        self.out()
+        self.assertEqual(1, len(agg.received_signals), msg="Signal should be received")
         self.assertListEqual(
             [0],
             owner.foo,
-            msg="Sanity check on initial conditions"
+            msg="Receiving only _one_ of your connections should not fire the callback",
         )
 
         self.out()
         self.assertEqual(
             1,
             len(agg.received_signals),
-            msg="Signal should be received"
+            msg="Repeatedly receiving the same signal should have no effect",
         )
         self.assertListEqual(
             [0],
             owner.foo,
-            msg="Receiving only _one_ of your connections should not fire the callback"
-        )
-
-        self.out()
-        self.assertEqual(
-            1,
-            len(agg.received_signals),
-            msg="Repeatedly receiving the same signal should have no effect"
-        )
-        self.assertListEqual(
-            [0],
-            owner.foo,
-            msg="Repeatedly receiving the same signal should have no effect"
+            msg="Repeatedly receiving the same signal should have no effect",
         )
 
         out2()
         self.assertListEqual(
             [0, 1],
             owner.foo,
-            msg="After 2/2 output signals have fired, the callback should fire"
+            msg="After 2/2 output signals have fired, the callback should fire",
         )
         self.assertEqual(
             0,
             len(agg.received_signals),
-            msg="Firing the callback should reset the list of received signals"
+            msg="Firing the callback should reset the list of received signals",
         )
 
         out2()
@@ -465,12 +446,12 @@ class TestSignalChannels(unittest.TestCase):
             [0, 1, 2],
             owner.foo,
             msg="Having a vestigial received signal (i.e. one from an output signal "
-                "that is no longer connected) shouldn't hurt anything"
+                "that is no longer connected) shouldn't hurt anything",
         )
         self.assertEqual(
             0,
             len(agg.received_signals),
-            msg="All signals, including vestigial ones, should get cleared on call"
+            msg="All signals, including vestigial ones, should get cleared on call",
         )
 
     def test_callbacks(self):
@@ -506,7 +487,7 @@ class TestSignalChannels(unittest.TestCase):
                 owner.update,
                 owner.method_with_only_kwargs,
                 owner.staticmethod_without_args,
-                owner.classmethod_without_args
+                owner.classmethod_without_args,
             ]:
                 with self.subTest(callback.__name__):
                     InputSignal(label="inp", owner=owner, callback=callback)
@@ -518,10 +499,12 @@ class TestSignalChannels(unittest.TestCase):
                 owner.classmethod_with_args,
                 doesnt_belong_to_owner,
             ]:
-                with self.subTest(callback.__name__):
-                    with self.assertRaises(BadCallbackError):
-                        InputSignal(label="inp", owner=owner, callback=callback)
+                with (
+                    self.subTest(callback.__name__),
+                    self.assertRaises(BadCallbackError),
+                ):
+                    InputSignal(label="inp", owner=owner, callback=callback)
 
 
-if __name__ == '__main__':
+if __name__ == "__main__":
     unittest.main()

@@ -2,8 +2,8 @@
 Tools specifically for the test suite, not intended for general use.
 """
 
-from pathlib import Path
 import sys
+from pathlib import Path
 
 
 def ensure_tests_in_python_path():
