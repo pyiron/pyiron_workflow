@@ -20,3 +20,4 @@ jobs:
       alternate-tests-python-version: '3.10'
       alternate-tests-dir: tests/unit
       do-ruff-check: true
+      do-black: false
