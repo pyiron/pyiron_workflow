@@ -19,5 +19,13 @@ jobs:
       alternate-tests-env-files: .ci_support/lower_bound.yml
       alternate-tests-python-version: '3.10'
       alternate-tests-dir: tests/unit
-      do-ruff-check: true
+      do-commit-updated-env: false
+      do-build-docs: false
+      do-build-notebooks: false
+      do-unit-tests: false
+      do-coveralls: false
+      do-codacy: false
+      do-benchmark-tests: false
+      do-pip-check: false
       do-black: false
+      do-ruff-check: true
