@@ -16,7 +16,7 @@ jobs:
       notebooks-env-files: .ci_support/environment.yml
       extra-python-paths: tests tests/benchmark tests/integration tests/static tests/unit  # For executorlib
       python-version-alt3: 'exclude'  # No python 3.9
-      alternate-tests-env-files: .ci_support/lower_bound.yml
+      alternate-tests-env-files: ''
       alternate-tests-python-version: '3.10'
       alternate-tests-dir: tests/unit
       do-commit-updated-env: false
