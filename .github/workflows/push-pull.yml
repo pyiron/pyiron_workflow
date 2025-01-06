@@ -9,7 +9,7 @@ on:
 
 jobs:
   pyiron:
-    uses: pyiron/actions/.github/workflows/push-pull.yml@actions-3.3.3
+    uses: pyiron/actions/.github/workflows/push-pull.yml@ruff
     secrets: inherit
     with:
       docs-env-files: .ci_support/environment.yml
@@ -19,3 +19,4 @@ jobs:
       alternate-tests-env-files: .ci_support/lower_bound.yml
       alternate-tests-python-version: '3.10'
       alternate-tests-dir: tests/unit
+      do-ruff: true
