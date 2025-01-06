@@ -16,7 +16,7 @@ def get_inputs_and_outputs(node):
     inputs = parse_input_args(node.node_function)
     outputs = parse_output_args(node.node_function)
     if isinstance(outputs, dict):
-        outputs = (outputs, )
+        outputs = (outputs,)
     outputs = {key: out for key, out in zip(node.outputs.labels, outputs)}
     for key, value in node.inputs.to_value_dict().items():
         inputs[key]["value"] = value
@@ -28,5 +28,5 @@ def get_inputs_and_outputs(node):
         "input": inputs,
         "output": outputs,
         "function": node.node_function.__name__,
-        "label": node.label
+        "label": node.label,
     }
