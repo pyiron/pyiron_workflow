@@ -28,7 +28,7 @@ class TestTransform(unittest.TestCase):
             inp_class,
             inp.__class__,
             msg="Regardless of origin, we expect to be constructing the exact same "
-                "class",
+            "class",
         )
         self.assertIs(out_class, out.__class__)
 

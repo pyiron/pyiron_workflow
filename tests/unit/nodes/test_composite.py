@@ -72,7 +72,7 @@ class TestComposite(unittest.TestCase):
         self.assertIsNone(
             from_instance.parent,
             msg="Wrappers are not creators, wrapping from the instance makes no "
-                "difference",
+            "difference",
         )
 
     def test_node_addition(self):
@@ -118,9 +118,9 @@ class TestComposite(unittest.TestCase):
         with self.assertRaises(
             AttributeError,
             msg="Composites should override the attribute access portion of their "
-                "`HasIOWithInjection` mixin to guarantee that attribute access is "
-                "always looking for children. If attribute access is actually desired, "
-                " it can be accomplished with a `GetAttr` node.",
+            "`HasIOWithInjection` mixin to guarantee that attribute access is "
+            "always looking for children. If attribute access is actually desired, "
+            " it can be accomplished with a `GetAttr` node.",
         ):
             self.comp.not_a_child_or_attribute  # noqa: B018
 
@@ -169,7 +169,7 @@ class TestComposite(unittest.TestCase):
         with self.assertRaises(
             AttributeError,
             msg="The provided label is ok, but then assigning to baz should give "
-                "trouble since that name is already occupied",
+            "trouble since that name is already occupied",
         ):
             self.comp.foo = Composite.create.function_node(plus_one, label="whatever")
 
@@ -206,7 +206,7 @@ class TestComposite(unittest.TestCase):
             ["foo", "foo0"],
             list(self.comp.children.keys()),
             msg="When adding a node with an existing name and relaxed naming, the new "
-                "node should get an index on its label so each label is still unique",
+            "node should get an index on its label so each label is still unique",
         )
 
     def test_singular_ownership(self):
@@ -293,7 +293,7 @@ class TestComposite(unittest.TestCase):
                 self.comp.n3,
                 replacement,
                 msg="Sanity check -- when replacing with class, a _new_ instance "
-                    "should be created",
+                "should be created",
             )
             self.comp.replace_child(self.comp.n3, n3)
 
@@ -302,7 +302,7 @@ class TestComposite(unittest.TestCase):
                 (0 + 2) + 1 + 1,
                 self.comp.run(n1__x=0).n3__y,
                 msg="Assigning a new _class_ to an existing node should be a shortcut "
-                    "for replacement",
+                "for replacement",
             )
             self.comp.replace_child(self.comp.n1, n1)  # Return to original state
 
@@ -311,7 +311,7 @@ class TestComposite(unittest.TestCase):
                 (0 + 10) + 1 + 1,
                 self.comp.run(n1__z=0).n3__y,
                 msg="Different IO should be compatible as long as what's missing is "
-                    "not connected",
+                "not connected",
             )
             self.comp.replace_child(self.comp.n1, n1)
 
@@ -320,7 +320,7 @@ class TestComposite(unittest.TestCase):
                 (0 + 1) + 1 + 100,
                 self.comp.run(n1__x=0).n3__z,
                 msg="Different IO should be compatible as long as what's missing is "
-                    "not connected",
+                "not connected",
             )
             self.comp.replace_child(self.comp.n3, n3)
 
@@ -373,7 +373,7 @@ class TestComposite(unittest.TestCase):
                 3,
                 self.comp.run().n3__y,
                 msg="Failed replacements should always restore the original state "
-                    "cleanly",
+                "cleanly",
             )
 
     def test_length(self):
@@ -441,7 +441,7 @@ class TestComposite(unittest.TestCase):
             1,
             self.comp.outputs.n1__y.value,
             msg="Sanity check that the output has been filled and is stored under the "
-                "name we think it is",
+            "name we think it is",
         )
         # Make sure the returned object is functionally a dot-dict
         self.assertEqual(1, out["n1__y"], msg="Should work with item-access")
@@ -499,7 +499,7 @@ class TestComposite(unittest.TestCase):
             self.assertTrue(
                 top.middle_composite.deep_node.graph_path.startswith(top.graph_path),
                 msg="The path should go to the parent-most object, recursively from "
-                    "all depths.",
+                "all depths.",
             )
 
         with self.subTest("test_graph_root"):
@@ -535,7 +535,7 @@ class TestComposite(unittest.TestCase):
         self.assertFalse(
             bad_class.import_ready,
             msg="The node is in an importable location, but the imported object is not "
-                "the node class (but rather the node function)",
+            "the node class (but rather the node function)",
         )
         with self.subTest(msg="Made up module"):
             og_module = totally_findable.__class__.__module__
@@ -552,7 +552,7 @@ class TestComposite(unittest.TestCase):
         self.assertTrue(
             self.comp.import_ready,
             msg="Sanity check on initial condition -- tests are in the path, so this "
-                "is importable",
+            "is importable",
         )
         self.comp.totally_findable = totally_findable
         self.assertTrue(
@@ -575,13 +575,13 @@ class TestComposite(unittest.TestCase):
             self.comp.sub_composite.parent,
             self.comp,
             msg="After processing a remotely-executed self, the local self should "
-                "retain its parent",
+            "retain its parent",
         )
         self.assertIs(
             self.comp.sub_composite.executor,
             exe,
             msg="After processing a remotely-executed self, the local self should "
-                "retain its executor",
+            "retain its executor",
         )
 
     def test_result_serialization(self):
@@ -613,7 +613,7 @@ class TestComposite(unittest.TestCase):
         self.assertFalse(
             self.comp.as_path().is_dir(),
             msg="Actually, we expect cleanup to have removed empty directories up to "
-                "and including the semantic root's own directory",
+            "and including the semantic root's own directory",
         )
 
 

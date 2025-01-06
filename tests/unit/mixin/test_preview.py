@@ -70,7 +70,7 @@ class TestIOPreview(unittest.TestCase):
             {"x": (None, NOT_DATA), "y": (int, 42)},
             Mixed.preview_inputs(),
             msg="Input specifications should be available at the class level, with or "
-                "without type hints and/or defaults provided.",
+            "without type hints and/or defaults provided.",
         )
 
         with (
@@ -179,10 +179,12 @@ class TestIOPreview(unittest.TestCase):
         with self.subTest("Uninspectable function"):
 
             def _uninspectable():
-                template = dedent("""
+                template = dedent(
+                    """
                     def __source_code_not_available(x):
                         return x
-                """)
+                """
+                )
                 exec(template)
                 return locals()["__source_code_not_available"]
 
@@ -191,7 +193,7 @@ class TestIOPreview(unittest.TestCase):
             with self.assertRaises(
                 OSError,
                 msg="If the source code cannot be inspected for output labels, they "
-                    "_must_ be provided.",
+                "_must_ be provided.",
             ):
                 as_scraper()(f)
 

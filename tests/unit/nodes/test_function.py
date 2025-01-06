@@ -48,7 +48,7 @@ class TestFunction(unittest.TestCase):
                 NOT_DATA,
                 node.outputs.y.value,
                 msg="Sanity check that output just has the standard not-data value at "
-                    "instantiation",
+                "instantiation",
             )
             node.inputs.x = 10
             self.assertIs(
@@ -61,7 +61,7 @@ class TestFunction(unittest.TestCase):
                 node.outputs.y.value,
                 11,
                 msg="Expected the run to update the output -- did the test function"
-                    "change or something?",
+                "change or something?",
             )
 
             node = function_node(no_default, 1, y=2, output_labels="output")
@@ -100,19 +100,19 @@ class TestFunction(unittest.TestCase):
             with_defaults.inputs.x.value,
             1,
             msg=f"Expected to get the default provided in the underlying function but "
-                f"got {with_defaults.inputs.x.value}",
+            f"got {with_defaults.inputs.x.value}",
         )
         without_defaults = function_node(no_default)
         self.assertIs(
             without_defaults.inputs.x.value,
             NOT_DATA,
             msg=f"Expected values with no default specified to start as {NOT_DATA} but "
-                f"got {without_defaults.inputs.x.value}",
+            f"got {without_defaults.inputs.x.value}",
         )
         self.assertFalse(
             without_defaults.ready,
             msg="I guess we should test for behaviour and not implementation... Without"
-                "defaults, the node should not be ready!",
+            "defaults, the node should not be ready!",
         )
 
     def test_label_choices(self):
@@ -170,7 +170,7 @@ class TestFunction(unittest.TestCase):
             bilinear(2, 3).run(),
             2 * 3,
             msg="Children of `Function` should have their `node_function` exposed for "
-                "use at the class level",
+            "use at the class level",
         )
 
     def test_statuses(self):
@@ -184,7 +184,7 @@ class TestFunction(unittest.TestCase):
         with self.assertRaises(
             TypeError,
             msg="We expect the int+str type error because there were no type hints "
-                "guarding this function from running with bad data",
+            "guarding this function from running with bad data",
         ):
             n.run()
         self.assertFalse(n.ready)
@@ -239,7 +239,7 @@ class TestFunction(unittest.TestCase):
                 return_on_explicit_run,
                 plus_one(2),
                 msg="On explicit run, the most recent input data should be used and "
-                    "the result should be returned",
+                "the result should be returned",
             )
 
             return_on_call = node(1)
@@ -284,13 +284,13 @@ class TestFunction(unittest.TestCase):
             self.assertFalse(
                 node.connected,
                 msg="The x-input connection should have been copied, but should be "
-                    "removed when the copy fails.",
+                "removed when the copy fails.",
             )
 
             with self.assertRaises(
                 ConnectionCopyError,
                 msg="An unhinted channel is not a valid connection for a hinted "
-                    "channel, and should raise and exception",
+                "channel, and should raise and exception",
             ):
                 hinted_node._copy_connections(to_copy)
         hinted_node.disconnect()  # Make sure you've got a clean slate
@@ -305,14 +305,14 @@ class TestFunction(unittest.TestCase):
             self.assertFalse(
                 hinted_node.inputs.connected,
                 msg="Without hard failure the copy should be allowed to proceed, but "
-                    "we don't actually expect any connections to get copied since the "
-                    "only one available had type hint problems",
+                "we don't actually expect any connections to get copied since the "
+                "only one available had type hint problems",
             )
             self.assertTrue(
                 hinted_node.outputs.connected,
                 msg="Without hard failure the copy should be allowed to proceed, so "
-                    "the output should connect fine since feeding hinted to un-hinted "
-                    "is a-ok",
+                "the output should connect fine since feeding hinted to un-hinted "
+                "is a-ok",
             )
 
     def test_copy_values(self):
@@ -391,7 +391,7 @@ class TestFunction(unittest.TestCase):
             n1.outputs.y,
             n2.inputs.x.connections,
             msg="Single-output functions should be able to make connections between "
-                "their output and another node's input by passing themselves",
+            "their output and another node's input by passing themselves",
         )
 
         n1 >> n2
@@ -400,7 +400,7 @@ class TestFunction(unittest.TestCase):
             n2.outputs.y.value,
             3,
             msg="Single-output function connections should pass data just like usual; "
-                "in this case default->plus_one->plus_one = 1 + 1 +1 = 3",
+            "in this case default->plus_one->plus_one = 1 + 1 +1 = 3",
         )
 
         at_instantiation = function_node(plus_one, x=n1)
@@ -408,7 +408,7 @@ class TestFunction(unittest.TestCase):
             n1.outputs.y,
             at_instantiation.inputs.x.connections,
             msg="The parsing of Single-output functions' output as a connection should "
-                "also work from assignment at instantiation",
+            "also work from assignment at instantiation",
         )
 
     def test_nested_declaration(self):
@@ -494,7 +494,7 @@ class TestFunction(unittest.TestCase):
             {"None": type(None)},
             NoReturn.preview_outputs(),
             msg="Functions without a return value should be permissible, although it "
-                "is not interesting",
+            "is not interesting",
         )
         # Honestly, functions with no return should probably be made illegal to
         # encourage functional setups...
@@ -534,8 +534,8 @@ class TestFunction(unittest.TestCase):
         with self.assertRaises(
             MultipleDispatchError,
             msg="This shouldn't be accessible from a regular decorator usage pattern, "
-                "but make sure that mixing-and-matching argument-free calls and calls "
-                "directly providing the wrapped node fail cleanly",
+            "but make sure that mixing-and-matching argument-free calls and calls "
+            "directly providing the wrapped node fail cleanly",
         ):
             as_function_node(plus_one, "z")
 

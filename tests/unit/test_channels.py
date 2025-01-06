@@ -170,7 +170,7 @@ class TestDataChannels(unittest.TestCase):
             self.ni1.value,
             3,
             msg="Data fetch should to first connected value that's actually data,"
-                "in this case skipping over no_empty",
+            "in this case skipping over no_empty",
         )
 
         self.no_empty.value = 4
@@ -179,7 +179,7 @@ class TestDataChannels(unittest.TestCase):
             self.ni1.value,
             4,
             msg="As soon as no_empty actually has data, it's position as 0th "
-                "element in the connections list should give it priority",
+            "element in the connections list should give it priority",
         )
 
     def test_connection_validity(self):
@@ -228,14 +228,14 @@ class TestDataChannels(unittest.TestCase):
         with self.assertRaises(
             ChannelConnectionError,
             msg="Should not be able to connect to so1 because of type hint "
-                "incompatibility",
+            "incompatibility",
         ):
             self.ni2.copy_connections(self.ni1)
         self.assertListEqual(
             self.ni2.connections,
             [self.no_empty],
             msg="On failing, copy should revert the copying channel to its orignial "
-                "state",
+            "state",
         )
 
     def test_value_receiver(self):
@@ -317,12 +317,12 @@ class TestDataChannels(unittest.TestCase):
                 without_default.value,
                 NOT_DATA,
                 msg=f"Without a default, spec is to have a NOT_DATA value but got "
-                    f"{type(without_default.value)}",
+                f"{type(without_default.value)}",
             )
             self.assertFalse(
                 without_default.ready,
                 msg="Even without type hints, readiness should be false when the value "
-                    "is NOT_DATA",
+                "is NOT_DATA",
             )
 
         self.ni1.value = 1
@@ -392,7 +392,7 @@ class TestSignalChannels(unittest.TestCase):
         with self.assertRaises(
             TypeError,
             msg="For an aggregating input signal, it _matters_ who called it, so "
-                "receiving an output signal is not optional",
+            "receiving an output signal is not optional",
         ):
             agg()
 
@@ -446,7 +446,7 @@ class TestSignalChannels(unittest.TestCase):
             [0, 1, 2],
             owner.foo,
             msg="Having a vestigial received signal (i.e. one from an output signal "
-                "that is no longer connected) shouldn't hurt anything",
+            "that is no longer connected) shouldn't hurt anything",
         )
         self.assertEqual(
             0,

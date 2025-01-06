@@ -89,7 +89,7 @@ class TestDataIO(unittest.TestCase):
                 self.post_facto_output.label,
                 label_before_assignment,
                 msg="Labels should not get updated on assignment of channels to IO "
-                    "collections",
+                "collections",
             )
 
     def test_connection(self):
@@ -163,7 +163,7 @@ class TestDataIO(unittest.TestCase):
             self.input.connections[0],
             self.input.x.connections[0],
             msg="The IO connection found should be the same object as the channel "
-                "connection",
+            "connection",
         )
 
     def test_to_list(self):
@@ -171,8 +171,8 @@ class TestDataIO(unittest.TestCase):
             [0.0, 1.0],
             self.input.to_list(),
             msg="Expected a shortcut to channel values. Order is explicitly not "
-                "guaranteed in the docstring, but it would be nice to appear in the "
-                "order the channels are added here",
+            "guaranteed in the docstring, but it would be nice to appear in the "
+            "order the channels are added here",
         )
 
 
@@ -363,7 +363,7 @@ class TestHasIO(unittest.TestCase):
             with self.assertRaises(
                 ConnectionCopyError,
                 msg="The copier is missing all sorts of connected channels and should "
-                    "fail to copy",
+                "fail to copy",
             ):
                 copier.copy_io(
                     to_copy, connections_fail_hard=True, values_fail_hard=False
@@ -371,7 +371,7 @@ class TestHasIO(unittest.TestCase):
             self.assertFalse(
                 copier.connected,
                 msg="After a failure, any connections that _were_ made should get "
-                    "reset",
+                "reset",
             )
 
         with self.subTest("Force missing connections"):
@@ -444,7 +444,7 @@ class TestHasIO(unittest.TestCase):
             self.assertRaises(
                 ValueCopyError,
                 msg="The copier doesn't have channels to hold all the values that need"
-                    "copying, so we should fail",
+                "copying, so we should fail",
             ),
         ):
             copier.copy_io(to_copy, connections_fail_hard=True, values_fail_hard=True)

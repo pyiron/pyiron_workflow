@@ -87,7 +87,7 @@ class TestTransformer(unittest.TestCase):
             with self.assertRaises(
                 ValueError,
                 msg="List instances are not hashable, we should not be able to auto-"
-                    "generate a class name from this.",
+                "generate a class name from this.",
             ):
                 inputs_to_dict(unhashable_spec)
 
@@ -126,7 +126,7 @@ class TestTransformer(unittest.TestCase):
         with self.assertRaises(
             ValueError,
             msg="If the input rows don't have commensurate length, we expect to get "
-                "the relevant pandas error",
+            "the relevant pandas error",
         ):
             n(row_0=d1, row_1=d3, row_2=d1)
 
@@ -159,11 +159,11 @@ class TestTransformer(unittest.TestCase):
             self.assertTrue(
                 is_dataclass(DC),
                 msg="Note that passing the underlying dataclass variable through the "
-                    "`dataclasses.dataclass` operator actually transforms it, so it "
-                    "too is now a real dataclass, even though it wasn't defined as "
-                    "one! This is just a side effect. I don't see it being harmful, "
-                    "but in case it gives some future reader trouble, I want to "
-                    "explicitly note the side effect here in the tests.",
+                "`dataclasses.dataclass` operator actually transforms it, so it "
+                "too is now a real dataclass, even though it wasn't defined as "
+                "one! This is just a side effect. I don't see it being harmful, "
+                "but in case it gives some future reader trouble, I want to "
+                "explicitly note the side effect here in the tests.",
             )
             self.assertListEqual(
                 list(DC.__dataclass_fields__.keys()),
@@ -246,7 +246,7 @@ class TestTransformer(unittest.TestCase):
                         prev["with_factory"][1],
                         NOT_DATA,
                         msg="Fields with default factory won't see their default until "
-                            "instantiation",
+                        "instantiation",
                     )
 
     def test_dataclass_typing_and_storage(self):

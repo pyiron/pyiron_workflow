@@ -63,14 +63,14 @@ class TestSpeedup(unittest.TestCase):
             dt_parallel,
             0.5 * dt_serial,
             msg=f"Expected the parallel solution to be at least 2x faster, but got"
-                f"{dt_parallel}  and {dt_serial} for parallel and serial times, "
-                f"respectively",
+            f"{dt_parallel}  and {dt_serial} for parallel and serial times, "
+            f"respectively",
         )
         self.assertLess(
             dt_cached_parallel,
             0.01 * t,
             msg="The cache should be trivially fast compared to actual execution of "
-                "a sleep node",
+            "a sleep node",
         )
 
     def test_executor_instructions(self):
@@ -93,8 +93,8 @@ class TestSpeedup(unittest.TestCase):
             dt,
             1.1 * t,
             msg="Expected the sleeps to run in parallel with minimal overhead (since "
-                "it's just a thread pool executor) -- the advantage is that the "
-                "constructors should survive (de)serialization",
+            "it's just a thread pool executor) -- the advantage is that the "
+            "constructors should survive (de)serialization",
         )
 
 

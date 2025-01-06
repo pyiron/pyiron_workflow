@@ -179,7 +179,7 @@ class TestWorkflow(unittest.TestCase):
                 self.assertFalse(
                     wf.running,
                     msg="The workflow should stop. For thread pool this required a "
-                        "little sleep",
+                    "little sleep",
                 )
             wf.executor = None
 
@@ -192,8 +192,8 @@ class TestWorkflow(unittest.TestCase):
                 self.assertFalse(
                     any(n.running for n in wf),
                     msg=f"All children should be done running -- for thread pools this "
-                        f"requires a very short sleep -- got "
-                        f"{[(n.label, n.running) for n in wf]}",
+                    f"requires a very short sleep -- got "
+                    f"{[(n.label, n.running) for n in wf]}",
                 )
             for child in wf:
                 child.executor = None
@@ -218,8 +218,8 @@ class TestWorkflow(unittest.TestCase):
             first_out,
             second_out,
             msg="Even thought the _input_ hasn't changed, we expect to avoid the first "
-                "(cached) result by virtue of resetting the cache when the body of "
-                "the composite graph has changed",
+            "(cached) result by virtue of resetting the cache when the body of "
+            "the composite graph has changed",
         )
 
         t0 = time.perf_counter()
@@ -234,7 +234,7 @@ class TestWorkflow(unittest.TestCase):
             dt,
             0.1 * wf.c.inputs.t.value,
             msg="And because it used the cache we expect it much faster than the sleep "
-                "time",
+            "time",
         )
 
     def test_failure(self):
@@ -322,10 +322,10 @@ class TestWorkflow(unittest.TestCase):
                 self.assertFalse(
                     wf.as_path().exists(),
                     msg=f"The parent-most object is the _only_ one who should have "
-                        f"written a recovery file, so after removing that the whole "
-                        f"node directory for the workflow should be cleaned up."
-                        f"Instead, {wf.as_path()} exists and has content "
-                        f"{[f for f in wf.as_path().iterdir()] if wf.as_path().is_dir() else None}",
+                    f"written a recovery file, so after removing that the whole "
+                    f"node directory for the workflow should be cleaned up."
+                    f"Instead, {wf.as_path()} exists and has content "
+                    f"{[f for f in wf.as_path().iterdir()] if wf.as_path().is_dir() else None}",
                 )
 
 
