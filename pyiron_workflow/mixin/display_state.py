@@ -46,6 +46,7 @@ class HasStateDisplay(UsesState, ABC):
         for k, v in display.items():
             if ignore_private and k.startswith("_"):
                 to_del.append(k)
+                continue
 
             if isinstance(v, HasStateDisplay):
                 display[k] = v.display_state(ignore_private=ignore_private)
