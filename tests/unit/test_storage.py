@@ -14,8 +14,8 @@ class TestAvailableBackends(unittest.TestCase):
             backends[0],
             PickleStorage,
             msg="If more standard backends are added, this will fail -- that's fine, "
-                "just update the test to make sure you're getting the defaults you now "
-                "expect.",
+            "just update the test to make sure you're getting the defaults you now "
+            "expect.",
         )
 
     def test_specific_backend(self):
@@ -24,8 +24,8 @@ class TestAvailableBackends(unittest.TestCase):
             len(backends),
             1,
             msg="Once more standard backends are available, we should test that string "
-                "access results in the the correct priority assignment among these "
-                "defaults.",
+            "access results in the the correct priority assignment among these "
+            "defaults.",
         )
         self.assertIsInstance(backends[0], PickleStorage)
 

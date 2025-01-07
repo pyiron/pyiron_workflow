@@ -409,16 +409,16 @@ class TestForNode(unittest.TestCase):
                     dt,
                     grace * t_sleep,
                     msg=f"Parallelization over children should result in faster "
-                        f"completion. Expected limit {grace} x {t_sleep} = "
-                        f"{grace * t_sleep} -- got {dt}",
+                    f"completion. Expected limit {grace} x {t_sleep} = "
+                    f"{grace * t_sleep} -- got {dt}",
                 )
 
                 reloaded = pickle.loads(pickle.dumps(for_parallel))
                 self.assertIsNone(
                     reloaded.body_node_executor,
                     msg="Just like regular nodes, until executors can be delayed creators "
-                        "instead of actual executor nodes, we need to purge executors from "
-                        "nodes on serialization or the thread lock/queue objects hit us",
+                    "instead of actual executor nodes, we need to purge executors from "
+                    "nodes on serialization or the thread lock/queue objects hit us",
                 )
 
     def test_with_connections_dataframe(self):
@@ -544,7 +544,7 @@ class TestForNode(unittest.TestCase):
             out.mul,
             [(1 + 1) * 1, (1 + 2) * 2],
             msg="We should be able to call for_node right from node classes to bypass "
-                "needing to provide the `body_node_class` argument",
+            "needing to provide the `body_node_class` argument",
         )
 
     def test_macro_body(self):
@@ -607,8 +607,8 @@ class TestForNode(unittest.TestCase):
                         n.body_node_executor,
                         expected,
                         msg="Executor instances should get removed on "
-                            "(de)serialization, but instructions on how to build one "
-                            "should not.",
+                        "(de)serialization, but instructions on how to build one "
+                        "should not.",
                     )
                 finally:
                     n.delete_storage()

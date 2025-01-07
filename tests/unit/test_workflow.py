@@ -141,7 +141,7 @@ class TestWorkflow(unittest.TestCase):
         with self.assertRaises(
             ValueDuplicationError,
             msg="Should not be allowed to update a second child's channel onto an "
-                "existing mapped channel",
+            "existing mapped channel",
         ):
             wf.inputs_map["n2__x"] = "x"
 
@@ -201,7 +201,7 @@ class TestWorkflow(unittest.TestCase):
         self.assertIsNone(
             original_a.parent,
             msg=f"Original nodes should be orphaned, but {original_a.full_label} has "
-                f"parent {original_a.parent}",
+            f"parent {original_a.parent}",
             # Note: At time of writing, this is accomplished in Node.__getstate__,
             #       which feels a bit dangerous...
         )
@@ -243,7 +243,7 @@ class TestWorkflow(unittest.TestCase):
             wf.sum.outputs.sum.value,
             5 + 5,
             msg="After the slow node completes, its output should be updated as a "
-                "callback, and downstream nodes should proceed",
+            "callback, and downstream nodes should proceed",
         )
 
         wf.executor_shutdown()
@@ -270,7 +270,7 @@ class TestWorkflow(unittest.TestCase):
             plus_one(42) + plus_one(42),
             wf.sum.outputs.sum.value,
             msg="Workflow should accept input channel kwargs and update inputs "
-                "accordingly",
+            "accordingly",
             # Since the nodes run automatically, there is no need for wf.run() here
         )
 
@@ -290,7 +290,7 @@ class TestWorkflow(unittest.TestCase):
                 return_on_call,
                 DotDict({"b__y": 1 + 2}),
                 msg="Run output should be returned on call. Expecting a DotDict of "
-                    "output values",
+                "output values",
             )
 
             wf.inputs.a__x = 2
@@ -299,7 +299,7 @@ class TestWorkflow(unittest.TestCase):
                 return_on_explicit_run["b__y"],
                 2 + 2,
                 msg="On explicit run, the most recent input data should be used and "
-                    "the result should be returned",
+                "the result should be returned",
             )
 
     def test_execution_automation(self):
@@ -355,7 +355,7 @@ class TestWorkflow(unittest.TestCase):
             user.n1r.signals.output.ran,
             user.n2r.signals.input.accumulate_and_run.connections,
             msg="The automated flow uses a non-linear accumulating approach, so the "
-                "accumulating run signal is the one that should hold a connection",
+            "accumulating run signal is the one that should hold a connection",
         )
 
         with self.subTest("Make sure automated cyclic graphs throw an error"):

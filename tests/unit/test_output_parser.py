@@ -23,7 +23,7 @@ class TestParseOutput(unittest.TestCase):
         with self.subTest("Weird whitespace"):
 
             def add_with_whitespace(x, y):
-                return  x + y
+                return x + y
 
             self.assertListEqual(ParseOutput(add_with_whitespace).output, ["x + y"])
 

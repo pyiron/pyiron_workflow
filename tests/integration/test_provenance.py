@@ -58,14 +58,14 @@ class TestProvenance(unittest.TestCase):
             ["t", "slow", "fast", "double"],
             self.wf.prov.provenance_by_execution,
             msg="Later connections get priority over earlier connections, so we expect "
-                "the t-node to trigger 'slow' before 'fast'",
+            "the t-node to trigger 'slow' before 'fast'",
         )
 
         self.assertListEqual(
             self.wf.prov.provenance_by_execution,
             self.wf.prov.provenance_by_completion,
             msg="The macro is running on an executor, but its children are in serial,"
-                "so completion and execution order should be the same",
+            "so completion and execution order should be the same",
         )
 
     def test_execution_vs_completion(self):
@@ -82,14 +82,14 @@ class TestProvenance(unittest.TestCase):
             ["t", "slow", "fast", "double"],
             self.wf.prov.provenance_by_execution,
             msg="Later connections get priority over earlier connections, so we expect "
-                "the t-node to trigger 'slow' before 'fast'",
+            "the t-node to trigger 'slow' before 'fast'",
         )
 
         self.assertListEqual(
             ["t", "fast", "slow", "double"],
             self.wf.prov.provenance_by_completion,
             msg="Since 'slow' is slow it shouldn't _finish_ until after 'fast' (but "
-                "still before 'double' since 'double' depends on 'slow')",
+            "still before 'double' since 'double' depends on 'slow')",
         )
 
         self.assertListEqual(

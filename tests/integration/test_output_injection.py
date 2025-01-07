@@ -169,7 +169,7 @@ class TestOutputInjection(unittest.TestCase):
             d1,
             d2,
             msg="Outside the scope of a parent, we can't expect to re-access an "
-                "equivalent node",
+            "equivalent node",
         )
         self.assertEqual(
             d1.label,

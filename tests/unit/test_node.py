@@ -116,7 +116,7 @@ class TestNode(unittest.TestCase):
         self.assertFalse(
             self.n3.failed,
             msg="The benefit of the readiness check should be that we don't actually "
-                "qualify as failed",
+            "qualify as failed",
         )
 
         with self.assertRaises(
@@ -142,7 +142,7 @@ class TestNode(unittest.TestCase):
             1,
             self.n3.run(run_data_tree=False, fetch_input=False, check_readiness=True),
             msg="After manually resetting the failed state and providing good input, "
-                "running should proceed",
+            "running should proceed",
         )
 
         self.n3.use_cache = n3_cache
@@ -161,7 +161,7 @@ class TestNode(unittest.TestCase):
             add_one(add_one(add_one(self.n1.inputs.x.value))),
             self.n3.outputs.y.value,
             msg="With the connection and signal, we should have pushed downstream "
-                "execution",
+            "execution",
         )
 
     def test_failure_signal(self):
@@ -194,7 +194,7 @@ class TestNode(unittest.TestCase):
             self.assertFalse(
                 n.as_path().exists(),
                 msg="When the run exception is not raised, we don't expect any "
-                    "recovery file to be needed",
+                "recovery file to be needed",
             )
 
             default_recovery = n.recovery
@@ -205,7 +205,7 @@ class TestNode(unittest.TestCase):
             self.assertFalse(
                 n.has_saved_content(filename=n.as_path().joinpath("recovery")),
                 msg="Without a recovery back end specified, we don't expect a file to "
-                    "be saved on failure.",
+                "be saved on failure.",
             )
 
             n.recovery = default_recovery
@@ -239,7 +239,7 @@ class TestNode(unittest.TestCase):
             self.assertFalse(
                 n.as_path().exists(),
                 msg="The recovery file should have been the only thing in the node "
-                    "directory, so cleaning should remove the directory entirely.",
+                "directory, so cleaning should remove the directory entirely.",
             )
 
     def test_execute(self):
@@ -253,7 +253,7 @@ class TestNode(unittest.TestCase):
         self.assertFalse(
             self.n3.ready,
             msg="Executing should not be triggering downstream runs, even though we "
-                "made a ran/run connection",
+            "made a ran/run connection",
         )
 
         self.n2.inputs.x._value = "manually override the desired int"
@@ -261,7 +261,7 @@ class TestNode(unittest.TestCase):
         with self.assertRaises(
             TypeError,
             msg="Execute should be running without a readiness check and hitting the "
-                "string + int error",
+            "string + int error",
         ):
             self.n2.execute()
 
@@ -278,7 +278,7 @@ class TestNode(unittest.TestCase):
         self.assertFalse(
             self.n3.ready,
             msg="Pulling should not be triggering downstream runs, even though we "
-                "made a ran/run connection",
+            "made a ran/run connection",
         )
 
     def test___call__(self):
@@ -296,7 +296,7 @@ class TestNode(unittest.TestCase):
         self.assertFalse(
             self.n3.ready,
             msg="Calling should not be triggering downstream runs, even though we "
-                "made a ran/run connection",
+            "made a ran/run connection",
         )
 
     def test_draw(self):
@@ -313,7 +313,7 @@ class TestNode(unittest.TestCase):
                     self.assertTrue(
                         self.n1.as_path().joinpath(expected_name).is_file(),
                         msg="If `save` is called, expect the rendered image to "
-                            "exist in the working directory",
+                        "exist in the working directory",
                     )
 
             user_specified_name = "foo"
@@ -322,7 +322,7 @@ class TestNode(unittest.TestCase):
             self.assertTrue(
                 self.n1.as_path().joinpath(expected_name).is_file(),
                 msg="If the user specifies a filename, we should assume they want the "
-                    "thing saved",
+                "thing saved",
             )
         finally:
             # No matter what happens in the tests, clean up after yourself
@@ -350,14 +350,14 @@ class TestNode(unittest.TestCase):
             n.semantic_delimiter + n.label,
             n.graph_path,
             msg="Lone nodes should just have their label as the path, as there is no "
-                "parent above.",
+            "parent above.",
         )
 
         self.assertIs(
             n,
             n.graph_root,
             msg="Lone nodes should be their own graph_root, as there is no parent "
-                "above.",
+            "above.",
         )
 
     def test_single_value(self):
@@ -366,7 +366,7 @@ class TestNode(unittest.TestCase):
             node.outputs.y,
             node.channel,
             msg="With a single output, the `HasChannel` interface fulfillment should "
-                "use that output.",
+            "use that output.",
         )
 
         with_addition = node + 5
@@ -374,7 +374,7 @@ class TestNode(unittest.TestCase):
             with_addition,
             Node,
             msg="With a single output, acting on the node should fall back on acting "
-                "on the single (with-injection) output",
+            "on the single (with-injection) output",
         )
 
         node2 = ANode(label="n2")
@@ -383,14 +383,14 @@ class TestNode(unittest.TestCase):
             [node.outputs.y],
             node2.inputs.x.connections,
             msg="With a single output, the node should fall back on the single output "
-                "for output-like use cases",
+            "for output-like use cases",
         )
 
         node.outputs["z"] = OutputDataWithInjection("z", node, type_hint=int)
         with self.assertRaises(
             AmbiguousOutputError,
             msg="With multiple outputs, trying to exploit the `HasChannel` interface "
-                "should fail cleanly",
+            "should fail cleanly",
         ):
             node.channel  # noqa: B018
 
@@ -450,7 +450,7 @@ class TestNode(unittest.TestCase):
                         load_and_rerun_origal_input.outputs.y.value,
                         run_right_away.outputs.y.value,
                         msg="Loading and then running immediately is fine, and should "
-                            "recover existing input",
+                        "recover existing input",
                     )
                     load_and_rerun_new_input = ANode(
                         label=self.n1.label, x=x + 1, autorun=True, autoload=backend
@@ -459,7 +459,7 @@ class TestNode(unittest.TestCase):
                         load_and_rerun_new_input.outputs.y.value,
                         run_right_away.outputs.y.value + 1,
                         msg="Loading and then running immediately is fine, and should "
-                            "notice the new input",
+                        "notice the new input",
                     )
 
                     force_run = ANode(
@@ -544,7 +544,7 @@ class TestNode(unittest.TestCase):
                         NOT_DATA,
                         not_reloaded.outputs.y.value,
                         msg="Should not have saved, therefore should have been nothing "
-                            "to load",
+                        "to load",
                     )
 
                     find_saved = ANode(label="run_and_save", autoload=backend)
@@ -552,7 +552,7 @@ class TestNode(unittest.TestCase):
                         y,
                         find_saved.outputs.y.value,
                         msg="Should have saved automatically after run, and reloaded "
-                            "on instantiation",
+                        "on instantiation",
                     )
                 finally:
                     saves.delete_storage(backend)  # Clean up
@@ -584,7 +584,7 @@ class TestNode(unittest.TestCase):
         self.assertFalse(
             n.as_path().is_dir(),
             msg="Actually, we expect cleanup to have removed empty directories up to "
-                "and including the node's own directory",
+            "and including the node's own directory",
         )
 
 

@@ -82,8 +82,8 @@ class TestRunnable(unittest.TestCase):
                 runnable.expected_run_output,
                 result,
                 msg="We should be able to bypass the readiness check with a flag, and "
-                    "in this simple case expect to get perfectly normal behaviour "
-                    "afterwards",
+                "in this simple case expect to get perfectly normal behaviour "
+                "afterwards",
             )
 
     def test_failure(self):
@@ -100,7 +100,7 @@ class TestRunnable(unittest.TestCase):
         self.assertTrue(
             runnable.failed,
             msg="We should be able to stop the exception from getting raised, but the "
-                "status should still be failed",
+            "status should still be failed",
         )
 
     def test_runnable_run_local(self):
@@ -165,7 +165,7 @@ class TestRunnable(unittest.TestCase):
         with self.assertRaises(
             TypeError,
             msg="Callables are ok, but if they don't return an executor we should get "
-                "and error.",
+            "and error.",
         ):
             runnable.executor = (maybe_get_executor, (False,), {})
             runnable.run()
