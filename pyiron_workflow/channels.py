@@ -91,7 +91,7 @@ class Channel(
         """
         self._label = label
         self.owner: HasIO = owner
-        self.connections: list[Channel] = []
+        self.connections: list[ConnectionPartner] = []
 
     @property
     def label(self) -> str:
