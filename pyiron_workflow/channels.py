@@ -464,7 +464,9 @@ class DataChannel(Channel, ABC):
     def _both_typed(self, other: DataChannel) -> bool:
         return self._has_hint and other._has_hint
 
-    def _figure_out_who_is_who(self, other: DataChannel) -> (OutputData, InputData):
+    def _figure_out_who_is_who(
+            self, other: DataChannel
+    ) -> tuple[OutputData, InputData]:
         return (self, other) if isinstance(self, OutputData) else (other, self)
 
     def __str__(self):
