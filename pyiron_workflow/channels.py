@@ -150,13 +150,7 @@ class Channel(
             else:
                 if isinstance(other, self.connection_partner_type):
                     raise ChannelConnectionError(
-                        f"The channel {other.full_label} ({other.__class__.__name__}"
-                        f") has the correct type "
-                        f"({self.connection_partner_type.__name__}) to connect with "
-                        f"{self.full_label} ({self.__class__.__name__}), but is not "
-                        f"a valid connection. Please check type hints, etc."
-                        f"{other.full_label}.type_hint = {other.type_hint}; "
-                        f"{self.full_label}.type_hint = {self.type_hint}"
+                        self._connection_partner_failure_message(other)
                     ) from None
                 else:
                     raise TypeError(
@@ -164,6 +158,14 @@ class Channel(
                         f"objects, but {self.full_label} ({self.__class__.__name__}) "
                         f"got {other} ({type(other)})"
                     )
+
+    def _connection_partner_failure_message(self, other: ConnectionPartner) -> str:
+        return (
+            f"The channel {other.full_label} ({other.__class__.__name__}) has the "
+            f"correct type ({self.connection_partner_type.__name__}) to connect with "
+            f"{self.full_label} ({self.__class__.__name__}), but is not a valid "
+            f"connection."
+        )
 
     def disconnect(self, *others: Channel) -> list[tuple[Channel, Channel]]:
         """
@@ -464,6 +466,13 @@ class DataChannel(Channel[DataConnectionPartner], ABC):
                 return True
         else:
             return False
+
+    def _connection_partner_failure_message(self, other: DataConnectionPartner) -> str:
+        msg = super()._connection_partner_failure_message(other)
+        msg += (
+            f"Please check type hints, etc. {other.full_label}.type_hint = "
+            f"{other.type_hint}; {self.full_label}.type_hint = {self.type_hint}"
+        )
 
     def _both_typed(self, other: DataConnectionPartner) -> bool:
         return self._has_hint and other._has_hint
