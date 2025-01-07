@@ -9,6 +9,7 @@ import random
 import shutil
 from pathlib import Path
 from time import sleep
+from typing import Callable
 
 from pyiron_workflow.channels import NOT_DATA, OutputSignal
 from pyiron_workflow.nodes.function import Function, as_function_node
@@ -167,7 +168,7 @@ def ChangeDirectory(
 
 
 @as_function_node
-def PureCall(fnc: callable):
+def PureCall(fnc: Callable):
     """
     Return a call without any arguments
 

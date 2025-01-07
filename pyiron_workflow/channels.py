@@ -468,7 +468,9 @@ class DataChannel(Channel[DataConnectionPartner], ABC):
     def _both_typed(self, other: DataConnectionPartner) -> bool:
         return self._has_hint and other._has_hint
 
-    def _figure_out_who_is_who(self, other: DataConnectionPartner) -> (OutputData, InputData):
+    def _figure_out_who_is_who(
+            self, other: DataConnectionPartner
+    ) -> tuple[OutputData, InputData]:
         return (self, other) if isinstance(self, OutputData) else (other, self)
 
     def __str__(self):
@@ -569,7 +571,7 @@ class InputSignal(SignalChannel["OutputSignal"]):
         self,
         label: str,
         owner: HasIO,
-        callback: callable,
+        callback: typing.Callable,
     ):
         """
         Make a new input signal channel.
@@ -616,7 +618,7 @@ class InputSignal(SignalChannel["OutputSignal"]):
         )
 
     @property
-    def callback(self) -> callable:
+    def callback(self) -> typing.Callable:
         return getattr(self.owner, self._callback)
 
     def __call__(self, other: OutputSignal | None = None) -> None:
@@ -639,7 +641,7 @@ class AccumulatingInputSignal(InputSignal):
         self,
         label: str,
         owner: HasIO,
-        callback: callable,
+        callback: typing.Callable,
     ):
         super().__init__(label=label, owner=owner, callback=callback)
         self.received_signals: set[str] = set()

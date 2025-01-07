@@ -8,7 +8,7 @@ import itertools
 from abc import ABC, abstractmethod
 from dataclasses import MISSING
 from dataclasses import dataclass as as_dataclass
-from typing import Any, ClassVar
+from typing import Any, Callable, ClassVar
 
 from pandas import DataFrame
 from pyiron_snippets.colors import SeabornColors
@@ -65,7 +65,7 @@ class ToManyOutputs(Transformer, ABC):
     # Must be commensurate with the dictionary returned by transform_to_output
 
     @abstractmethod
-    def _on_run(self, input_object) -> callable[..., Any | tuple]:
+    def _on_run(self, input_object) -> Callable[..., Any | tuple]:
         """Must take the single object to be transformed"""
 
     @property
