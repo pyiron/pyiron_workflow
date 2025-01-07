@@ -167,7 +167,9 @@ class Channel(
             f"connection."
         )
 
-    def disconnect(self, *others: Channel) -> list[tuple[Channel, Channel]]:
+    def disconnect(
+            self, *others: ConnectionPartner
+    ) -> list[tuple[Channel[ConnectionPartner], ConnectionPartner]]:
         """
         If currently connected to any others, removes this and the other from eachothers
         respective connections lists.
@@ -187,7 +189,9 @@ class Channel(
                 destroyed_connections.append((self, other))
         return destroyed_connections
 
-    def disconnect_all(self) -> list[tuple[Channel, Channel]]:
+    def disconnect_all(
+            self
+    ) -> list[tuple[Channel[ConnectionPartner], ConnectionPartner]]:
         """
         Disconnect from all other channels currently in the connections list.
         """
