@@ -29,7 +29,16 @@ class ChannelConnectionError(Exception):
     pass
 
 
-class Channel(HasChannel, HasLabel, HasStateDisplay, ABC):
+ConnectionPartner = typing.TypeVar("ConnectionPartner", bound="Channel")
+
+
+class Channel(
+    HasChannel,
+    HasLabel,
+    HasStateDisplay,
+    typing.Generic[ConnectionPartner],
+    ABC
+):
     """
     Channels facilitate the flow of information (data or control signals) into and
     out of :class:`HasIO` objects (namely nodes).
@@ -66,6 +75,8 @@ class Channel(HasChannel, HasLabel, HasStateDisplay, ABC):
         connections (list[Channel]): Other channels to which this channel is connected.
     """
 
+    connection_partner_type: type[ConnectionPartner]
+
     def __init__(
         self,
         label: str,
@@ -91,14 +102,6 @@ class Channel(HasChannel, HasLabel, HasStateDisplay, ABC):
         pass
 
     @property
-    @abstractmethod
-    def connection_partner_type(self) -> type[Channel]:
-        """
-        Input and output class pairs must specify a parent class for their valid
-        connection partners.
-        """
-
-    @property
     def scoped_label(self) -> str:
         """A label combining the channel's usual label and its owner's label"""
         return f"{self.owner.label}__{self.label}"
@@ -108,7 +111,7 @@ class Channel(HasChannel, HasLabel, HasStateDisplay, ABC):
         """A label combining the channel's usual label and its owner's semantic path"""
         return f"{self.owner.full_label}.{self.label}"
 
-    def _valid_connection(self, other: Channel) -> bool:
+    def _valid_connection(self, other: object) -> bool:
         """
         Logic for determining if a connection is valid.
 
@@ -117,7 +120,7 @@ class Channel(HasChannel, HasLabel, HasStateDisplay, ABC):
         """
         return isinstance(other, self.connection_partner_type)
 
-    def connect(self, *others: Channel) -> None:
+    def connect(self, *others: ConnectionPartner) -> None:
         """
         Form a connection between this and one or more other channels.
         Connections are reflexive, and should only occur between input and output
@@ -257,8 +260,9 @@ class NotData(metaclass=Singleton):
 
 NOT_DATA = NotData()
 
+DataConnectionPartner = typing.TypeVar("DataConnectionPartner", bound="DataChannel")
 
-class DataChannel(Channel, ABC):
+class DataChannel(Channel[DataConnectionPartner], ABC):
     """
     Data channels control the flow of data on the graph.
 
@@ -445,7 +449,7 @@ class DataChannel(Channel, ABC):
     def _has_hint(self) -> bool:
         return self.type_hint is not None
 
-    def _valid_connection(self, other: DataChannel) -> bool:
+    def _valid_connection(self, other: object) -> bool:
         if super()._valid_connection(other):
             if self._both_typed(other):
                 out, inp = self._figure_out_who_is_who(other)
@@ -461,10 +465,10 @@ class DataChannel(Channel, ABC):
         else:
             return False
 
-    def _both_typed(self, other: DataChannel) -> bool:
+    def _both_typed(self, other: DataConnectionPartner) -> bool:
         return self._has_hint and other._has_hint
 
-    def _figure_out_who_is_who(self, other: DataChannel) -> (OutputData, InputData):
+    def _figure_out_who_is_who(self, other: DataConnectionPartner) -> (OutputData, InputData):
         return (self, other) if isinstance(self, OutputData) else (other, self)
 
     def __str__(self):
@@ -489,10 +493,7 @@ class DataChannel(Channel, ABC):
         return super().display_state(state=state, ignore_private=ignore_private)
 
 
-class InputData(DataChannel):
-    @property
-    def connection_partner_type(self):
-        return OutputData
+class InputData(DataChannel["OutputData"]):
 
     def fetch(self) -> None:
         """
@@ -528,13 +529,17 @@ class InputData(DataChannel):
         self._value = new_value
 
 
-class OutputData(DataChannel):
-    @property
-    def connection_partner_type(self):
-        return InputData
+class OutputData(DataChannel["InputData"]):
+    pass
 
+InputData.connection_partner_type = OutputData
+OutputData.connection_partner_type = InputData
 
-class SignalChannel(Channel, ABC):
+SignalConnectionPartner = typing.TypeVar(
+    "SignalConnectionPartner", bound="SignalChannel"
+)
+
+class SignalChannel(Channel[SignalConnectionPartner], ABC):
     """
     Signal channels give the option control execution flow by triggering callback
     functions when the channel is called.
@@ -558,10 +563,7 @@ class BadCallbackError(ValueError):
     pass
 
 
-class InputSignal(SignalChannel):
-    @property
-    def connection_partner_type(self):
-        return OutputSignal
+class InputSignal(SignalChannel["OutputSignal"]):
 
     def __init__(
         self,
@@ -673,10 +675,7 @@ class AccumulatingInputSignal(InputSignal):
             other._connect_accumulating_input_signal(self)
 
 
-class OutputSignal(SignalChannel):
-    @property
-    def connection_partner_type(self):
-        return InputSignal
+class OutputSignal(SignalChannel["InputSignal"]):
 
     def __call__(self) -> None:
         for c in self.connections:
@@ -694,3 +693,6 @@ class OutputSignal(SignalChannel):
 
     def _connect_accumulating_input_signal(self, signal: AccumulatingInputSignal):
         self.connect(signal)
+
+InputSignal.connection_partner_type = OutputSignal
+OutputSignal.connection_partner_type = InputSignal
