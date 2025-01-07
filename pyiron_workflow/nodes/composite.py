@@ -7,7 +7,7 @@ from __future__ import annotations
 
 from abc import ABC
 from time import sleep
-from typing import TYPE_CHECKING, Literal
+from typing import Callable, Literal, TYPE_CHECKING
 
 from pyiron_snippets.colors import SeabornColors
 from pyiron_snippets.dotdict import DotDict
@@ -450,7 +450,7 @@ class Composite(SemanticParent, HasCreator, Node, ABC):
         return _get_graph_as_dict(self)
 
     def _get_connections_as_strings(
-        self, panel_getter: callable
+        self, panel_getter: Callable
     ) -> list[tuple[tuple[str, str], tuple[str, str]]]:
         """
         Connections between children in string representation based on labels.
@@ -520,8 +520,8 @@ class Composite(SemanticParent, HasCreator, Node, ABC):
     def _restore_connections_from_strings(
         nodes: dict[str, Node] | DotDict[str, Node],
         connections: list[tuple[tuple[str, str], tuple[str, str]]],
-        input_panel_getter: callable,
-        output_panel_getter: callable,
+        input_panel_getter: Callable,
+        output_panel_getter: Callable,
     ) -> None:
         """
         Set connections among a dictionary of nodes.

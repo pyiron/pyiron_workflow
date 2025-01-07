@@ -569,7 +569,7 @@ class InputSignal(SignalChannel):
         self,
         label: str,
         owner: HasIO,
-        callback: callable,
+        callback: typing.Callable,
     ):
         """
         Make a new input signal channel.
@@ -616,7 +616,7 @@ class InputSignal(SignalChannel):
         )
 
     @property
-    def callback(self) -> callable:
+    def callback(self) -> typing.Callable:
         return getattr(self.owner, self._callback)
 
     def __call__(self, other: OutputSignal | None = None) -> None:
@@ -639,7 +639,7 @@ class AccumulatingInputSignal(InputSignal):
         self,
         label: str,
         owner: HasIO,
-        callback: callable,
+        callback: typing.Callable,
     ):
         super().__init__(label=label, owner=owner, callback=callback)
         self.received_signals: set[str] = set()

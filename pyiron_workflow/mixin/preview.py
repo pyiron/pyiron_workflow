@@ -18,6 +18,7 @@ from functools import lru_cache, wraps
 from typing import (
     TYPE_CHECKING,
     Any,
+    Callable,
     ClassVar,
     get_args,
     get_type_hints,
@@ -81,7 +82,7 @@ class HasIOPreview(ABC):
         )
 
 
-def builds_class_io(subclass_factory: callable[..., type[HasIOPreview]]):
+def builds_class_io(subclass_factory: Callable[..., type[HasIOPreview]]):
     """
     A decorator for factories producing subclasses of `HasIOPreview` to invoke
     :meth:`preview_io` after the class is created, thus ensuring the IO has been
@@ -129,7 +130,7 @@ class ScrapesIO(HasIOPreview, ABC):
 
     @classmethod
     @abstractmethod
-    def _io_defining_function(cls) -> callable:
+    def _io_defining_function(cls) -> Callable:
         """Must return a static method."""
 
     _output_labels: ClassVar[tuple[str] | None] = None  # None: scrape them
@@ -287,7 +288,7 @@ class ScrapesIO(HasIOPreview, ABC):
                 ) from type_error
 
     @staticmethod
-    def _io_defining_documentation(io_defining_function: callable, title: str):
+    def _io_defining_documentation(io_defining_function: Callable, title: str):
         """
         A helper method for building a docstring for classes that have their IO defined
         by some function.

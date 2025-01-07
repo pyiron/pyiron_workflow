@@ -6,7 +6,7 @@ data flow dependencies.
 
 from __future__ import annotations
 
-from typing import TYPE_CHECKING
+from typing import Callable, TYPE_CHECKING
 
 from toposort import CircularDependencyError, toposort, toposort_flatten
 
@@ -90,7 +90,7 @@ def nodes_to_data_digraph(nodes: dict[str, Node]) -> dict[str, set[str]]:
 
 
 def _set_new_run_connections_with_fallback_recovery(
-    connection_creator: callable[[dict[str, Node]], list[Node]], nodes: dict[str, Node]
+    connection_creator: Callable[[dict[str, Node]], list[Node]], nodes: dict[str, Node]
 ):
     """
     Given a function that takes a dictionary of unconnected nodes, connects their
