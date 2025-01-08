@@ -26,7 +26,11 @@ if typing.TYPE_CHECKING:
     from pyiron_workflow.io import HasIO
 
 
-class ChannelConnectionError(Exception):
+class ChannelError(Exception):
+    pass
+
+
+class ChannelConnectionError(ChannelError):
     pass
 
 
@@ -483,7 +487,18 @@ class DataChannel(Channel[DataConnectionPartner], ABC):
     def _figure_out_who_is_who(
             self, other: DataConnectionPartner
     ) -> tuple[OutputData, InputData]:
-        return (self, other) if isinstance(self, OutputData) else (other, self)
+        if isinstance(self, InputData) and isinstance(other, OutputData):
+            return other, self
+        elif isinstance(self, OutputData) and isinstance(other, InputData):
+            return self, other
+        else:
+            raise ChannelError(
+                f"This should be unreachable; data channel conjugate pairs should "
+                f"always be input/output, but got {type(self)} for {self.full_label} "
+                f"and {type(other)} for {other.full_label}. If you don't believe you "
+                f"are responsible for this error, please contact the maintainers via "
+                f"GitHub."
+            )
 
     def __str__(self):
         return str(self.value)
