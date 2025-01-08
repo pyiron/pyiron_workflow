@@ -1,8 +1,9 @@
 from __future__ import annotations
 
 from abc import ABC, abstractmethod
+from collections.abc import Callable
 from inspect import getsource
-from typing import Any, Callable
+from typing import Any
 
 from pyiron_snippets.colors import SeabornColors
 from pyiron_snippets.factory import classfactory

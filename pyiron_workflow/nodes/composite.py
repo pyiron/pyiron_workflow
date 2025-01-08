@@ -6,8 +6,9 @@ sub-graph
 from __future__ import annotations
 
 from abc import ABC
+from collections.abc import Callable
 from time import sleep
-from typing import Callable, Literal, TYPE_CHECKING
+from typing import TYPE_CHECKING, Literal
 
 from pyiron_snippets.colors import SeabornColors
 from pyiron_snippets.dotdict import DotDict

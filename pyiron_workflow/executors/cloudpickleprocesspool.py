@@ -1,7 +1,7 @@
+from collections.abc import Callable
 from concurrent.futures import Future, ProcessPoolExecutor
 from concurrent.futures.process import BrokenProcessPool, _global_shutdown, _WorkItem
 from sys import version_info
-from typing import Callable
 
 import cloudpickle
 

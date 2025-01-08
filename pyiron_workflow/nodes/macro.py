@@ -7,8 +7,9 @@ from __future__ import annotations
 
 import re
 from abc import ABC, abstractmethod
+from collections.abc import Callable
 from inspect import getsource
-from typing import Callable, TYPE_CHECKING
+from typing import TYPE_CHECKING
 
 from pyiron_snippets.factory import classfactory
 

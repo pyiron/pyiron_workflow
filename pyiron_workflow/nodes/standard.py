@@ -7,9 +7,9 @@ from __future__ import annotations
 import os
 import random
 import shutil
+from collections.abc import Callable
 from pathlib import Path
 from time import sleep
-from typing import Callable
 
 from pyiron_workflow.channels import NOT_DATA, OutputSignal
 from pyiron_workflow.nodes.function import Function, as_function_node

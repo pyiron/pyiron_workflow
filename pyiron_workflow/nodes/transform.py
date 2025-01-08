@@ -6,9 +6,10 @@ from __future__ import annotations
 
 import itertools
 from abc import ABC, abstractmethod
+from collections.abc import Callable
 from dataclasses import MISSING
 from dataclasses import dataclass as as_dataclass
-from typing import Any, Callable, ClassVar
+from typing import Any, ClassVar
 
 from pandas import DataFrame
 from pyiron_snippets.colors import SeabornColors
