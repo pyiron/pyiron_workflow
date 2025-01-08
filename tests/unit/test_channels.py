@@ -391,26 +391,44 @@ class TestSignalChannels(unittest.TestCase):
         owner = DummyOwner()
         agg = AccumulatingInputSignal(label="agg", owner=owner, callback=owner.update)
 
-        with self.assertRaises(
-            TypeError,
-            msg="For an aggregating input signal, it _matters_ who called it, so "
-            "receiving an output signal is not optional",
-        ):
-            agg()
-
         out2 = OutputSignal(label="out2", owner=DummyOwner())
         agg.connect(self.out, out2)
 
+        out_unrelated = OutputSignal(label="out_unrelated", owner=DummyOwner())
+
+        signals_sent = 0
         self.assertEqual(
             2, len(agg.connections), msg="Sanity check on initial conditions"
         )
         self.assertEqual(
-            0, len(agg.received_signals), msg="Sanity check on initial conditions"
+            signals_sent,
+            len(agg.received_signals),
+            msg="Sanity check on initial conditions"
         )
         self.assertListEqual([0], owner.foo, msg="Sanity check on initial conditions")
 
+        agg()
+        signals_sent += 0
+        self.assertListEqual(
+            [0],
+            owner.foo,
+            msg="Aggregating calls should only matter when they come from a connection"
+        )
+        agg(out_unrelated)
+        signals_sent += 1
+        self.assertListEqual(
+            [0],
+            owner.foo,
+            msg="Aggregating calls should only matter when they come from a connection"
+        )
+
         self.out()
-        self.assertEqual(1, len(agg.received_signals), msg="Signal should be received")
+        signals_sent += 1
+        self.assertEqual(
+            signals_sent,
+            len(agg.received_signals),
+            msg="Signals from other channels should be received"
+        )
         self.assertListEqual(
             [0],
             owner.foo,
@@ -418,8 +436,9 @@ class TestSignalChannels(unittest.TestCase):
         )
 
         self.out()
+        signals_sent += 0
         self.assertEqual(
-            1,
+            signals_sent,
             len(agg.received_signals),
             msg="Repeatedly receiving the same signal should have no effect",
         )

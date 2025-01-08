@@ -687,14 +687,15 @@ class AccumulatingInputSignal(InputSignal):
         super().__init__(label=label, owner=owner, callback=callback)
         self.received_signals: set[str] = set()
 
-    def __call__(self, other: OutputSignal) -> None:
+    def __call__(self, other: OutputSignal | None = None) -> None:
         """
         Fire callback iff you have received at least one signal from each of your
         current connections.
 
         Resets the collection of received signals when firing.
         """
-        self.received_signals.update([other.scoped_label])
+        if isinstance(other, OutputSignal):
+            self.received_signals.update([other.scoped_label])
         if (
             len(
                 set(c.scoped_label for c in self.connections).difference(
