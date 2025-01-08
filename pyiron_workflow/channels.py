@@ -475,6 +475,7 @@ class DataChannel(Channel[DataConnectionPartner], ABC):
             f"Please check type hints, etc. {other.full_label}.type_hint = "
             f"{other.type_hint}; {self.full_label}.type_hint = {self.type_hint}"
         )
+        return msg
 
     def _both_typed(self, other: DataConnectionPartner | Self) -> bool:
         return self._has_hint and other._has_hint
