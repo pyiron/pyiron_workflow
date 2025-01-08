@@ -14,6 +14,7 @@ from abc import ABC, abstractmethod
 
 from pyiron_snippets.singleton import Singleton
 
+from pyiron_workflow.compatibility import Self
 from pyiron_workflow.mixin.display_state import HasStateDisplay
 from pyiron_workflow.mixin.has_interface_mixins import HasChannel, HasLabel
 from pyiron_workflow.type_hinting import (
@@ -169,7 +170,7 @@ class Channel(
 
     def disconnect(
             self, *others: ConnectionPartner
-    ) -> list[tuple[Channel[ConnectionPartner], ConnectionPartner]]:
+    ) -> list[tuple[Self, ConnectionPartner]]:
         """
         If currently connected to any others, removes this and the other from eachothers
         respective connections lists.
@@ -191,7 +192,7 @@ class Channel(
 
     def disconnect_all(
             self
-    ) -> list[tuple[Channel[ConnectionPartner], ConnectionPartner]]:
+    ) -> list[tuple[Self, ConnectionPartner]]:
         """
         Disconnect from all other channels currently in the connections list.
         """
