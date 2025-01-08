@@ -6,6 +6,7 @@ from pyiron_workflow.channels import (
     BadCallbackError,
     Channel,
     ChannelConnectionError,
+    ConnectionPartner,
     InputData,
     InputSignal,
     OutputData,
@@ -30,26 +31,24 @@ class DummyOwner:
         return self.locked
 
 
-class InputChannel(Channel):
+class DummyChannel(Channel[ConnectionPartner]):
     """Just to de-abstract the base class"""
-
     def __str__(self):
         return "non-abstract input"
 
-    @property
-    def connection_partner_type(self) -> type[Channel]:
-        return OutputChannel
+    def _valid_connection(self, other: object) -> bool:
+        return isinstance(other, self.connection_partner_type)
 
 
-class OutputChannel(Channel):
-    """Just to de-abstract the base class"""
+class InputChannel(DummyChannel["OutputChannel"]):
+    pass
 
-    def __str__(self):
-        return "non-abstract output"
 
-    @property
-    def connection_partner_type(self) -> type[Channel]:
-        return InputChannel
+class OutputChannel(DummyChannel["InputChannel"]):
+    pass
+
+InputChannel.connection_partner_type = OutputChannel
+OutputChannel.connection_partner_type = InputChannel
 
 
 class TestChannel(unittest.TestCase):
