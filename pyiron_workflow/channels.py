@@ -38,11 +38,7 @@ ConnectionPartner = typing.TypeVar("ConnectionPartner", bound="Channel")
 
 
 class Channel(
-    HasChannel,
-    HasLabel,
-    HasStateDisplay,
-    typing.Generic[ConnectionPartner],
-    ABC
+    HasChannel, HasLabel, HasStateDisplay, typing.Generic[ConnectionPartner], ABC
 ):
     """
     Channels facilitate the flow of information (data or control signals) into and
@@ -173,7 +169,7 @@ class Channel(
         )
 
     def disconnect(
-            self, *others: ConnectionPartner
+        self, *others: ConnectionPartner
     ) -> list[tuple[Self, ConnectionPartner]]:
         """
         If currently connected to any others, removes this and the other from eachothers
@@ -194,9 +190,7 @@ class Channel(
                 destroyed_connections.append((self, other))
         return destroyed_connections
 
-    def disconnect_all(
-            self
-    ) -> list[tuple[Self, ConnectionPartner]]:
+    def disconnect_all(self) -> list[tuple[Self, ConnectionPartner]]:
         """
         Disconnect from all other channels currently in the connections list.
         """
@@ -272,6 +266,7 @@ class NotData(metaclass=Singleton):
 NOT_DATA = NotData()
 
 DataConnectionPartner = typing.TypeVar("DataConnectionPartner", bound="DataChannel")
+
 
 class DataChannel(Channel[DataConnectionPartner], ABC):
     """
@@ -488,7 +483,7 @@ class DataChannel(Channel[DataConnectionPartner], ABC):
         return self._has_hint and other._has_hint
 
     def _figure_out_who_is_who(
-            self, other: DataConnectionPartner
+        self, other: DataConnectionPartner
     ) -> tuple[OutputData, InputData]:
         if isinstance(self, InputData) and isinstance(other, OutputData):
             return other, self
@@ -574,6 +569,7 @@ class OutputData(DataChannel["InputData"]):
 SignalConnectionPartner = typing.TypeVar(
     "SignalConnectionPartner", bound="SignalChannel"
 )
+
 
 class SignalChannel(Channel[SignalConnectionPartner], ABC):
     """

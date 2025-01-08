@@ -35,6 +35,7 @@ class DummyOwner:
 
 class DummyChannel(Channel[ConnectionPartner]):
     """Just to de-abstract the base class"""
+
     def __str__(self):
         return "non-abstract input"
 
@@ -403,7 +404,7 @@ class TestSignalChannels(unittest.TestCase):
         self.assertEqual(
             signals_sent,
             len(agg.received_signals),
-            msg="Sanity check on initial conditions"
+            msg="Sanity check on initial conditions",
         )
         self.assertListEqual([0], owner.foo, msg="Sanity check on initial conditions")
 
@@ -412,14 +413,14 @@ class TestSignalChannels(unittest.TestCase):
         self.assertListEqual(
             [0],
             owner.foo,
-            msg="Aggregating calls should only matter when they come from a connection"
+            msg="Aggregating calls should only matter when they come from a connection",
         )
         agg(out_unrelated)
         signals_sent += 1
         self.assertListEqual(
             [0],
             owner.foo,
-            msg="Aggregating calls should only matter when they come from a connection"
+            msg="Aggregating calls should only matter when they come from a connection",
         )
 
         self.out()
@@ -427,7 +428,7 @@ class TestSignalChannels(unittest.TestCase):
         self.assertEqual(
             signals_sent,
             len(agg.received_signals),
-            msg="Signals from other channels should be received"
+            msg="Signals from other channels should be received",
         )
         self.assertListEqual(
             [0],
