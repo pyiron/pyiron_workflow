@@ -112,14 +112,11 @@ class Channel(
         """A label combining the channel's usual label and its owner's semantic path"""
         return f"{self.owner.full_label}.{self.label}"
 
+    @abstractmethod
     def _valid_connection(self, other: object) -> bool:
         """
         Logic for determining if a connection is valid.
-
-        Connections only allowed to instances with the right parent type -- i.e.
-        connection pairs should be an input/output.
         """
-        return isinstance(other, self.connection_partner_type)
 
     def connect(self, *others: ConnectionPartner) -> None:
         """
@@ -457,7 +454,7 @@ class DataChannel(Channel[DataConnectionPartner], ABC):
         return self.type_hint is not None
 
     def _valid_connection(self, other: object) -> bool:
-        if super()._valid_connection(other):
+        if isinstance(other, self.connection_partner_type):
             if self._both_typed(other):
                 out, inp = self._figure_out_who_is_who(other)
                 if not inp.strict_hints:
@@ -479,7 +476,7 @@ class DataChannel(Channel[DataConnectionPartner], ABC):
             f"{other.type_hint}; {self.full_label}.type_hint = {self.type_hint}"
         )
 
-    def _both_typed(self, other: DataConnectionPartner) -> bool:
+    def _both_typed(self, other: DataConnectionPartner | Self) -> bool:
         return self._has_hint and other._has_hint
 
     def _figure_out_who_is_who(
@@ -573,6 +570,9 @@ class SignalChannel(Channel[SignalConnectionPartner], ABC):
     @abstractmethod
     def __call__(self) -> None:
         pass
+
+    def _valid_connection(self, other: object) -> bool:
+        return isinstance(other, self.connection_partner_type)
 
 
 class BadCallbackError(ValueError):
