@@ -342,7 +342,7 @@ class DataChannel(Channel[DataConnectionPartner], ABC):
             when this channel is a value receiver. This can potentially be expensive, so
             consider deactivating strict hints everywhere for production runs. (Default
             is True, raise exceptions when type hints get violated.)
-        value_receiver (pyiron_workflow.channel.DataChannel|None): Another channel of
+        value_receiver (pyiron_workflow.compatibility.Self|None): Another channel of
             the same class whose value will always get updated when this channel's
             value gets updated.
     """
@@ -354,7 +354,7 @@ class DataChannel(Channel[DataConnectionPartner], ABC):
         default: typing.Any | None = NOT_DATA,
         type_hint: typing.Any | None = None,
         strict_hints: bool = True,
-        value_receiver: InputData | None = None,
+        value_receiver: Self | None = None,
     ):
         super().__init__(label=label, owner=owner)
         self._value = NOT_DATA
@@ -363,7 +363,7 @@ class DataChannel(Channel[DataConnectionPartner], ABC):
         self.strict_hints = strict_hints
         self.default = default
         self.value = default  # Implicitly type check your default by assignment
-        self.value_receiver = value_receiver
+        self.value_receiver: Self = value_receiver
 
     @property
     def value(self):
@@ -390,7 +390,7 @@ class DataChannel(Channel[DataConnectionPartner], ABC):
             )
 
     @property
-    def value_receiver(self) -> InputData | OutputData | None:
+    def value_receiver(self) -> Self | None:
         """
         Another data channel of the same type to whom new values are always pushed
         (without type checking of any sort, not even when forming the couple!)
@@ -401,7 +401,7 @@ class DataChannel(Channel[DataConnectionPartner], ABC):
         return self._value_receiver
 
     @value_receiver.setter
-    def value_receiver(self, new_partner: InputData | OutputData | None):
+    def value_receiver(self, new_partner: Self | None):
         if new_partner is not None:
             if not isinstance(new_partner, self.__class__):
                 raise TypeError(
