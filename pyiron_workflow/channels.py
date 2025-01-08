@@ -51,12 +51,9 @@ class Channel(
     They must have an identifier (`label: str`) and belong to an
     `owner: pyiron_workflow.io.HasIO`.
 
-    Non-abstract channel classes should come in input/output pairs and specify the
-    a necessary ancestor for instances they can connect to
-    (`connection_partner_type: type[Channel]`).
 
     Channels may form (:meth:`connect`/:meth:`disconnect`) and store
-    (:attr:`connections: list[Channel]`) connections with other channels.
+    (:attr:`connections`) connections with other channels.
 
     This connection information is reflexive, and is duplicated to be stored on _both_
     channels in the form of a reference to their counterpart in the connection.
@@ -65,10 +62,10 @@ class Channel(
     these (dis)connections is guaranteed to be handled, and new connections are
     subjected to a validity test.
 
-    In this abstract class the only requirement is that the connecting channels form a
-    "conjugate pair" of classes, i.e. they are children of each other's partner class
-    (:attr:`connection_partner_type: type[Channel]`) -- input/output connects to
-    output/input.
+    In this abstract class the only requirements are that the connecting channels form
+    a "conjugate pair" of classes, i.e. they are children of each other's partner class
+    and thus have the same "flavor", but are an input/output pair; and that they define
+    a string representation.
 
     Iterating over channels yields their connections.
 
@@ -79,8 +76,6 @@ class Channel(
         owner (pyiron_workflow.io.HasIO): The channel's owner.
         connections (list[Channel]): Other channels to which this channel is connected.
     """
-
-    connection_partner_type: type[ConnectionPartner]
 
     def __init__(
         self,
@@ -106,6 +101,14 @@ class Channel(
     def __str__(self):
         pass
 
+    @classmethod
+    @abstractmethod
+    def connection_partner_type(cls) -> type[ConnectionPartner]:
+        """
+        The class forming a conjugate pair with this channel class -- i.e. the same
+        "flavor" of channel, but opposite in I/O.
+        """
+
     @property
     def scoped_label(self) -> str:
         """A label combining the channel's usual label and its owner's label"""
@@ -127,7 +130,7 @@ class Channel(
         Form a connection between this and one or more other channels.
         Connections are reflexive, and should only occur between input and output
         channels, i.e. they are instances of each others
-        :attr:`connection_partner_type`.
+        :meth:`connection_partner_type()`.
 
         New connections get _prepended_ to the connection lists, so they appear first
         when searching over connections.
@@ -150,22 +153,22 @@ class Channel(
                 self.connections.insert(0, other)
                 other.connections.insert(0, self)
             else:
-                if isinstance(other, self.connection_partner_type):
+                if isinstance(other, self.connection_partner_type()):
                     raise ChannelConnectionError(
                         self._connection_partner_failure_message(other)
                     ) from None
                 else:
                     raise TypeError(
-                        f"Can only connect to {self.connection_partner_type.__name__} "
-                        f"objects, but {self.full_label} ({self.__class__.__name__}) "
+                        f"Can only connect to {self.connection_partner_type()} "
+                        f"objects, but {self.full_label} ({self.__class__}) "
                         f"got {other} ({type(other)})"
                     )
 
     def _connection_partner_failure_message(self, other: ConnectionPartner) -> str:
         return (
-            f"The channel {other.full_label} ({other.__class__.__name__}) has the "
-            f"correct type ({self.connection_partner_type.__name__}) to connect with "
-            f"{self.full_label} ({self.__class__.__name__}), but is not a valid "
+            f"The channel {other.full_label} ({other.__class__}) has the "
+            f"correct type ({self.connection_partner_type()}) to connect with "
+            f"{self.full_label} ({self.__class__}), but is not a valid "
             f"connection."
         )
 
@@ -458,7 +461,7 @@ class DataChannel(Channel[DataConnectionPartner], ABC):
         return self.type_hint is not None
 
     def _valid_connection(self, other: object) -> bool:
-        if isinstance(other, self.connection_partner_type):
+        if isinstance(other, self.connection_partner_type()):
             if self._both_typed(other):
                 out, inp = self._figure_out_who_is_who(other)
                 if not inp.strict_hints:
@@ -524,6 +527,10 @@ class DataChannel(Channel[DataConnectionPartner], ABC):
 
 class InputData(DataChannel["OutputData"]):
 
+    @classmethod
+    def connection_partner_type(cls) -> type[OutputData]:
+        return OutputData
+
     def fetch(self) -> None:
         """
         Sets :attr:`value` to the first value among connections (i.e. the most recent)
@@ -559,10 +566,10 @@ class InputData(DataChannel["OutputData"]):
 
 
 class OutputData(DataChannel["InputData"]):
-    pass
+    @classmethod
+    def connection_partner_type(cls) -> type[InputData]:
+        return InputData
 
-InputData.connection_partner_type = OutputData
-OutputData.connection_partner_type = InputData
 
 SignalConnectionPartner = typing.TypeVar(
     "SignalConnectionPartner", bound="SignalChannel"
@@ -588,7 +595,7 @@ class SignalChannel(Channel[SignalConnectionPartner], ABC):
         pass
 
     def _valid_connection(self, other: object) -> bool:
-        return isinstance(other, self.connection_partner_type)
+        return isinstance(other, self.connection_partner_type())
 
 
 class BadCallbackError(ValueError):
@@ -622,6 +629,10 @@ class InputSignal(SignalChannel["OutputSignal"]):
                 f"Lives on owner: {self._is_method_on_owner(callback)}; "
                 f"all args are optional: {self._all_args_arg_optional(callback)} "
             )
+
+    @classmethod
+    def connection_partner_type(cls) -> type[OutputSignal]:
+        return OutputSignal
 
     def _is_method_on_owner(self, callback):
         try:
@@ -709,6 +720,10 @@ class AccumulatingInputSignal(InputSignal):
 
 class OutputSignal(SignalChannel["InputSignal"]):
 
+    @classmethod
+    def connection_partner_type(cls) -> type[InputSignal]:
+        return InputSignal
+
     def __call__(self) -> None:
         for c in self.connections:
             c(self)
@@ -725,6 +740,3 @@ class OutputSignal(SignalChannel["InputSignal"]):
 
     def _connect_accumulating_input_signal(self, signal: AccumulatingInputSignal):
         self.connect(signal)
-
-InputSignal.connection_partner_type = OutputSignal
-OutputSignal.connection_partner_type = InputSignal

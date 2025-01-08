@@ -1,3 +1,5 @@
+from __future__ import annotations
+
 import unittest
 
 from pyiron_workflow.channels import (
@@ -37,18 +39,19 @@ class DummyChannel(Channel[ConnectionPartner]):
         return "non-abstract input"
 
     def _valid_connection(self, other: object) -> bool:
-        return isinstance(other, self.connection_partner_type)
+        return isinstance(other, self.connection_partner_type())
 
 
 class InputChannel(DummyChannel["OutputChannel"]):
-    pass
+    @classmethod
+    def connection_partner_type(cls) -> type[OutputChannel]:
+        return OutputChannel
 
 
 class OutputChannel(DummyChannel["InputChannel"]):
-    pass
-
-InputChannel.connection_partner_type = OutputChannel
-OutputChannel.connection_partner_type = InputChannel
+    @classmethod
+    def connection_partner_type(cls) -> type[InputChannel]:
+        return InputChannel
 
 
 class TestChannel(unittest.TestCase):
