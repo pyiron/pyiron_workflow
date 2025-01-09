@@ -35,6 +35,9 @@ class ChannelConnectionError(ChannelError):
 
 
 ConjugateType = typing.TypeVar("ConjugateType", bound="Channel")
+InputType = typing.TypeVar("InputType", bound="InputChannel")
+OutputType = typing.TypeVar("OutputType", bound="OutputChannel")
+FlavorType = typing.TypeVar("FlavorType", bound="FlavorChannel")
 
 
 class Channel(
@@ -168,9 +171,7 @@ class Channel(
             f"connection."
         )
 
-    def disconnect(
-        self, *others: ConjugateType
-    ) -> list[tuple[Self, ConjugateType]]:
+    def disconnect(self, *others: ConjugateType) -> list[tuple[Self, ConjugateType]]:
         """
         If currently connected to any others, removes this and the other from eachothers
         respective connections lists.
@@ -243,6 +244,20 @@ class Channel(
         return super().display_state(state=state, ignore_private=ignore_private)
 
 
+class FlavorChannel(Channel[FlavorType], ABC):
+    """Abstract base for all flavor-specific channels."""
+
+    pass
+
+
+class InputChannel(Channel[OutputType], ABC):
+    """Mixin for input channels."""
+
+
+class OutputChannel(Channel[InputType], ABC):
+    """Mixin for output channels."""
+
+
 class NotData(metaclass=Singleton):
     """
     This class exists purely to initialize data channel values where no default value
@@ -265,10 +280,10 @@ class NotData(metaclass=Singleton):
 
 NOT_DATA = NotData()
 
-DataConnectionPartner = typing.TypeVar("DataConnectionPartner", bound="DataChannel")
+# DataConnectionPartner = typing.TypeVar("DataConnectionPartner", bound="DataChannel")
 
 
-class DataChannel(Channel[DataConnectionPartner], ABC):
+class DataChannel(FlavorChannel["DataChannel"], ABC):
     """
     Data channels control the flow of data on the graph.
 
@@ -471,7 +486,7 @@ class DataChannel(Channel[DataConnectionPartner], ABC):
         else:
             return False
 
-    def _connection_conjugate_failure_message(self, other: DataConnectionPartner) -> str:
+    def _connection_conjugate_failure_message(self, other: DataChannel) -> str:
         msg = super()._connection_conjugate_failure_message(other)
         msg += (
             f"Please check type hints, etc. {other.full_label}.type_hint = "
@@ -479,11 +494,11 @@ class DataChannel(Channel[DataConnectionPartner], ABC):
         )
         return msg
 
-    def _both_typed(self, other: DataConnectionPartner | Self) -> bool:
+    def _both_typed(self, other: DataChannel) -> bool:
         return self._has_hint and other._has_hint
 
     def _figure_out_who_is_who(
-        self, other: DataConnectionPartner
+        self, other: DataChannel
     ) -> tuple[OutputData, InputData]:
         if isinstance(self, InputData) and isinstance(other, OutputData):
             return other, self
@@ -520,7 +535,7 @@ class DataChannel(Channel[DataConnectionPartner], ABC):
         return super().display_state(state=state, ignore_private=ignore_private)
 
 
-class InputData(DataChannel["OutputData"]):
+class InputData(DataChannel, InputChannel["OutputData"]):
 
     @classmethod
     def connection_conjugate(cls) -> type[OutputData]:
@@ -560,18 +575,16 @@ class InputData(DataChannel["OutputData"]):
         self._value = new_value
 
 
-class OutputData(DataChannel["InputData"]):
+class OutputData(DataChannel, OutputChannel["InputData"]):
     @classmethod
     def connection_conjugate(cls) -> type[InputData]:
         return InputData
 
 
-SignalConnectionPartner = typing.TypeVar(
-    "SignalConnectionPartner", bound="SignalChannel"
-)
+SignalType = typing.TypeVar("SignalType", bound="SignalChannel")
 
 
-class SignalChannel(Channel[SignalConnectionPartner], ABC):
+class SignalChannel(FlavorChannel[SignalType], ABC):
     """
     Signal channels give the option control execution flow by triggering callback
     functions when the channel is called.
@@ -598,7 +611,7 @@ class BadCallbackError(ValueError):
     pass
 
 
-class InputSignal(SignalChannel["OutputSignal"]):
+class InputSignal(SignalChannel["OutputSignal"], InputChannel["OutputSignal"]):
 
     def __init__(
         self,
@@ -715,7 +728,7 @@ class AccumulatingInputSignal(InputSignal):
             other._connect_accumulating_input_signal(self)
 
 
-class OutputSignal(SignalChannel["InputSignal"]):
+class OutputSignal(SignalChannel["InputSignal"], OutputChannel["InputSignal"]):
 
     @classmethod
     def connection_conjugate(cls) -> type[InputSignal]:
