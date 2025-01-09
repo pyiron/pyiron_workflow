@@ -208,7 +208,7 @@ class Channel(
         return self.connections.__iter__()
 
     @property
-    def channel(self) -> Channel:
+    def channel(self) -> Self:
         return self
 
     def copy_connections(self, other: Channel) -> None:
@@ -247,8 +247,6 @@ class Channel(
 class FlavorChannel(Channel[FlavorType], ABC):
     """Abstract base for all flavor-specific channels."""
 
-    pass
-
 
 class InputChannel(Channel[OutputType], ABC):
     """Mixin for input channels."""
@@ -279,8 +277,6 @@ class NotData(metaclass=Singleton):
 
 
 NOT_DATA = NotData()
-
-# DataConnectionPartner = typing.TypeVar("DataConnectionPartner", bound="DataChannel")
 
 
 class DataChannel(FlavorChannel["DataChannel"], ABC):
