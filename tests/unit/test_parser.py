@@ -16,7 +16,7 @@ class TestParser(unittest.TestCase):
     def test_parser(self):
         c = calculate_speed()
         output_dict = get_inputs_and_outputs(c)
-        for label in ["input", "output", "function", "label"]:
+        for label in ["inputs", "outputs", "function", "label"]:
             self.assertIn(label, output_dict)
 
 
