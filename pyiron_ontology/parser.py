@@ -25,8 +25,8 @@ def get_inputs_and_outputs(node):
         outputs[key]["value"] = value
         outputs[key]["var_name"] = key
     return {
-        "input": inputs,
-        "output": outputs,
+        "inputs": inputs,
+        "outputs": outputs,
         "function": node.node_function.__name__,
         "label": node.label,
     }
