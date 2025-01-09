@@ -28,15 +28,9 @@ def valid_value(value, type_hint) -> bool:
 
 
 def type_hint_to_tuple(type_hint) -> tuple:
-    if isinstance(
-        type_hint,
-        types.UnionType | typing._UnionGenericAlias,  # type: ignore
-        # mypy complains because it thinks typing._UnionGenericAlias doesn't exist
-        # It definitely does, and we may be able to remove this once mypy catches up
-    ):
+    if isinstance(type_hint, types.UnionType):
         return typing.get_args(type_hint)
-    else:
-        return (type_hint,)
+    return (type_hint,)
 
 
 def type_hint_is_as_or_more_specific_than(hint, other) -> bool:
