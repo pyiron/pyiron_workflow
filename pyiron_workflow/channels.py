@@ -211,7 +211,7 @@ class Channel(
     def channel(self) -> Self:
         return self
 
-    def copy_connections(self, other: Channel) -> None:
+    def copy_connections(self, other: Self) -> None:
         """
         Adds all the connections in another channel to this channel's connections.
 
