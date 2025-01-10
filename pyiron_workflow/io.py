@@ -341,14 +341,14 @@ class HasIO(HasStateDisplay, HasLabel, HasRun, ABC):
         return self.inputs.connected or self.outputs.connected or self.signals.connected
 
     @property
-    def fully_connected(self):
+    def fully_connected(self) -> bool:
         return (
             self.inputs.fully_connected
             and self.outputs.fully_connected
             and self.signals.fully_connected
         )
 
-    def disconnect(self):
+    def disconnect(self) -> list[tuple[Channel, Channel]]:
         """
         Disconnect all connections belonging to inputs, outputs, and signals channels.
 
@@ -375,7 +375,7 @@ class HasIO(HasStateDisplay, HasLabel, HasRun, ABC):
     def _connect_output_signal(self, signal: OutputSignal):
         self.signals.input.run.connect(signal)
 
-    def __rshift__(self, other: InputSignal | HasIO):
+    def __rshift__(self, other: InputSignal | HasIO) -> InputSignal | HasIO:
         """
         Allows users to connect run and ran signals like: `first >> second`.
         """
