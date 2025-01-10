@@ -259,12 +259,6 @@ class SemanticParent(Semantic, Generic[ChildType], ABC):
                 f"but got {child}"
             )
 
-        if isinstance(child, ParentMost):
-            raise ParentMostError(
-                f"{child.label} is {ParentMost.__name__} and may only take None as a "
-                f"parent but was added as a child to {self.label}"
-            )
-
         self._ensure_path_is_not_cyclic(self, child)
 
         self._ensure_child_has_no_other_parent(child)
@@ -405,27 +399,3 @@ class SemanticParent(Semantic, Generic[ChildType], ABC):
         # children). So, now return their parent to them:
         for child in self:
             child.parent = self
-
-
-class ParentMostError(TypeError):
-    """
-    To be raised when assigning a parent to a parent-most object
-    """
-
-
-class ParentMost(SemanticParent[ChildType], ABC):
-    """
-    A semantic parent that cannot have any other parent.
-    """
-
-    @property
-    def parent(self) -> None:
-        return None
-
-    @parent.setter
-    def parent(self, new_parent: None):
-        if new_parent is not None:
-            raise ParentMostError(
-                f"{self.label} is {ParentMost.__name__} and may only take None as a "
-                f"parent but got {type(new_parent)}"
-            )
