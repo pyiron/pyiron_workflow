@@ -131,7 +131,7 @@ class IO(HasStateDisplay, Generic[OwnedType, OwnedConjugate], ABC):
     def fully_connected(self):
         return all([c.connected for c in self])
 
-    def disconnect(self) -> list[tuple[OwnedConjugate, OwnedConjugate]]:
+    def disconnect(self) -> list[tuple[OwnedType, OwnedConjugate]]:
         """
         Disconnect all connections that owned channels have.
 
