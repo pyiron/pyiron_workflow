@@ -54,7 +54,7 @@ class Runnable(UsesState, HasLabel, HasRun, ABC):
         super().__init__(*args, **kwargs)
         self.running: bool = False
         self.failed: bool = False
-        self.executor: StdLibExecutor | (Callable[..., StdLibExecutor], tuple, dict) | None = None
+        self.executor: StdLibExecutor | tuple[Callable[..., StdLibExecutor], tuple, dict] | None = None
         # We call it an executor, but it can also be instructions on making one
         self.future: None | Future = None
         self._thread_pool_sleep_time: float = 1e-6
@@ -308,7 +308,7 @@ class Runnable(UsesState, HasLabel, HasRun, ABC):
 
     @staticmethod
     def _parse_executor(
-        executor: StdLibExecutor | (Callable[..., StdLibExecutor], tuple, dict),
+        executor: StdLibExecutor | tuple[Callable[..., StdLibExecutor], tuple, dict],
     ) -> StdLibExecutor:
         """
         If you've already got an executor, you're done. But if you get callable and
