@@ -342,15 +342,15 @@ class SemanticParent(Semantic, Generic[ChildType], ABC):
             )
         return new_label
 
-    def remove_child(self, child: Semantic | str) -> Semantic:
+    def remove_child(self, child: ChildType | str) -> ChildType:
         if isinstance(child, str):
             child = self.children.pop(child)
-        elif isinstance(child, Semantic):
+        elif isinstance(child, self.child_type()):
             self.children.inv.pop(child)
         else:
             raise TypeError(
                 f"{self.label} expected to remove a child of type str or "
-                f"{Semantic.__name__} but got {child}"
+                f"{self.child_type()} but got {child}"
             )
 
         child.parent = None
