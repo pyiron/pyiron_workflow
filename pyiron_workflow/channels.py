@@ -34,11 +34,14 @@ class ChannelConnectionError(ChannelError):
     pass
 
 
-ConnectionPartner = typing.TypeVar("ConnectionPartner", bound="Channel")
+ConjugateType = typing.TypeVar("ConjugateType", bound="Channel")
+InputType = typing.TypeVar("InputType", bound="InputChannel")
+OutputType = typing.TypeVar("OutputType", bound="OutputChannel")
+FlavorType = typing.TypeVar("FlavorType", bound="FlavorChannel")
 
 
 class Channel(
-    HasChannel, HasLabel, HasStateDisplay, typing.Generic[ConnectionPartner], ABC
+    HasChannel, HasLabel, HasStateDisplay, typing.Generic[ConjugateType], ABC
 ):
     """
     Channels facilitate the flow of information (data or control signals) into and
@@ -58,10 +61,10 @@ class Channel(
     these (dis)connections is guaranteed to be handled, and new connections are
     subjected to a validity test.
 
-    In this abstract class the only requirements are that the connecting channels form
-    a "conjugate pair" of classes, i.e. they are children of each other's partner class
-    and thus have the same "flavor", but are an input/output pair; and that they define
-    a string representation.
+    Child classes must specify a conjugate class in order to enforce connection
+    conjugate pairs which have the same "flavor" (e.g. "data" or "signal"), and
+    opposite "direction" ("input" vs "output"). And they must define a string
+    representation.
 
     Iterating over channels yields their connections.
 
@@ -87,7 +90,7 @@ class Channel(
         """
         self._label = label
         self.owner: HasIO = owner
-        self.connections: list[ConnectionPartner] = []
+        self.connections: list[ConjugateType] = []
 
     @property
     def label(self) -> str:
@@ -99,7 +102,7 @@ class Channel(
 
     @classmethod
     @abstractmethod
-    def connection_partner_type(cls) -> type[ConnectionPartner]:
+    def connection_conjugate(cls) -> type[ConjugateType]:
         """
         The class forming a conjugate pair with this channel class -- i.e. the same
         "flavor" of channel, but opposite in I/O.
@@ -121,12 +124,12 @@ class Channel(
         Logic for determining if a connection is valid.
         """
 
-    def connect(self, *others: ConnectionPartner) -> None:
+    def connect(self, *others: ConjugateType) -> None:
         """
         Form a connection between this and one or more other channels.
         Connections are reflexive, and should only occur between input and output
         channels, i.e. they are instances of each others
-        :meth:`connection_partner_type()`.
+        :meth:`connection_conjugate()`.
 
         New connections get _prepended_ to the connection lists, so they appear first
         when searching over connections.
@@ -149,28 +152,26 @@ class Channel(
                 self.connections.insert(0, other)
                 other.connections.insert(0, self)
             else:
-                if isinstance(other, self.connection_partner_type()):
+                if isinstance(other, self.connection_conjugate()):
                     raise ChannelConnectionError(
-                        self._connection_partner_failure_message(other)
+                        self._connection_conjugate_failure_message(other)
                     ) from None
                 else:
                     raise TypeError(
-                        f"Can only connect to {self.connection_partner_type()} "
+                        f"Can only connect to {self.connection_conjugate()} "
                         f"objects, but {self.full_label} ({self.__class__}) "
                         f"got {other} ({type(other)})"
                     )
 
-    def _connection_partner_failure_message(self, other: ConnectionPartner) -> str:
+    def _connection_conjugate_failure_message(self, other: ConjugateType) -> str:
         return (
             f"The channel {other.full_label} ({other.__class__}) has the "
-            f"correct type ({self.connection_partner_type()}) to connect with "
+            f"correct type ({self.connection_conjugate()}) to connect with "
             f"{self.full_label} ({self.__class__}), but is not a valid "
             f"connection."
         )
 
-    def disconnect(
-        self, *others: ConnectionPartner
-    ) -> list[tuple[Self, ConnectionPartner]]:
+    def disconnect(self, *others: ConjugateType) -> list[tuple[Self, ConjugateType]]:
         """
         If currently connected to any others, removes this and the other from eachothers
         respective connections lists.
@@ -190,7 +191,7 @@ class Channel(
                 destroyed_connections.append((self, other))
         return destroyed_connections
 
-    def disconnect_all(self) -> list[tuple[Self, ConnectionPartner]]:
+    def disconnect_all(self) -> list[tuple[Self, ConjugateType]]:
         """
         Disconnect from all other channels currently in the connections list.
         """
@@ -207,10 +208,10 @@ class Channel(
         return self.connections.__iter__()
 
     @property
-    def channel(self) -> Channel:
+    def channel(self) -> Self:
         return self
 
-    def copy_connections(self, other: Channel) -> None:
+    def copy_connections(self, other: Self) -> None:
         """
         Adds all the connections in another channel to this channel's connections.
 
@@ -243,6 +244,18 @@ class Channel(
         return super().display_state(state=state, ignore_private=ignore_private)
 
 
+class FlavorChannel(Channel[FlavorType], ABC):
+    """Abstract base for all flavor-specific channels."""
+
+
+class InputChannel(Channel[OutputType], ABC):
+    """Mixin for input channels."""
+
+
+class OutputChannel(Channel[InputType], ABC):
+    """Mixin for output channels."""
+
+
 class NotData(metaclass=Singleton):
     """
     This class exists purely to initialize data channel values where no default value
@@ -265,10 +278,8 @@ class NotData(metaclass=Singleton):
 
 NOT_DATA = NotData()
 
-DataConnectionPartner = typing.TypeVar("DataConnectionPartner", bound="DataChannel")
 
-
-class DataChannel(Channel[DataConnectionPartner], ABC):
+class DataChannel(FlavorChannel["DataChannel"], ABC):
     """
     Data channels control the flow of data on the graph.
 
@@ -456,7 +467,7 @@ class DataChannel(Channel[DataConnectionPartner], ABC):
         return self.type_hint is not None
 
     def _valid_connection(self, other: object) -> bool:
-        if isinstance(other, self.connection_partner_type()):
+        if isinstance(other, self.connection_conjugate()):
             if self._both_typed(other):
                 out, inp = self._figure_out_who_is_who(other)
                 if not inp.strict_hints:
@@ -471,19 +482,19 @@ class DataChannel(Channel[DataConnectionPartner], ABC):
         else:
             return False
 
-    def _connection_partner_failure_message(self, other: DataConnectionPartner) -> str:
-        msg = super()._connection_partner_failure_message(other)
+    def _connection_conjugate_failure_message(self, other: DataChannel) -> str:
+        msg = super()._connection_conjugate_failure_message(other)
         msg += (
             f"Please check type hints, etc. {other.full_label}.type_hint = "
             f"{other.type_hint}; {self.full_label}.type_hint = {self.type_hint}"
         )
         return msg
 
-    def _both_typed(self, other: DataConnectionPartner | Self) -> bool:
+    def _both_typed(self, other: DataChannel) -> bool:
         return self._has_hint and other._has_hint
 
     def _figure_out_who_is_who(
-        self, other: DataConnectionPartner
+        self, other: DataChannel
     ) -> tuple[OutputData, InputData]:
         if isinstance(self, InputData) and isinstance(other, OutputData):
             return other, self
@@ -520,10 +531,10 @@ class DataChannel(Channel[DataConnectionPartner], ABC):
         return super().display_state(state=state, ignore_private=ignore_private)
 
 
-class InputData(DataChannel["OutputData"]):
+class InputData(DataChannel, InputChannel["OutputData"]):
 
     @classmethod
-    def connection_partner_type(cls) -> type[OutputData]:
+    def connection_conjugate(cls) -> type[OutputData]:
         return OutputData
 
     def fetch(self) -> None:
@@ -560,18 +571,16 @@ class InputData(DataChannel["OutputData"]):
         self._value = new_value
 
 
-class OutputData(DataChannel["InputData"]):
+class OutputData(DataChannel, OutputChannel["InputData"]):
     @classmethod
-    def connection_partner_type(cls) -> type[InputData]:
+    def connection_conjugate(cls) -> type[InputData]:
         return InputData
 
 
-SignalConnectionPartner = typing.TypeVar(
-    "SignalConnectionPartner", bound="SignalChannel"
-)
+SignalType = typing.TypeVar("SignalType", bound="SignalChannel")
 
 
-class SignalChannel(Channel[SignalConnectionPartner], ABC):
+class SignalChannel(FlavorChannel[SignalType], ABC):
     """
     Signal channels give the option control execution flow by triggering callback
     functions when the channel is called.
@@ -591,14 +600,14 @@ class SignalChannel(Channel[SignalConnectionPartner], ABC):
         pass
 
     def _valid_connection(self, other: object) -> bool:
-        return isinstance(other, self.connection_partner_type())
+        return isinstance(other, self.connection_conjugate())
 
 
 class BadCallbackError(ValueError):
     pass
 
 
-class InputSignal(SignalChannel["OutputSignal"]):
+class InputSignal(SignalChannel["OutputSignal"], InputChannel["OutputSignal"]):
 
     def __init__(
         self,
@@ -627,7 +636,7 @@ class InputSignal(SignalChannel["OutputSignal"]):
             )
 
     @classmethod
-    def connection_partner_type(cls) -> type[OutputSignal]:
+    def connection_conjugate(cls) -> type[OutputSignal]:
         return OutputSignal
 
     def _is_method_on_owner(self, callback):
@@ -715,10 +724,10 @@ class AccumulatingInputSignal(InputSignal):
             other._connect_accumulating_input_signal(self)
 
 
-class OutputSignal(SignalChannel["InputSignal"]):
+class OutputSignal(SignalChannel["InputSignal"], OutputChannel["InputSignal"]):
 
     @classmethod
-    def connection_partner_type(cls) -> type[InputSignal]:
+    def connection_conjugate(cls) -> type[InputSignal]:
         return InputSignal
 
     def __call__(self) -> None:
