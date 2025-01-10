@@ -7,6 +7,7 @@ from __future__ import annotations
 
 import contextlib
 from abc import ABC, abstractmethod
+from collections.abc import Callable
 from concurrent.futures import Executor as StdLibExecutor
 from concurrent.futures import Future, ThreadPoolExecutor
 from functools import partial
@@ -51,14 +52,12 @@ class Runnable(UsesState, HasLabel, HasRun, ABC):
 
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
-        self.running = False
-        self.failed = False
-        self.executor = None
-        # We call it an executor, but it's just whether to use one.
-        # This is a simply stop-gap as we work out more sophisticated ways to reference
-        # (or create) an executor process without ever trying to pickle a `_thread.lock`
+        self.running: bool = False
+        self.failed: bool = False
+        self.executor: StdLibExecutor | (Callable[..., StdLibExecutor], tuple, dict) | None = None
+        # We call it an executor, but it can also be instructions on making one
         self.future: None | Future = None
-        self._thread_pool_sleep_time = 1e-6
+        self._thread_pool_sleep_time: float = 1e-6
 
     @abstractmethod
     def on_run(self, *args, **kwargs) -> Any:  # callable[..., Any | tuple]:
@@ -308,7 +307,7 @@ class Runnable(UsesState, HasLabel, HasRun, ABC):
 
     @staticmethod
     def _parse_executor(
-        executor: StdLibExecutor | (callable[..., StdLibExecutor], tuple, dict),
+        executor: StdLibExecutor | (Callable[..., StdLibExecutor], tuple, dict),
     ) -> StdLibExecutor:
         """
         If you've already got an executor, you're done. But if you get callable and
