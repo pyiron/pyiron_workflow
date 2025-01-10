@@ -20,7 +20,6 @@ from typing import Generic, TypeVar
 
 from bidict import bidict
 
-from pyiron_workflow.compatibility import Self
 from pyiron_workflow.logging import logger
 from pyiron_workflow.mixin.has_interface_mixins import HasLabel, HasParent, UsesState
 
