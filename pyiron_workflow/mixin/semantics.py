@@ -36,7 +36,7 @@ class Semantic(UsesState, HasLabel, HasParent, ABC):
     def __init__(
         self, label: str, *args, parent: SemanticParent | None = None, **kwargs
     ):
-        self._label = None
+        self._label = ""
         self._parent = None
         self._detached_parent_path = None
         self.label = label
