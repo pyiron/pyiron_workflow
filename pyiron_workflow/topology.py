@@ -75,8 +75,8 @@ def nodes_to_data_digraph(nodes: dict[str, Node]) -> dict[str, set[str]]:
                     )
                 locally_scoped_dependencies.append(upstream.owner.label)
             node_dependencies.extend(locally_scoped_dependencies)
-        node_dependencies = set(node_dependencies)
-        if node.label in node_dependencies:
+        node_dependencies_set = set(node_dependencies)
+        if node.label in node_dependencies_set:
             # the toposort library has a
             # [known issue](https://gitlab.com/ericvsmith/toposort/-/issues/3)
             # That self-dependency isn't caught, so we catch it manually here.
@@ -85,7 +85,7 @@ def nodes_to_data_digraph(nodes: dict[str, Node]) -> dict[str, set[str]]:
                 f"the execution of non-DAGs: {node.full_label} appears in its own "
                 f"input."
             )
-        digraph[node.label] = node_dependencies
+        digraph[node.label] = node_dependencies_set
 
     return digraph
 
