@@ -134,7 +134,7 @@ class Runnable(UsesState, HasLabel, HasRun, ABC):
                 :attr:`running`. (Default is True.)
         """
 
-        def _none_to_dict(inp):
+        def _none_to_dict(inp: dict | None) -> dict:
             return {} if inp is None else inp
 
         before_run_kwargs = _none_to_dict(before_run_kwargs)
