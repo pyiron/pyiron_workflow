@@ -20,6 +20,7 @@ from typing import Generic, TypeVar
 
 from bidict import bidict
 
+from pyiron_workflow.compatibility import Self
 from pyiron_workflow.logging import logger
 from pyiron_workflow.mixin.has_interface_mixins import HasLabel, HasParent, UsesState
 
@@ -293,7 +294,7 @@ class SemanticParent(Semantic, Generic[ChildType], ABC):
         return child
 
     @staticmethod
-    def _ensure_path_is_not_cyclic(parent: SemanticParent | None, child: ChildType):
+    def _ensure_path_is_not_cyclic(parent: SemanticParent | None, child: Semantic):
         if parent is not None and parent.semantic_path.startswith(
             child.semantic_path + child.semantic_delimiter
         ):
