@@ -31,7 +31,7 @@ class Semantic(UsesState, HasLabel, HasParent, ABC):
     accessible.
     """
 
-    semantic_delimiter = "/"
+    semantic_delimiter: str = "/"
 
     def __init__(
         self, label: str, *args, parent: SemanticParent | None = None, **kwargs
