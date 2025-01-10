@@ -10,23 +10,27 @@ import inspect
 import sys
 from pathlib import Path
 from types import ModuleType
+from typing import TypeVar
 
 from pyiron_workflow.node import Node
 
+NodeType = TypeVar("NodeType", bound=Node)
 
 def _get_subclasses(
     source: str | Path | ModuleType,
-    base_class: type,
+    base_class: type[NodeType],
     get_private: bool = False,
     get_abstract: bool = False,
     get_imports_too: bool = False,
-):
+) -> list[type[NodeType]]:
     if isinstance(source, str | Path):
         source = Path(source)
         if source.is_file():
             # Load the module from the file
             module_name = source.stem
             spec = importlib.util.spec_from_file_location(module_name, str(source))
+            if spec is None or spec.loader is None:
+                raise ImportError(f"Could not create a ModuleSpec for {source}")
             module = importlib.util.module_from_spec(spec)
             sys.modules[module_name] = module
             spec.loader.exec_module(module)
