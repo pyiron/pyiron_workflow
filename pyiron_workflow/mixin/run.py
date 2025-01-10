@@ -274,7 +274,7 @@ class Runnable(UsesState, HasLabel, HasRun, ABC):
         run_exception_kwargs: dict,
         run_finally_kwargs: dict,
         **kwargs,
-    ) -> Any | tuple:
+    ) -> Any | tuple | None:
         """
         Switch the status, then process and return the run result.
         """
@@ -287,6 +287,7 @@ class Runnable(UsesState, HasLabel, HasRun, ABC):
             self._run_exception(**run_exception_kwargs)
             if raise_run_exceptions:
                 raise e
+            return None
         finally:
             self._run_finally(**run_finally_kwargs)
 
