@@ -538,7 +538,7 @@ class HasIO(HasStateDisplay, HasLabel, HasRun, ABC):
         self,
         other: HasIO,
         fail_hard: bool = False,
-    ) -> list[tuple[Channel, Any]]:
+    ) -> list[tuple[DataChannel, Any]]:
         """
         Copies all data from input and output channels in the other object onto this
         one.
