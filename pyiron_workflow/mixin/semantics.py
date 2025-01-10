@@ -63,6 +63,13 @@ class Semantic(UsesState, HasLabel, HasParent, ABC):
 
     @parent.setter
     def parent(self, new_parent: SemanticParent | None) -> None:
+        self._set_parent(new_parent)
+
+    def _set_parent(self, new_parent: SemanticParent | None):
+        """
+        mypy is uncooperative with super calls for setters, so we pull the behaviour
+        out.
+        """
         if new_parent is self._parent:
             # Exit early if nothing is changing
             return
@@ -365,7 +372,7 @@ class SemanticParent(Semantic, Generic[ChildType], ABC):
     @parent.setter
     def parent(self, new_parent: SemanticParent | None) -> None:
         self._ensure_path_is_not_cyclic(new_parent, self)
-        super(SemanticParent, type(self)).parent.__set__(self, new_parent)
+        self._set_parent(new_parent)
 
     def __getstate__(self):
         state = super().__getstate__()
