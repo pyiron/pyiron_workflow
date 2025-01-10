@@ -17,13 +17,13 @@ from pyiron_workflow.channels import (
     NOT_DATA,
     AccumulatingInputSignal,
     Channel,
-    InputType,
-    OutputType,
     DataChannel,
     InputData,
     InputSignal,
+    InputType,
     OutputData,
     OutputSignal,
+    OutputType,
     SignalChannel,
 )
 from pyiron_workflow.logging import logger
@@ -33,7 +33,6 @@ from pyiron_workflow.mixin.has_interface_mixins import (
     HasLabel,
     HasRun,
 )
-
 
 OwnedType = TypeVar("OwnedType", bound=Channel)
 OwnedConjugate = TypeVar("OwnedConjugate", bound=Channel)
