@@ -474,8 +474,8 @@ class HasIO(HasStateDisplay, HasLabel, HasRun, ABC):
         try:
             self._copy_values(other, fail_hard=values_fail_hard)
         except Exception as e:
-            for this, other in new_connections:
-                this.disconnect(other)
+            for owned, conjugate in new_connections:
+                owned.disconnect(conjugate)
             raise e
 
     def _copy_connections(
