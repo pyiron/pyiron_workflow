@@ -52,8 +52,10 @@ def get_triples(data, EX):
             full_key = data["label"] + f".{io_}." + key
             label = EX[full_key]
             graph.add((label, RDFS.label, Literal(full_key)))
-            graph.add((label, RDF.type, d["uri"]))
-            graph.add((label, RDF.value, Literal(d["value"])))
+            if d["uri"]:
+                graph.add((label, RDF.type, d["uri"]))
+            if d["value"]:
+                graph.add((label, RDF.value, Literal(d["value"])))
             graph.add((label, EX[io_[:-1] + "Of"], EX[data["label"]]))
             if d["units"] is not None:
                 graph.add((label, EX.hasUnits, EX[d["units"]]))
