@@ -13,9 +13,10 @@ different drives or machines) belong to the same semantic group.
 
 from __future__ import annotations
 
-from abc import ABC
+from abc import ABC, abstractmethod
 from difflib import get_close_matches
 from pathlib import Path
+from typing import Generic, TypeVar
 
 from bidict import bidict
 
@@ -157,7 +158,10 @@ class CyclicPathError(ValueError):
     """
 
 
-class SemanticParent(Semantic, ABC):
+ChildType = TypeVar("ChildType", bound=Semantic)
+
+
+class SemanticParent(Semantic, Generic[ChildType], ABC):
     """
     A semantic object with a collection of uniquely-named semantic children.
 
@@ -182,19 +186,24 @@ class SemanticParent(Semantic, ABC):
         strict_naming: bool = True,
         **kwargs,
     ):
-        self._children = bidict()
+        self._children: bidict[str, ChildType] = bidict()
         self.strict_naming = strict_naming
         super().__init__(*args, label=label, parent=parent, **kwargs)
 
+    @classmethod
+    @abstractmethod
+    def child_type(cls) -> type[ChildType]:
+        pass
+
     @property
-    def children(self) -> bidict[str, Semantic]:
+    def children(self) -> bidict[str, ChildType]:
         return self._children
 
     @property
     def child_labels(self) -> tuple[str]:
         return tuple(child.label for child in self)
 
-    def __getattr__(self, key):
+    def __getattr__(self, key) -> ChildType:
         try:
             return self._children[key]
         except KeyError as key_error:
@@ -210,7 +219,7 @@ class SemanticParent(Semantic, ABC):
     def __iter__(self):
         return self.children.values().__iter__()
 
-    def __len__(self):
+    def __len__(self) -> int:
         return len(self.children)
 
     def __dir__(self):
@@ -218,15 +227,15 @@ class SemanticParent(Semantic, ABC):
 
     def add_child(
         self,
-        child: Semantic,
+        child: ChildType,
         label: str | None = None,
         strict_naming: bool | None = None,
-    ) -> Semantic:
+    ) -> ChildType:
         """
         Add a child, optionally assigning it a new label in the process.
 
         Args:
-            child (Semantic): The child to add.
+            child (ChildType): The child to add.
             label (str|None): A (potentially) new label to assign the child. (Default
                 is None, leave the child's label alone.)
             strict_naming (bool|None): Whether to append a suffix to the label if
@@ -234,7 +243,7 @@ class SemanticParent(Semantic, ABC):
                 use the class-level flag.)
 
         Returns:
-            (Semantic): The child being added.
+            (ChildType): The child being added.
 
         Raises:
             TypeError: When the child is not of an allowed class.
@@ -244,9 +253,9 @@ class SemanticParent(Semantic, ABC):
                 `strict_naming` is true.
 
         """
-        if not isinstance(child, Semantic):
+        if not isinstance(child, self.child_type()):
             raise TypeError(
-                f"{self.label} expected a new child of type {Semantic.__name__} "
+                f"{self.label} expected a new child of type {self.child_type()} "
                 f"but got {child}"
             )
 
@@ -278,7 +287,7 @@ class SemanticParent(Semantic, ABC):
         return child
 
     @staticmethod
-    def _ensure_path_is_not_cyclic(parent: SemanticParent | None, child: Semantic):
+    def _ensure_path_is_not_cyclic(parent: SemanticParent | None, child: ChildType):
         if parent is not None and parent.semantic_path.startswith(
             child.semantic_path + child.semantic_delimiter
         ):
@@ -404,7 +413,7 @@ class ParentMostError(TypeError):
     """
 
 
-class ParentMost(SemanticParent, ABC):
+class ParentMost(SemanticParent[ChildType], ABC):
     """
     A semantic parent that cannot have any other parent.
     """

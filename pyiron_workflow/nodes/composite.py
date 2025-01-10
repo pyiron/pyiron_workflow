@@ -54,7 +54,7 @@ class FailedChildError(RuntimeError):
     """Raise when one or more child nodes raise exceptions."""
 
 
-class Composite(SemanticParent, HasCreator, Node, ABC):
+class Composite(SemanticParent[Node], HasCreator, Node, ABC):
     """
     A base class for nodes that have internal graph structure -- i.e. they hold a
     collection of child nodes and their computation is to execute that graph.
@@ -153,6 +153,10 @@ class Composite(SemanticParent, HasCreator, Node, ABC):
             strict_naming=strict_naming,
             **kwargs,
         )
+
+    @classmethod
+    def child_type(cls) -> type[Node]:
+        return Node
 
     def activate_strict_hints(self):
         super().activate_strict_hints()
