@@ -293,7 +293,7 @@ class SemanticParent(Semantic, Generic[ChildType], ABC):
         return child
 
     @staticmethod
-    def _ensure_path_is_not_cyclic(parent: SemanticParent | None, child: Semantic):
+    def _ensure_path_is_not_cyclic(parent: SemanticParent | None, child: ChildType):
         if parent is not None and parent.semantic_path.startswith(
             child.semantic_path + child.semantic_delimiter
         ):
