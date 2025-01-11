@@ -10,7 +10,7 @@ import inspect
 import sys
 from pathlib import Path
 from types import ModuleType
-from typing import TypeVar
+from typing import cast, TypeVar
 
 from pyiron_workflow.node import Node
 
@@ -63,4 +63,4 @@ def find_nodes(source: str | Path | ModuleType) -> list[type[Node]]:
     """
     Get a list of all public, non-abstract nodes defined in the source.
     """
-    return _get_subclasses(source, Node)
+    return cast(list[type[Node]], _get_subclasses(source, Node))
