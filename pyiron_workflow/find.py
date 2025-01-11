@@ -3,6 +3,7 @@ A utility for finding public `pyiron_workflow.node.Node` objects.
 
 Supports the idea of node developers writing independent node packages.
 """
+
 from __future__ import annotations
 
 import importlib.util
@@ -15,6 +16,7 @@ from typing import cast, TypeVar
 from pyiron_workflow.node import Node
 
 NodeType = TypeVar("NodeType", bound=Node)
+
 
 def _get_subclasses(
     source: str | Path | ModuleType,
