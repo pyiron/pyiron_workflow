@@ -11,7 +11,7 @@ import inspect
 import sys
 from pathlib import Path
 from types import ModuleType
-from typing import cast, TypeVar
+from typing import TypeVar, cast
 
 from pyiron_workflow.node import Node
 
