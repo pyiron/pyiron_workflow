@@ -53,17 +53,6 @@ class HasLabel(ABC):
         return self.label
 
 
-class HasParent(ABC):
-    """
-    A mixin to guarantee the parent interface exists.
-    """
-
-    @property
-    @abstractmethod
-    def parent(self) -> Any:
-        """A parent for the object."""
-
-
 class HasChannel(ABC):
     """
     A mix-in class for use with the :class:`Channel` class.
