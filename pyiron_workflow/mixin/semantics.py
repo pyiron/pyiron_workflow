@@ -21,10 +21,10 @@ from typing import Generic, TypeVar
 from bidict import bidict
 
 from pyiron_workflow.logging import logger
-from pyiron_workflow.mixin.has_interface_mixins import HasLabel, HasParent, UsesState
+from pyiron_workflow.mixin.has_interface_mixins import HasLabel, UsesState
 
 
-class Semantic(UsesState, HasLabel, HasParent, ABC):
+class Semantic(UsesState, HasLabel, ABC):
     """
     An object with a unique semantic path.
 
