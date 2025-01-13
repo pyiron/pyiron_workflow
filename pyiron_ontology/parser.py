@@ -59,7 +59,7 @@ def get_triples(data, EX):
             graph.add((label, EX[io_[:-1] + "Of"], EX[data["label"]]))
             if d["units"] is not None:
                 graph.add((label, EX.hasUnits, EX[d["units"]]))
-            if d.get("connection", None) not None:
+            if d.get("connection", None) is not None:
                 graph.add((label, EX.comesFrom, EX[d["connection"]]))
             if d["triple"] is not None:
                 obj = d["triple"][1]
