@@ -62,12 +62,13 @@ def get_triples(data, EX):
             if d.get("connection", None) is not None:
                 graph.add((label, EX.comesFrom, EX[d["connection"]]))
             if d["triple"] is not None:
-                if isinstance(d["triple"][0], tuple):
-                    triple = d["triple"]
+                if isinstance(d["triple"][0], tuple | list):
+                    triple = list(d["triple"])
                 else:
-                    triple = (d["triple"],)
+                    triple = [d["triple"]]
                 for t in triple:
-                    if t[1].startswith("inputs.") or t[1].startswith("outputs."):
-                        t[1] = data["label"] + "." + t[1]
+                    obj = t[1]
+                    if obj.startswith("inputs.") or obj.startswith("outputs."):
+                        obj = data["label"] + "." + obj
                     graph.add((label, t[0], EX[obj]))
     return graph
