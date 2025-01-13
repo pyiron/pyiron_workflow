@@ -7,6 +7,7 @@ from __future__ import annotations
 
 import re
 from abc import ABC, abstractmethod
+from collections.abc import Callable
 from inspect import getsource
 from typing import TYPE_CHECKING
 
@@ -271,11 +272,11 @@ class Macro(Composite, StaticNode, ScrapesIO, ABC):
 
     @staticmethod
     @abstractmethod
-    def graph_creator(self, *args, **kwargs) -> callable:
+    def graph_creator(self, *args, **kwargs) -> Callable:
         """Build the graph the node will run."""
 
     @classmethod
-    def _io_defining_function(cls) -> callable:
+    def _io_defining_function(cls) -> Callable:
         return cls.graph_creator
 
     _io_defining_function_uses_self = True
@@ -466,7 +467,7 @@ class Macro(Composite, StaticNode, ScrapesIO, ABC):
 
 @classfactory
 def macro_node_factory(
-    graph_creator: callable,
+    graph_creator: Callable,
     validate_output_labels: bool,
     use_cache: bool = True,
     /,
@@ -536,7 +537,7 @@ def as_macro_node(
 
 
 def macro_node(
-    graph_creator: callable,
+    graph_creator: Callable,
     *node_args,
     output_labels: str | tuple[str, ...] | None = None,
     validate_output_labels: bool = True,
