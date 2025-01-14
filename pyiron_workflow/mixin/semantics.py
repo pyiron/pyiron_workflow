@@ -170,7 +170,7 @@ class CyclicPathError(ValueError):
 ChildType = TypeVar("ChildType", bound=Semantic)
 
 
-class SemanticParent(Semantic, Generic[ChildType], ABC):
+class SemanticParent(Generic[ChildType], ABC):
     """
     A semantic object with a collection of uniquely-named semantic children.
 
@@ -189,15 +189,14 @@ class SemanticParent(Semantic, Generic[ChildType], ABC):
 
     def __init__(
         self,
-        label: str,
+        label: str | None,  # Vestigial while the label order is broken
         *args,
-        parent: SemanticParent | None = None,
         strict_naming: bool = True,
         **kwargs,
     ):
         self._children: bidict[str, ChildType] = bidict()
         self.strict_naming = strict_naming
-        super().__init__(*args, label=label, parent=parent, **kwargs)
+        super().__init__(*args, label=label, **kwargs)
 
     @classmethod
     @abstractmethod

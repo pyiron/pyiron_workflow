@@ -8,7 +8,7 @@ from pyiron_workflow.mixin.semantics import (
 )
 
 
-class ConcreteParent(SemanticParent[Semantic]):
+class ConcreteParent(SemanticParent[Semantic], Semantic):
     @classmethod
     def child_type(cls) -> type[Semantic]:
         return Semantic
