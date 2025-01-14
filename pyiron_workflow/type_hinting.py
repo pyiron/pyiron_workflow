@@ -36,18 +36,14 @@ def type_hint_to_tuple(type_hint) -> tuple:
 def type_hint_is_as_or_more_specific_than(hint, other) -> bool:
     hint_origin = typing.get_origin(hint)
     other_origin = typing.get_origin(other)
-    if set([hint_origin, other_origin]) & set([types.UnionType, typing.Union]):
+    if {hint_origin, other_origin} & {types.UnionType, typing.Union}:
         # If either hint is a union, turn both into tuples and call recursively
         return all(
-            [
-                any(
-                    [
-                        type_hint_is_as_or_more_specific_than(h, o)
-                        for o in type_hint_to_tuple(other)
-                    ]
-                )
-                for h in type_hint_to_tuple(hint)
-            ]
+            any(
+                type_hint_is_as_or_more_specific_than(h, o)
+                for o in type_hint_to_tuple(other)
+            )
+            for h in type_hint_to_tuple(hint)
         )
     elif hint_origin is None and other_origin is None:
         # Once both are raw classes, just do a subclass test
@@ -73,10 +69,8 @@ def type_hint_is_as_or_more_specific_than(hint, other) -> bool:
             elif len(other_args) == len(hint_args):
                 # If they both specify arguments, they should be more specific 1:1
                 return all(
-                    [
-                        type_hint_is_as_or_more_specific_than(h, o)
-                        for o, h in zip(other_args, hint_args, strict=False)
-                    ]
+                    type_hint_is_as_or_more_specific_than(h, o)
+                    for o, h in zip(other_args, hint_args, strict=False)
                 )
             else:
                 # Otherwise they both specify but a mis-matching number of args
@@ -84,15 +78,8 @@ def type_hint_is_as_or_more_specific_than(hint, other) -> bool:
         else:
             # Otherwise order doesn't matter so make sure the arguments are a subset
             return all(
-                [
-                    any(
-                        [
-                            type_hint_is_as_or_more_specific_than(h, o)
-                            for o in other_args
-                        ]
-                    )
-                    for h in hint_args
-                ]
+                any(type_hint_is_as_or_more_specific_than(h, o) for o in other_args)
+                for h in hint_args
             )
     else:
         # Lastly, if they both have origins, but different ones, fail
