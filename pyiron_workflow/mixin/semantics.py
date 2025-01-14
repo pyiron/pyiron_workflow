@@ -79,6 +79,8 @@ class Semantic(UsesState, HasLabel, ABC):
                 f"{self.label}, but got {new_parent}"
             )
 
+        _ensure_path_is_not_cyclic(new_parent, self)
+
         if (
             self._parent is not None
             and new_parent is not self._parent
@@ -356,15 +358,6 @@ class SemanticParent(Semantic, Generic[ChildType], ABC):
         child.parent = None
 
         return child
-
-    @property
-    def parent(self) -> SemanticParent | None:
-        return self._parent
-
-    @parent.setter
-    def parent(self, new_parent: SemanticParent | None) -> None:
-        _ensure_path_is_not_cyclic(new_parent, self)
-        self._set_parent(new_parent)
 
     def __getstate__(self):
         state = super().__getstate__()
