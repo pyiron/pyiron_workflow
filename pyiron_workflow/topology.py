@@ -185,7 +185,7 @@ def _set_run_connections_according_to_dag(nodes: dict[str, Node]) -> list[Node]:
 
     for node in nodes.values():
         upstream_connections = [con for inp in node.inputs for con in inp.connections]
-        upstream_nodes = set([c.owner for c in upstream_connections])
+        upstream_nodes = {c.owner for c in upstream_connections}
         upstream_rans = [n.signals.output.ran for n in upstream_nodes]
         node.signals.input.accumulate_and_run.connect(*upstream_rans)
     # Note: We can be super fast-and-loose here because the `nodes_to_data_digraph` call
@@ -226,7 +226,7 @@ def get_nodes_in_data_tree(node: Node) -> set[Node]:
     Get a set of all nodes from this one and upstream through data connections.
     """
     try:
-        nodes = set([node])
+        nodes = {node}
         for channel in node.inputs:
             for connection in channel.connections:
                 nodes = nodes.union(get_nodes_in_data_tree(connection.owner))

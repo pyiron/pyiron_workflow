@@ -198,7 +198,7 @@ class ScrapesIO(HasIOPreview, ABC):
             type_hints = [None] * len(labels)
             # Note that this nicely differs from `NoneType`, which is the hint when
             # `None` is actually the hint!
-        return {label: hint for label, hint in zip(labels, type_hints, strict=False)}
+        return dict(zip(labels, type_hints, strict=False))
 
     @classmethod
     def _get_output_labels(cls):

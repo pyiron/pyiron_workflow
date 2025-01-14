@@ -120,16 +120,16 @@ class IO(HasStateDisplay, Generic[OwnedType, OwnedConjugate], ABC):
     def connections(self) -> list[OwnedConjugate]:
         """All the unique connections across all channels"""
         return list(
-            set([connection for channel in self for connection in channel.connections])
+            {connection for channel in self for connection in channel.connections}
         )
 
     @property
     def connected(self):
-        return any([c.connected for c in self])
+        return any(c.connected for c in self)
 
     @property
     def fully_connected(self):
-        return all([c.connected for c in self])
+        return all(c.connected for c in self)
 
     def disconnect(self) -> list[tuple[OwnedType, OwnedConjugate]]:
         """
@@ -197,11 +197,11 @@ class DataIO(IO[DataChannel, DataChannel], ABC):
 
     def to_list(self):
         """A list of channel values (order not guaranteed)"""
-        return list(channel.value for channel in self.channel_dict.values())
+        return [channel.value for channel in self.channel_dict.values()]
 
     @property
     def ready(self):
-        return all([c.ready for c in self])
+        return all(c.ready for c in self)
 
     def activate_strict_hints(self):
         [c.activate_strict_hints() for c in self]
@@ -415,9 +415,7 @@ class HasIO(HasStateDisplay, HasLabel, HasRun, ABC):
                 f"Received {len(args)} args, but only have {len(self.inputs.labels)} "
                 f"input channels available"
             )
-        keyed_args = {
-            label: value for label, value in zip(self.inputs.labels, args, strict=False)
-        }
+        keyed_args = dict(zip(self.inputs.labels, args, strict=False))
 
         if len(set(keyed_args.keys()).intersection(kwargs.keys())) > 0:
             raise ValueError(
