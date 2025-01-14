@@ -271,7 +271,7 @@ class SemanticParent(Semantic, Generic[ChildType], ABC):
                 f"but got {child}"
             )
 
-        self._ensure_path_is_not_cyclic(self, child)
+        _ensure_path_is_not_cyclic(self, child)
 
         self._ensure_child_has_no_other_parent(child)
 
@@ -291,18 +291,6 @@ class SemanticParent(Semantic, Generic[ChildType], ABC):
             self.children[child.label] = child
             child.parent = self
         return child
-
-    @staticmethod
-    def _ensure_path_is_not_cyclic(parent: SemanticParent | None, child: Semantic):
-        if parent is not None and parent.semantic_path.startswith(
-            child.semantic_path + child.semantic_delimiter
-        ):
-            raise CyclicPathError(
-                f"{parent.label} cannot be the parent of {child.label}, because its "
-                f"semantic path is already in {child.label}'s path and cyclic paths "
-                f"are not allowed. (i.e. {child.semantic_path} is in "
-                f"{parent.semantic_path})"
-            )
 
     def _ensure_child_has_no_other_parent(self, child: Semantic):
         if child.parent is not None and child.parent is not self:
@@ -375,7 +363,7 @@ class SemanticParent(Semantic, Generic[ChildType], ABC):
 
     @parent.setter
     def parent(self, new_parent: SemanticParent | None) -> None:
-        self._ensure_path_is_not_cyclic(new_parent, self)
+        _ensure_path_is_not_cyclic(new_parent, self)
         self._set_parent(new_parent)
 
     def __getstate__(self):
@@ -411,3 +399,15 @@ class SemanticParent(Semantic, Generic[ChildType], ABC):
         # children). So, now return their parent to them:
         for child in self:
             child.parent = self
+
+
+def _ensure_path_is_not_cyclic(parent, child: Semantic):
+    if isinstance(parent, Semantic) and parent.semantic_path.startswith(
+        child.semantic_path + child.semantic_delimiter
+    ):
+        raise CyclicPathError(
+            f"{parent.label} cannot be the parent of {child.label}, because its "
+            f"semantic path is already in {child.label}'s path and cyclic paths "
+            f"are not allowed. (i.e. {child.semantic_path} is in "
+            f"{parent.semantic_path})"
+        )
