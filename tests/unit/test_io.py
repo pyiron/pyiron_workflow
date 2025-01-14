@@ -132,7 +132,7 @@ class TestDataIO(unittest.TestCase):
         )
 
     def test_iteration(self):
-        self.assertTrue(all([c.label in self.input.labels for c in self.input]))
+        self.assertTrue(all(c.label in self.input.labels for c in self.input))
 
     def test_connections_property(self):
         self.assertEqual(

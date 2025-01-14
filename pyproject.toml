@@ -82,6 +82,8 @@ select = [
     "SIM",
     # isort
     "I",
+    # flake8-comprehensions
+    "C4",
 ]
 ignore = ["E501"] #ignore line-length violations
 
