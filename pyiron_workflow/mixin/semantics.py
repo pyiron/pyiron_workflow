@@ -200,6 +200,11 @@ class SemanticParent(Semantic, Generic[ChildType], ABC):
     @classmethod
     @abstractmethod
     def child_type(cls) -> type[ChildType]:
+        # Dev note: In principle, this could be a regular attribute
+        # However, in other situations this is precluded (e.g. in channels)
+        # since it would result in circular references.
+        # Here we favour consistency over brevity,
+        # and maintain the X_type() class method pattern
         pass
 
     @property
