@@ -57,7 +57,7 @@ def dictionary_to_index_maps(
         nested_data_lengths = (
             []
             if (nested_keys is None or len(nested_keys) == 0)
-            else list(len(data[key]) for key in nested_keys)
+            else [len(data[key]) for key in nested_keys]
         )
     except TypeError as e:
         raise TypeError(

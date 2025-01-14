@@ -652,7 +652,7 @@ class AccumulatingInputSignal(InputSignal):
         self.received_signals.update([other.scoped_label])
         if (
             len(
-                set(c.scoped_label for c in self.connections).difference(
+                {c.scoped_label for c in self.connections}.difference(
                     self.received_signals
                 )
             )
