@@ -11,7 +11,6 @@ from typing import TYPE_CHECKING, Any, Literal
 from bidict import bidict
 
 from pyiron_workflow.io import Inputs, Outputs
-from pyiron_workflow.mixin.semantics import ParentMost
 from pyiron_workflow.nodes.composite import Composite
 
 if TYPE_CHECKING:
@@ -20,7 +19,13 @@ if TYPE_CHECKING:
     from pyiron_workflow.storage import StorageInterface
 
 
-class Workflow(ParentMost, Composite):
+class ParentMostError(TypeError):
+    """
+    To be raised when assigning a parent to a parent-most object
+    """
+
+
+class Workflow(Composite):
     """
     Workflows are a dynamic composite node -- i.e. they hold and run a collection of
     nodes (a subgraph) which can be dynamically modified (adding and removing nodes,
@@ -495,3 +500,15 @@ class Workflow(ParentMost, Composite):
             raise e
 
         return owned_node
+
+    @property
+    def parent(self) -> None:
+        return None
+
+    @parent.setter
+    def parent(self, new_parent: None):
+        if new_parent is not None:
+            raise ParentMostError(
+                f"{self.label} is a {self.__class__} and may only take None as a "
+                f"parent but got {type(new_parent)}"
+            )

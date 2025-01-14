@@ -13,9 +13,10 @@ different drives or machines) belong to the same semantic group.
 
 from __future__ import annotations
 
-from abc import ABC
+from abc import ABC, abstractmethod
 from difflib import get_close_matches
 from pathlib import Path
+from typing import Generic, TypeVar
 
 from bidict import bidict
 
@@ -31,12 +32,12 @@ class Semantic(UsesState, HasLabel, HasParent, ABC):
     accessible.
     """
 
-    semantic_delimiter = "/"
+    semantic_delimiter: str = "/"
 
     def __init__(
         self, label: str, *args, parent: SemanticParent | None = None, **kwargs
     ):
-        self._label = None
+        self._label = ""
         self._parent = None
         self._detached_parent_path = None
         self.label = label
@@ -61,6 +62,13 @@ class Semantic(UsesState, HasLabel, HasParent, ABC):
 
     @parent.setter
     def parent(self, new_parent: SemanticParent | None) -> None:
+        self._set_parent(new_parent)
+
+    def _set_parent(self, new_parent: SemanticParent | None):
+        """
+        mypy is uncooperative with super calls for setters, so we pull the behaviour
+        out.
+        """
         if new_parent is self._parent:
             # Exit early if nothing is changing
             return
@@ -157,7 +165,10 @@ class CyclicPathError(ValueError):
     """
 
 
-class SemanticParent(Semantic, ABC):
+ChildType = TypeVar("ChildType", bound=Semantic)
+
+
+class SemanticParent(Semantic, Generic[ChildType], ABC):
     """
     A semantic object with a collection of uniquely-named semantic children.
 
@@ -182,19 +193,29 @@ class SemanticParent(Semantic, ABC):
         strict_naming: bool = True,
         **kwargs,
     ):
-        self._children = bidict()
+        self._children: bidict[str, ChildType] = bidict()
         self.strict_naming = strict_naming
         super().__init__(*args, label=label, parent=parent, **kwargs)
 
+    @classmethod
+    @abstractmethod
+    def child_type(cls) -> type[ChildType]:
+        # Dev note: In principle, this could be a regular attribute
+        # However, in other situations this is precluded (e.g. in channels)
+        # since it would result in circular references.
+        # Here we favour consistency over brevity,
+        # and maintain the X_type() class method pattern
+        pass
+
     @property
-    def children(self) -> bidict[str, Semantic]:
+    def children(self) -> bidict[str, ChildType]:
         return self._children
 
     @property
     def child_labels(self) -> tuple[str]:
         return tuple(child.label for child in self)
 
-    def __getattr__(self, key):
+    def __getattr__(self, key) -> ChildType:
         try:
             return self._children[key]
         except KeyError as key_error:
@@ -210,7 +231,7 @@ class SemanticParent(Semantic, ABC):
     def __iter__(self):
         return self.children.values().__iter__()
 
-    def __len__(self):
+    def __len__(self) -> int:
         return len(self.children)
 
     def __dir__(self):
@@ -218,15 +239,15 @@ class SemanticParent(Semantic, ABC):
 
     def add_child(
         self,
-        child: Semantic,
+        child: ChildType,
         label: str | None = None,
         strict_naming: bool | None = None,
-    ) -> Semantic:
+    ) -> ChildType:
         """
         Add a child, optionally assigning it a new label in the process.
 
         Args:
-            child (Semantic): The child to add.
+            child (ChildType): The child to add.
             label (str|None): A (potentially) new label to assign the child. (Default
                 is None, leave the child's label alone.)
             strict_naming (bool|None): Whether to append a suffix to the label if
@@ -234,7 +255,7 @@ class SemanticParent(Semantic, ABC):
                 use the class-level flag.)
 
         Returns:
-            (Semantic): The child being added.
+            (ChildType): The child being added.
 
         Raises:
             TypeError: When the child is not of an allowed class.
@@ -244,16 +265,10 @@ class SemanticParent(Semantic, ABC):
                 `strict_naming` is true.
 
         """
-        if not isinstance(child, Semantic):
+        if not isinstance(child, self.child_type()):
             raise TypeError(
-                f"{self.label} expected a new child of type {Semantic.__name__} "
+                f"{self.label} expected a new child of type {self.child_type()} "
                 f"but got {child}"
-            )
-
-        if isinstance(child, ParentMost):
-            raise ParentMostError(
-                f"{child.label} is {ParentMost.__name__} and may only take None as a "
-                f"parent but was added as a child to {self.label}"
             )
 
         self._ensure_path_is_not_cyclic(self, child)
@@ -339,15 +354,15 @@ class SemanticParent(Semantic, ABC):
             )
         return new_label
 
-    def remove_child(self, child: Semantic | str) -> Semantic:
+    def remove_child(self, child: ChildType | str) -> ChildType:
         if isinstance(child, str):
             child = self.children.pop(child)
-        elif isinstance(child, Semantic):
+        elif isinstance(child, self.child_type()):
             self.children.inv.pop(child)
         else:
             raise TypeError(
                 f"{self.label} expected to remove a child of type str or "
-                f"{Semantic.__name__} but got {child}"
+                f"{self.child_type()} but got {child}"
             )
 
         child.parent = None
@@ -361,7 +376,7 @@ class SemanticParent(Semantic, ABC):
     @parent.setter
     def parent(self, new_parent: SemanticParent | None) -> None:
         self._ensure_path_is_not_cyclic(new_parent, self)
-        super(SemanticParent, type(self)).parent.__set__(self, new_parent)
+        self._set_parent(new_parent)
 
     def __getstate__(self):
         state = super().__getstate__()
@@ -396,27 +411,3 @@ class SemanticParent(Semantic, ABC):
         # children). So, now return their parent to them:
         for child in self:
             child.parent = self
-
-
-class ParentMostError(TypeError):
-    """
-    To be raised when assigning a parent to a parent-most object
-    """
-
-
-class ParentMost(SemanticParent, ABC):
-    """
-    A semantic parent that cannot have any other parent.
-    """
-
-    @property
-    def parent(self) -> None:
-        return None
-
-    @parent.setter
-    def parent(self, new_parent: None):
-        if new_parent is not None:
-            raise ParentMostError(
-                f"{self.label} is {ParentMost.__name__} and may only take None as a "
-                f"parent but got {type(new_parent)}"
-            )
