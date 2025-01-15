@@ -6,7 +6,7 @@ from pathlib import Path
 from pyiron_workflow.mixin.semantics import (
     CyclicPathError,
     Semantic,
-    SemanticParent, ParentType,
+    SemanticParent,
 )
 
 
@@ -53,7 +53,7 @@ class TestSemantics(unittest.TestCase):
     def test_label_delimiter(self):
         with self.assertRaises(
             ValueError,
-                msg=f"Delimiter '{ConcreteSemantic.semantic_delimiter}' not allowed"
+            msg=f"Delimiter '{ConcreteSemantic.semantic_delimiter}' not allowed",
         ):
             ConcreteSemantic(f"invalid{ConcreteSemantic.semantic_delimiter}label")
 

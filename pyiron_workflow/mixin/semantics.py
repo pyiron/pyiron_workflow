@@ -37,9 +37,7 @@ class Semantic(UsesState, HasLabel, Generic[ParentType], ABC):
 
     semantic_delimiter: str = "/"
 
-    def __init__(
-        self, label: str, *args, parent: ParentType | None = None, **kwargs
-    ):
+    def __init__(self, label: str, *args, parent: ParentType | None = None, **kwargs):
         self._label = ""
         self._parent = None
         self._detached_parent_path = None
