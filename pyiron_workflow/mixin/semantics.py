@@ -179,9 +179,9 @@ class CyclicPathError(ValueError):
 ChildType = TypeVar("ChildType", bound=Semantic)
 
 
-class SemanticParent(Generic[ChildType], ABC):
+class SemanticParent(HasLabel, Generic[ChildType], ABC):
     """
-    An with a collection of uniquely-named semantic children.
+    A labeled object with a collection of uniquely-named semantic children.
 
     Children should be added or removed via the :meth:`add_child` and
     :meth:`remove_child` methods and _not_ by direct manipulation of the
