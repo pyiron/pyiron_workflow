@@ -6,6 +6,7 @@ from __future__ import annotations
 
 import itertools
 from abc import ABC, abstractmethod
+from collections.abc import Callable
 from dataclasses import MISSING
 from dataclasses import dataclass as as_dataclass
 from typing import Any, ClassVar
@@ -65,7 +66,7 @@ class ToManyOutputs(Transformer, ABC):
     # Must be commensurate with the dictionary returned by transform_to_output
 
     @abstractmethod
-    def _on_run(self, input_object) -> callable[..., Any | tuple]:
+    def _on_run(self, input_object) -> Callable[..., Any | tuple]:
         """Must take the single object to be transformed"""
 
     @property

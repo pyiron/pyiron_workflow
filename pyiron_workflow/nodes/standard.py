@@ -7,6 +7,7 @@ from __future__ import annotations
 import os
 import random
 import shutil
+from collections.abc import Callable
 from pathlib import Path
 from time import sleep
 
@@ -167,7 +168,7 @@ def ChangeDirectory(
 
 
 @as_function_node
-def PureCall(fnc: callable):
+def PureCall(fnc: Callable):
     """
     Return a call without any arguments
 

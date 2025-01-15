@@ -6,12 +6,13 @@ data flow dependencies.
 
 from __future__ import annotations
 
+from collections.abc import Callable
 from typing import TYPE_CHECKING
 
 from toposort import CircularDependencyError, toposort, toposort_flatten
 
 if TYPE_CHECKING:
-    from pyiron_workflow.channels import SignalChannel
+    from pyiron_workflow.channels import InputSignal, OutputSignal
     from pyiron_workflow.node import Node
 
 
@@ -74,8 +75,8 @@ def nodes_to_data_digraph(nodes: dict[str, Node]) -> dict[str, set[str]]:
                     )
                 locally_scoped_dependencies.append(upstream.owner.label)
             node_dependencies.extend(locally_scoped_dependencies)
-        node_dependencies = set(node_dependencies)
-        if node.label in node_dependencies:
+        node_dependencies_set = set(node_dependencies)
+        if node.label in node_dependencies_set:
             # the toposort library has a
             # [known issue](https://gitlab.com/ericvsmith/toposort/-/issues/3)
             # That self-dependency isn't caught, so we catch it manually here.
@@ -84,14 +85,14 @@ def nodes_to_data_digraph(nodes: dict[str, Node]) -> dict[str, set[str]]:
                 f"the execution of non-DAGs: {node.full_label} appears in its own "
                 f"input."
             )
-        digraph[node.label] = node_dependencies
+        digraph[node.label] = node_dependencies_set
 
     return digraph
 
 
 def _set_new_run_connections_with_fallback_recovery(
-    connection_creator: callable[[dict[str, Node]], list[Node]], nodes: dict[str, Node]
-):
+    connection_creator: Callable[[dict[str, Node]], list[Node]], nodes: dict[str, Node]
+) -> tuple[list[tuple[InputSignal, OutputSignal]], list[Node]]:
     """
     Given a function that takes a dictionary of unconnected nodes, connects their
     execution graph, and returns the new starting nodes, this wrapper makes sure that
@@ -143,7 +144,7 @@ def _set_run_connections_according_to_linear_dag(nodes: dict[str, Node]) -> list
 
 def set_run_connections_according_to_linear_dag(
     nodes: dict[str, Node],
-) -> tuple[list[tuple[SignalChannel, SignalChannel]], list[Node]]:
+) -> tuple[list[tuple[InputSignal, OutputSignal]], list[Node]]:
     """
     Given a set of nodes that all have the same parent, have no upstream data
     connections outside the nodes provided, and have acyclic data flow, disconnects all
@@ -195,7 +196,7 @@ def _set_run_connections_according_to_dag(nodes: dict[str, Node]) -> list[Node]:
 
 def set_run_connections_according_to_dag(
     nodes: dict[str, Node],
-) -> tuple[list[tuple[SignalChannel, SignalChannel]], list[Node]]:
+) -> tuple[list[tuple[InputSignal, OutputSignal]], list[Node]]:
     """
     Given a set of nodes that all have the same parent, have no upstream data
     connections outside the nodes provided, and have acyclic data flow, disconnects all
