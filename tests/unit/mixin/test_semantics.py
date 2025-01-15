@@ -12,11 +12,11 @@ from pyiron_workflow.mixin.semantics import (
 
 class ConcreteSemantic(Semantic["ConcreteParent"]):
     @classmethod
-    def parent_type(cls) -> type[ConcreteParent]:
-        return ConcreteParent
+    def parent_type(cls) -> type[ConcreteSemanticParent]:
+        return ConcreteSemanticParent
 
 
-class ConcreteParent(SemanticParent[ConcreteSemantic], ConcreteSemantic):
+class ConcreteSemanticParent(SemanticParent[ConcreteSemantic], ConcreteSemantic):
     @classmethod
     def child_type(cls) -> type[ConcreteSemantic]:
         return ConcreteSemantic
@@ -24,10 +24,10 @@ class ConcreteParent(SemanticParent[ConcreteSemantic], ConcreteSemantic):
 
 class TestSemantics(unittest.TestCase):
     def setUp(self):
-        self.root = ConcreteParent(label="root")
+        self.root = ConcreteSemanticParent(label="root")
         self.child1 = ConcreteSemantic(label="child1", parent=self.root)
-        self.middle1 = ConcreteParent(label="middle", parent=self.root)
-        self.middle2 = ConcreteParent(label="middle_sub", parent=self.middle1)
+        self.middle1 = ConcreteSemanticParent(label="middle", parent=self.root)
+        self.middle2 = ConcreteSemanticParent(label="middle_sub", parent=self.middle1)
         self.child2 = ConcreteSemantic(label="child2", parent=self.middle2)
 
     def test_getattr(self):
