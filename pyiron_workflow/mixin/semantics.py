@@ -2,10 +2,11 @@
 Classes for "semantic" reasoning.
 
 The motivation here is to be able to provide the object with a unique identifier
-in the context of other semantic objects. Each object may have exactly one parent
-and an arbitrary number of children, and each child's name must be unique in the
-scope of that parent. In this way, the path from the parent-most object to any
-child is completely unique. The typical filesystem on a computer is an excellent
+in the context of other semantic objects. Each object may have at most one parent,
+while semantic parents may have an arbitrary number of children, and each child's name
+must be unique in the scope of that parent. In this way, when semantic parents are also
+themselves semantic, we can build a path from the parent-most object to any child that
+is completely unique. The typical filesystem on a computer is an excellent
 example and fulfills our requirements, the only reason we depart from it is so that
 we are free to have objects stored in different locations (possibly even on totally
 different drives or machines) belong to the same semantic group.
@@ -21,10 +22,12 @@ from typing import Generic, TypeVar
 from bidict import bidict
 
 from pyiron_workflow.logging import logger
-from pyiron_workflow.mixin.has_interface_mixins import HasLabel, HasParent, UsesState
+from pyiron_workflow.mixin.has_interface_mixins import HasLabel, UsesState
+
+ParentType = TypeVar("ParentType", bound="SemanticParent")
 
 
-class Semantic(UsesState, HasLabel, HasParent, ABC):
+class Semantic(UsesState, HasLabel, Generic[ParentType], ABC):
     """
     An object with a unique semantic path.
 
@@ -34,15 +37,18 @@ class Semantic(UsesState, HasLabel, HasParent, ABC):
 
     semantic_delimiter: str = "/"
 
-    def __init__(
-        self, label: str, *args, parent: SemanticParent | None = None, **kwargs
-    ):
+    def __init__(self, label: str, *args, parent: ParentType | None = None, **kwargs):
         self._label = ""
         self._parent = None
         self._detached_parent_path = None
         self.label = label
         self.parent = parent
         super().__init__(*args, **kwargs)
+
+    @classmethod
+    @abstractmethod
+    def parent_type(cls) -> type[ParentType]:
+        pass
 
     @property
     def label(self) -> str:
@@ -57,14 +63,14 @@ class Semantic(UsesState, HasLabel, HasParent, ABC):
         self._label = new_label
 
     @property
-    def parent(self) -> SemanticParent | None:
+    def parent(self) -> ParentType | None:
         return self._parent
 
     @parent.setter
-    def parent(self, new_parent: SemanticParent | None) -> None:
+    def parent(self, new_parent: ParentType | None) -> None:
         self._set_parent(new_parent)
 
-    def _set_parent(self, new_parent: SemanticParent | None):
+    def _set_parent(self, new_parent: ParentType | None):
         """
         mypy is uncooperative with super calls for setters, so we pull the behaviour
         out.
@@ -73,11 +79,13 @@ class Semantic(UsesState, HasLabel, HasParent, ABC):
             # Exit early if nothing is changing
             return
 
-        if new_parent is not None and not isinstance(new_parent, SemanticParent):
+        if new_parent is not None and not isinstance(new_parent, self.parent_type()):
             raise ValueError(
-                f"Expected None or a {SemanticParent.__name__} for the parent of "
+                f"Expected None or a {self.parent_type()} for the parent of "
                 f"{self.label}, but got {new_parent}"
             )
+
+        _ensure_path_is_not_cyclic(new_parent, self)
 
         if (
             self._parent is not None
@@ -134,7 +142,10 @@ class Semantic(UsesState, HasLabel, HasParent, ABC):
     @property
     def semantic_root(self) -> Semantic:
         """The parent-most object in this semantic path; may be self."""
-        return self.parent.semantic_root if isinstance(self.parent, Semantic) else self
+        if isinstance(self.parent, Semantic):
+            return self.parent.semantic_root
+        else:
+            return self
 
     def as_path(self, root: Path | str | None = None) -> Path:
         """
@@ -168,9 +179,9 @@ class CyclicPathError(ValueError):
 ChildType = TypeVar("ChildType", bound=Semantic)
 
 
-class SemanticParent(Semantic, Generic[ChildType], ABC):
+class SemanticParent(Generic[ChildType], ABC):
     """
-    A semantic object with a collection of uniquely-named semantic children.
+    An with a collection of uniquely-named semantic children.
 
     Children should be added or removed via the :meth:`add_child` and
     :meth:`remove_child` methods and _not_ by direct manipulation of the
@@ -187,15 +198,14 @@ class SemanticParent(Semantic, Generic[ChildType], ABC):
 
     def __init__(
         self,
-        label: str,
+        label: str | None,  # Vestigial while the label order is broken
         *args,
-        parent: SemanticParent | None = None,
         strict_naming: bool = True,
         **kwargs,
     ):
         self._children: bidict[str, ChildType] = bidict()
         self.strict_naming = strict_naming
-        super().__init__(*args, label=label, parent=parent, **kwargs)
+        super().__init__(*args, label=label, **kwargs)
 
     @classmethod
     @abstractmethod
@@ -271,7 +281,7 @@ class SemanticParent(Semantic, Generic[ChildType], ABC):
                 f"but got {child}"
             )
 
-        self._ensure_path_is_not_cyclic(self, child)
+        _ensure_path_is_not_cyclic(self, child)
 
         self._ensure_child_has_no_other_parent(child)
 
@@ -291,18 +301,6 @@ class SemanticParent(Semantic, Generic[ChildType], ABC):
             self.children[child.label] = child
             child.parent = self
         return child
-
-    @staticmethod
-    def _ensure_path_is_not_cyclic(parent: SemanticParent | None, child: Semantic):
-        if parent is not None and parent.semantic_path.startswith(
-            child.semantic_path + child.semantic_delimiter
-        ):
-            raise CyclicPathError(
-                f"{parent.label} cannot be the parent of {child.label}, because its "
-                f"semantic path is already in {child.label}'s path and cyclic paths "
-                f"are not allowed. (i.e. {child.semantic_path} is in "
-                f"{parent.semantic_path})"
-            )
 
     def _ensure_child_has_no_other_parent(self, child: Semantic):
         if child.parent is not None and child.parent is not self:
@@ -369,15 +367,6 @@ class SemanticParent(Semantic, Generic[ChildType], ABC):
 
         return child
 
-    @property
-    def parent(self) -> SemanticParent | None:
-        return self._parent
-
-    @parent.setter
-    def parent(self, new_parent: SemanticParent | None) -> None:
-        self._ensure_path_is_not_cyclic(new_parent, self)
-        self._set_parent(new_parent)
-
     def __getstate__(self):
         state = super().__getstate__()
 
@@ -411,3 +400,15 @@ class SemanticParent(Semantic, Generic[ChildType], ABC):
         # children). So, now return their parent to them:
         for child in self:
             child.parent = self
+
+
+def _ensure_path_is_not_cyclic(parent, child: Semantic):
+    if isinstance(parent, Semantic) and parent.semantic_path.startswith(
+        child.semantic_path + child.semantic_delimiter
+    ):
+        raise CyclicPathError(
+            f"{parent.label} cannot be the parent of {child.label}, because its "
+            f"semantic path is already in {child.label}'s path and cyclic paths "
+            f"are not allowed. (i.e. {child.semantic_path} is in "
+            f"{parent.semantic_path})"
+        )
