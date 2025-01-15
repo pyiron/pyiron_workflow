@@ -316,7 +316,7 @@ class SemanticParent(HasLabel, Generic[ChildType], ABC):
             child.parent = self
         return child
 
-    def _ensure_child_has_no_other_parent(self, child: Semantic):
+    def _ensure_child_has_no_other_parent(self, child: Semantic) -> None:
         if child.parent is not None and child.parent is not self:
             raise ValueError(
                 f"The child ({child.label}) already belongs to the parent "
@@ -324,17 +324,17 @@ class SemanticParent(HasLabel, Generic[ChildType], ABC):
                 f"add it to this parent ({self.label})."
             )
 
-    def _this_child_is_already_at_this_label(self, child: Semantic, label: str):
+    def _this_child_is_already_at_this_label(self, child: Semantic, label: str) -> bool:
         return (
             label == child.label
             and label in self.child_labels
             and self.children[label] is child
         )
 
-    def _this_child_is_already_at_a_different_label(self, child, label):
+    def _this_child_is_already_at_a_different_label(self, child, label) -> bool:
         return child.parent is self and label != child.label
 
-    def _get_unique_label(self, label: str, strict_naming: bool):
+    def _get_unique_label(self, label: str, strict_naming: bool) -> str:
         if label in self.__dir__():
             if label in self.child_labels:
                 if strict_naming:
@@ -351,7 +351,7 @@ class SemanticParent(HasLabel, Generic[ChildType], ABC):
                 )
         return label
 
-    def _add_suffix_to_label(self, label):
+    def _add_suffix_to_label(self, label: str) -> str:
         i = 0
         new_label = label
         while new_label in self.__dir__():
@@ -416,7 +416,7 @@ class SemanticParent(HasLabel, Generic[ChildType], ABC):
             child.parent = self
 
 
-def _ensure_path_is_not_cyclic(parent, child: Semantic):
+def _ensure_path_is_not_cyclic(parent, child: Semantic) -> None:
     if isinstance(parent, Semantic) and parent.semantic_path.startswith(
         child.semantic_path + child.semantic_delimiter
     ):
