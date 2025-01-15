@@ -21,7 +21,7 @@ from pyiron_workflow.draw import Node as GraphvizNode
 from pyiron_workflow.logging import logger
 from pyiron_workflow.mixin.injection import HasIOWithInjection
 from pyiron_workflow.mixin.run import ReadinessError, Runnable
-from pyiron_workflow.mixin.semantics import Semantic, ParentType
+from pyiron_workflow.mixin.semantics import Semantic
 from pyiron_workflow.mixin.single_output import ExploitsSingleOutput
 from pyiron_workflow.storage import StorageInterface, available_backends
 from pyiron_workflow.topology import (
