@@ -38,6 +38,7 @@ class HasLabel(ABC):
     """
     A mixin to guarantee the label interface exists.
     """
+
     _label: str
 
     @property

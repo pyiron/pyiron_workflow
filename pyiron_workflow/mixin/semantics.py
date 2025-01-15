@@ -17,7 +17,7 @@ from __future__ import annotations
 from abc import ABC, abstractmethod
 from difflib import get_close_matches
 from pathlib import Path
-from typing import Generic, TypeVar
+from typing import ClassVar, Generic, TypeVar
 
 from bidict import bidict
 
@@ -35,14 +35,14 @@ class Semantic(UsesState, HasLabel, Generic[ParentType], ABC):
     accessible.
     """
 
-    semantic_delimiter: str = "/"
+    semantic_delimiter: ClassVar[str] = "/"
 
     def __init__(
-            self,
-            *args,
-            label: str | None = None,
-            parent: ParentType | None = None,
-            **kwargs
+        self,
+        *args,
+        label: str | None = None,
+        parent: ParentType | None = None,
+        **kwargs,
     ):
         self._label = ""
         self._parent = None
@@ -226,6 +226,15 @@ class SemanticParent(HasLabel, Generic[ChildType], ABC):
     @property
     def child_labels(self) -> tuple[str]:
         return tuple(child.label for child in self)
+
+    def _check_label(self, new_label: str) -> None:
+        super()._check_label(new_label)
+        if self.child_type().semantic_delimiter in new_label:
+            raise ValueError(
+                f"Child type ({self.child_type()}) semantic delimiter "
+                f"{self.child_type().semantic_delimiter} cannot be in new label "
+                f"{new_label}"
+            )
 
     def __getattr__(self, key) -> ChildType:
         try:

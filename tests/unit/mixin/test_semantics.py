@@ -16,10 +16,16 @@ class ConcreteSemantic(Semantic["ConcreteParent"]):
         return ConcreteSemanticParent
 
 
-class ConcreteSemanticParent(SemanticParent[ConcreteSemantic], ConcreteSemantic):
+class ConcreteParent(SemanticParent[ConcreteSemantic]):
+    _label = "concrete_parent_default_label"
+
     @classmethod
     def child_type(cls) -> type[ConcreteSemantic]:
         return ConcreteSemantic
+
+
+class ConcreteSemanticParent(ConcreteParent, ConcreteSemantic):
+    pass
 
 
 class TestSemantics(unittest.TestCase):
@@ -56,6 +62,13 @@ class TestSemantics(unittest.TestCase):
             msg=f"Delimiter '{ConcreteSemantic.semantic_delimiter}' not allowed",
         ):
             ConcreteSemantic(label=f"invalid{ConcreteSemantic.semantic_delimiter}label")
+
+        non_semantic_parent = ConcreteParent()
+        with self.assertRaises(
+            ValueError,
+            msg=f"Delimiter '{ConcreteSemantic.semantic_delimiter}' not allowed",
+        ):
+            non_semantic_parent.label = f"contains_{non_semantic_parent.child_type().semantic_delimiter}_delimiter"
 
     def test_semantic_delimiter(self):
         self.assertEqual(
