@@ -245,11 +245,11 @@ class TestMacro(unittest.TestCase):
             returned_nodes.one,
             msg="Executing in a parallel process should be returning new instances",
         )
-        # self.assertIs(
-        #     returned_nodes.one,
-        #     macro.nodes.one,
-        #     msg="Returned nodes should be taken as children"
-        # )  # You can't do this, result.result() is returning new instances each call
+        self.assertIs(
+            returned_nodes.one,
+            macro.one,
+            msg="Returned nodes should be taken as children"
+        )
         self.assertIs(
             macro,
             macro.one.parent,
