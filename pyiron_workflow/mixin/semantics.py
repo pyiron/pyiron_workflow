@@ -104,12 +104,16 @@ class Semantic(UsesState, HasLabel, Generic[ParentType], ABC):
         The path of node labels from the graph root (parent-most node) down to this
         node.
         """
+        prefix: str
         if self.parent is None and self.detached_parent_path is None:
             prefix = ""
         elif self.parent is None and self.detached_parent_path is not None:
             prefix = self.detached_parent_path
         elif self.parent is not None and self.detached_parent_path is None:
-            prefix = self.parent.semantic_path
+            if isinstance(self.parent, Semantic):
+                prefix = self.parent.semantic_path
+            else:
+                prefix = self.semantic_delimiter + self.parent.label
         else:
             raise ValueError(
                 f"The parent and detached path should not be able to take non-None "
