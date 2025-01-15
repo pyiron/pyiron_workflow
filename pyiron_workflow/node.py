@@ -322,6 +322,7 @@ class Node(
     @classmethod
     def parent_type(cls) -> type[Composite]:
         from pyiron_workflow.nodes.composite import Composite
+
         return Composite
 
     def _setup_node(self) -> None:
