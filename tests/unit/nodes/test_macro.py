@@ -248,7 +248,7 @@ class TestMacro(unittest.TestCase):
         self.assertIs(
             returned_nodes.one,
             macro.one,
-            msg="Returned nodes should be taken as children"
+            msg="Returned nodes should be taken as children",
         )
         self.assertIs(
             macro,
