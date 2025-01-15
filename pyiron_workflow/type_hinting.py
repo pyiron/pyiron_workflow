@@ -11,8 +11,24 @@ from pint import Quantity
 from typeguard import TypeCheckError, check_type
 
 
-def valid_value(value, type_hint) -> bool:
+def valid_value(value, type_hint, strict_callables: bool = True) -> bool:
+    """
+    Check if a value is a valid representation of a type hint.
+
+    Args:
+        value: The value to verify.
+        type_hint: The type hint against which
+        strict_callables (bool): Whether to convert `callable` hints into
+            `collections.abc.Callable`. This can be important as the interaction of
+            `callable` and `check_type` is very relaxed, e.g. a class that fails to
+            define `__call__` will still pass as `callable`. Converting to the formal
+            typing hint resolves this and gives more intuitive results. Default is True.
+
+    Returns:
+        (bool): Whether the value conforms to the hint.
+    """
     value = value.magnitude if isinstance(value, Quantity) else value  # De-unit it
+    type_hint = Callable if strict_callables and type_hint is callable else type_hint
 
     try:
         return isinstance(value, type_hint)

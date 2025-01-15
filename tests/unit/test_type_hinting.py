@@ -37,6 +37,27 @@ class TestTypeHinting(unittest.TestCase):
             with self.subTest(msg=f"Bad {bad} vs hint {hint}"):
                 self.assertFalse(valid_value(bad, hint))
 
+        with self.subTest(msg="Test strictness"):
+            self.assertTrue(
+                valid_value(Bar(), callable, strict_callables=False),
+                msg="Sanity: Bar implements __call__ and should always appear callable",
+            )
+            self.assertTrue(
+                valid_value(Bar(), callable, strict_callables=True),
+                msg="Sanity: Bar implements __call__ and should always appear callable",
+            )
+
+            self.assertTrue(
+                valid_value(Foo(), callable, strict_callables=False),
+                msg="typeguard is relaxed about callable, and doesn't care that Foo "
+                "fails to implement __call__",
+            )
+            self.assertFalse(
+                valid_value(Foo(), callable, strict_callables=True),
+                msg="typeguard is stringent about Callable, and notices that Foo fails "
+                "to implement __call__",
+            )
+
     def test_hint_comparisons(self):
         # Standard types and typing types should be interoperable
         # tuple, dict, and typing.Callable care about the exact matching of args
