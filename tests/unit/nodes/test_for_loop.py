@@ -354,7 +354,7 @@ class TestForNode(unittest.TestCase):
                         d=[9, 10, 11],
                         e="e",
                         output_column_map={
-                            # "a": "out_a",
+                            # Note the absence of the "a" conflicting entry
                             "b": "out_b",
                             "c": "out_c",
                             "d": "out_d",

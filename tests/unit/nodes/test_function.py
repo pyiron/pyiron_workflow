@@ -136,8 +136,8 @@ class TestFunction(unittest.TestCase):
             self.subTest("Fail on multiple return values"),
             self.assertRaises(ValueError),
         ):
-            # Can't automatically parse output labels from a function with multiple
-            # return expressions
+            # Can't automatically parse output labels from a function with
+            # multiple return expressions
             function_node(multiple_branches)
 
         with self.subTest("Override output label scraping"):
