@@ -1,5 +1,5 @@
 from semantikon.converter import parse_input_args, parse_output_args
-from rdflib import Graph, Literal, RDF, RDFS
+from rdflib import Graph, Literal, RDF, RDFS, URIRe
 
 
 def get_source_output(var):
@@ -74,5 +74,7 @@ def get_triples(data, EX):
                     obj = t[1]
                     if obj.startswith("inputs.") or obj.startswith("outputs."):
                         obj = data["label"] + "." + obj
-                    graph.add((label, t[0], EX[obj]))
+                    if not isinstance(obj, URIRef):
+                        obj = EX[obj]
+                    graph.add((label, t[0], obj))
     return graph
