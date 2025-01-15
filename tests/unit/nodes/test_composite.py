@@ -22,10 +22,6 @@ class AComposite(Composite):
     def __init__(self, label):
         super().__init__(label=label)
 
-    def _get_linking_channel(self, child_reference_channel, composite_io_key):
-        pass  # Shouldn't even be abstract honestly
-        # return child_reference_channel  # IO by reference
-
     @property
     def inputs(self) -> Inputs:
         # Dynamic IO reflecting current children
