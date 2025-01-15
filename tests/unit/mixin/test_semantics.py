@@ -24,11 +24,11 @@ class ConcreteParent(SemanticParent[ConcreteSemantic], ConcreteSemantic):
 
 class TestSemantics(unittest.TestCase):
     def setUp(self):
-        self.root = ConcreteParent("root")
-        self.child1 = ConcreteSemantic("child1", parent=self.root)
-        self.middle1 = ConcreteParent("middle", parent=self.root)
-        self.middle2 = ConcreteParent("middle_sub", parent=self.middle1)
-        self.child2 = ConcreteSemantic("child2", parent=self.middle2)
+        self.root = ConcreteParent(label="root")
+        self.child1 = ConcreteSemantic(label="child1", parent=self.root)
+        self.middle1 = ConcreteParent(label="middle", parent=self.root)
+        self.middle2 = ConcreteParent(label="middle_sub", parent=self.middle1)
+        self.child2 = ConcreteSemantic(label="child2", parent=self.middle2)
 
     def test_getattr(self):
         with self.assertRaises(AttributeError) as context:
@@ -55,7 +55,7 @@ class TestSemantics(unittest.TestCase):
             ValueError,
             msg=f"Delimiter '{ConcreteSemantic.semantic_delimiter}' not allowed",
         ):
-            ConcreteSemantic(f"invalid{ConcreteSemantic.semantic_delimiter}label")
+            ConcreteSemantic(label=f"invalid{ConcreteSemantic.semantic_delimiter}label")
 
     def test_semantic_delimiter(self):
         self.assertEqual(
@@ -114,7 +114,7 @@ class TestSemantics(unittest.TestCase):
         )
 
     def test_detached_parent_path(self):
-        orphan = ConcreteSemantic("orphan")
+        orphan = ConcreteSemantic(label="orphan")
         orphan.__setstate__(self.child2.__getstate__())
         self.assertIsNone(
             orphan.parent, msg="We still should not explicitly have a parent"

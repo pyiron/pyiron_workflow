@@ -37,11 +37,17 @@ class Semantic(UsesState, HasLabel, Generic[ParentType], ABC):
 
     semantic_delimiter: str = "/"
 
-    def __init__(self, label: str, *args, parent: ParentType | None = None, **kwargs):
+    def __init__(
+            self,
+            *args,
+            label: str | None = None,
+            parent: ParentType | None = None,
+            **kwargs
+    ):
         self._label = ""
         self._parent = None
         self._detached_parent_path = None
-        self.label = label
+        self.label = self.__class__.__name__ if label is None else label
         self.parent = parent
         super().__init__(*args, **kwargs)
 
@@ -202,14 +208,13 @@ class SemanticParent(HasLabel, Generic[ChildType], ABC):
 
     def __init__(
         self,
-        label: str | None,  # Vestigial while the label order is broken
         *args,
         strict_naming: bool = True,
         **kwargs,
     ):
         self._children: bidict[str, ChildType] = bidict()
         self.strict_naming = strict_naming
-        super().__init__(*args, label=label, **kwargs)
+        super().__init__(*args, **kwargs)
 
     @classmethod
     @abstractmethod
