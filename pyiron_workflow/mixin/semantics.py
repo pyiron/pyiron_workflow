@@ -59,7 +59,10 @@ class Semantic(UsesState, HasLabel, Generic[ParentType], ABC):
     def _check_label(self, new_label: str) -> None:
         super()._check_label(new_label)
         if self.semantic_delimiter in new_label:
-            raise ValueError(f"{self.semantic_delimiter} cannot be in the label")
+            raise ValueError(
+                f"Semantic delimiter {self.semantic_delimiter} cannot be in new label "
+                f"{new_label}"
+            )
 
     @property
     def parent(self) -> ParentType | None:
@@ -117,8 +120,8 @@ class Semantic(UsesState, HasLabel, Generic[ParentType], ABC):
             raise ValueError(
                 f"The parent and detached path should not be able to take non-None "
                 f"values simultaneously, but got {self.parent} and "
-                f"{self.detached_parent_path}, respectively. Please raise an issue on GitHub "
-                f"outlining how your reached this state."
+                f"{self.detached_parent_path}, respectively. Please raise an issue on "
+                f"GitHub outlining how your reached this state."
             )
         return prefix + self.semantic_delimiter + self.label
 
