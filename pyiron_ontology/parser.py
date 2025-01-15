@@ -1,5 +1,6 @@
 from semantikon.converter import parse_input_args, parse_output_args
 from rdflib import Graph, Literal, RDF, RDFS, URIRef
+from pyiron_workflow import NOT_DATA
 
 
 def get_source_output(var):
@@ -58,7 +59,7 @@ def get_triples(data, EX):
             graph.add((label, RDFS.label, Literal(full_key)))
             if d.get("uri", None) is not None:
                 graph.add((label, RDF.type, d["uri"]))
-            if d.get("value", None) is not None:
+            if d.get("value", NOT_DATA) is not NOT_DATA:
                 graph.add((label, RDF.value, Literal(d["value"])))
             graph.add((label, EX[io_[:-1] + "Of"], EX[data["label"]]))
             if d.get("units", None) is not None:
@@ -71,10 +72,19 @@ def get_triples(data, EX):
                 else:
                     triple = [d["triple"]]
                 for t in triple:
-                    obj = t[1]
+                    if len(t) == 2:
+                        subj = label
+                        pred = t[0]
+                        obj = t[1]
+                    elif len(t) == 3:
+                        subj = t[0]
+                        pred = t[1]
+                        obj = t[2]
+                    else:
+                        raise ValueError("Triple must have 2 or 3 elements")
                     if obj.startswith("inputs.") or obj.startswith("outputs."):
                         obj = data["label"] + "." + obj
                     if not isinstance(obj, URIRef):
                         obj = EX[obj]
-                    graph.add((label, t[0], obj))
+                    graph.add((subj, pred, obj))
     return graph
