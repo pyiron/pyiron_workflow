@@ -56,17 +56,10 @@ class Semantic(UsesState, HasLabel, Generic[ParentType], ABC):
     def parent_type(cls) -> type[ParentType]:
         pass
 
-    @property
-    def label(self) -> str:
-        return self._label
-
-    @label.setter
-    def label(self, new_label: str) -> None:
-        if not isinstance(new_label, str):
-            raise TypeError(f"Expected a string label but got {new_label}")
+    def _check_label(self, new_label: str) -> None:
+        super()._check_label(new_label)
         if self.semantic_delimiter in new_label:
             raise ValueError(f"{self.semantic_delimiter} cannot be in the label")
-        self._label = new_label
 
     @property
     def parent(self) -> ParentType | None:
