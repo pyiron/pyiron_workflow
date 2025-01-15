@@ -25,8 +25,12 @@ def get_inputs_and_outputs(node):
     outputs = parse_output_args(node.node_function)
     if isinstance(outputs, dict):
         outputs = (outputs,)
+    elif outputs is None:
+        outputs = len(node.outputs.labels) * ({},)
     outputs = {key: out for key, out in zip(node.outputs.labels, outputs)}
     for key, value in node.inputs.items():
+        if inputs[key] is None:
+            inputs[key] = {}
         inputs[key]["value"] = value.value
         inputs[key]["var_name"] = key
         inputs[key]["connection"] = get_source_output(value)
@@ -52,16 +56,16 @@ def get_triples(data, EX):
             full_key = data["label"] + f".{io_}." + key
             label = EX[full_key]
             graph.add((label, RDFS.label, Literal(full_key)))
-            if d["uri"]:
+            if d.get("uri", None) is not None:
                 graph.add((label, RDF.type, d["uri"]))
-            if d["value"]:
+            if d.get("value", None):
                 graph.add((label, RDF.value, Literal(d["value"])))
             graph.add((label, EX[io_[:-1] + "Of"], EX[data["label"]]))
-            if d["units"] is not None:
+            if d.get("units", None) is not None:
                 graph.add((label, EX.hasUnits, EX[d["units"]]))
             if d.get("connection", None) is not None:
                 graph.add((label, EX.comesFrom, EX[d["connection"]]))
-            if d["triple"] is not None:
+            if d.get("triple", None) is not None:
                 if isinstance(d["triple"][0], tuple | list):
                     triple = list(d["triple"])
                 else:
