@@ -24,7 +24,10 @@ from pyiron_workflow.logging import logger
 from pyiron_workflow.mixin.has_interface_mixins import HasLabel, UsesState
 
 
-class Semantic(UsesState, HasLabel, ABC):
+ParentType = TypeVar("ParentType", bound="SemanticParent")
+
+
+class Semantic(UsesState, HasLabel, Generic[ParentType], ABC):
     """
     An object with a unique semantic path.
 
@@ -35,7 +38,7 @@ class Semantic(UsesState, HasLabel, ABC):
     semantic_delimiter: str = "/"
 
     def __init__(
-        self, label: str, *args, parent: SemanticParent | None = None, **kwargs
+        self, label: str, *args, parent: ParentType | None = None, **kwargs
     ):
         self._label = ""
         self._parent = None
@@ -43,6 +46,11 @@ class Semantic(UsesState, HasLabel, ABC):
         self.label = label
         self.parent = parent
         super().__init__(*args, **kwargs)
+
+    @classmethod
+    @abstractmethod
+    def parent_type(cls) -> type[ParentType]:
+        pass
 
     @property
     def label(self) -> str:
@@ -57,14 +65,14 @@ class Semantic(UsesState, HasLabel, ABC):
         self._label = new_label
 
     @property
-    def parent(self) -> SemanticParent | None:
+    def parent(self) -> ParentType | None:
         return self._parent
 
     @parent.setter
-    def parent(self, new_parent: SemanticParent | None) -> None:
+    def parent(self, new_parent: ParentType | None) -> None:
         self._set_parent(new_parent)
 
-    def _set_parent(self, new_parent: SemanticParent | None):
+    def _set_parent(self, new_parent: ParentType | None):
         """
         mypy is uncooperative with super calls for setters, so we pull the behaviour
         out.
@@ -73,9 +81,9 @@ class Semantic(UsesState, HasLabel, ABC):
             # Exit early if nothing is changing
             return
 
-        if new_parent is not None and not isinstance(new_parent, SemanticParent):
+        if new_parent is not None and not isinstance(new_parent, self.parent_type()):
             raise ValueError(
-                f"Expected None or a {SemanticParent.__name__} for the parent of "
+                f"Expected None or a {self.parent_type()} for the parent of "
                 f"{self.label}, but got {new_parent}"
             )
 
@@ -136,7 +144,10 @@ class Semantic(UsesState, HasLabel, ABC):
     @property
     def semantic_root(self) -> Semantic:
         """The parent-most object in this semantic path; may be self."""
-        return self.parent.semantic_root if isinstance(self.parent, Semantic) else self
+        if isinstance(self.parent, Semantic):
+            return self.parent.semantic_root
+        else:
+            return self
 
     def as_path(self, root: Path | str | None = None) -> Path:
         """
