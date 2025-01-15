@@ -84,6 +84,8 @@ select = [
     "I",
     # flake8-comprehensions
     "C4",
+    # eradicate
+    "ERA",
 ]
 ignore = ["E501"] #ignore line-length violations
 
