@@ -1,5 +1,5 @@
 from semantikon.converter import parse_input_args, parse_output_args
-from rdflib import Graph, Literal, RDF, RDFS, URIRe
+from rdflib import Graph, Literal, RDF, RDFS, URIRef
 
 
 def get_source_output(var):
