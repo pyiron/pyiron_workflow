@@ -8,9 +8,7 @@ from pyiron_workflow.mixin.run import ReadinessError, Runnable
 
 
 class ConcreteRunnable(Runnable):
-    @property
-    def label(self) -> str:
-        return "child_class_with_all_methods_implemented"
+    _label = "child_class_with_all_methods_implemented"
 
     def on_run(self, **kwargs):
         return kwargs

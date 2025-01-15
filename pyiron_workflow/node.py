@@ -297,10 +297,7 @@ class Node(
             **kwargs: Interpreted as node input data, with keys corresponding to
                 channel labels.
         """
-        super().__init__(
-            label=self.__class__.__name__ if label is None else label,
-            parent=parent,
-        )
+        super().__init__(label=label, parent=parent)
         self.checkpoint = checkpoint
         self.recovery: Literal["pickle"] | StorageInterface | None = "pickle"
         self._serialize_result = False  # Advertised, but private to indicate

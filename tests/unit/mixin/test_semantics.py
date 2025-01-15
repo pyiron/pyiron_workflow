@@ -12,23 +12,29 @@ from pyiron_workflow.mixin.semantics import (
 
 class ConcreteSemantic(Semantic["ConcreteParent"]):
     @classmethod
-    def parent_type(cls) -> type[ConcreteParent]:
-        return ConcreteParent
+    def parent_type(cls) -> type[ConcreteSemanticParent]:
+        return ConcreteSemanticParent
 
 
-class ConcreteParent(SemanticParent[ConcreteSemantic], ConcreteSemantic):
+class ConcreteParent(SemanticParent[ConcreteSemantic]):
+    _label = "concrete_parent_default_label"
+
     @classmethod
     def child_type(cls) -> type[ConcreteSemantic]:
         return ConcreteSemantic
 
 
+class ConcreteSemanticParent(ConcreteParent, ConcreteSemantic):
+    pass
+
+
 class TestSemantics(unittest.TestCase):
     def setUp(self):
-        self.root = ConcreteParent("root")
-        self.child1 = ConcreteSemantic("child1", parent=self.root)
-        self.middle1 = ConcreteParent("middle", parent=self.root)
-        self.middle2 = ConcreteParent("middle_sub", parent=self.middle1)
-        self.child2 = ConcreteSemantic("child2", parent=self.middle2)
+        self.root = ConcreteSemanticParent(label="root")
+        self.child1 = ConcreteSemantic(label="child1", parent=self.root)
+        self.middle1 = ConcreteSemanticParent(label="middle", parent=self.root)
+        self.middle2 = ConcreteSemanticParent(label="middle_sub", parent=self.middle1)
+        self.child2 = ConcreteSemantic(label="child2", parent=self.middle2)
 
     def test_getattr(self):
         with self.assertRaises(AttributeError) as context:
@@ -55,7 +61,14 @@ class TestSemantics(unittest.TestCase):
             ValueError,
             msg=f"Delimiter '{ConcreteSemantic.semantic_delimiter}' not allowed",
         ):
-            ConcreteSemantic(f"invalid{ConcreteSemantic.semantic_delimiter}label")
+            ConcreteSemantic(label=f"invalid{ConcreteSemantic.semantic_delimiter}label")
+
+        non_semantic_parent = ConcreteParent()
+        with self.assertRaises(
+            ValueError,
+            msg=f"Delimiter '{ConcreteSemantic.semantic_delimiter}' not allowed",
+        ):
+            non_semantic_parent.label = f"contains_{non_semantic_parent.child_type().semantic_delimiter}_delimiter"
 
     def test_semantic_delimiter(self):
         self.assertEqual(
@@ -114,7 +127,7 @@ class TestSemantics(unittest.TestCase):
         )
 
     def test_detached_parent_path(self):
-        orphan = ConcreteSemantic("orphan")
+        orphan = ConcreteSemantic(label="orphan")
         orphan.__setstate__(self.child2.__getstate__())
         self.assertIsNone(
             orphan.parent, msg="We still should not explicitly have a parent"

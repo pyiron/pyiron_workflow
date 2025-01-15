@@ -92,10 +92,6 @@ class Channel(
         self.owner: HasIO = owner
         self.connections: list[ConjugateType] = []
 
-    @property
-    def label(self) -> str:
-        return self._label
-
     @abstractmethod
     def __str__(self):
         pass
