@@ -2,10 +2,11 @@
 Classes for "semantic" reasoning.
 
 The motivation here is to be able to provide the object with a unique identifier
-in the context of other semantic objects. Each object may have exactly one parent
-and an arbitrary number of children, and each child's name must be unique in the
-scope of that parent. In this way, the path from the parent-most object to any
-child is completely unique. The typical filesystem on a computer is an excellent
+in the context of other semantic objects. Each object may have at most one parent,
+while semantic parents may have an arbitrary number of children, and each child's name
+must be unique in the scope of that parent. In this way, when semantic parents are also
+themselves semantic, we can build a path from the parent-most object to any child that
+is completely unique. The typical filesystem on a computer is an excellent
 example and fulfills our requirements, the only reason we depart from it is so that
 we are free to have objects stored in different locations (possibly even on totally
 different drives or machines) belong to the same semantic group.
@@ -180,7 +181,7 @@ ChildType = TypeVar("ChildType", bound=Semantic)
 
 class SemanticParent(Generic[ChildType], ABC):
     """
-    A semantic object with a collection of uniquely-named semantic children.
+    An with a collection of uniquely-named semantic children.
 
     Children should be added or removed via the :meth:`add_child` and
     :meth:`remove_child` methods and _not_ by direct manipulation of the
