@@ -27,9 +27,6 @@ class TestTypeHinting(unittest.TestCase):
             (typing.Literal[1, 2], 1, "baz"),
             (Foo, Foo(), Foo),
             (type[Bar], Bar, Bar()),
-            # (callable, Bar(), Foo()),  # Misses the bad!
-            # Can't hint args and returns without typing.Callable anyhow, so that's
-            # what people should be using regardless
             (typing.Callable, Bar(), Foo()),
             (tuple[int, float], (1, 1.1), ("fo", 0)),
             (dict[str, int], {"a": 1}, {"a": "b"}),
