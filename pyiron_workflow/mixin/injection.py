@@ -277,7 +277,7 @@ class OutputDataWithInjection(OutputData):
 
 class OutputsWithInjection(Outputs):
     @property
-    def _channel_class(self) -> type(OutputDataWithInjection):
+    def _channel_class(self) -> type[OutputDataWithInjection]:
         return OutputDataWithInjection
 
 
