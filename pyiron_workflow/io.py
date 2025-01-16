@@ -399,7 +399,7 @@ class HasIO(HasStateDisplay, HasLabel, HasRun, Generic[OutputsType], ABC):
         return other
 
     def _connect_accumulating_input_signal(
-            self, signal: AccumulatingInputSignal
+        self, signal: AccumulatingInputSignal
     ) -> None:
         self.signals.output.ran.connect(signal)
 
