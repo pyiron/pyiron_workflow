@@ -72,15 +72,19 @@ def get_triples(data, EX):
                 else:
                     triple = [d["triple"]]
                 for t in triple:
-                    if len(t) == 2:
-                        subj, pred, obj = label, t[0], t[1]
-                    elif len(t) == 3:
-                        subj, pred, obj = t
-                    else:
-                        raise ValueError("Triple must have 2 or 3 elements")
-                    if obj.startswith("inputs.") or obj.startswith("outputs."):
-                        obj = data["label"] + "." + obj
-                    if not isinstance(obj, URIRef):
-                        obj = EX[obj]
-                    graph.add((subj, pred, obj))
+                    graph.add(_parse_triple(t, EX))
     return graph
+
+
+def _parse_triple(triple, EX):
+    if len(triple) == 2:
+        subj, pred, obj = label, triple[0], triple[1]
+    elif len(triple) == 3:
+        subj, pred, obj = triple
+    else:
+        raise ValueError("Triple must have 2 or 3 elements")
+    if obj.startswith("inputs.") or obj.startswith("outputs."):
+        obj = data["label"] + "." + obj
+    if not isinstance(obj, URIRef):
+        obj = EX[obj]
+    return subj, pred, obj
