@@ -11,7 +11,7 @@ possible coupling between different components of a composed class.
 from __future__ import annotations
 
 from abc import ABC, abstractmethod
-from typing import TYPE_CHECKING
+from typing import TYPE_CHECKING, Generic, TypeVar
 
 if TYPE_CHECKING:
     from pyiron_workflow.channels import Channel
@@ -69,9 +69,7 @@ class HasLabel(ABC):
 
 class HasChannel(ABC):
     """
-    A mix-in class for use with the :class:`Channel` class.
-    A :class:`Channel` is able to (attempt to) connect to any child instance of :class:`HasConnection`
-    by looking at its :attr:`connection` attribute.
+    A mix-in class for use with the :class:`Channel` class and its children.
 
     This is useful for letting channels attempt to connect to non-channel objects
     directly by pointing them to some channel that object holds.
@@ -80,6 +78,16 @@ class HasChannel(ABC):
     @property
     @abstractmethod
     def channel(self) -> Channel:
+        pass
+
+
+ChannelType = TypeVar("ChannelType", bound="Channel")
+
+
+class HasGenericChannel(HasChannel, Generic[ChannelType], ABC):
+    @property
+    @abstractmethod
+    def channel(self) -> ChannelType:
         pass
 
 
