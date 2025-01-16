@@ -132,7 +132,7 @@ class StorageInterface(ABC):
         node: Node | None = None,
         filename: str | Path | None = None,
         **kwargs,
-    ):
+    ) -> bool:
         """
         Check if a file has contents related to a node.
 
@@ -168,7 +168,9 @@ class StorageInterface(ABC):
         if filename.parent.exists() and not any(filename.parent.iterdir()):
             filename.parent.rmdir()
 
-    def _parse_filename(self, node: Node | None, filename: str | Path | None = None):
+    def _parse_filename(
+            self, node: Node | None, filename: str | Path | None = None
+    ) -> Path:
         """
         Make sure the node xor filename was provided, and if it's the node, convert it
         into a canonical filename by exploiting the node's semantic path.
@@ -204,7 +206,7 @@ class PickleStorage(StorageInterface):
     def __init__(self, cloudpickle_fallback: bool = True):
         self.cloudpickle_fallback = cloudpickle_fallback
 
-    def _fallback(self, cpf: bool | None):
+    def _fallback(self, cpf: bool | None) -> bool:
         return self.cloudpickle_fallback if cpf is None else cpf
 
     def _save(
