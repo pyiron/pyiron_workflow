@@ -225,7 +225,7 @@ class Workflow(Composite):
         self.outputs_map = outputs_map
         self._inputs = None
         self._outputs = None
-        self.automate_execution = automate_execution
+        self.automate_execution: bool = automate_execution
 
         super().__init__(
             *nodes,
