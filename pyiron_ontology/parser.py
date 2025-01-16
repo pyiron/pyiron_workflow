@@ -89,7 +89,7 @@ def get_triples(
                 for t in triple:
                     graph.add(_parse_triple(t, EX, label=label, data=data))
     if update_query:
-        _inherit_properties(graph, EX)
+        inherit_properties(graph, EX)
     return graph
 
 
@@ -107,7 +107,7 @@ def _parse_triple(triple, EX, label=None, data=None):
     return subj, pred, obj
 
 
-def _inherit_properties(graph, NS):
+def inherit_properties(graph, NS):
     update_query = (
         f"PREFIX ns: <{NS}>",
         f"PREFIX rdfs: <{RDFS}>",
