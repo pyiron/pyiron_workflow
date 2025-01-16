@@ -12,7 +12,14 @@ EX = Namespace("http://example.org/")
 def calculate_speed(
     distance: u(float, units="meter"),
     time: u(float, units="second"),
-) -> u(float, units="meter/second", triple=(EX.isOutputOf, "inputs.time")):
+) -> u(
+    float,
+    units="meter/second",
+    triple=(
+        (EX.isOutputOf, "inputs.time"),
+        (EX.subject, EX.predicate, EX.object)
+    )
+):
     return distance / time
 
 
@@ -32,6 +39,10 @@ class TestParser(unittest.TestCase):
         )
         self.assertGreater(
             len(list(graph.triples((None, EX.isOutputOf, EX["calculate_speed.inputs.time"])))),
+            0
+        )
+        self.assertGreater(
+            len(list(graph.triples((EX.subject, EX.predicate, EX.object)))),
             0
         )
 
