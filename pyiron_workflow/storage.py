@@ -36,7 +36,7 @@ class StorageInterface(ABC):
     """
 
     @abstractmethod
-    def _save(self, node: Node, filename: Path, /, **kwargs):
+    def _save(self, node: Node, filename: Path, /, *args, **kwargs):
         """
         Save a node to file.
 
@@ -48,7 +48,7 @@ class StorageInterface(ABC):
         """
 
     @abstractmethod
-    def _load(self, filename: Path, /, **kwargs) -> Node:
+    def _load(self, filename: Path, /, *args, **kwargs) -> Node:
         """
         Instantiate a node from file.
 
@@ -61,7 +61,7 @@ class StorageInterface(ABC):
         """
 
     @abstractmethod
-    def _has_saved_content(self, filename: Path, /, **kwargs) -> bool:
+    def _has_saved_content(self, filename: Path, /, *args, **kwargs) -> bool:
         """
         Check for a save file matching this storage interface.
 
@@ -74,7 +74,7 @@ class StorageInterface(ABC):
         """
 
     @abstractmethod
-    def _delete(self, filename: Path, /, **kwargs):
+    def _delete(self, filename: Path, /, *args, **kwargs):
         """
         Remove an existing save-file for this backend.
 
@@ -169,7 +169,7 @@ class StorageInterface(ABC):
             filename.parent.rmdir()
 
     def _parse_filename(
-            self, node: Node | None, filename: str | Path | None = None
+        self, node: Node | None, filename: str | Path | None = None
     ) -> Path:
         """
         Make sure the node xor filename was provided, and if it's the node, convert it
@@ -215,7 +215,7 @@ class PickleStorage(StorageInterface):
         return self.cloudpickle_fallback if cpf is None else cpf
 
     def _save(
-        self, node: Node, filename: Path, cloudpickle_fallback: bool | None = None
+        self, node: Node, filename: Path, /, cloudpickle_fallback: bool | None = None
     ):
         if not self._fallback(cloudpickle_fallback) and not node.import_ready:
             raise TypeNotFoundError(
@@ -243,7 +243,9 @@ class PickleStorage(StorageInterface):
         if e is not None:
             raise e
 
-    def _load(self, filename: Path, cloudpickle_fallback: bool | None = None) -> Node:
+    def _load(
+        self, filename: Path, /, cloudpickle_fallback: bool | None = None
+    ) -> Node:
         attacks = [(self._PICKLE, pickle.load)]
         if self._fallback(cloudpickle_fallback):
             attacks += [(self._CLOUDPICKLE, cloudpickle.load)]
@@ -256,7 +258,7 @@ class PickleStorage(StorageInterface):
                 return inst
         raise FileNotFoundError(f"Could not load {filename}, no such file found.")
 
-    def _delete(self, filename: Path, cloudpickle_fallback: bool | None = None):
+    def _delete(self, filename: Path, /, cloudpickle_fallback: bool | None = None):
         suffixes = (
             [self._PICKLE, self._CLOUDPICKLE]
             if self._fallback(cloudpickle_fallback)
@@ -266,7 +268,7 @@ class PickleStorage(StorageInterface):
             filename.with_suffix(suffix).unlink(missing_ok=True)
 
     def _has_saved_content(
-        self, filename: Path, cloudpickle_fallback: bool | None = None
+        self, filename: Path, /, cloudpickle_fallback: bool | None = None
     ) -> bool:
         suffixes = (
             [self._PICKLE, self._CLOUDPICKLE]
