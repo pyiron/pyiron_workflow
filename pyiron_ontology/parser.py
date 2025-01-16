@@ -1,5 +1,5 @@
 from semantikon.converter import parse_input_args, parse_output_args
-from rdflib import Graph, Literal, RDF, RDFS, URIRef
+from rdflib import Graph, Literal, RDF, RDFS, URIRef, OWL
 from pyiron_workflow import NOT_DATA
 
 
@@ -52,7 +52,7 @@ def get_triples(
     if hasSourceFunction is None:
         hasSourceFunction = EX.hasSourceFunction
     if comesFrom is None:
-        comesFrom = EX.comesFrom
+        comesFrom = OWL.sameAs
     if hasUnits is None:
         hasUnits = EX.hasUnits
     graph = Graph()
