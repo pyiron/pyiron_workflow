@@ -1,3 +1,5 @@
+from __future__ import annotations
+
 import unittest
 from pathlib import Path
 
@@ -8,19 +10,25 @@ from pyiron_workflow.mixin.semantics import (
 )
 
 
-class ConcreteParent(SemanticParent[Semantic]):
+class ConcreteSemantic(Semantic["ConcreteParent"]):
     @classmethod
-    def child_type(cls) -> type[Semantic]:
-        return Semantic
+    def parent_type(cls) -> type[ConcreteParent]:
+        return ConcreteParent
+
+
+class ConcreteParent(SemanticParent[ConcreteSemantic], ConcreteSemantic):
+    @classmethod
+    def child_type(cls) -> type[ConcreteSemantic]:
+        return ConcreteSemantic
 
 
 class TestSemantics(unittest.TestCase):
     def setUp(self):
         self.root = ConcreteParent("root")
-        self.child1 = Semantic("child1", parent=self.root)
+        self.child1 = ConcreteSemantic("child1", parent=self.root)
         self.middle1 = ConcreteParent("middle", parent=self.root)
         self.middle2 = ConcreteParent("middle_sub", parent=self.middle1)
-        self.child2 = Semantic("child2", parent=self.middle2)
+        self.child2 = ConcreteSemantic("child2", parent=self.middle2)
 
     def test_getattr(self):
         with self.assertRaises(AttributeError) as context:
@@ -40,18 +48,19 @@ class TestSemantics(unittest.TestCase):
 
     def test_label_validity(self):
         with self.assertRaises(TypeError, msg="Label must be a string"):
-            Semantic(label=123)
+            ConcreteSemantic(label=123)
 
     def test_label_delimiter(self):
         with self.assertRaises(
-            ValueError, msg=f"Delimiter '{Semantic.semantic_delimiter}' not allowed"
+            ValueError,
+            msg=f"Delimiter '{ConcreteSemantic.semantic_delimiter}' not allowed",
         ):
-            Semantic(f"invalid{Semantic.semantic_delimiter}label")
+            ConcreteSemantic(f"invalid{ConcreteSemantic.semantic_delimiter}label")
 
     def test_semantic_delimiter(self):
         self.assertEqual(
             "/",
-            Semantic.semantic_delimiter,
+            ConcreteSemantic.semantic_delimiter,
             msg="This is just a hard-code to the current value, update it freely so "
             "the test passes; if it fails it's just a reminder that your change is "
             "not backwards compatible, and the next release number should reflect "
@@ -105,7 +114,7 @@ class TestSemantics(unittest.TestCase):
         )
 
     def test_detached_parent_path(self):
-        orphan = Semantic("orphan")
+        orphan = ConcreteSemantic("orphan")
         orphan.__setstate__(self.child2.__getstate__())
         self.assertIsNone(
             orphan.parent, msg="We still should not explicitly have a parent"

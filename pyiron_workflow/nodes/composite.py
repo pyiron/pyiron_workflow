@@ -304,11 +304,6 @@ class Composite(SemanticParent[Node], HasCreator, Node, ABC):
         label: str | None = None,
         strict_naming: bool | None = None,
     ) -> Node:
-        if not isinstance(child, Node):
-            raise TypeError(
-                f"Only new {Node.__name__} instances may be added, but got "
-                f"{type(child)}."
-            )
         self._cached_inputs = None  # Reset cache after graph change
         return super().add_child(child, label=label, strict_naming=strict_naming)
 

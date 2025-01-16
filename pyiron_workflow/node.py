@@ -41,7 +41,7 @@ if TYPE_CHECKING:
 
 class Node(
     HasIOWithInjection,
-    Semantic,
+    Semantic["Composite"],
     Runnable,
     ExploitsSingleOutput,
     ABC,
@@ -318,6 +318,12 @@ class Node(
             autorun=autorun,
             **kwargs,
         )
+
+    @classmethod
+    def parent_type(cls) -> type[Composite]:
+        from pyiron_workflow.nodes.composite import Composite
+
+        return Composite
 
     def _setup_node(self) -> None:
         """
