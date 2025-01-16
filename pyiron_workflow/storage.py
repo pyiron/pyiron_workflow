@@ -197,6 +197,11 @@ class StorageInterface(ABC):
                 f"Both the node ({node.full_label}) and filename ({filename}) were "
                 f"specified for loading -- please only specify one or the other."
             )
+        else:
+            raise AssertionError(
+                "This is an unreachable state -- we have covered all four cases of the "
+                "boolean `is (not) None` square."
+            )
 
 
 class PickleStorage(StorageInterface):
