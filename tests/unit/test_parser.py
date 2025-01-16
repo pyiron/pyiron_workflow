@@ -5,11 +5,14 @@ from semantikon.typing import u
 from rdflib import Namespace
 
 
+EX = Namespace("http://example.org/")
+
+
 @Workflow.wrap.as_function_node("speed")
 def calculate_speed(
     distance: u(float, units="meter"),
     time: u(float, units="second"),
-) -> u(float, units="meter/second"):
+) -> u(float, units="meter/second", triple=(EX.isOutputOf, "inputs.time")):
     return distance / time
 
 
@@ -21,12 +24,15 @@ class TestParser(unittest.TestCase):
             self.assertIn(label, output_dict)
 
     def test_triples(self):
-        EX = Namespace("http://example.org/")
         speed = calculate_speed()
         data = get_inputs_and_outputs(speed)
         graph = get_triples(data, EX)
         self.assertGreater(
             len(list(graph.triples((None, EX.hasUnits, EX["meter/second"])))), 0
+        )
+        self.assertGreater(
+            len(list(graph.triples((None, EX.isOutputOf, EX["calculate_speed.inputs.time"])))),
+            0
         )
 
 
