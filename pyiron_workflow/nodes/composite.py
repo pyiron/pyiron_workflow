@@ -143,8 +143,8 @@ class Composite(SemanticParent[Node], HasCreator, Node, ABC):
         # empty but the running_children list is not
 
         super().__init__(
-            label,
             *args,
+            label=label,
             parent=parent,
             delete_existing_savefiles=delete_existing_savefiles,
             autoload=autoload,

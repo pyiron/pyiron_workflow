@@ -39,10 +39,24 @@ class HasLabel(ABC):
     A mixin to guarantee the label interface exists.
     """
 
+    _label: str
+
     @property
-    @abstractmethod
     def label(self) -> str:
         """A label for the object."""
+        return self._label
+
+    @label.setter
+    def label(self, new_label: str):
+        self._check_label(new_label)
+        self._label = new_label
+
+    def _check_label(self, new_label: str) -> None:
+        """
+        Extensible checking routine for label validity.
+        """
+        if not isinstance(new_label, str):
+            raise TypeError(f"Expected a string label but got {new_label}")
 
     @property
     def full_label(self) -> str:
