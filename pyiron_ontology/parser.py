@@ -47,14 +47,19 @@ def get_inputs_and_outputs(node):
 
 
 def get_triples(
-    data, EX, hasSourceFunction=None, comesFrom=None, hasUnits=None
+    data,
+    EX,
+    hasSourceFunction=None,
+    hasUnits=None,
+    inheritsPropertiesFrom=None,
+    update_query=True
 ):
     if hasSourceFunction is None:
         hasSourceFunction = EX.hasSourceFunction
-    if comesFrom is None:
-        comesFrom = OWL.sameAs
     if hasUnits is None:
         hasUnits = EX.hasUnits
+    if inheritsPropertiesFrom is None:
+        inheritsPropertiesFrom = EX.inheritsPropertiesFrom
     graph = Graph()
     label_def_triple = (
         EX[data["label"]], hasSourceFunction, EX[data["function"]]
@@ -75,7 +80,7 @@ def get_triples(
             if d.get("units", None) is not None:
                 graph.add((label, hasUnits, EX[d["units"]]))
             if d.get("connection", None) is not None:
-                graph.add((label, comesFrom, EX[d["connection"]]))
+                graph.add((label, inheritsPropertiesFrom, EX[d["connection"]]))
             if d.get("triple", None) is not None:
                 if isinstance(d["triple"][0], tuple | list):
                     triple = list(d["triple"])
@@ -83,6 +88,8 @@ def get_triples(
                     triple = [d["triple"]]
                 for t in triple:
                     graph.add(_parse_triple(t, EX, label=label, data=data))
+    if update_query:
+        _inherit_properties(graph, EX)
     return graph
 
 
@@ -98,3 +105,23 @@ def _parse_triple(triple, EX, label=None, data=None):
     if not isinstance(obj, URIRef):
         obj = EX[obj]
     return subj, pred, obj
+
+
+def _inherit_properties(graph, NS):
+    update_query = (
+        f"PREFIX ns: <{NS}>",
+        f"PREFIX rdfs: <{RDFS}>",
+        f"PREFIX rdf: <{RDF}>",
+        "",
+        "INSERT {",
+        "    ?subject ?p ?o .",
+        "}",
+        "WHERE {",
+        "    ?subject ns:inheritsPropertiesFrom ?target .",
+        "    ?target ?p ?o .",
+        "    FILTER(?p != ns:inheritsPropertiesFrom)",
+        "    FILTER(?p != rdfs:label)",
+        "    FILTER(?p != rdf:value)",
+        "}"
+    )
+    graph.update("\n".join(update_query))
