@@ -220,7 +220,17 @@ class Inputs(InputsIO, DataIO):
             c.fetch()
 
 
-class Outputs(OutputsIO, DataIO):
+OutputDataType = TypeVar("OutputDataType", bound=OutputData)
+
+
+class GenericOutputs(OutputsIO, DataIO, Generic[OutputDataType], ABC):
+    @property
+    @abstractmethod
+    def _channel_class(self) -> type[OutputDataType]:
+        pass
+
+
+class Outputs(GenericOutputs[OutputData]):
     @property
     def _channel_class(self) -> type[OutputData]:
         return OutputData
@@ -294,7 +304,7 @@ class Signals(HasStateDisplay):
         return f"{str(self.input)}\n{str(self.output)}"
 
 
-OutputsType = TypeVar("OutputsType", bound=Outputs)
+OutputsType = TypeVar("OutputsType", bound=GenericOutputs)
 
 
 class HasIO(HasStateDisplay, HasLabel, HasRun, Generic[OutputsType], ABC):

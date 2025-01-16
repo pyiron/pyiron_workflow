@@ -12,7 +12,7 @@ from abc import ABC, abstractmethod
 from typing import TYPE_CHECKING, Any
 
 from pyiron_workflow.channels import NOT_DATA, OutputData
-from pyiron_workflow.io import HasIO, Outputs
+from pyiron_workflow.io import GenericOutputs, HasIO
 from pyiron_workflow.mixin.has_interface_mixins import HasChannel
 
 if TYPE_CHECKING:
@@ -275,7 +275,7 @@ class OutputDataWithInjection(OutputData):
         return self._node_injection(Round)
 
 
-class OutputsWithInjection(Outputs):
+class OutputsWithInjection(GenericOutputs[OutputDataWithInjection]):
     @property
     def _channel_class(self) -> type[OutputDataWithInjection]:
         return OutputDataWithInjection
