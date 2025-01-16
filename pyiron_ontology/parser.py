@@ -73,13 +73,9 @@ def get_triples(data, EX):
                     triple = [d["triple"]]
                 for t in triple:
                     if len(t) == 2:
-                        subj = label
-                        pred = t[0]
-                        obj = t[1]
+                        subj, pred, obj = label, t[0], t[1]
                     elif len(t) == 3:
-                        subj = t[0]
-                        pred = t[1]
-                        obj = t[2]
+                        subj, pred, obj = t
                     else:
                         raise ValueError("Triple must have 2 or 3 elements")
                     if obj.startswith("inputs.") or obj.startswith("outputs."):
