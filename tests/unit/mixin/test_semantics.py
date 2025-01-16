@@ -3,18 +3,23 @@ from pathlib import Path
 
 from pyiron_workflow.mixin.semantics import (
     CyclicPathError,
-    ParentMost,
     Semantic,
     SemanticParent,
 )
 
 
+class ConcreteParent(SemanticParent[Semantic]):
+    @classmethod
+    def child_type(cls) -> type[Semantic]:
+        return Semantic
+
+
 class TestSemantics(unittest.TestCase):
     def setUp(self):
-        self.root = ParentMost("root")
+        self.root = ConcreteParent("root")
         self.child1 = Semantic("child1", parent=self.root)
-        self.middle1 = SemanticParent("middle", parent=self.root)
-        self.middle2 = SemanticParent("middle_sub", parent=self.middle1)
+        self.middle1 = ConcreteParent("middle", parent=self.root)
+        self.middle2 = ConcreteParent("middle_sub", parent=self.middle1)
         self.child2 = Semantic("child2", parent=self.middle2)
 
     def test_getattr(self):
@@ -57,18 +62,6 @@ class TestSemantics(unittest.TestCase):
         with self.subTest("Normal usage"):
             self.assertEqual(self.child1.parent, self.root)
             self.assertEqual(self.root.parent, None)
-
-        with self.subTest(f"{ParentMost.__name__} exceptions"):
-            with self.assertRaises(
-                TypeError, msg=f"{ParentMost.__name__} instances can't have parent"
-            ):
-                self.root.parent = SemanticParent(label="foo")
-
-            with self.assertRaises(
-                TypeError, msg=f"{ParentMost.__name__} instances can't be children"
-            ):
-                some_parent = SemanticParent(label="bar")
-                some_parent.add_child(self.root)
 
         with self.subTest("Cyclicity exceptions"):
             with self.assertRaises(CyclicPathError):

@@ -9,9 +9,8 @@ from static import demo_nodes
 
 from pyiron_workflow._tests import ensure_tests_in_python_path
 from pyiron_workflow.channels import NOT_DATA
-from pyiron_workflow.mixin.semantics import ParentMostError
 from pyiron_workflow.storage import TypeNotFoundError, available_backends
-from pyiron_workflow.workflow import Workflow
+from pyiron_workflow.workflow import ParentMostError, Workflow
 
 ensure_tests_in_python_path()
 
@@ -155,7 +154,7 @@ class TestWorkflow(unittest.TestCase):
             self.assertEqual(3, len(wf.inputs_map), msg="All entries should be stored")
             self.assertEqual(0, len(wf.inputs), msg="No IO should be left exposed")
 
-    def test_is_parentmost(self):
+    def test_takes_no_parent(self):
         wf = Workflow("wf")
         wf2 = Workflow("wf2")
 
