@@ -281,7 +281,7 @@ class OutputsWithInjection(Outputs):
         return OutputDataWithInjection
 
 
-class HasIOWithInjection(HasIO, ABC):
+class HasIOWithInjection(HasIO[OutputsWithInjection], ABC):
     @property
     @abstractmethod
     def outputs(self) -> OutputsWithInjection:

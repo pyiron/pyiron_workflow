@@ -294,7 +294,10 @@ class Signals(HasStateDisplay):
         return f"{str(self.input)}\n{str(self.output)}"
 
 
-class HasIO(HasStateDisplay, HasLabel, HasRun, ABC):
+OutputsType = TypeVar("OutputsType", bound=Outputs)
+
+
+class HasIO(HasStateDisplay, HasLabel, HasRun, Generic[OutputsType], ABC):
     """
     A mixin for classes that provide data and signal IO.
 
@@ -329,7 +332,7 @@ class HasIO(HasStateDisplay, HasLabel, HasRun, ABC):
 
     @property
     @abstractmethod
-    def outputs(self) -> Outputs:
+    def outputs(self) -> OutputsType:
         pass
 
     @property

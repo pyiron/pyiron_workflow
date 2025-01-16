@@ -17,7 +17,7 @@ from pyiron_workflow.io import (
 )
 
 
-class Dummy(HasIO):
+class Dummy(HasIO[Outputs]):
     def __init__(self, label: str | None = "has_io"):
         super().__init__()
         self._label = label
