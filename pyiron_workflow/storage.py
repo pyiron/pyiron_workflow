@@ -250,10 +250,11 @@ class PickleStorage(StorageInterface):
 
         for suffix, load_method in attacks:
             p = filename.with_suffix(suffix)
-            if p.exists():
+            if p.is_file():
                 with open(p, "rb") as filehandle:
                     inst = load_method(filehandle)
                 return inst
+        raise FileNotFoundError(f"Could not load {filename}, no such file found.")
 
     def _delete(self, filename: Path, cloudpickle_fallback: bool | None = None):
         suffixes = (
