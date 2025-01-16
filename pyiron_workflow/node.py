@@ -631,7 +631,7 @@ class Node(
 
         try:
             parent_starting_nodes = (
-                self.parent.starting_nodes if self.parent is not None else None
+                self.parent.starting_nodes if self.parent is not None else []
             )  # We need these for state recovery later, even if we crash
 
             if len(data_tree_starters) == 1 and data_tree_starters[0] is self:
