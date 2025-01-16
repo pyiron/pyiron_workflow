@@ -158,7 +158,7 @@ class IO(HasStateDisplay, Generic[OwnedType, OwnedConjugate], ABC):
         return len(self.channel_dict)
 
     def __dir__(self):
-        return set(super().__dir__() + self.labels)
+        return list(set(super().__dir__() + self.labels))
 
     def __str__(self):
         return f"{self.__class__.__name__} {self.labels}"
