@@ -72,11 +72,11 @@ def get_triples(data, EX):
                 else:
                     triple = [d["triple"]]
                 for t in triple:
-                    graph.add(_parse_triple(t, EX))
+                    graph.add(_parse_triple(t, EX, label=label, data=data))
     return graph
 
 
-def _parse_triple(triple, EX):
+def _parse_triple(triple, EX, label=None, data=None):
     if len(triple) == 2:
         subj, pred, obj = label, triple[0], triple[1]
     elif len(triple) == 3:
