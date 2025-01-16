@@ -4,6 +4,7 @@ Simple display capabilities to make it easier for humans to see what's happening
 
 from abc import ABC
 from json import dumps
+from typing import Any
 
 from pyiron_workflow.mixin.has_interface_mixins import UsesState
 
@@ -24,7 +25,7 @@ class HasStateDisplay(UsesState, ABC):
 
     def display_state(
         self, state: dict | None = None, ignore_private: bool = True
-    ) -> dict:
+    ) -> dict[str, Any]:
         """
         A dictionary of JSON-compatible objects based on the object state (plus
         whatever modifications to the state the class designer has chosen to make).
