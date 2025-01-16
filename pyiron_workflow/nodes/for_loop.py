@@ -112,15 +112,14 @@ def dictionary_to_index_maps(
         key_index_maps = tuple(
             zipped_index_map(zipped_index) for zipped_index in zipped_generator()
         )
+    elif nested_keys is None and zipped_keys is None:
+        raise ValueError(
+            "At least one of `nested_keys` or `zipped_keys` must be specified."
+        )
     else:
-        if nested_keys is None and zipped_keys is None:
-            raise ValueError(
-                "At least one of `nested_keys` or `zipped_keys` must be specified."
-            )
-        else:
-            raise ValueError(
-                "Received keys to iterate over, but all values had length 0."
-            )
+        raise ValueError(
+            "Received keys to iterate over, but all values had length 0."
+        )
 
     return key_index_maps
 
@@ -393,8 +392,7 @@ class For(Composite, StaticNode, ABC):
                 _default,
             ) in cls._body_node_class.preview_inputs().items():
                 if label in cls._zip_on + cls._iter_on:
-                    hint = list if hint is None else list[hint]
-                    preview[label] = hint
+                    preview[label] = list if hint is None else list[hint]
             for label, hint in cls._body_node_class.preview_outputs().items():
                 preview[cls.output_column_map[label]] = (
                     list if hint is None else list[hint]

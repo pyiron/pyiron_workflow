@@ -144,23 +144,22 @@ class Channel(HasChannel, HasLabel, HasStateDisplay, ABC):
                 # so that connection searches run newest to oldest
                 self.connections.insert(0, other)
                 other.connections.insert(0, self)
+            elif isinstance(other, self.connection_partner_type):
+                raise ChannelConnectionError(
+                    f"The channel {other.full_label} ({other.__class__.__name__}"
+                    f") has the correct type "
+                    f"({self.connection_partner_type.__name__}) to connect with "
+                    f"{self.full_label} ({self.__class__.__name__}), but is not "
+                    f"a valid connection. Please check type hints, etc."
+                    f"{other.full_label}.type_hint = {other.type_hint}; "
+                    f"{self.full_label}.type_hint = {self.type_hint}"
+                ) from None
             else:
-                if isinstance(other, self.connection_partner_type):
-                    raise ChannelConnectionError(
-                        f"The channel {other.full_label} ({other.__class__.__name__}"
-                        f") has the correct type "
-                        f"({self.connection_partner_type.__name__}) to connect with "
-                        f"{self.full_label} ({self.__class__.__name__}), but is not "
-                        f"a valid connection. Please check type hints, etc."
-                        f"{other.full_label}.type_hint = {other.type_hint}; "
-                        f"{self.full_label}.type_hint = {self.type_hint}"
-                    ) from None
-                else:
-                    raise TypeError(
-                        f"Can only connect to {self.connection_partner_type.__name__} "
-                        f"objects, but {self.full_label} ({self.__class__.__name__}) "
-                        f"got {other} ({type(other)})"
-                    )
+                raise TypeError(
+                    f"Can only connect to {self.connection_partner_type.__name__} "
+                    f"objects, but {self.full_label} ({self.__class__.__name__}) "
+                    f"got {other} ({type(other)})"
+                )
 
     def disconnect(self, *others: Channel) -> list[tuple[Channel, Channel]]:
         """
