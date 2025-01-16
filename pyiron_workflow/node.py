@@ -177,8 +177,9 @@ class Node(
         inputs (pyiron_workflow.io.Inputs): **Abstract.** Children must define
             a property returning an :class:`Inputs` object.
         label (str): A name for the node.
-        outputs (pyiron_workflow.io.Outputs): **Abstract.** Children must define
-            a property returning an :class:`Outputs` object.
+        outputs (pyiron_workflow.mixin.injection.OutputsWithInjection): **Abstract.**
+            Children must define a property returning an :class:`OutputsWithInjection`
+            object.
         parent (pyiron_workflow.composite.Composite | None): The parent object
             owning this, if any.
         ready (bool): Whether the inputs are all ready and the node is neither

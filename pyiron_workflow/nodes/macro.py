@@ -13,8 +13,9 @@ from typing import TYPE_CHECKING
 
 from pyiron_snippets.factory import classfactory
 
-from pyiron_workflow.io import Inputs, Outputs
+from pyiron_workflow.io import Inputs
 from pyiron_workflow.mixin.has_interface_mixins import HasChannel
+from pyiron_workflow.mixin.injection import OutputsWithInjection
 from pyiron_workflow.mixin.preview import ScrapesIO
 from pyiron_workflow.nodes.composite import Composite
 from pyiron_workflow.nodes.multiple_distpatch import dispatch_output_labels
@@ -342,7 +343,7 @@ class Macro(Composite, StaticNode, ScrapesIO, ABC):
         return self._inputs
 
     @property
-    def outputs(self) -> Outputs:
+    def outputs(self) -> OutputsWithInjection:
         return self._outputs
 
     def _parse_remotely_executed_self(self, other_self):

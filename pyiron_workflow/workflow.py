@@ -10,7 +10,8 @@ from typing import TYPE_CHECKING, Any, Literal
 
 from bidict import bidict
 
-from pyiron_workflow.io import Inputs, Outputs
+from pyiron_workflow.io import Inputs
+from pyiron_workflow.mixin.injection import OutputsWithInjection
 from pyiron_workflow.nodes.composite import Composite
 
 if TYPE_CHECKING:
@@ -294,7 +295,7 @@ class Workflow(Composite):
         return self._build_io("inputs", self.inputs_map)
 
     @property
-    def outputs(self) -> Outputs:
+    def outputs(self) -> OutputsWithInjection:
         return self._build_outputs()
 
     def _build_outputs(self):
@@ -304,7 +305,7 @@ class Workflow(Composite):
         self,
         i_or_o: Literal["inputs", "outputs"],
         key_map: dict[str, str | None] | None,
-    ) -> Inputs | Outputs:
+    ) -> Inputs | OutputsWithInjection:
         """
         Build an IO panel for exposing child node IO to the outside world at the level
         of the composite node's IO.
@@ -320,10 +321,10 @@ class Workflow(Composite):
                 (which normally would be exposed) by providing a string-None map.
 
         Returns:
-            (Inputs|Outputs): The populated panel.
+            (Inputs|OutputsWithInjection): The populated panel.
         """
         key_map = {} if key_map is None else key_map
-        io = Inputs() if i_or_o == "inputs" else Outputs()
+        io = Inputs() if i_or_o == "inputs" else OutputsWithInjection()
         for node in self.children.values():
             panel = getattr(node, i_or_o)
             for channel in panel:
