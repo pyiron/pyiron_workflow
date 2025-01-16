@@ -81,16 +81,35 @@ def get_triples(
                 graph.add((label, hasUnits, EX[d["units"]]))
             if d.get("connection", None) is not None:
                 graph.add((label, inheritsPropertiesFrom, EX[d["connection"]]))
+            triples = []
+            if d.get("restriction", None) is not None:
+                triples = restriction_to_triple(d["restriction"])
             if d.get("triple", None) is not None:
                 if isinstance(d["triple"][0], tuple | list):
-                    triple = list(d["triple"])
+                    triples.extend(list(d["triple"]))
                 else:
-                    triple = [d["triple"]]
-                for t in triple:
+                    triples.extend([d["triple"]])
+            if len(triples) > 0:
+                for t in triples:
                     graph.add(_parse_triple(t, EX, label=label, data=data))
     if update_query:
         inherit_properties(graph, EX)
     return graph
+
+
+def restriction_to_triple(restriction):
+    triples = []
+    assert isinstance(restriction, tuple) and isinstance(restriction[0], tuple)
+    if not isinstance(restriction[0][0], tuple):
+        restriction = (restriction,)
+    for r in restriction:
+        assert len(r[0]) == 2
+        label = r[0][1] + "Restriction"
+        triples.append((label, RDF.type, OWL.Restriction))
+        for rr in r:
+            triples.append((label, rr[0], rr[1]))
+        triples.append((RDF.type, label))
+    return triples
 
 
 def _parse_triple(triple, EX, label=None, data=None):
