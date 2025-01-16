@@ -46,9 +46,19 @@ def get_inputs_and_outputs(node):
     }
 
 
-def get_triples(data, EX):
+def get_triples(
+    data, EX, hasSourceFunction=None, comesFrom=None, hasUnits=None
+):
+    if hasSourceFunction is None:
+        hasSourceFunction = EX.hasSourceFunction
+    if comesFrom is None:
+        comesFrom = EX.comesFrom
+    if hasUnits is None:
+        hasUnits = EX.hasUnits
     graph = Graph()
-    label_def_triple = (EX[data["label"]], EX.hasSourceFunction, EX[data["function"]])
+    label_def_triple = (
+        EX[data["label"]], hasSourceFunction, EX[data["function"]]
+    )
     if len(list(graph.triples(label_def_triple))) > 0:
         return graph
     graph.add(label_def_triple)
@@ -63,9 +73,9 @@ def get_triples(data, EX):
                 graph.add((label, RDF.value, Literal(d["value"])))
             graph.add((label, EX[io_[:-1] + "Of"], EX[data["label"]]))
             if d.get("units", None) is not None:
-                graph.add((label, EX.hasUnits, EX[d["units"]]))
+                graph.add((label, hasUnits, EX[d["units"]]))
             if d.get("connection", None) is not None:
-                graph.add((label, EX.comesFrom, EX[d["connection"]]))
+                graph.add((label, comesFrom, EX[d["connection"]]))
             if d.get("triple", None) is not None:
                 if isinstance(d["triple"][0], tuple | list):
                     triple = list(d["triple"])
