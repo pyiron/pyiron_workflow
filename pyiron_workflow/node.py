@@ -303,7 +303,7 @@ class Node(
         # under-development status -- API may change to be more user-friendly
         self._do_clean: bool = False  # Power-user override for cleaning up temporary
         # serialized results and empty directories (or not).
-        self._cached_inputs = None
+        self._cached_inputs: dict[str, Any] | None = None
 
         self._user_data: dict[str, Any] = {}
         # A place for power-users to bypass node-injection
