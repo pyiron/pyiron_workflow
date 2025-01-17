@@ -166,7 +166,7 @@ class Runnable(UsesState, HasLabel, HasRun, ABC):
         )
 
     def _before_run(
-            self, /, check_readiness: bool, *args, **kwargs
+        self, /, check_readiness: bool, *args, **kwargs
     ) -> tuple[bool, Any]:
         """
         Things to do _before_ running.

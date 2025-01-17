@@ -259,9 +259,9 @@ class TestWorkflow(unittest.TestCase):
 
         wf.sum = sum_(wf.a, wf.b)
         with self.assertRaises(
-                NoArgsError,
-                msg="Workflows don't know what to do with raw args, since their input "
-                    "has no intrinsic order",
+            NoArgsError,
+            msg="Workflows don't know what to do with raw args, since their input "
+            "has no intrinsic order",
         ):
             wf.run(1, 2)
         wf.run()
