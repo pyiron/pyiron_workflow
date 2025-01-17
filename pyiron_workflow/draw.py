@@ -123,7 +123,7 @@ class WorkflowGraphvizMap(ABC):
         pass
 
 
-WorkflowChannelType = TypeVar("WorkflowChannelType", bound=WorkflowChannel)
+WorkflowChannelType = TypeVar("WorkflowChannelType", bound="WorkflowChannel")
 
 
 class _Channel(WorkflowGraphvizMap, Generic[WorkflowChannelType], ABC):
@@ -182,7 +182,7 @@ class _Channel(WorkflowGraphvizMap, Generic[WorkflowChannelType], ABC):
         return "filled"
 
 
-class DataChannel(_Channel[WorkflowDataChannel]):
+class DataChannel(_Channel["WorkflowDataChannel"]):
     @property
     def color(self) -> str:
         orange = "#EDB22C"
@@ -199,7 +199,7 @@ class DataChannel(_Channel[WorkflowDataChannel]):
         return "filled"
 
 
-class SignalChannel(_Channel[WorkflowSignalChannel]):
+class SignalChannel(_Channel["WorkflowSignalChannel"]):
     @property
     def color(self) -> str:
         blue = "#21BFD8"
