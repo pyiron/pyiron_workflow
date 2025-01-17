@@ -142,3 +142,29 @@ def inherit_properties(graph, NS):
         "}",
     )
     graph.update("\n".join(update_query))
+
+
+def check_values(graph):
+    query = (
+        "PREFIX rdf: <http://www.w3.org/1999/02/22-rdf-syntax-ns#>",
+        "PREFIX owl: <http://www.w3.org/2002/07/owl#>",
+        "SELECT ?subject ?property ?value",
+        "WHERE {",
+        "  ?restriction a owl:Restriction ;",
+        "               owl:onProperty ?property ;",
+        "               owl:hasValue ?expectedValue .",
+        "  ?subject ?property ?value .",
+        "  FILTER NOT EXISTS {",
+        "    ?value a ?expectedValue .",
+        "  }",
+        "}",
+    )
+
+    results = graph.query("\n".join(query))
+
+    if len(results) > 0:
+        print("Graph violates OWL restrictions:")
+        for row in results:
+            print(f"Subject: {row.subject}, Property: {row.property}, Value: {row.value}")
+        return results
+    return []
