@@ -225,10 +225,8 @@ class Workflow(Composite):
         automate_execution: bool = True,
         **kwargs,
     ):
-        self._inputs_map = None
-        self._outputs_map = None
-        self.inputs_map = inputs_map
-        self.outputs_map = outputs_map
+        self._inputs_map = self._sanitize_map(inputs_map)
+        self._outputs_map = self._sanitize_map(outputs_map)
         self._inputs = None
         self._outputs = None
         self.automate_execution: bool = automate_execution
@@ -269,10 +267,7 @@ class Workflow(Composite):
 
     @inputs_map.setter
     def inputs_map(self, new_map: dict | bidict | None):
-        self._deduplicate_nones(new_map)
-        if new_map is not None:
-            new_map = bidict(new_map)
-        self._inputs_map = new_map
+        self._inputs_map = self._sanitize_map(new_map)
 
     @property
     def outputs_map(self) -> bidict | None:
@@ -281,10 +276,13 @@ class Workflow(Composite):
 
     @outputs_map.setter
     def outputs_map(self, new_map: dict | bidict | None):
+        self._outputs_map = self._sanitize_map(new_map)
+
+    def _sanitize_map(self, new_map: dict | bidict | None) -> bidict | None:
         self._deduplicate_nones(new_map)
         if new_map is not None:
             new_map = bidict(new_map)
-        self._outputs_map = new_map
+        return new_map
 
     @staticmethod
     def _deduplicate_nones(some_map: dict | bidict | None) -> dict | bidict | None:
