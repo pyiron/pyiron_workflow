@@ -5,7 +5,7 @@ Functions for drawing the graph.
 from __future__ import annotations
 
 from abc import ABC, abstractmethod
-from typing import TYPE_CHECKING, Literal
+from typing import TYPE_CHECKING, Literal, TypeVar, Generic
 
 import graphviz
 from pyiron_snippets.colors import SeabornColors
@@ -13,7 +13,12 @@ from pyiron_snippets.colors import SeabornColors
 from pyiron_workflow.channels import NotData
 
 if TYPE_CHECKING:
-    from pyiron_workflow.channels import Channel as WorkflowChannel
+    from pyiron_workflow.channels import (
+        Channel as WorkflowChannel,
+        DataChannel as WorkflowDataChannel,
+        SignalChannel as WorkflowSignalChannel,
+    )
+
     from pyiron_workflow.io import DataIO, SignalIO
     from pyiron_workflow.node import Node as WorkflowNode
 
@@ -121,14 +126,17 @@ class WorkflowGraphvizMap(ABC):
         pass
 
 
-class _Channel(WorkflowGraphvizMap, ABC):
+WorkflowChannelType = TypeVar("WorkflowChannelType", bound=WorkflowChannel)
+
+
+class _Channel(WorkflowGraphvizMap, Generic[WorkflowChannelType], ABC):
     """
     An abstract representation for channel objects, which are "nodes" in graphviz
     parlance.
     """
 
-    def __init__(self, parent: _IO, channel: WorkflowChannel, local_name: str):
-        self.channel = channel
+    def __init__(self, parent: _IO, channel: WorkflowChannelType, local_name: str):
+        self.channel: WorkflowChannelType = channel
         self._parent = parent
         self._name = self.parent.name + local_name
         self._label = local_name + self._build_label_suffix()
@@ -177,7 +185,7 @@ class _Channel(WorkflowGraphvizMap, ABC):
         return "filled"
 
 
-class DataChannel(_Channel):
+class DataChannel(_Channel[WorkflowDataChannel]):
     @property
     def color(self) -> str:
         orange = "#EDB22C"
@@ -194,7 +202,7 @@ class DataChannel(_Channel):
         return "filled"
 
 
-class SignalChannel(_Channel):
+class SignalChannel(_Channel[WorkflowSignalChannel]):
     @property
     def color(self) -> str:
         blue = "#21BFD8"
