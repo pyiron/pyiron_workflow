@@ -347,7 +347,6 @@ class DataclassNode(FromManyInputs, ABC):
     _output_name: ClassVar[str] = "dataclass"
 
     @classmethod
-    @property
     def _dataclass_fields(cls):
         return cls.dataclass.__dataclass_fields__
 
@@ -357,9 +356,9 @@ class DataclassNode(FromManyInputs, ABC):
         for name, channel in self.inputs.items():
             if (
                 channel.value is NOT_DATA
-                and self._dataclass_fields[name].default_factory is not MISSING
+                and self._dataclass_fields()[name].default_factory is not MISSING
             ):
-                self.inputs[name] = self._dataclass_fields[name].default_factory()
+                self.inputs[name] = self._dataclass_fields()[name].default_factory()
 
     def _on_run(self, **inputs_to_value_dict):
         return self.dataclass(**inputs_to_value_dict)
@@ -373,7 +372,7 @@ class DataclassNode(FromManyInputs, ABC):
         # Make a channel for each field
         return {
             name: (f.type, NOT_DATA if f.default is MISSING else f.default)
-            for name, f in cls._dataclass_fields.items()
+            for name, f in cls._dataclass_fields().items()
         }
 
     @classmethod
