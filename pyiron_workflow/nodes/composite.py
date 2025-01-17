@@ -281,7 +281,7 @@ class Composite(SemanticParent[Node], HasCreator, Node, ABC):
         Disconnect all `signals.input.run` connections on all child nodes.
 
         Returns:
-            list[tuple[Channel, Channel]]: Any disconnected pairs.
+            list[tuple[InputSignal, OutputSignal]]: Any disconnected pairs.
         """
         disconnected_pairs = []
         for node in self.children.values():
