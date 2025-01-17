@@ -647,6 +647,8 @@ def for_node(
         Index(['a', 'b', 'c', 'd', 'out_a', 'out_b', 'out_c', 'out_d', 'e'], dtype='object')
 
     """
+    iter_on = (iter_on,) if isinstance(iter_on, str) else iter_on
+    zip_on = (zip_on,) if isinstance(zip_on, str) else zip_on
     for_node_factory.clear(
         _for_node_class_name(body_node_class, iter_on, zip_on, output_as_dataframe)
     )
