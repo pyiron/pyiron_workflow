@@ -154,6 +154,7 @@ class For(Composite, StaticNode, ABC):
     _iter_on: ClassVar[tuple[str, ...]] = ()
     _zip_on: ClassVar[tuple[str, ...]] = ()
     _output_as_dataframe: ClassVar[bool] = True
+    _output_column_map: ClassVar[dict[str, str]] = {}
 
     def __init_subclass__(cls, output_column_map=None, **kwargs):
         super().__init_subclass__(**kwargs)
@@ -182,7 +183,7 @@ class For(Composite, StaticNode, ABC):
                 f"{cls._body_node_class.__name__} has no such outputs."
             )
 
-        cls._output_column_map = output_column_map
+        cls._output_column_map = {} if output_column_map is None else output_column_map
 
     @classmethod
     @lru_cache(maxsize=1)
@@ -191,8 +192,7 @@ class For(Composite, StaticNode, ABC):
         How to transform body node output labels to dataframe column names.
         """
         map_ = {k: k for k in cls._body_node_class.preview_outputs()}
-        overrides = {} if cls._output_column_map is None else cls._output_column_map
-        for body_label, column_name in overrides.items():
+        for body_label, column_name in cls._output_column_map.items():
             map_[body_label] = column_name
         return map_
 
