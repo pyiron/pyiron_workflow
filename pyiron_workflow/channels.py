@@ -38,6 +38,7 @@ ConjugateType = typing.TypeVar("ConjugateType", bound="Channel")
 InputType = typing.TypeVar("InputType", bound="InputChannel")
 OutputType = typing.TypeVar("OutputType", bound="OutputChannel")
 FlavorType = typing.TypeVar("FlavorType", bound="FlavorChannel")
+ReceiverType = typing.TypeVar("ReceiverType", bound="DataChannel")
 
 
 class Channel(
@@ -277,7 +278,7 @@ class NotData(metaclass=Singleton):
 NOT_DATA = NotData()
 
 
-class DataChannel(FlavorChannel["DataChannel"], ABC):
+class DataChannel(FlavorChannel["DataChannel"], typing.Generic[ReceiverType], ABC):
     """
     Data channels control the flow of data on the graph.
 
@@ -362,7 +363,7 @@ class DataChannel(FlavorChannel["DataChannel"], ABC):
         default: typing.Any | None = NOT_DATA,
         type_hint: typing.Any | None = None,
         strict_hints: bool = True,
-        value_receiver: Self | None = None,
+        value_receiver: ReceiverType | None = None,
     ):
         super().__init__(label=label, owner=owner)
         self._value = NOT_DATA
@@ -371,7 +372,7 @@ class DataChannel(FlavorChannel["DataChannel"], ABC):
         self.strict_hints = strict_hints
         self.default = default
         self.value = default  # Implicitly type check your default by assignment
-        self.value_receiver: Self = value_receiver
+        self.value_receiver: ReceiverType = value_receiver
 
     @property
     def value(self):
@@ -526,7 +527,7 @@ class DataChannel(FlavorChannel["DataChannel"], ABC):
         return super().display_state(state=state, ignore_private=ignore_private)
 
 
-class InputData(DataChannel, InputChannel["OutputData"]):
+class InputData(DataChannel["InputData"], InputChannel["OutputData"]):
 
     @classmethod
     def connection_conjugate(cls) -> type[OutputData]:
@@ -566,7 +567,7 @@ class InputData(DataChannel, InputChannel["OutputData"]):
         self._value = new_value
 
 
-class OutputData(DataChannel, OutputChannel["InputData"]):
+class OutputData(DataChannel["OutputData"], OutputChannel["InputData"]):
     @classmethod
     def connection_conjugate(cls) -> type[InputData]:
         return InputData
