@@ -19,7 +19,6 @@ from pyiron_snippets.dotdict import DotDict
 
 from pyiron_workflow.draw import Node as GraphvizNode
 from pyiron_workflow.logging import logger
-from pyiron_workflow.mixin.injection import HasIOWithInjection
 from pyiron_workflow.mixin.run import ReadinessError, Runnable
 from pyiron_workflow.mixin.semantics import Semantic
 from pyiron_workflow.mixin.single_output import ExploitsSingleOutput
@@ -40,7 +39,6 @@ if TYPE_CHECKING:
 
 
 class Node(
-    HasIOWithInjection,
     Semantic["Composite"],
     Runnable,
     ExploitsSingleOutput,
@@ -179,8 +177,9 @@ class Node(
         inputs (pyiron_workflow.io.Inputs): **Abstract.** Children must define
             a property returning an :class:`Inputs` object.
         label (str): A name for the node.
-        outputs (pyiron_workflow.io.Outputs): **Abstract.** Children must define
-            a property returning an :class:`Outputs` object.
+        outputs (pyiron_workflow.mixin.injection.OutputsWithInjection): **Abstract.**
+            Children must define a property returning an :class:`OutputsWithInjection`
+            object.
         parent (pyiron_workflow.composite.Composite | None): The parent object
             owning this, if any.
         ready (bool): Whether the inputs are all ready and the node is neither
@@ -305,7 +304,9 @@ class Node(
         self._do_clean: bool = False  # Power-user override for cleaning up temporary
         # serialized results and empty directories (or not).
         self._cached_inputs = None
-        self._user_data = {}  # A place for power-users to bypass node-injection
+
+        self._user_data: dict[str, Any] = {}
+        # A place for power-users to bypass node-injection
 
         self._setup_node()
         self._after_node_setup(
@@ -630,7 +631,7 @@ class Node(
 
         try:
             parent_starting_nodes = (
-                self.parent.starting_nodes if self.parent is not None else None
+                self.parent.starting_nodes if self.parent is not None else []
             )  # We need these for state recovery later, even if we crash
 
             if len(data_tree_starters) == 1 and data_tree_starters[0] is self:
