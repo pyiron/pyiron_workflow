@@ -336,8 +336,9 @@ class Workflow(Composite):
             for channel in panel:
                 try:
                     io_panel_key = key_map[channel.scoped_label]
-                    if not isinstance(io_panel_key, tuple):
-                        # Tuples indicate that the channel has been deactivated
+                    if isinstance(io_panel_key, str):
+                        # Otherwise it's a None-str tuple, indicaticating that the
+                        # channel has been deactivated
                         # This is a necessary misdirection to keep the bidict working,
                         # as we can't simply map _multiple_ keys to `None`
                         io[io_panel_key] = channel
