@@ -15,7 +15,7 @@ from pandas import DataFrame
 from pyiron_snippets.colors import SeabornColors
 from pyiron_snippets.factory import classfactory
 
-from pyiron_workflow.channels import NOT_DATA
+from pyiron_workflow.channels import NotData, NOT_DATA
 from pyiron_workflow.mixin.preview import builds_class_io
 from pyiron_workflow.nodes.static_io import StaticNode
 
@@ -56,7 +56,7 @@ class FromManyInputs(Transformer, ABC):
 class ToManyOutputs(Transformer, ABC):
     _input_name: ClassVar[str]  # Mandatory attribute for non-abstract subclasses
     _input_type_hint: ClassVar[Any] = None
-    _input_default: ClassVar[Any | NOT_DATA] = NOT_DATA
+    _input_default: ClassVar[Any | NotData] = NOT_DATA
 
     # _build_outputs_preview still required from parent class
     # Must be commensurate with the dictionary returned by transform_to_output
@@ -179,14 +179,14 @@ class InputsToDict(FromManyInputs, ABC):
     _output_name: ClassVar[str] = "dict"
     _output_type_hint: ClassVar[Any] = dict
     _input_specification: ClassVar[
-        list[str] | dict[str, tuple[Any | None, Any | NOT_DATA]]
+        list[str] | dict[str, tuple[Any | None, Any | NotData]]
     ]
 
     def _on_run(self, **inputs_to_value_dict):
         return inputs_to_value_dict
 
     @classmethod
-    def _build_inputs_preview(cls) -> dict[str, tuple[Any | None, Any | NOT_DATA]]:
+    def _build_inputs_preview(cls) -> dict[str, tuple[Any | None, Any | NotData]]:
         if isinstance(cls._input_specification, list):
             return {key: (None, NOT_DATA) for key in cls._input_specification}
         else:
@@ -194,7 +194,7 @@ class InputsToDict(FromManyInputs, ABC):
 
     @staticmethod
     def hash_specification(
-        input_specification: list[str] | dict[str, tuple[Any | None, Any | NOT_DATA]],
+        input_specification: list[str] | dict[str, tuple[Any | None, Any | NotData]],
     ):
         """For generating unique subclass names."""
 
@@ -220,7 +220,7 @@ class InputsToDict(FromManyInputs, ABC):
 
 @classfactory
 def inputs_to_dict_factory(
-    input_specification: list[str] | dict[str, tuple[Any | None, Any | NOT_DATA]],
+    input_specification: list[str] | dict[str, tuple[Any | None, Any | NotData]],
     class_name_suffix: str | None,
     use_cache: bool = True,
     /,
@@ -241,7 +241,7 @@ def inputs_to_dict_factory(
 
 
 def inputs_to_dict(
-    input_specification: list[str] | dict[str, tuple[Any | None, Any | NOT_DATA]],
+    input_specification: list[str] | dict[str, tuple[Any | None, Any | NotData]],
     *node_args,
     class_name_suffix: str | None = None,
     use_cache: bool = True,
