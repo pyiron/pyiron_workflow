@@ -273,7 +273,9 @@ class Macro(Composite, StaticNode, ScrapesIO, ABC):
 
     @staticmethod
     @abstractmethod
-    def graph_creator(self, *args, **kwargs) -> Callable:
+    def graph_creator(
+        self: Macro, *args, **kwargs
+    ) -> HasChannel | tuple[HasChannel, ...] | None:
         """Build the graph the node will run."""
 
     @classmethod
@@ -538,7 +540,7 @@ def as_macro_node(
 
 
 def macro_node(
-    graph_creator: Callable,
+    graph_creator: Callable[..., HasChannel | tuple[HasChannel, ...] | None],
     *node_args,
     output_labels: str | tuple[str, ...] | None = None,
     validate_output_labels: bool = True,
