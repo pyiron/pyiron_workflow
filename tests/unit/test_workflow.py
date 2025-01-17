@@ -10,7 +10,7 @@ from static import demo_nodes
 from pyiron_workflow._tests import ensure_tests_in_python_path
 from pyiron_workflow.channels import NOT_DATA
 from pyiron_workflow.storage import TypeNotFoundError, available_backends
-from pyiron_workflow.workflow import ParentMostError, Workflow
+from pyiron_workflow.workflow import NoArgsError, ParentMostError, Workflow
 
 ensure_tests_in_python_path()
 
@@ -258,6 +258,12 @@ class TestWorkflow(unittest.TestCase):
             return a + b
 
         wf.sum = sum_(wf.a, wf.b)
+        with self.assertRaises(
+            NoArgsError,
+            msg="Workflows don't know what to do with raw args, since their input "
+            "has no intrinsic order",
+        ):
+            wf.run(1, 2)
         wf.run()
         self.assertEqual(
             wf.a.outputs.y.value + wf.b.outputs.y.value,

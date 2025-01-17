@@ -26,6 +26,12 @@ class ParentMostError(TypeError):
     """
 
 
+class NoArgsError(TypeError):
+    """
+    To be raised when *args can't be processed but are received
+    """
+
+
 class Workflow(Composite):
     """
     Workflows are a dynamic composite node -- i.e. they hold and run a collection of
@@ -225,7 +231,7 @@ class Workflow(Composite):
         self.outputs_map = outputs_map
         self._inputs = None
         self._outputs = None
-        self.automate_execution = automate_execution
+        self.automate_execution: bool = automate_execution
 
         super().__init__(
             *nodes,
@@ -361,12 +367,18 @@ class Workflow(Composite):
 
     def run(
         self,
+        *args,
         check_readiness: bool = True,
         **kwargs,
     ):
         # Note: Workflows may have neither parents nor siblings, so we don't need to
         # worry about running their data trees first, fetching their input, nor firing
         # their `ran` signal, hence the change in signature from Node.run
+        if len(args) > 0:
+            raise NoArgsError(
+                f"{self.__class__} does not know how to process *args on run, but "
+                f"received {args}"
+            )
 
         return super().run(
             run_data_tree=False,

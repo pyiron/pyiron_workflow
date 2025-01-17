@@ -9,6 +9,7 @@ from __future__ import annotations
 
 import contextlib
 from abc import ABC, abstractmethod
+from collections.abc import ItemsView, Iterator
 from typing import Any, Generic, TypeVar
 
 from pyiron_snippets.dotdict import DotDict
@@ -59,7 +60,7 @@ class IO(HasStateDisplay, Generic[OwnedType, OwnedConjugate], ABC):
 
     channel_dict: DotDict[str, OwnedType]
 
-    def __init__(self, *channels: OwnedType):
+    def __init__(self, *channels: OwnedType) -> None:
         self.__dict__["channel_dict"] = DotDict(
             {
                 channel.label: channel
@@ -74,11 +75,11 @@ class IO(HasStateDisplay, Generic[OwnedType, OwnedConjugate], ABC):
         pass
 
     @abstractmethod
-    def _assign_a_non_channel_value(self, channel: OwnedType, value) -> None:
+    def _assign_a_non_channel_value(self, channel: OwnedType, value: Any) -> None:
         """What to do when some non-channel value gets assigned to a channel"""
         pass
 
-    def __getattr__(self, item) -> OwnedType:
+    def __getattr__(self, item: str) -> OwnedType:
         try:
             return self.channel_dict[item]
         except KeyError as key_error:
@@ -88,7 +89,7 @@ class IO(HasStateDisplay, Generic[OwnedType, OwnedConjugate], ABC):
                 f"nor in its channels ({self.labels})"
             ) from key_error
 
-    def __setattr__(self, key, value):
+    def __setattr__(self, key: str, value: Any) -> None:
         if key in self.channel_dict:
             self._assign_value_to_existing_channel(self.channel_dict[key], value)
         elif isinstance(value, self._channel_class):
@@ -104,16 +105,16 @@ class IO(HasStateDisplay, Generic[OwnedType, OwnedConjugate], ABC):
                 f"attribute {key} got assigned {value} of type {type(value)}"
             )
 
-    def _assign_value_to_existing_channel(self, channel: OwnedType, value) -> None:
+    def _assign_value_to_existing_channel(self, channel: OwnedType, value: Any) -> None:
         if isinstance(value, HasChannel):
             channel.connect(value.channel)
         else:
             self._assign_a_non_channel_value(channel, value)
 
-    def __getitem__(self, item) -> OwnedType:
+    def __getitem__(self, item: str) -> OwnedType:
         return self.__getattr__(item)
 
-    def __setitem__(self, key, value):
+    def __setitem__(self, key: str, value: Any) -> None:
         self.__setattr__(key, value)
 
     @property
@@ -124,11 +125,11 @@ class IO(HasStateDisplay, Generic[OwnedType, OwnedConjugate], ABC):
         )
 
     @property
-    def connected(self):
+    def connected(self) -> bool:
         return any(c.connected for c in self)
 
     @property
-    def fully_connected(self):
+    def fully_connected(self) -> bool:
         return all(c.connected for c in self)
 
     def disconnect(self) -> list[tuple[OwnedType, OwnedConjugate]]:
@@ -145,34 +146,36 @@ class IO(HasStateDisplay, Generic[OwnedType, OwnedConjugate], ABC):
         return destroyed_connections
 
     @property
-    def labels(self):
+    def labels(self) -> list[str]:
         return list(self.channel_dict.keys())
 
-    def items(self):
+    def items(self) -> ItemsView[str, OwnedType]:
         return self.channel_dict.items()
 
-    def __iter__(self):
+    def __iter__(self) -> Iterator[OwnedType]:
         return self.channel_dict.values().__iter__()
 
-    def __len__(self):
+    def __len__(self) -> int:
         return len(self.channel_dict)
 
     def __dir__(self):
-        return set(super().__dir__() + self.labels)
+        return list(set(super().__dir__() + self.labels))
 
-    def __str__(self):
+    def __str__(self) -> str:
         return f"{self.__class__.__name__} {self.labels}"
 
-    def __getstate__(self):
+    def __getstate__(self) -> dict[str, Any]:
         # Compatibility with python <3.11
         return dict(self.__dict__)
 
-    def __setstate__(self, state):
+    def __setstate__(self, state: dict[str, Any]) -> None:
         # Because we override getattr, we need to use __dict__ assignment directly in
         # __setstate__ the same way we need it in __init__
         self.__dict__["channel_dict"] = state["channel_dict"]
 
-    def display_state(self, state=None, ignore_private=True):
+    def display_state(
+        self, state: dict[str, Any] | None = None, ignore_private: bool = True
+    ) -> dict[str, Any]:
         state = dict(self.__getstate__()) if state is None else state
         for k, v in state["channel_dict"].items():
             state[k] = v
@@ -192,15 +195,15 @@ class DataIO(IO[DataChannel, DataChannel], ABC):
     def _assign_a_non_channel_value(self, channel: DataChannel, value) -> None:
         channel.value = value
 
-    def to_value_dict(self):
+    def to_value_dict(self) -> dict[str, Any]:
         return {label: channel.value for label, channel in self.channel_dict.items()}
 
-    def to_list(self):
+    def to_list(self) -> list[Any]:
         """A list of channel values (order not guaranteed)"""
         return [channel.value for channel in self.channel_dict.values()]
 
     @property
-    def ready(self):
+    def ready(self) -> bool:
         return all(c.ready for c in self)
 
     def activate_strict_hints(self):
@@ -215,7 +218,7 @@ class Inputs(InputsIO, DataIO):
     def _channel_class(self) -> type[InputData]:
         return InputData
 
-    def fetch(self):
+    def fetch(self) -> None:
         for c in self:
             c.fetch()
 
@@ -237,7 +240,7 @@ class Outputs(GenericOutputs[OutputData]):
 
 
 class SignalIO(IO[SignalChannel, SignalChannel], ABC):
-    def _assign_a_non_channel_value(self, channel: SignalChannel, value) -> None:
+    def _assign_a_non_channel_value(self, channel: SignalChannel, value: Any) -> None:
         raise TypeError(
             f"Tried to assign {value} ({type(value)} to the {channel.full_label}, "
             f"which is already a {type(channel)}. Only other signal channels may be "
@@ -275,9 +278,9 @@ class Signals(HasStateDisplay):
         output (OutputSignals): An empty input signals IO container.
     """
 
-    def __init__(self):
-        self.input = InputSignals()
-        self.output = OutputSignals()
+    def __init__(self) -> None:
+        self.input: InputSignals = InputSignals()
+        self.output: OutputSignals = OutputSignals()
 
     def disconnect(self) -> list[tuple[SignalChannel, SignalChannel]]:
         """
@@ -293,14 +296,14 @@ class Signals(HasStateDisplay):
         return self.input.disconnect_run()
 
     @property
-    def connected(self):
+    def connected(self) -> bool:
         return self.input.connected or self.output.connected
 
     @property
-    def fully_connected(self):
+    def fully_connected(self) -> bool:
         return self.input.fully_connected and self.output.fully_connected
 
-    def __str__(self):
+    def __str__(self) -> str:
         return f"{str(self.input)}\n{str(self.output)}"
 
 
@@ -316,7 +319,7 @@ class HasIO(HasStateDisplay, HasLabel, HasRun, Generic[OutputsType], ABC):
     interface.
     """
 
-    def __init__(self, *args, **kwargs):
+    def __init__(self, *args, **kwargs) -> None:
         super().__init__(*args, **kwargs)
         self._signals = Signals()
         self._signals.input.run = InputSignal("run", self, self.run)
@@ -375,17 +378,17 @@ class HasIO(HasStateDisplay, HasLabel, HasRun, Generic[OutputsType], ABC):
         destroyed_connections.extend(self.signals.disconnect())
         return destroyed_connections
 
-    def activate_strict_hints(self):
+    def activate_strict_hints(self) -> None:
         """Enable type hint checks for all data IO"""
         self.inputs.activate_strict_hints()
         self.outputs.activate_strict_hints()
 
-    def deactivate_strict_hints(self):
+    def deactivate_strict_hints(self) -> None:
         """Disable type hint checks for all data IO"""
         self.inputs.deactivate_strict_hints()
         self.outputs.deactivate_strict_hints()
 
-    def _connect_output_signal(self, signal: OutputSignal):
+    def _connect_output_signal(self, signal: OutputSignal) -> None:
         self.signals.input.run.connect(signal)
 
     def __rshift__(self, other: InputSignal | HasIO) -> InputSignal | HasIO:
@@ -395,10 +398,12 @@ class HasIO(HasStateDisplay, HasLabel, HasRun, Generic[OutputsType], ABC):
         other._connect_output_signal(self.signals.output.ran)
         return other
 
-    def _connect_accumulating_input_signal(self, signal: AccumulatingInputSignal):
+    def _connect_accumulating_input_signal(
+        self, signal: AccumulatingInputSignal
+    ) -> None:
         self.signals.output.ran.connect(signal)
 
-    def __lshift__(self, others):
+    def __lshift__(self, others: tuple[OutputSignal | HasIO, ...]):
         """
         Connect one or more `ran` signals to `accumulate_and_run` signals like:
         `this << some_object, another_object, or_by_channel.signals.output.ran`
