@@ -16,7 +16,6 @@ from pyiron_snippets.colors import SeabornColors
 from pyiron_snippets.factory import classfactory
 
 from pyiron_workflow.channels import NOT_DATA, NotData
-from pyiron_workflow.mixin.preview import builds_class_io
 from pyiron_workflow.nodes.static_io import StaticNode
 
 
@@ -107,7 +106,6 @@ class ListToOutputs(_HasLength, ToManyOutputs, ABC):
         return {f"item_{i}": None for i in range(cls._length)}
 
 
-@builds_class_io
 @classfactory
 def inputs_to_list_factory(n: int, use_cache: bool = True, /) -> type[InputsToList]:
     return (
@@ -137,10 +135,11 @@ def inputs_to_list(n: int, /, *node_args, use_cache: bool = True, **node_kwargs)
         InputsToList: An instance of the dynamically created :class:`InputsToList`
             subclass.
     """
-    return inputs_to_list_factory(n, use_cache)(*node_args, **node_kwargs)
+    cls = inputs_to_list_factory(n, use_cache)
+    cls.preview_io()
+    return cls(*node_args, **node_kwargs)
 
 
-@builds_class_io
 @classfactory
 def list_to_outputs_factory(n: int, use_cache: bool = True, /) -> type[ListToOutputs]:
     return (
@@ -172,7 +171,10 @@ def list_to_outputs(
         ListToOutputs: An instance of the dynamically created :class:`ListToOutputs`
             subclass.
     """
-    return list_to_outputs_factory(n, use_cache)(*node_args, **node_kwargs)
+
+    cls = list_to_outputs_factory(n, use_cache)
+    cls.preview_io()
+    return cls(*node_args, **node_kwargs)
 
 
 class InputsToDict(FromManyInputs, ABC):

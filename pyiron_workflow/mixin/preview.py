@@ -15,7 +15,7 @@ from __future__ import annotations
 import inspect
 from abc import ABC, abstractmethod
 from collections.abc import Callable
-from functools import lru_cache, wraps
+from functools import lru_cache
 from typing import (
     TYPE_CHECKING,
     Any,
@@ -80,22 +80,6 @@ class HasIOPreview(ABC):
         return DotDict(
             {"inputs": cls.preview_inputs(), "outputs": cls.preview_outputs()}
         )
-
-
-def builds_class_io(subclass_factory: Callable[..., type[HasIOPreview]]):
-    """
-    A decorator for factories producing subclasses of `HasIOPreview` to invoke
-    :meth:`preview_io` after the class is created, thus ensuring the IO has been
-    constructed at the class level.
-    """
-
-    @wraps(subclass_factory)
-    def wrapped(*args, **kwargs):
-        node_class = subclass_factory(*args, **kwargs)
-        node_class.preview_io()
-        return node_class
-
-    return wrapped
 
 
 class ScrapesIO(HasIOPreview, ABC):
