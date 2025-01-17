@@ -497,8 +497,10 @@ class Workflow(Composite):
 
     def replace_child(
         self, owned_node: Node | str, replacement: Node | type[Node]
-    ) -> Node:
-        super().replace_child(owned_node=owned_node, replacement=replacement)
+    ) -> tuple[Node, Node]:
+        replaced, replacement_node = super().replace_child(
+            owned_node=owned_node, replacement=replacement
+        )
 
         # Finally, make sure the IO is constructible with this new node, which will
         # catch things like incompatible IO maps
@@ -509,11 +511,11 @@ class Workflow(Composite):
         except Exception as e:
             # If IO can't be successfully rebuilt using this node, revert changes and
             # raise the exception
-            self.replace_child(replacement, owned_node)  # Guaranteed to work since
+            self.replace_child(replacement_node, replaced)  # Guaranteed to work since
             # replacement in the other direction was already a success
             raise e
 
-        return owned_node
+        return replaced, replacement_node
 
     @property
     def parent(self) -> None:

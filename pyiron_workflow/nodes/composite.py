@@ -326,7 +326,7 @@ class Composite(SemanticParent[Node], HasCreator, Node, ABC):
 
     def replace_child(
         self, owned_node: Node | str, replacement: Node | type[Node]
-    ) -> Node:
+    ) -> tuple[Node, Node]:
         """
         Replaces a node currently owned with a new node instance.
         The replacement must not belong to any other parent or have any connections.
@@ -348,7 +348,7 @@ class Composite(SemanticParent[Node], HasCreator, Node, ABC):
                 and simply gets instantiated.)
 
         Returns:
-            (Node): The node that got removed
+            (Node, Node): The node that got removed and the new one that replaced it.
         """
         if isinstance(owned_node, str):
             owned_node = self.children[owned_node]
@@ -367,15 +367,18 @@ class Composite(SemanticParent[Node], HasCreator, Node, ABC):
                 )
             if replacement.connected:
                 raise ValueError("Replacement node must not have any connections")
+            replacement_node = replacement
         elif issubclass(replacement, Node):
-            replacement = replacement(label=owned_node.label)
+            replacement_node = replacement(label=owned_node.label)
         else:
             raise TypeError(
                 f"Expected replacement node to be a node instance or node subclass, but "
                 f"got {replacement}"
             )
 
-        replacement.copy_io(owned_node)  # If the replacement is incompatible, we'll
+        replacement_node.copy_io(
+            owned_node
+        )  # If the replacement is incompatible, we'll
         # fail here before we've changed the parent at all. Since the replacement was
         # first guaranteed to be an unconnected orphan, there is not yet any permanent
         # damage
@@ -383,28 +386,37 @@ class Composite(SemanticParent[Node], HasCreator, Node, ABC):
         # In case the replaced node interfaces with the composite's IO, catch value
         # links
         inbound_links = [
-            (sending_channel, replacement.inputs[sending_channel.value_receiver.label])
+            (
+                sending_channel,
+                replacement_node.inputs[sending_channel.value_receiver.label],
+            )
             for sending_channel in self.inputs
             if sending_channel.value_receiver in owned_node.inputs
         ]
         outbound_links = [
-            (replacement.outputs[sending_channel.label], sending_channel.value_receiver)
+            (
+                replacement_node.outputs[sending_channel.label],
+                sending_channel.value_receiver,
+            )
             for sending_channel in owned_node.outputs
             if sending_channel.value_receiver in self.outputs
         ]
         self.remove_child(owned_node)
-        replacement.label, owned_node.label = owned_node.label, replacement.label
-        self.add_child(replacement)
+        replacement_node.label, owned_node.label = (
+            owned_node.label,
+            replacement_node.label,
+        )
+        self.add_child(replacement_node)
         if is_starting_node:
-            self.starting_nodes.append(replacement)
+            self.starting_nodes.append(replacement_node)
         for sending_channel, receiving_channel in inbound_links + outbound_links:
             sending_channel.value_receiver = receiving_channel
 
         # Clear caches
         self._cached_inputs = None
-        replacement._cached_inputs = None
+        replacement_node._cached_inputs = None
 
-        return owned_node
+        return owned_node, replacement_node
 
     def executor_shutdown(self, wait=True, *, cancel_futures=False):
         """
