@@ -894,7 +894,7 @@ class Node(
 
     def save(
         self,
-        backend: str | StorageInterface = "pickle",
+        backend: Literal["pickle"] | StorageInterface = "pickle",
         filename: str | Path | None = None,
         **kwargs,
     ):
@@ -916,7 +916,7 @@ class Node(
 
     save.__doc__ += _save_load_warnings
 
-    def save_checkpoint(self, backend: str | StorageInterface = "pickle"):
+    def save_checkpoint(self, backend: Literal["pickle"] | StorageInterface = "pickle"):
         """
         Triggers a save on the parent-most node.
 
@@ -928,7 +928,7 @@ class Node(
 
     def load(
         self,
-        backend: str | StorageInterface = "pickle",
+        backend: Literal["pickle"] | StorageInterface = "pickle",
         only_requested=False,
         filename: str | Path | None = None,
         **kwargs,
