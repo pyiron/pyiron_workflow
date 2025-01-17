@@ -185,7 +185,6 @@ class For(Composite, StaticNode, ABC):
         cls._output_column_map = output_column_map
 
     @classmethod
-    @property
     @lru_cache(maxsize=1)
     def output_column_map(cls) -> dict[str, str]:
         """
@@ -311,7 +310,7 @@ class For(Composite, StaticNode, ABC):
                 row_collector.inputs[label] = self.children[label][i]
 
             for label, body_out in self[self._body_name(n)].outputs.items():
-                row_collector.inputs[self.output_column_map[label]] = body_out
+                row_collector.inputs[self.output_column_map()[label]] = body_out
 
             self.dataframe.inputs[f"row_{n}"] = row_collector
 
@@ -324,7 +323,7 @@ class For(Composite, StaticNode, ABC):
         # Outputs
         row_specification.update(
             {
-                self.output_column_map[key]: (hint, NOT_DATA)
+                self.output_column_map()[key]: (hint, NOT_DATA)
                 for key, hint in self._body_node_class.preview_outputs().items()
             }
         )
@@ -339,7 +338,7 @@ class For(Composite, StaticNode, ABC):
             return f"column_collector_{s}"
 
         for label, hint in self._body_node_class.preview_outputs().items():
-            mapped_label = self.output_column_map[label]
+            mapped_label = self.output_column_map()[label]
             column_collector = inputs_to_list(
                 n_rows,
                 label=column_collector_name(mapped_label),
@@ -396,7 +395,7 @@ class For(Composite, StaticNode, ABC):
                     hint = list if hint is None else list[hint]
                     preview[label] = hint
             for label, hint in cls._body_node_class.preview_outputs().items():
-                preview[cls.output_column_map[label]] = (
+                preview[cls.output_column_map()[label]] = (
                     list if hint is None else list[hint]
                 )
             return preview
