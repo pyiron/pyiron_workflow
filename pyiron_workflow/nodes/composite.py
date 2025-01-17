@@ -277,7 +277,7 @@ class Composite(SemanticParent[Node], HasCreator, Node, ABC):
         state.pop("_parent")  # Got overridden to None for __getstate__, so keep local
         return state
 
-    def disconnect_run(self) -> list[tuple[Channel, Channel]]:
+    def disconnect_run(self) -> list[tuple[InputSignal, OutputSignal]]:
         """
         Disconnect all `signals.input.run` connections on all child nodes.
 
