@@ -350,13 +350,14 @@ class Composite(SemanticParent[Node], HasCreator, Node, ABC):
         Returns:
             (Node, Node): The node that got removed and the new one that replaced it.
         """
-        if isinstance(owned_node, str):
-            owned_node = self.children[owned_node]
+        owned_node_instance = (
+            self.children[owned_node] if isinstance(owned_node, str) else owned_node
+        )
 
-        if owned_node.parent is not self:
+        if owned_node_instance.parent is not self:
             raise ValueError(
                 f"The node being replaced should be a child of this composite, but "
-                f"another parent was found: {owned_node.parent}"
+                f"another parent was found: {owned_node_instance.parent}"
             )
 
         if isinstance(replacement, Node):
@@ -369,7 +370,7 @@ class Composite(SemanticParent[Node], HasCreator, Node, ABC):
                 raise ValueError("Replacement node must not have any connections")
             replacement_node = replacement
         elif issubclass(replacement, Node):
-            replacement_node = replacement(label=owned_node.label)
+            replacement_node = replacement(label=owned_node_instance.label)
         else:
             raise TypeError(
                 f"Expected replacement node to be a node instance or node subclass, but "
@@ -377,12 +378,12 @@ class Composite(SemanticParent[Node], HasCreator, Node, ABC):
             )
 
         replacement_node.copy_io(
-            owned_node
+            owned_node_instance
         )  # If the replacement is incompatible, we'll
         # fail here before we've changed the parent at all. Since the replacement was
         # first guaranteed to be an unconnected orphan, there is not yet any permanent
         # damage
-        is_starting_node = owned_node in self.starting_nodes
+        is_starting_node = owned_node_instance in self.starting_nodes
         # In case the replaced node interfaces with the composite's IO, catch value
         # links
         inbound_links = [
@@ -391,19 +392,19 @@ class Composite(SemanticParent[Node], HasCreator, Node, ABC):
                 replacement_node.inputs[sending_channel.value_receiver.label],
             )
             for sending_channel in self.inputs
-            if sending_channel.value_receiver in owned_node.inputs
+            if sending_channel.value_receiver in owned_node_instance.inputs
         ]
         outbound_links = [
             (
                 replacement_node.outputs[sending_channel.label],
                 sending_channel.value_receiver,
             )
-            for sending_channel in owned_node.outputs
+            for sending_channel in owned_node_instance.outputs
             if sending_channel.value_receiver in self.outputs
         ]
-        self.remove_child(owned_node)
-        replacement_node.label, owned_node.label = (
-            owned_node.label,
+        self.remove_child(owned_node_instance)
+        replacement_node.label, owned_node_instance.label = (
+            owned_node_instance.label,
             replacement_node.label,
         )
         self.add_child(replacement_node)
@@ -416,7 +417,7 @@ class Composite(SemanticParent[Node], HasCreator, Node, ABC):
         self._cached_inputs = None
         replacement_node._cached_inputs = None
 
-        return owned_node, replacement_node
+        return owned_node_instance, replacement_node
 
     def executor_shutdown(self, wait=True, *, cancel_futures=False):
         """
