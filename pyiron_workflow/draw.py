@@ -157,7 +157,7 @@ class _Channel(WorkflowGraphvizMap, ABC):
         return suffix
 
     @property
-    def parent(self) -> _IO | None:
+    def parent(self) -> _IO:
         return self._parent
 
     @property
