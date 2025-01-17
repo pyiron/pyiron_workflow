@@ -830,10 +830,8 @@ class Node(
             (graphviz.graphs.Digraph): The resulting graph object.
 
         """
-
-        if size is not None:
-            size = f"{size[0]},{size[1]}"
-        graph = GraphvizNode(self, depth=depth, rankdir=rankdir, size=size).graph
+        size_str = f"{size[0]},{size[1]}" if size is not None else None
+        graph = GraphvizNode(self, depth=depth, rankdir=rankdir, size=size_str).graph
         if save or view or filename is not None:
             directory = self.as_path() if directory is None else Path(directory)
             filename = self.label + "_graph" if filename is None else filename
