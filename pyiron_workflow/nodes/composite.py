@@ -386,7 +386,10 @@ class Composite(SemanticParent[Node], HasCreator, Node, ABC):
         # In case the replaced node interfaces with the composite's IO, catch value
         # links
         inbound_links = [
-            (sending_channel, replacement.inputs[sending_channel.value_receiver.label])
+            (
+                sending_channel,
+                replacement_node.inputs[sending_channel.value_receiver.label],
+            )
             for sending_channel in self.inputs
             if sending_channel.value_receiver in owned_node.inputs
         ]
