@@ -11,7 +11,7 @@ import contextlib
 from abc import ABC, abstractmethod
 from concurrent.futures import Future
 from importlib import import_module
-from typing import TYPE_CHECKING, Any, Literal
+from typing import TYPE_CHECKING, Any, Literal, cast
 
 import cloudpickle
 from pyiron_snippets.colors import SeabornColors
@@ -914,7 +914,7 @@ class Node(
         ):
             selected_backend.save(node=self, filename=filename, **kwargs)
 
-    save.__doc__ += _save_load_warnings
+    save.__doc__ = cast(str, save.__doc__) + _save_load_warnings
 
     def save_checkpoint(self, backend: Literal["pickle"] | StorageInterface = "pickle"):
         """
@@ -973,7 +973,7 @@ class Node(
             )
         self.__setstate__(inst.__getstate__())
 
-    load.__doc__ += _save_load_warnings
+    load.__doc__ = cast(str, load.__doc__) + _save_load_warnings
 
     def delete_storage(
         self,
