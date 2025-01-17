@@ -368,18 +368,19 @@ class SemanticParent(HasLabel, Generic[ChildType], ABC):
 
     def remove_child(self, child: ChildType | str) -> ChildType:
         if isinstance(child, str):
-            child = self.children.pop(child)
+            child_instance = self.children.pop(child)
         elif isinstance(child, self.child_type()):
             self.children.inv.pop(child)
+            child_instance = child
         else:
             raise TypeError(
                 f"{self.label} expected to remove a child of type str or "
                 f"{self.child_type()} but got {child}"
             )
 
-        child.parent = None
+        child_instance.parent = None
 
-        return child
+        return child_instance
 
     def __getstate__(self):
         state = super().__getstate__()
