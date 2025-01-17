@@ -52,7 +52,7 @@ def get_triples(
     hasSourceFunction=None,
     hasUnits=None,
     inheritsPropertiesFrom=None,
-    update_query=True
+    update_query=True,
 ):
     if hasSourceFunction is None:
         hasSourceFunction = EX.hasSourceFunction
@@ -61,9 +61,7 @@ def get_triples(
     if inheritsPropertiesFrom is None:
         inheritsPropertiesFrom = EX.inheritsPropertiesFrom
     graph = Graph()
-    label_def_triple = (
-        EX[data["label"]], hasSourceFunction, EX[data["function"]]
-    )
+    label_def_triple = (EX[data["label"]], hasSourceFunction, EX[data["function"]])
     if len(list(graph.triples(label_def_triple))) > 0:
         return graph
     graph.add(label_def_triple)
@@ -141,6 +139,6 @@ def inherit_properties(graph, NS):
         "    FILTER(?p != ns:inheritsPropertiesFrom)",
         "    FILTER(?p != rdfs:label)",
         "    FILTER(?p != rdf:value)",
-        "}"
+        "}",
     )
     graph.update("\n".join(update_query))
