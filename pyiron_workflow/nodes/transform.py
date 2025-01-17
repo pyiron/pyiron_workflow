@@ -379,7 +379,7 @@ class DataclassNode(FromManyInputs, ABC):
 
     @classmethod
     def _extra_info(cls) -> str:
-        return cls.dataclass.__doc__
+        return cls.dataclass.__doc__ or ""
 
 
 @classfactory
