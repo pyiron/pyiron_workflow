@@ -13,9 +13,13 @@ from pyiron_snippets.colors import SeabornColors
 from pyiron_workflow.channels import NotData
 
 if TYPE_CHECKING:
-    from pyiron_workflow.channels import Channel as WorkflowChannel
-    from pyiron_workflow.channels import DataChannel as WorkflowDataChannel
-    from pyiron_workflow.channels import SignalChannel as WorkflowSignalChannel
+    from pyiron_workflow.channels import Channel as WorkflowChannel  # noqa: F401
+    from pyiron_workflow.channels import (
+        DataChannel as WorkflowDataChannel,  # noqa: F401
+    )
+    from pyiron_workflow.channels import (
+        SignalChannel as WorkflowSignalChannel,  # noqa: F401
+    )
     from pyiron_workflow.io import DataIO, SignalIO
     from pyiron_workflow.node import Node as WorkflowNode
 
