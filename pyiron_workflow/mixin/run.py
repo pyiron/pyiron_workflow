@@ -165,7 +165,9 @@ class Runnable(UsesState, HasLabel, HasRun, ABC):
             **run_kwargs,
         )
 
-    def _before_run(self, /, check_readiness: bool, **kwargs) -> tuple[bool, Any]:
+    def _before_run(
+            self, /, check_readiness: bool, *args, **kwargs
+    ) -> tuple[bool, Any]:
         """
         Things to do _before_ running.
 
@@ -194,6 +196,7 @@ class Runnable(UsesState, HasLabel, HasRun, ABC):
         run_exception_kwargs: dict,
         run_finally_kwargs: dict,
         finish_run_kwargs: dict,
+        *args,
         **kwargs,
     ) -> Any | tuple | Future:
         """
@@ -254,7 +257,7 @@ class Runnable(UsesState, HasLabel, HasRun, ABC):
             )
             return self.future
 
-    def _run_exception(self, /, **kwargs):
+    def _run_exception(self, /, *args, **kwargs):
         """
         What to do if an exception is encountered inside :meth:`_run` or
         :meth:`_finish_run.
@@ -262,7 +265,7 @@ class Runnable(UsesState, HasLabel, HasRun, ABC):
         self.running = False
         self.failed = True
 
-    def _run_finally(self, /):
+    def _run_finally(self, /, *args, **kwargs):
         """
         What to do after :meth:`_finish_run` (whether an exception is encountered or
         not), or in :meth:`_run` after an exception is encountered.
