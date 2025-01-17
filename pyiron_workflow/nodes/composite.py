@@ -307,7 +307,7 @@ class Composite(SemanticParent[Node], HasCreator, Node, ABC):
         self._cached_inputs = None  # Reset cache after graph change
         return super().add_child(child, label=label, strict_naming=strict_naming)
 
-    def remove_child(self, child: Node | str) -> list[tuple[Channel, Channel]]:
+    def remove_child(self, child: Node | str) -> Node:
         """
         Remove a child from the :attr:`children` collection, disconnecting it and
         setting its :attr:`parent` to None.
@@ -316,14 +316,14 @@ class Composite(SemanticParent[Node], HasCreator, Node, ABC):
             child (Node|str): The child (or its label) to remove.
 
         Returns:
-            (list[tuple[Channel, Channel]]): Any connections that node had.
+            (Node): The (now disconnected and de-parented) (former) child node.
         """
         child = super().remove_child(child)
-        disconnected = child.disconnect()
+        child.disconnect()
         if child in self.starting_nodes:
             self.starting_nodes.remove(child)
         self._cached_inputs = None  # Reset cache after graph change
-        return disconnected
+        return child
 
     def replace_child(
         self, owned_node: Node | str, replacement: Node | type[Node]
