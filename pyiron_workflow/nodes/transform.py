@@ -40,10 +40,6 @@ class FromManyInputs(Transformer, ABC):
     # Inputs convert to `run_args` as a value dictionary
     # This must be commensurate with the internal expectations of _on_run
 
-    @abstractmethod
-    def _on_run(self, **inputs_to_value_dict) -> Any:
-        """Must take inputs kwargs"""
-
     @property
     def _run_args(self) -> tuple[tuple, dict]:
         return (), self.inputs.to_value_dict()
