@@ -334,14 +334,10 @@ class HasIO(HasStateDisplay, HasLabel, HasRun, Generic[OutputsType], ABC):
     def inputs(self) -> Inputs:
         pass
 
+    @property
     @abstractmethod
-    def data_input_locked(self) -> bool:
-        """
-        Indicates whether data input channels should consider this owner locked to
-        change.
-        """
-        # Practically, this gives a well-named interface between HasIO and everything
-        # to do with run status
+    def data_input_locked(self):
+        """Prevents Inputs from updating when True"""
 
     @property
     @abstractmethod
