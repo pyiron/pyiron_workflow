@@ -167,4 +167,4 @@ def check_values(graph):
         for row in results:
             print(f"Subject: {row.subject}, Property: {row.property}, Value: {row.value}")
         return results
-    return []
+    return None
