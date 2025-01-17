@@ -82,22 +82,6 @@ class HasIOPreview(ABC):
         )
 
 
-def builds_class_io(subclass_factory: Callable[..., type[HasIOPreview]]):
-    """
-    A decorator for factories producing subclasses of `HasIOPreview` to invoke
-    :meth:`preview_io` after the class is created, thus ensuring the IO has been
-    constructed at the class level.
-    """
-
-    @wraps(subclass_factory)
-    def wrapped(*args, **kwargs):
-        node_class = subclass_factory(*args, **kwargs)
-        node_class.preview_io()
-        return node_class
-
-    return wrapped
-
-
 class ScrapesIO(HasIOPreview, ABC):
     """
     A mixin class for scraping IO channel information from a specific class method's
