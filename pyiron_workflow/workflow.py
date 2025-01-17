@@ -262,7 +262,8 @@ class Workflow(Composite):
 
     @property
     def inputs_map(self) -> bidict | None:
-        self._deduplicate_nones(self._inputs_map)
+        if self._inputs_map is not None:
+            self._deduplicate_nones(self._inputs_map)
         return self._inputs_map
 
     @inputs_map.setter
@@ -271,7 +272,8 @@ class Workflow(Composite):
 
     @property
     def outputs_map(self) -> bidict | None:
-        self._deduplicate_nones(self._outputs_map)
+        if self._outputs_map is not None:
+            self._deduplicate_nones(self._outputs_map)
         return self._outputs_map
 
     @outputs_map.setter
@@ -279,17 +281,17 @@ class Workflow(Composite):
         self._outputs_map = self._sanitize_map(new_map)
 
     def _sanitize_map(self, new_map: dict | bidict | None) -> bidict | None:
-        self._deduplicate_nones(new_map)
         if new_map is not None:
+            if isinstance(new_map, dict):
+                self._deduplicate_nones(new_map)
             new_map = bidict(new_map)
         return new_map
 
     @staticmethod
-    def _deduplicate_nones(some_map: dict | bidict | None):
-        if some_map is not None:
-            for k, v in some_map.items():
-                if v is None:
-                    some_map[k] = (None, f"{k} disabled")
+    def _deduplicate_nones(some_map: dict | bidict):
+        for k, v in some_map.items():
+            if v is None:
+                some_map[k] = (None, f"{k} disabled")
 
     @property
     def inputs(self) -> Inputs:
