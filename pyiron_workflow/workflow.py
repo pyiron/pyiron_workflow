@@ -285,7 +285,7 @@ class Workflow(Composite):
         return new_map
 
     @staticmethod
-    def _deduplicate_nones(some_map: dict | bidict | None) -> dict | bidict | None:
+    def _deduplicate_nones(some_map: dict | bidict | None):
         if some_map is not None:
             for k, v in some_map.items():
                 if v is None:
