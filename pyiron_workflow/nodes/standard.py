@@ -63,7 +63,7 @@ class If(Function):
         return truth
 
     @property
-    def emitting_channels(self) -> tuple[OutputSignal]:
+    def emitting_channels(self) -> tuple[OutputSignal, ...]:
         if self.outputs.truth.value is NOT_DATA:
             return super().emitting_channels
         elif self.outputs.truth.value:

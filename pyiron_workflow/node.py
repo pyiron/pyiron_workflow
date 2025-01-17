@@ -707,7 +707,7 @@ class Node(
         return DotDict(self.outputs.to_value_dict())
 
     @property
-    def emitting_channels(self) -> tuple[OutputSignal]:
+    def emitting_channels(self) -> tuple[OutputSignal, ...]:
         if self.failed:
             return (self.signals.output.failed,)
         else:
