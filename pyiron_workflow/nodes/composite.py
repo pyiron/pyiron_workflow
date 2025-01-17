@@ -20,7 +20,6 @@ from pyiron_workflow.topology import set_run_connections_according_to_dag
 
 if TYPE_CHECKING:
     from pyiron_workflow.channels import (
-        Channel,
         InputSignal,
         OutputSignal,
     )
