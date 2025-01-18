@@ -10,8 +10,8 @@ from typing import TYPE_CHECKING, Any, Literal
 
 from bidict import bidict
 
-from pyiron_workflow.io import Inputs, Outputs
-from pyiron_workflow.mixin.semantics import ParentMost
+from pyiron_workflow.io import Inputs
+from pyiron_workflow.mixin.injection import OutputsWithInjection
 from pyiron_workflow.nodes.composite import Composite
 
 if TYPE_CHECKING:
@@ -20,7 +20,19 @@ if TYPE_CHECKING:
     from pyiron_workflow.storage import StorageInterface
 
 
-class Workflow(ParentMost, Composite):
+class ParentMostError(TypeError):
+    """
+    To be raised when assigning a parent to a parent-most object
+    """
+
+
+class NoArgsError(TypeError):
+    """
+    To be raised when *args can't be processed but are received
+    """
+
+
+class Workflow(Composite):
     """
     Workflows are a dynamic composite node -- i.e. they hold and run a collection of
     nodes (a subgraph) which can be dynamically modified (adding and removing nodes,
@@ -213,13 +225,11 @@ class Workflow(ParentMost, Composite):
         automate_execution: bool = True,
         **kwargs,
     ):
-        self._inputs_map = None
-        self._outputs_map = None
-        self.inputs_map = inputs_map
-        self.outputs_map = outputs_map
+        self._inputs_map = self._sanitize_map(inputs_map)
+        self._outputs_map = self._sanitize_map(outputs_map)
         self._inputs = None
         self._outputs = None
-        self.automate_execution = automate_execution
+        self.automate_execution: bool = automate_execution
 
         super().__init__(
             *nodes,
@@ -252,34 +262,36 @@ class Workflow(ParentMost, Composite):
 
     @property
     def inputs_map(self) -> bidict | None:
-        self._deduplicate_nones(self._inputs_map)
+        if self._inputs_map is not None:
+            self._deduplicate_nones(self._inputs_map)
         return self._inputs_map
 
     @inputs_map.setter
     def inputs_map(self, new_map: dict | bidict | None):
-        self._deduplicate_nones(new_map)
-        if new_map is not None:
-            new_map = bidict(new_map)
-        self._inputs_map = new_map
+        self._inputs_map = self._sanitize_map(new_map)
 
     @property
     def outputs_map(self) -> bidict | None:
-        self._deduplicate_nones(self._outputs_map)
+        if self._outputs_map is not None:
+            self._deduplicate_nones(self._outputs_map)
         return self._outputs_map
 
     @outputs_map.setter
     def outputs_map(self, new_map: dict | bidict | None):
-        self._deduplicate_nones(new_map)
+        self._outputs_map = self._sanitize_map(new_map)
+
+    def _sanitize_map(self, new_map: dict | bidict | None) -> bidict | None:
         if new_map is not None:
+            if isinstance(new_map, dict):
+                self._deduplicate_nones(new_map)
             new_map = bidict(new_map)
-        self._outputs_map = new_map
+        return new_map
 
     @staticmethod
-    def _deduplicate_nones(some_map: dict | bidict | None) -> dict | bidict | None:
-        if some_map is not None:
-            for k, v in some_map.items():
-                if v is None:
-                    some_map[k] = (None, f"{k} disabled")
+    def _deduplicate_nones(some_map: dict | bidict):
+        for k, v in some_map.items():
+            if v is None:
+                some_map[k] = (None, f"{k} disabled")
 
     @property
     def inputs(self) -> Inputs:
@@ -289,7 +301,7 @@ class Workflow(ParentMost, Composite):
         return self._build_io("inputs", self.inputs_map)
 
     @property
-    def outputs(self) -> Outputs:
+    def outputs(self) -> OutputsWithInjection:
         return self._build_outputs()
 
     def _build_outputs(self):
@@ -299,7 +311,7 @@ class Workflow(ParentMost, Composite):
         self,
         i_or_o: Literal["inputs", "outputs"],
         key_map: dict[str, str | None] | None,
-    ) -> Inputs | Outputs:
+    ) -> Inputs | OutputsWithInjection:
         """
         Build an IO panel for exposing child node IO to the outside world at the level
         of the composite node's IO.
@@ -315,17 +327,18 @@ class Workflow(ParentMost, Composite):
                 (which normally would be exposed) by providing a string-None map.
 
         Returns:
-            (Inputs|Outputs): The populated panel.
+            (Inputs|OutputsWithInjection): The populated panel.
         """
         key_map = {} if key_map is None else key_map
-        io = Inputs() if i_or_o == "inputs" else Outputs()
+        io = Inputs() if i_or_o == "inputs" else OutputsWithInjection()
         for node in self.children.values():
             panel = getattr(node, i_or_o)
             for channel in panel:
                 try:
                     io_panel_key = key_map[channel.scoped_label]
-                    if not isinstance(io_panel_key, tuple):
-                        # Tuples indicate that the channel has been deactivated
+                    if isinstance(io_panel_key, str):
+                        # Otherwise it's a None-str tuple, indicaticating that the
+                        # channel has been deactivated
                         # This is a necessary misdirection to keep the bidict working,
                         # as we can't simply map _multiple_ keys to `None`
                         io[io_panel_key] = channel
@@ -355,12 +368,18 @@ class Workflow(ParentMost, Composite):
 
     def run(
         self,
+        *args,
         check_readiness: bool = True,
         **kwargs,
     ):
         # Note: Workflows may have neither parents nor siblings, so we don't need to
         # worry about running their data trees first, fetching their input, nor firing
         # their `ran` signal, hence the change in signature from Node.run
+        if len(args) > 0:
+            raise NoArgsError(
+                f"{self.__class__} does not know how to process *args on run, but "
+                f"received {args}"
+            )
 
         return super().run(
             run_data_tree=False,
@@ -478,8 +497,10 @@ class Workflow(ParentMost, Composite):
 
     def replace_child(
         self, owned_node: Node | str, replacement: Node | type[Node]
-    ) -> Node:
-        super().replace_child(owned_node=owned_node, replacement=replacement)
+    ) -> tuple[Node, Node]:
+        replaced, replacement_node = super().replace_child(
+            owned_node=owned_node, replacement=replacement
+        )
 
         # Finally, make sure the IO is constructible with this new node, which will
         # catch things like incompatible IO maps
@@ -490,8 +511,20 @@ class Workflow(ParentMost, Composite):
         except Exception as e:
             # If IO can't be successfully rebuilt using this node, revert changes and
             # raise the exception
-            self.replace_child(replacement, owned_node)  # Guaranteed to work since
+            self.replace_child(replacement_node, replaced)  # Guaranteed to work since
             # replacement in the other direction was already a success
             raise e
 
-        return owned_node
+        return replaced, replacement_node
+
+    @property
+    def parent(self) -> None:
+        return None
+
+    @parent.setter
+    def parent(self, new_parent: None):
+        if new_parent is not None:
+            raise ParentMostError(
+                f"{self.label} is a {self.__class__} and may only take None as a "
+                f"parent but got {type(new_parent)}"
+            )

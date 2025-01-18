@@ -2,10 +2,11 @@
 Classes for "semantic" reasoning.
 
 The motivation here is to be able to provide the object with a unique identifier
-in the context of other semantic objects. Each object may have exactly one parent
-and an arbitrary number of children, and each child's name must be unique in the
-scope of that parent. In this way, the path from the parent-most object to any
-child is completely unique. The typical filesystem on a computer is an excellent
+in the context of other semantic objects. Each object may have at most one parent,
+while semantic parents may have an arbitrary number of children, and each child's name
+must be unique in the scope of that parent. In this way, when semantic parents are also
+themselves semantic, we can build a path from the parent-most object to any child that
+is completely unique. The typical filesystem on a computer is an excellent
 example and fulfills our requirements, the only reason we depart from it is so that
 we are free to have objects stored in different locations (possibly even on totally
 different drives or machines) belong to the same semantic group.
@@ -13,17 +14,20 @@ different drives or machines) belong to the same semantic group.
 
 from __future__ import annotations
 
-from abc import ABC
+from abc import ABC, abstractmethod
 from difflib import get_close_matches
 from pathlib import Path
+from typing import ClassVar, Generic, TypeVar
 
 from bidict import bidict
 
 from pyiron_workflow.logging import logger
-from pyiron_workflow.mixin.has_interface_mixins import HasLabel, HasParent, UsesState
+from pyiron_workflow.mixin.has_interface_mixins import HasLabel, UsesState
+
+ParentType = TypeVar("ParentType", bound="SemanticParent")
 
 
-class Semantic(UsesState, HasLabel, HasParent, ABC):
+class Semantic(UsesState, HasLabel, Generic[ParentType], ABC):
     """
     An object with a unique semantic path.
 
@@ -31,45 +35,59 @@ class Semantic(UsesState, HasLabel, HasParent, ABC):
     accessible.
     """
 
-    semantic_delimiter = "/"
+    semantic_delimiter: ClassVar[str] = "/"
 
     def __init__(
-        self, label: str, *args, parent: SemanticParent | None = None, **kwargs
+        self,
+        *args,
+        label: str | None = None,
+        parent: ParentType | None = None,
+        **kwargs,
     ):
-        self._label = None
+        self._label = ""
         self._parent = None
         self._detached_parent_path = None
-        self.label = label
+        self.label = self.__class__.__name__ if label is None else label
         self.parent = parent
         super().__init__(*args, **kwargs)
 
-    @property
-    def label(self) -> str:
-        return self._label
+    @classmethod
+    @abstractmethod
+    def parent_type(cls) -> type[ParentType]:
+        pass
 
-    @label.setter
-    def label(self, new_label: str) -> None:
-        if not isinstance(new_label, str):
-            raise TypeError(f"Expected a string label but got {new_label}")
+    def _check_label(self, new_label: str) -> None:
+        super()._check_label(new_label)
         if self.semantic_delimiter in new_label:
-            raise ValueError(f"{self.semantic_delimiter} cannot be in the label")
-        self._label = new_label
+            raise ValueError(
+                f"Semantic delimiter {self.semantic_delimiter} cannot be in new label "
+                f"{new_label}"
+            )
 
     @property
-    def parent(self) -> SemanticParent | None:
+    def parent(self) -> ParentType | None:
         return self._parent
 
     @parent.setter
-    def parent(self, new_parent: SemanticParent | None) -> None:
+    def parent(self, new_parent: ParentType | None) -> None:
+        self._set_parent(new_parent)
+
+    def _set_parent(self, new_parent: ParentType | None):
+        """
+        mypy is uncooperative with super calls for setters, so we pull the behaviour
+        out.
+        """
         if new_parent is self._parent:
             # Exit early if nothing is changing
             return
 
-        if new_parent is not None and not isinstance(new_parent, SemanticParent):
+        if new_parent is not None and not isinstance(new_parent, self.parent_type()):
             raise ValueError(
-                f"Expected None or a {SemanticParent.__name__} for the parent of "
+                f"Expected None or a {self.parent_type()} for the parent of "
                 f"{self.label}, but got {new_parent}"
             )
+
+        _ensure_path_is_not_cyclic(new_parent, self)
 
         if (
             self._parent is not None
@@ -88,18 +106,22 @@ class Semantic(UsesState, HasLabel, HasParent, ABC):
         The path of node labels from the graph root (parent-most node) down to this
         node.
         """
+        prefix: str
         if self.parent is None and self.detached_parent_path is None:
             prefix = ""
         elif self.parent is None and self.detached_parent_path is not None:
             prefix = self.detached_parent_path
         elif self.parent is not None and self.detached_parent_path is None:
-            prefix = self.parent.semantic_path
+            if isinstance(self.parent, Semantic):
+                prefix = self.parent.semantic_path
+            else:
+                prefix = self.semantic_delimiter + self.parent.label
         else:
             raise ValueError(
                 f"The parent and detached path should not be able to take non-None "
                 f"values simultaneously, but got {self.parent} and "
-                f"{self.detached_parent_path}, respectively. Please raise an issue on GitHub "
-                f"outlining how your reached this state."
+                f"{self.detached_parent_path}, respectively. Please raise an issue on "
+                f"GitHub outlining how your reached this state."
             )
         return prefix + self.semantic_delimiter + self.label
 
@@ -126,7 +148,10 @@ class Semantic(UsesState, HasLabel, HasParent, ABC):
     @property
     def semantic_root(self) -> Semantic:
         """The parent-most object in this semantic path; may be self."""
-        return self.parent.semantic_root if isinstance(self.parent, Semantic) else self
+        if isinstance(self.parent, Semantic):
+            return self.parent.semantic_root
+        else:
+            return self
 
     def as_path(self, root: Path | str | None = None) -> Path:
         """
@@ -157,9 +182,12 @@ class CyclicPathError(ValueError):
     """
 
 
-class SemanticParent(Semantic, ABC):
+ChildType = TypeVar("ChildType", bound=Semantic)
+
+
+class SemanticParent(HasLabel, Generic[ChildType], ABC):
     """
-    A semantic object with a collection of uniquely-named semantic children.
+    A labeled object with a collection of uniquely-named semantic children.
 
     Children should be added or removed via the :meth:`add_child` and
     :meth:`remove_child` methods and _not_ by direct manipulation of the
@@ -176,25 +204,42 @@ class SemanticParent(Semantic, ABC):
 
     def __init__(
         self,
-        label: str,
         *args,
-        parent: SemanticParent | None = None,
         strict_naming: bool = True,
         **kwargs,
     ):
-        self._children = bidict()
+        self._children: bidict[str, ChildType] = bidict()
         self.strict_naming = strict_naming
-        super().__init__(*args, label=label, parent=parent, **kwargs)
+        super().__init__(*args, **kwargs)
+
+    @classmethod
+    @abstractmethod
+    def child_type(cls) -> type[ChildType]:
+        # Dev note: In principle, this could be a regular attribute
+        # However, in other situations this is precluded (e.g. in channels)
+        # since it would result in circular references.
+        # Here we favour consistency over brevity,
+        # and maintain the X_type() class method pattern
+        pass
 
     @property
-    def children(self) -> bidict[str, Semantic]:
+    def children(self) -> bidict[str, ChildType]:
         return self._children
 
     @property
     def child_labels(self) -> tuple[str]:
         return tuple(child.label for child in self)
 
-    def __getattr__(self, key):
+    def _check_label(self, new_label: str) -> None:
+        super()._check_label(new_label)
+        if self.child_type().semantic_delimiter in new_label:
+            raise ValueError(
+                f"Child type ({self.child_type()}) semantic delimiter "
+                f"{self.child_type().semantic_delimiter} cannot be in new label "
+                f"{new_label}"
+            )
+
+    def __getattr__(self, key) -> ChildType:
         try:
             return self._children[key]
         except KeyError as key_error:
@@ -210,7 +255,7 @@ class SemanticParent(Semantic, ABC):
     def __iter__(self):
         return self.children.values().__iter__()
 
-    def __len__(self):
+    def __len__(self) -> int:
         return len(self.children)
 
     def __dir__(self):
@@ -218,15 +263,15 @@ class SemanticParent(Semantic, ABC):
 
     def add_child(
         self,
-        child: Semantic,
+        child: ChildType,
         label: str | None = None,
         strict_naming: bool | None = None,
-    ) -> Semantic:
+    ) -> ChildType:
         """
         Add a child, optionally assigning it a new label in the process.
 
         Args:
-            child (Semantic): The child to add.
+            child (ChildType): The child to add.
             label (str|None): A (potentially) new label to assign the child. (Default
                 is None, leave the child's label alone.)
             strict_naming (bool|None): Whether to append a suffix to the label if
@@ -234,7 +279,7 @@ class SemanticParent(Semantic, ABC):
                 use the class-level flag.)
 
         Returns:
-            (Semantic): The child being added.
+            (ChildType): The child being added.
 
         Raises:
             TypeError: When the child is not of an allowed class.
@@ -244,19 +289,13 @@ class SemanticParent(Semantic, ABC):
                 `strict_naming` is true.
 
         """
-        if not isinstance(child, Semantic):
+        if not isinstance(child, self.child_type()):
             raise TypeError(
-                f"{self.label} expected a new child of type {Semantic.__name__} "
+                f"{self.label} expected a new child of type {self.child_type()} "
                 f"but got {child}"
             )
 
-        if isinstance(child, ParentMost):
-            raise ParentMostError(
-                f"{child.label} is {ParentMost.__name__} and may only take None as a "
-                f"parent but was added as a child to {self.label}"
-            )
-
-        self._ensure_path_is_not_cyclic(self, child)
+        _ensure_path_is_not_cyclic(self, child)
 
         self._ensure_child_has_no_other_parent(child)
 
@@ -277,19 +316,7 @@ class SemanticParent(Semantic, ABC):
             child.parent = self
         return child
 
-    @staticmethod
-    def _ensure_path_is_not_cyclic(parent: SemanticParent | None, child: Semantic):
-        if parent is not None and parent.semantic_path.startswith(
-            child.semantic_path + child.semantic_delimiter
-        ):
-            raise CyclicPathError(
-                f"{parent.label} cannot be the parent of {child.label}, because its "
-                f"semantic path is already in {child.label}'s path and cyclic paths "
-                f"are not allowed. (i.e. {child.semantic_path} is in "
-                f"{parent.semantic_path})"
-            )
-
-    def _ensure_child_has_no_other_parent(self, child: Semantic):
+    def _ensure_child_has_no_other_parent(self, child: Semantic) -> None:
         if child.parent is not None and child.parent is not self:
             raise ValueError(
                 f"The child ({child.label}) already belongs to the parent "
@@ -297,17 +324,17 @@ class SemanticParent(Semantic, ABC):
                 f"add it to this parent ({self.label})."
             )
 
-    def _this_child_is_already_at_this_label(self, child: Semantic, label: str):
+    def _this_child_is_already_at_this_label(self, child: Semantic, label: str) -> bool:
         return (
             label == child.label
             and label in self.child_labels
             and self.children[label] is child
         )
 
-    def _this_child_is_already_at_a_different_label(self, child, label):
+    def _this_child_is_already_at_a_different_label(self, child, label) -> bool:
         return child.parent is self and label != child.label
 
-    def _get_unique_label(self, label: str, strict_naming: bool):
+    def _get_unique_label(self, label: str, strict_naming: bool) -> str:
         if label in self.__dir__():
             if label in self.child_labels:
                 if strict_naming:
@@ -324,7 +351,7 @@ class SemanticParent(Semantic, ABC):
                 )
         return label
 
-    def _add_suffix_to_label(self, label):
+    def _add_suffix_to_label(self, label: str) -> str:
         i = 0
         new_label = label
         while new_label in self.__dir__():
@@ -339,29 +366,21 @@ class SemanticParent(Semantic, ABC):
             )
         return new_label
 
-    def remove_child(self, child: Semantic | str) -> Semantic:
+    def remove_child(self, child: ChildType | str) -> ChildType:
         if isinstance(child, str):
-            child = self.children.pop(child)
-        elif isinstance(child, Semantic):
+            child_instance = self.children.pop(child)
+        elif isinstance(child, self.child_type()):
             self.children.inv.pop(child)
+            child_instance = child
         else:
             raise TypeError(
                 f"{self.label} expected to remove a child of type str or "
-                f"{Semantic.__name__} but got {child}"
+                f"{self.child_type()} but got {child}"
             )
 
-        child.parent = None
+        child_instance.parent = None
 
-        return child
-
-    @property
-    def parent(self) -> SemanticParent | None:
-        return self._parent
-
-    @parent.setter
-    def parent(self, new_parent: SemanticParent | None) -> None:
-        self._ensure_path_is_not_cyclic(new_parent, self)
-        super(SemanticParent, type(self)).parent.__set__(self, new_parent)
+        return child_instance
 
     def __getstate__(self):
         state = super().__getstate__()
@@ -398,25 +417,13 @@ class SemanticParent(Semantic, ABC):
             child.parent = self
 
 
-class ParentMostError(TypeError):
-    """
-    To be raised when assigning a parent to a parent-most object
-    """
-
-
-class ParentMost(SemanticParent, ABC):
-    """
-    A semantic parent that cannot have any other parent.
-    """
-
-    @property
-    def parent(self) -> None:
-        return None
-
-    @parent.setter
-    def parent(self, new_parent: None):
-        if new_parent is not None:
-            raise ParentMostError(
-                f"{self.label} is {ParentMost.__name__} and may only take None as a "
-                f"parent but got {type(new_parent)}"
-            )
+def _ensure_path_is_not_cyclic(parent, child: Semantic) -> None:
+    if isinstance(parent, Semantic) and parent.semantic_path.startswith(
+        child.semantic_path + child.semantic_delimiter
+    ):
+        raise CyclicPathError(
+            f"{parent.label} cannot be the parent of {child.label}, because its "
+            f"semantic path is already in {child.label}'s path and cyclic paths "
+            f"are not allowed. (i.e. {child.semantic_path} is in "
+            f"{parent.semantic_path})"
+        )

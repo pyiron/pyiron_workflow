@@ -6,6 +6,7 @@ from __future__ import annotations
 
 import itertools
 from abc import ABC, abstractmethod
+from collections.abc import Callable
 from dataclasses import MISSING
 from dataclasses import dataclass as as_dataclass
 from typing import Any, ClassVar
@@ -14,8 +15,7 @@ from pandas import DataFrame
 from pyiron_snippets.colors import SeabornColors
 from pyiron_snippets.factory import classfactory
 
-from pyiron_workflow.channels import NOT_DATA
-from pyiron_workflow.mixin.preview import builds_class_io
+from pyiron_workflow.channels import NOT_DATA, NotData
 from pyiron_workflow.nodes.static_io import StaticNode
 
 
@@ -39,10 +39,6 @@ class FromManyInputs(Transformer, ABC):
     # Inputs convert to `run_args` as a value dictionary
     # This must be commensurate with the internal expectations of _on_run
 
-    @abstractmethod
-    def _on_run(self, **inputs_to_value_dict) -> Any:
-        """Must take inputs kwargs"""
-
     @property
     def _run_args(self) -> tuple[tuple, dict]:
         return (), self.inputs.to_value_dict()
@@ -59,13 +55,13 @@ class FromManyInputs(Transformer, ABC):
 class ToManyOutputs(Transformer, ABC):
     _input_name: ClassVar[str]  # Mandatory attribute for non-abstract subclasses
     _input_type_hint: ClassVar[Any] = None
-    _input_default: ClassVar[Any | NOT_DATA] = NOT_DATA
+    _input_default: ClassVar[Any | NotData] = NOT_DATA
 
     # _build_outputs_preview still required from parent class
     # Must be commensurate with the dictionary returned by transform_to_output
 
     @abstractmethod
-    def _on_run(self, input_object) -> callable[..., Any | tuple]:
+    def _on_run(self, input_object) -> Callable[..., Any | tuple]:
         """Must take the single object to be transformed"""
 
     @property
@@ -110,10 +106,9 @@ class ListToOutputs(_HasLength, ToManyOutputs, ABC):
         return {f"item_{i}": None for i in range(cls._length)}
 
 
-@builds_class_io
 @classfactory
 def inputs_to_list_factory(n: int, use_cache: bool = True, /) -> type[InputsToList]:
-    return (
+    return (  # type: ignore[return-value]
         f"{InputsToList.__name__}{n}",
         (InputsToList,),
         {
@@ -140,13 +135,14 @@ def inputs_to_list(n: int, /, *node_args, use_cache: bool = True, **node_kwargs)
         InputsToList: An instance of the dynamically created :class:`InputsToList`
             subclass.
     """
-    return inputs_to_list_factory(n, use_cache)(*node_args, **node_kwargs)
+    cls = inputs_to_list_factory(n, use_cache)
+    cls.preview_io()
+    return cls(*node_args, **node_kwargs)
 
 
-@builds_class_io
 @classfactory
 def list_to_outputs_factory(n: int, use_cache: bool = True, /) -> type[ListToOutputs]:
-    return (
+    return (  # type: ignore[return-value]
         f"{ListToOutputs.__name__}{n}",
         (ListToOutputs,),
         {
@@ -175,21 +171,24 @@ def list_to_outputs(
         ListToOutputs: An instance of the dynamically created :class:`ListToOutputs`
             subclass.
     """
-    return list_to_outputs_factory(n, use_cache)(*node_args, **node_kwargs)
+
+    cls = list_to_outputs_factory(n, use_cache)
+    cls.preview_io()
+    return cls(*node_args, **node_kwargs)
 
 
 class InputsToDict(FromManyInputs, ABC):
     _output_name: ClassVar[str] = "dict"
     _output_type_hint: ClassVar[Any] = dict
     _input_specification: ClassVar[
-        list[str] | dict[str, tuple[Any | None, Any | NOT_DATA]]
+        list[str] | dict[str, tuple[Any | None, Any | NotData]]
     ]
 
     def _on_run(self, **inputs_to_value_dict):
         return inputs_to_value_dict
 
     @classmethod
-    def _build_inputs_preview(cls) -> dict[str, tuple[Any | None, Any | NOT_DATA]]:
+    def _build_inputs_preview(cls) -> dict[str, tuple[Any | None, Any | NotData]]:
         if isinstance(cls._input_specification, list):
             return {key: (None, NOT_DATA) for key in cls._input_specification}
         else:
@@ -197,7 +196,7 @@ class InputsToDict(FromManyInputs, ABC):
 
     @staticmethod
     def hash_specification(
-        input_specification: list[str] | dict[str, tuple[Any | None, Any | NOT_DATA]],
+        input_specification: list[str] | dict[str, tuple[Any | None, Any | NotData]],
     ):
         """For generating unique subclass names."""
 
@@ -223,7 +222,7 @@ class InputsToDict(FromManyInputs, ABC):
 
 @classfactory
 def inputs_to_dict_factory(
-    input_specification: list[str] | dict[str, tuple[Any | None, Any | NOT_DATA]],
+    input_specification: list[str] | dict[str, tuple[Any | None, Any | NotData]],
     class_name_suffix: str | None,
     use_cache: bool = True,
     /,
@@ -232,7 +231,7 @@ def inputs_to_dict_factory(
         class_name_suffix = str(
             InputsToDict.hash_specification(input_specification)
         ).replace("-", "m")
-    return (
+    return (  # type: ignore[return-value]
         f"{InputsToDict.__name__}{class_name_suffix}",
         (InputsToDict,),
         {
@@ -244,7 +243,7 @@ def inputs_to_dict_factory(
 
 
 def inputs_to_dict(
-    input_specification: list[str] | dict[str, tuple[Any | None, Any | NOT_DATA]],
+    input_specification: list[str] | dict[str, tuple[Any | None, Any | NotData]],
     *node_args,
     class_name_suffix: str | None = None,
     use_cache: bool = True,
@@ -308,7 +307,7 @@ class InputsToDataframe(_HasLength, FromManyInputs, ABC):
 def inputs_to_dataframe_factory(
     n: int, use_cache: bool = True, /
 ) -> type[InputsToDataframe]:
-    return (
+    return (  # type: ignore[return-value]
         f"{InputsToDataframe.__name__}{n}",
         (InputsToDataframe,),
         {
@@ -350,7 +349,6 @@ class DataclassNode(FromManyInputs, ABC):
     _output_name: ClassVar[str] = "dataclass"
 
     @classmethod
-    @property
     def _dataclass_fields(cls):
         return cls.dataclass.__dataclass_fields__
 
@@ -360,9 +358,9 @@ class DataclassNode(FromManyInputs, ABC):
         for name, channel in self.inputs.items():
             if (
                 channel.value is NOT_DATA
-                and self._dataclass_fields[name].default_factory is not MISSING
+                and self._dataclass_fields()[name].default_factory is not MISSING
             ):
-                self.inputs[name] = self._dataclass_fields[name].default_factory()
+                self.inputs[name] = self._dataclass_fields()[name].default_factory()
 
     def _on_run(self, **inputs_to_value_dict):
         return self.dataclass(**inputs_to_value_dict)
@@ -376,12 +374,12 @@ class DataclassNode(FromManyInputs, ABC):
         # Make a channel for each field
         return {
             name: (f.type, NOT_DATA if f.default is MISSING else f.default)
-            for name, f in cls._dataclass_fields.items()
+            for name, f in cls._dataclass_fields().items()
         }
 
     @classmethod
     def _extra_info(cls) -> str:
-        return cls.dataclass.__doc__
+        return cls.dataclass.__doc__ or ""
 
 
 @classfactory
@@ -405,7 +403,7 @@ def dataclass_node_factory(
     # Composition is preferable over inheritance, but we want inheritance to be possible
     module, qualname = dataclass.__module__, dataclass.__qualname__
     dataclass.__qualname__ += ".dataclass"  # So output type hints know where to find it
-    return (
+    return (  # type: ignore[return-value]
         dataclass.__name__,
         (DataclassNode,),
         {

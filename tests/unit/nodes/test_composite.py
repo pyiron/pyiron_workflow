@@ -129,29 +129,18 @@ class TestComposite(unittest.TestCase):
         # Connect it inside the composite
         self.comp.foo.inputs.x = self.comp.owned.outputs.y
 
-        disconnected = self.comp.remove_child(node)
+        self.comp.remove_child(node)
         self.assertIsNone(node.parent, msg="Removal should de-parent")
         self.assertFalse(node.connected, msg="Removal should disconnect")
-        self.assertListEqual(
-            [(node.inputs.x, self.comp.owned.outputs.y)],
-            disconnected,
-            msg="Removal should return destroyed connections",
-        )
         self.assertListEqual(
             self.comp.starting_nodes,
             [],
             msg="Removal should also remove from starting nodes",
         )
-
-        node_owned = self.comp.owned
-        disconnections = self.comp.remove_child(node_owned.label)
-        self.assertEqual(
-            node_owned.parent,
-            None,
-            msg="Should be able to remove nodes by label as well as by object",
-        )
         self.assertListEqual(
-            [], disconnections, msg="node1 should have no connections left"
+            [],
+            self.comp.owned.connections,
+            msg="Remaining node should have no connections left",
         )
 
     def test_label_uniqueness(self):

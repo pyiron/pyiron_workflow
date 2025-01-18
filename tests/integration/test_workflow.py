@@ -68,7 +68,7 @@ class TestWorkflow(unittest.TestCase):
                 return value_gt_limit
 
             @property
-            def emitting_channels(self) -> tuple[OutputSignal]:
+            def emitting_channels(self) -> tuple[OutputSignal, ...]:
                 if self.outputs.value_gt_limit.value:
                     print(f"{self.inputs.value.value} > {self.inputs.limit.value}")
                     return (*super().emitting_channels, self.signals.output.true)

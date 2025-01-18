@@ -14,7 +14,8 @@ from __future__ import annotations
 
 import inspect
 from abc import ABC, abstractmethod
-from functools import lru_cache, wraps
+from collections.abc import Callable
+from functools import lru_cache
 from typing import (
     TYPE_CHECKING,
     Any,
@@ -75,26 +76,10 @@ class HasIOPreview(ABC):
         return cls._build_outputs_preview()
 
     @classmethod
-    def preview_io(cls) -> DotDict[str, dict]:
+    def preview_io(cls) -> DotDict[str, dict[str, Any | tuple[Any, Any]]]:
         return DotDict(
             {"inputs": cls.preview_inputs(), "outputs": cls.preview_outputs()}
         )
-
-
-def builds_class_io(subclass_factory: callable[..., type[HasIOPreview]]):
-    """
-    A decorator for factories producing subclasses of `HasIOPreview` to invoke
-    :meth:`preview_io` after the class is created, thus ensuring the IO has been
-    constructed at the class level.
-    """
-
-    @wraps(subclass_factory)
-    def wrapped(*args, **kwargs):
-        node_class = subclass_factory(*args, **kwargs)
-        node_class.preview_io()
-        return node_class
-
-    return wrapped
 
 
 class ScrapesIO(HasIOPreview, ABC):
@@ -129,7 +114,7 @@ class ScrapesIO(HasIOPreview, ABC):
 
     @classmethod
     @abstractmethod
-    def _io_defining_function(cls) -> callable:
+    def _io_defining_function(cls) -> Callable:
         """Must return a static method."""
 
     _output_labels: ClassVar[tuple[str] | None] = None  # None: scrape them
@@ -139,7 +124,7 @@ class ScrapesIO(HasIOPreview, ABC):
     )
 
     @classmethod
-    def _build_inputs_preview(cls):
+    def _build_inputs_preview(cls) -> dict[str, tuple[Any, Any]]:
         type_hints = cls._get_type_hints()
         scraped: dict[str, tuple[Any, Any]] = {}
         for i, (label, value) in enumerate(cls._get_input_args().items()):
@@ -167,7 +152,7 @@ class ScrapesIO(HasIOPreview, ABC):
         return scraped
 
     @classmethod
-    def _build_outputs_preview(cls):
+    def _build_outputs_preview(cls) -> dict[str, Any]:
         if cls._validate_output_labels:
             cls._validate()  # Validate output on first call
 
@@ -287,7 +272,7 @@ class ScrapesIO(HasIOPreview, ABC):
                 ) from type_error
 
     @staticmethod
-    def _io_defining_documentation(io_defining_function: callable, title: str):
+    def _io_defining_documentation(io_defining_function: Callable, title: str):
         """
         A helper method for building a docstring for classes that have their IO defined
         by some function.

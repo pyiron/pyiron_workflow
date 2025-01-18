@@ -153,6 +153,7 @@ class For(Composite, StaticNode, ABC):
     _iter_on: ClassVar[tuple[str, ...]] = ()
     _zip_on: ClassVar[tuple[str, ...]] = ()
     _output_as_dataframe: ClassVar[bool] = True
+    _output_column_map: ClassVar[dict[str, str]] = {}
 
     def __init_subclass__(cls, output_column_map=None, **kwargs):
         super().__init_subclass__(**kwargs)
@@ -181,18 +182,16 @@ class For(Composite, StaticNode, ABC):
                 f"{cls._body_node_class.__name__} has no such outputs."
             )
 
-        cls._output_column_map = output_column_map
+        cls._output_column_map = {} if output_column_map is None else output_column_map
 
     @classmethod
-    @property
     @lru_cache(maxsize=1)
     def output_column_map(cls) -> dict[str, str]:
         """
         How to transform body node output labels to dataframe column names.
         """
         map_ = {k: k for k in cls._body_node_class.preview_outputs()}
-        overrides = {} if cls._output_column_map is None else cls._output_column_map
-        for body_label, column_name in overrides.items():
+        for body_label, column_name in cls._output_column_map.items():
             map_[body_label] = column_name
         return map_
 
@@ -310,7 +309,7 @@ class For(Composite, StaticNode, ABC):
                 row_collector.inputs[label] = self.children[label][i]
 
             for label, body_out in self[self._body_name(n)].outputs.items():
-                row_collector.inputs[self.output_column_map[label]] = body_out
+                row_collector.inputs[self.output_column_map()[label]] = body_out
 
             self.dataframe.inputs[f"row_{n}"] = row_collector
 
@@ -323,7 +322,7 @@ class For(Composite, StaticNode, ABC):
         # Outputs
         row_specification.update(
             {
-                self.output_column_map[key]: (hint, NOT_DATA)
+                self.output_column_map()[key]: (hint, NOT_DATA)
                 for key, hint in self._body_node_class.preview_outputs().items()
             }
         )
@@ -338,7 +337,7 @@ class For(Composite, StaticNode, ABC):
             return f"column_collector_{s}"
 
         for label, hint in self._body_node_class.preview_outputs().items():
-            mapped_label = self.output_column_map[label]
+            mapped_label = self.output_column_map()[label]
             column_collector = inputs_to_list(
                 n_rows,
                 label=column_collector_name(mapped_label),
@@ -376,7 +375,7 @@ class For(Composite, StaticNode, ABC):
         for label, (hint, default) in cls._body_node_class.preview_inputs().items():
             # TODO: Leverage hint and default, listing if it's looped on
             if label in cls._zip_on + cls._iter_on:
-                hint = list if hint is None else list[hint]
+                hint = list if hint is None else list[hint]  # type: ignore[valid-type]
                 default = NOT_DATA  # TODO: Figure out a generator pattern to get lists
             preview[label] = (hint, default)
         return preview
@@ -392,10 +391,10 @@ class For(Composite, StaticNode, ABC):
                 _default,
             ) in cls._body_node_class.preview_inputs().items():
                 if label in cls._zip_on + cls._iter_on:
-                    preview[label] = list if hint is None else list[hint]
+                    preview[label] = list if hint is None else list[hint]  # type: ignore[valid-type]
             for label, hint in cls._body_node_class.preview_outputs().items():
-                preview[cls.output_column_map[label]] = (
-                    list if hint is None else list[hint]
+                preview[cls.output_column_map()[label]] = (
+                    list if hint is None else list[hint]  # type: ignore[valid-type]
                 )
             return preview
 
@@ -508,7 +507,7 @@ def for_node_factory(
     output_column_map: dict | None = None,
     use_cache: bool = True,
     /,
-):
+) -> type[For]:
     combined_docstring = (
         "For node docstring:\n"
         + (For.__doc__ if For.__doc__ is not None else "")
@@ -519,7 +518,7 @@ def for_node_factory(
     iter_on = (iter_on,) if isinstance(iter_on, str) else iter_on
     zip_on = (zip_on,) if isinstance(zip_on, str) else zip_on
 
-    return (
+    return (  # type: ignore[return-value]
         _for_node_class_name(body_node_class, iter_on, zip_on, output_as_dataframe),
         (For,),
         {
@@ -646,6 +645,8 @@ def for_node(
         Index(['a', 'b', 'c', 'd', 'out_a', 'out_b', 'out_c', 'out_d', 'e'], dtype='object')
 
     """
+    iter_on = (iter_on,) if isinstance(iter_on, str) else iter_on
+    zip_on = (zip_on,) if isinstance(zip_on, str) else zip_on
     for_node_factory.clear(
         _for_node_class_name(body_node_class, iter_on, zip_on, output_as_dataframe)
     )

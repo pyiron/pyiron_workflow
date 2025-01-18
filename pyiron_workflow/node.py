@@ -11,7 +11,7 @@ import contextlib
 from abc import ABC, abstractmethod
 from concurrent.futures import Future
 from importlib import import_module
-from typing import TYPE_CHECKING, Any, Literal
+from typing import TYPE_CHECKING, Any, Literal, cast
 
 import cloudpickle
 from pyiron_snippets.colors import SeabornColors
@@ -19,7 +19,6 @@ from pyiron_snippets.dotdict import DotDict
 
 from pyiron_workflow.draw import Node as GraphvizNode
 from pyiron_workflow.logging import logger
-from pyiron_workflow.mixin.injection import HasIOWithInjection
 from pyiron_workflow.mixin.run import ReadinessError, Runnable
 from pyiron_workflow.mixin.semantics import Semantic
 from pyiron_workflow.mixin.single_output import ExploitsSingleOutput
@@ -40,8 +39,7 @@ if TYPE_CHECKING:
 
 
 class Node(
-    HasIOWithInjection,
-    Semantic,
+    Semantic["Composite"],
     Runnable,
     ExploitsSingleOutput,
     ABC,
@@ -179,8 +177,9 @@ class Node(
         inputs (pyiron_workflow.io.Inputs): **Abstract.** Children must define
             a property returning an :class:`Inputs` object.
         label (str): A name for the node.
-        outputs (pyiron_workflow.io.Outputs): **Abstract.** Children must define
-            a property returning an :class:`Outputs` object.
+        outputs (pyiron_workflow.mixin.injection.OutputsWithInjection): **Abstract.**
+            Children must define a property returning an :class:`OutputsWithInjection`
+            object.
         parent (pyiron_workflow.composite.Composite | None): The parent object
             owning this, if any.
         ready (bool): Whether the inputs are all ready and the node is neither
@@ -297,18 +296,17 @@ class Node(
             **kwargs: Interpreted as node input data, with keys corresponding to
                 channel labels.
         """
-        super().__init__(
-            label=self.__class__.__name__ if label is None else label,
-            parent=parent,
-        )
+        super().__init__(label=label, parent=parent)
         self.checkpoint = checkpoint
         self.recovery: Literal["pickle"] | StorageInterface | None = "pickle"
         self._serialize_result = False  # Advertised, but private to indicate
         # under-development status -- API may change to be more user-friendly
         self._do_clean: bool = False  # Power-user override for cleaning up temporary
         # serialized results and empty directories (or not).
-        self._cached_inputs = None
-        self._user_data = {}  # A place for power-users to bypass node-injection
+        self._cached_inputs: dict[str, Any] | None = None
+
+        self._user_data: dict[str, Any] = {}
+        # A place for power-users to bypass node-injection
 
         self._setup_node()
         self._after_node_setup(
@@ -318,6 +316,12 @@ class Node(
             autorun=autorun,
             **kwargs,
         )
+
+    @classmethod
+    def parent_type(cls) -> type[Composite]:
+        from pyiron_workflow.nodes.composite import Composite
+
+        return Composite
 
     def _setup_node(self) -> None:
         """
@@ -627,7 +631,7 @@ class Node(
 
         try:
             parent_starting_nodes = (
-                self.parent.starting_nodes if self.parent is not None else None
+                self.parent.starting_nodes if self.parent is not None else []
             )  # We need these for state recovery later, even if we crash
 
             if len(data_tree_starters) == 1 and data_tree_starters[0] is self:
@@ -703,7 +707,7 @@ class Node(
         return DotDict(self.outputs.to_value_dict())
 
     @property
-    def emitting_channels(self) -> tuple[OutputSignal]:
+    def emitting_channels(self) -> tuple[OutputSignal, ...]:
         if self.failed:
             return (self.signals.output.failed,)
         else:
@@ -826,10 +830,8 @@ class Node(
             (graphviz.graphs.Digraph): The resulting graph object.
 
         """
-
-        if size is not None:
-            size = f"{size[0]},{size[1]}"
-        graph = GraphvizNode(self, depth=depth, rankdir=rankdir, size=size).graph
+        size_str = f"{size[0]},{size[1]}" if size is not None else None
+        graph = GraphvizNode(self, depth=depth, rankdir=rankdir, size=size_str).graph
         if save or view or filename is not None:
             directory = self.as_path() if directory is None else Path(directory)
             filename = self.label + "_graph" if filename is None else filename
@@ -892,7 +894,7 @@ class Node(
 
     def save(
         self,
-        backend: str | StorageInterface = "pickle",
+        backend: Literal["pickle"] | StorageInterface = "pickle",
         filename: str | Path | None = None,
         **kwargs,
     ):
@@ -912,9 +914,9 @@ class Node(
         ):
             selected_backend.save(node=self, filename=filename, **kwargs)
 
-    save.__doc__ += _save_load_warnings
+    save.__doc__ = cast(str, save.__doc__) + _save_load_warnings
 
-    def save_checkpoint(self, backend: str | StorageInterface = "pickle"):
+    def save_checkpoint(self, backend: Literal["pickle"] | StorageInterface = "pickle"):
         """
         Triggers a save on the parent-most node.
 
@@ -926,7 +928,7 @@ class Node(
 
     def load(
         self,
-        backend: str | StorageInterface = "pickle",
+        backend: Literal["pickle"] | StorageInterface = "pickle",
         only_requested=False,
         filename: str | Path | None = None,
         **kwargs,
@@ -971,7 +973,7 @@ class Node(
             )
         self.__setstate__(inst.__getstate__())
 
-    load.__doc__ += _save_load_warnings
+    load.__doc__ = cast(str, load.__doc__) + _save_load_warnings
 
     def delete_storage(
         self,

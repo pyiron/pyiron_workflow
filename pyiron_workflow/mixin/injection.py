@@ -8,11 +8,10 @@ to inject new nodes into the graph dynamically.
 
 from __future__ import annotations
 
-from abc import ABC, abstractmethod
 from typing import TYPE_CHECKING, Any
 
 from pyiron_workflow.channels import NOT_DATA, OutputData
-from pyiron_workflow.io import HasIO, Outputs
+from pyiron_workflow.io import GenericOutputs
 from pyiron_workflow.mixin.has_interface_mixins import HasChannel
 
 if TYPE_CHECKING:
@@ -275,14 +274,7 @@ class OutputDataWithInjection(OutputData):
         return self._node_injection(Round)
 
 
-class OutputsWithInjection(Outputs):
+class OutputsWithInjection(GenericOutputs[OutputDataWithInjection]):
     @property
-    def _channel_class(self) -> type(OutputDataWithInjection):
+    def _channel_class(self) -> type[OutputDataWithInjection]:
         return OutputDataWithInjection
-
-
-class HasIOWithInjection(HasIO, ABC):
-    @property
-    @abstractmethod
-    def outputs(self) -> OutputsWithInjection:
-        pass

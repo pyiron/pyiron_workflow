@@ -6,6 +6,7 @@ sub-graph
 from __future__ import annotations
 
 from abc import ABC
+from collections.abc import Callable
 from time import sleep
 from typing import TYPE_CHECKING, Literal
 
@@ -19,7 +20,6 @@ from pyiron_workflow.topology import set_run_connections_according_to_dag
 
 if TYPE_CHECKING:
     from pyiron_workflow.channels import (
-        Channel,
         InputSignal,
         OutputSignal,
     )
@@ -53,7 +53,7 @@ class FailedChildError(RuntimeError):
     """Raise when one or more child nodes raise exceptions."""
 
 
-class Composite(SemanticParent, HasCreator, Node, ABC):
+class Composite(SemanticParent[Node], HasCreator, Node, ABC):
     """
     A base class for nodes that have internal graph structure -- i.e. they hold a
     collection of child nodes and their computation is to execute that graph.
@@ -142,8 +142,8 @@ class Composite(SemanticParent, HasCreator, Node, ABC):
         # empty but the running_children list is not
 
         super().__init__(
-            label,
             *args,
+            label=label,
             parent=parent,
             delete_existing_savefiles=delete_existing_savefiles,
             autoload=autoload,
@@ -152,6 +152,10 @@ class Composite(SemanticParent, HasCreator, Node, ABC):
             strict_naming=strict_naming,
             **kwargs,
         )
+
+    @classmethod
+    def child_type(cls) -> type[Node]:
+        return Node
 
     def activate_strict_hints(self):
         super().activate_strict_hints()
@@ -272,12 +276,12 @@ class Composite(SemanticParent, HasCreator, Node, ABC):
         state.pop("_parent")  # Got overridden to None for __getstate__, so keep local
         return state
 
-    def disconnect_run(self) -> list[tuple[Channel, Channel]]:
+    def disconnect_run(self) -> list[tuple[InputSignal, OutputSignal]]:
         """
         Disconnect all `signals.input.run` connections on all child nodes.
 
         Returns:
-            list[tuple[Channel, Channel]]: Any disconnected pairs.
+            list[tuple[InputSignal, OutputSignal]]: Any disconnected pairs.
         """
         disconnected_pairs = []
         for node in self.children.values():
@@ -299,15 +303,10 @@ class Composite(SemanticParent, HasCreator, Node, ABC):
         label: str | None = None,
         strict_naming: bool | None = None,
     ) -> Node:
-        if not isinstance(child, Node):
-            raise TypeError(
-                f"Only new {Node.__name__} instances may be added, but got "
-                f"{type(child)}."
-            )
         self._cached_inputs = None  # Reset cache after graph change
         return super().add_child(child, label=label, strict_naming=strict_naming)
 
-    def remove_child(self, child: Node | str) -> list[tuple[Channel, Channel]]:
+    def remove_child(self, child: Node | str) -> Node:
         """
         Remove a child from the :attr:`children` collection, disconnecting it and
         setting its :attr:`parent` to None.
@@ -316,18 +315,18 @@ class Composite(SemanticParent, HasCreator, Node, ABC):
             child (Node|str): The child (or its label) to remove.
 
         Returns:
-            (list[tuple[Channel, Channel]]): Any connections that node had.
+            (Node): The (now disconnected and de-parented) (former) child node.
         """
         child = super().remove_child(child)
-        disconnected = child.disconnect()
+        child.disconnect()
         if child in self.starting_nodes:
             self.starting_nodes.remove(child)
         self._cached_inputs = None  # Reset cache after graph change
-        return disconnected
+        return child
 
     def replace_child(
         self, owned_node: Node | str, replacement: Node | type[Node]
-    ) -> Node:
+    ) -> tuple[Node, Node]:
         """
         Replaces a node currently owned with a new node instance.
         The replacement must not belong to any other parent or have any connections.
@@ -349,15 +348,16 @@ class Composite(SemanticParent, HasCreator, Node, ABC):
                 and simply gets instantiated.)
 
         Returns:
-            (Node): The node that got removed
+            (Node, Node): The node that got removed and the new one that replaced it.
         """
-        if isinstance(owned_node, str):
-            owned_node = self.children[owned_node]
+        owned_node_instance = (
+            self.children[owned_node] if isinstance(owned_node, str) else owned_node
+        )
 
-        if owned_node.parent is not self:
+        if owned_node_instance.parent is not self:
             raise ValueError(
                 f"The node being replaced should be a child of this composite, but "
-                f"another parent was found: {owned_node.parent}"
+                f"another parent was found: {owned_node_instance.parent}"
             )
 
         if isinstance(replacement, Node):
@@ -368,44 +368,56 @@ class Composite(SemanticParent, HasCreator, Node, ABC):
                 )
             if replacement.connected:
                 raise ValueError("Replacement node must not have any connections")
+            replacement_node = replacement
         elif issubclass(replacement, Node):
-            replacement = replacement(label=owned_node.label)
+            replacement_node = replacement(label=owned_node_instance.label)
         else:
             raise TypeError(
                 f"Expected replacement node to be a node instance or node subclass, but "
                 f"got {replacement}"
             )
 
-        replacement.copy_io(owned_node)  # If the replacement is incompatible, we'll
+        replacement_node.copy_io(
+            owned_node_instance
+        )  # If the replacement is incompatible, we'll
         # fail here before we've changed the parent at all. Since the replacement was
         # first guaranteed to be an unconnected orphan, there is not yet any permanent
         # damage
-        is_starting_node = owned_node in self.starting_nodes
+        is_starting_node = owned_node_instance in self.starting_nodes
         # In case the replaced node interfaces with the composite's IO, catch value
         # links
         inbound_links = [
-            (sending_channel, replacement.inputs[sending_channel.value_receiver.label])
+            (
+                sending_channel,
+                replacement_node.inputs[sending_channel.value_receiver.label],
+            )
             for sending_channel in self.inputs
-            if sending_channel.value_receiver in owned_node.inputs
+            if sending_channel.value_receiver in owned_node_instance.inputs
         ]
         outbound_links = [
-            (replacement.outputs[sending_channel.label], sending_channel.value_receiver)
-            for sending_channel in owned_node.outputs
+            (
+                replacement_node.outputs[sending_channel.label],
+                sending_channel.value_receiver,
+            )
+            for sending_channel in owned_node_instance.outputs
             if sending_channel.value_receiver in self.outputs
         ]
-        self.remove_child(owned_node)
-        replacement.label, owned_node.label = owned_node.label, replacement.label
-        self.add_child(replacement)
+        self.remove_child(owned_node_instance)
+        replacement_node.label, owned_node_instance.label = (
+            owned_node_instance.label,
+            replacement_node.label,
+        )
+        self.add_child(replacement_node)
         if is_starting_node:
-            self.starting_nodes.append(replacement)
+            self.starting_nodes.append(replacement_node)
         for sending_channel, receiving_channel in inbound_links + outbound_links:
             sending_channel.value_receiver = receiving_channel
 
         # Clear caches
         self._cached_inputs = None
-        replacement._cached_inputs = None
+        replacement_node._cached_inputs = None
 
-        return owned_node
+        return owned_node_instance, replacement_node
 
     def executor_shutdown(self, wait=True, *, cancel_futures=False):
         """
@@ -419,8 +431,6 @@ class Composite(SemanticParent, HasCreator, Node, ABC):
     def __setattr__(self, key: str, node: Node):
         if isinstance(node, Composite) and key in ["_parent", "parent"]:
             # This is an edge case for assigning a node to an attribute
-            # We either defer to the setter with super, or directly assign the private
-            # variable (as requested in the setter)
             super().__setattr__(key, node)
         elif isinstance(node, Node):
             self.add_child(node, label=key)
@@ -450,7 +460,7 @@ class Composite(SemanticParent, HasCreator, Node, ABC):
         return _get_graph_as_dict(self)
 
     def _get_connections_as_strings(
-        self, panel_getter: callable
+        self, panel_getter: Callable
     ) -> list[tuple[tuple[str, str], tuple[str, str]]]:
         """
         Connections between children in string representation based on labels.
@@ -520,8 +530,8 @@ class Composite(SemanticParent, HasCreator, Node, ABC):
     def _restore_connections_from_strings(
         nodes: dict[str, Node] | DotDict[str, Node],
         connections: list[tuple[tuple[str, str], tuple[str, str]]],
-        input_panel_getter: callable,
-        output_panel_getter: callable,
+        input_panel_getter: Callable,
+        output_panel_getter: Callable,
     ) -> None:
         """
         Set connections among a dictionary of nodes.

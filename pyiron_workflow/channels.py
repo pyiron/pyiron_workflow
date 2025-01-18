@@ -14,6 +14,7 @@ from abc import ABC, abstractmethod
 
 from pyiron_snippets.singleton import Singleton
 
+from pyiron_workflow.compatibility import Self
 from pyiron_workflow.mixin.display_state import HasStateDisplay
 from pyiron_workflow.mixin.has_interface_mixins import HasChannel, HasLabel
 from pyiron_workflow.type_hinting import (
@@ -25,11 +26,24 @@ if typing.TYPE_CHECKING:
     from pyiron_workflow.io import HasIO
 
 
-class ChannelConnectionError(Exception):
+class ChannelError(Exception):
     pass
 
 
-class Channel(HasChannel, HasLabel, HasStateDisplay, ABC):
+class ChannelConnectionError(ChannelError):
+    pass
+
+
+ConjugateType = typing.TypeVar("ConjugateType", bound="Channel")
+InputType = typing.TypeVar("InputType", bound="InputChannel")
+OutputType = typing.TypeVar("OutputType", bound="OutputChannel")
+FlavorType = typing.TypeVar("FlavorType", bound="FlavorChannel")
+ReceiverType = typing.TypeVar("ReceiverType", bound="DataChannel")
+
+
+class Channel(
+    HasChannel, HasLabel, HasStateDisplay, typing.Generic[ConjugateType], ABC
+):
     """
     Channels facilitate the flow of information (data or control signals) into and
     out of :class:`HasIO` objects (namely nodes).
@@ -37,12 +51,9 @@ class Channel(HasChannel, HasLabel, HasStateDisplay, ABC):
     They must have an identifier (`label: str`) and belong to an
     `owner: pyiron_workflow.io.HasIO`.
 
-    Non-abstract channel classes should come in input/output pairs and specify the
-    a necessary ancestor for instances they can connect to
-    (`connection_partner_type: type[Channel]`).
 
     Channels may form (:meth:`connect`/:meth:`disconnect`) and store
-    (:attr:`connections: list[Channel]`) connections with other channels.
+    (:attr:`connections`) connections with other channels.
 
     This connection information is reflexive, and is duplicated to be stored on _both_
     channels in the form of a reference to their counterpart in the connection.
@@ -51,10 +62,10 @@ class Channel(HasChannel, HasLabel, HasStateDisplay, ABC):
     these (dis)connections is guaranteed to be handled, and new connections are
     subjected to a validity test.
 
-    In this abstract class the only requirement is that the connecting channels form a
-    "conjugate pair" of classes, i.e. they are children of each other's partner class
-    (:attr:`connection_partner_type: type[Channel]`) -- input/output connects to
-    output/input.
+    Child classes must specify a conjugate class in order to enforce connection
+    conjugate pairs which have the same "flavor" (e.g. "data" or "signal"), and
+    opposite "direction" ("input" vs "output"). And they must define a string
+    representation.
 
     Iterating over channels yields their connections.
 
@@ -80,22 +91,18 @@ class Channel(HasChannel, HasLabel, HasStateDisplay, ABC):
         """
         self._label = label
         self.owner: HasIO = owner
-        self.connections: list[Channel] = []
-
-    @property
-    def label(self) -> str:
-        return self._label
+        self.connections: list[ConjugateType] = []
 
     @abstractmethod
     def __str__(self):
         pass
 
-    @property
+    @classmethod
     @abstractmethod
-    def connection_partner_type(self) -> type[Channel]:
+    def connection_conjugate(cls) -> type[ConjugateType]:
         """
-        Input and output class pairs must specify a parent class for their valid
-        connection partners.
+        The class forming a conjugate pair with this channel class -- i.e. the same
+        "flavor" of channel, but opposite in I/O.
         """
 
     @property
@@ -108,21 +115,12 @@ class Channel(HasChannel, HasLabel, HasStateDisplay, ABC):
         """A label combining the channel's usual label and its owner's semantic path"""
         return f"{self.owner.full_label}.{self.label}"
 
-    def _valid_connection(self, other: Channel) -> bool:
-        """
-        Logic for determining if a connection is valid.
-
-        Connections only allowed to instances with the right parent type -- i.e.
-        connection pairs should be an input/output.
-        """
-        return isinstance(other, self.connection_partner_type)
-
-    def connect(self, *others: Channel) -> None:
+    def connect(self, *others: ConjugateType) -> None:
         """
         Form a connection between this and one or more other channels.
         Connections are reflexive, and should only occur between input and output
         channels, i.e. they are instances of each others
-        :attr:`connection_partner_type`.
+        :meth:`connection_conjugate()`.
 
         New connections get _prepended_ to the connection lists, so they appear first
         when searching over connections.
@@ -139,29 +137,40 @@ class Channel(HasChannel, HasLabel, HasStateDisplay, ABC):
         for other in others:
             if other in self.connections:
                 continue
-            elif self._valid_connection(other):
-                # Prepend new connections
-                # so that connection searches run newest to oldest
-                self.connections.insert(0, other)
-                other.connections.insert(0, self)
-            elif isinstance(other, self.connection_partner_type):
-                raise ChannelConnectionError(
-                    f"The channel {other.full_label} ({other.__class__.__name__}"
-                    f") has the correct type "
-                    f"({self.connection_partner_type.__name__}) to connect with "
-                    f"{self.full_label} ({self.__class__.__name__}), but is not "
-                    f"a valid connection. Please check type hints, etc."
-                    f"{other.full_label}.type_hint = {other.type_hint}; "
-                    f"{self.full_label}.type_hint = {self.type_hint}"
-                ) from None
+            elif isinstance(other, self.connection_conjugate()):
+                if self._valid_connection(other):
+                    # Prepend new connections
+                    # so that connection searches run newest to oldest
+                    self.connections.insert(0, other)
+                    other.connections.insert(0, self)
+                else:
+                    raise ChannelConnectionError(
+                        self._connection_conjugate_failure_message(other)
+                    ) from None
             else:
                 raise TypeError(
-                    f"Can only connect to {self.connection_partner_type.__name__} "
-                    f"objects, but {self.full_label} ({self.__class__.__name__}) "
+                    f"Can only connect to {self.connection_conjugate()} "
+                    f"objects, but {self.full_label} ({self.__class__}) "
                     f"got {other} ({type(other)})"
                 )
 
-    def disconnect(self, *others: Channel) -> list[tuple[Channel, Channel]]:
+    def _valid_connection(self, other: ConjugateType) -> bool:
+        """
+        Logic for determining if a connection to a conjugate partner is valid.
+
+        Override in child classes as necessary.
+        """
+        return True
+
+    def _connection_conjugate_failure_message(self, other: ConjugateType) -> str:
+        return (
+            f"The channel {other.full_label} ({other.__class__}) has the "
+            f"correct type ({self.connection_conjugate()}) to connect with "
+            f"{self.full_label} ({self.__class__}), but is not a valid "
+            f"connection."
+        )
+
+    def disconnect(self, *others: ConjugateType) -> list[tuple[Self, ConjugateType]]:
         """
         If currently connected to any others, removes this and the other from eachothers
         respective connections lists.
@@ -181,7 +190,7 @@ class Channel(HasChannel, HasLabel, HasStateDisplay, ABC):
                 destroyed_connections.append((self, other))
         return destroyed_connections
 
-    def disconnect_all(self) -> list[tuple[Channel, Channel]]:
+    def disconnect_all(self) -> list[tuple[Self, ConjugateType]]:
         """
         Disconnect from all other channels currently in the connections list.
         """
@@ -198,10 +207,10 @@ class Channel(HasChannel, HasLabel, HasStateDisplay, ABC):
         return self.connections.__iter__()
 
     @property
-    def channel(self) -> Channel:
+    def channel(self) -> Self:
         return self
 
-    def copy_connections(self, other: Channel) -> None:
+    def copy_connections(self, other: Self) -> None:
         """
         Adds all the connections in another channel to this channel's connections.
 
@@ -234,6 +243,18 @@ class Channel(HasChannel, HasLabel, HasStateDisplay, ABC):
         return super().display_state(state=state, ignore_private=ignore_private)
 
 
+class FlavorChannel(Channel[FlavorType], ABC):
+    """Abstract base for all flavor-specific channels."""
+
+
+class InputChannel(Channel[OutputType], ABC):
+    """Mixin for input channels."""
+
+
+class OutputChannel(Channel[InputType], ABC):
+    """Mixin for output channels."""
+
+
 class NotData(metaclass=Singleton):
     """
     This class exists purely to initialize data channel values where no default value
@@ -257,7 +278,7 @@ class NotData(metaclass=Singleton):
 NOT_DATA = NotData()
 
 
-class DataChannel(Channel, ABC):
+class DataChannel(FlavorChannel["DataChannel"], typing.Generic[ReceiverType], ABC):
     """
     Data channels control the flow of data on the graph.
 
@@ -330,7 +351,7 @@ class DataChannel(Channel, ABC):
             when this channel is a value receiver. This can potentially be expensive, so
             consider deactivating strict hints everywhere for production runs. (Default
             is True, raise exceptions when type hints get violated.)
-        value_receiver (pyiron_workflow.channel.DataChannel|None): Another channel of
+        value_receiver (pyiron_workflow.compatibility.Self|None): Another channel of
             the same class whose value will always get updated when this channel's
             value gets updated.
     """
@@ -342,7 +363,7 @@ class DataChannel(Channel, ABC):
         default: typing.Any | None = NOT_DATA,
         type_hint: typing.Any | None = None,
         strict_hints: bool = True,
-        value_receiver: InputData | None = None,
+        value_receiver: ReceiverType | None = None,
     ):
         super().__init__(label=label, owner=owner)
         self._value = NOT_DATA
@@ -351,7 +372,7 @@ class DataChannel(Channel, ABC):
         self.strict_hints = strict_hints
         self.default = default
         self.value = default  # Implicitly type check your default by assignment
-        self.value_receiver = value_receiver
+        self.value_receiver: ReceiverType = value_receiver
 
     @property
     def value(self):
@@ -378,7 +399,7 @@ class DataChannel(Channel, ABC):
             )
 
     @property
-    def value_receiver(self) -> InputData | OutputData | None:
+    def value_receiver(self) -> Self | None:
         """
         Another data channel of the same type to whom new values are always pushed
         (without type checking of any sort, not even when forming the couple!)
@@ -389,7 +410,7 @@ class DataChannel(Channel, ABC):
         return self._value_receiver
 
     @value_receiver.setter
-    def value_receiver(self, new_partner: InputData | OutputData | None):
+    def value_receiver(self, new_partner: Self | None):
         if new_partner is not None:
             if not isinstance(new_partner, self.__class__):
                 raise TypeError(
@@ -445,26 +466,44 @@ class DataChannel(Channel, ABC):
         return self.type_hint is not None
 
     def _valid_connection(self, other: DataChannel) -> bool:
-        if super()._valid_connection(other):
-            if self._both_typed(other):
-                out, inp = self._figure_out_who_is_who(other)
-                if not inp.strict_hints:
-                    return True
-                else:
-                    return type_hint_is_as_or_more_specific_than(
-                        out.type_hint, inp.type_hint
-                    )
-            else:
-                # If either is untyped, don't do type checking
+        if self._both_typed(other):
+            out, inp = self._figure_out_who_is_who(other)
+            if not inp.strict_hints:
                 return True
+            else:
+                return type_hint_is_as_or_more_specific_than(
+                    out.type_hint, inp.type_hint
+                )
         else:
-            return False
+            # If either is untyped, don't do type checking
+            return True
+
+    def _connection_conjugate_failure_message(self, other: DataChannel) -> str:
+        msg = super()._connection_conjugate_failure_message(other)
+        msg += (
+            f"Please check type hints, etc. {other.full_label}.type_hint = "
+            f"{other.type_hint}; {self.full_label}.type_hint = {self.type_hint}"
+        )
+        return msg
 
     def _both_typed(self, other: DataChannel) -> bool:
         return self._has_hint and other._has_hint
 
-    def _figure_out_who_is_who(self, other: DataChannel) -> (OutputData, InputData):
-        return (self, other) if isinstance(self, OutputData) else (other, self)
+    def _figure_out_who_is_who(
+        self, other: DataChannel
+    ) -> tuple[OutputData, InputData]:
+        if isinstance(self, InputData) and isinstance(other, OutputData):
+            return other, self
+        elif isinstance(self, OutputData) and isinstance(other, InputData):
+            return self, other
+        else:
+            raise ChannelError(
+                f"This should be unreachable; data channel conjugate pairs should "
+                f"always be input/output, but got {type(self)} for {self.full_label} "
+                f"and {type(other)} for {other.full_label}. If you don't believe you "
+                f"are responsible for this error, please contact the maintainers via "
+                f"GitHub."
+            )
 
     def __str__(self):
         return str(self.value)
@@ -488,9 +527,10 @@ class DataChannel(Channel, ABC):
         return super().display_state(state=state, ignore_private=ignore_private)
 
 
-class InputData(DataChannel):
-    @property
-    def connection_partner_type(self):
+class InputData(DataChannel["InputData"], InputChannel["OutputData"]):
+
+    @classmethod
+    def connection_conjugate(cls) -> type[OutputData]:
         return OutputData
 
     def fetch(self) -> None:
@@ -527,13 +567,16 @@ class InputData(DataChannel):
         self._value = new_value
 
 
-class OutputData(DataChannel):
-    @property
-    def connection_partner_type(self):
+class OutputData(DataChannel["OutputData"], OutputChannel["InputData"]):
+    @classmethod
+    def connection_conjugate(cls) -> type[InputData]:
         return InputData
 
 
-class SignalChannel(Channel, ABC):
+SignalType = typing.TypeVar("SignalType", bound="SignalChannel")
+
+
+class SignalChannel(FlavorChannel[SignalType], ABC):
     """
     Signal channels give the option control execution flow by triggering callback
     functions when the channel is called.
@@ -557,16 +600,13 @@ class BadCallbackError(ValueError):
     pass
 
 
-class InputSignal(SignalChannel):
-    @property
-    def connection_partner_type(self):
-        return OutputSignal
+class InputSignal(SignalChannel["OutputSignal"], InputChannel["OutputSignal"]):
 
     def __init__(
         self,
         label: str,
         owner: HasIO,
-        callback: callable,
+        callback: typing.Callable,
     ):
         """
         Make a new input signal channel.
@@ -587,6 +627,10 @@ class InputSignal(SignalChannel):
                 f"Lives on owner: {self._is_method_on_owner(callback)}; "
                 f"all args are optional: {self._all_args_arg_optional(callback)} "
             )
+
+    @classmethod
+    def connection_conjugate(cls) -> type[OutputSignal]:
+        return OutputSignal
 
     def _is_method_on_owner(self, callback):
         try:
@@ -613,7 +657,7 @@ class InputSignal(SignalChannel):
         )
 
     @property
-    def callback(self) -> callable:
+    def callback(self) -> typing.Callable:
         return getattr(self.owner, self._callback)
 
     def __call__(self, other: OutputSignal | None = None) -> None:
@@ -636,19 +680,20 @@ class AccumulatingInputSignal(InputSignal):
         self,
         label: str,
         owner: HasIO,
-        callback: callable,
+        callback: typing.Callable,
     ):
         super().__init__(label=label, owner=owner, callback=callback)
         self.received_signals: set[str] = set()
 
-    def __call__(self, other: OutputSignal) -> None:
+    def __call__(self, other: OutputSignal | None = None) -> None:
         """
         Fire callback iff you have received at least one signal from each of your
         current connections.
 
         Resets the collection of received signals when firing.
         """
-        self.received_signals.update([other.scoped_label])
+        if isinstance(other, OutputSignal):
+            self.received_signals.update([other.scoped_label])
         if (
             len(
                 {c.scoped_label for c in self.connections}.difference(
@@ -672,9 +717,10 @@ class AccumulatingInputSignal(InputSignal):
             other._connect_accumulating_input_signal(self)
 
 
-class OutputSignal(SignalChannel):
-    @property
-    def connection_partner_type(self):
+class OutputSignal(SignalChannel["InputSignal"], OutputChannel["InputSignal"]):
+
+    @classmethod
+    def connection_conjugate(cls) -> type[InputSignal]:
         return InputSignal
 
     def __call__(self) -> None:

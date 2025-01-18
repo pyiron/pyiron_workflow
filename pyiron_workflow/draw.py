@@ -5,7 +5,7 @@ Functions for drawing the graph.
 from __future__ import annotations
 
 from abc import ABC, abstractmethod
-from typing import TYPE_CHECKING, Literal
+from typing import TYPE_CHECKING, Generic, Literal, TypeVar
 
 import graphviz
 from pyiron_snippets.colors import SeabornColors
@@ -13,7 +13,13 @@ from pyiron_snippets.colors import SeabornColors
 from pyiron_workflow.channels import NotData
 
 if TYPE_CHECKING:
-    from pyiron_workflow.channels import Channel as WorkflowChannel
+    from pyiron_workflow.channels import Channel as WorkflowChannel  # noqa: F401
+    from pyiron_workflow.channels import (
+        DataChannel as WorkflowDataChannel,  # noqa: F401
+    )
+    from pyiron_workflow.channels import (
+        SignalChannel as WorkflowSignalChannel,  # noqa: F401
+    )
     from pyiron_workflow.io import DataIO, SignalIO
     from pyiron_workflow.node import Node as WorkflowNode
 
@@ -67,7 +73,11 @@ def _to_hex(rgb: tuple[int, int, int]) -> str:
 def _to_rgb(hex_: str) -> tuple[int, int, int]:
     """Hex to RGB color codes; no alpha values."""
     hex_ = hex_.lstrip("#")
-    return tuple(int(hex_[i : i + 2], 16) for i in (0, 2, 4))
+    return (
+        int(hex_[0 : 0 + 2], 16),
+        int(hex_[2 : 2 + 2], 16),
+        int(hex_[4 : 4 + 2], 16),
+    )  # mypy isn't smart enough to parse this as a 3-tuple from an iterator
 
 
 def blend_colours(color_a, color_b, fraction_a=0.5):
@@ -117,14 +127,17 @@ class WorkflowGraphvizMap(ABC):
         pass
 
 
-class _Channel(WorkflowGraphvizMap, ABC):
+WorkflowChannelType = TypeVar("WorkflowChannelType", bound="WorkflowChannel")
+
+
+class _Channel(WorkflowGraphvizMap, Generic[WorkflowChannelType], ABC):
     """
     An abstract representation for channel objects, which are "nodes" in graphviz
     parlance.
     """
 
-    def __init__(self, parent: _IO, channel: WorkflowChannel, local_name: str):
-        self.channel = channel
+    def __init__(self, parent: _IO, channel: WorkflowChannelType, local_name: str):
+        self.channel: WorkflowChannelType = channel
         self._parent = parent
         self._name = self.parent.name + local_name
         self._label = local_name + self._build_label_suffix()
@@ -153,7 +166,7 @@ class _Channel(WorkflowGraphvizMap, ABC):
         return suffix
 
     @property
-    def parent(self) -> _IO | None:
+    def parent(self) -> _IO:
         return self._parent
 
     @property
@@ -173,7 +186,7 @@ class _Channel(WorkflowGraphvizMap, ABC):
         return "filled"
 
 
-class DataChannel(_Channel):
+class DataChannel(_Channel["WorkflowDataChannel"]):
     @property
     def color(self) -> str:
         orange = "#EDB22C"
@@ -190,7 +203,7 @@ class DataChannel(_Channel):
         return "filled"
 
 
-class SignalChannel(_Channel):
+class SignalChannel(_Channel["WorkflowSignalChannel"]):
     @property
     def color(self) -> str:
         blue = "#21BFD8"

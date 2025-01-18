@@ -7,7 +7,8 @@ from __future__ import annotations
 
 from abc import ABC, abstractmethod
 
-from pyiron_workflow.mixin.has_interface_mixins import HasChannel, HasLabel
+from pyiron_workflow.io import HasIO
+from pyiron_workflow.mixin.has_interface_mixins import HasGenericChannel
 from pyiron_workflow.mixin.injection import (
     OutputDataWithInjection,
     OutputsWithInjection,
@@ -18,7 +19,9 @@ class AmbiguousOutputError(ValueError):
     """Raised when searching for exactly one output, but multiple are found."""
 
 
-class ExploitsSingleOutput(HasLabel, HasChannel, ABC):
+class ExploitsSingleOutput(
+    HasIO[OutputsWithInjection], HasGenericChannel[OutputDataWithInjection], ABC
+):
     @property
     @abstractmethod
     def outputs(self) -> OutputsWithInjection:
