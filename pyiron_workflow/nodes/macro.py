@@ -274,7 +274,7 @@ class Macro(Composite, StaticNode, ScrapesIO, ABC):
     @staticmethod
     @abstractmethod
     def graph_creator(
-        self: Macro, *args, **kwargs
+        self: Macro, *args, **kwargs  # noqa: PLW0211
     ) -> HasChannel | tuple[HasChannel, ...] | None:
         """Build the graph the node will run."""
 
