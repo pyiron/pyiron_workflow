@@ -139,6 +139,7 @@ def inherit_properties(graph, NS):
         "    FILTER(?p != ns:inheritsPropertiesFrom)",
         "    FILTER(?p != rdfs:label)",
         "    FILTER(?p != rdf:value)",
+        "    FILTER(?p != rdf:type)",
         "}",
     )
     graph.update("\n".join(update_query))
