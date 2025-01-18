@@ -117,9 +117,7 @@ def dictionary_to_index_maps(
             "At least one of `nested_keys` or `zipped_keys` must be specified."
         )
     else:
-        raise ValueError(
-            "Received keys to iterate over, but all values had length 0."
-        )
+        raise ValueError("Received keys to iterate over, but all values had length 0.")
 
     return key_index_maps
 
