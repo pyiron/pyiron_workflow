@@ -475,7 +475,7 @@ def macro_node_factory(
     use_cache: bool = True,
     /,
     *output_labels: str,
-):
+) -> type[Macro]:
     """
     Create a new :class:`Macro` subclass using the given graph creator function.
 
@@ -491,7 +491,7 @@ def macro_node_factory(
     Returns:
         type[Macro]: A new :class:`Macro` subclass.
     """
-    return (
+    return (  # type: ignore[return-value]
         graph_creator.__name__,
         (Macro,),  # Define parentage
         {

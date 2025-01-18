@@ -509,7 +509,7 @@ def for_node_factory(
     output_column_map: dict | None = None,
     use_cache: bool = True,
     /,
-):
+) -> type[For]:
     combined_docstring = (
         "For node docstring:\n"
         + (For.__doc__ if For.__doc__ is not None else "")
@@ -520,7 +520,7 @@ def for_node_factory(
     iter_on = (iter_on,) if isinstance(iter_on, str) else iter_on
     zip_on = (zip_on,) if isinstance(zip_on, str) else zip_on
 
-    return (
+    return (  # type: ignore[return-value]
         _for_node_class_name(body_node_class, iter_on, zip_on, output_as_dataframe),
         (For,),
         {

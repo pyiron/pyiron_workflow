@@ -572,30 +572,39 @@ class HasIO(HasStateDisplay, HasLabel, HasRun, Generic[OutputsType], ABC):
             list[tuple[Channel, Any]]: A list of tuples giving channels whose value has
                 been updated and what it used to be (for reverting changes).
         """
+        # Leverage a separate function because mypy has trouble parsing types
+        # if we loop over inputs and outputs at the same time
+        return self._copy_panel(
+            other, self.inputs, other.inputs, fail_hard=fail_hard
+        ) + self._copy_panel(other, self.outputs, other.outputs, fail_hard=fail_hard)
+
+    def _copy_panel(
+        self,
+        other: HasIO,
+        my_panel: DataIO,
+        other_panel: DataIO,
+        fail_hard: bool = False,
+    ) -> list[tuple[DataChannel, Any]]:
         old_values = []
-        for my_panel, other_panel in [
-            (self.inputs, other.inputs),
-            (self.outputs, other.outputs),
-        ]:
-            for key, to_copy in other_panel.items():
-                if to_copy.value is not NOT_DATA:
-                    try:
-                        old_value = my_panel[key].value
-                        my_panel[key].value = to_copy.value  # Gets hint-checked
-                        old_values.append((my_panel[key], old_value))
-                    except Exception as e:
-                        if fail_hard:
-                            # If you run into trouble, unwind what you've done
-                            for channel, value in old_values:
-                                channel.value = value
-                            raise ValueCopyError(
-                                f"{self.label} could not copy values from "
-                                f"{other.label} due to the channel {key} on "
-                                f"{other_panel.__class__.__name__}, which holds value "
-                                f"{to_copy.value}"
-                            ) from e
-                        else:
-                            continue
+        for key, to_copy in other_panel.items():
+            if to_copy.value is not NOT_DATA:
+                try:
+                    old_value = my_panel[key].value
+                    my_panel[key].value = to_copy.value  # Gets hint-checked
+                    old_values.append((my_panel[key], old_value))
+                except Exception as e:
+                    if fail_hard:
+                        # If you run into trouble, unwind what you've done
+                        for channel, value in old_values:
+                            channel.value = value
+                        raise ValueCopyError(
+                            f"{self.label} could not copy values from "
+                            f"{other.label} due to the channel {key} on "
+                            f"{other_panel.__class__.__name__}, which holds value "
+                            f"{to_copy.value}"
+                        ) from e
+                    else:
+                        continue
         return old_values
 
     @property

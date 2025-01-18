@@ -357,7 +357,7 @@ def function_node_factory(
     use_cache: bool = True,
     /,
     *output_labels,
-):
+) -> type[Function]:
     """
     Create a new :class:`Function` node class based on the given node function. This
     function gets executed on each :meth:`run` of the resulting function.
@@ -373,7 +373,7 @@ def function_node_factory(
     Returns:
         type[Node]: A new node class.
     """
-    return (
+    return (  # type: ignore[return-value]
         node_function.__name__,
         (Function,),  # Define parentage
         {

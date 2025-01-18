@@ -108,7 +108,7 @@ class ListToOutputs(_HasLength, ToManyOutputs, ABC):
 
 @classfactory
 def inputs_to_list_factory(n: int, use_cache: bool = True, /) -> type[InputsToList]:
-    return (
+    return (  # type: ignore[return-value]
         f"{InputsToList.__name__}{n}",
         (InputsToList,),
         {
@@ -142,7 +142,7 @@ def inputs_to_list(n: int, /, *node_args, use_cache: bool = True, **node_kwargs)
 
 @classfactory
 def list_to_outputs_factory(n: int, use_cache: bool = True, /) -> type[ListToOutputs]:
-    return (
+    return (  # type: ignore[return-value]
         f"{ListToOutputs.__name__}{n}",
         (ListToOutputs,),
         {
@@ -231,7 +231,7 @@ def inputs_to_dict_factory(
         class_name_suffix = str(
             InputsToDict.hash_specification(input_specification)
         ).replace("-", "m")
-    return (
+    return (  # type: ignore[return-value]
         f"{InputsToDict.__name__}{class_name_suffix}",
         (InputsToDict,),
         {
@@ -307,7 +307,7 @@ class InputsToDataframe(_HasLength, FromManyInputs, ABC):
 def inputs_to_dataframe_factory(
     n: int, use_cache: bool = True, /
 ) -> type[InputsToDataframe]:
-    return (
+    return (  # type: ignore[return-value]
         f"{InputsToDataframe.__name__}{n}",
         (InputsToDataframe,),
         {
@@ -403,7 +403,7 @@ def dataclass_node_factory(
     # Composition is preferable over inheritance, but we want inheritance to be possible
     module, qualname = dataclass.__module__, dataclass.__qualname__
     dataclass.__qualname__ += ".dataclass"  # So output type hints know where to find it
-    return (
+    return (  # type: ignore[return-value]
         dataclass.__name__,
         (DataclassNode,),
         {
