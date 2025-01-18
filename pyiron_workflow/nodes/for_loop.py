@@ -376,7 +376,7 @@ class For(Composite, StaticNode, ABC):
         for label, (hint, default) in cls._body_node_class.preview_inputs().items():
             # TODO: Leverage hint and default, listing if it's looped on
             if label in cls._zip_on + cls._iter_on:
-                hint = list if hint is None else list[hint]
+                hint = list if hint is None else list[hint]  # type: ignore[valid-type]
                 default = NOT_DATA  # TODO: Figure out a generator pattern to get lists
             preview[label] = (hint, default)
         return preview
@@ -392,11 +392,11 @@ class For(Composite, StaticNode, ABC):
                 _default,
             ) in cls._body_node_class.preview_inputs().items():
                 if label in cls._zip_on + cls._iter_on:
-                    hint = list if hint is None else list[hint]
+                    hint = list if hint is None else list[hint]  # type: ignore[valid-type]
                     preview[label] = hint
             for label, hint in cls._body_node_class.preview_outputs().items():
                 preview[cls.output_column_map()[label]] = (
-                    list if hint is None else list[hint]
+                    list if hint is None else list[hint]  # type: ignore[valid-type]
                 )
             return preview
 
