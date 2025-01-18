@@ -124,7 +124,7 @@ def _parse_triple(triple, EX, label=None, data=None):
     return subj, pred, obj
 
 
-def inherit_properties(graph, NS):
+def inherit_properties(graph, NS, n=None):
     update_query = (
         f"PREFIX ns: <{NS}>",
         f"PREFIX rdfs: <{RDFS}>",
@@ -142,7 +142,10 @@ def inherit_properties(graph, NS):
         "    FILTER(?p != rdf:type)",
         "}",
     )
-    graph.update("\n".join(update_query))
+    if n is None:
+        n = len(list(graph.triples((None, NS.inheritsPropertiesFrom, None)))) - 1
+    for _ in range(n):
+        graph.update("\n".join(update_query))
 
 
 def validate_values(graph):
