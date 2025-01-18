@@ -76,7 +76,7 @@ class HasIOPreview(ABC):
         return cls._build_outputs_preview()
 
     @classmethod
-    def preview_io(cls) -> DotDict[str, dict]:
+    def preview_io(cls) -> DotDict[str, dict[str, Any | tuple[Any, Any]]]:
         return DotDict(
             {"inputs": cls.preview_inputs(), "outputs": cls.preview_outputs()}
         )
@@ -124,7 +124,7 @@ class ScrapesIO(HasIOPreview, ABC):
     )
 
     @classmethod
-    def _build_inputs_preview(cls):
+    def _build_inputs_preview(cls) -> dict[str, tuple[Any, Any]]:
         type_hints = cls._get_type_hints()
         scraped: dict[str, tuple[Any, Any]] = {}
         for i, (label, value) in enumerate(cls._get_input_args().items()):
@@ -152,7 +152,7 @@ class ScrapesIO(HasIOPreview, ABC):
         return scraped
 
     @classmethod
-    def _build_outputs_preview(cls):
+    def _build_outputs_preview(cls) -> dict[str, Any]:
         if cls._validate_output_labels:
             cls._validate()  # Validate output on first call
 
