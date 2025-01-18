@@ -7,6 +7,7 @@ from __future__ import annotations
 
 import contextlib
 from abc import ABC, abstractmethod
+from collections.abc import Callable
 from concurrent.futures import Executor as StdLibExecutor
 from concurrent.futures import Future, ThreadPoolExecutor
 from functools import partial
@@ -49,16 +50,16 @@ class Runnable(UsesState, HasLabel, HasRun, ABC):
     new keyword arguments.
     """
 
-    def __init__(self, *args, **kwargs):
+    def __init__(self, *args, **kwargs) -> None:
         super().__init__(*args, **kwargs)
-        self.running = False
-        self.failed = False
-        self.executor = None
-        # We call it an executor, but it's just whether to use one.
-        # This is a simply stop-gap as we work out more sophisticated ways to reference
-        # (or create) an executor process without ever trying to pickle a `_thread.lock`
+        self.running: bool = False
+        self.failed: bool = False
+        self.executor: (
+            StdLibExecutor | tuple[Callable[..., StdLibExecutor], tuple, dict] | None
+        ) = None
+        # We call it an executor, but it can also be instructions on making one
         self.future: None | Future = None
-        self._thread_pool_sleep_time = 1e-6
+        self._thread_pool_sleep_time: float = 1e-6
 
     @abstractmethod
     def on_run(self, *args, **kwargs) -> Any:  # callable[..., Any | tuple]:
@@ -73,7 +74,7 @@ class Runnable(UsesState, HasLabel, HasRun, ABC):
         Any data needed for :meth:`on_run`, will be passed as (*args, **kwargs).
         """
 
-    def process_run_result(self, run_output):
+    def process_run_result(self, run_output: Any) -> Any:
         """
         What to _do_ with the results of :meth:`on_run` once you have them.
 
@@ -135,7 +136,7 @@ class Runnable(UsesState, HasLabel, HasRun, ABC):
                 :attr:`running`. (Default is True.)
         """
 
-        def _none_to_dict(inp):
+        def _none_to_dict(inp: dict | None) -> dict:
             return {} if inp is None else inp
 
         before_run_kwargs = _none_to_dict(before_run_kwargs)
@@ -164,7 +165,9 @@ class Runnable(UsesState, HasLabel, HasRun, ABC):
             **run_kwargs,
         )
 
-    def _before_run(self, /, check_readiness, **kwargs) -> tuple[bool, Any]:
+    def _before_run(
+        self, /, check_readiness: bool, *args, **kwargs
+    ) -> tuple[bool, Any]:
         """
         Things to do _before_ running.
 
@@ -193,6 +196,7 @@ class Runnable(UsesState, HasLabel, HasRun, ABC):
         run_exception_kwargs: dict,
         run_finally_kwargs: dict,
         finish_run_kwargs: dict,
+        *args,
         **kwargs,
     ) -> Any | tuple | Future:
         """
@@ -253,7 +257,7 @@ class Runnable(UsesState, HasLabel, HasRun, ABC):
             )
             return self.future
 
-    def _run_exception(self, /, **kwargs):
+    def _run_exception(self, /, *args, **kwargs):
         """
         What to do if an exception is encountered inside :meth:`_run` or
         :meth:`_finish_run.
@@ -261,7 +265,7 @@ class Runnable(UsesState, HasLabel, HasRun, ABC):
         self.running = False
         self.failed = True
 
-    def _run_finally(self, /, **kwargs):
+    def _run_finally(self, /, *args, **kwargs):
         """
         What to do after :meth:`_finish_run` (whether an exception is encountered or
         not), or in :meth:`_run` after an exception is encountered.
@@ -275,7 +279,7 @@ class Runnable(UsesState, HasLabel, HasRun, ABC):
         run_exception_kwargs: dict,
         run_finally_kwargs: dict,
         **kwargs,
-    ) -> Any | tuple:
+    ) -> Any | tuple | None:
         """
         Switch the status, then process and return the run result.
         """
@@ -288,6 +292,7 @@ class Runnable(UsesState, HasLabel, HasRun, ABC):
             self._run_exception(**run_exception_kwargs)
             if raise_run_exceptions:
                 raise e
+            return None
         finally:
             self._run_finally(**run_finally_kwargs)
 
@@ -308,7 +313,7 @@ class Runnable(UsesState, HasLabel, HasRun, ABC):
 
     @staticmethod
     def _parse_executor(
-        executor: StdLibExecutor | (callable[..., StdLibExecutor], tuple, dict),
+        executor: StdLibExecutor | tuple[Callable[..., StdLibExecutor], tuple, dict],
     ) -> StdLibExecutor:
         """
         If you've already got an executor, you're done. But if you get callable and

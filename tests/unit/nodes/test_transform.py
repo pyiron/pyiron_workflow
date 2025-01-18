@@ -230,7 +230,7 @@ class TestTransformer(unittest.TestCase):
                     prev = n_cls.preview_inputs()
                     key = random.choice(list(prev.keys()))
                     self.assertIs(
-                        n_cls._dataclass_fields[key].type,
+                        n_cls._dataclass_fields()[key].type,
                         prev[key][0],
                         msg="Spot-check input type hints are pulled from dataclass fields",
                     )
@@ -238,7 +238,7 @@ class TestTransformer(unittest.TestCase):
                         prev["necessary"][1], NOT_DATA, msg="Field has no default"
                     )
                     self.assertEqual(
-                        n_cls._dataclass_fields["with_default"].default,
+                        n_cls._dataclass_fields()["with_default"].default,
                         prev["with_default"][1],
                         msg="Fields with default should get scraped",
                     )

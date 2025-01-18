@@ -11,7 +11,7 @@ possible coupling between different components of a composed class.
 from __future__ import annotations
 
 from abc import ABC, abstractmethod
-from typing import TYPE_CHECKING, Any
+from typing import TYPE_CHECKING, Generic, TypeVar
 
 if TYPE_CHECKING:
     from pyiron_workflow.channels import Channel
@@ -39,10 +39,24 @@ class HasLabel(ABC):
     A mixin to guarantee the label interface exists.
     """
 
+    _label: str
+
     @property
-    @abstractmethod
     def label(self) -> str:
         """A label for the object."""
+        return self._label
+
+    @label.setter
+    def label(self, new_label: str):
+        self._check_label(new_label)
+        self._label = new_label
+
+    def _check_label(self, new_label: str) -> None:
+        """
+        Extensible checking routine for label validity.
+        """
+        if not isinstance(new_label, str):
+            raise TypeError(f"Expected a string label but got {new_label}")
 
     @property
     def full_label(self) -> str:
@@ -53,22 +67,9 @@ class HasLabel(ABC):
         return self.label
 
 
-class HasParent(ABC):
-    """
-    A mixin to guarantee the parent interface exists.
-    """
-
-    @property
-    @abstractmethod
-    def parent(self) -> Any:
-        """A parent for the object."""
-
-
 class HasChannel(ABC):
     """
-    A mix-in class for use with the :class:`Channel` class.
-    A :class:`Channel` is able to (attempt to) connect to any child instance of :class:`HasConnection`
-    by looking at its :attr:`connection` attribute.
+    A mix-in class for use with the :class:`Channel` class and its children.
 
     This is useful for letting channels attempt to connect to non-channel objects
     directly by pointing them to some channel that object holds.
@@ -77,6 +78,16 @@ class HasChannel(ABC):
     @property
     @abstractmethod
     def channel(self) -> Channel:
+        pass
+
+
+ChannelType = TypeVar("ChannelType", bound="Channel")
+
+
+class HasGenericChannel(HasChannel, Generic[ChannelType], ABC):
+    @property
+    @abstractmethod
+    def channel(self) -> ChannelType:
         pass
 
 

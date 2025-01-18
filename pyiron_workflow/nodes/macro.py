@@ -7,13 +7,15 @@ from __future__ import annotations
 
 import re
 from abc import ABC, abstractmethod
+from collections.abc import Callable
 from inspect import getsource
 from typing import TYPE_CHECKING
 
 from pyiron_snippets.factory import classfactory
 
-from pyiron_workflow.io import Inputs, Outputs
+from pyiron_workflow.io import Inputs
 from pyiron_workflow.mixin.has_interface_mixins import HasChannel
+from pyiron_workflow.mixin.injection import OutputsWithInjection
 from pyiron_workflow.mixin.preview import ScrapesIO
 from pyiron_workflow.nodes.composite import Composite
 from pyiron_workflow.nodes.multiple_distpatch import dispatch_output_labels
@@ -217,7 +219,7 @@ class Macro(Composite, StaticNode, ScrapesIO, ABC):
         >>> # With the replace method
         >>> # (replacement target can be specified by label or instance,
         >>> # the replacing node can be specified by instance or class)
-        >>> replaced = adds_six_macro.replace_child(adds_six_macro.one, add_two())
+        >>> replaced, _ = adds_six_macro.replace_child(adds_six_macro.one, add_two())
         >>> # With the replace_with method
         >>> adds_six_macro.two.replace_with(add_two())
         >>> # And by assignment of a compatible class to an occupied node label
@@ -271,11 +273,13 @@ class Macro(Composite, StaticNode, ScrapesIO, ABC):
 
     @staticmethod
     @abstractmethod
-    def graph_creator(self, *args, **kwargs) -> callable:
+    def graph_creator(
+        self: Macro, *args, **kwargs
+    ) -> HasChannel | tuple[HasChannel, ...] | None:
         """Build the graph the node will run."""
 
     @classmethod
-    def _io_defining_function(cls) -> callable:
+    def _io_defining_function(cls) -> Callable:
         return cls.graph_creator
 
     _io_defining_function_uses_self = True
@@ -341,7 +345,7 @@ class Macro(Composite, StaticNode, ScrapesIO, ABC):
         return self._inputs
 
     @property
-    def outputs(self) -> Outputs:
+    def outputs(self) -> OutputsWithInjection:
         return self._outputs
 
     def _parse_remotely_executed_self(self, other_self):
@@ -466,12 +470,12 @@ class Macro(Composite, StaticNode, ScrapesIO, ABC):
 
 @classfactory
 def macro_node_factory(
-    graph_creator: callable,
+    graph_creator: Callable,
     validate_output_labels: bool,
     use_cache: bool = True,
     /,
     *output_labels: str,
-):
+) -> type[Macro]:
     """
     Create a new :class:`Macro` subclass using the given graph creator function.
 
@@ -487,7 +491,7 @@ def macro_node_factory(
     Returns:
         type[Macro]: A new :class:`Macro` subclass.
     """
-    return (
+    return (  # type: ignore[return-value]
         graph_creator.__name__,
         (Macro,),  # Define parentage
         {
@@ -536,7 +540,7 @@ def as_macro_node(
 
 
 def macro_node(
-    graph_creator: callable,
+    graph_creator: Callable[..., HasChannel | tuple[HasChannel, ...] | None],
     *node_args,
     output_labels: str | tuple[str, ...] | None = None,
     validate_output_labels: bool = True,

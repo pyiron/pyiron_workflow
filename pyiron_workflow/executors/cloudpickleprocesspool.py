@@ -1,3 +1,4 @@
+from collections.abc import Callable
 from concurrent.futures import Future, ProcessPoolExecutor
 from concurrent.futures.process import BrokenProcessPool, _global_shutdown, _WorkItem
 from sys import version_info
@@ -14,7 +15,7 @@ class CloudLoadsFuture(Future):
 
 
 class _CloudPickledCallable:
-    def __init__(self, fnc: callable):
+    def __init__(self, fnc: Callable):
         self.fnc_serial = cloudpickle.dumps(fnc)
 
     def __call__(self, /, dumped_args, dumped_kwargs):

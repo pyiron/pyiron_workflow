@@ -9,7 +9,8 @@ from __future__ import annotations
 
 import contextlib
 from abc import ABC, abstractmethod
-from typing import Any
+from collections.abc import ItemsView, Iterator
+from typing import Any, Generic, TypeVar
 
 from pyiron_snippets.dotdict import DotDict
 
@@ -20,8 +21,10 @@ from pyiron_workflow.channels import (
     DataChannel,
     InputData,
     InputSignal,
+    InputType,
     OutputData,
     OutputSignal,
+    OutputType,
     SignalChannel,
 )
 from pyiron_workflow.logging import logger
@@ -32,8 +35,11 @@ from pyiron_workflow.mixin.has_interface_mixins import (
     HasRun,
 )
 
+OwnedType = TypeVar("OwnedType", bound=Channel)
+OwnedConjugate = TypeVar("OwnedConjugate", bound=Channel)
 
-class IO(HasStateDisplay, ABC):
+
+class IO(HasStateDisplay, Generic[OwnedType, OwnedConjugate], ABC):
     """
     IO is a convenience layer for holding and accessing multiple input/output channels.
     It allows key and dot-based access to the underlying channels.
@@ -52,7 +58,9 @@ class IO(HasStateDisplay, ABC):
     be assigned with a simple `=`.
     """
 
-    def __init__(self, *channels: Channel):
+    channel_dict: DotDict[str, OwnedType]
+
+    def __init__(self, *channels: OwnedType) -> None:
         self.__dict__["channel_dict"] = DotDict(
             {
                 channel.label: channel
@@ -63,15 +71,15 @@ class IO(HasStateDisplay, ABC):
 
     @property
     @abstractmethod
-    def _channel_class(self) -> type(Channel):
+    def _channel_class(self) -> type[OwnedType]:
         pass
 
     @abstractmethod
-    def _assign_a_non_channel_value(self, channel: Channel, value) -> None:
+    def _assign_a_non_channel_value(self, channel: OwnedType, value: Any) -> None:
         """What to do when some non-channel value gets assigned to a channel"""
         pass
 
-    def __getattr__(self, item) -> Channel:
+    def __getattr__(self, item: str) -> OwnedType:
         try:
             return self.channel_dict[item]
         except KeyError as key_error:
@@ -81,7 +89,7 @@ class IO(HasStateDisplay, ABC):
                 f"nor in its channels ({self.labels})"
             ) from key_error
 
-    def __setattr__(self, key, value):
+    def __setattr__(self, key: str, value: Any) -> None:
         if key in self.channel_dict:
             self._assign_value_to_existing_channel(self.channel_dict[key], value)
         elif isinstance(value, self._channel_class):
@@ -97,34 +105,34 @@ class IO(HasStateDisplay, ABC):
                 f"attribute {key} got assigned {value} of type {type(value)}"
             )
 
-    def _assign_value_to_existing_channel(self, channel: Channel, value) -> None:
+    def _assign_value_to_existing_channel(self, channel: OwnedType, value: Any) -> None:
         if isinstance(value, HasChannel):
             channel.connect(value.channel)
         else:
             self._assign_a_non_channel_value(channel, value)
 
-    def __getitem__(self, item) -> Channel:
+    def __getitem__(self, item: str) -> OwnedType:
         return self.__getattr__(item)
 
-    def __setitem__(self, key, value):
+    def __setitem__(self, key: str, value: Any) -> None:
         self.__setattr__(key, value)
 
     @property
-    def connections(self) -> list[Channel]:
+    def connections(self) -> list[OwnedConjugate]:
         """All the unique connections across all channels"""
         return list(
             {connection for channel in self for connection in channel.connections}
         )
 
     @property
-    def connected(self):
+    def connected(self) -> bool:
         return any(c.connected for c in self)
 
     @property
-    def fully_connected(self):
+    def fully_connected(self) -> bool:
         return all(c.connected for c in self)
 
-    def disconnect(self) -> list[tuple[Channel, Channel]]:
+    def disconnect(self) -> list[tuple[OwnedType, OwnedConjugate]]:
         """
         Disconnect all connections that owned channels have.
 
@@ -138,34 +146,36 @@ class IO(HasStateDisplay, ABC):
         return destroyed_connections
 
     @property
-    def labels(self):
+    def labels(self) -> list[str]:
         return list(self.channel_dict.keys())
 
-    def items(self):
+    def items(self) -> ItemsView[str, OwnedType]:
         return self.channel_dict.items()
 
-    def __iter__(self):
+    def __iter__(self) -> Iterator[OwnedType]:
         return self.channel_dict.values().__iter__()
 
-    def __len__(self):
+    def __len__(self) -> int:
         return len(self.channel_dict)
 
     def __dir__(self):
-        return set(super().__dir__() + self.labels)
+        return list(set(super().__dir__() + self.labels))
 
-    def __str__(self):
+    def __str__(self) -> str:
         return f"{self.__class__.__name__} {self.labels}"
 
-    def __getstate__(self):
+    def __getstate__(self) -> dict[str, Any]:
         # Compatibility with python <3.11
         return dict(self.__dict__)
 
-    def __setstate__(self, state):
+    def __setstate__(self, state: dict[str, Any]) -> None:
         # Because we override getattr, we need to use __dict__ assignment directly in
         # __setstate__ the same way we need it in __init__
         self.__dict__["channel_dict"] = state["channel_dict"]
 
-    def display_state(self, state=None, ignore_private=True):
+    def display_state(
+        self, state: dict[str, Any] | None = None, ignore_private: bool = True
+    ) -> dict[str, Any]:
         state = dict(self.__getstate__()) if state is None else state
         for k, v in state["channel_dict"].items():
             state[k] = v
@@ -173,19 +183,27 @@ class IO(HasStateDisplay, ABC):
         return super().display_state(state=state, ignore_private=ignore_private)
 
 
-class DataIO(IO, ABC):
+class InputsIO(IO[InputType, OutputType], ABC):
+    pass
+
+
+class OutputsIO(IO[OutputType, InputType], ABC):
+    pass
+
+
+class DataIO(IO[DataChannel, DataChannel], ABC):
     def _assign_a_non_channel_value(self, channel: DataChannel, value) -> None:
         channel.value = value
 
-    def to_value_dict(self):
+    def to_value_dict(self) -> dict[str, Any]:
         return {label: channel.value for label, channel in self.channel_dict.items()}
 
-    def to_list(self):
+    def to_list(self) -> list[Any]:
         """A list of channel values (order not guaranteed)"""
         return [channel.value for channel in self.channel_dict.values()]
 
     @property
-    def ready(self):
+    def ready(self) -> bool:
         return all(c.ready for c in self)
 
     def activate_strict_hints(self):
@@ -195,24 +213,34 @@ class DataIO(IO, ABC):
         [c.deactivate_strict_hints() for c in self]
 
 
-class Inputs(DataIO):
+class Inputs(InputsIO, DataIO):
     @property
-    def _channel_class(self) -> type(InputData):
+    def _channel_class(self) -> type[InputData]:
         return InputData
 
-    def fetch(self):
+    def fetch(self) -> None:
         for c in self:
             c.fetch()
 
 
-class Outputs(DataIO):
+OutputDataType = TypeVar("OutputDataType", bound=OutputData)
+
+
+class GenericOutputs(OutputsIO, DataIO, Generic[OutputDataType], ABC):
     @property
-    def _channel_class(self) -> type(OutputData):
+    @abstractmethod
+    def _channel_class(self) -> type[OutputDataType]:
+        pass
+
+
+class Outputs(GenericOutputs[OutputData]):
+    @property
+    def _channel_class(self) -> type[OutputData]:
         return OutputData
 
 
-class SignalIO(IO, ABC):
-    def _assign_a_non_channel_value(self, channel: SignalChannel, value) -> None:
+class SignalIO(IO[SignalChannel, SignalChannel], ABC):
+    def _assign_a_non_channel_value(self, channel: SignalChannel, value: Any) -> None:
         raise TypeError(
             f"Tried to assign {value} ({type(value)} to the {channel.full_label}, "
             f"which is already a {type(channel)}. Only other signal channels may be "
@@ -220,12 +248,12 @@ class SignalIO(IO, ABC):
         )
 
 
-class InputSignals(SignalIO):
+class InputSignals(InputsIO, SignalIO):
     @property
-    def _channel_class(self) -> type(InputSignal):
+    def _channel_class(self) -> type[InputSignal]:
         return InputSignal
 
-    def disconnect_run(self) -> list[tuple[Channel, Channel]]:
+    def disconnect_run(self) -> list[tuple[InputSignal, OutputSignal]]:
         """Disconnect all `run` and `accumulate_and_run` signals, if they exist."""
         disconnected = []
         with contextlib.suppress(AttributeError):
@@ -235,9 +263,9 @@ class InputSignals(SignalIO):
         return disconnected
 
 
-class OutputSignals(SignalIO):
+class OutputSignals(OutputsIO, SignalIO):
     @property
-    def _channel_class(self) -> type(OutputSignal):
+    def _channel_class(self) -> type[OutputSignal]:
         return OutputSignal
 
 
@@ -250,11 +278,11 @@ class Signals(HasStateDisplay):
         output (OutputSignals): An empty input signals IO container.
     """
 
-    def __init__(self):
-        self.input = InputSignals()
-        self.output = OutputSignals()
+    def __init__(self) -> None:
+        self.input: InputSignals = InputSignals()
+        self.output: OutputSignals = OutputSignals()
 
-    def disconnect(self) -> list[tuple[Channel, Channel]]:
+    def disconnect(self) -> list[tuple[SignalChannel, SignalChannel]]:
         """
         Disconnect all connections in input and output signals.
 
@@ -264,22 +292,25 @@ class Signals(HasStateDisplay):
         """
         return self.input.disconnect() + self.output.disconnect()
 
-    def disconnect_run(self) -> list[tuple[Channel, Channel]]:
+    def disconnect_run(self) -> list[tuple[InputSignal, OutputSignal]]:
         return self.input.disconnect_run()
 
     @property
-    def connected(self):
+    def connected(self) -> bool:
         return self.input.connected or self.output.connected
 
     @property
-    def fully_connected(self):
+    def fully_connected(self) -> bool:
         return self.input.fully_connected and self.output.fully_connected
 
-    def __str__(self):
+    def __str__(self) -> str:
         return f"{str(self.input)}\n{str(self.output)}"
 
 
-class HasIO(HasStateDisplay, HasLabel, HasRun, ABC):
+OutputsType = TypeVar("OutputsType", bound=GenericOutputs)
+
+
+class HasIO(HasStateDisplay, HasLabel, HasRun, Generic[OutputsType], ABC):
     """
     A mixin for classes that provide data and signal IO.
 
@@ -288,7 +319,7 @@ class HasIO(HasStateDisplay, HasLabel, HasRun, ABC):
     interface.
     """
 
-    def __init__(self, *args, **kwargs):
+    def __init__(self, *args, **kwargs) -> None:
         super().__init__(*args, **kwargs)
         self._signals = Signals()
         self._signals.input.run = InputSignal("run", self, self.run)
@@ -303,18 +334,14 @@ class HasIO(HasStateDisplay, HasLabel, HasRun, ABC):
     def inputs(self) -> Inputs:
         pass
 
+    @property
     @abstractmethod
-    def data_input_locked(self) -> bool:
-        """
-        Indicates whether data input channels should consider this owner locked to
-        change.
-        """
-        # Practically, this gives a well-named interface between HasIO and everything
-        # to do with run status
+    def data_input_locked(self):
+        """Prevents Inputs from updating when True"""
 
     @property
     @abstractmethod
-    def outputs(self) -> Outputs:
+    def outputs(self) -> OutputsType:
         pass
 
     @property
@@ -326,14 +353,14 @@ class HasIO(HasStateDisplay, HasLabel, HasRun, ABC):
         return self.inputs.connected or self.outputs.connected or self.signals.connected
 
     @property
-    def fully_connected(self):
+    def fully_connected(self) -> bool:
         return (
             self.inputs.fully_connected
             and self.outputs.fully_connected
             and self.signals.fully_connected
         )
 
-    def disconnect(self):
+    def disconnect(self) -> list[tuple[Channel, Channel]]:
         """
         Disconnect all connections belonging to inputs, outputs, and signals channels.
 
@@ -347,30 +374,32 @@ class HasIO(HasStateDisplay, HasLabel, HasRun, ABC):
         destroyed_connections.extend(self.signals.disconnect())
         return destroyed_connections
 
-    def activate_strict_hints(self):
+    def activate_strict_hints(self) -> None:
         """Enable type hint checks for all data IO"""
         self.inputs.activate_strict_hints()
         self.outputs.activate_strict_hints()
 
-    def deactivate_strict_hints(self):
+    def deactivate_strict_hints(self) -> None:
         """Disable type hint checks for all data IO"""
         self.inputs.deactivate_strict_hints()
         self.outputs.deactivate_strict_hints()
 
-    def _connect_output_signal(self, signal: OutputSignal):
+    def _connect_output_signal(self, signal: OutputSignal) -> None:
         self.signals.input.run.connect(signal)
 
-    def __rshift__(self, other: InputSignal | HasIO):
+    def __rshift__(self, other: InputSignal | HasIO) -> InputSignal | HasIO:
         """
         Allows users to connect run and ran signals like: `first >> second`.
         """
         other._connect_output_signal(self.signals.output.ran)
         return other
 
-    def _connect_accumulating_input_signal(self, signal: AccumulatingInputSignal):
+    def _connect_accumulating_input_signal(
+        self, signal: AccumulatingInputSignal
+    ) -> None:
         self.signals.output.ran.connect(signal)
 
-    def __lshift__(self, others):
+    def __lshift__(self, others: tuple[OutputSignal | HasIO, ...]):
         """
         Connect one or more `ran` signals to `accumulate_and_run` signals like:
         `this << some_object, another_object, or_by_channel.signals.output.ran`
@@ -456,8 +485,8 @@ class HasIO(HasStateDisplay, HasLabel, HasRun, ABC):
         try:
             self._copy_values(other, fail_hard=values_fail_hard)
         except Exception as e:
-            for this, other in new_connections:
-                this.disconnect(other)
+            for owned, conjugate in new_connections:
+                owned.disconnect(conjugate)
             raise e
 
     def _copy_connections(
@@ -520,7 +549,7 @@ class HasIO(HasStateDisplay, HasLabel, HasRun, ABC):
         self,
         other: HasIO,
         fail_hard: bool = False,
-    ) -> list[tuple[Channel, Any]]:
+    ) -> list[tuple[DataChannel, Any]]:
         """
         Copies all data from input and output channels in the other object onto this
         one.
@@ -543,30 +572,39 @@ class HasIO(HasStateDisplay, HasLabel, HasRun, ABC):
             list[tuple[Channel, Any]]: A list of tuples giving channels whose value has
                 been updated and what it used to be (for reverting changes).
         """
+        # Leverage a separate function because mypy has trouble parsing types
+        # if we loop over inputs and outputs at the same time
+        return self._copy_panel(
+            other, self.inputs, other.inputs, fail_hard=fail_hard
+        ) + self._copy_panel(other, self.outputs, other.outputs, fail_hard=fail_hard)
+
+    def _copy_panel(
+        self,
+        other: HasIO,
+        my_panel: DataIO,
+        other_panel: DataIO,
+        fail_hard: bool = False,
+    ) -> list[tuple[DataChannel, Any]]:
         old_values = []
-        for my_panel, other_panel in [
-            (self.inputs, other.inputs),
-            (self.outputs, other.outputs),
-        ]:
-            for key, to_copy in other_panel.items():
-                if to_copy.value is not NOT_DATA:
-                    try:
-                        old_value = my_panel[key].value
-                        my_panel[key].value = to_copy.value  # Gets hint-checked
-                        old_values.append((my_panel[key], old_value))
-                    except Exception as e:
-                        if fail_hard:
-                            # If you run into trouble, unwind what you've done
-                            for channel, value in old_values:
-                                channel.value = value
-                            raise ValueCopyError(
-                                f"{self.label} could not copy values from "
-                                f"{other.label} due to the channel {key} on "
-                                f"{other_panel.__class__.__name__}, which holds value "
-                                f"{to_copy.value}"
-                            ) from e
-                        else:
-                            continue
+        for key, to_copy in other_panel.items():
+            if to_copy.value is not NOT_DATA:
+                try:
+                    old_value = my_panel[key].value
+                    my_panel[key].value = to_copy.value  # Gets hint-checked
+                    old_values.append((my_panel[key], old_value))
+                except Exception as e:
+                    if fail_hard:
+                        # If you run into trouble, unwind what you've done
+                        for channel, value in old_values:
+                            channel.value = value
+                        raise ValueCopyError(
+                            f"{self.label} could not copy values from "
+                            f"{other.label} due to the channel {key} on "
+                            f"{other_panel.__class__.__name__}, which holds value "
+                            f"{to_copy.value}"
+                        ) from e
+                    else:
+                        continue
         return old_values
 
     @property

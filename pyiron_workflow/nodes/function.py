@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 from abc import ABC, abstractmethod
+from collections.abc import Callable
 from inspect import getsource
 from typing import Any
 
@@ -300,11 +301,11 @@ class Function(StaticNode, ScrapesIO, ABC):
 
     @staticmethod
     @abstractmethod
-    def node_function(**kwargs) -> callable:
+    def node_function(**kwargs) -> Callable:
         """What the node _does_."""
 
     @classmethod
-    def _io_defining_function(cls) -> callable:
+    def _io_defining_function(cls) -> Callable:
         return cls.node_function
 
     @classmethod
@@ -351,12 +352,12 @@ class Function(StaticNode, ScrapesIO, ABC):
 
 @classfactory
 def function_node_factory(
-    node_function: callable,
+    node_function: Callable,
     validate_output_labels: bool,
     use_cache: bool = True,
     /,
     *output_labels,
-):
+) -> type[Function]:
     """
     Create a new :class:`Function` node class based on the given node function. This
     function gets executed on each :meth:`run` of the resulting function.
@@ -372,7 +373,7 @@ def function_node_factory(
     Returns:
         type[Node]: A new node class.
     """
-    return (
+    return (  # type: ignore[return-value]
         node_function.__name__,
         (Function,),  # Define parentage
         {
@@ -429,7 +430,7 @@ def as_function_node(
 
 
 def function_node(
-    node_function: callable,
+    node_function: Callable,
     *node_args,
     output_labels: str | tuple[str, ...] | None = None,
     validate_output_labels: bool = True,

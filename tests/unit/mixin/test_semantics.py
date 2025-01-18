@@ -1,21 +1,40 @@
+from __future__ import annotations
+
 import unittest
 from pathlib import Path
 
 from pyiron_workflow.mixin.semantics import (
     CyclicPathError,
-    ParentMost,
     Semantic,
     SemanticParent,
 )
 
 
+class ConcreteSemantic(Semantic["ConcreteParent"]):
+    @classmethod
+    def parent_type(cls) -> type[ConcreteSemanticParent]:
+        return ConcreteSemanticParent
+
+
+class ConcreteParent(SemanticParent[ConcreteSemantic]):
+    _label = "concrete_parent_default_label"
+
+    @classmethod
+    def child_type(cls) -> type[ConcreteSemantic]:
+        return ConcreteSemantic
+
+
+class ConcreteSemanticParent(ConcreteParent, ConcreteSemantic):
+    pass
+
+
 class TestSemantics(unittest.TestCase):
     def setUp(self):
-        self.root = ParentMost("root")
-        self.child1 = Semantic("child1", parent=self.root)
-        self.middle1 = SemanticParent("middle", parent=self.root)
-        self.middle2 = SemanticParent("middle_sub", parent=self.middle1)
-        self.child2 = Semantic("child2", parent=self.middle2)
+        self.root = ConcreteSemanticParent(label="root")
+        self.child1 = ConcreteSemantic(label="child1", parent=self.root)
+        self.middle1 = ConcreteSemanticParent(label="middle", parent=self.root)
+        self.middle2 = ConcreteSemanticParent(label="middle_sub", parent=self.middle1)
+        self.child2 = ConcreteSemantic(label="child2", parent=self.middle2)
 
     def test_getattr(self):
         with self.assertRaises(AttributeError) as context:
@@ -35,18 +54,26 @@ class TestSemantics(unittest.TestCase):
 
     def test_label_validity(self):
         with self.assertRaises(TypeError, msg="Label must be a string"):
-            Semantic(label=123)
+            ConcreteSemantic(label=123)
 
     def test_label_delimiter(self):
         with self.assertRaises(
-            ValueError, msg=f"Delimiter '{Semantic.semantic_delimiter}' not allowed"
+            ValueError,
+            msg=f"Delimiter '{ConcreteSemantic.semantic_delimiter}' not allowed",
         ):
-            Semantic(f"invalid{Semantic.semantic_delimiter}label")
+            ConcreteSemantic(label=f"invalid{ConcreteSemantic.semantic_delimiter}label")
+
+        non_semantic_parent = ConcreteParent()
+        with self.assertRaises(
+            ValueError,
+            msg=f"Delimiter '{ConcreteSemantic.semantic_delimiter}' not allowed",
+        ):
+            non_semantic_parent.label = f"contains_{non_semantic_parent.child_type().semantic_delimiter}_delimiter"
 
     def test_semantic_delimiter(self):
         self.assertEqual(
             "/",
-            Semantic.semantic_delimiter,
+            ConcreteSemantic.semantic_delimiter,
             msg="This is just a hard-code to the current value, update it freely so "
             "the test passes; if it fails it's just a reminder that your change is "
             "not backwards compatible, and the next release number should reflect "
@@ -57,18 +84,6 @@ class TestSemantics(unittest.TestCase):
         with self.subTest("Normal usage"):
             self.assertEqual(self.child1.parent, self.root)
             self.assertEqual(self.root.parent, None)
-
-        with self.subTest(f"{ParentMost.__name__} exceptions"):
-            with self.assertRaises(
-                TypeError, msg=f"{ParentMost.__name__} instances can't have parent"
-            ):
-                self.root.parent = SemanticParent(label="foo")
-
-            with self.assertRaises(
-                TypeError, msg=f"{ParentMost.__name__} instances can't be children"
-            ):
-                some_parent = SemanticParent(label="bar")
-                some_parent.add_child(self.root)
 
         with self.subTest("Cyclicity exceptions"):
             with self.assertRaises(CyclicPathError):
@@ -112,7 +127,7 @@ class TestSemantics(unittest.TestCase):
         )
 
     def test_detached_parent_path(self):
-        orphan = Semantic("orphan")
+        orphan = ConcreteSemantic(label="orphan")
         orphan.__setstate__(self.child2.__getstate__())
         self.assertIsNone(
             orphan.parent, msg="We still should not explicitly have a parent"
