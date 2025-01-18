@@ -50,7 +50,7 @@ class Runnable(UsesState, HasLabel, HasRun, ABC):
     new keyword arguments.
     """
 
-    def __init__(self, *args, **kwargs):
+    def __init__(self, *args, **kwargs) -> None:
         super().__init__(*args, **kwargs)
         self.running: bool = False
         self.failed: bool = False
