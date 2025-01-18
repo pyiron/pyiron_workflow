@@ -534,8 +534,8 @@ class HasIO(HasStateDisplay, HasLabel, HasRun, Generic[OutputsType], ABC):
                     except Exception as e:
                         if fail_hard:
                             # If you run into trouble, unwind what you've done
-                            for this, other in new_connections:
-                                this.disconnect(other)
+                            for this, that in new_connections:
+                                this.disconnect(that)
                             raise ConnectionCopyError(
                                 f"{self.label} could not copy connections from "
                                 f"{other.label} due to the channel {key} on "
