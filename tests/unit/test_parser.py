@@ -38,7 +38,13 @@ class TestParser(unittest.TestCase):
             len(list(graph.triples((None, EX.hasUnits, EX["meter/second"])))), 0
         )
         self.assertGreater(
-            len(list(graph.triples((None, EX.isOutputOf, EX["calculate_speed.inputs.time"])))),
+            len(
+                list(
+                    graph.triples(
+                        (None, EX.isOutputOf, EX["calculate_speed.inputs.time"])
+                    )
+                )
+            ),
             0
         )
         self.assertGreater(
