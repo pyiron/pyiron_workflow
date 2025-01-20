@@ -143,7 +143,7 @@ def inherit_properties(graph, NS, n=None):
         "}",
     )
     if n is None:
-        n = len(list(graph.triples((None, NS.inheritsPropertiesFrom, None)))) - 1
+        n = len(list(graph.triples((None, NS.inheritsPropertiesFrom, None))))
     for _ in range(n):
         graph.update("\n".join(update_query))
 
