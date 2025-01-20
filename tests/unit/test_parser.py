@@ -114,6 +114,12 @@ class TestParser(unittest.TestCase):
         wf.analysis = correct_analysis(a=wf.multiply)
         graph = get_graph(wf)
         self.assertEqual(len(validate_values(graph)), 0)
+        wf = Workflow("wrong_analysis")
+        wf.addition = add(a=1., b=2.)
+        wf.multiply = multiply(a=wf.addition, b=3.)
+        wf.analysis = wrong_analysis(a=wf.multiply)
+        graph = get_graph(wf)
+        self.assertEqual(len(validate_values(graph)), 1)
 
 
 if __name__ == "__main__":
