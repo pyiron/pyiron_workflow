@@ -1,7 +1,12 @@
 import unittest
 from owlrl import DeductiveClosure, OWLRL_Semantics
 from rdflib import Graph, OWL, RDF
-from pyiron_ontology.parser import get_inputs_and_outputs, get_triples, inherit_properties, validate_values
+from pyiron_ontology.parser import (
+    get_inputs_and_outputs,
+    get_triples,
+    inherit_properties,
+    validate_values,
+)
 from pyiron_workflow import Workflow
 from semantikon.typing import u
 from rdflib import Namespace
@@ -17,10 +22,7 @@ def calculate_speed(
 ) -> u(
     float,
     units="meter/second",
-    triples=(
-        (EX.isOutputOf, "inputs.time"),
-        (EX.subject, EX.predicate, EX.object)
-    )
+    triples=((EX.isOutputOf, "inputs.time"), (EX.subject, EX.predicate, EX.object)),
 ):
     return distance / time
 
@@ -35,8 +37,8 @@ def multiply(a: float, b: float) -> u(
     float,
     triples=(
         (EX.HasOperation, EX.Multiplication),
-        (EX.inheritsPropertiesFrom, "inputs.a")
-    )
+        (EX.inheritsPropertiesFrom, "inputs.a"),
+    ),
 ):
     return a * b
 
@@ -47,8 +49,8 @@ def correct_analysis(
         float,
         restrictions=(
             (OWL.onProperty, EX.HasOperation),
-            (OWL.someValuesFrom, EX.Addition)
-        )
+            (OWL.someValuesFrom, EX.Addition),
+        ),
     )
 ) -> float:
     return a
@@ -60,8 +62,8 @@ def wrong_analysis(
         float,
         restrictions=(
             (OWL.onProperty, EX.HasOperation),
-            (OWL.someValuesFrom, EX.Division)
-        )
+            (OWL.someValuesFrom, EX.Division),
+        ),
     )
 ) -> float:
     return a
@@ -94,11 +96,10 @@ class TestParser(unittest.TestCase):
                     )
                 )
             ),
-            1
+            1,
         )
         self.assertEqual(
-            len(list(graph.triples((EX.subject, EX.predicate, EX.object)))),
-            1
+            len(list(graph.triples((EX.subject, EX.predicate, EX.object)))), 1
         )
 
     def test_correct_analysis(self):
@@ -113,15 +114,16 @@ class TestParser(unittest.TestCase):
             inherit_properties(graph, EX)
             DeductiveClosure(OWLRL_Semantics).expand(graph)
             return graph
+
         wf = Workflow("correct_analysis")
-        wf.addition = add(a=1., b=2.)
-        wf.multiply = multiply(a=wf.addition, b=3.)
+        wf.addition = add(a=1.0, b=2.0)
+        wf.multiply = multiply(a=wf.addition, b=3.0)
         wf.analysis = correct_analysis(a=wf.multiply)
         graph = get_graph(wf)
         self.assertEqual(len(validate_values(graph)), 0)
         wf = Workflow("wrong_analysis")
-        wf.addition = add(a=1., b=2.)
-        wf.multiply = multiply(a=wf.addition, b=3.)
+        wf.addition = add(a=1.0, b=2.0)
+        wf.multiply = multiply(a=wf.addition, b=3.0)
         wf.analysis = wrong_analysis(a=wf.multiply)
         graph = get_graph(wf)
         self.assertEqual(len(validate_values(graph)), 1)
@@ -132,6 +134,7 @@ class TestParser(unittest.TestCase):
         data = get_inputs_and_outputs(node)
         self.assertEqual(data["outputs"]["a"]["value"], 1)
         self.assertEqual(data["outputs"]["b"]["value"], 2)
+
 
 if __name__ == "__main__":
     unittest.main()
