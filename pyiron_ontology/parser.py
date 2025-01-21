@@ -61,12 +61,11 @@ def get_triples(
     if inheritsPropertiesFrom is None:
         inheritsPropertiesFrom = EX.inheritsPropertiesFrom
     graph = Graph()
-    label_def_triple = (EX[data["label"]], RDF.type, OWL.NamedIndividual)
     # Triple already exists
+    label_def_triple = (EX[data["label"]], hasSourceFunction, EX[data["function"]])
     if len(list(graph.triples(label_def_triple))) > 0:
         return graph
     graph.add(label_def_triple)
-    graph.add((EX[data["label"]], hasSourceFunction, EX[data["function"]]))
     for io_ in ["inputs", "outputs"]:
         for key, d in data[io_].items():
             full_key = data["label"] + f".{io_}." + key
