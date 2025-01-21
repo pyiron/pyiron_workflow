@@ -52,7 +52,6 @@ def get_triples(
     hasSourceFunction=None,
     hasUnits=None,
     inheritsPropertiesFrom=None,
-    update_query=True,
 ):
     if hasSourceFunction is None:
         hasSourceFunction = EX.hasSourceFunction
@@ -82,8 +81,6 @@ def get_triples(
                 graph.add((label, inheritsPropertiesFrom, EX[d["connection"]]))
             for t in _get_triples_from_restrictions(d, EX):
                 graph.add(_parse_triple(t, EX, label=label, data=data))
-    if update_query:
-        inherit_properties(graph, EX)
     return graph
 
 
@@ -128,7 +125,7 @@ def _parse_triple(triples, EX, label=None, data=None):
     return subj, pred, obj
 
 
-def inherit_properties(graph, NS, n=None):
+def _inherit_properties(graph, NS, n=None):
     update_query = (
         f"PREFIX ns: <{NS}>",
         f"PREFIX rdfs: <{RDFS}>",
@@ -165,3 +162,36 @@ def validate_values(graph):
                             (instance, on_property, some_values_from)
                         )
     return missing_triples
+
+
+def parse_workflow(
+    workflow,
+    EX,
+    graph=None,
+    inherit_properties=True,
+    hasNode=None,
+    hasSourceFunction=None,
+    hasUnits=None,
+    inheritsPropertiesFrom=None,
+):
+    if hasNode is None:
+        hasNode = EX.hasNode
+    if hasSourceFunction is None:
+        hasSourceFunction = EX.hasSourceFunction
+    if hasUnits is None:
+        hasUnits = EX.hasUnits
+    if inheritsPropertiesFrom is None:
+        inheritsPropertiesFrom = EX.inheritsPropertiesFrom
+    if graph is None:
+        graph = Graph()
+    workflow_label = EX[workflow.label]
+    graph.add((workflow_label, RDFS.label, Literal(workflow.label)))
+    for key, value in workflow.children.items():
+        data = get_inputs_and_outputs(value)
+        graph.add((workflow_label, hasNode, EX[data["label"]]))
+        graph += get_triples(
+            data, EX, hasSourceFunction, hasUnits, inheritsPropertiesFrom
+        )
+    if inherit_properties:
+        _inherit_properties(graph, EX)
+    return graph
