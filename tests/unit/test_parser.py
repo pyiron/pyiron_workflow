@@ -12,8 +12,8 @@ EX = Namespace("http://example.org/")
 
 @Workflow.wrap.as_function_node("speed")
 def calculate_speed(
-    distance: u(float, units="meter"),
-    time: u(float, units="second"),
+    distance: u(float, units="meter") = 10.0,
+    time: u(float, units="second") = 2.0,
 ) -> u(
     float,
     units="meter/second",
@@ -102,7 +102,7 @@ class TestParser(unittest.TestCase):
             graph.add((EX.HasOperation, RDF.type, RDF.Property))
             graph.add((EX.Addition, RDF.type, OWL.Class))
             graph.add((EX.Multiplication, RDF.type, OWL.Class))
-            for key, value in wf.children.items():
+            for value in wf.children.values():
                 data = get_inputs_and_outputs(value)
                 graph += get_triples(data, EX)
             inherit_properties(graph, EX)
