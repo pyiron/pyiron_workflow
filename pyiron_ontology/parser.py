@@ -48,46 +48,46 @@ def get_inputs_and_outputs(node):
 
 def get_triples(
     data,
-    EX,
+    NS,
     hasSourceFunction=None,
     hasUnits=None,
     inheritsPropertiesFrom=None,
     update_query=True,
 ):
     if hasSourceFunction is None:
-        hasSourceFunction = EX.hasSourceFunction
+        hasSourceFunction = NS.hasSourceFunction
     if hasUnits is None:
-        hasUnits = EX.hasUnits
+        hasUnits = NS.hasUnits
     if inheritsPropertiesFrom is None:
-        inheritsPropertiesFrom = EX.inheritsPropertiesFrom
+        inheritsPropertiesFrom = NS.inheritsPropertiesFrom
     graph = Graph()
     # Triple already exists
-    label_def_triple = (EX[data["label"]], hasSourceFunction, EX[data["function"]])
+    label_def_triple = (NS[data["label"]], hasSourceFunction, NS[data["function"]])
     if len(list(graph.triples(label_def_triple))) > 0:
         return graph
     graph.add(label_def_triple)
     for io_ in ["inputs", "outputs"]:
         for key, d in data[io_].items():
             full_key = data["label"] + f".{io_}." + key
-            label = EX[full_key]
+            label = NS[full_key]
             graph.add((label, RDFS.label, Literal(full_key)))
             if d.get("uri", None) is not None:
                 graph.add((label, RDF.type, d["uri"]))
             if d.get("value", NOT_DATA) is not NOT_DATA:
                 graph.add((label, RDF.value, Literal(d["value"])))
-            graph.add((label, EX[io_[:-1] + "Of"], EX[data["label"]]))
+            graph.add((label, NS[io_[:-1] + "Of"], NS[data["label"]]))
             if d.get("units", None) is not None:
-                graph.add((label, hasUnits, EX[d["units"]]))
+                graph.add((label, hasUnits, NS[d["units"]]))
             if d.get("connection", None) is not None:
-                graph.add((label, inheritsPropertiesFrom, EX[d["connection"]]))
-            for t in _get_triples_from_restrictions(d, EX):
-                graph.add(_parse_triple(t, EX, label=label, data=data))
+                graph.add((label, inheritsPropertiesFrom, NS[d["connection"]]))
+            for t in _get_triples_from_restrictions(d, NS):
+                graph.add(_parse_triple(t, NS, label=label, data=data))
     if update_query:
-        inherit_properties(graph, EX)
+        inherit_properties(graph, NS)
     return graph
 
 
-def _get_triples_from_restrictions(data, EX):
+def _get_triples_from_restrictions(data, NS):
     triples = []
     if data.get("restrictions", None) is not None:
         triples = restriction_to_triple(data["restrictions"])
@@ -114,7 +114,7 @@ def restriction_to_triple(restrictions):
     return triples
 
 
-def _parse_triple(triples, EX, label=None, data=None):
+def _parse_triple(triples, NS, label=None, data=None):
     if len(triples) == 2:
         subj, pred, obj = label, triples[0], triples[1]
     elif len(triples) == 3:
@@ -124,7 +124,7 @@ def _parse_triple(triples, EX, label=None, data=None):
     if obj.startswith("inputs.") or obj.startswith("outputs."):
         obj = data["label"] + "." + obj
     if not isinstance(obj, URIRef):
-        obj = EX[obj]
+        obj = NS[obj]
     return subj, pred, obj
 
 
