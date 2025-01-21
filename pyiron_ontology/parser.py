@@ -67,34 +67,34 @@ def get_triples(
     graph = Graph()
     full_label = workflow_namespace + data["label"]
     # Triple already exists
-    label_def_triple = (NS[full_label], RDF.type, PROV.Activity)
+    label_def_triple = (URIRef(full_label), RDF.type, PROV.Activity)
     if len(list(graph.triples(label_def_triple))) > 0:
         return graph
     graph.add(label_def_triple)
-    graph.add((NS[full_label], hasSourceFunction, NS[data["function"]]))
+    graph.add((URIRef(full_label), hasSourceFunction, URIRef(data["function"])))
     for io_ in ["inputs", "outputs"]:
         for key, d in data[io_].items():
             full_key = full_label + f".{io_}." + key
-            label = NS[full_key]
+            label = URIRef(full_key)
             graph.add((label, RDFS.label, Literal(full_key)))
             graph.add((label, RDF.type, PROV.Entity))
             if d.get("uri", None) is not None:
                 graph.add((label, RDF.type, d["uri"]))
             if d.get("value", NOT_DATA) is not NOT_DATA:
                 graph.add((label, RDF.value, Literal(d["value"])))
-            graph.add((label, NS[io_[:-1] + "Of"], NS[full_label]))
+            graph.add((label, NS[io_[:-1] + "Of"], URIRef(full_label)))
             if d.get("units", None) is not None:
-                graph.add((label, hasUnits, NS[d["units"]]))
+                graph.add((label, hasUnits, URIRef(d["units"])))
             if d.get("connection", None) is not None:
                 graph.add(
                     (
                         label,
                         inheritsPropertiesFrom,
-                        NS[workflow_namespace + d["connection"]],
+                        URIRef(workflow_namespace + d["connection"]),
                     )
                 )
             for t in _get_triples_from_restrictions(d, NS):
-                graph.add(_parse_triple(t, NS, ns=full_label, label=label))
+                graph.add(_parse_triple(t, ns=full_label, label=label))
     return graph
 
 
@@ -125,7 +125,7 @@ def restriction_to_triple(restrictions):
     return triples
 
 
-def _parse_triple(triples, NS, ns, label=None):
+def _parse_triple(triples, ns, label=None):
     if len(triples) == 2:
         subj, pred, obj = label, triples[0], triples[1]
     elif len(triples) == 3:
@@ -135,7 +135,7 @@ def _parse_triple(triples, NS, ns, label=None):
     if obj.startswith("inputs.") or obj.startswith("outputs."):
         obj = ns + "." + obj
     if not isinstance(obj, URIRef):
-        obj = NS[obj]
+        obj = URIRef(obj)
     return subj, pred, obj
 
 
@@ -198,11 +198,13 @@ def parse_workflow(
         inheritsPropertiesFrom = NS.inheritsPropertiesFrom
     if graph is None:
         graph = Graph()
-    workflow_label = NS[workflow.label]
+    workflow_label = URIRef(workflow.label)
     graph.add((workflow_label, RDFS.label, Literal(workflow.label)))
     for value in workflow.children.values():
         data = get_inputs_and_outputs(value)
-        graph.add((workflow_label, hasNode, NS[workflow.label + "." + data["label"]]))
+        graph.add(
+            (workflow_label, hasNode, URIRef(workflow.label + "." + data["label"]))
+        )
         graph += get_triples(
             data=data,
             NS=NS,
