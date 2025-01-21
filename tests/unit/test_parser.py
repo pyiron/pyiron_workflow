@@ -1,11 +1,12 @@
 import unittest
 from owlrl import DeductiveClosure, OWLRL_Semantics
-from rdflib import Graph, OWL, RDF
+from rdflib import Graph, OWL, RDF, RDFS, Literal
 from pyiron_ontology.parser import (
     get_inputs_and_outputs,
     get_triples,
     _inherit_properties,
     validate_values,
+    parse_workflow,
 )
 from pyiron_workflow import Workflow
 from semantikon.typing import u
@@ -130,6 +131,25 @@ class TestParser(unittest.TestCase):
         data = get_inputs_and_outputs(node)
         self.assertEqual(data["outputs"]["a"]["value"], 1)
         self.assertEqual(data["outputs"]["b"]["value"], 2)
+
+    def test_parse_workflow(self):
+        wf = Workflow("correct_analysis")
+        wf.addition = add(a=1.0, b=2.0)
+        graph = parse_workflow(wf, NS)
+        self.assertEqual(
+            len(
+                list(
+                    graph.triples(
+                        (
+                            NS["correct_analysis.addition.inputs.a"],
+                            RDFS.label,
+                            Literal("correct_analysis.addition.inputs.a")
+                        )
+                    )
+                )
+            ),
+            1
+        )
 
 
 if __name__ == "__main__":
