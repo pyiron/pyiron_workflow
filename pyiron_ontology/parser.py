@@ -56,6 +56,8 @@ def get_triples(
 ):
     if workflow_namespace is None:
         workflow_namespace = ""
+    else:
+        workflow_namespace += "."
     if hasSourceFunction is None:
         hasSourceFunction = NS.hasSourceFunction
     if hasUnits is None:
@@ -63,7 +65,7 @@ def get_triples(
     if inheritsPropertiesFrom is None:
         inheritsPropertiesFrom = NS.inheritsPropertiesFrom
     graph = Graph()
-    full_label = workflow_namespace + "." + data["label"]
+    full_label = workflow_namespace + data["label"]
     # Triple already exists
     label_def_triple = (NS[full_label], hasSourceFunction, NS[data["function"]])
     if len(list(graph.triples(label_def_triple))) > 0:
@@ -82,9 +84,9 @@ def get_triples(
             if d.get("units", None) is not None:
                 graph.add((label, hasUnits, NS[d["units"]]))
             if d.get("connection", None) is not None:
-                graph.add((label, inheritsPropertiesFrom, NS[d["connection"]]))
+                graph.add((label, inheritsPropertiesFrom, NS[workflow_namespace + d["connection"]]))
             for t in _get_triples_from_restrictions(d, NS):
-                graph.add(_parse_triple(t, NS, label=label, data=data))
+                graph.add(_parse_triple(t, NS, ns=full_label, label=label))
     return graph
 
 
@@ -115,7 +117,7 @@ def restriction_to_triple(restrictions):
     return triples
 
 
-def _parse_triple(triples, NS, label=None, data=None):
+def _parse_triple(triples, NS, ns, label=None):
     if len(triples) == 2:
         subj, pred, obj = label, triples[0], triples[1]
     elif len(triples) == 3:
@@ -123,7 +125,7 @@ def _parse_triple(triples, NS, label=None, data=None):
     else:
         raise ValueError("Triple must have 2 or 3 elements")
     if obj.startswith("inputs.") or obj.startswith("outputs."):
-        obj = data["label"] + "." + obj
+        obj = ns + obj
     if not isinstance(obj, URIRef):
         obj = NS[obj]
     return subj, pred, obj
@@ -192,9 +194,14 @@ def parse_workflow(
     graph.add((workflow_label, RDFS.label, Literal(workflow.label)))
     for key, value in workflow.children.items():
         data = get_inputs_and_outputs(value)
-        graph.add((workflow_label, hasNode, NS[data["label"]]))
+        graph.add((workflow_label, hasNode, NS[workflow.label + "." + data["label"]]))
         graph += get_triples(
-            data, NS, hasSourceFunction, hasUnits, inheritsPropertiesFrom
+            data=data,
+            NS=NS,
+            workflow_namespace=workflow.label,
+            hasSourceFunction=hasSourceFunction,
+            hasUnits=hasUnits,
+            inheritsPropertiesFrom=inheritsPropertiesFrom,
         )
     if inherit_properties:
         _inherit_properties(graph, NS)
