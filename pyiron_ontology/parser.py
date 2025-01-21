@@ -62,6 +62,7 @@ def get_triples(
         inheritsPropertiesFrom = EX.inheritsPropertiesFrom
     graph = Graph()
     label_def_triple = (EX[data["label"]], RDF.type, OWL.NamedIndividual)
+    # Triple already exists
     if len(list(graph.triples(label_def_triple))) > 0:
         return graph
     graph.add(label_def_triple)
@@ -80,20 +81,23 @@ def get_triples(
                 graph.add((label, hasUnits, EX[d["units"]]))
             if d.get("connection", None) is not None:
                 graph.add((label, inheritsPropertiesFrom, EX[d["connection"]]))
-            triples = []
-            if d.get("restriction", None) is not None:
-                triples = restriction_to_triple(d["restriction"])
-            if d.get("triple", None) is not None:
-                if isinstance(d["triple"][0], tuple | list):
-                    triples.extend(list(d["triple"]))
-                else:
-                    triples.extend([d["triple"]])
-            if len(triples) > 0:
-                for t in triples:
-                    graph.add(_parse_triple(t, EX, label=label, data=data))
+            for t in _get_triples_from_restrictions(d, EX):
+                graph.add(_parse_triple(t, EX, label=label, data=data))
     if update_query:
         inherit_properties(graph, EX)
     return graph
+
+
+def _get_triples_from_restrictions(data, EX):
+    triples = []
+    if data.get("restriction", None) is not None:
+        triples = restriction_to_triple(data["restriction"])
+    if data.get("triple", None) is not None:
+        if isinstance(data["triple"][0], tuple | list):
+            triples.extend(list(data["triple"]))
+        else:
+            triples.extend([data["triple"]])
+    return triples
 
 
 def restriction_to_triple(restriction):
