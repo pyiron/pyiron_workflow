@@ -84,7 +84,13 @@ def get_triples(
             if d.get("units", None) is not None:
                 graph.add((label, hasUnits, NS[d["units"]]))
             if d.get("connection", None) is not None:
-                graph.add((label, inheritsPropertiesFrom, NS[workflow_namespace + d["connection"]]))
+                graph.add(
+                    (
+                        label,
+                        inheritsPropertiesFrom,
+                        NS[workflow_namespace + d["connection"]],
+                    )
+                )
             for t in _get_triples_from_restrictions(d, NS):
                 graph.add(_parse_triple(t, NS, ns=full_label, label=label))
     return graph
@@ -125,7 +131,7 @@ def _parse_triple(triples, NS, ns, label=None):
     else:
         raise ValueError("Triple must have 2 or 3 elements")
     if obj.startswith("inputs.") or obj.startswith("outputs."):
-        obj = ns + obj
+        obj = ns + "." + obj
     if not isinstance(obj, URIRef):
         obj = NS[obj]
     return subj, pred, obj
