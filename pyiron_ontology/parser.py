@@ -27,7 +27,7 @@ def get_inputs_and_outputs(node):
     if isinstance(outputs, dict):
         outputs = (outputs,)
     elif outputs is None:
-        outputs = len(node.outputs.labels) * ({},)
+        outputs =  ({} for _ in node.outputs.labels)
     outputs = {key: out for key, out in zip(node.outputs.labels, outputs)}
     for key, value in node.inputs.items():
         if inputs[key] is None:
