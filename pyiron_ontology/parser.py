@@ -49,10 +49,13 @@ def get_inputs_and_outputs(node):
 def get_triples(
     data,
     NS,
+    workflow_namespace=None,
     hasSourceFunction=None,
     hasUnits=None,
     inheritsPropertiesFrom=None,
 ):
+    if workflow_namespace is None:
+        workflow_namespace = ""
     if hasSourceFunction is None:
         hasSourceFunction = NS.hasSourceFunction
     if hasUnits is None:
@@ -60,21 +63,22 @@ def get_triples(
     if inheritsPropertiesFrom is None:
         inheritsPropertiesFrom = NS.inheritsPropertiesFrom
     graph = Graph()
+    full_label = workflow_namespace + "." + data["label"]
     # Triple already exists
-    label_def_triple = (NS[data["label"]], hasSourceFunction, NS[data["function"]])
+    label_def_triple = (NS[full_label], hasSourceFunction, NS[data["function"]])
     if len(list(graph.triples(label_def_triple))) > 0:
         return graph
     graph.add(label_def_triple)
     for io_ in ["inputs", "outputs"]:
         for key, d in data[io_].items():
-            full_key = data["label"] + f".{io_}." + key
+            full_key = full_label + f".{io_}." + key
             label = NS[full_key]
             graph.add((label, RDFS.label, Literal(full_key)))
             if d.get("uri", None) is not None:
                 graph.add((label, RDF.type, d["uri"]))
             if d.get("value", NOT_DATA) is not NOT_DATA:
                 graph.add((label, RDF.value, Literal(d["value"])))
-            graph.add((label, NS[io_[:-1] + "Of"], NS[data["label"]]))
+            graph.add((label, NS[io_[:-1] + "Of"], NS[full_label]))
             if d.get("units", None) is not None:
                 graph.add((label, hasUnits, NS[d["units"]]))
             if d.get("connection", None) is not None:
