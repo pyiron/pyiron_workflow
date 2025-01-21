@@ -12,7 +12,7 @@ from semantikon.typing import u
 from rdflib import Namespace
 
 
-EX = Namespace("http://example.org/")
+NS = Namespace("http://example.org/")
 
 
 @Workflow.wrap.as_function_node("speed")
@@ -22,13 +22,13 @@ def calculate_speed(
 ) -> u(
     float,
     units="meter/second",
-    triples=((EX.isOutputOf, "inputs.time"), (EX.subject, EX.predicate, EX.object)),
+    triples=((NS.isOutputOf, "inputs.time"), (NS.subject, NS.predicate, NS.object)),
 ):
     return distance / time
 
 
 @Workflow.wrap.as_function_node("result")
-def add(a: float, b: float) -> u(float, triples=(EX.HasOperation, EX.Addition)):
+def add(a: float, b: float) -> u(float, triples=(NS.HasOperation, NS.Addition)):
     return a + b
 
 
@@ -36,8 +36,8 @@ def add(a: float, b: float) -> u(float, triples=(EX.HasOperation, EX.Addition)):
 def multiply(a: float, b: float) -> u(
     float,
     triples=(
-        (EX.HasOperation, EX.Multiplication),
-        (EX.inheritsPropertiesFrom, "inputs.a"),
+        (NS.HasOperation, NS.Multiplication),
+        (NS.inheritsPropertiesFrom, "inputs.a"),
     ),
 ):
     return a * b
@@ -48,8 +48,8 @@ def correct_analysis(
     a: u(
         float,
         restrictions=(
-            (OWL.onProperty, EX.HasOperation),
-            (OWL.someValuesFrom, EX.Addition),
+            (OWL.onProperty, NS.HasOperation),
+            (OWL.someValuesFrom, NS.Addition),
         ),
     )
 ) -> float:
@@ -61,8 +61,8 @@ def wrong_analysis(
     a: u(
         float,
         restrictions=(
-            (OWL.onProperty, EX.HasOperation),
-            (OWL.someValuesFrom, EX.Division),
+            (OWL.onProperty, NS.HasOperation),
+            (OWL.someValuesFrom, NS.Division),
         ),
     )
 ) -> float:
@@ -84,34 +84,34 @@ class TestParser(unittest.TestCase):
     def test_triples(self):
         speed = calculate_speed()
         data = get_inputs_and_outputs(speed)
-        graph = get_triples(data, EX)
+        graph = get_triples(data, NS)
         self.assertGreater(
-            len(list(graph.triples((None, EX.hasUnits, EX["meter/second"])))), 0
+            len(list(graph.triples((None, NS.hasUnits, NS["meter/second"])))), 0
         )
         self.assertEqual(
             len(
                 list(
                     graph.triples(
-                        (None, EX.isOutputOf, EX["calculate_speed.inputs.time"])
+                        (None, NS.isOutputOf, NS["calculate_speed.inputs.time"])
                     )
                 )
             ),
             1,
         )
         self.assertEqual(
-            len(list(graph.triples((EX.subject, EX.predicate, EX.object)))), 1
+            len(list(graph.triples((NS.subject, NS.predicate, NS.object)))), 1
         )
 
     def test_correct_analysis(self):
         def get_graph(wf):
             graph = Graph()
-            graph.add((EX.HasOperation, RDF.type, RDF.Property))
-            graph.add((EX.Addition, RDF.type, OWL.Class))
-            graph.add((EX.Multiplication, RDF.type, OWL.Class))
+            graph.add((NS.HasOperation, RDF.type, RDF.Property))
+            graph.add((NS.Addition, RDF.type, OWL.Class))
+            graph.add((NS.Multiplication, RDF.type, OWL.Class))
             for value in wf.children.values():
                 data = get_inputs_and_outputs(value)
-                graph += get_triples(data, EX)
-            inherit_properties(graph, EX)
+                graph += get_triples(data, NS)
+            inherit_properties(graph, NS)
             DeductiveClosure(OWLRL_Semantics).expand(graph)
             return graph
 
