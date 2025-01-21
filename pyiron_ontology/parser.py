@@ -1,5 +1,5 @@
 from semantikon.converter import parse_input_args, parse_output_args
-from rdflib import Graph, Literal, RDF, RDFS, URIRef, OWL
+from rdflib import Graph, Literal, RDF, RDFS, URIRef, OWL, PROV
 from pyiron_workflow import NOT_DATA
 
 
@@ -67,15 +67,17 @@ def get_triples(
     graph = Graph()
     full_label = workflow_namespace + data["label"]
     # Triple already exists
-    label_def_triple = (NS[full_label], hasSourceFunction, NS[data["function"]])
+    label_def_triple = (NS[full_label], RDF.type, PROV.Activity)
     if len(list(graph.triples(label_def_triple))) > 0:
         return graph
     graph.add(label_def_triple)
+    graph.add((NS[full_label], hasSourceFunction, NS[data["function"]]))
     for io_ in ["inputs", "outputs"]:
         for key, d in data[io_].items():
             full_key = full_label + f".{io_}." + key
             label = NS[full_key]
             graph.add((label, RDFS.label, Literal(full_key)))
+            graph.add((label, RDF.type, PROV.Entity))
             if d.get("uri", None) is not None:
                 graph.add((label, RDF.type, d["uri"]))
             if d.get("value", NOT_DATA) is not NOT_DATA:
