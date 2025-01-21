@@ -4,7 +4,7 @@ from rdflib import Graph, OWL, RDF
 from pyiron_ontology.parser import (
     get_inputs_and_outputs,
     get_triples,
-    inherit_properties,
+    _inherit_properties,
     validate_values,
 )
 from pyiron_workflow import Workflow
@@ -84,19 +84,15 @@ class TestParser(unittest.TestCase):
     def test_triples(self):
         speed = calculate_speed()
         data = get_inputs_and_outputs(speed)
-        graph = get_triples(data, NS)
+        graph = get_triples(data=data, NS=NS)
         self.assertGreater(
             len(list(graph.triples((None, NS.hasUnits, NS["meter/second"])))), 0
         )
+        ex_triple = (None, NS.isOutputOf, NS["calculate_speed.inputs.time"])
         self.assertEqual(
-            len(
-                list(
-                    graph.triples(
-                        (None, NS.isOutputOf, NS["calculate_speed.inputs.time"])
-                    )
-                )
-            ),
+            len(list(graph.triples(ex_triple))),
             1,
+            msg=f"Triple {ex_triple} not found {graph.serialize(format='turtle')}",
         )
         self.assertEqual(
             len(list(graph.triples((NS.subject, NS.predicate, NS.object)))), 1
@@ -110,8 +106,8 @@ class TestParser(unittest.TestCase):
             graph.add((NS.Multiplication, RDF.type, OWL.Class))
             for value in wf.children.values():
                 data = get_inputs_and_outputs(value)
-                graph += get_triples(data, NS)
-            inherit_properties(graph, NS)
+                graph += get_triples(data=data, NS=NS)
+            _inherit_properties(graph, NS)
             DeductiveClosure(OWLRL_Semantics).expand(graph)
             return graph
 
