@@ -67,6 +67,11 @@ def wrong_analysis(
     return a
 
 
+@Workflow.wrap.as_function_node
+def multiple_outputs(a: int = 1, b: int = 2) -> tuple[int, int]:
+    return a, b
+
+
 class TestParser(unittest.TestCase):
     def test_parser(self):
         c = calculate_speed()
@@ -121,6 +126,12 @@ class TestParser(unittest.TestCase):
         graph = get_graph(wf)
         self.assertEqual(len(validate_values(graph)), 1)
 
+    def test_multiple_outputs(self):
+        node = multiple_outputs()
+        node.run()
+        data = get_inputs_and_outputs(node)
+        self.assertEqual(data["outputs"]["a"]["value"], 1)
+        self.assertEqual(data["outputs"]["b"]["value"], 2)
 
 if __name__ == "__main__":
     unittest.main()
