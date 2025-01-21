@@ -17,7 +17,7 @@ def calculate_speed(
 ) -> u(
     float,
     units="meter/second",
-    triple=(
+    triples=(
         (EX.isOutputOf, "inputs.time"),
         (EX.subject, EX.predicate, EX.object)
     )
@@ -26,14 +26,14 @@ def calculate_speed(
 
 
 @Workflow.wrap.as_function_node("result")
-def add(a: float, b: float) -> u(float, triple=(EX.HasOperation, EX.Addition)):
+def add(a: float, b: float) -> u(float, triples=(EX.HasOperation, EX.Addition)):
     return a + b
 
 
 @Workflow.wrap.as_function_node("result")
 def multiply(a: float, b: float) -> u(
     float,
-    triple=(
+    triples=(
         (EX.HasOperation, EX.Multiplication),
         (EX.inheritsPropertiesFrom, "inputs.a")
     )
@@ -45,7 +45,7 @@ def multiply(a: float, b: float) -> u(
 def correct_analysis(
     a: u(
         float,
-        restriction=(
+        restrictions=(
             (OWL.onProperty, EX.HasOperation),
             (OWL.someValuesFrom, EX.Addition)
         )
@@ -58,7 +58,7 @@ def correct_analysis(
 def wrong_analysis(
     a: u(
         float,
-        restriction=(
+        restrictions=(
             (OWL.onProperty, EX.HasOperation),
             (OWL.someValuesFrom, EX.Division)
         )
