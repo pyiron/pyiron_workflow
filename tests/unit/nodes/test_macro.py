@@ -172,8 +172,7 @@ class TestMacro(unittest.TestCase):
         class MyMacro(Macro):
             _output_labels = ("three__result",)
 
-            @staticmethod
-            def graph_creator(self, one__x):  # noqa: PLW0211
+            def graph_creator(self, one__x):
                 add_three_macro(self, one__x)
                 return self.three
 
