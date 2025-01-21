@@ -1,6 +1,6 @@
 import unittest
 from owlrl import DeductiveClosure, OWLRL_Semantics
-from rdflib import Graph, OWL, RDF, RDFS, Literal
+from rdflib import Graph, OWL, RDF, RDFS, Literal, URIRef
 from pyiron_ontology.parser import (
     get_inputs_and_outputs,
     get_triples,
@@ -87,7 +87,7 @@ class TestParser(unittest.TestCase):
         data = get_inputs_and_outputs(speed)
         graph = get_triples(data=data, NS=NS)
         self.assertGreater(
-            len(list(graph.triples((None, NS.hasUnits, NS["meter/second"])))), 0
+            len(list(graph.triples((None, NS.hasUnits, URIRef("meter/second"))))), 0
         )
         ex_triple = (None, NS.isOutputOf, NS["calculate_speed.inputs.time"])
         self.assertEqual(
@@ -141,7 +141,7 @@ class TestParser(unittest.TestCase):
                 list(
                     graph.triples(
                         (
-                            NS["correct_analysis.addition.inputs.a"],
+                            URIRef("correct_analysis.addition.inputs.a"),
                             RDFS.label,
                             Literal("correct_analysis.addition.inputs.a"),
                         )
