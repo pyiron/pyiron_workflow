@@ -143,12 +143,12 @@ class TestParser(unittest.TestCase):
                         (
                             NS["correct_analysis.addition.inputs.a"],
                             RDFS.label,
-                            Literal("correct_analysis.addition.inputs.a")
+                            Literal("correct_analysis.addition.inputs.a"),
                         )
                     )
                 )
             ),
-            1
+            1,
         )
 
 
