@@ -372,7 +372,7 @@ class DataChannel(FlavorChannel["DataChannel"], typing.Generic[ReceiverType], AB
         self.strict_hints = strict_hints
         self.default = default
         self.value = default  # Implicitly type check your default by assignment
-        self.value_receiver: ReceiverType = value_receiver
+        self.value_receiver = value_receiver
 
     @property
     def value(self):
@@ -399,7 +399,7 @@ class DataChannel(FlavorChannel["DataChannel"], typing.Generic[ReceiverType], AB
             )
 
     @property
-    def value_receiver(self) -> Self | None:
+    def value_receiver(self) -> ReceiverType | None:
         """
         Another data channel of the same type to whom new values are always pushed
         (without type checking of any sort, not even when forming the couple!)
