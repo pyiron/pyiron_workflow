@@ -198,7 +198,7 @@ def parse_workflow(
         graph = Graph()
     workflow_label = NS[workflow.label]
     graph.add((workflow_label, RDFS.label, Literal(workflow.label)))
-    for key, value in workflow.children.items():
+    for value in workflow.children.values():
         data = get_inputs_and_outputs(value)
         graph.add((workflow_label, hasNode, NS[workflow.label + "." + data["label"]]))
         graph += get_triples(
