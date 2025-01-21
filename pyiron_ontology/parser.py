@@ -90,22 +90,22 @@ def get_triples(
 
 def _get_triples_from_restrictions(data, EX):
     triples = []
-    if data.get("restriction", None) is not None:
-        triples = restriction_to_triple(data["restriction"])
-    if data.get("triple", None) is not None:
-        if isinstance(data["triple"][0], tuple | list):
-            triples.extend(list(data["triple"]))
+    if data.get("restrictions", None) is not None:
+        triples = restriction_to_triple(data["restrictions"])
+    if data.get("triples", None) is not None:
+        if isinstance(data["triples"][0], tuple | list):
+            triples.extend(list(data["triples"]))
         else:
-            triples.extend([data["triple"]])
+            triples.extend([data["triples"]])
     return triples
 
 
-def restriction_to_triple(restriction):
+def restriction_to_triple(restrictions):
     triples = []
-    assert isinstance(restriction, tuple) and isinstance(restriction[0], tuple)
-    if not isinstance(restriction[0][0], tuple):
-        restriction = (restriction,)
-    for r in restriction:
+    assert isinstance(restrictions, tuple) and isinstance(restrictions[0], tuple)
+    if not isinstance(restrictions[0][0], tuple):
+        restrictions = (restrictions,)
+    for r in restrictions:
         assert len(r[0]) == 2
         label = r[0][1] + "Restriction"
         triples.append((label, RDF.type, OWL.Restriction))
@@ -115,11 +115,11 @@ def restriction_to_triple(restriction):
     return triples
 
 
-def _parse_triple(triple, EX, label=None, data=None):
-    if len(triple) == 2:
-        subj, pred, obj = label, triple[0], triple[1]
-    elif len(triple) == 3:
-        subj, pred, obj = triple
+def _parse_triple(triples, EX, label=None, data=None):
+    if len(triples) == 2:
+        subj, pred, obj = label, triples[0], triples[1]
+    elif len(triples) == 3:
+        subj, pred, obj = triples
     else:
         raise ValueError("Triple must have 2 or 3 elements")
     if obj.startswith("inputs.") or obj.startswith("outputs."):
@@ -155,11 +155,11 @@ def inherit_properties(graph, NS, n=None):
 
 def validate_values(graph):
     missing_triples = []
-    for restriction in graph.subjects(RDF.type, OWL.Restriction):
-        on_property = graph.value(restriction, OWL.onProperty)
-        some_values_from = graph.value(restriction, OWL.someValuesFrom)
+    for restrictions in graph.subjects(RDF.type, OWL.Restriction):
+        on_property = graph.value(restrictions, OWL.onProperty)
+        some_values_from = graph.value(restrictions, OWL.someValuesFrom)
         if on_property and some_values_from:
-            for cls in graph.subjects(OWL.equivalentClass, restriction):
+            for cls in graph.subjects(OWL.equivalentClass, restrictions):
                 for instance in graph.subjects(RDF.type, cls):
                     if not (instance, on_property, some_values_from) in graph:
                         missing_triples.append(
