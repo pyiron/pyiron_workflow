@@ -172,7 +172,7 @@ def _get_triples_from_restrictions(data: dict) -> list:
 _restriction_type: TypeAlias = tuple[tuple[Any, Any], ...]
 
 def _validate_restriction_format(restrictions: _restriction_type | tuple[_restriction_type] | list[_restriction_type]) -> tuple[_restriction_type]:
-    return restrictions
+    raise NotImplementedError
 
 def restriction_to_triple(
         restrictions: _restriction_type | tuple[_restriction_type] | list[_restriction_type]
