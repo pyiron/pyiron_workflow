@@ -410,7 +410,7 @@ class DataChannel(FlavorChannel["DataChannel"], typing.Generic[ReceiverType], AB
         return self._value_receiver
 
     @value_receiver.setter
-    def value_receiver(self, new_partner: Self | None):
+    def value_receiver(self, new_partner: ReceiverType | None):
         if new_partner is not None:
             if not isinstance(new_partner, self.__class__):
                 raise TypeError(
