@@ -6,7 +6,6 @@ from pyiron_workflow import NOT_DATA, Workflow, Macro
 from pyiron_workflow.node import Node
 
 
-
 class PNS:
     BASE = Namespace("http://pyiron.org/ontology/")
     hasNode = BASE["hasNode"]
