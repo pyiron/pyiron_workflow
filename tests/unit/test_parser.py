@@ -8,7 +8,6 @@ from pyiron_ontology.parser import (
     validate_values,
     parse_workflow,
     PNS,
-    Placeholder,
 )
 from pyiron_workflow import Workflow
 from semantikon.typing import u
@@ -28,8 +27,8 @@ def calculate_speed(
     triples=(
         (EX.somehowRelatedTo, "inputs.time"),
         (EX.subject, EX.predicate, EX.object),
-        (EX.subject, EX.predicate, Placeholder),
-        (Placeholder, EX.predicate, EX.object),
+        (EX.subject, EX.predicate, None),
+        (None, EX.predicate, EX.object),
     ),
 ):
     return distance / time
