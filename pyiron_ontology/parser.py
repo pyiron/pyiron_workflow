@@ -4,7 +4,17 @@ from pyiron_workflow import NOT_DATA, Workflow, Macro
 from pyiron_workflow.node import Node
 
 
-PNS = Namespace("http://pyiron.org/ontology/")
+class PNS:
+    BASE = Namespace("http://pyiron.org/ontology/")
+    hasNode = BASE["hasNode"]
+    hasSourceFunction = BASE["hasSourceFunction"]
+    hasUnits = BASE["hasUnits"]
+    inheritsPropertiesFrom = BASE["inheritsPropertiesFrom"]
+    inputOf = BASE["inputOf"]
+    outputOf = BASE["outputOf"]
+
+    def __getattr__(self, name):
+        raise AttributeError(f"Namespace {self.BASE} has no attribute {name}")
 
 
 def get_source_output(var: Node) -> str | None:
@@ -55,9 +65,6 @@ def get_inputs_and_outputs(node: Node) -> dict:
 def get_triples(
     data: dict,
     workflow_namespace: str | None = None,
-    hasSourceFunction: URIRef | None = None,
-    hasUnits: URIRef | None = None,
-    inheritsPropertiesFrom: URIRef | None = None,
 ) -> Graph:
     """
     Generate triples from a dictionary containing input output information. The
@@ -104,9 +111,6 @@ def get_triples(
     Args:
         data (dict): dictionary containing input output information
         workflow_namespace (str): namespace of the workflow
-        hasSourceFunction (rdflib.URIRef): predicate for source function
-        hasUnits (rdflib.URIRef): predicate for units
-        inheritsPropertiesFrom (rdflib.URIRef): predicate for inherited properties
 
     Returns:
         (rdflib.Graph): graph containing triples
@@ -115,12 +119,6 @@ def get_triples(
         workflow_namespace = ""
     else:
         workflow_namespace += "."
-    if hasSourceFunction is None:
-        hasSourceFunction = PNS.hasSourceFunction
-    if hasUnits is None:
-        hasUnits = PNS.hasUnits
-    if inheritsPropertiesFrom is None:
-        inheritsPropertiesFrom = PNS.inheritsPropertiesFrom
     graph = Graph()
     full_label = workflow_namespace + data["label"]
     # Triple already exists
@@ -128,7 +126,7 @@ def get_triples(
     if len(list(graph.triples(label_def_triple))) > 0:
         return graph
     graph.add(label_def_triple)
-    graph.add((URIRef(full_label), hasSourceFunction, URIRef(data["function"])))
+    graph.add((URIRef(full_label), PNS.hasSourceFunction, URIRef(data["function"])))
     for io_ in ["inputs", "outputs"]:
         for key, d in data[io_].items():
             full_key = full_label + f".{io_}." + key
@@ -139,14 +137,17 @@ def get_triples(
                 graph.add((label, RDF.type, URIRef(d["uri"])))
             if d.get("value", NOT_DATA) is not NOT_DATA:
                 graph.add((label, RDF.value, Literal(d["value"])))
-            graph.add((label, PNS[io_[:-1] + "Of"], URIRef(full_label)))
+            if io_ == "inputs":
+                graph.add((label, PNS.inputOf, URIRef(full_label)))
+            elif io_ == "outputs":
+                graph.add((label, PNS.outputOf, URIRef(full_label)))
             if d.get("units", None) is not None:
-                graph.add((label, hasUnits, URIRef(d["units"])))
+                graph.add((label, PNS.hasUnits, URIRef(d["units"])))
             if d.get("connection", None) is not None:
                 graph.add(
                     (
                         label,
-                        inheritsPropertiesFrom,
+                        PNS.inheritsPropertiesFrom,
                         URIRef(workflow_namespace + d["connection"]),
                     )
                 )
@@ -227,7 +228,7 @@ def _parse_triple(
 
 def _inherit_properties(graph: Graph, n: int | None = None):
     update_query = (
-        f"PREFIX ns: <{PNS}>",
+        f"PREFIX ns: <{PNS.BASE}>",
         f"PREFIX rdfs: <{RDFS}>",
         f"PREFIX rdf: <{RDF}>",
         "",
@@ -277,10 +278,6 @@ def parse_workflow(
     workflow: Workflow,
     graph: Graph | None = None,
     inherit_properties: bool = True,
-    hasNode: URIRef | None = None,
-    hasSourceFunction: URIRef | None = None,
-    hasUnits: URIRef | None = None,
-    inheritsPropertiesFrom: URIRef | None = None,
 ) -> Graph:
     """
     Generate RDF graph from a pyiron workflow object
@@ -289,16 +286,10 @@ def parse_workflow(
         workflow (pyiron_workflow.workflow.Workflow): workflow object
         graph (rdflib.Graph): graph to be updated
         inherit_properties (bool): if True, properties are inherited
-        hasNode (rdflib.URIRef): predicate for node
-        hasSourceFunction (rdflib.URIRef): predicate for source function
-        hasUnits (rdflib.URIRef): predicate for units
-        inheritsPropertiesFrom (rdflib.URIRef): predicate for inherited properties
 
     Returns:
         (rdflib.Graph): graph containing workflow information
     """
-    if hasNode is None:
-        hasNode = PNS.hasNode
     if graph is None:
         graph = Graph()
     workflow_label = URIRef(workflow.label)
@@ -306,14 +297,11 @@ def parse_workflow(
     for node in workflow:
         data = get_inputs_and_outputs(node)
         graph.add(
-            (workflow_label, hasNode, URIRef(workflow.label + "." + data["label"]))
+            (workflow_label, PNS.hasNode, URIRef(workflow.label + "." + data["label"]))
         )
         graph += get_triples(
             data=data,
             workflow_namespace=workflow.label,
-            hasSourceFunction=hasSourceFunction,
-            hasUnits=hasUnits,
-            inheritsPropertiesFrom=inheritsPropertiesFrom,
         )
     if inherit_properties:
         _inherit_properties(graph)
