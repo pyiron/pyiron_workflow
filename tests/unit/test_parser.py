@@ -7,13 +7,13 @@ from pyiron_ontology.parser import (
     _inherit_properties,
     validate_values,
     parse_workflow,
+    PNS,
 )
 from pyiron_workflow import Workflow
 from semantikon.typing import u
 from rdflib import Namespace
 
 
-PNS = Namespace("http://pyiron.org/ontology/")
 EX = Namespace("http://example.org/")
 
 
@@ -161,6 +161,11 @@ class TestParser(unittest.TestCase):
         wf = Workflow("macro")
         wf.macro = operation()
         self.assertRaises(NotImplementedError, get_inputs_and_outputs, wf.macro)
+
+    def test_namespace(self):
+        self.assertEqual(PNS.hasUnits, URIRef("http://pyiron.org/ontology/hasUnits"))
+        with self.assertRaises(AttributeError):
+            _ = PNS.ahoy
 
 if __name__ == "__main__":
     unittest.main()
