@@ -200,8 +200,8 @@ def parse_workflow(
         graph = Graph()
     workflow_label = URIRef(workflow.label)
     graph.add((workflow_label, RDFS.label, Literal(workflow.label)))
-    for value in workflow.children.values():
-        data = get_inputs_and_outputs(value)
+    for node in workflow:
+        data = get_inputs_and_outputs(node)
         graph.add(
             (workflow_label, hasNode, URIRef(workflow.label + "." + data["label"]))
         )
