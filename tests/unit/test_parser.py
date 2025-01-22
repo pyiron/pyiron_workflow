@@ -152,6 +152,15 @@ class TestParser(unittest.TestCase):
             1,
         )
 
+    def test_macro(self):
+        @Workflow.wrap.as_macro_node
+        def operation(macro):
+            macro.add = add(a=1.0, b=2.0)
+            macro.multiply = multiply(a=macro.add, b=3.0)
+            return macro.multiply
+        wf = Workflow("macro")
+        wf.macro = operation()
+        self.assertRaises(NotImplementedError, get_inputs_and_outputs, wf.macro)
 
 if __name__ == "__main__":
     unittest.main()
