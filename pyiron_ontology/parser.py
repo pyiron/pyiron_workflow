@@ -284,7 +284,7 @@ def parse_workflow(
 ) -> Graph:
     """
     Generate RDF graph from a pyiron workflow object
-    
+
     Args:
         workflow (pyiron_workflow.workflow.Workflow): workflow object
         graph (rdflib.Graph): graph to be updated
