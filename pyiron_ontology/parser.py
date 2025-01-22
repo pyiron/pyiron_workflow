@@ -1,4 +1,4 @@
-from typing import Any, TypeAlias
+from typing import TypeAlias
 
 from semantikon.converter import parse_input_args, parse_output_args
 from rdflib import Graph, Literal, RDF, RDFS, URIRef, OWL, PROV, Namespace
