@@ -1,8 +1,13 @@
+from typing import Any, TypeAlias
+
 from semantikon.converter import parse_input_args, parse_output_args
 from rdflib import Graph, Literal, RDF, RDFS, URIRef, OWL, PROV, Namespace
 from pyiron_workflow import NOT_DATA, Workflow, Macro
 from pyiron_workflow.node import Node
 
+
+class Placeholder:
+    pass
 
 class PNS:
     BASE = Namespace("http://pyiron.org/ontology/")
@@ -164,8 +169,14 @@ def _get_triples_from_restrictions(data: dict) -> list:
             triples.extend([data["triples"]])
     return triples
 
+_restriction_type: TypeAlias = tuple[tuple[Any, Any], ...]
 
-def restriction_to_triple(restrictions: tuple) -> list:
+def _validate_restriction_format(restrictions: _restriction_type | tuple[_restriction_type] | list[_restriction_type]) -> tuple[_restriction_type]:
+    return restrictions
+
+def restriction_to_triple(
+        restrictions: _restriction_type | tuple[_restriction_type] | list[_restriction_type]
+) -> list[tuple[Any, Any, Any]]:
     """
     Convert restrictions to triples
 
@@ -188,20 +199,17 @@ def restriction_to_triple(restrictions: tuple) -> list:
     >>>     (EX.HasSomethingRestriction, RDF.type, OWL.Restriction),
     >>>     (EX.HasSomethingRestriction, OWL.onProperty, EX.HasSomething),
     >>>     (EX.HasSomethingRestriction, OWL.someValuesFrom, EX.Something),
-    >>>     (my_object, RDFS.subClassOf, EX.HasSomethingRestriction)
+    >>>     (Placeholder, RDFS.subClassOf, EX.HasSomethingRestriction)
     >>> )
     """
-    triples = []
-    assert isinstance(restrictions, tuple) and isinstance(restrictions[0], tuple)
-    if not isinstance(restrictions[0][0], tuple):
-        restrictions = (restrictions,)
-    for r in restrictions:
-        assert len(r[0]) == 2
+    restrictions_collection = _validate_restriction_format(restrictions)
+    triples: list[tuple[Any, Any, Any]] = []
+    for r in restrictions_collection:
         label = r[0][1] + "Restriction"
         triples.append((label, RDF.type, OWL.Restriction))
         for rr in r:
             triples.append((label, rr[0], rr[1]))
-        triples.append((RDF.type, label))
+        triples.append((Placeholder, RDF.type, label))
     return triples
 
 
