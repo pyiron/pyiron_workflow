@@ -8,6 +8,7 @@ from pyiron_ontology.parser import (
     validate_values,
     parse_workflow,
     PNS,
+    Placeholder,
 )
 from pyiron_workflow import Workflow
 from semantikon.typing import u
@@ -24,7 +25,12 @@ def calculate_speed(
 ) -> u(
     float,
     units="meter/second",
-    triples=((EX.somehowRelatedTo, "inputs.time"), (EX.subject, EX.predicate, EX.object)),
+    triples=(
+        (EX.somehowRelatedTo, "inputs.time"),
+        (EX.subject, EX.predicate, EX.object),
+        (EX.subject, EX.predicate, Placeholder),
+        (Placeholder, EX.predicate, EX.object),
+    ),
 ):
     return distance / time
 
@@ -87,6 +93,9 @@ class TestParser(unittest.TestCase):
         speed = calculate_speed()
         data = get_inputs_and_outputs(speed)
         graph = get_triples(data=data)
+        subj = URIRef("http://example.org/subject")
+        obj = URIRef("http://example.org/object")
+        label = URIRef("calculate_speed.outputs.speed")
         self.assertGreater(
             len(list(graph.triples((None, PNS.hasUnits, URIRef("meter/second"))))), 0
         )
@@ -99,6 +108,8 @@ class TestParser(unittest.TestCase):
         self.assertEqual(
             len(list(graph.triples((EX.subject, EX.predicate, EX.object)))), 1
         )
+        self.assertEqual(len(list(graph.triples((subj, EX.predicate, label)))), 1)
+        self.assertEqual(len(list(graph.triples((label, EX.predicate, obj)))), 1)
 
     def test_correct_analysis(self):
         def get_graph(wf):
@@ -158,6 +169,7 @@ class TestParser(unittest.TestCase):
             macro.add = add(a=1.0, b=2.0)
             macro.multiply = multiply(a=macro.add, b=3.0)
             return macro.multiply
+
         wf = Workflow("macro")
         wf.macro = operation()
         self.assertRaises(NotImplementedError, get_inputs_and_outputs, wf.macro)
@@ -166,6 +178,7 @@ class TestParser(unittest.TestCase):
         self.assertEqual(PNS.hasUnits, URIRef("http://pyiron.org/ontology/hasUnits"))
         with self.assertRaises(AttributeError):
             _ = PNS.ahoy
+
 
 if __name__ == "__main__":
     unittest.main()
