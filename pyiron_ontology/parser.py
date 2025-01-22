@@ -59,6 +59,58 @@ def get_triples(
     hasUnits: URIRef | None = None,
     inheritsPropertiesFrom: URIRef | None = None,
 ) -> Graph:
+    """
+    Generate triples from a dictionary containing input output information. The
+    dictionary should be obtained from the get_inputs_and_outputs function, and
+    should contain the keys "inputs", "outputs", "function" and "label". Within
+    "inputs" and "outputs", the keys should be the variable names, and the values
+    should be dictionaries containing the keys "type", "value", "var_name" and
+    "connection". The "connection" key should contain the label of the output
+    variable that the input is connected to. The "type" key should contain the
+    URI of the type of the variable. The "value" key should contain the value of
+    the variable. The "var_name" key should contain the variable name. The "function"
+    key should contain the name of the function that the node is connected to. The
+    "label" key should contain the label of the node. In terms of python code,
+    it should look like this:
+
+    >>> data = {
+    >>>     "inputs": {
+    >>>         "input1": {
+    >>>             "type": URIRef("http://example.org/Type"),
+    >>>             "value": 1,
+    >>>             "triples": some_triples,
+    >>>             "restrictions": some_restrictions,
+    >>>             "var_name": "input1",
+    >>>             "connection": "output1"
+    >>>         }
+    >>>     },
+    >>>     "outputs": {
+    >>>         "output1": {
+    >>>             "type": URIRef("http://example.org/Type"),
+    >>>             "value": 1,
+    >>>             "triples": other_triples,
+    >>>             "var_name": "output1"
+    >>>         }
+    >>>     },
+    >>>     "function": "function_name",
+    >>>     "label": "label"
+    >>> }
+
+    triples should consist of a list of tuples, where each tuple contains 2 or 3
+    elements. If the tuple contains 2 elements, the first element should be the
+    predicate and the second element should be the object, in order for the subject
+    to be  generated from the variable name.
+
+    Args:
+        data (dict): dictionary containing input output information
+        workflow_namespace (str): namespace of the workflow
+        hasSourceFunction (rdflib.URIRef): predicate for source function
+        hasUnits (rdflib.URIRef): predicate for units
+        inheritsPropertiesFrom (rdflib.URIRef): predicate for inherited properties
+
+    Returns:
+        (rdflib.Graph): graph containing triples
+    """
     if workflow_namespace is None:
         workflow_namespace = ""
     else:
@@ -116,6 +168,31 @@ def _get_triples_from_restrictions(data: dict) -> list:
 
 
 def restriction_to_triple(restrictions: tuple) -> list:
+    """
+    Convert restrictions to triples
+
+    Args:
+        restrictions (tuple): tuple of restrictions
+
+    Returns:
+        (list): list of triples
+
+    In the semantikon notation, restrictions are given in the format:
+
+    >>> restrictions = (
+    >>>     (OWL.onProperty, EX.HasSomething),
+    >>>     (OWL.someValuesFrom, EX.Something)
+    >>> )
+
+    This tuple is internally converted to the triples:
+
+    >>> (
+    >>>     (EX.HasSomethingRestriction, RDF.type, OWL.Restriction),
+    >>>     (EX.HasSomethingRestriction, OWL.onProperty, EX.HasSomething),
+    >>>     (EX.HasSomethingRestriction, OWL.someValuesFrom, EX.Something),
+    >>>     (my_object, RDFS.subClassOf, EX.HasSomethingRestriction)
+    >>> )
+    """
     triples = []
     assert isinstance(restrictions, tuple) and isinstance(restrictions[0], tuple)
     if not isinstance(restrictions[0][0], tuple):
@@ -173,6 +250,15 @@ def _inherit_properties(graph: Graph, n: int | None = None):
 
 
 def validate_values(graph: Graph) -> list:
+    """
+    Validate if all values required by restrictions are present in the graph
+
+    Args:
+        graph (rdflib.Graph): graph to be validated
+
+    Returns:
+        (list): list of missing triples
+    """
     missing_triples = []
     for restrictions in graph.subjects(RDF.type, OWL.Restriction):
         on_property = graph.value(restrictions, OWL.onProperty)
@@ -196,6 +282,21 @@ def parse_workflow(
     hasUnits: URIRef | None = None,
     inheritsPropertiesFrom: URIRef | None = None,
 ) -> Graph:
+    """
+    Generate RDF graph from a pyiron workflow object
+    
+    Args:
+        workflow (pyiron_workflow.workflow.Workflow): workflow object
+        graph (rdflib.Graph): graph to be updated
+        inherit_properties (bool): if True, properties are inherited
+        hasNode (rdflib.URIRef): predicate for node
+        hasSourceFunction (rdflib.URIRef): predicate for source function
+        hasUnits (rdflib.URIRef): predicate for units
+        inheritsPropertiesFrom (rdflib.URIRef): predicate for inherited properties
+
+    Returns:
+        (rdflib.Graph): graph containing workflow information
+    """
     if hasNode is None:
         hasNode = PNS.hasNode
     if graph is None:
