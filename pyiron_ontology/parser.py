@@ -136,7 +136,7 @@ def get_triples(
             graph.add((label, RDFS.label, Literal(full_key)))
             graph.add((label, RDF.type, PROV.Entity))
             if d.get("uri", None) is not None:
-                graph.add((label, RDF.type, d["uri"]))
+                graph.add((label, RDF.type, URIRef(d["uri"])))
             if d.get("value", NOT_DATA) is not NOT_DATA:
                 graph.add((label, RDF.value, Literal(d["value"])))
             graph.add((label, PNS[io_[:-1] + "Of"], URIRef(full_label)))
