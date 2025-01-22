@@ -154,7 +154,7 @@ class TestParser(unittest.TestCase):
 
     def test_macro(self):
         @Workflow.wrap.as_macro_node
-        def operation(macro):
+        def operation(macro=None):
             macro.add = add(a=1.0, b=2.0)
             macro.multiply = multiply(a=macro.add, b=3.0)
             return macro.multiply
