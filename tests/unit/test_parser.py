@@ -24,7 +24,7 @@ def calculate_speed(
 ) -> u(
     float,
     units="meter/second",
-    triples=((EX.isOutputOf, "inputs.time"), (EX.subject, EX.predicate, EX.object)),
+    triples=((EX.somehowRelatedTo, "inputs.time"), (EX.subject, EX.predicate, EX.object)),
 ):
     return distance / time
 
@@ -90,7 +90,7 @@ class TestParser(unittest.TestCase):
         self.assertGreater(
             len(list(graph.triples((None, PNS.hasUnits, URIRef("meter/second"))))), 0
         )
-        ex_triple = (None, EX.isOutputOf, URIRef("calculate_speed.inputs.time"))
+        ex_triple = (None, EX.somehowRelatedTo, URIRef("calculate_speed.inputs.time"))
         self.assertEqual(
             len(list(graph.triples(ex_triple))),
             1,
