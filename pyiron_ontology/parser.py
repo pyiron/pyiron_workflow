@@ -1,6 +1,6 @@
 from semantikon.converter import parse_input_args, parse_output_args
 from rdflib import Graph, Literal, RDF, RDFS, URIRef, OWL, PROV, Namespace
-from pyiron_workflow import NOT_DATA, Workflow
+from pyiron_workflow import NOT_DATA, Workflow, Macro
 from pyiron_workflow.node import Node
 
 
@@ -26,6 +26,8 @@ def get_inputs_and_outputs(node: Node) -> dict:
         (dict): dictionary containing input output args, type hints, values
             and variable names
     """
+    if isinstance(node, Macro):
+        raise NotImplementedError("Macros are not supported yet")
     inputs = parse_input_args(node.node_function)
     outputs = parse_output_args(node.node_function)
     if isinstance(outputs, dict):
