@@ -13,9 +13,6 @@ class PNS:
     inputOf = BASE["inputOf"]
     outputOf = BASE["outputOf"]
 
-    def __getattr__(self, name):
-        raise AttributeError(f"Namespace {self.BASE} has no attribute {name}")
-
 
 def get_source_output(var: Node) -> str | None:
     if not var.connected:
