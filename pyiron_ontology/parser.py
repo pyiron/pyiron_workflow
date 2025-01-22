@@ -1,7 +1,13 @@
+from typing import TypeAlias
+
 from semantikon.converter import parse_input_args, parse_output_args
 from rdflib import Graph, Literal, RDF, RDFS, URIRef, OWL, PROV, Namespace
 from pyiron_workflow import NOT_DATA, Workflow, Macro
 from pyiron_workflow.node import Node
+
+
+class Placeholder:
+    pass
 
 
 class PNS:
@@ -165,7 +171,25 @@ def _get_triples_from_restrictions(data: dict) -> list:
     return triples
 
 
-def restriction_to_triple(restrictions: tuple) -> list:
+_rest_type: TypeAlias = tuple[tuple[URIRef, URIRef], ...]
+
+
+def _validate_restriction_format(
+    restrictions: _rest_type | tuple[_rest_type] | list[_rest_type],
+) -> tuple[_rest_type]:
+    if not all(isinstance(r, tuple) for r in restrictions):
+        raise ValueError("Restrictions must be tuples of URIRefs")
+    elif all(isinstance(rr, URIRef) for r in restrictions for rr in r):
+        return (restrictions,)
+    elif all(isinstance(rrr, URIRef) for r in restrictions for rr in r for rrr in rr):
+        return restrictions
+    else:
+        raise ValueError("Restrictions must be tuples of URIRefs")
+
+
+def restriction_to_triple(
+    restrictions: _rest_type | tuple[_rest_type] | list[_rest_type],
+) -> list[tuple[URIRef | type, URIRef, URIRef]]:
     """
     Convert restrictions to triples
 
@@ -188,20 +212,17 @@ def restriction_to_triple(restrictions: tuple) -> list:
     >>>     (EX.HasSomethingRestriction, RDF.type, OWL.Restriction),
     >>>     (EX.HasSomethingRestriction, OWL.onProperty, EX.HasSomething),
     >>>     (EX.HasSomethingRestriction, OWL.someValuesFrom, EX.Something),
-    >>>     (my_object, RDFS.subClassOf, EX.HasSomethingRestriction)
+    >>>     (Placeholder, RDFS.subClassOf, EX.HasSomethingRestriction)
     >>> )
     """
-    triples = []
-    assert isinstance(restrictions, tuple) and isinstance(restrictions[0], tuple)
-    if not isinstance(restrictions[0][0], tuple):
-        restrictions = (restrictions,)
-    for r in restrictions:
-        assert len(r[0]) == 2
+    restrictions_collection = _validate_restriction_format(restrictions)
+    triples: list[tuple[URIRef | type, URIRef, URIRef]] = []
+    for r in restrictions_collection:
         label = r[0][1] + "Restriction"
         triples.append((label, RDF.type, OWL.Restriction))
         for rr in r:
             triples.append((label, rr[0], rr[1]))
-        triples.append((RDF.type, label))
+        triples.append((Placeholder, RDF.type, label))
     return triples
 
 
@@ -216,6 +237,10 @@ def _parse_triple(
         subj, pred, obj = triples
     else:
         raise ValueError("Triple must have 2 or 3 elements")
+    if subj is Placeholder:
+        subj = label
+    if obj is Placeholder:
+        obj = label
     if obj.startswith("inputs.") or obj.startswith("outputs."):
         obj = ns + "." + obj
     if not isinstance(obj, URIRef):
