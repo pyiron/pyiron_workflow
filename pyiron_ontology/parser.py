@@ -1,19 +1,20 @@
 from semantikon.converter import parse_input_args, parse_output_args
 from rdflib import Graph, Literal, RDF, RDFS, URIRef, OWL, PROV, Namespace
-from pyiron_workflow import NOT_DATA
+from pyiron_workflow import NOT_DATA, Workflow
+from pyiron_workflow.node import Node
 
 
 PNS = Namespace("http://pyiron.org/ontology/")
 
 
-def get_source_output(var):
+def get_source_output(var: Node) -> str | None:
     if not var.connected:
         return None
     connection = var.connections[0]
     return f"{connection.owner.label}.outputs.{connection.label}"
 
 
-def get_inputs_and_outputs(node):
+def get_inputs_and_outputs(node: Node) -> dict:
     """
     Read input and output arguments with their type hints and return a
     dictionary containing all input output information
@@ -50,12 +51,12 @@ def get_inputs_and_outputs(node):
 
 
 def get_triples(
-    data,
-    workflow_namespace=None,
-    hasSourceFunction=None,
-    hasUnits=None,
-    inheritsPropertiesFrom=None,
-):
+    data: dict,
+    workflow_namespace: str | None = None,
+    hasSourceFunction: URIRef | None = None,
+    hasUnits: URIRef | None = None,
+    inheritsPropertiesFrom: URIRef | None = None,
+) -> Graph:
     if workflow_namespace is None:
         workflow_namespace = ""
     else:
@@ -100,7 +101,7 @@ def get_triples(
     return graph
 
 
-def _get_triples_from_restrictions(data):
+def _get_triples_from_restrictions(data: dict) -> list:
     triples = []
     if data.get("restrictions", None) is not None:
         triples = restriction_to_triple(data["restrictions"])
@@ -112,7 +113,7 @@ def _get_triples_from_restrictions(data):
     return triples
 
 
-def restriction_to_triple(restrictions):
+def restriction_to_triple(restrictions: tuple) -> list:
     triples = []
     assert isinstance(restrictions, tuple) and isinstance(restrictions[0], tuple)
     if not isinstance(restrictions[0][0], tuple):
@@ -127,7 +128,11 @@ def restriction_to_triple(restrictions):
     return triples
 
 
-def _parse_triple(triples, ns, label=None):
+def _parse_triple(
+    triples: tuple,
+    ns: str,
+    label: URIRef | None = None,
+) -> tuple:
     if len(triples) == 2:
         subj, pred, obj = label, triples[0], triples[1]
     elif len(triples) == 3:
@@ -141,7 +146,7 @@ def _parse_triple(triples, ns, label=None):
     return subj, pred, obj
 
 
-def _inherit_properties(graph, n=None):
+def _inherit_properties(graph: Graph, n: int | None = None):
     update_query = (
         f"PREFIX ns: <{PNS}>",
         f"PREFIX rdfs: <{RDFS}>",
@@ -165,7 +170,7 @@ def _inherit_properties(graph, n=None):
         graph.update("\n".join(update_query))
 
 
-def validate_values(graph):
+def validate_values(graph: Graph) -> list:
     missing_triples = []
     for restrictions in graph.subjects(RDF.type, OWL.Restriction):
         on_property = graph.value(restrictions, OWL.onProperty)
@@ -181,14 +186,14 @@ def validate_values(graph):
 
 
 def parse_workflow(
-    workflow,
-    graph=None,
-    inherit_properties=True,
-    hasNode=None,
-    hasSourceFunction=None,
-    hasUnits=None,
-    inheritsPropertiesFrom=None,
-):
+    workflow: Workflow,
+    graph: Graph | None = None,
+    inherit_properties: bool = True,
+    hasNode: URIRef | None = None,
+    hasSourceFunction: URIRef | None = None,
+    hasUnits: URIRef | None = None,
+    inheritsPropertiesFrom: URIRef | None = None,
+) -> Graph:
     if hasNode is None:
         hasNode = PNS.hasNode
     if graph is None:
