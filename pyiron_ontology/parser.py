@@ -189,7 +189,7 @@ def _validate_restriction_format(
 
 def restriction_to_triple(
     restrictions: _rest_type | tuple[_rest_type] | list[_rest_type]
-) -> list[tuple[URIRef, URIRef, URIRef]]:
+) -> list[tuple[URIRef | type, URIRef, URIRef]]:
     """
     Convert restrictions to triples
 
@@ -216,7 +216,7 @@ def restriction_to_triple(
     >>> )
     """
     restrictions_collection = _validate_restriction_format(restrictions)
-    triples: list[tuple[URIRef | Placeholder, URIRef, URIRef]] = []
+    triples: list[tuple[URIRef | type, URIRef, URIRef]] = []
     for r in restrictions_collection:
         label = r[0][1] + "Restriction"
         triples.append((label, RDF.type, OWL.Restriction))
