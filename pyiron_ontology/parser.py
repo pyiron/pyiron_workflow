@@ -170,25 +170,25 @@ def _get_triples_from_restrictions(data: dict) -> list:
             triples.extend([data["triples"]])
     return triples
 
+
 _rest_type: TypeAlias = tuple[tuple[URIRef, URIRef], ...]
 
+
 def _validate_restriction_format(
-    restrictions: _rest_type | tuple[_rest_type] | list[_rest_type]
+    restrictions: _rest_type | tuple[_rest_type] | list[_rest_type],
 ) -> tuple[_rest_type]:
     if not all(isinstance(r, tuple) for r in restrictions):
         raise ValueError("Restrictions must be tuples of URIRefs")
     elif all(isinstance(rr, URIRef) for r in restrictions for rr in r):
         return (restrictions,)
-    elif all(
-        isinstance(rrr, URIRef) for r in restrictions for rr in r for rrr in rr
-    ):
+    elif all(isinstance(rrr, URIRef) for r in restrictions for rr in r for rrr in rr):
         return restrictions
     else:
         raise ValueError("Restrictions must be tuples of URIRefs")
 
 
 def restriction_to_triple(
-    restrictions: _rest_type | tuple[_rest_type] | list[_rest_type]
+    restrictions: _rest_type | tuple[_rest_type] | list[_rest_type],
 ) -> list[tuple[URIRef | type, URIRef, URIRef]]:
     """
     Convert restrictions to triples
