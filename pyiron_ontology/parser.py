@@ -6,9 +6,6 @@ from pyiron_workflow import NOT_DATA, Workflow, Macro
 from pyiron_workflow.node import Node
 
 
-class Placeholder:
-    pass
-
 
 class PNS:
     BASE = Namespace("http://pyiron.org/ontology/")
@@ -189,7 +186,7 @@ def _validate_restriction_format(
 
 def restriction_to_triple(
     restrictions: _rest_type | tuple[_rest_type] | list[_rest_type],
-) -> list[tuple[URIRef | type, URIRef, URIRef]]:
+) -> list[tuple[URIRef | None, URIRef, URIRef]]:
     """
     Convert restrictions to triples
 
@@ -212,17 +209,17 @@ def restriction_to_triple(
     >>>     (EX.HasSomethingRestriction, RDF.type, OWL.Restriction),
     >>>     (EX.HasSomethingRestriction, OWL.onProperty, EX.HasSomething),
     >>>     (EX.HasSomethingRestriction, OWL.someValuesFrom, EX.Something),
-    >>>     (Placeholder, RDFS.subClassOf, EX.HasSomethingRestriction)
+    >>>     (my_object, RDFS.subClassOf, EX.HasSomethingRestriction)
     >>> )
     """
     restrictions_collection = _validate_restriction_format(restrictions)
-    triples: list[tuple[URIRef | type, URIRef, URIRef]] = []
+    triples: list[tuple[URIRef | None, URIRef, URIRef]] = []
     for r in restrictions_collection:
         label = r[0][1] + "Restriction"
         triples.append((label, RDF.type, OWL.Restriction))
         for rr in r:
             triples.append((label, rr[0], rr[1]))
-        triples.append((Placeholder, RDF.type, label))
+        triples.append((None, RDF.type, label))
     return triples
 
 
@@ -237,9 +234,9 @@ def _parse_triple(
         subj, pred, obj = triples
     else:
         raise ValueError("Triple must have 2 or 3 elements")
-    if subj is Placeholder:
+    if subj is None:
         subj = label
-    if obj is Placeholder:
+    if obj is None:
         obj = label
     if obj.startswith("inputs.") or obj.startswith("outputs."):
         obj = ns + "." + obj
