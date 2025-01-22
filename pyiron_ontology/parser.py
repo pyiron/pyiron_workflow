@@ -9,6 +9,7 @@ from pyiron_workflow.node import Node
 class Placeholder:
     pass
 
+
 class PNS:
     BASE = Namespace("http://pyiron.org/ontology/")
     hasNode = BASE["hasNode"]
@@ -169,14 +170,26 @@ def _get_triples_from_restrictions(data: dict) -> list:
             triples.extend([data["triples"]])
     return triples
 
-_restriction_type: TypeAlias = tuple[tuple[Any, Any], ...]
+_rest_type: TypeAlias = tuple[tuple[URIRef, URIRef], ...]
 
-def _validate_restriction_format(restrictions: _restriction_type | tuple[_restriction_type] | list[_restriction_type]) -> tuple[_restriction_type]:
-    raise NotImplementedError
+def _validate_restriction_format(
+    restrictions: _rest_type | tuple[_rest_type] | list[_rest_type]
+) -> tuple[_rest_type]:
+    if not all(isinstance(r, tuple) for r in restrictions):
+        raise ValueError("Restrictions must be tuples of URIRefs")
+    elif all(isinstance(rr, URIRef) for r in restrictions for rr in r):
+        return (restrictions,)
+    elif all(
+        isinstance(rrr, URIRef) for r in restrictions for rr in r for rrr in rr
+    ):
+        return restrictions
+    else:
+        raise ValueError("Restrictions must be tuples of URIRefs")
+
 
 def restriction_to_triple(
-        restrictions: _restriction_type | tuple[_restriction_type] | list[_restriction_type]
-) -> list[tuple[Any, Any, Any]]:
+    restrictions: _rest_type | tuple[_rest_type] | list[_rest_type]
+) -> list[tuple[URIRef, URIRef, URIRef]]:
     """
     Convert restrictions to triples
 
@@ -203,7 +216,7 @@ def restriction_to_triple(
     >>> )
     """
     restrictions_collection = _validate_restriction_format(restrictions)
-    triples: list[tuple[Any, Any, Any]] = []
+    triples: list[tuple[URIRef | Placeholder, URIRef, URIRef]] = []
     for r in restrictions_collection:
         label = r[0][1] + "Restriction"
         triples.append((label, RDF.type, OWL.Restriction))
@@ -224,6 +237,10 @@ def _parse_triple(
         subj, pred, obj = triples
     else:
         raise ValueError("Triple must have 2 or 3 elements")
+    if subj is Placeholder:
+        subj = label
+    if obj is Placeholder:
+        obj = label
     if obj.startswith("inputs.") or obj.startswith("outputs."):
         obj = ns + "." + obj
     if not isinstance(obj, URIRef):
