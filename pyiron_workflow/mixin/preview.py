@@ -22,7 +22,6 @@ from typing import (
     ClassVar,
     get_args,
 )
-import inspect
 
 from pyiron_snippets.dotdict import DotDict
 
