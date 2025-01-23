@@ -21,8 +21,8 @@ from typing import (
     Any,
     ClassVar,
     get_args,
-    get_type_hints,
 )
+import inspect
 
 from pyiron_snippets.dotdict import DotDict
 
@@ -198,9 +198,10 @@ class ScrapesIO(HasIOPreview, ABC):
     @lru_cache(maxsize=1)
     def _get_type_hints(cls) -> dict:
         """
-        The result of :func:`typing.get_type_hints` on the io-defining function
+        The result of :func:`inspect.signature` on the io-defining function
         """
-        return get_type_hints(cls._io_defining_function())
+        sig = inspect.signature(cls._io_defining_function())
+        return dict(sig.parameters) | {"return": sig.return_annotation}
 
     @classmethod
     @lru_cache(maxsize=1)
