@@ -296,8 +296,9 @@ class DataChannel(FlavorChannel["DataChannel"], typing.Generic[ReceiverType], AB
     more specific than the input channel.
 
     In addition to connections, these channels can have a single partner
-    (:attr:`value_receiver: DataChannel`) that is of the _same_ class and obeys type
-    hints as though it were the "downstream" (input) partner in a connection.
+    (:attr:`value_receiver`) that is of the same data flavor and the same direction
+    (i.e. input or output) and obeys type hints as though it were the "downstream"
+    (input) partner in a connection.
     Channels with such partners pass any data updates they receive directly to this
     partner (via the :attr:`value` setter).
     (This is helpful for passing data between scopes, where we want input at one scope
@@ -351,9 +352,9 @@ class DataChannel(FlavorChannel["DataChannel"], typing.Generic[ReceiverType], AB
             when this channel is a value receiver. This can potentially be expensive, so
             consider deactivating strict hints everywhere for production runs. (Default
             is True, raise exceptions when type hints get violated.)
-        value_receiver (pyiron_workflow.compatibility.Self|None): Another channel of
-            the same class whose value will always get updated when this channel's
-            value gets updated.
+        value_receiver (ReceiverType|None): Another channel of the receiver type (i.e.
+            also a data flavor and matching input/output type) whose value will always
+            get updated when this channel's value gets updated.
     """
 
     def __init__(
@@ -372,7 +373,7 @@ class DataChannel(FlavorChannel["DataChannel"], typing.Generic[ReceiverType], AB
         self.strict_hints = strict_hints
         self.default = default
         self.value = default  # Implicitly type check your default by assignment
-        self.value_receiver: ReceiverType = value_receiver
+        self.value_receiver = value_receiver
 
     @property
     def value(self):
@@ -399,7 +400,7 @@ class DataChannel(FlavorChannel["DataChannel"], typing.Generic[ReceiverType], AB
             )
 
     @property
-    def value_receiver(self) -> Self | None:
+    def value_receiver(self) -> ReceiverType | None:
         """
         Another data channel of the same type to whom new values are always pushed
         (without type checking of any sort, not even when forming the couple!)
@@ -410,7 +411,7 @@ class DataChannel(FlavorChannel["DataChannel"], typing.Generic[ReceiverType], AB
         return self._value_receiver
 
     @value_receiver.setter
-    def value_receiver(self, new_partner: Self | None):
+    def value_receiver(self, new_partner: ReceiverType | None):
         if new_partner is not None:
             if not isinstance(new_partner, self.__class__):
                 raise TypeError(
