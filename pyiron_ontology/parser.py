@@ -48,11 +48,9 @@ def get_inputs_and_outputs(node: Node) -> dict:
         if inputs[key] is None:
             inputs[key] = {}
         inputs[key]["value"] = value.value
-        inputs[key]["var_name"] = key
         inputs[key]["connection"] = get_source_output(value)
     for key, value in node.outputs.to_value_dict().items():
         outputs[key]["value"] = value
-        outputs[key]["var_name"] = key
     return {
         "inputs": inputs,
         "outputs": outputs,
@@ -66,18 +64,17 @@ def get_triples(
     workflow_namespace: str | None = None,
 ) -> Graph:
     """
-    Generate triples from a dictionary containing input output information. The
-    dictionary should be obtained from the get_inputs_and_outputs function, and
-    should contain the keys "inputs", "outputs", "function" and "label". Within
-    "inputs" and "outputs", the keys should be the variable names, and the values
-    should be dictionaries containing the keys "type", "value", "var_name" and
+    Generate triples from a dictionary containing input output information.
+    The dictionary should be obtained from the get_inputs_and_outputs function,
+    and should contain the keys "inputs", "outputs", "function" and "label".
+    Within "inputs" and "outputs", the keys should be the variable names, and
+    the values should be dictionaries containing the keys "type", "value" and
     "connection". The "connection" key should contain the label of the output
     variable that the input is connected to. The "type" key should contain the
-    URI of the type of the variable. The "value" key should contain the value of
-    the variable. The "var_name" key should contain the variable name. The "function"
-    key should contain the name of the function that the node is connected to. The
-    "label" key should contain the label of the node. In terms of python code,
-    it should look like this:
+    URI of the type of the variable. The "value" key should contain the value
+    of the variable. The "function" key should contain the name of the function
+    that the node is connected to. The "label" key should contain the label of
+    the node. In terms of python code, it should look like this:
 
     >>> data = {
     >>>     "inputs": {
@@ -86,7 +83,6 @@ def get_triples(
     >>>             "value": 1,
     >>>             "triples": some_triples,
     >>>             "restrictions": some_restrictions,
-    >>>             "var_name": "input1",
     >>>             "connection": "output1"
     >>>         }
     >>>     },
@@ -95,7 +91,6 @@ def get_triples(
     >>>             "type": URIRef("http://example.org/Type"),
     >>>             "value": 1,
     >>>             "triples": other_triples,
-    >>>             "var_name": "output1"
     >>>         }
     >>>     },
     >>>     "function": "function_name",
