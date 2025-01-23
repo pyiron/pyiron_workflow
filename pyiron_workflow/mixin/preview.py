@@ -200,7 +200,10 @@ class ScrapesIO(HasIOPreview, ABC):
         The result of :func:`inspect.signature` on the io-defining function
         """
         sig = inspect.signature(cls._io_defining_function())
-        return dict(sig.parameters) | {"return": sig.return_annotation}
+        d = {key: value.annotation for key, value in sig.parameters.items()}
+        d = d | {"return": sig.return_annotation}
+        d = {k: v for k, v in d.items() if v != inspect.Parameter.empty}
+        return d
 
     @classmethod
     @lru_cache(maxsize=1)
