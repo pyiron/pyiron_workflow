@@ -47,10 +47,12 @@ def get_inputs_and_outputs(node: Node) -> dict:
     for key, value in node.inputs.items():
         if inputs[key] is None:
             inputs[key] = {}
-        inputs[key]["value"] = value.value
+        if value.value is not NOT_DATA:
+            inputs[key]["value"] = value.value
         inputs[key]["connection"] = get_source_output(value)
     for key, value in node.outputs.to_value_dict().items():
-        outputs[key]["value"] = value
+        if value is not NOT_DATA:
+            outputs[key]["value"] = value
     return {
         "inputs": inputs,
         "outputs": outputs,
@@ -129,7 +131,7 @@ def get_triples(
             graph.add((label, RDF.type, PROV.Entity))
             if d.get("uri", None) is not None:
                 graph.add((label, RDF.type, URIRef(d["uri"])))
-            if d.get("value", NOT_DATA) is not NOT_DATA:
+            if "value" in d:
                 graph.add((label, RDF.value, Literal(d["value"])))
             if io_ == "inputs":
                 graph.add((label, PNS.inputOf, URIRef(full_label)))
