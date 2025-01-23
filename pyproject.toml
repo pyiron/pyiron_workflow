@@ -86,8 +86,25 @@ select = [
     "C4",
     # eradicate
     "ERA",
+    # pylint
+    "PL",
 ]
-ignore = ["E501"] #ignore line-length violations
+ignore = [
+    # ignore line-length violations
+    "E501",
+    # Too many arguments in function definition
+    "PLR0913",
+    # Magic value used in comparison
+    "PLR2004",
+    # Import alias does not rename original package
+    "PLC0414",
+    # Too many branches
+    "PLR0912",
+    # Too many statements
+    "PLR0915",
+    # Too many return statements
+    "PLR0911",
+]
 
 [tool.ruff.lint.per-file-ignores]
 "__init__.py" = ["F401"]  # Ignore unused imports in init files -- we specify APIs this way
