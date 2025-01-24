@@ -6,6 +6,7 @@ from pint import UnitRegistry
 from pyiron_workflow.type_hinting import (
     type_hint_is_as_or_more_specific_than,
     valid_value,
+    _get_type_hints,
 )
 
 
@@ -95,6 +96,16 @@ class TestTypeHinting(unittest.TestCase):
                 typing.Callable[[int, float], float],
                 False,
             ),
+            (
+                typing.Annotated[int, "foo"],
+                int,
+                True,
+            ),
+            (
+                int,
+                typing.Annotated[int, "foo"],
+                True,
+            ),
         ]:
             with self.subTest(
                 target=target, reference=reference, expected=is_more_specific
@@ -102,7 +113,19 @@ class TestTypeHinting(unittest.TestCase):
                 self.assertEqual(
                     type_hint_is_as_or_more_specific_than(target, reference),
                     is_more_specific,
+                    msg=f"{target} is {'not ' if not is_more_specific else ''}more specific than {reference}",
                 )
+
+    def test_get_type_hints(self):
+        for hint, origin in [
+            (int | float, type(int| float)),
+            (typing.Annotated[int | float, "foo"], type(int | float)),
+            (int, None),
+            (typing.Annotated[int, "foo"], None),
+        ]:
+            with self.subTest(hint=hint, origin=origin):
+                self.assertEqual(_get_type_hints(hint)[0], origin)
+
 
 
 if __name__ == "__main__":
