@@ -199,7 +199,7 @@ class ScrapesIO(HasIOPreview, ABC):
         """
         The result of :func:`inspect.signature` on the io-defining function
         """
-        sig = inspect.signature(cls._io_defining_function())
+        sig = inspect.signature(cls._io_defining_function(), eval_str=True)
         type_dict = {
             key: value.annotation for key, value in sig.parameters.items()
         }
