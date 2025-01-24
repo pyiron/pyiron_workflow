@@ -207,6 +207,9 @@ class ScrapesIO(HasIOPreview, ABC):
         type_dict = {
             k: v for k, v in type_dict.items() if v != inspect.Parameter.empty
         }
+        for key, value in type_dict.items():
+            if value is None:
+                type_dict[key] = type(None)
         return type_dict
 
     @classmethod
