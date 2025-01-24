@@ -139,6 +139,8 @@ class ScrapesIO(HasIOPreview, ABC):
 
             if value.annotation is inspect.Parameter.empty:
                 type_hint = None
+            elif value.annotation is None:
+                type_hint = type(None)
             else:
                 type_hint = value.annotation
 
@@ -159,6 +161,8 @@ class ScrapesIO(HasIOPreview, ABC):
             labels = []
         type_hints = cls._get_function_signature().return_annotation
         if type_hints is not inspect.Signature.empty:
+            if type_hints is None:
+                type_hints = type(None)
             if len(labels) > 1:
                 type_hints = get_args(type_hints)
                 if not isinstance(type_hints, tuple):
@@ -198,7 +202,7 @@ class ScrapesIO(HasIOPreview, ABC):
         """
         The result of :func:`inspect.signature` on the io-defining function
         """
-        return inspect.signature(cls._io_defining_function())
+        return inspect.signature(cls._io_defining_function(), eval_str=True)
 
     @classmethod
     @lru_cache(maxsize=1)
