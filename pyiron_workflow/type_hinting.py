@@ -49,7 +49,7 @@ def type_hint_to_tuple(type_hint) -> tuple:
     return (type_hint,)
 
 
-def _get_type_hints(type_hint) -> tuple[typing.Optional[type], typing.Any]:
+def _get_type_hints(type_hint) -> tuple[type | None, typing.Any]:
     hint = typing.get_origin(type_hint)
     if hint is typing.Annotated:
         return typing.get_origin(type_hint.__origin__), type_hint.__origin__
