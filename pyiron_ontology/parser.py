@@ -1,4 +1,4 @@
-from typing import TypeAlias
+from typing import TypeAlias, Any
 
 from semantikon.converter import parse_input_args, parse_output_args
 from rdflib import Graph, Literal, RDF, RDFS, URIRef, OWL, PROV, Namespace
@@ -14,6 +14,7 @@ class PNS:
     inheritsPropertiesFrom = BASE["inheritsPropertiesFrom"]
     inputOf = BASE["inputOf"]
     outputOf = BASE["outputOf"]
+    hasValue = BASE["hasValue"]
 
 
 def get_source_output(var: Node) -> str | None:
@@ -59,6 +60,12 @@ def get_inputs_and_outputs(node: Node) -> dict:
         "function": node.node_function.__name__,
         "label": node.label,
     }
+
+
+def _translate_has_value(graph: Graph, label: URIRef, tag: str, value: Any):
+    graph.add((label, PNS.hasValue, URIRef(tag)))
+    graph.add((URIRef(tag), RDF.value, Literal(value)))
+    return graph
 
 
 def get_triples(
@@ -131,15 +138,29 @@ def get_triples(
             graph.add((label, RDF.type, PROV.Entity))
             if d.get("uri", None) is not None:
                 graph.add((label, RDF.type, URIRef(d["uri"])))
-            if "value" in d:
-                graph.add((label, RDF.value, Literal(d["value"])))
             if io_ == "inputs":
                 graph.add((label, PNS.inputOf, URIRef(full_label)))
             elif io_ == "outputs":
                 graph.add((label, PNS.outputOf, URIRef(full_label)))
             if d.get("units", None) is not None:
                 graph.add((label, PNS.hasUnits, URIRef(d["units"])))
-            if d.get("connection", None) is not None:
+            if "value" in d:
+                if io_ == "inputs" and d.get("connection", None) is not None:
+                    graph = _translate_has_value(
+                        graph,
+                        label,
+                        workflow_namespace + d["connection"] + ".value",
+                        d["value"],
+                    )
+                elif io_ == "inputs":
+                    graph = _translate_has_value(
+                        graph, label, str(d["value"]), d["value"],
+                    )
+                else:
+                    graph = _translate_has_value(
+                        graph, label, label + ".value", d["value"],
+                    )
+            if d.get("connection", None) is not None and io_ == "inputs":
                 graph.add(
                     (
                         label,
