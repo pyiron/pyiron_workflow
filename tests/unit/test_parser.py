@@ -88,6 +88,32 @@ class TestParser(unittest.TestCase):
         for label in ["inputs", "outputs", "function", "label"]:
             self.assertIn(label, output_dict)
 
+    def test_units_with_sparql(self):
+        wf = Workflow("speed")
+        wf.speed = calculate_speed()
+        wf.run()
+        graph = parse_workflow(wf)
+        query_txt = [
+            "PREFIX ex: <http://example.org/>",
+            "PREFIX rdf: <http://www.w3.org/1999/02/22-rdf-syntax-ns#>",
+            f"PREFIX pns: <{PNS.BASE}>",
+            "SELECT DISTINCT ?speed ?units",
+            "WHERE {",
+            "    ?output pns:hasValue ?output_tag .",
+            "    ?output_tag rdf:value ?speed .",
+            "    ?output_tag pns:hasUnits ?units_arg .",
+            "    ?units_arg rdf:value ?units .",
+            "}",
+        ]
+        query = "\n".join(query_txt)
+        results = graph.query(query)
+        self.assertEqual(len(results), 3)
+        result_list = [[value.value for value in row] for row in graph.query(query)]
+        self.assertEqual(
+            sorted(result_list),
+            [[2.0, 'second'], [5.0, 'meter/second'], [10.0, 'meter']]
+        )
+
     def test_triples(self):
         speed = calculate_speed()
         data = get_inputs_and_outputs(speed)
