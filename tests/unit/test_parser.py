@@ -111,7 +111,7 @@ class TestParser(unittest.TestCase):
         result_list = [[value.value for value in row] for row in graph.query(query)]
         self.assertEqual(
             sorted(result_list),
-            [[2.0, 'second'], [5.0, 'meter/second'], [10.0, 'meter']]
+            [[2.0, "second"], [5.0, "meter/second"], [10.0, "meter"]],
         )
 
     def test_triples(self):
