@@ -67,7 +67,7 @@ def _translate_has_value(
     label: URIRef,
     tag: str,
     value: Any = None,
-    units: URIRef | None = None
+    units: URIRef | None = None,
 ) -> Graph:
     graph.add((label, PNS.hasValue, URIRef(tag)))
     if value is not None:
