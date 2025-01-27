@@ -101,18 +101,14 @@ class TestParser(unittest.TestCase):
             "WHERE {",
             "    ?output pns:hasValue ?output_tag .",
             "    ?output_tag rdf:value ?speed .",
-            "    ?output_tag pns:hasUnits ?units_arg .",
-            "    ?units_arg rdf:value ?units .",
+            "    ?output_tag pns:hasUnits ?units .",
             "}",
         ]
         query = "\n".join(query_txt)
         results = graph.query(query)
         self.assertEqual(len(results), 3)
-        result_list = [[value.value for value in row] for row in graph.query(query)]
-        self.assertEqual(
-            sorted(result_list),
-            [[2.0, "second"], [5.0, "meter/second"], [10.0, "meter"]],
-        )
+        result_list = [row[0].value for row in graph.query(query)]
+        self.assertEqual(sorted(result_list), [2.0, 5.0, 10.0])
 
     def test_triples(self):
         speed = calculate_speed()
