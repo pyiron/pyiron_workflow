@@ -62,9 +62,19 @@ def get_inputs_and_outputs(node: Node) -> dict:
     }
 
 
-def _translate_has_value(graph: Graph, label: URIRef, tag: str, value: Any):
+def _translate_has_value(
+    graph: Graph,
+    label: URIRef,
+    tag: str,
+    value: Any = None,
+    units: URIRef | None = None
+) -> Graph:
     graph.add((label, PNS.hasValue, URIRef(tag)))
-    graph.add((URIRef(tag), RDF.value, Literal(value)))
+    if value is not None:
+        graph.add((URIRef(tag), RDF.value, Literal(value)))
+    if units is not None:
+        graph.add((URIRef(tag), PNS.hasUnits, URIRef(units)))
+        graph.add((URIRef(units), RDF.value, Literal(units)))
     return graph
 
 
@@ -142,30 +152,22 @@ def get_triples(
                 graph.add((label, PNS.inputOf, URIRef(full_label)))
             elif io_ == "outputs":
                 graph.add((label, PNS.outputOf, URIRef(full_label)))
-            if d.get("units", None) is not None:
-                graph.add((label, PNS.hasUnits, URIRef(d["units"])))
-            if "value" in d:
-                if io_ == "inputs" and d.get("connection", None) is not None:
-                    graph = _translate_has_value(
-                        graph,
-                        label,
-                        workflow_namespace + d["connection"] + ".value",
-                        d["value"],
-                    )
-                elif io_ == "inputs":
-                    graph = _translate_has_value(
-                        graph,
-                        label,
-                        str(d["value"]),
-                        d["value"],
-                    )
-                else:
-                    graph = _translate_has_value(
-                        graph,
-                        label,
-                        label + ".value",
-                        d["value"],
-                    )
+            if io_ == "inputs" and d.get("connection", None) is not None:
+                graph = _translate_has_value(
+                    graph,
+                    label,
+                    workflow_namespace + d["connection"] + ".value",
+                    d.get("value", None),
+                    units=d.get("units", None),
+                )
+            else:
+                graph = _translate_has_value(
+                    graph,
+                    label,
+                    label + ".value",
+                    d.get("value", None),
+                    units=d.get("units", None),
+                )
             if d.get("connection", None) is not None and io_ == "inputs":
                 graph.add(
                     (
