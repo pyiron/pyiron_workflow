@@ -74,7 +74,6 @@ def _translate_has_value(
         graph.add((URIRef(tag), RDF.value, Literal(value)))
     if units is not None:
         graph.add((URIRef(tag), PNS.hasUnits, URIRef(units)))
-        graph.add((URIRef(units), RDF.value, Literal(units)))
     return graph
 
 
