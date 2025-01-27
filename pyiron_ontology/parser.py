@@ -283,6 +283,7 @@ def _inherit_properties(graph: Graph, n: int | None = None):
         "    FILTER(?p != ns:inheritsPropertiesFrom)",
         "    FILTER(?p != rdfs:label)",
         "    FILTER(?p != rdf:value)",
+        "    FILTER(?p != ns:hasValue)",
         "    FILTER(?p != rdf:type)",
         "}",
     )
