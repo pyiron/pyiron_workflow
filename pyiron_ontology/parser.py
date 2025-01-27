@@ -154,11 +154,17 @@ def get_triples(
                     )
                 elif io_ == "inputs":
                     graph = _translate_has_value(
-                        graph, label, str(d["value"]), d["value"],
+                        graph,
+                        label,
+                        str(d["value"]),
+                        d["value"],
                     )
                 else:
                     graph = _translate_has_value(
-                        graph, label, label + ".value", d["value"],
+                        graph,
+                        label,
+                        label + ".value",
+                        d["value"],
                     )
             if d.get("connection", None) is not None and io_ == "inputs":
                 graph.add(
