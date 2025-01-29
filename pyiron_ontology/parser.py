@@ -148,22 +148,16 @@ def get_triples(
                 graph.add((label, PNS.inputOf, URIRef(full_label)))
             elif io_ == "outputs":
                 graph.add((label, PNS.outputOf, URIRef(full_label)))
+            tag = label
             if io_ == "inputs" and d.get("connection", None) is not None:
-                graph = _translate_has_value(
-                    graph,
-                    label,
-                    workflow_namespace + d["connection"],
-                    d.get("value", None),
-                    units=d.get("units", None),
-                )
-            else:
-                graph = _translate_has_value(
-                    graph,
-                    label,
-                    label,
-                    d.get("value", None),
-                    units=d.get("units", None),
-                )
+                tag = workflow_namespace + d["connection"]
+            graph = _translate_has_value(
+                graph=graph,
+                label=label,
+                tag=tag,
+                value=d.get("value", None),
+                units=d.get("units", None),
+            )
             if d.get("connection", None) is not None and io_ == "inputs":
                 graph.add(
                     (
