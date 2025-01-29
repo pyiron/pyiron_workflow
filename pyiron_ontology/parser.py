@@ -151,14 +151,6 @@ def get_triples(
             tag = label
             if io_ == "inputs" and d.get("connection", None) is not None:
                 tag = workflow_namespace + d["connection"]
-            graph = _translate_has_value(
-                graph=graph,
-                label=label,
-                tag=tag,
-                value=d.get("value", None),
-                units=d.get("units", None),
-            )
-            if d.get("connection", None) is not None and io_ == "inputs":
                 graph.add(
                     (
                         label,
@@ -166,6 +158,13 @@ def get_triples(
                         URIRef(workflow_namespace + d["connection"]),
                     )
                 )
+            graph = _translate_has_value(
+                graph=graph,
+                label=label,
+                tag=tag,
+                value=d.get("value", None),
+                units=d.get("units", None),
+            )
             for t in _get_triples_from_restrictions(d):
                 graph.add(_parse_triple(t, ns=full_label, label=label))
     return graph
