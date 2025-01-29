@@ -77,20 +77,23 @@ def _translate_has_value(
     tag_uri = URIRef(tag + ".value")
     graph.add((label, PNS.hasValue, tag_uri))
     if _is_semantikon_class(dtype):
-        for key, value in dtype.__dict__.items():
-            if isinstance(value, type) and _is_semantikon_class(value):
+        for k, v in dtype.__dict__.items():
+            if isinstance(v, type) and _is_semantikon_class(v):
                 _translate_has_value(
                     graph=graph,
                     label=label,
-                    tag=tag + "." + key,
-                    dtype=value,
+                    tag=tag + "." + k,
+                    dtype=v,
                 )
-        for key, value in dtype.__annotations__.items():
+        for k, v in dtype.__annotations__.items():
+            metadata = _meta_to_dict(v)
             _translate_has_value(
                 graph=graph,
                 label=label,
-                tag=tag + "." + key,
-                dtype=_meta_to_dict(value),
+                tag=tag + "." + k,
+                value=getattr(value, k, None),
+                dtype=metadata["dtype"],
+                units=metadata.get("units", None),
             )
     else:
         if value is not None:
@@ -178,6 +181,7 @@ def get_triples(
                 label=channel_label,
                 tag=tag,
                 value=d.get("value", None),
+                dtype=d.get("dtype", None),
                 units=d.get("units", None),
             )
             for t in _get_triples_from_restrictions(d):
