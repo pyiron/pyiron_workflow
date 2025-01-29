@@ -139,7 +139,7 @@ def get_triples(
     for io_ in ["inputs", "outputs"]:
         for key, d in data[io_].items():
             channel_label = URIRef(node_label + f".{io_}." + key)
-            graph.add((channel_label, RDFS.label, Literal(channel_label.identifier)))
+            graph.add((channel_label, RDFS.label, Literal(str(channel_label))))
             graph.add((channel_label, RDF.type, PROV.Entity))
             if d.get("uri", None) is not None:
                 graph.add((channel_label, RDF.type, URIRef(d["uri"])))
