@@ -1,6 +1,6 @@
 from typing import TypeAlias, Any
 
-from semantikon.converter import parse_input_args, parse_output_args
+from semantikon.converter import parse_input_args, parse_output_args, _meta_to_dict
 from rdflib import Graph, Literal, RDF, RDFS, URIRef, OWL, PROV, Namespace
 from pyiron_workflow import NOT_DATA, Workflow, Macro
 from pyiron_workflow.node import Node
@@ -62,6 +62,10 @@ def get_inputs_and_outputs(node: Node) -> dict:
     }
 
 
+def _is_semantikon_class(dtype: type) -> bool:
+    return hasattr(dtype, "_is_semantikon_class") and dtype._is_semantikon_class
+
+
 def _translate_has_value(
     graph: Graph,
     label: URIRef,
@@ -72,10 +76,27 @@ def _translate_has_value(
 ) -> Graph:
     tag_uri = URIRef(tag + ".value")
     graph.add((label, PNS.hasValue, tag_uri))
-    if value is not None:
-        graph.add((tag_uri, RDF.value, Literal(value)))
-    if units is not None:
-        graph.add((tag_uri, PNS.hasUnits, URIRef(units)))
+    if _is_semantikon_class(dtype):
+        for key, value in dtype.__dict__.items():
+            if isinstance(value, type) and _is_semantikon_class(value):
+                _translate_has_value(
+                    graph=graph,
+                    label=label,
+                    tag=tag + "." + key,
+                    dtype=value,
+                )
+        for key, value in dtype.__annotations__.items():
+            _translate_has_value(
+                graph=graph,
+                label=label,
+                tag=tag + "." + key,
+                dtype=_meta_to_dict(value),
+            )
+    else:
+        if value is not None:
+            graph.add((tag_uri, RDF.value, Literal(value)))
+        if units is not None:
+            graph.add((tag_uri, PNS.hasUnits, URIRef(units)))
     return graph
 
 
