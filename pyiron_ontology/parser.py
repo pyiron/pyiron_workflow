@@ -69,11 +69,12 @@ def _translate_has_value(
     value: Any = None,
     units: URIRef | None = None,
 ) -> Graph:
-    graph.add((label, PNS.hasValue, URIRef(tag)))
+    tag_uri = URIRef(tag + ".value")
+    graph.add((label, PNS.hasValue, tag_uri))
     if value is not None:
-        graph.add((URIRef(tag), RDF.value, Literal(value)))
+        graph.add((tag_uri, RDF.value, Literal(value)))
     if units is not None:
-        graph.add((URIRef(tag), PNS.hasUnits, URIRef(units)))
+        graph.add((tag_uri, PNS.hasUnits, URIRef(units)))
     return graph
 
 
@@ -132,51 +133,33 @@ def get_triples(
     else:
         workflow_namespace += "."
     graph = Graph()
-    full_label = workflow_namespace + data["label"]
-    # Triple already exists
-    label_def_triple = (URIRef(full_label), RDF.type, PROV.Activity)
-    if len(list(graph.triples(label_def_triple))) > 0:
-        return graph
-    graph.add(label_def_triple)
-    graph.add((URIRef(full_label), PNS.hasSourceFunction, URIRef(data["function"])))
+    node_label = workflow_namespace + data["label"]
+    graph.add((URIRef(node_label), RDF.type, PROV.Activity))
+    graph.add((URIRef(node_label), PNS.hasSourceFunction, URIRef(data["function"])))
     for io_ in ["inputs", "outputs"]:
         for key, d in data[io_].items():
-            full_key = full_label + f".{io_}." + key
-            label = URIRef(full_key)
-            graph.add((label, RDFS.label, Literal(full_key)))
-            graph.add((label, RDF.type, PROV.Entity))
+            channel_label = URIRef(node_label + f".{io_}." + key)
+            graph.add((channel_label, RDFS.label, Literal(str(channel_label))))
+            graph.add((channel_label, RDF.type, PROV.Entity))
             if d.get("uri", None) is not None:
-                graph.add((label, RDF.type, URIRef(d["uri"])))
+                graph.add((channel_label, RDF.type, URIRef(d["uri"])))
             if io_ == "inputs":
-                graph.add((label, PNS.inputOf, URIRef(full_label)))
+                graph.add((channel_label, PNS.inputOf, URIRef(node_label)))
             elif io_ == "outputs":
-                graph.add((label, PNS.outputOf, URIRef(full_label)))
+                graph.add((channel_label, PNS.outputOf, URIRef(node_label)))
+            tag = channel_label
             if io_ == "inputs" and d.get("connection", None) is not None:
-                graph = _translate_has_value(
-                    graph,
-                    label,
-                    workflow_namespace + d["connection"] + ".value",
-                    d.get("value", None),
-                    units=d.get("units", None),
-                )
-            else:
-                graph = _translate_has_value(
-                    graph,
-                    label,
-                    label + ".value",
-                    d.get("value", None),
-                    units=d.get("units", None),
-                )
-            if d.get("connection", None) is not None and io_ == "inputs":
-                graph.add(
-                    (
-                        label,
-                        PNS.inheritsPropertiesFrom,
-                        URIRef(workflow_namespace + d["connection"]),
-                    )
-                )
+                tag = workflow_namespace + d["connection"]
+                graph.add((channel_label, PNS.inheritsPropertiesFrom, URIRef(tag)))
+            graph = _translate_has_value(
+                graph=graph,
+                label=channel_label,
+                tag=tag,
+                value=d.get("value", None),
+                units=d.get("units", None),
+            )
             for t in _get_triples_from_restrictions(d):
-                graph.add(_parse_triple(t, ns=full_label, label=label))
+                graph.add(_parse_triple(t, ns=node_label, label=channel_label))
     return graph
 
 
