@@ -67,13 +67,15 @@ def _translate_has_value(
     label: URIRef,
     tag: str,
     value: Any = None,
+    dtype: type | None = None,
     units: URIRef | None = None,
 ) -> Graph:
-    graph.add((label, PNS.hasValue, URIRef(tag)))
+    tag_uri = URIRef(tag + ".value")
+    graph.add((label, PNS.hasValue, tag_uri))
     if value is not None:
-        graph.add((URIRef(tag), RDF.value, Literal(value)))
+        graph.add((tag_uri, RDF.value, Literal(value)))
     if units is not None:
-        graph.add((URIRef(tag), PNS.hasUnits, URIRef(units)))
+        graph.add((tag_uri, PNS.hasUnits, URIRef(units)))
     return graph
 
 
@@ -153,18 +155,20 @@ def get_triples(
                 graph.add((label, PNS.outputOf, URIRef(full_label)))
             if io_ == "inputs" and d.get("connection", None) is not None:
                 graph = _translate_has_value(
-                    graph,
-                    label,
-                    workflow_namespace + d["connection"] + ".value",
-                    d.get("value", None),
+                    graph=graph,
+                    label=label,
+                    tag=workflow_namespace + d["connection"],
+                    value=d.get("value", None),
+                    dtype=d.get("type", None),
                     units=d.get("units", None),
                 )
             else:
                 graph = _translate_has_value(
-                    graph,
-                    label,
-                    label + ".value",
-                    d.get("value", None),
+                    graph=graph,
+                    label=label,
+                    tag=label,
+                    value=d.get("value", None),
+                    dtype=d.get("type", None),
                     units=d.get("units", None),
                 )
             if d.get("connection", None) is not None and io_ == "inputs":
