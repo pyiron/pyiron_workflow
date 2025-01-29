@@ -69,11 +69,12 @@ def _translate_has_value(
     value: Any = None,
     units: URIRef | None = None,
 ) -> Graph:
-    graph.add((label, PNS.hasValue, URIRef(tag)))
+    tag_uri = URIRef(tag + ".value")
+    graph.add((label, PNS.hasValue, tag_uri))
     if value is not None:
-        graph.add((URIRef(tag), RDF.value, Literal(value)))
+        graph.add((tag_uri, RDF.value, Literal(value)))
     if units is not None:
-        graph.add((URIRef(tag), PNS.hasUnits, URIRef(units)))
+        graph.add((tag_uri, PNS.hasUnits, URIRef(units)))
     return graph
 
 
@@ -133,11 +134,7 @@ def get_triples(
         workflow_namespace += "."
     graph = Graph()
     full_label = workflow_namespace + data["label"]
-    # Triple already exists
-    label_def_triple = (URIRef(full_label), RDF.type, PROV.Activity)
-    if len(list(graph.triples(label_def_triple))) > 0:
-        return graph
-    graph.add(label_def_triple)
+    graph.add((URIRef(full_label), RDF.type, PROV.Activity))
     graph.add((URIRef(full_label), PNS.hasSourceFunction, URIRef(data["function"])))
     for io_ in ["inputs", "outputs"]:
         for key, d in data[io_].items():
@@ -155,7 +152,7 @@ def get_triples(
                 graph = _translate_has_value(
                     graph,
                     label,
-                    workflow_namespace + d["connection"] + ".value",
+                    workflow_namespace + d["connection"],
                     d.get("value", None),
                     units=d.get("units", None),
                 )
@@ -163,7 +160,7 @@ def get_triples(
                 graph = _translate_has_value(
                     graph,
                     label,
-                    label + ".value",
+                    label,
                     d.get("value", None),
                     units=d.get("units", None),
                 )
