@@ -1,4 +1,5 @@
 from typing import TypeAlias, Any
+import warnings
 
 from semantikon.converter import parse_input_args, parse_output_args, _meta_to_dict
 from rdflib import Graph, Literal, RDF, RDFS, URIRef, OWL, PROV, Namespace
@@ -78,6 +79,10 @@ def _translate_has_value(
     tag_uri = URIRef(tag + ".value")
     graph.add((label, PNS.hasValue, tag_uri))
     if _is_semantikon_class(dtype):
+        warnings.warn(
+            "semantikon_class is experimental - triples may change in the future",
+            FutureWarning
+        )
         for k, v in dtype.__dict__.items():
             if isinstance(v, type) and _is_semantikon_class(v):
                 _translate_has_value(
