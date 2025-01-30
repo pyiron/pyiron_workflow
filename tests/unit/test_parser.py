@@ -260,9 +260,10 @@ class TestDataclass(unittest.TestCase):
             (URIRef(f"{i_txt}.n.value"), RDFS.subClassOf, URIRef(f"{i_txt}.value")),
             (URIRef(o_txt), PNS.hasValue, URIRef(f"{o_txt}.E.value")),
         )
+        s = graph.serialize(format="turtle")
         for triple in triples:
             self.assertEqual(
-                len(list(graph.triples(triple))), 1, msg=f"{triple} not found"
+                len(list(graph.triples(triple))), 1, msg=f"{triple} not found in {s}"
             )
 
 
