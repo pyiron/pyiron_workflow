@@ -73,6 +73,7 @@ def _translate_has_value(
     value: Any = None,
     dtype: type | None = None,
     units: URIRef | None = None,
+    parent: URIRef | None = None,
 ) -> Graph:
     tag_uri = URIRef(tag + ".value")
     graph.add((label, PNS.hasValue, tag_uri))
@@ -94,8 +95,11 @@ def _translate_has_value(
                 value=getattr(value, k, None),
                 dtype=metadata["dtype"],
                 units=metadata.get("units", None),
+                parent=tag_uri,
             )
     else:
+        if parent is not None:
+            graph.add((tag_uri, RDFS.subPropertyOf, parent))
         if value is not None:
             graph.add((tag_uri, RDF.value, Literal(value)))
         if units is not None:
