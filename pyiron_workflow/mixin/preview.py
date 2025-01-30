@@ -124,7 +124,6 @@ class ScrapesIO(HasIOPreview, ABC):
 
     @classmethod
     def _build_inputs_preview(cls) -> dict[str, tuple[Any, Any]]:
-        type_hints = cls._get_type_hints()
         scraped: dict[str, tuple[Any, Any]] = {}
         for i, (label, value) in enumerate(cls._get_input_args().items()):
             if cls._io_defining_function_uses_self and i == 0:
@@ -138,10 +137,12 @@ class ScrapesIO(HasIOPreview, ABC):
                     f"choose a name _not_ among {cls._get_init_keywords()}"
                 )
 
-            try:
-                type_hint = type_hints[label]
-            except KeyError:
+            if value.annotation is inspect.Parameter.empty:
                 type_hint = None
+            elif value.annotation is None:
+                type_hint = type(None)
+            else:
+                type_hint = value.annotation
 
             default = (
                 NOT_DATA if value.default is inspect.Parameter.empty else value.default
@@ -158,8 +159,10 @@ class ScrapesIO(HasIOPreview, ABC):
         labels = cls._get_output_labels()
         if labels is None:
             labels = []
-        try:
-            type_hints = cls._get_type_hints()["return"]
+        type_hints = cls._get_function_signature().return_annotation
+        if type_hints is not inspect.Signature.empty:
+            if type_hints is None:
+                type_hints = type(None)
             if len(labels) > 1:
                 type_hints = get_args(type_hints)
                 if not isinstance(type_hints, tuple):
@@ -177,7 +180,7 @@ class ScrapesIO(HasIOPreview, ABC):
                 # If there's only one hint, wrap it in a tuple, so we can zip it with
                 # *return_labels and iterate over both at once
                 type_hints = (type_hints,)
-        except KeyError:  # If there are no return hints
+        else:  # If there are no return hints
             type_hints = [None] * len(labels)
             # Note that this nicely differs from `NoneType`, which is the hint when
             # `None` is actually the hint!
@@ -195,26 +198,16 @@ class ScrapesIO(HasIOPreview, ABC):
 
     @classmethod
     @lru_cache(maxsize=1)
-    def _get_type_hints(cls) -> dict:
+    def _get_function_signature(cls) -> inspect.Signature:
         """
         The result of :func:`inspect.signature` on the io-defining function
         """
-        sig = inspect.signature(cls._io_defining_function(), eval_str=True)
-        type_dict = {
-            key: value.annotation if value.annotation else type(None)
-            for key, value in sig.parameters.items()
-            if value.annotation != inspect.Parameter.empty
-        }
-        if sig.return_annotation != inspect.Parameter.empty:
-            type_dict["return"] = (
-                sig.return_annotation if sig.return_annotation else type(None)
-            )
-        return type_dict
+        return inspect.signature(cls._io_defining_function(), eval_str=True)
 
     @classmethod
     @lru_cache(maxsize=1)
     def _get_input_args(cls):
-        return inspect.signature(cls._io_defining_function()).parameters
+        return cls._get_function_signature().parameters
 
     @classmethod
     @lru_cache(maxsize=1)
