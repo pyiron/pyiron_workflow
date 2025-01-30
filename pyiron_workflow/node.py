@@ -412,7 +412,7 @@ class Node(
 
     @property
     @abstractmethod
-    def _run_args(self, *args, **kwargs) -> Any:
+    def _run_args(self) -> tuple[tuple, dict]:
         pass
 
     def run(
