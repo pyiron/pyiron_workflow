@@ -228,6 +228,8 @@ class TestParser(unittest.TestCase):
 class Input:
     T: u(float, units="kelvin")
     n: int
+    class parameters:
+        a: int = 2
     # This line should be removed with the next version of semantikon
     _is_semantikon_class = True
 
@@ -251,6 +253,7 @@ class TestDataclass(unittest.TestCase):
     def test_dataclass(self):
         wf = Workflow("my_wf")
         inp = Input(T=300.0, n=100)
+        inp.parameters.a = 1
         wf.node = run_md(inp)
         wf.run()
         graph = parse_workflow(wf)
@@ -258,6 +261,8 @@ class TestDataclass(unittest.TestCase):
         o_txt = "my_wf.node.outputs.out"
         triples = (
             (URIRef(f"{i_txt}.n.value"), RDFS.subClassOf, URIRef(f"{i_txt}.value")),
+            (URIRef(f"{i_txt}.n.value"), RDF.value, Literal(100)),
+            (URIRef(f"{i_txt}.parameters.a.value"), RDF.value, Literal(1)),
             (URIRef(o_txt), PNS.hasValue, URIRef(f"{o_txt}.E.value")),
         )
         s = graph.serialize(format="turtle")
