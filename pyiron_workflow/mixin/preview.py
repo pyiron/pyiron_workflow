@@ -200,12 +200,15 @@ class ScrapesIO(HasIOPreview, ABC):
         The result of :func:`inspect.signature` on the io-defining function
         """
         sig = inspect.signature(cls._io_defining_function(), eval_str=True)
-        type_dict = {key: value.annotation for key, value in sig.parameters.items()}
-        type_dict = type_dict | {"return": sig.return_annotation}
-        type_dict = {k: v for k, v in type_dict.items() if v != inspect.Parameter.empty}
-        for key, value in type_dict.items():
-            if value is None:
-                type_dict[key] = type(None)
+        type_dict = {
+            key: value.annotation if value.annotation else type(None)
+            for key, value in sig.parameters.items()
+            if value.annotation != inspect.Parameter.empty
+        }
+        if sig.return_annotation != inspect.Parameter.empty:
+            type_dict["return"] = (
+                sig.return_annotation if sig.return_annotation else type(None)
+            )
         return type_dict
 
     @classmethod
