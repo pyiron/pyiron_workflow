@@ -122,6 +122,8 @@ class TestTypeHinting(unittest.TestCase):
             (typing.Annotated[int | float, "foo"], type(int | float)),
             (int, None),
             (typing.Annotated[int, "foo"], None),
+            (typing.Annotated[list[int], "foo"], list),
+            (list[int], list),
         ]:
             with self.subTest(hint=hint, origin=origin):
                 self.assertEqual(_get_type_hints(hint)[0], origin)
