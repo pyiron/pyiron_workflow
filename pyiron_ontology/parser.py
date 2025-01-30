@@ -99,7 +99,7 @@ def _translate_has_value(
             )
     else:
         if parent is not None:
-            graph.add((tag_uri, RDFS.subPropertyOf, parent))
+            graph.add((tag_uri, RDFS.subClassOf, parent))
         if value is not None:
             graph.add((tag_uri, RDF.value, Literal(value)))
         if units is not None:
