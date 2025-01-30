@@ -84,7 +84,9 @@ def _translate_has_value(
                     graph=graph,
                     label=label,
                     tag=tag + "." + k,
+                    value=getattr(value, k, None),
                     dtype=v,
+                    parent=tag_uri,
                 )
         for k, v in dtype.__annotations__.items():
             metadata = _meta_to_dict(v)
