@@ -228,10 +228,11 @@ class TestParser(unittest.TestCase):
 class Input:
     T: u(float, units="kelvin")
     n: int
-    class parameters:
-        a: int = 2
     # This line should be removed with the next version of semantikon
     _is_semantikon_class = True
+    class parameters:
+        _is_semantikon_class = True
+        a: int = 2
 
 
 @semantikon_class
