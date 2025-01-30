@@ -81,7 +81,7 @@ def _translate_has_value(
     if _is_semantikon_class(dtype):
         warnings.warn(
             "semantikon_class is experimental - triples may change in the future",
-            FutureWarning
+            FutureWarning,
         )
         for k, v in dtype.__dict__.items():
             if isinstance(v, type) and _is_semantikon_class(v):
