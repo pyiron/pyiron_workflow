@@ -1,6 +1,7 @@
 from typing import TypeAlias, Any
+import warnings
 
-from semantikon.converter import parse_input_args, parse_output_args
+from semantikon.converter import parse_input_args, parse_output_args, _meta_to_dict
 from rdflib import Graph, Literal, RDF, RDFS, URIRef, OWL, PROV, Namespace
 from pyiron_workflow import NOT_DATA, Workflow, Macro
 from pyiron_workflow.node import Node
@@ -62,19 +63,54 @@ def get_inputs_and_outputs(node: Node) -> dict:
     }
 
 
+def _is_semantikon_class(dtype: type) -> bool:
+    return hasattr(dtype, "_is_semantikon_class") and dtype._is_semantikon_class
+
+
 def _translate_has_value(
     graph: Graph,
     label: URIRef,
     tag: str,
     value: Any = None,
+    dtype: type | None = None,
     units: URIRef | None = None,
+    parent: URIRef | None = None,
 ) -> Graph:
     tag_uri = URIRef(tag + ".value")
     graph.add((label, PNS.hasValue, tag_uri))
-    if value is not None:
-        graph.add((tag_uri, RDF.value, Literal(value)))
-    if units is not None:
-        graph.add((tag_uri, PNS.hasUnits, URIRef(units)))
+    if _is_semantikon_class(dtype):
+        warnings.warn(
+            "semantikon_class is experimental - triples may change in the future",
+            FutureWarning,
+        )
+        for k, v in dtype.__dict__.items():
+            if isinstance(v, type) and _is_semantikon_class(v):
+                _translate_has_value(
+                    graph=graph,
+                    label=label,
+                    tag=tag + "." + k,
+                    value=getattr(value, k, None),
+                    dtype=v,
+                    parent=tag_uri,
+                )
+        for k, v in dtype.__annotations__.items():
+            metadata = _meta_to_dict(v)
+            _translate_has_value(
+                graph=graph,
+                label=label,
+                tag=tag + "." + k,
+                value=getattr(value, k, None),
+                dtype=metadata["dtype"],
+                units=metadata.get("units", None),
+                parent=tag_uri,
+            )
+    else:
+        if parent is not None:
+            graph.add((tag_uri, RDFS.subClassOf, parent))
+        if value is not None:
+            graph.add((tag_uri, RDF.value, Literal(value)))
+        if units is not None:
+            graph.add((tag_uri, PNS.hasUnits, URIRef(units)))
     return graph
 
 
@@ -156,6 +192,7 @@ def get_triples(
                 label=channel_label,
                 tag=tag,
                 value=d.get("value", None),
+                dtype=d.get("dtype", None),
                 units=d.get("units", None),
             )
             for t in _get_triples_from_restrictions(d):
