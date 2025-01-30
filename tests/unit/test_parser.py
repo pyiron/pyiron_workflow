@@ -11,6 +11,8 @@ from pyiron_ontology.parser import (
 )
 from pyiron_workflow import Workflow
 from semantikon.typing import u
+from semantikon.converter import semantikon_class
+from dataclasses import dataclass
 from rdflib import Namespace
 
 
@@ -219,6 +221,52 @@ class TestParser(unittest.TestCase):
             3,
             msg="There should be values for a, b and the output",
         )
+
+
+@semantikon_class
+@dataclass
+class Input:
+    T: u(float, units="kelvin")
+    n: int
+
+@semantikon_class
+@dataclass
+class Output:
+    E: u(float, units="electron_volt")
+    L: u(float, units="angstrom")
+
+@Workflow.wrap.as_function_node
+def run_md(inp: Input) -> Output:
+    out = Output(E=1., L=2.)
+    # This line should be removed with the next version of semantikon
+    out._is_semantikon_class = True
+    return out
+
+
+class TestDataclass(unittest.TestCase):
+    def test_dataclass(self):
+        wf = Workflow("my_wf")
+        inp = Input(T=300., n=100)
+        # This line should be removed with the next version of semantikon
+        inp._is_semantikon_class = True
+        wf.node = run_md(inp)
+        wf.run()
+        graph = parse_workflow(wf)
+        i_txt = "my_wf.node.inputs.inp"
+        o_txt = "my_wf.node.outputs.out"
+        triples = (
+            (
+                URIRef(f'{i_txt}.n.value'),
+                RDFS.subClassOf,
+                URIRef(f'{i_txt}.value')
+            ),
+            (URIRef(o_txt), PNS.hasValue, URIRef(f'{o_txt}.E.value'))
+        )
+        for triple in triples:
+            self.assertEqual(
+                len(list(graph.triples(triple))), 1, msg=f"{triple} not found"
+            )
+
 
 
 if __name__ == "__main__":
