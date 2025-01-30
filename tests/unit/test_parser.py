@@ -230,6 +230,7 @@ class Input:
     n: int
     # This line should be removed with the next version of semantikon
     _is_semantikon_class = True
+
     class parameters:
         _is_semantikon_class = True
         a: int = 2
