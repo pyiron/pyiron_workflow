@@ -228,6 +228,8 @@ class TestParser(unittest.TestCase):
 class Input:
     T: u(float, units="kelvin")
     n: int
+    # This line should be removed with the next version of semantikon
+    _is_semantikon_class = True
 
 
 @semantikon_class
@@ -235,13 +237,13 @@ class Input:
 class Output:
     E: u(float, units="electron_volt")
     L: u(float, units="angstrom")
+    # This line should be removed with the next version of semantikon
+    _is_semantikon_class = True
 
 
 @Workflow.wrap.as_function_node
 def run_md(inp: Input) -> Output:
     out = Output(E=1.0, L=2.0)
-    # This line should be removed with the next version of semantikon
-    out._is_semantikon_class = True
     return out
 
 
@@ -249,8 +251,6 @@ class TestDataclass(unittest.TestCase):
     def test_dataclass(self):
         wf = Workflow("my_wf")
         inp = Input(T=300.0, n=100)
-        # This line should be removed with the next version of semantikon
-        inp._is_semantikon_class = True
         wf.node = run_md(inp)
         wf.run()
         graph = parse_workflow(wf)
