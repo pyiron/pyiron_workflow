@@ -205,3 +205,7 @@ class TestIOPreview(unittest.TestCase):
                 log.output,
                 msg="Verify that the expected warning appears in the log",
             )
+
+
+if __name__ == "__main__":
+    unittest.main()
