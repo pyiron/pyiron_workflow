@@ -11,7 +11,6 @@ from pyiron_ontology.parser import (
 )
 from pyiron_workflow import Workflow
 from semantikon.typing import u
-from semantikon.converter import semantikon_class
 from dataclasses import dataclass
 from rdflib import Namespace
 
@@ -223,26 +222,23 @@ class TestParser(unittest.TestCase):
         )
 
 
-@semantikon_class
 @dataclass
 class Input:
     T: u(float, units="kelvin")
     n: int
-    # This line should be removed with the next version of semantikon
-    _is_semantikon_class = True
 
+    @dataclass
     class parameters:
-        _is_semantikon_class = True
         a: int = 2
 
+    class not_dataclass:
+        b: int = 3
 
-@semantikon_class
+
 @dataclass
 class Output:
     E: u(float, units="electron_volt")
     L: u(float, units="angstrom")
-    # This line should be removed with the next version of semantikon
-    _is_semantikon_class = True
 
 
 @Workflow.wrap.as_function_node
@@ -268,10 +264,14 @@ class TestDataclass(unittest.TestCase):
             (URIRef(o_txt), PNS.hasValue, URIRef(f"{o_txt}.E.value")),
         )
         s = graph.serialize(format="turtle")
-        for triple in triples:
-            self.assertEqual(
-                len(list(graph.triples(triple))), 1, msg=f"{triple} not found in {s}"
-            )
+        for ii, triple in enumerate(triples):
+            with self.subTest(i=ii):
+                self.assertEqual(
+                    len(list(graph.triples(triple))),
+                    1,
+                    msg=f"{triple} not found in {s}",
+                )
+        self.assertIsNone(graph.value(URIRef(f"{i_txt}.not_dataclass.b.value")))
 
 
 if __name__ == "__main__":
