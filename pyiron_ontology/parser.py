@@ -5,6 +5,7 @@ from semantikon.converter import parse_input_args, parse_output_args, _meta_to_d
 from rdflib import Graph, Literal, RDF, RDFS, URIRef, OWL, PROV, Namespace
 from pyiron_workflow import NOT_DATA, Workflow, Macro
 from pyiron_workflow.node import Node
+from dataclasses import is_dataclass
 
 
 class PNS:
@@ -63,10 +64,6 @@ def get_inputs_and_outputs(node: Node) -> dict:
     }
 
 
-def _is_semantikon_class(dtype: type) -> bool:
-    return hasattr(dtype, "_is_semantikon_class") and dtype._is_semantikon_class
-
-
 def _translate_has_value(
     graph: Graph,
     label: URIRef,
@@ -78,13 +75,13 @@ def _translate_has_value(
 ) -> Graph:
     tag_uri = URIRef(tag + ".value")
     graph.add((label, PNS.hasValue, tag_uri))
-    if _is_semantikon_class(dtype):
+    if is_dataclass(dtype):
         warnings.warn(
             "semantikon_class is experimental - triples may change in the future",
             FutureWarning,
         )
         for k, v in dtype.__dict__.items():
-            if isinstance(v, type) and _is_semantikon_class(v):
+            if isinstance(v, type) and is_dataclass(v):
                 _translate_has_value(
                     graph=graph,
                     label=label,
