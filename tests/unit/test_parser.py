@@ -11,7 +11,6 @@ from pyiron_ontology.parser import (
 )
 from pyiron_workflow import Workflow
 from semantikon.typing import u
-from semantikon.converter import semantikon_class
 from dataclasses import dataclass
 from rdflib import Namespace
 
@@ -270,7 +269,7 @@ class TestDataclass(unittest.TestCase):
                 self.assertEqual(
                     len(list(graph.triples(triple))),
                     1,
-                    msg=f"{triple} not found in {s}"
+                    msg=f"{triple} not found in {s}",
                 )
         self.assertIsNone(graph.value(URIRef(f"{i_txt}.not_dataclass.b.value")))
 
