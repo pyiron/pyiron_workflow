@@ -1,7 +1,7 @@
 from typing import TypeAlias, Any
 import warnings
 
-from semantikon.converter import parse_input_args, parse_output_args, _meta_to_dict
+from semantikon.converter import parse_input_args, parse_output_args, meta_to_dict
 from rdflib import Graph, Literal, RDF, RDFS, URIRef, OWL, PROV, Namespace
 from pyiron_workflow import NOT_DATA, Workflow, Macro
 from pyiron_workflow.node import Node
@@ -91,7 +91,7 @@ def _translate_has_value(
                     parent=tag_uri,
                 )
         for k, v in dtype.__annotations__.items():
-            metadata = _meta_to_dict(v)
+            metadata = meta_to_dict(v)
             _translate_has_value(
                 graph=graph,
                 label=label,
