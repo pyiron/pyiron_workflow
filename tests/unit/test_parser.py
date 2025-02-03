@@ -36,6 +36,7 @@ def calculate_speed(
 
 
 @Workflow.wrap.as_function_node("result")
+@u(uri=EX.Addition)
 def add(a: float, b: float) -> u(float, triples=(EX.HasOperation, EX.Addition)):
     return a + b
 
@@ -170,19 +171,14 @@ class TestParser(unittest.TestCase):
         wf = Workflow("correct_analysis")
         wf.addition = add(a=1.0, b=2.0)
         graph = parse_workflow(wf)
+        tag = "correct_analysis.addition.inputs.a"
         self.assertEqual(
-            len(
-                list(
-                    graph.triples(
-                        (
-                            URIRef("correct_analysis.addition.inputs.a"),
-                            RDFS.label,
-                            Literal("correct_analysis.addition.inputs.a"),
-                        )
-                    )
-                )
-            ),
-            1,
+            len(list(graph.triples((URIRef(tag), RDFS.label, Literal(tag))))), 1,
+        )
+        self.assertTrue(
+            EX.Addition in list(
+                graph.objects(URIRef("correct_analysis.addition"), RDF.type)
+            )
         )
 
     def test_macro(self):
