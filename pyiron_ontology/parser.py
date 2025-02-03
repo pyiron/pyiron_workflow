@@ -37,6 +37,18 @@ def _get_function_dict(function):
     return result
 
 
+def _parse_output_args(node: Node) -> dict:
+    output_tuple_or_dict_or_none = parse_output_args(node.node_function)
+    if isinstance(output_tuple_or_dict_or_none, dict):
+        output_tuple = (output_tuple_or_dict_or_none,)
+    elif output_tuple_or_dict_or_none is None:
+        output_tuple = ({} for _ in node.outputs.labels)
+    else:
+        output_tuple = output_tuple_or_dict_or_none
+    outputs = {key: out for key, out in zip(node.outputs.labels, output_tuple)}
+    return outputs
+
+
 def get_inputs_and_outputs(node: Node) -> dict:
     """
     Read input and output arguments with their type hints and return a
@@ -52,12 +64,7 @@ def get_inputs_and_outputs(node: Node) -> dict:
     if isinstance(node, Macro):
         raise NotImplementedError("Macros are not supported yet")
     inputs = parse_input_args(node.node_function)
-    outputs = parse_output_args(node.node_function)
-    if isinstance(outputs, dict):
-        outputs = (outputs,)
-    elif outputs is None:
-        outputs = ({} for _ in node.outputs.labels)
-    outputs = {key: out for key, out in zip(node.outputs.labels, outputs)}
+    outputs = _parse_output_args(node.node_function)
     for key, value in node.inputs.items():
         if inputs[key] is None:
             inputs[key] = {}
