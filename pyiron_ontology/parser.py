@@ -38,7 +38,7 @@ def _get_function_dict(function):
 
 
 def _parse_output_args(node: Node) -> dict:
-    output_tuple_or_dict_or_none = parse_output_args(node.node_function)
+    output_tuple_or_dict_or_none = parse_output_args(node)
     if isinstance(output_tuple_or_dict_or_none, dict):
         output_tuple = (output_tuple_or_dict_or_none,)
     elif output_tuple_or_dict_or_none is None:
