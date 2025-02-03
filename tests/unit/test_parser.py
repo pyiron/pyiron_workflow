@@ -175,6 +175,11 @@ class TestParser(unittest.TestCase):
         self.assertEqual(
             len(list(graph.triples((URIRef(tag), RDFS.label, Literal(tag))))), 1,
         )
+        self.assertTrue(
+            EX.Addition in list(
+                graph.objects(URIRef("correct_analysis.addition"), RDF.type)
+            )
+        )
 
     def test_macro(self):
         @Workflow.wrap.as_macro_node
