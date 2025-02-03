@@ -23,14 +23,16 @@ def get_source_output(var: Node) -> str | None:
     if not var.connected:
         return None
     connection = var.connections[0]
-    return f"{connection.owner.label}.outputs.{connection.label}"
+    connection_name = f"{connection.owner.label}.outputs.{connection.label}"
+    return connection_name
 
 
 def _get_function_dict(function):
     result = {
         "label": function.__name__,
     }
-    if hasattr(function, "_semantikon_metadata"):
+    function_has_metadata = hasattr(function, "_semantikon_metadata")
+    if function_has_metadata:
         result.update(function._semantikon_metadata)
     return result
 
