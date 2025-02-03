@@ -34,6 +34,7 @@ def _get_function_dict(function):
         result.update(function._semantikon_metadata)
     return result
 
+
 def get_inputs_and_outputs(node: Node) -> dict:
     """
     Read input and output arguments with their type hints and return a
@@ -176,11 +177,11 @@ def get_triples(
     graph = Graph()
     node_label = workflow_namespace + data["label"]
     graph.add((URIRef(node_label), RDF.type, PROV.Activity))
-    graph.add((URIRef(node_label), PNS.hasSourceFunction, URIRef(data["function"]["label"])))
+    graph.add(
+        (URIRef(node_label), PNS.hasSourceFunction, URIRef(data["function"]["label"]))
+    )
     if data["function"].get("uri", None) is not None:
-        graph.add(
-            (URIRef(node_label), RDF.type, URIRef(data["function"]["uri"]))
-        )
+        graph.add((URIRef(node_label), RDF.type, URIRef(data["function"]["uri"])))
     for t in _get_triples_from_restrictions(data["function"]):
         graph.add(_parse_triple(t, ns=node_label, label=URIRef(node_label)))
     for io_ in ["inputs", "outputs"]:
