@@ -38,7 +38,7 @@ def _get_function_dict(function):
 
 
 def _parse_output_args(node: Node) -> dict:
-    output_tuple_or_dict_or_none = parse_output_args(node)
+    output_tuple_or_dict_or_none = parse_output_args(node.function)
     if isinstance(output_tuple_or_dict_or_none, dict):
         output_tuple = (output_tuple_or_dict_or_none,)
     elif output_tuple_or_dict_or_none is None:
@@ -64,7 +64,7 @@ def get_inputs_and_outputs(node: Node) -> dict:
     if isinstance(node, Macro):
         raise NotImplementedError("Macros are not supported yet")
     inputs = parse_input_args(node.node_function)
-    outputs = _parse_output_args(node.node_function)
+    outputs = _parse_output_args(node)
     for key, value in node.inputs.items():
         if inputs[key] is None:
             inputs[key] = {}
