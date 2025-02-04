@@ -108,6 +108,7 @@ def _translate_has_value(
                     value=getattr(value, k, None),
                     dtype=v,
                     parent=tag_uri,
+                    ontology=ontology,
                 )
         for k, v in dtype.__annotations__.items():
             metadata = meta_to_dict(v)
@@ -119,6 +120,7 @@ def _translate_has_value(
                 dtype=metadata["dtype"],
                 units=metadata.get("units", None),
                 parent=tag_uri,
+                ontology=ontology,
             )
     else:
         if parent is not None:
@@ -217,6 +219,7 @@ def get_triples(
                 value=d.get("value", None),
                 dtype=d.get("dtype", None),
                 units=d.get("units", None),
+                ontology=ontology,
             )
             for t in _get_triples_from_restrictions(d):
                 graph.add(_parse_triple(t, ns=node_label, label=channel_label))
@@ -390,7 +393,8 @@ def parse_workflow(
         graph += get_triples(
             data=data,
             workflow_namespace=workflow.label,
+            ontology=ontology,
         )
     if inherit_properties:
-        _inherit_properties(graph)
+        _inherit_properties(graph, ontology=ontology)
     return graph
