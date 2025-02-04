@@ -23,16 +23,30 @@ def get_source_output(var: Node) -> str | None:
     if not var.connected:
         return None
     connection = var.connections[0]
-    return f"{connection.owner.label}.outputs.{connection.label}"
+    connection_name = f"{connection.owner.label}.outputs.{connection.label}"
+    return connection_name
 
 
 def _get_function_dict(function):
     result = {
         "label": function.__name__,
     }
-    if hasattr(function, "_semantikon_metadata"):
+    function_has_metadata = hasattr(function, "_semantikon_metadata")
+    if function_has_metadata:
         result.update(function._semantikon_metadata)
     return result
+
+
+def _parse_output_args(node: Node) -> dict:
+    output_tuple_or_dict_or_none = parse_output_args(node.node_function)
+    if isinstance(output_tuple_or_dict_or_none, dict):
+        output_tuple = (output_tuple_or_dict_or_none,)
+    elif output_tuple_or_dict_or_none is None:
+        output_tuple = ({} for _ in node.outputs.labels)
+    else:
+        output_tuple = output_tuple_or_dict_or_none
+    outputs = {key: out for key, out in zip(node.outputs.labels, output_tuple)}
+    return outputs
 
 
 def get_inputs_and_outputs(node: Node) -> dict:
@@ -50,12 +64,7 @@ def get_inputs_and_outputs(node: Node) -> dict:
     if isinstance(node, Macro):
         raise NotImplementedError("Macros are not supported yet")
     inputs = parse_input_args(node.node_function)
-    outputs = parse_output_args(node.node_function)
-    if isinstance(outputs, dict):
-        outputs = (outputs,)
-    elif outputs is None:
-        outputs = ({} for _ in node.outputs.labels)
-    outputs = {key: out for key, out in zip(node.outputs.labels, outputs)}
+    outputs = _parse_output_args(node)
     for key, value in node.inputs.items():
         if inputs[key] is None:
             inputs[key] = {}
