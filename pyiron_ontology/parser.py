@@ -90,9 +90,10 @@ def _translate_has_value(
     dtype: type | None = None,
     units: URIRef | None = None,
     parent: URIRef | None = None,
+    ontology=PNS,
 ) -> Graph:
     tag_uri = URIRef(tag + ".value")
-    graph.add((label, PNS.hasValue, tag_uri))
+    graph.add((label, ontology.hasValue, tag_uri))
     if is_dataclass(dtype):
         warnings.warn(
             "semantikon_class is experimental - triples may change in the future",
@@ -107,6 +108,7 @@ def _translate_has_value(
                     value=getattr(value, k, None),
                     dtype=v,
                     parent=tag_uri,
+                    ontology=ontology,
                 )
         for k, v in dtype.__annotations__.items():
             metadata = meta_to_dict(v)
@@ -118,6 +120,7 @@ def _translate_has_value(
                 dtype=metadata["dtype"],
                 units=metadata.get("units", None),
                 parent=tag_uri,
+                ontology=ontology,
             )
     else:
         if parent is not None:
@@ -125,13 +128,14 @@ def _translate_has_value(
         if value is not None:
             graph.add((tag_uri, RDF.value, Literal(value)))
         if units is not None:
-            graph.add((tag_uri, PNS.hasUnits, URIRef(units)))
+            graph.add((tag_uri, ontology.hasUnits, URIRef(units)))
     return graph
 
 
 def get_triples(
     data: dict,
     workflow_namespace: str | None = None,
+    ontology=PNS,
 ) -> Graph:
     """
     Generate triples from a dictionary containing input output information.
@@ -174,7 +178,7 @@ def get_triples(
 
     Args:
         data (dict): dictionary containing input output information
-        workflow_namespace (str): namespace of the workflow
+        workflow_namespace (str): ontology of the workflow
 
     Returns:
         (rdflib.Graph): graph containing triples
@@ -187,7 +191,11 @@ def get_triples(
     node_label = workflow_namespace + data["label"]
     graph.add((URIRef(node_label), RDF.type, PROV.Activity))
     graph.add(
-        (URIRef(node_label), PNS.hasSourceFunction, URIRef(data["function"]["label"]))
+        (
+            URIRef(node_label),
+            ontology.hasSourceFunction,
+            URIRef(data["function"]["label"]),
+        )
     )
     if data["function"].get("uri", None) is not None:
         graph.add((URIRef(node_label), RDF.type, URIRef(data["function"]["uri"])))
@@ -201,13 +209,13 @@ def get_triples(
             if d.get("uri", None) is not None:
                 graph.add((channel_label, RDF.type, URIRef(d["uri"])))
             if io_ == "inputs":
-                graph.add((channel_label, PNS.inputOf, URIRef(node_label)))
+                graph.add((channel_label, ontology.inputOf, URIRef(node_label)))
             elif io_ == "outputs":
-                graph.add((channel_label, PNS.outputOf, URIRef(node_label)))
+                graph.add((channel_label, ontology.outputOf, URIRef(node_label)))
             tag = channel_label
             if io_ == "inputs" and d.get("connection", None) is not None:
                 tag = workflow_namespace + d["connection"]
-                graph.add((channel_label, PNS.inheritsPropertiesFrom, URIRef(tag)))
+                graph.add((channel_label, ontology.inheritsPropertiesFrom, URIRef(tag)))
             graph = _translate_has_value(
                 graph=graph,
                 label=channel_label,
@@ -215,6 +223,7 @@ def get_triples(
                 value=d.get("value", None),
                 dtype=d.get("dtype", None),
                 units=d.get("units", None),
+                ontology=ontology,
             )
             for t in _get_triples_from_restrictions(d):
                 graph.add(_parse_triple(t, ns=node_label, label=channel_label))
@@ -310,9 +319,9 @@ def _parse_triple(
     return subj, pred, obj
 
 
-def _inherit_properties(graph: Graph, n: int | None = None):
+def _inherit_properties(graph: Graph, n: int | None = None, ontology=PNS):
     update_query = (
-        f"PREFIX ns: <{PNS.BASE}>",
+        f"PREFIX ns: <{ontology.BASE}>",
         f"PREFIX rdfs: <{RDFS}>",
         f"PREFIX rdf: <{RDF}>",
         "",
@@ -330,7 +339,7 @@ def _inherit_properties(graph: Graph, n: int | None = None):
         "}",
     )
     if n is None:
-        n = len(list(graph.triples((None, PNS.inheritsPropertiesFrom, None))))
+        n = len(list(graph.triples((None, ontology.inheritsPropertiesFrom, None))))
     for _ in range(n):
         graph.update("\n".join(update_query))
 
@@ -363,6 +372,7 @@ def parse_workflow(
     workflow: Workflow,
     graph: Graph | None = None,
     inherit_properties: bool = True,
+    ontology=PNS,
 ) -> Graph:
     """
     Generate RDF graph from a pyiron workflow object
@@ -382,12 +392,17 @@ def parse_workflow(
     for node in workflow:
         data = get_inputs_and_outputs(node)
         graph.add(
-            (workflow_label, PNS.hasNode, URIRef(workflow.label + "." + data["label"]))
+            (
+                workflow_label,
+                ontology.hasNode,
+                URIRef(workflow.label + "." + data["label"]),
+            )
         )
         graph += get_triples(
             data=data,
             workflow_namespace=workflow.label,
+            ontology=ontology,
         )
     if inherit_properties:
-        _inherit_properties(graph)
+        _inherit_properties(graph, ontology=ontology)
     return graph
