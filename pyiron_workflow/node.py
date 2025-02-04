@@ -415,6 +415,8 @@ class Node(
     def _run_args(self) -> tuple[tuple, dict]:
         pass
 
+    from typing_extensions import deprecated
+    @deprecated("use new_function")
     def run(
         self,
         *args,
