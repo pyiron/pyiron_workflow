@@ -191,7 +191,11 @@ def get_triples(
     node_label = workflow_namespace + data["label"]
     graph.add((URIRef(node_label), RDF.type, PROV.Activity))
     graph.add(
-        (URIRef(node_label), ontology.hasSourceFunction, URIRef(data["function"]["label"]))
+        (
+            URIRef(node_label),
+            ontology.hasSourceFunction,
+            URIRef(data["function"]["label"]),
+        )
     )
     if data["function"].get("uri", None) is not None:
         graph.add((URIRef(node_label), RDF.type, URIRef(data["function"]["uri"])))
@@ -388,7 +392,11 @@ def parse_workflow(
     for node in workflow:
         data = get_inputs_and_outputs(node)
         graph.add(
-            (workflow_label, ontology.hasNode, URIRef(workflow.label + "." + data["label"]))
+            (
+                workflow_label,
+                ontology.hasNode,
+                URIRef(workflow.label + "." + data["label"]),
+            )
         )
         graph += get_triples(
             data=data,
