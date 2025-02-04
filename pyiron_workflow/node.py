@@ -977,6 +977,8 @@ class Node(
 
     load.__doc__ = cast(str, load.__doc__) + _save_load_warnings
 
+    from typing_extensions import deprecated
+    @deprecated("use new_function")
     def delete_storage(
         self,
         backend: Literal["pickle"] | StorageInterface | None = None,
