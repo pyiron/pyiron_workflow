@@ -297,22 +297,11 @@ def available_backends(
     """
 
     standard_backends = {"pickle": PickleStorage}
-
-    def yield_requested():
-        if isinstance(backend, str):
-            yield standard_backends[backend]()
-        elif isinstance(backend, StorageInterface):
-            yield backend
+    backend = standard_backends.get(backend, PickleStorage)() if isinstance(backend, str) else backend
 
     if backend is not None:
-        yield from yield_requested()
+        yield backend
         if only_requested:
             return
 
-    for key, value in standard_backends.items():
-        if (
-            backend is None
-            or (isinstance(backend, str) and key != backend)
-            or (isinstance(backend, StorageInterface) and value != backend)
-        ):
-            yield value()
+    yield from (v() for v in standard_backends.values() if not isinstance(backend, v))
