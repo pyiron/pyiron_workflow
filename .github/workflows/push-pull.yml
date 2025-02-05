@@ -50,3 +50,13 @@ jobs:
       - uses: astral-sh/ruff-action@v3
         with:
           args: check --select I --fix --diff
+
+  pydoclint:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: install pydoclint
+        run: pip install pydoclint
+      - name: run pydoclint
+        run: pydoclint --style=google .
+        
