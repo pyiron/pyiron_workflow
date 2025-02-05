@@ -217,7 +217,7 @@ class TestNode(unittest.TestCase):
                 msg="Expect a recovery file to be saved on failure",
             )
 
-            reloaded = ANode(label="failing", autoload=True)
+            reloaded = ANode(label="failing")
             self.assertIs(
                 reloaded.inputs.x.value,
                 NOT_DATA,
