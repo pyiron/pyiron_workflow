@@ -30,15 +30,24 @@ class TestAvailableBackends(unittest.TestCase):
         self.assertIsInstance(backends[0], PickleStorage)
 
     def test_extra_backend(self):
-        my_interface = PickleStorage()
-        backends = list(available_backends(my_interface))
-        self.assertEqual(
-            len(backends), 2, msg="We expect both the one we passed, and all defaults"
-        )
-        self.assertIs(backends[0], my_interface)
-        self.assertIsNot(
-            backends[0], backends[1], msg="They should be separate instances"
-        )
+        with self.subTest("String backend"):
+            backends = list(available_backends("pickle"))
+            print(backends)
+            self.assertEqual(
+                len(backends), 1, msg="We expect only the defaults"
+            )
+            self.assertIsInstance(backends[0], PickleStorage)
+
+        with self.subTest("Object backend"):
+            my_interface = PickleStorage()
+            backends = list(available_backends(my_interface))
+            self.assertEqual(
+                len(backends), 2, msg="We expect both the one we passed, and all defaults"
+            )
+            self.assertIs(backends[0], my_interface)
+            self.assertIsNot(
+                backends[0], backends[1], msg="They should be separate instances"
+            )
 
     def test_exclusive_backend(self):
         my_interface = PickleStorage()
