@@ -297,7 +297,11 @@ def available_backends(
     """
 
     standard_backends = {"pickle": PickleStorage}
-    backend_instance = standard_backends.get(backend, PickleStorage)() if isinstance(backend, str) else backend
+    backend_instance = (
+        standard_backends.get(backend, PickleStorage)()
+        if isinstance(backend, str)
+        else backend
+    )
 
     if backend_instance is not None:
         yield backend_instance
@@ -305,6 +309,7 @@ def available_backends(
             return
 
     yield from (
-        v() for k, v in standard_backends.items()
+        v()
+        for k, v in standard_backends.items()
         if (v != backend_instance and k != backend)
     )
