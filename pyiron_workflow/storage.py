@@ -308,8 +308,4 @@ def available_backends(
         if only_requested:
             return
 
-    yield from (
-        v()
-        for k, v in standard_backends.items()
-        if (v != backend_instance and k != backend)
-    )
+    yield from (v() for k, v in standard_backends.items() if k != backend)
