@@ -119,3 +119,8 @@ extend-exclude = '''
 [tool.mypy]
 enable_error_code = "deprecated"
 ignore_missing_imports = true
+exclude = ['docs/conf.py']
+
+[[tool.mypy.overrides]]
+module = 'tests'
+enable_error_code = []
