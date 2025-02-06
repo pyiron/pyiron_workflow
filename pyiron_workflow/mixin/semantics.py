@@ -97,7 +97,7 @@ class Semantic(UsesState, HasLabel, Generic[ParentType], ABC):
             self._parent.remove_child(self)
         self._parent = new_parent
         self._detached_parent_path = None
-        if self._parent is not None and self not in self._parent.children:
+        if self._parent is not None:
             self._parent.add_child(self)
 
     @property
