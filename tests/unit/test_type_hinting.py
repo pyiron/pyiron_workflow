@@ -118,7 +118,7 @@ class TestTypeHinting(unittest.TestCase):
 
     def test_get_type_hints(self):
         for hint, origin in [
-            (int | float, type(int| float)),
+            (int | float, type(int | float)),
             (typing.Annotated[int | float, "foo"], type(int | float)),
             (int, None),
             (typing.Annotated[int, "foo"], None),
@@ -127,7 +127,6 @@ class TestTypeHinting(unittest.TestCase):
         ]:
             with self.subTest(hint=hint, origin=origin):
                 self.assertEqual(_get_type_hints(hint)[0], origin)
-
 
 
 if __name__ == "__main__":
