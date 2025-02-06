@@ -48,7 +48,6 @@ class DummyOwner(HasIO[Any]):
         pass
 
 
-
 class DummyChannel(Channel[ConjugateType]):
     """Just to de-abstract the base class"""
 
