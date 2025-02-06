@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import unittest
+from typing import Any
 
 from pyiron_workflow.channels import (
     NOT_DATA,
@@ -14,13 +15,16 @@ from pyiron_workflow.channels import (
     OutputData,
     OutputSignal,
 )
+from pyiron_workflow.io import HasIO, Inputs, Outputs
 
 
-class DummyOwner:
+class DummyOwner(HasIO[Any]):
     def __init__(self):
         self.foo = [0]
         self.locked = False
         self.label = "owner_label"
+        self._inputs = Inputs()
+        self._outputs = Outputs()
 
     @property
     def full_label(self):
@@ -31,6 +35,18 @@ class DummyOwner:
 
     def data_input_locked(self):
         return self.locked
+
+    @property
+    def inputs(self) -> Inputs:
+        return self._inputs
+
+    @property
+    def outputs(self) -> Outputs:
+        return self._outputs
+
+    def run(self, **kwargs):
+        pass
+
 
 
 class DummyChannel(Channel[ConjugateType]):

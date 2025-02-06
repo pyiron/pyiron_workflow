@@ -39,7 +39,7 @@ class ANode(Node):
         return add_one(*args)
 
     @property
-    def _run_args(self) -> dict:
+    def _run_args(self) -> tuple[tuple, dict]:
         return (self.inputs.x.value,), {}
 
     def process_run_result(self, run_output):
