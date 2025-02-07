@@ -1,5 +1,8 @@
 import unittest
+from abc import ABC
+from collections.abc import Callable
 from textwrap import dedent
+from typing import ClassVar
 
 from pyiron_snippets.factory import classfactory
 
@@ -8,7 +11,9 @@ from pyiron_workflow.logging import logger
 from pyiron_workflow.mixin.preview import ScrapesIO, no_output_validation_warning
 
 
-class ScrapesFromDecorated(ScrapesIO):
+class ScrapesFromDecorated(ScrapesIO, ABC):
+    _decorated_function: ClassVar[Callable]
+
     @classmethod
     def _io_defining_function(cls) -> callable:
         return cls._decorated_function
