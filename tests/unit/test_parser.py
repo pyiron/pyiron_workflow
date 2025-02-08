@@ -167,12 +167,12 @@ class TestParser(unittest.TestCase):
         graph = parse_workflow(wf)
         tag = "correct_analysis.addition.inputs.a"
         self.assertEqual(
-            len(list(graph.triples((URIRef(tag), RDFS.label, Literal(tag))))), 1,
+            len(list(graph.triples((URIRef(tag), RDFS.label, Literal(tag))))),
+            1,
         )
         self.assertTrue(
-            EX.Addition in list(
-                graph.objects(URIRef("correct_analysis.addition"), RDF.type)
-            )
+            EX.Addition
+            in list(graph.objects(URIRef("correct_analysis.addition"), RDF.type))
         )
 
     def test_macro(self):
