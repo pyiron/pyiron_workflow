@@ -136,7 +136,6 @@ def get_triples(
     data: dict,
     workflow_namespace: str | None = None,
     ontology=PNS,
-    check_missing_items: bool = True,
 ) -> Graph:
     """
     Generate triples from a dictionary containing input output information.
@@ -200,10 +199,7 @@ def get_triples(
     )
     if data["function"].get("uri", None) is not None:
         graph.add((URIRef(node_label), RDF.type, URIRef(data["function"]["uri"])))
-    for t in _get_triples_from_restrictions(
-        data["function"],
-        check_missing_items=check_missing_items,
-    ):
+    for t in _get_triples_from_restrictions(data["function"]):
         graph.add(_parse_triple(t, ns=node_label, label=URIRef(node_label)))
     for io_ in ["inputs", "outputs"]:
         for key, d in data[io_].items():
@@ -229,16 +225,12 @@ def get_triples(
                 units=d.get("units", None),
                 ontology=ontology,
             )
-            for t in _get_triples_from_restrictions(
-                d, check_missing_items=check_missing_items
-            ):
+            for t in _get_triples_from_restrictions(d):
                 graph.add(_parse_triple(t, ns=node_label, label=channel_label))
     return graph
 
 
-def _get_triples_from_restrictions(
-    data: dict, check_missing_items: bool = True
-) -> list:
+def _get_triples_from_restrictions(data: dict) -> list:
     triples = []
     if data.get("restrictions", None) is not None:
         triples = restriction_to_triple(data["restrictions"])
@@ -381,6 +373,7 @@ def parse_workflow(
     graph: Graph | None = None,
     inherit_properties: bool = True,
     ontology=PNS,
+    append_missing_items: bool = True,
 ) -> Graph:
     """
     Generate RDF graph from a pyiron workflow object
@@ -413,4 +406,18 @@ def parse_workflow(
         )
     if inherit_properties:
         _inherit_properties(graph, ontology=ontology)
+    if append_missing_items:
+        graph = _append_missing_items(graph)
+    return graph
+
+
+def _append_missing_items(graph: Graph) -> Graph:
+    for p, o in zip(
+        [OWL.onProperty, OWL.someValuesFrom, OWL.allValuesFrom],
+        [RDF.Property, OWL.Class, OWL.Class]
+    ):
+        for obj in graph.objects(None, p):
+            triple = (obj, RDF.type, o)
+            if not triple in graph:
+                graph.add(triple)
     return graph
