@@ -373,6 +373,7 @@ def parse_workflow(
     graph: Graph | None = None,
     inherit_properties: bool = True,
     ontology=PNS,
+    append_missing_items: bool = True,
 ) -> Graph:
     """
     Generate RDF graph from a pyiron workflow object
@@ -405,4 +406,22 @@ def parse_workflow(
         )
     if inherit_properties:
         _inherit_properties(graph, ontology=ontology)
+    if append_missing_items:
+        graph = _append_missing_items(graph)
+    return graph
+
+
+def _append_missing_items(graph: Graph) -> Graph:
+    """
+    This function makes sure that all properties defined in the descriptions
+    become valid.
+    """
+    for p, o in zip(
+        [OWL.onProperty, OWL.someValuesFrom, OWL.allValuesFrom],
+        [RDF.Property, OWL.Class, OWL.Class],
+    ):
+        for obj in graph.objects(None, p):
+            triple = (obj, RDF.type, o)
+            if not triple in graph:
+                graph.add(triple)
     return graph
