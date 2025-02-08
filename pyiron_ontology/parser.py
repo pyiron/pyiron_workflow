@@ -136,6 +136,7 @@ def get_triples(
     data: dict,
     workflow_namespace: str | None = None,
     ontology=PNS,
+    check_missing_items: bool = True,
 ) -> Graph:
     """
     Generate triples from a dictionary containing input output information.
@@ -199,7 +200,10 @@ def get_triples(
     )
     if data["function"].get("uri", None) is not None:
         graph.add((URIRef(node_label), RDF.type, URIRef(data["function"]["uri"])))
-    for t in _get_triples_from_restrictions(data["function"]):
+    for t in _get_triples_from_restrictions(
+        data["function"],
+        check_missing_items=check_missing_items,
+    ):
         graph.add(_parse_triple(t, ns=node_label, label=URIRef(node_label)))
     for io_ in ["inputs", "outputs"]:
         for key, d in data[io_].items():
@@ -225,12 +229,16 @@ def get_triples(
                 units=d.get("units", None),
                 ontology=ontology,
             )
-            for t in _get_triples_from_restrictions(d):
+            for t in _get_triples_from_restrictions(
+                d, check_missing_items=check_missing_items
+            ):
                 graph.add(_parse_triple(t, ns=node_label, label=channel_label))
     return graph
 
 
-def _get_triples_from_restrictions(data: dict) -> list:
+def _get_triples_from_restrictions(
+    data: dict, check_missing_items: bool = True
+) -> list:
     triples = []
     if data.get("restrictions", None) is not None:
         triples = restriction_to_triple(data["restrictions"])
