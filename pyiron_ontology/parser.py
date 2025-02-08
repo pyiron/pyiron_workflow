@@ -418,7 +418,7 @@ def _append_missing_items(graph: Graph) -> Graph:
     """
     for p, o in zip(
         [OWL.onProperty, OWL.someValuesFrom, OWL.allValuesFrom],
-        [RDF.Property, OWL.Class, OWL.Class]
+        [RDF.Property, OWL.Class, OWL.Class],
     ):
         for obj in graph.objects(None, p):
             triple = (obj, RDF.type, o)
