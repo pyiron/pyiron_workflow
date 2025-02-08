@@ -136,13 +136,7 @@ class TestParser(unittest.TestCase):
 
     def test_correct_analysis(self):
         def get_graph(wf):
-            graph = Graph()
-            graph.add((EX.HasOperation, RDF.type, RDF.Property))
-            graph.add((EX.Addition, RDF.type, OWL.Class))
-            graph.add((EX.Multiplication, RDF.type, OWL.Class))
-            for value in wf.children.values():
-                data = get_inputs_and_outputs(value)
-                graph += get_triples(data=data)
+            graph = parse_workflow(wf)
             _inherit_properties(graph)
             DeductiveClosure(OWLRL_Semantics).expand(graph)
             return graph
