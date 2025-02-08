@@ -412,6 +412,10 @@ def parse_workflow(
 
 
 def _append_missing_items(graph: Graph) -> Graph:
+    """
+    This function makes sure that all properties defined in the descriptions
+    become valid.
+    """
     for p, o in zip(
         [OWL.onProperty, OWL.someValuesFrom, OWL.allValuesFrom],
         [RDF.Property, OWL.Class, OWL.Class]
