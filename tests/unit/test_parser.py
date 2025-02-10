@@ -3,12 +3,9 @@ from owlrl import DeductiveClosure, OWLRL_Semantics
 from rdflib import Graph, OWL, RDF, RDFS, Literal, URIRef
 from pyiron_ontology.parser import (
     get_inputs_and_outputs,
-    get_triples,
-    _inherit_properties,
-    validate_values,
     parse_workflow,
-    PNS,
 )
+from semantikon.ontology import PNS, _inherit_properties, get_triples, validate_values
 from pyiron_workflow import Workflow
 from semantikon.typing import u
 from dataclasses import dataclass
