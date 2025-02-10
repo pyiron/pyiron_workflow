@@ -467,6 +467,6 @@ def _append_missing_items(graph: Graph) -> Graph:
     ):
         for obj in graph.objects(None, p):
             triple = (obj, RDF.type, o)
-            if not triple in graph:
+            if triple not in graph:
                 graph.add(triple)
     return graph
