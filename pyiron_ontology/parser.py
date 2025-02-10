@@ -368,6 +368,24 @@ def validate_values(graph: Graph) -> list:
     return missing_triples
 
 
+def workflow_to_dict(workflow: Workflow) -> dict:
+    """
+    Convert a workflow to a dictionary
+
+    Args:
+        workflow (pyiron_workflow.workflow.Workflow): workflow object
+
+    Returns:
+        (dict): dictionary containing workflow information
+    """
+    result = {}
+    for node in workflow:
+        data = get_inputs_and_outputs(node)
+        result[node.label] = data
+    result["workflow_label"] = workflow.label
+    return result
+
+
 def parse_workflow(
     workflow: Workflow,
     graph: Graph | None = None,
@@ -386,22 +404,49 @@ def parse_workflow(
     Returns:
         (rdflib.Graph): graph containing workflow information
     """
+    wf_dict = workflow_to_dict(workflow)
+    return get_knowledge_graph(
+        wf_dict=wf_dict,
+        graph=graph,
+        inherit_properties=inherit_properties,
+        ontology=ontology,
+        append_missing_items=append_missing_items,
+    )
+
+
+def get_knowledge_graph(
+    wf_dict: dict,
+    graph: Graph | None = None,
+    inherit_properties: bool = True,
+    ontology=PNS,
+    append_missing_items: bool = True,
+) -> Graph:
+    """
+    Generate RDF graph from a dictionary containing workflow information
+
+    Args:
+        wf_dict (dict): dictionary containing workflow information
+        graph (rdflib.Graph): graph to be updated
+        inherit_properties (bool): if True, properties are inherited
+
+    Returns:
+        (rdflib.Graph): graph containing workflow information
+    """
     if graph is None:
         graph = Graph()
-    workflow_label = URIRef(workflow.label)
-    graph.add((workflow_label, RDFS.label, Literal(workflow.label)))
-    for node in workflow:
-        data = get_inputs_and_outputs(node)
+    workflow_label = wf_dict.pop("workflow_label")
+    graph.add((URIRef(workflow_label), RDFS.label, Literal(workflow_label)))
+    for data in wf_dict.values():
         graph.add(
             (
-                workflow_label,
+                URIRef(workflow_label),
                 ontology.hasNode,
-                URIRef(workflow.label + "." + data["label"]),
+                URIRef(workflow_label + "." + data["label"]),
             )
         )
         graph += get_triples(
             data=data,
-            workflow_namespace=workflow.label,
+            workflow_namespace=workflow_label,
             ontology=ontology,
         )
     if inherit_properties:
@@ -422,6 +467,6 @@ def _append_missing_items(graph: Graph) -> Graph:
     ):
         for obj in graph.objects(None, p):
             triple = (obj, RDF.type, o)
-            if not triple in graph:
+            if triple not in graph:
                 graph.add(triple)
     return graph
