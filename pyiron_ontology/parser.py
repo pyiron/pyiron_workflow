@@ -1,23 +1,9 @@
-from typing import TypeAlias, Any
-import warnings
 
-from semantikon.converter import parse_input_args, parse_output_args, meta_to_dict
-from semantikon.ontology import get_knowledge_graph
-from rdflib import Graph, Literal, RDF, RDFS, URIRef, OWL, PROV, Namespace
+from semantikon.converter import parse_input_args, parse_output_args
+from semantikon.ontology import get_knowledge_graph, PNS
+from rdflib import Graph
 from pyiron_workflow import NOT_DATA, Workflow, Macro
 from pyiron_workflow.node import Node
-from dataclasses import is_dataclass
-
-
-class PNS:
-    BASE = Namespace("http://pyiron.org/ontology/")
-    hasNode = BASE["hasNode"]
-    hasSourceFunction = BASE["hasSourceFunction"]
-    hasUnits = BASE["hasUnits"]
-    inheritsPropertiesFrom = BASE["inheritsPropertiesFrom"]
-    inputOf = BASE["inputOf"]
-    outputOf = BASE["outputOf"]
-    hasValue = BASE["hasValue"]
 
 
 def get_source_output(var: Node) -> str | None:
