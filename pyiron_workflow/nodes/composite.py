@@ -65,11 +65,17 @@ def _io_to_dict(
     node: Node, with_values: bool = True, with_default: bool = True
 ) -> dict:
     data = {"inputs": {}, "outputs": {}}
+    is_composite = isinstance(node, Composite)
     for io_ in ["inputs", "outputs"]:
         for inp in getattr(node, io_):
-            data[io_][inp.label] = _extract_data(
-                inp, with_values=with_values, with_default=with_default
-            )
+            if is_composite:
+                data[io_][inp.scoped_label] = _extract_data(
+                    inp, with_values=with_values, with_default=with_default
+                )
+            else:
+                data[io_][inp.label] = _extract_data(
+                    inp, with_values=with_values, with_default=with_default
+                )
     return data
 
 
