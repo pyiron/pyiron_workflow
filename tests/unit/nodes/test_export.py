@@ -1,8 +1,6 @@
 import unittest
 
 from pyiron_workflow._tests import ensure_tests_in_python_path
-from pyiron_workflow.nodes.function import as_function_node
-from pyiron_workflow.nodes.macro import as_macro_node
 from pyiron_workflow.workflow import Workflow
 
 ensure_tests_in_python_path()
