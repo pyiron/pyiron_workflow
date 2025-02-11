@@ -33,7 +33,7 @@ class TestExport(unittest.TestCase):
         wf.run()
         data = wf.export_to_dict()
         self.assertEqual(
-            set(data.keys()), {"edges", "inputs", "nodes", "outputs"}
+            set(data.keys()), {"edges", "inputs", "label", "nodes", "outputs"}
         )
         self.assertEqual(
             data["inputs"], {'three__c': {"default": 0, 'value': 1, 'type_hint': int}}
