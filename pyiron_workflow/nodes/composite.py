@@ -29,7 +29,11 @@ if TYPE_CHECKING:
 
 def _extract_data(item: Channel) -> dict:
     data = {}
-    for key, value in zip(["default", "value", "type_hint"], 2 * [NOT_DATA] + [None]):
+    for key, value in zip(
+        ["default", "value", "type_hint"],
+        2 * [NOT_DATA] + [None],
+        strict=True
+    ):
         if getattr(item, key) is not value:
             data[key] = getattr(item, key)
     return data

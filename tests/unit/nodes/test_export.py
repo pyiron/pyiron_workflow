@@ -1,8 +1,8 @@
 import unittest
 
 from pyiron_workflow._tests import ensure_tests_in_python_path
-from pyiron_workflow.workflow import Workflow
 from pyiron_workflow.nodes.composite import Composite
+from pyiron_workflow.workflow import Workflow
 
 ensure_tests_in_python_path()
 
