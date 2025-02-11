@@ -18,7 +18,7 @@ def add_two(b: int = 10) -> int:
     return result
 
 @Workflow.wrap.as_macro_node
-def add_three(macro: Composite | None = None, c: int) -> int:
+def add_three(macro: Composite | None = None, c: int = 0) -> int:
     macro.one = add_one(a=c)
     macro.two = add_two(b=macro.one)
     w = macro.two
@@ -36,7 +36,7 @@ class TestExport(unittest.TestCase):
             set(data.keys()), {"edges", "inputs", "nodes", "outputs"}
         )
         self.assertEqual(
-            data["inputs"], {'three__c': {'value': 1, 'type_hint': int}}
+            data["inputs"], {'three__c': {"default": 0, 'value': 1, 'type_hint': int}}
         )
 
 
