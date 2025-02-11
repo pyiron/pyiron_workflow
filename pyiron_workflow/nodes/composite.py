@@ -13,7 +13,7 @@ from typing import TYPE_CHECKING, Literal
 from pyiron_snippets.colors import SeabornColors
 from pyiron_snippets.dotdict import DotDict
 
-from pyiron_workflow.channels import Channel, NOT_DATA
+from pyiron_workflow.channels import NOT_DATA, Channel
 from pyiron_workflow.create import HasCreator
 from pyiron_workflow.mixin.semantics import SemanticParent
 from pyiron_workflow.node import Node
@@ -42,10 +42,7 @@ def _extract_data(item: Channel) -> dict:
 def _is_internal_connection(channel: Channel, workflow: Composite, io_: str) -> bool:
     if not channel.connected:
         return False
-    for n in workflow:
-        if channel.connections[0] in getattr(n, io_):
-            return True
-    return False
+    return any(channel.connections[0] in getattr(n, io_) for n in workflow)
 
 
 def _get_scoped_label(channel: Channel, io_: str) -> str:
