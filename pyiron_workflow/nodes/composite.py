@@ -112,7 +112,13 @@ def export_composite_to_dict(
     Returns:
         dict: The exported composite as a dictionary.
     """
-    data = {"inputs": {}, "outputs": {}, "nodes": {}, "edges": []}
+    data = {
+        "inputs": {},
+        "outputs": {},
+        "nodes": {},
+        "edges": [],
+        "label": workflow.label
+    }
     for inp in workflow.inputs:
         if inp.value_receiver is not None:
             data["edges"].append(
