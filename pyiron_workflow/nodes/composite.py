@@ -61,6 +61,18 @@ def _get_scoped_label(channel: Channel, io_: str) -> str:
     return channel.scoped_label.replace("__", f".{io_}.")
 
 
+def _io_to_dict(
+    node: Node, with_values: bool = True, with_default: bool = True
+) -> dict:
+    data = {"inputs": {}, "outputs": {}}
+    for io_ in ["inputs", "outputs"]:
+        for inp in getattr(node, io_):
+            data[io_][inp.label] = _extract_data(
+                inp, with_values=with_values, with_default=with_default
+            )
+    return data
+
+
 def export_node_to_dict(
     node: Node, with_values: bool = True, with_default: bool = True
 ) -> dict:
@@ -76,11 +88,7 @@ def export_node_to_dict(
         dict: The exported node as a dictionary.
     """
     data = {"inputs": {}, "outputs": {}, "function": node.node_function}
-    for io_ in ["inputs", "outputs"]:
-        for inp in getattr(node, io_):
-            data[io_][inp.label] = _extract_data(
-                inp, with_values=with_values, with_default=with_default
-            )
+    data.update(_io_to_dict(node, with_values=with_values, with_default=with_default))
     return data
 
 
@@ -131,11 +139,9 @@ def export_composite_to_dict(
                         f"outputs.{out.value_receiver.scoped_label}",
                     )
                 )
-    for io_ in ["inputs", "outputs"]:
-        for inp in getattr(workflow, io_):
-            data[io_][inp.scoped_label] = _extract_data(
-                inp, with_values=with_values, with_default=with_default
-            )
+    data.update(
+        _io_to_dict(workflow, with_values=with_values, with_default=with_default)
+    )
     return data
 
 
