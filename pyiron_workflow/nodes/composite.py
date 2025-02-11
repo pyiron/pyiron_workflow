@@ -75,15 +75,16 @@ def export_composite_to_dict(workflow: Composite, with_values: bool = True) -> d
             )
         else:
             data["nodes"][label] = export_node_to_dict(node, with_values=with_values)
-        for out in node.outputs:
-            if _is_internal_connection(out, workflow, "inputs"):
+        for inp in node.inputs:
+            if _is_internal_connection(inp, workflow, "outputs"):
                 data["edges"].append(
                     (
-                        _get_scoped_label(out, "outputs"),
-                        _get_scoped_label(out.connections[0], "inputs"),
+                        _get_scoped_label(out.connections[0], "outputs"),
+                        _get_scoped_label(out, "inputs"),
                     )
                 )
-            elif out.value_receiver is not None:
+        for out in node.outputs:
+            if out.value_receiver is not None:
                 data["edges"].append(
                     (
                         _get_scoped_label(out, "outputs"),
