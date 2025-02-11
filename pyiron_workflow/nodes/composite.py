@@ -47,9 +47,7 @@ def _get_scoped_label(channel: Channel, io_: str) -> str:
     return channel.scoped_label.replace("__", f".{io_}.")
 
 
-def export_node_to_dict(
-    node: Node, with_values: bool = True
-) -> dict:
+def export_node_to_dict(node: Node, with_values: bool = True) -> dict:
     data = {"inputs": {}, "outputs": {}, "function": node.node_function}
     for io_ in ["inputs", "outputs"]:
         for inp in getattr(node, io_):
@@ -57,9 +55,7 @@ def export_node_to_dict(
     return data
 
 
-def export_composite_to_dict(
-    workflow: Composite, with_values: bool = True
-) -> dict:
+def export_composite_to_dict(workflow: Composite, with_values: bool = True) -> dict:
     data = {"inputs": {}, "outputs": {}}
     data["nodes"] = {}
     data["edges"] = []
@@ -78,9 +74,7 @@ def export_composite_to_dict(
                 node, with_values=with_values
             )
         else:
-            data["nodes"][label] = export_node_to_dict(
-                node, with_values=with_values
-            )
+            data["nodes"][label] = export_node_to_dict(node, with_values=with_values)
         for out in node.outputs:
             if _is_internal_connection(out, workflow, "inputs"):
                 data["edges"].append(
