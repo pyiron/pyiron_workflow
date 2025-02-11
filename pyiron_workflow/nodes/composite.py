@@ -27,17 +27,31 @@ if TYPE_CHECKING:
     from pyiron_workflow.storage import StorageInterface
 
 
-def _extract_data(item: Channel) -> dict:
+def _extract_data(item: Channel, with_values=True, with_default=True) -> dict:
     data = {}
-    for key, value in zip(
-        ["default", "value", "type_hint"], 2 * [NOT_DATA] + [None], strict=True
-    ):
+    data_dict = {"default": NOT_DATA, "value": NOT_DATA, "type_hint": None}
+    if not with_values:
+        data_dict.pop("value")
+    if not with_default:
+        data_dict.pop("default")
+    for key, value in data_dict.items():
         if getattr(item, key) is not value:
             data[key] = getattr(item, key)
     return data
 
 
 def _is_internal_connection(channel: Channel, workflow: Composite, io_: str) -> bool:
+    """
+    Check if a channel is connected to another channel in the same workflow.
+
+    Args:
+        channel (Channel): The channel to check.
+        workflow (Composite): The workflow to check whether the channel is connected to.
+        io_ (str): The IO direction to check.
+    
+    Returns:
+        bool: Whether the channel is connected to another channel in the same workflow.
+    """
     if not channel.connected:
         return False
     return any(channel.connections[0] in getattr(n, io_) for n in workflow)
@@ -47,15 +61,43 @@ def _get_scoped_label(channel: Channel, io_: str) -> str:
     return channel.scoped_label.replace("__", f".{io_}.")
 
 
-def export_node_to_dict(node: Node, with_values: bool = True) -> dict:
+def export_node_to_dict(
+    node: Node, with_values: bool = True, with_default: bool = True
+) -> dict:
+    """
+    Export a node to a dictionary.
+
+    Args:
+        node (Node): The node to export.
+        with_values (bool): Whether to include the values of the channels in the
+            dictionary. (Default is True.)
+
+    Returns:
+        dict: The exported node as a dictionary.
+    """
     data = {"inputs": {}, "outputs": {}, "function": node.node_function}
     for io_ in ["inputs", "outputs"]:
         for inp in getattr(node, io_):
-            data[io_][inp.label] = _extract_data(inp)
+            data[io_][inp.label] = _extract_data(
+                inp, with_values=with_values, with_default=with_default
+            )
     return data
 
 
-def export_composite_to_dict(workflow: Composite, with_values: bool = True) -> dict:
+def export_composite_to_dict(
+    workflow: Composite, with_values: bool = True, with_default: bool = True
+) -> dict:
+    """
+    Export a composite to a dictionary.
+
+    Args:
+        workflow (Composite): The composite to export.
+        with_values (bool): Whether to include the values of the channels in the
+            dictionary. (Default is True.)
+
+    Returns:
+        dict: The exported composite as a dictionary.
+    """
     data = {"inputs": {}, "outputs": {}}
     data["nodes"] = {}
     data["edges"] = []
@@ -93,7 +135,9 @@ def export_composite_to_dict(workflow: Composite, with_values: bool = True) -> d
                 )
     for io_ in ["inputs", "outputs"]:
         for inp in getattr(workflow, io_):
-            data[io_][inp.scoped_label] = _extract_data(inp)
+            data[io_][inp.scoped_label] = _extract_data(
+                inp, with_values=with_values, with_default=with_default
+            )
     return data
 
 
@@ -530,8 +574,12 @@ class Composite(SemanticParent[Node], HasCreator, Node, ABC):
         """
         return _get_graph_as_dict(self)
 
-    def export_to_dict(self, with_values: bool = True) -> dict:
-        return export_composite_to_dict(self, with_values=with_values)
+    def export_to_dict(
+        self, with_values: bool = True, with_default: bool = True
+    ) -> dict:
+        return export_composite_to_dict(
+            self, with_values=with_values, with_default=with_default
+        )
 
     def _get_connections_as_strings(
         self, panel_getter: Callable
