@@ -13,11 +13,11 @@ from typing import TYPE_CHECKING, Literal
 from pyiron_snippets.colors import SeabornColors
 from pyiron_snippets.dotdict import DotDict
 
+from pyiron_workflow.channels import Channel, NOT_DATA
 from pyiron_workflow.create import HasCreator
 from pyiron_workflow.mixin.semantics import SemanticParent
 from pyiron_workflow.node import Node
 from pyiron_workflow.topology import set_run_connections_according_to_dag
-from pyiron_workflow.channels import Channel, NOT_DATA
 
 if TYPE_CHECKING:
     from pyiron_workflow.channels import (
@@ -29,18 +29,19 @@ if TYPE_CHECKING:
 
 def _extract_data(item: Channel) -> dict:
     data = {}
-    for key in ["default", "value"]:
-        if getattr(item, key) is not NOT_DATA:
+    for key, value in zip(["default", "value", "type_hint"], 2 * [NOT_DATA] + [None]):
+        if getattr(item, key) is not value:
             data[key] = getattr(item, key)
-    if getattr(item, "type_hint") is not None:
-        data["type_hint"] = getattr(item, "type_hint")
     return data
 
 
 def _is_internal_connection(channel: Channel, workflow: Composite, io_: str) -> bool:
     if not channel.connected:
         return False
-    return any([channel.connections[0] in getattr(n, io_) for n in workflow])
+    for n in workflow:
+        if channel.connections[0] in getattr(n, io_):
+            return True
+    return False
 
 
 def _get_scoped_label(channel: Channel, io_: str) -> str:
