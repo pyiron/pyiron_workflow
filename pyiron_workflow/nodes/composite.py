@@ -17,6 +17,7 @@ from pyiron_workflow.create import HasCreator
 from pyiron_workflow.mixin.semantics import SemanticParent
 from pyiron_workflow.node import Node
 from pyiron_workflow.topology import set_run_connections_according_to_dag
+from pyiron_workflow.nodes.export import get_universal_dict
 
 if TYPE_CHECKING:
     from pyiron_workflow.channels import (
@@ -458,6 +459,9 @@ class Composite(SemanticParent[Node], HasCreator, Node, ABC):
         as keys and objects as values.
         """
         return _get_graph_as_dict(self)
+
+    def get_universal_dict(self, with_values: bool = True) -> dict:
+        return get_universal_dict(self, with_values=with_values)
 
     def _get_connections_as_strings(
         self, panel_getter: Callable
