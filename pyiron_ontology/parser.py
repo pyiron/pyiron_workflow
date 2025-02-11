@@ -1,4 +1,3 @@
-
 from semantikon.converter import parse_input_args, parse_output_args
 from semantikon.ontology import get_knowledge_graph, PNS
 from rdflib import Graph
