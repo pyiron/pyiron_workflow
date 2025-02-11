@@ -2,6 +2,7 @@ import unittest
 
 from pyiron_workflow._tests import ensure_tests_in_python_path
 from pyiron_workflow.workflow import Workflow
+from pyiron_workflow.nodes.composite import Composite
 
 ensure_tests_in_python_path()
 
@@ -17,7 +18,7 @@ def add_two(b: int = 10) -> int:
     return result
 
 @Workflow.wrap.as_macro_node
-def add_three(macro, c: int) -> int:
+def add_three(macro: Composite | None = None, c: int) -> int:
     macro.one = add_one(a=c)
     macro.two = add_two(b=macro.one)
     w = macro.two
