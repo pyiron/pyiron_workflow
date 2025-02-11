@@ -48,7 +48,7 @@ def _is_internal_connection(channel: Channel, workflow: Composite, io_: str) -> 
         channel (Channel): The channel to check.
         workflow (Composite): The workflow to check whether the channel is connected to.
         io_ (str): The IO direction to check.
-    
+
     Returns:
         bool: Whether the channel is connected to another channel in the same workflow.
     """
@@ -121,8 +121,8 @@ def export_composite_to_dict(
             if _is_internal_connection(inp, workflow, "outputs"):
                 data["edges"].append(
                     (
-                        _get_scoped_label(out.connections[0], "outputs"),
-                        _get_scoped_label(out, "inputs"),
+                        _get_scoped_label(inp.connections[0], "outputs"),
+                        _get_scoped_label(inp, "inputs"),
                     )
                 )
         for out in node.outputs:
