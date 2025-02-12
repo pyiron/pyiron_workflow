@@ -40,9 +40,7 @@ class Creator:
 
         self.function_node = function_node
 
-    @property
-    def executorlib(self):
-        return ExecutorlibExecutor()
+    executorlib = executorlib
 
     @property
     def standard(self):
