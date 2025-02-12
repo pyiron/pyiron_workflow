@@ -149,7 +149,7 @@ class TestWorkflow(unittest.TestCase):
             Workflow.create.ProcessPoolExecutor,
             Workflow.create.ThreadPoolExecutor,
             Workflow.create.CloudpickleProcessPoolExecutor,
-            Workflow.create.ExecutorlibExecutor,
+            Workflow.create.executorlib.SingleNodeExecutor,
         ]
 
         wf = Workflow("executed")

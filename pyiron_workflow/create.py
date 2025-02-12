@@ -13,15 +13,6 @@ from pyiron_workflow.executors import CloudpickleProcessPoolExecutor
 from pyiron_workflow.nodes.function import as_function_node, function_node
 
 
-class ExecutorlibExecutor:
-    def __init__(self):
-        self.SlurmJobExecutor = executorlib.SlurmJobExecutor
-        self.SingleNodeExecutor = executorlib.SingleNodeExecutor
-        self.FluxJobExecutor = executorlib.FluxJobExecutor
-        self.FluxClusterExecutor = executorlib.FluxClusterExecutor
-        self.SlurmClusterExecutor = executorlib.SlurmClusterExecutor
-
-
 class Creator:
     """
     A container class for providing access to various workflow objects.
