@@ -24,7 +24,7 @@ class MyData:
 
 
 @as_function_node
-def Downstream(x: MyData) -> MyData:
+def Downstream(x: MyData.dataclass) -> MyData.dataclass:
     x.stuff = True
     return x
 
