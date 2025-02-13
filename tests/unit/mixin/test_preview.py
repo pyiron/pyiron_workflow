@@ -1,8 +1,7 @@
 import unittest
-from abc import ABC
 from collections.abc import Callable
 from textwrap import dedent
-from typing import ClassVar
+from typing import Any
 
 from pyiron_snippets.factory import classfactory
 
@@ -11,11 +10,9 @@ from pyiron_workflow.logging import logger
 from pyiron_workflow.mixin.preview import ScrapesIO, no_output_validation_warning
 
 
-class ScrapesFromDecorated(ScrapesIO, ABC):
-    _decorated_function: ClassVar[Callable]
-
+class ScrapesFromDecorated(ScrapesIO):
     @classmethod
-    def _io_defining_function(cls) -> callable:
+    def _io_defining_function(cls) -> Callable:
         return cls._decorated_function
 
 
@@ -121,7 +118,7 @@ class TestIOPreview(unittest.TestCase):
             ):
 
                 @as_scraper()
-                def HintMismatchesScraped(x) -> int:
+                def HintMismatchesScraped(x) -> tuple[Any, float, int]:
                     y, z = 5.0, 5
                     return x, y, z
 
@@ -131,7 +128,7 @@ class TestIOPreview(unittest.TestCase):
             ):
 
                 @as_scraper("xo", "yo", "zo")
-                def HintMismatchesProvided(x) -> int:
+                def HintMismatchesProvided(x) -> tuple[Any, float, int]:
                     y, z = 5.0, 5
                     return x, y, z
 

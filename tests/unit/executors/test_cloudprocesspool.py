@@ -1,4 +1,5 @@
 import unittest
+from collections.abc import Callable
 from concurrent.futures import TimeoutError
 from functools import partialmethod
 from time import sleep
@@ -13,7 +14,7 @@ class Foo:
     A base class to be dynamically modified for testing CloudpickleProcessPoolExecutor.
     """
 
-    def __init__(self, fnc: callable):
+    def __init__(self, fnc: Callable):
         self.fnc = fnc
         self.result = None
 

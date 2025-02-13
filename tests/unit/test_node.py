@@ -39,7 +39,7 @@ class ANode(Node):
         return add_one(*args)
 
     @property
-    def _run_args(self) -> dict:
+    def _run_args(self) -> tuple[tuple, dict]:
         return (self.inputs.x.value,), {}
 
     def process_run_result(self, run_output):
@@ -217,7 +217,7 @@ class TestNode(unittest.TestCase):
                 msg="Expect a recovery file to be saved on failure",
             )
 
-            reloaded = ANode(label="failing")
+            reloaded = ANode(label="failing", autoload=True)
             self.assertIs(
                 reloaded.inputs.x.value,
                 NOT_DATA,
