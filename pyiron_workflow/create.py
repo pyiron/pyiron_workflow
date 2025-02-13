@@ -6,7 +6,7 @@ from __future__ import annotations
 
 from concurrent.futures import ProcessPoolExecutor, ThreadPoolExecutor
 
-from executorlib import Executor as ExecutorlibExecutor
+import executorlib
 from pyiron_snippets.dotdict import DotDict
 
 from pyiron_workflow.executors import CloudpickleProcessPoolExecutor
@@ -28,10 +28,10 @@ class Creator:
         self.ThreadPoolExecutor = ThreadPoolExecutor
         # Local cloudpickler
         self.CloudpickleProcessPoolExecutor = CloudpickleProcessPoolExecutor
-        # executorlib
-        self.ExecutorlibExecutor = ExecutorlibExecutor
 
         self.function_node = function_node
+
+    executorlib = executorlib
 
     @property
     def standard(self):

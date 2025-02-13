@@ -31,7 +31,7 @@ classifiers = [
 dependencies = [
     "bidict==0.23.1",
     "cloudpickle==3.1.1",
-    "executorlib==0.0.10",
+    "executorlib==0.2.0",
     "graphviz==0.20.3",
     "pandas==2.2.3",
     "pint==0.24.4",
