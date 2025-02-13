@@ -33,7 +33,7 @@ jobs:
       - name: Install mypy
         run: pip install mypy
       - name: Test
-        run: mypy --ignore-missing-imports --strict-equality ${{ github.event.repository.name }}
+        run: mypy --ignore-missing-imports --strict-equality .
 
   ruff-check:
     runs-on: ubuntu-latest
