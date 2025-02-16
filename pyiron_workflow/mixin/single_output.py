@@ -15,7 +15,7 @@ from pyiron_workflow.mixin.injection import (
 )
 
 
-class AmbiguousOutputError(ValueError):
+class AmbiguousOutputError(AttributeError):
     """Raised when searching for exactly one output, but multiple are found."""
 
 
@@ -59,11 +59,15 @@ class ExploitsSingleOutput(
     def __getattr__(self, item):
         try:
             return super().__getattr__(item)
-        except AttributeError as e1:
-            try:
+        except AttributeError as e:
+            if len(self.outputs) == 1:
                 return getattr(self.channel, item)
-            except Exception as e2:
-                raise e2 from e1
+            else:
+                raise AmbiguousOutputError(
+                    f"Tried to access {item} on {self.label}, but failed. Delegating "
+                    f"access to `.channel` was impossible because there is more than "
+                    f"one output channel"
+                ) from e
 
     def __getitem__(self, item):
         return self.channel.__getitem__(item)
