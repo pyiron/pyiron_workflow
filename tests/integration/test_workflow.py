@@ -156,7 +156,6 @@ class TestWorkflow(unittest.TestCase):
             # executorlib < 0.1 had an Executor with optional backend parameter (defaulting to SingleNodeExecutor)
             executors.append(Workflow.create.executorlib.Executor)
 
-
         wf = Workflow("executed")
         wf.a = Workflow.create.standard.UserInput(42)  # Regular
         wf.b = wf.a + 1  # Injected
