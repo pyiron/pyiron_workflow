@@ -416,17 +416,21 @@ class TestNode(unittest.TestCase):
         node.set_input_values(x=x)
         node.run()
 
-        self.assertEqual(node.value, add_one(x), msg="With a single output, we expect to access the channel attribute")
+        self.assertEqual(
+            node.value,
+            add_one(x),
+            msg="With a single output, we expect to access the channel attribute",
+        )
 
         two_outputs = TwOutputs(label="to")
         two_outputs.set_input_values(x=x)
         two_outputs.run()
 
         with self.assertRaises(
-                AmbiguousOutputError,
-                msg="With two output channels, we should not be able to isolate a well defined value attribute because there is no single `channel` to look on",
+            AmbiguousOutputError,
+            msg="With two output channels, we should not be able to isolate a well defined value attribute because there is no single `channel` to look on",
         ):
-            getattr(two_outputs, "value")
+            getattr(two_outputs, "value")  # noqa: B009
 
         self.assertFalse(
             hasattr(two_outputs, "value"),
