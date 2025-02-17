@@ -514,6 +514,7 @@ class Node(
         run_parent_trees_too: bool,
         fetch_input: bool,
         emit_ran_signal: bool,
+        **kwargs: Any,
     ) -> tuple[bool, Any]:
         if run_data_tree:
             self.run_data_tree(run_parent_trees_too=run_parent_trees_too)
@@ -522,19 +523,22 @@ class Node(
             self.inputs.fetch()
 
         if self.use_cache and self.cache_hit:  # Read and use cache
-            if self.parent is None and emit_ran_signal:
-                self.emit()
-            elif self.parent is not None:
-                self.parent.register_child_starting(self)
-                self.parent.register_child_finished(self)
-                if emit_ran_signal:
-                    self.parent.register_child_emitting(self)
-
-            return True, self._outputs_to_run_return()
+            return self._return_existing_result(emit_ran_signal)
         elif self.use_cache:  # Write cache and continue
             self._cached_inputs = self.inputs.to_value_dict()
 
         return super()._before_run(check_readiness=check_readiness)
+
+    def _return_existing_result(self, emit_ran_signal: bool) -> tuple[bool, Any]:
+        if self.parent is None and emit_ran_signal:
+            self.emit()
+        elif self.parent is not None:
+            self.parent.register_child_starting(self)
+            self.parent.register_child_finished(self)
+            if emit_ran_signal:
+                self.parent.register_child_emitting(self)
+
+        return True, self._outputs_to_run_return()
 
     def _run(
         self,
