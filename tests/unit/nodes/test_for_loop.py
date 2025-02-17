@@ -3,6 +3,7 @@ import unittest
 from concurrent.futures import ThreadPoolExecutor
 from itertools import product
 from time import perf_counter
+from typing import ClassVar
 
 from pandas import DataFrame
 from pyiron_snippets.dotdict import DotDict
@@ -15,7 +16,7 @@ from pyiron_workflow.nodes.for_loop import (
     for_node,
 )
 from pyiron_workflow.nodes.function import as_function_node
-from pyiron_workflow.nodes.macro import as_macro_node
+from pyiron_workflow.nodes.macro import Macro, as_macro_node
 from pyiron_workflow.nodes.standard import Add, Multiply, Sleep
 from pyiron_workflow.nodes.transform import inputs_to_list
 
@@ -121,6 +122,8 @@ def FiveTogether(
 
 
 class TestForNode(unittest.TestCase):
+    AddThree: ClassVar[type[Macro]]
+
     @classmethod
     def setUpClass(cls) -> None:
         super().setUpClass()

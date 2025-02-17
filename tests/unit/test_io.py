@@ -18,7 +18,7 @@ from pyiron_workflow.io import (
 
 
 class Dummy(HasIO[Outputs]):
-    def __init__(self, label: str | None = "has_io"):
+    def __init__(self, label: str = "has_io"):
         super().__init__()
         self._label = label
         self._inputs = Inputs()
@@ -32,10 +32,6 @@ class Dummy(HasIO[Outputs]):
     @property
     def outputs(self) -> Outputs:
         return self._outputs
-
-    @property
-    def label(self) -> str:
-        return self._label
 
     def run(self, **kwargs):
         pass
