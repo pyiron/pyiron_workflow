@@ -97,7 +97,7 @@ def _export_composite_to_dict(
         "outputs": {},
         "nodes": {},
         "data_edges": [],
-        "label": workflow.label
+        "label": workflow.label,
     }
     for inp in workflow.inputs:
         if inp.value_receiver is not None and inp.value_receiver.owner in workflow:
