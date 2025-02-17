@@ -50,6 +50,22 @@ class ANode(Node):
         pass
 
 
+class TwOutputs(ANode):
+    """To de-abstract the class"""
+
+    def _setup_node(self) -> None:
+        super()._setup_node()
+        self._outputs = OutputsWithInjection(
+            OutputDataWithInjection("y", self, type_hint=int),
+            OutputDataWithInjection("z", self, type_hint=int),
+        )
+
+    def process_run_result(self, run_output):
+        self.outputs.y.value = run_output
+        self.outputs.z.value = run_output + 1
+        return self.outputs.y.value, self.outputs.z.value
+
+
 class TestNode(unittest.TestCase):
     def setUp(self):
         self.n1 = ANode(label="start", x=0)
@@ -393,6 +409,33 @@ class TestNode(unittest.TestCase):
             "should fail cleanly",
         ):
             node.channel  # noqa: B018
+
+    def test_injection_hasattr(self):
+        x = 2
+        node = ANode(label="n")
+        node.set_input_values(x=x)
+        node.run()
+
+        self.assertEqual(
+            node.value,
+            add_one(x),
+            msg="With a single output, we expect to access the channel attribute",
+        )
+
+        two_outputs = TwOutputs(label="to")
+        two_outputs.set_input_values(x=x)
+        two_outputs.run()
+
+        with self.assertRaises(
+            AmbiguousOutputError,
+            msg="With two output channels, we should not be able to isolate a well defined value attribute because there is no single `channel` to look on",
+        ):
+            getattr(two_outputs, "value")  # noqa: B009
+
+        self.assertFalse(
+            hasattr(two_outputs, "value"),
+            msg="As a corollary to the last assertion, hasattr should fail",
+        )
 
     def test_storage(self):
         self.assertIs(
