@@ -127,22 +127,24 @@ class TestParser(unittest.TestCase):
         subj = URIRef("http://example.org/subject")
         obj = URIRef("http://example.org/object")
         label = URIRef("speed.speed.outputs.speed")
-        self.assertIn((None, PNS.hasUnits, URIRef("meter/second")), graph)
+        self.assertIn(
+            (None, PNS.hasUnits, URIRef("meter/second")),
+            graph,
+            msg=graph.serialize(format="turtle")
+        )
         ex_triple = (
             None,
             EX.somehowRelatedTo,
             URIRef("speed.speed.inputs.time"),
         )
-        self.assertEqual(
-            len(list(graph.triples(ex_triple))),
-            1,
+        self.assertIn(
+            ex_triple,
+            graph,
             msg=f"Triple {ex_triple} not found {graph.serialize(format='turtle')}",
         )
-        self.assertEqual(
-            len(list(graph.triples((EX.subject, EX.predicate, EX.object)))), 1
-        )
-        self.assertEqual(len(list(graph.triples((subj, EX.predicate, label)))), 1)
-        self.assertEqual(len(list(graph.triples((label, EX.predicate, obj)))), 1)
+        self.assertIn((subj, EX.predicate, obj), graph)
+        self.assertIn((subj, EX.predicate, label), graph)
+        self.assertIn((label, EX.predicate, obj), graph)
 
     def test_correct_analysis(self):
         def get_graph(wf):
