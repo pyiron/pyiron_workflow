@@ -127,9 +127,7 @@ class TestParser(unittest.TestCase):
         subj = URIRef("http://example.org/subject")
         obj = URIRef("http://example.org/object")
         label = URIRef("speed.speed.outputs.speed")
-        self.assertGreater(
-            len(list(graph.triples((None, PNS.hasUnits, URIRef("meter/second"))))), 0
-        )
+        self.assertIn((None, PNS.hasUnits, URIRef("meter/second")), graph)
         ex_triple = (
             None,
             EX.somehowRelatedTo,
