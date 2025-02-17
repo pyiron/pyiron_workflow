@@ -355,6 +355,7 @@ class Workflow(Composite):
         run_parent_trees_too: bool,
         fetch_input: bool,
         emit_ran_signal: bool,
+        **kwargs: Any,
     ) -> tuple[bool, Any]:
         if self.automate_execution:
             self.set_run_signals_to_dag_execution()

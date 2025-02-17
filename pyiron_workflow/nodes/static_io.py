@@ -2,8 +2,9 @@ from __future__ import annotations
 
 import pathlib
 from abc import ABC
-from typing import TYPE_CHECKING, Literal
+from typing import TYPE_CHECKING, Any, Literal
 
+import bagofholding as boh
 from pandas import DataFrame
 from pyiron_snippets.colors import SeabornColors
 
@@ -17,6 +18,8 @@ from pyiron_workflow.mixin.preview import HasIOPreview
 from pyiron_workflow.node import Node
 
 if TYPE_CHECKING:
+    from concurrent import futures
+
     from pyiron_workflow.nodes.composite import Composite
     from pyiron_workflow.storage import StorageInterface
 
@@ -87,6 +90,73 @@ class StaticNode(Node, HasIOPreview, ABC):
     @property
     def outputs(self) -> OutputsWithInjection:
         return self._outputs
+
+    def _before_run(
+        self,
+        /,
+        check_readiness: bool,
+        run_data_tree: bool,
+        run_parent_trees_too: bool,
+        fetch_input: bool,
+        emit_ran_signal: bool,
+        **kwargs: Any,
+    ) -> tuple[bool, Any]:
+        early_stopping, result = super()._before_run(
+            check_readiness=check_readiness,
+            run_data_tree=run_data_tree,
+            run_parent_trees_too=run_parent_trees_too,
+            fetch_input=fetch_input,
+            emit_ran_signal=emit_ran_signal,
+        )
+        if early_stopping:
+            return early_stopping, result
+
+        file_cached_output = self._read_file_cache()
+        if file_cached_output is not None:
+            for k, v in file_cached_output.items():
+                self.outputs[k]._value = v
+            return self._return_existing_result(emit_ran_signal)
+
+        return False, None
+
+    def _read_file_cache(self) -> dict[str, Any] | None:
+        if self.file_cache is not None:
+            from pyiron_database.instance_database.node import get_hash
+
+            hash_ = get_hash(self)
+            try:
+                return boh.ClassH5Bag(self.file_cache.joinpath(hash_)).load()
+            except FileNotFoundError:
+                return None
+        return None
+
+    def _finish_run(
+        self,
+        run_output: tuple | futures.Future,
+        /,
+        raise_run_exceptions: bool,
+        run_exception_kwargs: dict,
+        run_finally_kwargs: dict,
+        **kwargs,
+    ) -> Any | tuple | None:
+        result = super()._finish_run(
+            run_output,
+            raise_run_exceptions=raise_run_exceptions,
+            run_exception_kwargs=run_exception_kwargs,
+            run_finally_kwargs=run_finally_kwargs,
+            **kwargs,
+        )
+        if self.file_cache is not None:
+            self._save_output_to_file_cache()
+        return result
+
+    def _save_output_to_file_cache(self):
+        from pyiron_database.instance_database.node import get_hash
+
+        hash_ = get_hash(self)
+        boh.ClassH5Bag.save(
+            self.outputs.to_value_dict(), self.file_cache.joinpath(hash_)
+        )
 
     @classmethod
     def for_node(
