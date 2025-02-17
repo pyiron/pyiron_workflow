@@ -1,6 +1,8 @@
 from __future__ import annotations
 
+import pathlib
 from abc import ABC
+from typing import TYPE_CHECKING, Literal
 
 from pandas import DataFrame
 from pyiron_snippets.colors import SeabornColors
@@ -14,6 +16,10 @@ from pyiron_workflow.mixin.injection import (
 from pyiron_workflow.mixin.preview import HasIOPreview
 from pyiron_workflow.node import Node
 
+if TYPE_CHECKING:
+    from pyiron_workflow.nodes.composite import Composite
+    from pyiron_workflow.storage import StorageInterface
+
 
 class StaticNode(Node, HasIOPreview, ABC):
     """
@@ -21,6 +27,32 @@ class StaticNode(Node, HasIOPreview, ABC):
 
     Actual IO is then constructed from the preview at instantiation.
     """
+
+    file_cache: pathlib.Path | None
+
+    def __init__(
+        self,
+        *args,
+        label: str | None = None,
+        parent: Composite | None = None,
+        delete_existing_savefiles: bool = False,
+        autoload: Literal["pickle"] | StorageInterface | None = None,
+        autorun: bool = False,
+        checkpoint: Literal["pickle"] | StorageInterface | None = None,
+        file_cache: str | pathlib.Path | None = None,
+        **kwargs,
+    ):
+        self.file_cache = None if file_cache is None else pathlib.Path(file_cache)
+        super().__init__(
+            *args,
+            label=label,
+            parent=parent,
+            delete_existing_savefiles=delete_existing_savefiles,
+            autoload=autoload,
+            autorun=autorun,
+            checkpoint=checkpoint,
+            **kwargs,
+        )
 
     def _setup_node(self) -> None:
         super()._setup_node()
