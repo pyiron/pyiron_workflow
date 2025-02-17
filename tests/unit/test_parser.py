@@ -1,7 +1,7 @@
 import unittest
 from owlrl import DeductiveClosure, OWLRL_Semantics
 from rdflib import Graph, OWL, RDF, RDFS, Literal, URIRef
-from pyiron_ontology.parser import export_to_dict
+from pyiron_ontology.parser import export_to_dict, parse_workflow
 from semantikon.ontology import (
     PNS,
     _inherit_properties,
@@ -101,8 +101,7 @@ class TestParser(unittest.TestCase):
         wf = Workflow("speed")
         wf.speed = calculate_speed()
         wf.run()
-        data = export_to_dict(wf)
-        graph = get_knowledge_graph(data)
+        graph = parse_workflow(wf)
         query_txt = [
             "PREFIX ex: <http://example.org/>",
             "PREFIX rdf: <http://www.w3.org/1999/02/22-rdf-syntax-ns#>",
