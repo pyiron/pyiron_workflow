@@ -51,6 +51,13 @@ def multiply(a: float, b: float) -> u(
     return a * b
 
 
+@Workflow.wrap.as_macro_node("result")
+def operation(macro=None, a: float = 1.0, b: float = 1.0) -> float:
+    macro.addition = add(a=a, b=b)
+    macro.multiply = multiply(a=macro.addition, b=b)
+    return macro.multiply
+
+
 @Workflow.wrap.as_function_node("result")
 def correct_analysis(
     a: u(
@@ -87,7 +94,7 @@ class TestParser(unittest.TestCase):
         wf = Workflow("speed")
         wf.c = calculate_speed()
         output_dict = export_to_dict(wf)
-        for label in ["inputs", "outputs", "nodes", "data_edges","label"]:
+        for label in ["inputs", "outputs", "nodes", "data_edges", "label"]:
             self.assertIn(label, output_dict)
 
     def test_units_with_sparql(self):
@@ -205,6 +212,19 @@ class TestParser(unittest.TestCase):
             len(list(graph.triples((None, RDF.value, None)))),
             3,
             msg="There should be values for a, b and the output",
+        )
+
+    def test_macro(self):
+        wf = Workflow("operation")
+        wf.node = operation(a=1.0, b=2.0)
+        wf.run()
+        data = export_to_dict(wf)
+        self.assertEqual(
+            set(data.keys()), {"data_edges", "inputs", "label", "nodes", "outputs"}
+        )
+        self.assertEqual(
+            data["inputs"]["node__b"],
+            {"default": 1.0, "value": 2.0, "type_hint": float},
         )
 
 
