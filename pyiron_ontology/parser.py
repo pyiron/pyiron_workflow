@@ -246,7 +246,7 @@ def parse_workflow(
     Returns:
         (rdflib.Graph): graph containing workflow information
     """
-    wf_dict = workflow_to_dict(workflow)
+    wf_dict = export_to_dict(workflow)
     return get_knowledge_graph(
         wf_dict=wf_dict,
         graph=graph,
