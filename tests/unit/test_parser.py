@@ -4,7 +4,6 @@ from rdflib import Graph, OWL, RDF, RDFS, Literal, URIRef
 from pyiron_ontology.parser import export_to_dict, parse_workflow
 from semantikon.ontology import (
     PNS,
-    _inherit_properties,
     validate_values,
     get_knowledge_graph,
 )
