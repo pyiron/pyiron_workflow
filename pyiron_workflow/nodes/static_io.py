@@ -121,7 +121,7 @@ class StaticNode(Node, HasIOPreview, ABC):
 
     def _read_file_cache(self) -> dict[str, Any] | None:
         if self.file_cache is not None:
-            from pyiron_database.instance_database.node import get_hash
+            from pyiron_database.instance_database import get_hash
 
             hash_ = get_hash(self)
             try:
@@ -151,7 +151,7 @@ class StaticNode(Node, HasIOPreview, ABC):
         return result
 
     def _save_output_to_file_cache(self):
-        from pyiron_database.instance_database.node import get_hash
+        from pyiron_database.instance_database import get_hash
 
         hash_ = get_hash(self)
         boh.ClassH5Bag.save(
