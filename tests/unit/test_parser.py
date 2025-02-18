@@ -121,8 +121,7 @@ class TestParser(unittest.TestCase):
     def test_triples(self):
         wf = Workflow("speed")
         wf.speed = calculate_speed()
-        data = export_to_dict(wf)
-        graph = get_knowledge_graph(data)
+        graph = parse_workflow(wf)
         subj = URIRef("http://example.org/subject")
         obj = URIRef("http://example.org/object")
         label = URIRef("speed.speed.outputs.speed")
