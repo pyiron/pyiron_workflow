@@ -161,8 +161,13 @@ def parse_workflow(
 
     Args:
         workflow (pyiron_workflow.workflow.Workflow): workflow object
-        graph (rdflib.Graph): graph to be updated
-        inherit_properties (bool): if True, properties are inherited
+        with_values (bool): include channel values in the graph
+        with_default (bool): include default values in the graph
+        graph (rdflib.Graph): graph to add workflow information to
+        inherit_properties (bool): inherit properties from the ontology
+        ontology (str): ontology to use
+        append_missing_items (bool): append missing items for restrictions to
+            the ontology
 
     Returns:
         (rdflib.Graph): graph containing workflow information
