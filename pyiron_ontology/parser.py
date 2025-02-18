@@ -149,6 +149,8 @@ def export_to_dict(
 
 def parse_workflow(
     workflow: Workflow,
+    with_values: bool = True,
+    with_default: bool = True,
     graph: Graph | None = None,
     inherit_properties: bool = True,
     ontology=PNS,
@@ -165,7 +167,9 @@ def parse_workflow(
     Returns:
         (rdflib.Graph): graph containing workflow information
     """
-    wf_dict = export_to_dict(workflow)
+    wf_dict = export_to_dict(
+        workflow, with_values=with_values, with_default=with_default
+    )
     return get_knowledge_graph(
         wf_dict=wf_dict,
         graph=graph,
