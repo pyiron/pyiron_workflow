@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import itertools
 import math
+import pathlib
 from abc import ABC
 from concurrent.futures import Executor
 from functools import lru_cache
@@ -202,6 +203,7 @@ class For(Composite, StaticNode, ABC):
         delete_existing_savefiles: bool = False,
         autorun: bool = False,
         checkpoint: Literal["pickle"] | StorageInterface | None = None,
+        file_cache: str | pathlib.Path | None = None,
         strict_naming: bool = True,
         body_node_executor: Executor | None = None,
         **kwargs,
@@ -214,6 +216,7 @@ class For(Composite, StaticNode, ABC):
             autorun=autorun,
             autoload=autoload,
             checkpoint=checkpoint,
+            file_cache=file_cache,
             strict_naming=strict_naming,
             **kwargs,
         )
