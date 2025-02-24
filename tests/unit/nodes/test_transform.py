@@ -263,7 +263,7 @@ class TestTransformer(unittest.TestCase):
                     name: str
                     def shout(self):
                         return f"!{self.name}!"
-            except:
+            except: # noqa: E722
                 self.fail("Wrapping an implementation of an ABC should not raise exceptions!")
 
 
