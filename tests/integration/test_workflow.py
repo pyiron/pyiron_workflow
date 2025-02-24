@@ -1,3 +1,4 @@
+import contextlib
 import math
 import pickle
 import random
@@ -5,11 +6,13 @@ import time
 import unittest
 
 from static import demo_nodes
+from pyiron_database.instance_database import get_hash
 
 from pyiron_workflow._tests import ensure_tests_in_python_path
 from pyiron_workflow.channels import NOT_DATA, OutputSignal
 from pyiron_workflow.nodes.composite import FailedChildError
 from pyiron_workflow.nodes.function import Function
+from pyiron_workflow.nodes.standard import Sleep, UserInput
 from pyiron_workflow.workflow import Workflow
 
 ensure_tests_in_python_path()
@@ -331,6 +334,31 @@ class TestWorkflow(unittest.TestCase):
                     f"Instead, {wf.as_path()} exists and has content "
                     f"{list(wf.as_path().iterdir()) if wf.as_path().is_dir() else None}",
                 )
+
+    def test_out_of_process_caching(self):
+        wf = Workflow("out_of_process_write")
+        wf.time = UserInput(1)
+        wf.s = Sleep(wf.time, file_cache=".")
+        hash_ = get_hash(wf.s)
+        t0 = time.time()
+        wf()
+        dt0 = time.time() - t0
+
+        wf2 = Workflow("out_of_process_read")
+        wf2.time = UserInput(1)
+        wf2.s = Sleep(wf.time, file_cache=".")
+
+        t1 = time.time()
+        wf()
+        dt1 = time.time() - t1
+
+        self.assertLess(
+            dt1, 0.1 * dt0,
+            msg="On the second go we expect to read the cache and bypass actually "
+                "sleeping, even though this is a totally different workflow",
+        )
+        wf.s.file_cache.joinpath(hash_).unlink()
+
 
 
 if __name__ == "__main__":
