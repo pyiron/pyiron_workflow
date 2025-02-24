@@ -2,9 +2,9 @@ from __future__ import annotations
 
 import pathlib
 from abc import ABC
+import pickle
 from typing import TYPE_CHECKING, Any, Literal
 
-import bagofholding as boh
 from pandas import DataFrame
 from pyiron_snippets.colors import SeabornColors
 
@@ -125,7 +125,8 @@ class StaticNode(Node, HasIOPreview, ABC):
 
             hash_ = get_hash(self)
             try:
-                return boh.ClassH5Bag(self.file_cache.joinpath(hash_)).load()
+                with self.file_cache.joinpath(hash_).open(mode="rb") as f:
+                    return pickle.load(f)
             except FileNotFoundError:
                 return None
         return None
@@ -154,9 +155,8 @@ class StaticNode(Node, HasIOPreview, ABC):
         from pyiron_database.instance_database import get_hash
 
         hash_ = get_hash(self)
-        boh.ClassH5Bag.save(
-            self.outputs.to_value_dict(), self.file_cache.joinpath(hash_)
-        )
+        with self.file_cache.joinpath(hash_).open(mode="wb") as f:
+            return pickle.dump(self.outputs.to_value_dict(), f)
 
     @classmethod
     def for_node(
