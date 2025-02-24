@@ -1,3 +1,4 @@
+from abc import ABC, abstractmethod
 import pickle
 import random
 import unittest
@@ -248,6 +249,23 @@ class TestTransformer(unittest.TestCase):
                         msg="Fields with default factory won't see their default until "
                         "instantiation",
                     )
+
+        with self.subTest("From instantiated ABC"):
+
+            class MyAbstractData(ABC):
+                @abstractmethod
+                def shout(self):
+                    pass
+
+            try:
+                @as_dataclass_node
+                class MyConcreteData(MyAbstractData):
+                    name: str
+                    def shout(self):
+                        return f"!{self.name}!"
+            except:
+                self.fail("Wrapping an implementation of an ABC should not raise exceptions!")
+
 
     def test_dataclass_typing_and_storage(self):
         md = MyData()
