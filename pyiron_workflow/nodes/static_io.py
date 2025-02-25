@@ -154,9 +154,13 @@ class StaticNode(Node, HasIOPreview, ABC):
     def _save_output_to_file_cache(self):
         from pyiron_database.instance_database import get_hash
 
-        hash_ = get_hash(self)
-        with self.file_cache.joinpath(hash_).open(mode="wb") as f:
-            return pickle.dump(self.outputs.to_value_dict(), f)
+        try:
+            hash_ = get_hash(self)
+            with self.file_cache.joinpath(hash_).open(mode="wb") as f:
+                return pickle.dump(self.outputs.to_value_dict(), f)
+        except Exception as e:
+            self.file_cache.joinpath(hash_).unlink(missing_ok=True)
+            raise e
 
     @classmethod
     def for_node(
