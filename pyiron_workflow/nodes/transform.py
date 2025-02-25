@@ -457,15 +457,15 @@ def as_dataclass_node(dataclass: type):
         >>>
         >>> f = Foo()
         >>> print(f.readiness_report)
-        Foo readiness: False
-        STATE:
+        Foo readiness report:
+        ready: False
         running: False
         failed: False
-        INPUTS:
-        necessary ready: False
-        bar ready: True
-        answer ready: True
-        complex_ ready: True
+        inputs.necessary: False
+        inputs.bar: True
+        inputs.answer: True
+        inputs.complex_: True
+        <BLANKLINE>
 
         >>> f(necessary="input as a node kwarg")
         Foo.dataclass(necessary='input as a node kwarg', bar='bar', answer=42, complex_=[1, 2, 3])
@@ -519,15 +519,15 @@ def dataclass_node(dataclass: type, use_cache: bool = True, *node_args, **node_k
         >>>
         >>> f = Workflow.create.transformer.dataclass_node(Foo, label="my_dc")
         >>> print(f.readiness_report)
-        my_dc readiness: False
-        STATE:
+        my_dc readiness report:
+        ready: False
         running: False
         failed: False
-        INPUTS:
-        necessary ready: False
-        bar ready: True
-        answer ready: True
-        complex_ ready: True
+        inputs.necessary: False
+        inputs.bar: True
+        inputs.answer: True
+        inputs.complex_: True
+        <BLANKLINE>
 
         >>> f(necessary="input as a node kwarg")
         Foo.dataclass(necessary='input as a node kwarg', bar='bar', answer=42, complex_=[1, 2, 3])
