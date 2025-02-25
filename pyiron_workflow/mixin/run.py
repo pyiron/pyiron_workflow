@@ -22,6 +22,7 @@ class ReadinessError(ValueError):
     To be raised when :class:`Runnable` calls run and requests a readiness check, but
     isn't :attr:`ready`.
     """
+
     readiness_dict: dict[str, bool]  # Detailed information on why it is not ready
 
 
