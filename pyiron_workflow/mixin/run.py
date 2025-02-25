@@ -22,6 +22,7 @@ class ReadinessError(ValueError):
     To be raised when :class:`Runnable` calls run and requests a readiness check, but
     isn't :attr:`ready`.
     """
+    readiness_dict: dict[str, bool]  # Detailed information on why it is not ready
 
 
 class Runnable(UsesState, HasLabel, HasRun, ABC):
@@ -93,14 +94,19 @@ class Runnable(UsesState, HasLabel, HasRun, ABC):
         return not (self.running or self.failed)
 
     @property
+    def _readiness_dict(self) -> dict[str, bool]:
+        return {
+            "ready": self.ready,
+            "running": self.running,
+            "failed": self.failed,
+        }
+
+    @property
     def readiness_report(self) -> str:
         """A human-readable summary of the readiness to run."""
-        report = (
-            f"{self.label} readiness: {self.ready}\n"
-            f"STATE:\n"
-            f"running: {self.running}\n"
-            f"failed: {self.failed}\n"
-        )
+        report = f"{self.label} readiness report:\n"
+        for k, v in self._readiness_dict.items():
+            report += f"{k}: {v}\n"
         return report
 
     def executor_shutdown(self, wait=True, *, cancel_futures=False):
@@ -185,7 +191,9 @@ class Runnable(UsesState, HasLabel, HasRun, ABC):
             (ReadinessError): If :param:`check_readiness` but not :attr:`ready`.
         """
         if check_readiness and not self.ready:
-            raise ReadinessError(self._readiness_error_message)
+            readiness_error = ReadinessError(self._readiness_error_message)
+            readiness_error.readiness_dict = self._readiness_dict
+            raise readiness_error
         return False, None
 
     def _run(

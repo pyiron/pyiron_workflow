@@ -378,11 +378,11 @@ class Node(
         return self.running
 
     @property
-    def readiness_report(self) -> str:
-        input_readiness_report = "INPUTS:\n" + "\n".join(
-            [f"{k} ready: {v.ready}" for k, v in self.inputs.items()]
-        )
-        return super().readiness_report + input_readiness_report
+    def _readiness_dict(self) -> dict[str, bool]:
+        dict = super()._readiness_dict
+        for k, v in self.inputs.items():
+            dict[f"inputs.{k}"] = v.ready
+        return dict
 
     @property
     def _readiness_error_message(self) -> str:
