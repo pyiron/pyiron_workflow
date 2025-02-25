@@ -1,12 +1,11 @@
-import contextlib
 import math
 import pickle
 import random
 import time
 import unittest
 
-from static import demo_nodes
 from pyiron_database.instance_database import get_hash
+from static import demo_nodes
 
 from pyiron_workflow._tests import ensure_tests_in_python_path
 from pyiron_workflow.channels import NOT_DATA, OutputSignal
@@ -355,27 +354,27 @@ class TestWorkflow(unittest.TestCase):
             dt1 = time.time() - t1
 
             self.assertLess(
-                dt1, 0.1 * dt0,
+                dt1,
+                0.1 * dt0,
                 msg="On the second go we expect to read the cache and bypass actually "
-                    "sleeping, even though this is a totally different workflow",
+                "sleeping, even though this is a totally different workflow",
             )
             wf.s.file_cache.joinpath(hash_).unlink()
 
         with self.subTest("Test graceful cache failure"):
+
             def some_local_unpickleable_thing():
                 return 42
 
             wf = Workflow("this_will_fail_to_oop_cache")
-            wf.inp = UserInput(some_local_unpickleable_thing,  file_cache=".")
+            wf.inp = UserInput(some_local_unpickleable_thing, file_cache=".")
 
             with self.assertRaises(
                 AttributeError,
                 msg="We shouldn't be able to pickle the <locals> function, so we "
-                    "expect and error when we've explicitly asked to file_cache it."
+                "expect and error when we've explicitly asked to file_cache it.",
             ):
                 wf()
-
-
 
 
 if __name__ == "__main__":

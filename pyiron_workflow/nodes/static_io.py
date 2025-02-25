@@ -1,8 +1,8 @@
 from __future__ import annotations
 
 import pathlib
-from abc import ABC
 import pickle
+from abc import ABC
 from typing import TYPE_CHECKING, Any, Literal
 
 from pandas import DataFrame
