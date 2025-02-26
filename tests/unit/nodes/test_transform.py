@@ -258,14 +258,18 @@ class TestTransformer(unittest.TestCase):
                     pass
 
             try:
+
                 @as_dataclass_node
                 class MyConcreteData(MyAbstractData):
                     name: str
+
                     def shout(self):
                         return f"!{self.name}!"
-            except: # noqa: E722
-                self.fail("Wrapping an implementation of an ABC should not raise exceptions!")
 
+            except:  # noqa: E722
+                self.fail(
+                    "Wrapping an implementation of an ABC should not raise exceptions!"
+                )
 
     def test_dataclass_typing_and_storage(self):
         md = MyData()

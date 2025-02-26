@@ -601,6 +601,15 @@ class TestComposite(unittest.TestCase):
             "and including the semantic root's own directory",
         )
 
+    def test_empty(self):
+        for child in self.comp.children:
+            self.comp.remove_child(child)
+        self.assertDictEqual(
+            {},
+            self.comp.run(),
+            msg="Empty composite graphs should be allowed to run, but return nothing",
+        )
+
 
 if __name__ == "__main__":
     unittest.main()
