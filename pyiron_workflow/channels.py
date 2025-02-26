@@ -112,7 +112,7 @@ class Channel(
 
     @property
     def full_label(self) -> str:
-        """A label combining the channel's usual label and its owner's semantic path"""
+        """A label combining the channel's usual label and its owner's lexical path"""
         return f"{self.owner.full_label}.{self.label}"
 
     def connect(self, *others: ConjugateType) -> None:

@@ -3,38 +3,38 @@ from __future__ import annotations
 import unittest
 from pathlib import Path
 
-from pyiron_workflow.mixin.semantics import (
+from pyiron_workflow.mixin.lexical import (
     CyclicPathError,
-    Semantic,
-    SemanticParent,
+    Lexical,
+    LexicalParent,
 )
 
 
-class ConcreteSemantic(Semantic["ConcreteParent"]):
+class ConcreteLexical(Lexical["ConcreteParent"]):
     @classmethod
-    def parent_type(cls) -> type[ConcreteSemanticParent]:
-        return ConcreteSemanticParent
+    def parent_type(cls) -> type[ConcreteLexicalParent]:
+        return ConcreteLexicalParent
 
 
-class ConcreteParent(SemanticParent[ConcreteSemantic]):
+class ConcreteParent(LexicalParent[ConcreteLexical]):
     _label = "concrete_parent_default_label"
 
     @classmethod
-    def child_type(cls) -> type[ConcreteSemantic]:
-        return ConcreteSemantic
+    def child_type(cls) -> type[ConcreteLexical]:
+        return ConcreteLexical
 
 
-class ConcreteSemanticParent(ConcreteParent, ConcreteSemantic):
+class ConcreteLexicalParent(ConcreteParent, ConcreteLexical):
     pass
 
 
-class TestSemantics(unittest.TestCase):
+class TestLexical(unittest.TestCase):
     def setUp(self):
-        self.root = ConcreteSemanticParent(label="root")
-        self.child1 = ConcreteSemantic(label="child1", parent=self.root)
-        self.middle1 = ConcreteSemanticParent(label="middle", parent=self.root)
-        self.middle2 = ConcreteSemanticParent(label="middle_sub", parent=self.middle1)
-        self.child2 = ConcreteSemantic(label="child2", parent=self.middle2)
+        self.root = ConcreteLexicalParent(label="root")
+        self.child1 = ConcreteLexical(label="child1", parent=self.root)
+        self.middle1 = ConcreteLexicalParent(label="middle", parent=self.root)
+        self.middle2 = ConcreteLexicalParent(label="middle_sub", parent=self.middle1)
+        self.child2 = ConcreteLexical(label="child2", parent=self.middle2)
 
     def test_getattr(self):
         with self.assertRaises(AttributeError) as context:
@@ -54,26 +54,26 @@ class TestSemantics(unittest.TestCase):
 
     def test_label_validity(self):
         with self.assertRaises(TypeError, msg="Label must be a string"):
-            ConcreteSemantic(label=123)
+            ConcreteLexical(label=123)
 
     def test_label_delimiter(self):
         with self.assertRaises(
             ValueError,
-            msg=f"Delimiter '{ConcreteSemantic.semantic_delimiter}' not allowed",
+            msg=f"Delimiter '{ConcreteLexical.lexical_delimiter}' not allowed",
         ):
-            ConcreteSemantic(label=f"invalid{ConcreteSemantic.semantic_delimiter}label")
+            ConcreteLexical(label=f"invalid{ConcreteLexical.lexical_delimiter}label")
 
-        non_semantic_parent = ConcreteParent()
+        non_lexical_parent = ConcreteParent()
         with self.assertRaises(
             ValueError,
-            msg=f"Delimiter '{ConcreteSemantic.semantic_delimiter}' not allowed",
+            msg=f"Delimiter '{ConcreteLexical.lexical_delimiter}' not allowed",
         ):
-            non_semantic_parent.label = f"contains_{non_semantic_parent.child_type().semantic_delimiter}_delimiter"
+            non_lexical_parent.label = f"contains_{non_lexical_parent.child_type().lexical_delimiter}_delimiter"
 
-    def test_semantic_delimiter(self):
+    def test_lexical_delimiter(self):
         self.assertEqual(
             "/",
-            ConcreteSemantic.semantic_delimiter,
+            ConcreteLexical.lexical_delimiter,
             msg="This is just a hard-code to the current value, update it freely so "
             "the test passes; if it fails it's just a reminder that your change is "
             "not backwards compatible, and the next release number should reflect "
@@ -93,18 +93,18 @@ class TestSemantics(unittest.TestCase):
                 self.middle2.add_child(self.middle1)
 
     def test_path(self):
-        self.assertEqual(self.root.semantic_path, "/root")
-        self.assertEqual(self.child1.semantic_path, "/root/child1")
-        self.assertEqual(self.middle1.semantic_path, "/root/middle")
-        self.assertEqual(self.middle2.semantic_path, "/root/middle/middle_sub")
-        self.assertEqual(self.child2.semantic_path, "/root/middle/middle_sub/child2")
+        self.assertEqual(self.root.lexical_path, "/root")
+        self.assertEqual(self.child1.lexical_path, "/root/child1")
+        self.assertEqual(self.middle1.lexical_path, "/root/middle")
+        self.assertEqual(self.middle2.lexical_path, "/root/middle/middle_sub")
+        self.assertEqual(self.child2.lexical_path, "/root/middle/middle_sub/child2")
 
     def test_root(self):
-        self.assertEqual(self.root.semantic_root, self.root)
-        self.assertEqual(self.child1.semantic_root, self.root)
-        self.assertEqual(self.middle1.semantic_root, self.root)
-        self.assertEqual(self.middle2.semantic_root, self.root)
-        self.assertEqual(self.child2.semantic_root, self.root)
+        self.assertEqual(self.root.lexical_root, self.root)
+        self.assertEqual(self.child1.lexical_root, self.root)
+        self.assertEqual(self.middle1.lexical_root, self.root)
+        self.assertEqual(self.middle2.lexical_root, self.root)
+        self.assertEqual(self.child2.lexical_root, self.root)
 
     def test_as_path(self):
         self.assertEqual(
@@ -127,21 +127,21 @@ class TestSemantics(unittest.TestCase):
         )
 
     def test_detached_parent_path(self):
-        orphan = ConcreteSemantic(label="orphan")
+        orphan = ConcreteLexical(label="orphan")
         orphan.__setstate__(self.child2.__getstate__())
         self.assertIsNone(
             orphan.parent, msg="We still should not explicitly have a parent"
         )
         self.assertListEqual(
-            orphan.detached_parent_path.split(orphan.semantic_delimiter),
-            self.child2.semantic_path.split(orphan.semantic_delimiter)[:-1],
-            msg="Despite not having a parent, the detached path should store semantic "
+            orphan.detached_parent_path.split(orphan.lexical_delimiter),
+            self.child2.lexical_path.split(orphan.lexical_delimiter)[:-1],
+            msg="Despite not having a parent, the detached path should store lexical "
             "path info through the get/set state routine",
         )
         self.assertEqual(
-            orphan.semantic_path,
-            self.child2.semantic_path,
-            msg="The detached path should carry through to semantic path in the "
+            orphan.lexical_path,
+            self.child2.lexical_path,
+            msg="The detached path should carry through to lexical path in the "
             "absence of a parent",
         )
         orphan.label = "orphan"  # Re-set label after getting state
@@ -152,10 +152,10 @@ class TestSemantics(unittest.TestCase):
             "presence of a parent",
         )
         self.assertListEqual(
-            orphan.semantic_path.split(orphan.semantic_delimiter)[:-1],
-            self.child2.semantic_path.split(self.child2.semantic_delimiter)[:-1],
+            orphan.lexical_path.split(orphan.lexical_delimiter)[:-1],
+            self.child2.lexical_path.split(self.child2.lexical_delimiter)[:-1],
             msg="Sanity check -- except for the now-different labels, we should be "
-            "recovering the usual semantic path on setting a parent.",
+            "recovering the usual lexical path on setting a parent.",
         )
 
 

@@ -118,7 +118,7 @@ class StorageInterface(ABC):
         Args:
             node (Node | None): The node to load. Optional if filename is provided.
             filename (str | Path | None): The path to the file to load (without file
-                extension). Uses the canonical filename based on the node's semantic
+                extension). Uses the canonical filename based on the node's lexical
                 path instead if this is None.
             **kwargs: Additional keyword arguments.
 
@@ -173,7 +173,7 @@ class StorageInterface(ABC):
     ) -> Path:
         """
         Make sure the node xor filename was provided, and if it's the node, convert it
-        into a canonical filename by exploiting the node's semantic path.
+        into a canonical filename by exploiting the node's lexical path.
         """
         if node is None and filename is None:
             raise ValueError(
