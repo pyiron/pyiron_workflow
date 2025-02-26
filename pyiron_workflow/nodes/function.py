@@ -73,25 +73,25 @@ class Function(StaticNode, ScrapesIO, ABC):
         ... except ValueError as e:
         ...     print("ValueError:", e.args[0])
         ValueError: mwe received a run command but is not ready. The node should be neither running nor failed, and all input values should conform to type hints.
-        mwe readiness: False
-        STATE:
+        mwe readiness report:
+        ready: False
         running: False
         failed: False
-        INPUTS:
-        x ready: True
-        y ready: False
+        inputs.x: True
+        inputs.y: False
+        <BLANKLINE>
 
         We are able to check this without trying and failing by looking at the
         readiness report:
 
         >>> print(plus_minus_1.readiness_report)
-        mwe readiness: False
-        STATE:
+        mwe readiness report:
+        ready: False
         running: False
         failed: False
-        INPUTS:
-        x ready: True
-        y ready: False
+        inputs.x: True
+        inputs.y: False
+        <BLANKLINE>
 
         This is because the second input (`y`) still has no input value -- indicated in
         the error message -- so we can't do the sum between `NOT_DATA` and `2`.
@@ -168,13 +168,13 @@ class Function(StaticNode, ScrapesIO, ABC):
         ... except ValueError as e:
         ...     print("ValueError:", e.args[0])
         ValueError: hinted_example received a run command but is not ready. The node should be neither running nor failed, and all input values should conform to type hints.
-        hinted_example readiness: False
-        STATE:
+        hinted_example readiness report:
+        ready: False
         running: False
         failed: False
-        INPUTS:
-        x ready: False
-        y ready: True
+        inputs.x: False
+        inputs.y: True
+        <BLANKLINE>
 
         Here, even though all the input has data, the node sees that some of it is the
         wrong type and so (by default) the run raises an error right away.

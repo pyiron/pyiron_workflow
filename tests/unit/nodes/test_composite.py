@@ -469,7 +469,7 @@ class TestComposite(unittest.TestCase):
 
         with self.subTest("test_graph_path"):
             self.assertEqual(
-                top.semantic_delimiter + top.label,
+                top.lexical_delimiter + top.label,
                 top.graph_path,
                 msg="The parent-most node should be its own path.",
             )
@@ -598,7 +598,16 @@ class TestComposite(unittest.TestCase):
         self.assertFalse(
             self.comp.as_path().is_dir(),
             msg="Actually, we expect cleanup to have removed empty directories up to "
-            "and including the semantic root's own directory",
+            "and including the lexical root's own directory",
+        )
+
+    def test_empty(self):
+        for child in self.comp.children:
+            self.comp.remove_child(child)
+        self.assertDictEqual(
+            {},
+            self.comp.run(),
+            msg="Empty composite graphs should be allowed to run, but return nothing",
         )
 
 

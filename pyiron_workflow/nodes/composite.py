@@ -14,7 +14,7 @@ from pyiron_snippets.colors import SeabornColors
 from pyiron_snippets.dotdict import DotDict
 
 from pyiron_workflow.create import HasCreator
-from pyiron_workflow.mixin.semantics import SemanticParent
+from pyiron_workflow.mixin.lexical import LexicalParent
 from pyiron_workflow.node import Node
 from pyiron_workflow.topology import set_run_connections_according_to_dag
 
@@ -53,7 +53,7 @@ class FailedChildError(RuntimeError):
     """Raise when one or more child nodes raise exceptions."""
 
 
-class Composite(SemanticParent[Node], HasCreator, Node, ABC):
+class Composite(LexicalParent[Node], HasCreator, Node, ABC):
     """
     A base class for nodes that have internal graph structure -- i.e. they hold a
     collection of child nodes and their computation is to execute that graph.
@@ -294,8 +294,9 @@ class Composite(SemanticParent[Node], HasCreator, Node, ABC):
         reconnect these according to the DAG flow of the data. On success, sets the
         starting nodes to just be the upstream-most node in this linear DAG flow.
         """
-        _, upstream_most_nodes = set_run_connections_according_to_dag(self.children)
-        self.starting_nodes = upstream_most_nodes
+        if len(self.children) > 0:
+            _, upstream_most_nodes = set_run_connections_according_to_dag(self.children)
+            self.starting_nodes = upstream_most_nodes
 
     def add_child(
         self,
