@@ -44,7 +44,7 @@ from pyiron_workflow.find import (
 from pyiron_workflow.logging import logger
 from pyiron_workflow.nodes import standard as standard_nodes
 from pyiron_workflow.nodes.composite import FailedChildError
-from pyiron_workflow.nodes.for_loop import for_node, for_node_factory
+from pyiron_workflow.nodes.for_loop import For, for_node, for_node_factory
 from pyiron_workflow.nodes.function import Function, as_function_node, function_node
 from pyiron_workflow.nodes.macro import Macro, as_macro_node, macro_node
 from pyiron_workflow.nodes.transform import (
