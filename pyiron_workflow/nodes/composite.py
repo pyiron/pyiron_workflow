@@ -294,8 +294,9 @@ class Composite(SemanticParent[Node], HasCreator, Node, ABC):
         reconnect these according to the DAG flow of the data. On success, sets the
         starting nodes to just be the upstream-most node in this linear DAG flow.
         """
-        _, upstream_most_nodes = set_run_connections_according_to_dag(self.children)
-        self.starting_nodes = upstream_most_nodes
+        if len(self.children) > 0:
+            _, upstream_most_nodes = set_run_connections_according_to_dag(self.children)
+            self.starting_nodes = upstream_most_nodes
 
     def add_child(
         self,
