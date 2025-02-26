@@ -19,8 +19,8 @@ from pyiron_snippets.dotdict import DotDict
 
 from pyiron_workflow.draw import Node as GraphvizNode
 from pyiron_workflow.logging import logger
+from pyiron_workflow.mixin.lexical import Lexical
 from pyiron_workflow.mixin.run import ReadinessError, Runnable
-from pyiron_workflow.mixin.semantics import Semantic
 from pyiron_workflow.mixin.single_output import ExploitsSingleOutput
 from pyiron_workflow.storage import StorageInterface, available_backends
 from pyiron_workflow.topology import (
@@ -39,7 +39,7 @@ if TYPE_CHECKING:
 
 
 class Node(
-    Semantic["Composite"],
+    Lexical["Composite"],
     Runnable,
     ExploitsSingleOutput,
     ABC,
@@ -108,7 +108,7 @@ class Node(
     - Nodes can suppress raising errors they encounter by setting a runtime keyword
         argument.
     - Nodes have a label by which they are identified within their scope, and a full
-        label which is unique among the entire semantic graph they exist within
+        label which is unique among the entire lexical graph they exist within
     - Nodes can run their computation using remote resources by setting an executor
         - Any executor must have a :meth:`submit` method with the same interface as
             :class:`concurrent.futures.Executor`, must return a
@@ -363,15 +363,15 @@ class Node(
     @property
     def graph_path(self) -> str:
         """
-        The path of node labels from the graph root (parent-most node in this semantic
+        The path of node labels from the graph root (parent-most node in this lexical
         path) down to this node.
         """
-        prefix = self.parent.semantic_path if isinstance(self.parent, Node) else ""
-        return prefix + self.semantic_delimiter + self.label
+        prefix = self.parent.lexical_path if isinstance(self.parent, Node) else ""
+        return prefix + self.lexical_delimiter + self.label
 
     @property
     def graph_root(self) -> Node:
-        """The parent-most node in this semantic path."""
+        """The parent-most node in this lexical path."""
         return self.parent.graph_root if isinstance(self.parent, Node) else self
 
     def data_input_locked(self):
@@ -795,7 +795,7 @@ class Node(
         :param:`view` or :param:`filename` is provided, this will be called before returning the
         graph.
         The graph file and rendered image will be stored in a directory based of the
-        node's semantic path, unless a :param:`directory` is explicitly set.
+        node's lexical path, unless a :param:`directory` is explicitly set.
         This is purely for convenience -- since we directly return a graphviz object
         you can instead use this to leverage the full power of graphviz.
 
@@ -906,7 +906,7 @@ class Node(
                 node. (Default is "pickle", which loads the standard pickling back end.)
             filename (str | Path | None): The name of the file (without extensions) at
                 which to save the node. (Default is None, which uses the node's
-                semantic path.)
+                lexical path.)
             **kwargs: Back end-specific keyword arguments.
         """
         for selected_backend in available_backends(
@@ -945,7 +945,7 @@ class Node(
                 try to load whatever you can find.)
             filename (str | Path | None): The name of the file (without extensions) at
                 which to save the node. (Default is None, which uses the node's
-                semantic path.)
+                lexical path.)
             **kwargs: back end-specific arguments (only likely to work in combination
                 with :param:`only_requested`, otherwise there's nothing to be specific
                 _to_.)
@@ -993,7 +993,7 @@ class Node(
                 try to load whatever you can find.)
             filename (str | Path | None): The name of the file (without extensions) at
                 which to save the node. (Default is None, which uses the node's
-                semantic path.)
+                lexical path.)
             **kwargs: back end-specific arguments (only likely to work in combination
                 with :param:`only_requested`, otherwise there's nothing to be specific
                 _to_.)
@@ -1023,7 +1023,7 @@ class Node(
                 try to load whatever you can find.)
             filename (str | Path | None): The name of the file (without extensions) at
                 which to save the node. (Default is None, which uses the node's
-                semantic path.)
+                lexical path.)
             **kwargs: back end-specific arguments (only likely to work in combination
                 with :param:`only_requested`, otherwise there's nothing to be specific
                 _to_.)
@@ -1072,14 +1072,14 @@ class Node(
     def _clean_graph_directory(self):
         """
         Delete the temporary results file (if any), and then go from this node's
-        semantic directory up to its semantic root's directory removing any empty
+        lexical directory up to its lexical root's directory removing any empty
         directories. Note: doesn't do a sophisticated walk, so sibling empty
         directories will cause a parent to identify as non-empty.
         """
         self._temporary_result_file.unlink(missing_ok=True)
 
         # Recursively remove empty directories
-        root_directory = self.semantic_root.as_path().parent
+        root_directory = self.lexical_root.as_path().parent
         for parent in self._temporary_result_file.parents:
             if parent == root_directory or not parent.exists() or any(parent.iterdir()):
                 break

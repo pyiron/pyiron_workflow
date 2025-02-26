@@ -363,7 +363,7 @@ class TestNode(unittest.TestCase):
         n = ANode()
 
         self.assertEqual(
-            n.semantic_delimiter + n.label,
+            n.lexical_delimiter + n.label,
             n.graph_path,
             msg="Lone nodes should just have their label as the path, as there is no "
             "parent above.",

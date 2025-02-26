@@ -1,15 +1,15 @@
 """
-Classes for "semantic" reasoning.
+Classes for "lexical" reasoning.
 
 The motivation here is to be able to provide the object with a unique identifier
-in the context of other semantic objects. Each object may have at most one parent,
-while semantic parents may have an arbitrary number of children, and each child's name
-must be unique in the scope of that parent. In this way, when semantic parents are also
-themselves semantic, we can build a path from the parent-most object to any child that
+in the context of other lexical objects. Each object may have at most one parent,
+while lexical parents may have an arbitrary number of children, and each child's name
+must be unique in the scope of that parent. In this way, when lexical parents are also
+themselves lexical, we can build a path from the parent-most object to any child that
 is completely unique. The typical filesystem on a computer is an excellent
 example and fulfills our requirements, the only reason we depart from it is so that
 we are free to have objects stored in different locations (possibly even on totally
-different drives or machines) belong to the same semantic group.
+different drives or machines) belong to the same lexical group.
 """
 
 from __future__ import annotations
@@ -24,18 +24,18 @@ from bidict import bidict
 from pyiron_workflow.logging import logger
 from pyiron_workflow.mixin.has_interface_mixins import HasLabel, UsesState
 
-ParentType = TypeVar("ParentType", bound="SemanticParent")
+ParentType = TypeVar("ParentType", bound="LexicalParent")
 
 
-class Semantic(UsesState, HasLabel, Generic[ParentType], ABC):
+class Lexical(UsesState, HasLabel, Generic[ParentType], ABC):
     """
-    An object with a unique semantic path.
+    An object with a unique lexical path.
 
-    The semantic parent object (if any), and the parent-most object are both easily
+    The lexical parent object (if any), and the parent-most object are both easily
     accessible.
     """
 
-    semantic_delimiter: ClassVar[str] = "/"
+    lexical_delimiter: ClassVar[str] = "/"
 
     def __init__(
         self,
@@ -58,9 +58,9 @@ class Semantic(UsesState, HasLabel, Generic[ParentType], ABC):
 
     def _check_label(self, new_label: str) -> None:
         super()._check_label(new_label)
-        if self.semantic_delimiter in new_label:
+        if self.lexical_delimiter in new_label:
             raise ValueError(
-                f"Semantic delimiter {self.semantic_delimiter} cannot be in new label "
+                f"Lexical delimiter {self.lexical_delimiter} cannot be in new label "
                 f"{new_label}"
             )
 
@@ -101,7 +101,7 @@ class Semantic(UsesState, HasLabel, Generic[ParentType], ABC):
             self._parent.add_child(self)
 
     @property
-    def semantic_path(self) -> str:
+    def lexical_path(self) -> str:
         """
         The path of node labels from the graph root (parent-most node) down to this
         node.
@@ -112,10 +112,10 @@ class Semantic(UsesState, HasLabel, Generic[ParentType], ABC):
         elif self.parent is None and self.detached_parent_path is not None:
             prefix = self.detached_parent_path
         elif self.parent is not None and self.detached_parent_path is None:
-            if isinstance(self.parent, Semantic):
-                prefix = self.parent.semantic_path
+            if isinstance(self.parent, Lexical):
+                prefix = self.parent.lexical_path
             else:
-                prefix = self.semantic_delimiter + self.parent.label
+                prefix = self.lexical_delimiter + self.parent.label
         else:
             raise ValueError(
                 f"The parent and detached path should not be able to take non-None "
@@ -123,71 +123,71 @@ class Semantic(UsesState, HasLabel, Generic[ParentType], ABC):
                 f"{self.detached_parent_path}, respectively. Please raise an issue on "
                 f"GitHub outlining how your reached this state."
             )
-        return prefix + self.semantic_delimiter + self.label
+        return prefix + self.lexical_delimiter + self.label
 
     @property
     def detached_parent_path(self) -> str | None:
         """
-        The get/set state cycle of :class:`Semantic` de-parents objects, but we may
-        still be interested in the semantic path -- e.g. if we `pickle` dump and load
+        The get/set state cycle of :class:`Lexical` de-parents objects, but we may
+        still be interested in the lexical path -- e.g. if we `pickle` dump and load
         the object we will lose parent information, but this will still hold what the
         path _was_ before the orphaning process.
 
         The detached path will get cleared if a new parent is set, but is otherwise
-        used as the root for the purposes of finding the semantic path.
+        used as the root for the purposes of finding the lexical path.
         """
         return self._detached_parent_path
 
     @property
     def full_label(self) -> str:
         """
-        A shortcut that combines the semantic path and label into a single string.
+        A shortcut that combines the lexical path and label into a single string.
         """
-        return self.semantic_path
+        return self.lexical_path
 
     @property
-    def semantic_root(self) -> Semantic:
-        """The parent-most object in this semantic path; may be self."""
-        if isinstance(self.parent, Semantic):
-            return self.parent.semantic_root
+    def lexical_root(self) -> Lexical:
+        """The parent-most object in this lexical path; may be self."""
+        if isinstance(self.parent, Lexical):
+            return self.parent.lexical_root
         else:
             return self
 
     def as_path(self, root: Path | str | None = None) -> Path:
         """
-        The semantic path as a :class:`pathlib.Path`, with a filesystem :param:`root`
+        The lexical path as a :class:`pathlib.Path`, with a filesystem :param:`root`
         (default is the current working directory).
         """
         return (Path.cwd() if root is None else Path(root)).joinpath(
-            *self.semantic_path.split(self.semantic_delimiter)
+            *self.lexical_path.split(self.lexical_delimiter)
         )
 
     def __getstate__(self):
         state = super().__getstate__()
         if self.parent is not None:
-            state["_detached_parent_path"] = self.parent.semantic_path
+            state["_detached_parent_path"] = self.parent.lexical_path
         state["_parent"] = None
         # Regarding removing parent from state:
         # Basically we want to avoid recursion during (de)serialization; when the
         # parent object is deserializing itself, _it_ should know who its children are
         # and inform them of this.
         # In the case the object gets passed to another process using __getstate__,
-        # this also avoids dragging our whole semantic parent graph along with us.
+        # this also avoids dragging our whole lexical parent graph along with us.
         return state
 
 
 class CyclicPathError(ValueError):
     """
-    To be raised when adding a child would result in a cyclic semantic path.
+    To be raised when adding a child would result in a cyclic lexical path.
     """
 
 
-ChildType = TypeVar("ChildType", bound=Semantic)
+ChildType = TypeVar("ChildType", bound=Lexical)
 
 
-class SemanticParent(HasLabel, Generic[ChildType], ABC):
+class LexicalParent(HasLabel, Generic[ChildType], ABC):
     """
-    A labeled object with a collection of uniquely-named semantic children.
+    A labeled object with a collection of uniquely-named lexical children.
 
     Children should be added or removed via the :meth:`add_child` and
     :meth:`remove_child` methods and _not_ by direct manipulation of the
@@ -198,7 +198,7 @@ class SemanticParent(HasLabel, Generic[ChildType], ABC):
     Iterating over the parent yields the children, and the length of the parent is
     the number of children.
 
-    When adding children or assigning parents, a check is performed on the semantic
+    When adding children or assigning parents, a check is performed on the lexical
     path to forbid cyclic paths.
     """
 
@@ -232,10 +232,10 @@ class SemanticParent(HasLabel, Generic[ChildType], ABC):
 
     def _check_label(self, new_label: str) -> None:
         super()._check_label(new_label)
-        if self.child_type().semantic_delimiter in new_label:
+        if self.child_type().lexical_delimiter in new_label:
             raise ValueError(
-                f"Child type ({self.child_type()}) semantic delimiter "
-                f"{self.child_type().semantic_delimiter} cannot be in new label "
+                f"Child type ({self.child_type()}) lexical delimiter "
+                f"{self.child_type().lexical_delimiter} cannot be in new label "
                 f"{new_label}"
             )
 
@@ -316,7 +316,7 @@ class SemanticParent(HasLabel, Generic[ChildType], ABC):
             child.parent = self
         return child
 
-    def _ensure_child_has_no_other_parent(self, child: Semantic) -> None:
+    def _ensure_child_has_no_other_parent(self, child: Lexical) -> None:
         if child.parent is not None and child.parent is not self:
             raise ValueError(
                 f"The child ({child.label}) already belongs to the parent "
@@ -324,7 +324,7 @@ class SemanticParent(HasLabel, Generic[ChildType], ABC):
                 f"add it to this parent ({self.label})."
             )
 
-    def _this_child_is_already_at_this_label(self, child: Semantic, label: str) -> bool:
+    def _this_child_is_already_at_this_label(self, child: Lexical, label: str) -> bool:
         return (
             label == child.label
             and label in self.child_labels
@@ -387,7 +387,7 @@ class SemanticParent(HasLabel, Generic[ChildType], ABC):
 
         # Remove the children from the state and store each element right in the state
         # -- the labels are guaranteed to not be attributes already so this is safe,
-        # and it makes sure that the state path matches the semantic path
+        # and it makes sure that the state path matches the lexical path
         del state["_children"]
         state["child_labels"] = self.child_labels
         for child in self:
@@ -399,7 +399,7 @@ class SemanticParent(HasLabel, Generic[ChildType], ABC):
         # Reconstruct children from state
         # Remove them from the state as you go, so they don't hang around in the
         # __dict__ after we set state -- they were only there to start with to guarantee
-        # that the state path and the semantic path matched (i.e. without ".children."
+        # that the state path and the lexical path matched (i.e. without ".children."
         # in between)
         state["_children"] = bidict(
             {label: state.pop(label) for label in state.pop("child_labels")}
@@ -411,19 +411,19 @@ class SemanticParent(HasLabel, Generic[ChildType], ABC):
 
         # Children purge their parent information in their __getstate__. This avoids
         # recursion, so we don't need to ship an entire graph off to a second process,
-        # but rather can send just the requested object and its scope (semantic
+        # but rather can send just the requested object and its scope (lexical
         # children). So, now return their parent to them:
         for child in self:
             child.parent = self
 
 
-def _ensure_path_is_not_cyclic(parent, child: Semantic) -> None:
-    if isinstance(parent, Semantic) and parent.semantic_path.startswith(
-        child.semantic_path + child.semantic_delimiter
+def _ensure_path_is_not_cyclic(parent, child: Lexical) -> None:
+    if isinstance(parent, Lexical) and parent.lexical_path.startswith(
+        child.lexical_path + child.lexical_delimiter
     ):
         raise CyclicPathError(
             f"{parent.label} cannot be the parent of {child.label}, because its "
-            f"semantic path is already in {child.label}'s path and cyclic paths "
-            f"are not allowed. (i.e. {child.semantic_path} is in "
-            f"{parent.semantic_path})"
+            f"lexical path is already in {child.label}'s path and cyclic paths "
+            f"are not allowed. (i.e. {child.lexical_path} is in "
+            f"{parent.lexical_path})"
         )
