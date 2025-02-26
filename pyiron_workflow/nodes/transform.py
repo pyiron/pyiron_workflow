@@ -386,7 +386,7 @@ class DataclassNode(FromManyInputs, ABC):
 def dataclass_node_factory(
     dataclass: type, use_cache: bool = True, /
 ) -> type[DataclassNode]:
-    if type(dataclass) is not type:
+    if not isinstance(dataclass, type):
         raise TypeError(
             f"{DataclassNode} expected to get a dataclass but {dataclass} is not "
             f"type `type`."
