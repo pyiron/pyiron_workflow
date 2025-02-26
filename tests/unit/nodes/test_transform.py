@@ -1,7 +1,7 @@
-from abc import ABC, abstractmethod
 import pickle
 import random
 import unittest
+from abc import ABC, abstractmethod
 from dataclasses import dataclass, field, is_dataclass
 
 from pandas import DataFrame
