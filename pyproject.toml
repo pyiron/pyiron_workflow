@@ -9,6 +9,8 @@ requires = [
     "typeguard",
     "setuptools",
     "versioneer[toml]==0.29",
+    "pyiron_snippets",
+    "pint",
 ]
 build-backend = "setuptools.build_meta"
 
