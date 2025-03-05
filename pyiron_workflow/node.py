@@ -522,6 +522,7 @@ class Node(
             self.inputs.fetch()
 
         if self.use_cache and self.cache_hit:  # Read and use cache
+            self._on_cache_hit()
             if self.parent is None and emit_ran_signal:
                 self.emit()
             elif self.parent is not None:
@@ -529,12 +530,21 @@ class Node(
                 self.parent.register_child_finished(self)
                 if emit_ran_signal:
                     self.parent.register_child_emitting(self)
-
             return True, self._outputs_to_run_return()
-        elif self.use_cache:  # Write cache and continue
-            self._cached_inputs = self.inputs.to_value_dict()
+        else:
+            self._on_cache_miss()
+            if self.use_cache:  # Write cache and continue
+                self._cached_inputs = self.inputs.to_value_dict()
 
         return super()._before_run(check_readiness=check_readiness)
+
+    def _on_cache_hit(self) -> None:
+        """A hook for subclasses to act on cache hits"""
+        return
+
+    def _on_cache_miss(self) -> None:
+        """A hook for subclasses to act on cache misses"""
+        return
 
     def _run(
         self,
