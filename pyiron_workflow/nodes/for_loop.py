@@ -232,9 +232,8 @@ class For(Composite, StaticNode, ABC):
         self.starting_nodes = input_nodes
         self._input_node_labels = tuple(n.label for n in input_nodes)
 
-    def _on_run(self):
+    def _on_cache_miss(self) -> None:
         self._build_body()
-        return super()._on_run()
 
     def _build_body(self):
         """
