@@ -8,6 +8,7 @@ from pandas import DataFrame
 from pyiron_snippets.dotdict import DotDict
 
 from pyiron_workflow._tests import ensure_tests_in_python_path
+from pyiron_workflow.mixin.run import ReadinessError
 from pyiron_workflow.nodes.for_loop import (
     MapsToNonexistentOutputError,
     UnmappedConflictError,
@@ -612,6 +613,38 @@ class TestForNode(unittest.TestCase):
                     )
                 finally:
                     n.delete_storage()
+
+    def test_caching(self):
+        side_effect_counter = 0
+
+        @as_function_node("m")
+        def SideEffectNode(n: int):
+            nonlocal side_effect_counter
+            side_effect_counter += 1
+            return n**2
+
+        n = [1, 2, 3, 4]
+        s = SideEffectNode.for_node(iter_on="n")
+        with self.assertRaises(
+            ReadinessError,
+            msg="Without input, we should raise a readiness error before we get to "
+            "building the body node",
+        ):
+            s()
+
+        s.run(n=n)
+        self.assertEqual(
+            side_effect_counter,
+            len(n),
+            msg="Sanity check, it should have run once for each child node",
+        )
+        s.run()
+        self.assertEqual(
+            side_effect_counter,
+            len(n),
+            msg="With identical input, children should only actually get run the first "
+            "time",
+        )
 
 
 if __name__ == "__main__":
