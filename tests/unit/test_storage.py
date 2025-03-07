@@ -2,6 +2,9 @@ import unittest
 from pathlib import Path
 from tempfile import TemporaryDirectory
 
+import cloudpickle
+from pint import UnitRegistry
+
 from pyiron_workflow.nodes.function import as_function_node
 from pyiron_workflow.nodes.standard import UserInput
 from pyiron_workflow.storage import PickleStorage, TypeNotFoundError, available_backends
@@ -134,6 +137,21 @@ class TestPickleStorage(unittest.TestCase):
         finally:
             interface.delete(node=u, cloudpickle_fallback=True)
 
+    def test_uncloudpickleable(self):
+        ureg = UnitRegistry()
+        with self.assertRaises(
+                TypeError,
+                msg="Sanity check that this can't even be cloudpickled"
+        ):
+            cloudpickle.dumps(ureg)
+
+        interface = PickleStorage(cloudpickle_fallback=True)
+        n = UserInput(ureg, label="uncloudpicklable_node")
+        with self.assertRaises(
+                TypeError,
+                msg="Exception should be caught and saving should fail"
+        ):
+            interface.save(n)
 
 if __name__ == "__main__":
     unittest.main()
