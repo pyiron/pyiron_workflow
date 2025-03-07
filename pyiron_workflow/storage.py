@@ -231,14 +231,16 @@ class PickleStorage(StorageInterface):
         if self._fallback(cloudpickle_fallback):
             attacks += [(self._CLOUDPICKLE, cloudpickle.dump)]
 
-        e = None
+        e: Exception | None = None
         for suffix, save_method in attacks:
+            e = None
             p = filename.with_suffix(suffix)
             try:
                 with open(p, "wb") as filehandle:
                     save_method(node, filehandle)
                 return
-            except Exception:
+            except Exception as ee:
+                e = ee
                 p.unlink(missing_ok=True)
         if e is not None:
             raise e
