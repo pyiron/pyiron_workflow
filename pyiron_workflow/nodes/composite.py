@@ -589,3 +589,7 @@ class Composite(LexicalParent[Node], HasCreator, Node, ABC):
         for node in self:
             report = node.report_import_readiness(tabs=tabs + 1, report_so_far=report)
         return report
+
+    @property
+    def cache_hit(self):
+        return super().cache_hit and all(n.cache_hit for n in self.children.values())
