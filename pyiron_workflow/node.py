@@ -676,7 +676,10 @@ class Node(
                         self.parent.automate_execution = False
 
                     self.parent.starting_nodes = data_tree_starters
+                    parent_caching = self.parent.use_cache
+                    self.parent.use_cache = False
                     self.parent.run()
+                    self.parent.use_cache = parent_caching
 
                     # And revert our workflow hack
                     if isinstance(self.parent, Workflow):
