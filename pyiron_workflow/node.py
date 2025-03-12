@@ -572,7 +572,7 @@ class Node(
             self.save_checkpoint(self.checkpoint)
 
         if emit_ran_signal:
-            if self.parent is None:
+            if self.parent is None or not self.parent.running:
                 self.emit()
             else:
                 self.parent.register_child_emitting(self)
