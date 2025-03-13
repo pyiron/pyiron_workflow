@@ -40,7 +40,7 @@ HISTORY: str = ""
 @Workflow.wrap.as_function_node(use_cache=False)
 def SideEffect(x):
     y = x + 1
-    global HISTORY
+    global HISTORY  # noqa: PLW0603
     HISTORY += f"{y}"
     return y
 
@@ -343,7 +343,7 @@ class TestWorkflow(unittest.TestCase):
                 )
 
     def test_push_pull(self):
-        global HISTORY
+        global HISTORY  # noqa: PLW0603
 
         wf = Workflow("push_pull")
         wf.n1 = SideEffect(0)
@@ -422,7 +422,7 @@ class TestWorkflow(unittest.TestCase):
             )
 
     def test_push_pull_with_unconfigured_workflows(self):
-        global HISTORY
+        global HISTORY  # noqa: PLW0603
 
         wf = Workflow("push_pull")
         wf.n1 = SideEffect(0)
@@ -450,7 +450,7 @@ class TestWorkflow(unittest.TestCase):
                         ],
                     )
                 ),
-                msg=f"With no signals configured, we expect the run to go nowhere"
+                msg="With no signals configured, we expect the run to go nowhere"
             )
 
         with self.subTest("Just run"):
@@ -475,8 +475,8 @@ class TestWorkflow(unittest.TestCase):
                         ],
                     )
                 ),
-                msg=f"Explicitly pushing should guarantee push-like behaviour even for "
-                    f"un-configured workflows.",
+                msg="Explicitly pushing should guarantee push-like behaviour even for "
+                    "un-configured workflows.",
             )
 
 
