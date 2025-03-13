@@ -523,9 +523,9 @@ class Node(
 
         if self.use_cache and self.cache_hit:  # Read and use cache
             self._on_cache_hit()
-            if self.parent is None and emit_ran_signal:
+            if (self.parent is None or not self.parent.running) and emit_ran_signal:
                 self.emit()
-            elif self.parent is not None:
+            elif self.parent is not None and self.parent.running:
                 self.parent.register_child_starting(self)
                 self.parent.register_child_finished(self)
                 if emit_ran_signal:
@@ -554,7 +554,7 @@ class Node(
         run_finally_kwargs: dict,
         finish_run_kwargs: dict,
     ) -> Any | tuple | Future:
-        if self.parent is not None:
+        if self.parent is not None and self.parent.running:
             self.parent.register_child_starting(self)
         return super()._run(
             executor=executor,
@@ -566,7 +566,7 @@ class Node(
 
     def _run_finally(self, /, emit_ran_signal: bool, raise_run_exceptions: bool):
         super()._run_finally()
-        if self.parent is not None:
+        if self.parent is not None and self.parent.running:
             self.parent.register_child_finished(self)
         if self.checkpoint is not None:
             self.save_checkpoint(self.checkpoint)
