@@ -421,7 +421,7 @@ class TestWorkflow(unittest.TestCase):
                 msg="Expected only this and downstream"
             )
 
-    def test_push_pull_breaking(self):
+    def test_push_pull_with_unconfigured_workflows(self):
         global HISTORY
 
         wf = Workflow("push_pull")
@@ -429,7 +429,14 @@ class TestWorkflow(unittest.TestCase):
         wf.n2 = SideEffect(wf.n1)
         wf.n3 = SideEffect(wf.n2)
 
-        with self.subTest("Push"):
+        with self.subTest("Just run"):
+            self.assertListEqual(
+                [],
+                wf.n2.signals.output.ran.connections,
+                msg="Sanity check -- we have never run the workflow, so the parent "
+                    "workflow has never had a chance to automatically configure its "
+                    "execution flow.",
+            )
             wf.n1.pull()
             HISTORY = ""
             wf.n2.run()
@@ -440,15 +447,36 @@ class TestWorkflow(unittest.TestCase):
                         str,
                         [
                             wf.n2.outputs.y.value,
-                            wf.n3.outputs.y.value,
                         ],
                     )
                 ),
-                msg=f"Expected only this and downstream, but we'll never run the "
-                    f"downstream node because _there are no signal connections yet_!"
-                    f"See: {wf.n2.signals.output.ran}. This is _only_ a problem in the "
-                    f"workflow context -- in macros these connections get established "
-                    f"at instantiation."
+                msg=f"With no signals configured, we expect the run to go nowhere"
+            )
+
+        with self.subTest("Just run"):
+            self.assertListEqual(
+                [],
+                wf.n2.signals.output.ran.connections,
+                msg="Sanity check -- we have never run the workflow, so the parent "
+                    "workflow has never had a chance to automatically configure its "
+                    "execution flow.",
+            )
+            wf.n1.pull()
+            HISTORY = ""
+            wf.n2.push()
+            self.assertEqual(
+                HISTORY,
+                "".join(
+                    map(
+                        str,
+                        [
+                            wf.n2.outputs.y.value,
+                            wf.n3.outputs.y.value
+                        ],
+                    )
+                ),
+                msg=f"Explicitly pushing should guarantee push-like behaviour even for "
+                    f"un-configured workflows.",
             )
 
 
