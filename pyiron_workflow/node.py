@@ -523,9 +523,9 @@ class Node(
 
         if self.use_cache and self.cache_hit:  # Read and use cache
             self._on_cache_hit()
-            if self.parent is None and emit_ran_signal:
+            if (self.parent is None or not self.parent.running) and emit_ran_signal:
                 self.emit()
-            elif self.parent is not None:
+            elif self.parent is not None and self.parent.running:
                 self.parent.register_child_starting(self)
                 self.parent.register_child_finished(self)
                 if emit_ran_signal:
@@ -554,7 +554,7 @@ class Node(
         run_finally_kwargs: dict,
         finish_run_kwargs: dict,
     ) -> Any | tuple | Future:
-        if self.parent is not None:
+        if self.parent is not None and self.parent.running:
             self.parent.register_child_starting(self)
         return super()._run(
             executor=executor,
@@ -566,13 +566,13 @@ class Node(
 
     def _run_finally(self, /, emit_ran_signal: bool, raise_run_exceptions: bool):
         super()._run_finally()
-        if self.parent is not None:
+        if self.parent is not None and self.parent.running:
             self.parent.register_child_finished(self)
         if self.checkpoint is not None:
             self.save_checkpoint(self.checkpoint)
 
         if emit_ran_signal:
-            if self.parent is None:
+            if self.parent is None or not self.parent.running:
                 self.emit()
             else:
                 self.parent.register_child_emitting(self)
@@ -769,6 +769,34 @@ class Node(
             emit_ran_signal=False,
             **kwargs,
         )
+
+    def push(self, *args, **kwargs):
+        """
+        Exactly like :meth:`run` with all the same flags, _except_ it handles an edge
+        case where you are trying to directly run the child node of a
+        :class:`pyiron_workflow.workflow.Workflow` before it has had any chance to
+        configure its execution signals.
+        _If_ the parent is a workflow set up to automate execution flow, does that
+        _first_ then runs as usual.
+        """
+        # Alright, time for more egregious hacking
+        # Normally, running will work in a push-like mode _BUT_, because Workflow's are
+        # a flexible dynamic thing, they normally construct their execution signals on
+        # the fly at each run invocation. This is not the case for Macros, where the
+        # run configuration, if automated at all, happens right at macro instantiation.
+        # So there's this horrible edge case where you build a workflow, then
+        # immediately try to run one of its children directly, naively expecting that
+        # the run will push downstream executions like it does in a macro -- except it
+        # _doesn't_ because there are _no signal connections at all yet!_
+        # Building these on _every_ run would be needlessly expensive, so this method
+        # exists as a hacky guaranteed way to secure push-like run behaviour regardless
+        # of the context you're calling from.
+        from pyiron_workflow.workflow import Workflow
+
+        if isinstance(self.parent, Workflow) and self.parent.automate_execution:
+            self.parent.set_run_signals_to_dag_execution()
+
+        return self.run(*args, **kwargs)
 
     def __call__(self, *args, **kwargs) -> None:
         """

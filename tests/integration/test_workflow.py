@@ -35,6 +35,16 @@ def Bar(x):
     return x * x
 
 
+HISTORY: str = ""
+
+@Workflow.wrap.as_function_node(use_cache=False)
+def SideEffect(x):
+    y = x + 1
+    global HISTORY  # noqa: PLW0603
+    HISTORY += f"{y}"
+    return y
+
+
 class TestWorkflow(unittest.TestCase):
     @classmethod
     def setUpClass(cls) -> None:
@@ -331,6 +341,143 @@ class TestWorkflow(unittest.TestCase):
                     f"Instead, {wf.as_path()} exists and has content "
                     f"{list(wf.as_path().iterdir()) if wf.as_path().is_dir() else None}",
                 )
+
+    def test_push_pull(self):
+        global HISTORY  # noqa: PLW0603
+
+        wf = Workflow("push_pull")
+        wf.n1 = SideEffect(0)
+        wf.n2 = SideEffect(wf.n1)
+        wf.n3 = SideEffect(wf.n2)
+
+        # Note that here we _FIRST RUN THE WORKFLOW_
+        # This triggers the automatic construction of DAG signal connections
+        with self.subTest("Run parent"):
+            HISTORY = ""
+            wf()
+            self.assertEqual(
+                HISTORY,
+                "".join(
+                    map(
+                        str,
+                        [
+                            wf.n1.outputs.y.value,
+                            wf.n2.outputs.y.value,
+                            wf.n3.outputs.y.value,
+                        ],
+                    )
+                ),
+                msg="Expected all three to run"
+            )
+
+        with self.subTest("Pull"):
+            HISTORY = ""
+            wf.n2.pull()
+            self.assertEqual(
+                HISTORY,
+                "".join(
+                    map(
+                        str,
+                        [
+                            wf.n1.outputs.y.value,
+                            wf.n2.outputs.y.value,
+                        ],
+                    )
+                ),
+                msg="Expected only upstream and this"
+            )
+
+        with self.subTest("Call"):
+            HISTORY = ""
+            wf.n2.__call__()
+            self.assertEqual(
+                HISTORY,
+                "".join(
+                    map(
+                        str,
+                        [
+                            wf.n2.outputs.y.value,
+                        ],
+                    )
+                ),
+                msg="Calling maps to a pull (+parent data tree)"  # BUT IT DOESN'T?!
+            )
+
+        with self.subTest("Push"):
+            wf.n1.pull()
+            HISTORY = ""
+            wf.n2.run()
+            self.assertEqual(
+                HISTORY,
+                "".join(
+                    map(
+                        str,
+                        [
+                            wf.n2.outputs.y.value,
+                            wf.n3.outputs.y.value,
+                        ],
+                    )
+                ),
+                msg="Expected only this and downstream"
+            )
+
+    def test_push_pull_with_unconfigured_workflows(self):
+        global HISTORY  # noqa: PLW0603
+
+        wf = Workflow("push_pull")
+        wf.n1 = SideEffect(0)
+        wf.n2 = SideEffect(wf.n1)
+        wf.n3 = SideEffect(wf.n2)
+
+        with self.subTest("Just run"):
+            self.assertListEqual(
+                [],
+                wf.n2.signals.output.ran.connections,
+                msg="Sanity check -- we have never run the workflow, so the parent "
+                    "workflow has never had a chance to automatically configure its "
+                    "execution flow.",
+            )
+            wf.n1.pull()
+            HISTORY = ""
+            wf.n2.run()
+            self.assertEqual(
+                HISTORY,
+                "".join(
+                    map(
+                        str,
+                        [
+                            wf.n2.outputs.y.value,
+                        ],
+                    )
+                ),
+                msg="With no signals configured, we expect the run to go nowhere"
+            )
+
+        with self.subTest("Just run"):
+            self.assertListEqual(
+                [],
+                wf.n2.signals.output.ran.connections,
+                msg="Sanity check -- we have never run the workflow, so the parent "
+                    "workflow has never had a chance to automatically configure its "
+                    "execution flow.",
+            )
+            wf.n1.pull()
+            HISTORY = ""
+            wf.n2.push()
+            self.assertEqual(
+                HISTORY,
+                "".join(
+                    map(
+                        str,
+                        [
+                            wf.n2.outputs.y.value,
+                            wf.n3.outputs.y.value
+                        ],
+                    )
+                ),
+                msg="Explicitly pushing should guarantee push-like behaviour even for "
+                    "un-configured workflows.",
+            )
 
 
 if __name__ == "__main__":
