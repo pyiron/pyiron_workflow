@@ -454,11 +454,7 @@ def to_function_node(
     >>>
     >>> Trapz = to_function_node("Trapz", np.trapz, "trapz")
     >>> Trapz.preview_io()
-    {'inputs': {'y': (None, NOT_DATA),
-      'x': (None, None),
-      'dx': (None, 1.0),
-      'axis': (None, -1)},
-     'outputs': {'trapz': None}}
+    {'inputs': {'y': (None, NOT_DATA), 'x': (None, None), 'dx': (None, 1.0), 'axis': (None, -1)}, 'outputs': {'trapz': None}}
 
 
     - The function must be inspectable
