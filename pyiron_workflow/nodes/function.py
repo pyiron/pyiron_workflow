@@ -1,8 +1,8 @@
 from __future__ import annotations
 
+import inspect
 from abc import ABC, abstractmethod
 from collections.abc import Callable
-from inspect import getsource
 from typing import Any
 
 from pyiron_snippets.colors import SeabornColors
@@ -347,7 +347,7 @@ class Function(StaticNode, ScrapesIO, ABC):
 
     @classmethod
     def _extra_info(cls) -> str:
-        return getsource(cls.node_function)
+        return inspect.getsource(cls.node_function)
 
 
 @classfactory
@@ -435,6 +435,71 @@ def as_function_node(
         return factory_made
 
     return decorator
+
+
+def to_function_node(
+    node_class_name,
+    node_function,
+    *output_labels,
+    validate_output_labels: bool = True,
+    use_cache: bool = True,
+):
+    """
+    Create a new :class:`Function` node class from an existing function.
+    Useful when the function does not exist in a context where you are free to
+    decorate it, e.g.
+
+    >>> import numpy as np
+    >>> from pyiron_workflow.nodes.function import to_function_node
+    >>>
+    >>> Trapz = to_function_node("Trapz", np.trapz, "trapz")
+    >>> Trapz.preview_io()
+    {'inputs': {'y': (None, NOT_DATA),
+      'x': (None, None),
+      'dx': (None, 1.0),
+      'axis': (None, -1)},
+     'outputs': {'trapz': None}}
+
+
+    - The function must be inspectable
+        - e.g. :func:`numpy.arange` fails this requirement
+    - The function must not use protected or argument names
+        - e.g. variadics `*args` and `**kwargs`
+    - The function's annotations must be universally accessible
+        - In most cases this means they are restricted to no annotation at all, or a
+            type hint from the :mod:`builtins` like :class:`int` etc.
+
+    Args:
+        node_class_name (str): The name of the new class -- MUST be manually matched to
+            the variable name to which the class is being assigned, or the class won't
+            be importable.
+        node_function (Callable): The function to be wrapped by the node.
+        *output_labels (str): Optional labels for the function's output channels.
+        validate_output_labels (bool): Flag to indicate if output labels should be
+            validated against the return values in the function node source code.
+            Defaults to True.
+        use_cache (bool): Whether nodes of this type should default to caching their
+            values. (Default is True.)
+
+    Returns:
+        type[Function]: A new node class subclassing :class:`Function`.
+    """
+    # Inspect the caller's frame in order to extract the module where this is being used
+    frame = inspect.stack()[1]
+    module = inspect.getmodule(frame[0])
+    node_class_module_name = module.__name__ if module else None
+
+    function_node_factory.clear(node_class_name)  # Force a fresh class
+    factory_made = function_node_factory(
+        node_class_name,
+        node_class_module_name,
+        node_function,
+        validate_output_labels,
+        use_cache,
+        *output_labels
+    )
+    factory_made.preview_io()
+    return factory_made
 
 
 def function_node(
