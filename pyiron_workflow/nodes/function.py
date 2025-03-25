@@ -417,7 +417,7 @@ def as_function_node(
             subclass.
     """
 
-    def decorator(node_function):
+    def decorator(node_function) -> type[Function]:
         function_node_factory.clear(node_function.__name__)  # Force a fresh class
         factory_made = function_node_factory(
             node_function.__qualname__,
@@ -443,7 +443,7 @@ def to_function_node(
     *output_labels,
     validate_output_labels: bool = True,
     use_cache: bool = True,
-):
+) -> type[Function]:
     """
     Create a new :class:`Function` node class from an existing function.
     Useful when the function does not exist in a context where you are free to
@@ -509,7 +509,7 @@ def function_node(
     validate_output_labels: bool = True,
     use_cache: bool = True,
     **node_kwargs,
-):
+) -> Function:
     """
     Create and initialize a new instance of a :class:`Function` node.
 
