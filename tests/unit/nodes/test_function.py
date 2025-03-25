@@ -3,6 +3,7 @@ import unittest
 from pathlib import Path
 
 import numpy as np
+
 from pyiron_workflow.channels import NOT_DATA
 from pyiron_workflow.io import ConnectionCopyError, ValueCopyError
 from pyiron_workflow.nodes.function import (
@@ -551,7 +552,7 @@ class TestFunction(unittest.TestCase):
             ValueError,
             msg="Known limitation: Can't have a bad signature, in this case '*args'",
         ):
-            Sin = to_function_node("Sin", np.sin, "sinx")
+            to_function_node("Sin", np.sin, "sinx")
 
         with self.assertRaises(
             ValueError,
@@ -559,14 +560,14 @@ class TestFunction(unittest.TestCase):
             "https://github.com/numpy/numpy/issues/16384, "
             "https://github.com/numpy/numpy/issues/8734",
         ):
-            ARange = to_function_node("ARange", np.arange, "arange")
+            to_function_node("ARange", np.arange, "arange")
 
         with self.assertRaises(
             NameError,
             msg="Known limitation: Type hints need to be universally accessible -- "
             "`Node` isn't",
         ):
-            GetNodes = to_function_node("GetNodes", get_nodes_in_data_tree, "nodes")
+            to_function_node("GetNodes", get_nodes_in_data_tree, "nodes")
 
         output_label = "trapz"
         Trapz = to_function_node("Trapz", np.trapz, output_label)
