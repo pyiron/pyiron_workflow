@@ -352,6 +352,8 @@ class Function(StaticNode, ScrapesIO, ABC):
 
 @classfactory
 def function_node_factory(
+    node_class_qualname: str,
+    node_class_module_name: str,
     node_function: Callable,
     validate_output_labels: bool,
     use_cache: bool = True,
@@ -373,13 +375,14 @@ def function_node_factory(
     Returns:
         type[Node]: A new node class.
     """
+    node_class_name = node_class_qualname.rsplit(".", 1)[-1]
     return (  # type: ignore[return-value]
-        node_function.__name__,
+        node_class_name,
         (Function,),  # Define parentage
         {
             "node_function": staticmethod(node_function),
-            "__module__": node_function.__module__,
-            "__qualname__": node_function.__qualname__,
+            "__module__": node_class_module_name,
+            "__qualname__": node_class_qualname,
             "_output_labels": None if len(output_labels) == 0 else output_labels,
             "_validate_output_labels": validate_output_labels,
             "__doc__": Function._io_defining_documentation(
@@ -417,7 +420,12 @@ def as_function_node(
     def decorator(node_function):
         function_node_factory.clear(node_function.__name__)  # Force a fresh class
         factory_made = function_node_factory(
-            node_function, validate_output_labels, use_cache, *output_labels
+            node_function.__qualname__,
+            node_function.__module__,
+            node_function,
+            validate_output_labels,
+            use_cache,
+            *output_labels
         )
         factory_made._reduce_imports_as = (
             node_function.__module__,
@@ -465,7 +473,12 @@ def function_node(
         output_labels = (output_labels,)
     function_node_factory.clear(node_function.__name__)  # Force a fresh class
     factory_made = function_node_factory(
-        node_function, validate_output_labels, use_cache, *output_labels
+        node_function.__qualname__,
+        node_function.__module__,
+        node_function,
+        validate_output_labels,
+        use_cache,
+        *output_labels
     )
     factory_made.preview_io()
     return factory_made(*node_args, **node_kwargs)
