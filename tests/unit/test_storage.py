@@ -140,18 +140,17 @@ class TestPickleStorage(unittest.TestCase):
     def test_uncloudpickleable(self):
         ureg = UnitRegistry()
         with self.assertRaises(
-                TypeError,
-                msg="Sanity check that this can't even be cloudpickled"
+            TypeError, msg="Sanity check that this can't even be cloudpickled"
         ):
             cloudpickle.dumps(ureg)
 
         interface = PickleStorage(cloudpickle_fallback=True)
         n = UserInput(ureg, label="uncloudpicklable_node")
         with self.assertRaises(
-                TypeError,
-                msg="Exception should be caught and saving should fail"
+            TypeError, msg="Exception should be caught and saving should fail"
         ):
             interface.save(n)
+
 
 if __name__ == "__main__":
     unittest.main()

@@ -5,7 +5,12 @@ from pathlib import Path
 import numpy as np
 from pyiron_workflow.channels import NOT_DATA
 from pyiron_workflow.io import ConnectionCopyError, ValueCopyError
-from pyiron_workflow.nodes.function import Function, as_function_node, function_node, to_function_node
+from pyiron_workflow.nodes.function import (
+    Function,
+    as_function_node,
+    function_node,
+    to_function_node,
+)
 from pyiron_workflow.nodes.multiple_distpatch import MultipleDispatchError
 from pyiron_workflow.topology import get_nodes_in_data_tree
 
@@ -543,34 +548,28 @@ class TestFunction(unittest.TestCase):
 
     def test_inline_creation(self):
         with self.assertRaises(
-                ValueError,
-                msg="Known limitation: Can't have a bad signature, in this case '*args'"
+            ValueError,
+            msg="Known limitation: Can't have a bad signature, in this case '*args'",
         ):
             Sin = to_function_node("Sin", np.sin, "sinx")
 
         with self.assertRaises(
-                ValueError,
-                msg="Known limitation: Must be inspectable "
-                    "https://github.com/numpy/numpy/issues/16384, "
-                    "https://github.com/numpy/numpy/issues/8734"
+            ValueError,
+            msg="Known limitation: Must be inspectable "
+            "https://github.com/numpy/numpy/issues/16384, "
+            "https://github.com/numpy/numpy/issues/8734",
         ):
             ARange = to_function_node("ARange", np.arange, "arange")
 
         with self.assertRaises(
-                NameError,
-                msg="Known limitation: Type hints need to be universally accessible -- "
-                    "`Node` isn't"
+            NameError,
+            msg="Known limitation: Type hints need to be universally accessible -- "
+            "`Node` isn't",
         ):
-            GetNodes = to_function_node(
-                "GetNodes", get_nodes_in_data_tree, "nodes"
-            )
+            GetNodes = to_function_node("GetNodes", get_nodes_in_data_tree, "nodes")
 
         output_label = "trapz"
-        Trapz = to_function_node(
-            "Trapz",
-            np.trapz,
-            output_label
-        )
+        Trapz = to_function_node("Trapz", np.trapz, output_label)
         self.assertIs(
             np.trapz,
             Trapz.node_function,
@@ -588,9 +587,8 @@ class TestFunction(unittest.TestCase):
         self.assertAlmostEqual(
             out,
             reloaded.outputs.trapz.value,
-            msg="Save load cycle should work fine like for any other node"
+            msg="Save load cycle should work fine like for any other node",
         )
-
 
 
 if __name__ == "__main__":
