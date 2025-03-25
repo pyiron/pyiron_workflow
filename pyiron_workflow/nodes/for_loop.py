@@ -91,7 +91,7 @@ def dictionary_to_index_maps(
         return range(n_zip)
 
     def zipped_index_map(zipped_index):
-        return {key: zipped_index for key in zipped_keys}
+        return dict.fromkeys(zipped_keys, zipped_index)
 
     def merge(d1, d2):
         d1.update(d2)

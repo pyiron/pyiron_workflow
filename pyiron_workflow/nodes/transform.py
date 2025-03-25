@@ -190,7 +190,7 @@ class InputsToDict(FromManyInputs, ABC):
     @classmethod
     def _build_inputs_preview(cls) -> dict[str, tuple[Any | None, Any | NotData]]:
         if isinstance(cls._input_specification, list):
-            return {key: (None, NOT_DATA) for key in cls._input_specification}
+            return dict.fromkeys(cls._input_specification, (None, NOT_DATA))
         else:
             return cls._input_specification
 
