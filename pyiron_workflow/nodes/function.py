@@ -1,8 +1,8 @@
 from __future__ import annotations
 
+import inspect
 from abc import ABC, abstractmethod
 from collections.abc import Callable
-from inspect import getsource
 from typing import Any
 
 from pyiron_snippets.colors import SeabornColors
@@ -347,11 +347,13 @@ class Function(StaticNode, ScrapesIO, ABC):
 
     @classmethod
     def _extra_info(cls) -> str:
-        return getsource(cls.node_function)
+        return inspect.getsource(cls.node_function)
 
 
 @classfactory
 def function_node_factory(
+    node_class_qualname: str,
+    node_class_module_name: str,
     node_function: Callable,
     validate_output_labels: bool,
     use_cache: bool = True,
@@ -373,13 +375,14 @@ def function_node_factory(
     Returns:
         type[Node]: A new node class.
     """
+    node_class_name = node_class_qualname.rsplit(".", 1)[-1]
     return (  # type: ignore[return-value]
-        node_function.__name__,
+        node_class_name,
         (Function,),  # Define parentage
         {
             "node_function": staticmethod(node_function),
-            "__module__": node_function.__module__,
-            "__qualname__": node_function.__qualname__,
+            "__module__": node_class_module_name,
+            "__qualname__": node_class_qualname,
             "_output_labels": None if len(output_labels) == 0 else output_labels,
             "_validate_output_labels": validate_output_labels,
             "__doc__": Function._io_defining_documentation(
@@ -414,10 +417,15 @@ def as_function_node(
             subclass.
     """
 
-    def decorator(node_function):
+    def decorator(node_function) -> type[Function]:
         function_node_factory.clear(node_function.__name__)  # Force a fresh class
         factory_made = function_node_factory(
-            node_function, validate_output_labels, use_cache, *output_labels
+            node_function.__qualname__,
+            node_function.__module__,
+            node_function,
+            validate_output_labels,
+            use_cache,
+            *output_labels,
         )
         factory_made._reduce_imports_as = (
             node_function.__module__,
@@ -429,6 +437,93 @@ def as_function_node(
     return decorator
 
 
+def to_function_node(
+    node_class_name,
+    node_function,
+    *output_labels,
+    validate_output_labels: bool = True,
+    use_cache: bool = True,
+    scope: dict[str, type] | None = None,
+) -> type[Function]:
+    """
+    Create a new :class:`Function` node class from an existing function.
+    Useful when the function does not exist in a context where you are free to
+    decorate it, e.g.
+
+    >>> import numpy as np
+    >>> from pyiron_workflow.nodes.function import to_function_node
+    >>>
+    >>> Trapz = to_function_node("Trapz", np.trapz, "trapz")
+    >>> Trapz.preview_io()
+    {'inputs': {'y': (None, NOT_DATA), 'x': (None, None), 'dx': (None, 1.0), 'axis': (None, -1)}, 'outputs': {'trapz': None}}
+
+    We still have two requirements on functions converted in this way:
+    - The function must be inspectable
+        - e.g. :func:`numpy.arange` fails this requirement
+    - The function must not use protected or argument names (as with decorated
+        functions)
+        - e.g. variadics `*args` and `**kwargs`
+    - The function must have a single return value (as with decorated functions)
+
+    Otherwise you will need to explicitly write a decorated function that wraps your
+    desired function.
+
+    Because nodes convert type hints to actual python objects for strict type checking,
+    we also need to provide non-builting type hints in the scope of the new node class
+    (for the benefit of an underlying `inspect.signature(..., eval_str=True)` call).
+    E.g., this function hints that it returns `set[Node]`, so while the new class is
+    being created it will need to know how to parse the `"Node"` string type hint
+    into an object. We do this by providing the `Node` class in its `scope` dictionary
+    (it already knows what a `set` is because this is just a python built-in type):
+
+    >>> from pyiron_workflow.topology import get_nodes_in_data_tree
+    >>> from pyiron_workflow.node import Node
+    >>>
+    >>> GetNodesInDataTree = to_function_node(
+    ...     "GetNodesInDataTree",
+    ...     get_nodes_in_data_tree,
+    ...     "nodes_set",  # Just a nice label for the output
+    ...     scope={"Node": Node},
+    ... )
+    >>>
+    >>> print(GetNodesInDataTree.preview_io())
+    {'inputs': {'node': (<class 'pyiron_workflow.node.Node'>, NOT_DATA)}, 'outputs': {'nodes_set': set[pyiron_workflow.node.Node]}}
+
+
+    Args:
+        node_class_name (str): The name of the new class -- MUST be manually matched to
+            the variable name to which the class is being assigned, or the class won't
+            be importable.
+        node_function (Callable): The function to be wrapped by the node.
+        *output_labels (str): Optional labels for the function's output channels.
+        validate_output_labels (bool): Flag to indicate if output labels should be
+            validated against the return values in the function node source code.
+            Defaults to True.
+        use_cache (bool): Whether nodes of this type should default to caching their
+            values. (Default is True.)
+
+    Returns:
+        type[Function]: A new node class subclassing :class:`Function`.
+    """
+    # Inspect the caller's frame in order to extract the module where this is being used
+    frame = inspect.stack()[1]
+    module = inspect.getmodule(frame[0])
+    node_class_module_name = module.__name__ if module else None
+
+    function_node_factory.clear(node_class_name)  # Force a fresh class
+    factory_made = function_node_factory(
+        node_class_name,
+        node_class_module_name,
+        node_function,
+        validate_output_labels,
+        use_cache,
+        *output_labels,
+    )
+    factory_made._extra_type_hint_scope = scope
+    factory_made.preview_io()
+    return factory_made
+
+
 def function_node(
     node_function: Callable,
     *node_args,
@@ -436,7 +531,7 @@ def function_node(
     validate_output_labels: bool = True,
     use_cache: bool = True,
     **node_kwargs,
-):
+) -> Function:
     """
     Create and initialize a new instance of a :class:`Function` node.
 
@@ -465,7 +560,12 @@ def function_node(
         output_labels = (output_labels,)
     function_node_factory.clear(node_function.__name__)  # Force a fresh class
     factory_made = function_node_factory(
-        node_function, validate_output_labels, use_cache, *output_labels
+        node_function.__qualname__,
+        node_function.__module__,
+        node_function,
+        validate_output_labels,
+        use_cache,
+        *output_labels,
     )
     factory_made.preview_io()
     return factory_made(*node_args, **node_kwargs)

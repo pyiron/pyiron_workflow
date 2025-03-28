@@ -63,7 +63,7 @@ class TestDictionaryToIndexMaps(unittest.TestCase):
         data = {"key1": [1, 2, 3], "key2": [4, 5]}
         zipped_keys = ("key1", "key2")
         expected_maps = tuple(
-            {key: idx for key in zipped_keys}
+            dict.fromkeys(zipped_keys, idx)
             for idx in range(min(len(data["key1"]), len(data["key2"])))
         )
         self.assertEqual(

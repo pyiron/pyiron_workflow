@@ -65,7 +65,7 @@ class TestTransformer(unittest.TestCase):
             d = {"c1": 4, "c2": 5}
             default = 42
             hint = int
-            spec = {k: (int, default) for k in d}
+            spec = dict.fromkeys(d, (int, default))
             n = inputs_to_dict(spec, autorun=True)
             self.assertIs(
                 n.inputs[list(d.keys())[0]].type_hint,
@@ -73,7 +73,7 @@ class TestTransformer(unittest.TestCase):
                 msg="Spot check hint recognition",
             )
             self.assertDictEqual(
-                {k: default for k in d},
+                dict.fromkeys(d, default),
                 n.outputs.dict.value,
                 msg="Verify structure and ability to pass defaults",
             )

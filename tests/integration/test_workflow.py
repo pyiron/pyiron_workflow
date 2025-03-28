@@ -37,6 +37,7 @@ def Bar(x):
 
 HISTORY: str = ""
 
+
 @Workflow.wrap.as_function_node(use_cache=False)
 def SideEffect(x):
     y = x + 1
@@ -367,7 +368,7 @@ class TestWorkflow(unittest.TestCase):
                         ],
                     )
                 ),
-                msg="Expected all three to run"
+                msg="Expected all three to run",
             )
 
         with self.subTest("Pull"):
@@ -384,7 +385,7 @@ class TestWorkflow(unittest.TestCase):
                         ],
                     )
                 ),
-                msg="Expected only upstream and this"
+                msg="Expected only upstream and this",
             )
 
         with self.subTest("Call"):
@@ -400,7 +401,7 @@ class TestWorkflow(unittest.TestCase):
                         ],
                     )
                 ),
-                msg="Calling maps to a pull (+parent data tree)"  # BUT IT DOESN'T?!
+                msg="Calling maps to a pull (+parent data tree)",  # BUT IT DOESN'T?!
             )
 
         with self.subTest("Push"):
@@ -418,7 +419,7 @@ class TestWorkflow(unittest.TestCase):
                         ],
                     )
                 ),
-                msg="Expected only this and downstream"
+                msg="Expected only this and downstream",
             )
 
     def test_push_pull_with_unconfigured_workflows(self):
@@ -434,8 +435,8 @@ class TestWorkflow(unittest.TestCase):
                 [],
                 wf.n2.signals.output.ran.connections,
                 msg="Sanity check -- we have never run the workflow, so the parent "
-                    "workflow has never had a chance to automatically configure its "
-                    "execution flow.",
+                "workflow has never had a chance to automatically configure its "
+                "execution flow.",
             )
             wf.n1.pull()
             HISTORY = ""
@@ -450,7 +451,7 @@ class TestWorkflow(unittest.TestCase):
                         ],
                     )
                 ),
-                msg="With no signals configured, we expect the run to go nowhere"
+                msg="With no signals configured, we expect the run to go nowhere",
             )
 
         with self.subTest("Just run"):
@@ -458,8 +459,8 @@ class TestWorkflow(unittest.TestCase):
                 [],
                 wf.n2.signals.output.ran.connections,
                 msg="Sanity check -- we have never run the workflow, so the parent "
-                    "workflow has never had a chance to automatically configure its "
-                    "execution flow.",
+                "workflow has never had a chance to automatically configure its "
+                "execution flow.",
             )
             wf.n1.pull()
             HISTORY = ""
@@ -469,14 +470,11 @@ class TestWorkflow(unittest.TestCase):
                 "".join(
                     map(
                         str,
-                        [
-                            wf.n2.outputs.y.value,
-                            wf.n3.outputs.y.value
-                        ],
+                        [wf.n2.outputs.y.value, wf.n3.outputs.y.value],
                     )
                 ),
                 msg="Explicitly pushing should guarantee push-like behaviour even for "
-                    "un-configured workflows.",
+                "un-configured workflows.",
             )
 
 

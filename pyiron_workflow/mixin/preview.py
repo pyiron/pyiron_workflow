@@ -111,6 +111,8 @@ class ScrapesIO(HasIOPreview, ABC):
         thus be left static from the time of class definition onwards.
     """
 
+    _extra_type_hint_scope: ClassVar[dict[str, type] | None] = None
+
     @classmethod
     @abstractmethod
     def _io_defining_function(cls) -> Callable:
@@ -202,7 +204,11 @@ class ScrapesIO(HasIOPreview, ABC):
         """
         The result of :func:`inspect.signature` on the io-defining function
         """
-        return inspect.signature(cls._io_defining_function(), eval_str=True)
+        return inspect.signature(
+            cls._io_defining_function(),
+            eval_str=True,
+            locals=cls._extra_type_hint_scope,
+        )
 
     @classmethod
     @lru_cache(maxsize=1)
