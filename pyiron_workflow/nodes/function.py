@@ -443,6 +443,7 @@ def to_function_node(
     *output_labels,
     validate_output_labels: bool = True,
     use_cache: bool = True,
+    scope: dict[str, type] | None = None,
 ) -> type[Function]:
     """
     Create a new :class:`Function` node class from an existing function.
@@ -456,14 +457,38 @@ def to_function_node(
     >>> Trapz.preview_io()
     {'inputs': {'y': (None, NOT_DATA), 'x': (None, None), 'dx': (None, 1.0), 'axis': (None, -1)}, 'outputs': {'trapz': None}}
 
-
+    We still have two requirements on functions converted in this way:
     - The function must be inspectable
         - e.g. :func:`numpy.arange` fails this requirement
-    - The function must not use protected or argument names
+    - The function must not use protected or argument names (as with decorated
+        functions)
         - e.g. variadics `*args` and `**kwargs`
-    - The function's annotations must be universally accessible
-        - In most cases this means they are restricted to no annotation at all, or a
-            type hint from the :mod:`builtins` like :class:`int` etc.
+    - The function must have a single return value (as with decorated functions)
+
+    Otherwise you will need to explicitly write a decorated function that wraps your
+    desired function.
+
+    Because nodes convert type hints to actual python objects for strict type checking,
+    we also need to provide non-builting type hints in the scope of the new node class
+    (for the benefit of an underlying `inspect.signature(..., eval_str=True)` call).
+    E.g., this function hints that it returns `set[Node]`, so while the new class is
+    being created it will need to know how to parse the `"Node"` string type hint
+    into an object. We do this by providing the `Node` class in its `scope` dictionary
+    (it already knows what a `set` is because this is just a python built-in type):
+
+    >>> from pyiron_workflow.topology import get_nodes_in_data_tree
+    >>> from pyiron_workflow.node import Node
+    >>>
+    >>> GetNodesInDataTree = to_function_node(
+    ...     "GetNodesInDataTree",
+    ...     get_nodes_in_data_tree,
+    ...     "nodes_set",  # Just a nice label for the output
+    ...     scope={"Node": Node},
+    ... )
+    >>>
+    >>> print(GetNodesInDataTree.preview_io())
+    {'inputs': {'node': (<class 'pyiron_workflow.node.Node'>, NOT_DATA)}, 'outputs': {'nodes_set': set[pyiron_workflow.node.Node]}}
+
 
     Args:
         node_class_name (str): The name of the new class -- MUST be manually matched to
@@ -494,6 +519,7 @@ def to_function_node(
         use_cache,
         *output_labels,
     )
+    factory_made._extra_type_hint_scope = scope
     factory_made.preview_io()
     return factory_made
 
