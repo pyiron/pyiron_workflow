@@ -562,12 +562,27 @@ class TestFunction(unittest.TestCase):
         ):
             to_function_node("ARange", np.arange, "arange")
 
-        with self.assertRaises(
-            NameError,
-            msg="Known limitation: Type hints need to be universally accessible -- "
-            "`Node` isn't",
-        ):
-            to_function_node("GetNodes", get_nodes_in_data_tree, "nodes")
+        with self.subTest("Non-builtin type hints should be ok via a scoping kwarg"):
+            from pyiron_workflow.node import Node as NonBuiltinTypeHint
+
+            GetNodes = to_function_node(
+                "GetNodes",
+                get_nodes_in_data_tree,
+                "node_set",
+                scope={"Node": NonBuiltinTypeHint},
+            )
+            self.assertIs(
+                set[NonBuiltinTypeHint],
+                GetNodes.outputs.node_set.type_hint,
+                msg="Although non-builtin type hints are not normally accessible to "
+                "the signature inspection, we should be able to provide them",
+            )
+            self.assertSetEqual(
+                "Node",
+                GetNodes.outputs.node_set.type_hint.__args__[0].__name__,
+                msg="Sanity check: it shouldn't matter what we import it under, we are "
+                "providing the right class to the new node subclass.",
+            )
 
         output_label = "trapz"
         Trapz = to_function_node("Trapz", np.trapz, output_label)
