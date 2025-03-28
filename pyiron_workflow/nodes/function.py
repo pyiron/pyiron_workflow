@@ -486,8 +486,8 @@ def to_function_node(
     ...     scope={"Node": Node},
     ... )
     >>>
-    >>> print(GetNodesInDataTree.outputs.nodes_set.type_hint)
-    set[pyiron_workflow.node.Node]
+    >>> print(GetNodesInDataTree.preview_io())
+    {'inputs': {'node': (<class 'pyiron_workflow.node.Node'>, NOT_DATA)}, 'outputs': {'nodes_set': set[pyiron_workflow.node.Node]}}
 
 
     Args:

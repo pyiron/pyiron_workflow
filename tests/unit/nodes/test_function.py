@@ -571,15 +571,15 @@ class TestFunction(unittest.TestCase):
                 "node_set",
                 scope={"Node": NonBuiltinTypeHint},
             )
-            self.assertIs(
+            self.assertEqual(
                 set[NonBuiltinTypeHint],
-                GetNodes.outputs.node_set.type_hint,
+                GetNodes.preview_outputs()["node_set"],
                 msg="Although non-builtin type hints are not normally accessible to "
                 "the signature inspection, we should be able to provide them",
             )
-            self.assertSetEqual(
+            self.assertEqual(
                 "Node",
-                GetNodes.outputs.node_set.type_hint.__args__[0].__name__,
+                GetNodes.preview_outputs()["node_set"].__args__[0].__name__,
                 msg="Sanity check: it shouldn't matter what we import it under, we are "
                 "providing the right class to the new node subclass.",
             )
