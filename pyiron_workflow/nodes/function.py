@@ -443,6 +443,7 @@ def to_function_node(
     *output_labels,
     validate_output_labels: bool = True,
     use_cache: bool = True,
+    scope: dict[str, type] | None = None,
 ) -> type[Function]:
     """
     Create a new :class:`Function` node class from an existing function.
@@ -518,6 +519,7 @@ def to_function_node(
         use_cache,
         *output_labels,
     )
+    factory_made._extra_type_hint_scope = scope
     factory_made.preview_io()
     return factory_made
 
