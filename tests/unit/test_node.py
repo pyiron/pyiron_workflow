@@ -1,4 +1,5 @@
 import contextlib
+import shutil
 import unittest
 
 from pyiron_workflow.channels import NOT_DATA, InputData
@@ -357,9 +358,7 @@ class TestNode(unittest.TestCase):
                         for pp in p.iterdir():
                             print(pp)
             if self.n1.as_path().exists():
-                for p in self.n1.as_path().iterdir():
-                    p.unlink()
-                self.n1.as_path().rmdir()
+                shutil.rmtree(self.n1.as_path())
 
     def test_autorun(self):
         self.assertIs(
