@@ -68,9 +68,9 @@ class TwOutputs(ANode):
 
 class TestNode(unittest.TestCase):
     def setUp(self):
-        self.n1 = ANode(label="start", x=0)
-        self.n2 = ANode(label="middle", x=self.n1.outputs.y)
-        self.n3 = ANode(label="end", x=self.n2.outputs.y)
+        self.n1 = ANode(label="start_node", x=0)
+        self.n2 = ANode(label="middle_node", x=self.n1.outputs.y)
+        self.n3 = ANode(label="end_node", x=self.n2.outputs.y)
 
     def test_set_input_values(self):
         n = ANode()
