@@ -41,7 +41,7 @@ jobs:
       - name: Install versioneer
         shell: bash -l {0}
         run: |
-          pip install versioneer[toml]==${{ inputs.versioneer-version }}
+          pip install versioneer[toml]==0.29
       - name: Install local code without build isolation
         shell: bash -l {0}
         run: |
