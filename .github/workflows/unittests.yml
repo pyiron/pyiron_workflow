@@ -38,6 +38,10 @@ jobs:
         run: |
           conda info
           conda list
+      - name: Install local code without build isolation
+        shell: bash -l {0}
+        run: |
+          pip install --no-deps . --no-build-isolation
       - name: Test
         shell: bash -l {0}
         run: |
