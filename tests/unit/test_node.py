@@ -317,6 +317,13 @@ class TestNode(unittest.TestCase):
 
     def test_draw(self):
         try:
+            print("Initially")
+            if self.n1.as_path().exists():
+                for p in self.n1.as_path().iterdir():
+                    print(p, type(p))
+                    if p.is_dir():
+                        for pp in p.iterdir():
+                            print(pp)
             self.n1.draw()
             self.assertFalse(self.n1.as_path().exists())
 
@@ -342,8 +349,13 @@ class TestNode(unittest.TestCase):
             )
         finally:
             # No matter what happens in the tests, clean up after yourself
+            print("Finally")
             if self.n1.as_path().exists():
                 for p in self.n1.as_path().iterdir():
+                    print(p, type(p))
+                    if p.is_dir():
+                        for pp in p.iterdir():
+                            print(pp)
                     p.unlink()
                 self.n1.as_path().rmdir()
 
