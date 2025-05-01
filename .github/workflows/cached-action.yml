@@ -1,0 +1,27 @@
+# Trying to track down the conda env failures
+
+name: Unit tests
+
+on:
+  push:
+    branches: [ main ]
+  pull_request:
+  workflow_dispatch:
+
+jobs:
+  tests:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+      - uses: pyiron/actions/add-to-python-path@use_miniconda
+        with:
+          path-dirs: tests tests/benchmark tests/integration tests/static tests/unit  # For executorlib
+      - uses: pyiron/actions/cached-miniforge@use_miniconda
+        with:
+          python-version: '3.12'
+          use-cache: 'false'
+      - name: Test
+        shell: bash -l {0}
+        run: |
+          python -m unittest discover tests/unit
