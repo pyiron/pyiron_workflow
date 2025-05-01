@@ -15,6 +15,11 @@ jobs:
       - uses: pyiron/actions/write-environment@use_miniconda
         with:
           env-files: .ci_support/environment.yml
+      - name: Cat env file
+        shell: bash -l {0}
+        run: |
+          echo "ENV"
+          cat ${{ env.WRITE_ENVIRONMENT_OUTPUT_ENV_FILE }}
       - name: Setup miniconda
         uses: conda-incubator/setup-miniconda@v3
         with:
@@ -26,6 +31,11 @@ jobs:
           channel-priority: strict
           activate-environment: my-env
           environment-file: ${{ env.WRITE_ENVIRONMENT_OUTPUT_ENV_FILE }}
+      - name: Display env info
+        shell: bash -l {0}
+        run: |
+          conda info
+          conda list
       - name: Checkout
         uses: actions/checkout@v4
       - name: Test
