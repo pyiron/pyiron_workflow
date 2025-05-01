@@ -34,7 +34,7 @@ jobs:
           channels: conda-forge
           conda-remove-defaults: 'true'
           channel-priority: strict
-          activate-environment: ./cached-miniforge/my-env
+          activate-environment: cached-miniforge/my-env
           environment-file: ${{ env.WRITE_ENVIRONMENT_OUTPUT_ENV_FILE }}
       - name: Display env info
         shell: bash -l {0}
