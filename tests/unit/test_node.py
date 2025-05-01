@@ -356,6 +356,8 @@ class TestNode(unittest.TestCase):
                     if p.is_dir():
                         for pp in p.iterdir():
                             print(pp)
+            if self.n1.as_path().exists():
+                for p in self.n1.as_path().iterdir():
                     p.unlink()
                 self.n1.as_path().rmdir()
 
