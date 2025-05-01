@@ -1,6 +1,6 @@
 # Trying to track down the conda env failures
 
-name: Unit tests
+name: Cached action
 
 on:
   push:
