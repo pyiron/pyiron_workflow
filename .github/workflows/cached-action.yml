@@ -21,6 +21,7 @@ jobs:
         with:
           python-version: '3.12'
           use-cache: 'false'
+          env-path: cached-miniforge_my-env
       - name: Test
         shell: bash -l {0}
         run: |
