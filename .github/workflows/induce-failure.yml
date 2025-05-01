@@ -1,0 +1,55 @@
+# Trying to track down the conda env failures
+
+name: Induce failure
+
+on:
+  push:
+    branches: [ main ]
+  pull_request:
+  workflow_dispatch:
+
+jobs:
+  tests:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+      - uses: pyiron/actions/add-to-python-path@use_miniconda
+        with:
+          path-dirs: tests tests/benchmark tests/integration tests/static tests/unit  # For executorlib
+      - uses: pyiron/actions/write-environment@use_miniconda
+        with:
+          env-files: .ci_support/environment.yml
+      - name: Cat env file
+        shell: bash -l {0}
+        run: |
+          echo "ENV"
+          cat ${{ env.WRITE_ENVIRONMENT_OUTPUT_ENV_FILE }}
+      - name: Setup miniconda
+        uses: conda-incubator/setup-miniconda@v3
+        with:
+          python-version: '3.12'
+          miniforge-variant: Miniforge3
+          miniforge-version: 'latest'
+          channels: conda-forge
+          conda-remove-defaults: 'true'
+          channel-priority: strict
+          activate-environment: cached-miniforge/my-env
+          environment-file: ${{ env.WRITE_ENVIRONMENT_OUTPUT_ENV_FILE }}
+      - name: Display env info
+        shell: bash -l {0}
+        run: |
+          conda info
+          conda list
+      - name: Install versioneer
+        shell: bash -l {0}
+        run: |
+          pip install versioneer[toml]==0.29
+      - name: Install local code without build isolation
+        shell: bash -l {0}
+        run: |
+          pip install --no-deps . --no-build-isolation
+      - name: Test
+        shell: bash -l {0}
+        run: |
+          python -m unittest discover tests/unit
