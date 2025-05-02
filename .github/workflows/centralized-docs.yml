@@ -1,6 +1,6 @@
 # Trying to track down the recent upstream breaks of building docs
 
-name: setup-miniforge then unit tests
+name: centralized docs
 
 on:
   push:
