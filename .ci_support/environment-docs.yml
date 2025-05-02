@@ -1,0 +1,9 @@
+channels:
+  - conda-forge
+dependencies:
+  - ipykernel
+  - myst-parser
+  - nbsphinx
+  - sphinx-gallery
+  - sphinx-rtd-theme
+  - versioneer

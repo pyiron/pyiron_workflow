@@ -1,0 +1,28 @@
+# Trying to track down the recent upstream breaks of building docs
+
+name: setup-miniforge then unit tests
+
+on:
+  push:
+    branches: [ main ]
+  pull_request:
+  workflow_dispatch:
+
+jobs:
+  tests:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+      - uses: pyiron/actions/cached-miniforge@use_miniconda
+        with:
+          python-version: '3.12'
+          env-files: .ci_support/environment-docs.yml .ci_support/environment.yml
+#      - uses: pyiron/actions/pyiron-config@use_miniconda
+      - name: Build sphinx documentation
+        shell: bash -l {0}
+        run: |
+          mkdir public_html
+          cd docs
+          sphinx-build -b html ./ ../public_html || exit 1;
+          cd ..
