@@ -1,6 +1,6 @@
 # Trying to track down the conda env failures
 
-name: Cached action
+name: setup-miniforge then unit tests
 
 on:
   push:
