@@ -9,7 +9,10 @@ on:
 
 jobs:
   codeql:
-    uses: pyiron/actions/.github/workflows/tests-and-coverage.yml@actions-4.0.0
+    uses: pyiron/actions/.github/workflows/tests-and-coverage.yml@actions-4.0.2
     secrets: inherit
     with:
       extra-python-paths: tests tests/benchmark tests/integration tests/static tests/unit  # For executorlib
+      do-codecov: true
+      do-codacy: false
+      do-coveralls: false

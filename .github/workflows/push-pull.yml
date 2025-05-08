@@ -9,7 +9,7 @@ on:
 
 jobs:
   pyiron:
-    uses: pyiron/actions/.github/workflows/push-pull.yml@actions-4.0.0
+    uses: pyiron/actions/.github/workflows/push-pull.yml@actions-4.0.2
     secrets: inherit
     with:
       docs-env-files: .ci_support/environment.yml
@@ -19,6 +19,9 @@ jobs:
       alternate-tests-env-files: .ci_support/lower_bound.yml
       alternate-tests-python-version: '3.10'
       alternate-tests-dir: tests/unit
+      do-codecov: true
+      do-codacy: false
+      do-coveralls: false
 
   mypy:
     runs-on: ubuntu-latest
@@ -34,19 +37,3 @@ jobs:
         run: pip install mypy
       - name: Test
         run: mypy --ignore-missing-imports --strict-equality ${{ github.event.repository.name }}
-
-  ruff-check:
-    runs-on: ubuntu-latest
-    steps:
-      - uses: actions/checkout@v4
-      - uses: astral-sh/ruff-action@v3
-        with:
-          args: check
-
-  ruff-sort-imports:
-    runs-on: ubuntu-latest
-    steps:
-      - uses: actions/checkout@v4
-      - uses: astral-sh/ruff-action@v3
-        with:
-          args: check --select I --fix --diff
