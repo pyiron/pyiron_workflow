@@ -19,6 +19,9 @@ jobs:
       alternate-tests-env-files: .ci_support/lower_bound.yml
       alternate-tests-python-version: '3.10'
       alternate-tests-dir: tests/unit
+      do-codecov: true
+      do-codacy: false
+      do-coveralls: false
 
   mypy:
     runs-on: ubuntu-latest

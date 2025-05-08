@@ -13,3 +13,6 @@ jobs:
     secrets: inherit
     with:
       extra-python-paths: tests tests/benchmark tests/integration tests/static tests/unit  # For executorlib
+      do-codecov: true
+      do-codacy: false
+      do-coveralls: false
