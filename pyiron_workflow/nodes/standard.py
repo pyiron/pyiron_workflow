@@ -90,7 +90,7 @@ def AppendToList(existing: list | None = None, new_element=NOT_DATA):
         This node is particularly useful for acyclic flows, where you want to bend the
         suggestions of idempotency by looping the node's output back on itself:
 
-        >>> from pyiron_workflow import standard_nodes as std
+        >>> from pyiron_workflow import std
         >>>
         >>> n = std.AppendToList()
         >>> n.run(new_element="foo")
@@ -131,7 +131,7 @@ def ChangeDirectory(
         leaving no trace if we created it to start with.
         >>> import os
         >>>
-        >>> from pyiron_workflow import standard_nodes as std
+        >>> from pyiron_workflow import std
         >>>
         >>> go_in = std.ChangeDirectory(path="some_subdirectory")
         >>> in_result = go_in.run()
@@ -182,7 +182,7 @@ def PureCall(fnc: Callable):
         This is particularly useful for snagging methods off objects inside a workflow.
         >>> import datetime
         >>>
-        >>> from pyiron_workflow import standard_nodes as std
+        >>> from pyiron_workflow import std
         >>>
         >>> inp = std.UserInput(datetime.date(1977, 5, 25))
         >>> pure_call = std.PureCall(inp.isoformat)

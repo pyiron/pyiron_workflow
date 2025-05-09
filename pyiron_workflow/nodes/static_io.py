@@ -95,7 +95,7 @@ class StaticNode(Node, HasIOPreview, ABC):
         Examples:
             >>> from pyiron_workflow import Workflow
             >>>
-            >>> n = Workflow.create.standard.Add.for_node(
+            >>> n = Workflow.create.std.Add.for_node(
             ...     iter_on="other",
             ...     obj=1,
             ...     other=[1, 2],

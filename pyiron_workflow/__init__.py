@@ -33,7 +33,7 @@ __version__ = get_versions()["version"]
 # API
 
 from pyiron_workflow import api  # Developer entry point
-from pyiron_workflow.nodes import standard as standard_nodes  # User resource
+from pyiron_workflow.nodes import standard as std  # User resource
 
 # User-facing tools
 from pyiron_workflow.nodes.for_loop import For, for_node, for_node_factory
