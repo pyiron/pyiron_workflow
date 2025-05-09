@@ -21,10 +21,9 @@ Key features:
 - Easy extensibility by collecting nodes together in a python module for sharing/reusing
 
 Planned:
-- Storage of executed workflows, including restarting from a partially executed workflow
-- Support for more complex remote execution, especially leveraging :mod:`executorlib`
-- Ontological hinting for data channels in order to provide guided workflow design
-- GUI on top for code-lite/code-free visual scripting
+- More user-friendly usage of :mod:`executorlib`
+- Integration with :mod:`semantikon` for ontological hinting of data channels to provide
+    guided workflow design
 """
 
 from ._version import get_versions
@@ -33,17 +32,10 @@ __version__ = get_versions()["version"]
 
 # API
 
-# User entry point
-from pyiron_workflow.workflow import Workflow  # ruff: isort: skip
+from pyiron_workflow import api  # Developer entry point
+from pyiron_workflow.nodes import standard as std  # User resource
 
-# Node developer entry points
-from pyiron_workflow.channels import NOT_DATA
-from pyiron_workflow.find import (
-    find_nodes as _find_nodes,  # Not formally in API -- don't rely on interface
-)
-from pyiron_workflow.logging import logger
-from pyiron_workflow.nodes import standard as standard_nodes
-from pyiron_workflow.nodes.composite import FailedChildError
+# User-facing tools
 from pyiron_workflow.nodes.for_loop import For, for_node, for_node_factory
 from pyiron_workflow.nodes.function import (
     Function,
@@ -60,9 +52,6 @@ from pyiron_workflow.nodes.transform import (
     inputs_to_list,
     list_to_outputs,
 )
-from pyiron_workflow.storage import (
-    PickleStorage,
-    StorageInterface,
-    TypeNotFoundError,
-    available_backends,
-)
+
+# Single-point of entry for users
+from pyiron_workflow.workflow import Workflow

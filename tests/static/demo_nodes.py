@@ -13,9 +13,9 @@ def OptionallyAdd(x: int, y: int | None = None) -> int:
 
 @Workflow.wrap.as_macro_node("add_three")
 def AddThree(self, x: int) -> int:
-    self.one = self.create.standard.Add(x, 1)
-    self.two = self.create.standard.Add(self.one, 1)
-    self.three = self.create.standard.Add(self.two, 1)
+    self.one = self.create.std.Add(x, 1)
+    self.two = self.create.std.Add(self.one, 1)
+    self.three = self.create.std.Add(self.two, 1)
     return self.three
 
 

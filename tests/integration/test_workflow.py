@@ -168,7 +168,7 @@ class TestWorkflow(unittest.TestCase):
             executors.append(Workflow.create.executorlib.Executor)
 
         wf = Workflow("executed")
-        wf.a = Workflow.create.standard.UserInput(42)  # Regular
+        wf.a = Workflow.create.std.UserInput(42)  # Regular
         wf.b = wf.a + 1  # Injected
         wf.c = Workflow.create.function_node(foo, wf.b)  # Instantiated from function
         wf.d = Bar(wf.c)  # From decorated function
@@ -216,7 +216,7 @@ class TestWorkflow(unittest.TestCase):
     def test_cache(self):
         wf = Workflow("tmp")
         wf.use_cache = True
-        wf.a = wf.create.standard.UserInput(0)
+        wf.a = wf.create.std.UserInput(0)
         wf.b = wf.a + 1
 
         first_out = wf()
@@ -262,12 +262,12 @@ class TestWorkflow(unittest.TestCase):
         signal.
         """
         wf = Workflow("test")
-        wf.a = Workflow.create.standard.UserInput(1)
-        wf.b = Workflow.create.standard.UserInput("two")
+        wf.a = Workflow.create.std.UserInput(1)
+        wf.b = Workflow.create.std.UserInput("two")
         wf.c_fails = wf.a + wf.b  # Type error
-        wf.d_if_success = Workflow.create.standard.UserInput(0)
-        wf.d_if_failure = Workflow.create.standard.UserInput("But what's the question?")
-        wf.e_fails = Workflow.create.standard.Add(wf.d_if_failure, 42)  # Type error
+        wf.d_if_success = Workflow.create.std.UserInput(0)
+        wf.d_if_failure = Workflow.create.std.UserInput("But what's the question?")
+        wf.e_fails = Workflow.create.std.Add(wf.d_if_failure, 42)  # Type error
 
         wf.a >> wf.b >> wf.c_fails >> wf.d_if_success
         wf.c_fails.signals.output.failed >> wf.d_if_failure >> wf.e_fails

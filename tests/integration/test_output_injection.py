@@ -11,8 +11,8 @@ class TestOutputInjection(unittest.TestCase):
 
     def setUp(self) -> None:
         self.wf = Workflow("injection")
-        self.int = Workflow.create.standard.UserInput(42, autorun=True)
-        self.list = Workflow.create.standard.UserInput(list(range(10)), autorun=True)
+        self.int = Workflow.create.std.UserInput(42, autorun=True)
+        self.list = Workflow.create.std.UserInput(list(range(10)), autorun=True)
 
     def test_equality(self):
         with self.subTest("True expressions"):
@@ -83,8 +83,8 @@ class TestOutputInjection(unittest.TestCase):
 
     def test_logic(self):
         # Note: We can't invert with not etc. because overloading __bool__ does not work
-        self.true = Workflow.create.standard.UserInput(True, autorun=True)
-        self.false = Workflow.create.standard.UserInput(False, autorun=True)
+        self.true = Workflow.create.std.UserInput(True, autorun=True)
+        self.false = Workflow.create.std.UserInput(False, autorun=True)
 
         with self.subTest("True expressions"):
             for expression in [
@@ -119,19 +119,19 @@ class TestOutputInjection(unittest.TestCase):
                     self.assertFalse(expression.value)
 
     def test_casts(self):
-        self.float = Workflow.create.standard.UserInput(42.2, autorun=True)
+        self.float = Workflow.create.std.UserInput(42.2, autorun=True)
 
         self.assertIsInstance(self.int.float().value, float)
         self.assertIsInstance(self.float.int().value, int)
         self.assertEqual(self.int.value, round(self.float).value)
 
     def test_access(self):
-        self.dict = Workflow.create.standard.UserInput({"foo": 42}, autorun=True)
+        self.dict = Workflow.create.std.UserInput({"foo": 42}, autorun=True)
 
         class Something:
             myattr = 1
 
-        self.obj = Workflow.create.standard.UserInput(Something(), autorun=True)
+        self.obj = Workflow.create.std.UserInput(Something(), autorun=True)
 
         self.assertIsInstance(self.list[0].value, int)
         self.assertEqual(5, self.list[:5].len().value)
@@ -147,7 +147,7 @@ class TestOutputInjection(unittest.TestCase):
 
     def test_repeated_access_in_parent_scope(self):
         wf = Workflow("output_manipulation")
-        wf.list = Workflow.create.standard.UserInput(list(range(10)))
+        wf.list = Workflow.create.std.UserInput(list(range(10)))
 
         a = wf.list[:4]
         b = wf.list[:4]

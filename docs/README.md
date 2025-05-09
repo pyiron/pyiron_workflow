@@ -86,7 +86,7 @@ Sets of nodes can be collected under the umbrella of a living `Workflow` object,
 
 ```python
 >>> wf = Workflow("readme")
->>> wf.greeting = Workflow.create.standard.UserInput("Hi")
+>>> wf.greeting = Workflow.create.std.UserInput("Hi")
 >>> wf.first = HelloWorld(greeting=wf.greeting)
 >>> wf.second = HelloWorld(greeting=wf.greeting)
 >>> wf.combined = wf.first + " and " + wf.second

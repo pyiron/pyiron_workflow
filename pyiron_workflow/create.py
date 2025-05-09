@@ -34,7 +34,7 @@ class Creator:
     executorlib = executorlib
 
     @property
-    def standard(self):
+    def std(self):
         from pyiron_workflow.nodes import standard
 
         return standard

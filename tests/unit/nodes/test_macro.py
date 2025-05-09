@@ -427,8 +427,8 @@ class TestMacro(unittest.TestCase):
 
             @as_macro_node("output")
             def MutlipleUseInput(self, x):
-                self.n1 = self.create.standard.UserInput(x)
-                self.n2 = self.create.standard.UserInput(x)
+                self.n1 = self.create.std.UserInput(x)
+                self.n2 = self.create.std.UserInput(x)
                 return self.n1
 
             m = MutlipleUseInput()
@@ -443,7 +443,7 @@ class TestMacro(unittest.TestCase):
 
             @as_macro_node("output")
             def SingleUseInput(self, x):
-                self.n = self.create.standard.UserInput(x)
+                self.n = self.create.std.UserInput(x)
                 return self.n
 
             m = SingleUseInput()
@@ -458,9 +458,9 @@ class TestMacro(unittest.TestCase):
 
             @as_macro_node("output")
             def MixedUseInput(self, x, y):
-                self.n1 = self.create.standard.UserInput(x)
-                self.n2 = self.create.standard.UserInput(y)
-                self.n3 = self.create.standard.UserInput(y)
+                self.n1 = self.create.std.UserInput(x)
+                self.n2 = self.create.std.UserInput(y)
+                self.n3 = self.create.std.UserInput(y)
                 return self.n1
 
             m = MixedUseInput()
@@ -539,7 +539,7 @@ class TestMacro(unittest.TestCase):
 
         @as_macro_node
         def OutputScrapedFromFilteredReturn(macro):
-            macro.foo = macro.create.standard.UserInput()
+            macro.foo = macro.create.std.UserInput()
             return macro.foo
 
         self.assertListEqual(
@@ -555,7 +555,7 @@ class TestMacro(unittest.TestCase):
 
             @as_macro_node
             def ReturnHasDot(macro):
-                macro.foo = macro.create.standard.UserInput()
+                macro.foo = macro.create.std.UserInput()
                 return macro.foo.outputs.user_input
 
     def test_pickle(self):

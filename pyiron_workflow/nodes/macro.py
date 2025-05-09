@@ -307,7 +307,7 @@ class Macro(Composite, StaticNode, ScrapesIO, ABC):
     def _prepopulate_ui_nodes_from_graph_creator_signature(self):
         ui_nodes = []
         for label, (type_hint, default) in self.preview_inputs().items():
-            n = self.create.standard.UserInput(
+            n = self.create.std.UserInput(
                 default,
                 label=label,
                 parent=self,

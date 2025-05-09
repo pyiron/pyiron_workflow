@@ -223,7 +223,7 @@ class For(Composite, StaticNode, ABC):
         super()._setup_node()
         input_nodes = []
         for channel in self.inputs:
-            n = self.create.standard.UserInput(
+            n = self.create.std.UserInput(
                 channel.default, label=channel.label, parent=self
             )
             n.inputs.user_input.type_hint = channel.type_hint

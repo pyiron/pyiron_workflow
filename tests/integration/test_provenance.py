@@ -19,13 +19,13 @@ class TestProvenance(unittest.TestCase):
 
         @Workflow.wrap.as_macro_node
         def Provenance(self, t):
-            self.fast = Workflow.create.standard.UserInput(t)
+            self.fast = Workflow.create.std.UserInput(t)
             self.slow = Slow(t)
             self.double = self.fast + self.slow
             return self.double
 
         wf = Workflow("provenance")
-        wf.time = Workflow.create.standard.UserInput(2)
+        wf.time = Workflow.create.std.UserInput(2)
         wf.prov = Provenance(t=wf.time)
         wf.post = wf.prov + 2
         self.wf = wf

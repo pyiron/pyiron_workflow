@@ -1,8 +1,7 @@
 import pickle
 import unittest
 
-from pyiron_workflow import as_macro_node
-from pyiron_workflow import standard_nodes as std
+from pyiron_workflow import as_macro_node, std
 
 
 @as_macro_node("greater")
