@@ -183,10 +183,11 @@ class TestIOPreview(unittest.TestCase):
                     """
                     def __source_code_not_available(x):
                         return x
-                """
+                    """
                 )
-                exec(template)
-                return locals()["__source_code_not_available"]
+                scope = {}
+                exec(template, {}, scope)
+                return scope["__source_code_not_available"]
 
             f = _uninspectable()
 

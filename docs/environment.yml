@@ -7,15 +7,16 @@ dependencies:
 - sphinx-gallery
 - sphinx-rtd-theme
 - versioneer
-- coveralls
-- coverage
 - bidict =0.23.1
 - cloudpickle =3.1.1
 - executorlib =1.0.1
 - graphviz =9.0.0
 - pandas =2.2.3
 - pint =0.24.4
-- pyiron_snippets =0.1.4
+- pyiron_snippets =0.2.0
+- python >=3.10,<3.14
 - python-graphviz =0.20.3
+- setuptools>=68
 - toposort =1.10
 - typeguard =4.4.2
+- wheel

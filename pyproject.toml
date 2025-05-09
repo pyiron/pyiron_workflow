@@ -5,12 +5,13 @@ requires = [
     "executorlib",
     "graphviz",
     "pandas",
+    "pint",
+    "pyiron_snippets",
     "toposort",
     "typeguard",
-    "setuptools",
+    "setuptools>=68.0.0",
     "versioneer[toml]==0.29",
-    "pyiron_snippets",
-    "pint",
+    "wheel",
 ]
 build-backend = "setuptools.build_meta"
 
@@ -19,7 +20,7 @@ name = "pyiron_workflow"
 description = "pyiron_workflow - Graph-and-node based workflow tools."
 readme = "docs/README.md"
 keywords = [ "pyiron",]
-requires-python = ">=3.10, <3.13"
+requires-python = ">=3.10, <3.14"
 classifiers = [
     "Development Status :: 4 - Beta",
     "Topic :: Scientific/Engineering",
@@ -29,6 +30,7 @@ classifiers = [
     "Programming Language :: Python :: 3.10",
     "Programming Language :: Python :: 3.11",
     "Programming Language :: Python :: 3.12",
+    "Programming Language :: Python :: 3.13",
 ]
 dependencies = [
     "bidict==0.23.1",
@@ -37,7 +39,7 @@ dependencies = [
     "graphviz==0.20.3",
     "pandas==2.2.3",
     "pint==0.24.4",
-    "pyiron_snippets==0.1.4",
+    "pyiron_snippets==0.2.0",
     "toposort==1.10",
     "typeguard==4.4.2",
 ]
