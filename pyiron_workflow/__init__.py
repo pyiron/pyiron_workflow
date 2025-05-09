@@ -21,10 +21,9 @@ Key features:
 - Easy extensibility by collecting nodes together in a python module for sharing/reusing
 
 Planned:
-- Storage of executed workflows, including restarting from a partially executed workflow
-- Support for more complex remote execution, especially leveraging :mod:`executorlib`
-- Ontological hinting for data channels in order to provide guided workflow design
-- GUI on top for code-lite/code-free visual scripting
+- More user-friendly usage of :mod:`executorlib`
+- Integration with :mod:`semantikon` for ontological hinting of data channels to provide
+    guided workflow design
 """
 
 from ._version import get_versions
