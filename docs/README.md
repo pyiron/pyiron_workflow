@@ -11,6 +11,8 @@
 [![Platform](https://anaconda.org/conda-forge/pyiron_workflow/badges/platforms.svg)](https://anaconda.org/conda-forge/pyiron_workflow)
 [![Downloads](https://anaconda.org/conda-forge/pyiron_workflow/badges/downloads.svg)](https://anaconda.org/conda-forge/pyiron_workflow)
 
+[![Decision](https://img.shields.io/badge/pyiron-25--001_v2-blue)](https://github.com/pyiron/decisions/blob/main/decisions/25-001-split-api.md)
+
 ## Overview
 
 `pyiron_workflow` is a framework for constructing workflows as computational graphs from simple python functions. Its objective is to make it as easy as possible to create reliable, reusable, and sharable workflows, with a special focus on research workflows for HPC environments.
