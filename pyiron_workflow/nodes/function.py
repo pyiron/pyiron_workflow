@@ -222,7 +222,7 @@ class Function(StaticNode, ScrapesIO, ABC):
         already defined as a `staticmethod`:
 
         >>> from typing import Literal, Optional
-        >>> from pyiron_workflow import Function
+        >>> from pyiron_workflow.api import Function
         >>>
         >>> class AlphabetModThree(Function):
         ...
