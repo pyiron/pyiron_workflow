@@ -90,7 +90,7 @@ class Macro(Composite, StaticNode, ScrapesIO, ABC):
         Let's consider the simplest case of macros that just consecutively add 1 to
         their input:
 
-        >>> from pyiron_workflow import Macro, as_macro_node, macro_node
+        >>> from pyiron_workflow import as_macro_node, macro_node
         >>> def add_one(x):
         ...     result = x + 1
         ...     return result
@@ -180,6 +180,7 @@ class Macro(Composite, StaticNode, ScrapesIO, ABC):
         for function nodes (except the initial `macro` (or `self` or whatever the first
         argument is named) on any return values is ignored):
 
+        >>> from pyiron_workflow.api import Macro
         >>> @Macro.wrap.as_macro_node
         ... def AddThreeMacro(self, x):
         ...     add_three_macro(self, one__x=x)
@@ -307,7 +308,7 @@ class Macro(Composite, StaticNode, ScrapesIO, ABC):
     def _prepopulate_ui_nodes_from_graph_creator_signature(self):
         ui_nodes = []
         for label, (type_hint, default) in self.preview_inputs().items():
-            n = self.create.standard.UserInput(
+            n = self.create.std.UserInput(
                 default,
                 label=label,
                 parent=self,

@@ -8,10 +8,10 @@ class TestSpeedup(unittest.TestCase):
     def test_speedup(self):
         def make_workflow(label):
             wf = Workflow(label)
-            wf.a = Workflow.create.standard.Sleep(t)
-            wf.b = Workflow.create.standard.Sleep(t)
-            wf.c = Workflow.create.standard.Sleep(t)
-            wf.d = wf.create.standard.UserInput(t)
+            wf.a = Workflow.create.std.Sleep(t)
+            wf.b = Workflow.create.std.Sleep(t)
+            wf.c = Workflow.create.std.Sleep(t)
+            wf.d = wf.create.std.UserInput(t)
             wf.automate_execution = False
             return wf
 
@@ -76,10 +76,10 @@ class TestSpeedup(unittest.TestCase):
     def test_executor_instructions(self):
         t = 2
         wf = Workflow("test")
-        wf.sleep1 = Workflow.create.standard.Sleep(t)
-        wf.sleep2 = Workflow.create.standard.Sleep(t)
-        wf.sleep3 = Workflow.create.standard.Sleep(t)
-        wf.sleep4 = Workflow.create.standard.Sleep(t)
+        wf.sleep1 = Workflow.create.std.Sleep(t)
+        wf.sleep2 = Workflow.create.std.Sleep(t)
+        wf.sleep3 = Workflow.create.std.Sleep(t)
+        wf.sleep4 = Workflow.create.std.Sleep(t)
         for n in wf:
             n.executor = (Workflow.create.ThreadPoolExecutor, (), {})
 
