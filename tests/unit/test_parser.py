@@ -3,7 +3,7 @@ from owlrl import DeductiveClosure, OWLRL_Semantics
 from rdflib import Graph, OWL, RDF, RDFS, Literal, URIRef
 from pyiron_ontology.parser import export_to_dict, parse_workflow
 from semantikon.ontology import (
-    PNS,
+    SNS,
     validate_values,
     get_knowledge_graph,
 )
@@ -44,7 +44,7 @@ def multiply(a: float, b: float) -> u(
     float,
     triples=(
         (EX.HasOperation, EX.Multiplication),
-        (PNS.inheritsPropertiesFrom, "inputs.a"),
+        (SNS.inheritsPropertiesFrom, "inputs.a"),
     ),
 ):
     return a * b
@@ -104,7 +104,7 @@ class TestParser(unittest.TestCase):
         query_txt = [
             "PREFIX ex: <http://example.org/>",
             "PREFIX rdf: <http://www.w3.org/1999/02/22-rdf-syntax-ns#>",
-            f"PREFIX pns: <{PNS.BASE}>",
+            f"PREFIX pns: <{SNS.BASE}>",
             "SELECT DISTINCT ?speed ?units",
             "WHERE {",
             "    ?output pns:hasValue ?output_tag .",
@@ -126,7 +126,7 @@ class TestParser(unittest.TestCase):
         obj = URIRef("http://example.org/object")
         label = URIRef("speed.speed.outputs.speed")
         self.assertIn(
-            (None, PNS.hasUnits, URIRef("meter/second")),
+            (None, SNS.hasUnits, URIRef("meter/second")),
             graph,
             msg=graph.serialize(format="turtle")
         )
@@ -191,9 +191,9 @@ class TestParser(unittest.TestCase):
         )
 
     def test_namespace(self):
-        self.assertEqual(PNS.hasUnits, URIRef("http://pyiron.org/ontology/hasUnits"))
+        self.assertEqual(SNS.hasUnits, URIRef("http://pyiron.org/ontology/hasUnits"))
         with self.assertRaises(AttributeError):
-            _ = PNS.ahoy
+            _ = SNS.ahoy
 
     def test_parsing_without_running(self):
         wf = Workflow("test")
@@ -269,7 +269,7 @@ class TestDataclass(unittest.TestCase):
             (URIRef(f"{i_txt}.n.value"), RDFS.subClassOf, URIRef(f"{i_txt}.value")),
             (URIRef(f"{i_txt}.n.value"), RDF.value, Literal(100)),
             (URIRef(f"{i_txt}.parameters.a.value"), RDF.value, Literal(1)),
-            (URIRef(o_txt), PNS.hasValue, URIRef(f"{o_txt}.E.value")),
+            (URIRef(o_txt), SNS.hasValue, URIRef(f"{o_txt}.E.value")),
         )
         s = graph.serialize(format="turtle")
         for ii, triple in enumerate(triples):
