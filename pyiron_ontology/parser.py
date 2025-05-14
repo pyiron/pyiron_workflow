@@ -154,7 +154,7 @@ def parse_workflow(
     with_default: bool = True,
     graph: Graph | None = None,
     inherit_properties: bool = True,
-    ontology=PNS,
+    ontology=SNS,
     append_missing_items: bool = True,
 ) -> Graph:
     """
