@@ -14,6 +14,7 @@ from rdflib import Namespace
 
 
 EX = Namespace("http://example.org/")
+QUDT = Namespace("http://qudt.org/vocab/unit/")
 
 
 @Workflow.wrap.as_function_node("speed")
@@ -126,7 +127,7 @@ class TestParser(unittest.TestCase):
         obj = URIRef("http://example.org/object")
         label = URIRef("speed.speed.outputs.speed")
         self.assertIn(
-            (None, SNS.hasUnits, URIRef("meter/second")),
+            (None, SNS.hasUnits, QUDT["M-PER-SEC"]),
             graph,
             msg=graph.serialize(format="turtle")
         )
