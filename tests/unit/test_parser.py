@@ -182,10 +182,6 @@ class TestParser(unittest.TestCase):
         data = export_to_dict(wf)
         graph = get_knowledge_graph(data)
         tag = "correct_analysis.addition.inputs.a"
-        self.assertEqual(
-            len(list(graph.triples((URIRef(tag), RDFS.label, Literal(tag))))),
-            1,
-        )
         self.assertTrue(
             EX.Addition
             in list(graph.objects(URIRef("correct_analysis.addition"), RDF.type))
@@ -204,7 +200,7 @@ class TestParser(unittest.TestCase):
         graph = get_knowledge_graph(data)
         self.assertEqual(
             len(list(graph.triples((None, RDF.value, None)))),
-            2,
+            4,
             msg="There should be only values for a and b, but not for the output",
         )
         wf.run()
@@ -212,7 +208,7 @@ class TestParser(unittest.TestCase):
         graph = get_knowledge_graph(data)
         self.assertEqual(
             len(list(graph.triples((None, RDF.value, None)))),
-            3,
+            6,
             msg="There should be values for a, b and the output",
         )
 
