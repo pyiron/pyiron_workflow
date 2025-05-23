@@ -42,11 +42,16 @@ class While(Composite, StaticNode, abc.ABC):
 
     @classmethod
     def _build_inputs_preview(cls) -> dict[str, tuple[Any, Any]]:
-        return {}
+        preview = {}
+        for label, (hint, default) in cls._body_node_class.preview_inputs().items():
+            preview["body_" + label] = (hint, default)
+        for label, (hint, default) in cls._test_node_class.preview_inputs().items():
+            preview["test_" + label] = (hint, default)
+        return preview
 
     @classmethod
     def _build_outputs_preview(cls) -> dict[str, Any]:
-        return {}
+        return dict(cls._body_node_class.preview_outputs())
 
 
 def _while_node_class_name(
