@@ -167,13 +167,15 @@ class Composite(LexicalParent[Node], HasCreator, Node, ABC):
         for node in self:
             node.deactivate_strict_hints()
 
-    def _on_run(self):
+    def _on_cache_miss(self) -> None:
+        super()._on_cache_miss()
         # Reset provenance and run status trackers
         self.provenance_by_execution = []
         self.provenance_by_completion = []
         self.running_children = [n.label for n in self if n.running]
         self.signal_queue = []
 
+    def _on_run(self):
         if len(self.running_children) > 0:  # Start from a broken process
             for label in self.running_children:
                 self.children[label].run()
