@@ -1,5 +1,5 @@
 import abc
-from typing import ClassVar, TypeAlias, Any
+from typing import Any, ClassVar, TypeAlias
 
 from pyiron_snippets import factory
 

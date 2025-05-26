@@ -1,6 +1,6 @@
 import unittest
 
-import pyiron_workflow.nodes.function as function
+from pyiron_workflow.nodes import function
 from pyiron_workflow.nodes.while_loop import InvalidTestOutputError, while_node
 
 
@@ -19,7 +19,7 @@ SIDE_EFFECT = 0
 
 @function.as_function_node("add")
 def AddWithSideEffect(obj, other):
-    global SIDE_EFFECT
+    global SIDE_EFFECT  # noqa: PLW0603
     SIDE_EFFECT += 1
     return obj + other
 
@@ -43,7 +43,7 @@ class TestWhileLoop(unittest.TestCase):
         )
         cls.limit = 3
         cls.awhile(test_candidate=0, test_limit=cls.limit, body_obj=0, body_other=1)
-        global SIDE_EFFECT
+        global SIDE_EFFECT  # noqa: PLW0603
         print("SIDE EFFECT INITIALLY", SIDE_EFFECT)
         SIDE_EFFECT = 0
 
@@ -69,7 +69,7 @@ class TestWhileLoop(unittest.TestCase):
         result = self.awhile.outputs.add.value
         self.assertEqual(result, self.limit, msg="Sanity check on output")
         self.awhile.run()
-        global SIDE_EFFECT
+        global SIDE_EFFECT  # noqa: PLW0603
         self.assertEqual(
             SIDE_EFFECT, 0, msg="With the cache, we should avoid re-running the body"
         )
