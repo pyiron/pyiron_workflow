@@ -5,8 +5,8 @@ from pyiron_workflow.nodes.while_loop import InvalidTestOutputError, while_node
 
 
 @function.as_function_node
-def TypedComparison(a: int, b: int) -> bool:
-    return a < b
+def TypedComparison(candidate: int, limit: int) -> bool:
+    return candidate < limit
 
 
 @function.as_function_node
@@ -36,13 +36,13 @@ class TestWhileLoop(unittest.TestCase):
         cls.awhile = while_node(
             TypedComparison,
             AddWithSideEffect,
-            [("add", "a")],
+            [("add", "candidate")],
             [("add", "obj")],
         )
         cls.limit = 3
         cls.awhile(
-            test_a=0,
-            test_b=cls.limit,
+            test_candidate=0,
+            test_limit=cls.limit,
             body_obj=0,
             body_other=1
         )
@@ -70,7 +70,7 @@ class TestWhileLoop(unittest.TestCase):
     def test_reruns(self):
         result = self.awhile.outputs.add.value
         self.assertEqual(
-            result, 3, msg="Sanity check on output"
+            result, self.limit, msg="Sanity check on output"
         )
         self.awhile.run()
         global SIDE_EFFECT
@@ -79,7 +79,7 @@ class TestWhileLoop(unittest.TestCase):
         )
 
         new_limit = 5
-        self.awhile.inputs.test_b = new_limit
+        self.awhile.inputs.test_limit = new_limit
         try:
             self.awhile.run()
             self.assertEqual(
