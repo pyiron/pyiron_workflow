@@ -13,6 +13,10 @@ label_connections_like: TypeAlias = (
 )
 
 
+class InvalidTestOutputError(ValueError):
+    pass
+
+
 def _tuplefy(connections: label_connections_like) -> label_connections:
     if isinstance(connections, tuple) and isinstance(connections[0], str):
         return (connections,)
@@ -53,7 +57,17 @@ class While(Composite, StaticNode, abc.ABC):
 
     @classmethod
     def _build_outputs_preview(cls) -> dict[str, Any]:
+        cls._verify_test_output()
         return dict(cls._body_node_class.preview_outputs())
+
+    @classmethod
+    def _verify_test_output(cls):
+        test_outputs = cls._test_node_class.preview_outputs()
+        if len(test_outputs) != 1 or next(iter(test_outputs.values())) is not bool:
+            raise InvalidTestOutputError(
+                f"Test node {cls._test_node_class.__name__} must have a single boolean "
+                f"output channel, but has outputs {test_outputs}."
+            )
 
 
 def _while_node_class_name(
@@ -75,7 +89,6 @@ def while_node_factory(
     body_node_class: type[StaticNode],
     body_to_test_connections: label_connections_like,
     body_to_body_connections: label_connections_like,
-    body_to_test_connections: label_connections_like,
     use_cache: bool = True,
     /,
 ) -> type[While]:
