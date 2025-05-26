@@ -69,6 +69,68 @@ class While(Composite, StaticNode, abc.ABC):
                 f"output channel, but has outputs {test_outputs}."
             )
 
+    def _on_cache_miss(self) -> None:
+        super()._on_cache_miss()
+        if self.ready:
+            self._clean_existing_subgraph()
+
+    def _clean_existing_subgraph(self):
+        for label in self.child_labels:
+            self.remove_child(label)
+
+    def _on_run(self):
+        n = 0
+        test, body = self._extend_children(n)
+        last_body = body  # In case of early termination, we need to link the output
+        super()._on_run()
+        while self._test_condition(test):
+            test >> body  # For posterity -- we manage the execution manually here
+            self.starting_nodes = [body]
+            super()._on_run()
+            last_body = body
+            n += 1
+            test, body = self._extend_children(n)
+            self._connect_cycles(last_body, test, body)
+            super()._on_run()
+
+        self._link_output_values(last_body)
+
+        # Adding and removing children resets the cache, so make sure we cache _after_
+        # we're done modifying the child graph
+        self._cached_inputs = self.inputs.to_value_dict()
+
+        return self
+
+    def _extend_children(self, n: int):
+        test = self._test_node_class(label=f"{self._test_stem}{n}", parent=self)
+        body = self._body_node_class(label=f"{self._body_stem}{n}", parent=self)
+        self._link_input_values(test, body)
+        self.starting_nodes = [test]
+        return test, body
+
+    def _link_input_values(self, test, body):
+        for label, macro_input in self.inputs.items():
+            if label.startswith(self._test_stem):
+                macro_input.value_receiver = test.inputs[label[len(self._test_stem) :]]
+            elif label.startswith(self._body_stem):
+                macro_input.value_receiver = body.inputs[label[len(self._body_stem) :]]
+
+    def _link_output_values(self, body):
+        for label, body_output in body.outputs.items():
+            body_output.value_receiver = self.outputs[label]
+
+    def _connect_cycles(self, last_body, test, body):
+        for (target, connections) in (
+            (test, self._body_to_test_connections),
+            (body, self._body_to_body_connections),
+        ):
+            for old_body_label, target_label in connections:
+                last_body.outputs[old_body_label].connect(target.inputs[target_label])
+
+    def _test_condition(self, test) -> bool:
+        output_label = test.outputs.labels[0]
+        return test.outputs.channel_dict[output_label].value
+
 
 def _while_node_class_name(
     test_node_class: type[StaticNode],
