@@ -53,6 +53,7 @@ class While(Composite, StaticNode, abc.ABC):
             preview[cls._test_stem + label] = (hint, default)
         for label, (hint, default) in cls._body_node_class.preview_inputs().items():
             preview[cls._body_stem + label] = (hint, default)
+        preview["max_iterations"] = (int | None, None)
         return preview
 
     @classmethod
@@ -83,7 +84,13 @@ class While(Composite, StaticNode, abc.ABC):
         test, body = self._extend_children(n)
         last_body = body  # In case of early termination, we need to link the output
         super()._on_run()
-        while self._test_condition(test):
+        while (
+                self._test_condition(test)
+            and (
+                        self.inputs.max_iterations.value is None
+                        or n < self.inputs.max_iterations.value
+                )
+        ):
             test >> body  # For posterity -- we manage the execution manually here
             self.starting_nodes = [body]
             super()._on_run()

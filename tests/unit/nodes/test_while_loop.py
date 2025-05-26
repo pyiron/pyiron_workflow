@@ -114,3 +114,17 @@ class TestWhileLoop(unittest.TestCase):
                 [("add", "a")],
                 [("add", "obj")],
             )
+
+    def test_iteration_limit(self):
+        self.awhile(test_limit=5, max_iterations=6)
+        self.assertEqual(
+            self.awhile.inputs.test_limit.value,
+            self.awhile.outputs.add.value,
+            msg="Expect to be limited by the test"
+        )
+        self.awhile(test_limit=5, max_iterations=3)
+        self.assertEqual(
+            self.awhile.inputs.max_iterations.value,
+            self.awhile.outputs.add.value,
+            msg="Expect to be limited by the iteration cap"
+        )
