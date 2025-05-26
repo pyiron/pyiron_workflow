@@ -1,7 +1,7 @@
 import unittest
 
 from pyiron_workflow.nodes import function
-from pyiron_workflow.nodes.while_loop import InvalidTestOutputError, while_node
+from pyiron_workflow.nodes.while_loop import InvalidTestOutputError, While, while_node
 
 
 @function.as_function_node
@@ -112,6 +112,18 @@ class TestWhileLoop(unittest.TestCase):
                 [("add", "a")],
                 [("add", "obj")],
             )
+
+        self.assertIsInstance(
+            while_node(
+                UntypedComparison,
+                AddWithSideEffect,
+                [("add", "a")],
+                [("add", "obj")],
+                strict_condition_hint=False,
+            ),
+            While,
+            msg="Unless we explicitly allow the condition to lack a hint",
+        )
 
     def test_iteration_limit(self):
         self.awhile(test_limit=5, max_iterations=6)

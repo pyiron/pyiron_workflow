@@ -25,17 +25,16 @@ def _is_label_connection(c: object) -> TypeGuard[tuple[str, str]]:
         and isinstance(c[1], str)
     )
 
+
 def _tuplefy(connections: label_connections_like) -> label_connections:
     if _is_label_connection(connections):
         return (connections,)
-    elif (
-        isinstance(connections, tuple)
-        and all(_is_label_connection(c) for c in connections)
+    elif isinstance(connections, tuple) and all(
+        _is_label_connection(c) for c in connections
     ):
         return cast(label_connections, connections)
-    elif (
-        isinstance(connections, list)
-        and all(_is_label_connection(c) for c in connections)
+    elif isinstance(connections, list) and all(
+        _is_label_connection(c) for c in connections
     ):
         return tuple(connections)
     raise TypeError(
@@ -49,6 +48,7 @@ class While(Composite, StaticNode, abc.ABC):
     _test_node_class: ClassVar[type[StaticNode]]
     _body_to_test_connections: ClassVar[label_connections]
     _body_to_body_connections: ClassVar[label_connections]
+    _strict_condition_hint: ClassVar[bool]
     _test_stem: ClassVar[str] = "test_"
     _body_stem: ClassVar[str] = "body_"
 
@@ -70,7 +70,9 @@ class While(Composite, StaticNode, abc.ABC):
     @classmethod
     def _verify_test_output(cls):
         test_outputs = cls._test_node_class.preview_outputs()
-        if len(test_outputs) != 1 or next(iter(test_outputs.values())) is not bool:
+        if len(test_outputs) != 1 or (
+            cls._strict_condition_hint and next(iter(test_outputs.values())) is not bool
+        ):
             raise InvalidTestOutputError(
                 f"Test node {cls._test_node_class.__name__} must have a single boolean "
                 f"output channel, but has outputs {test_outputs}."
@@ -162,6 +164,7 @@ def while_node_factory(
     body_to_test_connections: label_connections,
     body_to_body_connections: label_connections,
     use_cache: bool = True,
+    strict_condition_hint: bool = True,
     /,
 ) -> type[While]:
     combined_docstring = (
@@ -188,6 +191,7 @@ def while_node_factory(
             "_body_to_body_connections": body_to_body_connections,
             "__doc__": combined_docstring,
             "use_cache": use_cache,
+            "_strict_condition_hint": strict_condition_hint,
         },
         {},
     )
@@ -200,6 +204,7 @@ def while_node(
     body_to_body_connections: label_connections_like,
     *node_args,
     use_cache: bool = True,
+    strict_condition_hint: bool = True,
     **node_kwargs,
 ):
     b2t = _tuplefy(body_to_test_connections)
@@ -213,5 +218,6 @@ def while_node(
         b2t,
         b2b,
         use_cache,
+        strict_condition_hint,
     )
     return cls(*node_args, **node_kwargs)
