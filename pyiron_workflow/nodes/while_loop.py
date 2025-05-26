@@ -1,5 +1,5 @@
 import abc
-from typing import Any, ClassVar, TypeAlias
+from typing import Any, ClassVar, TypeAlias, TypeGuard, cast
 
 from pyiron_snippets import factory
 
@@ -17,19 +17,25 @@ class InvalidTestOutputError(ValueError):
     pass
 
 
+def _is_label_connection(c: object) -> TypeGuard[tuple[str, str]]:
+    return (
+        isinstance(c, tuple)
+        and len(c) == 2
+        and isinstance(c[0], str)
+        and isinstance(c[1], str)
+    )
+
 def _tuplefy(connections: label_connections_like) -> label_connections:
-    if isinstance(connections, tuple) and isinstance(connections[0], str):
+    if _is_label_connection(connections):
         return (connections,)
     elif (
         isinstance(connections, tuple)
-        and isinstance(connections[0], tuple)
-        and isinstance(connections[0][0], str)
+        and all(_is_label_connection(c) for c in connections)
     ):
-        return connections
+        return cast(label_connections, connections)
     elif (
         isinstance(connections, list)
-        and isinstance(connections[0], tuple)
-        and isinstance(connections[0][0], str)
+        and all(_is_label_connection(c) for c in connections)
     ):
         return tuple(connections)
     raise TypeError(
@@ -153,8 +159,8 @@ def _while_node_class_name(
 def while_node_factory(
     test_node_class: type[StaticNode],
     body_node_class: type[StaticNode],
-    body_to_test_connections: label_connections_like,
-    body_to_body_connections: label_connections_like,
+    body_to_test_connections: label_connections,
+    body_to_body_connections: label_connections,
     use_cache: bool = True,
     /,
 ) -> type[While]:
