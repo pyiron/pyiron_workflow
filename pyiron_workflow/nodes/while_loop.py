@@ -69,8 +69,9 @@ def _while_node_class_name(
 
 @factory.classfactory
 def while_node_factory(
-    body_node_class: type[StaticNode],
     test_node_class: type[StaticNode],
+    body_node_class: type[StaticNode],
+    body_to_test_connections: label_connections_like,
     body_to_body_connections: label_connections_like,
     body_to_test_connections: label_connections_like,
     use_cache: bool = True,
