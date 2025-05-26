@@ -84,12 +84,9 @@ class While(Composite, StaticNode, abc.ABC):
         test, body = self._extend_children(n)
         last_body = body  # In case of early termination, we need to link the output
         super()._on_run()
-        while (
-                self._test_condition(test)
-            and (
-                        self.inputs.max_iterations.value is None
-                        or n < self.inputs.max_iterations.value
-                )
+        while self._test_condition(test) and (
+            self.inputs.max_iterations.value is None
+            or n < self.inputs.max_iterations.value
         ):
             test >> body  # For posterity -- we manage the execution manually here
             self.starting_nodes = [body]
@@ -127,7 +124,7 @@ class While(Composite, StaticNode, abc.ABC):
             body_output.value_receiver = self.outputs[label]
 
     def _connect_cycles(self, last_body, test, body):
-        for (target, connections) in (
+        for target, connections in (
             (test, self._body_to_test_connections),
             (body, self._body_to_body_connections),
         ):
