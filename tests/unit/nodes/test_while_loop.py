@@ -93,7 +93,7 @@ class TestWhileLoop(unittest.TestCase):
             msg="On re-running, we expect the body to be cleaned and recreated -- not appended to"
         )
 
-    def test_singular_output(self):
+    def test_test_outputs(self):
         with self.assertRaises(
             InvalidTestOutputError,
             msg="Test conditions without a singular output should fail",
