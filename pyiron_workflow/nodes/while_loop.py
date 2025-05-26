@@ -39,14 +39,16 @@ class While(Composite, StaticNode, abc.ABC):
     _test_node_class: ClassVar[type[StaticNode]]
     _body_to_body_connections: ClassVar[label_connections]
     _body_to_test_connections: ClassVar[label_connections]
+    _test_stem: ClassVar[str] = "test_"
+    _body_stem: ClassVar[str] = "body_"
 
     @classmethod
     def _build_inputs_preview(cls) -> dict[str, tuple[Any, Any]]:
         preview = {}
-        for label, (hint, default) in cls._body_node_class.preview_inputs().items():
-            preview["body_" + label] = (hint, default)
         for label, (hint, default) in cls._test_node_class.preview_inputs().items():
-            preview["test_" + label] = (hint, default)
+            preview[cls._test_stem + label] = (hint, default)
+        for label, (hint, default) in cls._body_node_class.preview_inputs().items():
+            preview[cls._body_stem + label] = (hint, default)
         return preview
 
     @classmethod
