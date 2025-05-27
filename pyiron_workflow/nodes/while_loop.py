@@ -16,19 +16,19 @@ label_connections_like: TypeAlias = (
 
 
 class InvalidTestOutputError(ValueError):
-    pass
+    """When the test type doesn't have the right output type."""
 
 
 class InvalidEdgeError(ValueError):
-    pass
+    """When a requested edge does not exist for the provided node types."""
 
 
 class NonTerminatingLoopError(ValueError):
-    pass
+    """When it is strictly impossible for the loop to terminate due to a lack of recursion"""
 
 
 class NotConnectionslikeError(TypeError):
-    pass
+    """A type checking problem."""
 
 
 def _is_label_connection(c: object) -> TypeGuard[tuple[str, str]]:
@@ -58,6 +58,18 @@ def _tuplefy(connections: label_connections_like) -> label_connections:
 
 
 class While(Composite, StaticNode, abc.ABC):
+    """
+    A second-order, stateful, dynamic node that resets its graph at each (non-cached)
+    run to dynamically add copies of a body and test case node for as long as the test
+    case node is outputting a true result.
+
+    Subclasses must define the types of nodes to use for the test and body, as well
+    as at least one edge from the body to the test and from the body back to itself.
+
+    Instances can pass executor information to all child nodes of the same type using
+    the :attr:`executor_for_test` and :attr:`executor_for_body` attributes.
+    """
+
     _body_node_class: ClassVar[type[StaticNode]]
     _test_node_class: ClassVar[type[StaticNode]]
     _body_to_test_connections: ClassVar[label_connections]
@@ -199,6 +211,22 @@ def while_node_factory(
     strict_condition_hint: bool = True,
     /,
 ) -> type[While]:
+    """
+    A factory method for creating a new :class:`While` node class.
+
+    Args:
+        test_node_class (type[StaticNode]): The class to use for the test condition.
+            Must have a single output channel, and this must be hinted as boolean when
+            :arg:`strict_condition_hint = True`.
+        body_node_class (type[StaticNode]): The class to use for the body of the loop.
+        body_to_test_connections (label_connections): Stringy representations of edge(s) from the body to the test instances.
+        body_to_body_connections (label_connections): Stringy representations of edge(s) from the last-body to the next-body instances.
+        use_cache (bool): Default class behavior for whether to skip running this node when its inputs match cached values. (Default is True, try to exploit caching.)
+        strict_condition_hint (bool): Whether to demand that the :arg:`test_node_class` has its single output hinted as boolean. (Default is True.)
+
+    Returns:
+        type[While]: A new :class:`While` node class.
+    """
     _verify_test_output(test_node_class, strict_condition_hint=strict_condition_hint)
     if len(body_to_test_connections) == 0:
         raise NonTerminatingLoopError(
@@ -278,6 +306,46 @@ def while_node(
     strict_condition_hint: bool = True,
     **node_kwargs,
 ):
+    """
+    Make a new
+    Args:
+        test_node_class (type[StaticNode]): The class to use for the test condition.
+            Must have a single output channel, and this must be hinted as boolean when
+            :arg:`strict_condition_hint = True`.
+        body_node_class (type[StaticNode]): The class to use for the body of the loop.
+        body_to_test_connections (label_connections): Stringy representations of edge(s) from the body to the test instances.
+        body_to_body_connections (label_connections): Stringy representations of edge(s) from the last-body to the next-body instances.
+        *node_args: All the usual parent class args.
+        use_cache (bool): Default class behavior for whether to skip running this node when its inputs match cached values. (Default is True, try to exploit caching.)
+        strict_condition_hint (bool): Whether to demand that the :arg:`test_node_class` has its single output hinted as boolean. (Default is True.)
+        **node_kwargs: All the usual parent class kwargs, including :arg:`executor_for_test` and :arg:`executor_for_body` that are specific to :class:`While`.
+
+    Returns:
+        While: An instance of the new :class:`While` subclass.
+
+    Examples:
+        >>> import pyiron_workflow as pwf
+        >>> wf = pwf.Workflow("my_while_loop")
+        >>> wf.x0 = pwf.std.UserInput(0)
+        >>> wf.limit = pwf.std.UserInput(5)
+        >>> wf.step = pwf.std.UserInput(2)
+        >>> wf.add_while = pwf.while_node(
+        ...     pwf.std.LessThan,  # Test
+        ...     pwf.std.Add,  # Body
+        ...     (("add", "obj"),),  # body-to-test
+        ...     (("add", "obj"),),  # body-to-body
+        ...     strict_condition_hint=False,  # LessThan doesn't hint it's boolean return...
+        ...     test_obj=wf.x0,
+        ...     test_other=wf.limit,
+        ...     body_obj=wf.x0,
+        ...     body_other=wf.step
+        ... )
+        >>> wf.xf = wf.add_while.outputs.add  # While output maps to body output
+        >>> wf()
+        {'add_while__add': 6}
+
+        Note how the while-node input maps the test and body node inputs with a pre-pended identifier, while the output maps the body node outputs directly.
+    """
     b2t = _tuplefy(body_to_test_connections)
     b2b = _tuplefy(body_to_body_connections)
     while_node_factory.clear(
