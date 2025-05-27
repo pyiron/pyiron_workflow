@@ -324,14 +324,14 @@ def while_node(
         While: An instance of the new :class:`While` subclass.
 
     Examples:
-        >>> import pyiron_workflow as pwf
-        >>> wf = pwf.Workflow("my_while_loop")
-        >>> wf.x0 = pwf.std.UserInput(0)
-        >>> wf.limit = pwf.std.UserInput(5)
-        >>> wf.step = pwf.std.UserInput(2)
-        >>> wf.add_while = pwf.while_node(
-        ...     pwf.std.LessThan,  # Test
-        ...     pwf.std.Add,  # Body
+        >>> from pyiron_workflow import Workflow
+        >>> wf = Workflow("my_while_loop")
+        >>> wf.x0 = Workflow.create.std.UserInput(0)
+        >>> wf.limit = Workflow.create.std.UserInput(5)
+        >>> wf.step = Workflow.create.std.UserInput(2)
+        >>> wf.add_while = Workflow.create.while_node(
+        ...     Workflow.create.std.LessThan,  # Test
+        ...     Workflow.create.std.Add,  # Body
         ...     (("add", "obj"),),  # body-to-test
         ...     (("add", "obj"),),  # body-to-body
         ...     strict_condition_hint=False,  # LessThan doesn't hint it's boolean return...
@@ -340,7 +340,6 @@ def while_node(
         ...     body_obj=wf.x0,
         ...     body_other=wf.step
         ... )
-        >>> wf.xf = wf.add_while.outputs.add  # While output maps to body output
         >>> wf()
         {'add_while__add': 6}
 
