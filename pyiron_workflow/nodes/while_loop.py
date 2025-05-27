@@ -17,6 +17,10 @@ class InvalidTestOutputError(ValueError):
     pass
 
 
+class InvalidEdgeError(ValueError):
+    pass
+
+
 def _is_label_connection(c: object) -> TypeGuard[tuple[str, str]]:
     return (
         isinstance(c, tuple)
@@ -155,6 +159,8 @@ def while_node_factory(
     /,
 ) -> type[While]:
     _verify_test_output(test_node_class, strict_condition_hint=strict_condition_hint)
+    _verify_edges_exist(body_node_class, test_node_class, body_to_test_connections)
+    _verify_edges_exist(body_node_class, body_node_class, body_to_body_connections)
 
     combined_docstring = (
         "While node docstring:\n"
@@ -196,6 +202,21 @@ def _verify_test_output(
             f"boolean output channel when `strict_condition_hint = True`, but has "
             f"outputs {test_outputs}."
         )
+
+
+def _verify_edges_exist(
+    from_class: type[StaticNode], to_class: type[StaticNode], edges: label_connections
+):
+    for from_label, to_label in edges:
+        if from_label not in from_class.preview_outputs():
+            raise InvalidEdgeError(
+                f"While-loop body node class {from_class.__name__} has no output "
+                f"channel {from_label}."
+            )
+        if to_label not in to_class.preview_inputs():
+            raise InvalidEdgeError(
+                f"While-loop test or body node class {to_class.__name__} has no input {to_label}."
+            )
 
 
 def while_node(

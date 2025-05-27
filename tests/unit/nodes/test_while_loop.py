@@ -1,7 +1,13 @@
 import unittest
 
 from pyiron_workflow.nodes import function
-from pyiron_workflow.nodes.while_loop import InvalidTestOutputError, While, while_node
+from pyiron_workflow.nodes.while_loop import (
+    InvalidEdgeError,
+    InvalidTestOutputError,
+    While,
+    while_node,
+    while_node_factory,
+)
 
 
 @function.as_function_node
@@ -119,6 +125,39 @@ class TestWhileLoop(unittest.TestCase):
             While,
             msg="Unless we explicitly allow the condition to lack a hint",
         )
+
+    def test_edges(self):
+        with self.assertRaises(InvalidEdgeError, msg="Missing test input should fail"):
+            while_node_factory(
+                TypedComparison,
+                AddWithSideEffect,
+                [("add", "DOESNOTEXISIT")],
+                [("add", "obj")],
+            )
+
+        with self.assertRaises(InvalidEdgeError, msg="Missing body input should fail"):
+            while_node_factory(
+                TypedComparison,
+                AddWithSideEffect,
+                [("add", "candidate")],
+                [("add", "DOESNOTEXISIT")],
+            )
+
+        with self.assertRaises(InvalidEdgeError, msg="Missing body output should fail"):
+            while_node_factory(
+                TypedComparison,
+                AddWithSideEffect,
+                [("DOESNOTEXISIT", "candidate")],
+                [("add", "obj")],
+            )
+
+        with self.assertRaises(InvalidEdgeError, msg="Missing body output should fail"):
+            while_node_factory(
+                TypedComparison,
+                AddWithSideEffect,
+                [("add", "candidate")],
+                [("DOESNOTEXISIT", "obj")],
+            )
 
     def test_iteration_limit(self):
         self.awhile(test_limit=5, max_iterations=6)
