@@ -48,7 +48,6 @@ class While(Composite, StaticNode, abc.ABC):
     _test_node_class: ClassVar[type[StaticNode]]
     _body_to_test_connections: ClassVar[label_connections]
     _body_to_body_connections: ClassVar[label_connections]
-    _strict_condition_hint: ClassVar[bool]
     _test_stem: ClassVar[str] = "test_"
     _body_stem: ClassVar[str] = "body_"
 
@@ -64,19 +63,7 @@ class While(Composite, StaticNode, abc.ABC):
 
     @classmethod
     def _build_outputs_preview(cls) -> dict[str, Any]:
-        cls._verify_test_output()
         return dict(cls._body_node_class.preview_outputs())
-
-    @classmethod
-    def _verify_test_output(cls):
-        test_outputs = cls._test_node_class.preview_outputs()
-        if len(test_outputs) != 1 or (
-            cls._strict_condition_hint and next(iter(test_outputs.values())) is not bool
-        ):
-            raise InvalidTestOutputError(
-                f"Test node {cls._test_node_class.__name__} must have a single boolean "
-                f"output channel, but has outputs {test_outputs}."
-            )
 
     def _on_cache_miss(self) -> None:
         super()._on_cache_miss()
@@ -167,6 +154,8 @@ def while_node_factory(
     strict_condition_hint: bool = True,
     /,
 ) -> type[While]:
+    _verify_test_output(test_node_class, strict_condition_hint=strict_condition_hint)
+
     combined_docstring = (
         "While node docstring:\n"
         + (While.__doc__ if While.__doc__ is not None else "")
@@ -175,7 +164,6 @@ def while_node_factory(
         + "\nTest node docstring:\n"
         + (test_node_class.__doc__ if test_node_class.__doc__ is not None else "")
     )
-
     return (  # type: ignore[return-value]
         _while_node_class_name(
             test_node_class,
@@ -191,10 +179,23 @@ def while_node_factory(
             "_body_to_body_connections": body_to_body_connections,
             "__doc__": combined_docstring,
             "use_cache": use_cache,
-            "_strict_condition_hint": strict_condition_hint,
         },
         {},
     )
+
+
+def _verify_test_output(
+    test_node_class: type[StaticNode], strict_condition_hint: bool = True
+):
+    test_outputs = test_node_class.preview_outputs()
+    if len(test_outputs) != 1 or (
+        strict_condition_hint and next(iter(test_outputs.values())) is not bool
+    ):
+        raise InvalidTestOutputError(
+            f"While-loop Test node class {test_node_class.__name__} must have a single "
+            f"boolean output channel when `strict_condition_hint = True`, but has "
+            f"outputs {test_outputs}."
+        )
 
 
 def while_node(
