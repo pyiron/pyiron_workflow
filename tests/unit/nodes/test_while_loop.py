@@ -45,8 +45,8 @@ class TestWhileLoop(unittest.TestCase):
         self.awhile = while_node(
             TypedComparison,
             AddWithSideEffect,
-            [("add", "candidate")],
-            [("add", "obj")],
+            (("add", "candidate"),),
+            (("add", "obj"),),
         )
         self.limit = 3
         self.awhile(test_candidate=0, test_limit=self.limit, body_obj=0, body_other=1)
@@ -101,8 +101,8 @@ class TestWhileLoop(unittest.TestCase):
             while_node(
                 TwoOutputs,
                 AddWithSideEffect,
-                [("add", "other")],
-                [("add", "obj")],
+                (("add", "other"),),
+                (("add", "obj"),),
             )
 
         with self.assertRaises(
@@ -111,16 +111,16 @@ class TestWhileLoop(unittest.TestCase):
             while_node(
                 UntypedComparison,
                 AddWithSideEffect,
-                [("add", "a")],
-                [("add", "obj")],
+                (("add", "a"),),
+                (("add", "obj"),),
             )
 
         self.assertIsInstance(
             while_node(
                 UntypedComparison,
                 AddWithSideEffect,
-                [("add", "a")],
-                [("add", "obj")],
+                (("add", "a"),),
+                (("add", "obj"),),
                 strict_condition_hint=False,
             ),
             While,
@@ -132,32 +132,32 @@ class TestWhileLoop(unittest.TestCase):
             while_node_factory(
                 TypedComparison,
                 AddWithSideEffect,
-                [("add", "DOESNOTEXISIT")],
-                [("add", "obj")],
+                (("add", "DOESNOTEXISIT"),),
+                (("add", "obj"),),
             )
 
         with self.assertRaises(InvalidEdgeError, msg="Missing body input should fail"):
             while_node_factory(
                 TypedComparison,
                 AddWithSideEffect,
-                [("add", "candidate")],
-                [("add", "DOESNOTEXISIT")],
+                (("add", "candidate"),),
+                (("add", "DOESNOTEXISIT"),),
             )
 
         with self.assertRaises(InvalidEdgeError, msg="Missing body output should fail"):
             while_node_factory(
                 TypedComparison,
                 AddWithSideEffect,
-                [("DOESNOTEXISIT", "candidate")],
-                [("add", "obj")],
+                (("DOESNOTEXISIT", "candidate"),),
+                (("add", "obj"),),
             )
 
         with self.assertRaises(InvalidEdgeError, msg="Missing body output should fail"):
             while_node_factory(
                 TypedComparison,
                 AddWithSideEffect,
-                [("add", "candidate")],
-                [("DOESNOTEXISIT", "obj")],
+                (("add", "candidate"),),
+                (("DOESNOTEXISIT", "obj"),),
             )
 
         with self.assertRaises(
@@ -167,7 +167,7 @@ class TestWhileLoop(unittest.TestCase):
                 TypedComparison,
                 AddWithSideEffect,
                 (),
-                [("add", "DOESNOTEXISIT")],
+                (("add", "DOESNOTEXISIT"),),
             )
 
         with self.assertRaises(
@@ -176,7 +176,7 @@ class TestWhileLoop(unittest.TestCase):
             while_node_factory(
                 TypedComparison,
                 AddWithSideEffect,
-                [("add", "candidate")],
+                (("add", "candidate"),),
                 (),
             )
 
