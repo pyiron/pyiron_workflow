@@ -38,8 +38,10 @@ from pyiron_workflow.api import (
     as_function_node,
     as_macro_node,
     dataclass_node,
+    for_node,
     function_node,
     macro_node,
     std,
     to_function_node,
+    while_node,
 )

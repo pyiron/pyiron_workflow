@@ -11,6 +11,11 @@ def AddWhileLessThan(self, a, b, cap):
 
     A simple but complete demonstrator for how to construct cyclic flows, including
     logging key outputs during the loop.
+
+    Such an implementation lacks retrospective provenance because the child nodes get
+    run repeatedly, so it is recommended to instead use the `While` class to run
+    while-loops. Nevertheless, we leave this here as a demonstration of the full power
+    available by the separation of data and signal edges.
     """
     # Bespoke logic
     self.body = std.Add(obj=a, other=b)

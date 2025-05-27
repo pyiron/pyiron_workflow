@@ -28,6 +28,7 @@ from pyiron_workflow.nodes.transform import (
     inputs_to_list,
     list_to_outputs,
 )
+from pyiron_workflow.nodes.while_loop import While, while_node, while_node_factory
 from pyiron_workflow.storage import (
     PickleStorage,
     StorageInterface,

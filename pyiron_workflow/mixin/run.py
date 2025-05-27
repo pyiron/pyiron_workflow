@@ -12,9 +12,13 @@ from concurrent.futures import Executor as StdLibExecutor
 from concurrent.futures import Future, ThreadPoolExecutor
 from functools import partial
 from time import sleep
-from typing import Any
+from typing import Any, TypeAlias
 
 from pyiron_workflow.mixin.has_interface_mixins import HasLabel, HasRun, UsesState
+
+InterpretableAsExecutor: TypeAlias = (
+    StdLibExecutor | tuple[Callable[..., StdLibExecutor], tuple, dict]
+)
 
 
 class ReadinessError(ValueError):
@@ -56,9 +60,7 @@ class Runnable(UsesState, HasLabel, HasRun, ABC):
         super().__init__(*args, **kwargs)
         self.running: bool = False
         self.failed: bool = False
-        self.executor: (
-            StdLibExecutor | tuple[Callable[..., StdLibExecutor], tuple, dict] | None
-        ) = None
+        self.executor: InterpretableAsExecutor | None = None
         # We call it an executor, but it can also be instructions on making one
         self.future: None | Future = None
         self._thread_pool_sleep_time: float = 1e-6
@@ -322,7 +324,7 @@ class Runnable(UsesState, HasLabel, HasRun, ABC):
 
     @staticmethod
     def _parse_executor(
-        executor: StdLibExecutor | tuple[Callable[..., StdLibExecutor], tuple, dict],
+        executor: InterpretableAsExecutor,
     ) -> StdLibExecutor:
         """
         If you've already got an executor, you're done. But if you get callable and

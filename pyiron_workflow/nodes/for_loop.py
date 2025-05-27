@@ -11,6 +11,7 @@ from pandas import DataFrame
 from pyiron_snippets.factory import classfactory
 
 from pyiron_workflow.channels import NOT_DATA
+from pyiron_workflow.mixin.run import InterpretableAsExecutor
 from pyiron_workflow.nodes.composite import Composite
 from pyiron_workflow.nodes.static_io import StaticNode
 from pyiron_workflow.nodes.transform import (
@@ -203,7 +204,7 @@ class For(Composite, StaticNode, ABC):
         autorun: bool = False,
         checkpoint: Literal["pickle"] | StorageInterface | None = None,
         strict_naming: bool = True,
-        body_node_executor: Executor | None = None,
+        body_node_executor: InterpretableAsExecutor | None = None,
         **kwargs,
     ):
         super().__init__(
@@ -233,6 +234,7 @@ class For(Composite, StaticNode, ABC):
         self._input_node_labels = tuple(n.label for n in input_nodes)
 
     def _on_cache_miss(self) -> None:
+        super()._on_cache_miss()
         if self.ready:
             self._build_body()
 
