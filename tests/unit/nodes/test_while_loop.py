@@ -68,7 +68,6 @@ class TestWhileLoop(unittest.TestCase):
         result = self.awhile.outputs.add.value
         self.assertEqual(result, self.limit, msg="Sanity check on output")
         self.awhile.run()
-        global SIDE_EFFECT  # noqa: PLW0603
         self.assertEqual(
             SIDE_EFFECT, 0, msg="With the cache, we should avoid re-running the body"
         )
