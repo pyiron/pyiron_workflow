@@ -1,6 +1,6 @@
-import concurrent.futures as futures
 import threading
 import unittest
+from concurrent import futures
 
 from pyiron_workflow.nodes import function
 from pyiron_workflow.nodes.while_loop import (

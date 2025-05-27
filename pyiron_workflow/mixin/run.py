@@ -16,7 +16,6 @@ from typing import Any, TypeAlias
 
 from pyiron_workflow.mixin.has_interface_mixins import HasLabel, HasRun, UsesState
 
-
 InterpretableAsExecutor: TypeAlias = (
     StdLibExecutor | tuple[Callable[..., StdLibExecutor], tuple, dict]
 )
