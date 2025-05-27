@@ -275,3 +275,43 @@ class TestWhileLoop(unittest.TestCase):
             SIDE_EFFECT,
             msg="By running in a process pool, the side effect should get added to a variable in the other process and, thus, not appear here",
         )
+
+    def test_with_executor(self):
+        with futures.ProcessPoolExecutor() as exe:
+            self.awhile.executor = exe
+            self.awhile.run()
+        self.assertEqual(
+            0,
+            SIDE_EFFECT,
+            msg="By running in a process pool, the side effect should get added to a variable in the other process and, thus, not appear here",
+        )
+        self.assertEqual(
+            self.limit,
+            self.awhile.outputs.add.value,
+            msg="Since the test node is not being run in a separate thread relative to where it was created, we expect to add up to the usual non-pool limit",
+        )
+
+    def test_with_nested_executors(self):
+        with futures.ProcessPoolExecutor() as exe:
+            self.awhile.executor = exe
+            self.awhile.executor_for_test = (
+                futures.ThreadPoolExecutor,
+                (),
+                {"max_workers": 1, "initializer": init_worker},
+            )
+            self.awhile.executor_for_body = (
+                futures.ProcessPoolExecutor,
+                (),
+                {"max_workers": 1, "initializer": init_worker},
+            )
+            self.awhile.run()
+        self.assertEqual(
+            0,
+            SIDE_EFFECT,
+            msg="By running in a process pool, the side effect should get added to a variable in the other process and, thus, not appear here",
+        )
+        self.assertEqual(
+            IN_POOL_LIMIT,
+            self.awhile.outputs.add.value,
+            msg="Expect to be limited by the in-pool limit of the test",
+        )
