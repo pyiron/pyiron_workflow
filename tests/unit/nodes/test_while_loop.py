@@ -1,3 +1,5 @@
+import concurrent.futures as futures
+import threading
 import unittest
 
 from pyiron_workflow.nodes import function
@@ -10,10 +12,28 @@ from pyiron_workflow.nodes.while_loop import (
     while_node_factory,
 )
 
+# Thread-local storage for modulating side effects based on processing attack
+thread_local = threading.local()
+IN_POOL_LIMIT = 2
+
+
+def init_worker():
+    thread_local.in_pool_limit = IN_POOL_LIMIT
+
+
+def check_pool() -> int | None:
+    return getattr(thread_local, "in_pool_limit", None)
+
 
 @function.as_function_node
 def TypedComparison(candidate: int, limit: int) -> bool:
-    return candidate < limit
+    """A condition that behaves differently in a pool."""
+    in_pool_limit = check_pool()
+    if in_pool_limit is not None:
+        condition = candidate < in_pool_limit
+    else:
+        condition = candidate < limit
+    return condition
 
 
 @function.as_function_node
@@ -42,18 +62,22 @@ N_NODES_PER_ITERATION = 2  # Body and test
 class TestWhileLoop(unittest.TestCase):
 
     def setUp(self):
+        self.limit = 3
         self.awhile = while_node(
             TypedComparison,
             AddWithSideEffect,
             (("add", "candidate"),),
             (("add", "obj"),),
+            test_candidate=0,
+            test_limit=self.limit,
+            body_obj=0,
+            body_other=1,
         )
-        self.limit = 3
-        self.awhile(test_candidate=0, test_limit=self.limit, body_obj=0, body_other=1)
         global SIDE_EFFECT  # noqa: PLW0603
         SIDE_EFFECT = 0
 
     def test_basics(self):
+        self.awhile.run()
         self.assertEqual(
             self.limit,
             self.awhile.outputs.add.value,
@@ -72,6 +96,10 @@ class TestWhileLoop(unittest.TestCase):
         )
 
     def test_reruns(self):
+        self.awhile.run()
+        global SIDE_EFFECT  # noqa: PLW0603
+        SIDE_EFFECT = 0  # Reset the side effect
+
         result = self.awhile.outputs.add.value
         self.assertEqual(result, self.limit, msg="Sanity check on output")
         self.awhile.run()
@@ -192,4 +220,58 @@ class TestWhileLoop(unittest.TestCase):
             self.awhile.inputs.max_iterations.value,
             self.awhile.outputs.add.value,
             msg="Expect to be limited by the iteration cap",
+        )
+
+    def test_with_executor_for_test(self):
+        """Check a thread executor for the test node assigned inside a with-clause"""
+        self.assertLess(
+            IN_POOL_LIMIT,
+            self.awhile.inputs.test_limit.value,
+            msg="Sanity check that pooled execution will produce _earlier_ stopping",
+        )
+        with futures.ThreadPoolExecutor(
+            max_workers=1, initializer=init_worker
+        ) as executor:
+            self.awhile.executor_for_test = executor
+            self.awhile.run()
+        self.assertEqual(
+            IN_POOL_LIMIT,
+            self.awhile.outputs.add.value,
+            msg="Expect to be limited by the in-pool limit of the test",
+        )
+
+    def test_executor_for_test(self):
+        """Check a thread executor for the test node  assigned by instantiable tuple"""
+        self.assertLess(
+            IN_POOL_LIMIT,
+            self.awhile.inputs.test_limit.value,
+            msg="Sanity check that pooled execution will produce _earlier_ stopping",
+        )
+        self.awhile.executor_for_test = (
+            futures.ThreadPoolExecutor,
+            (),
+            {"max_workers": 1, "initializer": init_worker},
+        )
+        self.awhile.run()
+        self.assertEqual(
+            IN_POOL_LIMIT,
+            self.awhile.outputs.add.value,
+            msg="Expect to be limited by the in-pool limit of the test",
+        )
+
+    def test_executor_for_body(self):
+        """Check a process executor for the body node assigned by instance"""
+        exe = futures.ProcessPoolExecutor()
+        self.awhile.executor_for_body = exe
+        self.awhile.run()
+        exe.shutdown()
+        self.assertEqual(
+            self.limit,
+            self.awhile.outputs.add.value,
+            msg="Sanity check that we added up to the limit",
+        )
+        self.assertEqual(
+            0,
+            SIDE_EFFECT,
+            msg="By running in a process pool, the side effect should get added to a variable in the other process and, thus, not appear here",
         )

@@ -1,10 +1,12 @@
 import abc
-from typing import Any, ClassVar, TypeAlias, TypeGuard, cast
+from typing import Any, ClassVar, Literal, TypeAlias, TypeGuard, cast
 
 from pyiron_snippets import factory
 
+from pyiron_workflow.mixin.run import InterpretableAsExecutor
 from pyiron_workflow.nodes.composite import Composite
 from pyiron_workflow.nodes.static_io import StaticNode
+from pyiron_workflow.storage import StorageInterface
 
 label_connection: TypeAlias = tuple[str, str]
 label_connections: TypeAlias = tuple[label_connection, ...]
@@ -73,6 +75,34 @@ class While(Composite, StaticNode, abc.ABC):
     def _build_outputs_preview(cls) -> dict[str, Any]:
         return dict(cls._body_node_class.preview_outputs())
 
+    def __init__(
+        self,
+        *args,
+        label: str | None = None,
+        parent: Composite | None = None,
+        autoload: Literal["pickle"] | StorageInterface | None = None,
+        delete_existing_savefiles: bool = False,
+        autorun: bool = False,
+        checkpoint: Literal["pickle"] | StorageInterface | None = None,
+        strict_naming: bool = True,
+        executor_for_test: InterpretableAsExecutor | None = None,
+        executor_for_body: InterpretableAsExecutor | None = None,
+        **kwargs,
+    ):
+        super().__init__(
+            *args,
+            label=label,
+            parent=parent,
+            delete_existing_savefiles=delete_existing_savefiles,
+            autorun=autorun,
+            autoload=autoload,
+            checkpoint=checkpoint,
+            strict_naming=strict_naming,
+            **kwargs,
+        )
+        self.executor_for_test = executor_for_test
+        self.executor_for_body = executor_for_body
+
     def _on_cache_miss(self) -> None:
         super()._on_cache_miss()
         if self.ready:
@@ -111,7 +141,9 @@ class While(Composite, StaticNode, abc.ABC):
 
     def _extend_children(self, n: int):
         test = self._test_node_class(label=f"{self._test_stem}{n}", parent=self)
+        test.executor = self.executor_for_test
         body = self._body_node_class(label=f"{self._body_stem}{n}", parent=self)
+        body.executor = self.executor_for_body
         self._link_input_values(test, body)
         self.starting_nodes = [test]
         return test, body
