@@ -42,9 +42,10 @@ class TestWhileLoop(unittest.TestCase):
             [("add", "obj")],
         )
         cls.limit = 3
-        cls.awhile(test_candidate=0, test_limit=cls.limit, body_obj=0, body_other=1)
+
+    def setUp(self):
+        self.awhile(test_candidate=0, test_limit=self.limit, body_obj=0, body_other=1)
         global SIDE_EFFECT  # noqa: PLW0603
-        print("SIDE EFFECT INITIALLY", SIDE_EFFECT)
         SIDE_EFFECT = 0
 
     def test_basics(self):
@@ -76,15 +77,12 @@ class TestWhileLoop(unittest.TestCase):
 
         new_limit = 5
         self.awhile.inputs.test_limit = new_limit
-        try:
-            self.awhile.run()
-            self.assertEqual(
-                new_limit,
-                SIDE_EFFECT,
-                msg="With new input, we expect to re-run and cause our side effect",
-            )
-        finally:
-            SIDE_EFFECT = 0  # Clean up
+        self.awhile.run()
+        self.assertEqual(
+            new_limit,
+            SIDE_EFFECT,
+            msg="With new input, we expect to re-run and cause our side effect",
+        )
         self.assertEqual(
             (1 + new_limit) * N_NODES_PER_ITERATION,
             len(self.awhile.children),
