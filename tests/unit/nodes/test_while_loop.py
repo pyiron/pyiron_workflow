@@ -7,7 +7,9 @@ from pyiron_workflow.nodes.while_loop import (
     InvalidEdgeError,
     InvalidTestOutputError,
     NonTerminatingLoopError,
+    NotConnectionslikeError,
     While,
+    _tuplefy,
     while_node,
     while_node_factory,
 )
@@ -315,3 +317,28 @@ class TestWhileLoop(unittest.TestCase):
             self.awhile.outputs.add.value,
             msg="Expect to be limited by the in-pool limit of the test",
         )
+
+
+class TestTuplefy(unittest.TestCase):
+    def test_single_connection(self):
+        self.assertEqual(_tuplefy(("a", "b")), (("a", "b"),))
+
+    def test_tuple_of_connections(self):
+        inp = (("a", "b"), ("c", "d"))
+        self.assertEqual(_tuplefy(inp), inp)
+
+    def test_list_of_connections(self):
+        inp = [("a", "b"), ("c", "d")]
+        self.assertEqual(_tuplefy(inp), (("a", "b"), ("c", "d")))
+
+    def test_invalid_structure(self):
+        with self.assertRaises(NotConnectionslikeError):
+            _tuplefy("a")
+
+    def test_invalid_elements_in_list(self):
+        with self.assertRaises(NotConnectionslikeError):
+            _tuplefy([("a", "b"), ("c", 3)])
+
+    def test_invalid_elements_in_tuple(self):
+        with self.assertRaises(NotConnectionslikeError):
+            _tuplefy((("a", "b"), ("c", 3)))

@@ -27,6 +27,10 @@ class NonTerminatingLoopError(ValueError):
     pass
 
 
+class NotConnectionslikeError(TypeError):
+    pass
+
+
 def _is_label_connection(c: object) -> TypeGuard[tuple[str, str]]:
     return (
         isinstance(c, tuple)
@@ -47,7 +51,7 @@ def _tuplefy(connections: label_connections_like) -> label_connections:
         _is_label_connection(c) for c in connections
     ):
         return tuple(connections)
-    raise TypeError(
+    raise NotConnectionslikeError(
         f"Expected connections in the form {label_connections_like}, "
         f"but got {connections}."
     )
