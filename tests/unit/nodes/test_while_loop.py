@@ -33,17 +33,15 @@ N_NODES_PER_ITERATION = 2  # Body and test
 
 
 class TestWhileLoop(unittest.TestCase):
-    @classmethod
-    def setUpClass(cls):
-        cls.awhile = while_node(
+
+    def setUp(self):
+        self.awhile = while_node(
             TypedComparison,
             AddWithSideEffect,
             [("add", "candidate")],
             [("add", "obj")],
         )
-        cls.limit = 3
-
-    def setUp(self):
+        self.limit = 3
         self.awhile(test_candidate=0, test_limit=self.limit, body_obj=0, body_other=1)
         global SIDE_EFFECT  # noqa: PLW0603
         SIDE_EFFECT = 0
