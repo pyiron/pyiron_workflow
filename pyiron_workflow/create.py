@@ -46,6 +46,12 @@ class Creator:
         return for_node
 
     @property
+    def while_node(self):
+        from pyiron_workflow.nodes.while_loop import while_node
+
+        return while_node
+
+    @property
     def macro_node(self):
         from pyiron_workflow.nodes.macro import macro_node
 

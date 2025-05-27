@@ -42,4 +42,5 @@ from pyiron_workflow.api import (
     macro_node,
     std,
     to_function_node,
+    while_node,
 )
