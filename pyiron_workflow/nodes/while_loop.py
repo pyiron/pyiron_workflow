@@ -21,6 +21,10 @@ class InvalidEdgeError(ValueError):
     pass
 
 
+class NonTerminatingLoopError(ValueError):
+    pass
+
+
 def _is_label_connection(c: object) -> TypeGuard[tuple[str, str]]:
     return (
         isinstance(c, tuple)
@@ -159,6 +163,14 @@ def while_node_factory(
     /,
 ) -> type[While]:
     _verify_test_output(test_node_class, strict_condition_hint=strict_condition_hint)
+    if len(body_to_test_connections) == 0:
+        raise NonTerminatingLoopError(
+            f"While-node received no connections from body ({body_node_class.__name__}) to test ({test_node_class.__name__}), and thus cannot transition from a non-terminating to terminating state. Please provide edges."
+        )
+    if len(body_to_body_connections) == 0:
+        raise NonTerminatingLoopError(
+            f"While-node received no connections from body ({body_node_class.__name__}) back to itself, and thus cannot transition from a non-terminating to terminating state. Please provide edges."
+        )
     _verify_edges_exist(body_node_class, test_node_class, body_to_test_connections)
     _verify_edges_exist(body_node_class, body_node_class, body_to_body_connections)
 

@@ -4,6 +4,7 @@ from pyiron_workflow.nodes import function
 from pyiron_workflow.nodes.while_loop import (
     InvalidEdgeError,
     InvalidTestOutputError,
+    NonTerminatingLoopError,
     While,
     while_node,
     while_node_factory,
@@ -157,6 +158,26 @@ class TestWhileLoop(unittest.TestCase):
                 AddWithSideEffect,
                 [("add", "candidate")],
                 [("DOESNOTEXISIT", "obj")],
+            )
+
+        with self.assertRaises(
+            NonTerminatingLoopError, msg="Some connection from body to test is required"
+        ):
+            while_node_factory(
+                TypedComparison,
+                AddWithSideEffect,
+                (),
+                [("add", "DOESNOTEXISIT")],
+            )
+
+        with self.assertRaises(
+            NonTerminatingLoopError, msg="Some connection from body to test is required"
+        ):
+            while_node_factory(
+                TypedComparison,
+                AddWithSideEffect,
+                [("add", "candidate")],
+                (),
             )
 
     def test_iteration_limit(self):
