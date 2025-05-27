@@ -97,6 +97,7 @@ class While(Composite, StaticNode, abc.ABC):
             last_body = body
             n += 1
             test, body = self._extend_children(n)
+            last_body >> test
             self._connect_cycles(last_body, test, body)
             super()._on_run()
 
