@@ -534,7 +534,7 @@ class Node(
         else:
             self._on_cache_miss()
             if self.use_cache:  # Write cache and continue
-                self._cached_inputs = self.inputs.to_value_dict()
+                self._cache_inputs()
 
         return super()._before_run(check_readiness=check_readiness)
 
@@ -545,6 +545,12 @@ class Node(
     def _on_cache_miss(self) -> None:
         """A hook for subclasses to act on cache misses"""
         return
+
+    def _cache_inputs(self):
+        self._cached_inputs = self.inputs.to_value_dict()
+
+    def clear_cache(self):
+        self._cached_inputs = None
 
     def _run(
         self,

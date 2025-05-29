@@ -151,7 +151,7 @@ class While(Composite, StaticNode, abc.ABC):
 
         # Adding and removing children resets the cache, so make sure we cache _after_
         # we're done modifying the child graph
-        self._cached_inputs = self.inputs.to_value_dict()
+        self._cache_inputs()
 
         return self
 
