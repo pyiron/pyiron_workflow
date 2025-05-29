@@ -15,7 +15,7 @@ from pyiron_snippets.factory import classfactory
 
 from pyiron_workflow.compatibility import Self
 from pyiron_workflow.io import Inputs
-from pyiron_workflow.mixin.has_interface_mixins import HasChannel
+from pyiron_workflow.mixin.has_interface_mixins import HasInjectableOutputChannel
 from pyiron_workflow.mixin.injection import OutputsWithInjection
 from pyiron_workflow.mixin.preview import ScrapesIO
 from pyiron_workflow.nodes.composite import Composite
@@ -256,7 +256,7 @@ class Macro(Composite, StaticNode, ScrapesIO, ABC):
         returned_has_channel_objects = self.graph_creator(*ui_nodes)
         if returned_has_channel_objects is None:
             returned_has_channel_objects = ()
-        elif isinstance(returned_has_channel_objects, HasChannel):
+        elif isinstance(returned_has_channel_objects, HasInjectableOutputChannel):
             returned_has_channel_objects = (returned_has_channel_objects,)
 
         for node in ui_nodes:
@@ -275,7 +275,7 @@ class Macro(Composite, StaticNode, ScrapesIO, ABC):
     @abstractmethod
     def graph_creator(
         self: Self, *args, **kwargs
-    ) -> HasChannel | tuple[HasChannel, ...] | None:
+    ) -> HasInjectableOutputChannel | tuple[HasInjectableOutputChannel, ...] | None:
         """Build the graph the node will run."""
 
     @classmethod
@@ -541,7 +541,9 @@ def as_macro_node(
 
 
 def macro_node(
-    graph_creator: Callable[..., HasChannel | tuple[HasChannel, ...] | None],
+    graph_creator: Callable[
+        ..., HasInjectableOutputChannel | tuple[HasInjectableOutputChannel, ...] | None
+    ],
     *node_args,
     output_labels: str | tuple[str, ...] | None = None,
     validate_output_labels: bool = True,
