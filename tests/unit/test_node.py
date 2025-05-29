@@ -118,6 +118,15 @@ class TestNode(unittest.TestCase):
             msg="After fetching the upstream data, should run fine",
         )
 
+    def test_cache(self):
+        n = ANode()
+        n.set_input_values(x=2)
+        self.assertFalse(n.cache_hit)
+        n._cache_inputs()
+        self.assertTrue(n.cache_hit)
+        n.clear_cache()
+        self.assertFalse(n.cache_hit)
+
     def test_check_readiness(self):
         n3_cache = self.n3.use_cache
         self.n3.use_cache = False
