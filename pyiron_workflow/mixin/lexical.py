@@ -89,12 +89,6 @@ class Lexical(UsesState, HasLabel, Generic[ParentType], ABC):
 
         _ensure_path_is_not_cyclic(new_parent, self)
 
-        if (
-            self._parent is not None
-            and new_parent is not self._parent
-            and self in self._parent.children
-        ):
-            self._parent.remove_child(self)
         self._parent = new_parent
         self._detached_parent_path = None
         if self._parent is not None:
