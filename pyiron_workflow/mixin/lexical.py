@@ -45,7 +45,7 @@ class Lexical(UsesState, HasLabel, Generic[ParentType], ABC):
         **kwargs,
     ):
         self._label = ""
-        self._parent = None
+        self._parent: ParentType | None = None
         self._detached_parent_path = None
         self.label = self.__class__.__name__ if label is None else label
         self.parent = parent
@@ -89,12 +89,6 @@ class Lexical(UsesState, HasLabel, Generic[ParentType], ABC):
 
         _ensure_path_is_not_cyclic(new_parent, self)
 
-        if (
-            self._parent is not None
-            and new_parent is not self._parent
-            and self in self._parent.children
-        ):
-            self._parent.remove_child(self)
         self._parent = new_parent
         self._detached_parent_path = None
         if self._parent is not None:

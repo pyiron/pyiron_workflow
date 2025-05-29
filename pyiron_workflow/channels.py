@@ -368,7 +368,7 @@ class DataChannel(FlavorChannel["DataChannel"], typing.Generic[ReceiverType], AB
     ):
         super().__init__(label=label, owner=owner)
         self._value = NOT_DATA
-        self._value_receiver = None
+        self._value_receiver: ReceiverType | None = None
         self.type_hint = type_hint
         self.strict_hints = strict_hints
         self.default = default
@@ -441,7 +441,7 @@ class DataChannel(FlavorChannel["DataChannel"], typing.Generic[ReceiverType], AB
 
             new_partner.value = self.value
 
-        self._value_receiver = new_partner
+        self._value_receiver = typing.cast(ReceiverType, new_partner)
 
     @property
     def ready(self) -> bool:

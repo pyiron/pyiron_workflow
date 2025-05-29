@@ -8,7 +8,7 @@ from __future__ import annotations
 from abc import ABC, abstractmethod
 
 from pyiron_workflow.io import HasIO
-from pyiron_workflow.mixin.has_interface_mixins import HasGenericChannel
+from pyiron_workflow.mixin.has_interface_mixins import HasInjectableOutputChannel
 from pyiron_workflow.mixin.injection import (
     OutputDataWithInjection,
     OutputsWithInjection,
@@ -20,7 +20,7 @@ class AmbiguousOutputError(AttributeError):
 
 
 class ExploitsSingleOutput(
-    HasIO[OutputsWithInjection], HasGenericChannel[OutputDataWithInjection], ABC
+    HasIO[OutputsWithInjection], HasInjectableOutputChannel, ABC
 ):
     @property
     @abstractmethod

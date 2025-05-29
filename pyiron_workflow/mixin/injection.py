@@ -12,13 +12,16 @@ from typing import TYPE_CHECKING, Any
 
 from pyiron_workflow.channels import NOT_DATA, OutputData
 from pyiron_workflow.io import GenericOutputs
-from pyiron_workflow.mixin.has_interface_mixins import HasChannel
+from pyiron_workflow.mixin.has_interface_mixins import (
+    HasChannel,
+    HasInjectableOutputChannel,
+)
 
 if TYPE_CHECKING:
     from pyiron_workflow.node import Node
 
 
-class OutputDataWithInjection(OutputData):
+class OutputDataWithInjection(OutputData, HasInjectableOutputChannel):
     """
     Output data that must have a :class:`pyiron_workflow.node.Node` for its
     :attr:`owner`, and which is able to inject new nodes into that owner's graph, e.g.

@@ -11,10 +11,11 @@ possible coupling between different components of a composed class.
 from __future__ import annotations
 
 from abc import ABC, abstractmethod
-from typing import TYPE_CHECKING, Generic, TypeVar
+from typing import TYPE_CHECKING
 
-if TYPE_CHECKING:
+if TYPE_CHECKING:  # pragma: no cover
     from pyiron_workflow.channels import Channel
+    from pyiron_workflow.mixin.injection import OutputDataWithInjection
 
 
 class UsesState:
@@ -77,18 +78,13 @@ class HasChannel(ABC):
 
     @property
     @abstractmethod
-    def channel(self) -> Channel:
-        pass
+    def channel(self) -> Channel: ...
 
 
-ChannelType = TypeVar("ChannelType", bound="Channel")
-
-
-class HasGenericChannel(HasChannel, Generic[ChannelType], ABC):
+class HasInjectableOutputChannel(HasChannel, ABC):
     @property
     @abstractmethod
-    def channel(self) -> ChannelType:
-        pass
+    def channel(self) -> OutputDataWithInjection: ...
 
 
 class HasRun(ABC):
@@ -97,5 +93,4 @@ class HasRun(ABC):
     """
 
     @abstractmethod
-    def run(self, *args, **kwargs):
-        pass
+    def run(self, *args, **kwargs): ...
