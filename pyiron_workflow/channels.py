@@ -441,7 +441,7 @@ class DataChannel(FlavorChannel["DataChannel"], typing.Generic[ReceiverType], AB
 
             new_partner.value = self.value
 
-        self._value_receiver = new_partner
+        self._value_receiver = typing.cast(ReceiverType, new_partner)
 
     @property
     def ready(self) -> bool:
