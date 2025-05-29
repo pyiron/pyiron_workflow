@@ -13,7 +13,7 @@ from __future__ import annotations
 from abc import ABC, abstractmethod
 from typing import TYPE_CHECKING
 
-if TYPE_CHECKING:
+if TYPE_CHECKING:  # pragma: no cover
     from pyiron_workflow.channels import Channel
     from pyiron_workflow.mixin.injection import OutputDataWithInjection
 
@@ -78,15 +78,13 @@ class HasChannel(ABC):
 
     @property
     @abstractmethod
-    def channel(self) -> Channel:
-        pass
+    def channel(self) -> Channel: ...
 
 
 class HasInjectableOutputChannel(HasChannel, ABC):
     @property
     @abstractmethod
-    def channel(self) -> OutputDataWithInjection:
-        pass
+    def channel(self) -> OutputDataWithInjection: ...
 
 
 class HasRun(ABC):
@@ -95,5 +93,4 @@ class HasRun(ABC):
     """
 
     @abstractmethod
-    def run(self, *args, **kwargs):
-        pass
+    def run(self, *args, **kwargs): ...
