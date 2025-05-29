@@ -306,7 +306,7 @@ class Composite(LexicalParent[Node], HasCreator, Node, ABC):
         label: str | None = None,
         strict_naming: bool | None = None,
     ) -> Node:
-        self._cached_inputs = None  # Reset cache after graph change
+        self.clear_cache()  # Reset cache after graph change
         return super().add_child(child, label=label, strict_naming=strict_naming)
 
     def remove_child(self, child: Node | str) -> Node:
@@ -324,7 +324,7 @@ class Composite(LexicalParent[Node], HasCreator, Node, ABC):
         child.disconnect()
         if child in self.starting_nodes:
             self.starting_nodes.remove(child)
-        self._cached_inputs = None  # Reset cache after graph change
+        self.clear_cache()  # Reset cache after graph change
         return child
 
     def replace_child(
@@ -417,8 +417,8 @@ class Composite(LexicalParent[Node], HasCreator, Node, ABC):
             sending_channel.value_receiver = receiving_channel
 
         # Clear caches
-        self._cached_inputs = None
-        replacement_node._cached_inputs = None
+        self.clear_cache()
+        replacement_node.clear_cache()
 
         return owned_node_instance, replacement_node
 
