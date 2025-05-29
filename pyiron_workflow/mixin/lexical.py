@@ -45,7 +45,7 @@ class Lexical(UsesState, HasLabel, Generic[ParentType], ABC):
         **kwargs,
     ):
         self._label = ""
-        self._parent = None
+        self._parent: ParentType | None = None
         self._detached_parent_path = None
         self.label = self.__class__.__name__ if label is None else label
         self.parent = parent
