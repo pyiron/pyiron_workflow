@@ -37,7 +37,7 @@ dependencies = [
     "cloudpickle==3.1.1",
     "executorlib==1.2.1",
     "graphviz==0.20.3",
-    "pandas==2.2.3",
+    "pandas==2.3.0",
     "pint==0.24.4",
     "pyiron_snippets==0.2.0",
     "toposort==1.10",
