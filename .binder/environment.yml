@@ -3,7 +3,7 @@ channels:
 dependencies:
 - bidict =0.23.1
 - cloudpickle =3.1.1
-- executorlib =1.2.1
+- executorlib =1.4.0
 - graphviz =9.0.0
 - pandas =2.3.0
 - pint =0.24.4
