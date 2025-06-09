@@ -12,5 +12,5 @@ dependencies:
 - python-graphviz =0.20.3
 - setuptools>=68
 - toposort =1.10
-- typeguard =4.4.2
+- typeguard =4.4.3
 - wheel
