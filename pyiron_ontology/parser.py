@@ -1,10 +1,9 @@
-from semantikon.converter import parse_input_args, parse_output_args
-from semantikon.ontology import get_knowledge_graph, PNS
-from rdflib import Graph
-from pyiron_workflow import NOT_DATA, Workflow, Macro
+from pyiron_workflow import NOT_DATA, Workflow
+from pyiron_workflow.channels import Channel
 from pyiron_workflow.node import Node
 from pyiron_workflow.nodes.composite import Composite
-from pyiron_workflow.channels import Channel
+from rdflib import Graph
+from semantikon.ontology import PNS, get_knowledge_graph
 
 
 def _extract_data(item: Channel, with_values=True, with_default=True) -> dict:
