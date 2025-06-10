@@ -6,6 +6,7 @@ from pint import UnitRegistry
 from pyiron_workflow.type_hinting import (
     _get_type_hints,
     type_hint_is_as_or_more_specific_than,
+    type_hint_to_tuple,
     valid_value,
 )
 
@@ -106,6 +107,16 @@ class TestTypeHinting(unittest.TestCase):
                 typing.Annotated[int, "foo"],
                 True,
             ),
+            (
+                typing.Optional[typing.Dict[str, int]],  # noqa: UP006, UP007
+                dict[str, int] | None,
+                True,  # Old- and new-styles should be equivalent
+            ),
+            (
+                dict[str, int] | None,
+                typing.Optional[typing.Dict[str, int]],  # noqa: UP006, UP007
+                True,  # Thus, we expect the reverse direction to work to prove identity
+            ),
         ]:
             with self.subTest(
                 target=target, reference=reference, expected=is_more_specific
@@ -127,6 +138,28 @@ class TestTypeHinting(unittest.TestCase):
         ]:
             with self.subTest(hint=hint, origin=origin):
                 self.assertEqual(_get_type_hints(hint)[0], origin)
+
+    def test_type_hint_to_tuple(self):
+        for hint, tuple_ in (
+            (dict[str, int] | None, (dict[str, int], type(None))),
+            (
+                typing.Dict[str, int] | None,  # noqa: UP006
+                (typing.Dict[str, int], type(None)),  # noqa: UP006
+            ),
+            (
+                typing.Optional[dict[str, int]],  # noqa: UP007
+                (dict[str, int], type(None)),
+            ),
+            (
+                typing.Optional[typing.Dict[str, int]],  # noqa: UP006, UP007
+                (typing.Dict[str, int], type(None)),  # noqa: UP006
+            ),
+        ):
+            self.assertEqual(
+                type_hint_to_tuple(hint),
+                tuple_,
+                msg="Old- and new-style hints should both be split into a tuple",
+            )
 
 
 if __name__ == "__main__":

@@ -44,7 +44,9 @@ def valid_value(value, type_hint, strict_callables: bool = True) -> bool:
 
 
 def type_hint_to_tuple(type_hint) -> tuple:
-    if isinstance(type_hint, types.UnionType):
+    if isinstance(type_hint, types.UnionType) or (
+        hasattr(type_hint, "__origin__") and type_hint.__origin__ is typing.Union
+    ):
         return typing.get_args(type_hint)
     return (type_hint,)
 
