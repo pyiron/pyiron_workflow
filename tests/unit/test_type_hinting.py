@@ -108,13 +108,13 @@ class TestTypeHinting(unittest.TestCase):
                 True,
             ),
             (
-                typing.Optional[typing.Dict[str, int]],
+                typing.Optional[typing.Dict[str, int]],  # noqa: UP006, UP007
                 dict[str, int] | None,
                 True,  # Old- and new-styles should be equivalent
             ),
             (
                 dict[str, int] | None,
-                typing.Optional[typing.Dict[str, int]],
+                typing.Optional[typing.Dict[str, int]],  # noqa: UP006, UP007
                 True,  # Thus, we expect the reverse direction to work to prove identity
             ),
         ]:
@@ -142,11 +142,11 @@ class TestTypeHinting(unittest.TestCase):
     def test_type_hint_to_tuple(self):
         for hint, tuple_ in (
             (dict[str, int] | None, (dict[str, int], type(None))),
-            (typing.Dict[str, int] | None, (typing.Dict[str, int], type(None))),
-            (typing.Optional[dict[str, int]], (dict[str, int], type(None))),
+            (typing.Dict[str, int] | None, (typing.Dict[str, int], type(None))),  # noqa: UP006
+            (typing.Optional[dict[str, int]], (dict[str, int], type(None))),  # noqa: UP007
             (
-                typing.Optional[typing.Dict[str, int]],
-                (typing.Dict[str, int], type(None)),
+                typing.Optional[typing.Dict[str, int]],  # noqa: UP006, UP007
+                (typing.Dict[str, int], type(None)),  # noqa: UP006
             ),
         ):
             self.assertEqual(
