@@ -143,13 +143,13 @@ class TestTypeHinting(unittest.TestCase):
         for hint, tuple_ in (
             (dict[str, int] | None, (dict[str, int], type(None))),
             (
-                typing.Dict[str, int] | None,
-                (typing.Dict[str, int], type(None)),
-            ),  # noqa: UP006
+                typing.Dict[str, int] | None,  # noqa: UP006
+                (typing.Dict[str, int], type(None)),  # noqa: UP006
+            ),
             (
-                typing.Optional[dict[str, int]],
+                typing.Optional[dict[str, int]],  # noqa: UP007
                 (dict[str, int], type(None)),
-            ),  # noqa: UP007
+            ),
             (
                 typing.Optional[typing.Dict[str, int]],  # noqa: UP006, UP007
                 (typing.Dict[str, int], type(None)),  # noqa: UP006
