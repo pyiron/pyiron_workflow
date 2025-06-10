@@ -120,3 +120,11 @@ extend-exclude = '''
   ^/docs
 )
 '''
+
+[tool.mypy]
+exclude = [
+    "^docs/conf\\.py$",
+    "^tests/",
+]
+ignore_missing_imports = true
+strict_equality = true
