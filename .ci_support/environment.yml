@@ -9,7 +9,7 @@ dependencies:
 - pint =0.24.4
 - pyiron_snippets =0.2.0
 - python >=3.10,<3.14
-- python-graphviz =0.20.3
+- python-graphviz =0.21
 - setuptools>=68
 - toposort =1.10
 - typeguard =4.4.3
