@@ -20,6 +20,9 @@ from pyiron_workflow.nodes.macro import as_macro_node
 from pyiron_workflow.nodes.standard import Add, Multiply, Sleep
 from pyiron_workflow.nodes.transform import inputs_to_list
 
+ensure_tests_in_python_path()
+from static.demo_nodes import AddThree  # noqa: E402
+
 
 class TestDictionaryToIndexMaps(unittest.TestCase):
     def test_no_keys(self):
@@ -125,9 +128,6 @@ class TestForNode(unittest.TestCase):
     @classmethod
     def setUpClass(cls) -> None:
         super().setUpClass()
-        ensure_tests_in_python_path()
-        from static.demo_nodes import AddThree
-
         cls.AddThree = AddThree
 
     @staticmethod

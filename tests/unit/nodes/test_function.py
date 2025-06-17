@@ -6,6 +6,7 @@ import numpy as np
 
 from pyiron_workflow.channels import NOT_DATA
 from pyiron_workflow.io import ConnectionCopyError, ValueCopyError
+from pyiron_workflow.node import Node as NonBuiltinTypeHint
 from pyiron_workflow.nodes.function import (
     Function,
     as_function_node,
@@ -563,7 +564,6 @@ class TestFunction(unittest.TestCase):
             to_function_node("ARange", np.arange, "arange")
 
         with self.subTest("Non-builtin type hints should be ok via a scoping kwarg"):
-            from pyiron_workflow.node import Node as NonBuiltinTypeHint
 
             GetNodes = to_function_node(
                 "GetNodes",

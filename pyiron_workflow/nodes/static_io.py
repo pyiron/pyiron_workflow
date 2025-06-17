@@ -107,7 +107,7 @@ class StaticNode(Node, HasIOPreview, ABC):
             [2, 3]
 
         """
-        from pyiron_workflow.nodes.for_loop import for_node
+        from pyiron_workflow.nodes.for_loop import for_node  # noqa: PLC0415
 
         return for_node(
             cls,
@@ -161,7 +161,7 @@ class StaticNode(Node, HasIOPreview, ABC):
             for label in set(self.inputs.labels).difference(loop_on)
         }
 
-        from pyiron_workflow.nodes.for_loop import for_node
+        from pyiron_workflow.nodes.for_loop import for_node  # noqa: PLC0415
 
         for_instance = for_node(
             self.__class__,

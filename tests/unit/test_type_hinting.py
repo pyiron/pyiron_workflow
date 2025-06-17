@@ -108,13 +108,13 @@ class TestTypeHinting(unittest.TestCase):
                 True,
             ),
             (
-                typing.Optional[typing.Dict[str, int]],  # noqa: UP006, UP007
+                typing.Optional[typing.Dict[str, int]],  # noqa: UP006, UP007, UP045
                 dict[str, int] | None,
                 True,  # Old- and new-styles should be equivalent
             ),
             (
                 dict[str, int] | None,
-                typing.Optional[typing.Dict[str, int]],  # noqa: UP006, UP007
+                typing.Optional[typing.Dict[str, int]],  # noqa: UP006, UP007, UP045
                 True,  # Thus, we expect the reverse direction to work to prove identity
             ),
         ]:
@@ -147,11 +147,11 @@ class TestTypeHinting(unittest.TestCase):
                 (typing.Dict[str, int], type(None)),  # noqa: UP006
             ),
             (
-                typing.Optional[dict[str, int]],  # noqa: UP007
+                typing.Optional[dict[str, int]],  # noqa: UP007, UP045
                 (dict[str, int], type(None)),
             ),
             (
-                typing.Optional[typing.Dict[str, int]],  # noqa: UP006, UP007
+                typing.Optional[typing.Dict[str, int]],  # noqa: UP006, UP007, UP045
                 (typing.Dict[str, int], type(None)),  # noqa: UP006
             ),
         ):
