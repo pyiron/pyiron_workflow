@@ -180,9 +180,9 @@ class TestOutputInjection(unittest.TestCase):
     def test_shape_access(self):
         with self.assertRaises(
             AttributeError,
-            msg="This is a hack to stop Jupyter cells from injecting getattr nodes"
+            msg="This is a hack to stop Jupyter cells from injecting getattr nodes",
         ):
-            self.int.shape
+            self.int.shape  # noqa: B018
 
 
 if __name__ == "__main__":
