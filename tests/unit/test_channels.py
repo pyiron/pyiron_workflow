@@ -216,24 +216,35 @@ class TestDataChannels(unittest.TestCase):
             msg="With strict connections turned off, we should allow type-violations",
         )
 
-    def test_copy_connections(self):
+    def test_moving_connections(self):
         self.ni1.connect(self.no)
         self.ni2.connect(self.no_empty)
-        self.ni2.copy_connections(self.ni1)
+
+        self.ni2.move_connections(self.ni1)
+        self.assertFalse(self.ni1.connected)
         self.assertListEqual(
             self.ni2.connections,
-            [*self.ni1.connections, self.no_empty],
-            msg="Copying should be additive, existing connections should still be there",
+            [self.no],
+            msg="Copying should hard-transfer the connection",
         )
 
-        self.ni2.disconnect(*self.ni1.connections)
+    def test_moving_connections_failure(self):
+        self.ni1.connect(self.no)
+        self.ni2.connect(self.no_empty)
+
         self.ni1.connections.append(self.so1)  # Manually include a poorly-typed conn
         with self.assertRaises(
             ChannelConnectionError,
             msg="Should not be able to connect to so1 because of type hint "
             "incompatibility",
         ):
-            self.ni2.copy_connections(self.ni1)
+            self.ni2.move_connections(self.ni1)
+        self.assertListEqual(
+            self.ni1.connections,
+            [self.no],
+            msg="On failing, copy should revert the copied channel to its orignial "
+            "state",
+        )
         self.assertListEqual(
             self.ni2.connections,
             [self.no_empty],

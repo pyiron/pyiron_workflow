@@ -261,20 +261,20 @@ class TestFunction(unittest.TestCase):
             )
 
     def test_copy_connections(self):
-        node = function_node(plus_one)
+        def _setup():
+            node = function_node(plus_one)
 
-        upstream = function_node(plus_one)
-        to_copy = function_node(plus_one, x=upstream.outputs.y)
-        downstream = function_node(plus_one, x=to_copy.outputs.y)
-        upstream >> to_copy >> downstream
+            upstream = function_node(plus_one)
+            to_copy = function_node(plus_one, x=upstream.outputs.y)
+            downstream = function_node(plus_one, x=to_copy.outputs.y)
+            upstream >> to_copy >> downstream
 
-        wrong_io = function_node(
-            returns_multiple, x=upstream.outputs.y, y=upstream.outputs.y
-        )
-        downstream.inputs.x.connect(wrong_io.outputs.y)
+            return upstream, to_copy, downstream, node
+
+        upstream, to_copy, downstream, node = _setup()
 
         with self.subTest("Successful copy"):
-            node._copy_connections(to_copy)
+            node.move_connections(to_copy)
             self.assertIn(upstream.outputs.y, node.inputs.x.connections)
             self.assertIn(upstream.signals.output.ran, node.signals.input.run)
             self.assertIn(downstream.inputs.x, node.outputs.y.connections)
@@ -285,11 +285,18 @@ class TestFunction(unittest.TestCase):
             y = x + 1
             return y
 
+        upstream, to_copy, downstream, node = _setup()
+
+        wrong_io = function_node(
+            returns_multiple, x=upstream.outputs.y, y=upstream.outputs.y
+        )
+        downstream.inputs.x.connect(wrong_io.outputs.y)
+
         hinted_node = function_node(plus_one_hinted)
 
         with self.subTest("Ensure failed copies fail cleanly"):
             with self.assertRaises(ConnectionCopyError, msg="Wrong labels"):
-                node._copy_connections(wrong_io)
+                node.move_connections(wrong_io)
             self.assertFalse(
                 node.connected,
                 msg="The x-input connection should have been copied, but should be "
@@ -301,16 +308,16 @@ class TestFunction(unittest.TestCase):
                 msg="An unhinted channel is not a valid connection for a hinted "
                 "channel, and should raise and exception",
             ):
-                hinted_node._copy_connections(to_copy)
+                hinted_node.move_connections(to_copy)
         hinted_node.disconnect()  # Make sure you've got a clean slate
         node.disconnect()  # Make sure you've got a clean slate
 
         with self.subTest("Ensure that failures can be continued past"):
-            node._copy_connections(wrong_io, fail_hard=False)
+            node.move_connections(wrong_io, fail_hard=False)
             self.assertIn(upstream.outputs.y, node.inputs.x.connections)
             self.assertIn(downstream.inputs.x, node.outputs.y.connections)
 
-            hinted_node._copy_connections(to_copy, fail_hard=False)
+            hinted_node.move_connections(to_copy, fail_hard=False)
             self.assertFalse(
                 hinted_node.inputs.connected,
                 msg="Without hard failure the copy should be allowed to proceed, but "

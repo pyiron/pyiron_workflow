@@ -1,7 +1,7 @@
+import contextlib
 import unittest
 
 from pyiron_workflow.channels import (
-    DataChannel,
     InputData,
     InputSignal,
     OutputData,
@@ -320,44 +320,67 @@ class TestHasIO(unittest.TestCase):
             msg="Left shift should accommodate groups of connections",
         )
 
-    def test_copy_io(self):
+    def test_move_io(self):
         # Setup
-        upstream = Dummy(label="upstream")
-        upstream.outputs["output_channel"] = OutputData(
-            "output_channel", upstream, type_hint=float
-        )
+        def _setup(copier_hint=None):
+            upstream = Dummy(label="upstream")
+            upstream.outputs["output_channel"] = OutputData(
+                "output_channel", upstream, type_hint=float
+            )
 
-        to_copy = Dummy(label="to_copy")
-        to_copy.inputs["used_input"] = InputData("used_input", to_copy, default=42)
-        to_copy.inputs["hinted_input"] = InputData(
-            "hinted_input", to_copy, type_hint=float
-        )
-        to_copy.inputs["unused_input"] = InputData(
-            "unused_input", to_copy, default="has a value but not connected"
-        )
-        to_copy.outputs["used_output"] = OutputData("used_output", to_copy)
-        to_copy.outputs["unused_output"] = OutputData("unused_output", to_copy)
-        to_copy.signals.input["custom_signal"] = InputSignal(
-            "custom_signal",
-            to_copy,
-            to_copy.update,
-        )
-        to_copy.signals.input["unused_signal"] = InputSignal(
-            "unused_signal",
-            to_copy,
-            to_copy.update,
-        )
+            to_copy = Dummy(label="to_copy")
+            to_copy.inputs["used_input"] = InputData("used_input", to_copy, default=42)
+            to_copy.inputs["hinted_input"] = InputData(
+                "hinted_input", to_copy, type_hint=float
+            )
+            to_copy.inputs["unused_input"] = InputData(
+                "unused_input", to_copy, default="has a value but not connected"
+            )
+            to_copy.outputs["used_output"] = OutputData("used_output", to_copy)
+            to_copy.outputs["unused_output"] = OutputData("unused_output", to_copy)
+            to_copy.signals.input["custom_signal"] = InputSignal(
+                "custom_signal",
+                to_copy,
+                to_copy.update,
+            )
+            to_copy.signals.input["unused_signal"] = InputSignal(
+                "unused_signal",
+                to_copy,
+                to_copy.update,
+            )
 
-        downstream = Dummy(label="downstream")
-        downstream.inputs["input_channel"] = InputData("input_channel", downstream)
+            downstream = Dummy(label="downstream")
+            downstream.inputs["input_channel"] = InputData("input_channel", downstream)
 
-        to_copy.inputs.used_input.connect(upstream.outputs.output_channel)
-        to_copy.inputs.hinted_input.connect(upstream.outputs.output_channel)
-        to_copy.signals.input.custom_signal.connect(upstream.signals.output.ran)
-        to_copy >> downstream
+            to_copy.inputs.used_input.connect(upstream.outputs.output_channel)
+            to_copy.inputs.hinted_input.connect(upstream.outputs.output_channel)
+            to_copy.signals.input.custom_signal.connect(upstream.signals.output.ran)
+            to_copy >> downstream
 
-        # Create copy candidates that will pass or fail
-        copier = Dummy("subset")
+            # Create copy candidates that will pass or fail
+            copier = Dummy("subset")
+            if copier_hint is not None:
+                copier.inputs["used_input"] = InputData("used_input", copier)
+                copier.inputs["hinted_input"] = InputData(
+                    "hinted_input",
+                    copier,
+                    type_hint=copier_hint,  # Different hint!
+                )
+                copier.inputs["extra_input"] = InputData(
+                    "extra_input",
+                    copier,
+                    default="not on the copied object but that's ok",
+                )
+                copier.outputs["used_output"] = OutputData("used_output", copier)
+                copier.signals.input["custom_signal"] = InputSignal(
+                    "custom_signal",
+                    copier,
+                    copier.update,
+                )
+
+            return upstream, to_copy, downstream, copier
+
+        upstream, to_copy, downstream, copier = _setup()
 
         with self.subTest("Fails on missing connections"):
             with self.assertRaises(
@@ -365,7 +388,7 @@ class TestHasIO(unittest.TestCase):
                 msg="The copier is missing all sorts of connected channels and should "
                 "fail to copy",
             ):
-                copier.copy_io(
+                copier.move_io(
                     to_copy, connections_fail_hard=True, values_fail_hard=False
                 )
             self.assertFalse(
@@ -374,8 +397,10 @@ class TestHasIO(unittest.TestCase):
                 "reset",
             )
 
+        upstream, to_copy, downstream, copier = _setup()
+
         with self.subTest("Force missing connections"):
-            copier.copy_io(to_copy, connections_fail_hard=False, values_fail_hard=False)
+            copier.move_io(to_copy, connections_fail_hard=False, values_fail_hard=False)
             self.assertIn(
                 copier.signals.output.ran,
                 downstream.signals.input.run,
@@ -387,21 +412,7 @@ class TestHasIO(unittest.TestCase):
                 msg="Sanity check that that was indeed the only connection",
             )
 
-        copier.inputs["used_input"] = InputData("used_input", copier)
-        copier.inputs["hinted_input"] = InputData(
-            "hinted_input",
-            copier,
-            type_hint=str,  # Different hint!
-        )
-        copier.inputs["extra_input"] = InputData(
-            "extra_input", copier, default="not on the copied object but that's ok"
-        )
-        copier.outputs["used_output"] = OutputData("used_output", copier)
-        copier.signals.input["custom_signal"] = InputSignal(
-            "custom_signal",
-            copier,
-            copier.update,
-        )
+        upstream, to_copy, downstream, copier = _setup(copier_hint=str)
 
         with (
             self.subTest("Bad hint causes connection error"),
@@ -410,34 +421,23 @@ class TestHasIO(unittest.TestCase):
                 msg="Can't connect channels with incommensurate type hints",
             ),
         ):
-            copier.copy_io(to_copy, connections_fail_hard=True, values_fail_hard=False)
+            copier.move_io(to_copy, connections_fail_hard=True, values_fail_hard=False)
 
         # Bring the copier's type hint in-line with the object being copied
-        copier.inputs.hinted_input.type_hint = float
+        upstream, to_copy, downstream, copier = _setup(copier_hint=float)
 
         with self.subTest("Passes missing values"):
-            copier.copy_io(to_copy, connections_fail_hard=True, values_fail_hard=False)
-            for copier_panel, copied_panel in zip(
-                copier._owned_io_panels, to_copy._owned_io_panels, strict=False
-            ):
-                for copier_channel in copier_panel:
-                    try:
-                        copied_channel = copied_panel[copier_channel.label]
-                        self.assertListEqual(
-                            copier_channel.connections,
-                            copied_channel.connections,
-                            msg="All connections on shared channels should copy",
-                        )
+            copier.move_io(to_copy, connections_fail_hard=True, values_fail_hard=False)
+            for inp in copier.inputs:
+                with contextlib.suppress(AttributeError):
+                    # We only need to check shared channels
+                    self.assertEqual(
+                        inp.value,
+                        to_copy.inputs[inp.label].value,
+                        msg="All values on shared channels should copy",
+                    )
 
-                        if isinstance(copier_channel, DataChannel):
-                            self.assertEqual(
-                                copier_channel.value,
-                                copied_channel.value,
-                                msg="All values on shared channels should copy",
-                            )
-                    except AttributeError:
-                        # We only need to check shared channels
-                        pass
+        upstream, to_copy, downstream, copier = _setup(copier_hint=float)
 
         with (
             self.subTest("Force failure on value copy fail"),
@@ -447,7 +447,7 @@ class TestHasIO(unittest.TestCase):
                 "copying, so we should fail",
             ),
         ):
-            copier.copy_io(to_copy, connections_fail_hard=True, values_fail_hard=True)
+            copier.move_io(to_copy, connections_fail_hard=True, values_fail_hard=True)
 
 
 if __name__ == "__main__":

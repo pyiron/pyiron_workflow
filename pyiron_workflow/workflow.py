@@ -468,7 +468,7 @@ class Workflow(Composite):
                         # But, if it wasn't connected, we don't even care whether or not
                         # we still have a corresponding channel to copy to
                         new_channel = new[old_channel.label]
-                        new_channel.copy_connections(old_channel)
+                        new_channel.move_connections(old_channel)
                         swapped_conenctions = old_channel.disconnect_all()  # Purge old
                         connection_changes.append(
                             (new_channel, old_channel, swapped_conenctions)
