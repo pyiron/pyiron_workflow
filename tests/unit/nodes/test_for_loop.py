@@ -17,7 +17,7 @@ from pyiron_workflow.nodes.for_loop import (
 )
 from pyiron_workflow.nodes.function import as_function_node
 from pyiron_workflow.nodes.macro import as_macro_node
-from pyiron_workflow.nodes.standard import Add, Multiply, Sleep
+from pyiron_workflow.nodes.standard import Add, Sleep
 from pyiron_workflow.nodes.transform import inputs_to_list
 
 ensure_tests_in_python_path()
