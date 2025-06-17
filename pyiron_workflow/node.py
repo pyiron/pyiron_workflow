@@ -319,7 +319,7 @@ class Node(
 
     @classmethod
     def parent_type(cls) -> type[Composite]:
-        from pyiron_workflow.nodes.composite import Composite
+        from pyiron_workflow.nodes.composite import Composite  # noqa: PLC0415
 
         return Composite
 
@@ -675,7 +675,7 @@ class Node(
                     # I recognize this is dirty, but let's be pragmatic about getting
                     # the features playing together. Workflows and pull are anyhow
                     # already both very annoying on their own...
-                    from pyiron_workflow.workflow import Workflow
+                    from pyiron_workflow.workflow import Workflow  # noqa: PLC0415
 
                     if isinstance(self.parent, Workflow):
                         automated = self.parent.automate_execution
@@ -797,7 +797,7 @@ class Node(
         # Building these on _every_ run would be needlessly expensive, so this method
         # exists as a hacky guaranteed way to secure push-like run behaviour regardless
         # of the context you're calling from.
-        from pyiron_workflow.workflow import Workflow
+        from pyiron_workflow.workflow import Workflow  # noqa: PLC0415
 
         if isinstance(self.parent, Workflow) and self.parent.automate_execution:
             self.parent.set_run_signals_to_dag_execution()

@@ -4,6 +4,9 @@ from pathlib import Path
 from pyiron_workflow._tests import ensure_tests_in_python_path
 from pyiron_workflow.find import find_nodes
 
+ensure_tests_in_python_path()
+from static import demo_nodes  # noqa: E402
+
 
 class TestFind(unittest.TestCase):
     def test_find_nodes(self):
@@ -24,9 +27,6 @@ class TestFind(unittest.TestCase):
         found_by_string = find_nodes(demo_nodes_file)
         path = Path(demo_nodes_file)
         found_by_path = find_nodes(path)
-
-        ensure_tests_in_python_path()
-        from static import demo_nodes
 
         found_by_module = find_nodes(demo_nodes)
 

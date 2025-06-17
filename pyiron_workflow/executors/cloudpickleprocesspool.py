@@ -1,3 +1,4 @@
+import warnings
 from collections.abc import Callable
 from concurrent.futures import Future, ProcessPoolExecutor
 from concurrent.futures.process import BrokenProcessPool, _global_shutdown, _WorkItem
@@ -187,7 +188,6 @@ class CloudpickleProcessPoolExecutor(ProcessPoolExecutor):
         elif "fn" in kwargs:
             fn = kwargs.pop("fn")
             self, *args = args
-            import warnings
 
             warnings.warn(
                 "Passing 'fn' as keyword argument is deprecated",
