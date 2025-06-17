@@ -261,17 +261,17 @@ class TestFunction(unittest.TestCase):
             )
 
     def test_copy_connections(self):
-        node = function_node(plus_one)
+        def _setup():
+            node = function_node(plus_one)
 
-        upstream = function_node(plus_one)
-        to_copy = function_node(plus_one, x=upstream.outputs.y)
-        downstream = function_node(plus_one, x=to_copy.outputs.y)
-        upstream >> to_copy >> downstream
+            upstream = function_node(plus_one)
+            to_copy = function_node(plus_one, x=upstream.outputs.y)
+            downstream = function_node(plus_one, x=to_copy.outputs.y)
+            upstream >> to_copy >> downstream
 
-        wrong_io = function_node(
-            returns_multiple, x=upstream.outputs.y, y=upstream.outputs.y
-        )
-        downstream.inputs.x.connect(wrong_io.outputs.y)
+            return upstream, to_copy, downstream, node
+
+        upstream, to_copy, downstream, node = _setup()
 
         with self.subTest("Successful copy"):
             node._copy_connections(to_copy)
@@ -284,6 +284,13 @@ class TestFunction(unittest.TestCase):
         def plus_one_hinted(x: int = 0) -> int:
             y = x + 1
             return y
+
+        upstream, to_copy, downstream, node = _setup()
+
+        wrong_io = function_node(
+            returns_multiple, x=upstream.outputs.y, y=upstream.outputs.y
+        )
+        downstream.inputs.x.connect(wrong_io.outputs.y)
 
         hinted_node = function_node(plus_one_hinted)
 

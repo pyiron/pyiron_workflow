@@ -523,12 +523,15 @@ class HasIO(HasStateDisplay, HasLabel, HasRun, Generic[OutputsType], ABC):
                 pairs (for reverting changes).
         """
         new_connections = []
+        old_connections = []
         for my_panel, other_panel in zip(
             self._owned_io_panels, other._owned_io_panels, strict=False
         ):
             for key, channel in other_panel.items():
                 for target in channel.connections:
                     try:
+                        old_connections.append((channel, target))
+                        channel.disconnect(target)
                         my_panel[key].connect(target)
                         new_connections.append((my_panel[key], target))
                     except Exception as e:
@@ -536,6 +539,8 @@ class HasIO(HasStateDisplay, HasLabel, HasRun, Generic[OutputsType], ABC):
                             # If you run into trouble, unwind what you've done
                             for this, that in new_connections:
                                 this.disconnect(that)
+                            for old, other in old_connections:
+                                old.connect(other)
                             raise ConnectionCopyError(
                                 f"{self.label} could not copy connections from "
                                 f"{other.label} due to the channel {key} on "

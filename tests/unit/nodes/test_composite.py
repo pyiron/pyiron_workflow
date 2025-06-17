@@ -244,7 +244,11 @@ class TestComposite(unittest.TestCase):
         with self.subTest("Verify success cases"):
             self.assertEqual(3, self.comp.run().n3__y, msg="Sanity check")
 
-            self.comp.replace_child(n1, replacement)
+            old, new = self.comp.replace_child(n1, replacement)
+            self.assertFalse(old.connected)
+            self.assertIsNone(old.parent)
+            self.assertTrue(new.connected)
+            self.assertIs(new.parent, self.comp)
             out = self.comp.run(n1__x=0)
             self.assertEqual(
                 (0 + 2) + 1 + 1, out.n3__y, msg="Should be able to replace by instance"
