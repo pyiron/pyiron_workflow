@@ -380,7 +380,7 @@ class Composite(LexicalParent[Node], HasCreator, Node, ABC):
                 f"got {replacement}"
             )
 
-        replacement_node.copy_io(
+        replacement_node.move_io(
             owned_node_instance
         )  # If the replacement is incompatible, we'll
         # fail here before we've changed the parent at all. Since the replacement was

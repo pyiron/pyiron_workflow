@@ -454,23 +454,24 @@ class HasIO(HasStateDisplay, HasLabel, HasRun, Generic[OutputsType], ABC):
                 f"{diff} not found among available inputs: {available_keys}"
             )
 
-    def copy_io(
+    def move_io(
         self,
         other: HasIO,
         connections_fail_hard: bool = True,
         values_fail_hard: bool = False,
     ) -> None:
         """
-        Copies connections and values from another object's IO onto this object's IO.
+        Moves connections and copies values from another object's IO onto this object's
+        IO.
         Other channels with no connections are ignored for copying connections, and all
         data channels without data are ignored for copying data.
         Otherwise, default behaviour is to throw an exception if any of the other
-        object's connections fail to copy, but failed value copies are simply ignored
+        object's connections fail to move, but failed value copies are simply ignored
         (e.g. because this object does not have a channel with a commensurate label or
         the value breaks a type hint).
         This error throwing/passing behaviour can be controlled with boolean flags.
 
-        In the case that an exception is thrown, all newly formed connections are broken
+        In the case that an exception is thrown, all moved connections are reverted
         and any new values are reverted to their old state before the exception is
         raised.
 
@@ -481,7 +482,7 @@ class HasIO(HasStateDisplay, HasLabel, HasRun, Generic[OutputsType], ABC):
             values_fail_hard (bool): Whether to raise exceptions encountered when
                 copying values. (Default is False.)
         """
-        new_connections = self._copy_connections(other, fail_hard=connections_fail_hard)
+        new_connections = self.move_connections(other, fail_hard=connections_fail_hard)
         try:
             self._copy_values(other, fail_hard=values_fail_hard)
         except Exception as e:
@@ -489,13 +490,13 @@ class HasIO(HasStateDisplay, HasLabel, HasRun, Generic[OutputsType], ABC):
                 owned.disconnect(conjugate)
             raise e
 
-    def _copy_connections(
+    def move_connections(
         self,
         other: HasIO,
         fail_hard: bool = True,
     ) -> list[tuple[Channel, Channel]]:
         """
-        Copies all the connections in another object to this one.
+        Moves all the connections on another object to this one.
         Expects all connected channels on the other object to have a counterpart on
         this object -- i.e. the same label, type, and (for data) a type hint compatible
         with all the existing connections being copied.
@@ -509,8 +510,8 @@ class HasIO(HasStateDisplay, HasLabel, HasRun, Generic[OutputsType], ABC):
         The other object may have additional channels not present here as long as they
         are not connected.
 
-        If an exception is going to be raised, any connections copied so far are
-        disconnected first.
+        If an exception is going to be raised, any connections move so far are
+        disconnected and reconnected on their source first.
 
         Args:
             other (HasIO): the object whose connections should be copied.

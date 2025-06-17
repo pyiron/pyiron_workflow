@@ -320,7 +320,7 @@ class TestHasIO(unittest.TestCase):
             msg="Left shift should accommodate groups of connections",
         )
 
-    def test_copy_io(self):
+    def test_move_io(self):
         # Setup
         def _setup(copier_hint=None):
             upstream = Dummy(label="upstream")
@@ -386,7 +386,7 @@ class TestHasIO(unittest.TestCase):
                 msg="The copier is missing all sorts of connected channels and should "
                 "fail to copy",
             ):
-                copier.copy_io(
+                copier.move_io(
                     to_copy, connections_fail_hard=True, values_fail_hard=False
                 )
             self.assertFalse(
@@ -398,7 +398,7 @@ class TestHasIO(unittest.TestCase):
         upstream, to_copy, downstream, copier = _setup()
 
         with self.subTest("Force missing connections"):
-            copier.copy_io(to_copy, connections_fail_hard=False, values_fail_hard=False)
+            copier.move_io(to_copy, connections_fail_hard=False, values_fail_hard=False)
             self.assertIn(
                 copier.signals.output.ran,
                 downstream.signals.input.run,
@@ -419,13 +419,13 @@ class TestHasIO(unittest.TestCase):
                 msg="Can't connect channels with incommensurate type hints",
             ),
         ):
-            copier.copy_io(to_copy, connections_fail_hard=True, values_fail_hard=False)
+            copier.move_io(to_copy, connections_fail_hard=True, values_fail_hard=False)
 
         # Bring the copier's type hint in-line with the object being copied
         upstream, to_copy, downstream, copier = _setup(copier_hint=float)
 
         with self.subTest("Passes missing values"):
-            copier.copy_io(to_copy, connections_fail_hard=True, values_fail_hard=False)
+            copier.move_io(to_copy, connections_fail_hard=True, values_fail_hard=False)
             for inp in copier.inputs:
                 try:
                     self.assertEqual(
@@ -447,7 +447,7 @@ class TestHasIO(unittest.TestCase):
                 "copying, so we should fail",
             ),
         ):
-            copier.copy_io(to_copy, connections_fail_hard=True, values_fail_hard=True)
+            copier.move_io(to_copy, connections_fail_hard=True, values_fail_hard=True)
 
 
 if __name__ == "__main__":
