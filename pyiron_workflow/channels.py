@@ -12,6 +12,8 @@ import inspect
 import typing
 from abc import ABC, abstractmethod
 
+from IPython.lib.deepreload import original_reload
+
 from pyiron_snippets.singleton import Singleton
 
 from pyiron_workflow.compatibility import Self
@@ -210,22 +212,21 @@ class Channel(
     def channel(self) -> Self:
         return self
 
-    def copy_connections(self, other: Self) -> None:
+    def move_connections(self, other: Self) -> None:
         """
         Adds all the connections in another channel to this channel's connections.
 
         If an exception is encountered, all the new connections are disconnected before
         the exception is raised.
         """
-        new_connections = []
+        original_partners = [c[1] for c in self.disconnect_all()]
+        other_partners = [c[1] for c in other.disconnect_all()]
         try:
-            for connect_to in other.connections:
-                # We do them one at a time in case any fail, so we can undo those that
-                # worked
-                self.connect(connect_to)
-                new_connections.append(connect_to)
+            self.connect(*other_partners)
         except Exception as e:
-            self.disconnect(*new_connections)
+            self.disconnect_all()
+            self.connect(*original_partners)
+            other.connect(*other_partners)
             raise e
 
     def __getstate__(self):
