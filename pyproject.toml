@@ -111,10 +111,10 @@ ignore = [
 ]
 
 [tool.ruff.lint.per-file-ignores]
-"__init__.py" = ["F401"]  # Ignore unused imports in init files -- we specify APIs this way
-"api.py" = ["F401"]  # Ignore unused imports in api file -- we specify APIs this way
+"pyiron_workflow/__init__.py" = ["F401"]  # Ignore unused imports in init files -- we specify APIs this way
+"pyiron_workflow/api.py" = ["F401"]  # Ignore unused imports in api file -- we specify APIs this way
 "pyiron_workflow/mixin/injection.py" = ["PLC0415"]  # Allow non-top imports
-"create.py" = ["PLC0415"]  # Allow non-top imports
+"pyiron_workflow/create.py" = ["PLC0415"]  # Allow non-top imports
 
 [tool.black]
 extend-exclude = '''
