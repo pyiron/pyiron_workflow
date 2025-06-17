@@ -494,60 +494,6 @@ class TestForNode(unittest.TestCase):
             msg="And make sure that we can vary the length still",
         )
 
-    def test_node_access_points(self):
-        n = FiveTogether(1, 2, e="instance")
-
-        with self.subTest("Iter"):
-            df = n.iter(c=[3, 4], d=[5, 6])
-            self.assertIsInstance(df, DataFrame)
-            self.assertEqual(2 * 2, len(df))
-            self.assertTupleEqual(
-                df["together"][1][0],
-                (
-                    1,
-                    2,
-                    3,
-                    6,
-                    "instance",
-                ),
-            )
-
-        with self.subTest("Zip"):
-            df = n.zip(c=[3, 4], d=[5, 6])
-            self.assertIsInstance(df, DataFrame)
-            self.assertEqual(2, len(df))
-            self.assertTupleEqual(
-                df["together"][1][0],
-                (
-                    1,
-                    2,
-                    4,
-                    6,
-                    "instance",
-                ),
-            )
-
-    def test_shortcut(self):
-        loop1 = Add.for_node(
-            iter_on="other",
-            obj=1,
-            other=[1, 2],
-            output_as_dataframe=False,
-        )
-        loop2 = Multiply.for_node(
-            zip_on=("obj", "other"),
-            obj=loop1.outputs.add,
-            other=[1, 2],
-            output_as_dataframe=False,
-        )
-        out = loop2()
-        self.assertListEqual(
-            out.mul,
-            [(1 + 1) * 1, (1 + 2) * 2],
-            msg="We should be able to call for_node right from node classes to bypass "
-            "needing to provide the `body_node_class` argument",
-        )
-
     def test_macro_body(self):
         for output_as_dataframe in [True, False]:
             with self.subTest(f"output_as_dataframe {output_as_dataframe}"):
@@ -624,7 +570,7 @@ class TestForNode(unittest.TestCase):
             return n**2
 
         n = [1, 2, 3, 4]
-        s = SideEffectNode.for_node(iter_on="n")
+        s = for_node(SideEffectNode, iter_on="n")
         with self.assertRaises(
             ReadinessError,
             msg="Without input, we should raise a readiness error before we get to "
