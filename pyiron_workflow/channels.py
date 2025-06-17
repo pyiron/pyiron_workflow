@@ -12,8 +12,6 @@ import inspect
 import typing
 from abc import ABC, abstractmethod
 
-from IPython.lib.deepreload import original_reload
-
 from pyiron_snippets.singleton import Singleton
 
 from pyiron_workflow.compatibility import Self

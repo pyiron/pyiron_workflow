@@ -243,7 +243,7 @@ class TestDataChannels(unittest.TestCase):
             self.ni1.connections,
             [self.no],
             msg="On failing, copy should revert the copied channel to its orignial "
-                "state",
+            "state",
         )
         self.assertListEqual(
             self.ni2.connections,

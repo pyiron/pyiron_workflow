@@ -1,7 +1,7 @@
+import contextlib
 import unittest
 
 from pyiron_workflow.channels import (
-    DataChannel,
     InputData,
     InputSignal,
     OutputData,
@@ -367,7 +367,9 @@ class TestHasIO(unittest.TestCase):
                     type_hint=copier_hint,  # Different hint!
                 )
                 copier.inputs["extra_input"] = InputData(
-                    "extra_input", copier, default="not on the copied object but that's ok"
+                    "extra_input",
+                    copier,
+                    default="not on the copied object but that's ok",
                 )
                 copier.outputs["used_output"] = OutputData("used_output", copier)
                 copier.signals.input["custom_signal"] = InputSignal(
@@ -427,15 +429,13 @@ class TestHasIO(unittest.TestCase):
         with self.subTest("Passes missing values"):
             copier.move_io(to_copy, connections_fail_hard=True, values_fail_hard=False)
             for inp in copier.inputs:
-                try:
+                with contextlib.suppress(AttributeError):
+                    # We only need to check shared channels
                     self.assertEqual(
                         inp.value,
                         to_copy.inputs[inp.label].value,
-                        msg="All values on shared channels should copy"
+                        msg="All values on shared channels should copy",
                     )
-                except AttributeError:
-                    # We only need to check shared channels
-                    pass
 
         upstream, to_copy, downstream, copier = _setup(copier_hint=float)
 
