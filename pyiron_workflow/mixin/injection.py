@@ -118,6 +118,13 @@ class OutputDataWithInjection(OutputData, HasInjectableOutputChannel):
                 f"is forbidden -- if you really need it create a {GetAttr.__name__} "
                 f"node manually."
             )
+        if name == "shape":
+            raise AttributeError(
+                "This is a hack to stop jupyter notebook cells from asking for a `shape`."
+                "If you are _actually_ trying to get delayed access to a `shape` field on "
+                "your output, you'll need to manually add an attribute access node to do "
+                "it."
+            )
         return self._node_injection(GetAttr, name)
 
     def __getitem__(self, item):
