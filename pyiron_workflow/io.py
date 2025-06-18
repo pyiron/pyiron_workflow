@@ -107,9 +107,12 @@ class IO(HasStateDisplay, Generic[OwnedType, OwnedConjugate], ABC):
 
     def _assign_value_to_existing_channel(self, channel: OwnedType, value: Any) -> None:
         if isinstance(value, HasChannel):
-            channel.connect(value.channel)
+            self._assign_a_channel_value(channel, value)
         else:
             self._assign_a_non_channel_value(channel, value)
+
+    def _assign_a_channel_value(self, channel: OwnedType, value: HasChannel) -> None:
+        channel.connect(value.channel)
 
     def __getitem__(self, item: str) -> OwnedType:
         return self.__getattr__(item)
@@ -221,6 +224,11 @@ class Inputs(InputsIO, DataIO):
     def fetch(self) -> None:
         for c in self:
             c.fetch()
+
+    def _assign_a_channel_value(self, channel: OwnedType, value: Any) -> None:
+        # Allow the owned input data channel to overwrite its connection
+        channel.disconnect_all()
+        super()._assign_a_channel_value(channel, value)
 
 
 OutputDataType = TypeVar("OutputDataType", bound=OutputData)

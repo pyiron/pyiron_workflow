@@ -260,36 +260,38 @@ class TestFunction(unittest.TestCase):
                 # such a core promise that let's just double-check it
             )
 
-    def test_copy_connections(self):
-        def _setup():
-            node = function_node(plus_one)
+    @staticmethod
+    def _setup_move_nodes():
+        node = function_node(plus_one, label="node")
 
-            upstream = function_node(plus_one)
-            to_copy = function_node(plus_one, x=upstream.outputs.y)
-            downstream = function_node(plus_one, x=to_copy.outputs.y)
-            upstream >> to_copy >> downstream
+        upstream = function_node(plus_one, label="upstream")
+        to_copy = function_node(plus_one, x=upstream.outputs.y, label="to_copy")
+        downstream = function_node(plus_one, x=to_copy.outputs.y, label="downstream")
+        upstream >> to_copy >> downstream
 
-            return upstream, to_copy, downstream, node
+        return upstream, to_copy, downstream, node
 
-        upstream, to_copy, downstream, node = _setup()
+    def test_move_connections_success(self):
+        upstream, to_copy, downstream, node = self._setup_move_nodes()
 
-        with self.subTest("Successful copy"):
+        with self.subTest("Successful move"):
             node.move_connections(to_copy)
             self.assertIn(upstream.outputs.y, node.inputs.x.connections)
             self.assertIn(upstream.signals.output.ran, node.signals.input.run)
-            self.assertIn(downstream.inputs.x, node.outputs.y.connections)
             self.assertIn(downstream.signals.input.run, node.signals.output.ran)
-        node.disconnect()  # Make sure you've got a clean slate
+            self.assertFalse(to_copy.connected)
+
+    def test_move_connections_failure(self):
+        upstream, to_copy, downstream, node = self._setup_move_nodes()
 
         def plus_one_hinted(x: int = 0) -> int:
             y = x + 1
             return y
 
-        upstream, to_copy, downstream, node = _setup()
-
         wrong_io = function_node(
             returns_multiple, x=upstream.outputs.y, y=upstream.outputs.y
         )
+        downstream.inputs.x.disconnect_all()
         downstream.inputs.x.connect(wrong_io.outputs.y)
 
         hinted_node = function_node(plus_one_hinted)
@@ -325,7 +327,7 @@ class TestFunction(unittest.TestCase):
                 "only one available had type hint problems",
             )
             self.assertTrue(
-                hinted_node.outputs.connected,
+                hinted_node.signals.output.ran.connected,
                 msg="Without hard failure the copy should be allowed to proceed, so "
                 "the output should connect fine since feeding hinted to un-hinted "
                 "is a-ok",

@@ -13,6 +13,7 @@ from pyiron_workflow.channels import (
     InputSignal,
     OutputData,
     OutputSignal,
+    TooManyConnectionsError,
 )
 
 
@@ -154,7 +155,6 @@ class TestDataChannels(unittest.TestCase):
         self.ni1.value = 1
 
         self.ni1.connect(self.no)
-        self.ni1.connect(self.no_empty)
 
         self.assertEqual(
             self.ni1.value, 1, msg="Data should not be getting pushed on connection"
@@ -172,17 +172,7 @@ class TestDataChannels(unittest.TestCase):
         self.assertEqual(
             self.ni1.value,
             3,
-            msg="Data fetch should to first connected value that's actually data,"
-            "in this case skipping over no_empty",
-        )
-
-        self.no_empty.value = 4
-        self.ni1.fetch()
-        self.assertEqual(
-            self.ni1.value,
-            4,
-            msg="As soon as no_empty actually has data, it's position as 0th "
-            "element in the connections list should give it priority",
+            msg="Data fetch should retrieve available data",
         )
 
     def test_connection_validity(self):
@@ -216,6 +206,12 @@ class TestDataChannels(unittest.TestCase):
             msg="With strict connections turned off, we should allow type-violations",
         )
 
+        with self.assertRaises(
+            TooManyConnectionsError,
+            msg="Only one input connection at a time is allowed",
+        ):
+            self.ni2.connect(self.no)
+
     def test_moving_connections(self):
         self.ni1.connect(self.no)
         self.ni2.connect(self.no_empty)
@@ -230,15 +226,14 @@ class TestDataChannels(unittest.TestCase):
 
     def test_moving_connections_failure(self):
         self.ni1.connect(self.no)
-        self.ni2.connect(self.no_empty)
+        self.si.connect(self.so1)
 
-        self.ni1.connections.append(self.so1)  # Manually include a poorly-typed conn
         with self.assertRaises(
             ChannelConnectionError,
-            msg="Should not be able to connect to so1 because of type hint "
+            msg="Should not be able to connect to no because of type hint "
             "incompatibility",
         ):
-            self.ni2.move_connections(self.ni1)
+            self.si.move_connections(self.ni1)
         self.assertListEqual(
             self.ni1.connections,
             [self.no],
@@ -246,8 +241,8 @@ class TestDataChannels(unittest.TestCase):
             "state",
         )
         self.assertListEqual(
-            self.ni2.connections,
-            [self.no_empty],
+            self.si.connections,
+            [self.so1],
             msg="On failing, copy should revert the copying channel to its orignial "
             "state",
         )

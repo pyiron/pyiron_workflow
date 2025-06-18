@@ -34,6 +34,10 @@ class ChannelConnectionError(ChannelError):
     pass
 
 
+class TooManyConnectionsError(ChannelError):
+    pass
+
+
 ConjugateType = typing.TypeVar("ConjugateType", bound="Channel")
 InputType = typing.TypeVar("InputType", bound="InputChannel")
 OutputType = typing.TypeVar("OutputType", bound="OutputChannel")
@@ -138,7 +142,7 @@ class Channel(
             if other in self.connections:
                 continue
             elif isinstance(other, self.connection_conjugate()):
-                if self._valid_connection(other):
+                if self._valid_connection(other) and other._valid_connection(self):
                     # Prepend new connections
                     # so that connection searches run newest to oldest
                     self.connections.insert(0, other)
@@ -532,6 +536,15 @@ class InputData(DataChannel["InputData"], InputChannel["OutputData"]):
     @classmethod
     def connection_conjugate(cls) -> type[OutputData]:
         return OutputData
+
+    def _valid_connection(self, other: DataChannel[typing.Any]) -> bool:
+        if len(self.connections) > 0:
+            raise TooManyConnectionsError(
+                f"{self.full_label} is already connected to "
+                f"{self.connections[0].full_label} -- disconnect first before trying "
+                f"to connect to {other.full_label}"
+            )
+        return super()._valid_connection(other)
 
     def fetch(self) -> None:
         """
