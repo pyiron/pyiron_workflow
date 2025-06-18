@@ -86,8 +86,7 @@ class Node(
             super-graph)
         - Ask for the nodes upstream of them to run (in the local context of their own
             parent)
-        - Fetch the latest output data, prioritizing the first actual data among their
-            each of their inputs connections
+        - Fetch the latest output data from upstream connections
         - Check if they are ready to run, i.e.
             - Status is neither running nor failed
             - Input is all ready, i.e. each input has data and that data is
