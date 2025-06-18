@@ -109,6 +109,19 @@ class TestDataIO(unittest.TestCase):
             self.output.a.connections,
             msg="Should be able to create connections by assignment",
         )
+        self.input.x = self.post_facto_output
+        self.assertIn(
+            self.post_facto_output,
+            self.input.x.connections,
+            msg="The assignment shortcut should allow providing new input connections"
+            "even if one already exists",
+        )
+        self.assertNotIn(
+            self.input.x,
+            self.output.a.connections,
+            msg="Since each data input can only have one incoming connection, the "
+            "assignment shortcut should remove the old connection",
+        )
 
         self.input.x = 7.0
         self.assertEqual(self.input.x.value, 7.0)
@@ -117,7 +130,7 @@ class TestDataIO(unittest.TestCase):
         disconnected = self.input.disconnect()
         self.assertListEqual(
             disconnected,
-            [(self.input.x, self.output.a), (self.input.y, self.output.a)],
+            [(self.input.x, self.post_facto_output), (self.input.y, self.output.a)],
             msg="Disconnecting the panel should disconnect all children",
         )
 
