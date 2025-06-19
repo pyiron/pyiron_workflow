@@ -1,6 +1,6 @@
 import inspect
 
-from executorlib import BaseExecutor, SingleNodeExecutor
+from executorlib import BaseExecutor, SingleNodeExecutor, SlurmClusterExecutor
 
 from pyiron_workflow.mixin import lexical, run
 
@@ -49,3 +49,6 @@ class CacheOverride(BaseExecutor):
 
 
 class CacheSingleNodeExecutor(SingleNodeExecutor, CacheOverride): ...
+
+
+class CacheSlurmClusterExecutor(SlurmClusterExecutor, CacheOverride): ...
