@@ -514,6 +514,9 @@ class Node(
         fetch_input: bool,
         emit_ran_signal: bool,
     ) -> tuple[bool, Any]:
+        if self.running:
+            raise ReadinessError(self._readiness_error_message)
+
         if run_data_tree:
             self.run_data_tree(run_parent_trees_too=run_parent_trees_too)
 
