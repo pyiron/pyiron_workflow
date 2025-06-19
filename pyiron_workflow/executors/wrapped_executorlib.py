@@ -31,13 +31,13 @@ class CacheOverride(BaseExecutor):
             if "cache_key" in kwargs["resource_dict"]:
                 raise ValueError(
                     f"pyiron_workflow needs the freedom to specify the cache, so the "
-                    f"requested \"cache_directory\" "
+                    f'requested "cache_directory" '
                     f"({kwargs['resource_dict']['cache_key']}) would get overwritten."
                 )
             if "cache_directory" in kwargs["resource_dict"]:
                 raise ValueError(
                     f"pyiron_workflow needs the freedom to specify the cache, so the "
-                    f"requested \"cache_directory\" "
+                    f'requested "cache_directory" '
                     f"({kwargs['resource_dict']['cache_directory']})would get "
                     f"overwritten."
                 )
