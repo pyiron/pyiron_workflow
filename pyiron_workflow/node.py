@@ -18,6 +18,7 @@ from pyiron_snippets.colors import SeabornColors
 from pyiron_snippets.dotdict import DotDict
 
 from pyiron_workflow.draw import Node as GraphvizNode
+from pyiron_workflow.executors.wrapped_executorlib import CacheOverride
 from pyiron_workflow.logging import logger
 from pyiron_workflow.mixin.lexical import Lexical
 from pyiron_workflow.mixin.run import ReadinessError, Runnable
@@ -391,6 +392,18 @@ class Node(
             f" conform to type hints.\n" + self.readiness_report
         )
 
+    def _is_using_wrapped_excutorlib_executor(self) -> bool:
+        return self.executor is not None and isinstance(
+            self._parse_executor(self.executor), CacheOverride
+        )
+
+    def _clean_wrapped_executorlib_executor_cache(self) -> None:
+        location = self.as_path().parent
+        file_name = self.label + "_o.h5"  # Dependent on executorlib implementation
+        location.joinpath(file_name).unlink()
+        with contextlib.suppress(OSError):  # If it's not empty just move on
+            location.rmdir()
+
     def on_run(self, *args, **kwargs) -> Any:
         save_result: bool = args[0]
         args = args[1:]
@@ -515,6 +528,8 @@ class Node(
         emit_ran_signal: bool,
     ) -> tuple[bool, Any]:
         if self.running:
+            if self._is_using_wrapped_excutorlib_executor():
+                return False, None  # Let it cook
             raise ReadinessError(self._readiness_error_message)
 
         if run_data_tree:
@@ -562,7 +577,9 @@ class Node(
         run_finally_kwargs: dict,
         finish_run_kwargs: dict,
     ) -> Any | tuple | Future:
+        print("Running", self.full_label)
         if self.parent is not None and self.parent.running:
+            print("Registering start with parent", self.full_label)
             self.parent.register_child_starting(self)
         return super()._run(
             executor=executor,
@@ -570,6 +587,26 @@ class Node(
             run_exception_kwargs=run_exception_kwargs,
             run_finally_kwargs=run_finally_kwargs,
             finish_run_kwargs=finish_run_kwargs,
+        )
+
+    def _finish_run(
+        self,
+        run_output: tuple | Future,
+        /,
+        raise_run_exceptions: bool,
+        run_exception_kwargs: dict,
+        run_finally_kwargs: dict,
+        **kwargs,
+    ) -> Any | tuple | None:
+        if self._is_using_wrapped_excutorlib_executor():
+            self._clean_wrapped_executorlib_executor_cache()
+
+        return super()._finish_run(
+            run_output,
+            raise_run_exceptions=raise_run_exceptions,
+            run_exception_kwargs=run_exception_kwargs,
+            run_finally_kwargs=run_finally_kwargs,
+            **kwargs,
         )
 
     def _run_finally(self, /, emit_ran_signal: bool, raise_run_exceptions: bool):
