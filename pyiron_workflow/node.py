@@ -577,9 +577,7 @@ class Node(
         run_finally_kwargs: dict,
         finish_run_kwargs: dict,
     ) -> Any | tuple | Future:
-        print("Running", self.full_label)
         if self.parent is not None and self.parent.running:
-            print("Registering start with parent", self.full_label)
             self.parent.register_child_starting(self)
         return super()._run(
             executor=executor,
