@@ -655,10 +655,6 @@ class Node(
 
         try:
             if len(data_tree_starters) > 1 or data_tree_starters[0] is not self:
-                nodes_outside_the_tree = set(nodes.values()).difference(data_tree_nodes)
-                for n in nodes_outside_the_tree:
-                    n.signals.disconnect_run()
-
                 self.signals.disconnect_run()
                 # Don't let anything upstream trigger _this_ node
 
