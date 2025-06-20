@@ -799,12 +799,10 @@ class Node(
         # Building these on _every_ run would be needlessly expensive, so this method
         # exists as a hacky guaranteed way to secure push-like run behaviour regardless
         # of the context you're calling from.
-        from pyiron_workflow.workflow import Workflow  # noqa: PLC0415
-
-        if isinstance(self.parent, Workflow) and self.parent.automate_execution:
-            self.parent.set_run_signals_to_dag_execution()
-
-        return self.run(*args, **kwargs)
+        if self.parent is not None:
+            return self.parent.push_child(self, *args, **kwargs)
+        else:
+            return self.run(*args, **kwargs)
 
     def __call__(self, *args, **kwargs) -> None:
         """

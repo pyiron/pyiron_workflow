@@ -10,6 +10,7 @@ from collections.abc import Callable
 from time import sleep
 from typing import TYPE_CHECKING, Literal
 
+import typeguard
 from pyiron_snippets.colors import SeabornColors
 from pyiron_snippets.dotdict import DotDict
 
@@ -308,6 +309,39 @@ class Composite(LexicalParent[Node], HasCreator, Node, ABC):
     ) -> Node:
         self.clear_cache()  # Reset cache after graph change
         return super().add_child(child, label=label, strict_naming=strict_naming)
+
+    def push_child(self, child: Node | str, *args, **kwargs):
+        """
+        Run a child node in a "push" configuration.
+
+        Args:
+            child (Node|str): The child node to push.
+            *args: Additional positional arguments passed to the child node.
+            **kwargs: Additional keyword arguments passed to the child node.
+
+        Returns:
+            (Any | Future): The result of running the node, or a futures object (if
+                running on an executor).
+        """
+        typeguard.check_type(child, Node | str)
+
+        problem: str | None = None
+        if isinstance(child, Node):
+            if child.parent is not self:
+                problem = child.full_label
+            else:
+                child_node = child
+        elif isinstance(child, str):
+            if child not in self.child_labels:
+                problem = child
+            else:
+                child_node = self.children[child]
+        if problem is not None:
+            raise ValueError(
+                f"Child {problem} not found among {self.full_label}'s children: "
+                f"{self.child_labels}"
+            )
+        return child_node.run(*args, **kwargs)
 
     def remove_child(self, child: Node | str) -> Node:
         """

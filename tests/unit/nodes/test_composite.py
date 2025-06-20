@@ -1,6 +1,7 @@
 import unittest
 from concurrent.futures import ProcessPoolExecutor
 
+import typeguard
 from static import demo_nodes
 
 from pyiron_workflow._tests import ensure_tests_in_python_path
@@ -393,6 +394,26 @@ class TestComposite(unittest.TestCase):
             self.comp.n3.outputs.y.value,
             msg="n3 was omitted from the execution diagram, it should not have run",
         )
+
+    def test_push_child(self):
+        self.comp.n1 = self.comp.create.function_node(plus_one)
+        self.comp.n2 = self.comp.create.function_node(plus_one, x=self.comp.n1)
+        self.comp.n1 >> self.comp.n2
+
+        non_child = Composite.create.function_node(plus_one)
+
+        with self.assertRaises(typeguard.TypeCheckError, msg="Need a node or label"):
+            self.comp.push_child(42)
+
+        for child in [non_child, "non_label"]:
+            with self.assertRaises(ValueError, msg="That's not a child"):
+                self.comp.push_child(child)
+
+        self.comp.push_child(self.comp.n1, 0)
+        self.assertEqual(self.comp.n2.outputs.y.value, 0 + 1 + 1)
+
+        self.comp.push_child("n1", 42)
+        self.assertEqual(self.comp.n2.outputs.y.value, 42 + 1 + 1)
 
     def test_set_run_signals_to_dag(self):
         # Like the run test, but manually invoking this first
