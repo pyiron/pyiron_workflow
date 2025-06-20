@@ -17,7 +17,11 @@ from pyiron_snippets.dotdict import DotDict
 from pyiron_workflow.create import HasCreator
 from pyiron_workflow.mixin.lexical import LexicalParent
 from pyiron_workflow.node import Node
-from pyiron_workflow.topology import set_run_connections_according_to_dag
+from pyiron_workflow.topology import (
+    get_nodes_in_data_tree,
+    set_run_connections_according_to_dag,
+    set_run_connections_according_to_linear_dag,
+)
 
 if TYPE_CHECKING:
     from pyiron_workflow.channels import (
@@ -625,3 +629,60 @@ class Composite(LexicalParent[Node], HasCreator, Node, ABC):
         for node in self:
             report = node.report_import_readiness(tabs=tabs + 1, report_so_far=report)
         return report
+
+    def run_data_tree_for_child(self, node: Node) -> None:
+        """
+        Use topological analysis to build a tree of all upstream dependencies and run
+        them.
+
+        This method is called by a child node when it needs to run its data tree and has
+        a parent. The parent (this composite) handles the execution of the data tree.
+
+        Args:
+            node (Node): The child node that initiated the data tree run.
+        """
+
+        data_tree_nodes = get_nodes_in_data_tree(node)
+        for n in data_tree_nodes:
+            if n.executor is not None:
+                raise ValueError(
+                    f"Running the data tree is pull-paradigm action, and is "
+                    f"incompatible with using executors. While running "
+                    f"{node.full_label}, an executor request was found on "
+                    f"{n.full_label}"
+                )
+
+        nodes = {n.label: n for n in data_tree_nodes}
+
+        disconnected_pairs, starters = set_run_connections_according_to_linear_dag(
+            nodes
+        )
+        data_tree_starters = list(set(starters).intersection(data_tree_nodes))
+
+        try:
+            original_starting_nodes = self.starting_nodes
+            # We need these for state recovery later, even if we crash
+
+            if len(data_tree_starters) == 1 and data_tree_starters[0] is node:
+                # If you're the only one in the data tree, there's nothing upstream to
+                # run.
+                pass
+            else:
+                for n in set(nodes.values()).difference(data_tree_nodes):
+                    # Disconnect any nodes not in the data tree to avoid unnecessary
+                    # execution
+                    n.signals.disconnect_run()
+
+                node.signals.disconnect_run()
+                # Don't let anything upstream trigger _this_ node
+
+                # Run the special exec connections from above with the parent
+                self.starting_nodes = data_tree_starters
+                self.run()
+        finally:
+            # No matter what, restore the original connections and labels afterwards
+            for n in nodes.values():
+                n.signals.disconnect_run()
+            for c1, c2 in disconnected_pairs:
+                c1.connect(c2)
+            self.starting_nodes = original_starting_nodes
