@@ -663,23 +663,18 @@ class Composite(LexicalParent[Node], HasCreator, Node, ABC):
         # We need these for state recovery later, even if we crash
 
         try:
-
-            if len(data_tree_starters) == 1 and data_tree_starters[0] is node:
-                # If you're the only one in the data tree, there's nothing upstream to
-                # run.
-                pass
-            else:
-                for n in set(nodes.values()).difference(data_tree_nodes):
-                    # Disconnect any nodes not in the data tree to avoid unnecessary
-                    # execution
+            if len(data_tree_starters) > 1 or data_tree_starters[0] is not node:
+                nodes_outside_the_tree = set(nodes.values()).difference(data_tree_nodes)
+                for n in nodes_outside_the_tree:
                     n.signals.disconnect_run()
 
                 node.signals.disconnect_run()
                 # Don't let anything upstream trigger _this_ node
 
-                # Run the special exec connections from above with the parent
                 self.starting_nodes = data_tree_starters
                 self.run()
+            # Otherwise the requested node is the only one in the data tree, so there's
+            # nothing upstream to run.
         finally:
             # No matter what, restore the original connections and labels afterwards
             for n in nodes.values():

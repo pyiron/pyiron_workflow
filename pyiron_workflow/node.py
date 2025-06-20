@@ -654,21 +654,18 @@ class Node(
             raise e
 
         try:
-            if len(data_tree_starters) == 1 and data_tree_starters[0] is self:
-                # If you're the only one in the data tree, there's nothing upstream to
-                # run.
-                pass
-            else:
-                for node in set(nodes.values()).difference(data_tree_nodes):
-                    # Disconnect any nodes not in the data tree to avoid unnecessary
-                    # execution
-                    node.signals.disconnect_run()
+            if len(data_tree_starters) > 1 or data_tree_starters[0] is not self:
+                nodes_outside_the_tree = set(nodes.values()).difference(data_tree_nodes)
+                for n in nodes_outside_the_tree:
+                    n.signals.disconnect_run()
 
                 self.signals.disconnect_run()
                 # Don't let anything upstream trigger _this_ node
 
                 for starter in data_tree_starters:
                     starter.run()  # Now push from the top
+            # Otherwise the requested node is the only one in the data tree, so there's
+            # nothing upstream to run.
         finally:
             # No matter what, restore the original connections and labels afterwards
             for modified_label, node in nodes.items():
