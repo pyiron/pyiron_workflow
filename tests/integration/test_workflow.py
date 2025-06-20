@@ -351,8 +351,44 @@ class TestWorkflow(unittest.TestCase):
         wf.n2 = SideEffect(wf.n1)
         wf.n3 = SideEffect(wf.n2)
 
-        # Note that here we _FIRST RUN THE WORKFLOW_
-        # This triggers the automatic construction of DAG signal connections
+        # Note that we have not triggered a first run of the workflow, and so do not
+        # yet have DAG signal connections wired
+        wf.automate_execution = False
+        with self.subTest("Push without automatic configuration"):
+            HISTORY = ""
+            wf.n1.push()
+            self.assertEqual(
+                HISTORY,
+                "".join(
+                    map(
+                        str,
+                        [
+                            wf.n1.outputs.y.value,
+                        ],
+                    )
+                ),
+                msg="Expected only the pushed node to run",
+            )
+
+        wf.automate_execution = True
+        with self.subTest("Push without automatic configuration"):
+            HISTORY = ""
+            wf.n1.push()
+            self.assertEqual(
+                HISTORY,
+                "".join(
+                    map(
+                        str,
+                        [
+                            wf.n1.outputs.y.value,
+                            wf.n2.outputs.y.value,
+                            wf.n3.outputs.y.value,
+                        ],
+                    )
+                ),
+                msg="With automated execution, pushing should get us the whole thing",
+            )
+
         with self.subTest("Run parent"):
             HISTORY = ""
             wf()

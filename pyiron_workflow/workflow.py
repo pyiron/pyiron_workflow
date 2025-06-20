@@ -495,6 +495,11 @@ class Workflow(Composite):
             self.signals.output,
         ]
 
+    def push_child(self, child: Node | str, *args, **kwargs):
+        if self.automate_execution:
+            self.set_run_signals_to_dag_execution()
+        return super().push_child(child, *args, **kwargs)
+
     def replace_child(
         self, owned_node: Node | str, replacement: Node | type[Node]
     ) -> tuple[Node, Node]:
