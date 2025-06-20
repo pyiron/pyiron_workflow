@@ -291,10 +291,25 @@ class TestNode(unittest.TestCase):
             self.n2.execute()
 
     def test_pull(self):
+        n_a = ANode(label="middle_neighbour", x=self.n1)
+        self.n1 >> n_a
+
         self.n2 >> self.n3
         self.n1.inputs.x = 0
         by_run = self.n2.run(
             run_data_tree=True, fetch_input=True, emit_ran_signal=False
+        )
+        self.assertIs(
+            n_a.outputs.y.value,
+            NOT_DATA,
+            msg="Even though n1 is connected to n_a, n_a is not part of the data tree "
+                "for n2 and should not get run"
+        )
+        self.assertEqual(
+            2,
+            n_a.run(),
+            msg="After pulling n2, we should still recover all the connections between "
+                "n1 and n_a."
         )
         self.n1.inputs.x = 1
         self.assertEqual(
