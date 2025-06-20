@@ -659,9 +659,10 @@ class Composite(LexicalParent[Node], HasCreator, Node, ABC):
         )
         data_tree_starters = list(set(starters).intersection(data_tree_nodes))
 
+        original_starting_nodes = self.starting_nodes
+        # We need these for state recovery later, even if we crash
+
         try:
-            original_starting_nodes = self.starting_nodes
-            # We need these for state recovery later, even if we crash
 
             if len(data_tree_starters) == 1 and data_tree_starters[0] is node:
                 # If you're the only one in the data tree, there's nothing upstream to
