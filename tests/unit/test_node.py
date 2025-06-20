@@ -304,13 +304,13 @@ class TestNode(unittest.TestCase):
             n_a.outputs.y.value,
             NOT_DATA,
             msg="Even though n1 is connected to n_a, n_a is not part of the data tree "
-                "for n2 and should not get run"
+            "for n2 and should not get run",
         )
         self.assertEqual(
             2,
             n_a.run(),
             msg="After pulling n2, we should still recover all the connections between "
-                "n1 and n_a."
+            "n1 and n_a.",
         )
         self.n1.inputs.x = 1
         self.assertEqual(
@@ -328,7 +328,7 @@ class TestNode(unittest.TestCase):
         self.assertTrue(
             n_a.connected,
             msg="After a failed pull, we should safely recover original connections -- "
-                "in this case, those that were broken to exclude n_a from the tree"
+            "in this case, those that were broken to exclude n_a from the tree",
         )
 
     def test_push(self):
