@@ -346,16 +346,18 @@ class TestWorkflow(unittest.TestCase):
     def test_push_pull(self):
         global HISTORY  # noqa: PLW0603
 
-        wf = Workflow("push_pull")
-        wf.n1 = SideEffect(0)
-        wf.n2 = SideEffect(wf.n1)
-        wf.n3 = SideEffect(wf.n2)
+        def _setup() -> tuple[str, Workflow]:
+            wf = Workflow("push_pull")
+            wf.n1 = SideEffect(0)
+            wf.n2 = SideEffect(wf.n1)
+            wf.n3 = SideEffect(wf.n2)
+            return "", wf
 
         # Note that we have not triggered a first run of the workflow, and so do not
         # yet have DAG signal connections wired
-        wf.automate_execution = False
         with self.subTest("Push without automatic configuration"):
-            HISTORY = ""
+            HISTORY, wf = _setup()
+            wf.automate_execution = False
             wf.n1.push()
             self.assertEqual(
                 HISTORY,
@@ -370,9 +372,8 @@ class TestWorkflow(unittest.TestCase):
                 msg="Expected only the pushed node to run",
             )
 
-        wf.automate_execution = True
         with self.subTest("Push without automatic configuration"):
-            HISTORY = ""
+            HISTORY, wf = _setup()
             wf.n1.push()
             self.assertEqual(
                 HISTORY,
@@ -390,7 +391,7 @@ class TestWorkflow(unittest.TestCase):
             )
 
         with self.subTest("Run parent"):
-            HISTORY = ""
+            HISTORY, wf = _setup()
             wf()
             self.assertEqual(
                 HISTORY,
@@ -408,7 +409,7 @@ class TestWorkflow(unittest.TestCase):
             )
 
         with self.subTest("Pull"):
-            HISTORY = ""
+            HISTORY, wf = _setup()
             wf.n2.pull()
             self.assertEqual(
                 HISTORY,
@@ -425,7 +426,7 @@ class TestWorkflow(unittest.TestCase):
             )
 
         with self.subTest("Call"):
-            HISTORY = ""
+            HISTORY, wf = _setup()
             wf.n2.__call__()
             self.assertEqual(
                 HISTORY,
@@ -433,17 +434,19 @@ class TestWorkflow(unittest.TestCase):
                     map(
                         str,
                         [
+                            wf.n1.outputs.y.value,
                             wf.n2.outputs.y.value,
                         ],
                     )
                 ),
-                msg="Calling maps to a pull (+parent data tree)",  # BUT IT DOESN'T?!
+                msg="Calling maps to a pull (+parent data tree)",
             )
 
         with self.subTest("Push"):
+            HISTORY, wf = _setup()
             wf.n1.pull()
             HISTORY = ""
-            wf.n2.run()
+            wf.n2.push()
             self.assertEqual(
                 HISTORY,
                 "".join(
@@ -457,6 +460,39 @@ class TestWorkflow(unittest.TestCase):
                 ),
                 msg="Expected only this and downstream",
             )
+
+    def test_test_pull_isolation(self):
+        global HISTORY  # noqa: PLW0603
+        HISTORY = ""
+
+        wf = Workflow("pull_isolation")
+        wf.n1 = SideEffect(0)
+        wf.a = SideEffect(wf.n1)
+        wf.n2 = SideEffect(wf.n1)
+        wf.b = SideEffect(wf.n2)
+        wf.n3 = SideEffect(wf.n2)
+        wf.c = SideEffect(wf.n3)
+        wf.automate_execution = False
+        wf.n1 >> wf.n2 >> wf.n3 >> wf.c
+        wf.n1 >> wf.a
+        wf.n2 >> wf.b
+        wf.starting_nodes = [wf.n1]
+
+        wf.n3.pull()
+        self.assertEqual(
+            HISTORY,
+            "".join(
+                map(
+                    str,
+                    [
+                        wf.n1.outputs.y.value,
+                        wf.n2.outputs.y.value,
+                        wf.n3.outputs.y.value,
+                    ],
+                )
+            ),
+            msg="Only those in the main chain should have been run",
+        )
 
     def test_push_pull_with_unconfigured_workflows(self):
         global HISTORY  # noqa: PLW0603

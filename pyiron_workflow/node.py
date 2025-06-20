@@ -612,10 +612,16 @@ class Node(
             self.parent.run_data_tree(run_parent_trees_too=True)
             self.parent.inputs.fetch()
 
+        data_tree_nodes = get_nodes_in_data_tree(self)
+        # If we have a parent, delegate to it
+        if self.parent is not None:
+            self.parent.run_data_tree_for_child(self)
+            return
+
+        # The rest of this method handles the case when self.parent is None
         label_map = {}
         nodes = {}
 
-        data_tree_nodes = get_nodes_in_data_tree(self)
         for node in data_tree_nodes:
             if node.executor is not None:
                 raise ValueError(
@@ -648,47 +654,14 @@ class Node(
             raise e
 
         try:
-            parent_starting_nodes = (
-                self.parent.starting_nodes if self.parent is not None else []
-            )  # We need these for state recovery later, even if we crash
-
-            if len(data_tree_starters) == 1 and data_tree_starters[0] is self:
-                # If you're the only one in the data tree, there's nothing upstream to
-                # run.
-                pass
-            else:
-                for node in set(nodes.values()).difference(data_tree_nodes):
-                    # Disconnect any nodes not in the data tree to avoid unnecessary
-                    # execution
-                    node.signals.disconnect_run()
-
+            if len(data_tree_starters) > 1 or data_tree_starters[0] is not self:
                 self.signals.disconnect_run()
                 # Don't let anything upstream trigger _this_ node
 
-                if self.parent is None:
-                    for starter in data_tree_starters:
-                        starter.run()  # Now push from the top
-                else:
-                    # Run the special exec connections from above with the parent
-
-                    # Workflow parents will attempt to automate execution on run,
-                    # undoing all our careful execution
-                    # This heinous hack breaks in and stops that behaviour
-                    # I recognize this is dirty, but let's be pragmatic about getting
-                    # the features playing together. Workflows and pull are anyhow
-                    # already both very annoying on their own...
-                    from pyiron_workflow.workflow import Workflow  # noqa: PLC0415
-
-                    if isinstance(self.parent, Workflow):
-                        automated = self.parent.automate_execution
-                        self.parent.automate_execution = False
-
-                    self.parent.starting_nodes = data_tree_starters
-                    self.parent.run()
-
-                    # And revert our workflow hack
-                    if isinstance(self.parent, Workflow):
-                        self.parent.automate_execution = automated
+                for starter in data_tree_starters:
+                    starter.run()  # Now push from the top
+            # Otherwise the requested node is the only one in the data tree, so there's
+            # nothing upstream to run.
         finally:
             # No matter what, restore the original connections and labels afterwards
             for modified_label, node in nodes.items():
@@ -696,8 +669,6 @@ class Node(
                 node.signals.disconnect_run()
             for c1, c2 in disconnected_pairs:
                 c1.connect(c2)
-            if self.parent is not None:
-                self.parent.starting_nodes = parent_starting_nodes
 
     @property
     def cache_hit(self):
