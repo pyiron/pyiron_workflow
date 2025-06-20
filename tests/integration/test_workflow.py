@@ -462,7 +462,7 @@ class TestWorkflow(unittest.TestCase):
             )
 
     def test_test_pull_isolation(self):
-        global HISTORY
+        global HISTORY  # noqa: PLW0603
         HISTORY = ""
 
         wf = Workflow("pull_isolation")
