@@ -802,7 +802,7 @@ class Node(
         if self.parent is not None:
             return self.parent.push_child(self, *args, **kwargs)
         else:
-            return self.run(self, *args, **kwargs)
+            return self.run(*args, **kwargs)
 
     def __call__(self, *args, **kwargs) -> None:
         """

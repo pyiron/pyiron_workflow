@@ -306,6 +306,15 @@ class TestNode(unittest.TestCase):
             "made a ran/run connection",
         )
 
+    def test_push(self):
+        self.n1.push(x=0)
+        self.assertIs(self.n1.outputs.y.value, 1)
+        self.assertIs(self.n2.outputs.y.value, NOT_DATA)
+        self.n1 >> self.n2
+        self.n1.push(x=2)
+        self.assertIs(self.n1.outputs.y.value, 3)
+        self.assertIs(self.n2.outputs.y.value, 4)
+
     def test___call__(self):
         # __call__ is just a pull that punches through macro walls, so we'll need to
         # test it again over in macro to really make sure it's working
