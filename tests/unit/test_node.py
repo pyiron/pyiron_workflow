@@ -7,6 +7,7 @@ from pyiron_workflow.mixin.injection import (
     OutputDataWithInjection,
     OutputsWithInjection,
 )
+from pyiron_workflow.mixin.run import ReadinessError
 from pyiron_workflow.mixin.single_output import AmbiguousOutputError
 from pyiron_workflow.node import Node
 from pyiron_workflow.storage import PickleStorage, available_backends
@@ -319,6 +320,15 @@ class TestNode(unittest.TestCase):
             self.n3.ready,
             msg="Pulling should not be triggering downstream runs, even though we "
             "made a ran/run connection",
+        )
+
+        self.n1.inputs.x._value = "manually override the desired int"
+        with self.assertRaises(ReadinessError):
+            self.n2.pull()
+        self.assertTrue(
+            n_a.connected,
+            msg="After a failed pull, we should safely recover original connections -- "
+                "in this case, those that were broken to exclude n_a from the tree"
         )
 
     def test_push(self):
