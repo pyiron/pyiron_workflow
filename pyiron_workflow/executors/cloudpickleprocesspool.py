@@ -136,7 +136,7 @@ class CloudpickleProcessPoolExecutor(ProcessPoolExecutor):
         accommodate different implementations of `ProcessPoolExecutor` in different
         python versions.
         """
-        if version_info.major != 3:
+        if version_info.major != 3:  # noqa: UP036
             raise RuntimeError(
                 f"{self.__class__} is only built for python3, but got "
                 f"{version_info.major}"
