@@ -1,6 +1,8 @@
 import contextlib
 import unittest
 
+import bagofholding as boh
+
 from pyiron_workflow.channels import NOT_DATA, InputData
 from pyiron_workflow.io import Inputs
 from pyiron_workflow.mixin.injection import (
@@ -573,11 +575,10 @@ class TestNode(unittest.TestCase):
                         )
                     else:
                         with self.assertRaises(
-                            (TypeError, AttributeError),
+                            boh.StringNotImportableError,
                             msg="Other backends are not powerful enough for some values",
                         ):
                             hard_input.save(backend=backend)
-                            ANode(label=hard_input.label, autoload=backend)
                 finally:
                     self.n1.delete_storage(backend)
                     hard_input.delete_storage(backend)
