@@ -4,7 +4,7 @@ dependencies:
 - coveralls
 - coverage
 - bagofholding =0.1.0
-- bidict =0.23.0
+- bidict =0.23.1
 - cloudpickle =3.0.0
 - executorlib =0.0.1
 - graphviz =9.0.0
