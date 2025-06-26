@@ -528,7 +528,7 @@ class TestNode(unittest.TestCase):
                         msg="With nothing to load, running after init is fine",
                     )
 
-                    run_right_away.save()
+                    run_right_away.save(backend=backend)
                     load_and_rerun_origal_input = ANode(
                         label=self.n1.label, autorun=True, autoload=backend
                     )
@@ -564,7 +564,7 @@ class TestNode(unittest.TestCase):
                     hard_input.inputs.x.type_hint = callable
                     hard_input.inputs.x = lambda x: x * 2
                     if isinstance(backend, PickleStorage):
-                        hard_input.save()
+                        hard_input.save(backend=backend, cloudpickle_fallback=True)
                         reloaded = ANode(label=hard_input.label, autoload=backend)
                         self.assertEqual(
                             reloaded.inputs.x.value(4),
@@ -576,7 +576,8 @@ class TestNode(unittest.TestCase):
                             (TypeError, AttributeError),
                             msg="Other backends are not powerful enough for some values",
                         ):
-                            hard_input.save()
+                            hard_input.save(backend=backend)
+                            ANode(label=hard_input.label, autoload=backend)
                 finally:
                     self.n1.delete_storage(backend)
                     hard_input.delete_storage(backend)
@@ -598,7 +599,7 @@ class TestNode(unittest.TestCase):
                         msg="There should be content at the specified file location",
                     )
                     new = ANode()
-                    new.load(filename=fname)
+                    new.load(backend=backend, filename=fname)
                     self.assertEqual(new.label, self.n1.label)
                     self.assertEqual(new.outputs.y.value, y)
                 finally:

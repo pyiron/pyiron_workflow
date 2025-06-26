@@ -17,7 +17,7 @@ from pyiron_workflow.nodes.composite import Composite
 
 if TYPE_CHECKING:
     from pyiron_workflow.io import IO
-    from pyiron_workflow.storage import StorageInterface
+    from pyiron_workflow.storage import BackendIdentifier, StorageInterface
 
 
 class ParentMostError(TypeError):
@@ -216,9 +216,9 @@ class Workflow(Composite):
         label: str,
         *nodes: Node,
         delete_existing_savefiles: bool = False,
-        autoload: Literal["pickle"] | StorageInterface | None = "pickle",
+        autoload: BackendIdentifier | StorageInterface | None = "pickle",
         autorun: bool = False,
-        checkpoint: Literal["pickle"] | StorageInterface | None = None,
+        checkpoint: BackendIdentifier | StorageInterface | None = None,
         strict_naming: bool = True,
         inputs_map: dict | bidict | None = None,
         outputs_map: dict | bidict | None = None,
@@ -247,7 +247,7 @@ class Workflow(Composite):
         self,
         *args,
         delete_existing_savefiles: bool = False,
-        autoload: Literal["pickle"] | StorageInterface | None = None,
+        autoload: BackendIdentifier | StorageInterface | None = None,
         autorun: bool = False,
         **kwargs,
     ):

@@ -1,12 +1,12 @@
 import abc
-from typing import Any, ClassVar, Literal, TypeAlias, TypeGuard, cast
+from typing import Any, ClassVar, TypeAlias, TypeGuard, cast
 
 from pyiron_snippets import factory
 
 from pyiron_workflow.mixin.run import InterpretableAsExecutor
 from pyiron_workflow.nodes.composite import Composite
 from pyiron_workflow.nodes.static_io import StaticNode
-from pyiron_workflow.storage import StorageInterface
+from pyiron_workflow.storage import BackendIdentifier, StorageInterface
 
 label_connection: TypeAlias = tuple[str, str]
 label_connections: TypeAlias = tuple[label_connection, ...]
@@ -96,10 +96,10 @@ class While(Composite, StaticNode, abc.ABC):
         *args,
         label: str | None = None,
         parent: Composite | None = None,
-        autoload: Literal["pickle"] | StorageInterface | None = None,
+        autoload: BackendIdentifier | StorageInterface | None = None,
         delete_existing_savefiles: bool = False,
         autorun: bool = False,
-        checkpoint: Literal["pickle"] | StorageInterface | None = None,
+        checkpoint: BackendIdentifier | StorageInterface | None = None,
         strict_naming: bool = True,
         executor_for_test: InterpretableAsExecutor | None = None,
         executor_for_body: InterpretableAsExecutor | None = None,

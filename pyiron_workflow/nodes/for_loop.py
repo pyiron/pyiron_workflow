@@ -5,7 +5,7 @@ import math
 from abc import ABC
 from concurrent.futures import Executor
 from functools import lru_cache
-from typing import Any, ClassVar, Literal
+from typing import Any, ClassVar
 
 from pandas import DataFrame
 from pyiron_snippets.factory import classfactory
@@ -20,7 +20,7 @@ from pyiron_workflow.nodes.transform import (
     inputs_to_dict,
     inputs_to_list,
 )
-from pyiron_workflow.storage import StorageInterface
+from pyiron_workflow.storage import BackendIdentifier, StorageInterface
 
 
 def dictionary_to_index_maps(
@@ -199,10 +199,10 @@ class For(Composite, StaticNode, ABC):
         *args,
         label: str | None = None,
         parent: Composite | None = None,
-        autoload: Literal["pickle"] | StorageInterface | None = None,
+        autoload: BackendIdentifier | StorageInterface | None = None,
         delete_existing_savefiles: bool = False,
         autorun: bool = False,
-        checkpoint: Literal["pickle"] | StorageInterface | None = None,
+        checkpoint: BackendIdentifier | StorageInterface | None = None,
         strict_naming: bool = True,
         body_node_executor: InterpretableAsExecutor | None = None,
         **kwargs,

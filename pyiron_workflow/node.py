@@ -22,7 +22,11 @@ from pyiron_workflow.logging import logger
 from pyiron_workflow.mixin.lexical import Lexical
 from pyiron_workflow.mixin.run import ReadinessError, Runnable
 from pyiron_workflow.mixin.single_output import ExploitsSingleOutput
-from pyiron_workflow.storage import StorageInterface, available_backends
+from pyiron_workflow.storage import (
+    BackendIdentifier,
+    StorageInterface,
+    available_backends,
+)
 from pyiron_workflow.topology import (
     get_nodes_in_data_tree,
     set_run_connections_according_to_linear_dag,
@@ -186,7 +190,7 @@ class Node(
         graph_path (str): The file-path-like path of node labels from the parent-most
             node down to this node.
         graph_root (Node): The parent-most node in this graph.
-        recovery: (Literal["pickle"] | StorageInterface | None): The storage
+        recovery: (BackendIdentifier | StorageInterface | None): The storage
             backend to use for saving a "recovery" file if the node execution crashes
             and this is the parent-most node. Default is `"pickle"`, setting `None`
             will prevent any file from being saved.
@@ -194,10 +198,10 @@ class Node(
             node. Must be specified in child classes.
         running (bool): Whether the node has called :meth:`run` and has not yet
             received output from this call. (Default is False.)
-        checkpoint (Literal["pickle"] | StorageInterface | None): Whether to trigger a
+        checkpoint (BackendIdentifier | StorageInterface | None): Whether to trigger a
             save of the entire graph after each run of the node, and if so what storage
             back end to use. (Default is None, don't do any checkpoint saving.)
-        autoload (Literal["pickle"] | StorageInterface | None): Whether to check
+        autoload (BackendIdentifier | StorageInterface | None): Whether to check
             for a matching saved node and what storage back end to use to do so (no
             auto-loading if the back end is `None`.)
         _serialize_result (bool): (IN DEVELOPMENT) Cloudpickle the output of running
@@ -268,9 +272,9 @@ class Node(
         label: str | None = None,
         parent: Composite | None = None,
         delete_existing_savefiles: bool = False,
-        autoload: Literal["pickle"] | StorageInterface | None = None,
+        autoload: BackendIdentifier | StorageInterface | None = None,
         autorun: bool = False,
-        checkpoint: Literal["pickle"] | StorageInterface | None = None,
+        checkpoint: BackendIdentifier | StorageInterface | None = None,
         **kwargs,
     ):
         """
@@ -285,11 +289,11 @@ class Node(
                 matching save files at instantiation. Uses all default storage
                 back ends and anything passed to :param:`autoload`. (Default is False,
                 leave those files alone!)
-            autoload (Literal["pickle"] | StorageInterface | None): The back end
+            autoload (BackendIdentifier | StorageInterface | None): The back end
                 to use for checking whether node data can be loaded from file. A None
                 value indicates no auto-loading. (Default is "pickle".)
             autorun (bool): Whether to run at the end of initialization.
-            checkpoint (Literal["pickle"] | StorageInterface | None): The storage
+            checkpoint (BackendIdentifier | StorageInterface | None): The storage
                 back end to use for saving the overall graph at the end of this node's
                 run. (Default is None, don't do checkpoint saves.)
             **kwargs: Interpreted as node input data, with keys corresponding to
@@ -297,7 +301,7 @@ class Node(
         """
         super().__init__(label=label, parent=parent)
         self.checkpoint = checkpoint
-        self.recovery: Literal["pickle"] | StorageInterface | None = "pickle"
+        self.recovery: BackendIdentifier | StorageInterface | None = "pickle"
         self._serialize_result = False  # Advertised, but private to indicate
         # under-development status -- API may change to be more user-friendly
         self._do_clean: bool = False  # Power-user override for cleaning up temporary
@@ -335,7 +339,7 @@ class Node(
         self,
         *args,
         delete_existing_savefiles: bool = False,
-        autoload: Literal["pickle"] | StorageInterface | None = None,
+        autoload: BackendIdentifier | StorageInterface | None = None,
         autorun: bool = False,
         **kwargs,
     ):
@@ -909,7 +913,7 @@ class Node(
 
     def save(
         self,
-        backend: Literal["pickle"] | StorageInterface = "pickle",
+        backend: BackendIdentifier | StorageInterface = "pickle",
         filename: str | Path | None = None,
         **kwargs,
     ):
@@ -931,7 +935,7 @@ class Node(
 
     save.__doc__ = cast(str, save.__doc__) + _save_load_warnings
 
-    def save_checkpoint(self, backend: Literal["pickle"] | StorageInterface = "pickle"):
+    def save_checkpoint(self, backend: BackendIdentifier | StorageInterface = "pickle"):
         """
         Triggers a save on the parent-most node.
 
@@ -943,7 +947,7 @@ class Node(
 
     def load(
         self,
-        backend: Literal["pickle"] | StorageInterface = "pickle",
+        backend: BackendIdentifier | StorageInterface = "pickle",
         only_requested=False,
         filename: str | Path | None = None,
         **kwargs,
@@ -992,7 +996,7 @@ class Node(
 
     def delete_storage(
         self,
-        backend: Literal["pickle"] | StorageInterface | None = None,
+        backend: BackendIdentifier | StorageInterface | None = None,
         only_requested: bool = False,
         filename: str | Path | None = None,
         **kwargs,
@@ -1022,7 +1026,7 @@ class Node(
 
     def has_saved_content(
         self,
-        backend: Literal["pickle"] | StorageInterface | None = None,
+        backend: BackendIdentifier | StorageInterface | None = None,
         only_requested: bool = False,
         filename: str | Path | None = None,
         **kwargs,

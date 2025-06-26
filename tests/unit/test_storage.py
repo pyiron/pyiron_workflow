@@ -7,19 +7,19 @@ from pint import UnitRegistry
 
 from pyiron_workflow.nodes.function import as_function_node
 from pyiron_workflow.nodes.standard import UserInput
-from pyiron_workflow.storage import PickleStorage, TypeNotFoundError, available_backends
+from pyiron_workflow.storage import (
+    PickleStorage,
+    TypeNotFoundError,
+    _standard_backends,
+    available_backends,
+)
 
 
 class TestAvailableBackends(unittest.TestCase):
     def test_default_backend(self):
         backends = list(available_backends())
-        self.assertIsInstance(
-            backends[0],
-            PickleStorage,
-            msg="If more standard backends are added, this will fail -- that's fine, "
-            "just update the test to make sure you're getting the defaults you now "
-            "expect.",
-        )
+        for got, expected in zip(backends, _standard_backends.values(), strict=True):
+            self.assertIsInstance(got, expected)
 
     def test_specific_backend(self):
         backends = list(available_backends(backend="pickle", only_requested=True))
@@ -36,7 +36,11 @@ class TestAvailableBackends(unittest.TestCase):
         with self.subTest("String backend"):
             backends = list(available_backends("pickle"))
             print(backends)
-            self.assertEqual(len(backends), 1, msg="We expect only the defaults")
+            self.assertEqual(
+                len(backends),
+                len(_standard_backends),
+                msg="We expect only the defaults",
+            )
             self.assertIsInstance(backends[0], PickleStorage)
 
         with self.subTest("Object backend"):
@@ -44,13 +48,14 @@ class TestAvailableBackends(unittest.TestCase):
             backends = list(available_backends(my_interface))
             self.assertEqual(
                 len(backends),
-                2,
+                len(_standard_backends) + 1,
                 msg="We expect both the one we passed, and all defaults",
             )
             self.assertIs(backends[0], my_interface)
-            self.assertIsNot(
-                backends[0], backends[1], msg="They should be separate instances"
-            )
+            for other in backends[1:]:
+                self.assertIsNot(
+                    backends[0], other, msg="They should be separate instances"
+                )
 
     def test_exclusive_backend(self):
         my_interface = PickleStorage()
