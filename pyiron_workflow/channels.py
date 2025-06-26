@@ -14,7 +14,6 @@ from abc import ABC, abstractmethod
 
 from pyiron_snippets.singleton import Singleton
 
-from pyiron_workflow.compatibility import Self
 from pyiron_workflow.mixin.display_state import HasStateDisplay
 from pyiron_workflow.mixin.has_interface_mixins import HasChannel, HasLabel
 from pyiron_workflow.type_hinting import (
@@ -174,7 +173,9 @@ class Channel(
             f"connection."
         )
 
-    def disconnect(self, *others: ConjugateType) -> list[tuple[Self, ConjugateType]]:
+    def disconnect(
+        self, *others: ConjugateType
+    ) -> list[tuple[typing.Self, ConjugateType]]:
         """
         If currently connected to any others, removes this and the other from eachothers
         respective connections lists.
@@ -194,7 +195,7 @@ class Channel(
                 destroyed_connections.append((self, other))
         return destroyed_connections
 
-    def disconnect_all(self) -> list[tuple[Self, ConjugateType]]:
+    def disconnect_all(self) -> list[tuple[typing.Self, ConjugateType]]:
         """
         Disconnect from all other channels currently in the connections list.
         """
@@ -211,10 +212,10 @@ class Channel(
         return self.connections.__iter__()
 
     @property
-    def channel(self) -> Self:
+    def channel(self) -> typing.Self:
         return self
 
-    def move_connections(self, other: Self) -> None:
+    def move_connections(self, other: typing.Self) -> None:
         """
         Adds all the connections in another channel to this channel's connections.
 
