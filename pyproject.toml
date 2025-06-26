@@ -33,6 +33,7 @@ classifiers = [
     "Programming Language :: Python :: 3.13",
 ]
 dependencies = [
+    "bagofholding==0.0.3",
     "bidict==0.23.1",
     "cloudpickle==3.1.1",
     "executorlib==1.5.0",
