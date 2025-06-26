@@ -15,9 +15,12 @@ jobs:
       docs-env-files: .ci_support/environment.yml
       notebooks-env-files: .ci_support/environment.yml
       extra-python-paths: tests tests/benchmark tests/integration tests/static tests/unit  # For executorlib
-      python-version-alt3: '3.13'  # instead of 3.9
+      python-version-alt1: 'exclude'
+      python-version-alt2: '3.11'
+      python-version: '3.12'
+      python-version-alt3: '3.13'
       alternate-tests-env-files: .ci_support/lower_bound.yml
-      alternate-tests-python-version: '3.10'
+      alternate-tests-python-version: '3.11'
       alternate-tests-dir: tests/unit
       do-codecov: true
       do-codacy: false
