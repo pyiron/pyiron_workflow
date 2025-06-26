@@ -9,11 +9,10 @@ import re
 from abc import ABC, abstractmethod
 from collections.abc import Callable
 from inspect import getsource
-from typing import TYPE_CHECKING
+from typing import TYPE_CHECKING, Self
 
 from pyiron_snippets.factory import classfactory
 
-from pyiron_workflow.compatibility import Self
 from pyiron_workflow.io import Inputs
 from pyiron_workflow.mixin.has_interface_mixins import HasInjectableOutputChannel
 from pyiron_workflow.mixin.injection import OutputsWithInjection
