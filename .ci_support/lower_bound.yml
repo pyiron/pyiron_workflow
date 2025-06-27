@@ -8,7 +8,7 @@ dependencies:
 - cloudpickle =3.0.0
 - executorlib =0.0.1
 - graphviz =9.0.0
-- pandas =2.2.0
+- pandas =2.2.2
 - pint =0.24
 - python =3.11
 - pyiron_snippets =0.1.4
