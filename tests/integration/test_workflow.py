@@ -188,8 +188,9 @@ class TestWorkflow(unittest.TestCase):
                 exe_cls() as exe,
             ):
                 wf.executor = exe
+                wf().result()  # Run it with the executor and wait for it to finish
                 self.assertDictEqual(
-                    reference_output, wf().result().outputs.to_value_dict()
+                    reference_output, wf.outputs.to_value_dict()
                 )
                 self.assertFalse(
                     wf.running,

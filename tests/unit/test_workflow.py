@@ -188,10 +188,10 @@ class TestWorkflow(unittest.TestCase):
             result, Future, msg="Should be running as a parallel process"
         )
 
-        returned_nodes = result.result(timeout=120)  # Wait for the process to finish
+        _ = result.result(timeout=120)  # Wait for the process to finish
         self.assertIsNot(
             original_a,
-            returned_nodes.a,
+            wf.a,
             msg="Executing in a parallel process should be returning new instances",
         )
         self.assertIs(

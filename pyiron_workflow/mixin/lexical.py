@@ -51,11 +51,6 @@ class Lexical(UsesState, HasLabel, Generic[ParentType], ABC):
         self.parent = parent
         super().__init__(*args, **kwargs)
 
-    @classmethod
-    @abstractmethod
-    def parent_type(cls) -> type[ParentType]:
-        pass
-
     def _check_label(self, new_label: str) -> None:
         super()._check_label(new_label)
         if self.lexical_delimiter in new_label:
@@ -77,22 +72,22 @@ class Lexical(UsesState, HasLabel, Generic[ParentType], ABC):
         mypy is uncooperative with super calls for setters, so we pull the behaviour
         out.
         """
+
         if new_parent is self._parent:
             # Exit early if nothing is changing
             return
 
-        if new_parent is not None and not isinstance(new_parent, self.parent_type()):
-            raise ValueError(
-                f"Expected None or a {self.parent_type()} for the parent of "
-                f"{self.label}, but got {new_parent}"
-            )
+        self._detached_parent_path = None
+
+        if self.parent is not None and self in self.parent.children.values():
+            old_parent = self.parent
+            self._parent = None
+            old_parent.remove_child(self)
 
         _ensure_path_is_not_cyclic(new_parent, self)
-
         self._parent = new_parent
-        self._detached_parent_path = None
-        if self._parent is not None:
-            self._parent.add_child(self)
+        if new_parent is not None and self not in new_parent.children.values():
+            new_parent.add_child(self)
 
     @property
     def lexical_path(self) -> str:
@@ -173,6 +168,12 @@ class Lexical(UsesState, HasLabel, Generic[ParentType], ABC):
 class CyclicPathError(ValueError):
     """
     To be raised when adding a child would result in a cyclic lexical path.
+    """
+
+
+class AlreadyHasParentError(ValueError):
+    """
+    To be raised when parenting an already-parented child.
     """
 
 
@@ -289,9 +290,9 @@ class LexicalParent(HasLabel, Generic[ChildType], ABC):
                 f"but got {child}"
             )
 
-        _ensure_path_is_not_cyclic(self, child)
-
         self._ensure_child_has_no_other_parent(child)
+
+        _ensure_path_is_not_cyclic(self, child)
 
         label = child.label if label is None else label
         strict_naming = self.strict_naming if strict_naming is None else strict_naming
@@ -312,7 +313,7 @@ class LexicalParent(HasLabel, Generic[ChildType], ABC):
 
     def _ensure_child_has_no_other_parent(self, child: Lexical) -> None:
         if child.parent is not None and child.parent is not self:
-            raise ValueError(
+            raise AlreadyHasParentError(
                 f"The child ({child.label}) already belongs to the parent "
                 f"{child.parent.label}. Please remove it there before trying to "
                 f"add it to this parent ({self.label})."
