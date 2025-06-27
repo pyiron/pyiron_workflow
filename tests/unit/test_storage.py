@@ -8,6 +8,8 @@ from pint import UnitRegistry
 from pyiron_workflow.nodes.function import as_function_node
 from pyiron_workflow.nodes.standard import UserInput
 from pyiron_workflow.storage import (
+    FileTypeError,
+    H5BagStorage,
     PickleStorage,
     TypeNotFoundError,
     _standard_backends,
@@ -155,6 +157,18 @@ class TestPickleStorage(unittest.TestCase):
             TypeError, msg="Exception should be caught and saving should fail"
         ):
             interface.save(n)
+
+
+class TestH5BagStorage(unittest.TestCase):
+    def test_wrong_file_gives_no_content(self):
+        p = Path("bad_file.h5")
+        p.write_text("lorem ipsum")
+
+        try:
+            with self.assertRaises(FileTypeError):
+                H5BagStorage().has_saved_content(filename=p)
+        finally:
+            p.unlink()
 
 
 if __name__ == "__main__":
