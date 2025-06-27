@@ -239,15 +239,11 @@ class TestMacro(unittest.TestCase):
         returned_nodes = result.result(timeout=120)  # Wait for the process to finish
         sleep(1)
         self.assertFalse(macro.running, msg="Macro should be done running")
-        self.assertIsNot(
-            original_one,
-            returned_nodes.one,
-            msg="Executing in a parallel process should be returning new instances",
-        )
-        self.assertIs(
-            returned_nodes.one,
-            macro.one,
-            msg="Returned nodes should be taken as children",
+        self.assertEqual(
+            len(returned_nodes),
+            0,
+            msg="The returned macro gets its children taken from it and given to the "
+            "parent process macro",
         )
         self.assertIs(
             macro,
@@ -256,6 +252,11 @@ class TestMacro(unittest.TestCase):
             # Once upon a time there was some evidence that this test was failing
             # stochastically, but I just ran the whole test suite 6 times and this test
             # 8 times and it always passed fine, so maybe the issue is resolved...
+        )
+        self.assertIsNot(
+            original_one,
+            macro.one,
+            msg="Executing in a parallel process should be returning new instances",
         )
         self.assertIsNone(
             original_one.parent,

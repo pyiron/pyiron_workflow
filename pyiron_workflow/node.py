@@ -320,12 +320,6 @@ class Node(
             **kwargs,
         )
 
-    @classmethod
-    def parent_type(cls) -> type[Composite]:
-        from pyiron_workflow.nodes.composite import Composite  # noqa: PLC0415
-
-        return Composite
-
     def _setup_node(self) -> None:
         """
         Called _before_ :meth:`Node.__init__` finishes.

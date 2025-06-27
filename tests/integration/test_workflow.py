@@ -188,9 +188,8 @@ class TestWorkflow(unittest.TestCase):
                 exe_cls() as exe,
             ):
                 wf.executor = exe
-                self.assertDictEqual(
-                    reference_output, wf().result().outputs.to_value_dict()
-                )
+                wf().result()  # Run it with the executor and wait for it to finish
+                self.assertDictEqual(reference_output, wf.outputs.to_value_dict())
                 self.assertFalse(
                     wf.running,
                     msg="The workflow should stop. For thread pool this required a "
