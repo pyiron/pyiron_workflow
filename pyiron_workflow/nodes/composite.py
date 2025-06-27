@@ -8,7 +8,7 @@ from __future__ import annotations
 from abc import ABC
 from collections.abc import Callable
 from time import sleep
-from typing import TYPE_CHECKING, Literal
+from typing import TYPE_CHECKING
 
 import typeguard
 from pyiron_snippets.colors import SeabornColors
@@ -28,7 +28,7 @@ if TYPE_CHECKING:
         InputSignal,
         OutputSignal,
     )
-    from pyiron_workflow.storage import StorageInterface
+    from pyiron_workflow.storage import BackendIdentifier, StorageInterface
 
 
 def _get_graph_as_dict(composite: Composite) -> dict:
@@ -132,9 +132,9 @@ class Composite(LexicalParent[Node], HasCreator, Node, ABC):
         label: str | None = None,
         parent: Composite | None = None,
         delete_existing_savefiles: bool = False,
-        autoload: Literal["pickle"] | StorageInterface | None = None,
+        autoload: BackendIdentifier | StorageInterface | None = None,
         autorun: bool = False,
-        checkpoint: Literal["pickle"] | StorageInterface | None = None,
+        checkpoint: BackendIdentifier | StorageInterface | None = None,
         strict_naming: bool = True,
         **kwargs,
     ):

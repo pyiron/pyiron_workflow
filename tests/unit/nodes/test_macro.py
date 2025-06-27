@@ -9,7 +9,7 @@ from pyiron_workflow._tests import ensure_tests_in_python_path
 from pyiron_workflow.channels import NOT_DATA
 from pyiron_workflow.nodes.function import as_function_node, function_node
 from pyiron_workflow.nodes.macro import Macro, as_macro_node, macro_node
-from pyiron_workflow.storage import PickleStorage, available_backends
+from pyiron_workflow.storage import H5BagStorage, PickleStorage, available_backends
 from pyiron_workflow.topology import CircularDataFlowError
 
 ensure_tests_in_python_path()
@@ -489,7 +489,7 @@ class TestMacro(unittest.TestCase):
 
                     modified_result = macro()
 
-                    if isinstance(backend, PickleStorage):
+                    if isinstance(backend, H5BagStorage | PickleStorage):
                         macro.save(backend)
                         reloaded = demo_nodes.AddThree(label="m", autoload=backend)
                         self.assertDictEqual(
