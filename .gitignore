@@ -11,3 +11,4 @@ apidoc/
 test_times.dat
 tests/integration/test_notebooks.py
 .vscode
+.pre-commit-config.yaml
