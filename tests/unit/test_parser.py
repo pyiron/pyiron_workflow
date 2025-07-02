@@ -1,17 +1,18 @@
 import unittest
+from dataclasses import dataclass
+
 from owlrl import DeductiveClosure, OWLRL_Semantics
-from rdflib import Graph, OWL, RDF, RDFS, Literal, URIRef
-from pyiron_ontology.parser import export_to_dict, parse_workflow
+from pyiron_workflow import Workflow
+from rdflib import OWL, RDF, RDFS, Literal, Namespace, URIRef
 from semantikon.ontology import (
     SNS,
     validate_values,
     get_knowledge_graph,
+    validate_values,
 )
-from pyiron_workflow import Workflow
 from semantikon.typing import u
-from dataclasses import dataclass
-from rdflib import Namespace
 
+from pyiron_ontology.parser import export_to_dict, parse_workflow
 
 EX = Namespace("http://example.org/")
 QUDT = Namespace("http://qudt.org/vocab/unit/")
@@ -66,7 +67,7 @@ def correct_analysis(
             (OWL.onProperty, EX.HasOperation),
             (OWL.someValuesFrom, EX.Addition),
         ),
-    )
+    ),
 ) -> float:
     return a
 
@@ -79,7 +80,7 @@ def wrong_analysis(
             (OWL.onProperty, EX.HasOperation),
             (OWL.someValuesFrom, EX.Division),
         ),
-    )
+    ),
 ) -> float:
     return a
 
@@ -129,7 +130,7 @@ class TestParser(unittest.TestCase):
         self.assertIn(
             (None, SNS.hasUnits, QUDT["M-PER-SEC"]),
             graph,
-            msg=graph.serialize(format="turtle")
+            msg=graph.serialize(format="turtle"),
         )
         ex_triple = (
             None,
