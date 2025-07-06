@@ -1,9 +1,9 @@
-from pyiron_workflow import NOT_DATA, Workflow
+from pyiron_workflow.api import NOT_DATA, Workflow
 from pyiron_workflow.channels import Channel
 from pyiron_workflow.node import Node
 from pyiron_workflow.nodes.composite import Composite
 from rdflib import Graph
-from semantikon.ontology import PNS, get_knowledge_graph
+from semantikon.ontology import SNS, get_knowledge_graph
 
 
 def _extract_data(item: Channel, with_values=True, with_default=True) -> dict:
@@ -95,12 +95,12 @@ def _export_composite_to_dict(
         "inputs": {},
         "outputs": {},
         "nodes": {},
-        "data_edges": [],
+        "edges": [],
         "label": workflow.label,
     }
     for inp in workflow.inputs:
         if inp.value_receiver is not None and inp.value_receiver.owner in workflow:
-            data["data_edges"].append(
+            data["edges"].append(
                 (
                     f"inputs.{inp.scoped_label}",
                     _get_scoped_label(inp.value_receiver, "inputs"),
@@ -116,7 +116,7 @@ def _export_composite_to_dict(
             data["nodes"][label] = _export_node_to_dict(node, with_values=with_values)
         for inp in node.inputs:
             if _is_internal_connection(inp, workflow, "outputs"):
-                data["data_edges"].append(
+                data["edges"].append(
                     (
                         _get_scoped_label(inp.connections[0], "outputs"),
                         _get_scoped_label(inp, "inputs"),
@@ -124,7 +124,7 @@ def _export_composite_to_dict(
                 )
         for out in node.outputs:
             if out.value_receiver is not None:
-                data["data_edges"].append(
+                data["edges"].append(
                     (
                         _get_scoped_label(out, "outputs"),
                         f"outputs.{out.value_receiver.scoped_label}",
@@ -152,7 +152,7 @@ def parse_workflow(
     with_default: bool = True,
     graph: Graph | None = None,
     inherit_properties: bool = True,
-    ontology=PNS,
+    ontology=SNS,
     append_missing_items: bool = True,
 ) -> Graph:
     """
