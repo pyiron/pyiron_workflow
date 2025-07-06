@@ -6,7 +6,6 @@ from pyiron_workflow import Workflow
 from rdflib import OWL, RDF, RDFS, Literal, Namespace, URIRef
 from semantikon.ontology import (
     SNS,
-    validate_values,
     get_knowledge_graph,
     validate_values,
 )
@@ -182,7 +181,6 @@ class TestParser(unittest.TestCase):
         wf.addition = add(a=1.0, b=2.0)
         data = export_to_dict(wf)
         graph = get_knowledge_graph(data)
-        tag = "correct_analysis.addition.inputs.a"
         self.assertTrue(
             EX.Addition
             in list(graph.objects(URIRef("correct_analysis.addition"), RDF.type))
