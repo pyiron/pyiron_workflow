@@ -145,22 +145,17 @@ class TestParser(unittest.TestCase):
         self.assertIn((label, EX.predicate, obj), graph)
 
     def test_correct_analysis(self):
-        def get_graph(wf):
-            data = export_to_dict(wf)
-            graph = get_knowledge_graph(data)
-            return graph
-
         wf = Workflow("correct_analysis")
         wf.addition = add(a=1.0, b=2.0)
         wf.multiply = multiply(a=wf.addition, b=3.0)
         wf.analysis = correct_analysis(a=wf.multiply)
-        graph = get_graph(wf)
+        graph = get_knowledge_graph(export_to_dict(wf))
         self.assertEqual(validate_values(graph)["missing_triples"], [])
         wf = Workflow("wrong_analysis")
         wf.addition = add(a=1.0, b=2.0)
         wf.multiply = multiply(a=wf.addition, b=3.0)
         wf.analysis = wrong_analysis(a=wf.multiply)
-        graph = get_graph(wf)
+        graph = get_knowledge_graph(export_to_dict(wf))
         self.assertEqual(len(validate_values(graph)["missing_triples"]), 1)
 
     def test_multiple_outputs(self):
