@@ -4,12 +4,12 @@ from dataclasses import dataclass
 from owlrl import DeductiveClosure, OWLRL_Semantics
 from pyiron_workflow import Workflow
 from rdflib import OWL, RDF, RDFS, Literal, Namespace, URIRef
+from semantikon.metadata import u
 from semantikon.ontology import (
     SNS,
     get_knowledge_graph,
     validate_values,
 )
-from semantikon.metadata import u
 
 from pyiron_ontology.parser import export_to_dict, parse_workflow
 
