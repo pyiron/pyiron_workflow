@@ -158,7 +158,7 @@ class TestParser(unittest.TestCase):
         graph = get_graph(wf)
         # Not needed in semantikon 0.0.13
         DeductiveClosure(OWLRL_Semantics).expand(graph)
-        self.assertEqual(len(validate_values(graph)), 0)
+        self.assertEqual(validate_values(graph), [])
         wf = Workflow("wrong_analysis")
         wf.addition = add(a=1.0, b=2.0)
         wf.multiply = multiply(a=wf.addition, b=3.0)
