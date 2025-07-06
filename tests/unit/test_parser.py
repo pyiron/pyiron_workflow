@@ -1,7 +1,6 @@
 import unittest
 from dataclasses import dataclass
 
-from owlrl import DeductiveClosure, OWLRL_Semantics
 from pyiron_workflow import Workflow
 from rdflib import OWL, RDF, RDFS, Literal, Namespace, URIRef
 from semantikon.metadata import u
