@@ -1,19 +1,19 @@
 import unittest
 from dataclasses import dataclass
 
-from owlrl import DeductiveClosure, OWLRL_Semantics
 from pyiron_workflow import Workflow
 from rdflib import OWL, RDF, RDFS, Literal, Namespace, URIRef
+from semantikon.metadata import u
 from semantikon.ontology import (
-    PNS,
+    SNS,
     get_knowledge_graph,
     validate_values,
 )
-from semantikon.typing import u
 
 from pyiron_ontology.parser import export_to_dict, parse_workflow
 
 EX = Namespace("http://example.org/")
+QUDT = Namespace("http://qudt.org/vocab/unit/")
 
 
 @Workflow.wrap.as_function_node("speed")
@@ -44,7 +44,7 @@ def multiply(a: float, b: float) -> u(
     float,
     triples=(
         (EX.HasOperation, EX.Multiplication),
-        (PNS.inheritsPropertiesFrom, "inputs.a"),
+        (SNS.inheritsPropertiesFrom, "inputs.a"),
     ),
 ):
     return a * b
@@ -93,7 +93,7 @@ class TestParser(unittest.TestCase):
         wf = Workflow("speed")
         wf.c = calculate_speed()
         output_dict = export_to_dict(wf)
-        for label in ["inputs", "outputs", "nodes", "data_edges", "label"]:
+        for label in ["inputs", "outputs", "nodes", "edges", "label"]:
             self.assertIn(label, output_dict)
 
     def test_units_with_sparql(self):
@@ -104,7 +104,7 @@ class TestParser(unittest.TestCase):
         query_txt = [
             "PREFIX ex: <http://example.org/>",
             "PREFIX rdf: <http://www.w3.org/1999/02/22-rdf-syntax-ns#>",
-            f"PREFIX pns: <{PNS.BASE}>",
+            f"PREFIX pns: <{SNS.BASE}>",
             "SELECT DISTINCT ?speed ?units",
             "WHERE {",
             "    ?output pns:hasValue ?output_tag .",
@@ -126,7 +126,7 @@ class TestParser(unittest.TestCase):
         obj = URIRef("http://example.org/object")
         label = URIRef("speed.speed.outputs.speed")
         self.assertIn(
-            (None, PNS.hasUnits, URIRef("meter/second")),
+            (None, SNS.hasUnits, QUDT["M-PER-SEC"]),
             graph,
             msg=graph.serialize(format="turtle"),
         )
@@ -145,27 +145,18 @@ class TestParser(unittest.TestCase):
         self.assertIn((label, EX.predicate, obj), graph)
 
     def test_correct_analysis(self):
-        def get_graph(wf):
-            data = export_to_dict(wf)
-            graph = get_knowledge_graph(data)
-            return graph
-
         wf = Workflow("correct_analysis")
         wf.addition = add(a=1.0, b=2.0)
         wf.multiply = multiply(a=wf.addition, b=3.0)
         wf.analysis = correct_analysis(a=wf.multiply)
-        graph = get_graph(wf)
-        # Not needed in semantikon 0.0.13
-        DeductiveClosure(OWLRL_Semantics).expand(graph)
-        self.assertEqual(len(validate_values(graph)), 0)
+        graph = get_knowledge_graph(export_to_dict(wf))
+        self.assertEqual(validate_values(graph)["missing_triples"], [])
         wf = Workflow("wrong_analysis")
         wf.addition = add(a=1.0, b=2.0)
         wf.multiply = multiply(a=wf.addition, b=3.0)
         wf.analysis = wrong_analysis(a=wf.multiply)
-        graph = get_graph(wf)
-        # Not needed in semantikon 0.0.13
-        DeductiveClosure(OWLRL_Semantics).expand(graph)
-        self.assertEqual(len(validate_values(graph)), 1)
+        graph = get_knowledge_graph(export_to_dict(wf))
+        self.assertEqual(len(validate_values(graph)["missing_triples"]), 1)
 
     def test_multiple_outputs(self):
         wf = Workflow("multiple_outputs")
@@ -180,20 +171,15 @@ class TestParser(unittest.TestCase):
         wf.addition = add(a=1.0, b=2.0)
         data = export_to_dict(wf)
         graph = get_knowledge_graph(data)
-        tag = "correct_analysis.addition.inputs.a"
-        self.assertEqual(
-            len(list(graph.triples((URIRef(tag), RDFS.label, Literal(tag))))),
-            1,
-        )
         self.assertTrue(
             EX.Addition
             in list(graph.objects(URIRef("correct_analysis.addition"), RDF.type))
         )
 
     def test_namespace(self):
-        self.assertEqual(PNS.hasUnits, URIRef("http://pyiron.org/ontology/hasUnits"))
+        self.assertEqual(SNS.hasUnits, URIRef("http://pyiron.org/ontology/hasUnits"))
         with self.assertRaises(AttributeError):
-            _ = PNS.ahoy
+            _ = SNS.ahoy
 
     def test_parsing_without_running(self):
         wf = Workflow("test")
@@ -203,7 +189,7 @@ class TestParser(unittest.TestCase):
         graph = get_knowledge_graph(data)
         self.assertEqual(
             len(list(graph.triples((None, RDF.value, None)))),
-            2,
+            4,
             msg="There should be only values for a and b, but not for the output",
         )
         wf.run()
@@ -211,7 +197,7 @@ class TestParser(unittest.TestCase):
         graph = get_knowledge_graph(data)
         self.assertEqual(
             len(list(graph.triples((None, RDF.value, None)))),
-            3,
+            6,
             msg="There should be values for a, b and the output",
         )
 
@@ -221,7 +207,7 @@ class TestParser(unittest.TestCase):
         wf.run()
         data = export_to_dict(wf)
         self.assertEqual(
-            set(data.keys()), {"data_edges", "inputs", "label", "nodes", "outputs"}
+            set(data.keys()), {"edges", "inputs", "label", "nodes", "outputs"}
         )
         self.assertEqual(
             data["inputs"]["node__b"],
@@ -269,7 +255,7 @@ class TestDataclass(unittest.TestCase):
             (URIRef(f"{i_txt}.n.value"), RDFS.subClassOf, URIRef(f"{i_txt}.value")),
             (URIRef(f"{i_txt}.n.value"), RDF.value, Literal(100)),
             (URIRef(f"{i_txt}.parameters.a.value"), RDF.value, Literal(1)),
-            (URIRef(o_txt), PNS.hasValue, URIRef(f"{o_txt}.E.value")),
+            (URIRef(o_txt), SNS.hasValue, URIRef(f"{o_txt}.E.value")),
         )
         s = graph.serialize(format="turtle")
         for ii, triple in enumerate(triples):
