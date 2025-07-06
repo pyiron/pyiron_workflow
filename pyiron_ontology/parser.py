@@ -5,7 +5,7 @@ from pyiron_workflow.channels import Channel
 from pyiron_workflow.node import Node
 from pyiron_workflow.nodes.composite import Composite
 from rdflib import Graph
-from semantikon.ontology import PNS, get_knowledge_graph
+from semantikon.ontology import SNS, get_knowledge_graph
 
 
 def _extract_data(item: Channel, with_values=True, with_default=True) -> dict:
