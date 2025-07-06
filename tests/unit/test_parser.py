@@ -93,7 +93,7 @@ class TestParser(unittest.TestCase):
         wf = Workflow("speed")
         wf.c = calculate_speed()
         output_dict = export_to_dict(wf)
-        for label in ["inputs", "outputs", "nodes", "data_edges", "label"]:
+        for label in ["inputs", "outputs", "nodes", "edges", "label"]:
             self.assertIn(label, output_dict)
 
     def test_units_with_sparql(self):
@@ -207,7 +207,7 @@ class TestParser(unittest.TestCase):
         wf.run()
         data = export_to_dict(wf)
         self.assertEqual(
-            set(data.keys()), {"data_edges", "inputs", "label", "nodes", "outputs"}
+            set(data.keys()), {"edges", "inputs", "label", "nodes", "outputs"}
         )
         self.assertEqual(
             data["inputs"]["node__b"],
