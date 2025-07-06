@@ -9,7 +9,7 @@ from semantikon.ontology import (
     get_knowledge_graph,
     validate_values,
 )
-from semantikon.typing import u
+from semantikon.metadata import u
 
 from pyiron_ontology.parser import export_to_dict, parse_workflow
 
