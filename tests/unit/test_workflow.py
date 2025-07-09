@@ -188,10 +188,10 @@ class TestWorkflow(unittest.TestCase):
             result, Future, msg="Should be running as a parallel process"
         )
 
-        returned_nodes = result.result(timeout=120)  # Wait for the process to finish
+        _ = result.result(timeout=120)  # Wait for the process to finish
         self.assertIsNot(
             original_a,
-            returned_nodes.a,
+            wf.a,
             msg="Executing in a parallel process should be returning new instances",
         )
         self.assertIs(
@@ -453,7 +453,9 @@ class TestWorkflow(unittest.TestCase):
                 wf.delete_storage(backend)
 
         with self.subTest("No unimportable nodes for either back-end"):
-            for backend in available_backends():
+            for backend, kwargs in zip(
+                available_backends(), ({}, {"cloudpickle_fallback": False}), strict=True
+            ):
                 try:
                     wf.import_type_mismatch = demo_nodes.Dynamic()
                     with (
@@ -464,7 +466,7 @@ class TestWorkflow(unittest.TestCase):
                             "-- should fail early on save",
                         ),
                     ):
-                        wf.save(backend=backend, cloudpickle_fallback=False)
+                        wf.save(backend=backend, **kwargs)
                 finally:
                     wf.remove_child(wf.import_type_mismatch)
                     wf.delete_storage(backend)

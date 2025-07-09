@@ -9,7 +9,7 @@ from pyiron_workflow._tests import ensure_tests_in_python_path
 from pyiron_workflow.channels import NOT_DATA
 from pyiron_workflow.nodes.function import as_function_node, function_node
 from pyiron_workflow.nodes.macro import Macro, as_macro_node, macro_node
-from pyiron_workflow.storage import PickleStorage, available_backends
+from pyiron_workflow.storage import H5BagStorage, PickleStorage, available_backends
 from pyiron_workflow.topology import CircularDataFlowError
 
 ensure_tests_in_python_path()
@@ -239,15 +239,11 @@ class TestMacro(unittest.TestCase):
         returned_nodes = result.result(timeout=120)  # Wait for the process to finish
         sleep(1)
         self.assertFalse(macro.running, msg="Macro should be done running")
-        self.assertIsNot(
-            original_one,
-            returned_nodes.one,
-            msg="Executing in a parallel process should be returning new instances",
-        )
-        self.assertIs(
-            returned_nodes.one,
-            macro.one,
-            msg="Returned nodes should be taken as children",
+        self.assertEqual(
+            len(returned_nodes),
+            0,
+            msg="The returned macro gets its children taken from it and given to the "
+            "parent process macro",
         )
         self.assertIs(
             macro,
@@ -256,6 +252,11 @@ class TestMacro(unittest.TestCase):
             # Once upon a time there was some evidence that this test was failing
             # stochastically, but I just ran the whole test suite 6 times and this test
             # 8 times and it always passed fine, so maybe the issue is resolved...
+        )
+        self.assertIsNot(
+            original_one,
+            macro.one,
+            msg="Executing in a parallel process should be returning new instances",
         )
         self.assertIsNone(
             original_one.parent,
@@ -489,7 +490,7 @@ class TestMacro(unittest.TestCase):
 
                     modified_result = macro()
 
-                    if isinstance(backend, PickleStorage):
+                    if isinstance(backend, H5BagStorage | PickleStorage):
                         macro.save(backend)
                         reloaded = demo_nodes.AddThree(label="m", autoload=backend)
                         self.assertDictEqual(

@@ -8,22 +8,27 @@ from __future__ import annotations
 from abc import ABC
 from collections.abc import Callable
 from time import sleep
-from typing import TYPE_CHECKING, Literal
+from typing import TYPE_CHECKING
 
+import typeguard
 from pyiron_snippets.colors import SeabornColors
 from pyiron_snippets.dotdict import DotDict
 
 from pyiron_workflow.create import HasCreator
 from pyiron_workflow.mixin.lexical import LexicalParent
 from pyiron_workflow.node import Node
-from pyiron_workflow.topology import set_run_connections_according_to_dag
+from pyiron_workflow.topology import (
+    get_nodes_in_data_tree,
+    set_run_connections_according_to_dag,
+    set_run_connections_according_to_linear_dag,
+)
 
 if TYPE_CHECKING:
     from pyiron_workflow.channels import (
         InputSignal,
         OutputSignal,
     )
-    from pyiron_workflow.storage import StorageInterface
+    from pyiron_workflow.storage import BackendIdentifier, StorageInterface
 
 
 def _get_graph_as_dict(composite: Composite) -> dict:
@@ -127,9 +132,9 @@ class Composite(LexicalParent[Node], HasCreator, Node, ABC):
         label: str | None = None,
         parent: Composite | None = None,
         delete_existing_savefiles: bool = False,
-        autoload: Literal["pickle"] | StorageInterface | None = None,
+        autoload: BackendIdentifier | StorageInterface | None = None,
         autorun: bool = False,
-        checkpoint: Literal["pickle"] | StorageInterface | None = None,
+        checkpoint: BackendIdentifier | StorageInterface | None = None,
         strict_naming: bool = True,
         **kwargs,
     ):
@@ -310,6 +315,39 @@ class Composite(LexicalParent[Node], HasCreator, Node, ABC):
     ) -> Node:
         self.clear_cache()  # Reset cache after graph change
         return super().add_child(child, label=label, strict_naming=strict_naming)
+
+    def push_child(self, child: Node | str, *args, **kwargs):
+        """
+        Run a child node in a "push" configuration.
+
+        Args:
+            child (Node|str): The child node to push.
+            *args: Additional positional arguments passed to the child node.
+            **kwargs: Additional keyword arguments passed to the child node.
+
+        Returns:
+            (Any | Future): The result of running the node, or a futures object (if
+                running on an executor).
+        """
+        typeguard.check_type(child, Node | str)
+
+        problem: str | None = None
+        if isinstance(child, Node):
+            if child.parent is not self:
+                problem = child.full_label
+            else:
+                child_node = child
+        elif isinstance(child, str):
+            if child not in self.child_labels:
+                problem = child
+            else:
+                child_node = self.children[child]
+        if problem is not None:
+            raise ValueError(
+                f"Child {problem} not found among {self.full_label}'s children: "
+                f"{self.child_labels}"
+            )
+        return child_node.run(*args, **kwargs)
 
     def remove_child(self, child: Node | str) -> Node:
         """
@@ -593,3 +631,52 @@ class Composite(LexicalParent[Node], HasCreator, Node, ABC):
         for node in self:
             report = node.report_import_readiness(tabs=tabs + 1, report_so_far=report)
         return report
+
+    def run_data_tree_for_child(self, node: Node) -> None:
+        """
+        Use topological analysis to build a tree of all upstream dependencies and run
+        them.
+
+        This method is called by a child node when it needs to run its data tree and has
+        a parent. The parent (this composite) handles the execution of the data tree.
+
+        Args:
+            node (Node): The child node that initiated the data tree run.
+        """
+
+        data_tree_nodes = get_nodes_in_data_tree(node)
+        for n in data_tree_nodes:
+            if n.executor is not None:
+                raise ValueError(
+                    f"Running the data tree is pull-paradigm action, and is "
+                    f"incompatible with using executors. While running "
+                    f"{node.full_label}, an executor request was found on "
+                    f"{n.full_label}"
+                )
+
+        nodes = {n.label: n for n in data_tree_nodes}
+
+        disconnected_pairs, starters = set_run_connections_according_to_linear_dag(
+            nodes
+        )
+        data_tree_starters = list(set(starters).intersection(data_tree_nodes))
+
+        original_starting_nodes = self.starting_nodes
+        # We need these for state recovery later, even if we crash
+
+        try:
+            if len(data_tree_starters) > 1 or data_tree_starters[0] is not node:
+                node.signals.disconnect_run()
+                # Don't let anything upstream trigger _this_ node
+
+                self.starting_nodes = data_tree_starters
+                self.run()
+            # Otherwise the requested node is the only one in the data tree, so there's
+            # nothing upstream to run.
+        finally:
+            # No matter what, restore the original connections and labels afterwards
+            for n in nodes.values():
+                n.signals.disconnect_run()
+            for c1, c2 in disconnected_pairs:
+                c1.connect(c2)
+            self.starting_nodes = original_starting_nodes

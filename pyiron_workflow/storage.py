@@ -8,8 +8,9 @@ import pickle
 from abc import ABC, abstractmethod
 from collections.abc import Generator
 from pathlib import Path
-from typing import TYPE_CHECKING, Literal
+from typing import TYPE_CHECKING, Literal, TypeAlias
 
+import bagofholding
 import cloudpickle
 
 if TYPE_CHECKING:
@@ -20,6 +21,13 @@ class TypeNotFoundError(ImportError):
     """
     Raised when you try to save a node, but importing its module and class give
     something other than its type.
+    """
+
+
+class FileTypeError(TypeError):
+    """
+    Raised when you're looking for a save file, and you find something, but the file
+    appears to be the wrong type.
     """
 
 
@@ -280,8 +288,62 @@ class PickleStorage(StorageInterface):
         return any(filename.with_suffix(suffix).exists() for suffix in suffixes)
 
 
+class H5BagStorage(StorageInterface):
+    """
+    Storage using :class:`bagofholding.H5Bag`.
+    """
+
+    @staticmethod
+    def _ensure_file_extension(filename: Path | str) -> str:
+        suffix = ".h5"
+        fname = str(filename)
+        return fname if fname.endswith(suffix) else fname + suffix
+
+    def _save(self, node: Node, filename: Path, /, *args, **kwargs):
+        if not node.import_ready:
+            raise TypeNotFoundError(
+                f"{node.label} cannot be saved with the storage interface "
+                f"{self.__class__.__name__} because it (or one of its children) has "
+                f"a type that cannot be imported. Is this node defined inside <locals>? "
+                f"\n"
+                f"Import readiness report: \n"
+                f"{node.report_import_readiness()}"
+            )
+        bagofholding.H5Bag.save(
+            node, self._ensure_file_extension(filename), *args, **kwargs
+        )
+
+    def _load(self, filename: Path, /, *args, **kwargs) -> Node:
+        bag = bagofholding.H5Bag(self._ensure_file_extension(filename))
+        return bag.load(*args, **kwargs)
+
+    def _has_saved_content(self, filename: Path) -> bool:
+        alleged_location = Path(self._ensure_file_extension(filename))
+        if not alleged_location.exists():
+            return False
+        try:
+            bagofholding.H5Bag(alleged_location)
+        except Exception as e:
+            raise FileTypeError(
+                f"Found a file at {alleged_location}, but it could not be resolved as "
+                f"a {bagofholding.H5Bag.__name__} bag."
+            ) from e
+        return True
+
+    def _delete(self, filename: Path):
+        Path(self._ensure_file_extension(filename)).unlink(missing_ok=True)
+
+
+BackendIdentifier: TypeAlias = Literal["h5bag", "pickle"]
+
+_standard_backends: dict[BackendIdentifier, type[StorageInterface]] = {
+    "h5bag": H5BagStorage,
+    "pickle": PickleStorage,
+}
+
+
 def available_backends(
-    backend: Literal["pickle"] | StorageInterface | None = None,
+    backend: BackendIdentifier | StorageInterface | None = None,
     only_requested: bool = False,
 ) -> Generator[StorageInterface, None, None]:
     """
@@ -289,7 +351,7 @@ def available_backends(
     with the one requested.
 
     Args:
-        backend (Literal["pickle"] | StorageInterface | None): The interface to yield
+        backend (BackendIdentifier | StorageInterface | None): The interface to yield
             first.
         only_requested (bool): Stop after yielding whatever was specified by
             :param:`backend`.
@@ -297,10 +359,8 @@ def available_backends(
     Yields:
         StorageInterface: An interface for serializing :class:`Node`.
     """
-
-    standard_backends = {"pickle": PickleStorage}
     backend_instance = (
-        standard_backends.get(backend, PickleStorage)()
+        _standard_backends.get(backend, PickleStorage)()
         if isinstance(backend, str)
         else backend
     )
@@ -310,4 +370,4 @@ def available_backends(
         if only_requested:
             return
 
-    yield from (v() for k, v in standard_backends.items() if k != backend)
+    yield from (v() for k, v in _standard_backends.items() if k != backend)

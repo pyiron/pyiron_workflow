@@ -10,10 +10,7 @@ from pyiron_workflow.mixin.lexical import (
 )
 
 
-class ConcreteLexical(Lexical["ConcreteParent"]):
-    @classmethod
-    def parent_type(cls) -> type[ConcreteLexicalParent]:
-        return ConcreteLexicalParent
+class ConcreteLexical(Lexical["ConcreteParent"]): ...
 
 
 class ConcreteParent(LexicalParent[ConcreteLexical]):

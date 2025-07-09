@@ -9,31 +9,20 @@ on:
 
 jobs:
   pyiron:
-    uses: pyiron/actions/.github/workflows/push-pull.yml@actions-4.0.2
+    uses: pyiron/actions/.github/workflows/push-pull.yml@actions-4.0.8
     secrets: inherit
     with:
       docs-env-files: .ci_support/environment.yml
       notebooks-env-files: .ci_support/environment.yml
       extra-python-paths: tests tests/benchmark tests/integration tests/static tests/unit  # For executorlib
-      python-version-alt3: '3.13'  # instead of 3.9
+      python-version-alt1: 'exclude'
+      python-version-alt2: '3.11'
+      python-version: '3.12'
+      python-version-alt3: '3.13'
       alternate-tests-env-files: .ci_support/lower_bound.yml
-      alternate-tests-python-version: '3.10'
+      alternate-tests-python-version: '3.11'
       alternate-tests-dir: tests/unit
       do-codecov: true
       do-codacy: false
       do-coveralls: false
-
-  mypy:
-    runs-on: ubuntu-latest
-    steps:
-      - name: Setup Python
-        uses: actions/setup-python@v5
-        with:
-          python-version: "3.12"
-          architecture: x64
-      - name: Checkout
-        uses: actions/checkout@v4
-      - name: Install mypy
-        run: pip install mypy
-      - name: Test
-        run: mypy .
+      do-mypy: true

@@ -12,12 +12,12 @@ from bidict import bidict
 
 from pyiron_workflow.io import Inputs
 from pyiron_workflow.mixin.injection import OutputsWithInjection
+from pyiron_workflow.node import Node
 from pyiron_workflow.nodes.composite import Composite
 
 if TYPE_CHECKING:
     from pyiron_workflow.io import IO
-    from pyiron_workflow.node import Node
-    from pyiron_workflow.storage import StorageInterface
+    from pyiron_workflow.storage import BackendIdentifier, StorageInterface
 
 
 class ParentMostError(TypeError):
@@ -216,9 +216,9 @@ class Workflow(Composite):
         label: str,
         *nodes: Node,
         delete_existing_savefiles: bool = False,
-        autoload: Literal["pickle"] | StorageInterface | None = "pickle",
+        autoload: BackendIdentifier | StorageInterface | None = "pickle",
         autorun: bool = False,
-        checkpoint: Literal["pickle"] | StorageInterface | None = None,
+        checkpoint: BackendIdentifier | StorageInterface | None = None,
         strict_naming: bool = True,
         inputs_map: dict | bidict | None = None,
         outputs_map: dict | bidict | None = None,
@@ -247,7 +247,7 @@ class Workflow(Composite):
         self,
         *args,
         delete_existing_savefiles: bool = False,
-        autoload: Literal["pickle"] | StorageInterface | None = None,
+        autoload: BackendIdentifier | StorageInterface | None = None,
         autorun: bool = False,
         **kwargs,
     ):
@@ -495,6 +495,11 @@ class Workflow(Composite):
             self.signals.output,
         ]
 
+    def push_child(self, child: Node | str, *args, **kwargs):
+        if self.automate_execution:
+            self.set_run_signals_to_dag_execution()
+        return super().push_child(child, *args, **kwargs)
+
     def replace_child(
         self, owned_node: Node | str, replacement: Node | type[Node]
     ) -> tuple[Node, Node]:
@@ -528,3 +533,28 @@ class Workflow(Composite):
                 f"{self.label} is a {self.__class__} and may only take None as a "
                 f"parent but got {type(new_parent)}"
             )
+
+    def run_data_tree_for_child(self, node: Node) -> None:
+        """
+        Override of Composite.run_data_tree that handles workflow-specific logic.
+
+        This method temporarily disables automate_execution to prevent the workflow
+        from automating execution during the data tree run.
+
+        Args:
+            node (Node): The child node that initiated the data tree run.
+        """
+        # Workflow parents will attempt to automate execution on run,
+        # undoing all our careful execution
+        # This heinous hack breaks in and stops that behaviour
+        # I recognize this is dirty, but let's be pragmatic about getting
+        # the features playing together. Workflows and pull are anyhow
+        # already both very annoying on their own...
+        automated = self.automate_execution
+        self.automate_execution = False
+
+        try:
+            super().run_data_tree_for_child(node)
+        finally:
+            # And revert our workflow hack
+            self.automate_execution = automated

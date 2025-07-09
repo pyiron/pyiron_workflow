@@ -1,12 +1,15 @@
 import contextlib
 import unittest
 
+import bagofholding as boh
+
 from pyiron_workflow.channels import NOT_DATA, InputData
 from pyiron_workflow.io import Inputs
 from pyiron_workflow.mixin.injection import (
     OutputDataWithInjection,
     OutputsWithInjection,
 )
+from pyiron_workflow.mixin.run import ReadinessError
 from pyiron_workflow.mixin.single_output import AmbiguousOutputError
 from pyiron_workflow.node import Node
 from pyiron_workflow.storage import PickleStorage, available_backends
@@ -291,10 +294,25 @@ class TestNode(unittest.TestCase):
             self.n2.execute()
 
     def test_pull(self):
+        n_a = ANode(label="middle_neighbour", x=self.n1)
+        self.n1 >> n_a
+
         self.n2 >> self.n3
         self.n1.inputs.x = 0
         by_run = self.n2.run(
             run_data_tree=True, fetch_input=True, emit_ran_signal=False
+        )
+        self.assertIs(
+            n_a.outputs.y.value,
+            NOT_DATA,
+            msg="Even though n1 is connected to n_a, n_a is not part of the data tree "
+            "for n2 and should not get run",
+        )
+        self.assertEqual(
+            2,
+            n_a.run(),
+            msg="After pulling n2, we should still recover all the connections between "
+            "n1 and n_a.",
         )
         self.n1.inputs.x = 1
         self.assertEqual(
@@ -305,6 +323,24 @@ class TestNode(unittest.TestCase):
             msg="Pulling should not be triggering downstream runs, even though we "
             "made a ran/run connection",
         )
+
+        self.n1.inputs.x._value = "manually override the desired int"
+        with self.assertRaises(ReadinessError):
+            self.n2.pull()
+        self.assertTrue(
+            n_a.connected,
+            msg="After a failed pull, we should safely recover original connections -- "
+            "in this case, those that were broken to exclude n_a from the tree",
+        )
+
+    def test_push(self):
+        self.n1.push(x=0)
+        self.assertIs(self.n1.outputs.y.value, 1)
+        self.assertIs(self.n2.outputs.y.value, NOT_DATA)
+        self.n1 >> self.n2
+        self.n1.push(x=2)
+        self.assertIs(self.n1.outputs.y.value, 3)
+        self.assertIs(self.n2.outputs.y.value, 4)
 
     def test___call__(self):
         # __call__ is just a pull that punches through macro walls, so we'll need to
@@ -494,7 +530,7 @@ class TestNode(unittest.TestCase):
                         msg="With nothing to load, running after init is fine",
                     )
 
-                    run_right_away.save()
+                    run_right_away.save(backend=backend)
                     load_and_rerun_origal_input = ANode(
                         label=self.n1.label, autorun=True, autoload=backend
                     )
@@ -530,7 +566,7 @@ class TestNode(unittest.TestCase):
                     hard_input.inputs.x.type_hint = callable
                     hard_input.inputs.x = lambda x: x * 2
                     if isinstance(backend, PickleStorage):
-                        hard_input.save()
+                        hard_input.save(backend=backend, cloudpickle_fallback=True)
                         reloaded = ANode(label=hard_input.label, autoload=backend)
                         self.assertEqual(
                             reloaded.inputs.x.value(4),
@@ -539,10 +575,10 @@ class TestNode(unittest.TestCase):
                         )
                     else:
                         with self.assertRaises(
-                            (TypeError, AttributeError),
+                            boh.StringNotImportableError,
                             msg="Other backends are not powerful enough for some values",
                         ):
-                            hard_input.save()
+                            hard_input.save(backend=backend)
                 finally:
                     self.n1.delete_storage(backend)
                     hard_input.delete_storage(backend)
@@ -564,7 +600,7 @@ class TestNode(unittest.TestCase):
                         msg="There should be content at the specified file location",
                     )
                     new = ANode()
-                    new.load(filename=fname)
+                    new.load(backend=backend, filename=fname)
                     self.assertEqual(new.label, self.n1.label)
                     self.assertEqual(new.outputs.y.value, y)
                 finally:

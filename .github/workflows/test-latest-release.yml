@@ -35,13 +35,13 @@ jobs:
           echo -e "channels:\n- conda-forge\ndependencies:\n- ${{ github.event.repository.name }}" > ./just_this_package_environment.yml
           cat ./just_this_package_environment.yml
           echo `pwd`
-      - uses: pyiron/actions/cached-miniforge@actions-4.0.2
+      - uses: pyiron/actions/cached-miniforge@actions-4.0.8
         with:
           python-version: '3.12'
           env-files: ./just_this_package_environment.yml
           local-code-directory: ''
-      - uses: pyiron/actions/pyiron-config@actions-4.0.2
-      - uses: pyiron/actions/add-to-python-path@actions-4.0.2
+      - uses: pyiron/actions/pyiron-config@actions-4.0.8
+      - uses: pyiron/actions/add-to-python-path@actions-4.0.8
         with:  # This is specific to getting the executorlib tests to work
           path-dirs: tests tests/benchmark tests/integration tests/static tests/unit
       - name: Test
