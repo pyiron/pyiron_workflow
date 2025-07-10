@@ -307,6 +307,9 @@ class Node(
         # under-development status -- API may change to be more user-friendly
         self._do_clean: bool = False  # Power-user override for cleaning up temporary
         # serialized results and empty directories (or not).
+        self._remove_executorlib_cache: bool = True  # Power-user override for cleaning
+        # up temporary serialized results from runs with executorlib; intended to be
+        # used for testing
         self._cached_inputs: dict[str, Any] | None = None
 
         self._user_data: dict[str, Any] = {}
@@ -594,26 +597,6 @@ class Node(
             finish_run_kwargs=finish_run_kwargs,
         )
 
-    def _finish_run(
-        self,
-        run_output: tuple | Future,
-        /,
-        raise_run_exceptions: bool,
-        run_exception_kwargs: dict,
-        run_finally_kwargs: dict,
-        **kwargs,
-    ) -> Any | tuple | None:
-        if self._is_using_wrapped_excutorlib_executor():
-            self._clean_wrapped_executorlib_executor_cache()
-
-        return super()._finish_run(
-            run_output,
-            raise_run_exceptions=raise_run_exceptions,
-            run_exception_kwargs=run_exception_kwargs,
-            run_finally_kwargs=run_finally_kwargs,
-            **kwargs,
-        )
-
     def _run_finally(self, /, emit_ran_signal: bool, raise_run_exceptions: bool):
         super()._run_finally()
         if self.parent is not None and self.parent.running:
@@ -639,6 +622,12 @@ class Node(
 
         if self._do_clean:
             self._clean_graph_directory()
+
+        if (
+            self._remove_executorlib_cache
+            and self._is_using_wrapped_excutorlib_executor()
+        ):
+            self._clean_wrapped_executorlib_executor_cache()
 
     def run_data_tree(self, run_parent_trees_too=False) -> None:
         """
