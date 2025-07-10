@@ -391,8 +391,13 @@ class Node(
         )
 
     def _is_using_wrapped_excutorlib_executor(self) -> bool:
-        return self.executor is not None and isinstance(
-            self._parse_executor(self.executor), CacheOverride
+        return self.executor is not None and (
+            isinstance(self.executor, CacheOverride)
+            or (
+                isinstance(self.executor, tuple)
+                and isinstance(self.executor[0], type)
+                and issubclass(self.executor[0], CacheOverride)
+            )
         )
 
     def _clean_wrapped_executorlib_executor_cache(self) -> None:
