@@ -163,12 +163,21 @@ class Lexical(UsesState, HasLabel, Generic[ParentType], ABC):
         Unless :param:`remove_files` is True, this will only remove empty directories.
         If non-lexical directories are present, they will always block removal.
 
+        If this object is itself a lexical parent, it will run cleaning recursively on
+        its children.
+
         Args:
             root: Base path from which to resolve the lexical path.
             clean_parents: If True, also attempt to remove parent directories.
             remove_files: If True, delete files within the directory before removal.
         """
         directory = self.as_path(root)
+
+        if isinstance(self, LexicalParent):
+            for child in self.children.values():
+                child.clean_path(
+                    root=root, clean_parents=False, remove_files=remove_files
+                )
 
         if remove_files and directory.is_dir():
             for item in directory.iterdir():

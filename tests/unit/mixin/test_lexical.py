@@ -22,18 +22,7 @@ class ConcreteParent(LexicalParent[ConcreteLexical]):
         return ConcreteLexical
 
 
-class ConcreteLexicalParent(ConcreteParent, ConcreteLexical):
-    def clean_path(
-        self,
-        root: Path | str | None = None,
-        clean_parents: bool = True,
-        remove_files: bool = False,
-    ) -> None:
-        for child in self.children.values():
-            child.clean_path(root=root, clean_parents=False, remove_files=remove_files)
-        super().clean_path(
-            root=root, clean_parents=clean_parents, remove_files=remove_files
-        )
+class ConcreteLexicalParent(ConcreteParent, ConcreteLexical): ...
 
 
 class TestLexical(unittest.TestCase):
