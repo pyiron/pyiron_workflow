@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import tempfile
 import unittest
 from pathlib import Path
 
@@ -22,7 +23,17 @@ class ConcreteParent(LexicalParent[ConcreteLexical]):
 
 
 class ConcreteLexicalParent(ConcreteParent, ConcreteLexical):
-    pass
+    def clean_path(
+        self,
+        root: Path | str | None = None,
+        clean_parents: bool = True,
+        remove_files: bool = False,
+    ) -> None:
+        for child in self.children.values():
+            child.clean_path(root=root, clean_parents=False, remove_files=remove_files)
+        super().clean_path(
+            root=root, clean_parents=clean_parents, remove_files=remove_files
+        )
 
 
 class TestLexical(unittest.TestCase):
@@ -65,7 +76,10 @@ class TestLexical(unittest.TestCase):
             ValueError,
             msg=f"Delimiter '{ConcreteLexical.lexical_delimiter}' not allowed",
         ):
-            non_lexical_parent.label = f"contains_{non_lexical_parent.child_type().lexical_delimiter}_delimiter"
+            non_lexical_parent.label = (
+                f"contains_"
+                f"{non_lexical_parent.child_type().lexical_delimiter}_delimiter"
+            )
 
     def test_lexical_delimiter(self):
         self.assertEqual(
@@ -122,6 +136,80 @@ class TestLexical(unittest.TestCase):
             ),
             msg="Path root",
         )
+
+    def test_clean_path(self):
+        # Create a temporary directory for testing
+        with tempfile.TemporaryDirectory() as temp_dir:
+            # Create test directories that match our lexical structure
+            test_root = Path(temp_dir)
+
+            # Grab shorthands
+            root_dir = self.root.as_path(root=test_root)
+            child1_dir = self.child1.as_path(root=test_root)
+            middle_dir = self.middle1.as_path(root=test_root)
+            middle_sub_dir = self.middle2.as_path(root=test_root)
+            child2_dir = self.child2.as_path(root=test_root)
+
+            def _populate_filesystem():
+                child1_dir.mkdir(parents=True, exist_ok=True)
+                child2_dir.mkdir(parents=True, exist_ok=True)
+                test_file = child2_dir / "test.txt"
+                test_file.write_text("test content")
+                return test_file
+
+            with self.subTest("remove_files=False, clean_parents=False"):
+                test_file = _populate_filesystem()
+                self.child2.clean_path(
+                    root=test_root, remove_files=False, clean_parents=False
+                )
+                # We should fail to clean because the file blocks us
+                self.assertTrue(child2_dir.exists())
+                self.assertTrue(test_file.exists())
+                # Parent branches, even empty ones, are not attacked
+                self.assertTrue(child1_dir.exists())
+
+            with self.subTest("remove_files=False, clean_parents=True"):
+                test_file = _populate_filesystem()
+                self.child2.clean_path(
+                    root=test_root, remove_files=False, clean_parents=True
+                )
+                # We should fail to clean because the file blocks us
+                self.assertTrue(child2_dir.exists())
+                self.assertTrue(test_file.exists())
+                # But the other branch has no such protection as the parent is cleaned
+                self.assertFalse(child1_dir.exists())
+
+            with self.subTest("remove_files=True, clean_parents=False"):
+                test_file = _populate_filesystem()
+                self.middle2.clean_path(
+                    root=test_root, remove_files=True, clean_parents=False
+                )
+                # The directory and its children should be removed along with files
+                self.assertFalse(middle_sub_dir.exists())
+                self.assertFalse(child2_dir.exists())
+                self.assertFalse(test_file.exists())
+                # Parent directories should still exist
+                self.assertTrue(middle_dir.exists())
+                self.assertTrue(root_dir.exists())
+                self.assertTrue(child1_dir.exists())
+
+            with self.subTest("remove_files=True, clean_parents=True"):
+                _ = _populate_filesystem()
+                self.middle2.clean_path(
+                    root=test_root, clean_parents=True, remove_files=True
+                )
+                # Everything should be cleaned
+                self.assertFalse(child2_dir.exists())
+                self.assertFalse(middle_sub_dir.exists())
+                self.assertFalse(middle_dir.exists())
+                self.assertFalse(root_dir.exists())
+                self.assertFalse(child1_dir.exists())
+
+            with self.subTest("Test clean_path with non-existent directory"):
+                _ = _populate_filesystem()
+                # Should not raise an error when trying to clean non-existent directory
+                non_existent = ConcreteLexical(label="non_existent", parent=self.root)
+                non_existent.clean_path(root=test_root)
 
     def test_detached_parent_path(self):
         orphan = ConcreteLexical(label="orphan")

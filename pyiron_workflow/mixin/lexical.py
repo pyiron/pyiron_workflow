@@ -14,6 +14,7 @@ different drives or machines) belong to the same lexical group.
 
 from __future__ import annotations
 
+import contextlib
 from abc import ABC, abstractmethod
 from difflib import get_close_matches
 from pathlib import Path
@@ -150,6 +151,40 @@ class Lexical(UsesState, HasLabel, Generic[ParentType], ABC):
         return (Path.cwd() if root is None else Path(root)).joinpath(
             *self.lexical_path.split(self.lexical_delimiter)
         )
+
+    def clean_path(
+        self,
+        root: Path | str | None = None,
+        clean_parents: bool = True,
+        remove_files: bool = False,
+    ) -> None:
+        """
+        Recursively remove this object's directory and optionally its ancestors.
+        Unless :param:`remove_files` is True, this will only remove empty directories.
+        If non-lexical directories are present, they will always block removal.
+
+        Args:
+            root: Base path from which to resolve the lexical path.
+            clean_parents: If True, also attempt to remove parent directories.
+            remove_files: If True, delete files within the directory before removal.
+        """
+        directory = self.as_path(root)
+
+        if remove_files and directory.is_dir():
+            for item in directory.iterdir():
+                if item.is_file():
+                    item.unlink()
+        with contextlib.suppress(OSError):  # If it's not empty just move on
+            directory.rmdir()
+
+        if (
+            clean_parents
+            and self.parent is not None
+            and isinstance(self.parent, Lexical)
+        ):
+            self.parent.clean_path(
+                root=root, clean_parents=clean_parents, remove_files=remove_files
+            )
 
     def __getstate__(self):
         state = super().__getstate__()
