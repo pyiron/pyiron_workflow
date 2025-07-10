@@ -401,11 +401,15 @@ class Node(
         )
 
     def _clean_wrapped_executorlib_executor_cache(self) -> None:
-        location = self.as_path().parent
-        file_name = self.label + "_o.h5"  # Dependent on executorlib implementation
-        location.joinpath(file_name).unlink()
-        with contextlib.suppress(OSError):  # If it's not empty just move on
-            location.rmdir()
+        self._wrapped_executorlib_cache_file.unlink()
+        self.clean_path()
+
+    @property
+    def _wrapped_executorlib_cache_file(self) -> Path:
+        """For internal use to clean up cached executorlib files"""
+        # Depends on executorlib implementation details not protected by semver
+        file_name = CacheOverride.override_cache_file_name + "_o.h5"
+        return self.as_path() / file_name
 
     def on_run(self, *args, **kwargs) -> Any:
         save_result: bool = args[0]
