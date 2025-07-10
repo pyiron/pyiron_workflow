@@ -1,4 +1,5 @@
 import inspect
+from typing import ClassVar
 
 from executorlib import BaseExecutor, SingleNodeExecutor, SlurmClusterExecutor
 
@@ -6,6 +7,8 @@ from pyiron_workflow.mixin import lexical, run
 
 
 class CacheOverride(BaseExecutor):
+    override_cache_file_name: ClassVar[str] = "executorlib_cache"
+
     def submit(self, fn, /, *args, **kwargs):
         """
         We demand that `fn` be the bound-method `on_run` of a `Lexical`+`Runnable`
@@ -18,8 +21,8 @@ class CacheOverride(BaseExecutor):
             and isinstance(fn.__self__, run.Runnable)  # provides .on_run
         ):
             cache_key_info = {
-                "cache_key": str(fn.__self__.as_path()),
-                "cache_directory": ".",  # Doesn't matter, the path in the key overrides
+                "cache_key": self.override_cache_file_name,
+                "cache_directory": str(fn.__self__.as_path()),
             }
         else:
             raise TypeError(
