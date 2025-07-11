@@ -8,6 +8,8 @@ The workhorse class for the entire concept.
 from __future__ import annotations
 
 import contextlib
+import pathlib
+import shutil
 from abc import ABC, abstractmethod
 from concurrent.futures import Future
 from importlib import import_module
@@ -18,6 +20,7 @@ from pyiron_snippets.colors import SeabornColors
 from pyiron_snippets.dotdict import DotDict
 
 from pyiron_workflow.draw import Node as GraphvizNode
+from pyiron_workflow.executors.wrapped_executorlib import CacheOverride
 from pyiron_workflow.logging import logger
 from pyiron_workflow.mixin.lexical import Lexical
 from pyiron_workflow.mixin.run import ReadinessError, Runnable
@@ -306,6 +309,9 @@ class Node(
         # under-development status -- API may change to be more user-friendly
         self._do_clean: bool = False  # Power-user override for cleaning up temporary
         # serialized results and empty directories (or not).
+        self._remove_executorlib_cache: bool = True  # Power-user override for cleaning
+        # up temporary serialized results from runs with executorlib; intended to be
+        # used for testing
         self._cached_inputs: dict[str, Any] | None = None
 
         self._user_data: dict[str, Any] = {}
@@ -388,6 +394,29 @@ class Node(
             f"should be neither running nor failed, and all input values should"
             f" conform to type hints.\n" + self.readiness_report
         )
+
+    def _is_using_wrapped_excutorlib_executor(self) -> bool:
+        return self.executor is not None and (
+            isinstance(self.executor, CacheOverride)
+            or (
+                isinstance(self.executor, tuple)
+                and isinstance(self.executor[0], type)
+                and issubclass(self.executor[0], CacheOverride)
+            )
+        )
+
+    def _clean_wrapped_executorlib_executor_cache(self) -> None:
+        self._wrapped_executorlib_cache_file.unlink()
+        if pathlib.Path(CacheOverride.override_cache_file_name).is_dir():
+            shutil.rmtree(CacheOverride.override_cache_file_name)
+        self.clean_path()
+
+    @property
+    def _wrapped_executorlib_cache_file(self) -> Path:
+        """For internal use to clean up cached executorlib files"""
+        # Depends on executorlib implementation details not protected by semver
+        file_name = CacheOverride.override_cache_file_name + "_o.h5"
+        return self.as_path() / file_name
 
     def on_run(self, *args, **kwargs) -> Any:
         save_result: bool = args[0]
@@ -513,6 +542,8 @@ class Node(
         emit_ran_signal: bool,
     ) -> tuple[bool, Any]:
         if self.running:
+            if self._is_using_wrapped_excutorlib_executor():
+                return False, None  # Let it cook
             raise ReadinessError(self._readiness_error_message)
 
         if run_data_tree:
@@ -595,6 +626,12 @@ class Node(
 
         if self._do_clean:
             self._clean_graph_directory()
+
+        if (
+            self._remove_executorlib_cache
+            and self._is_using_wrapped_excutorlib_executor()
+        ):
+            self._clean_wrapped_executorlib_executor_cache()
 
     def run_data_tree(self, run_parent_trees_too=False) -> None:
         """
