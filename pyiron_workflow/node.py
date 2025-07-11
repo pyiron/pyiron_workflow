@@ -8,6 +8,7 @@ The workhorse class for the entire concept.
 from __future__ import annotations
 
 import contextlib
+import pathlib
 import shutil
 from abc import ABC, abstractmethod
 from concurrent.futures import Future
@@ -406,7 +407,7 @@ class Node(
 
     def _clean_wrapped_executorlib_executor_cache(self) -> None:
         self._wrapped_executorlib_cache_file.unlink()
-        if Path(CacheOverride.override_cache_file_name).is_dir():
+        if pathlib.Path(CacheOverride.override_cache_file_name).is_dir():
             shutil.rmtree(CacheOverride.override_cache_file_name)
         self.clean_path()
 
