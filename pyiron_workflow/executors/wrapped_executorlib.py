@@ -1,7 +1,10 @@
 import inspect
+from collections.abc import Callable
 from typing import ClassVar
 
 from executorlib import BaseExecutor, SingleNodeExecutor, SlurmClusterExecutor
+from executorlib.task_scheduler.file.subprocess_spawner import execute_in_subprocess
+from executorlib.task_scheduler.file.task_scheduler import FileTaskScheduler
 
 from pyiron_workflow.mixin import lexical, run
 
@@ -57,23 +60,16 @@ class CacheSingleNodeExecutor(SingleNodeExecutor, CacheOverride): ...
 class CacheSlurmClusterExecutor(SlurmClusterExecutor, CacheOverride): ...
 
 
-from typing import Callable, Optional
-
-from executorlib.executor.base import BaseExecutor
-from executorlib.task_scheduler.file.subprocess_spawner import execute_in_subprocess
-from executorlib.task_scheduler.file.task_scheduler import FileTaskScheduler
-
-
 class LocalFileExecutor(BaseExecutor):
     def __init__(
         self,
-        max_workers: Optional[int] = None,
-        cache_directory: Optional[str] = None,
-        max_cores: Optional[int] = None,
-        resource_dict: Optional[dict] = None,
-        hostname_localhost: Optional[bool] = None,
+        max_workers: int | None = None,
+        cache_directory: str | None = None,
+        max_cores: int | None = None,
+        resource_dict: dict | None = None,
+        hostname_localhost: bool | None = None,
         block_allocation: bool = False,
-        init_function: Optional[Callable] = None,
+        init_function: Callable | None = None,
         disable_dependencies: bool = False,
         refresh_rate: float = 0.01,
     ):
