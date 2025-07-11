@@ -2,12 +2,15 @@ import time
 import unittest
 
 import pyiron_workflow as pwf
-from pyiron_workflow.executors.wrapped_executorlib import CacheSingleNodeExecutor
+from pyiron_workflow.executors.wrapped_executorlib import (
+    CacheLocalFileExecutor,
+    CacheSingleNodeExecutor,
+)
 
 
 class TestWrappedExecutorlib(unittest.TestCase):
 
-    def test_cache(self):
+    def _test_cache(self, executor_class):
         t_sleep = 1
 
         wf = pwf.Workflow("passive_run")
@@ -20,7 +23,7 @@ class TestWrappedExecutorlib(unittest.TestCase):
         wf.n2.use_cache = False
         wf.n2._remove_executorlib_cache = False
 
-        wf.n2.executor = (CacheSingleNodeExecutor, (), {})
+        wf.n2.executor = (executor_class, (), {})
 
         t0 = time.perf_counter()
         out1 = wf.run()
@@ -76,3 +79,8 @@ class TestWrappedExecutorlib(unittest.TestCase):
             wf.n2._wrapped_executorlib_cache_file.is_file(),
             msg="The cached result should be cleaned up",
         )
+
+    def test_cache(self):
+        for executor_class in [CacheSingleNodeExecutor, CacheLocalFileExecutor]:
+            with self.subTest(executor_class.__name__):
+                self._test_cache(executor_class)
