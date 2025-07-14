@@ -7,12 +7,12 @@ dependencies:
 - sphinx-gallery
 - sphinx-rtd-theme
 - versioneer
-- bagofholding =0.1.0
+- bagofholding =0.1.2
 - bidict =0.23.1
 - cloudpickle =3.1.1
-- executorlib =1.5.1
+- executorlib =1.5.2
 - graphviz =9.0.0
-- pandas =2.3.0
+- pandas =2.3.1
 - pint =0.24.4
 - pyiron_snippets =0.2.0
 - python >=3.11,<3.14

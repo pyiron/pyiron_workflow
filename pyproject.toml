@@ -32,12 +32,12 @@ classifiers = [
     "Programming Language :: Python :: 3.13",
 ]
 dependencies = [
-    "bagofholding==0.1.0",
+    "bagofholding==0.1.2",
     "bidict==0.23.1",
     "cloudpickle==3.1.1",
-    "executorlib==1.5.1",
+    "executorlib==1.5.2",
     "graphviz==0.21",
-    "pandas==2.3.0",
+    "pandas==2.3.1",
     "pint==0.24.4",
     "pyiron_snippets==0.2.0",
     "toposort==1.10",
