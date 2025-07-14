@@ -407,8 +407,9 @@ class Node(
 
     def _clean_wrapped_executorlib_executor_cache(self) -> None:
         self._wrapped_executorlib_cache_file.unlink()
-        if pathlib.Path(CacheOverride.override_cache_file_name).is_dir():
-            shutil.rmtree(CacheOverride.override_cache_file_name)
+        cache_subdir = self.as_path() / CacheOverride.override_cache_file_name
+        if pathlib.Path(cache_subdir).is_dir():
+            shutil.rmtree(cache_subdir)
         self.clean_path()
 
     @property
