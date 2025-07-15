@@ -306,11 +306,7 @@ class Runnable(UsesState, HasLabel, HasRun, ABC):
     def _shutdown_executor_callback(
         _future: Future, /, executor: StdLibExecutor
     ) -> None:
-        try:
-            executor.shutdown()
-        except RuntimeError as e:
-            if str(e) != "cannot join current thread":
-                raise e
+        executor.shutdown(wait=False)
 
     def _run_exception(self, /, *args, **kwargs):
         """
