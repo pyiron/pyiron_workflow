@@ -3,8 +3,8 @@ import unittest
 
 import pyiron_workflow as pwf
 from pyiron_workflow.executors.wrapped_executorlib import (
-    CacheLocalFileExecutor,
     CacheSingleNodeExecutor,
+    _CacheTestClusterExecutor,
 )
 
 
@@ -81,6 +81,6 @@ class TestWrappedExecutorlib(unittest.TestCase):
         )
 
     def test_cache(self):
-        for executor_class in [CacheSingleNodeExecutor, CacheLocalFileExecutor]:
+        for executor_class in [CacheSingleNodeExecutor, _CacheTestClusterExecutor]:
             with self.subTest(executor_class.__name__):
                 self._test_cache(executor_class)
