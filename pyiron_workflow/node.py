@@ -36,7 +36,6 @@ from pyiron_workflow.topology import (
 )
 
 if TYPE_CHECKING:
-    from concurrent.futures import Executor
     from pathlib import Path
 
     import graphviz
@@ -586,7 +585,6 @@ class Node(
 
     def _run(
         self,
-        executor: Executor | None,
         raise_run_exceptions: bool,
         run_exception_kwargs: dict,
         run_finally_kwargs: dict,
@@ -595,7 +593,6 @@ class Node(
         if self.parent is not None and self.parent.running:
             self.parent.register_child_starting(self)
         return super()._run(
-            executor=executor,
             raise_run_exceptions=raise_run_exceptions,
             run_exception_kwargs=run_exception_kwargs,
             run_finally_kwargs=run_finally_kwargs,

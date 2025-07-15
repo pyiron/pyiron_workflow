@@ -180,13 +180,8 @@ class Runnable(UsesState, HasLabel, HasRun, ABC):
         if stop_early:
             return result
 
-        executor = (
-            None if self.executor is None else self._parse_executor(self.executor)
-        )
-
         self.running = True
         return self._run(
-            executor=executor,
             raise_run_exceptions=raise_run_exceptions,
             run_exception_kwargs=run_exception_kwargs,
             run_finally_kwargs=run_finally_kwargs,
@@ -222,7 +217,6 @@ class Runnable(UsesState, HasLabel, HasRun, ABC):
     def _run(
         self,
         /,
-        executor: StdLibExecutor | None,
         raise_run_exceptions: bool,
         run_exception_kwargs: dict,
         run_finally_kwargs: dict,
@@ -251,7 +245,7 @@ class Runnable(UsesState, HasLabel, HasRun, ABC):
                 f"first positional argument passed to :meth:`on_run`."
             )
 
-        if executor is None:
+        if self.executor is None:
             try:
                 run_output = self.on_run(*on_run_args, **on_run_kwargs)
             except (Exception, KeyboardInterrupt) as e:
@@ -269,24 +263,56 @@ class Runnable(UsesState, HasLabel, HasRun, ABC):
                 **finish_run_kwargs,
             )
         else:
-            if isinstance(executor, ThreadPoolExecutor):
-                self.future = executor.submit(
-                    self._thread_pool_run, *on_run_args, **on_run_kwargs
+            if isinstance(self.executor, StdLibExecutor):
+                self.future = self._send_to_executor(
+                    self.executor,
+                    on_run_args,
+                    on_run_kwargs,
+                    raise_run_exceptions,
+                    run_exception_kwargs,
+                    run_finally_kwargs,
+                    finish_run_kwargs,
                 )
             else:
-                self.future = executor.submit(
-                    self.on_run, *on_run_args, **on_run_kwargs
-                )
-            self.future.add_done_callback(
-                partial(
-                    self._finish_run,
-                    raise_run_exceptions=raise_run_exceptions,
-                    run_exception_kwargs=run_exception_kwargs,
-                    run_finally_kwargs=run_finally_kwargs,
-                    **finish_run_kwargs,
-                )
-            )
+                creator, args, kwargs = self.executor
+                with creator(*args, **kwargs) as executor:
+                    self.future = self._send_to_executor(
+                        executor,
+                        on_run_args,
+                        on_run_kwargs,
+                        raise_run_exceptions,
+                        run_exception_kwargs,
+                        run_finally_kwargs,
+                        finish_run_kwargs,
+                    )
             return self.future
+
+    def _send_to_executor(
+        self,
+        executor: StdLibExecutor,
+        on_run_args: tuple,
+        on_run_kwargs: dict,
+        raise_run_exceptions: bool,
+        run_exception_kwargs: dict,
+        run_finally_kwargs: dict,
+        finish_run_kwargs: dict,
+    ) -> Future:
+        submit_function = (
+            self._thread_pool_run
+            if isinstance(executor, ThreadPoolExecutor)
+            else self.on_run
+        )
+        future = executor.submit(submit_function, *on_run_args, **on_run_kwargs)
+        future.add_done_callback(
+            partial(
+                self._finish_run,
+                raise_run_exceptions=raise_run_exceptions,
+                run_exception_kwargs=run_exception_kwargs,
+                run_finally_kwargs=run_finally_kwargs,
+                **finish_run_kwargs,
+            )
+        )
+        return future
 
     def _run_exception(self, /, *args, **kwargs):
         """
@@ -341,44 +367,6 @@ class Runnable(UsesState, HasLabel, HasRun, ABC):
             f"{self.label} received a run command but is not ready. The runnable "
             f"should be neither running nor failed.\n" + self.readiness_report
         )
-
-    @staticmethod
-    def _parse_executor(
-        executor: InterpretableAsExecutor,
-    ) -> StdLibExecutor:
-        """
-        If you've already got an executor, you're done. But if you get callable and
-        some args and kwargs, turn them into an executor!
-
-        This is because executors can't be serialized, but you might want to use an
-        executor on the far side of serialization. The most straightforward example is
-        to simply pass an executor class and its args and kwargs, but in a more
-        sophisticated case perhaps you want some function that accesses the _same_
-        executor on multiple invocations such that multiple nodes are sharing the same
-        executor. The functionality here isn't intended to hold your hand for this, but
-        should be flexible enough that you _can_ do it if you want to.
-        """
-        if isinstance(executor, StdLibExecutor):
-            return executor
-        elif (
-            isinstance(executor, tuple)
-            and callable(executor[0])
-            and isinstance(executor[1], tuple)
-            and isinstance(executor[2], dict)
-        ):
-            executor = executor[0](*executor[1], **executor[2])
-            if not isinstance(executor, StdLibExecutor):
-                raise TypeError(
-                    f"Executor parsing got a callable and expected it to return a "
-                    f"`concurrent.futures.Executor` instance, but instead got "
-                    f"{executor}."
-                )
-            return executor
-        else:
-            raise NotImplementedError(
-                f"Expected an instance of {StdLibExecutor}, or a tuple of such a class, "
-                f"a tuple of args, and a dict of kwargs -- but got {executor}."
-            )
 
     def __getstate__(self):
         state = super().__getstate__()
