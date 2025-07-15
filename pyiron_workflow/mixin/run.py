@@ -264,55 +264,53 @@ class Runnable(UsesState, HasLabel, HasRun, ABC):
             )
         else:
             if isinstance(self.executor, StdLibExecutor):
-                self.future = self._send_to_executor(
-                    self.executor,
-                    on_run_args,
-                    on_run_kwargs,
-                    raise_run_exceptions,
-                    run_exception_kwargs,
-                    run_finally_kwargs,
-                    finish_run_kwargs,
-                )
+                executor = self.executor
+                unique_executor = False
             else:
                 creator, args, kwargs = self.executor
-                with creator(*args, **kwargs) as executor:
-                    self.future = self._send_to_executor(
-                        executor,
-                        on_run_args,
-                        on_run_kwargs,
-                        raise_run_exceptions,
-                        run_exception_kwargs,
-                        run_finally_kwargs,
-                        finish_run_kwargs,
+                executor = creator(*args, **kwargs)
+                if not isinstance(executor, StdLibExecutor):
+                    raise TypeError(
+                        f"Expected an instance of {StdLibExecutor}, but got "
+                        f"{type(executor)} from executor creation instructions "
+                        f"{self.executor}."
                     )
+                unique_executor = True
+
+            submit_function = (
+                self._thread_pool_run
+                if isinstance(executor, ThreadPoolExecutor)
+                else self.on_run
+            )
+            self.future = executor.submit(
+                submit_function, *on_run_args, **on_run_kwargs
+            )
+            self.future.add_done_callback(
+                partial(
+                    self._finish_run,
+                    raise_run_exceptions=raise_run_exceptions,
+                    run_exception_kwargs=run_exception_kwargs,
+                    run_finally_kwargs=run_finally_kwargs,
+                    **finish_run_kwargs,
+                )
+            )
+
+            if unique_executor:
+                self.future.add_done_callback(
+                    partial(self._shutdown_executor_callback, executor=executor)
+                )
+
             return self.future
 
-    def _send_to_executor(
-        self,
-        executor: StdLibExecutor,
-        on_run_args: tuple,
-        on_run_kwargs: dict,
-        raise_run_exceptions: bool,
-        run_exception_kwargs: dict,
-        run_finally_kwargs: dict,
-        finish_run_kwargs: dict,
-    ) -> Future:
-        submit_function = (
-            self._thread_pool_run
-            if isinstance(executor, ThreadPoolExecutor)
-            else self.on_run
-        )
-        future = executor.submit(submit_function, *on_run_args, **on_run_kwargs)
-        future.add_done_callback(
-            partial(
-                self._finish_run,
-                raise_run_exceptions=raise_run_exceptions,
-                run_exception_kwargs=run_exception_kwargs,
-                run_finally_kwargs=run_finally_kwargs,
-                **finish_run_kwargs,
-            )
-        )
-        return future
+    @staticmethod
+    def _shutdown_executor_callback(
+        _future: Future, /, executor: StdLibExecutor
+    ) -> None:
+        try:
+            executor.shutdown()
+        except RuntimeError as e:
+            if str(e) != "cannot join current thread":
+                raise e
 
     def _run_exception(self, /, *args, **kwargs):
         """
