@@ -60,7 +60,7 @@ class Runnable(UsesState, HasLabel, HasRun, ABC):
         super().__init__(*args, **kwargs)
         self.running: bool = False
         self.failed: bool = False
-        self.executor: InterpretableAsExecutor | None = None
+        self._executor: InterpretableAsExecutor | None = None
         # We call it an executor, but it can also be instructions on making one
         self.future: None | Future = None
         self._thread_pool_sleep_time: float = 1e-6
@@ -77,6 +77,26 @@ class Runnable(UsesState, HasLabel, HasRun, ABC):
         """
         Any data needed for :meth:`on_run`, will be passed as (*args, **kwargs).
         """
+
+    @property
+    def executor(self) -> InterpretableAsExecutor | None:
+        return self._executor
+
+    @executor.setter
+    def executor(self, executor: InterpretableAsExecutor | None):
+        if not (
+            isinstance(executor, StdLibExecutor | type(None))
+            or (
+                callable(executor[0])
+                and isinstance(executor[1], tuple)
+                and isinstance(executor[2], dict)
+            )
+        ):
+            raise TypeError(
+                f"Expected an instance of {StdLibExecutor}, or a tuple of such a "
+                f"class, a tuple of args, and a dict of kwargs -- but got {executor}."
+            )
+        self._executor = executor
 
     def process_run_result(self, run_output: Any) -> Any:
         """
@@ -367,8 +387,8 @@ class Runnable(UsesState, HasLabel, HasRun, ABC):
         # the simple pyiron_workflow.executors.CloudpickleProcessPoolExecutor, but for
         # the more complex executorlib.Executor we're getting:
         # TypeError: cannot pickle '_thread.RLock' object
-        if isinstance(self.executor, StdLibExecutor):
-            state["executor"] = None
+        if isinstance(self._executor, StdLibExecutor):
+            state["_executor"] = None
         # Don't pass actual executors, they have an unserializable thread lock on them
         # _but_ if the user is just passing instructions on how to _build_ an executor,
         # we'll trust that those serialize OK (this way we can, hopefully, eventually

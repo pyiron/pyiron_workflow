@@ -154,9 +154,7 @@ class TestRunnable(unittest.TestCase):
                     msg="Expected the result, including post-processing 'bar' value",
                 )
 
-        with self.assertRaises(
-            NotImplementedError, msg="That's not an executor at all"
-        ):
+        with self.assertRaises(TypeError, msg="That's not an executor at all"):
             runnable.executor = 42
             runnable.run()
 

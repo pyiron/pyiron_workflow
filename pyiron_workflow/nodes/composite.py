@@ -281,7 +281,7 @@ class Composite(LexicalParent[Node], HasCreator, Node, ABC):
 
     def _get_state_from_remote_other(self, other_self):
         state = other_self.__getstate__()
-        state.pop("executor")  # Got overridden to None for __getstate__, so keep local
+        state.pop("_executor")  # Got overridden to None for __getstate__, so keep local
         state.pop("_parent")  # Got overridden to None for __getstate__, so keep local
         return state
 
