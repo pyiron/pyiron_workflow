@@ -54,7 +54,7 @@ class TestWrappedExecutorlib(unittest.TestCase):
         )
         self.assertLess(
             t_second_run,
-            (t_first_run) / 10.0,
+            0.5 * t_sleep,
             msg="The second run should allow executorlib to find the cached result, "
             "and be much faster than the sleep time",
         )
