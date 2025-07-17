@@ -395,6 +395,33 @@ class TestComposite(unittest.TestCase):
             msg="n3 was omitted from the execution diagram, it should not have run",
         )
 
+    def test_cache(self):
+        self.comp.direct_child = Composite.create.function_node(plus_one)
+        self.comp.macro_child = AComposite("sub_composite")
+        self.comp.macro_child.sub_child = Composite.create.function_node(plus_one)
+        self.assertTrue(self.comp.use_cache, msg="Sanity check")
+        self.comp.direct_child.use_cache = False
+        self.assertFalse(
+            self.comp.use_cache,
+            msg="Cache state for composites should be determined by the cache usage of "
+            "all children",
+        )
+        self.comp.direct_child.use_cache = True
+        self.assertTrue(self.comp.use_cache, msg="Sanity check")
+        self.comp.macro_child.sub_child.use_cache = False
+        self.assertFalse(
+            self.comp.use_cache,
+            msg="Composite cache state should search recursively for cache usage of "
+            "children recursively",
+        )
+        self.comp.use_cache = True
+        self.assertTrue(self.comp.use_cache, msg="Sanity check")
+        self.assertTrue(
+            self.comp.macro_child.sub_child.use_cache,
+            msg="Setting the cache usage on a composite should be short-hand for "
+            "setting it recursively on all children",
+        )
+
     def test_push_child(self):
         self.comp.n1 = self.comp.create.function_node(plus_one)
         self.comp.n2 = self.comp.create.function_node(plus_one, x=self.comp.n1)

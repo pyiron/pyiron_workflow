@@ -6,6 +6,7 @@ This class is intended as the single point of entry for users making an import.
 
 from __future__ import annotations
 
+from concurrent import futures
 from typing import TYPE_CHECKING, Any, Literal
 
 from bidict import bidict
@@ -389,6 +390,19 @@ class Workflow(Composite):
             emit_ran_signal=False,
             **kwargs,
         )
+
+    def run_in_thread(
+        self, *args, check_readiness: bool = True, **kwargs
+    ) -> futures.Future:
+        if self.executor is not None:
+            raise ValueError(
+                f"Workflow {self.label} already has an executor set. Running in a "
+                f"thread would override this."
+            )
+        self.executor = (futures.ThreadPoolExecutor, (), {})
+        f = self.run(*args, check_readiness=check_readiness, **kwargs)
+        f.add_done_callback(lambda _: setattr(self, "executor", None))
+        return f
 
     def pull(self, run_parent_trees_too=False, **kwargs):
         """Workflows are a parent-most object, so this simply runs without pulling."""

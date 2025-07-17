@@ -1,6 +1,6 @@
 import pickle
 import unittest
-from concurrent.futures import Future
+from concurrent.futures import Future, ThreadPoolExecutor
 from time import sleep
 
 from bidict import ValueDuplicationError
@@ -210,6 +210,18 @@ class TestWorkflow(unittest.TestCase):
             msg="And of course we expect the calculation to actually run",
         )
         wf.executor_shutdown()
+
+    def test_run_in_thread_exceptions(self):
+        wf = Workflow("wf")
+        wf.a = wf.create.function_node(plus_one)
+
+        wf.executor = (ThreadPoolExecutor, (), {})
+
+        with self.assertRaises(
+            ValueError,
+            msg="Shouldn't be able to run in background if any other executor is set",
+        ):
+            wf.run_in_thread()
 
     def test_parallel_execution(self):
         wf = Workflow("wf")

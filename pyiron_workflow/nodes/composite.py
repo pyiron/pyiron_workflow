@@ -172,6 +172,22 @@ class Composite(LexicalParent[Node], HasCreator, Node, ABC):
         for node in self:
             node.deactivate_strict_hints()
 
+    @property
+    def use_cache(self) -> bool:
+        """
+        Composite nodes determine the cache usage by the cache usage of all children
+        recursively.
+
+        Setting this property at the composite level sets it for all children
+        recursively.
+        """
+        return all(c.use_cache for c in self.children.values())
+
+    @use_cache.setter
+    def use_cache(self, value: bool):
+        for c in self.children.values():
+            c.use_cache = value
+
     def _on_cache_miss(self) -> None:
         super()._on_cache_miss()
         # Reset provenance and run status trackers
