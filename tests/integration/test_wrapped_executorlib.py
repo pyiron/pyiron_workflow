@@ -84,3 +84,10 @@ class TestWrappedExecutorlib(unittest.TestCase):
         for executor_class in [CacheSingleNodeExecutor, _CacheTestClusterExecutor]:
             with self.subTest(executor_class.__name__):
                 self._test_cache(executor_class)
+
+    def test_automatic_cleaning(self):
+        n = pwf.std.UserInput(1)
+        with _CacheTestClusterExecutor() as exe:
+            n.executor = exe
+            n.run()
+        self.assertFalse(n._wrapped_executorlib_cache_file.is_file())
