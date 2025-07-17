@@ -30,6 +30,9 @@ class ReadinessError(ValueError):
     readiness_dict: dict[str, bool]  # Detailed information on why it is not ready
 
 
+class NotInterpretableAsExecutorError(TypeError): ...
+
+
 class Runnable(UsesState, HasLabel, HasRun, ABC):
     """
     An abstract class for interfacing with executors, etc.
@@ -92,7 +95,7 @@ class Runnable(UsesState, HasLabel, HasRun, ABC):
                 and isinstance(executor[2], dict)
             )
         ):
-            raise TypeError(
+            raise NotInterpretableAsExecutorError(
                 f"Expected an instance of {StdLibExecutor}, or a tuple of such a "
                 f"class, a tuple of args, and a dict of kwargs -- but got {executor}."
             )
