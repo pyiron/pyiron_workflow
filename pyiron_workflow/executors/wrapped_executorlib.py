@@ -1,5 +1,5 @@
 import inspect
-from typing import ClassVar
+from typing import Any, ClassVar
 
 from executorlib import BaseExecutor, SingleNodeExecutor, SlurmClusterExecutor
 from executorlib.api import TestClusterExecutor
@@ -13,8 +13,18 @@ class DedicatedExecutorError(TypeError):
     """
 
 
+class ProtectedResourceError(ValueError):
+    """
+    Raise when a user provides executorlib resources that we need to override.
+    """
+
+
 class CacheOverride(BaseExecutor):
     override_cache_file_name: ClassVar[str] = "executorlib_cache"
+
+    def __init__(self, *args, **kwargs):
+        _validate_existing_resource_dict(kwargs)
+        super().__init__(*args, **kwargs)
 
     def submit(self, fn, /, *args, **kwargs):
         """
@@ -37,20 +47,9 @@ class CacheOverride(BaseExecutor):
                 f"on_run method of pyiron_workflow.Node objects, but got {fn}"
             )
 
+        _validate_existing_resource_dict(kwargs)
+
         if "resource_dict" in kwargs:
-            if "cache_key" in kwargs["resource_dict"]:
-                raise ValueError(
-                    f"pyiron_workflow needs the freedom to specify the cache, so the "
-                    f'requested "cache_directory" '
-                    f"({kwargs['resource_dict']['cache_key']}) would get overwritten."
-                )
-            if "cache_directory" in kwargs["resource_dict"]:
-                raise ValueError(
-                    f"pyiron_workflow needs the freedom to specify the cache, so the "
-                    f'requested "cache_directory" '
-                    f"({kwargs['resource_dict']['cache_directory']})would get "
-                    f"overwritten."
-                )
             kwargs["resource_dict"].update(cache_key_info)
         else:
             kwargs["resource_dict"] = cache_key_info
@@ -58,10 +57,27 @@ class CacheOverride(BaseExecutor):
         return super().submit(fn, *args, **kwargs)
 
 
-class CacheSingleNodeExecutor(SingleNodeExecutor, CacheOverride): ...
+def _validate_existing_resource_dict(kwargs: dict[str, Any]):
+    if "resource_dict" in kwargs:
+        if "cache_key" in kwargs["resource_dict"]:
+            raise ProtectedResourceError(
+                f"pyiron_workflow needs the freedom to specify the cache, so the "
+                f'requested "cache_directory" '
+                f"({kwargs['resource_dict']['cache_key']}) would get overwritten."
+            )
+        if "cache_directory" in kwargs["resource_dict"]:
+            raise ProtectedResourceError(
+                f"pyiron_workflow needs the freedom to specify the cache, so the "
+                f'requested "cache_directory" '
+                f"({kwargs['resource_dict']['cache_directory']})would get "
+                f"overwritten."
+            )
 
 
-class CacheSlurmClusterExecutor(SlurmClusterExecutor, CacheOverride): ...
+class CacheSingleNodeExecutor(CacheOverride, SingleNodeExecutor): ...
 
 
-class _CacheTestClusterExecutor(TestClusterExecutor, CacheOverride): ...
+class CacheSlurmClusterExecutor(CacheOverride, SlurmClusterExecutor): ...
+
+
+class _CacheTestClusterExecutor(CacheOverride, TestClusterExecutor): ...
