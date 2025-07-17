@@ -7,6 +7,12 @@ from executorlib.api import TestClusterExecutor
 from pyiron_workflow.mixin import lexical, run
 
 
+class DedicatedExecutorError(TypeError):
+    """
+    To raise when you try to use one of these executors outside the context of a node.
+    """
+
+
 class CacheOverride(BaseExecutor):
     override_cache_file_name: ClassVar[str] = "executorlib_cache"
 
@@ -26,8 +32,8 @@ class CacheOverride(BaseExecutor):
                 "cache_directory": str(fn.__self__.as_path()),
             }
         else:
-            raise TypeError(
-                f"{self.__name__} is only intended to work with the "
+            raise DedicatedExecutorError(
+                f"{self.__class__.__name__} is only intended to work with the "
                 f"on_run method of pyiron_workflow.Node objects, but got {fn}"
             )
 
