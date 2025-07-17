@@ -160,12 +160,8 @@ class TestWorkflow(unittest.TestCase):
             Workflow.create.ProcessPoolExecutor,
             Workflow.create.ThreadPoolExecutor,
             Workflow.create.CloudpickleProcessPoolExecutor,
+            Workflow.create.executorlib.SingleNodeExecutor,
         ]
-        try:
-            executors.append(Workflow.create.executorlib.SingleNodeExecutor)
-        except AttributeError:
-            # executorlib < 0.1 had an Executor with optional backend parameter (defaulting to SingleNodeExecutor)
-            executors.append(Workflow.create.executorlib.Executor)
 
         wf = Workflow("executed")
         wf.a = Workflow.create.std.UserInput(42)  # Regular
