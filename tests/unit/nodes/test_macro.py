@@ -1,6 +1,6 @@
 import pickle
 import unittest
-from concurrent.futures import Future
+from concurrent import futures
 from time import sleep
 
 from static import demo_nodes
@@ -217,7 +217,7 @@ class TestMacro(unittest.TestCase):
         # at the downstream output, and none of this is happening in a workflow
 
         original_one = macro.one
-        macro.executor = macro.create.ProcessPoolExecutor()
+        macro.executor = futures.ProcessPoolExecutor()
 
         self.assertIs(
             NOT_DATA,
@@ -227,7 +227,7 @@ class TestMacro(unittest.TestCase):
 
         result = macro.run(one__x=0)
         self.assertIsInstance(
-            result, Future, msg="Should be running as a parallel process"
+            result, futures.Future, msg="Should be running as a parallel process"
         )
         self.assertIs(
             NOT_DATA,
