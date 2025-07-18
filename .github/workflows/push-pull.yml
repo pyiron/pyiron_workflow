@@ -26,3 +26,13 @@ jobs:
       do-codacy: false
       do-coveralls: false
       do-mypy: true
+
+  slurm-interruption:
+    uses: ./.github/workflows/slurm-test.yml
+    with:
+      mode: interrupt
+
+  slurm-discovery:
+    uses: ./.github/workflows/slurm-test.yml
+    with:
+      mode: discover

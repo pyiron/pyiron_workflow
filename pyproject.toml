@@ -56,6 +56,12 @@ Homepage = "https://github.com/pyiron/pyiron_workflow"
 Documentation = "https://pyiron-workflow.readthedocs.io"
 Repository = "https://github.com/pyiron/pyiron_workflow"
 
+[project.optional-dependencies]
+cluster = [
+    "pysqa==0.2.7",
+    "h5py==3.14.0",
+]
+
 [tool.versioneer]
 VCS = "git"
 style = "pep440-pre"
