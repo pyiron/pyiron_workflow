@@ -144,6 +144,7 @@ class Runnable(UsesState, HasLabel, HasRun, ABC):
         self,
         check_readiness: bool = True,
         raise_run_exceptions: bool = True,
+        rerun: bool = False,
         before_run_kwargs: dict | None = None,
         run_kwargs: dict | None = None,
         run_exception_kwargs: dict | None = None,
@@ -166,7 +167,12 @@ class Runnable(UsesState, HasLabel, HasRun, ABC):
                 :attr:`ready`. (Default is True.)
             raise_run_exceptions (bool): Whether to raise exceptions encountered while
                 :attr:`running`. (Default is True.)
+            rerun (bool): Whether to force-set :attr:`running` and :attr:`failed` to
+                `False` before running. (Default is False.)
         """
+        if rerun:
+            self.running = False
+            self.failed = False
 
         def _none_to_dict(inp: dict | None) -> dict:
             return {} if inp is None else inp

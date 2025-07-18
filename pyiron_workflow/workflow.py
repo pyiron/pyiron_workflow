@@ -372,6 +372,7 @@ class Workflow(Composite):
         self,
         *args,
         check_readiness: bool = True,
+        rerun: bool = False,
         **kwargs,
     ):
         # Note: Workflows may have neither parents nor siblings, so we don't need to
@@ -388,12 +389,13 @@ class Workflow(Composite):
             run_parent_trees_too=False,
             fetch_input=False,
             check_readiness=check_readiness,
+            rerun=rerun,
             emit_ran_signal=False,
             **kwargs,
         )
 
     def run_in_thread(
-        self, *args, check_readiness: bool = True, **kwargs
+        self, *args, check_readiness: bool = True, rerun: bool = False, **kwargs
     ) -> futures.Future | dict[str, Any]:
         executor_is_empty = self.executor is None
         executor_is_threadpool = self._is_interpretable_as_threadpoolexecuctor(
@@ -408,7 +410,7 @@ class Workflow(Composite):
                 f"thread would override this."
             )
 
-        f = self.run(*args, check_readiness=check_readiness, **kwargs)
+        f = self.run(*args, check_readiness=check_readiness, rerun=rerun, **kwargs)
 
         if executor_is_empty:
             if isinstance(f, futures.Future):
