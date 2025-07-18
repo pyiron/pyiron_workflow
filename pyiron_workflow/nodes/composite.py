@@ -188,6 +188,10 @@ class Composite(LexicalParent[Node], HasCreator, Node, ABC):
         for c in self.children.values():
             c.use_cache = value
 
+    @property
+    def cache_hit(self) -> bool:
+        return not any(c.running for c in self.children.values()) and super().cache_hit
+
     def _on_cache_miss(self) -> None:
         super()._on_cache_miss()
         # Reset provenance and run status trackers
