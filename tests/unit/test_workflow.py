@@ -501,6 +501,34 @@ class TestWorkflow(unittest.TestCase):
             wf_out, reloaded.outputs.to_value_dict(), msg="Pickling should work"
         )
 
+    def test_repeated_thread_runs(self):
+        wf = Workflow("wf")
+        wf.n = demo_nodes.AddThree(x=0)
+        f = wf.run_in_thread()
+        self.assertTrue(wf.running, msg="Sanity check")
+
+        self.assertEqual(f.result(), wf, msg="Background run should complete")
+        self.assertEqual(wf.n.outputs.add_three.value, 3, msg="Sanity check")
+        max_waits = 10
+        while wf.executor is not None:
+            sleep(0.1)
+            max_waits -= 1
+            if max_waits == 0:
+                raise RuntimeError(
+                    "Executor should be gone by now -- we're just trying to buy a "
+                    "smidgen of time for the callback to finish."
+                )
+        self.assertIsNone(
+            wf.executor, msg="On-the-fly thread executors should be transient"
+        )
+        cached = wf.run_in_thread()
+        self.assertDictEqual(
+            cached,
+            wf.outputs.to_value_dict(),
+            msg="On cache hits we don't expect a future back",
+        )
+        self.assertIsNone(wf.executor, msg="No new executor should be set")
+
 
 if __name__ == "__main__":
     unittest.main()

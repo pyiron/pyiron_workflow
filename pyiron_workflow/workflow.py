@@ -393,7 +393,7 @@ class Workflow(Composite):
 
     def run_in_thread(
         self, *args, check_readiness: bool = True, **kwargs
-    ) -> futures.Future:
+    ) -> futures.Future | dict[str, Any]:
         if self.executor is not None:
             raise ValueError(
                 f"Workflow {self.label} already has an executor set. Running in a "
@@ -404,6 +404,7 @@ class Workflow(Composite):
         if isinstance(f, futures.Future):
             f.add_done_callback(lambda _: setattr(self, "executor", None))
         else:
+            # We're hitting a cached result
             self.executor = None
         return f
 
