@@ -449,6 +449,7 @@ class Node(
         fetch_input: bool = True,
         check_readiness: bool = True,
         raise_run_exceptions: bool = True,
+        rerun: bool = False,
         emit_ran_signal: bool = True,
         **kwargs,
     ):
@@ -482,6 +483,8 @@ class Node(
                 :attr:`ready` to run after fetching new input. (Default is True.)
             raise_run_exceptions (bool): Whether to raise exceptions encountered during
                 the run, or just ignore them. (Default is True, raise them!)
+            rerun (bool): Whether to force-set :attr:`running` and :attr:`failed` to
+                `False` before running. (Default is False.)
             emit_ran_signal (bool): Whether to fire off all the output `ran` signal
                 afterwards. (Default is True.)
             **kwargs: Keyword arguments matching input channel labels; used to update
@@ -520,6 +523,7 @@ class Node(
         return super().run(
             check_readiness=check_readiness,
             raise_run_exceptions=raise_run_exceptions,
+            rerun=rerun,
             before_run_kwargs={
                 "run_data_tree": run_data_tree,
                 "run_parent_trees_too": run_parent_trees_too,
@@ -755,6 +759,7 @@ class Node(
             run_parent_trees_too=False,
             fetch_input=False,
             check_readiness=False,
+            rerun=False,
             emit_ran_signal=False,
             **kwargs,
         )
@@ -778,6 +783,7 @@ class Node(
             run_parent_trees_too=run_parent_trees_too,
             fetch_input=True,
             check_readiness=True,
+            rerun=False,
             emit_ran_signal=False,
             **kwargs,
         )
