@@ -4,7 +4,11 @@ from concurrent.futures import Future
 from pyiron_workflow.executors.cloudpickleprocesspool import (
     CloudpickleProcessPoolExecutor,
 )
-from pyiron_workflow.mixin.run import ReadinessError, Runnable
+from pyiron_workflow.mixin.run import (
+    NotInterpretableAsExecutorError,
+    ReadinessError,
+    Runnable,
+)
 
 
 class ConcreteRunnable(Runnable):
@@ -154,9 +158,7 @@ class TestRunnable(unittest.TestCase):
                     msg="Expected the result, including post-processing 'bar' value",
                 )
 
-        with self.assertRaises(
-            NotImplementedError, msg="That's not an executor at all"
-        ):
+        with self.assertRaises(TypeError, msg="That's not an executor at all"):
             runnable.executor = 42
             runnable.run()
 
@@ -167,6 +169,11 @@ class TestRunnable(unittest.TestCase):
         ):
             runnable.executor = (maybe_get_executor, (False,), {})
             runnable.run()
+
+    def test_executor_interpretation(self):
+        runnable = ConcreteRunnable()
+        with self.assertRaises(NotInterpretableAsExecutorError):
+            runnable.executor = "This is not an executor!"
 
 
 if __name__ == "__main__":

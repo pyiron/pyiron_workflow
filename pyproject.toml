@@ -35,7 +35,7 @@ dependencies = [
     "bagofholding==0.1.2",
     "bidict==0.23.1",
     "cloudpickle==3.1.1",
-    "executorlib==1.5.2",
+    "executorlib==1.6.0",
     "graphviz==0.21",
     "pandas==2.3.1",
     "pint==0.24.4",
@@ -55,6 +55,12 @@ file = "LICENSE"
 Homepage = "https://github.com/pyiron/pyiron_workflow"
 Documentation = "https://pyiron-workflow.readthedocs.io"
 Repository = "https://github.com/pyiron/pyiron_workflow"
+
+[project.optional-dependencies]
+cluster = [
+    "pysqa==0.2.7",
+    "h5py==3.14.0",
+]
 
 [tool.versioneer]
 VCS = "git"

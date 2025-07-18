@@ -97,6 +97,8 @@ class TestSpeedup(unittest.TestCase):
             "constructors should survive (de)serialization",
         )
 
+        reloaded.delete_storage()
+
 
 if __name__ == "__main__":
     unittest.main()

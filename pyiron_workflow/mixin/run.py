@@ -30,6 +30,9 @@ class ReadinessError(ValueError):
     readiness_dict: dict[str, bool]  # Detailed information on why it is not ready
 
 
+class NotInterpretableAsExecutorError(TypeError): ...
+
+
 class Runnable(UsesState, HasLabel, HasRun, ABC):
     """
     An abstract class for interfacing with executors, etc.
@@ -60,7 +63,7 @@ class Runnable(UsesState, HasLabel, HasRun, ABC):
         super().__init__(*args, **kwargs)
         self.running: bool = False
         self.failed: bool = False
-        self.executor: InterpretableAsExecutor | None = None
+        self._executor: InterpretableAsExecutor | None = None
         # We call it an executor, but it can also be instructions on making one
         self.future: None | Future = None
         self._thread_pool_sleep_time: float = 1e-6
@@ -77,6 +80,26 @@ class Runnable(UsesState, HasLabel, HasRun, ABC):
         """
         Any data needed for :meth:`on_run`, will be passed as (*args, **kwargs).
         """
+
+    @property
+    def executor(self) -> InterpretableAsExecutor | None:
+        return self._executor
+
+    @executor.setter
+    def executor(self, executor: InterpretableAsExecutor | None):
+        if not (
+            isinstance(executor, StdLibExecutor | type(None))
+            or (
+                callable(executor[0])
+                and isinstance(executor[1], tuple)
+                and isinstance(executor[2], dict)
+            )
+        ):
+            raise NotInterpretableAsExecutorError(
+                f"Expected an instance of {StdLibExecutor}, or a tuple of such a "
+                f"class, a tuple of args, and a dict of kwargs -- but got {executor}."
+            )
+        self._executor = executor
 
     def process_run_result(self, run_output: Any) -> Any:
         """
@@ -160,13 +183,8 @@ class Runnable(UsesState, HasLabel, HasRun, ABC):
         if stop_early:
             return result
 
-        executor = (
-            None if self.executor is None else self._parse_executor(self.executor)
-        )
-
         self.running = True
         return self._run(
-            executor=executor,
             raise_run_exceptions=raise_run_exceptions,
             run_exception_kwargs=run_exception_kwargs,
             run_finally_kwargs=run_finally_kwargs,
@@ -202,7 +220,6 @@ class Runnable(UsesState, HasLabel, HasRun, ABC):
     def _run(
         self,
         /,
-        executor: StdLibExecutor | None,
         raise_run_exceptions: bool,
         run_exception_kwargs: dict,
         run_finally_kwargs: dict,
@@ -231,7 +248,7 @@ class Runnable(UsesState, HasLabel, HasRun, ABC):
                 f"first positional argument passed to :meth:`on_run`."
             )
 
-        if executor is None:
+        if self.executor is None:
             try:
                 run_output = self.on_run(*on_run_args, **on_run_kwargs)
             except (Exception, KeyboardInterrupt) as e:
@@ -249,14 +266,28 @@ class Runnable(UsesState, HasLabel, HasRun, ABC):
                 **finish_run_kwargs,
             )
         else:
-            if isinstance(executor, ThreadPoolExecutor):
-                self.future = executor.submit(
-                    self._thread_pool_run, *on_run_args, **on_run_kwargs
-                )
+            if isinstance(self.executor, StdLibExecutor):
+                executor = self.executor
+                unique_executor = False
             else:
-                self.future = executor.submit(
-                    self.on_run, *on_run_args, **on_run_kwargs
-                )
+                creator, args, kwargs = self.executor
+                executor = creator(*args, **kwargs)
+                if not isinstance(executor, StdLibExecutor):
+                    raise TypeError(
+                        f"Expected an instance of {StdLibExecutor}, but got "
+                        f"{type(executor)} from executor creation instructions "
+                        f"{self.executor}."
+                    )
+                unique_executor = True
+
+            submit_function = (
+                self._thread_pool_run
+                if isinstance(executor, ThreadPoolExecutor)
+                else self.on_run
+            )
+            self.future = executor.submit(
+                submit_function, *on_run_args, **on_run_kwargs
+            )
             self.future.add_done_callback(
                 partial(
                     self._finish_run,
@@ -266,7 +297,19 @@ class Runnable(UsesState, HasLabel, HasRun, ABC):
                     **finish_run_kwargs,
                 )
             )
+
+            if unique_executor:
+                self.future.add_done_callback(
+                    partial(self._shutdown_executor_callback, executor=executor)
+                )
+
             return self.future
+
+    @staticmethod
+    def _shutdown_executor_callback(
+        _future: Future, /, executor: StdLibExecutor
+    ) -> None:
+        executor.shutdown(wait=False)
 
     def _run_exception(self, /, *args, **kwargs):
         """
@@ -322,44 +365,6 @@ class Runnable(UsesState, HasLabel, HasRun, ABC):
             f"should be neither running nor failed.\n" + self.readiness_report
         )
 
-    @staticmethod
-    def _parse_executor(
-        executor: InterpretableAsExecutor,
-    ) -> StdLibExecutor:
-        """
-        If you've already got an executor, you're done. But if you get callable and
-        some args and kwargs, turn them into an executor!
-
-        This is because executors can't be serialized, but you might want to use an
-        executor on the far side of serialization. The most straightforward example is
-        to simply pass an executor class and its args and kwargs, but in a more
-        sophisticated case perhaps you want some function that accesses the _same_
-        executor on multiple invocations such that multiple nodes are sharing the same
-        executor. The functionality here isn't intended to hold your hand for this, but
-        should be flexible enough that you _can_ do it if you want to.
-        """
-        if isinstance(executor, StdLibExecutor):
-            return executor
-        elif (
-            isinstance(executor, tuple)
-            and callable(executor[0])
-            and isinstance(executor[1], tuple)
-            and isinstance(executor[2], dict)
-        ):
-            executor = executor[0](*executor[1], **executor[2])
-            if not isinstance(executor, StdLibExecutor):
-                raise TypeError(
-                    f"Executor parsing got a callable and expected it to return a "
-                    f"`concurrent.futures.Executor` instance, but instead got "
-                    f"{executor}."
-                )
-            return executor
-        else:
-            raise NotImplementedError(
-                f"Expected an instance of {StdLibExecutor}, or a tuple of such a class, "
-                f"a tuple of args, and a dict of kwargs -- but got {executor}."
-            )
-
     def __getstate__(self):
         state = super().__getstate__()
         state["future"] = None
@@ -367,8 +372,8 @@ class Runnable(UsesState, HasLabel, HasRun, ABC):
         # the simple pyiron_workflow.executors.CloudpickleProcessPoolExecutor, but for
         # the more complex executorlib.Executor we're getting:
         # TypeError: cannot pickle '_thread.RLock' object
-        if isinstance(self.executor, StdLibExecutor):
-            state["executor"] = None
+        if isinstance(self._executor, StdLibExecutor):
+            state["_executor"] = None
         # Don't pass actual executors, they have an unserializable thread lock on them
         # _but_ if the user is just passing instructions on how to _build_ an executor,
         # we'll trust that those serialize OK (this way we can, hopefully, eventually

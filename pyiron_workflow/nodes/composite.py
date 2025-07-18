@@ -199,6 +199,8 @@ class Composite(LexicalParent[Node], HasCreator, Node, ABC):
     def _on_run(self):
         if len(self.running_children) > 0:  # Start from a broken process
             for label in self.running_children:
+                if self.children[label]._is_using_wrapped_excutorlib_executor():
+                    self.running_children.remove(label)
                 self.children[label].run()
                 # Running children will find serialized result and proceed,
                 # or raise an error because they're already running
@@ -295,7 +297,7 @@ class Composite(LexicalParent[Node], HasCreator, Node, ABC):
 
     def _get_state_from_remote_other(self, other_self):
         state = other_self.__getstate__()
-        state.pop("executor")  # Got overridden to None for __getstate__, so keep local
+        state.pop("_executor")  # Got overridden to None for __getstate__, so keep local
         state.pop("_parent")  # Got overridden to None for __getstate__, so keep local
         return state
 
