@@ -211,17 +211,56 @@ class TestWorkflow(unittest.TestCase):
         )
         wf.executor_shutdown()
 
-    def test_run_in_thread_exceptions(self):
+    def test_run_in_thread(self):
         wf = Workflow("wf")
         wf.a = wf.create.function_node(plus_one)
+        wf.a.use_cache = False
 
-        wf.executor = (futures.ThreadPoolExecutor, (), {})
+        with self.subTest("Existing non-thread executor"):
+            wf.executor = (futures.ProcessPoolExecutor, (), {})
 
-        with self.assertRaises(
-            ValueError,
-            msg="Shouldn't be able to run in background if any other executor is set",
+            with self.assertRaises(
+                ValueError,
+                msg="Shouldn't be able to run in background if any other (non-thread pool) executor is set",
+            ):
+                wf.run_in_thread()
+
+        with (
+            self.subTest("Existing thread executor instance"),
+            futures.ThreadPoolExecutor() as executor,
         ):
+            wf.executor = executor
             wf.run_in_thread()
+            self.assertIs(
+                wf.executor, executor, msg="Pre-existing executors should be left alone"
+            )
+
+        with self.subTest("Existing thread executor instructions"):
+            instructions = (futures.ThreadPoolExecutor, (), {})
+            wf.executor = instructions
+            wf.run_in_thread()
+            self.assertIs(
+                wf.executor,
+                instructions,
+                msg="Pre-existing executors should be left alone",
+            )
+
+        with self.subTest("No existing executor"):
+            wf.executor = None
+            wf.run_in_thread()
+            max_waits = 10
+            while wf.executor is not None:
+                sleep(0.1)
+                max_waits -= 1
+                if max_waits == 0:
+                    raise RuntimeError(
+                        "Executor should be gone by now -- we're just trying to buy a "
+                        "smidgen of time for the callback to finish."
+                    )
+            self.assertIsNone(
+                wf.executor,
+                msg="The thread executor should get cleaned up",
+            )
 
     def test_parallel_execution(self):
         wf = Workflow("wf")

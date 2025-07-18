@@ -13,6 +13,7 @@ from bidict import bidict
 
 from pyiron_workflow.io import Inputs
 from pyiron_workflow.mixin.injection import OutputsWithInjection
+from pyiron_workflow.mixin.run import InterpretableAsExecutor
 from pyiron_workflow.node import Node
 from pyiron_workflow.nodes.composite import Composite
 
@@ -394,19 +395,38 @@ class Workflow(Composite):
     def run_in_thread(
         self, *args, check_readiness: bool = True, **kwargs
     ) -> futures.Future | dict[str, Any]:
-        if self.executor is not None:
+        executor_is_empty = self.executor is None
+        executor_is_threadpool = self._is_interpretable_as_threadpoolexecuctor(
+            self.executor
+        )
+
+        if executor_is_empty:
+            self.executor = (futures.ThreadPoolExecutor, (), {})
+        elif not executor_is_threadpool:
             raise ValueError(
                 f"Workflow {self.label} already has an executor set. Running in a "
                 f"thread would override this."
             )
-        self.executor = (futures.ThreadPoolExecutor, (), {})
+
         f = self.run(*args, check_readiness=check_readiness, **kwargs)
-        if isinstance(f, futures.Future):
-            f.add_done_callback(lambda _: setattr(self, "executor", None))
-        else:
-            # We're hitting a cached result
-            self.executor = None
+
+        if executor_is_empty:
+            if isinstance(f, futures.Future):
+                f.add_done_callback(lambda _: setattr(self, "executor", None))
+            else:
+                # We're hitting a cached result
+                self.executor = None
         return f
+
+    @staticmethod
+    def _is_interpretable_as_threadpoolexecuctor(
+        executor: InterpretableAsExecutor | None,
+    ) -> bool:
+        return isinstance(executor, futures.ThreadPoolExecutor) or (
+            isinstance(executor, tuple)
+            and isinstance(executor[0], type)
+            and issubclass(executor[0], futures.ThreadPoolExecutor)
+        )
 
     def pull(self, run_parent_trees_too=False, **kwargs):
         """Workflows are a parent-most object, so this simply runs without pulling."""
