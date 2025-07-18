@@ -1,6 +1,6 @@
 import pickle
 import unittest
-from concurrent.futures import Future, ThreadPoolExecutor
+from concurrent import futures
 from time import sleep
 
 from bidict import ValueDuplicationError
@@ -175,7 +175,7 @@ class TestWorkflow(unittest.TestCase):
         wf.b = wf.create.function_node(plus_one, x=wf.a)
 
         original_a = wf.a
-        wf.executor = wf.create.ProcessPoolExecutor()
+        wf.executor = futures.ProcessPoolExecutor()
 
         self.assertIs(
             NOT_DATA,
@@ -185,7 +185,7 @@ class TestWorkflow(unittest.TestCase):
 
         result = wf(a__x=0)
         self.assertIsInstance(
-            result, Future, msg="Should be running as a parallel process"
+            result, futures.Future, msg="Should be running as a parallel process"
         )
 
         _ = result.result(timeout=120)  # Wait for the process to finish
@@ -215,7 +215,7 @@ class TestWorkflow(unittest.TestCase):
         wf = Workflow("wf")
         wf.a = wf.create.function_node(plus_one)
 
-        wf.executor = (ThreadPoolExecutor, (), {})
+        wf.executor = (futures.ThreadPoolExecutor, (), {})
 
         with self.assertRaises(
             ValueError,
@@ -230,7 +230,7 @@ class TestWorkflow(unittest.TestCase):
         wf.fast = five()
         wf.sum = sum(a=wf.fast, b=wf.slow)
 
-        wf.slow.executor = wf.create.ProcessPoolExecutor()
+        wf.slow.executor = futures.ProcessPoolExecutor()
 
         wf.slow.run()
         wf.fast.run()
@@ -405,7 +405,7 @@ class TestWorkflow(unittest.TestCase):
             msg="Sanity check, pulling here should work perfectly fine",
         )
 
-        wf.m.one.executor = wf.create.ProcessPoolExecutor()
+        wf.m.one.executor = futures.ProcessPoolExecutor()
         with self.assertRaises(
             ValueError, msg="Should not be able to pull with executor in local scope"
         ):
@@ -413,7 +413,7 @@ class TestWorkflow(unittest.TestCase):
             wf.m.one.executor_shutdown()  # Shouldn't get this far, but if so, shutdown
         wf.m.one.executor = None
 
-        wf.n1.executor = wf.create.ProcessPoolExecutor()
+        wf.n1.executor = futures.ProcessPoolExecutor()
         with self.assertRaises(
             ValueError, msg="Should not be able to pull with executor in parent scope"
         ):

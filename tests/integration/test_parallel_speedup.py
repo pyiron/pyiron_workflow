@@ -1,4 +1,5 @@
 import unittest
+from concurrent import futures
 from time import perf_counter, sleep
 
 from pyiron_workflow import Workflow
@@ -42,7 +43,7 @@ class TestSpeedup(unittest.TestCase):
         wf.d << (wf.a, wf.b, wf.c)
         wf.starting_nodes = [wf.a, wf.b, wf.c]
 
-        with wf.create.ProcessPoolExecutor(max_workers=3) as executor:
+        with futures.ProcessPoolExecutor(max_workers=3) as executor:
             wf.a.executor = executor
             wf.b.executor = executor
             wf.c.executor = executor
@@ -81,7 +82,7 @@ class TestSpeedup(unittest.TestCase):
         wf.sleep3 = Workflow.create.std.Sleep(t)
         wf.sleep4 = Workflow.create.std.Sleep(t)
         for n in wf:
-            n.executor = (Workflow.create.ThreadPoolExecutor, (), {})
+            n.executor = (futures.ThreadPoolExecutor, (), {})
 
         wf.save()
         reloaded = Workflow("test")

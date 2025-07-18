@@ -5,6 +5,7 @@ import time
 import unittest
 from concurrent import futures
 
+import executorlib
 from static import demo_nodes
 
 from pyiron_workflow._tests import ensure_tests_in_python_path
@@ -147,7 +148,7 @@ class TestWorkflow(unittest.TestCase):
         wf = Workflow("depickle")
 
         wf.before_pickling = demo_nodes.OptionallyAdd(1)
-        wf.before_pickling.executor = wf.create.ProcessPoolExecutor()
+        wf.before_pickling.executor = futures.ProcessPoolExecutor()
         wf()
         wf.before_pickling.future.result(timeout=120)  # Wait for it to finish
         wf.executor_shutdown()
@@ -158,10 +159,10 @@ class TestWorkflow(unittest.TestCase):
 
     def test_executors(self):
         executors = [
-            Workflow.create.ProcessPoolExecutor,
-            Workflow.create.ThreadPoolExecutor,
+            futures.ProcessPoolExecutor,
+            futures.ThreadPoolExecutor,
             Workflow.create.CloudpickleProcessPoolExecutor,
-            Workflow.create.executorlib.SingleNodeExecutor,
+            executorlib.SingleNodeExecutor,
         ]
 
         wf = Workflow("executed")
@@ -272,7 +273,7 @@ class TestWorkflow(unittest.TestCase):
 
         with (
             self.subTest("Check completion"),
-            Workflow.create.ProcessPoolExecutor() as exe,
+            futures.ProcessPoolExecutor() as exe,
         ):
             wf.c_fails.executor = exe
             wf(raise_run_exceptions=False)

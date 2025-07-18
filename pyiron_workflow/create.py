@@ -4,9 +4,6 @@ Container classes for giving access to various workflow objects and tools
 
 from __future__ import annotations
 
-from concurrent.futures import ProcessPoolExecutor, ThreadPoolExecutor
-
-import executorlib
 from pyiron_snippets.dotdict import DotDict
 
 from pyiron_workflow.executors import CloudpickleProcessPoolExecutor
@@ -23,15 +20,10 @@ class Creator:
     """
 
     def __init__(self):
-        # Standard lib
-        self.ProcessPoolExecutor = ProcessPoolExecutor
-        self.ThreadPoolExecutor = ThreadPoolExecutor
         # Local cloudpickler
         self.CloudpickleProcessPoolExecutor = CloudpickleProcessPoolExecutor
 
         self.function_node = function_node
-
-    executorlib = executorlib
 
     @property
     def std(self):
