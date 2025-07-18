@@ -19,6 +19,13 @@ def AddThree(self, x: int) -> int:
     return self.three
 
 
+@Workflow.wrap.as_macro_node("add_six")
+def AddSix(self, x: int) -> int:
+    self.a = AddThree(x)
+    self.b = AddThree(self.a)
+    return self.b
+
+
 @Workflow.wrap.as_function_node("add")
 def AddPlusOne(obj, other):
     """The same IO labels as `standard.Add`, but with type hints and a boost."""

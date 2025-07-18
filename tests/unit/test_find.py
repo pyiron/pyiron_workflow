@@ -46,6 +46,7 @@ class TestFind(unittest.TestCase):
             [o.__name__ for o in found_by_string],
             [
                 demo_nodes.AddPlusOne.__name__,
+                demo_nodes.AddSix.__name__,
                 demo_nodes.AddThree.__name__,
                 demo_nodes.Dynamic.__name__,
                 demo_nodes.OptionallyAdd.__name__,
