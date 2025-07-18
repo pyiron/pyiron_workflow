@@ -299,6 +299,7 @@ class Composite(LexicalParent[Node], HasCreator, Node, ABC):
         state = other_self.__getstate__()
         state.pop("_executor")  # Got overridden to None for __getstate__, so keep local
         state.pop("_parent")  # Got overridden to None for __getstate__, so keep local
+        state.pop("_detached_parent_path")
         return state
 
     def disconnect_run(self) -> list[tuple[InputSignal, OutputSignal]]:
