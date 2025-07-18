@@ -704,7 +704,7 @@ class Node(
                 c1.connect(c2)
 
     @property
-    def cache_hit(self):
+    def cache_hit(self) -> bool:
         try:
             return self.inputs.to_value_dict() == self._cached_inputs
         except Exception:
