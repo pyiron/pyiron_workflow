@@ -31,12 +31,6 @@ class TestWrappedExecutorlib(unittest.TestCase):
         )
         for resource_dict in protected_resources:
             with (
-                self.subTest(msg=f"Init resource dict: {resource_dict}"),
-                self.assertRaises(ProtectedResourceError),
-            ):
-                CacheSingleNodeExecutor(resource_dict=resource_dict)
-
-            with (
                 self.subTest(msg=f"Submit resource dict: {resource_dict}"),
                 CacheSingleNodeExecutor() as exe,
                 self.assertRaises(ProtectedResourceError),

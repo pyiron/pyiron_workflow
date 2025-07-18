@@ -22,10 +22,6 @@ class ProtectedResourceError(ValueError):
 class CacheOverride(BaseExecutor):
     override_cache_file_name: ClassVar[str] = "executorlib_cache"
 
-    def __init__(self, *args, **kwargs):
-        _validate_existing_resource_dict(kwargs)
-        super().__init__(*args, **kwargs)
-
     def submit(self, fn, /, *args, **kwargs):
         """
         We demand that `fn` be the bound-method `on_run` of a `Lexical`+`Runnable`

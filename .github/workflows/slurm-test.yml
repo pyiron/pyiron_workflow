@@ -1,0 +1,38 @@
+# Configure the CI with SLURM, and send a job to the queue via a workflow
+# The submission job gets hard-killed, then we follow up by either restarting while the
+# slurm job is running (mode = interrupt) or by waiting for it to finish
+# (mode = discover)
+
+name: Slurm Test
+on:
+  workflow_call:
+    inputs:
+      mode:
+        required: true
+        type: string
+
+jobs:
+  slurm_test:
+    runs-on: ubuntu-latest
+    services:
+      mysql:
+        image: mysql:8.0
+        env:
+          MYSQL_ROOT_PASSWORD: root
+        ports:
+          - "8888:3306"
+        options: --health-cmd="mysqladmin ping" --health-interval=10s --health-timeout=5s --health-retries=3
+    steps:
+      - uses: actions/checkout@v4
+      - uses: koesterlab/setup-slurm-action@v1
+        timeout-minutes: 5
+      - uses: pyiron/actions/cached-miniforge@actions-4.0.8
+        with:
+          python-version: '3.12'
+          env-files: .ci_support/environment.yml .ci_support/environment-cluster.yml
+      - name: Test (${{ inputs.mode }})
+        shell: bash -l {0}
+        timeout-minutes: 8
+        run: |
+          python -u tests/cluster/slurm_test.py --submit
+          python -u tests/cluster/slurm_test.py --${{ inputs.mode }}
