@@ -69,9 +69,8 @@ def interruption():
     print("loading at time", time.time())
     wf = pwf.Workflow("slurm_test")
     state_check(wf, True, True)
-    wf.running = False  # https://github.com/pyiron/pyiron_workflow/issues/706
     print("re-running")
-    out = wf.run_in_thread()
+    out = wf.run_in_thread(rerun=True)
     print("run return", out)
     state_check(wf, True, True)
     print("sleeping", t_overhead + t_sleep)
@@ -84,11 +83,10 @@ def discovery():
     print("loading at time", time.time())
     wf = pwf.Workflow("slurm_test")
     state_check(wf, True, True)
-    wf.running = False  # https://github.com/pyiron/pyiron_workflow/issues/706
     print("sleeping", t_overhead + t_sleep)
     time.sleep(t_overhead + t_sleep)
     print("re-running")
-    out = wf.run_in_thread()
+    out = wf.run_in_thread(rerun=True)
     print("run return", out)
     state_check(wf, True, True)
     print("sleeping", t_sleep / 10)
