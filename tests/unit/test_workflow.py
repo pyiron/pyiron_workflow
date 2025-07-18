@@ -216,6 +216,23 @@ class TestWorkflow(unittest.TestCase):
         wf.a = wf.create.function_node(plus_one)
         wf.a.use_cache = False
 
+        with self.subTest("No existing executor"):
+            wf.executor = None
+            wf.run_in_thread()
+            max_waits = 10
+            while wf.executor is not None:
+                sleep(0.1)
+                max_waits -= 1
+                if max_waits == 0:
+                    raise RuntimeError(
+                        "Executor should be gone by now -- we're just trying to buy a "
+                        "smidgen of time for the callback to finish."
+                    )
+            self.assertIsNone(
+                wf.executor,
+                msg="The thread executor should get cleaned up",
+            )
+
         with self.subTest("Existing non-thread executor"):
             wf.executor = (futures.ProcessPoolExecutor, (), {})
 
@@ -243,23 +260,6 @@ class TestWorkflow(unittest.TestCase):
                 wf.executor,
                 instructions,
                 msg="Pre-existing executors should be left alone",
-            )
-
-        with self.subTest("No existing executor"):
-            wf.executor = None
-            wf.run_in_thread()
-            max_waits = 10
-            while wf.executor is not None:
-                sleep(0.1)
-                max_waits -= 1
-                if max_waits == 0:
-                    raise RuntimeError(
-                        "Executor should be gone by now -- we're just trying to buy a "
-                        "smidgen of time for the callback to finish."
-                    )
-            self.assertIsNone(
-                wf.executor,
-                msg="The thread executor should get cleaned up",
             )
 
     def test_parallel_execution(self):
