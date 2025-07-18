@@ -401,7 +401,10 @@ class Workflow(Composite):
             )
         self.executor = (futures.ThreadPoolExecutor, (), {})
         f = self.run(*args, check_readiness=check_readiness, **kwargs)
-        f.add_done_callback(lambda _: setattr(self, "executor", None))
+        if isinstance(f, futures.Future):
+            f.add_done_callback(lambda _: setattr(self, "executor", None))
+        else:
+            self.executor = None
         return f
 
     def pull(self, run_parent_trees_too=False, **kwargs):
