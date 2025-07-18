@@ -422,6 +422,14 @@ class TestComposite(unittest.TestCase):
             "setting it recursively on all children",
         )
 
+    def test_cache_hit(self):
+        self.comp.direct_child = Composite.create.function_node(plus_one)
+        self.assertFalse(self.comp.cache_hit, msg="Sanity check")
+        self.comp.run()
+        self.assertTrue(self.comp.cache_hit, msg="Cache hit should be set")
+        self.comp.direct_child.running = True  # fake it
+        self.assertFalse(self.comp.cache_hit, msg="If a child is running, cache miss")
+
     def test_push_child(self):
         self.comp.n1 = self.comp.create.function_node(plus_one)
         self.comp.n2 = self.comp.create.function_node(plus_one, x=self.comp.n1)

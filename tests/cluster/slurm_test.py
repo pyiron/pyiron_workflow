@@ -49,7 +49,6 @@ def submission():
     print("submitting")
     print(time.time())
     wf.n2.executor = (CacheSlurmClusterExecutor, (), {"resource_dict": resource_dict})
-    wf.n2.use_cache = False
     out = wf.run_in_thread()
     print("run return", out)
     state_check(wf, True, True)
