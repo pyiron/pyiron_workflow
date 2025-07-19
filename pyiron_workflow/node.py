@@ -418,15 +418,6 @@ class Node(
     def _on_run(self, *args, **kwargs) -> Any:
         pass
 
-    @property
-    def run_args(self) -> tuple[tuple, dict]:
-        return self._run_args
-
-    @property
-    @abstractmethod
-    def _run_args(self) -> tuple[tuple, dict]:
-        pass
-
     def run(
         self,
         *args,
