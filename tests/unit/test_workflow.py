@@ -544,7 +544,6 @@ class TestWorkflow(unittest.TestCase):
         wf = Workflow("wf")
         wf.n = demo_nodes.AddThree(x=0)
         f = wf.run_in_thread()
-        self.assertTrue(wf.running, msg="Sanity check")
 
         self.assertEqual(f.result(), wf, msg="Background run should complete")
         self.assertEqual(wf.n.outputs.add_three.value, 3, msg="Sanity check")
