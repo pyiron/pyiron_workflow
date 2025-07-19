@@ -33,6 +33,7 @@ __version__ = get_versions()["version"]
 # User API
 
 from pyiron_workflow.api import (
+    NodeSlurmExecutor,
     Workflow,  # pyironic user single-point of entry
     as_dataclass_node,
     as_function_node,
