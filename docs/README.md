@@ -24,17 +24,25 @@ By allowing (but not demanding, in the case of data DAGs) users to specify the e
 
 By scraping type hints from decorated functions, both new data values and new graph connections are (optionally) required to conform to hints, making workflows strongly typed.
 
-Individual node computations can be shipped off to parallel processes for scalability. Standard python executors like `concurrent.futures.ThreadPoolExecutor` and `ProcessPoolExecutor` work, but so does, e.g., the `Executor` executor from [`executorlib`](https://github.com/pyiron/executorlib), which facilitates running on HPC. It is also straightforward to run an entire graph on a remote process, e.g. a SLURM allocation, by locally saving the graph and remotely loading, running, and re-saving. Cf. [this notebook](../notebooks/hpc_example.ipynb) for some simple examples.
+Individual node computations can be shipped off to parallel processes for scalability. Standard python executors like `concurrent.futures.ThreadPoolExecutor` and `ProcessPoolExecutor` work, but so does, e.g., the `Executor` executor from [`executorlib`](https://github.com/pyiron/executorlib), which facilitates running on HPC. With the wrapped `executorlib.SlurmClusterExecutor` in `pyiron_workflow`, it is possible to run individual nodes on SLURM allocation as easily as in a typical process pool. After the nodes submit their SLURM jobs, the workflow can be saved and the python process terminated -- recovery is as simple as reloading and re-executing the workflow.
 
 Once you're happy with a workflow, it can be easily turned it into a macro for use in other workflows. This allows the clean construction of increasingly complex computation graphs by composing simpler graphs.
 
 Nodes (including macros) can be stored in plain text as python code, and imported by future workflows for easy access. This encourages and supports an ecosystem of useful nodes, so you don't need to re-invent the wheel. When these python files are in a properly managed git repository and released in a stable channel (e.g. conda-forge), they fulfill most requirements of the [FAIR](https://en.wikipedia.org/wiki/FAIR_data) principles.
 
-Executed or partially-executed graphs can be stored to file, either by explicit call or automatically after running. These can be reloaded (automatically on instantiation, in the case of workflows) and examined/rerun, etc. If your workflow fails, it will (by default) save a recovery file for you to restore it at the time of failure.
+Executed or partially-executed graphs can be stored to file, either by explicit call or automatically after running. These can be reloaded (automatically on instantiation, in the case of workflows) and examined/rerun, etc. If your workflow fails, it will (by default) save a recovery file for you to restore it at the time of failure. We offer a `bagofholding`-based saving routine to automatically save meta-data alongside your graph and facilitate partial loading, e.g., loading the result of your workflow without reloading the workflow itself. 
 
 ## Installation
 
 `conda install -c conda-forge pyiron_workflow`
+
+Additional packages to support HPC execution with
+
+```python
+from pyiron_workflow import NodeSlurmExecutor
+```
+
+Can be found under the optional dependencies.
 
 ## User introduction
 
@@ -160,7 +168,7 @@ To explore other benefits of `pyiron_workflow`, look at the `quickstart.ipynb` i
 - Parallelizing workflow computation by assigning executors to specific nodes
 - Iterating over data with for-loops
 
-For more advanced topics, like cyclic graphs, check the `deepdive.ipynb` notebook, explore the docstrings, or look at the
+For more advanced topics, like cyclic graphs, check the `deepdive.ipynb` notebook, explore the docstrings, or look at the test suite.
 
 ## Structure
 
@@ -175,13 +183,13 @@ They range from extremely simple mix-ins like `pyiron_workflow.has_interface_mix
 Each of these mix-in modules has a rationale for its existence -- it's "why" -- as the module-level docstring, and provides insight into the promises the mix-in makes as class-level docstrings.
 The node class brings together these individual capabilities and controls their interactions, but to understand each inherited power on its own, review these modules.
 
-Everything(*) _downstream_ in the inheritance tree from nodes is in the `pyiron_workflow.nodes` sub-module.
+Everything[^1] _downstream_ in the inheritance tree from nodes is in the `pyiron_workflow.nodes` sub-module.
 Where `pyiron_workflow.mixin` defines the core capabilities of `pyiron_workflow.nodes.Node`, `pyiron_workflow.nodes` provides specialization and diversification of roles.
 A key player is `pyiron_workflow.nodes.static_io.StaticNode`, which holds tools facilitating and ensuring that node IO is specified at the _class_ level -- a critical capability if we start thinking about assessing node interoperability and guided workflow design, where we don't want to need to first instantiate nodes to find out whether they'll work!
 It also holds familiar user facing nodes like `pyiron_workflow.nodes.function.Function`, which makes sure each run of the node executes a particular python function, and `pyiron_workflow.nodes.macro.Macro` which inherits from the more generic `pyiron_workflow.nodes.composite.Composite` and holds its own sub-graph and executes _that_ when you run the node.
 Other than `pyiron_workflow.nodes.multiple_dispatch`, which holds some helpers for making sure we can make both calls like `@as_function_node` _and_ `@as_function_node()`, the submodules here all define different node classes somewhere on the spectrum between abstract mix-in or base classes down to the user-facing, extremely specific `pyiron_workflow.nodes.standard` library of nodes to be included in user workflows!
 
-(*) Ok, not quite _everything_ downstream from `pyiron_workflow.node.Node` is in `pyiron_workflow.nodes`.
+[^1]: Ok, not quite _everything_ downstream from `pyiron_workflow.node.Node` is in `pyiron_workflow.nodes`.
 There is also `pyiron_workflow.workflow.Workflow` -- the main entry point for users.
 Unlike literally every other node, workflow objects have dynamic and variable IO and _cannot_ be inserted as part of any other workflow (i.e. they must be a parent-most object in their workflow graph).
 Otherwise, they inherit from `pyiron_workflow.nodes.composite.Composite` just like macros, and behave in a similar way.
