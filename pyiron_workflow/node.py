@@ -206,9 +206,6 @@ class Node(
         autoload (BackendIdentifier | StorageInterface | None): Whether to check
             for a matching saved node and what storage back end to use to do so (no
             auto-loading if the back end is `None`.)
-        _serialize_result (bool): (IN DEVELOPMENT) Cloudpickle the output of running
-            the node; this is useful if the run is happening in a parallel process and
-            the parent process may be killed before it is finished. (Default is False.)
         signals (pyiron_workflow.io.Signals): A container for input and output
             signals, which are channels for controlling execution flow. By default, has
             a :attr:`signals.inputs.run` channel which has a callback to the
@@ -304,10 +301,6 @@ class Node(
         super().__init__(label=label, parent=parent)
         self.checkpoint = checkpoint
         self.recovery: BackendIdentifier | StorageInterface | None = "pickle"
-        self._serialize_result = False  # Advertised, but private to indicate
-        # under-development status -- API may change to be more user-friendly
-        self._do_clean: bool = False  # Power-user override for cleaning up temporary
-        # serialized results and empty directories (or not).
         self._remove_executorlib_cache: bool = True  # Power-user override for cleaning
         # up temporary serialized results from runs with executorlib; intended to be
         # used for testing
@@ -419,26 +412,10 @@ class Node(
         return self.as_path() / file_name
 
     def on_run(self, *args, **kwargs) -> Any:
-        save_result: bool = args[0]
-        args = args[1:]
-        result = self._on_run(*args, **kwargs)
-        if save_result:
-            self._temporary_result_pickle(result)
-        return result
+        return self._on_run(*args, **kwargs)
 
     @abstractmethod
     def _on_run(self, *args, **kwargs) -> Any:
-        pass
-
-    @property
-    def run_args(self) -> tuple[tuple, dict]:
-        args, kwargs = self._run_args
-        args = (self._serialize_result,) + args
-        return args, kwargs
-
-    @property
-    @abstractmethod
-    def _run_args(self) -> tuple[tuple, dict]:
         pass
 
     def run(
@@ -502,22 +479,6 @@ class Node(
             Kwargs updating input channel values happens _first_ and will get
             overwritten by any subsequent graph-based data manipulation.
         """
-        if self.running and self._serialize_result:
-            if self._temporary_result_file.is_file():
-                return self._finish_run(
-                    self._temporary_result_unpickle(),
-                    raise_run_exceptions=raise_run_exceptions,
-                    run_exception_kwargs={},
-                    run_finally_kwargs={
-                        "emit_ran_signal": emit_ran_signal,
-                        "raise_run_exceptions": raise_run_exceptions,
-                    },
-                )
-            else:
-                raise ValueError(
-                    f"{self.full_label} is still waiting for a serialized result"
-                )
-
         self.set_input_values(*args, **kwargs)
 
         return super().run(
@@ -625,9 +586,6 @@ class Node(
             self.save(
                 backend=self.recovery, filename=self.as_path().joinpath("recovery")
             )
-
-        if self._do_clean:
-            self._clean_graph_directory()
 
         if (
             self._remove_executorlib_cache

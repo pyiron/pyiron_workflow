@@ -40,7 +40,7 @@ class FromManyInputs(Transformer, ABC):
     # This must be commensurate with the internal expectations of _on_run
 
     @property
-    def _run_args(self) -> tuple[tuple, dict]:
+    def run_args(self) -> tuple[tuple, dict]:
         return (), self.inputs.to_value_dict()
 
     @classmethod
@@ -65,7 +65,7 @@ class ToManyOutputs(Transformer, ABC):
         """Must take the single object to be transformed"""
 
     @property
-    def _run_args(self) -> tuple[tuple, dict]:
+    def run_args(self) -> tuple[tuple, dict]:
         return (self.inputs[self._input_name].value,), {}
 
     @classmethod
@@ -295,7 +295,7 @@ class InputsToDataframe(_HasLength, FromManyInputs, ABC):
         return DataFrame(df_dict)
 
     @property
-    def _run_args(self) -> tuple[tuple, dict]:
+    def run_args(self) -> tuple[tuple, dict]:
         return tuple(self.inputs.to_value_dict().values()), {}
 
     @classmethod
@@ -366,7 +366,7 @@ class DataclassNode(FromManyInputs, ABC):
         return self.dataclass(**inputs_to_value_dict)
 
     @property
-    def _run_args(self) -> tuple[tuple, dict]:
+    def run_args(self) -> tuple[tuple, dict]:
         return (), self.inputs.to_value_dict()
 
     @classmethod

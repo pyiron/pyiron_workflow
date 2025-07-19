@@ -318,7 +318,7 @@ class Function(StaticNode, ScrapesIO, ABC):
         return self.node_function(**kwargs)
 
     @property
-    def _run_args(self) -> tuple[tuple, dict]:
+    def run_args(self) -> tuple[tuple, dict]:
         kwargs = self.inputs.to_value_dict()
         return (), kwargs
 

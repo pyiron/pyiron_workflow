@@ -629,38 +629,6 @@ class TestComposite(unittest.TestCase):
             "retain its executor",
         )
 
-    def test_result_serialization(self):
-        """
-        This is actually only a useful feature if you have an executor which will
-        continue the process _after_ the parent python process has been shut down
-        (e.g. you sent the run code off to a slurm queue using `executorlib`.), but
-        we'll ensure that the plumbing works here by faking things a bit.
-        """
-        self.comp.use_cache = False
-
-        self.comp.child = Composite.create.function_node(plus_one, x=42)
-        self.comp.starting_nodes = [self.comp.child]
-
-        self.comp.child._serialize_result = True
-        self.comp.child.use_cache = False
-        self.comp.child._do_clean = False
-
-        self.comp.run()
-        self.assertTrue(self.comp.child._temporary_result_file.is_file())
-        self.assertEqual(self.comp.child.outputs.y.value, 42 + 1)
-
-        self.comp.child.running = True  # Fake it
-        self.comp.child._do_clean = True  # Clean up this time
-        self.comp.run()
-
-        self.assertFalse(self.comp.child._temporary_result_file.is_file())
-        self.assertEqual(self.comp.child.outputs.y.value, 42 + 1)
-        self.assertFalse(
-            self.comp.as_path().is_dir(),
-            msg="Actually, we expect cleanup to have removed empty directories up to "
-            "and including the lexical root's own directory",
-        )
-
     def test_empty(self):
         for child in self.comp.children:
             self.comp.remove_child(child)
