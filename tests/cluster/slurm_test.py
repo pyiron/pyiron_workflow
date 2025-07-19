@@ -3,7 +3,7 @@ import os
 import time
 
 import pyiron_workflow as pwf
-from pyiron_workflow.executors.wrapped_executorlib import CacheSlurmClusterExecutor
+from pyiron_workflow.executors.wrapped_executorlib import NodeSlurmExecutor
 
 t_overhead = 2
 t_sleep = 10
@@ -48,7 +48,7 @@ def submission():
 
     print("submitting")
     print(time.time())
-    wf.n2.executor = (CacheSlurmClusterExecutor, (), {"resource_dict": resource_dict})
+    wf.n2.executor = (NodeSlurmExecutor, (), {"resource_dict": resource_dict})
     out = wf.run_in_thread()
     print("run return", out)
     state_check(wf, True, True)

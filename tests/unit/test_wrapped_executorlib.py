@@ -1,8 +1,8 @@
 import unittest
 
 from pyiron_workflow.executors.wrapped_executorlib import (
-    CacheSingleNodeExecutor,
     DedicatedExecutorError,
+    NodeSingleExecutor,
     ProtectedResourceError,
 )
 from pyiron_workflow.nodes import standard as std
@@ -15,7 +15,7 @@ def foo(x):
 class TestWrappedExecutorlib(unittest.TestCase):
     def test_application_protection(self):
         with (
-            CacheSingleNodeExecutor() as exe,
+            NodeSingleExecutor() as exe,
             self.assertRaises(
                 DedicatedExecutorError,
                 msg="These executors are specialized to work with node runs",
@@ -32,7 +32,7 @@ class TestWrappedExecutorlib(unittest.TestCase):
         for resource_dict in protected_resources:
             with (
                 self.subTest(msg=f"Submit resource dict: {resource_dict}"),
-                CacheSingleNodeExecutor() as exe,
+                NodeSingleExecutor() as exe,
                 self.assertRaises(ProtectedResourceError),
             ):
                 n = std.UserInput()
