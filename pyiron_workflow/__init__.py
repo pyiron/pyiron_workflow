@@ -14,14 +14,12 @@ Key features:
 - Easy "nodeification" of regular python code
 - Macro nodes, so complex workflows can be built by composition
 - (Optional) type checking for data connections
-- (Optional) remote execution of individual nodes (currently only very simple
-    single-core, same-machine parallel processes)
+- (Optional) remote execution of individual nodes
 - Both acyclic (execution flow is automated) and cyclic (execution flow must be
     specified) graphs allowed
 - Easy extensibility by collecting nodes together in a python module for sharing/reusing
 
 Planned:
-- More user-friendly usage of :mod:`executorlib`
 - Integration with :mod:`semantikon` for ontological hinting of data channels to provide
     guided workflow design
 """
