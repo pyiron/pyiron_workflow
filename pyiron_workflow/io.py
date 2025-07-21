@@ -427,7 +427,7 @@ class HasIO(HasStateDisplay, HasLabel, HasRun, Generic[OutputsType], ABC):
                 f"n args are interpreted using the first n input channels "
                 f"({self.inputs.labels}), but this conflicted with received kwargs "
                 f"({list(kwargs.keys())}) -- perhaps the input was ordered differently "
-                f"than expected?"
+                f"than expected? Got args {args} and kwargs {kwargs}."
             )
 
         kwargs.update(keyed_args)
