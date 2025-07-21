@@ -19,6 +19,7 @@ import cloudpickle
 from pyiron_snippets.colors import SeabornColors
 from pyiron_snippets.dotdict import DotDict
 
+from pyiron_workflow.channels import InputLockedError
 from pyiron_workflow.draw import Node as GraphvizNode
 from pyiron_workflow.executors.wrapped_executorlib import CacheOverride
 from pyiron_workflow.logging import logger
@@ -514,6 +515,12 @@ class Node(
         input_kwargs: dict[str, Any],
     ) -> tuple[bool, Any]:
         if self.running:
+            if len(input_args) > 0 or len(input_kwargs) > 0:
+                raise InputLockedError(
+                    f"Node {self.label} is running. Input values are not allowed to be "
+                    f"updated in this state, but got args {input_args} and kwargs "
+                    f"{input_kwargs}."
+                )
             if self.future is not None:
                 if rerun:
                     raise WaitingForFutureError(
