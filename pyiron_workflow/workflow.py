@@ -353,6 +353,7 @@ class Workflow(Composite):
         self,
         /,
         check_readiness: bool,
+        rerun: bool,
         run_data_tree: bool,
         run_parent_trees_too: bool,
         fetch_input: bool,
@@ -362,6 +363,7 @@ class Workflow(Composite):
             self.set_run_signals_to_dag_execution()
         return super()._before_run(
             check_readiness=check_readiness,
+            rerun=rerun,
             run_data_tree=run_data_tree,
             run_parent_trees_too=run_parent_trees_too,
             fetch_input=fetch_input,
