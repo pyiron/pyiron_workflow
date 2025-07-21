@@ -258,23 +258,27 @@ class TestWorkflow(unittest.TestCase):
         process, and (b) chaining a second error downstream by leveraging the `failed`
         signal.
         """
-        wf = Workflow("test")
-        wf.a = Workflow.create.std.UserInput(1)
-        wf.b = Workflow.create.std.UserInput("two")
-        wf.c_fails = wf.a + wf.b  # Type error
-        wf.d_if_success = Workflow.create.std.UserInput(0)
-        wf.d_if_failure = Workflow.create.std.UserInput("But what's the question?")
-        wf.e_fails = Workflow.create.std.Add(wf.d_if_failure, 42)  # Type error
 
-        wf.a >> wf.b >> wf.c_fails >> wf.d_if_success
-        wf.c_fails.signals.output.failed >> wf.d_if_failure >> wf.e_fails
-        wf.starting_nodes = [wf.a]
-        wf.automate_execution = False
+        def _make_wf() -> Workflow:
+            wf = Workflow("test")
+            wf.a = Workflow.create.std.UserInput(1)
+            wf.b = Workflow.create.std.UserInput("two")
+            wf.c_fails = wf.a + wf.b  # Type error
+            wf.d_if_success = Workflow.create.std.UserInput(0)
+            wf.d_if_failure = Workflow.create.std.UserInput("But what's the question?")
+            wf.e_fails = Workflow.create.std.Add(wf.d_if_failure, 42)  # Type error
+
+            wf.a >> wf.b >> wf.c_fails >> wf.d_if_success
+            wf.c_fails.signals.output.failed >> wf.d_if_failure >> wf.e_fails
+            wf.starting_nodes = [wf.a]
+            wf.automate_execution = False
+            return wf
 
         with (
             self.subTest("Check completion"),
             futures.ProcessPoolExecutor() as exe,
         ):
+            wf = _make_wf()
             wf.c_fails.executor = exe
             wf(raise_run_exceptions=False)
 
@@ -306,16 +310,17 @@ class TestWorkflow(unittest.TestCase):
 
         with self.subTest("Let it fail"):
             try:
+                wf = _make_wf()
                 wf(raise_run_exceptions=True)
             except FailedChildError as e:
                 with self.subTest("Check messaging"):
                     self.assertIn(
-                        wf.c_fails.run.full_label,
+                        wf.c_fails.full_label,
                         str(e),
                         msg="Failed node should be identified",
                     )
                     self.assertIn(
-                        wf.e_fails.run.full_label,
+                        wf.e_fails.full_label,
                         str(e),
                         msg="Indeed, _both_ failed nodes should be identified",
                     )
