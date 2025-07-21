@@ -482,7 +482,6 @@ class Node(
             Kwargs updating input channel values happens _first_ and will get
             overwritten by any subsequent graph-based data manipulation.
         """
-        self.set_input_values(*args, **kwargs)
 
         return super().run(
             check_readiness=check_readiness,
@@ -493,6 +492,8 @@ class Node(
                 "run_parent_trees_too": run_parent_trees_too,
                 "fetch_input": fetch_input,
                 "emit_ran_signal": emit_ran_signal,
+                "input_args": args,
+                "input_kwargs": kwargs,
             },
             run_finally_kwargs={
                 "emit_ran_signal": emit_ran_signal,
@@ -509,6 +510,8 @@ class Node(
         run_parent_trees_too: bool,
         fetch_input: bool,
         emit_ran_signal: bool,
+        input_args: tuple[Any, ...],
+        input_kwargs: dict[str, Any],
     ) -> tuple[bool, Any]:
         if self.running:
             if self.future is not None:
@@ -530,6 +533,7 @@ class Node(
         if run_data_tree:
             self.run_data_tree(run_parent_trees_too=run_parent_trees_too)
 
+        self.set_input_values(*input_args, **input_kwargs)
         if fetch_input:
             self.inputs.fetch()
 
