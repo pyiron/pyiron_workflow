@@ -48,11 +48,13 @@ class TestNestingExecutors(unittest.TestCase):
         self.assertIs(
             f,
             f2,
-            msg="Running an already-running node with a future should return that future",
+            msg="Running an already-running node with a future should return that "
+            "future",
         )
         with self.assertRaises(
             RuntimeError,
-            msg="Trying to re-run a running node with a live future should raise an error -- don't interrupt something that's in another thread/process!",
+            msg="Trying to re-run a running node with a live future should raise an "
+            "error -- don't interrupt something that's in another thread/process!",
         ):
             n.run(rerun=True)
         self.assertEqual(
