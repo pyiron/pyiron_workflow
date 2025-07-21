@@ -414,24 +414,7 @@ class HasIO(HasStateDisplay, HasLabel, HasRun, Generic[OutputsType], ABC):
         """
         self.signals.input.accumulate_and_run << others
 
-    def set_input_values(self, *args, **kwargs) -> None:
-        """
-        Match keywords to input channels and update their values.
-
-        Throws a warning if a keyword is provided that cannot be found among the input
-        keys.
-
-        Args:
-            *args: values assigned to inputs in order of appearance.
-            **kwargs: input key - input value (including channels for connection) pairs.
-
-        Raises:
-            (ValueError): If more args are received than there are inputs available.
-            (ValueError): If there is any overlap between channels receiving values
-                from `args` and those from `kwargs`.
-            (ValueError): If any of the `kwargs` keys do not match available input
-                labels.
-        """
+    def _get_complete_input(self, *args, **kwargs) -> dict[str, Any]:
         if len(args) > len(self.inputs.labels):
             raise ValueError(
                 f"Received {len(args)} args, but only have {len(self.inputs.labels)} "
@@ -451,7 +434,27 @@ class HasIO(HasStateDisplay, HasLabel, HasRun, Generic[OutputsType], ABC):
 
         self._ensure_all_input_keys_present(kwargs.keys(), self.inputs.labels)
 
-        for k, v in kwargs.items():
+        return kwargs
+
+    def set_input_values(self, *args, **kwargs) -> None:
+        """
+        Match keywords to input channels and update their values.
+
+        Throws a warning if a keyword is provided that cannot be found among the input
+        keys.
+
+        Args:
+            *args: values assigned to inputs in order of appearance.
+            **kwargs: input key - input value (including channels for connection) pairs.
+
+        Raises:
+            (ValueError): If more args are received than there are inputs available.
+            (ValueError): If there is any overlap between channels receiving values
+                from `args` and those from `kwargs`.
+            (ValueError): If any of the `kwargs` keys do not match available input
+                labels.
+        """
+        for k, v in self._get_complete_input(*args, **kwargs).items():
             self.inputs[k] = v
 
     @staticmethod
