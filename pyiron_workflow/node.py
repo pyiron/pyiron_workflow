@@ -508,6 +508,14 @@ class Node(
         emit_ran_signal: bool,
     ) -> tuple[bool, Any]:
         if self.running:
+            if self.future is not None:
+                if rerun:
+                    raise RuntimeError(
+                        f"Node {self.label} is running and has a future attached to "
+                        f"it. It cannot be rerun in this state."
+                    )
+                else:
+                    return True, self.future
             if self._is_using_wrapped_excutorlib_executor():
                 return False, None  # Let it cook
             elif not rerun:
