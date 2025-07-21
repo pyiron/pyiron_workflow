@@ -44,6 +44,9 @@ if TYPE_CHECKING:
     from pyiron_workflow.nodes.composite import Composite
 
 
+class WaitingForFutureError(ValueError): ...
+
+
 class Node(
     Lexical["Composite"],
     Runnable,
@@ -510,7 +513,7 @@ class Node(
         if self.running:
             if self.future is not None:
                 if rerun:
-                    raise RuntimeError(
+                    raise WaitingForFutureError(
                         f"Node {self.label} is running and has a future attached to "
                         f"it. It cannot be rerun in this state."
                     )

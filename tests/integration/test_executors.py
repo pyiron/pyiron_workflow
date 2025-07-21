@@ -3,6 +3,7 @@ from concurrent import futures
 
 import pyiron_workflow as pwf
 from pyiron_workflow import _tests
+from pyiron_workflow.node import WaitingForFutureError
 
 _tests.ensure_tests_in_python_path()
 from static import demo_nodes  # noqa: E402
@@ -52,7 +53,7 @@ class TestNestingExecutors(unittest.TestCase):
             "future",
         )
         with self.assertRaises(
-            RuntimeError,
+            WaitingForFutureError,
             msg="Trying to re-run a running node with a live future should raise an "
             "error -- don't interrupt something that's in another thread/process!",
         ):
