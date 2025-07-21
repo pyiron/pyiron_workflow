@@ -645,6 +645,27 @@ class TestNode(unittest.TestCase):
                 finally:
                     saves.delete_storage(backend)  # Clean up
 
+    def test_load_running(self):
+        n = ANode(label="to_save", x=42)
+        n.running = True
+        n.save(backend="pickle")
+        reloaded = ANode(label="to_save", autoload="pickle")
+        self.assertTrue(
+            reloaded.running,
+            msg="We should be able to load a node that was saved in the running state.",
+        )
+        self.assertEqual(
+            n.inputs.x.value,
+            reloaded.inputs.x.value,
+            msg="Sanity check that we have loaded the data too",
+        )
+        with self.assertRaises(
+            ValueError,
+            msg="We should not be able to load new data into a currently running "
+            "node",
+        ):
+            reloaded.load()
+
 
 if __name__ == "__main__":
     unittest.main()
