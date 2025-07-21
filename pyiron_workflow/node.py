@@ -966,6 +966,12 @@ class Node(
             FileNotFoundError: when nothing got loaded.
             TypeError: when the saved node has a different class name.
         """
+        if self.running:
+            raise ValueError(
+                "Cannot load a node while it is running. If you are sure loading now "
+                "is the correct thing to do, you can set `self.running=True` where "
+                "`self` is this node object."
+            )
         for selected_backend in available_backends(
             backend=backend, only_requested=only_requested
         ):
