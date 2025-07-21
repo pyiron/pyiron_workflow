@@ -28,11 +28,13 @@ jobs:
       do-mypy: true
 
   slurm-interruption:
+    if: github.event_name == 'pull_request'
     uses: ./.github/workflows/slurm-test.yml
     with:
       mode: interrupt
 
   slurm-discovery:
+    if: github.event_name == 'pull_request'
     uses: ./.github/workflows/slurm-test.yml
     with:
       mode: discover
