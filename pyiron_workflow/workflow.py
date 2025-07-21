@@ -358,6 +358,8 @@ class Workflow(Composite):
         run_parent_trees_too: bool,
         fetch_input: bool,
         emit_ran_signal: bool,
+        input_args: tuple[Any, ...],
+        input_kwargs: dict[str, Any],
     ) -> tuple[bool, Any]:
         if self.automate_execution:
             self.set_run_signals_to_dag_execution()
@@ -368,6 +370,8 @@ class Workflow(Composite):
             run_parent_trees_too=run_parent_trees_too,
             fetch_input=fetch_input,
             emit_ran_signal=emit_ran_signal,
+            input_args=input_args,
+            input_kwargs=input_kwargs,
         )
 
     def run(

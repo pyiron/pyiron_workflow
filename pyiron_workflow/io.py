@@ -414,6 +414,28 @@ class HasIO(HasStateDisplay, HasLabel, HasRun, Generic[OutputsType], ABC):
         """
         self.signals.input.accumulate_and_run << others
 
+    def _get_complete_input(self, *args, **kwargs) -> dict[str, Any]:
+        if len(args) > len(self.inputs.labels):
+            raise ValueError(
+                f"Received {len(args)} args, but only have {len(self.inputs.labels)} "
+                f"input channels available"
+            )
+        keyed_args = dict(zip(self.inputs.labels, args, strict=False))
+
+        if len(set(keyed_args.keys()).intersection(kwargs.keys())) > 0:
+            raise ValueError(
+                f"n args are interpreted using the first n input channels "
+                f"({self.inputs.labels}), but this conflicted with received kwargs "
+                f"({list(kwargs.keys())}) -- perhaps the input was ordered differently "
+                f"than expected? Got args {args} and kwargs {kwargs}."
+            )
+
+        kwargs.update(keyed_args)
+
+        self._ensure_all_input_keys_present(kwargs.keys(), self.inputs.labels)
+
+        return kwargs
+
     def set_input_values(self, *args, **kwargs) -> None:
         """
         Match keywords to input channels and update their values.
@@ -432,26 +454,7 @@ class HasIO(HasStateDisplay, HasLabel, HasRun, Generic[OutputsType], ABC):
             (ValueError): If any of the `kwargs` keys do not match available input
                 labels.
         """
-        if len(args) > len(self.inputs.labels):
-            raise ValueError(
-                f"Received {len(args)} args, but only have {len(self.inputs.labels)} "
-                f"input channels available"
-            )
-        keyed_args = dict(zip(self.inputs.labels, args, strict=False))
-
-        if len(set(keyed_args.keys()).intersection(kwargs.keys())) > 0:
-            raise ValueError(
-                f"n args are interpreted using the first n input channels "
-                f"({self.inputs.labels}), but this conflicted with received kwargs "
-                f"({list(kwargs.keys())}) -- perhaps the input was ordered differently "
-                f"than expected?"
-            )
-
-        kwargs.update(keyed_args)
-
-        self._ensure_all_input_keys_present(kwargs.keys(), self.inputs.labels)
-
-        for k, v in kwargs.items():
+        for k, v in self._get_complete_input(*args, **kwargs).items():
             self.inputs[k] = v
 
     @staticmethod

@@ -19,6 +19,7 @@ import cloudpickle
 from pyiron_snippets.colors import SeabornColors
 from pyiron_snippets.dotdict import DotDict
 
+from pyiron_workflow.channels import InputLockedError
 from pyiron_workflow.draw import Node as GraphvizNode
 from pyiron_workflow.executors.wrapped_executorlib import CacheOverride
 from pyiron_workflow.logging import logger
@@ -482,7 +483,6 @@ class Node(
             Kwargs updating input channel values happens _first_ and will get
             overwritten by any subsequent graph-based data manipulation.
         """
-        self.set_input_values(*args, **kwargs)
 
         return super().run(
             check_readiness=check_readiness,
@@ -493,6 +493,8 @@ class Node(
                 "run_parent_trees_too": run_parent_trees_too,
                 "fetch_input": fetch_input,
                 "emit_ran_signal": emit_ran_signal,
+                "input_args": args,
+                "input_kwargs": kwargs,
             },
             run_finally_kwargs={
                 "emit_ran_signal": emit_ran_signal,
@@ -509,8 +511,16 @@ class Node(
         run_parent_trees_too: bool,
         fetch_input: bool,
         emit_ran_signal: bool,
+        input_args: tuple[Any, ...],
+        input_kwargs: dict[str, Any],
     ) -> tuple[bool, Any]:
         if self.running:
+            if len(input_args) > 0 or len(input_kwargs) > 0:
+                raise InputLockedError(
+                    f"Node {self.label} is running. Input values are not allowed to be "
+                    f"updated in this state, but got args {input_args} and kwargs "
+                    f"{input_kwargs}."
+                )
             if self.future is not None:
                 if rerun:
                     raise WaitingForFutureError(
@@ -530,6 +540,7 @@ class Node(
         if run_data_tree:
             self.run_data_tree(run_parent_trees_too=run_parent_trees_too)
 
+        self.set_input_values(*input_args, **input_kwargs)
         if fetch_input:
             self.inputs.fetch()
 

@@ -3,7 +3,7 @@ import unittest
 
 import bagofholding as boh
 
-from pyiron_workflow.channels import NOT_DATA, InputData
+from pyiron_workflow.channels import NOT_DATA, InputData, InputLockedError
 from pyiron_workflow.io import Inputs
 from pyiron_workflow.mixin.injection import (
     OutputDataWithInjection,
@@ -100,6 +100,16 @@ class TestNode(unittest.TestCase):
             n.inputs.x.value,
             msg="It should be possible to deactivate type checking from the node level",
         )
+
+    def test_no_new_input_while_running(self):
+        n = ANode()
+        n.set_input_values(x=2)
+        n.running = True  # Fake it
+
+        with self.assertRaises(
+            InputLockedError, msg="With existing input, we should asplode"
+        ):
+            n.run(x=2, rerun=True)
 
     def test_run_data_tree(self):
         self.assertEqual(
