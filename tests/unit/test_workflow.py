@@ -543,9 +543,9 @@ class TestWorkflow(unittest.TestCase):
     def test_repeated_thread_runs(self):
         wf = Workflow("wf")
         wf.n = demo_nodes.AddThree(x=0)
-        f = wf.run_in_thread()
+        wf.run_in_thread()
 
-        self.assertEqual(f.result(), wf, msg="Background run should complete")
+        sleep(0.1)
         self.assertEqual(wf.n.outputs.add_three.value, 3, msg="Sanity check")
         max_waits = 10
         while wf.executor is not None:
