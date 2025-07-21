@@ -37,6 +37,9 @@ class TooManyConnectionsError(ChannelError):
     pass
 
 
+class InputLockedError(ChannelError, ValueError): ...
+
+
 ConjugateType = typing.TypeVar("ConjugateType", bound="Channel")
 InputType = typing.TypeVar("InputType", bound="InputChannel")
 OutputType = typing.TypeVar("OutputType", bound="OutputChannel")
@@ -571,7 +574,7 @@ class InputData(DataChannel["InputData"], InputChannel["OutputData"]):
     @value.setter
     def value(self, new_value):
         if self.owner.data_input_locked():
-            raise RuntimeError(
+            raise InputLockedError(
                 f"Owner {self.full_label} has its data input locked, "
                 f"so value cannot be updated."
             )

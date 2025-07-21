@@ -10,6 +10,7 @@ from pyiron_workflow.channels import (
     ChannelConnectionError,
     ConjugateType,
     InputData,
+    InputLockedError,
     InputSignal,
     OutputData,
     OutputSignal,
@@ -301,7 +302,7 @@ class TestDataChannels(unittest.TestCase):
 
         self.ni1.owner.locked = True
         with self.assertRaises(
-            RuntimeError,
+            InputLockedError,
             msg="Input data should be locked while its owner has data_input_locked",
         ):
             self.ni1.value = 3
