@@ -665,6 +665,7 @@ class TestNode(unittest.TestCase):
             "node",
         ):
             reloaded.load()
+        n.delete_storage()
 
 
 if __name__ == "__main__":
