@@ -150,7 +150,6 @@ class TestWorkflow(unittest.TestCase):
         wf.before_pickling = demo_nodes.OptionallyAdd(1)
         wf.before_pickling.executor = futures.ProcessPoolExecutor()
         wf()
-        wf.before_pickling.future.result(timeout=120)  # Wait for it to finish
         wf.executor_shutdown()
 
         wf.before_pickling.executor = None

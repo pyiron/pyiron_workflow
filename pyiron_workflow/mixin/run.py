@@ -271,6 +271,7 @@ class Runnable(UsesState, HasLabel, HasRun, ABC):
                 raise_run_exceptions=raise_run_exceptions,
                 run_exception_kwargs=run_exception_kwargs,
                 run_finally_kwargs=run_finally_kwargs,
+                unique_executor=None,
                 **finish_run_kwargs,
             )
         else:
@@ -302,22 +303,12 @@ class Runnable(UsesState, HasLabel, HasRun, ABC):
                     raise_run_exceptions=raise_run_exceptions,
                     run_exception_kwargs=run_exception_kwargs,
                     run_finally_kwargs=run_finally_kwargs,
+                    unique_executor=executor if unique_executor else None,
                     **finish_run_kwargs,
                 )
             )
 
-            if unique_executor:
-                self.future.add_done_callback(
-                    partial(self._shutdown_executor_callback, executor=executor)
-                )
-
             return self.future
-
-    @staticmethod
-    def _shutdown_executor_callback(
-        _future: Future, /, executor: StdLibExecutor
-    ) -> None:
-        executor.shutdown(wait=False)
 
     def _run_exception(self, /, *args, **kwargs):
         """
@@ -340,6 +331,7 @@ class Runnable(UsesState, HasLabel, HasRun, ABC):
         raise_run_exceptions: bool,
         run_exception_kwargs: dict,
         run_finally_kwargs: dict,
+        unique_executor: StdLibExecutor | None,
         **kwargs,
     ) -> Any | tuple | None:
         """
@@ -349,6 +341,10 @@ class Runnable(UsesState, HasLabel, HasRun, ABC):
         try:
             if isinstance(run_output, Future):
                 run_output = run_output.result()
+                self.future = None
+                if unique_executor:
+                    unique_executor.shutdown(wait=False)
+                    del unique_executor
             return self.process_run_result(run_output)
         except Exception as e:
             self._run_exception(**run_exception_kwargs)
