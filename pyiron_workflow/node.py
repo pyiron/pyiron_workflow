@@ -44,6 +44,9 @@ if TYPE_CHECKING:
     from pyiron_workflow.nodes.composite import Composite
 
 
+class WaitingForFutureError(ValueError): ...
+
+
 class Node(
     Lexical["Composite"],
     Runnable,
@@ -501,14 +504,27 @@ class Node(
         self,
         /,
         check_readiness: bool,
+        rerun: bool,
         run_data_tree: bool,
         run_parent_trees_too: bool,
         fetch_input: bool,
         emit_ran_signal: bool,
     ) -> tuple[bool, Any]:
         if self.running:
+            if self.future is not None:
+                if rerun:
+                    raise WaitingForFutureError(
+                        f"Node {self.label} is running and has a future attached to "
+                        f"it. It cannot be rerun in this state."
+                    )
+                else:
+                    return True, self.future
             if self._is_using_wrapped_excutorlib_executor():
                 return False, None  # Let it cook
+            elif not rerun:
+                raise ReadinessError(self._readiness_error_message)
+
+        if self.failed and check_readiness and not rerun:
             raise ReadinessError(self._readiness_error_message)
 
         if run_data_tree:
@@ -532,7 +548,7 @@ class Node(
             if self.use_cache:  # Write cache and continue
                 self._cache_inputs()
 
-        return super()._before_run(check_readiness=check_readiness)
+        return super()._before_run(check_readiness=check_readiness, rerun=rerun)
 
     def _on_cache_hit(self) -> None:
         """A hook for subclasses to act on cache hits"""

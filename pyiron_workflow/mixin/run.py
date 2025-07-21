@@ -167,12 +167,9 @@ class Runnable(UsesState, HasLabel, HasRun, ABC):
                 :attr:`ready`. (Default is True.)
             raise_run_exceptions (bool): Whether to raise exceptions encountered while
                 :attr:`running`. (Default is True.)
-            rerun (bool): Whether to force-set :attr:`running` and :attr:`failed` to
-                `False` before running. (Default is False.)
+            rerun (bool): Whether to proceed even if the :attr:`running` or
+            :attr:`failed` state is encountered before runnign. (Default is False.)
         """
-        if rerun:
-            self.running = False
-            self.failed = False
 
         def _none_to_dict(inp: dict | None) -> dict:
             return {} if inp is None else inp
@@ -184,7 +181,7 @@ class Runnable(UsesState, HasLabel, HasRun, ABC):
         finish_run_kwargs = _none_to_dict(finish_run_kwargs)
 
         stop_early, result = self._before_run(
-            check_readiness=check_readiness, **before_run_kwargs
+            check_readiness=check_readiness, rerun=rerun, **before_run_kwargs
         )
         if stop_early:
             return result
@@ -199,7 +196,7 @@ class Runnable(UsesState, HasLabel, HasRun, ABC):
         )
 
     def _before_run(
-        self, /, check_readiness: bool, *args, **kwargs
+        self, /, check_readiness: bool, rerun: bool, *args, **kwargs
     ) -> tuple[bool, Any]:
         """
         Things to do _before_ running.
@@ -207,6 +204,8 @@ class Runnable(UsesState, HasLabel, HasRun, ABC):
         Args:
             check_readiness (bool): Whether to raise a `ReadinessError` if not
                 :attr:`ready`.
+            rerun (bool): Whether to proceed even if the :attr:`running` or
+                :attr:`failed` state is encountered.
             **kwargs: Keyword arguments used by child classes in overriding this
                 function.
 
@@ -217,6 +216,9 @@ class Runnable(UsesState, HasLabel, HasRun, ABC):
         Raises:
             (ReadinessError): If :param:`check_readiness` but not :attr:`ready`.
         """
+        if rerun:
+            self.running = False
+            self.failed = False
         if check_readiness and not self.ready:
             readiness_error = ReadinessError(self._readiness_error_message)
             readiness_error.readiness_dict = self._readiness_dict
@@ -269,6 +271,7 @@ class Runnable(UsesState, HasLabel, HasRun, ABC):
                 raise_run_exceptions=raise_run_exceptions,
                 run_exception_kwargs=run_exception_kwargs,
                 run_finally_kwargs=run_finally_kwargs,
+                unique_executor=None,
                 **finish_run_kwargs,
             )
         else:
@@ -300,22 +303,12 @@ class Runnable(UsesState, HasLabel, HasRun, ABC):
                     raise_run_exceptions=raise_run_exceptions,
                     run_exception_kwargs=run_exception_kwargs,
                     run_finally_kwargs=run_finally_kwargs,
+                    unique_executor=executor if unique_executor else None,
                     **finish_run_kwargs,
                 )
             )
 
-            if unique_executor:
-                self.future.add_done_callback(
-                    partial(self._shutdown_executor_callback, executor=executor)
-                )
-
             return self.future
-
-    @staticmethod
-    def _shutdown_executor_callback(
-        _future: Future, /, executor: StdLibExecutor
-    ) -> None:
-        executor.shutdown(wait=False)
 
     def _run_exception(self, /, *args, **kwargs):
         """
@@ -338,6 +331,7 @@ class Runnable(UsesState, HasLabel, HasRun, ABC):
         raise_run_exceptions: bool,
         run_exception_kwargs: dict,
         run_finally_kwargs: dict,
+        unique_executor: StdLibExecutor | None,
         **kwargs,
     ) -> Any | tuple | None:
         """
@@ -347,6 +341,10 @@ class Runnable(UsesState, HasLabel, HasRun, ABC):
         try:
             if isinstance(run_output, Future):
                 run_output = run_output.result()
+                self.future = None
+                if unique_executor:
+                    unique_executor.shutdown(wait=False)
+                    del unique_executor
             return self.process_run_result(run_output)
         except Exception as e:
             self._run_exception(**run_exception_kwargs)
