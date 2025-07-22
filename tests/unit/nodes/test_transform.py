@@ -61,6 +61,12 @@ class TestTransformer(unittest.TestCase):
             with self.assertRaises(TypeError):
                 inputs_to_list(2, "foo", 42, content_type_hint=str)
 
+        with self.subTest("Use cache"):
+            n_use = inputs_to_list(1, use_cache=True)
+            self.assertTrue(n_use.use_cache)
+            n_not = inputs_to_list(1, use_cache=False)
+            self.assertFalse(n_not.use_cache)
+
     def test_list_to_outputs(self):
         lst = ["a", "b", "c", "d", "e"]
         n = list_to_outputs(len(lst), lst, autorun=True)
