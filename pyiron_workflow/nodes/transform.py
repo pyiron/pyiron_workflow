@@ -240,15 +240,12 @@ def list_to_outputs(
     return cls(*node_args, **node_kwargs)
 
 
-class InputsToDict(FromManyInputs, ABC):
+class InputsToDict(Transformer, ABC):
     _output_name: ClassVar[str] = "dict"
     _output_type_hint: ClassVar[Any] = dict
     _input_specification: ClassVar[
         list[str] | dict[str, tuple[Any | None, Any | NotData]]
     ]
-
-    def _on_run(self, **inputs_to_value_dict):
-        return inputs_to_value_dict
 
     @classmethod
     def _build_inputs_preview(cls) -> dict[str, tuple[Any | None, Any | NotData]]:
@@ -256,6 +253,21 @@ class InputsToDict(FromManyInputs, ABC):
             return dict.fromkeys(cls._input_specification, (None, NOT_DATA))
         else:
             return cls._input_specification
+
+    @classmethod
+    def _build_outputs_preview(cls) -> dict[str, Any]:
+        return {cls._output_name: cls._output_type_hint}
+
+    @property
+    def run_args(self) -> tuple[tuple, dict]:
+        return (), self.inputs.to_value_dict()
+
+    def _on_run(self, **inputs_to_value_dict):
+        return inputs_to_value_dict
+
+    def process_run_result(self, run_output: Any | tuple) -> Any | tuple:
+        self.outputs[self._output_name].value = run_output
+        return run_output
 
     @staticmethod
     def hash_specification(
