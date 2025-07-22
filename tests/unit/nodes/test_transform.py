@@ -46,6 +46,12 @@ class TestTransformer(unittest.TestCase):
         n = inputs_to_list(3, "a", "b", "c", autorun=True)
         self.assertListEqual(["a", "b", "c"], n.outputs.list.value)
 
+        with (
+            self.subTest("Explicit suffix"),
+            self.assertRaises(ValueError, msg="Wrong number of inputs should raise"),
+        ):
+            inputs_to_list(3, "a", "b", "c", "d", autorun=True)
+
     def test_list_to_outputs(self):
         lst = ["a", "b", "c", "d", "e"]
         n = list_to_outputs(len(lst), lst, autorun=True)
