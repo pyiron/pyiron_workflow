@@ -15,6 +15,7 @@ from pandas import DataFrame
 from pyiron_snippets.colors import SeabornColors
 from pyiron_snippets.factory import classfactory
 
+from pyiron_workflow import identifier
 from pyiron_workflow.channels import NOT_DATA, NotData
 from pyiron_workflow.nodes.static_io import StaticNode
 
@@ -84,16 +85,24 @@ class _HasLength(Transformer, ABC):
 
 class InputsToList(Transformer, ABC):
     _length: ClassVar[int]  # Mandatory attribute for non-abstract subclasses
+    _content_type_hint: ClassVar[object]
     _output_name: ClassVar[str] = "list"
-    _output_type_hint: ClassVar[Any] = list
 
     @classmethod
     def _build_outputs_preview(cls) -> dict[str, Any]:
-        return {cls._output_name: cls._output_type_hint}
+        return {
+            cls._output_name: (
+                list
+                if cls._content_type_hint is None
+                else list[cls._content_type_hint]  # type: ignore[name-defined]
+            )
+        }
 
     @classmethod
     def _build_inputs_preview(cls) -> dict[str, tuple[Any, Any]]:
-        return {f"item_{i}": (None, NOT_DATA) for i in range(cls._length)}
+        return {
+            f"item_{i}": (cls._content_type_hint, NOT_DATA) for i in range(cls._length)
+        }
 
     @property
     def run_args(self) -> tuple[tuple, dict]:
@@ -108,19 +117,29 @@ class InputsToList(Transformer, ABC):
 
 
 @classfactory
-def inputs_to_list_factory(n: int, use_cache: bool = True, /) -> type[InputsToList]:
+def inputs_to_list_factory(
+    n: int, class_name: str, use_cache: bool = True, content_type_hint: object = None, /
+) -> type[InputsToList]:
     return (  # type: ignore[return-value]
-        f"{InputsToList.__name__}{n}",
+        class_name,
         (InputsToList,),
         {
             "_length": n,
+            "_content_type_hint": content_type_hint,
             "use_cache": use_cache,
         },
         {},
     )
 
 
-def inputs_to_list(n: int, /, *node_args, use_cache: bool = True, **node_kwargs):
+def inputs_to_list(
+    n: int,
+    /,
+    *node_args,
+    use_cache: bool = True,
+    content_type_hint: object = NOT_DATA,
+    **node_kwargs,
+):
     """
     Creates and returns an instance of a dynamically generated :class:`InputsToList`
         subclass with a specified number of inputs.
@@ -129,6 +148,9 @@ def inputs_to_list(n: int, /, *node_args, use_cache: bool = True, **node_kwargs)
         n (int): Number of input channels.
         use_cache (bool): Whether this node should default to caching its values.
             (Default is True.)
+        content_type_hint (object): Type hint for the content of the list. Applies to
+            all input channels and the content type of the returned list. (Default is
+            NOT_DATA, which will leave the content type of the list unspecified.)
         *node_args: Positional arguments for the node instance.
         **node_kwargs: Keyword arguments for the node instance.
 
@@ -136,9 +158,23 @@ def inputs_to_list(n: int, /, *node_args, use_cache: bool = True, **node_kwargs)
         InputsToList: An instance of the dynamically created :class:`InputsToList`
             subclass.
     """
-    cls = inputs_to_list_factory(n, use_cache)
+    class_name = identifier.to_identifier(
+        f"{InputsToList.__name__}{n}{content_type_hint}"
+    )
+    inputs_to_list_factory.clear(class_name)
+    cls = inputs_to_list_factory(
+        n, class_name, use_cache, _parse_type_hint(content_type_hint)
+    )
     cls.preview_io()
     return cls(*node_args, **node_kwargs)
+
+
+def _parse_type_hint(type_hint: object) -> object:
+    if type_hint is NOT_DATA:
+        return None
+    elif type_hint is None:
+        return type(None)
+    return type_hint
 
 
 class ListToOutputs(_HasLength, ToManyOutputs, ABC):

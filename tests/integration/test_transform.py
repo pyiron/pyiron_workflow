@@ -21,14 +21,13 @@ class TestTransform(unittest.TestCase):
             msg="Expected behaviour here is an autoencoder",
         )
 
-        inp_class = inputs_to_list_factory(n)
+        inp_class = inputs_to_list_factory(n, inp.__class__.__name__)
         out_class = list_to_outputs_factory(n)
 
         self.assertIs(
             inp_class,
             inp.__class__,
-            msg="Regardless of origin, we expect to be constructing the exact same "
-            "class",
+            msg="We can recover the constructed class from the factory",
         )
         self.assertIs(out_class, out.__class__)
 

@@ -45,12 +45,21 @@ class TestTransformer(unittest.TestCase):
     def test_inputs_to_list(self):
         n = inputs_to_list(3, "a", "b", "c", autorun=True)
         self.assertListEqual(["a", "b", "c"], n.outputs.list.value)
+        self.assertIs(
+            n.outputs.list.type_hint, list, msg="Output type hint should be list"
+        )
 
         with (
             self.subTest("Explicit suffix"),
             self.assertRaises(ValueError, msg="Wrong number of inputs should raise"),
         ):
             inputs_to_list(3, "a", "b", "c", "d", autorun=True)
+
+        with self.subTest("Content hint"):
+            inputs_to_list(2, None, 42, content_type_hint=int | None)
+            inputs_to_list(2, None, None, content_type_hint=int | None)
+            with self.assertRaises(TypeError):
+                inputs_to_list(2, "foo", 42, content_type_hint=str)
 
     def test_list_to_outputs(self):
         lst = ["a", "b", "c", "d", "e"]
