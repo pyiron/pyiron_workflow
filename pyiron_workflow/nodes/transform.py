@@ -242,7 +242,6 @@ def list_to_outputs(
 
 class InputsToDict(Transformer, ABC):
     _output_name: ClassVar[str] = "dict"
-    _output_type_hint: ClassVar[Any] = dict
     _input_specification: ClassVar[
         list[str] | dict[str, tuple[Any | None, Any | NotData]]
     ]
@@ -256,7 +255,12 @@ class InputsToDict(Transformer, ABC):
 
     @classmethod
     def _build_outputs_preview(cls) -> dict[str, Any]:
-        return {cls._output_name: cls._output_type_hint}
+        if isinstance(cls._input_specification, list):
+            type_hint = dict[str, Any]
+        else:
+            first_type = next(iter(cls._input_specification.values()))[0] or Any
+            type_hint = dict[str, first_type]  # type: ignore[misc, valid-type]
+        return {cls._output_name: type_hint}
 
     @property
     def run_args(self) -> tuple[tuple, dict]:

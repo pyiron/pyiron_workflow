@@ -116,6 +116,11 @@ class TestTransformer(unittest.TestCase):
                 hint,
                 msg="Spot check hint recognition",
             )
+            self.assertEqual(
+                n.outputs.dict.type_hint,
+                dict[str, int],
+                msg="Check that output hint was pulled from specification",
+            )
             self.assertDictEqual(
                 dict.fromkeys(d, default),
                 n.outputs.dict.value,
