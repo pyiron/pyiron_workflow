@@ -81,7 +81,9 @@ class TestTransformer(unittest.TestCase):
                 AttributeError, msg="Wrong number of inputs should raise"
             ),
         ):
-            list_to_outputs(3, lst, autorun=True)
+            n = list_to_outputs(3, lst)
+            n.recovery = None
+            n()
 
         with self.subTest("Content hint"):
             list_to_outputs(2, [None, 42], content_type_hint=int | None)
