@@ -82,16 +82,29 @@ class _HasLength(Transformer, ABC):
     _length: ClassVar[int]  # Mandatory attribute for non-abstract subclasses
 
 
-class InputsToList(_HasLength, FromManyInputs, ABC):
+class InputsToList(Transformer, ABC):
+    _length: ClassVar[int]  # Mandatory attribute for non-abstract subclasses
     _output_name: ClassVar[str] = "list"
     _output_type_hint: ClassVar[Any] = list
 
-    def _on_run(self, **inputs_to_value_dict):
-        return list(inputs_to_value_dict.values())
+    @classmethod
+    def _build_outputs_preview(cls) -> dict[str, Any]:
+        return {cls._output_name: cls._output_type_hint}
 
     @classmethod
     def _build_inputs_preview(cls) -> dict[str, tuple[Any, Any]]:
         return {f"item_{i}": (None, NOT_DATA) for i in range(cls._length)}
+
+    @property
+    def run_args(self) -> tuple[tuple, dict]:
+        return (), self.inputs.to_value_dict()
+
+    def _on_run(self, **inputs_to_value_dict):
+        return list(inputs_to_value_dict.values())
+
+    def process_run_result(self, run_output: Any | tuple) -> Any | tuple:
+        self.outputs[self._output_name].value = run_output
+        return run_output
 
 
 class ListToOutputs(_HasLength, ToManyOutputs, ABC):
