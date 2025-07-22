@@ -31,27 +31,6 @@ class Transformer(StaticNode, ABC):
         return SeabornColors.blue
 
 
-class FromManyInputs(Transformer, ABC):
-    _output_name: ClassVar[str]  # Mandatory attribute for non-abstract subclasses
-    _output_type_hint: ClassVar[Any] = None
-
-    # _build_inputs_preview required from parent class
-    # Inputs convert to `run_args` as a value dictionary
-    # This must be commensurate with the internal expectations of _on_run
-
-    @property
-    def run_args(self) -> tuple[tuple, dict]:
-        return (), self.inputs.to_value_dict()
-
-    @classmethod
-    def _build_outputs_preview(cls) -> dict[str, Any]:
-        return {cls._output_name: cls._output_type_hint}
-
-    def process_run_result(self, run_output: Any | tuple) -> Any | tuple:
-        self.outputs[self._output_name].value = run_output
-        return run_output
-
-
 class InputsToList(Transformer, ABC):
     _length: ClassVar[int]  # Mandatory attribute for non-abstract subclasses
     _content_type_hint: ClassVar[object]
