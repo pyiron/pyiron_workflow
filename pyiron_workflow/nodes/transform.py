@@ -52,10 +52,6 @@ class FromManyInputs(Transformer, ABC):
         return run_output
 
 
-class _HasLength(Transformer, ABC):
-    _length: ClassVar[int]  # Mandatory attribute for non-abstract subclasses
-
-
 class InputsToList(Transformer, ABC):
     _length: ClassVar[int]  # Mandatory attribute for non-abstract subclasses
     _content_type_hint: ClassVar[object]
