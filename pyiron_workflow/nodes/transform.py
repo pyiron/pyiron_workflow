@@ -127,9 +127,12 @@ def inputs_to_list(
         InputsToList: An instance of the dynamically created :class:`InputsToList`
             subclass.
     """
-    class_name = identifier.to_identifier(
-        f"{InputsToList.__name__}{n}{content_type_hint}"
+    hint_identifier = (
+        ""
+        if content_type_hint is NOT_DATA
+        else identifier.to_identifier(str(content_type_hint))
     )
+    class_name = f"{InputsToList.__name__}{n}{hint_identifier}"
     inputs_to_list_factory.clear(class_name)
     cls = inputs_to_list_factory(
         n, class_name, use_cache, _parse_type_hint(content_type_hint)
@@ -223,9 +226,12 @@ def list_to_outputs(
         ListToOutputs: An instance of the dynamically created :class:`ListToOutputs`
             subclass.
     """
-    class_name = identifier.to_identifier(
-        f"{ListToOutputs.__name__}{n}{content_type_hint}"
+    hint_identifier = (
+        ""
+        if content_type_hint is NOT_DATA
+        else identifier.to_identifier(str(content_type_hint))
     )
+    class_name = f"{ListToOutputs.__name__}{n}{hint_identifier}"
     list_to_outputs_factory.clear(class_name)
     cls = list_to_outputs_factory(
         n, class_name, use_cache, _parse_type_hint(content_type_hint)
