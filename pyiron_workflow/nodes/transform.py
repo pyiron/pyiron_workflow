@@ -244,6 +244,9 @@ def list_to_outputs(
         n (int): Number of output channels.
         use_cache (bool): Whether this node should default to caching its values.
             (Default is True.)
+        content_type_hint (object): Type hint for the content of the list. Applies to
+            all output channels and the content type of the provided list. (Default is
+            NOT_DATA, which will leave the content type of the list unspecified.)
         *node_args: Positional arguments for the node instance.
         **node_kwargs: Keyword arguments for the node instance.
 
