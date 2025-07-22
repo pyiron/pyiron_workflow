@@ -5,8 +5,7 @@ Transformer nodes convert many inputs into a single output, or vice-versa.
 from __future__ import annotations
 
 import itertools
-from abc import ABC, abstractmethod
-from collections.abc import Callable
+from abc import ABC
 from dataclasses import MISSING
 from dataclasses import dataclass as as_dataclass
 from typing import Any, ClassVar
@@ -50,32 +49,6 @@ class FromManyInputs(Transformer, ABC):
 
     def process_run_result(self, run_output: Any | tuple) -> Any | tuple:
         self.outputs[self._output_name].value = run_output
-        return run_output
-
-
-class ToManyOutputs(Transformer, ABC):
-    _input_name: ClassVar[str]  # Mandatory attribute for non-abstract subclasses
-    _input_type_hint: ClassVar[Any] = None
-    _input_default: ClassVar[Any | NotData] = NOT_DATA
-
-    # _build_outputs_preview still required from parent class
-    # Must be commensurate with the dictionary returned by transform_to_output
-
-    @abstractmethod
-    def _on_run(self, input_object) -> Callable[..., Any | tuple]:
-        """Must take the single object to be transformed"""
-
-    @property
-    def run_args(self) -> tuple[tuple, dict]:
-        return (self.inputs[self._input_name].value,), {}
-
-    @classmethod
-    def _build_inputs_preview(cls) -> dict[str, tuple[Any, Any]]:
-        return {cls._input_name: (cls._input_type_hint, cls._input_default)}
-
-    def process_run_result(self, run_output: dict[str, Any]) -> dict[str, Any]:
-        for k, v in run_output.items():
-            self.outputs[k].value = v
         return run_output
 
 
