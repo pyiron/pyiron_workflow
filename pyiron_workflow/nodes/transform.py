@@ -336,12 +336,13 @@ def inputs_to_dict(
     return cls(*node_args, **node_kwargs)
 
 
-class InputsToDataframe(_HasLength, FromManyInputs, ABC):
+class InputsToDataframe(FromManyInputs, ABC):
     """
     Turns inputs of dictionaries (all with the same keys) into a single
     :class:`pandas.DataFrame`.
     """
 
+    _length: ClassVar[int]  # Mandatory attribute for non-abstract subclasses
     _output_name: ClassVar[str] = "df"
     _output_type_hint: ClassVar[Any] = DataFrame
 
