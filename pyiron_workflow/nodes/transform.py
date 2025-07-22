@@ -420,7 +420,7 @@ def inputs_to_dataframe(n: int, use_cache: bool = True, *node_args, **node_kwarg
     return cls(*node_args, **node_kwargs)
 
 
-class DataclassNode(FromManyInputs, ABC):
+class DataclassNode(Transformer, ABC):
     """
     A base class for a node that converts inputs into a dataclass instance.
     """
@@ -432,6 +432,18 @@ class DataclassNode(FromManyInputs, ABC):
     def _dataclass_fields(cls):
         return cls.dataclass.__dataclass_fields__
 
+    @classmethod
+    def _build_inputs_preview(cls) -> dict[str, tuple[Any, Any]]:
+        # Make a channel for each field
+        return {
+            name: (f.type, NOT_DATA if f.default is MISSING else f.default)
+            for name, f in cls._dataclass_fields().items()
+        }
+
+    @classmethod
+    def _build_outputs_preview(cls) -> dict[str, Any]:
+        return {cls._output_name: cls.dataclass}
+
     def _setup_node(self) -> None:
         super()._setup_node()
         # Then leverage default factories from the dataclass
@@ -442,20 +454,16 @@ class DataclassNode(FromManyInputs, ABC):
             ):
                 self.inputs[name] = self._dataclass_fields()[name].default_factory()
 
-    def _on_run(self, **inputs_to_value_dict):
-        return self.dataclass(**inputs_to_value_dict)
-
     @property
     def run_args(self) -> tuple[tuple, dict]:
         return (), self.inputs.to_value_dict()
 
-    @classmethod
-    def _build_inputs_preview(cls) -> dict[str, tuple[Any, Any]]:
-        # Make a channel for each field
-        return {
-            name: (f.type, NOT_DATA if f.default is MISSING else f.default)
-            for name, f in cls._dataclass_fields().items()
-        }
+    def _on_run(self, **inputs_to_value_dict):
+        return self.dataclass(**inputs_to_value_dict)
+
+    def process_run_result(self, run_output: Any | tuple) -> Any | tuple:
+        self.outputs[self._output_name].value = run_output
+        return run_output
 
     @classmethod
     def _extra_info(cls) -> str:
@@ -490,7 +498,6 @@ def dataclass_node_factory(
             "dataclass": dataclass,
             "__module__": module,
             "__qualname__": qualname,
-            "_output_type_hint": dataclass,
             "__doc__": dataclass.__doc__,
             "use_cache": use_cache,
         },
