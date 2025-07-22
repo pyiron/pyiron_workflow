@@ -107,18 +107,6 @@ class InputsToList(Transformer, ABC):
         return run_output
 
 
-class ListToOutputs(_HasLength, ToManyOutputs, ABC):
-    _input_name: ClassVar[str] = "list"
-    _input_type_hint: ClassVar[Any] = list
-
-    def _on_run(self, input_object: list):
-        return {f"item_{i}": v for i, v in enumerate(input_object)}
-
-    @classmethod
-    def _build_outputs_preview(cls) -> dict[str, Any]:
-        return {f"item_{i}": None for i in range(cls._length)}
-
-
 @classfactory
 def inputs_to_list_factory(n: int, use_cache: bool = True, /) -> type[InputsToList]:
     return (  # type: ignore[return-value]
@@ -151,6 +139,18 @@ def inputs_to_list(n: int, /, *node_args, use_cache: bool = True, **node_kwargs)
     cls = inputs_to_list_factory(n, use_cache)
     cls.preview_io()
     return cls(*node_args, **node_kwargs)
+
+
+class ListToOutputs(_HasLength, ToManyOutputs, ABC):
+    _input_name: ClassVar[str] = "list"
+    _input_type_hint: ClassVar[Any] = list
+
+    def _on_run(self, input_object: list):
+        return {f"item_{i}": v for i, v in enumerate(input_object)}
+
+    @classmethod
+    def _build_outputs_preview(cls) -> dict[str, Any]:
+        return {f"item_{i}": None for i in range(cls._length)}
 
 
 @classfactory
