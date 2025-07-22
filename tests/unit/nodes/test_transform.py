@@ -50,7 +50,7 @@ class TestTransformer(unittest.TestCase):
         )
 
         with (
-            self.subTest("Explicit suffix"),
+            self.subTest("Incorrect length"),
             self.assertRaises(ValueError, msg="Wrong number of inputs should raise"),
         ):
             inputs_to_list(3, "a", "b", "c", "d", autorun=True)
