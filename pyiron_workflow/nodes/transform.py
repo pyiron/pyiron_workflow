@@ -354,7 +354,7 @@ def inputs_to_dict(
     return cls(*node_args, **node_kwargs)
 
 
-class InputsToDataframe(FromManyInputs, ABC):
+class InputsToDataframe(Transformer, ABC):
     """
     Turns inputs of dictionaries (all with the same keys) into a single
     :class:`pandas.DataFrame`.
@@ -362,9 +362,20 @@ class InputsToDataframe(FromManyInputs, ABC):
 
     _length: ClassVar[int]  # Mandatory attribute for non-abstract subclasses
     _output_name: ClassVar[str] = "df"
-    _output_type_hint: ClassVar[Any] = DataFrame
 
-    def _on_run(self, *rows: dict[str, Any]) -> Any:
+    @classmethod
+    def _build_inputs_preview(cls) -> dict[str, tuple[Any, Any]]:
+        return {f"row_{i}": (dict, NOT_DATA) for i in range(cls._length)}
+
+    @classmethod
+    def _build_outputs_preview(cls) -> dict[str, Any]:
+        return {cls._output_name: DataFrame}
+
+    @property
+    def run_args(self) -> tuple[tuple, dict]:
+        return tuple(self.inputs.to_value_dict().values()), {}
+
+    def _on_run(self, *rows: dict[str, Any]) -> DataFrame:
         df_dict = {}
         for i, row in enumerate(rows):
             for key, value in row.items():
@@ -374,13 +385,9 @@ class InputsToDataframe(FromManyInputs, ABC):
                     df_dict[key].append(value)
         return DataFrame(df_dict)
 
-    @property
-    def run_args(self) -> tuple[tuple, dict]:
-        return tuple(self.inputs.to_value_dict().values()), {}
-
-    @classmethod
-    def _build_inputs_preview(cls) -> dict[str, tuple[Any, Any]]:
-        return {f"row_{i}": (dict, NOT_DATA) for i in range(cls._length)}
+    def process_run_result(self, run_output: DataFrame) -> DataFrame:
+        self.outputs[self._output_name].value = run_output
+        return run_output
 
 
 @classfactory
