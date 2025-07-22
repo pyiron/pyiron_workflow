@@ -22,7 +22,7 @@ class TestTransform(unittest.TestCase):
         )
 
         inp_class = inputs_to_list_factory(n, inp.__class__.__name__)
-        out_class = list_to_outputs_factory(n)
+        out_class = list_to_outputs_factory(n, out.__class__.__name__)
 
         self.assertIs(
             inp_class,

@@ -177,25 +177,51 @@ def _parse_type_hint(type_hint: object) -> object:
     return type_hint
 
 
-class ListToOutputs(_HasLength, ToManyOutputs, ABC):
+class ListToOutputs(Transformer, ABC):
+    _length: ClassVar[int]  # Mandatory attribute for non-abstract subclasses
+    _content_type_hint: ClassVar[object]
     _input_name: ClassVar[str] = "list"
-    _input_type_hint: ClassVar[Any] = list
+
+    @classmethod
+    def _build_outputs_preview(cls) -> dict[str, Any]:
+        return {f"item_{i}": cls._content_type_hint for i in range(cls._length)}
+
+    @classmethod
+    def _build_inputs_preview(cls) -> dict[str, tuple[Any, Any]]:
+        return {
+            cls._input_name: (
+                (
+                    list
+                    if cls._content_type_hint is None
+                    else list[cls._content_type_hint]  # type: ignore[name-defined]
+                ),
+                NOT_DATA,
+            )
+        }
+
+    @property
+    def run_args(self) -> tuple[tuple, dict]:
+        return (self.inputs[self._input_name].value,), {}
 
     def _on_run(self, input_object: list):
         return {f"item_{i}": v for i, v in enumerate(input_object)}
 
-    @classmethod
-    def _build_outputs_preview(cls) -> dict[str, Any]:
-        return {f"item_{i}": None for i in range(cls._length)}
+    def process_run_result(self, run_output: dict[str, Any]) -> dict[str, Any]:
+        for k, v in run_output.items():
+            self.outputs[k].value = v
+        return run_output
 
 
 @classfactory
-def list_to_outputs_factory(n: int, use_cache: bool = True, /) -> type[ListToOutputs]:
+def list_to_outputs_factory(
+    n: int, class_name: str, use_cache: bool = True, content_type_hint: object = None, /
+) -> type[ListToOutputs]:
     return (  # type: ignore[return-value]
-        f"{ListToOutputs.__name__}{n}",
+        class_name,
         (ListToOutputs,),
         {
             "_length": n,
+            "_content_type_hint": content_type_hint,
             "use_cache": use_cache,
         },
         {},
@@ -203,7 +229,12 @@ def list_to_outputs_factory(n: int, use_cache: bool = True, /) -> type[ListToOut
 
 
 def list_to_outputs(
-    n: int, /, *node_args, use_cache: bool = True, **node_kwargs
+    n: int,
+    /,
+    *node_args,
+    use_cache: bool = True,
+    content_type_hint: object = NOT_DATA,
+    **node_kwargs,
 ) -> ListToOutputs:
     """
     Creates and returns an instance of a dynamically generated :class:`ListToOutputs`
@@ -220,8 +251,13 @@ def list_to_outputs(
         ListToOutputs: An instance of the dynamically created :class:`ListToOutputs`
             subclass.
     """
-
-    cls = list_to_outputs_factory(n, use_cache)
+    class_name = identifier.to_identifier(
+        f"{ListToOutputs.__name__}{n}{content_type_hint}"
+    )
+    list_to_outputs_factory.clear(class_name)
+    cls = list_to_outputs_factory(
+        n, class_name, use_cache, _parse_type_hint(content_type_hint)
+    )
     cls.preview_io()
     return cls(*node_args, **node_kwargs)
 
