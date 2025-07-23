@@ -29,7 +29,7 @@ from pyiron_workflow.mixin.injection import (
 )
 from pyiron_workflow.mixin.lexical import Lexical
 from pyiron_workflow.mixin.run import ReadinessError, Runnable
-from pyiron_workflow.mixin.single_output import ExploitsSingleOutput
+from pyiron_workflow.mixin.single_output import InjectsOnChannel
 from pyiron_workflow.storage import (
     BackendIdentifier,
     StorageInterface,
@@ -60,7 +60,7 @@ class Node(
     Lexical["Composite"],
     HasIO[OutputsWithInjection],
     Runnable,
-    ExploitsSingleOutput,
+    InjectsOnChannel,
     ABC,
 ):
     """

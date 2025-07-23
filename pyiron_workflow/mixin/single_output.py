@@ -10,7 +10,7 @@ from abc import ABC
 from pyiron_workflow.mixin.has_interface_mixins import HasInjectableOutputChannel
 
 
-class ExploitsSingleOutput(HasInjectableOutputChannel, ABC):
+class InjectsOnChannel(HasInjectableOutputChannel, ABC):
     def __getattr__(self, item):
         try:
             return super().__getattr__(item)
