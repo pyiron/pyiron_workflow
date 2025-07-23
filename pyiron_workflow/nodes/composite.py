@@ -63,41 +63,6 @@ class Composite(LexicalParent[Node], HasCreator, Node, ABC):
     A base class for nodes that have internal graph structure -- i.e. they hold a
     collection of child nodes and their computation is to execute that graph.
 
-    Promises (in addition parent class promises):
-
-    - The class offers access...
-        - To the node-izing :mod:`pyiron_workflow` decorators
-        - To a creator for other :mod:`pyiron_workflow` objects (namely nodes)
-            - From the class level, this simply creates these objects
-            - From the instance level, created nodes get the instance as their parent
-    - Child nodes...
-        - Can be added by...
-            - Passing a node instance to the adding method
-            - Setting the composite instance as the node's parent at node instantiation
-            - Assigning a node instance as an attribute
-        - Can be accessed by...
-            - Attribute access using their node label
-            - Attribute or item access in the child nodes collection
-            - Iterating over the composite instance
-        - Can be removed by method
-        - Each have a unique label (within the scope of this composite)
-            - WARNING: _Unless_ you go in and manually change the `.label` of a child!
-        - Have no other parent
-        - Can be replaced in-place with another node that has commensurate IO
-        - Have their working directory nested inside the composite's
-        - Are disallowed from having a label that conflicts with any of the parent's
-            other methods or attributes
-    - The length of a composite instance is its number of child nodes
-    - Running the composite...
-        - Runs the child nodes (either using manually specified execution signals, or
-            leveraging a helper tool that automates this process for data DAGs --
-            details are left to child classes)
-        - Returns a dot-dictionary of output IO
-    - Composite IO is some subset of the child nodes IO
-        - Default channel labels indicate both child and child's channel labels
-        - Default behaviour is to expose all unconnected child nodes' IO
-
-
     Attributes:
         strict_naming (bool): When true, repeated assignment of a new node to an
          existing node label will raise an error, otherwise the label gets appended

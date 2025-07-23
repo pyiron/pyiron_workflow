@@ -69,22 +69,6 @@ class Macro(Composite, StaticNode, ScrapesIO, ABC):
     If the macro is modified post-facto, you may need to manually re-invoke
     :meth:`configure_graph_execution`.
 
-    Promises (in addition parent class promises):
-
-    - IO is...
-        - Statically defined at the class level
-        - By value, i.e. the macro has its own IO channel instances and children are
-            duly encapsulated inside their own sub-graph
-        - Value-linked to the values of their corresponding child nodes' IO -- i.e.
-            updating a macro input value changes a child node's input value, and a
-            child node updating its output value changes a macro output value (if that
-            child's output is regularly included in the macro's output, e.g. because it
-            is disconnected or otherwise included in the outputs map)
-    - Macros will attempt to set the execution graph automatically for DAGs, as long as
-        no execution flow is set in the function that builds the sub-graph
-    - A default node label can be generated using the name of the callable that builds
-        the graph.
-
     Examples:
         Let's consider the simplest case of macros that just consecutively add 1 to
         their input:

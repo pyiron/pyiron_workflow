@@ -180,7 +180,7 @@ Each node holds multiple channels which specify how it interfaces with other nod
 As far as possible, the different tasks and roles of a node have been decomposed, such that `pyiron_workflow.node.Node` (and to a lesser extent `pyiron_workflow.channels.Channel`) inherits individual pieces of behaviour from simpler, specialized classes.
 All of these classes that are upstream of nodes (and channels) are stored in the `pyiron_workflow.mixin` sub-module.
 They range from extremely simple mix-ins like `pyiron_workflow.has_interface_mixins.has_label`, which does nothing more than guarantee that child classes have `label: str` and `full_label: str` attributes, to complex mix-ins like `pyiron_workflow.run.Runnable`, which provides the capability for children to use the `run()` method, along with specifying what else needs to be implemented for this to be possible and provided other associated tools and methods.
-Each of these mix-in modules has a rationale for its existence -- it's "why" -- as the module-level docstring, and provides insight into the promises the mix-in makes as class-level docstrings.
+Each of these mix-in modules has a rationale for its existence -- it's "why" -- as the module-level docstring, and provides insight into the roll of each class at the class-level docstrings.
 The node class brings together these individual capabilities and controls their interactions, but to understand each inherited power on its own, review these modules.
 
 Everything[^1] _downstream_ in the inheritance tree from nodes is in the `pyiron_workflow.nodes` sub-module.
