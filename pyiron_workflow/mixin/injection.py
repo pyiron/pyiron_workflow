@@ -13,13 +13,16 @@ from typing import TYPE_CHECKING, Any
 
 from pyiron_workflow.channels import NOT_DATA, OutputData
 from pyiron_workflow.io import GenericOutputs
-from pyiron_workflow.mixin.has_interface_mixins import (
-    HasChannel,
-    HasInjectableOutputChannel,
-)
+from pyiron_workflow.mixin.has_interface_mixins import HasChannel
 
 if TYPE_CHECKING:
     from pyiron_workflow.node import Node
+
+
+class HasInjectableOutputChannel(HasChannel, abc.ABC):
+    @property
+    @abc.abstractmethod
+    def channel(self) -> OutputDataWithInjection: ...
 
 
 class OutputDataWithInjection(OutputData, HasInjectableOutputChannel):
