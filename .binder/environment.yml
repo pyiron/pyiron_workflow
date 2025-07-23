@@ -15,3 +15,5 @@ dependencies:
 - toposort =1.10
 - typeguard =4.4.4
 - wheel
+- pyiron_ontology =0.2.8
+- semantikon =0.0.21
