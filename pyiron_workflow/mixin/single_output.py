@@ -5,69 +5,18 @@ like output -- as long as they have a single, unambiguous output to use!
 
 from __future__ import annotations
 
-from abc import ABC, abstractmethod
+from abc import ABC
 
-from pyiron_workflow.io import HasIO
 from pyiron_workflow.mixin.has_interface_mixins import HasInjectableOutputChannel
-from pyiron_workflow.mixin.injection import (
-    OutputDataWithInjection,
-    OutputsWithInjection,
-)
 
 
-class AmbiguousOutputError(AttributeError):
-    """Raised when searching for exactly one output, but multiple are found."""
-
-
-class ExploitsSingleOutput(
-    HasIO[OutputsWithInjection], HasInjectableOutputChannel, ABC
-):
-    @property
-    @abstractmethod
-    def outputs(self) -> OutputsWithInjection:
-        """
-        Required interface.
-
-        Fulfilled by, e.g. :class:`pyiron_workflow.injection.HasIOWithInjection`
-        """
-
-    @property
-    def channel(self) -> OutputDataWithInjection:
-        """
-        The single output channel. Fulfills the interface expectations for the
-        :class:`HasChannel` mixin and allows this object to be used directly for
-        forming connections, etc.
-
-        Returns:
-            (OutputDataWithInjection): The single output channel.
-
-        Raises:
-            AmbiguousOutputError: If there is not exactly one output channel.
-        """
-        if len(self.outputs) != 1:
-            raise AmbiguousOutputError(
-                f"Tried to access the channel value of {self.label}, but this is only "
-                f"possible when there is a single output channel -- {self.label} has: "
-                f"{self.outputs.labels}. Access probably occurred attempting to use "
-                f"this object like an output channel, e.g. with injection or to form a "
-                f"connection. Either make sure it has exactly one output channel, or "
-                f"use the particular channel you want directly."
-            )
-        else:
-            return self.outputs[self.outputs.labels[0]]
-
+class ExploitsSingleOutput(HasInjectableOutputChannel, ABC):
     def __getattr__(self, item):
         try:
             return super().__getattr__(item)
-        except AttributeError as e:
-            if len(self.outputs) == 1:
-                return getattr(self.channel, item)
-            else:
-                raise AmbiguousOutputError(
-                    f"Tried to access {item} on {self.label}, but failed. Delegating "
-                    f"access to `.channel` was impossible because there is more than "
-                    f"one output channel"
-                ) from e
+        except AttributeError:
+            channel = self.channel
+            return getattr(channel, item)
 
     def __getitem__(self, item):
         return self.channel.__getitem__(item)

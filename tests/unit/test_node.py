@@ -10,8 +10,7 @@ from pyiron_workflow.mixin.injection import (
     OutputsWithInjection,
 )
 from pyiron_workflow.mixin.run import ReadinessError
-from pyiron_workflow.mixin.single_output import AmbiguousOutputError
-from pyiron_workflow.node import Node
+from pyiron_workflow.node import AmbiguousOutputError, Node
 from pyiron_workflow.storage import PickleStorage, available_backends
 
 
@@ -483,14 +482,16 @@ class TestNode(unittest.TestCase):
 
         with self.assertRaises(
             AmbiguousOutputError,
-            msg="With two output channels, we should not be able to isolate a well defined value attribute because there is no single `channel` to look on",
+            msg="With two output channels, we should not be able to isolate a well "
+            "defined value attribute because there is no single `channel` to look on",
         ):
             getattr(two_outputs, "value")  # noqa: B009
 
-        self.assertFalse(
-            hasattr(two_outputs, "value"),
+        with self.assertRaises(
+            AmbiguousOutputError,
             msg="As a corollary to the last assertion, hasattr should fail",
-        )
+        ):
+            hasattr(two_outputs, "value")
 
     def test_storage(self):
         self.assertIs(
