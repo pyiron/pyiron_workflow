@@ -22,7 +22,7 @@ from pyiron_workflow.type_hinting import (
 )
 
 if typing.TYPE_CHECKING:
-    from pyiron_workflow.io import HasIO
+    from pyiron_workflow.node import Node
 
 
 class ChannelError(Exception):
@@ -52,10 +52,10 @@ class Channel(
 ):
     """
     Channels facilitate the flow of information (data or control signals) into and
-    out of :class:`HasIO` objects (namely nodes).
+    out of :class:`Node` objects (namely nodes).
 
     They must have an identifier (`label: str`) and belong to an
-    `owner: pyiron_workflow.io.HasIO`.
+    `owner: pyiron_workflow.node.Node`.
 
 
     Channels may form (:meth:`connect`/:meth:`disconnect`) and store
@@ -78,24 +78,24 @@ class Channel(
     The length of a channel is the length of its connections.
 
     Attributes:
-        owner (pyiron_workflow.io.HasIO): The channel's owner.
+        owner (pyiron_workflow.node.Node): The channel's owner.
         connections (list[Channel]): Other channels to which this channel is connected.
     """
 
     def __init__(
         self,
         label: str,
-        owner: HasIO,
+        owner: Node,
     ):
         """
         Make a new channel.
 
         Args:
             label (str): A name for the channel.
-            owner (pyiron_workflow.io.HasIO): The channel's owner.
+            owner (pyiron_workflow.node.Node): The channel's owner.
         """
         self._label = label
-        self.owner: HasIO = owner
+        self.owner: Node = owner
         self.connections: list[ConjugateType] = []
 
     @abstractmethod
@@ -349,7 +349,7 @@ class DataChannel(FlavorChannel["DataChannel"], typing.Generic[ReceiverType], AB
 
     Attributes:
         value: The actual data value held by the channel.
-        owner (pyiron_workflow.io.HasIO): The channel's owner.
+        owner (pyiron_workflow.node.Node): The channel's owner.
         default (typing.Any|None): The default value to initialize to.
             (Default is the singleton `NOT_DATA`.)
         type_hint (typing.Any|None): A type hint for values. (Default is None.)
@@ -365,7 +365,7 @@ class DataChannel(FlavorChannel["DataChannel"], typing.Generic[ReceiverType], AB
     def __init__(
         self,
         label: str,
-        owner: HasIO,
+        owner: Node,
         default: typing.Any | None = NOT_DATA,
         type_hint: typing.Any | None = None,
         strict_hints: bool = True,
@@ -603,7 +603,7 @@ class SignalChannel(FlavorChannel[SignalType], ABC):
 
     Signal channels support `>>` as syntactic sugar for their connections, i.e.
     `some_output >> some_input` is equivalent to `some_input.connect(some_output)`.
-    (This is also interoperable with `HasIO` objects.)
+    (This is also interoperable with `Node` objects.)
     """
 
     @abstractmethod
@@ -620,7 +620,7 @@ class InputSignal(SignalChannel["OutputSignal"], InputChannel["OutputSignal"]):
     def __init__(
         self,
         label: str,
-        owner: HasIO,
+        owner: Node,
         callback: typing.Callable,
     ):
         """
@@ -628,7 +628,7 @@ class InputSignal(SignalChannel["OutputSignal"], InputChannel["OutputSignal"]):
 
         Args:
             label (str): A name for the channel.
-            owner (pyiron_workflow.io.HasIO): The channel's owner.
+            owner (pyiron_workflow.node.Node): The channel's owner.
             callback (callable): An argument-free callback to invoke when calling this
                 object. Must be a method on the owner.
         """
@@ -694,7 +694,7 @@ class AccumulatingInputSignal(InputSignal):
     def __init__(
         self,
         label: str,
-        owner: HasIO,
+        owner: Node,
         callback: typing.Callable,
     ):
         super().__init__(label=label, owner=owner, callback=callback)
@@ -748,7 +748,7 @@ class OutputSignal(SignalChannel["InputSignal"], OutputChannel["InputSignal"]):
             f"{[f'{c.owner.label}.{c.label}' for c in self.connections]}"
         )
 
-    def __rshift__(self, other: InputSignal | HasIO):
+    def __rshift__(self, other: InputSignal | Node):
         other._connect_output_signal(self)
         return other
 
