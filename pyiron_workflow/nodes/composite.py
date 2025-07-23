@@ -63,41 +63,6 @@ class Composite(LexicalParent[Node], HasCreator, Node, ABC):
     A base class for nodes that have internal graph structure -- i.e. they hold a
     collection of child nodes and their computation is to execute that graph.
 
-    Promises (in addition parent class promises):
-
-    - The class offers access...
-        - To the node-izing :mod:`pyiron_workflow` decorators
-        - To a creator for other :mod:`pyiron_workflow` objects (namely nodes)
-            - From the class level, this simply creates these objects
-            - From the instance level, created nodes get the instance as their parent
-    - Child nodes...
-        - Can be added by...
-            - Passing a node instance to the adding method
-            - Setting the composite instance as the node's parent at node instantiation
-            - Assigning a node instance as an attribute
-        - Can be accessed by...
-            - Attribute access using their node label
-            - Attribute or item access in the child nodes collection
-            - Iterating over the composite instance
-        - Can be removed by method
-        - Each have a unique label (within the scope of this composite)
-            - WARNING: _Unless_ you go in and manually change the `.label` of a child!
-        - Have no other parent
-        - Can be replaced in-place with another node that has commensurate IO
-        - Have their working directory nested inside the composite's
-        - Are disallowed from having a label that conflicts with any of the parent's
-            other methods or attributes
-    - The length of a composite instance is its number of child nodes
-    - Running the composite...
-        - Runs the child nodes (either using manually specified execution signals, or
-            leveraging a helper tool that automates this process for data DAGs --
-            details are left to child classes)
-        - Returns a dot-dictionary of output IO
-    - Composite IO is some subset of the child nodes IO
-        - Default channel labels indicate both child and child's channel labels
-        - Default behaviour is to expose all unconnected child nodes' IO
-
-
     Attributes:
         strict_naming (bool): When true, repeated assignment of a new node to an
          existing node label will raise an error, otherwise the label gets appended
@@ -116,14 +81,6 @@ class Composite(LexicalParent[Node], HasCreator, Node, ABC):
          has been manually specified with `run` signals. (Default is an empty list.)
         wrap (Wrappers): A tool for accessing node-creating decorators
 
-    Methods:
-        add_child(node: Node): Add the node instance to this subgraph.
-        remove_child(node: Node): Break all connections the node has, remove_child it from this
-         subgraph, and set its parent to `None`.
-        (de)activate_strict_hints(): Recursively (de)activate strict type hints.
-        replace_child(owned_node: Node | str, replacement: Node | type[Node]): Replaces an
-            owned node with a new node, as long as the new node's IO is commensurate
-            with the node being replaced.
     """
 
     def __init__(
@@ -163,11 +120,13 @@ class Composite(LexicalParent[Node], HasCreator, Node, ABC):
         return Node
 
     def activate_strict_hints(self):
+        """Recursively activate strict type hints."""
         super().activate_strict_hints()
         for node in self:
             node.activate_strict_hints()
 
     def deactivate_strict_hints(self):
+        """Recursively de-activate strict type hints."""
         super().deactivate_strict_hints()
         for node in self:
             node.deactivate_strict_hints()
@@ -334,6 +293,7 @@ class Composite(LexicalParent[Node], HasCreator, Node, ABC):
         label: str | None = None,
         strict_naming: bool | None = None,
     ) -> Node:
+        """Add the node instance to this subgraph."""
         self.clear_cache()  # Reset cache after graph change
         return super().add_child(child, label=label, strict_naming=strict_naming)
 

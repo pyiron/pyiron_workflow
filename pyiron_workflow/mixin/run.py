@@ -117,6 +117,7 @@ class Runnable(UsesState, HasLabel, HasRun, ABC):
 
     @property
     def ready(self) -> bool:
+        """Neither running nor failed"""
         return not (self.running or self.failed)
 
     @property

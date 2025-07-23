@@ -354,14 +354,29 @@ class HasIO(HasStateDisplay, HasLabel, HasRun, Generic[OutputsType], ABC):
 
     @property
     def signals(self) -> Signals:
+        """
+        A container for input and output signals, which are channels for controlling
+        execution flow. By default, has a :attr:`signals.inputs.run` channel which has
+        a callback to the :meth:`run` method that fires whenever _any_ of its
+        connections sends a signal to it, a :attr:`signals.inputs.accumulate_and_run`
+        channel which has a callback to the :meth:`run` method but only fires after
+        _all_ its connections send at least one signal to it, and `signals.outputs.ran`
+        which gets called when the `run` method is finished.
+
+        Additional signal channels in derived classes can be added to
+        :attr:`signals.inputs` and  :attr:`signals.outputs` after this mixin class is
+        initialized.
+        """
         return self._signals
 
     @property
     def connected(self) -> bool:
+        """Whether _any_ of the IO (including signals) are connected."""
         return self.inputs.connected or self.outputs.connected or self.signals.connected
 
     @property
     def fully_connected(self) -> bool:
+        """Whether _all_ of the IO (including signals) are connected."""
         return (
             self.inputs.fully_connected
             and self.outputs.fully_connected

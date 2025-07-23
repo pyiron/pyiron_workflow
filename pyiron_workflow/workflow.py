@@ -66,15 +66,6 @@ class Workflow(Composite):
     (macro) nodes, they break the default behaviour of their parent class and _do_
     attempt to auto-load saved content at instantiation.
 
-    Promises (in addition parent class promises):
-
-    - Workflows are living, their IO always reflects their current state of child nodes
-    - Workflows are parent-most objects, they cannot be a sub-graph of a larger graph
-    - Bijective maps can be used to...
-        - Rename IO
-        - Force a child node's IO to appear
-        - Force a child node's IO to _not_ appear
-
     Attribute:
         inputs/outputs_map (bidict|None): Maps in the form
         `{"node_label__channel_label": "some_better_name"}` that expose canonically

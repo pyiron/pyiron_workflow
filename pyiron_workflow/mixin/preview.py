@@ -96,7 +96,8 @@ class ScrapesIO(HasIOPreview, ABC):
     :attr:`_output_labels`.
 
     Attributes:
-        _output_labels ():
+        _output_labels (tuple[str] | None): The output labels to use. If None, scrapes
+            them from the io-defining function. (Default is None.)
         _validate_output_labels (bool): Whether to
         _io_defining_function_uses_self (bool): Whether the signature of the IO
             defining function starts with self. When true, the first argument in the
