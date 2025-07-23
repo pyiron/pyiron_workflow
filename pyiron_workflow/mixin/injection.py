@@ -19,13 +19,7 @@ if TYPE_CHECKING:
     from pyiron_workflow.node import Node
 
 
-class HasInjectableOutputChannel(HasChannel, abc.ABC):
-    @property
-    @abc.abstractmethod
-    def channel(self) -> OutputDataWithInjection: ...
-
-
-class OutputDataWithInjection(OutputData, HasInjectableOutputChannel):
+class OutputDataWithInjection(OutputData):
     """
     Output data that must have a :class:`pyiron_workflow.node.Node` for its
     :attr:`owner`, and which is able to inject new nodes into that owner's graph, e.g.
@@ -294,7 +288,11 @@ class OutputsWithInjection(GenericOutputs[OutputDataWithInjection]):
         return OutputDataWithInjection
 
 
-class InjectsOnChannel(HasInjectableOutputChannel, abc.ABC):
+class InjectsOnChannel(HasChannel, abc.ABC):
+    @property
+    @abc.abstractmethod
+    def channel(self) -> OutputDataWithInjection: ...
+
     def __getattr__(self, item):
         try:
             return super().__getattr__(item)
