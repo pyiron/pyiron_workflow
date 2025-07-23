@@ -204,7 +204,6 @@ class Node(
         Child node classes can use this for any parameter-free node setup that should
         happen _before_ :meth:`Node._after_node_setup` gets called.
         """
-        pass
 
     def _after_node_setup(
         self,
@@ -623,8 +622,7 @@ class Node(
         return self._on_run(*args, **kwargs)
 
     @abstractmethod
-    def _on_run(self, *args, **kwargs) -> Any:
-        pass
+    def _on_run(self, *args, **kwargs) -> Any: ...
 
     def run(
         self,
