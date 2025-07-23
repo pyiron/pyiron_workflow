@@ -70,97 +70,27 @@ class Node(
     They may optionally add additional signal channels to the signals IO.
 
     Attributes:
-        connected (bool): Whether _any_ of the IO (including signals) are connected.
         failed (bool): Whether the node raised an error calling :meth:`run`. (Default
             is False.)
-        fully_connected (bool): whether _all_ of the IO (including signals) are
-            connected.
         future (concurrent.futures.Future | None): A futures object, if the node is
             currently running or has already run using an executor.
-        import_ready (bool): Whether importing the node's class from its class's module
-            returns the same thing as its type. (Recursive on sub-nodes for composites.)
-        inputs (pyiron_workflow.io.Inputs): **Abstract.** Children must define
-            a property returning an :class:`Inputs` object.
         label (str): A name for the node.
-        outputs (pyiron_workflow.mixin.injection.OutputsWithInjection): **Abstract.**
-            Children must define a property returning an :class:`OutputsWithInjection`
-            object.
         parent (pyiron_workflow.composite.Composite | None): The parent object
             owning this, if any.
-        ready (bool): Whether the inputs are all ready and the node is neither
-            already running nor already failed.
-        graph_path (str): The file-path-like path of node labels from the parent-most
-            node down to this node.
-        graph_root (Node): The parent-most node in this graph.
         recovery: (BackendIdentifier | StorageInterface | None): The storage
             backend to use for saving a "recovery" file if the node execution crashes
             and this is the parent-most node. Default is `"pickle"`, setting `None`
             will prevent any file from being saved.
-        run_args (dict): **Abstract** the argmuments to use for actually running the
-            node. Must be specified in child classes.
         running (bool): Whether the node has called :meth:`run` and has not yet
             received output from this call. (Default is False.)
         checkpoint (BackendIdentifier | StorageInterface | None): Whether to trigger a
             save of the entire graph after each run of the node, and if so what storage
             back end to use. (Default is None, don't do any checkpoint saving.)
-        autoload (BackendIdentifier | StorageInterface | None): Whether to check
-            for a matching saved node and what storage back end to use to do so (no
-            auto-loading if the back end is `None`.)
-        signals (pyiron_workflow.io.Signals): A container for input and output
-            signals, which are channels for controlling execution flow. By default, has
-            a :attr:`signals.inputs.run` channel which has a callback to the
-            :meth:`run` method that fires whenever _any_ of its connections sends a
-            signal to it, a :attr:`signals.inputs.accumulate_and_run` channel which has
-            a callback to the :meth:`run` method but only fires after _all_ its
-            connections send at least one signal to it, and `signals.outputs.ran`
-            which gets called when the `run` method is finished.
-            Additional signal channels in derived classes can be added to
-            :attr:`signals.inputs` and  :attr:`signals.outputs` after this mixin class
-            is initialized.
         use_cache (bool): Whether or not to cache the inputs and, when the current
             inputs match the cached input (by `==` comparison), to bypass running the
             node and simply continue using the existing outputs. Note that you may be
             able to trigger a false cache hit in some special case of non-idempotent
             nodes working on mutable data.
-
-    Methods:
-        __call__: An alias for :meth:`pull` that aggressively runs upstream nodes even
-            _outside_ the local scope (i.e. runs parents' dependencies as well).
-        (de)activate_strict_hints: Recursively (de)activate strict hints among data IO.
-        disconnect: Remove all connections, including signals.
-        draw: Use graphviz to visualize the node, its IO and, if composite in nature,
-            its internal structure.
-        execute: An alias for :meth:`run`, but with flags to run right here, right now,
-            and with the input it currently has.
-        _on_run: **Abstract.** Do the thing. What thing must be specified by child
-            classes.
-        pull: An alias for :meth:`run` that runs everything upstream, then runs this
-            node (but doesn't fire off the `ran` signal, so nothing happens farther
-            downstream). "Upstream" may optionally break out of the local scope to run
-            parent nodes' dependencies as well (all the way until the parent-most
-            object is encountered).
-        replace_with: If the node belongs to a parent, attempts to replace itself in
-            that parent with a new provided node.
-        run: Run the node function from :meth:`_on_run`. Handles status automatically.
-            Various execution options are available as boolean flags.
-        set_input_values: Allows input channels' values to be updated without any
-            running.
-
-    Note:
-        :meth:`__init__` ends with a routine :meth:`_after_node_setup` that may,
-        depending on instantiation arguments, try to actually execute the node. Since
-        child classes may need to get things done before this point, we want to make
-        sure that this happens _after_ all the other setup. This can be accomplished
-        by children (a) sticking stuff that is independent of `super().__init__` calls
-        before the super call, and (b) overriding :meth:`_setup_node(self)` to do any
-        remaining, parameter-free setup. This latter function gets called prior to any
-        execution.
-
-        Initialization will also try to parse any outstanding `args` and `kwargs` as
-        input to the node's input channels. For node class developers, that means it's
-        also important that `Node` parentage appear to the right-most of the
-        inheritance set in the class definition, so that it's invokation of `__init__`
-        appears as late as possible with the minimal set of args and kwargs.
     """
 
     use_cache = True
@@ -179,6 +109,21 @@ class Node(
         """
         A parent class for objects that can form nodes in the graph representation of a
         computational workflow.
+
+        Initialization ends with a routine :meth:`_after_node_setup` that may,
+        depending on instantiation arguments, try to actually execute the node. Since
+        child classes may need to get things done before this point, we want to make
+        sure that this happens _after_ all the other setup. This can be accomplished
+        by children (a) sticking stuff that is independent of `super().__init__` calls
+        before the super call, and (b) overriding :meth:`_setup_node(self)` to do any
+        remaining, parameter-free setup. This latter function gets called prior to any
+        execution.
+
+        Initialization will also try to parse any outstanding `args` and `kwargs` as
+        input to the node's input channels. For node class developers, that means it's
+        also important that `Node` parentage appear to the right-most of the
+        inheritance set in the class definition, so that it's invokation of `__init__`
+        appears as late as possible with the minimal set of args and kwargs.
 
         Args:
             label (str): A name for this node.
@@ -704,6 +649,10 @@ class Node(
 
     @property
     def ready(self) -> bool:
+        """
+        Whether the inputs are all ready and the node is neither already running nor
+        already failed.
+        """
         return super().ready and self.inputs.ready
 
     @property
@@ -726,9 +675,9 @@ class Node(
         """
         Draw the node structure and return it as a graphviz object.
 
-        A selection of the :func:`graphviz.Graph.render` method options are exposed, and if
-        :param:`view` or :param:`filename` is provided, this will be called before returning the
-        graph.
+        A selection of the :func:`graphviz.Graph.render` method options are exposed,
+        and if :param:`view` or :param:`filename` is provided, this will be called
+        before returning the graph.
         The graph file and rendered image will be stored in a directory based of the
         node's lexical path, unless a :param:`directory` is explicitly set.
         This is purely for convenience -- since we directly return a graphviz object

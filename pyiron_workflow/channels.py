@@ -78,7 +78,6 @@ class Channel(
     The length of a channel is the length of its connections.
 
     Attributes:
-        label (str): The name of the channel.
         owner (pyiron_workflow.io.HasIO): The channel's owner.
         connections (list[Channel]): Other channels to which this channel is connected.
     """
@@ -350,7 +349,6 @@ class DataChannel(FlavorChannel["DataChannel"], typing.Generic[ReceiverType], AB
 
     Attributes:
         value: The actual data value held by the channel.
-        label (str): The label for the channel.
         owner (pyiron_workflow.io.HasIO): The channel's owner.
         default (typing.Any|None): The default value to initialize to.
             (Default is the singleton `NOT_DATA`.)

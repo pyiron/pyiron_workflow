@@ -81,14 +81,6 @@ class Composite(LexicalParent[Node], HasCreator, Node, ABC):
          has been manually specified with `run` signals. (Default is an empty list.)
         wrap (Wrappers): A tool for accessing node-creating decorators
 
-    Methods:
-        add_child(node: Node): Add the node instance to this subgraph.
-        remove_child(node: Node): Break all connections the node has, remove_child it from this
-         subgraph, and set its parent to `None`.
-        (de)activate_strict_hints(): Recursively (de)activate strict type hints.
-        replace_child(owned_node: Node | str, replacement: Node | type[Node]): Replaces an
-            owned node with a new node, as long as the new node's IO is commensurate
-            with the node being replaced.
     """
 
     def __init__(
@@ -128,11 +120,13 @@ class Composite(LexicalParent[Node], HasCreator, Node, ABC):
         return Node
 
     def activate_strict_hints(self):
+        """Recursively activate strict type hints."""
         super().activate_strict_hints()
         for node in self:
             node.activate_strict_hints()
 
     def deactivate_strict_hints(self):
+        """Recursively de-activate strict type hints."""
         super().deactivate_strict_hints()
         for node in self:
             node.deactivate_strict_hints()
@@ -299,6 +293,7 @@ class Composite(LexicalParent[Node], HasCreator, Node, ABC):
         label: str | None = None,
         strict_naming: bool | None = None,
     ) -> Node:
+        """Add the node instance to this subgraph."""
         self.clear_cache()  # Reset cache after graph change
         return super().add_child(child, label=label, strict_naming=strict_naming)
 
