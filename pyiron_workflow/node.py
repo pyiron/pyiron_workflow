@@ -24,12 +24,12 @@ from pyiron_workflow.executors.wrapped_executorlib import CacheOverride
 from pyiron_workflow.io import HasIO
 from pyiron_workflow.logging import logger
 from pyiron_workflow.mixin.injection import (
+    InjectsOnChannel,
     OutputDataWithInjection,
     OutputsWithInjection,
 )
 from pyiron_workflow.mixin.lexical import Lexical
 from pyiron_workflow.mixin.run import ReadinessError, Runnable
-from pyiron_workflow.mixin.single_output import InjectsOnChannel
 from pyiron_workflow.storage import (
     BackendIdentifier,
     StorageInterface,
