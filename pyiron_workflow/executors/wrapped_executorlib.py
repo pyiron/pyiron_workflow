@@ -77,3 +77,35 @@ class NodeSlurmExecutor(CacheOverride, SlurmClusterExecutor): ...
 
 
 class _CacheTestClusterExecutor(CacheOverride, TestClusterExecutor): ...
+
+
+extra_info = """
+This is a wrapper around executorlib's executors that is designed to only work with 
+the submission of :mod:`pyiron_workflow` node calculations, and manipulates the 
+:mod:`executorlib` caching information to exploit the lexical path of the node.
+"""
+
+
+def wrapped_executorlib_class(wrapped_class: type[BaseExecutor]):
+    base_doc = wrapped_class.__doc__ or ""
+    return type(
+        "Wrapped" + wrapped_class.__name__,
+        (
+            CacheOverride,
+            wrapped_class,
+        ),
+        {
+            "__doc__": base_doc + extra_info,
+            "__module__": wrapped_class.__module__,
+        },
+    )
+
+
+def wrapped_executorlib(
+    wrapped_class: type[BaseExecutor],
+    *,
+    resource_dict: dict[str, Any] | None = None,
+    **kwargs,
+):
+    kwargs.update({"resource_dict": resource_dict})
+    return wrapped_executorlib_class(wrapped_class)(**kwargs)
