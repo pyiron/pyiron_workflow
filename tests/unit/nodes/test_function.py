@@ -5,8 +5,13 @@ from pathlib import Path
 import numpy as np
 
 from pyiron_workflow.channels import NOT_DATA
-from pyiron_workflow.io import ConnectionCopyError, ValueCopyError
-from pyiron_workflow.node import Node as NonBuiltinTypeHint
+from pyiron_workflow.node import (
+    ConnectionCopyError,
+    ValueCopyError,
+)
+from pyiron_workflow.node import (
+    Node as NonBuiltinTypeHint,
+)
 from pyiron_workflow.nodes.function import (
     Function,
     as_function_node,

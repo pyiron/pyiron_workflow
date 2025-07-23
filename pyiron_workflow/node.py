@@ -18,11 +18,20 @@ from typing import TYPE_CHECKING, Any, Literal, cast
 from pyiron_snippets.colors import SeabornColors
 from pyiron_snippets.dotdict import DotDict
 
-from pyiron_workflow.channels import InputLockedError
+from pyiron_workflow.channels import (
+    NOT_DATA,
+    AccumulatingInputSignal,
+    Channel,
+    DataChannel,
+    InputLockedError,
+    InputSignal,
+    OutputSignal,
+)
 from pyiron_workflow.draw import Node as GraphvizNode
 from pyiron_workflow.executors.wrapped_executorlib import CacheOverride
-from pyiron_workflow.io import HasIO
+from pyiron_workflow.io import IO, DataIO, Inputs, Signals
 from pyiron_workflow.logging import logger
+from pyiron_workflow.mixin.display_state import HasStateDisplay
 from pyiron_workflow.mixin.injection import (
     InjectsOnChannel,
     OutputDataWithInjection,
@@ -45,7 +54,6 @@ if TYPE_CHECKING:
 
     import graphviz
 
-    from pyiron_workflow.channels import OutputSignal
     from pyiron_workflow.nodes.composite import Composite
 
 
@@ -56,9 +64,17 @@ class AmbiguousOutputError(ValueError):
     """Raised when searching for exactly one output, but multiple are found."""
 
 
+class ConnectionCopyError(ValueError):
+    """Raised when trying to copy IO, but connections cannot be copied"""
+
+
+class ValueCopyError(ValueError):
+    """Raised when trying to copy IO, but values cannot be copied"""
+
+
 class Node(
+    HasStateDisplay,
     Lexical["Composite"],
-    HasIO[OutputsWithInjection],
     Runnable,
     InjectsOnChannel,
     ABC,
@@ -153,6 +169,15 @@ class Node(
                 channel labels.
         """
         super().__init__(label=label, parent=parent)
+
+        self._signals = Signals()
+        self._signals.input.run = InputSignal("run", self, self.run)
+        self._signals.input.accumulate_and_run = AccumulatingInputSignal(
+            "accumulate_and_run", self, self.run
+        )
+        self._signals.output.ran = OutputSignal("ran", self)
+        self._signals.output.failed = OutputSignal("failed", self)
+
         self.checkpoint = checkpoint
         self.recovery: BackendIdentifier | StorageInterface | None = "pickle"
         self._remove_executorlib_cache: bool = True  # Power-user override for cleaning
@@ -247,6 +272,310 @@ class Node(
     def graph_root(self) -> Node:
         """The parent-most node in this lexical path."""
         return self.parent.graph_root if isinstance(self.parent, Node) else self
+
+    @property
+    @abstractmethod
+    def inputs(self) -> Inputs: ...
+
+    @property
+    @abstractmethod
+    def outputs(self) -> OutputsWithInjection: ...
+
+    @property
+    def signals(self) -> Signals:
+        """
+        A container for input and output signals, which are channels for controlling
+        execution flow. By default, has a :attr:`signals.inputs.run` channel which has
+        a callback to the :meth:`run` method that fires whenever _any_ of its
+        connections sends a signal to it, a :attr:`signals.inputs.accumulate_and_run`
+        channel which has a callback to the :meth:`run` method but only fires after
+        _all_ its connections send at least one signal to it, and `signals.outputs.ran`
+        which gets called when the `run` method is finished.
+
+        Additional signal channels in derived classes can be added to
+        :attr:`signals.inputs` and  :attr:`signals.outputs` after this mixin class is
+        initialized.
+        """
+        return self._signals
+
+    @property
+    def connected(self) -> bool:
+        """Whether _any_ of the IO (including signals) are connected."""
+        return self.inputs.connected or self.outputs.connected or self.signals.connected
+
+    @property
+    def fully_connected(self) -> bool:
+        """Whether _all_ of the IO (including signals) are connected."""
+        return (
+            self.inputs.fully_connected
+            and self.outputs.fully_connected
+            and self.signals.fully_connected
+        )
+
+    def disconnect(self) -> list[tuple[Channel, Channel]]:
+        """
+        Disconnect all connections belonging to inputs, outputs, and signals channels.
+
+        Returns:
+            [list[tuple[Channel, Channel]]]: A list of the pairs of channels that no
+                longer participate in a connection.
+        """
+        destroyed_connections = []
+        destroyed_connections.extend(self.inputs.disconnect())
+        destroyed_connections.extend(self.outputs.disconnect())
+        destroyed_connections.extend(self.signals.disconnect())
+        return destroyed_connections
+
+    def activate_strict_hints(self) -> None:
+        """Enable type hint checks for all data IO"""
+        self.inputs.activate_strict_hints()
+        self.outputs.activate_strict_hints()
+
+    def deactivate_strict_hints(self) -> None:
+        """Disable type hint checks for all data IO"""
+        self.inputs.deactivate_strict_hints()
+        self.outputs.deactivate_strict_hints()
+
+    def _connect_output_signal(self, signal: OutputSignal) -> None:
+        self.signals.input.run.connect(signal)
+
+    def __rshift__(self, other: InputSignal | Node) -> InputSignal | Node:
+        """
+        Allows users to connect run and ran signals like: `first >> second`.
+        """
+        other._connect_output_signal(self.signals.output.ran)
+        return other
+
+    def _connect_accumulating_input_signal(
+        self, signal: AccumulatingInputSignal
+    ) -> None:
+        self.signals.output.ran.connect(signal)
+
+    def __lshift__(self, others: tuple[OutputSignal | Node, ...]):
+        """
+        Connect one or more `ran` signals to `accumulate_and_run` signals like:
+        `this << some_object, another_object, or_by_channel.signals.output.ran`
+        """
+        self.signals.input.accumulate_and_run << others
+
+    def _get_complete_input(self, *args, **kwargs) -> dict[str, Any]:
+        if len(args) > len(self.inputs.labels):
+            raise ValueError(
+                f"Received {len(args)} args, but only have {len(self.inputs.labels)} "
+                f"input channels available"
+            )
+        keyed_args = dict(zip(self.inputs.labels, args, strict=False))
+
+        if len(set(keyed_args.keys()).intersection(kwargs.keys())) > 0:
+            raise ValueError(
+                f"n args are interpreted using the first n input channels "
+                f"({self.inputs.labels}), but this conflicted with received kwargs "
+                f"({list(kwargs.keys())}) -- perhaps the input was ordered differently "
+                f"than expected? Got args {args} and kwargs {kwargs}."
+            )
+
+        kwargs.update(keyed_args)
+
+        self._ensure_all_input_keys_present(kwargs.keys(), self.inputs.labels)
+
+        return kwargs
+
+    def set_input_values(self, *args, **kwargs) -> None:
+        """
+        Match keywords to input channels and update their values.
+
+        Throws a warning if a keyword is provided that cannot be found among the input
+        keys.
+
+        Args:
+            *args: values assigned to inputs in order of appearance.
+            **kwargs: input key - input value (including channels for connection) pairs.
+
+        Raises:
+            (ValueError): If more args are received than there are inputs available.
+            (ValueError): If there is any overlap between channels receiving values
+                from `args` and those from `kwargs`.
+            (ValueError): If any of the `kwargs` keys do not match available input
+                labels.
+        """
+        for k, v in self._get_complete_input(*args, **kwargs).items():
+            self.inputs[k] = v
+
+    @staticmethod
+    def _ensure_all_input_keys_present(used_keys, available_keys):
+        diff = set(used_keys).difference(available_keys)
+        if len(diff) > 0:
+            raise ValueError(
+                f"{diff} not found among available inputs: {available_keys}"
+            )
+
+    def move_io(
+        self,
+        other: Node,
+        connections_fail_hard: bool = True,
+        values_fail_hard: bool = False,
+    ) -> None:
+        """
+        Moves connections and copies values from another object's IO onto this object's
+        IO.
+        Other channels with no connections are ignored for copying connections, and all
+        data channels without data are ignored for copying data.
+        Otherwise, default behaviour is to throw an exception if any of the other
+        object's connections fail to move, but failed value copies are simply ignored
+        (e.g. because this object does not have a channel with a commensurate label or
+        the value breaks a type hint).
+        This error throwing/passing behaviour can be controlled with boolean flags.
+
+        In the case that an exception is thrown, all moved connections are reverted
+        and any new values are reverted to their old state before the exception is
+        raised.
+
+        Args:
+            other (Node): The other object whose IO to copy.
+            connections_fail_hard: Whether to raise exceptions encountered when copying
+                connections. (Default is True.)
+            values_fail_hard (bool): Whether to raise exceptions encountered when
+                copying values. (Default is False.)
+        """
+        new_connections = self.move_connections(other, fail_hard=connections_fail_hard)
+        try:
+            self._copy_values(other, fail_hard=values_fail_hard)
+        except Exception as e:
+            for owned, conjugate in new_connections:
+                owned.disconnect(conjugate)
+            raise e
+
+    def move_connections(
+        self,
+        other: Node,
+        fail_hard: bool = True,
+    ) -> list[tuple[Channel, Channel]]:
+        """
+        Moves all the connections on another object to this one.
+        Expects all connected channels on the other object to have a counterpart on
+        this object -- i.e. the same label, type, and (for data) a type hint compatible
+        with all the existing connections being copied.
+        This requirement can be optionally relaxed such that any failures encountered
+        when attempting to make a connection (i.e. this object has no channel with a
+        corresponding label as the other object, or the new connection fails its
+        validity check), such that we simply continue past these errors and make as
+        many connections as we can while ignoring errors.
+
+        This object may freely have additional channels not present in the other object.
+        The other object may have additional channels not present here as long as they
+        are not connected.
+
+        If an exception is going to be raised, any connections move so far are
+        disconnected and reconnected on their source first.
+
+        Args:
+            other (Node): the object whose connections should be copied.
+            fail_hard (bool): Whether to raise an error an exception is encountered
+                when trying to reproduce a connection. (Default is True; revert new
+                connections then raise the exception.)
+
+        Returns:
+            list[tuple[Channel, Channel]]: A list of all the newly created connection
+                pairs (for reverting changes).
+        """
+        new_connections = []
+        old_connections = []
+        for my_panel, other_panel in zip(
+            self._owned_io_panels, other._owned_io_panels, strict=False
+        ):
+            for key, channel in other_panel.items():
+                for target in channel.connections:
+                    try:
+                        old_connections.append((channel, target))
+                        channel.disconnect(target)
+                        my_panel[key].connect(target)
+                        new_connections.append((my_panel[key], target))
+                    except Exception as e:
+                        if fail_hard:
+                            # If you run into trouble, unwind what you've done
+                            for this, that in new_connections:
+                                this.disconnect(that)
+                            for old, partner in old_connections:
+                                old.connect(partner)
+                            raise ConnectionCopyError(
+                                f"{self.label} could not copy connections from "
+                                f"{other.label} due to the channel {key} on "
+                                f"{other_panel.__class__.__name__}"
+                            ) from e
+                        else:
+                            continue
+        return new_connections
+
+    def _copy_values(
+        self,
+        other: Node,
+        fail_hard: bool = False,
+    ) -> list[tuple[DataChannel, Any]]:
+        """
+        Copies all data from input and output channels in the other object onto this
+        one.
+        Ignores other channels that hold non-data.
+        Failures to find a corresponding channel on this object (matching label, type,
+        and compatible type hint) are ignored by default, but can optionally be made to
+        raise an exception.
+
+        If an exception is going to be raised, any values updated so far are
+        reverted first.
+
+        Args:
+            other (Node): the object whose data values should be copied.
+            fail_hard (bool): Whether to raise an error an exception is encountered
+                when trying to duplicate a value. (Default is False, just keep going
+                past other's channels with no compatible label here and past values
+                that don't match type hints here.)
+
+        Returns:
+            list[tuple[Channel, Any]]: A list of tuples giving channels whose value has
+                been updated and what it used to be (for reverting changes).
+        """
+        # Leverage a separate function because mypy has trouble parsing types
+        # if we loop over inputs and outputs at the same time
+        return self._copy_panel(
+            other, self.inputs, other.inputs, fail_hard=fail_hard
+        ) + self._copy_panel(other, self.outputs, other.outputs, fail_hard=fail_hard)
+
+    def _copy_panel(
+        self,
+        other: Node,
+        my_panel: DataIO,
+        other_panel: DataIO,
+        fail_hard: bool = False,
+    ) -> list[tuple[DataChannel, Any]]:
+        old_values = []
+        for key, to_copy in other_panel.items():
+            if to_copy.value is not NOT_DATA:
+                try:
+                    old_value = my_panel[key].value
+                    my_panel[key].value = to_copy.value  # Gets hint-checked
+                    old_values.append((my_panel[key], old_value))
+                except Exception as e:
+                    if fail_hard:
+                        # If you run into trouble, unwind what you've done
+                        for channel, value in old_values:
+                            channel.value = value
+                        raise ValueCopyError(
+                            f"{self.label} could not copy values from "
+                            f"{other.label} due to the channel {key} on "
+                            f"{other_panel.__class__.__name__}, which holds value "
+                            f"{to_copy.value}"
+                        ) from e
+                    else:
+                        continue
+        return old_values
+
+    @property
+    def _owned_io_panels(self) -> list[IO]:
+        return [
+            self.inputs,
+            self.outputs,
+            self.signals.input,
+            self.signals.output,
+        ]
 
     def data_input_locked(self):
         return self.running
