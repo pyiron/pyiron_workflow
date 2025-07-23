@@ -5,8 +5,7 @@ Transformer nodes convert many inputs into a single output, or vice-versa.
 from __future__ import annotations
 
 import itertools
-from abc import ABC, abstractmethod
-from collections.abc import Callable
+from abc import ABC
 from dataclasses import MISSING
 from dataclasses import dataclass as as_dataclass
 from typing import Any, ClassVar
@@ -15,6 +14,7 @@ from pandas import DataFrame
 from pyiron_snippets.colors import SeabornColors
 from pyiron_snippets.factory import classfactory
 
+from pyiron_workflow import identifier
 from pyiron_workflow.channels import NOT_DATA, NotData
 from pyiron_workflow.nodes.static_io import StaticNode
 
@@ -31,95 +31,63 @@ class Transformer(StaticNode, ABC):
         return SeabornColors.blue
 
 
-class FromManyInputs(Transformer, ABC):
-    _output_name: ClassVar[str]  # Mandatory attribute for non-abstract subclasses
-    _output_type_hint: ClassVar[Any] = None
+class InputsToList(Transformer, ABC):
+    _length: ClassVar[int]  # Mandatory attribute for non-abstract subclasses
+    _content_type_hint: ClassVar[object]
+    _output_name: ClassVar[str] = "list"
 
-    # _build_inputs_preview required from parent class
-    # Inputs convert to `run_args` as a value dictionary
-    # This must be commensurate with the internal expectations of _on_run
+    @classmethod
+    def _build_outputs_preview(cls) -> dict[str, Any]:
+        return {
+            cls._output_name: (
+                list
+                if cls._content_type_hint is None
+                else list[cls._content_type_hint]  # type: ignore[name-defined]
+            )
+        }
+
+    @classmethod
+    def _build_inputs_preview(cls) -> dict[str, tuple[Any, Any]]:
+        return {
+            f"item_{i}": (cls._content_type_hint, NOT_DATA) for i in range(cls._length)
+        }
 
     @property
     def run_args(self) -> tuple[tuple, dict]:
         return (), self.inputs.to_value_dict()
 
-    @classmethod
-    def _build_outputs_preview(cls) -> dict[str, Any]:
-        return {cls._output_name: cls._output_type_hint}
+    def _on_run(self, **inputs_to_value_dict):
+        return list(inputs_to_value_dict.values())
 
     def process_run_result(self, run_output: Any | tuple) -> Any | tuple:
         self.outputs[self._output_name].value = run_output
         return run_output
 
 
-class ToManyOutputs(Transformer, ABC):
-    _input_name: ClassVar[str]  # Mandatory attribute for non-abstract subclasses
-    _input_type_hint: ClassVar[Any] = None
-    _input_default: ClassVar[Any | NotData] = NOT_DATA
-
-    # _build_outputs_preview still required from parent class
-    # Must be commensurate with the dictionary returned by transform_to_output
-
-    @abstractmethod
-    def _on_run(self, input_object) -> Callable[..., Any | tuple]:
-        """Must take the single object to be transformed"""
-
-    @property
-    def run_args(self) -> tuple[tuple, dict]:
-        return (self.inputs[self._input_name].value,), {}
-
-    @classmethod
-    def _build_inputs_preview(cls) -> dict[str, tuple[Any, Any]]:
-        return {cls._input_name: (cls._input_type_hint, cls._input_default)}
-
-    def process_run_result(self, run_output: dict[str, Any]) -> dict[str, Any]:
-        for k, v in run_output.items():
-            self.outputs[k].value = v
-        return run_output
-
-
-class _HasLength(Transformer, ABC):
-    _length: ClassVar[int]  # Mandatory attribute for non-abstract subclasses
-
-
-class InputsToList(_HasLength, FromManyInputs, ABC):
-    _output_name: ClassVar[str] = "list"
-    _output_type_hint: ClassVar[Any] = list
-
-    def _on_run(self, **inputs_to_value_dict):
-        return list(inputs_to_value_dict.values())
-
-    @classmethod
-    def _build_inputs_preview(cls) -> dict[str, tuple[Any, Any]]:
-        return {f"item_{i}": (None, NOT_DATA) for i in range(cls._length)}
-
-
-class ListToOutputs(_HasLength, ToManyOutputs, ABC):
-    _input_name: ClassVar[str] = "list"
-    _input_type_hint: ClassVar[Any] = list
-
-    def _on_run(self, input_object: list):
-        return {f"item_{i}": v for i, v in enumerate(input_object)}
-
-    @classmethod
-    def _build_outputs_preview(cls) -> dict[str, Any]:
-        return {f"item_{i}": None for i in range(cls._length)}
-
-
 @classfactory
-def inputs_to_list_factory(n: int, use_cache: bool = True, /) -> type[InputsToList]:
+def inputs_to_list_factory(
+    n: int, class_name: str, use_cache: bool = True, content_type_hint: object = None, /
+) -> type[InputsToList]:
     return (  # type: ignore[return-value]
-        f"{InputsToList.__name__}{n}",
+        class_name,
         (InputsToList,),
         {
             "_length": n,
+            "_content_type_hint": content_type_hint,
             "use_cache": use_cache,
         },
         {},
     )
 
 
-def inputs_to_list(n: int, /, *node_args, use_cache: bool = True, **node_kwargs):
+def inputs_to_list(
+    n: int,
+    /,
+    *node_args,
+    use_cache: bool = True,
+    content_type_hint: object = NOT_DATA,
+    **node_kwargs,
+):
     """
     Creates and returns an instance of a dynamically generated :class:`InputsToList`
         subclass with a specified number of inputs.
@@ -128,6 +96,9 @@ def inputs_to_list(n: int, /, *node_args, use_cache: bool = True, **node_kwargs)
         n (int): Number of input channels.
         use_cache (bool): Whether this node should default to caching its values.
             (Default is True.)
+        content_type_hint (object): Type hint for the content of the list. Applies to
+            all input channels and the content type of the returned list. (Default is
+            NOT_DATA, which will leave the content type of the list unspecified.)
         *node_args: Positional arguments for the node instance.
         **node_kwargs: Keyword arguments for the node instance.
 
@@ -135,18 +106,73 @@ def inputs_to_list(n: int, /, *node_args, use_cache: bool = True, **node_kwargs)
         InputsToList: An instance of the dynamically created :class:`InputsToList`
             subclass.
     """
-    cls = inputs_to_list_factory(n, use_cache)
+    hint_identifier = (
+        ""
+        if content_type_hint is NOT_DATA
+        else identifier.to_identifier(str(content_type_hint))
+    )
+    class_name = f"{InputsToList.__name__}{n}{hint_identifier}"
+    inputs_to_list_factory.clear(class_name)
+    cls = inputs_to_list_factory(
+        n, class_name, use_cache, _parse_type_hint(content_type_hint)
+    )
     cls.preview_io()
     return cls(*node_args, **node_kwargs)
 
 
+def _parse_type_hint(type_hint: object) -> object:
+    if type_hint is NOT_DATA:
+        return None
+    elif type_hint is None:
+        return type(None)
+    return type_hint
+
+
+class ListToOutputs(Transformer, ABC):
+    _length: ClassVar[int]  # Mandatory attribute for non-abstract subclasses
+    _content_type_hint: ClassVar[object]
+    _input_name: ClassVar[str] = "list"
+
+    @classmethod
+    def _build_outputs_preview(cls) -> dict[str, Any]:
+        return {f"item_{i}": cls._content_type_hint for i in range(cls._length)}
+
+    @classmethod
+    def _build_inputs_preview(cls) -> dict[str, tuple[Any, Any]]:
+        return {
+            cls._input_name: (
+                (
+                    list
+                    if cls._content_type_hint is None
+                    else list[cls._content_type_hint]  # type: ignore[name-defined]
+                ),
+                NOT_DATA,
+            )
+        }
+
+    @property
+    def run_args(self) -> tuple[tuple, dict]:
+        return (self.inputs[self._input_name].value,), {}
+
+    def _on_run(self, input_object: list):
+        return {f"item_{i}": v for i, v in enumerate(input_object)}
+
+    def process_run_result(self, run_output: dict[str, Any]) -> dict[str, Any]:
+        for k, v in run_output.items():
+            self.outputs[k].value = v
+        return run_output
+
+
 @classfactory
-def list_to_outputs_factory(n: int, use_cache: bool = True, /) -> type[ListToOutputs]:
+def list_to_outputs_factory(
+    n: int, class_name: str, use_cache: bool = True, content_type_hint: object = None, /
+) -> type[ListToOutputs]:
     return (  # type: ignore[return-value]
-        f"{ListToOutputs.__name__}{n}",
+        class_name,
         (ListToOutputs,),
         {
             "_length": n,
+            "_content_type_hint": content_type_hint,
             "use_cache": use_cache,
         },
         {},
@@ -154,7 +180,12 @@ def list_to_outputs_factory(n: int, use_cache: bool = True, /) -> type[ListToOut
 
 
 def list_to_outputs(
-    n: int, /, *node_args, use_cache: bool = True, **node_kwargs
+    n: int,
+    /,
+    *node_args,
+    use_cache: bool = True,
+    content_type_hint: object = NOT_DATA,
+    **node_kwargs,
 ) -> ListToOutputs:
     """
     Creates and returns an instance of a dynamically generated :class:`ListToOutputs`
@@ -164,6 +195,9 @@ def list_to_outputs(
         n (int): Number of output channels.
         use_cache (bool): Whether this node should default to caching its values.
             (Default is True.)
+        content_type_hint (object): Type hint for the content of the list. Applies to
+            all output channels and the content type of the provided list. (Default is
+            NOT_DATA, which will leave the content type of the list unspecified.)
         *node_args: Positional arguments for the node instance.
         **node_kwargs: Keyword arguments for the node instance.
 
@@ -171,21 +205,25 @@ def list_to_outputs(
         ListToOutputs: An instance of the dynamically created :class:`ListToOutputs`
             subclass.
     """
-
-    cls = list_to_outputs_factory(n, use_cache)
+    hint_identifier = (
+        ""
+        if content_type_hint is NOT_DATA
+        else identifier.to_identifier(str(content_type_hint))
+    )
+    class_name = f"{ListToOutputs.__name__}{n}{hint_identifier}"
+    list_to_outputs_factory.clear(class_name)
+    cls = list_to_outputs_factory(
+        n, class_name, use_cache, _parse_type_hint(content_type_hint)
+    )
     cls.preview_io()
     return cls(*node_args, **node_kwargs)
 
 
-class InputsToDict(FromManyInputs, ABC):
+class InputsToDict(Transformer, ABC):
     _output_name: ClassVar[str] = "dict"
-    _output_type_hint: ClassVar[Any] = dict
     _input_specification: ClassVar[
         list[str] | dict[str, tuple[Any | None, Any | NotData]]
     ]
-
-    def _on_run(self, **inputs_to_value_dict):
-        return inputs_to_value_dict
 
     @classmethod
     def _build_inputs_preview(cls) -> dict[str, tuple[Any | None, Any | NotData]]:
@@ -193,6 +231,26 @@ class InputsToDict(FromManyInputs, ABC):
             return dict.fromkeys(cls._input_specification, (None, NOT_DATA))
         else:
             return cls._input_specification
+
+    @classmethod
+    def _build_outputs_preview(cls) -> dict[str, Any]:
+        if isinstance(cls._input_specification, list):
+            type_hint = dict[str, Any]
+        else:
+            first_type = next(iter(cls._input_specification.values()))[0] or Any
+            type_hint = dict[str, first_type]  # type: ignore[misc, valid-type]
+        return {cls._output_name: type_hint}
+
+    @property
+    def run_args(self) -> tuple[tuple, dict]:
+        return (), self.inputs.to_value_dict()
+
+    def _on_run(self, **inputs_to_value_dict):
+        return inputs_to_value_dict
+
+    def process_run_result(self, run_output: Any | tuple) -> Any | tuple:
+        self.outputs[self._output_name].value = run_output
+        return run_output
 
     @staticmethod
     def hash_specification(
@@ -275,16 +333,28 @@ def inputs_to_dict(
     return cls(*node_args, **node_kwargs)
 
 
-class InputsToDataframe(_HasLength, FromManyInputs, ABC):
+class InputsToDataframe(Transformer, ABC):
     """
     Turns inputs of dictionaries (all with the same keys) into a single
     :class:`pandas.DataFrame`.
     """
 
+    _length: ClassVar[int]  # Mandatory attribute for non-abstract subclasses
     _output_name: ClassVar[str] = "df"
-    _output_type_hint: ClassVar[Any] = DataFrame
 
-    def _on_run(self, *rows: dict[str, Any]) -> Any:
+    @classmethod
+    def _build_inputs_preview(cls) -> dict[str, tuple[Any, Any]]:
+        return {f"row_{i}": (dict, NOT_DATA) for i in range(cls._length)}
+
+    @classmethod
+    def _build_outputs_preview(cls) -> dict[str, Any]:
+        return {cls._output_name: DataFrame}
+
+    @property
+    def run_args(self) -> tuple[tuple, dict]:
+        return tuple(self.inputs.to_value_dict().values()), {}
+
+    def _on_run(self, *rows: dict[str, Any]) -> DataFrame:
         df_dict = {}
         for i, row in enumerate(rows):
             for key, value in row.items():
@@ -294,13 +364,9 @@ class InputsToDataframe(_HasLength, FromManyInputs, ABC):
                     df_dict[key].append(value)
         return DataFrame(df_dict)
 
-    @property
-    def run_args(self) -> tuple[tuple, dict]:
-        return tuple(self.inputs.to_value_dict().values()), {}
-
-    @classmethod
-    def _build_inputs_preview(cls) -> dict[str, tuple[Any, Any]]:
-        return {f"row_{i}": (dict, NOT_DATA) for i in range(cls._length)}
+    def process_run_result(self, run_output: DataFrame) -> DataFrame:
+        self.outputs[self._output_name].value = run_output
+        return run_output
 
 
 @classfactory
@@ -340,7 +406,7 @@ def inputs_to_dataframe(n: int, use_cache: bool = True, *node_args, **node_kwarg
     return cls(*node_args, **node_kwargs)
 
 
-class DataclassNode(FromManyInputs, ABC):
+class DataclassNode(Transformer, ABC):
     """
     A base class for a node that converts inputs into a dataclass instance.
     """
@@ -352,6 +418,18 @@ class DataclassNode(FromManyInputs, ABC):
     def _dataclass_fields(cls):
         return cls.dataclass.__dataclass_fields__
 
+    @classmethod
+    def _build_inputs_preview(cls) -> dict[str, tuple[Any, Any]]:
+        # Make a channel for each field
+        return {
+            name: (f.type, NOT_DATA if f.default is MISSING else f.default)
+            for name, f in cls._dataclass_fields().items()
+        }
+
+    @classmethod
+    def _build_outputs_preview(cls) -> dict[str, Any]:
+        return {cls._output_name: cls.dataclass}
+
     def _setup_node(self) -> None:
         super()._setup_node()
         # Then leverage default factories from the dataclass
@@ -362,20 +440,16 @@ class DataclassNode(FromManyInputs, ABC):
             ):
                 self.inputs[name] = self._dataclass_fields()[name].default_factory()
 
-    def _on_run(self, **inputs_to_value_dict):
-        return self.dataclass(**inputs_to_value_dict)
-
     @property
     def run_args(self) -> tuple[tuple, dict]:
         return (), self.inputs.to_value_dict()
 
-    @classmethod
-    def _build_inputs_preview(cls) -> dict[str, tuple[Any, Any]]:
-        # Make a channel for each field
-        return {
-            name: (f.type, NOT_DATA if f.default is MISSING else f.default)
-            for name, f in cls._dataclass_fields().items()
-        }
+    def _on_run(self, **inputs_to_value_dict):
+        return self.dataclass(**inputs_to_value_dict)
+
+    def process_run_result(self, run_output: Any | tuple) -> Any | tuple:
+        self.outputs[self._output_name].value = run_output
+        return run_output
 
     @classmethod
     def _extra_info(cls) -> str:
@@ -410,7 +484,6 @@ def dataclass_node_factory(
             "dataclass": dataclass,
             "__module__": module,
             "__qualname__": qualname,
-            "_output_type_hint": dataclass,
             "__doc__": dataclass.__doc__,
             "use_cache": use_cache,
         },

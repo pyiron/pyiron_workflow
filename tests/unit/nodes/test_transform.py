@@ -45,11 +45,57 @@ class TestTransformer(unittest.TestCase):
     def test_inputs_to_list(self):
         n = inputs_to_list(3, "a", "b", "c", autorun=True)
         self.assertListEqual(["a", "b", "c"], n.outputs.list.value)
+        self.assertIs(
+            n.outputs.list.type_hint, list, msg="Output type hint should be list"
+        )
+
+        with (
+            self.subTest("Incorrect length"),
+            self.assertRaises(ValueError, msg="Wrong number of inputs should raise"),
+        ):
+            inputs_to_list(3, "a", "b", "c", "d", autorun=True)
+
+        with self.subTest("Content hint"):
+            inputs_to_list(2, None, 42, content_type_hint=int | None)
+            inputs_to_list(2, None, None, content_type_hint=int | None)
+            with self.assertRaises(TypeError):
+                inputs_to_list(2, "foo", 42, content_type_hint=str)
+
+        with self.subTest("Use cache"):
+            n_use = inputs_to_list(1, use_cache=True)
+            self.assertTrue(n_use.use_cache)
+            n_not = inputs_to_list(1, use_cache=False)
+            self.assertFalse(n_not.use_cache)
 
     def test_list_to_outputs(self):
         lst = ["a", "b", "c", "d", "e"]
         n = list_to_outputs(len(lst), lst, autorun=True)
         self.assertEqual(lst, n.outputs.to_list())
+        self.assertIs(
+            n.inputs.list.type_hint, list, msg="Output type hint should be list"
+        )
+
+        with (
+            self.subTest("Incorrect length"),
+            self.assertRaises(
+                AttributeError, msg="Wrong number of inputs should raise"
+            ),
+        ):
+            n = list_to_outputs(3, lst)
+            n.recovery = None
+            n()
+
+        with self.subTest("Content hint"):
+            list_to_outputs(2, [None, 42], content_type_hint=int | None)
+            list_to_outputs(2, [None, None], content_type_hint=int | None)
+            with self.assertRaises(TypeError):
+                inputs_to_list(2, ["foo", 42], content_type_hint=str)
+
+        with self.subTest("Use cache"):
+            n_use = list_to_outputs(1, use_cache=True)
+            self.assertTrue(n_use.use_cache)
+            n_not = list_to_outputs(1, use_cache=False)
+            self.assertFalse(n_not.use_cache)
 
     def test_inputs_to_dict(self):
         with self.subTest("List specification"):
@@ -71,6 +117,11 @@ class TestTransformer(unittest.TestCase):
                 n.inputs[list(d.keys())[0]].type_hint,
                 hint,
                 msg="Spot check hint recognition",
+            )
+            self.assertEqual(
+                n.outputs.dict.type_hint,
+                dict[str, int],
+                msg="Check that output hint was pulled from specification",
             )
             self.assertDictEqual(
                 dict.fromkeys(d, default),

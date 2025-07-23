@@ -1,3 +1,4 @@
+import time
 import unittest
 from concurrent import futures
 
@@ -17,12 +18,14 @@ class TestNestingExecutors(unittest.TestCase):
             return wf
 
         expected = {"six__add_six": 6}
+        callback_process_time = 0.01
 
         with self.subTest("parent"):
             wf = build_wf()
             wf.executor = (futures.ProcessPoolExecutor, (), {})
             future = wf.run()
             future.result()
+            time.sleep(callback_process_time)
             self.assertDictEqual(expected, wf.outputs.to_value_dict())
 
         with self.subTest("child"):
