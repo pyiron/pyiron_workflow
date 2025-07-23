@@ -21,10 +21,15 @@ from pyiron_snippets.dotdict import DotDict
 from pyiron_workflow.channels import InputLockedError
 from pyiron_workflow.draw import Node as GraphvizNode
 from pyiron_workflow.executors.wrapped_executorlib import CacheOverride
+from pyiron_workflow.io import HasIO
 from pyiron_workflow.logging import logger
+from pyiron_workflow.mixin.injection import (
+    InjectsOnChannel,
+    OutputDataWithInjection,
+    OutputsWithInjection,
+)
 from pyiron_workflow.mixin.lexical import Lexical
 from pyiron_workflow.mixin.run import ReadinessError, Runnable
-from pyiron_workflow.mixin.single_output import ExploitsSingleOutput
 from pyiron_workflow.storage import (
     BackendIdentifier,
     StorageInterface,
@@ -47,10 +52,15 @@ if TYPE_CHECKING:
 class WaitingForFutureError(ValueError): ...
 
 
+class AmbiguousOutputError(ValueError):
+    """Raised when searching for exactly one output, but multiple are found."""
+
+
 class Node(
     Lexical["Composite"],
+    HasIO[OutputsWithInjection],
     Runnable,
-    ExploitsSingleOutput,
+    InjectsOnChannel,
     ABC,
 ):
     """
@@ -198,6 +208,31 @@ class Node(
         if autorun:
             with contextlib.suppress(ReadinessError):
                 self.run()
+
+    @property
+    def channel(self) -> OutputDataWithInjection:
+        """
+        The single output channel. Fulfills the interface expectations for the
+        :class:`HasChannel` mixin and allows this object to be used directly for
+        forming connections, etc.
+
+        Returns:
+            (OutputDataWithInjection): The single output channel.
+
+        Raises:
+            AmbiguousOutputError: If there is not exactly one output channel.
+        """
+        if len(self.outputs) != 1:
+            raise AmbiguousOutputError(
+                f"Tried to access the channel value of {self.label}, but this is only "
+                f"possible when there is a single output channel -- {self.label} has: "
+                f"{self.outputs.labels}. Access probably occurred attempting to use "
+                f"this object like an output channel, e.g. with injection or to form a "
+                f"connection. Either make sure it has exactly one output channel, or "
+                f"use the particular channel you want directly."
+            )
+        else:
+            return self.outputs[self.outputs.labels[0]]
 
     @property
     def graph_path(self) -> str:
