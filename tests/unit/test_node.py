@@ -148,6 +148,8 @@ class TestNode(unittest.TestCase):
             n1.connected,
             msg="Any connection should result in a positive connected status",
         )
+        self.assertFalse(n1.fully_connected)
+
         n1.disconnect()
         self.assertFalse(n1.connected, msg="Disconnect should break all connections")
 
