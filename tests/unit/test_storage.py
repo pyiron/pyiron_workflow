@@ -123,7 +123,9 @@ class TestStorage(unittest.TestCase):
         with open(path, "w") as f:
             f.write("Hello, World!")
         self.storage.delete(node=self.node)
-        self.assertTrue(path.exists(), msg="Directory should not be deleted if not empty")
+        self.assertTrue(
+            path.exists(), msg="Directory should not be deleted if not empty"
+        )
         self.storage.delete(node=self.node, delete_even_if_not_empty=True)
         self.assertFalse(path.exists())
 
