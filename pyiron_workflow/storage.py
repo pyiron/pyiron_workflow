@@ -194,11 +194,10 @@ class StorageInterface(ABC):
         filename = self._parse_filename(node=node, filename=filename)
         if self._has_saved_content(filename, **kwargs):
             self._delete(filename, **kwargs)
-        if filename.parent.exists():
-            if delete_even_if_not_empty:
-                delete_files_and_directories_recursively(filename.parent)
-            elif not any(filename.parent.iterdir()):
-                filename.parent.rmdir()
+        if delete_even_if_not_empty:
+            delete_files_and_directories_recursively(filename.parent)
+        elif filename.parent.exists() and not any(filename.parent.iterdir()):
+            filename.parent.rmdir()
 
     def _parse_filename(
         self, node: Node | None, filename: str | Path | None = None
