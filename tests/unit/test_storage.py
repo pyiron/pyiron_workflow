@@ -103,6 +103,17 @@ class TestStorage(unittest.TestCase):
                 self.storage.delete(filename=self.filename)
                 self.assertFalse(self.storage.has_saved_content(filename=self.filename))
 
+    def test_delete(self):
+        try:
+            self.storage.save(self.node)
+            with open(self.node.as_path() / "hello.txt", "w") as f:
+                f.write("Hello, World!")
+        finally:
+            self.storage.delete(node=self.node)
+            self.assertTrue((self.node.as_path() / "hello.txt").exists())
+            self.storage.delete(node=self.node, delete_even_if_not_empty=True)
+            self.assertFalse((self.node.as_path() / "hello.txt").exists())
+
     def test_input_validity(self):
         for method in [
             self.storage.load,
