@@ -104,6 +104,12 @@ class TestStorage(unittest.TestCase):
                 self.assertFalse(self.storage.has_saved_content(filename=self.filename))
 
     def test_delete(self):
+        # Make sure delete runs without error even if the directory does not exist
+        self.storage.delete(node=self.node)
+        self.assertFalse(self.node.as_path().exists())
+        self.storage.delete(node=self.node, delete_even_if_not_empty=True)
+        self.assertFalse(self.node.as_path().exists())
+        # Make sure delete_even_if_not_empty does not affect when the directory is empty
         self.storage.save(self.node)
         self.storage.delete(node=self.node)
         self.assertFalse(self.node.as_path().exists())
@@ -117,7 +123,7 @@ class TestStorage(unittest.TestCase):
         with open(path, "w") as f:
             f.write("Hello, World!")
         self.storage.delete(node=self.node)
-        self.assertTrue(path.exists())
+        self.assertTrue(path.exists(), msg="Directory should not be deleted if not empty")
         self.storage.delete(node=self.node, delete_even_if_not_empty=True)
         self.assertFalse(path.exists())
 
