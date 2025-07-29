@@ -104,15 +104,22 @@ class TestStorage(unittest.TestCase):
                 self.assertFalse(self.storage.has_saved_content(filename=self.filename))
 
     def test_delete(self):
-        try:
-            self.storage.save(self.node)
-            with open(self.node.as_path() / "hello.txt", "w") as f:
-                f.write("Hello, World!")
-        finally:
-            self.storage.delete(node=self.node)
-            self.assertTrue((self.node.as_path() / "hello.txt").exists())
-            self.storage.delete(node=self.node, delete_even_if_not_empty=True)
-            self.assertFalse((self.node.as_path() / "hello.txt").exists())
+        self.storage.save(self.node)
+        self.storage.delete(node=self.node)
+        self.assertFalse(self.node.as_path().exists())
+        self.storage.save(self.node)
+        self.storage.delete(node=self.node, delete_even_if_not_empty=True)
+        self.assertFalse(self.node.as_path().exists())
+        self.storage.save(self.node)
+        directory = self.node.as_path() / "subdir"
+        directory.mkdir(parents=True, exist_ok=True)
+        path = directory / "hello.txt"
+        with open(path, "w") as f:
+            f.write("Hello, World!")
+        self.storage.delete(node=self.node)
+        self.assertTrue(path.exists())
+        self.storage.delete(node=self.node, delete_even_if_not_empty=True)
+        self.assertFalse(path.exists())
 
     def test_input_validity(self):
         for method in [
