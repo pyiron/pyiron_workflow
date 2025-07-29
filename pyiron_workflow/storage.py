@@ -31,6 +31,23 @@ class FileTypeError(TypeError):
     """
 
 
+def delete_files_and_directories_recursively(path: Path):
+    """
+    Recursively delete all files and directories in the given path.
+
+    Args:
+        path (Path): The path to the directory to delete.
+    """
+    if not path.exists():
+        return
+    for item in path.rglob("*"):
+        if item.is_file():
+            item.unlink()
+        else:
+            delete_files_and_directories_recursively(item)
+    path.rmdir()
+
+
 class StorageInterface(ABC):
     """
     Abstract base class defining the interface for saving, loading, and managing node
@@ -158,7 +175,11 @@ class StorageInterface(ABC):
         )
 
     def delete(
-        self, node: Node | None = None, filename: str | Path | None = None, **kwargs
+        self,
+        node: Node | None = None,
+        filename: str | Path | None = None,
+        delete_even_if_not_empty: bool = False,
+        **kwargs,
     ):
         """
         Delete a file associated with a node.
@@ -173,8 +194,11 @@ class StorageInterface(ABC):
         filename = self._parse_filename(node=node, filename=filename)
         if self._has_saved_content(filename, **kwargs):
             self._delete(filename, **kwargs)
-        if filename.parent.exists() and not any(filename.parent.iterdir()):
-            filename.parent.rmdir()
+        if filename.parent.exists():
+            if delete_even_if_not_empty:
+                delete_files_and_directories_recursively(filename.parent)
+            elif not any(filename.parent.iterdir()):
+                filename.parent.rmdir()
 
     def _parse_filename(
         self, node: Node | None, filename: str | Path | None = None
