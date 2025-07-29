@@ -143,14 +143,17 @@ class Lexical(UsesState, HasLabel, Generic[ParentType], ABC):
         else:
             return self
 
-    def as_path(self, root: Path | str | None = None) -> Path:
+    def as_path(self, root: Path | str | None = None, mkdir: bool = False) -> Path:
         """
         The lexical path as a :class:`pathlib.Path`, with a filesystem :param:`root`
         (default is the current working directory).
         """
-        return (Path.cwd() if root is None else Path(root)).joinpath(
+        path = (Path.cwd() if root is None else Path(root)).joinpath(
             *self.lexical_path.split(self.lexical_delimiter)
         )
+        if mkdir:
+            path.mkdir(parents=True, exist_ok=True)
+        return path
 
     def clean_path(
         self,
