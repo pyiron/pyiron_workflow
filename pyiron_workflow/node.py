@@ -1216,6 +1216,8 @@ class Node(
         backend: BackendIdentifier | StorageInterface | None = None,
         only_requested: bool = False,
         filename: str | Path | None = None,
+        *,
+        delete_even_if_not_empty: bool = False,
         **kwargs,
     ):
         """
@@ -1230,6 +1232,9 @@ class Node(
             filename (str | Path | None): The name of the file (without extensions) at
                 which to save the node. (Default is None, which uses the node's
                 lexical path.)
+            delete_even_if_not_empty (bool): Whether to delete the file even if it is
+                not empty. (Default is False, which will only delete the file if it is
+                empty, i.e. has no content in it.)
             **kwargs: back end-specific arguments (only likely to work in combination
                 with :param:`only_requested`, otherwise there's nothing to be specific
                 _to_.)
@@ -1238,7 +1243,10 @@ class Node(
             backend=backend, only_requested=only_requested
         ):
             selected_backend.delete(
-                node=self if filename is None else None, filename=filename, **kwargs
+                node=self if filename is None else None,
+                filename=filename,
+                delete_even_if_not_empty=delete_even_if_not_empty,
+                **kwargs,
             )
 
     def has_saved_content(
