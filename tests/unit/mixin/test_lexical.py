@@ -111,6 +111,16 @@ class TestLexical(unittest.TestCase):
             self.root.as_path(), Path.cwd() / self.root.label, msg="Default None root"
         )
         self.assertEqual(
+            self.root.as_path(mkdir=True),
+            Path.cwd() / self.root.label,
+            msg="Default None root",
+        )
+        self.assertTrue(
+            (Path.cwd() / self.root.label).exists(),
+            msg="Directory should be created when mkdir=True",
+        )
+        (Path.cwd() / self.root.label).rmdir()
+        self.assertEqual(
             self.child1.as_path(root=".."),
             Path("..") / self.root.label / self.child1.label,
             msg="String root",
