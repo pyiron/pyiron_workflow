@@ -111,7 +111,9 @@ class TestLexical(unittest.TestCase):
             self.root.as_path(), Path.cwd() / self.root.label, msg="Default None root"
         )
         self.assertEqual(
-            self.root.as_path(mkdir=True), Path.cwd() / self.root.label, msg="Default None root"
+            self.root.as_path(mkdir=True),
+            Path.cwd() / self.root.label,
+            msg="Default None root",
         )
         self.assertTrue(
             (Path.cwd() / self.root.label).exists(),
