@@ -18,11 +18,28 @@ from pyiron_workflow.channels import (
 )
 
 
+class DummyParent:
+    def __init__(self, label):
+        self.label = label
+        self.children = []
+
+    @property
+    def full_label(self):
+        return self.label
+
+    def add_child(self, child):
+        self.children.append(child)
+
+    def remove_child(self, child):
+        self.children.remove(child)
+
+
 class DummyOwner:
-    def __init__(self):
+    def __init__(self, parent: DummyParent, label: str):
         self.foo = [0]
         self.locked = False
-        self.label = "owner_label"
+        self.label = label
+        self.parent = parent
 
     @property
     def full_label(self):
@@ -59,9 +76,10 @@ class OutputChannel(DummyChannel["InputChannel"]):
 
 class TestChannel(unittest.TestCase):
     def setUp(self) -> None:
-        self.inp = InputChannel("inp", DummyOwner())
-        self.out = OutputChannel("out", DummyOwner())
-        self.out2 = OutputChannel("out2", DummyOwner())
+        self.p = DummyParent("parent_label")
+        self.inp = InputChannel("inp", DummyOwner(self.p, "has_inp"))
+        self.out = OutputChannel("out", DummyOwner(self.p, "has_out"))
+        self.out2 = OutputChannel("out2", DummyOwner(self.p, "has_out2"))
 
     def test_connection_validity(self):
         with self.assertRaises(TypeError, msg="Can't connect to non-channels"):
@@ -70,7 +88,9 @@ class TestChannel(unittest.TestCase):
         with self.assertRaises(
             TypeError, msg="Can't connect to channels that are not the partner type"
         ):
-            self.inp.connect(InputChannel("also_input", DummyOwner()))
+            self.inp.connect(
+                InputChannel("also_input", DummyOwner(self.p, "has_also_input"))
+            )
 
         self.inp.connect(self.out)
         # A conjugate pair should work fine
@@ -122,27 +142,47 @@ class TestChannel(unittest.TestCase):
 
 class TestDataChannels(unittest.TestCase):
     def setUp(self) -> None:
+        self.p = DummyParent("parent_label")
         self.ni1 = InputData(
-            label="numeric", owner=DummyOwner(), default=1, type_hint=int | float
+            label="numeric",
+            owner=DummyOwner(self.p, "has_numeric1"),
+            default=1,
+            type_hint=int | float,
         )
         self.ni2 = InputData(
-            label="numeric", owner=DummyOwner(), default=1, type_hint=int | float
+            label="numeric",
+            owner=DummyOwner(self.p, "has_numeric2"),
+            default=1,
+            type_hint=int | float,
         )
         self.no = OutputData(
-            label="numeric", owner=DummyOwner(), default=0, type_hint=int | float
+            label="numeric",
+            owner=DummyOwner(self.p, "has_numeric3"),
+            default=0,
+            type_hint=int | float,
         )
         self.no_empty = OutputData(
-            label="not_data", owner=DummyOwner(), type_hint=int | float
+            label="not_data",
+            owner=DummyOwner(self.p, "has_node_data"),
+            type_hint=int | float,
         )
 
-        self.si = InputData(label="list", owner=DummyOwner(), type_hint=list)
+        self.si = InputData(
+            label="list", owner=DummyOwner(self.p, "has_listi"), type_hint=list
+        )
         self.so1 = OutputData(
-            label="list", owner=DummyOwner(), default=["foo"], type_hint=list
+            label="list",
+            owner=DummyOwner(self.p, "has_listo"),
+            default=["foo"],
+            type_hint=list,
         )
 
     def test_mutable_defaults(self):
         so2 = OutputData(
-            label="list", owner=DummyOwner(), default=["foo"], type_hint=list
+            label="list",
+            owner=DummyOwner(self.p, "has_list"),
+            default=["foo"],
+            type_hint=list,
         )
         self.so1.default.append("bar")
         self.assertEqual(
@@ -291,7 +331,9 @@ class TestDataChannels(unittest.TestCase):
             self.ni1.value_receiver = self.si  # Should work fine if the receiver is not
             # strictly checking hints
 
-            unhinted = InputData(label="unhinted", owner=DummyOwner())
+            unhinted = InputData(
+                label="unhinted", owner=DummyOwner(self.p, "has_unhinted")
+            )
             self.ni1.value_receiver = unhinted
             unhinted.value_receiver = self.ni2
             # Should work fine if either lacks a hint
@@ -322,7 +364,9 @@ class TestDataChannels(unittest.TestCase):
 
     def test_ready(self):
         with self.subTest("Test defaults and not-data"):
-            without_default = InputData(label="without_default", owner=DummyOwner())
+            without_default = InputData(
+                label="without_default", owner=DummyOwner(self.p, "has_no_default")
+            )
             self.assertIs(
                 without_default.value,
                 NOT_DATA,
@@ -356,9 +400,10 @@ class TestDataChannels(unittest.TestCase):
 
 class TestSignalChannels(unittest.TestCase):
     def setUp(self) -> None:
-        owner = DummyOwner()
+        self.p = DummyParent("parent_label")
+        owner = DummyOwner(self.p, "owner")
         self.inp = InputSignal(label="inp", owner=owner, callback=owner.update)
-        self.out = OutputSignal(label="out", owner=DummyOwner())
+        self.out = OutputSignal(label="out", owner=DummyOwner(self.p, "owner2"))
 
     def test_connections(self):
         with self.subTest("Good connection"):
@@ -378,7 +423,10 @@ class TestSignalChannels(unittest.TestCase):
 
         with self.subTest("No connections to non-SignalChannels"):
             bad = InputData(
-                label="numeric", owner=DummyOwner(), default=1, type_hint=int
+                label="numeric",
+                owner=DummyOwner(self.p, "owner3"),
+                default=1,
+                type_hint=int,
             )
             with self.assertRaises(TypeError):
                 self.inp.connect(bad)
@@ -396,13 +444,15 @@ class TestSignalChannels(unittest.TestCase):
         self.assertListEqual(self.inp.owner.foo, [0, 1, 2])
 
     def test_aggregating_call(self):
-        owner = DummyOwner()
+        owner = DummyOwner(self.p, "owner")
         agg = AccumulatingInputSignal(label="agg", owner=owner, callback=owner.update)
 
-        out2 = OutputSignal(label="out2", owner=DummyOwner())
+        out2 = OutputSignal(label="out2", owner=DummyOwner(self.p, "owner2"))
         agg.connect(self.out, out2)
 
-        out_unrelated = OutputSignal(label="out_unrelated", owner=DummyOwner())
+        out_unrelated = OutputSignal(
+            label="out_unrelated", owner=DummyOwner(self.p, "owner3")
+        )
 
         signals_sent = 0
         self.assertEqual(
@@ -510,7 +560,7 @@ class TestSignalChannels(unittest.TestCase):
         def doesnt_belong_to_owner():
             return 42
 
-        owner = Extended()
+        owner = Extended(self.p, "extended")
         with self.subTest("Callbacks that belong to the owner and take no arguments"):
             for callback in [
                 owner.update,
