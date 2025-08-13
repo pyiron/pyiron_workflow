@@ -484,44 +484,6 @@ class Workflow(Composite):
                     )
         return signal_connections
 
-    def _rebuild_data_io(self):
-        """
-        Try to rebuild the IO.
-
-        If an error is encountered, revert back to the existing IO then raise it.
-        """
-        old_inputs = self.inputs
-        old_outputs = self.outputs
-        connection_changes = []  # For reversion if there's an error
-        try:
-            self._inputs = self._build_inputs()
-            self._outputs = self._build_outputs()
-            for old, new in [(old_inputs, self.inputs), (old_outputs, self.outputs)]:
-                for old_channel in old:
-                    if old_channel.connected:
-                        # If the old channel was connected to stuff, we'd better still
-                        # have a corresponding channel and be able to copy these, or we
-                        # should fail hard.
-                        # But, if it wasn't connected, we don't even care whether or not
-                        # we still have a corresponding channel to copy to
-                        new_channel = new[old_channel.label]
-                        new_channel.move_connections(old_channel)
-                        swapped_conenctions = old_channel.disconnect_all()  # Purge old
-                        connection_changes.append(
-                            (new_channel, old_channel, swapped_conenctions)
-                        )
-        except Exception as e:
-            for new_channel, old_channel, swapped_conenctions in connection_changes:
-                new_channel.disconnect(*swapped_conenctions)
-                old_channel.connect(*swapped_conenctions)
-            self._inputs = old_inputs
-            self._outputs = old_outputs
-            e.message = (
-                f"Unable to rebuild IO for {self.full_label}; reverting to old IO."
-                f"{e.message}"
-            )
-            raise e
-
     @property
     def _owned_io_panels(self) -> list[IO]:
         # Workflow data IO is just pointers to child IO, not actually owned directly
@@ -536,28 +498,6 @@ class Workflow(Composite):
         if self.automate_execution:
             self.set_run_signals_to_dag_execution()
         return super().push_child(child, *args, **kwargs)
-
-    def replace_child(
-        self, owned_node: Node | str, replacement: Node | type[Node]
-    ) -> tuple[Node, Node]:
-        replaced, replacement_node = super().replace_child(
-            owned_node=owned_node, replacement=replacement
-        )
-
-        # Finally, make sure the IO is constructible with this new node, which will
-        # catch things like incompatible IO maps
-        try:
-            # Make sure node-level IO is pointing to the new node and that macro-level
-            # IO gets safely reconstructed
-            self._rebuild_data_io()
-        except Exception as e:
-            # If IO can't be successfully rebuilt using this node, revert changes and
-            # raise the exception
-            self.replace_child(replacement_node, replaced)  # Guaranteed to work since
-            # replacement in the other direction was already a success
-            raise e
-
-        return replaced, replacement_node
 
     @property
     def parent(self) -> None:
