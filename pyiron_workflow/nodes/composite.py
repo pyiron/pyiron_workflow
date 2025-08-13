@@ -348,101 +348,6 @@ class Composite(LexicalParent[Node], HasCreator, Node, ABC):
         self.clear_cache()  # Reset cache after graph change
         return child
 
-    def replace_child(
-        self, owned_node: Node | str, replacement: Node | type[Node]
-    ) -> tuple[Node, Node]:
-        """
-        Replaces a node currently owned with a new node instance.
-        The replacement must not belong to any other parent or have any connections.
-        The IO of the new node must be a perfect superset of the replaced node, i.e.
-        channel labels need to match precisely, but additional channels may be present.
-        After replacement, the new node will have the old node's connections, label,
-        and belong to this composite.
-        The labels are swapped, such that the replaced node gets the name of its
-        replacement (which might be silly, but is useful in case you want to revert the
-        change and swap the replaced node back in!)
-
-        If replacement fails for some reason, the replacement and replacing node are
-        both returned to their original state, and the composite is left unchanged.
-
-        Args:
-            owned_node (Node|str): The node to replace or its label.
-            replacement (Node | type[Node]): The node or class to replace it with. (If
-                a class is passed, it has all the same requirements on IO compatibility
-                and simply gets instantiated.)
-
-        Returns:
-            (Node, Node): The node that got removed and the new one that replaced it.
-        """
-        owned_node_instance = (
-            self.children[owned_node] if isinstance(owned_node, str) else owned_node
-        )
-
-        if owned_node_instance.parent is not self:
-            raise ValueError(
-                f"The node being replaced should be a child of this composite, but "
-                f"another parent was found: {owned_node_instance.parent}"
-            )
-
-        if isinstance(replacement, Node):
-            if replacement.parent is not None:
-                raise ValueError(
-                    f"Replacement node must have no parent, but got "
-                    f"{replacement.parent}"
-                )
-            if replacement.connected:
-                raise ValueError("Replacement node must not have any connections")
-            replacement_node = replacement
-        elif issubclass(replacement, Node):
-            replacement_node = replacement(label=owned_node_instance.label)
-        else:
-            raise TypeError(
-                f"Expected replacement node to be a node instance or node subclass, but "
-                f"got {replacement}"
-            )
-
-        replacement_node.move_io(
-            owned_node_instance
-        )  # If the replacement is incompatible, we'll
-        # fail here before we've changed the parent at all. Since the replacement was
-        # first guaranteed to be an unconnected orphan, there is not yet any permanent
-        # damage
-        is_starting_node = owned_node_instance in self.starting_nodes
-        # In case the replaced node interfaces with the composite's IO, catch value
-        # links
-        inbound_links = [
-            (
-                sending_channel,
-                replacement_node.inputs[sending_channel.value_receiver.label],
-            )
-            for sending_channel in self.inputs
-            if sending_channel.value_receiver in owned_node_instance.inputs
-        ]
-        outbound_links = [
-            (
-                replacement_node.outputs[sending_channel.label],
-                sending_channel.value_receiver,
-            )
-            for sending_channel in owned_node_instance.outputs
-            if sending_channel.value_receiver in self.outputs
-        ]
-        self.remove_child(owned_node_instance)
-        replacement_node.label, owned_node_instance.label = (
-            owned_node_instance.label,
-            replacement_node.label,
-        )
-        self.add_child(replacement_node)
-        if is_starting_node:
-            self.starting_nodes.append(replacement_node)
-        for sending_channel, receiving_channel in inbound_links + outbound_links:
-            sending_channel.value_receiver = receiving_channel
-
-        # Clear caches
-        self.clear_cache()
-        replacement_node.clear_cache()
-
-        return owned_node_instance, replacement_node
-
     def executor_shutdown(self, wait=True, *, cancel_futures=False):
         """
         Invoke shutdown on the executor (if present), and recursively invoke shutdown
@@ -458,9 +363,6 @@ class Composite(LexicalParent[Node], HasCreator, Node, ABC):
             super().__setattr__(key, node)
         elif isinstance(node, Node):
             self.add_child(node, label=key)
-        elif isinstance(node, type) and issubclass(node, Node) and key in self.children:
-            # When a class is assigned to an existing node, try a replacement
-            self.replace_child(key, node)
         else:
             super().__setattr__(key, node)
 

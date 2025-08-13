@@ -19,17 +19,15 @@ from pyiron_snippets.colors import SeabornColors
 from pyiron_snippets.dotdict import DotDict
 
 from pyiron_workflow.channels import (
-    NOT_DATA,
     AccumulatingInputSignal,
     Channel,
-    DataChannel,
     InputLockedError,
     InputSignal,
     OutputSignal,
 )
 from pyiron_workflow.draw import Node as GraphvizNode
 from pyiron_workflow.executors.wrapped_executorlib import CacheOverride
-from pyiron_workflow.io import IO, DataIO, Inputs, Signals
+from pyiron_workflow.io import IO, Inputs, Signals
 from pyiron_workflow.logging import logger
 from pyiron_workflow.mixin.display_state import HasStateDisplay
 from pyiron_workflow.mixin.injection import (
@@ -407,165 +405,6 @@ class Node(
             raise ValueError(
                 f"{diff} not found among available inputs: {available_keys}"
             )
-
-    def move_io(
-        self,
-        other: Node,
-        connections_fail_hard: bool = True,
-        values_fail_hard: bool = False,
-    ) -> None:
-        """
-        Moves connections and copies values from another object's IO onto this object's
-        IO.
-        Other channels with no connections are ignored for copying connections, and all
-        data channels without data are ignored for copying data.
-        Otherwise, default behaviour is to throw an exception if any of the other
-        object's connections fail to move, but failed value copies are simply ignored
-        (e.g. because this object does not have a channel with a commensurate label or
-        the value breaks a type hint).
-        This error throwing/passing behaviour can be controlled with boolean flags.
-
-        In the case that an exception is thrown, all moved connections are reverted
-        and any new values are reverted to their old state before the exception is
-        raised.
-
-        Args:
-            other (Node): The other object whose IO to copy.
-            connections_fail_hard: Whether to raise exceptions encountered when copying
-                connections. (Default is True.)
-            values_fail_hard (bool): Whether to raise exceptions encountered when
-                copying values. (Default is False.)
-        """
-        new_connections = self.move_connections(other, fail_hard=connections_fail_hard)
-        try:
-            self._copy_values(other, fail_hard=values_fail_hard)
-        except Exception as e:
-            for owned, conjugate in new_connections:
-                owned.disconnect(conjugate)
-            raise e
-
-    def move_connections(
-        self,
-        other: Node,
-        fail_hard: bool = True,
-    ) -> list[tuple[Channel, Channel]]:
-        """
-        Moves all the connections on another object to this one.
-        Expects all connected channels on the other object to have a counterpart on
-        this object -- i.e. the same label, type, and (for data) a type hint compatible
-        with all the existing connections being copied.
-        This requirement can be optionally relaxed such that any failures encountered
-        when attempting to make a connection (i.e. this object has no channel with a
-        corresponding label as the other object, or the new connection fails its
-        validity check), such that we simply continue past these errors and make as
-        many connections as we can while ignoring errors.
-
-        This object may freely have additional channels not present in the other object.
-        The other object may have additional channels not present here as long as they
-        are not connected.
-
-        If an exception is going to be raised, any connections move so far are
-        disconnected and reconnected on their source first.
-
-        Args:
-            other (Node): the object whose connections should be copied.
-            fail_hard (bool): Whether to raise an error an exception is encountered
-                when trying to reproduce a connection. (Default is True; revert new
-                connections then raise the exception.)
-
-        Returns:
-            list[tuple[Channel, Channel]]: A list of all the newly created connection
-                pairs (for reverting changes).
-        """
-        new_connections = []
-        old_connections = []
-        for my_panel, other_panel in zip(
-            self._owned_io_panels, other._owned_io_panels, strict=False
-        ):
-            for key, channel in other_panel.items():
-                for target in channel.connections:
-                    try:
-                        old_connections.append((channel, target))
-                        channel.disconnect(target)
-                        my_panel[key].connect(target)
-                        new_connections.append((my_panel[key], target))
-                    except Exception as e:
-                        if fail_hard:
-                            # If you run into trouble, unwind what you've done
-                            for this, that in new_connections:
-                                this.disconnect(that)
-                            for old, partner in old_connections:
-                                old.connect(partner)
-                            raise ConnectionCopyError(
-                                f"{self.label} could not copy connections from "
-                                f"{other.label} due to the channel {key} on "
-                                f"{other_panel.__class__.__name__}"
-                            ) from e
-                        else:
-                            continue
-        return new_connections
-
-    def _copy_values(
-        self,
-        other: Node,
-        fail_hard: bool = False,
-    ) -> list[tuple[DataChannel, Any]]:
-        """
-        Copies all data from input and output channels in the other object onto this
-        one.
-        Ignores other channels that hold non-data.
-        Failures to find a corresponding channel on this object (matching label, type,
-        and compatible type hint) are ignored by default, but can optionally be made to
-        raise an exception.
-
-        If an exception is going to be raised, any values updated so far are
-        reverted first.
-
-        Args:
-            other (Node): the object whose data values should be copied.
-            fail_hard (bool): Whether to raise an error an exception is encountered
-                when trying to duplicate a value. (Default is False, just keep going
-                past other's channels with no compatible label here and past values
-                that don't match type hints here.)
-
-        Returns:
-            list[tuple[Channel, Any]]: A list of tuples giving channels whose value has
-                been updated and what it used to be (for reverting changes).
-        """
-        # Leverage a separate function because mypy has trouble parsing types
-        # if we loop over inputs and outputs at the same time
-        return self._copy_panel(
-            other, self.inputs, other.inputs, fail_hard=fail_hard
-        ) + self._copy_panel(other, self.outputs, other.outputs, fail_hard=fail_hard)
-
-    def _copy_panel(
-        self,
-        other: Node,
-        my_panel: DataIO,
-        other_panel: DataIO,
-        fail_hard: bool = False,
-    ) -> list[tuple[DataChannel, Any]]:
-        old_values = []
-        for key, to_copy in other_panel.items():
-            if to_copy.value is not NOT_DATA:
-                try:
-                    old_value = my_panel[key].value
-                    my_panel[key].value = to_copy.value  # Gets hint-checked
-                    old_values.append((my_panel[key], old_value))
-                except Exception as e:
-                    if fail_hard:
-                        # If you run into trouble, unwind what you've done
-                        for channel, value in old_values:
-                            channel.value = value
-                        raise ValueCopyError(
-                            f"{self.label} could not copy values from "
-                            f"{other.label} due to the channel {key} on "
-                            f"{other_panel.__class__.__name__}, which holds value "
-                            f"{to_copy.value}"
-                        ) from e
-                    else:
-                        continue
-        return old_values
 
     @property
     def _owned_io_panels(self) -> list[IO]:
@@ -1081,24 +920,6 @@ class Node(
             f"{str(self.outputs)}\n"
             f"{str(self.signals)}"
         )
-
-    def replace_with(self, other: Node | type[Node]):
-        """
-        If this node has a parent, invokes `self.parent.replace_child(self, other)` to swap
-        out this node for the other node in the parent graph.
-
-        The replacement must have fully compatible IO, i.e. its IO must be a superset of
-        this node's IO with all the same labels and type hints (although the latter is
-        not strictly enforced and will only cause trouble if there is an incompatibility
-        that causes trouble in the process of copying over connections)
-
-        Args:
-            other (Node|type[Node]): The replacement.
-        """
-        if self.parent is not None:
-            self.parent.replace_child(self, other)
-        else:
-            logger.info(f"Could not replace_child {self.label}, as it has no parent.")
 
     _save_load_warnings = """
         HERE BE DRAGONS!!!
