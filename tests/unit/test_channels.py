@@ -35,7 +35,7 @@ class DummyParent:
 
 
 class DummyOwner:
-    def __init__(self, parent: DummyParent, label: str):
+    def __init__(self, parent: DummyParent | None, label: str):
         self.foo = [0]
         self.locked = False
         self.label = label
@@ -583,6 +583,43 @@ class TestSignalChannels(unittest.TestCase):
                     self.assertRaises(BadCallbackError),
                 ):
                     InputSignal(label="inp", owner=owner, callback=callback)
+
+
+class TestChannelParenting(unittest.TestCase):
+    def setUp(self) -> None:
+        self.p1 = DummyParent("parent_label1")
+        self.p2 = DummyParent("parent_label2")
+        self.owner1a = DummyOwner(self.p1, "owner1a")
+        self.owner1b = DummyOwner(self.p1, "owner1b")
+        self.owner2a = DummyOwner(self.p2, "owner2a")
+        self.owner_orphan1 = DummyOwner(None, "owner_orphan")
+        self.owner_orphan2 = DummyOwner(None, "owner_orphan")
+
+        self.inp1 = InputChannel(label="inp1a", owner=self.owner1a)
+        self.out2 = OutputChannel(label="out1b", owner=self.owner1b)
+        self.out_a = OutputChannel(label="out2a", owner=self.owner2a)
+        self.inp_orphan = InputChannel(label="inp_orphan", owner=self.owner_orphan1)
+        self.out_orphan = OutputChannel(label="out_orphan", owner=self.owner_orphan2)
+
+    def test_without_parents(self):
+        # Neither parented to start with
+        # Connection works fine
+        # Parent is still None for both at the end
+        pass
+
+    def test_parenting_an_orphan(self):
+        # Parented to None-parent connection, and vice versa
+        # Connection works fine
+        # None-parent adopts the parent of the parented owner at the end
+        pass
+
+    def test_same_parent(self):
+        # Works fine
+        pass
+
+    def test_different_parents(self):
+        # Raises exception
+        pass
 
 
 if __name__ == "__main__":
