@@ -28,10 +28,13 @@ class DummyParent:
         return self.label
 
     def add_child(self, child):
-        self.children.append(child)
+        if child not in self.children:
+            self.children.append(child)
+        child.parent = self
 
     def remove_child(self, child):
         self.children.remove(child)
+        child.parent = None
 
 
 class DummyOwner:
@@ -39,7 +42,9 @@ class DummyOwner:
         self.foo = [0]
         self.locked = False
         self.label = label
-        self.parent = parent
+        self.parent = None
+        if parent is not None:
+            parent.add_child(self)
 
     @property
     def full_label(self):
@@ -596,30 +601,59 @@ class TestChannelParenting(unittest.TestCase):
         self.owner_orphan2 = DummyOwner(None, "owner_orphan")
 
         self.inp1 = InputChannel(label="inp1a", owner=self.owner1a)
-        self.out2 = OutputChannel(label="out1b", owner=self.owner1b)
-        self.out_a = OutputChannel(label="out2a", owner=self.owner2a)
+        self.out1 = OutputChannel(label="out1b", owner=self.owner1b)
+        self.out2 = OutputChannel(label="out2a", owner=self.owner2a)
         self.inp_orphan = InputChannel(label="inp_orphan", owner=self.owner_orphan1)
         self.out_orphan = OutputChannel(label="out_orphan", owner=self.owner_orphan2)
 
     def test_without_parents(self):
         # Neither parented to start with
+        self.assertIsNone(self.owner_orphan1.parent)
+        self.assertIsNone(self.owner_orphan2.parent)
+
         # Connection works fine
+        self.inp_orphan.connect(self.out_orphan)
+        self.assertListEqual(self.inp_orphan.connections, [self.out_orphan])
+        self.assertListEqual(self.out_orphan.connections, [self.inp_orphan])
+
         # Parent is still None for both at the end
-        pass
+        self.assertIsNone(self.owner_orphan1.parent)
+        self.assertIsNone(self.owner_orphan2.parent)
 
     def test_parenting_an_orphan(self):
         # Parented to None-parent connection, and vice versa
+
+        # Case 1: input with parent connects to orphaned output
+        self.inp1.connect(self.out_orphan)
         # Connection works fine
+        self.assertIn(self.out_orphan, self.inp1.connections)
+        self.assertIn(self.inp1, self.out_orphan.connections)
         # None-parent adopts the parent of the parented owner at the end
-        pass
+        self.assertIn(self.owner_orphan2, self.p1.children)
+
+        # Case 2: orphaned input connects to output with parent
+        self.inp_orphan.connect(self.out1)
+        # Connection works fine
+        self.assertIn(self.out1, self.inp_orphan.connections)
+        self.assertIn(self.inp_orphan, self.out1.connections)
+        # None-parent adopts the parent of the parented owner at the end
+        self.assertIn(self.owner_orphan1, self.p1.children)
 
     def test_same_parent(self):
         # Works fine
-        pass
+        self.inp1.connect(self.out1)
+        self.assertEqual(self.inp1.connections, [self.out1])
+        self.assertEqual(self.out1.connections, [self.inp1])
+        # No change to parent's children expected
+        self.assertListEqual(self.p1.children, [self.owner1a, self.owner1b])
 
     def test_different_parents(self):
         # Raises exception
-        pass
+        with self.assertRaises(ChannelConnectionError):
+            self.inp1.connect(self.out2)
+        # Ensure no parent lists were modified
+        self.assertListEqual(self.p1.children, [self.owner1a, self.owner1b])
+        self.assertListEqual(self.p2.children, [self.owner2a])
 
 
 if __name__ == "__main__":
