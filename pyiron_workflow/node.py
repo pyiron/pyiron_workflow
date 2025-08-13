@@ -1082,24 +1082,6 @@ class Node(
             f"{str(self.signals)}"
         )
 
-    def replace_with(self, other: Node | type[Node]):
-        """
-        If this node has a parent, invokes `self.parent.replace_child(self, other)` to swap
-        out this node for the other node in the parent graph.
-
-        The replacement must have fully compatible IO, i.e. its IO must be a superset of
-        this node's IO with all the same labels and type hints (although the latter is
-        not strictly enforced and will only cause trouble if there is an incompatibility
-        that causes trouble in the process of copying over connections)
-
-        Args:
-            other (Node|type[Node]): The replacement.
-        """
-        if self.parent is not None:
-            self.parent.replace_child(self, other)
-        else:
-            logger.info(f"Could not replace_child {self.label}, as it has no parent.")
-
     _save_load_warnings = """
         HERE BE DRAGONS!!!
 
