@@ -16,6 +16,7 @@ class Dummy:
         self._inputs = Inputs()
         self._outputs = Outputs()
         self._locked = False
+        self.parent = None
 
     @property
     def inputs(self) -> Inputs:
