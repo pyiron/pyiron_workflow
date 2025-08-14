@@ -18,11 +18,33 @@ from pyiron_workflow.channels import (
 )
 
 
+class DummyParent:
+    def __init__(self, label):
+        self.label = label
+        self.children = []
+
+    @property
+    def full_label(self):
+        return self.label
+
+    def add_child(self, child):
+        if child not in self.children:
+            self.children.append(child)
+        child.parent = self
+
+    def remove_child(self, child):
+        self.children.remove(child)
+        child.parent = None
+
+
 class DummyOwner:
-    def __init__(self):
+    def __init__(self, parent: DummyParent | None, label: str):
         self.foo = [0]
         self.locked = False
-        self.label = "owner_label"
+        self.label = label
+        self.parent = None
+        if parent is not None:
+            parent.add_child(self)
 
     @property
     def full_label(self):
@@ -57,11 +79,17 @@ class OutputChannel(DummyChannel["InputChannel"]):
         return InputChannel
 
 
+class AngryOutput(OutputChannel):
+    def _valid_connection(self, other: object) -> bool:
+        return False
+
+
 class TestChannel(unittest.TestCase):
     def setUp(self) -> None:
-        self.inp = InputChannel("inp", DummyOwner())
-        self.out = OutputChannel("out", DummyOwner())
-        self.out2 = OutputChannel("out2", DummyOwner())
+        self.p = DummyParent("parent_label")
+        self.inp = InputChannel("inp", DummyOwner(self.p, "has_inp"))
+        self.out = OutputChannel("out", DummyOwner(self.p, "has_out"))
+        self.out2 = OutputChannel("out2", DummyOwner(self.p, "has_out2"))
 
     def test_connection_validity(self):
         with self.assertRaises(TypeError, msg="Can't connect to non-channels"):
@@ -70,7 +98,9 @@ class TestChannel(unittest.TestCase):
         with self.assertRaises(
             TypeError, msg="Can't connect to channels that are not the partner type"
         ):
-            self.inp.connect(InputChannel("also_input", DummyOwner()))
+            self.inp.connect(
+                InputChannel("also_input", DummyOwner(self.p, "has_also_input"))
+            )
 
         self.inp.connect(self.out)
         # A conjugate pair should work fine
@@ -122,27 +152,47 @@ class TestChannel(unittest.TestCase):
 
 class TestDataChannels(unittest.TestCase):
     def setUp(self) -> None:
+        self.p = DummyParent("parent_label")
         self.ni1 = InputData(
-            label="numeric", owner=DummyOwner(), default=1, type_hint=int | float
+            label="numeric",
+            owner=DummyOwner(self.p, "has_numeric1"),
+            default=1,
+            type_hint=int | float,
         )
         self.ni2 = InputData(
-            label="numeric", owner=DummyOwner(), default=1, type_hint=int | float
+            label="numeric",
+            owner=DummyOwner(self.p, "has_numeric2"),
+            default=1,
+            type_hint=int | float,
         )
         self.no = OutputData(
-            label="numeric", owner=DummyOwner(), default=0, type_hint=int | float
+            label="numeric",
+            owner=DummyOwner(self.p, "has_numeric3"),
+            default=0,
+            type_hint=int | float,
         )
         self.no_empty = OutputData(
-            label="not_data", owner=DummyOwner(), type_hint=int | float
+            label="not_data",
+            owner=DummyOwner(self.p, "has_node_data"),
+            type_hint=int | float,
         )
 
-        self.si = InputData(label="list", owner=DummyOwner(), type_hint=list)
+        self.si = InputData(
+            label="list", owner=DummyOwner(self.p, "has_listi"), type_hint=list
+        )
         self.so1 = OutputData(
-            label="list", owner=DummyOwner(), default=["foo"], type_hint=list
+            label="list",
+            owner=DummyOwner(self.p, "has_listo"),
+            default=["foo"],
+            type_hint=list,
         )
 
     def test_mutable_defaults(self):
         so2 = OutputData(
-            label="list", owner=DummyOwner(), default=["foo"], type_hint=list
+            label="list",
+            owner=DummyOwner(self.p, "has_list"),
+            default=["foo"],
+            type_hint=list,
         )
         self.so1.default.append("bar")
         self.assertEqual(
@@ -291,7 +341,9 @@ class TestDataChannels(unittest.TestCase):
             self.ni1.value_receiver = self.si  # Should work fine if the receiver is not
             # strictly checking hints
 
-            unhinted = InputData(label="unhinted", owner=DummyOwner())
+            unhinted = InputData(
+                label="unhinted", owner=DummyOwner(self.p, "has_unhinted")
+            )
             self.ni1.value_receiver = unhinted
             unhinted.value_receiver = self.ni2
             # Should work fine if either lacks a hint
@@ -322,7 +374,9 @@ class TestDataChannels(unittest.TestCase):
 
     def test_ready(self):
         with self.subTest("Test defaults and not-data"):
-            without_default = InputData(label="without_default", owner=DummyOwner())
+            without_default = InputData(
+                label="without_default", owner=DummyOwner(self.p, "has_no_default")
+            )
             self.assertIs(
                 without_default.value,
                 NOT_DATA,
@@ -356,9 +410,10 @@ class TestDataChannels(unittest.TestCase):
 
 class TestSignalChannels(unittest.TestCase):
     def setUp(self) -> None:
-        owner = DummyOwner()
+        self.p = DummyParent("parent_label")
+        owner = DummyOwner(self.p, "owner")
         self.inp = InputSignal(label="inp", owner=owner, callback=owner.update)
-        self.out = OutputSignal(label="out", owner=DummyOwner())
+        self.out = OutputSignal(label="out", owner=DummyOwner(self.p, "owner2"))
 
     def test_connections(self):
         with self.subTest("Good connection"):
@@ -378,7 +433,10 @@ class TestSignalChannels(unittest.TestCase):
 
         with self.subTest("No connections to non-SignalChannels"):
             bad = InputData(
-                label="numeric", owner=DummyOwner(), default=1, type_hint=int
+                label="numeric",
+                owner=DummyOwner(self.p, "owner3"),
+                default=1,
+                type_hint=int,
             )
             with self.assertRaises(TypeError):
                 self.inp.connect(bad)
@@ -396,13 +454,15 @@ class TestSignalChannels(unittest.TestCase):
         self.assertListEqual(self.inp.owner.foo, [0, 1, 2])
 
     def test_aggregating_call(self):
-        owner = DummyOwner()
+        owner = DummyOwner(self.p, "owner")
         agg = AccumulatingInputSignal(label="agg", owner=owner, callback=owner.update)
 
-        out2 = OutputSignal(label="out2", owner=DummyOwner())
+        out2 = OutputSignal(label="out2", owner=DummyOwner(self.p, "owner2"))
         agg.connect(self.out, out2)
 
-        out_unrelated = OutputSignal(label="out_unrelated", owner=DummyOwner())
+        out_unrelated = OutputSignal(
+            label="out_unrelated", owner=DummyOwner(self.p, "owner3")
+        )
 
         signals_sent = 0
         self.assertEqual(
@@ -510,7 +570,7 @@ class TestSignalChannels(unittest.TestCase):
         def doesnt_belong_to_owner():
             return 42
 
-        owner = Extended()
+        owner = Extended(self.p, "extended")
         with self.subTest("Callbacks that belong to the owner and take no arguments"):
             for callback in [
                 owner.update,
@@ -533,6 +593,108 @@ class TestSignalChannels(unittest.TestCase):
                     self.assertRaises(BadCallbackError),
                 ):
                     InputSignal(label="inp", owner=owner, callback=callback)
+
+
+class TestChannelParenting(unittest.TestCase):
+    def setUp(self) -> None:
+        self.p1 = DummyParent("parent_label1")
+        self.p2 = DummyParent("parent_label2")
+        self.owner1a = DummyOwner(self.p1, "owner1a")
+        self.owner1b = DummyOwner(self.p1, "owner1b")
+        self.owner2a = DummyOwner(self.p2, "owner2a")
+        self.owner_orphan1 = DummyOwner(None, "owner_orphan")
+        self.owner_orphan2 = DummyOwner(None, "owner_orphan")
+
+        self.inp1 = InputChannel(label="inp1a", owner=self.owner1a)
+        self.out1 = OutputChannel(label="out1b", owner=self.owner1b)
+        self.out2 = OutputChannel(label="out2a", owner=self.owner2a)
+        self.inp_orphan = InputChannel(label="inp_orphan", owner=self.owner_orphan1)
+        self.out_orphan = OutputChannel(label="out_orphan", owner=self.owner_orphan2)
+
+    def test_without_parents(self):
+        # Neither parented to start with
+        self.assertIsNone(self.owner_orphan1.parent)
+        self.assertIsNone(self.owner_orphan2.parent)
+
+        # Connection works fine
+        self.inp_orphan.connect(self.out_orphan)
+        self.assertListEqual(self.inp_orphan.connections, [self.out_orphan])
+        self.assertListEqual(self.out_orphan.connections, [self.inp_orphan])
+
+        # Parent is still None for both at the end
+        self.assertIsNone(self.owner_orphan1.parent)
+        self.assertIsNone(self.owner_orphan2.parent)
+
+    def test_parenting_an_orphan(self):
+        # Parented to None-parent connection, and vice versa
+
+        # Case 1: input with parent connects to orphaned output
+        self.inp1.connect(self.out_orphan)
+        # Connection works fine
+        self.assertIn(self.out_orphan, self.inp1.connections)
+        self.assertIn(self.inp1, self.out_orphan.connections)
+        # None-parent adopts the parent of the parented owner at the end
+        self.assertIn(self.owner_orphan2, self.p1.children)
+
+        # Case 2: orphaned input connects to output with parent
+        self.inp_orphan.connect(self.out1)
+        # Connection works fine
+        self.assertIn(self.out1, self.inp_orphan.connections)
+        self.assertIn(self.inp_orphan, self.out1.connections)
+        # None-parent adopts the parent of the parented owner at the end
+        self.assertIn(self.owner_orphan1, self.p1.children)
+
+    def test_same_parent(self):
+        # Works fine
+        self.inp1.connect(self.out1)
+        self.assertEqual(self.inp1.connections, [self.out1])
+        self.assertEqual(self.out1.connections, [self.inp1])
+        # No change to parent's children expected
+        self.assertListEqual(self.p1.children, [self.owner1a, self.owner1b])
+
+    def test_different_parents(self):
+        # Raises exception
+        with self.assertRaises(ChannelConnectionError):
+            self.inp1.connect(self.out2)
+        # Ensure no parent lists were modified
+        self.assertListEqual(self.p1.children, [self.owner1a, self.owner1b])
+        self.assertListEqual(self.p2.children, [self.owner2a])
+
+    def test_exception_cleanup(self):
+        # Test cleanup after the exception fails during the validation phase, i.e.
+        # when the callbacks get triggered
+
+        with self.subTest("Validation failure with an orphan"):
+            angry_owner_orphan = DummyOwner(None, "angry_orphan")
+            angry_out = AngryOutput(label="angry", owner=angry_owner_orphan)
+            with self.assertRaises(ChannelConnectionError):
+                self.inp1.connect(angry_out)
+
+            # Ensure temporary parenting was undone and no connections were created
+            self.assertIsNone(angry_owner_orphan.parent)
+            self.assertNotIn(angry_owner_orphan, self.p1.children)
+            self.assertListEqual(self.inp1.connections, [])
+            self.assertListEqual(angry_out.connections, [])
+
+        with self.subTest("Validation failure with a parented owner"):
+            angry_owner_parented = DummyOwner(self.p1, "angry_parented")
+            angry_out_parented = AngryOutput(label="angry2", owner=angry_owner_parented)
+            with self.assertRaises(ChannelConnectionError):
+                self.inp_orphan.connect(angry_out_parented)
+
+            # Ensure the orphan input's temporary parenting was undone
+            self.assertIsNone(self.owner_orphan1.parent)
+            self.assertNotIn(self.owner_orphan1, self.p1.children)
+
+            # Parent's original/expected children remain intact
+            # (including the angry parented owner)
+            self.assertListEqual(
+                self.p1.children, [self.owner1a, self.owner1b, angry_owner_parented]
+            )
+
+            # No connections were created
+            self.assertListEqual(self.inp_orphan.connections, [])
+            self.assertListEqual(angry_out_parented.connections, [])
 
 
 if __name__ == "__main__":

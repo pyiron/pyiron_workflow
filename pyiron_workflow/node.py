@@ -18,11 +18,18 @@ from typing import TYPE_CHECKING, Any, Literal, cast
 from pyiron_snippets.colors import SeabornColors
 from pyiron_snippets.dotdict import DotDict
 
-from pyiron_workflow.channels import InputLockedError
+from pyiron_workflow.channels import (
+    AccumulatingInputSignal,
+    Channel,
+    InputLockedError,
+    InputSignal,
+    OutputSignal,
+)
 from pyiron_workflow.draw import Node as GraphvizNode
 from pyiron_workflow.executors.wrapped_executorlib import CacheOverride
-from pyiron_workflow.io import HasIO
+from pyiron_workflow.io import IO, Inputs, Signals
 from pyiron_workflow.logging import logger
+from pyiron_workflow.mixin.display_state import HasStateDisplay
 from pyiron_workflow.mixin.injection import (
     InjectsOnChannel,
     OutputDataWithInjection,
@@ -45,7 +52,6 @@ if TYPE_CHECKING:
 
     import graphviz
 
-    from pyiron_workflow.channels import OutputSignal
     from pyiron_workflow.nodes.composite import Composite
 
 
@@ -56,9 +62,17 @@ class AmbiguousOutputError(ValueError):
     """Raised when searching for exactly one output, but multiple are found."""
 
 
+class ConnectionCopyError(ValueError):
+    """Raised when trying to copy IO, but connections cannot be copied"""
+
+
+class ValueCopyError(ValueError):
+    """Raised when trying to copy IO, but values cannot be copied"""
+
+
 class Node(
+    HasStateDisplay,
     Lexical["Composite"],
-    HasIO[OutputsWithInjection],
     Runnable,
     InjectsOnChannel,
     ABC,
@@ -153,6 +167,15 @@ class Node(
                 channel labels.
         """
         super().__init__(label=label, parent=parent)
+
+        self._signals = Signals()
+        self._signals.input.run = InputSignal("run", self, self.run)
+        self._signals.input.accumulate_and_run = AccumulatingInputSignal(
+            "accumulate_and_run", self, self.run
+        )
+        self._signals.output.ran = OutputSignal("ran", self)
+        self._signals.output.failed = OutputSignal("failed", self)
+
         self.checkpoint = checkpoint
         self.recovery: BackendIdentifier | StorageInterface | None = "pickle"
         self._remove_executorlib_cache: bool = True  # Power-user override for cleaning
@@ -179,7 +202,6 @@ class Node(
         Child node classes can use this for any parameter-free node setup that should
         happen _before_ :meth:`Node._after_node_setup` gets called.
         """
-        pass
 
     def _after_node_setup(
         self,
@@ -248,6 +270,151 @@ class Node(
         """The parent-most node in this lexical path."""
         return self.parent.graph_root if isinstance(self.parent, Node) else self
 
+    @property
+    @abstractmethod
+    def inputs(self) -> Inputs: ...
+
+    @property
+    @abstractmethod
+    def outputs(self) -> OutputsWithInjection: ...
+
+    @property
+    def signals(self) -> Signals:
+        """
+        A container for input and output signals, which are channels for controlling
+        execution flow. By default, has a :attr:`signals.inputs.run` channel which has
+        a callback to the :meth:`run` method that fires whenever _any_ of its
+        connections sends a signal to it, a :attr:`signals.inputs.accumulate_and_run`
+        channel which has a callback to the :meth:`run` method but only fires after
+        _all_ its connections send at least one signal to it, and `signals.outputs.ran`
+        which gets called when the `run` method is finished.
+
+        Additional signal channels in derived classes can be added to
+        :attr:`signals.inputs` and  :attr:`signals.outputs` after this mixin class is
+        initialized.
+        """
+        return self._signals
+
+    @property
+    def connected(self) -> bool:
+        """Whether _any_ of the IO (including signals) are connected."""
+        return self.inputs.connected or self.outputs.connected or self.signals.connected
+
+    @property
+    def fully_connected(self) -> bool:
+        """Whether _all_ of the IO (including signals) are connected."""
+        return (
+            self.inputs.fully_connected
+            and self.outputs.fully_connected
+            and self.signals.fully_connected
+        )
+
+    def disconnect(self) -> list[tuple[Channel, Channel]]:
+        """
+        Disconnect all connections belonging to inputs, outputs, and signals channels.
+
+        Returns:
+            [list[tuple[Channel, Channel]]]: A list of the pairs of channels that no
+                longer participate in a connection.
+        """
+        destroyed_connections = []
+        destroyed_connections.extend(self.inputs.disconnect())
+        destroyed_connections.extend(self.outputs.disconnect())
+        destroyed_connections.extend(self.signals.disconnect())
+        return destroyed_connections
+
+    def activate_strict_hints(self) -> None:
+        """Enable type hint checks for all data IO"""
+        self.inputs.activate_strict_hints()
+        self.outputs.activate_strict_hints()
+
+    def deactivate_strict_hints(self) -> None:
+        """Disable type hint checks for all data IO"""
+        self.inputs.deactivate_strict_hints()
+        self.outputs.deactivate_strict_hints()
+
+    def _connect_output_signal(self, signal: OutputSignal) -> None:
+        self.signals.input.run.connect(signal)
+
+    def __rshift__(self, other: InputSignal | Node) -> InputSignal | Node:
+        """
+        Allows users to connect run and ran signals like: `first >> second`.
+        """
+        other._connect_output_signal(self.signals.output.ran)
+        return other
+
+    def _connect_accumulating_input_signal(
+        self, signal: AccumulatingInputSignal
+    ) -> None:
+        self.signals.output.ran.connect(signal)
+
+    def __lshift__(self, others: tuple[OutputSignal | Node, ...]):
+        """
+        Connect one or more `ran` signals to `accumulate_and_run` signals like:
+        `this << some_object, another_object, or_by_channel.signals.output.ran`
+        """
+        self.signals.input.accumulate_and_run << others
+
+    def _get_complete_input(self, *args, **kwargs) -> dict[str, Any]:
+        if len(args) > len(self.inputs.labels):
+            raise ValueError(
+                f"Received {len(args)} args, but only have {len(self.inputs.labels)} "
+                f"input channels available"
+            )
+        keyed_args = dict(zip(self.inputs.labels, args, strict=False))
+
+        if len(set(keyed_args.keys()).intersection(kwargs.keys())) > 0:
+            raise ValueError(
+                f"n args are interpreted using the first n input channels "
+                f"({self.inputs.labels}), but this conflicted with received kwargs "
+                f"({list(kwargs.keys())}) -- perhaps the input was ordered differently "
+                f"than expected? Got args {args} and kwargs {kwargs}."
+            )
+
+        kwargs.update(keyed_args)
+
+        self._ensure_all_input_keys_present(kwargs.keys(), self.inputs.labels)
+
+        return kwargs
+
+    def set_input_values(self, *args, **kwargs) -> None:
+        """
+        Match keywords to input channels and update their values.
+
+        Throws a warning if a keyword is provided that cannot be found among the input
+        keys.
+
+        Args:
+            *args: values assigned to inputs in order of appearance.
+            **kwargs: input key - input value (including channels for connection) pairs.
+
+        Raises:
+            (ValueError): If more args are received than there are inputs available.
+            (ValueError): If there is any overlap between channels receiving values
+                from `args` and those from `kwargs`.
+            (ValueError): If any of the `kwargs` keys do not match available input
+                labels.
+        """
+        for k, v in self._get_complete_input(*args, **kwargs).items():
+            self.inputs[k] = v
+
+    @staticmethod
+    def _ensure_all_input_keys_present(used_keys, available_keys):
+        diff = set(used_keys).difference(available_keys)
+        if len(diff) > 0:
+            raise ValueError(
+                f"{diff} not found among available inputs: {available_keys}"
+            )
+
+    @property
+    def _owned_io_panels(self) -> list[IO]:
+        return [
+            self.inputs,
+            self.outputs,
+            self.signals.input,
+            self.signals.output,
+        ]
+
     def data_input_locked(self):
         return self.running
 
@@ -294,8 +461,7 @@ class Node(
         return self._on_run(*args, **kwargs)
 
     @abstractmethod
-    def _on_run(self, *args, **kwargs) -> Any:
-        pass
+    def _on_run(self, *args, **kwargs) -> Any: ...
 
     def run(
         self,
@@ -755,24 +921,6 @@ class Node(
             f"{str(self.signals)}"
         )
 
-    def replace_with(self, other: Node | type[Node]):
-        """
-        If this node has a parent, invokes `self.parent.replace_child(self, other)` to swap
-        out this node for the other node in the parent graph.
-
-        The replacement must have fully compatible IO, i.e. its IO must be a superset of
-        this node's IO with all the same labels and type hints (although the latter is
-        not strictly enforced and will only cause trouble if there is an incompatibility
-        that causes trouble in the process of copying over connections)
-
-        Args:
-            other (Node|type[Node]): The replacement.
-        """
-        if self.parent is not None:
-            self.parent.replace_child(self, other)
-        else:
-            logger.info(f"Could not replace_child {self.label}, as it has no parent.")
-
     _save_load_warnings = """
         HERE BE DRAGONS!!!
 
@@ -889,6 +1037,8 @@ class Node(
         backend: BackendIdentifier | StorageInterface | None = None,
         only_requested: bool = False,
         filename: str | Path | None = None,
+        *,
+        delete_even_if_not_empty: bool = False,
         **kwargs,
     ):
         """
@@ -903,6 +1053,9 @@ class Node(
             filename (str | Path | None): The name of the file (without extensions) at
                 which to save the node. (Default is None, which uses the node's
                 lexical path.)
+            delete_even_if_not_empty (bool): Whether to delete the file even if it is
+                not empty. (Default is False, which will only delete the file if it is
+                empty, i.e. has no content in it.)
             **kwargs: back end-specific arguments (only likely to work in combination
                 with :param:`only_requested`, otherwise there's nothing to be specific
                 _to_.)
@@ -911,7 +1064,10 @@ class Node(
             backend=backend, only_requested=only_requested
         ):
             selected_backend.delete(
-                node=self if filename is None else None, filename=filename, **kwargs
+                node=self if filename is None else None,
+                filename=filename,
+                delete_even_if_not_empty=delete_even_if_not_empty,
+                **kwargs,
             )
 
     def has_saved_content(

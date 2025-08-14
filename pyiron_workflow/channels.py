@@ -22,7 +22,7 @@ from pyiron_workflow.type_hinting import (
 )
 
 if typing.TYPE_CHECKING:
-    from pyiron_workflow.io import HasIO
+    from pyiron_workflow.node import Node
 
 
 class ChannelError(Exception):
@@ -47,15 +47,31 @@ FlavorType = typing.TypeVar("FlavorType", bound="FlavorChannel")
 ReceiverType = typing.TypeVar("ReceiverType", bound="DataChannel")
 
 
+class Callback:
+    def __init__(
+        self,
+        callback: typing.Callable[..., typing.Any] | None,
+        *args: typing.Any,
+        **kwargs: typing.Any,
+    ):
+        self.callback = callback
+        self.args = args
+        self.kwargs = kwargs
+
+    def call(self):
+        if self.callback is not None:
+            self.callback(*self.args, **self.kwargs)
+
+
 class Channel(
     HasChannel, HasLabel, HasStateDisplay, typing.Generic[ConjugateType], ABC
 ):
     """
     Channels facilitate the flow of information (data or control signals) into and
-    out of :class:`HasIO` objects (namely nodes).
+    out of :class:`Node` objects (namely nodes).
 
     They must have an identifier (`label: str`) and belong to an
-    `owner: pyiron_workflow.io.HasIO`.
+    `owner: pyiron_workflow.node.Node`.
 
 
     Channels may form (:meth:`connect`/:meth:`disconnect`) and store
@@ -78,24 +94,24 @@ class Channel(
     The length of a channel is the length of its connections.
 
     Attributes:
-        owner (pyiron_workflow.io.HasIO): The channel's owner.
+        owner (pyiron_workflow.node.Node): The channel's owner.
         connections (list[Channel]): Other channels to which this channel is connected.
     """
 
     def __init__(
         self,
         label: str,
-        owner: HasIO,
+        owner: Node,
     ):
         """
         Make a new channel.
 
         Args:
             label (str): A name for the channel.
-            owner (pyiron_workflow.io.HasIO): The channel's owner.
+            owner (pyiron_workflow.node.Node): The channel's owner.
         """
         self._label = label
-        self.owner: HasIO = owner
+        self.owner: Node = owner
         self.connections: list[ConjugateType] = []
 
     @abstractmethod
@@ -143,12 +159,14 @@ class Channel(
             if other in self.connections:
                 continue
             elif isinstance(other, self.connection_conjugate()):
+                wrong_parents_callback = self._ensure_same_owner_parent(other)
                 if self._valid_connection(other) and other._valid_connection(self):
                     # Prepend new connections
                     # so that connection searches run newest to oldest
                     self.connections.insert(0, other)
                     other.connections.insert(0, self)
                 else:
+                    wrong_parents_callback.call()
                     raise ChannelConnectionError(
                         self._connection_conjugate_failure_message(other)
                     ) from None
@@ -158,6 +176,31 @@ class Channel(
                     f"objects, but {self.full_label} ({self.__class__}) "
                     f"got {other} ({type(other)})"
                 )
+
+    def _ensure_same_owner_parent(self, other: ConjugateType) -> Callback:
+        """
+        We only want to form connections between channels in the same graph, but we
+        so make sure that the channels' owners have the same parent, or fail.
+        """
+        if self.owner.parent is not None and other.owner.parent is None:
+            self.owner.parent.add_child(other.owner)
+            return Callback(self.owner.parent.remove_child, other.owner)
+        elif self.owner.parent is None and other.owner.parent is not None:
+            other.owner.parent.add_child(self.owner)
+            return Callback(other.owner.parent.remove_child, self.owner)
+        elif (
+            self.owner.parent is not None
+            and other.owner.parent is not None
+            and self.owner.parent is not other.owner.parent
+        ):
+            raise ChannelConnectionError(
+                f"Can only connect channels inside the same graph, but "
+                f"{self.full_label} has the owner {self.owner.full_label} with the "
+                f"parent {self.owner.parent.full_label} and {other.full_label} has "
+                f"the owner {other.owner.full_label} with the parent "
+                f"{other.owner.parent.full_label}."
+            )
+        return Callback(None)
 
     def _valid_connection(self, other: ConjugateType) -> bool:
         """
@@ -349,7 +392,7 @@ class DataChannel(FlavorChannel["DataChannel"], typing.Generic[ReceiverType], AB
 
     Attributes:
         value: The actual data value held by the channel.
-        owner (pyiron_workflow.io.HasIO): The channel's owner.
+        owner (pyiron_workflow.node.Node): The channel's owner.
         default (typing.Any|None): The default value to initialize to.
             (Default is the singleton `NOT_DATA`.)
         type_hint (typing.Any|None): A type hint for values. (Default is None.)
@@ -365,7 +408,7 @@ class DataChannel(FlavorChannel["DataChannel"], typing.Generic[ReceiverType], AB
     def __init__(
         self,
         label: str,
-        owner: HasIO,
+        owner: Node,
         default: typing.Any | None = NOT_DATA,
         type_hint: typing.Any | None = None,
         strict_hints: bool = True,
@@ -603,7 +646,7 @@ class SignalChannel(FlavorChannel[SignalType], ABC):
 
     Signal channels support `>>` as syntactic sugar for their connections, i.e.
     `some_output >> some_input` is equivalent to `some_input.connect(some_output)`.
-    (This is also interoperable with `HasIO` objects.)
+    (This is also interoperable with `Node` objects.)
     """
 
     @abstractmethod
@@ -620,7 +663,7 @@ class InputSignal(SignalChannel["OutputSignal"], InputChannel["OutputSignal"]):
     def __init__(
         self,
         label: str,
-        owner: HasIO,
+        owner: Node,
         callback: typing.Callable,
     ):
         """
@@ -628,7 +671,7 @@ class InputSignal(SignalChannel["OutputSignal"], InputChannel["OutputSignal"]):
 
         Args:
             label (str): A name for the channel.
-            owner (pyiron_workflow.io.HasIO): The channel's owner.
+            owner (pyiron_workflow.node.Node): The channel's owner.
             callback (callable): An argument-free callback to invoke when calling this
                 object. Must be a method on the owner.
         """
@@ -694,7 +737,7 @@ class AccumulatingInputSignal(InputSignal):
     def __init__(
         self,
         label: str,
-        owner: HasIO,
+        owner: Node,
         callback: typing.Callable,
     ):
         super().__init__(label=label, owner=owner, callback=callback)
@@ -748,7 +791,7 @@ class OutputSignal(SignalChannel["InputSignal"], OutputChannel["InputSignal"]):
             f"{[f'{c.owner.label}.{c.label}' for c in self.connections]}"
         )
 
-    def __rshift__(self, other: InputSignal | HasIO):
+    def __rshift__(self, other: InputSignal | Node):
         other._connect_output_signal(self)
         return other
 

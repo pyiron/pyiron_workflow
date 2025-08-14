@@ -5,8 +5,9 @@ from pathlib import Path
 import numpy as np
 
 from pyiron_workflow.channels import NOT_DATA
-from pyiron_workflow.io import ConnectionCopyError, ValueCopyError
-from pyiron_workflow.node import Node as NonBuiltinTypeHint
+from pyiron_workflow.node import (
+    Node as NonBuiltinTypeHint,
+)
 from pyiron_workflow.nodes.function import (
     Function,
     as_function_node,
@@ -270,134 +271,6 @@ class TestFunction(unittest.TestCase):
         upstream >> to_copy >> downstream
 
         return upstream, to_copy, downstream, node
-
-    def test_move_connections_success(self):
-        upstream, to_copy, downstream, node = self._setup_move_nodes()
-
-        with self.subTest("Successful move"):
-            node.move_connections(to_copy)
-            self.assertIn(upstream.outputs.y, node.inputs.x.connections)
-            self.assertIn(upstream.signals.output.ran, node.signals.input.run)
-            self.assertIn(downstream.signals.input.run, node.signals.output.ran)
-            self.assertFalse(to_copy.connected)
-
-    def test_move_connections_failure(self):
-        upstream, to_copy, downstream, node = self._setup_move_nodes()
-
-        def plus_one_hinted(x: int = 0) -> int:
-            y = x + 1
-            return y
-
-        wrong_io = function_node(
-            returns_multiple, x=upstream.outputs.y, y=upstream.outputs.y
-        )
-        downstream.inputs.x.disconnect_all()
-        downstream.inputs.x.connect(wrong_io.outputs.y)
-
-        hinted_node = function_node(plus_one_hinted)
-
-        with self.subTest("Ensure failed copies fail cleanly"):
-            with self.assertRaises(ConnectionCopyError, msg="Wrong labels"):
-                node.move_connections(wrong_io)
-            self.assertFalse(
-                node.connected,
-                msg="The x-input connection should have been copied, but should be "
-                "removed when the copy fails.",
-            )
-
-            with self.assertRaises(
-                ConnectionCopyError,
-                msg="An unhinted channel is not a valid connection for a hinted "
-                "channel, and should raise and exception",
-            ):
-                hinted_node.move_connections(to_copy)
-        hinted_node.disconnect()  # Make sure you've got a clean slate
-        node.disconnect()  # Make sure you've got a clean slate
-
-        with self.subTest("Ensure that failures can be continued past"):
-            node.move_connections(wrong_io, fail_hard=False)
-            self.assertIn(upstream.outputs.y, node.inputs.x.connections)
-            self.assertIn(downstream.inputs.x, node.outputs.y.connections)
-
-            hinted_node.move_connections(to_copy, fail_hard=False)
-            self.assertFalse(
-                hinted_node.inputs.connected,
-                msg="Without hard failure the copy should be allowed to proceed, but "
-                "we don't actually expect any connections to get copied since the "
-                "only one available had type hint problems",
-            )
-            self.assertTrue(
-                hinted_node.signals.output.ran.connected,
-                msg="Without hard failure the copy should be allowed to proceed, so "
-                "the output should connect fine since feeding hinted to un-hinted "
-                "is a-ok",
-            )
-
-    def test_copy_values(self):
-        @as_function_node
-        def reference(x=0, y: int = 0, z: int | float = 0, omega=None, extra_here=None):
-            out = 42
-            return out
-
-        @as_function_node
-        def all_floats(x=1.1, y=1.1, z=1.1, omega=NOT_DATA, extra_there=None) -> float:
-            out = 42.1
-            return out
-
-        # Instantiate the nodes and run them (so they have output data too)
-        ref = reference()
-        floats = all_floats()
-        ref()
-        floats.run(
-            check_readiness=False,
-            # We force-skip the readiness check since we are explicitly _trying_ to
-            # have one of the inputs be `NOT_DATA` -- a value which triggers the channel
-            # to be "not ready"
-        )
-
-        ref._copy_values(floats)
-        self.assertEqual(
-            ref.inputs.x.value, 1.1, msg="Untyped channels should copy freely"
-        )
-        self.assertEqual(
-            ref.inputs.y.value,
-            0,
-            msg="Typed channels should ignore values where the type check fails",
-        )
-        self.assertEqual(
-            ref.inputs.z.value,
-            1.1,
-            msg="Typed channels should copy values that conform to their hint",
-        )
-        self.assertEqual(
-            ref.inputs.omega.value, None, msg="NOT_DATA should be ignored when copying"
-        )
-        self.assertEqual(
-            ref.outputs.out.value, 42.1, msg="Output data should also get copied"
-        )
-        # Note also that these nodes each have extra channels the other doesn't that
-        # are simply ignored
-
-        @as_function_node
-        def extra_channel(x=1, y=1, z=1, not_present=42):
-            out = 42
-            return out
-
-        extra = extra_channel()
-        extra()
-
-        ref.inputs.x = 0  # Revert the value
-        with self.assertRaises(
-            ValueCopyError, msg="Type hint should prevent update when we fail hard"
-        ):
-            ref._copy_values(floats, fail_hard=True)
-
-        ref._copy_values(extra)  # No problem
-        with self.assertRaises(
-            ValueCopyError,
-            msg="Missing a channel that holds data is also grounds for failure",
-        ):
-            ref._copy_values(extra, fail_hard=True)
 
     def test_easy_output_connection(self):
         n1 = function_node(plus_one)

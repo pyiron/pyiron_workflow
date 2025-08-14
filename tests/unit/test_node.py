@@ -3,14 +3,21 @@ import unittest
 
 import bagofholding as boh
 
-from pyiron_workflow.channels import NOT_DATA, InputData, InputLockedError
+from pyiron_workflow.channels import (
+    NOT_DATA,
+    InputData,
+    InputLockedError,
+)
 from pyiron_workflow.io import Inputs
 from pyiron_workflow.mixin.injection import (
     OutputDataWithInjection,
     OutputsWithInjection,
 )
 from pyiron_workflow.mixin.run import ReadinessError
-from pyiron_workflow.node import AmbiguousOutputError, Node
+from pyiron_workflow.node import (
+    AmbiguousOutputError,
+    Node,
+)
 from pyiron_workflow.storage import PickleStorage, available_backends
 
 
@@ -24,6 +31,7 @@ class ANode(Node):
     def _setup_node(self) -> None:
         self._inputs = Inputs(
             InputData("x", self, type_hint=int),
+            InputData("s", self, type_hint=str, default="hello"),
         )
         self._outputs = OutputsWithInjection(
             OutputDataWithInjection("y", self, type_hint=int),
@@ -83,8 +91,37 @@ class TestNode(unittest.TestCase):
             msg="Post-instantiation update of inputs should also work",
         )
 
+        n.set_input_values(42, "goodbye")
+        self.assertDictEqual(
+            {"x": 42, "s": "goodbye"},
+            n.inputs.to_value_dict(),
+            msg="Args should be set by order of channel appearance",
+        )
+
+        n.set_input_values(s="again", x=0)
+        self.assertDictEqual(
+            {"x": 0, "s": "again"},
+            n.inputs.to_value_dict(),
+            msg="Kwargs should be set by key-label matching",
+        )
+
+        n.set_input_values(1, s="something")
+        self.assertDictEqual(
+            {"x": 1, "s": "something"},
+            n.inputs.to_value_dict(),
+            msg="Mixing and matching args and kwargs is permissible",
+        )
+
+        with self.assertRaises(ValueError, msg="More args than channels is disallowed"):
+            n.set_input_values(1, "str", None)
+
         with self.assertRaises(ValueError, msg="Non-input-channel kwargs not allowed"):
             n.set_input_values(z=3)
+
+        with self.assertRaises(
+            ValueError, msg="A channel updating from both args and kwargs is disallowed"
+        ):
+            n.set_input_values(1, x=2)
 
         with self.assertRaises(
             TypeError,
@@ -98,6 +135,64 @@ class TestNode(unittest.TestCase):
             "not an int",
             n.inputs.x.value,
             msg="It should be possible to deactivate type checking from the node level",
+        )
+
+    def test_connected_and_disconnect(self):
+        n1 = ANode(label="io1")
+        n2 = ANode(label="io2", x=n1.outputs.y)
+        n1 >> n2
+        self.assertTrue(
+            n1.connected,
+            msg="Any connection should result in a positive connected status",
+        )
+        self.assertFalse(n1.fully_connected)
+
+        n1.disconnect()
+        self.assertFalse(n1.connected, msg="Disconnect should break all connections")
+
+    def test_strict_hints(self):
+        n = ANode()
+        n.inputs["input_channel"] = InputData("input_channel", n)
+        self.assertTrue(n.inputs.input_channel.strict_hints, msg="Sanity check")
+        n.deactivate_strict_hints()
+        self.assertFalse(
+            n.inputs.input_channel.strict_hints,
+            msg="Hint strictness should be accessible from the top level",
+        )
+        n.activate_strict_hints()
+        self.assertTrue(
+            n.inputs.input_channel.strict_hints,
+            msg="Hint strictness should be accessible from the top level",
+        )
+
+    def test_rshift_operator(self):
+        n1 = ANode(label="n1")
+        n2 = ANode(label="n2")
+        n1 >> n2
+        self.assertIn(
+            n1.signals.output.ran,
+            n2.signals.input.run.connections,
+            msg="Right shift should be syntactic sugar for an 'or' run connection",
+        )
+
+    def test_lshift_operator(self):
+        n1 = ANode(label="io1")
+        n2 = ANode(label="io2")
+        n1 << n2
+        self.assertIn(
+            n1.signals.input.accumulate_and_run,
+            n2.signals.output.ran.connections,
+            msg="Left shift should be syntactic sugar for an 'and' run connection",
+        )
+        n1.disconnect()
+
+        n3 = ANode(label="io3")
+        n1 << (n2, n3)
+        print(n1.signals.input.accumulate_and_run.connections)
+        self.assertListEqual(
+            [n3.signals.output.ran, n2.signals.output.ran],
+            n1.signals.input.accumulate_and_run.connections,
+            msg="Left shift should accommodate groups of connections",
         )
 
     def test_no_new_input_while_running(self):
