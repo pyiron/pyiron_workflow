@@ -13,7 +13,7 @@ jobs:
     secrets: inherit
     with:
       docs-env-files: .ci_support/environment.yml
-      notebooks-env-files: .ci_support/environment.yml .ci_support/environment-ontology.yml
+      notebooks-env-files: .ci_support/environment.yml
       extra-python-paths: tests tests/benchmark tests/integration tests/static tests/unit  # For executorlib
       python-version-alt1: 'exclude'
       python-version-alt2: '3.11'

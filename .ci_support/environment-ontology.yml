@@ -1,5 +1,0 @@
-channels:
-- conda-forge
-dependencies:
-- pyiron_ontology =0.2.8
-- semantikon =0.0.21
