@@ -79,6 +79,11 @@ class OutputChannel(DummyChannel["InputChannel"]):
         return InputChannel
 
 
+class AngryOutput(OutputChannel):
+    def _valid_connection(self, other: object) -> bool:
+        return False
+
+
 class TestChannel(unittest.TestCase):
     def setUp(self) -> None:
         self.p = DummyParent("parent_label")
@@ -654,6 +659,42 @@ class TestChannelParenting(unittest.TestCase):
         # Ensure no parent lists were modified
         self.assertListEqual(self.p1.children, [self.owner1a, self.owner1b])
         self.assertListEqual(self.p2.children, [self.owner2a])
+
+    def test_exception_cleanup(self):
+        # Test cleanup after the exception fails during the validation phase, i.e.
+        # when the callbacks get triggered
+
+        with self.subTest("Validation failure with an orphan"):
+            angry_owner_orphan = DummyOwner(None, "angry_orphan")
+            angry_out = AngryOutput(label="angry", owner=angry_owner_orphan)
+            with self.assertRaises(ChannelConnectionError):
+                self.inp1.connect(angry_out)
+
+            # Ensure temporary parenting was undone and no connections were created
+            self.assertIsNone(angry_owner_orphan.parent)
+            self.assertNotIn(angry_owner_orphan, self.p1.children)
+            self.assertListEqual(self.inp1.connections, [])
+            self.assertListEqual(angry_out.connections, [])
+
+        with self.subTest("Validation failure with a parented owner"):
+            angry_owner_parented = DummyOwner(self.p1, "angry_parented")
+            angry_out_parented = AngryOutput(label="angry2", owner=angry_owner_parented)
+            with self.assertRaises(ChannelConnectionError):
+                self.inp_orphan.connect(angry_out_parented)
+
+            # Ensure the orphan input's temporary parenting was undone
+            self.assertIsNone(self.owner_orphan1.parent)
+            self.assertNotIn(self.owner_orphan1, self.p1.children)
+
+            # Parent's original/expected children remain intact
+            # (including the angry parented owner)
+            self.assertListEqual(
+                self.p1.children, [self.owner1a, self.owner1b, angry_owner_parented]
+            )
+
+            # No connections were created
+            self.assertListEqual(self.inp_orphan.connections, [])
+            self.assertListEqual(angry_out_parented.connections, [])
 
 
 if __name__ == "__main__":
