@@ -1,22 +1,19 @@
+import dataclasses
 import unittest
-from dataclasses import dataclass
 
-from rdflib import OWL, RDF, RDFS, Literal, Namespace, URIRef
+import rdflib
+from semantikon import ontology as onto
 from semantikon.metadata import u
-from semantikon.ontology import (
-    SNS,
-    get_knowledge_graph,
-    validate_values,
-)
 
 from pyiron_workflow.knowledge import export_to_dict, parse_workflow
+from pyiron_workflow.nodes import function, macro
 from pyiron_workflow.workflow import Workflow
 
-EX = Namespace("http://example.org/")
-QUDT = Namespace("http://qudt.org/vocab/unit/")
+EX = rdflib.Namespace("http://example.org/")
+QUDT = rdflib.Namespace("http://qudt.org/vocab/unit/")
 
 
-@Workflow.wrap.as_function_node("speed")
+@function.as_function_node("speed")
 def calculate_speed(
     distance: u(float, units="meter") = 10.0,
     time: u(float, units="second") = 2.0,
@@ -33,57 +30,57 @@ def calculate_speed(
     return distance / time
 
 
-@Workflow.wrap.as_function_node("result")
+@function.as_function_node("result")
 @u(uri=EX.Addition)
 def add(a: float, b: float) -> u(float, triples=(EX.HasOperation, EX.Addition)):
     return a + b
 
 
-@Workflow.wrap.as_function_node("result")
+@function.as_function_node("result")
 def multiply(a: float, b: float) -> u(
     float,
     triples=(
         (EX.HasOperation, EX.Multiplication),
-        (SNS.inheritsPropertiesFrom, "inputs.a"),
+        (onto.SNS.inheritsPropertiesFrom, "inputs.a"),
     ),
 ):
     return a * b
 
 
-@Workflow.wrap.as_macro_node("result")
+@macro.as_macro_node("result")
 def operation(macro=None, a: float = 1.0, b: float = 1.0) -> float:
     macro.addition = add(a=a, b=b)
     macro.multiply = multiply(a=macro.addition, b=b)
     return macro.multiply
 
 
-@Workflow.wrap.as_function_node("result")
+@function.as_function_node("result")
 def correct_analysis(
     a: u(
         float,
         restrictions=(
-            (OWL.onProperty, EX.HasOperation),
-            (OWL.someValuesFrom, EX.Addition),
+            (rdflib.OWL.onProperty, EX.HasOperation),
+            (rdflib.OWL.someValuesFrom, EX.Addition),
         ),
     ),
 ) -> float:
     return a
 
 
-@Workflow.wrap.as_function_node("result")
+@function.as_function_node("result")
 def wrong_analysis(
     a: u(
         float,
         restrictions=(
-            (OWL.onProperty, EX.HasOperation),
-            (OWL.someValuesFrom, EX.Division),
+            (rdflib.OWL.onProperty, EX.HasOperation),
+            (rdflib.OWL.someValuesFrom, EX.Division),
         ),
     ),
 ) -> float:
     return a
 
 
-@Workflow.wrap.as_function_node
+@function.as_function_node
 def multiple_outputs(a: int = 1, b: int = 2) -> tuple[int, int]:
     return a, b
 
@@ -104,7 +101,7 @@ class TestParser(unittest.TestCase):
         query_txt = [
             "PREFIX ex: <http://example.org/>",
             "PREFIX rdf: <http://www.w3.org/1999/02/22-rdf-syntax-ns#>",
-            f"PREFIX pns: <{SNS.BASE}>",
+            f"PREFIX pns: <{onto.SNS.BASE}>",
             "SELECT DISTINCT ?speed ?units",
             "WHERE {",
             "    ?output pns:hasValue ?output_tag .",
@@ -122,18 +119,18 @@ class TestParser(unittest.TestCase):
         wf = Workflow("speed")
         wf.speed = calculate_speed()
         graph = parse_workflow(wf)
-        subj = URIRef("http://example.org/subject")
-        obj = URIRef("http://example.org/object")
-        label = URIRef("speed.speed.outputs.speed")
+        subj = rdflib.URIRef("http://example.org/subject")
+        obj = rdflib.URIRef("http://example.org/object")
+        label = rdflib.URIRef("speed.speed.outputs.speed")
         self.assertIn(
-            (None, SNS.hasUnits, QUDT["M-PER-SEC"]),
+            (None, onto.SNS.hasUnits, QUDT["M-PER-SEC"]),
             graph,
             msg=graph.serialize(format="turtle"),
         )
         ex_triple = (
             None,
             EX.somehowRelatedTo,
-            URIRef("speed.speed.inputs.time"),
+            rdflib.URIRef("speed.speed.inputs.time"),
         )
         self.assertIn(
             ex_triple,
@@ -149,14 +146,14 @@ class TestParser(unittest.TestCase):
         wf.addition = add(a=1.0, b=2.0)
         wf.multiply = multiply(a=wf.addition, b=3.0)
         wf.analysis = correct_analysis(a=wf.multiply)
-        graph = get_knowledge_graph(export_to_dict(wf))
-        self.assertEqual(validate_values(graph)["missing_triples"], [])
+        graph = onto.get_knowledge_graph(export_to_dict(wf))
+        self.assertEqual(onto.validate_values(graph)["missing_triples"], [])
         wf = Workflow("wrong_analysis")
         wf.addition = add(a=1.0, b=2.0)
         wf.multiply = multiply(a=wf.addition, b=3.0)
         wf.analysis = wrong_analysis(a=wf.multiply)
-        graph = get_knowledge_graph(export_to_dict(wf))
-        self.assertEqual(len(validate_values(graph)["missing_triples"]), 1)
+        graph = onto.get_knowledge_graph(export_to_dict(wf))
+        self.assertEqual(len(onto.validate_values(graph)["missing_triples"]), 1)
 
     def test_multiple_outputs(self):
         wf = Workflow("multiple_outputs")
@@ -170,33 +167,39 @@ class TestParser(unittest.TestCase):
         wf = Workflow("correct_analysis")
         wf.addition = add(a=1.0, b=2.0)
         data = export_to_dict(wf)
-        graph = get_knowledge_graph(data)
+        graph = onto.get_knowledge_graph(data)
         self.assertTrue(
             EX.Addition
-            in list(graph.objects(URIRef("correct_analysis.addition"), RDF.type))
+            in list(
+                graph.objects(
+                    rdflib.URIRef("correct_analysis.addition"), rdflib.RDF.type
+                )
+            )
         )
 
     def test_namespace(self):
-        self.assertEqual(SNS.hasUnits, URIRef("http://pyiron.org/ontology/hasUnits"))
+        self.assertEqual(
+            onto.SNS.hasUnits, rdflib.URIRef("http://pyiron.org/ontology/hasUnits")
+        )
         with self.assertRaises(AttributeError):
-            _ = SNS.ahoy
+            _ = onto.SNS.ahoy
 
     def test_parsing_without_running(self):
         wf = Workflow("test")
         wf.addition = add(a=1.0, b=2.0)
         data = export_to_dict(wf)
         self.assertFalse("value" in data["outputs"]["addition__result"])
-        graph = get_knowledge_graph(data)
+        graph = onto.get_knowledge_graph(data)
         self.assertEqual(
-            len(list(graph.triples((None, RDF.value, None)))),
+            len(list(graph.triples((None, rdflib.RDF.value, None)))),
             4,
             msg="There should be only values for a and b, but not for the output",
         )
         wf.run()
         data = export_to_dict(wf)
-        graph = get_knowledge_graph(data)
+        graph = onto.get_knowledge_graph(data)
         self.assertEqual(
-            len(list(graph.triples((None, RDF.value, None)))),
+            len(list(graph.triples((None, rdflib.RDF.value, None)))),
             6,
             msg="There should be values for a, b and the output",
         )
@@ -215,12 +218,12 @@ class TestParser(unittest.TestCase):
         )
 
 
-@dataclass
+@dataclasses.dataclass
 class Input:
     T: u(float, units="kelvin")
     n: int
 
-    @dataclass
+    @dataclasses.dataclass
     class parameters:
         a: int = 2
 
@@ -228,13 +231,13 @@ class Input:
         b: int = 3
 
 
-@dataclass
+@dataclasses.dataclass
 class Output:
     E: u(float, units="electron_volt")
     L: u(float, units="angstrom")
 
 
-@Workflow.wrap.as_function_node
+@function.as_function_node
 def run_md(inp: Input) -> Output:
     out = Output(E=1.0, L=2.0)
     return out
@@ -248,14 +251,26 @@ class TestDataclass(unittest.TestCase):
         wf.node = run_md(inp)
         wf.run()
         data = export_to_dict(wf)
-        graph = get_knowledge_graph(data)
+        graph = onto.get_knowledge_graph(data)
         i_txt = "my_wf.node.inputs.inp"
         o_txt = "my_wf.node.outputs.out"
         triples = (
-            (URIRef(f"{i_txt}.n.value"), RDFS.subClassOf, URIRef(f"{i_txt}.value")),
-            (URIRef(f"{i_txt}.n.value"), RDF.value, Literal(100)),
-            (URIRef(f"{i_txt}.parameters.a.value"), RDF.value, Literal(1)),
-            (URIRef(o_txt), SNS.hasValue, URIRef(f"{o_txt}.E.value")),
+            (
+                rdflib.URIRef(f"{i_txt}.n.value"),
+                rdflib.RDFS.subClassOf,
+                rdflib.URIRef(f"{i_txt}.value"),
+            ),
+            (rdflib.URIRef(f"{i_txt}.n.value"), rdflib.RDF.value, rdflib.Literal(100)),
+            (
+                rdflib.URIRef(f"{i_txt}.parameters.a.value"),
+                rdflib.RDF.value,
+                rdflib.Literal(1),
+            ),
+            (
+                rdflib.URIRef(o_txt),
+                onto.SNS.hasValue,
+                rdflib.URIRef(f"{o_txt}.E.value"),
+            ),
         )
         s = graph.serialize(format="turtle")
         for ii, triple in enumerate(triples):
@@ -265,7 +280,7 @@ class TestDataclass(unittest.TestCase):
                     1,
                     msg=f"{triple} not found in {s}",
                 )
-        self.assertIsNone(graph.value(URIRef(f"{i_txt}.not_dataclass.b.value")))
+        self.assertIsNone(graph.value(rdflib.URIRef(f"{i_txt}.not_dataclass.b.value")))
 
 
 if __name__ == "__main__":
