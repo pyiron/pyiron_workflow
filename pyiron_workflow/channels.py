@@ -47,6 +47,22 @@ FlavorType = typing.TypeVar("FlavorType", bound="FlavorChannel")
 ReceiverType = typing.TypeVar("ReceiverType", bound="DataChannel")
 
 
+class Callback:
+    def __init__(
+        self,
+        callback: typing.Callable[..., typing.Any] | None,
+        *args: typing.Any,
+        **kwargs: typing.Any,
+    ):
+        self.callback = callback
+        self.args = args
+        self.kwargs = kwargs
+
+    def call(self):
+        if self.callback is not None:
+            self.callback(*self.args, **self.kwargs)
+
+
 class Channel(
     HasChannel, HasLabel, HasStateDisplay, typing.Generic[ConjugateType], ABC
 ):
@@ -143,12 +159,14 @@ class Channel(
             if other in self.connections:
                 continue
             elif isinstance(other, self.connection_conjugate()):
+                wrong_parents_callback = self._ensure_same_owner_parent(other)
                 if self._valid_connection(other) and other._valid_connection(self):
                     # Prepend new connections
                     # so that connection searches run newest to oldest
                     self.connections.insert(0, other)
                     other.connections.insert(0, self)
                 else:
+                    wrong_parents_callback.call()
                     raise ChannelConnectionError(
                         self._connection_conjugate_failure_message(other)
                     ) from None
@@ -158,6 +176,31 @@ class Channel(
                     f"objects, but {self.full_label} ({self.__class__}) "
                     f"got {other} ({type(other)})"
                 )
+
+    def _ensure_same_owner_parent(self, other: ConjugateType) -> Callback:
+        """
+        We only want to form connections between channels in the same graph, but we
+        so make sure that the channels' owners have the same parent, or fail.
+        """
+        if self.owner.parent is not None and other.owner.parent is None:
+            self.owner.parent.add_child(other.owner)
+            return Callback(self.owner.parent.remove_child, other.owner)
+        elif self.owner.parent is None and other.owner.parent is not None:
+            other.owner.parent.add_child(self.owner)
+            return Callback(other.owner.parent.remove_child, self.owner)
+        elif (
+            self.owner.parent is not None
+            and other.owner.parent is not None
+            and self.owner.parent is not other.owner.parent
+        ):
+            raise ChannelConnectionError(
+                f"Can only connect channels inside the same graph, but "
+                f"{self.full_label} has the owner {self.owner.full_label} with the "
+                f"parent {self.owner.parent.full_label} and {other.full_label} has "
+                f"the owner {other.owner.full_label} with the parent "
+                f"{other.owner.parent.full_label}."
+            )
+        return Callback(None)
 
     def _valid_connection(self, other: ConjugateType) -> bool:
         """

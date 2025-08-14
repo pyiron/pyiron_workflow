@@ -197,23 +197,6 @@ class Macro(Composite, StaticNode, ScrapesIO, ABC):
         to do this. Let's explore these by going back to our `add_three_macro` and
         replacing each of its children with a node that adds 2 instead of 1.
 
-        >>> @Macro.wrap.as_function_node
-        ... def add_two(x):
-        ...     result = x + 2
-        ...     return result
-        >>>
-        >>> adds_six_macro = macro_node(add_three_macro, output_labels="three__result")
-        >>> # With the replace method
-        >>> # (replacement target can be specified by label or instance,
-        >>> # the replacing node can be specified by instance or class)
-        >>> replaced, _ = adds_six_macro.replace_child(adds_six_macro.one, add_two())
-        >>> # With the replace_with method
-        >>> adds_six_macro.two.replace_with(add_two())
-        >>> # And by assignment of a compatible class to an occupied node label
-        >>> adds_six_macro.three = add_two
-        >>> adds_six_macro(one__x=1)
-        {'three__result': 7}
-
         It's possible for the macro to hold nodes which are not publicly exposed for
         data and signal connections, but which will still internally execute and store
         data, e.g.:

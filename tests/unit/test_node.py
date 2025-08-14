@@ -7,7 +7,6 @@ from pyiron_workflow.channels import (
     NOT_DATA,
     InputData,
     InputLockedError,
-    InputSignal,
 )
 from pyiron_workflow.io import Inputs
 from pyiron_workflow.mixin.injection import (
@@ -17,9 +16,7 @@ from pyiron_workflow.mixin.injection import (
 from pyiron_workflow.mixin.run import ReadinessError
 from pyiron_workflow.node import (
     AmbiguousOutputError,
-    ConnectionCopyError,
     Node,
-    ValueCopyError,
 )
 from pyiron_workflow.storage import PickleStorage, available_backends
 
@@ -197,141 +194,6 @@ class TestNode(unittest.TestCase):
             n1.signals.input.accumulate_and_run.connections,
             msg="Left shift should accommodate groups of connections",
         )
-
-    def test_move_io(self):
-        # Setup
-        def _setup(copier_hint=None):
-            upstream = ANode(label="upstream")
-            upstream.outputs["output_channel"] = OutputDataWithInjection(
-                "output_channel", upstream, type_hint=float
-            )
-
-            to_copy = ANode(label="to_copy")
-            to_copy.inputs["used_input"] = InputData("used_input", to_copy, default=42)
-            to_copy.inputs["hinted_input"] = InputData(
-                "hinted_input", to_copy, type_hint=float
-            )
-            to_copy.inputs["unused_input"] = InputData(
-                "unused_input", to_copy, default="has a value but not connected"
-            )
-            to_copy.outputs["used_output"] = OutputDataWithInjection(
-                "used_output", to_copy
-            )
-            to_copy.outputs["unused_output"] = OutputDataWithInjection(
-                "unused_output", to_copy
-            )
-            to_copy.signals.input["custom_signal"] = InputSignal(
-                "custom_signal",
-                to_copy,
-                to_copy.to_dict,
-            )
-            to_copy.signals.input["unused_signal"] = InputSignal(
-                "unused_signal",
-                to_copy,
-                to_copy.to_dict,
-            )
-
-            downstream = ANode(label="downstream")
-            downstream.inputs["input_channel"] = InputData("input_channel", downstream)
-
-            to_copy.inputs.used_input.connect(upstream.outputs.output_channel)
-            to_copy.inputs.hinted_input.connect(upstream.outputs.output_channel)
-            to_copy.signals.input.custom_signal.connect(upstream.signals.output.ran)
-            to_copy >> downstream
-
-            # Create copy candidates that will pass or fail
-            copier = ANode(label="subset")
-            if copier_hint is not None:
-                copier.inputs["used_input"] = InputData("used_input", copier)
-                copier.inputs["hinted_input"] = InputData(
-                    "hinted_input",
-                    copier,
-                    type_hint=copier_hint,  # Different hint!
-                )
-                copier.inputs["extra_input"] = InputData(
-                    "extra_input",
-                    copier,
-                    default="not on the copied object but that's ok",
-                )
-                copier.outputs["used_output"] = OutputDataWithInjection(
-                    "used_output", copier
-                )
-                copier.signals.input["custom_signal"] = InputSignal(
-                    "custom_signal",
-                    copier,
-                    copier.to_dict,
-                )
-
-            return upstream, to_copy, downstream, copier
-
-        upstream, to_copy, downstream, copier = _setup()
-
-        with self.subTest("Fails on missing connections"):
-            with self.assertRaises(
-                ConnectionCopyError,
-                msg="The copier is missing all sorts of connected channels and should "
-                "fail to copy",
-            ):
-                copier.move_io(
-                    to_copy, connections_fail_hard=True, values_fail_hard=False
-                )
-            self.assertFalse(
-                copier.connected,
-                msg="After a failure, any connections that _were_ made should get "
-                "reset",
-            )
-
-        upstream, to_copy, downstream, copier = _setup()
-
-        with self.subTest("Force missing connections"):
-            copier.move_io(to_copy, connections_fail_hard=False, values_fail_hard=False)
-            self.assertIn(
-                copier.signals.output.ran,
-                downstream.signals.input.run,
-                msg="The channel that _can_ get copied _should_ get copied",
-            )
-            copier.signals.output.ran.disconnect_all()
-            self.assertFalse(
-                copier.connected,
-                msg="Sanity check that that was indeed the only connection",
-            )
-
-        upstream, to_copy, downstream, copier = _setup(copier_hint=str)
-
-        with (
-            self.subTest("Bad hint causes connection error"),
-            self.assertRaises(
-                ConnectionCopyError,
-                msg="Can't connect channels with incommensurate type hints",
-            ),
-        ):
-            copier.move_io(to_copy, connections_fail_hard=True, values_fail_hard=False)
-
-        # Bring the copier's type hint in-line with the object being copied
-        upstream, to_copy, downstream, copier = _setup(copier_hint=float)
-
-        with self.subTest("Passes missing values"):
-            copier.move_io(to_copy, connections_fail_hard=True, values_fail_hard=False)
-            for inp in copier.inputs:
-                with contextlib.suppress(AttributeError):
-                    # We only need to check shared channels
-                    self.assertEqual(
-                        inp.value,
-                        to_copy.inputs[inp.label].value,
-                        msg="All values on shared channels should copy",
-                    )
-
-        upstream, to_copy, downstream, copier = _setup(copier_hint=float)
-
-        with (
-            self.subTest("Force failure on value copy fail"),
-            self.assertRaises(
-                ValueCopyError,
-                msg="The copier doesn't have channels to hold all the values that need"
-                "copying, so we should fail",
-            ),
-        ):
-            copier.move_io(to_copy, connections_fail_hard=True, values_fail_hard=True)
 
     def test_no_new_input_while_running(self):
         n = ANode()

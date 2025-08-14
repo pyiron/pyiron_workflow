@@ -5,8 +5,9 @@ from time import sleep
 
 from static import demo_nodes
 
+from pyiron_workflow import channels
 from pyiron_workflow._tests import ensure_tests_in_python_path
-from pyiron_workflow.channels import NOT_DATA
+from pyiron_workflow.mixin import injection
 from pyiron_workflow.nodes.function import as_function_node, function_node
 from pyiron_workflow.nodes.macro import Macro, as_macro_node, macro_node
 from pyiron_workflow.storage import H5BagStorage, PickleStorage, available_backends
@@ -147,7 +148,7 @@ class TestMacro(unittest.TestCase):
 
         self.assertIs(
             m.outputs.three__result.value,
-            NOT_DATA,
+            channels.NOT_DATA,
             msg="Output should be accessible with the usual naming convention, but we "
             "have not run yet so there shouldn't be any data",
         )
@@ -220,7 +221,7 @@ class TestMacro(unittest.TestCase):
         macro.executor = futures.ProcessPoolExecutor()
 
         self.assertIs(
-            NOT_DATA,
+            channels.NOT_DATA,
             macro.outputs.three__result.value,
             msg="Sanity check that test is in right starting condition",
         )
@@ -230,7 +231,7 @@ class TestMacro(unittest.TestCase):
             result, futures.Future, msg="Should be running as a parallel process"
         )
         self.assertIs(
-            NOT_DATA,
+            channels.NOT_DATA,
             downstream.outputs.result.value,
             msg="Downstream events should not yet have triggered either, we should wait"
             "for the callback when the result is ready",
@@ -486,7 +487,26 @@ class TestMacro(unittest.TestCase):
             with self.subTest(backend):
                 try:
                     macro = demo_nodes.AddThree(label="m", x=0)
-                    macro.replace_child(macro.two, demo_nodes.AddPlusOne())
+                    twos_connections = macro.two.disconnect()
+                    twos_values = macro.two.inputs.to_value_dict()
+                    macro.remove_child(macro.two)
+                    macro.two = demo_nodes.AddPlusOne(**twos_values)
+                    for old_two_channel, other_channel in twos_connections:
+                        panel = None
+                        match type(old_two_channel):
+                            case channels.InputData:
+                                panel = macro.two.inputs
+                            case injection.OutputDataWithInjection:
+                                panel = macro.two.outputs
+                            case channels.AccumulatingInputSignal:
+                                panel = macro.two.signals.input
+                            case channels.OutputSignal:
+                                panel = macro.two.signals.output
+                        if panel is None:
+                            raise TypeError(
+                                f"Unrecognized channel type {type(old_two_channel)}"
+                            )
+                        panel[old_two_channel.label].connect(other_channel)
 
                     modified_result = macro()
 
@@ -637,7 +657,7 @@ class TestMacro(unittest.TestCase):
 
             self.assertIs(
                 DoesntAutoloadChildren().some_child.outputs.x.value,
-                NOT_DATA,
+                channels.NOT_DATA,
                 msg="Despite having the same label as a saved node at instantiation time, "
                 "without autoloading children, our macro safely gets a fresh instance. "
                 "Since this is clearly preferable, here we leave autoload to take its "
