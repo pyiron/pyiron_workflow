@@ -1,7 +1,6 @@
 import unittest
 from dataclasses import dataclass
 
-from pyiron_workflow import Workflow
 from rdflib import OWL, RDF, RDFS, Literal, Namespace, URIRef
 from semantikon.metadata import u
 from semantikon.ontology import (
@@ -10,7 +9,8 @@ from semantikon.ontology import (
     validate_values,
 )
 
-from pyiron_ontology.parser import export_to_dict, parse_workflow
+from pyiron_workflow.knowledge import export_to_dict, parse_workflow
+from pyiron_workflow.workflow import Workflow
 
 EX = Namespace("http://example.org/")
 QUDT = Namespace("http://qudt.org/vocab/unit/")
