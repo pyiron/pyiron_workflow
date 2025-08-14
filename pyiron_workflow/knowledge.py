@@ -1,9 +1,10 @@
-from pyiron_workflow.api import NOT_DATA, Workflow
-from pyiron_workflow.channels import Channel
+import rdflib
+from semantikon import ontology as onto
+
+from pyiron_workflow.channels import NOT_DATA, Channel
 from pyiron_workflow.node import Node
 from pyiron_workflow.nodes.composite import Composite
-from rdflib import Graph
-from semantikon.ontology import SNS, get_knowledge_graph
+from pyiron_workflow.workflow import Workflow
 
 
 def _extract_data(item: Channel, with_values=True, with_default=True) -> dict:
@@ -150,11 +151,11 @@ def parse_workflow(
     workflow: Workflow,
     with_values: bool = True,
     with_default: bool = True,
-    graph: Graph | None = None,
+    graph: rdflib.Graph | None = None,
     inherit_properties: bool = True,
-    ontology=SNS,
+    ontology=onto.SNS,
     append_missing_items: bool = True,
-) -> Graph:
+) -> rdflib.Graph:
     """
     Generate RDF graph from a pyiron workflow object
 
@@ -174,7 +175,7 @@ def parse_workflow(
     wf_dict = export_to_dict(
         workflow, with_values=with_values, with_default=with_default
     )
-    return get_knowledge_graph(
+    return onto.get_knowledge_graph(
         wf_dict=wf_dict,
         graph=graph,
         inherit_properties=inherit_properties,
