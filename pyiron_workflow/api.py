@@ -5,7 +5,7 @@ All public items included here are subject to semantic versioning.
 """
 
 # Node developer entry points
-from pyiron_workflow.channels import NOT_DATA
+from pyiron_workflow.data import NOT_DATA
 from pyiron_workflow.executors import CloudpickleProcessPoolExecutor, NodeSlurmExecutor
 from pyiron_workflow.find import (
     find_nodes as _find_nodes,  # Not formally in API -- don't rely on interface

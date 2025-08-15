@@ -15,7 +15,7 @@ from pyiron_snippets.colors import SeabornColors
 from pyiron_snippets.factory import classfactory
 
 from pyiron_workflow import identifier
-from pyiron_workflow.channels import NOT_DATA, NotData
+from pyiron_workflow.data import NOT_DATA, NotData
 from pyiron_workflow.nodes.static_io import StaticNode
 
 

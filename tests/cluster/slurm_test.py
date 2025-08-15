@@ -3,13 +3,16 @@ import os
 import time
 
 import pyiron_workflow as pwf
+import pyiron_workflow.data
 from pyiron_workflow.executors.wrapped_executorlib import NodeSlurmExecutor
 
 t_overhead = 2
 t_sleep = 10
 
 
-def state_check(wf, expected_wf, expected_n2, expected_result=pwf.api.NOT_DATA):
+def state_check(
+    wf, expected_wf, expected_n2, expected_result=pyiron_workflow.data.NOT_DATA
+):
     wf_running, n_running, outputs = (
         wf.running,
         wf.n2.running,

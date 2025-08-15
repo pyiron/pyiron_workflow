@@ -4,10 +4,10 @@ import unittest
 import bagofholding as boh
 
 from pyiron_workflow.channels import (
-    NOT_DATA,
     InputData,
     InputLockedError,
 )
+from pyiron_workflow.data import NOT_DATA
 from pyiron_workflow.io import Inputs
 from pyiron_workflow.mixin.injection import (
     OutputDataWithInjection,

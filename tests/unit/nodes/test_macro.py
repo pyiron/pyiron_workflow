@@ -5,6 +5,7 @@ from time import sleep
 
 from static import demo_nodes
 
+import pyiron_workflow.data
 from pyiron_workflow import channels
 from pyiron_workflow._tests import ensure_tests_in_python_path
 from pyiron_workflow.mixin import injection
@@ -148,7 +149,7 @@ class TestMacro(unittest.TestCase):
 
         self.assertIs(
             m.outputs.three__result.value,
-            channels.NOT_DATA,
+            pyiron_workflow.data.NOT_DATA,
             msg="Output should be accessible with the usual naming convention, but we "
             "have not run yet so there shouldn't be any data",
         )
@@ -221,7 +222,7 @@ class TestMacro(unittest.TestCase):
         macro.executor = futures.ProcessPoolExecutor()
 
         self.assertIs(
-            channels.NOT_DATA,
+            pyiron_workflow.data.NOT_DATA,
             macro.outputs.three__result.value,
             msg="Sanity check that test is in right starting condition",
         )
@@ -231,7 +232,7 @@ class TestMacro(unittest.TestCase):
             result, futures.Future, msg="Should be running as a parallel process"
         )
         self.assertIs(
-            channels.NOT_DATA,
+            pyiron_workflow.data.NOT_DATA,
             downstream.outputs.result.value,
             msg="Downstream events should not yet have triggered either, we should wait"
             "for the callback when the result is ready",
@@ -657,7 +658,7 @@ class TestMacro(unittest.TestCase):
 
             self.assertIs(
                 DoesntAutoloadChildren().some_child.outputs.x.value,
-                channels.NOT_DATA,
+                pyiron_workflow.data.NOT_DATA,
                 msg="Despite having the same label as a saved node at instantiation time, "
                 "without autoloading children, our macro safely gets a fresh instance. "
                 "Since this is clearly preferable, here we leave autoload to take its "

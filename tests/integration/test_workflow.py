@@ -9,7 +9,8 @@ import executorlib
 from static import demo_nodes
 
 from pyiron_workflow._tests import ensure_tests_in_python_path
-from pyiron_workflow.channels import NOT_DATA, OutputSignal
+from pyiron_workflow.channels import OutputSignal
+from pyiron_workflow.data import NOT_DATA
 from pyiron_workflow.nodes.composite import FailedChildError
 from pyiron_workflow.nodes.function import Function
 from pyiron_workflow.workflow import Workflow

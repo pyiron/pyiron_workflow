@@ -25,7 +25,7 @@ from typing import (
 
 from pyiron_snippets.dotdict import DotDict
 
-from pyiron_workflow.channels import NOT_DATA
+from pyiron_workflow.data import NOT_DATA
 from pyiron_workflow.logging import logger
 from pyiron_workflow.output_parser import ParseOutput
 

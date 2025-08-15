@@ -4,7 +4,7 @@ from pathlib import Path
 
 import numpy as np
 
-from pyiron_workflow.channels import NOT_DATA
+from pyiron_workflow.data import NOT_DATA
 from pyiron_workflow.node import (
     Node as NonBuiltinTypeHint,
 )
