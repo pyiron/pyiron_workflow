@@ -11,7 +11,8 @@ from collections.abc import Callable
 from pathlib import Path
 from time import sleep
 
-from pyiron_workflow.channels import NOT_DATA, OutputSignal
+from pyiron_workflow.channels import OutputSignal
+from pyiron_workflow.data import NOT_DATA
 from pyiron_workflow.nodes.function import Function, as_function_node
 
 
