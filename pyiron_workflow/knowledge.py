@@ -1,10 +1,17 @@
+from __future__ import annotations
+
+from typing import TYPE_CHECKING
+
 import rdflib
 from semantikon import ontology as onto
 
-from pyiron_workflow.channels import NOT_DATA, Channel
+from pyiron_workflow.data import NOT_DATA
 from pyiron_workflow.node import Node
 from pyiron_workflow.nodes.composite import Composite
 from pyiron_workflow.workflow import Workflow
+
+if TYPE_CHECKING:
+    from pyiron_workflow.channels import Channel
 
 
 def _extract_data(item: Channel, with_values=True, with_default=True) -> dict:
