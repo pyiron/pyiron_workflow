@@ -10,7 +10,7 @@ from typing import Any, ClassVar
 from pandas import DataFrame
 from pyiron_snippets.factory import classfactory
 
-from pyiron_workflow.channels import NOT_DATA
+from pyiron_workflow.data import NOT_DATA
 from pyiron_workflow.mixin.run import InterpretableAsExecutor
 from pyiron_workflow.nodes.composite import Composite
 from pyiron_workflow.nodes.static_io import StaticNode

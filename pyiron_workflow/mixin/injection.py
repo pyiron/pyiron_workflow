@@ -11,7 +11,8 @@ from __future__ import annotations
 import abc
 from typing import TYPE_CHECKING, Any
 
-from pyiron_workflow.channels import NOT_DATA, OutputData
+from pyiron_workflow.channels import OutputData
+from pyiron_workflow.data import NOT_DATA
 from pyiron_workflow.io import GenericOutputs
 from pyiron_workflow.mixin.has_interface_mixins import HasChannel
 

@@ -3,7 +3,6 @@ from __future__ import annotations
 import unittest
 
 from pyiron_workflow.channels import (
-    NOT_DATA,
     AccumulatingInputSignal,
     BadCallbackError,
     Channel,
@@ -16,6 +15,7 @@ from pyiron_workflow.channels import (
     OutputSignal,
     TooManyConnectionsError,
 )
+from pyiron_workflow.data import NOT_DATA
 
 
 class DummyParent:

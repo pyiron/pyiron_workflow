@@ -10,7 +10,7 @@ from typing import TYPE_CHECKING, Generic, Literal, TypeVar
 import graphviz
 from pyiron_snippets.colors import SeabornColors
 
-from pyiron_workflow.channels import NotData
+from pyiron_workflow.data import NOT_DATA
 
 if TYPE_CHECKING:
     from pyiron_workflow.channels import Channel as WorkflowChannel  # noqa: F401
@@ -198,7 +198,7 @@ class DataChannel(_Channel["WorkflowDataChannel"]):
 
     @property
     def style(self) -> str:
-        if len(self.channel.connections) == 0 and self.channel.value is NotData():
+        if len(self.channel.connections) == 0 and self.channel.value is NOT_DATA:
             return "bold"
         return "filled"
 
