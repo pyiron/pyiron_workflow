@@ -134,6 +134,7 @@ extend-exclude = '''
 exclude = [
     "^docs/conf\\.py$",
     "^tests/",
+    "^pyiron_workflow/knowledge\\.py"
 ]
 ignore_missing_imports = true
 strict_equality = true
