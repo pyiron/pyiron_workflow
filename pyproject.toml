@@ -38,7 +38,7 @@ dependencies = [
     "executorlib==1.6.1",
     "graphviz==0.21",
     "pandas==2.3.1",
-    "pint==0.24.4",
+    "pint==0.25",
     "pyiron_snippets==0.2.0",
     "toposort==1.10",
     "typeguard==4.4.4",
