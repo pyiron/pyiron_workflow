@@ -1,17 +1,23 @@
 from __future__ import annotations
 
-from typing import TYPE_CHECKING, Any
+from typing import TYPE_CHECKING, Any, TypeGuard
 
 import rdflib
 from semantikon import ontology as onto
 
 from pyiron_workflow.data import NOT_DATA
-from pyiron_workflow.node import Node
-from pyiron_workflow.nodes.composite import Composite
-from pyiron_workflow.workflow import Workflow
 
 if TYPE_CHECKING:
     from pyiron_workflow.channels import Channel
+    from pyiron_workflow.node import Node
+    from pyiron_workflow.nodes.composite import Composite
+    from pyiron_workflow.workflow import Workflow
+
+
+def is_composite(node: Node) -> TypeGuard[Composite]:
+    from pyiron_workflow.nodes.composite import Composite  # noqa: PLC0415
+
+    return isinstance(node, Composite)
 
 
 def _extract_data(item: Channel, with_values=True, with_default=True) -> dict:
@@ -52,10 +58,9 @@ def _io_to_dict(
     node: Node, with_values: bool = True, with_default: bool = True
 ) -> dict:
     data: dict[str, dict] = {"inputs": {}, "outputs": {}}
-    is_composite = isinstance(node, Composite)
     for io_ in ["inputs", "outputs"]:
         for inp in getattr(node, io_):
-            if is_composite:
+            if is_composite(node):
                 data[io_][inp.scoped_label] = _extract_data(
                     inp, with_values=with_values, with_default=with_default
                 )
@@ -116,7 +121,7 @@ def _export_composite_to_dict(
             )
     for node in workflow:
         label = node.label
-        if isinstance(node, Composite):
+        if is_composite(node):
             data["nodes"][label] = _export_composite_to_dict(
                 node, with_values=with_values
             )
@@ -147,7 +152,7 @@ def _export_composite_to_dict(
 def export_to_dict(
     workflow: Node, with_values: bool = True, with_default: bool = True
 ) -> dict:
-    if isinstance(workflow, Composite):
+    if is_composite(workflow):
         return _export_composite_to_dict(workflow, with_values=with_values)
     return _export_node_to_dict(
         workflow, with_values=with_values, with_default=with_default

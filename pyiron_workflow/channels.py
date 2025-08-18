@@ -16,6 +16,7 @@ import rdflib
 from semantikon import metadata as meta
 from semantikon import ontology as onto
 
+from pyiron_workflow import knowledge
 from pyiron_workflow.data import NOT_DATA
 from pyiron_workflow.mixin.display_state import HasStateDisplay
 from pyiron_workflow.mixin.has_interface_mixins import HasChannel, HasLabel
@@ -512,8 +513,6 @@ class DataChannel(FlavorChannel["DataChannel"], typing.Generic[ReceiverType], AB
 
     def _validate_ontology(self, other: DataChannel) -> bool:
         if meta._is_annotated(self.type_hint) and meta._is_annotated(other.type_hint):
-
-            from pyiron_workflow import knowledge  # noqa: PLC0415
 
             # Build a recipe from the total graph
             root = self.owner.graph_root
