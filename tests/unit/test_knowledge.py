@@ -5,7 +5,7 @@ import rdflib
 from semantikon import ontology as onto
 from semantikon.metadata import u
 
-from pyiron_workflow.channels import Channel, ChannelConnectionError
+from pyiron_workflow.channels import ChannelConnectionError
 from pyiron_workflow.knowledge import export_to_dict, parse_workflow
 from pyiron_workflow.nodes import function, macro
 from pyiron_workflow.workflow import Workflow
