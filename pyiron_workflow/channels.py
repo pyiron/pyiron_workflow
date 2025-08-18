@@ -517,6 +517,8 @@ class DataChannel(FlavorChannel["DataChannel"], typing.Generic[ReceiverType], AB
 
             # Build a recipe from the total graph
             root = self.owner.graph_root
+            if not root._validate_ontologies:
+                return True
             recipe = knowledge.export_to_dict(
                 # root, with_values=True, with_default=True
                 root,
