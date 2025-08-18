@@ -26,7 +26,7 @@ jobs:
             console.log(response.data.tag_name);
             return response.data.tag_name
       - name: Checkout release
-        uses: actions/checkout@v4
+        uses: actions/checkout@v5
         with:
           ref: ${{ steps.get-release.outputs.result }}
       - name: Create env from repo name
