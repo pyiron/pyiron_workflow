@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-from typing import TYPE_CHECKING
+from typing import TYPE_CHECKING, Any
 
 import rdflib
 from semantikon import ontology as onto
@@ -51,7 +51,7 @@ def _get_scoped_label(channel: Channel, io_: str) -> str:
 def _io_to_dict(
     node: Node, with_values: bool = True, with_default: bool = True
 ) -> dict:
-    data = {"inputs": {}, "outputs": {}}
+    data: dict[str, dict] = {"inputs": {}, "outputs": {}}
     is_composite = isinstance(node, Composite)
     for io_ in ["inputs", "outputs"]:
         for inp in getattr(node, io_):
@@ -99,7 +99,7 @@ def _export_composite_to_dict(
     Returns:
         dict: The exported composite as a dictionary.
     """
-    data = {
+    data: dict[str, Any] = {
         "inputs": {},
         "outputs": {},
         "nodes": {},
