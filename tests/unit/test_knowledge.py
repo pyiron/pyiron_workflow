@@ -5,6 +5,7 @@ import rdflib
 from semantikon import ontology as onto
 from semantikon.metadata import u
 
+from pyiron_workflow.channels import Channel, ChannelConnectionError
 from pyiron_workflow.knowledge import export_to_dict, parse_workflow
 from pyiron_workflow.nodes import function, macro
 from pyiron_workflow.workflow import Workflow
@@ -151,9 +152,8 @@ class TestParser(unittest.TestCase):
         wf = Workflow("wrong_analysis")
         wf.addition = add(a=1.0, b=2.0)
         wf.multiply = multiply(a=wf.addition, b=3.0)
-        wf.analysis = wrong_analysis(a=wf.multiply)
-        graph = onto.get_knowledge_graph(export_to_dict(wf))
-        self.assertEqual(len(onto.validate_values(graph)["missing_triples"]), 1)
+        with self.assertRaises(ChannelConnectionError):
+            wf.analysis = wrong_analysis(a=wf.multiply)
 
     def test_multiple_outputs(self):
         wf = Workflow("multiple_outputs")
