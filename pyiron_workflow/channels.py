@@ -540,6 +540,11 @@ class DataChannel(FlavorChannel["DataChannel"], typing.Generic[ReceiverType], AB
             )
             location["edges"].append(new_edge)
 
+            # If that edge modifies the auto-IO of the parent, we need to do that
+            location["inputs"].pop(inp.scoped_label, None)
+            location["outputs"].pop(out.scoped_label, None)
+            # This is fragile and probably breaks the case of macro with manual IO...
+
             # Validate the resulting graph
             g = onto.get_knowledge_graph(
                 wf_dict=recipe,
