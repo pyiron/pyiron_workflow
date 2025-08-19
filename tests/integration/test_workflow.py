@@ -567,7 +567,7 @@ class TestWorkflow(unittest.TestCase):
             wf.run_in_thread(n1__t=t_sleep)
 
             land_in_the_middle = t_sleep * 0.5  # Land in the middle
-            overhead = 0.5
+            overhead = 0.2
             semantikon_ontology_import_penalty = 0.9
             sleep_time = (
                 land_in_the_middle + overhead + semantikon_ontology_import_penalty

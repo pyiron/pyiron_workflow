@@ -35,7 +35,7 @@ class TestRecovery(unittest.TestCase):
         proc = subprocess.Popen([sys.executable, "-c", SCRIPT])
 
         land_in_the_middle = 3 * 0.5  # Land in the middle
-        overhead = 0.5
+        overhead = 0.2
         semantikon_ontology_import_penalty = 0.9
         sleep_time = land_in_the_middle + overhead + semantikon_ontology_import_penalty
 
