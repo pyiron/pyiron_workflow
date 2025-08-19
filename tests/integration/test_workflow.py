@@ -566,14 +566,7 @@ class TestWorkflow(unittest.TestCase):
             wf.n1.executor = exe  # Set by instance
             wf.run_in_thread(n1__t=t_sleep)
 
-            land_in_the_middle = t_sleep * 0.5  # Land in the middle
-            overhead = 0.2
-            semantikon_ontology_import_penalty = 0.9
-            sleep_time = (
-                land_in_the_middle + overhead + semantikon_ontology_import_penalty
-            )
-
-            time.sleep(sleep_time * 0.9)  # Give the process pool time to spin up
+            time.sleep(t_sleep * 0.9)  # Give the process pool time to spin up
             self.assertTrue(wf.running)
             self.assertTrue(wf.n1.running)
             self.assertFalse(wf.n2.running)
