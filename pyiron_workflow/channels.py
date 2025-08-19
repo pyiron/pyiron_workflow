@@ -14,9 +14,7 @@ from abc import ABC, abstractmethod
 
 import rdflib
 from semantikon import metadata as meta
-from semantikon import ontology as onto
 
-from pyiron_workflow import knowledge
 from pyiron_workflow.data import NOT_DATA
 from pyiron_workflow.mixin.display_state import HasStateDisplay
 from pyiron_workflow.mixin.has_interface_mixins import HasChannel, HasLabel
@@ -518,6 +516,13 @@ class DataChannel(FlavorChannel["DataChannel"], typing.Generic[ReceiverType], AB
             root = self.owner.graph_root
             if not root._validate_ontologies:
                 return True
+
+            # Importing semantikon.ontology is expensive, so we delay it to the last
+            # moment so graphs that don't need it don't burn the time.
+            from semantikon import ontology as onto  # noqa: PLC0415
+
+            from pyiron_workflow import knowledge  # noqa: PLC0415
+
             recipe = knowledge.export_to_dict(
                 # root, with_values=True, with_default=True
                 root,
