@@ -7,6 +7,7 @@ from semantikon import ontology as onto
 
 from pyiron_workflow.data import NOT_DATA
 from pyiron_workflow.nodes.composite import Composite
+from pyiron_workflow.nodes.function import Function
 
 if TYPE_CHECKING:
     from pyiron_workflow.channels import Channel
@@ -148,9 +149,14 @@ def export_to_dict(
 ) -> dict:
     if isinstance(workflow, Composite):
         return _export_composite_to_dict(workflow, with_values=with_values)
-    return _export_node_to_dict(
-        workflow, with_values=with_values, with_default=with_default
-    )
+    elif isinstance(workflow, Function):
+        return _export_node_to_dict(
+            workflow,
+            with_values=with_values,
+            with_default=with_default,
+        )
+    else:
+        raise TypeError(f"Unsupported node type: {type(workflow)}")
 
 
 def parse_workflow(

@@ -94,6 +94,13 @@ class TestParser(unittest.TestCase):
         for label in ["inputs", "outputs", "nodes", "edges", "label"]:
             self.assertIn(label, output_dict)
 
+    def test_export_to_dict_failures(self):
+        with self.assertRaises(TypeError):
+            export_to_dict(
+                "not a node of known type",
+                msg="Fail cleanly on unsupported node types",
+            )
+
     def test_units_with_sparql(self):
         wf = Workflow("speed")
         wf.speed = calculate_speed()
