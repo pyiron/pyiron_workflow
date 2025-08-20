@@ -145,18 +145,18 @@ def _export_composite_to_dict(
 
 
 def export_to_dict(
-    workflow: Node, with_values: bool = True, with_default: bool = True
+    node: Node, with_values: bool = True, with_default: bool = True
 ) -> dict:
-    if isinstance(workflow, Composite):
-        return _export_composite_to_dict(workflow, with_values=with_values)
-    elif isinstance(workflow, Function):
+    if isinstance(node, Composite):
+        return _export_composite_to_dict(node, with_values=with_values)
+    elif isinstance(node, Function):
         return _export_node_to_dict(
-            workflow,
+            node,
             with_values=with_values,
             with_default=with_default,
         )
     else:
-        raise TypeError(f"Unsupported node type: {type(workflow)}")
+        raise TypeError(f"Unsupported node type: {type(node)}")
 
 
 def parse_workflow(
