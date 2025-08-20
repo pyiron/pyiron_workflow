@@ -1,13 +1,13 @@
 from __future__ import annotations
 
-from typing import TYPE_CHECKING, Any
+from typing import TYPE_CHECKING, Any, TypeAlias
 
 import rdflib
 from semantikon import ontology as onto
 
 from pyiron_workflow.data import NOT_DATA
+from pyiron_workflow.nodes import for_loop, function, transform, while_loop
 from pyiron_workflow.nodes.composite import Composite
-from pyiron_workflow.nodes.function import Function
 
 if TYPE_CHECKING:
     from pyiron_workflow.channels import Channel
@@ -66,8 +66,15 @@ def _io_to_dict(
     return data
 
 
+KnownAtomicNodes: TypeAlias = (
+    for_loop.For | function.Function | transform.Transformer | while_loop.While
+)
+
+
 def _export_node_to_dict(
-    node: Function, with_values: bool = True, with_default: bool = True
+    node: KnownAtomicNodes,
+    with_values: bool = True,
+    with_default: bool = True,
 ) -> dict:
     """
     Export a node to a dictionary.
@@ -80,7 +87,9 @@ def _export_node_to_dict(
     Returns:
         dict: The exported node as a dictionary.
     """
-    data = {"inputs": {}, "outputs": {}, "function": node.node_function}
+    data: dict[str, Any] = {"inputs": {}, "outputs": {}}
+    if isinstance(node, function.Function):
+        data["function"] = node.node_function
     data.update(_io_to_dict(node, with_values=with_values, with_default=with_default))
     return data
 
@@ -149,7 +158,7 @@ def export_to_dict(
 ) -> dict:
     if isinstance(node, Composite):
         return _export_composite_to_dict(node, with_values=with_values)
-    elif isinstance(node, Function):
+    elif isinstance(node, KnownAtomicNodes):
         return _export_node_to_dict(
             node,
             with_values=with_values,
