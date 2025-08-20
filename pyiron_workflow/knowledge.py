@@ -67,7 +67,7 @@ def _io_to_dict(
 
 
 def _export_node_to_dict(
-    node: Node, with_values: bool = True, with_default: bool = True
+    node: Function, with_values: bool = True, with_default: bool = True
 ) -> dict:
     """
     Export a node to a dictionary.
