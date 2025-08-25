@@ -70,7 +70,7 @@ class HasIOPreview(ABC):
         Gives a class-level peek at the expected outputs.
 
         Returns:
-            dict[str, tuple[Any, Any]]: The output name and its corresponding type hint.
+            dict[str, Any]: The output name and its corresponding type hint.
         """
         return cls._build_outputs_preview()
 
