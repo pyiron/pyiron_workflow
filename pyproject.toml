@@ -58,7 +58,7 @@ Repository = "https://github.com/pyiron/pyiron_workflow"
 
 [project.optional-dependencies]
 cluster = [
-    "pysqa==0.3.0",
+    "pysqa==0.3.1",
     "h5py==3.14.0",
 ]
 
