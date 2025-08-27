@@ -42,7 +42,7 @@ def multiply(a: float, b: float) -> u(
     float,
     triples=(
         (EX.HasOperation, EX.Multiplication),
-        (onto.SNS.inheritsPropertiesFrom, "inputs.a"),
+        (onto.PROV.wasDerivedFrom, "inputs.a"),
     ),
 ):
     return a * b
