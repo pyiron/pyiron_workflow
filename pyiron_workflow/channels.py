@@ -12,6 +12,9 @@ import inspect
 import typing
 from abc import ABC, abstractmethod
 
+import rdflib
+from semantikon import metadata as meta
+
 from pyiron_workflow.data import NOT_DATA
 from pyiron_workflow.mixin.display_state import HasStateDisplay
 from pyiron_workflow.mixin.has_interface_mixins import HasChannel, HasLabel
@@ -462,10 +465,51 @@ class DataChannel(FlavorChannel["DataChannel"], typing.Generic[ReceiverType], AB
                     f"type hint ({self.type_hint}) is not as or more specific than "
                     f"the receiving type hint ({new_partner.type_hint})."
                 )
+            if (
+                meta._is_annotated(self.type_hint)
+                and meta._is_annotated(new_partner.type_hint)
+                and self.owner.graph_root._validate_ontologies
+            ):
+                # Importing semantikon.ontology is expensive, so we delay it to the last
+                # moment so graphs that don't need it don't burn the time.
+                from semantikon import ontology as onto  # noqa: PLC0415
+
+                from pyiron_workflow import knowledge  # noqa: PLC0415
+
+                root = self.owner.graph_root
+                recipe = knowledge.export_to_dict(
+                    root,
+                    with_values=False,
+                    with_default=False,
+                )
+                recipe = self._append_value_transfer_edge(recipe, new_partner)
+                g = onto.get_knowledge_graph(
+                    wf_dict=recipe,
+                    graph=(
+                        root.knowledge
+                        if hasattr(root, "knowledge")
+                        and isinstance(root.knowledge, rdflib.Graph)
+                        else None
+                    ),
+                )
+                validation = onto.validate_values(g)
+                if (
+                    len(validation["missing_triples"]) > 0
+                    or len(validation["incompatible_connections"]) > 0
+                    or len(validation["distinct_units"]) > 0
+                ):
+                    raise ValueError(
+                        f"Ontological error on value passing: {validation}"
+                    )
 
             new_partner.value = self.value
 
         self._value_receiver = typing.cast(ReceiverType, new_partner)
+
+    @abstractmethod
+    def _append_value_transfer_edge(
+        self, recipe: dict, new_partner: DataChannel
+    ) -> dict: ...
 
     @property
     def ready(self) -> bool:
@@ -491,6 +535,9 @@ class DataChannel(FlavorChannel["DataChannel"], typing.Generic[ReceiverType], AB
         return self.type_hint is not None
 
     def _valid_connection(self, other: DataChannel) -> bool:
+        return self._validate_typing(other) and self._validate_ontology(other)
+
+    def _validate_typing(self, other: DataChannel) -> bool:
         if self._both_typed(other):
             out, inp = self._figure_out_who_is_who(other)
             if not inp.strict_hints:
@@ -502,6 +549,65 @@ class DataChannel(FlavorChannel["DataChannel"], typing.Generic[ReceiverType], AB
         else:
             # If either is untyped, don't do type checking
             return True
+
+    def _validate_ontology(self, other: DataChannel) -> bool:
+        if meta._is_annotated(self.type_hint) and meta._is_annotated(other.type_hint):
+
+            # Build a recipe from the total graph
+            root = self.owner.graph_root
+            if not root._validate_ontologies:
+                return True
+
+            # Importing semantikon.ontology is expensive, so we delay it to the last
+            # moment so graphs that don't need it don't burn the time.
+            from semantikon import ontology as onto  # noqa: PLC0415
+
+            from pyiron_workflow import knowledge  # noqa: PLC0415
+
+            recipe = knowledge.export_to_dict(
+                # root, with_values=True, with_default=True
+                root,
+                with_values=False,
+                with_default=False,
+            )
+
+            # Posit the new connection in the recipe
+            location = recipe
+            proximate_parent = str(self.owner.lexical_path).split(
+                self.owner.lexical_delimiter
+            )[3:]
+            while proximate_parent:
+                location = recipe[proximate_parent.pop(0)]
+            out, inp = self._figure_out_who_is_who(other)
+            new_edge = (
+                f"{out.owner.label}.outputs.{out.label}",
+                f"{inp.owner.label}.inputs.{inp.label}",
+            )
+            location["edges"].append(new_edge)
+
+            # If that edge modifies the auto-IO of the parent, we need to do that
+            location["inputs"].pop(inp.scoped_label, None)
+            location["outputs"].pop(out.scoped_label, None)
+            # This is fragile and probably breaks the case of macro with manual IO...
+
+            # Validate the resulting graph
+            g = onto.get_knowledge_graph(
+                wf_dict=recipe,
+                graph=(
+                    root.knowledge
+                    if hasattr(root, "knowledge")
+                    and isinstance(root.knowledge, rdflib.Graph)
+                    else None
+                ),
+            )
+            validation = onto.validate_values(g)
+            if (
+                len(validation["missing_triples"]) > 0
+                or len(validation["incompatible_connections"]) > 0
+                or len(validation["distinct_units"]) > 0
+            ):
+                return False
+        return True
 
     def _connection_conjugate_failure_message(self, other: DataChannel) -> str:
         msg = super()._connection_conjugate_failure_message(other)
@@ -558,6 +664,23 @@ class InputData(DataChannel["InputData"], InputChannel["OutputData"]):
     def connection_conjugate(cls) -> type[OutputData]:
         return OutputData
 
+    def _append_value_transfer_edge(
+        self, recipe: dict, new_partner: DataChannel
+    ) -> dict:
+        location = recipe
+        proximate_parent = str(self.owner.lexical_path).split(
+            self.owner.lexical_delimiter
+        )[2:]
+        while proximate_parent:
+            location = location["nodes"][proximate_parent.pop(0)]
+        new_edge = (
+            f"inputs.{self.label}",
+            f"{new_partner.owner.label}.inputs.{new_partner.label}",
+        )
+        if new_edge not in location["edges"]:
+            location["edges"].append(new_edge)
+        return recipe
+
     def _valid_connection(self, other: DataChannel[typing.Any]) -> bool:
         if len(self.connections) > 0:
             raise TooManyConnectionsError(
@@ -605,6 +728,22 @@ class OutputData(DataChannel["OutputData"], OutputChannel["InputData"]):
     @classmethod
     def connection_conjugate(cls) -> type[InputData]:
         return InputData
+
+    def _append_value_transfer_edge(self, recipe: dict, new_partner: DataChannel):
+        location = recipe
+        proximate_parent = str(self.owner.lexical_path).split(
+            self.owner.lexical_delimiter
+        )[2:-1]
+        while proximate_parent:
+            proxy = proximate_parent.pop(0)
+            location = location["nodes"][proxy]
+        new_edge = (
+            f"{new_partner.owner.label}.outputs.{new_partner.label}",
+            f"outputs.{self.owner.label}__{self.label}",
+        )
+        if new_edge not in location["edges"]:
+            location["edges"].append(new_edge)
+        return recipe
 
 
 SignalType = typing.TypeVar("SignalType", bound="SignalChannel")
