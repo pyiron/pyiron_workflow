@@ -666,9 +666,9 @@ class InputData(DataChannel["InputData"], InputChannel["OutputData"]):
         location = recipe
         proximate_parent = str(self.owner.lexical_path).split(
             self.owner.lexical_delimiter
-        )[3:]
+        )[2:]
         while proximate_parent:
-            location = recipe[proximate_parent.pop(0)]
+            location = location["nodes"][proximate_parent.pop(0)]
         new_edge = (
             f"inputs.{self.label}",
             f"{new_partner.owner.label}.inputs.{new_partner.label}",
@@ -729,9 +729,10 @@ class OutputData(DataChannel["OutputData"], OutputChannel["InputData"]):
         location = recipe
         proximate_parent = str(self.owner.lexical_path).split(
             self.owner.lexical_delimiter
-        )[3:]
+        )[2:-1]
         while proximate_parent:
-            location = recipe[proximate_parent.pop(0)]
+            proxy = proximate_parent.pop(0)
+            location = location["nodes"][proxy]
         new_edge = (
             f"{new_partner.owner.label}.outputs.{new_partner.label}",
             f"outputs.{self.owner.label}__{self.label}",
