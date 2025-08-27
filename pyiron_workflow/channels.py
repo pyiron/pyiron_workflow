@@ -497,7 +497,9 @@ class DataChannel(FlavorChannel["DataChannel"], typing.Generic[ReceiverType], AB
                     len(validation["missing_triples"]) > 0
                     or len(validation["incompatible_connections"]) > 0
                 ):
-                    raise ValueError("Ontological error on value passing")
+                    raise ValueError(
+                        f"Ontological error on value passing: {validation}"
+                    )
 
             new_partner.value = self.value
 
