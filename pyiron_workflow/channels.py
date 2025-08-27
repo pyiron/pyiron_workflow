@@ -496,6 +496,7 @@ class DataChannel(FlavorChannel["DataChannel"], typing.Generic[ReceiverType], AB
                 if (
                     len(validation["missing_triples"]) > 0
                     or len(validation["incompatible_connections"]) > 0
+                    or len(validation["distinct_units"]) > 0
                 ):
                     raise ValueError(
                         f"Ontological error on value passing: {validation}"
@@ -603,6 +604,7 @@ class DataChannel(FlavorChannel["DataChannel"], typing.Generic[ReceiverType], AB
             if (
                 len(validation["missing_triples"]) > 0
                 or len(validation["incompatible_connections"]) > 0
+                or len(validation["distinct_units"]) > 0
             ):
                 return False
         return True
