@@ -16,6 +16,7 @@ from pyiron_snippets.factory import classfactory
 
 from pyiron_workflow import identifier
 from pyiron_workflow.data import NOT_DATA, NotData
+from pyiron_workflow.nodes.multiple_distpatch import dispatch_u_kwargs
 from pyiron_workflow.nodes.static_io import StaticNode
 
 
@@ -413,6 +414,7 @@ class DataclassNode(Transformer, ABC):
 
     dataclass: ClassVar[type]  # Mandatory in children, must pass `is_dataclass`
     _output_name: ClassVar[str] = "dataclass"
+    _semantikon_metadata: tuple[tuple[Any, ...], dict[str, Any]] | None = None
 
     @classmethod
     def _dataclass_fields(cls):
@@ -428,6 +430,12 @@ class DataclassNode(Transformer, ABC):
 
     @classmethod
     def _build_outputs_preview(cls) -> dict[str, Any]:
+        if cls._semantikon_metadata is not None:
+            from semantikon.metadata import u  # noqa: I001 PLC0415
+
+            # The semantikon import can be expensive, so delay it if possible
+
+            return {cls._output_name: u(cls.dataclass, **cls._semantikon_metadata)}
         return {cls._output_name: cls.dataclass}
 
     def _setup_node(self) -> None:
@@ -458,7 +466,10 @@ class DataclassNode(Transformer, ABC):
 
 @classfactory
 def dataclass_node_factory(
-    dataclass: type, use_cache: bool = True, /
+    dataclass: type,
+    semantikon_metadata: dict[str, Any] | None = None,
+    use_cache: bool = True,
+    /,
 ) -> type[DataclassNode]:
     if not isinstance(dataclass, type):
         raise TypeError(
@@ -482,6 +493,7 @@ def dataclass_node_factory(
         (DataclassNode,),
         {
             "dataclass": dataclass,
+            "_semantikon_metadata": semantikon_metadata,
             "__module__": module,
             "__qualname__": qualname,
             "__doc__": dataclass.__doc__,
@@ -491,7 +503,8 @@ def dataclass_node_factory(
     )
 
 
-def as_dataclass_node(dataclass: type):
+@dispatch_u_kwargs
+def as_dataclass_node(**u_kwargs):
     """
     Decorates a dataclass as a dataclass node -- i.e. a node whose inputs correspond
     to dataclass fields and whose output is an instance of the dataclass.
@@ -543,12 +556,19 @@ def as_dataclass_node(dataclass: type):
         >>> f(necessary="input as a node kwarg")
         Foo.dataclass(necessary='input as a node kwarg', bar='bar', answer=42, complex_=[1, 2, 3])
     """
-    dataclass_node_factory.clear(dataclass.__name__)  # Force a fresh class
-    module, qualname = dataclass.__module__, dataclass.__qualname__
-    cls = dataclass_node_factory(dataclass)
-    cls._reduce_imports_as = (module, qualname)
-    cls.preview_io()
-    return cls
+
+    def decorator(dataclass: type):
+        dataclass_node_factory.clear(dataclass.__name__)  # Force a fresh class
+        module, qualname = dataclass.__module__, dataclass.__qualname__
+        cls = dataclass_node_factory(
+            dataclass,
+            u_kwargs if u_kwargs else None,
+        )
+        cls._reduce_imports_as = (module, qualname)
+        cls.preview_io()
+        return cls
+
+    return decorator
 
 
 def dataclass_node(dataclass: type, use_cache: bool = True, *node_args, **node_kwargs):

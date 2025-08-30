@@ -27,3 +27,20 @@ def dispatch_output_labels(single_dispatch_decorator):
             return single_dispatch_decorator(*output_labels, **kwargs)
 
     return multi_dispatch_decorator
+
+
+def dispatch_u_kwargs(single_dispatch_decorator):
+    def multi_dispatch_decorator(*decorated, **kwargs):
+        if len(decorated) == 0:
+            return single_dispatch_decorator(**kwargs)
+        elif len(decorated) == 1 and callable(decorated[0]) and len(kwargs) == 0:
+            return single_dispatch_decorator()(decorated[0])
+        else:
+            raise MultipleDispatchError(
+                f"Decorator expects to be dispatched with no arguments at all or only "
+                f"with kwargs (such that the decorator always receives the decorated "
+                f"object as its first-and-only arg, and may or may not receive kwargs. "
+                f"Instead, got {decorated} and {kwargs}."
+            )
+
+    return multi_dispatch_decorator
