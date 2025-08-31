@@ -575,9 +575,9 @@ class DataChannel(FlavorChannel["DataChannel"], typing.Generic[ReceiverType], AB
             location = recipe
             proximate_parent = str(self.owner.lexical_path).split(
                 self.owner.lexical_delimiter
-            )[3:]
+            )[2:-1]
             while proximate_parent:
-                location = recipe[proximate_parent.pop(0)]
+                location = location["nodes"][proximate_parent.pop(0)]
             out, inp = self._figure_out_who_is_who(other)
             new_edge = (
                 f"{out.owner.label}.outputs.{out.label}",
