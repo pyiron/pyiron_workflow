@@ -86,6 +86,19 @@ def multiple_outputs(a: int = 1, b: int = 2) -> tuple[int, int]:
     return a, b
 
 
+@function.as_function_node("z")
+def AddOnetology(x: u(int, uri=EX.Data)) -> u(int, uri=EX.Data):
+    y = x + 1
+    return y
+
+
+@macro.as_macro_node("zout")
+def AddTwoMacrontology(self, inp: u(int, uri=EX.Data)) -> u(int, uri=EX.Data):
+    self.a1 = AddOnetology(inp)
+    self.a2 = AddOnetology(self.a1)
+    return self.a2
+
+
 class TestParser(unittest.TestCase):
     def test_parser(self):
         wf = Workflow("speed")
@@ -222,6 +235,19 @@ class TestParser(unittest.TestCase):
         self.assertEqual(
             data["inputs"]["node__b"],
             {"default": 1.0, "value": 2.0, "type_hint": float},
+        )
+
+    def test_custom_labels(self):
+        x0 = 5
+        wf = Workflow("rename_channels")
+        wf.a1 = AddOnetology(x0)
+        wf.a3 = AddTwoMacrontology(wf.a1.outputs.z)
+        out = wf()
+        self.assertDictEqual(
+            {"a3__zout": x0 + 3},
+            out,
+            msg="Giving custom labels to node or macro outputs should not cause any "
+            "harm when combined with ontological validation.",
         )
 
 
