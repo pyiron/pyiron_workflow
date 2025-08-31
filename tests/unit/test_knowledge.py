@@ -5,16 +5,15 @@ import rdflib
 from semantikon import ontology as onto
 from semantikon.metadata import u
 
+import pyiron_workflow as pwf
 from pyiron_workflow.channels import ChannelConnectionError
 from pyiron_workflow.knowledge import export_to_dict, parse_workflow
-from pyiron_workflow.nodes import function, macro
-from pyiron_workflow.workflow import Workflow
 
 EX = rdflib.Namespace("http://example.org/")
 QUDT = rdflib.Namespace("http://qudt.org/vocab/unit/")
 
 
-@function.as_function_node("speed")
+@pwf.as_function_node("speed")
 def calculate_speed(
     distance: u(float, units="meter") = 10.0,
     time: u(float, units="second") = 2.0,
@@ -31,13 +30,13 @@ def calculate_speed(
     return distance / time
 
 
-@function.as_function_node("result")
+@pwf.as_function_node("result")
 @u(uri=EX.Addition)
 def add(a: float, b: float) -> u(float, triples=(EX.HasOperation, EX.Addition)):
     return a + b
 
 
-@function.as_function_node("result")
+@pwf.as_function_node("result")
 def multiply(a: float, b: float) -> u(
     float,
     triples=(
@@ -48,14 +47,14 @@ def multiply(a: float, b: float) -> u(
     return a * b
 
 
-@macro.as_macro_node("result")
+@pwf.as_macro_node("result")
 def operation(macro=None, a: float = 1.0, b: float = 1.0) -> float:
     macro.addition = add(a=a, b=b)
     macro.multiply = multiply(a=macro.addition, b=b)
     return macro.multiply
 
 
-@function.as_function_node("result")
+@pwf.as_function_node("result")
 def correct_analysis(
     a: u(
         float,
@@ -68,7 +67,7 @@ def correct_analysis(
     return a
 
 
-@function.as_function_node("result")
+@pwf.as_function_node("result")
 def wrong_analysis(
     a: u(
         float,
@@ -81,18 +80,18 @@ def wrong_analysis(
     return a
 
 
-@function.as_function_node
+@pwf.as_function_node
 def multiple_outputs(a: int = 1, b: int = 2) -> tuple[int, int]:
     return a, b
 
 
-@function.as_function_node("z")
+@pwf.as_function_node("z")
 def AddOnetology(x: u(int, uri=EX.Data)) -> u(int, uri=EX.Data):
     y = x + 1
     return y
 
 
-@macro.as_macro_node("zout")
+@pwf.as_macro_node("zout")
 def AddTwoMacrontology(self, inp: u(int, uri=EX.Data)) -> u(int, uri=EX.Data):
     self.a1 = AddOnetology(inp)
     self.a2 = AddOnetology(self.a1)
@@ -101,7 +100,7 @@ def AddTwoMacrontology(self, inp: u(int, uri=EX.Data)) -> u(int, uri=EX.Data):
 
 class TestParser(unittest.TestCase):
     def test_parser(self):
-        wf = Workflow("speed")
+        wf = pwf.Workflow("speed")
         wf.c = calculate_speed()
         output_dict = export_to_dict(wf)
         for label in ["inputs", "outputs", "nodes", "edges", "label"]:
@@ -115,7 +114,7 @@ class TestParser(unittest.TestCase):
             )
 
     def test_units_with_sparql(self):
-        wf = Workflow("speed")
+        wf = pwf.Workflow("speed")
         wf.speed = calculate_speed()
         wf.run()
         graph = parse_workflow(wf)
@@ -137,7 +136,7 @@ class TestParser(unittest.TestCase):
         self.assertEqual(sorted(result_list), [2.0, 5.0, 10.0])
 
     def test_triples(self):
-        wf = Workflow("speed")
+        wf = pwf.Workflow("speed")
         wf.speed = calculate_speed()
         graph = parse_workflow(wf)
         subj = rdflib.URIRef("http://example.org/subject")
@@ -163,20 +162,20 @@ class TestParser(unittest.TestCase):
         self.assertIn((label, EX.predicate, obj), graph)
 
     def test_correct_analysis(self):
-        wf = Workflow("correct_analysis")
+        wf = pwf.Workflow("correct_analysis")
         wf.addition = add(a=1.0, b=2.0)
         wf.multiply = multiply(a=wf.addition, b=3.0)
         wf.analysis = correct_analysis(a=wf.multiply)
         graph = onto.get_knowledge_graph(export_to_dict(wf))
         self.assertEqual(onto.validate_values(graph)["missing_triples"], [])
-        wf = Workflow("wrong_analysis")
+        wf = pwf.Workflow("wrong_analysis")
         wf.addition = add(a=1.0, b=2.0)
         wf.multiply = multiply(a=wf.addition, b=3.0)
         with self.assertRaises(ChannelConnectionError):
             wf.analysis = wrong_analysis(a=wf.multiply)
 
     def test_multiple_outputs(self):
-        wf = Workflow("multiple_outputs")
+        wf = pwf.Workflow("multiple_outputs")
         wf.node = multiple_outputs()
         wf.node.run()
         data = export_to_dict(wf)
@@ -184,7 +183,7 @@ class TestParser(unittest.TestCase):
         self.assertEqual(data["outputs"]["node__b"]["value"], 2)
 
     def test_parse_workflow(self):
-        wf = Workflow("correct_analysis")
+        wf = pwf.Workflow("correct_analysis")
         wf.addition = add(a=1.0, b=2.0)
         data = export_to_dict(wf)
         graph = onto.get_knowledge_graph(data)
@@ -205,7 +204,7 @@ class TestParser(unittest.TestCase):
             _ = onto.SNS.ahoy
 
     def test_parsing_without_running(self):
-        wf = Workflow("test")
+        wf = pwf.Workflow("test")
         wf.addition = add(a=1.0, b=2.0)
         data = export_to_dict(wf)
         self.assertFalse("value" in data["outputs"]["addition__result"])
@@ -225,7 +224,7 @@ class TestParser(unittest.TestCase):
         )
 
     def test_macro(self):
-        wf = Workflow("operation")
+        wf = pwf.Workflow("operation")
         wf.node = operation(a=1.0, b=2.0)
         wf.run()
         data = export_to_dict(wf)
@@ -239,7 +238,7 @@ class TestParser(unittest.TestCase):
 
     def test_custom_labels(self):
         x0 = 5
-        wf = Workflow("rename_channels")
+        wf = pwf.Workflow("rename_channels")
         wf.a1 = AddOnetology(x0)
         wf.a3 = AddTwoMacrontology(wf.a1.outputs.z)
         out = wf()
@@ -270,7 +269,7 @@ class Output:
     L: u(float, units="angstrom")
 
 
-@function.as_function_node
+@pwf.as_function_node
 def run_md(inp: Input) -> Output:
     out = Output(E=1.0, L=2.0)
     return out
@@ -278,7 +277,7 @@ def run_md(inp: Input) -> Output:
 
 class TestDataclass(unittest.TestCase):
     def test_dataclass(self):
-        wf = Workflow("my_wf")
+        wf = pwf.Workflow("my_wf")
         inp = Input(T=300.0, n=100)
         inp.parameters.a = 1
         wf.node = run_md(inp)
