@@ -39,6 +39,12 @@ class TooManyConnectionsError(ChannelConnectionError):
     pass
 
 
+class InvalidReceiverError(ValueError, ChannelConnectionError):
+    # If we move to a single-source model to unify input connections and value receivers
+    # this can be a plain connection error.
+    pass
+
+
 class InputLockedError(ChannelError, ValueError): ...
 
 
@@ -454,7 +460,7 @@ class DataChannel(FlavorChannel["DataChannel"], typing.Generic[ReceiverType], AB
                 )
 
             if new_partner is self:
-                raise ValueError(
+                raise InvalidReceiverError(
                     f"{self.__class__.__name__} {self.full_label} cannot couple to "
                     f"itself"
                 )
@@ -466,7 +472,7 @@ class DataChannel(FlavorChannel["DataChannel"], typing.Generic[ReceiverType], AB
                     self.type_hint, new_partner.type_hint
                 )
             ):
-                raise ValueError(
+                raise InvalidReceiverError(
                     f"The channel {self.full_label} cannot take "
                     f"{new_partner.full_label} as a value receiver because this "
                     f"type hint ({self.type_hint}) is not as or more specific than "
@@ -505,7 +511,7 @@ class DataChannel(FlavorChannel["DataChannel"], typing.Generic[ReceiverType], AB
                     or len(validation["incompatible_connections"]) > 0
                     or len(validation["distinct_units"]) > 0
                 ):
-                    raise ValueError(
+                    raise InvalidReceiverError(
                         f"Ontological error on value passing: {validation}"
                     )
 
