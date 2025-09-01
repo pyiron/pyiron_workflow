@@ -35,7 +35,7 @@ class ChannelConnectionError(ChannelError):
     pass
 
 
-class TooManyConnectionsError(ChannelError):
+class TooManyConnectionsError(ChannelConnectionError):
     pass
 
 
