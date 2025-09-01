@@ -357,6 +357,100 @@ def EatPizza(meal: u(Meal, uri=EX.Pizza)) -> str:
     return f"Yummy {meal.__class__.__name__} pizza"
 
 
+class Clothes:
+    pass
+
+
+@pwf.as_function_node
+def Wash(
+    clothes: u(Clothes, uri=EX.Clothes),
+) -> u(Clothes, triples=(EX.hasProperty, EX.cleaned), derived_from="inputs.clothes"):
+    ...
+    return clothes
+
+
+@pwf.as_function_node
+def Dye(clothes: u(Clothes, uri=EX.Clothes), color="blue") -> u(
+    Clothes,
+    triples=(EX.hasProperty, EX.color),
+    derived_from="inputs.clothes",
+):
+    ...
+    return clothes
+
+
+@pwf.as_function_node
+def Sell(
+    clothes: u(
+        Clothes,
+        uri=EX.Clothes,
+        restrictions=(
+            (
+                (rdflib.OWL.onProperty, EX.hasProperty),
+                (rdflib.OWL.someValuesFrom, EX.cleaned),
+            ),
+            (
+                (rdflib.OWL.onProperty, EX.hasProperty),
+                (rdflib.OWL.someValuesFrom, EX.color),
+            ),
+        ),
+    ),
+) -> int:
+    price = 10
+    return price
+
+
+@pwf.as_function_node
+def DyeWithCancel(clothes: Clothes, color="blue") -> u(
+    Clothes,
+    triples=(EX.hasProperty, EX.color),
+    derived_from="inputs.clothes",
+    cancel=(EX.hasProperty, EX.cleaned),
+):
+    return clothes
+
+
+@pwf.as_macro_node
+def CorrectMacro(self, clothes: Clothes):
+    self.dyed_clothes = Dye(clothes)
+    self.washed_clothes = Wash(self.dyed_clothes)
+    self.money = Sell(self.washed_clothes)
+    return self.money
+
+
+@pwf.as_macro_node
+def IncorrectMacro(self, clothes: Clothes):
+    self.washed_clothes = Wash(clothes)
+    self.money = Sell(self.washed_clothes)
+    return self.money
+
+
+@pwf.as_function_node
+def IOTransformer(x: u(int, uri=EX.Input)) -> u(int, uri=EX.Output):
+    y = x
+    return y
+
+
+@pwf.as_macro_node
+def MatchingWrapper(self, x_outer: u(int, uri=EX.Input)) -> u(int, uri=EX.Output):
+    self.add = IOTransformer(x_outer)
+    return self.add
+
+
+@pwf.as_macro_node
+def MismatchingInput(self, x_outer: u(int, uri=EX.NotInput)) -> u(int, uri=EX.Output):
+    self.add = IOTransformer(x_outer)
+    return self.add
+
+
+@pwf.as_macro_node
+def MismatchingOutput(
+    self, x_outer: u(int, uri=EX.NotInput)
+) -> u(int, uri=EX.NotOutput):
+    self.add = IOTransformer(x_outer)
+    return self.add
+
+
 class TestValidation(unittest.TestCase):
     def test_connection_validity(self):
         with self.subTest("Fully hinted"):
@@ -441,6 +535,74 @@ class TestValidation(unittest.TestCase):
                     "test the interface: `knowledge` attribute of the topmost object "
                     "for this purpose.",
                 )
+
+    def test_restrictions(self):
+        with self.subTest("Restrictions fulfilled"):
+            wf = pwf.Workflow("my_correct_workflow")
+            wf.dyed_clothes = Dye(Clothes())
+            wf.washed_clothes = Wash(wf.dyed_clothes)
+            wf.money = Sell(wf.washed_clothes)
+            out = wf()
+            self.assertTrue(
+                out,
+                msg="Expected type and restrictions should be fulfilled by upstream "
+                "derivations and added triple.",
+            )
+
+        with self.subTest("Restrictions denied by cancellation"):
+            wf = pwf.Workflow("my_wf_with_cancellation")
+            wf.washed_clothes = Wash(Clothes())
+            wf.unclean_dyed_clothes = DyeWithCancel(wf.washed_clothes)
+            wf.money = Sell()
+            with self.assertRaises(
+                ChannelConnectionError,
+                msg="Expect the cancel declaration to have cleared a required triple,"
+                "leading to failed ontological validation",
+            ):
+                wf.money.inputs.clothes = wf.unclean_dyed_clothes
+
+    def test_macros(self):
+        with self.subTest("Correct macro"):
+            wf = pwf.Workflow("my_correct_workflow")
+            wf.dyed_clothes = Dye(Clothes())
+            wf.washed_clothes = Wash(wf.dyed_clothes)
+            wf.money = Sell(wf.washed_clothes)
+            out = wf()
+            macro_out = CorrectMacro(Clothes()).run()
+            self.assertListEqual(
+                list(out.values()),
+                list(macro_out.values()),
+                msg="We can wrap ontological workflows in macros.",
+            )
+
+        with (
+            self.subTest("Incorrect macro"),
+            self.assertRaises(
+                ChannelConnectionError,
+                msg="It would be lovely to get this validation error when the macro "
+                "definition is parsed -- so if this test fails and you can do that "
+                "now, that is excellent! In the meantime, we try to construct macro "
+                "subgraphs at macro instantiation time, and at that point expect to "
+                "find out this macro subgraph won't validate.",
+            ),
+        ):
+            IncorrectMacro()
+
+        with self.subTest("Macro-subgraph communication"):
+            with self.subTest("Fully matching"):
+                self.assertTrue(MatchingWrapper(1).run())
+
+            with (
+                self.subTest("Bad parent input->child input flow"),
+                self.assertRaises(ChannelConnectionError),
+            ):
+                MismatchingInput()
+
+            with (
+                self.subTest("Bad child output->parent output flow"),
+                self.assertRaises(ChannelConnectionError),
+            ):
+                MismatchingOutput()
 
 
 if __name__ == "__main__":
