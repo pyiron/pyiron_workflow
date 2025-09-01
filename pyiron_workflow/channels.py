@@ -162,16 +162,23 @@ class Channel(
                 continue
             elif isinstance(other, self.connection_conjugate()):
                 wrong_parents_callback = self._ensure_same_owner_parent(other)
-                if self._valid_connection(other) and other._valid_connection(self):
-                    # Prepend new connections
-                    # so that connection searches run newest to oldest
-                    self.connections.insert(0, other)
-                    other.connections.insert(0, self)
-                else:
+                try:
+                    if self._valid_connection(other) and other._valid_connection(self):
+                        # Prepend new connections
+                        # so that connection searches run newest to oldest
+                        self.connections.insert(0, other)
+                        other.connections.insert(0, self)
+                    else:
+                        raise RuntimeError(
+                            f"Connecting {self.full_label} and {other.full_label}:\n"
+                            "Connection validation should return true or raise and "
+                            "error -- this is an intermediate state that needs to be "
+                            "refactored away, but you shouldn't have been able to "
+                            "reach it."
+                        ) from None
+                except (ChannelConnectionError, TooManyConnectionsError) as e:
                     wrong_parents_callback.call()
-                    raise ChannelConnectionError(
-                        self._connection_conjugate_failure_message(other)
-                    ) from None
+                    raise e
             else:
                 raise TypeError(
                     f"Can only connect to {self.connection_conjugate()} "
@@ -540,15 +547,16 @@ class DataChannel(FlavorChannel["DataChannel"], typing.Generic[ReceiverType], AB
     def _validate_typing(self, other: DataChannel) -> bool:
         if self._both_typed(other):
             out, inp = self._figure_out_who_is_who(other)
-            if not inp.strict_hints:
-                return True
-            else:
-                return type_hint_is_as_or_more_specific_than(
-                    out.type_hint, inp.type_hint
+            if inp.strict_hints and not type_hint_is_as_or_more_specific_than(
+                out.type_hint, inp.type_hint
+            ):
+                raise ChannelConnectionError(
+                    f"The upstream channel {out.full_label} cannot connect to the "
+                    f"downstream channel {inp.full_label} because the upstream type "
+                    f"hint ({out.type_hint}) is not as or more specific than the "
+                    f"downstream type hint ({inp.type_hint})."
                 )
-        else:
-            # If either is untyped, don't do type checking
-            return True
+        return True
 
     def _validate_ontology(self, other: DataChannel) -> bool:
         if meta._is_annotated(self.type_hint) and meta._is_annotated(other.type_hint):
@@ -606,7 +614,13 @@ class DataChannel(FlavorChannel["DataChannel"], typing.Generic[ReceiverType], AB
                 or len(validation["incompatible_connections"]) > 0
                 or len(validation["distinct_units"]) > 0
             ):
-                return False
+                raise ChannelConnectionError(
+                    f"The upstream channel {out.full_label} cannot connect to the "
+                    f"downstream channel {inp.full_label} because the upstream type "
+                    f"hint ({out.type_hint}) and downstream type hint "
+                    f"({inp.type_hint}) produce a non-empty ontological validation "
+                    f"report:\n{validation}"
+                )
         return True
 
     def _connection_conjugate_failure_message(self, other: DataChannel) -> str:
