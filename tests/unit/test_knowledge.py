@@ -8,6 +8,7 @@ from semantikon.metadata import u
 import pyiron_workflow as pwf
 from pyiron_workflow.channels import ChannelConnectionError
 from pyiron_workflow.knowledge import export_to_dict, parse_workflow
+from pyiron_workflow.nodes.composite import FailedChildError
 
 EX = rdflib.Namespace("http://example.org/")
 QUDT = rdflib.Namespace("http://qudt.org/vocab/unit/")
@@ -313,6 +314,133 @@ class TestDataclass(unittest.TestCase):
                     msg=f"{triple} not found in {s}",
                 )
         self.assertIsNone(graph.value(rdflib.URIRef(f"{i_txt}.not_dataclass.b.value")))
+
+
+class Meal: ...
+
+
+class Garbage: ...
+
+
+@pwf.as_function_node("pizza")
+def PreparePizza() -> u(Meal, uri=EX.Pizza):
+    return Meal()
+
+
+@pwf.as_function_node("unidentified_meal")
+def PrepareNonOntologicalMeal() -> Meal:
+    return Meal()
+
+
+@pwf.as_function_node("rice")
+def PrepareRice() -> u(Meal, uri=EX.Rice):
+    return Meal()
+
+
+@pwf.as_function_node("garbage")
+def PrepareGarbage() -> u(Garbage, uri=EX.Garbage):
+    return Garbage()
+
+
+@pwf.as_function_node("garbage")
+def PrepareUnhintedGarbage():
+    return Garbage()
+
+
+@pwf.as_function_node("verdict")
+def Eat(meal: u(Meal, uri=EX.Meal)) -> str:
+    return f"Yummy {meal.__class__.__name__} meal"
+
+
+@pwf.as_function_node("verdict")
+def EatPizza(meal: u(Meal, uri=EX.Pizza)) -> str:
+    return f"Yummy {meal.__class__.__name__} pizza"
+
+
+class TestValidation(unittest.TestCase):
+    def test_connection_validity(self):
+        with self.subTest("Fully hinted"):
+            wf = pwf.Workflow("ontoflow")
+            wf.make = PreparePizza()
+            wf.eat = EatPizza(wf.make)
+            out = wf()
+            self.assertTrue(
+                out,
+                msg="With everything hinted correctly, output should be produced as "
+                "normal",
+            )
+
+        with self.subTest("Upstream type hint is missing"):
+            wf = pwf.Workflow("no_type")
+            wf.make = PrepareUnhintedGarbage()
+            wf.eat = EatPizza(wf.make)
+            wf.recovery = None  # Disable recovery so there's nothing to clean up
+            with self.assertRaises(
+                FailedChildError,
+                msg="We should be allowed to form the connection (since the source has "
+                "no hint), but at runtime, we expect to fail when we try to actually "
+                "assign the value. Ontological typing should not interfere with this.",
+            ):
+                wf()
+
+        with self.subTest("Upstream type hint is wrong"):
+            wf = pwf.Workflow("no_type")
+            wf.make = PrepareGarbage()
+            wf.eat = EatPizza()
+            with self.assertRaises(
+                ChannelConnectionError,
+                msg="Expected to be stopped by an type-hint invalid connection. "
+                "Ontological hinting should not impact this.",
+            ):
+                wf.eat.inputs.meal = wf.make
+
+        with self.subTest("Upstream ontological hint is missing"):
+            wf = pwf.Workflow("no_type")
+            wf.make = PrepareNonOntologicalMeal()
+            wf.eat = EatPizza(wf.make)
+            out = wf()
+            self.assertTrue(
+                out,
+                msg="As with regular type hints, if one ontological hint is missing, "
+                "we don't expect to perform ontological validation -- so this should "
+                "produce output just fine.",
+            )
+
+        with self.subTest("Upstream ontological hint is wrong"):
+            wf = pwf.Workflow("no_type")
+            wf.make = PrepareRice()
+            wf.eat = EatPizza()
+            with self.assertRaises(
+                ChannelConnectionError,
+                msg="Expected to be stopped by an ontologically invalid connection.",
+            ):
+                wf.eat.inputs.meal = wf.make
+
+        with self.subTest("Downstream ontological hint is less specific"):
+            with self.subTest("Naively"):
+                wf = pwf.Workflow("missing_information")
+                wf.make = PrepareRice()
+                wf.eat = Eat()
+                with self.assertRaises(
+                    ChannelConnectionError,
+                    msg="The validator has no way of knowing that rice is a meal, so "
+                    "unfortunately this should indeed fail.",
+                ):
+                    wf.eat.inputs.meal = wf.make
+
+            with self.subTest("With a primed graph"):
+                wf = pwf.Workflow("prepopulated_knowledge_graph")
+                wf.knowledge = rdflib.Graph()
+                wf.knowledge.add((EX.Rice, rdflib.RDFS.subClassOf, EX.Meal))
+                wf.make = PrepareRice()
+                wf.eat = Eat(wf.make)
+                out = wf()
+                self.assertTrue(
+                    out,
+                    msg="We can supply graph knowledge prior to validation. Here we "
+                    "test the interface: `knowledge` attribute of the topmost object "
+                    "for this purpose.",
+                )
 
 
 if __name__ == "__main__":
