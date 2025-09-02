@@ -2,7 +2,7 @@ import bidict
 from semantikon import metadata as meta
 
 from pyiron_workflow import channels, io, type_hinting
-from pyiron_workflow.channels import ChannelConnectionError
+from pyiron_workflow.data import SemantikonRecipeChange
 from pyiron_workflow.nodes import static_io
 
 
@@ -45,18 +45,39 @@ def suggest_connections(channel: channels.DataChannel):
             ):
                 continue
 
-            if meta._is_annotated(upstream.type_hint) and meta._is_annotated(
-                downstream.type_hint
+            if (
+                meta._is_annotated(upstream.type_hint)
+                and meta._is_annotated(downstream.type_hint)
+                and upstream.owner.graph_root._validate_ontologies
+                and upstream.owner.graph_root is downstream.owner.graph_root
+                and not _ontologically_valid_pair(upstream, downstream)
             ):
-                try:
-                    downstream._validate_ontology(upstream)
-                    candidates.append((sibling, candidate))
-                except ChannelConnectionError:
-                    continue
-            else:
-                candidates.append((sibling, candidate))
+                continue
+
+            candidates.append((sibling, candidate))
 
     return candidates
+
+
+def _ontologically_valid_pair(upstream, downstream):
+    # Importing semantikon.ontology is expensive, so we delay importing
+    # the knowledge submodule until the last minute
+    from pyiron_workflow import knowledge  # noqa: PLC0415
+
+    root = upstream.owner.graph_root
+    trial_edge = SemantikonRecipeChange(
+        location=str(downstream.owner.lexical_path).split(
+            downstream.owner.lexical_delimiter
+        )[2:-1],
+        new_edge=(
+            f"{upstream.owner.label}.outputs.{upstream.label}",
+            f"{downstream.owner.label}.inputs.{downstream.label}",
+        ),
+        parent_input=downstream.scoped_label,
+        parent_output=upstream.scoped_label,
+    )
+    validation = knowledge.validate_workflow(root, trial_edge)
+    return knowledge.is_valid(validation)
 
 
 def suggest_nodes(
@@ -72,7 +93,7 @@ def suggest_nodes(
             else node_class.preview_inputs()
         )
 
-        for label, preview_value in preview.items():
+        for _, preview_value in preview.items():
             candidate_hint = preview_value if suggest_for_input else preview_value[0]
 
             if candidate_hint is None:
@@ -90,17 +111,23 @@ def suggest_nodes(
                 continue
 
             trial_label = f"__ontological_candidate_{node_class.__name__}"
-            trial_child = proximate_graph.add_child(node_class(label=trial_label))
             try:
-                channel.connect(
-                    trial_child.outputs[label]
+                trial_child = proximate_graph.add_child(node_class(label=trial_label))
+                upstream, downstream = (
+                    (trial_child, channel)
                     if suggest_for_input
-                    else trial_child.inputs[label]
+                    else (channel, trial_child)
                 )
-                candidate_classes.append(node_class)
-            except ChannelConnectionError:
-                continue
+                if (
+                    meta._is_annotated(upstream.type_hint)
+                    and meta._is_annotated(downstream.type_hint)
+                    and upstream.owner.graph_root._validate_ontologies
+                    and upstream.owner.graph_root is downstream.owner.graph_root
+                    and not _ontologically_valid_pair(upstream, downstream)
+                ):
+                    continue
             finally:
                 proximate_graph.remove_child(trial_label)
+            candidate_classes.append(node_class)
 
     return candidate_classes
