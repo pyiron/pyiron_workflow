@@ -46,9 +46,10 @@ def suggest_connections(channel: channels.DataChannel):
             if meta._is_annotated(upstream.type_hint) and meta._is_annotated(
                 downstream.type_hint
             ):
-                if downstream._validate_ontology(upstream):
+                try:
+                    downstream._validate_ontology(upstream)
                     candidates.append((sibling, candidate))
-                else:
+                except ChannelConnectionError:
                     continue
             else:
                 candidates.append((sibling, candidate))
