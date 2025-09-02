@@ -486,7 +486,7 @@ class DataChannel(FlavorChannel["DataChannel"], typing.Generic[ReceiverType], AB
                 # the knowledge submodule until the last minute
                 from pyiron_workflow import knowledge  # noqa: PLC0415
 
-                new_edge_info = self._append_value_transfer_edge(new_partner)
+                new_edge_info = self._get_value_receiver_change(new_partner)
                 validation = knowledge.validate_workflow(
                     self.owner.graph_root,
                     new_edge_info,
@@ -501,7 +501,7 @@ class DataChannel(FlavorChannel["DataChannel"], typing.Generic[ReceiverType], AB
         self._value_receiver = typing.cast(ReceiverType, new_partner)
 
     @abstractmethod
-    def _append_value_transfer_edge(
+    def _get_value_receiver_change(
         self, new_partner: DataChannel
     ) -> SemantikonRecipeChange: ...
 
@@ -644,7 +644,7 @@ class InputData(DataChannel["InputData"], InputChannel["OutputData"]):
     def connection_conjugate(cls) -> type[OutputData]:
         return OutputData
 
-    def _append_value_transfer_edge(
+    def _get_value_receiver_change(
         self, new_partner: DataChannel
     ) -> SemantikonRecipeChange:
         proximate_parent = str(self.owner.lexical_path).split(
@@ -704,7 +704,7 @@ class OutputData(DataChannel["OutputData"], OutputChannel["InputData"]):
     def connection_conjugate(cls) -> type[InputData]:
         return InputData
 
-    def _append_value_transfer_edge(
+    def _get_value_receiver_change(
         self, new_partner: DataChannel
     ) -> SemantikonRecipeChange:
         proximate_parent = str(self.owner.lexical_path).split(
