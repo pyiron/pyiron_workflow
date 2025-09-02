@@ -571,6 +571,15 @@ class DataChannel(FlavorChannel["DataChannel"], typing.Generic[ReceiverType], AB
             root = self.owner.graph_root
             if not root._validate_ontologies:
                 return True
+            elif root is not other.owner.graph_root:
+                raise ChannelConnectionError(
+                    f"The channel {self.full_label} cannot connect to "
+                    f"{other.full_label} because they triggered ontological type "
+                    f"validation, but have different graph roots (i.e. they probably "
+                    f"do not belong to _any_ parent graph). If you really want to "
+                    f"proceed, you can try disabling ontological validation for all "
+                    f"involved nodes using `node._validate_ontologies = False`."
+                )
 
             # Importing semantikon.ontology is expensive, so we delay it to the last
             # moment so graphs that don't need it don't burn the time.

@@ -604,6 +604,39 @@ class TestValidation(unittest.TestCase):
             ):
                 MismatchingOutput()
 
+    def test_unparented(self):
+        """
+        If this behaviour changes, it may be because we are now able to ontologically
+        validate node networks that exist outside a formal graph parent, or it may be
+        because we've outlawed such networks. Either way, the user messaging in the
+        ontology notebook will need to be updated if this test starts failing.
+        """
+        uses_data = AddOnetology(5)
+        uses_io = IOTransformer()
+        with self.assertRaises(
+            ChannelConnectionError,
+            msg="Ontological validation requires that both parties live in the same "
+            "graph with the same graph root -- when they are not parented in a "
+            "macro or workflow, this should fail hard.",
+        ):
+            uses_io.inputs.x = uses_data.outputs.z
+
+        uses_data._validate_ontologies = False
+        with self.assertRaises(
+            ChannelConnectionError,
+            msg="Disabling ontological validation for one party should not be enough",
+        ):
+            uses_io.inputs.x = uses_data.outputs.z
+
+        uses_io._validate_ontologies = False
+        uses_io.inputs.x = uses_data.outputs.z
+        self.assertEqual(
+            1,
+            len(uses_io.inputs.x.connections),
+            msg="In the error message, we inform the users of this escape hatch."
+            "Change that messaging if this test starts to work differently.",
+        )
+
 
 if __name__ == "__main__":
     unittest.main()
