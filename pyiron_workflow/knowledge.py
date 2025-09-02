@@ -5,7 +5,7 @@ from typing import TYPE_CHECKING, Any, TypeAlias
 import rdflib
 from semantikon import ontology as onto
 
-from pyiron_workflow.data import NOT_DATA
+from pyiron_workflow.data import NOT_DATA, SemantikonRecipeChange
 from pyiron_workflow.nodes import for_loop, function, transform, while_loop
 from pyiron_workflow.nodes.composite import Composite
 
@@ -205,9 +205,7 @@ def parse_workflow(
     )
 
 
-def validate_workflow(
-    root, *new_edge_info: tuple[list[str], tuple[str, str], str | None, str | None]
-):
+def validate_workflow(root, *new_edge_info: SemantikonRecipeChange):
     """
     A shortcut for running `semantikon.ontology.validate_values` on a graph generated
     by a `pyiron_workflow` node (the graph root node).
@@ -229,15 +227,15 @@ def validate_workflow(
         with_default=False,
     )
 
-    for path, edge, parent_input, parent_output in new_edge_info:
+    for change in new_edge_info:
         location = recipe
-        while path:
-            location = location["nodes"][path.pop(0)]
-        location["edges"].append(edge)
-        if parent_input:
-            location["inputs"].pop(parent_input, None)
-        if parent_output:
-            location["outputs"].pop(parent_output, None)
+        while change.location:
+            location = location["nodes"][change.location.pop(0)]
+        location["edges"].append(change.new_edge)
+        if change.parent_input:
+            location["inputs"].pop(change.parent_input, None)
+        if change.parent_output:
+            location["outputs"].pop(change.parent_output, None)
 
     g = onto.get_knowledge_graph(
         wf_dict=recipe,

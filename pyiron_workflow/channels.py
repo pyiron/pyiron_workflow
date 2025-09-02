@@ -14,7 +14,7 @@ from abc import ABC, abstractmethod
 
 from semantikon import metadata as meta
 
-from pyiron_workflow.data import NOT_DATA
+from pyiron_workflow.data import NOT_DATA, SemantikonRecipeChange
 from pyiron_workflow.mixin.display_state import HasStateDisplay
 from pyiron_workflow.mixin.has_interface_mixins import HasChannel, HasLabel
 from pyiron_workflow.type_hinting import (
@@ -507,7 +507,7 @@ class DataChannel(FlavorChannel["DataChannel"], typing.Generic[ReceiverType], AB
     @abstractmethod
     def _append_value_transfer_edge(
         self, new_partner: DataChannel
-    ) -> tuple[list[str], tuple[str, str], None, None]: ...
+    ) -> SemantikonRecipeChange: ...
 
     @property
     def ready(self) -> bool:
@@ -570,21 +570,19 @@ class DataChannel(FlavorChannel["DataChannel"], typing.Generic[ReceiverType], AB
             # the knowledge submodule until the last minute
             from pyiron_workflow import knowledge  # noqa: PLC0415
 
-            proximate_parent = str(self.owner.lexical_path).split(
-                self.owner.lexical_delimiter
-            )[2:-1]
             out, inp = self._figure_out_who_is_who(other)
-            new_edge = (
-                f"{out.owner.label}.outputs.{out.label}",
-                f"{inp.owner.label}.inputs.{inp.label}",
+            recipe_change = SemantikonRecipeChange(
+                location=str(self.owner.lexical_path).split(
+                    self.owner.lexical_delimiter
+                )[2:-1],
+                new_edge=(
+                    f"{out.owner.label}.outputs.{out.label}",
+                    f"{inp.owner.label}.inputs.{inp.label}",
+                ),
+                parent_input=inp.scoped_label,
+                parent_output=out.scoped_label,
             )
-            new_edge_info = (
-                proximate_parent,
-                new_edge,
-                inp.scoped_label,
-                out.scoped_label,
-            )
-            validation = knowledge.validate_workflow(root, new_edge_info)
+            validation = knowledge.validate_workflow(root, recipe_change)
             if (
                 len(validation["missing_triples"]) > 0
                 or len(validation["incompatible_connections"]) > 0
@@ -656,7 +654,7 @@ class InputData(DataChannel["InputData"], InputChannel["OutputData"]):
 
     def _append_value_transfer_edge(
         self, new_partner: DataChannel
-    ) -> tuple[list[str], tuple[str, str], None, None]:
+    ) -> SemantikonRecipeChange:
         proximate_parent = str(self.owner.lexical_path).split(
             self.owner.lexical_delimiter
         )[2:]
@@ -664,7 +662,7 @@ class InputData(DataChannel["InputData"], InputChannel["OutputData"]):
             f"inputs.{self.label}",
             f"{new_partner.owner.label}.inputs.{new_partner.label}",
         )
-        return proximate_parent, new_edge, None, None
+        return SemantikonRecipeChange(proximate_parent, new_edge)
 
     def _valid_connection(self, other: DataChannel[typing.Any]) -> bool:
         if len(self.connections) > 0:
@@ -716,7 +714,7 @@ class OutputData(DataChannel["OutputData"], OutputChannel["InputData"]):
 
     def _append_value_transfer_edge(
         self, new_partner: DataChannel
-    ) -> tuple[list[str], tuple[str, str], None, None]:
+    ) -> SemantikonRecipeChange:
         proximate_parent = str(self.owner.lexical_path).split(
             self.owner.lexical_delimiter
         )[2:-1]
@@ -724,7 +722,7 @@ class OutputData(DataChannel["OutputData"], OutputChannel["InputData"]):
             f"{new_partner.owner.label}.outputs.{new_partner.label}",
             f"outputs.{self.owner.label}__{self.label}",
         )
-        return proximate_parent, new_edge, None, None
+        return SemantikonRecipeChange(proximate_parent, new_edge)
 
 
 SignalType = typing.TypeVar("SignalType", bound="SignalChannel")
