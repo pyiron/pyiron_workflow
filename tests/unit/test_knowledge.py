@@ -451,6 +451,37 @@ def MismatchingOutput(
     return self.add
 
 
+@pwf.as_function_node
+def Distance(x: u(float, units="meter")) -> u(float, derived_from="inputs.x"):
+    return x
+
+
+@pwf.as_function_node
+def Speed(
+    dx: u(float, units="meter"), dt: u(float, units="second")
+) -> u(float, units="meter/second"):
+    s = dx / dt
+    return s
+
+
+@pwf.as_function_node
+def NanoTime(t: u(float, units="nanosecond")) -> u(float, units="nanosecond"):
+    return t
+
+
+@pwf.as_function_node
+def Time(t: u(float, units="second")) -> u(float, units="second"):
+    return t
+
+
+@pwf.as_function_node
+def Canada(
+    british_distance: u(float, units="mile"),
+) -> u(float, derived_from="inputs.driving"):
+    canadian_distance = british_distance
+    return canadian_distance
+
+
 class TestValidation(unittest.TestCase):
     def test_connection_validity(self):
         with self.subTest("Fully hinted"):
@@ -635,6 +666,54 @@ class TestValidation(unittest.TestCase):
             len(uses_io.inputs.x.connections),
             msg="In the error message, we inform the users of this escape hatch."
             "Change that messaging if this test starts to work differently.",
+        )
+
+    def test_units(self):
+        wf = pwf.Workflow("speedometer")
+        wf.dx = Distance(100)
+        wf.speed = Speed(dx=wf.dx)
+
+        with self.subTest("Wrong units"):
+            wf.dt = NanoTime(10)
+            with self.assertRaises(
+                ChannelConnectionError,
+                msg="Incorrect units should cause failed ontological validation",
+            ):
+                wf.speed.inputs.dt = wf.dt
+            wf.remove_child(wf.dt)
+
+        with self.subTest("Right units"):
+            wf.dt = Time(10)
+            wf.speed.inputs.dt = wf.dt
+            out = wf()
+            self.assertTrue(out, msg="Correct units connect fine.")
+
+    def test_units_inheritance(self):
+        wf = pwf.Workflow("we_drive_in_miles")
+        wf.lets_use_metric = Canada()
+        graph = parse_workflow(wf)
+        reference_stem = f"{wf.label}.{wf.lets_use_metric.label}"
+        british_units = graph.objects(
+            rdflib.term.URIRef(f"{reference_stem}.inputs.british_distance.value"),
+            onto.SNS.hasUnits,
+        )
+        self.assertEqual(
+            1,
+            len(list(british_units)),
+            msg="Sanity check that we are parsing correctly for the units",
+        )
+        canadian_units = graph.objects(
+            rdflib.term.URIRef(f"{reference_stem}.outputs.canadian_distance.value"),
+            onto.SNS.hasUnits,
+        )
+        self.assertListEqual(
+            [],
+            list(canadian_units),
+            msg="Of course actually Canada uses kilometers where the UK uses miles. "
+            "But the point here is that unlike other properties, units are _not_ "
+            "inherited. This is an intentional choice in semantikon "
+            "(https://github.com/pyiron/semantikon/issues/256), but if that changes we "
+            "need to update the documentation notebook here.",
         )
 
 
