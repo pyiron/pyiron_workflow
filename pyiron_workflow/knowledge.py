@@ -246,3 +246,11 @@ def validate_workflow(root, *new_edge_info: SemantikonRecipeChange):
         ),
     )
     return onto.validate_values(g)
+
+
+def is_valid(validation: dict[str, Any]) -> bool:
+    return (
+        len(validation["missing_triples"]) == 0
+        and len(validation["incompatible_connections"]) == 0
+        and len(validation["distinct_units"]) == 0
+    )

@@ -491,11 +491,7 @@ class DataChannel(FlavorChannel["DataChannel"], typing.Generic[ReceiverType], AB
                     self.owner.graph_root,
                     new_edge_info,
                 )
-                if (
-                    len(validation["missing_triples"]) > 0
-                    or len(validation["incompatible_connections"]) > 0
-                    or len(validation["distinct_units"]) > 0
-                ):
+                if not knowledge.is_valid(validation):
                     raise InvalidReceiverError(
                         f"Ontological error on value passing: {validation}"
                     )
@@ -583,11 +579,7 @@ class DataChannel(FlavorChannel["DataChannel"], typing.Generic[ReceiverType], AB
                 parent_output=out.scoped_label,
             )
             validation = knowledge.validate_workflow(root, recipe_change)
-            if (
-                len(validation["missing_triples"]) > 0
-                or len(validation["incompatible_connections"]) > 0
-                or len(validation["distinct_units"]) > 0
-            ):
+            if not knowledge.is_valid(validation):
                 raise ChannelConnectionError(
                     f"The upstream channel {out.full_label} cannot connect to the "
                     f"downstream channel {inp.full_label} because the upstream type "
