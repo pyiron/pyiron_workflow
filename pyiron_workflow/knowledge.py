@@ -205,7 +205,9 @@ def parse_workflow(
     )
 
 
-def validate_workflow(root, *new_edge_info: tuple[list[str], tuple[str, str]]):
+def validate_workflow(
+    root, *new_edge_info: tuple[list[str], tuple[str, str], str | None, str | None]
+):
     """
     A shortcut for running `semantikon.ontology.validate_values` on a graph generated
     by a `pyiron_workflow` node (the graph root node).
@@ -227,12 +229,15 @@ def validate_workflow(root, *new_edge_info: tuple[list[str], tuple[str, str]]):
         with_default=False,
     )
 
-    for edge_info in new_edge_info:
+    for path, edge, parent_input, parent_output in new_edge_info:
         location = recipe
-        path, edge = edge_info
         while path:
             location = location["nodes"][path.pop(0)]
         location["edges"].append(edge)
+        if parent_input:
+            location["inputs"].pop(parent_input, None)
+        if parent_output:
+            location["outputs"].pop(parent_output, None)
 
     g = onto.get_knowledge_graph(
         wf_dict=recipe,

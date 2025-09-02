@@ -12,7 +12,6 @@ import inspect
 import typing
 from abc import ABC, abstractmethod
 
-import rdflib
 from semantikon import metadata as meta
 
 from pyiron_workflow.data import NOT_DATA
@@ -508,7 +507,7 @@ class DataChannel(FlavorChannel["DataChannel"], typing.Generic[ReceiverType], AB
     @abstractmethod
     def _append_value_transfer_edge(
         self, new_partner: DataChannel
-    ) -> tuple[list[str], tuple[str, str]]: ...
+    ) -> tuple[list[str], tuple[str, str], None, None]: ...
 
     @property
     def ready(self) -> bool:
@@ -567,49 +566,25 @@ class DataChannel(FlavorChannel["DataChannel"], typing.Generic[ReceiverType], AB
                     f"involved nodes using `node._validate_ontologies = False`."
                 )
 
-            # Importing semantikon.ontology is expensive, so we delay it to the last
-            # moment so graphs that don't need it don't burn the time.
-            from semantikon import ontology as onto  # noqa: PLC0415
-
+            # Importing semantikon.ontology is expensive, so we delay importing
+            # the knowledge submodule until the last minute
             from pyiron_workflow import knowledge  # noqa: PLC0415
 
-            recipe = knowledge.export_to_dict(
-                # root, with_values=True, with_default=True
-                root,
-                with_values=False,
-                with_default=False,
-            )
-
-            # Posit the new connection in the recipe
-            location = recipe
             proximate_parent = str(self.owner.lexical_path).split(
                 self.owner.lexical_delimiter
             )[2:-1]
-            while proximate_parent:
-                location = location["nodes"][proximate_parent.pop(0)]
             out, inp = self._figure_out_who_is_who(other)
             new_edge = (
                 f"{out.owner.label}.outputs.{out.label}",
                 f"{inp.owner.label}.inputs.{inp.label}",
             )
-            location["edges"].append(new_edge)
-
-            # If that edge modifies the auto-IO of the parent, we need to do that
-            location["inputs"].pop(inp.scoped_label, None)
-            location["outputs"].pop(out.scoped_label, None)
-            # This is fragile and probably breaks the case of macro with manual IO...
-
-            # Validate the resulting graph
-            g = onto.get_knowledge_graph(
-                wf_dict=recipe,
-                graph=(
-                    root.knowledge
-                    if hasattr(root, "knowledge")
-                    and isinstance(root.knowledge, rdflib.Graph)
-                    else None
-                ),
+            new_edge_info = (
+                proximate_parent,
+                new_edge,
+                inp.scoped_label,
+                out.scoped_label,
             )
-            validation = onto.validate_values(g)
+            validation = knowledge.validate_workflow(root, new_edge_info)
             if (
                 len(validation["missing_triples"]) > 0
                 or len(validation["incompatible_connections"]) > 0
@@ -681,7 +656,7 @@ class InputData(DataChannel["InputData"], InputChannel["OutputData"]):
 
     def _append_value_transfer_edge(
         self, new_partner: DataChannel
-    ) -> tuple[list[str], tuple[str, str]]:
+    ) -> tuple[list[str], tuple[str, str], None, None]:
         proximate_parent = str(self.owner.lexical_path).split(
             self.owner.lexical_delimiter
         )[2:]
@@ -689,7 +664,7 @@ class InputData(DataChannel["InputData"], InputChannel["OutputData"]):
             f"inputs.{self.label}",
             f"{new_partner.owner.label}.inputs.{new_partner.label}",
         )
-        return proximate_parent, new_edge
+        return proximate_parent, new_edge, None, None
 
     def _valid_connection(self, other: DataChannel[typing.Any]) -> bool:
         if len(self.connections) > 0:
@@ -741,7 +716,7 @@ class OutputData(DataChannel["OutputData"], OutputChannel["InputData"]):
 
     def _append_value_transfer_edge(
         self, new_partner: DataChannel
-    ) -> tuple[list[str], tuple[str, str]]:
+    ) -> tuple[list[str], tuple[str, str], None, None]:
         proximate_parent = str(self.owner.lexical_path).split(
             self.owner.lexical_delimiter
         )[2:-1]
@@ -749,7 +724,7 @@ class OutputData(DataChannel["OutputData"], OutputChannel["InputData"]):
             f"{new_partner.owner.label}.outputs.{new_partner.label}",
             f"outputs.{self.owner.label}__{self.label}",
         )
-        return proximate_parent, new_edge
+        return proximate_parent, new_edge, None, None
 
 
 SignalType = typing.TypeVar("SignalType", bound="SignalChannel")
