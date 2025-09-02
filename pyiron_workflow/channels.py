@@ -483,29 +483,15 @@ class DataChannel(FlavorChannel["DataChannel"], typing.Generic[ReceiverType], AB
                 and meta._is_annotated(new_partner.type_hint)
                 and self.owner.graph_root._validate_ontologies
             ):
-                # Importing semantikon.ontology is expensive, so we delay it to the last
-                # moment so graphs that don't need it don't burn the time.
-                from semantikon import ontology as onto  # noqa: PLC0415
-
+                # Importing semantikon.ontology is expensive, so we delay importing
+                # the knowledge submodule until the last minute
                 from pyiron_workflow import knowledge  # noqa: PLC0415
 
-                root = self.owner.graph_root
-                recipe = knowledge.export_to_dict(
-                    root,
-                    with_values=False,
-                    with_default=False,
+                new_edge_info = self._append_value_transfer_edge(new_partner)
+                validation = knowledge.validate_workflow(
+                    self.owner.graph_root,
+                    new_edge_info,
                 )
-                recipe = self._append_value_transfer_edge(recipe, new_partner)
-                g = onto.get_knowledge_graph(
-                    wf_dict=recipe,
-                    graph=(
-                        root.knowledge
-                        if hasattr(root, "knowledge")
-                        and isinstance(root.knowledge, rdflib.Graph)
-                        else None
-                    ),
-                )
-                validation = onto.validate_values(g)
                 if (
                     len(validation["missing_triples"]) > 0
                     or len(validation["incompatible_connections"]) > 0
@@ -521,8 +507,8 @@ class DataChannel(FlavorChannel["DataChannel"], typing.Generic[ReceiverType], AB
 
     @abstractmethod
     def _append_value_transfer_edge(
-        self, recipe: dict, new_partner: DataChannel
-    ) -> dict: ...
+        self, new_partner: DataChannel
+    ) -> tuple[list[str], tuple[str, str]]: ...
 
     @property
     def ready(self) -> bool:
@@ -694,21 +680,16 @@ class InputData(DataChannel["InputData"], InputChannel["OutputData"]):
         return OutputData
 
     def _append_value_transfer_edge(
-        self, recipe: dict, new_partner: DataChannel
-    ) -> dict:
-        location = recipe
+        self, new_partner: DataChannel
+    ) -> tuple[list[str], tuple[str, str]]:
         proximate_parent = str(self.owner.lexical_path).split(
             self.owner.lexical_delimiter
         )[2:]
-        while proximate_parent:
-            location = location["nodes"][proximate_parent.pop(0)]
         new_edge = (
             f"inputs.{self.label}",
             f"{new_partner.owner.label}.inputs.{new_partner.label}",
         )
-        if new_edge not in location["edges"]:
-            location["edges"].append(new_edge)
-        return recipe
+        return proximate_parent, new_edge
 
     def _valid_connection(self, other: DataChannel[typing.Any]) -> bool:
         if len(self.connections) > 0:
@@ -758,21 +739,17 @@ class OutputData(DataChannel["OutputData"], OutputChannel["InputData"]):
     def connection_conjugate(cls) -> type[InputData]:
         return InputData
 
-    def _append_value_transfer_edge(self, recipe: dict, new_partner: DataChannel):
-        location = recipe
+    def _append_value_transfer_edge(
+        self, new_partner: DataChannel
+    ) -> tuple[list[str], tuple[str, str]]:
         proximate_parent = str(self.owner.lexical_path).split(
             self.owner.lexical_delimiter
         )[2:-1]
-        while proximate_parent:
-            proxy = proximate_parent.pop(0)
-            location = location["nodes"][proxy]
         new_edge = (
             f"{new_partner.owner.label}.outputs.{new_partner.label}",
             f"outputs.{self.owner.label}__{self.label}",
         )
-        if new_edge not in location["edges"]:
-            location["edges"].append(new_edge)
-        return recipe
+        return proximate_parent, new_edge
 
 
 SignalType = typing.TypeVar("SignalType", bound="SignalChannel")

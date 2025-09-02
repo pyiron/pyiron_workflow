@@ -203,3 +203,43 @@ def parse_workflow(
         ontology=ontology,
         append_missing_items=append_missing_items,
     )
+
+
+def validate_workflow(root, *new_edge_info: tuple[list[str], tuple[str, str]]):
+    """
+    A shortcut for running `semantikon.ontology.validate_values` on a graph generated
+    by a `pyiron_workflow` node (the graph root node).
+
+    Takes care of converting the workflow to a compatible representation, and allows
+    new edges to be added prior to validation.
+
+    Args:
+        root: The workflow or macro to validate.
+        *new_edge_info: A (semantikon-representation) node path to where the new edge
+        should be added.
+
+    Returns:
+        dict: The validation report.
+    """
+    recipe = export_to_dict(
+        root,
+        with_values=False,
+        with_default=False,
+    )
+
+    for edge_info in new_edge_info:
+        location = recipe
+        path, edge = edge_info
+        while path:
+            location = location["nodes"][path.pop(0)]
+        location["edges"].append(edge)
+
+    g = onto.get_knowledge_graph(
+        wf_dict=recipe,
+        graph=(
+            root.knowledge
+            if hasattr(root, "knowledge") and isinstance(root.knowledge, rdflib.Graph)
+            else None
+        ),
+    )
+    return onto.validate_values(g)
