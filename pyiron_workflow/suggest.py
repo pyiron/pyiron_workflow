@@ -38,6 +38,8 @@ def suggest_connections(channel: channels.DataChannel):
             upstream, downstream = (
                 (candidate, channel) if suggest_for_input else (channel, candidate)
             )
+            if downstream.connected:
+                continue
             if not type_hinting.type_hint_is_as_or_more_specific_than(
                 upstream.type_hint, downstream.type_hint
             ):
