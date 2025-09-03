@@ -570,7 +570,7 @@ class DataChannel(FlavorChannel["DataChannel"], typing.Generic[ReceiverType], AB
             recipe_change = SemantikonRecipeChange(
                 location=str(self.owner.lexical_path).split(
                     self.owner.lexical_delimiter
-                )[2:-1],
+                )[1:-1],
                 new_edge=(
                     f"{out.owner.label}.outputs.{out.label}",
                     f"{inp.owner.label}.inputs.{inp.label}",
@@ -649,7 +649,7 @@ class InputData(DataChannel["InputData"], InputChannel["OutputData"]):
     ) -> SemantikonRecipeChange:
         proximate_parent = str(self.owner.lexical_path).split(
             self.owner.lexical_delimiter
-        )[2:]
+        )[1:]
         new_edge = (
             f"inputs.{self.label}",
             f"{new_partner.owner.label}.inputs.{new_partner.label}",
@@ -709,7 +709,7 @@ class OutputData(DataChannel["OutputData"], OutputChannel["InputData"]):
     ) -> SemantikonRecipeChange:
         proximate_parent = str(self.owner.lexical_path).split(
             self.owner.lexical_delimiter
-        )[2:-1]
+        )[1:-1]
         new_edge = (
             f"{new_partner.owner.label}.outputs.{new_partner.label}",
             f"outputs.{self.owner.label}__{self.label}",

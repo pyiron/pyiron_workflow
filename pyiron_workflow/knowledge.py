@@ -229,8 +229,9 @@ def validate_workflow(root, new_edge_change: SemantikonRecipeChange | None = Non
 
     if new_edge_change is not None:
         location = recipe
-        while new_edge_change.location:
-            location = location["nodes"][new_edge_change.location.pop(0)]
+        path = list(new_edge_change.location[1:])
+        while path:
+            location = location["nodes"][path.pop(0)]
         location["edges"].append(new_edge_change.new_edge)
         if new_edge_change.parent_input:
             location["inputs"].pop(new_edge_change.parent_input, None)
