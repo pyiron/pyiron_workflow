@@ -123,6 +123,9 @@ def suggest_nodes(
                 continue
 
             trial_label = f"__ontological_candidate_{node_class.__name__}"
+            existing_source_connection: list[
+                tuple[channels.DataChannel, channels.DataChannel]
+            ] = []
             try:
                 trial_child = proximate_graph.add_child(node_class(label=trial_label))
                 upstream, downstream = (
@@ -130,6 +133,7 @@ def suggest_nodes(
                     if suggest_for_input
                     else (channel, trial_child)
                 )
+                existing_source_connection = downstream.disconnect_all()
                 if (
                     meta._is_annotated(upstream.type_hint)
                     and meta._is_annotated(downstream.type_hint)
@@ -140,6 +144,9 @@ def suggest_nodes(
                     continue
             finally:
                 proximate_graph.remove_child(trial_label)
+                for _, partner in existing_source_connection:
+                    # Should only be 0 or 1 items; iterate to accommodate the data type
+                    downstream.connect(partner)
             candidate_classes.append(node_class)
 
     return candidate_classes
