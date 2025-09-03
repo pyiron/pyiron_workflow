@@ -1,7 +1,8 @@
 import bidict
+import toposort
 from semantikon import metadata as meta
 
-from pyiron_workflow import channels, io, type_hinting
+from pyiron_workflow import channels, io, topology, type_hinting
 from pyiron_workflow.data import SemantikonRecipeChange
 from pyiron_workflow.nodes import static_io
 
@@ -53,6 +54,17 @@ def suggest_connections(channel: channels.DataChannel):
                 and not _ontologically_valid_pair(upstream, downstream)
             ):
                 continue
+
+            # Disallow circular connections
+            try:
+                downstream.connect(upstream)
+                toposort.toposort_flatten(
+                    topology.nodes_to_data_digraph(proximate_graph.children)
+                )
+            except toposort.CircularDependencyError:
+                continue
+            finally:
+                downstream.disconnect(upstream)
 
             candidates.append((sibling, candidate))
 
