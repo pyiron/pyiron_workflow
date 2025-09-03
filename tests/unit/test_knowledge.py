@@ -628,6 +628,7 @@ class TestValidation(unittest.TestCase):
         wf.up = Up("we only want to probe the relevant connection")
         wf.middle = Middle()
         wf.down = Down()
+        wf.extra = Up()
         self.assertFalse(
             is_valid(validate_workflow(wf)),
             msg="Sanity check: the overall workflow should be invalid due to the Down "
@@ -640,6 +641,19 @@ class TestValidation(unittest.TestCase):
             "be totally fine."
         ):
             wf.middle.inputs.y = wf.up.outputs.x
+
+        wf.down.inputs.z.disconnect_all()
+        with self.subTest(
+            "Even while the _node_ that invalidates the graph is wrong, we should "
+            "still allow _other channels_ on that node to participate in validated "
+            "connections."
+        ):
+            wf.extra.inputs.x = wf.down.outputs.z
+            self.assertFalse(
+                is_valid(validate_workflow(wf)),
+                msg="Sanity check: the overall workflow should be invalid due to the "
+                "Down node restrictions being unfulfilled",
+            )
 
     def test_macros(self):
         with self.subTest("Correct macro"):
