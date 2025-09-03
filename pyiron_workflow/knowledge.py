@@ -258,15 +258,20 @@ def is_valid(validation: dict[str, Any]) -> bool:
 
 
 def is_involved(validation, new_edge_change: SemantikonRecipeChange) -> bool:
-    scope = (
-        f"{new_edge_change.location[0]}." if new_edge_change.location else ""
-    )  # NEED A PATH?!
     # We only care if the receiving end of the new edge appears in the validation
     # report.
     # This is still not sufficient, because of limitations in how semantikon treats
     # restrictions: https://github.com/pyiron/semantikon/issues/262
-    term = rdflib.term.URIRef(f"{scope}{new_edge_change.new_edge[1]}")
-    return term_appears_in_validation(term, validation)
+    downstream_term = rdflib.term.URIRef(
+        f"{'.'.join(new_edge_change.location)}.{new_edge_change.new_edge[1]}"
+    )
+    # Also for units the validity report makes reference to the upstream term...
+    upstream_term = rdflib.term.URIRef(
+        f"{'.'.join(new_edge_change.location)}.{new_edge_change.new_edge[0]}"
+    )
+    return term_appears_in_validation(
+        downstream_term, validation
+    ) or _target_in_distinct_units(upstream_term, validation)
 
 
 def term_appears_in_validation(

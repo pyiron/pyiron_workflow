@@ -8,7 +8,9 @@ from semantikon.metadata import u
 import pyiron_workflow as pwf
 from pyiron_workflow.channels import ChannelConnectionError
 from pyiron_workflow.knowledge import (
+    SemantikonRecipeChange,
     export_to_dict,
+    is_involved,
     is_valid,
     parse_workflow,
     validate_workflow,
@@ -513,6 +515,29 @@ def Canada(
     return canadian_distance
 
 
+@pwf.as_function_node
+def HasNeed(
+    x: u(
+        str,
+        uri=EX.Foo,
+        restrictions=(
+            (rdflib.OWL.onProperty, EX.hasNeed),
+            (rdflib.OWL.someValuesFrom, EX.need),
+        ),
+    ) = "foo",
+) -> u(int, uri=EX.Data):
+    data = 42
+    return data
+
+
+@pwf.as_macro_node
+def UnconnectedMacro(self):
+    self.needy = HasNeed()
+    self.adds = AddOnetology(1)
+    self.transforms = IOTransformer(2)
+    return self.adds, self.transforms
+
+
 class TestValidation(unittest.TestCase):
     def test_connection_validity(self):
         with self.subTest("Fully hinted"):
@@ -777,6 +802,53 @@ class TestValidation(unittest.TestCase):
             "inherited. This is an intentional choice in semantikon "
             "(https://github.com/pyiron/semantikon/issues/256), but if that changes we "
             "need to update the documentation notebook here.",
+        )
+
+    def test_is_involved(self):
+        wf = pwf.Workflow("validate_involvement")
+        # We want to check the scope of the paths, so stick it all in a macro
+        wf.macro = UnconnectedMacro()
+        self.assertFalse(
+            is_valid(validate_workflow(wf)),
+            msg="Sanity check -- the needy node has unfilled requirements. Unless "
+            "semantikon is changed to allow these to pass in the absence of an edge, "
+            "this should cause validation to fail.",
+        )
+        connect_matching = SemantikonRecipeChange(
+            [wf.label, wf.macro.label],
+            (
+                f"{wf.macro.needy.label}.outputs.{wf.macro.needy.outputs.data.label}",
+                f"{wf.macro.adds.label}.inputs.{wf.macro.adds.inputs.x.label}",
+            ),
+        )
+        matching_validation = validate_workflow(wf, connect_matching)
+        self.assertFalse(
+            is_valid(matching_validation),
+            msg="Sanity check: we didn't fulfill the needs of the needy node, so this "
+            "should still be invalid.",
+        )
+        self.assertFalse(
+            is_involved(matching_validation, connect_matching),
+            msg="Even though the workflow is invalid, this new connection is fine: "
+            "the two counterparties have matching URI and that's all we were asking.",
+        )
+
+        connect_mismatching = SemantikonRecipeChange(
+            [wf.label, wf.macro.label],
+            (
+                f"{wf.macro.needy.label}.outputs.{wf.macro.needy.outputs.data.label}",
+                f"{wf.macro.transforms.label}.inputs.{wf.macro.transforms.inputs.x.label}",
+            ),
+        )
+        mismatching_validation = validate_workflow(wf, connect_mismatching)
+        self.assertFalse(
+            is_valid(mismatching_validation),
+            msg="Sanity check: it wasn't valid before, so it sure shouldn't be now.",
+        )
+        self.assertTrue(
+            is_involved(mismatching_validation, connect_mismatching),
+            msg="This time, the new connection in question _is_ involved in the "
+            "validation failure, because of the mismatching URI.",
         )
 
 
