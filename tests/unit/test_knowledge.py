@@ -7,7 +7,12 @@ from semantikon.metadata import u
 
 import pyiron_workflow as pwf
 from pyiron_workflow.channels import ChannelConnectionError
-from pyiron_workflow.knowledge import export_to_dict, parse_workflow
+from pyiron_workflow.knowledge import (
+    export_to_dict,
+    is_valid,
+    parse_workflow,
+    validate_workflow,
+)
 from pyiron_workflow.nodes.composite import FailedChildError
 
 EX = rdflib.Namespace("http://example.org/")
@@ -97,6 +102,32 @@ def AddTwoMacrontology(self, inp: u(int, uri=EX.Data)) -> u(int, uri=EX.Data):
     self.a1 = AddOnetology(inp)
     self.a2 = AddOnetology(self.a1)
     return self.a2
+
+
+@pwf.as_function_node
+def Up(x: u(str, uri=EX.TriggerOnto)) -> u(str, uri=EX.TriggerOnto):
+    return x
+
+
+@pwf.as_function_node
+def Middle(
+    y: u(str, uri=EX.TriggerOnto),
+) -> u(str, uri=EX.TriggerOnto, triples=(EX.hasThing, EX.thing)):
+    return y
+
+
+@pwf.as_function_node
+def Down(
+    z: u(
+        str,
+        uri=EX.TriggerOnto,
+        restrictions=(
+            (rdflib.OWL.onProperty, EX.hasThing),
+            (rdflib.OWL.someValuesFrom, EX.thing),
+        ),
+    ),
+):
+    return z
 
 
 class TestParser(unittest.TestCase):
@@ -591,6 +622,24 @@ class TestValidation(unittest.TestCase):
                 "leading to failed ontological validation",
             ):
                 wf.money.inputs.clothes = wf.unclean_dyed_clothes
+
+    def test_unrelated_problems(self):
+        wf = pwf.Workflow("connect_later")
+        wf.up = Up("we only want to probe the relevant connection")
+        wf.middle = Middle()
+        wf.down = Down()
+        self.assertFalse(
+            is_valid(validate_workflow(wf)),
+            msg="Sanity check: the overall workflow should be invalid due to the Down "
+            "node restrictions being unfulfilled",
+        )
+        with self.subTest(
+            "Even though the whole graph will not validate, for the purpose of "
+            "ontologically validating connections, we only care whether "
+            "_that connection_ causes problems. Thus, connecting up and middle should "
+            "be totally fine."
+        ):
+            wf.middle.inputs.y = wf.up.outputs.x
 
     def test_macros(self):
         with self.subTest("Correct macro"):
