@@ -82,7 +82,7 @@ def _ontologically_valid_pair(upstream, downstream):
     trial_edge = SemantikonRecipeChange(
         location=str(downstream.owner.lexical_path).split(
             downstream.owner.lexical_delimiter
-        )[2:-1],
+        )[1:-1],
         new_edge=(
             f"{upstream.owner.label}.outputs.{upstream.label}",
             f"{downstream.owner.label}.inputs.{downstream.label}",
@@ -91,7 +91,9 @@ def _ontologically_valid_pair(upstream, downstream):
         parent_output=upstream.scoped_label,
     )
     validation = knowledge.validate_workflow(root, trial_edge)
-    return knowledge.is_valid(validation)
+    return knowledge.is_valid(validation) or not knowledge.is_involved(
+        validation, trial_edge
+    )
 
 
 def suggest_nodes(
