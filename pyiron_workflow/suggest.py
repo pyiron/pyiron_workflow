@@ -61,15 +61,12 @@ def suggest_connections(channel: channels.DataChannel):
                 continue
 
             # Disallow circular connections
+            data_digraph = topology.nodes_to_data_digraph(proximate_graph.children)
+            data_digraph[downstream.owner.label].add(upstream.owner.label)
             try:
-                downstream.connect(upstream)
-                toposort.toposort_flatten(
-                    topology.nodes_to_data_digraph(proximate_graph.children)
-                )
+                toposort.toposort_flatten(data_digraph)
             except toposort.CircularDependencyError:
                 continue
-            finally:
-                downstream.disconnect(upstream)
 
             candidates.append((sibling, candidate))
 
