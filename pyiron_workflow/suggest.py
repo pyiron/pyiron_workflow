@@ -23,6 +23,11 @@ def _parse_levers(channel: channels.DataChannel):
 
 def suggest_connections(channel: channels.DataChannel):
     hint, proximate_graph, suggest_for_input = _parse_levers(channel)
+    if suggest_for_input and channel.connected:
+        raise ValueError(
+            f"Cannot suggest a connection for the input {channel.full_label} because "
+            f"it is connected. Please disconnect it and ask for suggestions again."
+        )
 
     counterpart = "outputs" if suggest_for_input else "inputs"
 
