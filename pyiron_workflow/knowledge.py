@@ -205,7 +205,7 @@ def parse_workflow(
     )
 
 
-def validate_workflow(root, *new_edge_info: SemantikonRecipeChange):
+def validate_workflow(root, new_edge_change: SemantikonRecipeChange | None = None):
     """
     A shortcut for running `semantikon.ontology.validate_values` on a graph generated
     by a `pyiron_workflow` node (the graph root node).
@@ -215,7 +215,7 @@ def validate_workflow(root, *new_edge_info: SemantikonRecipeChange):
 
     Args:
         root: The workflow or macro to validate.
-        *new_edge_info: A (semantikon-representation) node path to where the new edge
+        new_edge_change: A (semantikon-representation) node path to where the new edge
         should be added.
 
     Returns:
@@ -227,15 +227,15 @@ def validate_workflow(root, *new_edge_info: SemantikonRecipeChange):
         with_default=False,
     )
 
-    for change in new_edge_info:
+    if new_edge_change is not None:
         location = recipe
-        while change.location:
-            location = location["nodes"][change.location.pop(0)]
-        location["edges"].append(change.new_edge)
-        if change.parent_input:
-            location["inputs"].pop(change.parent_input, None)
-        if change.parent_output:
-            location["outputs"].pop(change.parent_output, None)
+        while new_edge_change.location:
+            location = location["nodes"][new_edge_change.location.pop(0)]
+        location["edges"].append(new_edge_change.new_edge)
+        if new_edge_change.parent_input:
+            location["inputs"].pop(new_edge_change.parent_input, None)
+        if new_edge_change.parent_output:
+            location["outputs"].pop(new_edge_change.parent_output, None)
 
     g = onto.get_knowledge_graph(
         wf_dict=recipe,
