@@ -261,11 +261,12 @@ def is_involved(validation, new_edge_change: SemantikonRecipeChange) -> bool:
     scope = (
         f"{new_edge_change.location[0]}." if new_edge_change.location else ""
     )  # NEED A PATH?!
-    for target in new_edge_change.new_edge:
-        term = rdflib.term.URIRef(f"{scope}{target}")
-        if term_appears_in_validation(term, validation):
-            return True
-    return False
+    # We only care if the receiving end of the new edge appears in the validation
+    # report.
+    # This is still not sufficient, because of limitations in how semantikon treats
+    # restrictions: https://github.com/pyiron/semantikon/issues/262
+    term = rdflib.term.URIRef(f"{scope}{new_edge_change.new_edge[1]}")
+    return term_appears_in_validation(term, validation)
 
 
 def term_appears_in_validation(
