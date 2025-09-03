@@ -21,7 +21,7 @@ def _parse_levers(channel: channels.DataChannel):
     return hint, proximate_graph, suggest_for_input
 
 
-def suggest_connections(channel: channels.DataChannel):
+def suggest_connections(channel: channels.DataChannel, *corpus: static_io.StaticNode):
     hint, proximate_graph, suggest_for_input = _parse_levers(channel)
     if suggest_for_input and channel.connected:
         raise ValueError(
@@ -31,11 +31,13 @@ def suggest_connections(channel: channels.DataChannel):
 
     counterpart = "outputs" if suggest_for_input else "inputs"
 
-    siblings = bidict.bidict(proximate_graph.children)
-    siblings.pop(channel.owner.label)
+    if len(corpus) == 0:
+        siblings = bidict.bidict(proximate_graph.children)
+        siblings.pop(channel.owner.label)
+        corpus = tuple(siblings.values())
 
     candidates: list[tuple[static_io.StaticNode, channels.DataChannel]] = []
-    for sibling in siblings.values():
+    for sibling in corpus:
         candidate_panel: io.DataIO = getattr(sibling, counterpart)
         for candidate in candidate_panel:
             if candidate.type_hint is None or candidate in channel.connections:
