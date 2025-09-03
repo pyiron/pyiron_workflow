@@ -255,3 +255,43 @@ def is_valid(validation: dict[str, Any]) -> bool:
         and len(validation["incompatible_connections"]) == 0
         and len(validation["distinct_units"]) == 0
     )
+
+
+def is_involved(validation, new_edge_change: SemantikonRecipeChange) -> bool:
+    scope = (
+        f"{new_edge_change.location[0]}." if new_edge_change.location else ""
+    )  # NEED A PATH?!
+    for target in new_edge_change.new_edge:
+        term = rdflib.term.URIRef(f"{scope}{target}")
+        if term_appears_in_validation(term, validation):
+            return True
+    return False
+
+
+def term_appears_in_validation(
+    term: rdflib.term.Node, validation: dict[str, Any]
+) -> bool:
+    return (
+        _target_in_missing_triples(term, validation)
+        or _target_in_incompatible_connections(term, validation)
+        or _target_in_distinct_units(term, validation)
+    )
+
+
+def _target_in_missing_triples(target, validation):
+    for triple in validation["missing_triples"]:
+        if any(target == t for t in triple):
+            return True
+    return False
+
+
+def _target_in_incompatible_connections(target, validation):
+    for connection_report in validation["incompatible_connections"]:
+        if any(target == t for t in connection_report[:2]):
+            return True
+    return False
+
+
+def _target_in_distinct_units(target, validation):
+    unit_target = rdflib.term.URIRef(f"{target}.value")
+    return any(unit_target == t for t in validation["distinct_units"])

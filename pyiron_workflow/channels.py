@@ -579,7 +579,9 @@ class DataChannel(FlavorChannel["DataChannel"], typing.Generic[ReceiverType], AB
                 parent_output=out.scoped_label,
             )
             validation = knowledge.validate_workflow(root, recipe_change)
-            if not knowledge.is_valid(validation):
+            if not knowledge.is_valid(validation) and knowledge.is_involved(
+                validation, recipe_change
+            ):
                 raise ChannelConnectionError(
                     f"The upstream channel {out.full_label} cannot connect to the "
                     f"downstream channel {inp.full_label} because the upstream type "
