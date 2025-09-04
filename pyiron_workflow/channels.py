@@ -529,7 +529,9 @@ class DataChannel(FlavorChannel["DataChannel"], typing.Generic[ReceiverType], AB
         return self.type_hint is not None
 
     def _valid_connection(self, other: DataChannel) -> bool:
-        return self._validate_typing(other) and self._validate_ontology(other)
+        return self._validate_typing(other) and self.has_ontologically_valid_connection(
+            other, exception_on_invalid=True
+        )
 
     def _validate_typing(self, other: DataChannel) -> bool:
         if self._both_typed(other):
@@ -545,8 +547,8 @@ class DataChannel(FlavorChannel["DataChannel"], typing.Generic[ReceiverType], AB
                 )
         return True
 
-    def _validate_ontology(
-        self, other: DataChannel, exception_on_invalid: bool = True
+    def has_ontologically_valid_connection(
+        self, other: DataChannel, exception_on_invalid: bool = False
     ) -> bool:
         if meta._is_annotated(self.type_hint) and meta._is_annotated(other.type_hint):
 

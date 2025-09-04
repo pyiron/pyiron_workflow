@@ -57,9 +57,7 @@ def suggest_connections(channel: channels.DataChannel, *corpus: static_io.Static
                 and meta._is_annotated(downstream.type_hint)
                 and upstream.owner.graph_root._validate_ontologies
                 and upstream.owner.graph_root is downstream.owner.graph_root
-                and not upstream._validate_ontology(
-                    downstream, exception_on_invalid=False
-                )
+                and not upstream.has_ontologically_valid_connection(downstream)
             ):
                 continue
 
