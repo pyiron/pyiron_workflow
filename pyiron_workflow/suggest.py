@@ -6,14 +6,26 @@ from pyiron_workflow import channels, io, topology, type_hinting
 from pyiron_workflow.nodes import static_io
 
 
+class SuggestionError(BaseException): ...
+
+
+class UnhintedError(SuggestionError, ValueError): ...
+
+
+class NonSiblingError(SuggestionError, ValueError): ...
+
+
+class ConnectedInputError(SuggestionError, ValueError): ...
+
+
 def _parse_levers(channel: channels.DataChannel):
     hint = channel.type_hint
     if hint is None:
-        raise ValueError("Cannot suggest a value for a channel with no type hint.")
+        raise UnhintedError("Cannot suggest a value for a channel with no type hint.")
 
     proximate_graph = channel.owner.parent
     if proximate_graph is None:
-        raise ValueError("Cannot suggest a value for a channel outside a graph.")
+        raise NonSiblingError("Cannot suggest a value for a channel outside a graph.")
 
     suggest_for_input = isinstance(channel, channels.InputChannel)
 
@@ -27,7 +39,7 @@ def suggest_connections(
 ):
     hint, proximate_graph, suggest_for_input = _parse_levers(channel)
     if suggest_for_input and channel.connected:
-        raise ValueError(
+        raise ConnectedInputError(
             f"Cannot suggest a connection for the input {channel.full_label} because "
             f"it is connected. Please disconnect it and ask for suggestions again."
         )
@@ -85,7 +97,7 @@ def suggest_nodes(
 ) -> list[type[static_io.StaticNode]]:
     _, proximate_graph, suggest_for_input = _parse_levers(channel)
     if suggest_for_input and channel.connected:
-        raise ValueError(
+        raise ConnectedInputError(
             f"Cannot suggest a connection for the input {channel.full_label} because "
             f"it is connected. Please disconnect it and ask for suggestions again."
         )
