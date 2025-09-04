@@ -3,13 +3,21 @@ These are in integration tests because they are too slow (10-20s).
 """
 
 import unittest
+from collections.abc import Callable
+from typing import Literal
 
 import rdflib
 from semantikon.metadata import u
 
 import pyiron_workflow as pwf
 from pyiron_workflow.channels import ChannelConnectionError
-from pyiron_workflow.suggest import suggest_connections, suggest_nodes
+from pyiron_workflow.suggest import (
+    ConnectedInputError,
+    NonSiblingError,
+    UnhintedError,
+    suggest_connections,
+    suggest_nodes,
+)
 
 EX = rdflib.Namespace("http://example.org/")
 
@@ -89,8 +97,8 @@ def PlaceBooks(
 
 
 @pwf.as_function_node
-def OnlyType(shelf: Storage) -> Storage:
-    return shelf
+def OnlyType(storage: Storage) -> Storage:
+    return storage
 
 
 @pwf.as_function_node
@@ -124,13 +132,13 @@ class TestSuggest(unittest.TestCase):
         self.wf.nuts = AddNuts()
         self.wf.washers = AddWashers(self.wf.nuts)
         self.wf.bolts = AddBolts(self.wf.washers)
-        self.wf.shelf = AssembleShelf()
+        self.wf.assembled = AssembleShelf()
         self.wf.bookshelf = PlaceBooks()
         self.wf.only_type = OnlyType()
         self.wf.no_hints = NoHints()
         self.wf.wrong_hint = WrongHint()
 
-    def test_unfulfilled_rstrictions(self):
+    def test_unfulfilled_restrictions(self):
         with self.assertRaises(
             ChannelConnectionError,
             msg="In principle, I _do_ want this to be OK -- shelf is promising to "
@@ -141,37 +149,190 @@ class TestSuggest(unittest.TestCase):
         ):
             self.wf.bookshelf.inputs.bookshelf = self.wf.shelf.outputs.assembled
 
-    def test_suggest_connections(self):
-        print("CONNECTION SUGGESTIONS")
-        print("\nINPUT SUGGESTIONS")
-        for c in self.wf.children.values():
+    def test_exceptions(self):
+        with self.subTest("Connected input"):
+            for channel in [
+                self.wf.washers.inputs.gets_washer,
+                self.wf.bolts.inputs.gets_bolts,
+            ]:
+                for suggester in (suggest_connections, suggest_nodes):
+                    with self.assertRaises(
+                        ConnectedInputError,
+                        msg="These two already have input connections, they must be "
+                        "disconnected to get a suggestion",
+                    ):
+                        suggester(channel)
+
+        with self.subTest("Non-sibling nodes"):
+            not_in_graph = AddNuts()
+            with self.assertRaises(
+                NonSiblingError,
+                msg="The default corpus looks for siblings, but if an invalid corpus "
+                "is explicitly provided, we want to fail cleanly",
+            ):
+                suggest_connections(not_in_graph.inputs.gets_nuts, not_in_graph)
+
+        with self.subTest("Unhinted"):
+            for suggester in (suggest_connections, suggest_nodes):
+                with self.assertRaises(
+                    UnhintedError,
+                    msg="The node has no hinting, so it cannot be suggested",
+                ):
+                    suggester(self.wf.no_hints.inputs.shelf)
+
+    def _build_suggestions(
+        self, suggester_fnc: Callable, io: Literal["inputs", "outputs"]
+    ) -> dict[pwf.api.Function, list[pwf.api.Function] | None]:
+        """
+        We're just playing with single-input/single-output nodes here, so let's keep
+        things simple by mapping the suggestions from node-to-node directly.
+        We can add one or two little edge cases later for channel-specific stuff.
+        """
+        suggestions = {}
+        for node in self.wf.children.values():
             try:
-                print(
-                    c.full_label,
-                    [
-                        f"{n.label}.{cc.label}"
-                        for (n, cc) in suggest_connections(
-                            next(iter(c.inputs.channel_dict.values()))
-                        )
-                    ],
-                )
+                channel = next(iter(getattr(node, io).channel_dict.values()))
+                suggestions[node] = [node for (node, channel) in suggester_fnc(channel)]
             except ValueError:
-                print(c.label, "No suggestions")
-        print("\nOUTPUT SUGGESTIONS")
-        for c in self.wf.children.values():
-            try:
-                print(
-                    c.full_label,
-                    [
-                        f"{n.label}.{cc.label}"
-                        for (n, cc) in suggest_connections(
-                            next(iter(c.outputs.channel_dict.values()))
-                        )
-                    ],
-                )
-            except ValueError:
-                print(c.label, "No suggestions")
-        pass
+                suggestions[node] = None
+        return suggestions
+
+    def test_input_connection_suggestions(self):
+        suggestions = self._build_suggestions(suggest_connections, "inputs")
+
+        with self.subTest("No input suggestions for connected input"):
+            self.assertIsNone(suggestions[self.wf.washers])
+            self.assertIsNone(suggestions[self.wf.bolts])
+        suggestions.pop(self.wf.washers)
+        suggestions.pop(self.wf.bolts)
+
+        with self.subTest("Without any hinting, no suggestions should happen"):
+            for target, suggested in suggestions.items():
+                if target is self.wf.no_hints:
+                    self.assertIsNone(suggested)
+                else:
+                    self.assertNotIn(self.wf.no_hints, suggested)
+        suggestions.pop(self.wf.no_hints)
+
+        with self.subTest("Simple data types are suggested without regard to ontology"):
+            for target, suggested in suggestions.items():
+                if target is self.wf.only_type:
+                    all_siblings = list(self.wf.children.values())
+                    all_siblings.remove(target)
+                    all_siblings.remove(self.wf.no_hints)
+                    self.assertListEqual(suggested, all_siblings)
+                else:
+                    self.assertIn(self.wf.only_type, suggested)
+
+            self.assertIn(
+                self.wf.only_type,
+                suggestions[self.wf.wrong_hint],
+                msg="It is only the ontological hint that's wrong, the type hint "
+                "should still clear",
+            )
+
+        with self.subTest("No cyclic suggestions"):
+            self.assertNotIn(self.wf.washers, suggestions[self.wf.nuts])
+            self.assertNotIn(self.wf.bolts, suggestions[self.wf.nuts])
+
+        with self.subTest("Fulfilled suggestions present"):
+            self.assertIn(self.wf.bolts, suggestions[self.wf.assembled])
+
+        with self.subTest(
+            "Side effect in derived from: unfulfilled restrictions get inherited"
+        ):
+            self.assertNotIn(
+                self.wf.assembled,
+                suggestions[self.wf.bookshelf],
+                msg="It would be nice if this would work -- AssembleShelf guarantees "
+                "a EX.Shelf Storage instance with the EX.assembled state, as demanded "
+                "by PlaceBooks. However, because of derived_from, PlaceBooks inherits "
+                "the unfulfilled restriction from AssembleShelf."
+                "Cf. https://github.com/pyiron/semantikon/issues/262",
+            )
+
+        # Now make modifications and re-test
+        self.wf.assembled.inputs.to_assemble = self.wf.bolts
+        with self.subTest("Fulfilled inherited suggestions"):
+            self.assertIn(
+                (self.wf.assembled, self.wf.assembled.outputs.assembled),
+                suggest_connections(self.wf.bookshelf.inputs.bookshelf),
+            )
+
+        self.wf.bolts.disconnect()
+        with self.subTest("Cylcic constraint removed"):
+            self.assertIn(
+                (self.wf.bolts, self.wf.bolts.outputs.has_bolts),
+                suggest_connections(self.wf.nuts.inputs.gets_nuts),
+            )
+
+    def test_output_connection_suggestions(self):
+        suggestions = self._build_suggestions(suggest_connections, "outputs")
+
+        with self.subTest("No input suggestions for connected input"):
+            for suggested in list(filter(None, suggestions.values())):
+                self.assertNotIn(self.wf.washers, suggested)
+                self.assertNotIn(self.wf.bolts, suggested)
+
+        with self.subTest("Without any hinting, no suggestions should happen"):
+            for target, suggested in suggestions.items():
+                if target is self.wf.no_hints:
+                    self.assertIsNone(suggested)
+                else:
+                    self.assertNotIn(self.wf.no_hints, suggested)
+
+        with self.subTest("Simple data types are suggested without regard to ontology"):
+            for target, suggested in suggestions.items():
+                if target is self.wf.only_type:
+                    siblings = list(suggestions.keys())
+                    siblings.remove(target)
+                    siblings.remove(self.wf.no_hints)
+                    siblings.remove(self.wf.washers)  # Already connected
+                    siblings.remove(self.wf.bolts)  # Already connected
+                    self.assertListEqual(suggested, siblings)
+                elif suggested is not None:
+                    self.assertIn(self.wf.only_type, suggested)
+
+            self.assertIn(
+                self.wf.only_type,
+                suggestions[self.wf.wrong_hint],
+                msg="It is only the ontological hint that's wrong, the type hint "
+                "should still clear",
+            )
+
+        with self.subTest("No cyclic suggestions"):
+            self.assertNotIn(self.wf.nuts, suggestions[self.wf.bolts])
+
+        with self.subTest("Fulfilled suggestions present"):
+            self.assertIn(self.wf.assembled, suggestions[self.wf.bolts])
+
+        with self.subTest(
+            "Side effect in derived from: unfulfilled restrictions get inherited"
+        ):
+            self.assertNotIn(
+                self.wf.bookshelf,
+                suggestions[self.wf.assembled],
+                msg="It would be nice if this would work -- AssembleShelf guarantees "
+                "a EX.Shelf Storage instance with the EX.assembled state, as demanded "
+                "by PlaceBooks. However, because of derived_from, PlaceBooks inherits "
+                "the unfulfilled restriction from AssembleShelf."
+                "Cf. https://github.com/pyiron/semantikon/issues/262",
+            )
+
+        # Now make modifications and re-test
+        self.wf.assembled.inputs.to_assemble = self.wf.bolts
+        with self.subTest("Fulfilled inherited suggestions"):
+            self.assertIn(
+                (self.wf.bookshelf, self.wf.bookshelf.inputs.bookshelf),
+                suggest_connections(self.wf.assembled.outputs.assembled),
+            )
+
+        self.wf.bolts.disconnect()
+        with self.subTest("Cylcic constraint removed"):
+            self.assertIn(
+                (self.wf.nuts, self.wf.nuts.inputs.gets_nuts),
+                suggest_connections(self.wf.bolts.outputs.has_bolts),
+            )
 
     def test_suggest_nodes(self):
         print("\n\nNODE SUGGESTIONS")
