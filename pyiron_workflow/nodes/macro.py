@@ -303,10 +303,15 @@ class Macro(Composite, StaticNode, ScrapesIO, ABC):
                 and len(target_node.channel.connections) <= 1  # And isn't forked to
                 # multiple children
             ):
-                if len(target_node.channel.connections) == 1:
-                    macro_input.value_receiver = target_node.channel.connections[0]
+                receiver = (
+                    target_node.channel.connections[0]
+                    if len(target_node.channel.connections) == 1
+                    else None
+                )
                 self.remove_child(target_node)
                 remaining_ui_nodes.remove(target_node)
+                if receiver is not None:
+                    macro_input.value_receiver = receiver
         return tuple(remaining_ui_nodes)
 
     @property

@@ -167,6 +167,7 @@ class Node(
                 channel labels.
         """
         super().__init__(label=label, parent=parent)
+        self._validate_ontologies = True  # Back-door to turn off the alpha feature
 
         self._signals = Signals()
         self._signals.input.run = InputSignal("run", self, self.run)

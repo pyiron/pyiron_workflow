@@ -12,6 +12,8 @@ dependencies:
 - pint =0.24
 - python =3.11
 - pyiron_snippets =0.1.4
-- python-graphviz =0.20.0
+- python-graphviz =0.20.3
+- rdflib =7.1.4
+- semantikon =0.0.22
 - toposort =1.10
 - typeguard =4.2.0

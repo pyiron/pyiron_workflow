@@ -81,7 +81,7 @@ class OutputChannel(DummyChannel["InputChannel"]):
 
 class AngryOutput(OutputChannel):
     def _valid_connection(self, other: object) -> bool:
-        return False
+        raise ChannelConnectionError("This connection always fails")
 
 
 class TestChannel(unittest.TestCase):

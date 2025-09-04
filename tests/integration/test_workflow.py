@@ -6,8 +6,11 @@ import unittest
 from concurrent import futures
 
 import executorlib
+import rdflib
+from semantikon.metadata import u
 from static import demo_nodes
 
+import pyiron_workflow as pwf
 from pyiron_workflow._tests import ensure_tests_in_python_path
 from pyiron_workflow.channels import OutputSignal
 from pyiron_workflow.data import NOT_DATA
@@ -47,6 +50,56 @@ def SideEffect(x):
     global HISTORY  # noqa: PLW0603
     HISTORY += f"{y}"
     return y
+
+
+EX = rdflib.Namespace("http://www.example.org/")
+
+
+@pwf.as_dataclass_node(
+    uri=EX.Jar
+)  # Can pass u-kwargs to decorate the returned dataclass
+class Jar:
+    threading: str = "clockwise"
+    contents: u(str, uri=EX.Contents) = "jam"
+
+
+@pwf.as_function_node
+def ItsStuck(
+    jar: u(Jar.dataclass, uri=EX.Jar),
+) -> u(Jar.dataclass, derived_from="inputs.jar", triples=(EX.lidState, EX.stuck)):
+    return jar
+
+
+@pwf.as_function_node
+def OpenStuckJar(
+    jar: u(
+        Jar.dataclass,
+        uri=EX.Jar,
+        restrictions=(
+            (rdflib.OWL.onProperty, EX.lidState),
+            (rdflib.OWL.someValuesFrom, EX.stuck),
+        ),
+    ),
+) -> u(str, uri=EX.Contents):
+    contents = jar.contents
+    return contents
+
+
+@pwf.as_function_node
+def MakeSandwich(made_with: u(str, uri=EX.Contents)) -> u(str, uri=EX.Sandwich):
+    sandwich = f"{made_with} sandwich"
+    return sandwich
+
+
+@pwf.as_macro_node
+def LunchTime(
+    self, contents: u(str, uri=EX.Contents)
+) -> u(str, uri=EX.Sandwich, triples=(EX.madeWith, "inputs.contents")):
+    self.jar = Jar(contents=contents)
+    self.stuck_jar = ItsStuck(self.jar)
+    self.open_jar = OpenStuckJar(self.stuck_jar)
+    self.lunch = MakeSandwich(self.open_jar)
+    return self.lunch
 
 
 class TestWorkflow(unittest.TestCase):
@@ -583,6 +636,25 @@ class TestWorkflow(unittest.TestCase):
             self.assertFalse(wf.n1.running)
             self.assertFalse(wf.n2.running)
             self.assertEqual(wf.outputs.n2__time.value, t_sleep)
+
+    def test_ontological_validation(self):
+        wf = Workflow("lunch_for_three")
+        wf.platter = pwf.for_node(
+            body_node_class=LunchTime,
+            iter_on="contents",
+            contents=["jam", "honey", "butter"],
+            output_as_dataframe=False,
+        )
+        out = wf()
+        self.assertDictEqual(
+            {
+                "platter__contents": ["jam", "honey", "butter"],
+                "platter__lunch": ["jam sandwich", "honey sandwich", "butter sandwich"],
+            },
+            out,
+            msg="This is the complexity boundary of what we test for ontological "
+            "valididation; it should validate ok.",
+        )
 
 
 if __name__ == "__main__":

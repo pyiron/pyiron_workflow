@@ -11,6 +11,8 @@ dependencies:
 - pyiron_snippets =0.2.0
 - python >=3.11,<3.14
 - python-graphviz =0.21
+- rdflib =7.1.4
+- semantikon =0.0.22
 - setuptools>=68
 - toposort =1.10
 - typeguard =4.4.4

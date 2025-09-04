@@ -18,8 +18,6 @@ Key features:
 - Both acyclic (execution flow is automated) and cyclic (execution flow must be
     specified) graphs allowed
 - Easy extensibility by collecting nodes together in a python module for sharing/reusing
-
-Planned:
 - Integration with :mod:`semantikon` for ontological hinting of data channels to provide
     guided workflow design
 """
