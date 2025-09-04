@@ -3,7 +3,6 @@ import toposort
 from semantikon import metadata as meta
 
 from pyiron_workflow import channels, io, topology, type_hinting
-from pyiron_workflow.data import SemantikonRecipeChange
 from pyiron_workflow.nodes import static_io
 
 
@@ -58,7 +57,9 @@ def suggest_connections(channel: channels.DataChannel, *corpus: static_io.Static
                 and meta._is_annotated(downstream.type_hint)
                 and upstream.owner.graph_root._validate_ontologies
                 and upstream.owner.graph_root is downstream.owner.graph_root
-                and not _ontologically_valid_pair(upstream, downstream)
+                and not upstream._validate_ontology(
+                    downstream, exception_on_invalid=False
+                )
             ):
                 continue
 
@@ -73,29 +74,6 @@ def suggest_connections(channel: channels.DataChannel, *corpus: static_io.Static
             candidates.append((sibling, candidate))
 
     return candidates
-
-
-def _ontologically_valid_pair(upstream, downstream):
-    # Importing semantikon.ontology is expensive, so we delay importing
-    # the knowledge submodule until the last minute
-    from pyiron_workflow import knowledge  # noqa: PLC0415
-
-    root = upstream.owner.graph_root
-    trial_edge = SemantikonRecipeChange(
-        location=str(downstream.owner.lexical_path).split(
-            downstream.owner.lexical_delimiter
-        )[1:-1],
-        new_edge=(
-            f"{upstream.owner.label}.outputs.{upstream.label}",
-            f"{downstream.owner.label}.inputs.{downstream.label}",
-        ),
-        parent_input=downstream.scoped_label,
-        parent_output=upstream.scoped_label,
-    )
-    validation = knowledge.validate_workflow(root, trial_edge)
-    return knowledge.is_valid(validation) or not knowledge.is_involved(
-        validation, trial_edge
-    )
 
 
 def suggest_nodes(

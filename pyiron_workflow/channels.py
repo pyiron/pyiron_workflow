@@ -545,7 +545,9 @@ class DataChannel(FlavorChannel["DataChannel"], typing.Generic[ReceiverType], AB
                 )
         return True
 
-    def _validate_ontology(self, other: DataChannel) -> bool:
+    def _validate_ontology(
+        self, other: DataChannel, exception_on_invalid: bool = True
+    ) -> bool:
         if meta._is_annotated(self.type_hint) and meta._is_annotated(other.type_hint):
 
             # Build a recipe from the total graph
@@ -579,9 +581,10 @@ class DataChannel(FlavorChannel["DataChannel"], typing.Generic[ReceiverType], AB
                 parent_output=out.scoped_label,
             )
             validation = knowledge.validate_workflow(root, recipe_change)
-            if not knowledge.is_valid(validation) and knowledge.is_involved(
+            is_valid = knowledge.is_valid(validation) or not knowledge.is_involved(
                 validation, recipe_change
-            ):
+            )
+            if not is_valid and exception_on_invalid:
                 raise ChannelConnectionError(
                     f"The upstream channel {out.full_label} cannot connect to the "
                     f"downstream channel {inp.full_label} because the upstream type "
@@ -589,6 +592,7 @@ class DataChannel(FlavorChannel["DataChannel"], typing.Generic[ReceiverType], AB
                     f"({inp.type_hint}) produce a non-empty ontological validation "
                     f"report:\n{validation}"
                 )
+            return is_valid
         return True
 
     def _connection_conjugate_failure_message(self, other: DataChannel) -> str:
