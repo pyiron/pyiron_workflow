@@ -101,58 +101,22 @@ def _ontologically_valid_pair(upstream, downstream):
 def suggest_nodes(
     channel: channels.DataChannel, *corpus: type[static_io.StaticNode]
 ) -> list[type[static_io.StaticNode]]:
-    target_hint, proximate_graph, suggest_for_input = _parse_levers(channel)
+    _, proximate_graph, suggest_for_input = _parse_levers(channel)
+    if suggest_for_input and channel.connected:
+        raise ValueError(
+            f"Cannot suggest a connection for the input {channel.full_label} because "
+            f"it is connected. Please disconnect it and ask for suggestions again."
+        )
 
     candidate_classes = []
     for node_class in corpus:
-        preview = (
-            node_class.preview_outputs()
-            if suggest_for_input
-            else node_class.preview_inputs()
-        )
-
-        for _, preview_value in preview.items():
-            candidate_hint = preview_value if suggest_for_input else preview_value[0]
-
-            if candidate_hint is None:
-                continue
-
-            upstream_hint, downstream_hint = (
-                (candidate_hint, target_hint)
-                if suggest_for_input
-                else (target_hint, candidate_hint)
-            )
-
-            if not type_hinting.type_hint_is_as_or_more_specific_than(
-                upstream_hint, downstream_hint
-            ):
-                continue
-
-            trial_label = f"__ontological_candidate_{node_class.__name__}"
-            existing_source_connection: list[
-                tuple[channels.DataChannel, channels.DataChannel]
-            ] = []
-            try:
-                trial_child = proximate_graph.add_child(node_class(label=trial_label))
-                upstream, downstream = (
-                    (trial_child, channel)
-                    if suggest_for_input
-                    else (channel, trial_child)
-                )
-                existing_source_connection = downstream.disconnect_all()
-                if (
-                    meta._is_annotated(upstream.type_hint)
-                    and meta._is_annotated(downstream.type_hint)
-                    and upstream.owner.graph_root._validate_ontologies
-                    and upstream.owner.graph_root is downstream.owner.graph_root
-                    and not _ontologically_valid_pair(upstream, downstream)
-                ):
-                    continue
-            finally:
-                proximate_graph.remove_child(trial_label)
-                for _, partner in existing_source_connection:
-                    # Should only be 0 or 1 items; iterate to accommodate the data type
-                    downstream.connect(partner)
+        suggestions = []
+        trial_label = "ONTOLOGICALTRIALNODE"
+        try:
+            trial_child = proximate_graph.add_child(node_class(label=trial_label))
+            suggestions = suggest_connections(channel, trial_child)
+        finally:
+            proximate_graph.remove_child(trial_label)
+        if len(suggestions) > 0:
             candidate_classes.append(node_class)
-
     return candidate_classes
