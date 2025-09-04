@@ -20,7 +20,11 @@ def _parse_levers(channel: channels.DataChannel):
     return hint, proximate_graph, suggest_for_input
 
 
-def suggest_connections(channel: channels.DataChannel, *corpus: static_io.StaticNode):
+def suggest_connections(
+    channel: channels.DataChannel,
+    *corpus: static_io.StaticNode,
+    stop_early: bool = False,
+):
     hint, proximate_graph, suggest_for_input = _parse_levers(channel)
     if suggest_for_input and channel.connected:
         raise ValueError(
@@ -70,6 +74,8 @@ def suggest_connections(channel: channels.DataChannel, *corpus: static_io.Static
                 continue
 
             candidates.append((sibling, candidate))
+            if stop_early:
+                return candidates
 
     return candidates
 
@@ -90,7 +96,7 @@ def suggest_nodes(
         trial_label = "ONTOLOGICALTRIALNODE"
         try:
             trial_child = proximate_graph.add_child(node_class(label=trial_label))
-            suggestions = suggest_connections(channel, trial_child)
+            suggestions = suggest_connections(channel, trial_child, stop_early=True)
         finally:
             proximate_graph.remove_child(trial_label)
         if len(suggestions) > 0:
