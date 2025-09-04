@@ -3,7 +3,6 @@ These are in integration tests because they are too slow (10-20s).
 """
 
 import unittest
-from collections.abc import Callable
 from typing import Literal
 
 import rdflib
@@ -11,6 +10,7 @@ from semantikon.metadata import u
 
 import pyiron_workflow as pwf
 from pyiron_workflow.channels import ChannelConnectionError
+from pyiron_workflow.nodes import static_io
 from pyiron_workflow.suggest import (
     ConnectedInputError,
     NonSiblingError,
@@ -147,7 +147,7 @@ class TestSuggest(unittest.TestCase):
             "properties. Cf. "
             "https://github.com/pyiron/semantikon/issues/262#issue-3381086039",
         ):
-            self.wf.bookshelf.inputs.bookshelf = self.wf.shelf.outputs.assembled
+            self.wf.bookshelf.inputs.bookshelf = self.wf.assembled.outputs.assembled
 
     def test_exceptions(self):
         with self.subTest("Connected input"):
@@ -180,9 +180,9 @@ class TestSuggest(unittest.TestCase):
                 ):
                     suggester(self.wf.no_hints.inputs.shelf)
 
-    def _build_suggestions(
-        self, suggester_fnc: Callable, io: Literal["inputs", "outputs"]
-    ) -> dict[pwf.api.Function, list[pwf.api.Function] | None]:
+    def _build_connection_suggestions(
+        self, io: Literal["inputs", "outputs"]
+    ) -> dict[static_io.StaticNode, list[static_io.StaticNode] | None]:
         """
         We're just playing with single-input/single-output nodes here, so let's keep
         things simple by mapping the suggestions from node-to-node directly.
@@ -192,13 +192,15 @@ class TestSuggest(unittest.TestCase):
         for node in self.wf.children.values():
             try:
                 channel = next(iter(getattr(node, io).channel_dict.values()))
-                suggestions[node] = [node for (node, channel) in suggester_fnc(channel)]
+                suggestions[node] = [
+                    node for (node, channel) in suggest_connections(channel)
+                ]
             except ValueError:
                 suggestions[node] = None
         return suggestions
 
     def test_input_connection_suggestions(self):
-        suggestions = self._build_suggestions(suggest_connections, "inputs")
+        suggestions = self._build_connection_suggestions("inputs")
 
         with self.subTest("No input suggestions for connected input"):
             self.assertIsNone(suggestions[self.wf.washers])
@@ -267,7 +269,7 @@ class TestSuggest(unittest.TestCase):
             )
 
     def test_output_connection_suggestions(self):
-        suggestions = self._build_suggestions(suggest_connections, "outputs")
+        suggestions = self._build_connection_suggestions("outputs")
 
         with self.subTest("No input suggestions for connected input"):
             for suggested in list(filter(None, suggestions.values())):
@@ -334,33 +336,31 @@ class TestSuggest(unittest.TestCase):
                 suggest_connections(self.wf.bolts.outputs.has_bolts),
             )
 
+    def _build_node_suggestions(
+        self, io: Literal["inputs", "outputs"]
+    ) -> dict[static_io.StaticNode, list[static_io.StaticNode] | None]:
+        """
+        We're just playing with single-input/single-output nodes here, so let's keep
+        things simple by mapping the suggestions from node-to-node directly.
+        We can add one or two little edge cases later for channel-specific stuff.
+        """
+        suggestions: dict[static_io.StaticNode, list[static_io.StaticNode] | None] = {}
+        for node in self.wf.children.values():
+            try:
+                channel = next(iter(getattr(node, io).channel_dict.values()))
+                suggestions[node] = suggest_nodes(channel, *NODE_CORPUS)
+            except ValueError:
+                suggestions[node] = None
+        return suggestions
+
     def test_suggest_nodes(self):
         print("\n\nNODE SUGGESTIONS")
         print("\nINPUT SUGGESTIONS")
-        for c in self.wf.children.values():
-            try:
-                print(
-                    c.label,
-                    [
-                        cl.__name__
-                        for cl in suggest_nodes(
-                            next(iter(c.inputs.channel_dict.values())), *NODE_CORPUS
-                        )
-                    ],
-                )
-            except ValueError:
-                print(c.label, "No suggestions")
+        suggestions = self._build_node_suggestions("inputs")
+        for k, v in suggestions.items():
+            print(k.label, [vv.__name__ for vv in v] if v is not None else v)
+
         print("\nOUTPUT SUGGESTIONS")
-        for c in self.wf.children.values():
-            try:
-                print(
-                    c.label,
-                    [
-                        cl.__name__
-                        for cl in suggest_nodes(
-                            next(iter(c.outputs.channel_dict.values())), *NODE_CORPUS
-                        )
-                    ],
-                )
-            except ValueError:
-                print(c.label, "No suggestions")
+        suggestions = self._build_node_suggestions("outputs")
+        for k, v in suggestions.items():
+            print(k.label, [vv.__name__ for vv in v] if v is not None else v)
