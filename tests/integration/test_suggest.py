@@ -124,6 +124,13 @@ NODE_CORPUS = (
     WrongHint,
 )
 
+INHERITANCE_DISCLAIMER = """\
+It would be nice if this would work -- AssembleShelf guarantees a EX.Shelf Storage 
+instance with the EX.assembled state, as demanded by PlaceBooks. However, because of 
+derived_from, PlaceBooks inherits the unfulfilled restriction from AssembleShelf.
+Cf. https://github.com/pyiron/semantikon/issues/262
+"""
+
 
 class TestSuggest(unittest.TestCase):
 
@@ -141,11 +148,7 @@ class TestSuggest(unittest.TestCase):
     def test_unfulfilled_restrictions(self):
         with self.assertRaises(
             ChannelConnectionError,
-            msg="In principle, I _do_ want this to be OK -- shelf is promising to "
-            "provide a constructed shelf. Semantikon disallows this because the "
-            "restrictions from the assembly stage get inherited along with the other "
-            "properties. Cf. "
-            "https://github.com/pyiron/semantikon/issues/262#issue-3381086039",
+            msg=INHERITANCE_DISCLAIMER,
         ):
             self.wf.bookshelf.inputs.bookshelf = self.wf.assembled.outputs.assembled
 
@@ -246,11 +249,7 @@ class TestSuggest(unittest.TestCase):
             self.assertNotIn(
                 self.wf.assembled,
                 suggestions[self.wf.bookshelf],
-                msg="It would be nice if this would work -- AssembleShelf guarantees "
-                "a EX.Shelf Storage instance with the EX.assembled state, as demanded "
-                "by PlaceBooks. However, because of derived_from, PlaceBooks inherits "
-                "the unfulfilled restriction from AssembleShelf."
-                "Cf. https://github.com/pyiron/semantikon/issues/262",
+                msg=INHERITANCE_DISCLAIMER,
             )
 
         # Now make modifications and re-test
@@ -314,11 +313,7 @@ class TestSuggest(unittest.TestCase):
             self.assertNotIn(
                 self.wf.bookshelf,
                 suggestions[self.wf.assembled],
-                msg="It would be nice if this would work -- AssembleShelf guarantees "
-                "a EX.Shelf Storage instance with the EX.assembled state, as demanded "
-                "by PlaceBooks. However, because of derived_from, PlaceBooks inherits "
-                "the unfulfilled restriction from AssembleShelf."
-                "Cf. https://github.com/pyiron/semantikon/issues/262",
+                msg=INHERITANCE_DISCLAIMER,
             )
 
         # Now make modifications and re-test
@@ -353,14 +348,75 @@ class TestSuggest(unittest.TestCase):
                 suggestions[node] = None
         return suggestions
 
-    def test_suggest_nodes(self):
-        print("\n\nNODE SUGGESTIONS")
-        print("\nINPUT SUGGESTIONS")
+    def test_input_node_suggestions(self):
         suggestions = self._build_node_suggestions("inputs")
-        for k, v in suggestions.items():
-            print(k.label, [vv.__name__ for vv in v] if v is not None else v)
 
-        print("\nOUTPUT SUGGESTIONS")
+        with self.subTest("No input suggestions for connected input"):
+            self.assertIsNone(suggestions[self.wf.washers])
+            self.assertIsNone(suggestions[self.wf.bolts])
+
+        with self.subTest("Without any hinting, no suggestions should happen"):
+            for target, suggested in suggestions.items():
+                if target is self.wf.no_hints:
+                    self.assertIsNone(suggested)
+
+        with self.subTest("Simple data types are suggested without regard to ontology"):
+            for _, suggested in suggestions.items():
+                if suggested is not None:
+                    self.assertIn(OnlyType, suggested)
+
+            hinted_corpus = list(NODE_CORPUS)
+            hinted_corpus.remove(NoHints)
+            self.assertListEqual(hinted_corpus, suggestions[self.wf.only_type])
+
+        with self.subTest("Limitation: no partial fulfillment"):
+            self.assertNotIn(
+                AddBolts,
+                suggestions[self.wf.assembled],
+                msg="AddBolts fulfils only _some_ of the restrictions of AssembleShelf "
+                "so it is not included. Finding a clever way to relax this limitation "
+                "might be nice in the future.",
+            )
+
+        with self.subTest(
+            "Side effect in derived from: unfulfilled restrictions get inherited"
+        ):
+            self.assertNotIn(
+                AssembleShelf,
+                suggestions[self.wf.bookshelf],
+                msg=INHERITANCE_DISCLAIMER,
+            )
+
+    def test_output_node_suggestions(self):
         suggestions = self._build_node_suggestions("outputs")
-        for k, v in suggestions.items():
-            print(k.label, [vv.__name__ for vv in v] if v is not None else v)
+
+        with self.subTest("Without any hinting, no suggestions should happen"):
+            for target, suggested in suggestions.items():
+                if target is self.wf.no_hints:
+                    self.assertIsNone(suggested)
+
+        with self.subTest("Simple data types are suggested without regard to ontology"):
+            for suggested in suggestions.values():
+                if suggested is not None:
+                    self.assertIn(OnlyType, suggested)
+
+            hinted_corpus = list(NODE_CORPUS)
+            hinted_corpus.remove(NoHints)
+            self.assertListEqual(hinted_corpus, suggestions[self.wf.only_type])
+
+        with self.subTest(
+            "Side effect in derived from: unfulfilled restrictions get inherited"
+        ):
+            self.assertNotIn(
+                PlaceBooks,
+                suggestions[self.wf.assembled],
+                msg=INHERITANCE_DISCLAIMER,
+            )
+
+        # Now make modifications and re-test
+        self.wf.assembled.inputs.to_assemble = self.wf.bolts
+        with self.subTest("Fulfilled inherited suggestions"):
+            self.assertIn(
+                PlaceBooks,
+                suggest_nodes(self.wf.assembled.outputs.assembled, *NODE_CORPUS),
+            )
