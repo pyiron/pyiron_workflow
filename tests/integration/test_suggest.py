@@ -420,3 +420,26 @@ class TestSuggest(unittest.TestCase):
                 PlaceBooks,
                 suggest_nodes(self.wf.assembled.outputs.assembled, *NODE_CORPUS),
             )
+
+    def test_limited_corpus(self):
+        with self.subTest("Connections"):
+            self.assertEqual(
+                suggest_connections(
+                    self.wf.bolts.outputs.has_bolts,
+                    self.wf.only_type,
+                    self.wf.no_hints,
+                ),
+                [(self.wf.only_type, self.wf.only_type.inputs.storage)],
+                msg="Only one element of the corpus is valid",
+            )
+
+        with self.subTest("Nodes"):
+            self.assertEqual(
+                suggest_nodes(
+                    self.wf.bolts.outputs.has_bolts,
+                    OnlyType,
+                    NoHints,
+                ),
+                [OnlyType],
+                msg="Only one element of the corpus is valid",
+            )
