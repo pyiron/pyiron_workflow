@@ -113,6 +113,21 @@ def WrongHint(
     return fridge
 
 
+@pwf.as_function_node
+def MultipleChannels(
+    data_typed: Storage,
+    ontologically_typed: u(Storage, uri=EX.Shelf),
+    wrong_data_type: str,
+    wrong_ontological_type: u(Storage, uri=EX.Fridge),
+) -> tuple[
+    Storage,
+    u(Storage, uri=EX.Shelf),
+    str,
+    u(Storage, uri=EX.Fridge),
+]:
+    return data_typed, ontologically_typed, wrong_data_type, wrong_ontological_type
+
+
 NODE_CORPUS = (
     AddNuts,
     AddWashers,
@@ -442,4 +457,37 @@ class TestSuggest(unittest.TestCase):
                 ),
                 [OnlyType],
                 msg="Only one element of the corpus is valid",
+            )
+
+    def test_multiple_channels(self):
+        wf = pwf.Workflow("multiple_channels")
+        wf.single = AddNuts()
+        wf.multiple = MultipleChannels()
+
+        self.assertListEqual(
+            [
+                (wf.multiple, wf.multiple.outputs.data_typed),
+                (wf.multiple, wf.multiple.outputs.ontologically_typed),
+            ],
+            suggest_connections(wf.single.inputs.gets_nuts),
+            msg="All correctly typed channels should be suggested.",
+        )
+
+        self.assertListEqual(
+            [
+                (wf.multiple, wf.multiple.inputs.data_typed),
+                (wf.multiple, wf.multiple.inputs.ontologically_typed),
+            ],
+            suggest_connections(wf.single.outputs.has_nuts),
+            msg="All correctly typed channels should be suggested.",
+        )
+
+        for channel in [
+            wf.single.inputs.gets_nuts,
+            wf.single.outputs.has_nuts,
+        ]:
+            self.assertListEqual(
+                [MultipleChannels],
+                suggest_nodes(channel, MultipleChannels, NoHints),
+                msg="Each node with at least one viable channel should be suggested.",
             )
