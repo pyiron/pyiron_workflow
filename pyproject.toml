@@ -1,5 +1,6 @@
 [build-system]
 requires = [
+    "bagofholding",
     "bidict",
     "cloudpickle",
     "executorlib",
@@ -7,6 +8,8 @@ requires = [
     "pandas",
     "pint",
     "pyiron_snippets",
+    "rdflib",
+    "semantikon",
     "toposort",
     "typeguard",
     "setuptools>=68.0.0",
