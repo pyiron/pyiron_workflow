@@ -18,6 +18,7 @@ from typing import TYPE_CHECKING, Any, Literal, cast
 from pyiron_snippets.colors import SeabornColors
 from pyiron_snippets.dotdict import DotDict
 
+from pyiron_workflow import overloading
 from pyiron_workflow.channels import (
     AccumulatingInputSignal,
     Channel,
@@ -978,7 +979,49 @@ class Node(
         """
         self.graph_root.save(backend=backend)
 
-    def load(
+    @classmethod
+    def _new_instance_from_storage(
+        cls,
+        backend: BackendIdentifier | StorageInterface = "pickle",
+        only_requested=False,
+        filename: str | Path | None = None,
+        _node: Node | None = None,
+        **kwargs,
+    ):
+        """
+        Loads a node from file returns its instance.
+
+        Args:
+            backend (str | StorageInterface): The interface to use for serializing the
+                node. (Default is "pickle", which loads the standard pickling back end.)
+            only_requested (bool): Whether to _only_ try loading from the specified
+                backend, or to loop through all available backends. (Default is False,
+                try to load whatever you can find.)
+            filename (str | Path | None): The name of the file (without extensions)
+                from which to load the node. (Default is None, which uses the node's
+                lexical path.)
+            **kwargs: back end-specific arguments (only likely to work in combination
+                with :param:`only_requested`, otherwise there's nothing to be specific
+                _to_.)
+
+        Raises:
+            FileNotFoundError: when nothing got loaded.
+        """
+        inst = None
+        for selected_backend in available_backends(
+            backend=backend, only_requested=only_requested
+        ):
+            inst = selected_backend.load(node=_node, filename=filename, **kwargs)
+            if inst is not None:
+                break
+        if inst is None:
+            raise FileNotFoundError(
+                f"Could not find saved content at {filename} using backend={backend} "
+                f"using only_request={only_requested}."
+            )
+        return inst
+
+    def _update_instance_from_storage(
         self,
         backend: BackendIdentifier | StorageInterface = "pickle",
         only_requested=False,
@@ -986,7 +1029,6 @@ class Node(
         **kwargs,
     ):
         """
-
         Loads the node file and set the loaded state as the node's own.
 
         Args:
@@ -1012,16 +1054,13 @@ class Node(
                 "is the correct thing to do, you can set `self.running=True` where "
                 "`self` is this node object."
             )
-        for selected_backend in available_backends(
-            backend=backend, only_requested=only_requested
-        ):
-            inst = selected_backend.load(
-                node=self if filename is None else None, filename=filename, **kwargs
-            )
-            if inst is not None:
-                break
-        if inst is None:
-            raise FileNotFoundError(f"{self.label} could not find saved content.")
+        inst = self.__class__._new_instance_from_storage(
+            backend=backend,
+            only_requested=only_requested,
+            filename=filename,
+            _node=self if filename is None else None,
+            **kwargs,
+        )
 
         if inst.__class__ != self.__class__:
             raise TypeError(
@@ -1030,6 +1069,44 @@ class Node(
                 f"{inst.__class__.__name__}"
             )
         self.__setstate__(inst.__getstate__())
+
+    @overloading.overloaded_classmethod(class_method=_new_instance_from_storage)
+    def load(
+        self,
+        backend: BackendIdentifier | StorageInterface = "pickle",
+        only_requested=False,
+        filename: str | Path | None = None,
+        **kwargs,
+    ):
+        """
+        Load a node from storage, either as a new instance (when used as a class
+        method) or by updating the current instance (when called as a regular instance
+        method).
+
+        Args:
+            backend (str | StorageInterface): The interface to use for serializing the
+                node. (Default is "pickle", which loads the standard pickling back end.)
+            only_requested (bool): Whether to _only_ try loading from the specified
+                backend, or to loop through all available backends. (Default is False,
+                try to load whatever you can find.)
+            filename (str | Path | None): The name of the file (without extensions)
+                from which to load the node. (Default is None, which uses the node's
+                lexical path.)
+            **kwargs: back end-specific arguments (only likely to work in combination
+                with :param:`only_requested`, otherwise there's nothing to be specific
+                _to_.)
+
+        Raises:
+            FileNotFoundError: when nothing got loaded.
+            TypeError: when loading into an exisiting instance and the saved node has a
+                different class name.
+        """
+        return self._update_instance_from_storage(
+            backend=backend,
+            only_requested=only_requested,
+            filename=filename,
+            **kwargs,
+        )
 
     load.__doc__ = cast(str, load.__doc__) + _save_load_warnings
 
