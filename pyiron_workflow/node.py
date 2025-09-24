@@ -995,8 +995,8 @@ class Node(
             only_requested (bool): Whether to _only_ try loading from the specified
                 backend, or to loop through all available backends. (Default is False,
                 try to load whatever you can find.)
-            filename (str | Path | None): The name of the file (without extensions) at
-                which to save the node. (Default is None, which uses the node's
+            filename (str | Path | None): The name of the file (without extensions)
+                from which to load the node. (Default is None, which uses the node's
                 lexical path.)
             **kwargs: back end-specific arguments (only likely to work in combination
                 with :param:`only_requested`, otherwise there's nothing to be specific
@@ -1048,12 +1048,11 @@ class Node(
         Args:
             backend (str | StorageInterface): The interface to use for serializing the
                 node. (Default is "pickle", which loads the standard pickling back end.)
-            only_requested (bool): Whether to _only_ try loading from the specified
-                backend, or to loop through all available backends. (Default is False,
-                try to load whatever you can find.)
-            filename (str | Path | None): The name of the file (without extensions) at
-                which to save the node. (Default is None, which uses the node's
-                lexical path.)
+            only_requested (bool): Whether to _only_ search for files using the
+                specifiedmbackend, or to loop through all available backends. (Default
+                is False, try to remove whatever you can find.)
+            filename (str | Path | None): The name of the file (without extensions) to
+                remove. (Default is None, which uses the node's lexical path.)
             delete_even_if_not_empty (bool): Whether to delete the file even if it is
                 not empty. (Default is False, which will only delete the file if it is
                 empty, i.e. has no content in it.)
@@ -1084,12 +1083,11 @@ class Node(
         Args:
             backend (str | StorageInterface): The interface to use for serializing the
                 node. (Default is "pickle", which loads the standard pickling back end.)
-            only_requested (bool): Whether to _only_ try loading from the specified
-                backend, or to loop through all available backends. (Default is False,
-                try to load whatever you can find.)
-            filename (str | Path | None): The name of the file (without extensions) at
-                which to save the node. (Default is None, which uses the node's
-                lexical path.)
+            only_requested (bool): Whether to _only_ search for files using the
+                specified backend, or to loop through all available backends. (Default
+                is False, try to finding whatever you can find.)
+            filename (str | Path | None): The name of the file (without extensions) to
+                look for. (Default is None, which uses the node's lexical path.)
             **kwargs: back end-specific arguments (only likely to work in combination
                 with :param:`only_requested`, otherwise there's nothing to be specific
                 _to_.)
