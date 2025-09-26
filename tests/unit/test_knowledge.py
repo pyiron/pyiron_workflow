@@ -397,7 +397,12 @@ class Clothes:
 @pwf.as_function_node
 def Wash(
     clothes: u(Clothes, uri=EX.Clothes),
-) -> u(Clothes, triples=(EX.hasProperty, EX.cleaned), derived_from="inputs.clothes"):
+) -> u(
+    Clothes,
+    uri=EX.Clothes,
+    triples=(EX.hasProperty, EX.cleaned),
+    derived_from="inputs.clothes",
+):
     ...
     return clothes
 
@@ -405,8 +410,9 @@ def Wash(
 @pwf.as_function_node
 def Dye(clothes: u(Clothes, uri=EX.Clothes), color="blue") -> u(
     Clothes,
-    triples=(EX.hasProperty, EX.color),
+    uri=EX.Clothes,
     derived_from="inputs.clothes",
+    triples=(EX.hasProperty, EX.color),
 ):
     ...
     return clothes
@@ -436,8 +442,9 @@ def Sell(
 @pwf.as_function_node
 def DyeWithCancel(clothes: Clothes, color="blue") -> u(
     Clothes,
-    triples=(EX.hasProperty, EX.color),
+    uri=EX.Clothes,
     derived_from="inputs.clothes",
+    triples=(EX.hasProperty, EX.color),
     cancel=(EX.hasProperty, EX.cleaned),
 ):
     return clothes
