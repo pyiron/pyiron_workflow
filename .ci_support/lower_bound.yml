@@ -8,6 +8,8 @@ dependencies:
 - cloudpickle =3.0.0
 - executorlib =1.5.3
 - graphviz =9.0.0
+- hatchling =1.27.0
+- hatch-vcs =0.5.0
 - pandas =2.2.2
 - pint =0.24
 - python =3.11
