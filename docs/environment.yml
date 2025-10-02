@@ -7,7 +7,7 @@ dependencies:
 - sphinx-gallery
 - sphinx-rtd-theme
 - versioneer
-- bagofholding =0.1.3
+- bagofholding =0.1.4
 - bidict =0.23.1
 - cloudpickle =3.1.1
 - executorlib =1.7.1
