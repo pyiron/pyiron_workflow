@@ -12,6 +12,8 @@ dependencies:
 - cloudpickle =3.1.1
 - executorlib =1.7.1
 - graphviz =9.0.0
+- hatchling =1.27.0
+- hatch-vcs =0.5.0
 - pandas =2.3.2
 - pint =0.25
 - pyiron_snippets =0.2.0
@@ -19,7 +21,5 @@ dependencies:
 - python-graphviz =0.21
 - rdflib =7.1.4
 - semantikon =0.0.22
-- setuptools>=68
 - toposort =1.10
 - typeguard =4.4.4
-- wheel
