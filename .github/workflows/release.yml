@@ -2,15 +2,15 @@
 name: Release
 
 on:
-#  pull_request:
+  pull_request:
   release:
     types: [ published ]
 
 jobs:
   pyiron:
-    uses: pyiron/actions/.github/workflows/pyproject-release.yml@actions-4.0.8
+    uses: pyiron/actions/.github/workflows/hatch-release.yml@actions-4.0.8
     secrets: inherit
     with:
       semantic-upper-bound: 'minor'
       lower-bound-yaml: '.ci_support/lower_bound.yml'
-#      publish-to-pypi: false
+      publish-to-pypi: ${{ github.event_name == 'release' && github.event.action == 'published' }}

@@ -18,6 +18,8 @@ import shutil
 import subprocess
 from sphinx.ext.apidoc import main
 
+import pyiron_workflow
+
 # If extensions (or modules to document with autodoc) are in another directory,
 # add these directories to sys.path here. If the directory is relative to the
 # documentation root, use os.path.abspath to make it absolute, like shown here.
@@ -48,6 +50,10 @@ extensions = [
 # Add any paths that contain templates here, relative to this directory.
 templates_path = ['_templates']
 
+nbsphinx_thumbnails = {
+    'source/notebooks/example': "_static/pyiron-logo-dark.png",
+}
+
 # The suffix of source filenames.
 source_suffix = {
     '.rst': 'restructuredtext',
@@ -62,7 +68,7 @@ master_doc = 'index'
 
 # General information about the project.
 project = u'pyiron_workflow'
-copyright = u'2021, Max-Planck-Institut für Eisenforschung GmbH - Computational Materials Design (CM) Department ' \
+copyright = u'2024, Max-Planck-Institut für Nachhaltige Materialien GmbH - Computational Materials Design (CM) Department ' \
             u'All rights reserved'
 
 # The version info for the project you're documenting, acts as replacement for
@@ -70,14 +76,8 @@ copyright = u'2021, Max-Planck-Institut für Eisenforschung GmbH - Computational
 # built documents.
 #
 # The short X.Y version.
-version_full = subprocess.check_output(
-    "python -c 'import versioneer; print(versioneer.get_version())'",
-    cwd=os.path.join(os.path.curdir, '..'),
-    universal_newlines=True,
-    shell=True
-)
-version_full = version_full.split('\n')[0]
-version = '.'.join(version_full.split('.')[0:2])
+version_full = pyiron_workflow.__version__
+version = '.'.join(version_full.split('.')[:2])
 # The full version, including alpha/beta/rc tags.
 release = version_full
 
@@ -240,7 +240,7 @@ latex_elements = {
 #  author, documentclass [howto, manual, or own class]).
 latex_documents = [
   ('index', 'pyiron_workflow.tex', u'pyiron_workflow Documentation',
-   u'Max-Planck-Institut für Eisenforschung GmbH - Computational Materials Design (CM) Department', 'manual'),
+   u'Max-Planck-Institut für Nachhaltige Materialien GmbH - Computational Materials Design (CM) Department', 'manual'),
 ]
 
 # The name of an image file (relative to this directory) to place at the top of
@@ -272,7 +272,7 @@ man_pages = [
     ('index',
      'pyiron_workflow',
      u'pyiron_workflow Documentation',
-     [u'Max-Planck-Institut für Eisenforschung GmbH - Computational Materials Design (CM) Department'], 1)
+     [u'Max-Planck-Institut für Nachhaltige Materialien GmbH - Computational Materials Design (CM) Department'], 1)
 ]
 
 # If true, show URL addresses after external links.
@@ -288,7 +288,7 @@ texinfo_documents = [
   ('index',
    'pyiron_workflow',
    u'pyiron_workflow Documentation',
-   u'Max-Planck-Institut für Eisenforschung GmbH - Computational Materials Design (CM) Department',
+   u'Max-Planck-Institut für Nachhaltige Materialien GmbH - Computational Materials Design (CM) Department',
    'pyiron_workflow',
    'Graph-based workflow management.',
    'Miscellaneous'),
