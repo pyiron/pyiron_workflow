@@ -2,7 +2,7 @@
 name: Release
 
 on:
-#  pull_request:
+  pull_request:
   release:
     types: [ published ]
 
@@ -13,4 +13,4 @@ jobs:
     with:
       semantic-upper-bound: 'minor'
       lower-bound-yaml: '.ci_support/lower_bound.yml'
-#      publish-to-pypi: false
+      publish-to-pypi: ${{ github.event_name == 'release' && github.event.action == 'published' }}

@@ -1,5 +1,7 @@
 [build-system]
 requires = [
+    "hatchling==1.27.0",
+    "hatch-vcs==0.5.0",
     "bagofholding",
     "bidict",
     "cloudpickle",
@@ -12,11 +14,8 @@ requires = [
     "semantikon",
     "toposort",
     "typeguard",
-    "setuptools>=68.0.0",
-    "versioneer[toml]==0.29",
-    "wheel",
 ]
-build-backend = "setuptools.build_meta"
+build-backend = "hatchling.build"
 
 [project]
 name = "pyiron_workflow"
@@ -67,21 +66,30 @@ cluster = [
     "h5py==3.14.0",
 ]
 
-[tool.versioneer]
-VCS = "git"
-style = "pep440-pre"
-versionfile_source = "pyiron_workflow/_version.py"
-parentdir_prefix = "pyiron_workflow"
-tag_prefix = "pyiron_workflow-"
+[tool.hatch.build]
+include = [
+    "pyiron_workflow"
+]
 
-[tool.setuptools.packages.find]
-include = [ "pyiron_workflow*",]
+[tool.hatch.build.hooks.vcs]
+version-file = "pyiron_workflow/_version.py"
 
-[tool.setuptools.dynamic.version]
-attr = "pyiron_workflow.__version__"
+[tool.hatch.build.targets.sdist]
+include = [
+    "pyiron_workflow"
+]
+
+[tool.hatch.build.targets.wheel]
+packages = [
+    "pyiron_workflow"
+]
+
+[tool.hatch.version]
+source = "vcs"
+path = "pyiron_workflow/_version.py"
 
 [tool.ruff]
-exclude = ["docs", "notebooks", "setup.py", "_version.py"]
+exclude = ["docs", "notebooks"]
 
 [tool.ruff.lint]
 select = [

@@ -22,9 +22,14 @@ Key features:
     guided workflow design
 """
 
-from ._version import get_versions
+import importlib.metadata
 
-__version__ = get_versions()["version"]
+try:
+    # Installed package will find its version
+    __version__ = importlib.metadata.version(__name__)
+except importlib.metadata.PackageNotFoundError:
+    # Repository clones will register an unknown version
+    __version__ = "0.0.0+unknown"
 
 # User API
 
