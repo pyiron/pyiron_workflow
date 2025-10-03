@@ -1,29 +1,20 @@
-# pip install master
-pip install --no-deps .
-# Note: This produces build and pyiron_workflow.egg-info directories
+#!/bin/bash
+pip install . --no-deps --no-build-isolation
 
-# clean up
-if [ -d "notebooks" ]; then
-    mv notebooks/* .
-fi
-if [ -d "${HOME}/pyiron_workflow" ]; then
-    rm -r   ${HOME}/.binder \
-            ${HOME}/.ci_support \
-            ${HOME}/.github \
-            ${HOME}/build \
-            ${HOME}/docs \
-            ${HOME}/notebooks \
-            ${HOME}/pyiron_workflow \
-            ${HOME}/pyiron_workflow.egg-info \
-            ${HOME}/tests \
-            ${HOME}/.gitattributes \
-            ${HOME}/.gitignore \
-            ${HOME}/.gitpod \
-            ${HOME}/.readthedocs.yml \
-            ${HOME}/CODE_OF_CONDUCT.md \
-            ${HOME}/CONTRIBUTING.rst \
-            ${HOME}/LICENSE \
-            ${HOME}/MANIFEST.in \
-            ${HOME}/pyproject.toml \
-            ${HOME}/setup.py
-fi
+# Save the stuff we actually need for binder
+KEEP=("notebooks")
+mkdir -p ${HOME}/.temp_keep
+for item in "${KEEP[@]}"; do
+    [ -e "${HOME}/${item}" ] && mv "${HOME}/${item}" ${HOME}/.temp_keep/
+done
+
+# Now clean up everything else
+find ${HOME} -mindepth 1 -maxdepth 1 ! -name '.temp_keep' -exec rm -rf {} +
+
+# Restore the kept material
+mv ${HOME}/.temp_keep/* ${HOME}/
+rmdir ${HOME}/.temp_keep
+
+# Manipulate kept material
+mv ${HOME}/notebooks/* ${HOME}
+rmdir ${HOME}/notebooks
