@@ -8,9 +8,10 @@ on:
 
 jobs:
   pyiron:
-    uses: pyiron/actions/.github/workflows/hatch-release.yml@actions-4.0.8
+    uses: pyiron/actions/.github/workflows/hatch-release.yml@actions-4.0.10
     secrets: inherit
     with:
       semantic-upper-bound: 'minor'
       lower-bound-yaml: '.ci_support/lower_bound.yml'
+      upper-bound-yaml: '.ci_support/upper_bound.yml'
       publish-to-pypi: ${{ github.event_name == 'release' && github.event.action == 'published' }}
