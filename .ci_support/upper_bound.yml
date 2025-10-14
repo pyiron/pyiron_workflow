@@ -1,0 +1,4 @@
+channels:
+  - conda-forge
+dependencies:
+  - pyiron_snippets =2.0.0
