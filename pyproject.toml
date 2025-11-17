@@ -40,7 +40,7 @@ dependencies = [
     "executorlib==1.7.3",
     "graphviz==0.21",
     "pandas==2.3.3",
-    "pint==0.25",
+    "pint==0.25.2",
     "pyiron_snippets==1.0.2",
     "rdflib==7.1.4",
     "semantikon==0.0.22",
