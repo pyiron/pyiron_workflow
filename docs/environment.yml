@@ -15,7 +15,7 @@ dependencies:
 - hatchling =1.27.0
 - hatch-vcs =0.5.0
 - pandas =2.3.3
-- pint =0.25
+- pint =0.25.2
 - pyiron_snippets =1.0.2
 - python >=3.11,<3.14
 - python-graphviz =0.21
