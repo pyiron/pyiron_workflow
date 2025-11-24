@@ -23,7 +23,7 @@ jobs:
           - "8888:3306"
         options: --health-cmd="mysqladmin ping" --health-interval=10s --health-timeout=5s --health-retries=3
     steps:
-      - uses: actions/checkout@v5
+      - uses: actions/checkout@v6
       - uses: koesterlab/setup-slurm-action@v1
         timeout-minutes: 5
       - uses: pyiron/actions/cached-miniforge@actions-4.0.10
