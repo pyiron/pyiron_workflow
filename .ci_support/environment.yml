@@ -6,7 +6,7 @@ dependencies:
 - cloudpickle =3.1.2
 - executorlib =1.7.3
 - graphviz =9.0.0
-- hatchling =1.27.0
+- hatchling =1.28.0
 - hatch-vcs =0.5.0
 - pandas =2.3.3
 - pint =0.25
