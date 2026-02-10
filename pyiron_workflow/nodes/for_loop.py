@@ -602,7 +602,7 @@ def for_node(
         >>>
         >>> out = for_instance()
         >>> type(out.df)
-        <class 'pandas.core.frame.DataFrame'>
+        <class 'pandas.DataFrame'>
 
         Internally, the loop node has made a bunch of body nodes, as well as nodes to
         index and collect data
@@ -646,7 +646,7 @@ def for_node(
         >>>
         >>> out = for_instance()
         >>> out.df.columns
-        Index(['a', 'b', 'c', 'd', 'out_a', 'out_b', 'out_c', 'out_d', 'e'], dtype='object')
+        Index(['a', 'b', 'c', 'd', 'out_a', 'out_b', 'out_c', 'out_d', 'e'], dtype='str')
 
     """
     iter_on = (iter_on,) if isinstance(iter_on, str) else iter_on
