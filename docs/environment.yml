@@ -10,7 +10,7 @@ dependencies:
 - bagofholding =0.1.6
 - bidict =0.23.1
 - cloudpickle =3.1.2
-- executorlib =1.7.4
+- executorlib =1.8.0
 - graphviz =9.0.0
 - hatchling =1.28.0
 - hatch-vcs =0.5.0
