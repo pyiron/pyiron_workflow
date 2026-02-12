@@ -1,0 +1,10 @@
+cff-version: 1.1.0
+message: "If you use pyiron_workflow software, please cite it as below."
+authors:
+- family-names: Huber
+  given-names: Liam
+  orcid: "https://orcid.org/0009-0009-2560-5851"
+- family-names: Neugebauer
+  given-names: Joerg
+  orcid: "https://orcid.org/0000-0002-7903-2472"
+title: pyiron_workflow
