@@ -22,4 +22,4 @@ dependencies:
 - rdflib =7.1.4
 - semantikon =0.0.22
 - toposort =1.10
-- typeguard =4.4.4
+- typeguard =4.5.0
