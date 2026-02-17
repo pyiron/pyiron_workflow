@@ -14,6 +14,6 @@ dependencies:
 - python >=3.11,<3.14
 - python-graphviz =0.21
 - rdflib =7.1.4
-- semantikon =0.0.22
+- semantikon =0.0.27
 - toposort =1.10
 - typeguard =4.4.4

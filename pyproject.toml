@@ -43,7 +43,7 @@ dependencies = [
     "pint==0.25",
     "pyiron_snippets==1.0.2",
     "rdflib==7.1.4",
-    "semantikon==0.0.22",
+    "semantikon==0.0.27",
     "toposort==1.10",
     "typeguard==4.4.4",
 ]
