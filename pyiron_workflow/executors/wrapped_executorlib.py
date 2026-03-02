@@ -30,6 +30,9 @@ class CacheOverride(BaseExecutor):
             and wait
             and isinstance(self._process, Thread)
         ):
+            self._future_queue.put(
+                {"shutdown": True, "wait": wait, "cancel_futures": cancel_futures}
+            )
             self._process.join()
             self._future_queue.join()
         else:
