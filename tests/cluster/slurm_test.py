@@ -52,8 +52,8 @@ def submission():
     print("submitting")
     print(time.time())
     wf.n2.executor = (
-        NodeSlurmExecutor, 
-        (), 
+        NodeSlurmExecutor,
+        (),
         {"wait": False, "resource_dict": resource_dict},
     )
     out = wf.run_in_thread()
