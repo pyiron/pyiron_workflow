@@ -1,4 +1,5 @@
 import inspect
+from threading import Thread
 from typing import Any, ClassVar
 
 from executorlib import BaseExecutor, SingleNodeExecutor, SlurmClusterExecutor
@@ -21,6 +22,18 @@ class ProtectedResourceError(ValueError):
 
 class CacheOverride(BaseExecutor):
     override_cache_file_name: ClassVar[str] = "executorlib_cache"
+
+    def shutdown(self, wait: bool = True, *, cancel_futures: bool = False):
+        if (
+            self._process is not None
+            and self._future_queue is not None
+            and wait
+            and isinstance(self._process, Thread)
+        ):
+            self._process.join()
+            self._future_queue.join()
+        else:
+            super().shutdown(wait, cancel_futures=cancel_futures)
 
     def submit(self, fn, /, *args, **kwargs):
         """
