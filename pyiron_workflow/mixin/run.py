@@ -338,16 +338,20 @@ class Runnable(UsesState, HasLabel, HasRun, ABC):
         """
         Switch the status, then process and return the run result.
         """
-        self.running = False
         try:
             if isinstance(run_output, Future):
+                # when the future is chancelled nothing happens
+                if run_output.cancelled():
+                    return None
                 run_output = run_output.result()
                 self.future = None
                 if unique_executor:
                     unique_executor.shutdown(wait=False)
                     del unique_executor
+            self.running = False
             return self.process_run_result(run_output)
         except Exception as e:
+            self.running = False
             self._run_exception(**run_exception_kwargs)
             if raise_run_exceptions:
                 raise e
