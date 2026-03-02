@@ -34,5 +34,6 @@ jobs:
         shell: bash -l {0}
         timeout-minutes: 8
         run: |
+          sed -i 's/if isinstance(self._process, Thread):/if wait and isinstance(self._process, Thread):/g' /home/runner/work/pyiron_workflow/pyiron_workflow/cached-miniforge/my-env/lib/python3.12/site-packages/executorlib/task_scheduler/base.py
           python -u tests/cluster/slurm_test.py --submit
           python -u tests/cluster/slurm_test.py --${{ inputs.mode }}
