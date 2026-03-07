@@ -1,10 +1,15 @@
 import time
 import unittest
 
+import executorlib
+from executorlib import api
+
 import pyiron_workflow as pwf
 from pyiron_workflow.executors.wrapped_executorlib import (
     NodeSingleExecutor,
     _CacheTestClusterExecutor,
+    wrapped_executorlib,
+    wrapped_executorlib_class,
 )
 
 
@@ -81,12 +86,16 @@ class TestWrappedExecutorlib(unittest.TestCase):
         )
 
     def test_cache(self):
-        for executor_class in [NodeSingleExecutor, _CacheTestClusterExecutor]:
+        for executor_class in [
+            NodeSingleExecutor,
+            _CacheTestClusterExecutor,
+            wrapped_executorlib_class(executorlib.SingleNodeExecutor),
+        ]:
             with self.subTest(executor_class.__name__):
                 self._test_cache(executor_class)
 
     def test_automatic_cleaning(self):
         n = pwf.std.UserInput(1)
-        n.executor = (_CacheTestClusterExecutor, (), {})
+        n.executor = (wrapped_executorlib, (api.TestClusterExecutor,), {})
         n.run()
         self.assertFalse(n._wrapped_executorlib_cache_file.is_file())
