@@ -6,6 +6,7 @@ interaction, etc.
 from __future__ import annotations
 
 import contextlib
+import threading
 from abc import ABC, abstractmethod
 from collections.abc import Callable
 from concurrent.futures import Executor as StdLibExecutor
@@ -344,8 +345,14 @@ class Runnable(UsesState, HasLabel, HasRun, ABC):
                 run_output = run_output.result()
                 self.future = None
                 if unique_executor:
-                    unique_executor.shutdown(wait=False)
-                    del unique_executor
+                    # executorlib-1.8.2+ cancels futures on `shutdown`
+                    # To avoid recursively invoking this callback, delay shutdown
+                    # until the callback is complete.
+                    threading.Thread(
+                        target=unique_executor.shutdown,
+                        kwargs={"wait": True},
+                        daemon=True,
+                    ).start()
             return self.process_run_result(run_output)
         except Exception as e:
             self._run_exception(**run_exception_kwargs)
