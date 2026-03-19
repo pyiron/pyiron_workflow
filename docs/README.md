@@ -5,6 +5,7 @@
 [![Coverage](https://codecov.io/gh/pyiron/pyiron_workflow/graph/badge.svg)](https://codecov.io/gh/pyiron/pyiron_workflow)
 [![Documentation](https://readthedocs.org/projects/pyiron-workflow/badge/?version=latest)](https://pyiron-workflow.readthedocs.io/en/latest/?badge=latest)
 
+[![DOI](https://zenodo.org/badge/DOI/10.5281/zenodo.19114207.svg)](https://doi.org/10.5281/zenodo.19114207)
 [![Anaconda](https://anaconda.org/conda-forge/pyiron_workflow/badges/version.svg)](https://anaconda.org/conda-forge/pyiron_workflow)
 [![Last Updated](https://anaconda.org/conda-forge/pyiron_workflow/badges/latest_release_date.svg
 )](https://anaconda.org/conda-forge/pyiron_workflow)
