@@ -7,4 +7,5 @@ authors:
 - family-names: Neugebauer
   given-names: Joerg
   orcid: "https://orcid.org/0000-0002-7903-2472"
+doi: 10.5281/zenodo.19114207
 title: pyiron_workflow
