@@ -414,7 +414,7 @@ class DataclassNode(Transformer, ABC):
 
     dataclass: ClassVar[type]  # Mandatory in children, must pass `is_dataclass`
     _output_name: ClassVar[str] = "dataclass"
-    _semantikon_metadata: tuple[tuple[Any, ...], dict[str, Any]] | None = None
+    _semantikon_metadata: dict[str, object] | None = None
 
     @classmethod
     def _dataclass_fields(cls):
