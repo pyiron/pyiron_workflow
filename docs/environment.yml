@@ -7,12 +7,12 @@ dependencies:
 - sphinx-gallery
 - sphinx-rtd-theme
 - versioneer
-- bagofholding =0.1.9
+- bagofholding =0.1.11
 - bidict =0.23.1
 - cloudpickle =3.1.2
-- executorlib =1.9.1
+- executorlib =1.9.2
 - graphviz =9.0.0
-- hatchling =1.28.0
+- hatchling =1.29.0
 - hatch-vcs =0.5.0
 - pandas =3.0.1
 - pint =0.25
