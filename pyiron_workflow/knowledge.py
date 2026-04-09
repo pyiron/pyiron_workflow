@@ -86,7 +86,7 @@ def _export_node_to_dict(
     Returns:
         dict: The exported node as a dictionary.
     """
-    data: dict[str, Any] = {"inputs": {}, "outputs": {}}
+    data: dict[str, Any] = {"type": "atomic", "inputs": {}, "outputs": {}}
     if isinstance(node, function.Function):
         data["function"] = node.node_function
     data.update(_io_to_dict(node, with_values=with_values, with_default=with_default))
@@ -108,6 +108,7 @@ def _export_composite_to_dict(
         dict: The exported composite as a dictionary.
     """
     data: dict[str, Any] = {
+        "type": "workflow",
         "inputs": {},
         "outputs": {},
         "nodes": {},
@@ -237,14 +238,9 @@ def validate_workflow(root, new_edge_change: SemantikonRecipeChange | None = Non
         if new_edge_change.parent_output:
             location["outputs"].pop(new_edge_change.parent_output, None)
 
-    g = semantikon.get_knowledge_graph(
-        wf_dict=recipe,
-        graph=(
-            root.knowledge
-            if hasattr(root, "knowledge") and isinstance(root.knowledge, rdflib.Graph)
-            else None
-        ),
-    )
+    g = semantikon.get_knowledge_graph(wf_dict=recipe)
+    if hasattr(root, "knowledge") and isinstance(root.knowledge, rdflib.Graph):
+        g += root.knowledge
     return semantikon.validate_values(g)
 
 
