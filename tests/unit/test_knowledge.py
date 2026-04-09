@@ -2,8 +2,8 @@ import dataclasses
 import unittest
 
 import rdflib
+import semantikon
 from semantikon import ontology as onto
-from semantikon.metadata import u
 
 import pyiron_workflow as pwf
 from pyiron_workflow.channels import ChannelConnectionError
@@ -23,9 +23,9 @@ QUDT = rdflib.Namespace("http://qudt.org/vocab/unit/")
 
 @pwf.as_function_node("speed")
 def calculate_speed(
-    distance: u(float, units="meter") = 10.0,
-    time: u(float, units="second") = 2.0,
-) -> u(
+    distance: semantikon.u(float, units="meter") = 10.0,
+    time: semantikon.u(float, units="second") = 2.0,
+) -> semantikon.u(
     float,
     units="meter/second",
     triples=(
@@ -39,18 +39,18 @@ def calculate_speed(
 
 
 @pwf.as_function_node("result")
-@u(uri=EX.Addition)
-def add(a: float, b: float) -> u(float, triples=(EX.HasOperation, EX.Addition)):
+@semantikon.meta(uri=EX.Addition)
+def add(
+    a: float, b: float
+) -> semantikon.u(float, triples=(EX.HasOperation, EX.Addition)):
     return a + b
 
 
 @pwf.as_function_node("result")
-def multiply(a: float, b: float) -> u(
-    float,
-    triples=(
-        (EX.HasOperation, EX.Multiplication),
-        (onto.PROV.wasDerivedFrom, "inputs.a"),
-    ),
+def multiply(
+    a: float, b: float
+) -> semantikon.u(
+    float, triples=((EX.HasOperation, EX.Multiplication),), derived_from="inputs.a"
 ):
     return a * b
 
@@ -64,7 +64,7 @@ def operation(macro=None, a: float = 1.0, b: float = 1.0) -> float:
 
 @pwf.as_function_node("result")
 def correct_analysis(
-    a: u(
+    a: semantikon.u(
         float,
         restrictions=(
             (rdflib.OWL.onProperty, EX.HasOperation),
@@ -77,7 +77,7 @@ def correct_analysis(
 
 @pwf.as_function_node("result")
 def wrong_analysis(
-    a: u(
+    a: semantikon.u(
         float,
         restrictions=(
             (rdflib.OWL.onProperty, EX.HasOperation),
@@ -94,33 +94,37 @@ def multiple_outputs(a: int = 1, b: int = 2) -> tuple[int, int]:
 
 
 @pwf.as_function_node("z")
-def AddOnetology(x: u(int, uri=EX.Data)) -> u(int, uri=EX.Data):
+def AddOnetology(x: semantikon.u(int, uri=EX.Data)) -> semantikon.u(int, uri=EX.Data):
     y = x + 1
     return y
 
 
 @pwf.as_macro_node("zout")
-def AddTwoMacrontology(self, inp: u(int, uri=EX.Data)) -> u(int, uri=EX.Data):
+def AddTwoMacrontology(
+    self, inp: semantikon.u(int, uri=EX.Data)
+) -> semantikon.u(int, uri=EX.Data):
     self.a1 = AddOnetology(inp)
     self.a2 = AddOnetology(self.a1)
     return self.a2
 
 
 @pwf.as_function_node
-def Up(x: u(str, uri=EX.TriggerOnto)) -> u(str, uri=EX.TriggerOnto):
+def Up(
+    x: semantikon.u(str, uri=EX.TriggerOnto),
+) -> semantikon.u(str, uri=EX.TriggerOnto):
     return x
 
 
 @pwf.as_function_node
 def Middle(
-    y: u(str, uri=EX.TriggerOnto),
-) -> u(str, uri=EX.TriggerOnto, triples=(EX.hasThing, EX.thing)):
+    y: semantikon.u(str, uri=EX.TriggerOnto),
+) -> semantikon.u(str, uri=EX.TriggerOnto, triples=(EX.hasThing, EX.thing)):
     return y
 
 
 @pwf.as_function_node
 def Down(
-    z: u(
+    z: semantikon.u(
         str,
         uri=EX.TriggerOnto,
         restrictions=(
@@ -200,8 +204,8 @@ class TestParser(unittest.TestCase):
         wf.addition = add(a=1.0, b=2.0)
         wf.multiply = multiply(a=wf.addition, b=3.0)
         wf.analysis = correct_analysis(a=wf.multiply)
-        graph = onto.get_knowledge_graph(export_to_dict(wf))
-        self.assertEqual(onto.validate_values(graph)["missing_triples"], [])
+        graph = semantikon.get_knowledge_graph(export_to_dict(wf))
+        self.assertEqual(semantikon.validate_values(graph)["missing_triples"], [])
         wf = pwf.Workflow("wrong_analysis")
         wf.addition = add(a=1.0, b=2.0)
         wf.multiply = multiply(a=wf.addition, b=3.0)
@@ -220,7 +224,7 @@ class TestParser(unittest.TestCase):
         wf = pwf.Workflow("correct_analysis")
         wf.addition = add(a=1.0, b=2.0)
         data = export_to_dict(wf)
-        graph = onto.get_knowledge_graph(data)
+        graph = semantikon.get_knowledge_graph(data)
         self.assertTrue(
             EX.Addition
             in list(
@@ -242,7 +246,7 @@ class TestParser(unittest.TestCase):
         wf.addition = add(a=1.0, b=2.0)
         data = export_to_dict(wf)
         self.assertFalse("value" in data["outputs"]["addition__result"])
-        graph = onto.get_knowledge_graph(data)
+        graph = semantikon.get_knowledge_graph(data)
         self.assertEqual(
             len(list(graph.triples((None, rdflib.RDF.value, None)))),
             4,
@@ -250,7 +254,7 @@ class TestParser(unittest.TestCase):
         )
         wf.run()
         data = export_to_dict(wf)
-        graph = onto.get_knowledge_graph(data)
+        graph = semantikon.get_knowledge_graph(data)
         self.assertEqual(
             len(list(graph.triples((None, rdflib.RDF.value, None)))),
             6,
@@ -286,7 +290,7 @@ class TestParser(unittest.TestCase):
 
 @dataclasses.dataclass
 class Input:
-    T: u(float, units="kelvin")
+    T: semantikon.u(float, units="kelvin")
     n: int
 
     @dataclasses.dataclass
@@ -299,8 +303,8 @@ class Input:
 
 @dataclasses.dataclass
 class Output:
-    E: u(float, units="electron_volt")
-    L: u(float, units="angstrom")
+    E: semantikon.u(float, units="electron_volt")
+    L: semantikon.u(float, units="angstrom")
 
 
 @pwf.as_function_node
@@ -317,7 +321,7 @@ class TestDataclass(unittest.TestCase):
         wf.node = run_md(inp)
         wf.run()
         data = export_to_dict(wf)
-        graph = onto.get_knowledge_graph(data)
+        graph = semantikon.get_knowledge_graph(data)
         i_txt = "my_wf.node.inputs.inp"
         o_txt = "my_wf.node.outputs.out"
         triples = (
@@ -356,7 +360,7 @@ class Garbage: ...
 
 
 @pwf.as_function_node("pizza")
-def PreparePizza() -> u(Meal, uri=EX.Pizza):
+def PreparePizza() -> semantikon.u(Meal, uri=EX.Pizza):
     return Meal()
 
 
@@ -366,12 +370,12 @@ def PrepareNonOntologicalMeal() -> Meal:
 
 
 @pwf.as_function_node("rice")
-def PrepareRice() -> u(Meal, uri=EX.Rice):
+def PrepareRice() -> semantikon.u(Meal, uri=EX.Rice):
     return Meal()
 
 
 @pwf.as_function_node("garbage")
-def PrepareGarbage() -> u(Garbage, uri=EX.Garbage):
+def PrepareGarbage() -> semantikon.u(Garbage, uri=EX.Garbage):
     return Garbage()
 
 
@@ -381,12 +385,12 @@ def PrepareUnhintedGarbage():
 
 
 @pwf.as_function_node("verdict")
-def Eat(meal: u(Meal, uri=EX.Meal)) -> str:
+def Eat(meal: semantikon.u(Meal, uri=EX.Meal)) -> str:
     return f"Yummy {meal.__class__.__name__} meal"
 
 
 @pwf.as_function_node("verdict")
-def EatPizza(meal: u(Meal, uri=EX.Pizza)) -> str:
+def EatPizza(meal: semantikon.u(Meal, uri=EX.Pizza)) -> str:
     return f"Yummy {meal.__class__.__name__} pizza"
 
 
@@ -396,14 +400,16 @@ class Clothes:
 
 @pwf.as_function_node
 def Wash(
-    clothes: u(Clothes, uri=EX.Clothes),
-) -> u(Clothes, triples=(EX.hasProperty, EX.cleaned), derived_from="inputs.clothes"):
+    clothes: semantikon.u(Clothes, uri=EX.Clothes),
+) -> semantikon.u(
+    Clothes, triples=(EX.hasProperty, EX.cleaned), derived_from="inputs.clothes"
+):
     ...
     return clothes
 
 
 @pwf.as_function_node
-def Dye(clothes: u(Clothes, uri=EX.Clothes), color="blue") -> u(
+def Dye(clothes: semantikon.u(Clothes, uri=EX.Clothes), color="blue") -> semantikon.u(
     Clothes,
     triples=(EX.hasProperty, EX.color),
     derived_from="inputs.clothes",
@@ -414,7 +420,7 @@ def Dye(clothes: u(Clothes, uri=EX.Clothes), color="blue") -> u(
 
 @pwf.as_function_node
 def Sell(
-    clothes: u(
+    clothes: semantikon.u(
         Clothes,
         uri=EX.Clothes,
         restrictions=(
@@ -434,7 +440,7 @@ def Sell(
 
 
 @pwf.as_function_node
-def DyeWithCancel(clothes: Clothes, color="blue") -> u(
+def DyeWithCancel(clothes: Clothes, color="blue") -> semantikon.u(
     Clothes,
     triples=(EX.hasProperty, EX.color),
     derived_from="inputs.clothes",
@@ -459,65 +465,75 @@ def IncorrectMacro(self, clothes: Clothes):
 
 
 @pwf.as_function_node
-def IOTransformer(x: u(int, uri=EX.Input)) -> u(int, uri=EX.Output):
+def IOTransformer(
+    x: semantikon.u(int, uri=EX.Input),
+) -> semantikon.u(int, uri=EX.Output):
     y = x
     return y
 
 
 @pwf.as_macro_node
-def MatchingWrapper(self, x_outer: u(int, uri=EX.Input)) -> u(int, uri=EX.Output):
+def MatchingWrapper(
+    self, x_outer: semantikon.u(int, uri=EX.Input)
+) -> semantikon.u(int, uri=EX.Output):
     self.add = IOTransformer(x_outer)
     return self.add
 
 
 @pwf.as_macro_node
-def MismatchingInput(self, x_outer: u(int, uri=EX.NotInput)) -> u(int, uri=EX.Output):
+def MismatchingInput(
+    self, x_outer: semantikon.u(int, uri=EX.NotInput)
+) -> semantikon.u(int, uri=EX.Output):
     self.add = IOTransformer(x_outer)
     return self.add
 
 
 @pwf.as_macro_node
 def MismatchingOutput(
-    self, x_outer: u(int, uri=EX.NotInput)
-) -> u(int, uri=EX.NotOutput):
+    self, x_outer: semantikon.u(int, uri=EX.NotInput)
+) -> semantikon.u(int, uri=EX.NotOutput):
     self.add = IOTransformer(x_outer)
     return self.add
 
 
 @pwf.as_function_node
-def Distance(x: u(float, units="meter")) -> u(float, derived_from="inputs.x"):
+def Distance(
+    x: semantikon.u(float, units="meter"),
+) -> semantikon.u(float, derived_from="inputs.x"):
     return x
 
 
 @pwf.as_function_node
 def Speed(
-    dx: u(float, units="meter"), dt: u(float, units="second")
-) -> u(float, units="meter/second"):
+    dx: semantikon.u(float, units="meter"), dt: semantikon.u(float, units="second")
+) -> semantikon.u(float, units="meter/second"):
     s = dx / dt
     return s
 
 
 @pwf.as_function_node
-def NanoTime(t: u(float, units="nanosecond")) -> u(float, units="nanosecond"):
+def NanoTime(
+    t: semantikon.u(float, units="nanosecond"),
+) -> semantikon.u(float, units="nanosecond"):
     return t
 
 
 @pwf.as_function_node
-def Time(t: u(float, units="second")) -> u(float, units="second"):
+def Time(t: semantikon.u(float, units="second")) -> semantikon.u(float, units="second"):
     return t
 
 
 @pwf.as_function_node
 def Canada(
-    british_distance: u(float, units="mile"),
-) -> u(float, derived_from="inputs.driving"):
+    british_distance: semantikon.u(float, units="mile"),
+) -> semantikon.u(float, derived_from="inputs.driving"):
     canadian_distance = british_distance
     return canadian_distance
 
 
 @pwf.as_function_node
 def HasNeed(
-    x: u(
+    x: semantikon.u(
         str,
         uri=EX.Foo,
         restrictions=(
@@ -525,7 +541,7 @@ def HasNeed(
             (rdflib.OWL.someValuesFrom, EX.need),
         ),
     ) = "foo",
-) -> u(int, uri=EX.Data):
+) -> semantikon.u(int, uri=EX.Data):
     data = 42
     return data
 

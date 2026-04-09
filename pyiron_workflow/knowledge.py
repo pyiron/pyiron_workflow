@@ -3,6 +3,7 @@ from __future__ import annotations
 from typing import TYPE_CHECKING, Any, TypeAlias
 
 import rdflib
+import semantikon
 from semantikon import ontology as onto
 
 from pyiron_workflow.data import NOT_DATA, SemantikonRecipeChange
@@ -196,7 +197,7 @@ def parse_workflow(
     wf_dict = export_to_dict(
         workflow, with_values=with_values, with_default=with_default
     )
-    return onto.get_knowledge_graph(
+    return semantikon.get_knowledge_graph(
         wf_dict=wf_dict,
         graph=graph,
         inherit_properties=inherit_properties,
@@ -207,7 +208,7 @@ def parse_workflow(
 
 def validate_workflow(root, new_edge_change: SemantikonRecipeChange | None = None):
     """
-    A shortcut for running `semantikon.ontology.validate_values` on a graph generated
+    A shortcut for running `semantikon.validate_values` on a graph generated
     by a `pyiron_workflow` node (the graph root node).
 
     Takes care of converting the workflow to a compatible representation, and allows
@@ -238,7 +239,7 @@ def validate_workflow(root, new_edge_change: SemantikonRecipeChange | None = Non
         if new_edge_change.parent_output:
             location["outputs"].pop(new_edge_change.parent_output, None)
 
-    g = onto.get_knowledge_graph(
+    g = semantikon.get_knowledge_graph(
         wf_dict=recipe,
         graph=(
             root.knowledge
@@ -246,7 +247,7 @@ def validate_workflow(root, new_edge_change: SemantikonRecipeChange | None = Non
             else None
         ),
     )
-    return onto.validate_values(g)
+    return semantikon.validate_values(g)
 
 
 def is_valid(validation: dict[str, Any]) -> bool:
