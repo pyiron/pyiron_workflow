@@ -338,7 +338,7 @@ class TestDataclass(unittest.TestCase):
             ),
             (
                 rdflib.URIRef(o_txt),
-                onto.SNS.hasValue,
+                onto.SNS.has_value,
                 rdflib.URIRef(f"{o_txt}.E.value"),
             ),
         )
