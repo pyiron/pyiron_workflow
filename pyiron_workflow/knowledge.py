@@ -7,7 +7,7 @@ import semantikon
 from semantikon import ontology as onto
 
 from pyiron_workflow.data import NOT_DATA, SemantikonRecipeChange
-from pyiron_workflow.nodes import for_loop, function, transform, while_loop
+from pyiron_workflow.nodes import function, transform
 from pyiron_workflow.nodes.composite import Composite
 
 if TYPE_CHECKING:
@@ -67,9 +67,7 @@ def _io_to_dict(
     return data
 
 
-KnownAtomicNodes: TypeAlias = (
-    for_loop.For | function.Function | transform.Transformer | while_loop.While
-)
+KnownAtomicNodes: TypeAlias = function.Function | transform.Transformer
 
 
 def _export_node_to_dict(
