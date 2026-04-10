@@ -193,10 +193,6 @@ def parse_workflow(
         with_values (bool): include channel values in the graph
         with_default (bool): include default values in the graph
         graph (rdflib.Graph): graph to add workflow information to
-        inherit_properties (bool): inherit properties from the ontology
-        ontology (str): ontology to use
-        append_missing_items (bool): append missing items for restrictions to
-            the ontology
 
     Returns:
         (rdflib.Graph): graph containing workflow information
@@ -204,13 +200,10 @@ def parse_workflow(
     wf_dict = export_to_dict(
         workflow, with_values=with_values, with_default=with_default
     )
-    return semantikon.get_knowledge_graph(
-        wf_dict=wf_dict,
-        graph=graph,
-        inherit_properties=inherit_properties,
-        ontology=ontology,
-        append_missing_items=append_missing_items,
-    )
+    g = semantikon.get_knowledge_graph(wf_dict=wf_dict)
+    if graph is None:
+        g += graph
+    return g
 
 
 def validate_workflow(root, new_edge_change: SemantikonRecipeChange | None = None):
