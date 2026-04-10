@@ -16,6 +16,9 @@ if TYPE_CHECKING:
     from pyiron_workflow.workflow import Workflow
 
 
+PyshaclValidationReport = tuple[bool, rdflib.ConjunctiveGraph | rdflib.Graph, str]
+
+
 def _fqn(hint: type) -> str:
     return f"{hint.__module__}.{hint.__qualname__}"
 
@@ -206,7 +209,9 @@ def parse_workflow(
     return g
 
 
-def validate_workflow(root, new_edge_change: SemantikonRecipeChange | None = None):
+def validate_workflow(
+    root, new_edge_change: SemantikonRecipeChange | None = None
+) -> PyshaclValidationReport:
     """
     A shortcut for running `semantikon.validate_values` on a graph generated
     by a `pyiron_workflow` node (the graph root node).
@@ -245,15 +250,13 @@ def validate_workflow(root, new_edge_change: SemantikonRecipeChange | None = Non
     return semantikon.validate_values(g)
 
 
-def is_valid(validation: dict[str, Any]) -> bool:
-    return (
-        len(validation["missing_triples"]) == 0
-        and len(validation["incompatible_connections"]) == 0
-        and len(validation["distinct_units"]) == 0
-    )
+def is_valid(validation: PyshaclValidationReport) -> bool:
+    return validation[0]
 
 
-def is_involved(validation, new_edge_change: SemantikonRecipeChange) -> bool:
+def is_involved(
+    validation: PyshaclValidationReport, new_edge_change: SemantikonRecipeChange
+) -> bool:
     # We only care if the receiving end of the new edge appears in the validation
     # report.
     # This is still not sufficient, because of limitations in how semantikon treats
@@ -265,14 +268,20 @@ def is_involved(validation, new_edge_change: SemantikonRecipeChange) -> bool:
     upstream_term = rdflib.term.URIRef(
         f"{'.'.join(new_edge_change.location)}.{new_edge_change.new_edge[0]}"
     )
+    raise NotImplementedError(
+        "Involvement is not updated to receive PyshaclValidationReport."
+        f"I _would_ be searching for the terms {upstream_term!r} and "
+        f"{downstream_term!r}."
+    )
     return term_appears_in_validation(
         downstream_term, validation
     ) or _target_in_distinct_units(upstream_term, validation)
 
 
 def term_appears_in_validation(
-    term: rdflib.term.Node, validation: dict[str, Any]
+    term: rdflib.term.Node, validation: PyshaclValidationReport
 ) -> bool:
+    raise NotImplementedError()
     return (
         _target_in_missing_triples(term, validation)
         or _target_in_incompatible_connections(term, validation)
@@ -280,20 +289,23 @@ def term_appears_in_validation(
     )
 
 
-def _target_in_missing_triples(target, validation):
+def _target_in_missing_triples(target, validation: PyshaclValidationReport):
+    raise NotImplementedError()
     for triple in validation["missing_triples"]:
         if any(target == t for t in triple):
             return True
     return False
 
 
-def _target_in_incompatible_connections(target, validation):
+def _target_in_incompatible_connections(target, validation: PyshaclValidationReport):
+    raise NotImplementedError()
     for connection_report in validation["incompatible_connections"]:
         if any(target == t for t in connection_report[:2]):
             return True
     return False
 
 
-def _target_in_distinct_units(target, validation):
+def _target_in_distinct_units(target, validation: PyshaclValidationReport):
+    raise NotImplementedError()
     unit_target = rdflib.term.URIRef(f"{target}.value")
     return any(unit_target == t for t in validation["distinct_units"])
