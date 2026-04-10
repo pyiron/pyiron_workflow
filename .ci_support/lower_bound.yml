@@ -3,17 +3,18 @@ channels:
 dependencies:
 - coveralls
 - coverage
-- bagofholding =0.1.0
+- bagofholding =0.1.11
 - bidict =0.23.1
 - cloudpickle =3.0.0
 - executorlib =1.5.3
+- flowrep =0.4.1
 - graphviz =9.0.0
 - hatchling =1.27.0
 - hatch-vcs =0.5.0
 - pandas =2.2.2
 - pint =0.24
 - python =3.11
-- pyiron_snippets =0.1.4
+- pyiron_snippets =1.2.1
 - python-graphviz =0.20.3
 - rdflib =7.1.4
 - semantikon =0.0.22
