@@ -39,11 +39,16 @@ def calculate_speed(
     return distance / time
 
 
+uri_addition = semantikon.SemantikonURI(EX.Addition)
+uri_multiplication = semantikon.SemantikonURI(EX.Multiplication)
+uri_division = semantikon.SemantikonURI(EX.Division)
+
+
 @pwf.as_function_node("result")
 @semantikon.meta(uri=EX.Addition)
 def add(
     a: float, b: float
-) -> semantikon.u(float, triples=(EX.HasOperation, EX.Addition)):
+) -> semantikon.u(float, triples=(EX.HasOperation, uri_addition)):
     return a + b
 
 
@@ -51,7 +56,7 @@ def add(
 def multiply(
     a: float, b: float
 ) -> semantikon.u(
-    float, triples=(EX.HasOperation, EX.Multiplication), derived_from="inputs.a"
+    float, triples=(EX.HasOperation, uri_multiplication), derived_from="inputs.a"
 ):
     return a * b
 
@@ -116,10 +121,13 @@ def Up(
     return x
 
 
+uri_thing = semantikon.SemantikonURI(EX.thing)
+
+
 @pwf.as_function_node
 def Middle(
     y: semantikon.u(str, uri=EX.TriggerOnto),
-) -> semantikon.u(str, uri=EX.TriggerOnto, triples=(EX.hasThing, EX.thing)):
+) -> semantikon.u(str, uri=EX.TriggerOnto, triples=(EX.hasThing, uri_thing)):
     return y
 
 
@@ -404,11 +412,15 @@ class Clothes:
     pass
 
 
+uri_cleaned = semantikon.SemantikonURI(EX.cleaned)
+uri_color = semantikon.SemantikonURI(EX.color)
+
+
 @pwf.as_function_node
 def Wash(
     clothes: semantikon.u(Clothes, uri=EX.Clothes),
 ) -> semantikon.u(
-    Clothes, triples=(EX.hasProperty, EX.cleaned), derived_from="inputs.clothes"
+    Clothes, triples=(EX.hasProperty, uri_cleaned), derived_from="inputs.clothes"
 ):
     ...
     return clothes
@@ -417,7 +429,7 @@ def Wash(
 @pwf.as_function_node
 def Dye(clothes: semantikon.u(Clothes, uri=EX.Clothes), color="blue") -> semantikon.u(
     Clothes,
-    triples=(EX.hasProperty, EX.color),
+    triples=(EX.hasProperty, uri_color),
     derived_from="inputs.clothes",
 ):
     ...
@@ -448,7 +460,7 @@ def Sell(
 @pwf.as_function_node
 def DyeWithCancel(clothes: Clothes, color="blue") -> semantikon.u(
     Clothes,
-    triples=(EX.hasProperty, EX.color),
+    triples=(EX.hasProperty, uri_color),
     derived_from="inputs.clothes",
     cancel=(EX.hasProperty, EX.cleaned),
 ):
