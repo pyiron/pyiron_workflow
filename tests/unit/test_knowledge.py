@@ -139,7 +139,7 @@ def Down(
 
 class TestParser(unittest.TestCase):
     def test_parser(self):
-        wf = pwf.Workflow("speed")
+        wf = pwf.Workflow("speed_wf")
         wf.c = calculate_speed()
         output_dict = export_to_dict(wf)
         for label in ["inputs", "outputs", "nodes", "edges", "label"]:
@@ -153,7 +153,7 @@ class TestParser(unittest.TestCase):
             )
 
     def test_units_with_sparql(self):
-        wf = pwf.Workflow("speed")
+        wf = pwf.Workflow("speed_wf")
         wf.speed = calculate_speed()
         wf.run()
         graph = parse_workflow(wf)
@@ -175,7 +175,7 @@ class TestParser(unittest.TestCase):
         self.assertEqual(sorted(result_list), [2.0, 5.0, 10.0])
 
     def test_triples(self):
-        wf = pwf.Workflow("speed")
+        wf = pwf.Workflow("speed_wf")
         wf.speed = calculate_speed()
         graph = parse_workflow(wf)
         subj = rdflib.URIRef("http://example.org/subject")
@@ -201,20 +201,20 @@ class TestParser(unittest.TestCase):
         self.assertIn((label, EX.predicate, obj), graph)
 
     def test_correct_analysis(self):
-        wf = pwf.Workflow("correct_analysis")
+        wf = pwf.Workflow("correct_analysis_wf")
         wf.addition = add(a=1.0, b=2.0)
         wf.multiply = multiply(a=wf.addition, b=3.0)
         wf.analysis = correct_analysis(a=wf.multiply)
         graph = semantikon.get_knowledge_graph(export_to_dict(wf))
         self.assertEqual(semantikon.validate_values(graph)["missing_triples"], [])
-        wf = pwf.Workflow("wrong_analysis")
+        wf = pwf.Workflow("wrong_analysis_wf")
         wf.addition = add(a=1.0, b=2.0)
         wf.multiply = multiply(a=wf.addition, b=3.0)
         with self.assertRaises(ChannelConnectionError):
             wf.analysis = wrong_analysis(a=wf.multiply)
 
     def test_multiple_outputs(self):
-        wf = pwf.Workflow("multiple_outputs")
+        wf = pwf.Workflow("multiple_outputs_wf")
         wf.node = multiple_outputs()
         wf.node.run()
         data = export_to_dict(wf)
@@ -263,7 +263,7 @@ class TestParser(unittest.TestCase):
         )
 
     def test_macro(self):
-        wf = pwf.Workflow("operation")
+        wf = pwf.Workflow("operation_wf")
         wf.node = operation(a=1.0, b=2.0)
         wf.run()
         data = export_to_dict(wf)
