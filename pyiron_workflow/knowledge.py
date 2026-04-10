@@ -16,6 +16,10 @@ if TYPE_CHECKING:
     from pyiron_workflow.workflow import Workflow
 
 
+def _fqn(hint: type) -> str:
+    return f"{hint.__module__}.{hint.__qualname__}"
+
+
 def _extract_data(item: Channel, with_values=True, with_default=True) -> dict:
     data = {}
     data_dict = {"default": NOT_DATA, "value": NOT_DATA, "type_hint": None}
@@ -25,7 +29,11 @@ def _extract_data(item: Channel, with_values=True, with_default=True) -> dict:
         data_dict.pop("default")
     for key, value in data_dict.items():
         if getattr(item, key) is not value:
-            data[key] = getattr(item, key)
+            if key == "type_hint":
+                hint = getattr(item, key)
+                data["dtype"] = _fqn(hint)
+            else:
+                data[key] = getattr(item, key)
     return data
 
 
