@@ -9,7 +9,6 @@ import pyiron_workflow as pwf
 from pyiron_workflow.channels import ChannelConnectionError
 from pyiron_workflow.knowledge import (
     SemantikonRecipeChange,
-    _fqn,
     export_to_dict,
     is_involved,
     is_valid,
@@ -221,6 +220,7 @@ class TestParser(unittest.TestCase):
         wf.multiply = multiply(a=wf.addition, b=3.0)
         with self.assertRaises(ChannelConnectionError):
             wf.analysis = wrong_analysis(a=wf.multiply)
+            print(export_to_dict(wf))
             validation = semantikon.validate_values(
                 semantikon.get_knowledge_graph(export_to_dict(wf))
             )
@@ -285,7 +285,7 @@ class TestParser(unittest.TestCase):
         )
         self.assertEqual(
             data["inputs"]["node__b"],
-            {"default": 1.0, "value": 2.0, "dtype": _fqn(float)},
+            {"default": 1.0, "value": 2.0, "dtype": float},
         )
 
     def test_custom_labels(self):

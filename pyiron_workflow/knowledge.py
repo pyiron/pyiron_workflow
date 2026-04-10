@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-from typing import TYPE_CHECKING, Any, TypeAlias
+from typing import TYPE_CHECKING, Annotated, Any, TypeAlias, get_args, get_origin
 
 import rdflib
 import semantikon
@@ -19,8 +19,8 @@ if TYPE_CHECKING:
 PyshaclValidationReport = tuple[bool, rdflib.ConjunctiveGraph | rdflib.Graph, str]
 
 
-def _fqn(hint: type) -> str:
-    return f"{hint.__module__}.{hint.__qualname__}"
+def _is_annotated(hint: object) -> bool:
+    return get_origin(hint) is Annotated
 
 
 def _extract_data(item: Channel, with_values=True, with_default=True) -> dict:
@@ -34,7 +34,16 @@ def _extract_data(item: Channel, with_values=True, with_default=True) -> dict:
         if getattr(item, key) is not value:
             if key == "type_hint":
                 hint = getattr(item, key)
-                data["dtype"] = _fqn(hint)
+                if _is_annotated(hint):
+                    type_, semantikon_metadata, *_ = get_args(hint)
+                    it = iter(semantikon_metadata)
+                    metadata_dict = dict(
+                        zip(it, it, strict=True)
+                    )  # {odd: even} pairings
+                    data.update(metadata_dict)
+                else:
+                    type_ = hint
+                data["dtype"] = type_
             else:
                 data[key] = getattr(item, key)
     return data
