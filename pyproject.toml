@@ -41,7 +41,7 @@ dependencies = [
     "flowrep==0.4.1",
     "graphviz==0.21",
     "pandas==3.0.1",
-    "pint==0.25",
+    "pint==0.25.3",
     "pyiron_snippets==1.2.1",
     "rdflib==7.1.4",
     "semantikon==0.0.22",
