@@ -51,7 +51,7 @@ def add(
 def multiply(
     a: float, b: float
 ) -> semantikon.u(
-    float, triples=((EX.HasOperation, EX.Multiplication),), derived_from="inputs.a"
+    float, triples=(EX.HasOperation, EX.Multiplication), derived_from="inputs.a"
 ):
     return a * b
 
@@ -213,6 +213,10 @@ class TestParser(unittest.TestCase):
         wf.multiply = multiply(a=wf.addition, b=3.0)
         with self.assertRaises(ChannelConnectionError):
             wf.analysis = wrong_analysis(a=wf.multiply)
+            validation = semantikon.validate_values(
+                semantikon.get_knowledge_graph(export_to_dict(wf))
+            )
+            print(validation)
 
     def test_multiple_outputs(self):
         wf = pwf.Workflow("multiple_outputs_wf")
