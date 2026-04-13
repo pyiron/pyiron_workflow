@@ -239,13 +239,33 @@ class TestParser(unittest.TestCase):
         wf.addition = add(a=1.0, b=2.0)
         data = export_to_dict(wf)
         graph = semantikon.get_knowledge_graph(data)
-        self.assertTrue(
-            EX.Addition
-            in list(
-                graph.objects(
-                    rdflib.URIRef("correct_analysis.addition"), rdflib.RDF.type
-                )
+        subjects_with_type_addition = list(
+            graph.subjects(predicate=rdflib.RDF.type, object=uri_addition.get_class())
+        )
+        self.assertEqual(len(subjects_with_type_addition), 1, msg="sanity check")
+        has_type_addition = subjects_with_type_addition[0]
+        self.assertEqual(
+            has_type_addition,
+            uri_addition.get_instance(),
+            msg="We already labelled this object! Make sure the label sticks.",
+        )
+        addition_annotated_terms = list(
+            graph.subjects(predicate=EX.HasOperation, object=has_type_addition)
+        )
+        expected_annotated_lexical_paths = [
+            "correct_analysis-outputs-result",
+            "correct_analysis-addition-outputs-result",
+        ]
+        stringified_terms = [str(term) for term in addition_annotated_terms]
+        for path in expected_annotated_lexical_paths:
+            self.assertTrue(
+                any(path in sterm for sterm in stringified_terms),
+                msg=f"Couldn't find {path!r} as a substring in {stringified_terms}",
             )
+        self.assertEqual(
+            len(addition_annotated_terms),
+            len(expected_annotated_lexical_paths),
+            msg="There should be no others",
         )
 
     def test_namespace(self):
