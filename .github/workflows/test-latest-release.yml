@@ -15,7 +15,7 @@ jobs:
     steps:
       - name: Get latest release tag
         id: get-release
-        uses: actions/github-script@v8
+        uses: actions/github-script@v9
         with:
           result-encoding: string
           script: |
