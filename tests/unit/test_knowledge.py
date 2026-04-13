@@ -172,7 +172,7 @@ class TestParser(unittest.TestCase):
             "WHERE {",
             "    ?output pns:hasValue ?output_tag .",
             "    ?output_tag rdf:value ?speed .",
-            "    ?output_tag pns:hasUnits ?units .",
+            "    ?output_tag qudt:hasUnit ?unit .",
             "}",
         ]
         query = "\n".join(query_txt)
@@ -189,7 +189,7 @@ class TestParser(unittest.TestCase):
         obj = rdflib.URIRef("http://example.org/object")
         label = rdflib.URIRef("speed.speed.outputs.speed")
         self.assertIn(
-            (None, onto.SNS.hasUnits, QUDT["M-PER-SEC"]),
+            (None, onto.QUDT.hasUnit, QUDT["M-PER-SEC"]),
             graph,
             msg=graph.serialize(format="turtle"),
         )
@@ -250,7 +250,11 @@ class TestParser(unittest.TestCase):
 
     def test_namespace(self):
         self.assertEqual(
-            onto.SNS.hasUnits, rdflib.URIRef("http://pyiron.org/ontology/hasUnits")
+            onto.QUDT.hasUnit, rdflib.URIRef("http://qudt.org/schema/qudt/hasUnit")
+        )
+        self.assertEqual(
+            onto.SNS.derives_from,
+            rdflib.URIRef("http://purl.obolibrary.org/obo/RO_0001000"),
         )
         with self.assertRaises(AttributeError):
             _ = onto.SNS.ahoy
@@ -817,7 +821,7 @@ class TestValidation(unittest.TestCase):
         reference_stem = f"{wf.label}.{wf.lets_use_metric.label}"
         british_units = graph.objects(
             rdflib.term.URIRef(f"{reference_stem}.inputs.british_distance.value"),
-            onto.SNS.hasUnits,
+            onto.QUDT.hasUnit,
         )
         self.assertEqual(
             1,
@@ -826,7 +830,7 @@ class TestValidation(unittest.TestCase):
         )
         canadian_units = graph.objects(
             rdflib.term.URIRef(f"{reference_stem}.outputs.canadian_distance.value"),
-            onto.SNS.hasUnits,
+            onto.QUDT.hasUnit,
         )
         self.assertListEqual(
             [],
