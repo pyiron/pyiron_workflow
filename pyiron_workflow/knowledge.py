@@ -19,6 +19,9 @@ if TYPE_CHECKING:
 PyshaclValidationReport = tuple[bool, rdflib.ConjunctiveGraph | rdflib.Graph, str]
 
 
+LEXICAL_DELIMITER = "-"
+
+
 def _is_annotated(hint: object) -> bool:
     return get_origin(hint) is Annotated
 
@@ -271,47 +274,29 @@ def is_involved(
     # This is still not sufficient, because of limitations in how semantikon treats
     # restrictions: https://github.com/pyiron/semantikon/issues/262
     downstream_term = rdflib.term.URIRef(
-        f"{'.'.join(new_edge_change.location)}.{new_edge_change.new_edge[1]}"
+        f"{'.'.join(new_edge_change.location)}.{new_edge_change.new_edge[1]}".replace(
+            ".", LEXICAL_DELIMITER
+        )
     )
     # Also for units the validity report makes reference to the upstream term...
     upstream_term = rdflib.term.URIRef(
-        f"{'.'.join(new_edge_change.location)}.{new_edge_change.new_edge[0]}"
+        f"{'.'.join(new_edge_change.location)}.{new_edge_change.new_edge[0]}".replace(
+            ".", LEXICAL_DELIMITER
+        )
     )
-    raise NotImplementedError(
-        "Involvement is not updated to receive PyshaclValidationReport."
-        f"I _would_ be searching for the terms {upstream_term!r} and "
-        f"{downstream_term!r}."
-    )
-    return term_appears_in_validation(
-        downstream_term, validation
-    ) or _target_in_distinct_units(upstream_term, validation)
-
-
-def term_appears_in_validation(
-    term: rdflib.term.Node, validation: PyshaclValidationReport
-) -> bool:
-    raise NotImplementedError()
     return (
-        _target_in_missing_triples(term, validation)
-        or _target_in_incompatible_connections(term, validation)
-        or _target_in_distinct_units(term, validation)
+        _ref_appears_in_validation_report(upstream_term, validation)
+        or _ref_appears_in_validation_report(downstream_term, validation)
+        # or _target_in_distinct_units(upstream_term, validation)
     )
 
 
-def _target_in_missing_triples(target, validation: PyshaclValidationReport):
-    raise NotImplementedError()
-    for triple in validation["missing_triples"]:
-        if any(target == t for t in triple):
-            return True
-    return False
-
-
-def _target_in_incompatible_connections(target, validation: PyshaclValidationReport):
-    raise NotImplementedError()
-    for connection_report in validation["incompatible_connections"]:
-        if any(target == t for t in connection_report[:2]):
-            return True
-    return False
+def _ref_appears_in_validation_report(
+    ref: rdflib.term.URIRef, validation: PyshaclValidationReport
+):
+    validation_message = validation[2]
+    term_equivalent = str(ref) + "_data"
+    return term_equivalent in validation_message
 
 
 def _target_in_distinct_units(target, validation: PyshaclValidationReport):
