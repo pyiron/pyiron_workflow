@@ -20,6 +20,9 @@ from pyiron_workflow.nodes.composite import FailedChildError
 EX = rdflib.Namespace("http://example.org/")
 QUDT = rdflib.Namespace("http://qudt.org/vocab/unit/")
 
+uri_object = semantikon.SemantikonURI(EX.Object)
+uri_subject = semantikon.SemantikonURI(EX.Subject)
+
 
 @pwf.as_function_node("speed")
 def calculate_speed(
@@ -30,9 +33,9 @@ def calculate_speed(
     units="meter/second",
     triples=(
         (EX.somehowRelatedTo, "inputs.time"),
-        (EX.subject, EX.predicate, EX.object),
-        (EX.subject, EX.predicate, None),
-        (None, EX.predicate, EX.object),
+        (uri_subject, EX.predicate, uri_object),
+        (uri_subject, EX.predicate, None),
+        (None, EX.predicate, uri_object),
     ),
 ):
     return distance / time
