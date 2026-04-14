@@ -113,6 +113,15 @@ def AddTwoMacrontology(
     return self.a2
 
 
+@pwf.as_macro_node("zzout")
+def AddThreeMacrontology(
+    self, inpp: semantikon.u(int, uri=EX.Data)
+) -> semantikon.u(int, uri=EX.Data):
+    self.b1 = AddTwoMacrontology(inpp)
+    self.b2 = AddOnetology(self.b1)
+    return self.b2
+
+
 @pwf.as_function_node
 def Up(
     x: semantikon.u(str, uri=EX.TriggerOnto),
@@ -311,6 +320,10 @@ class TestParser(unittest.TestCase):
             data["inputs"]["b"],
             {"default": 1.0, "value": 2.0, "dtype": float},
         )
+
+    def test_nested_macro(self):
+        n = AddThreeMacrontology()
+        validate_workflow(n)
 
     def test_custom_labels(self):
         x0 = 5
