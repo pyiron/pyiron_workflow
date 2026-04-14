@@ -210,7 +210,7 @@ def parse_workflow(
         workflow, with_values=with_values, with_default=with_default
     )
     g = semantikon.get_knowledge_graph(wf_dict=wf_dict)
-    if graph is None:
+    if graph is not None:
         g += graph
     return g
 
