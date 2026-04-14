@@ -79,14 +79,9 @@ def _io_to_dict(
     data: dict[str, dict] = {"inputs": {}, "outputs": {}}
     for io_ in ["inputs", "outputs"]:
         for inp in getattr(node, io_):
-            if isinstance(node, Composite):
-                data[io_][inp.label] = _extract_data(
-                    inp, with_values=with_values, with_default=with_default
-                )
-            else:
-                data[io_][inp.label] = _extract_data(
-                    inp, with_values=with_values, with_default=with_default
-                )
+            data[io_][inp.label] = _extract_data(
+                inp, with_values=with_values, with_default=with_default
+            )
     return data
 
 
