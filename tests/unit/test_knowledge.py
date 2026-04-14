@@ -288,24 +288,37 @@ class TestParser(unittest.TestCase):
         with self.assertRaises(AttributeError):
             _ = onto.SNS.ahoy
 
-    def test_parsing_without_running(self):
+    def test_parsing_across_a_run(self):
         wf = pwf.Workflow("test")
         wf.addition = add(a=1.0, b=2.0)
-        data = export_to_dict(wf)
-        self.assertFalse("value" in data["outputs"]["result"])
-        graph = semantikon.get_knowledge_graph(data)
-        self.assertEqual(
-            len(list(graph.triples((None, rdflib.RDF.value, None)))),
-            4,
-            msg="There should be only values for a and b, but not for the output",
-        )
+        before_data = export_to_dict(wf)
+        self.assertFalse("value" in before_data["outputs"]["result"])
+        before_graph = semantikon.get_knowledge_graph(before_data)
         wf.run()
-        data = export_to_dict(wf)
-        graph = semantikon.get_knowledge_graph(data)
+        after_data = export_to_dict(wf)
+        self.assertAlmostEqual(after_data["outputs"]["result"]["value"], 3.0)
+        after_graph = semantikon.get_knowledge_graph(after_data)
+        difference = after_graph - before_graph
         self.assertEqual(
-            len(list(graph.triples((None, rdflib.RDF.value, None)))),
-            6,
-            msg="There should be values for a, b and the output",
+            2,
+            len(difference),
+            msg="We should now have nodes for the workflow and child node output values",
+        )
+        diff_objects = list(
+            difference.subjects(
+                predicate=onto.SNS.has_value,
+                object=rdflib.term.Literal(
+                    "3.0",
+                    datatype=rdflib.term.URIRef(
+                        "http://www.w3.org/2001/XMLSchema#double"
+                    ),
+                ),
+            )
+        )
+        self.assertEqual(
+            2,
+            len(diff_objects),
+            msg="And a sanity check that they're actually the right value in the graph",
         )
 
     def test_macro(self):
@@ -381,6 +394,7 @@ class TestDataclass(unittest.TestCase):
                 rdflib.RDFS.subClassOf,
                 rdflib.URIRef(f"{i_txt}.value"),
             ),
+            (),
             (rdflib.URIRef(f"{i_txt}.n.value"), rdflib.RDF.value, rdflib.Literal(100)),
             (
                 rdflib.URIRef(f"{i_txt}.parameters.a.value"),
