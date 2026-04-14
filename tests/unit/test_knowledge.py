@@ -231,8 +231,8 @@ class TestParser(unittest.TestCase):
         wf.node = multiple_outputs()
         wf.node.run()
         data = export_to_dict(wf)
-        self.assertEqual(data["outputs"]["node__a"]["value"], 1)
-        self.assertEqual(data["outputs"]["node__b"]["value"], 2)
+        self.assertEqual(data["outputs"]["a"]["value"], 1)
+        self.assertEqual(data["outputs"]["b"]["value"], 2)
 
     def test_parse_workflow(self):
         wf = pwf.Workflow("correct_analysis")
@@ -283,7 +283,7 @@ class TestParser(unittest.TestCase):
         wf = pwf.Workflow("test")
         wf.addition = add(a=1.0, b=2.0)
         data = export_to_dict(wf)
-        self.assertFalse("value" in data["outputs"]["addition__result"])
+        self.assertFalse("value" in data["outputs"]["result"])
         graph = semantikon.get_knowledge_graph(data)
         self.assertEqual(
             len(list(graph.triples((None, rdflib.RDF.value, None)))),
@@ -308,7 +308,7 @@ class TestParser(unittest.TestCase):
             set(data.keys()), {"type", "edges", "inputs", "label", "nodes", "outputs"}
         )
         self.assertEqual(
-            data["inputs"]["node__b"],
+            data["inputs"]["b"],
             {"default": 1.0, "value": 2.0, "dtype": float},
         )
 
