@@ -80,7 +80,7 @@ def _io_to_dict(
     for io_ in ["inputs", "outputs"]:
         for inp in getattr(node, io_):
             if isinstance(node, Composite):
-                data[io_][inp.scoped_label] = _extract_data(
+                data[io_][inp.label] = _extract_data(
                     inp, with_values=with_values, with_default=with_default
                 )
             else:
@@ -142,7 +142,7 @@ def _export_composite_to_dict(
         if inp.value_receiver is not None and inp.value_receiver.owner in workflow:
             data["edges"].append(
                 (
-                    f"inputs.{inp.scoped_label}",
+                    f"inputs.{inp.label}",
                     _get_scoped_label(inp.value_receiver, "inputs"),
                 )
             )
@@ -167,12 +167,11 @@ def _export_composite_to_dict(
                 data["edges"].append(
                     (
                         _get_scoped_label(out, "outputs"),
-                        f"outputs.{out.value_receiver.scoped_label}",
+                        f"outputs.{out.value_receiver.label}",
                     )
                 )
-    data.update(
-        _io_to_dict(workflow, with_values=with_values, with_default=with_default)
-    )
+    io_stuff = _io_to_dict(workflow, with_values=with_values, with_default=with_default)
+    data.update(io_stuff)
     return data
 
 

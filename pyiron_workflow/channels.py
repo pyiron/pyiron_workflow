@@ -662,7 +662,8 @@ class InputData(DataChannel["InputData"], InputChannel["OutputData"]):
             f"inputs.{self.label}",
             f"{new_partner.owner.label}.inputs.{new_partner.label}",
         )
-        return SemantikonRecipeChange(proximate_parent, new_edge)
+        recipe_change = SemantikonRecipeChange(proximate_parent, new_edge)
+        return recipe_change
 
     def _valid_connection(self, other: DataChannel[typing.Any]) -> bool:
         if len(self.connections) > 0:
@@ -719,10 +720,11 @@ class OutputData(DataChannel["OutputData"], OutputChannel["InputData"]):
             self.owner.lexical_delimiter
         )[1:-1]
         new_edge = (
-            f"{new_partner.owner.label}.outputs.{new_partner.label}",
-            f"outputs.{self.owner.label}__{self.label}",
+            f"{self.owner.label}.outputs.{self.label}",
+            f"outputs.{new_partner.label}",
         )
-        return SemantikonRecipeChange(proximate_parent, new_edge)
+        recipe_change = SemantikonRecipeChange(proximate_parent, new_edge)
+        return recipe_change
 
 
 SignalType = typing.TypeVar("SignalType", bound="SignalChannel")
