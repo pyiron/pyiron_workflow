@@ -177,21 +177,26 @@ class TestParser(unittest.TestCase):
         wf.run()
         graph = parse_workflow(wf)
         query_txt = [
-            "PREFIX ex: <http://example.org/>",
-            "PREFIX rdf: <http://www.w3.org/1999/02/22-rdf-syntax-ns#>",
-            f"PREFIX pns: <{onto.SNS.BASE}>",
-            "SELECT DISTINCT ?speed ?units",
+            "PREFIX ro: <http://purl.obolibrary.org/obo/RO_>",
+            "PREFIX pmd: <https://w3id.org/pmd/co/PMD_>",
+            "PREFIX qudt: <http://qudt.org/schema/qudt/>",
+            "SELECT DISTINCT ?value ?unit",
             "WHERE {",
-            "    ?output pns:hasValue ?output_tag .",
-            "    ?output_tag rdf:value ?speed .",
-            "    ?output_tag qudt:hasUnit ?unit .",
+            f"    ?assignment <{onto.SNS.has_participant}> ?data .",
+            f"    ?data <{onto.SNS.has_value}> ?value .",
+            "    ?data qudt:hasUnit ?unit .",
             "}",
         ]
         query = "\n".join(query_txt)
         results = graph.query(query)
         self.assertEqual(len(results), 3)
         result_list = [row[0].value for row in graph.query(query)]
-        self.assertEqual(sorted(result_list), [2.0, 5.0, 10.0])
+        self.assertEqual(
+            sorted(result_list),
+            [2.0, 5.0, 10.0],
+            msg="Query expected to find all data values associated with a unit. (Input "
+            "distance, input time, and output speed. (d=10)/(t=2) = (s=5).)",
+        )
 
     def test_triples(self):
         wf = pwf.Workflow("speed_wf")
