@@ -629,7 +629,8 @@ def Time(t: semantikon.u(float, units="second")) -> semantikon.u(float, units="s
 def Canada(
     british_distance: semantikon.u(float, units="mile"),
 ) -> semantikon.u(float, derived_from="inputs.driving"):
-    canadian_distance = british_distance
+    km_per_mile = 1.6
+    canadian_distance = british_distance * km_per_mile
     return canadian_distance
 
 
