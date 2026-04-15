@@ -197,27 +197,52 @@ class TestParser(unittest.TestCase):
         wf = pwf.Workflow("speed_wf")
         wf.speed = calculate_speed()
         graph = parse_workflow(wf)
-        subj = rdflib.URIRef("http://example.org/subject")
-        obj = rdflib.URIRef("http://example.org/object")
-        label = rdflib.URIRef("speed.speed.outputs.speed")
         self.assertIn(
             (None, onto.QUDT.hasUnit, QUDT["M-PER-SEC"]),
             graph,
             msg=graph.serialize(format="turtle"),
         )
-        ex_triple = (
-            None,
-            EX.somehowRelatedTo,
-            rdflib.URIRef("speed.speed.inputs.time"),
+
+        related_to_time = list(graph.subject_objects(predicate=EX.somehowRelatedTo))
+        self.assertEqual(
+            len(related_to_time),
+            2,
+            msg="Sanity check: the child node (by definition) and the workflow "
+            "(by inheritance) should hold the annotation that they are "
+            "`somehowRelatedTo` the input field.",
         )
-        self.assertIn(
-            ex_triple,
-            graph,
-            msg=f"Triple {ex_triple} not found {graph.serialize(format='turtle')}",
+
+        inner_lexical_output_path = "-".join(
+            [wf.label, wf.speed.label, "outputs", wf.speed.outputs.speed.label]
         )
-        self.assertIn((subj, EX.predicate, obj), graph)
-        self.assertIn((subj, EX.predicate, label), graph)
-        self.assertIn((label, EX.predicate, obj), graph)
+        terminal_lexical_output_path = "-".join(
+            [wf.label, "outputs", next(iter(wf.outputs)).label]
+        )
+        lexical_paths = [inner_lexical_output_path, terminal_lexical_output_path]
+        # As far as I can tell, the order we find these is deterministic, but that is
+        # not the point of this test
+        for path in lexical_paths:
+            in_first = path in str(related_to_time[0])
+            in_second = path in str(related_to_time[1])
+            self.assertEqual(
+                in_first + in_second,
+                1,  # It should be in exactly one!
+                msg="The output port is defined in the annotation triples as being "
+                "'somehowRelatedTo' the time input, so we should be able to find that "
+                "such a term twice: once for the child node output (by definition) and "
+                "once in the terminal workflow output (by inheritance). "
+                "But if you're reading this message in your output, you apparently "
+                f"didn't find our paths {lexical_paths!r} in the URIRefs that we "
+                f"grabbed {related_to_time!r}",
+            )
+
+        for related in related_to_time:
+            speed_output = related[0]
+            subj = uri_subject.get_instance()
+            obj = uri_object.get_instance()
+            self.assertIn((subj, EX.predicate, obj), graph)
+            self.assertIn((subj, EX.predicate, speed_output), graph)
+            self.assertIn((speed_output, EX.predicate, obj), graph)
 
     def test_correct_analysis(self):
         wf = pwf.Workflow("correct_analysis_wf")
