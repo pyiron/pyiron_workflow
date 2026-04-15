@@ -628,7 +628,7 @@ def Time(t: semantikon.u(float, units="second")) -> semantikon.u(float, units="s
 @pwf.as_function_node
 def Canada(
     british_distance: semantikon.u(float, units="mile"),
-) -> semantikon.u(float, derived_from="inputs.driving"):
+) -> semantikon.u(float, derived_from="inputs.british_distance"):
     km_per_mile = 1.6
     canadian_distance = british_distance * km_per_mile
     return canadian_distance
@@ -899,29 +899,27 @@ class TestValidation(unittest.TestCase):
         wf = pwf.Workflow("we_drive_in_miles")
         wf.lets_use_metric = Canada()
         graph = parse_workflow(wf)
-        reference_stem = f"{wf.label}.{wf.lets_use_metric.label}"
-        british_units = graph.objects(
-            rdflib.term.URIRef(f"{reference_stem}.inputs.british_distance.value"),
-            onto.QUDT.hasUnit,
-        )
+        has_units = graph.subjects(onto.QUDT.hasUnit)
         self.assertEqual(
-            1,
-            len(list(british_units)),
-            msg="Sanity check that we are parsing correctly for the units",
+            2,
+            len(tuple(has_units)),
+            msg="Expect the workflow and child node inputs to be found unit'd",
         )
-        canadian_units = graph.objects(
-            rdflib.term.URIRef(f"{reference_stem}.outputs.canadian_distance.value"),
-            onto.QUDT.hasUnit,
-        )
-        self.assertListEqual(
-            [],
-            list(canadian_units),
-            msg="Of course actually Canada uses kilometers where the UK uses miles. "
-            "But the point here is that unlike other properties, units are _not_ "
-            "inherited. This is an intentional choice in semantikon "
-            "(https://github.com/pyiron/semantikon/issues/256), but if that changes we "
-            "need to update the documentation notebook here.",
-        )
+        for subj in has_units:
+            self.assertIn(
+                "british_distance",
+                str(subj),
+                msg="The input british variable had a unit assigned to it",
+            )
+            self.assertNotIn(
+                "canadian_distance",
+                str(subj),
+                msg="Of course actually Canada uses kilometers where the UK uses "
+                "miles. But the point here is that unlike other properties, units are "
+                " _not_ inherited. This is an intentional choice in semantikon "
+                "(https://github.com/pyiron/semantikon/issues/256), but if that "
+                "changes we need to update the documentation notebook here.",
+            )
 
     def test_is_involved(self):
         wf = pwf.Workflow("validate_involvement")
