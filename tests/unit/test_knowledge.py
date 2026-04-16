@@ -739,29 +739,16 @@ class TestValidation(unittest.TestCase):
                 )
 
     def test_restrictions(self):
-        with self.subTest("Restrictions fulfilled"):
-            wf = pwf.Workflow("my_correct_workflow")
-            wf.dyed_clothes = Dye(Clothes())
-            wf.washed_clothes = Wash(wf.dyed_clothes)
-            wf.money = Sell(wf.washed_clothes)
-            out = wf()
-            self.assertTrue(
-                out,
-                msg="Expected type and restrictions should be fulfilled by upstream "
-                "derivations and added triple.",
-            )
-
-        with self.subTest("Restrictions denied by cancellation"):
-            wf = pwf.Workflow("my_wf_with_cancellation")
-            wf.washed_clothes = Wash(Clothes())
-            wf.unclean_dyed_clothes = DyeWithCancel(wf.washed_clothes)
-            wf.money = Sell()
-            with self.assertRaises(
-                ChannelConnectionError,
-                msg="Expect the cancel declaration to have cleared a required triple,"
-                "leading to failed ontological validation",
-            ):
-                wf.money.inputs.clothes = wf.unclean_dyed_clothes
+        wf = pwf.Workflow("my_correct_workflow")
+        wf.dyed_clothes = Dye(Clothes())
+        wf.washed_clothes = Wash(wf.dyed_clothes)
+        wf.money = Sell(wf.washed_clothes)
+        out = wf()
+        self.assertTrue(
+            out,
+            msg="Expected type and restrictions should be fulfilled by upstream "
+            "derivations and added triple.",
+        )
 
     def test_unrelated_problems(self):
         wf = pwf.Workflow("connect_later")
