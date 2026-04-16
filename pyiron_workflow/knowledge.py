@@ -9,11 +9,11 @@ from semantikon import ontology as onto
 from pyiron_workflow.data import NOT_DATA, SemantikonRecipeChange
 from pyiron_workflow.nodes import function, transform
 from pyiron_workflow.nodes.composite import Composite
+from pyiron_workflow.workflow import Workflow
 
 if TYPE_CHECKING:
     from pyiron_workflow.channels import Channel
     from pyiron_workflow.node import Node
-    from pyiron_workflow.workflow import Workflow
 
 
 PyshaclValidationReport = tuple[bool, rdflib.ConjunctiveGraph | rdflib.Graph, str]
@@ -78,10 +78,15 @@ def _io_to_dict(
 ) -> dict:
     data: dict[str, dict] = {"inputs": {}, "outputs": {}}
     for io_ in ["inputs", "outputs"]:
-        for inp in getattr(node, io_):
-            data[io_][inp.label] = _extract_data(
-                inp, with_values=with_values, with_default=with_default
-            )
+        for label, inp in getattr(node, io_).items():
+            if isinstance(node, Workflow):
+                if with_values:
+                    value = getattr(node, io_)[label].value
+                    data[io_][label] = {} if value is NOT_DATA else {"value": value}
+            else:
+                data[io_][label] = _extract_data(
+                    inp, with_values=with_values, with_default=with_default
+                )
     return data
 
 

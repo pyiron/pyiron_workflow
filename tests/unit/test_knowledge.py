@@ -211,43 +211,27 @@ class TestParser(unittest.TestCase):
         related_to_time = list(graph.subject_objects(predicate=EX.somehowRelatedTo))
         self.assertEqual(
             len(related_to_time),
-            2,
-            msg="Sanity check: the child node (by definition) and the workflow "
-            "(by inheritance) should hold the annotation that they are "
-            "`somehowRelatedTo` the input field.",
+            1,
+            msg="Sanity check: the child node (by definition) should hold the "
+            "annotation that it is `somehowRelatedTo` the input field. The parent "
+            "dynamic workflow input does not inherit annotations.",
         )
 
-        inner_lexical_output_path = "-".join(
+        lexical_output_path = "-".join(
             [wf.label, wf.speed.label, "outputs", wf.speed.outputs.speed.label]
         )
-        terminal_lexical_output_path = "-".join(
-            [wf.label, "outputs", next(iter(wf.outputs)).label]
+        self.assertIn(
+            lexical_output_path,
+            str(related_to_time[0]),
+            msg=f"Couldn't find {lexical_output_path!r} in {related_to_time}",
         )
-        lexical_paths = [inner_lexical_output_path, terminal_lexical_output_path]
-        # As far as I can tell, the order we find these is deterministic, but that is
-        # not the point of this test
-        for path in lexical_paths:
-            in_first = path in str(related_to_time[0])
-            in_second = path in str(related_to_time[1])
-            self.assertEqual(
-                in_first + in_second,
-                1,  # It should be in exactly one!
-                msg="The output port is defined in the annotation triples as being "
-                "'somehowRelatedTo' the time input, so we should be able to find that "
-                "such a term twice: once for the child node output (by definition) and "
-                "once in the terminal workflow output (by inheritance). "
-                "But if you're reading this message in your output, you apparently "
-                f"didn't find our paths {lexical_paths!r} in the URIRefs that we "
-                f"grabbed {related_to_time!r}",
-            )
 
-        for related in related_to_time:
-            speed_output = related[0]
-            subj = uri_subject.get_instance()
-            obj = uri_object.get_instance()
-            self.assertIn((subj, EX.predicate, obj), graph)
-            self.assertIn((subj, EX.predicate, speed_output), graph)
-            self.assertIn((speed_output, EX.predicate, obj), graph)
+        speed_output = related_to_time[0][0]
+        subj = uri_subject.get_instance()
+        obj = uri_object.get_instance()
+        self.assertIn((subj, EX.predicate, speed_output), graph)
+        self.assertIn((subj, EX.predicate, obj), graph)
+        self.assertIn((speed_output, EX.predicate, obj), graph)
 
     def test_correct_analysis(self):
         wf = pwf.Workflow("correct_analysis_wf")
@@ -273,8 +257,8 @@ class TestParser(unittest.TestCase):
         wf.node = multiple_outputs()
         wf.node.run()
         data = export_to_dict(wf)
-        self.assertEqual(data["outputs"]["a"]["value"], 1)
-        self.assertEqual(data["outputs"]["b"]["value"], 2)
+        self.assertEqual(data["outputs"]["node__a"]["value"], 1)
+        self.assertEqual(data["outputs"]["node__b"]["value"], 2)
 
     def test_parse_workflow(self):
         wf = pwf.Workflow("correct_analysis")
@@ -295,7 +279,8 @@ class TestParser(unittest.TestCase):
             graph.subjects(predicate=EX.HasOperation, object=has_type_addition)
         )
         expected_annotated_lexical_paths = [
-            "correct_analysis-outputs-result",
+            # The dynamic workflow IO is created by reference and does not
+            # inherit annotations
             "correct_analysis-addition-outputs-result",
         ]
         stringified_terms = [str(term) for term in addition_annotated_terms]
@@ -325,11 +310,14 @@ class TestParser(unittest.TestCase):
         wf = pwf.Workflow("test")
         wf.addition = add(a=1.0, b=2.0)
         before_data = export_to_dict(wf)
-        self.assertFalse("value" in before_data["outputs"]["result"])
+        self.assertFalse("value" in before_data["outputs"]["addition__result"])
         before_graph = semantikon.get_knowledge_graph(before_data)
         wf.run()
         after_data = export_to_dict(wf)
-        self.assertAlmostEqual(after_data["outputs"]["result"]["value"], 3.0)
+        self.assertAlmostEqual(
+            after_data["outputs"]["addition__result"]["value"],
+            3.0,
+        )
         after_graph = semantikon.get_knowledge_graph(after_data)
         difference = after_graph - before_graph
         self.assertEqual(
@@ -363,8 +351,10 @@ class TestParser(unittest.TestCase):
             set(data.keys()), {"type", "edges", "inputs", "label", "nodes", "outputs"}
         )
         self.assertEqual(
-            data["inputs"]["b"],
-            {"default": 1.0, "value": 2.0, "dtype": float},
+            data["inputs"]["node__b"],
+            {"value": 2.0},
+            msg="Dynamic workflows generate IO by reference and should not inherit "
+            "annotations or defaults from this",
         )
 
     def test_nested_macro(self):
@@ -657,6 +647,12 @@ def UnconnectedMacro(self):
     return self.adds, self.transforms
 
 
+@pwf.as_macro_node
+def SimplerMacro(self):
+    self.needy = HasNeed()
+    return self.needy
+
+
 class TestValidation(unittest.TestCase):
     def test_connection_validity(self):
         with self.subTest("Fully hinted"):
@@ -901,9 +897,10 @@ class TestValidation(unittest.TestCase):
         graph = parse_workflow(wf)
         has_units = graph.subjects(onto.QUDT.hasUnit)
         self.assertEqual(
-            2,
+            1,
             len(tuple(has_units)),
-            msg="Expect the workflow and child node inputs to be found unit'd",
+            msg="Expect the child node input to be found unit'd (dynamic workflows "
+            "generate IO by reference and don't inherit annotations)",
         )
         for subj in has_units:
             self.assertIn(
