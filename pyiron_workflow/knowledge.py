@@ -83,6 +83,8 @@ def _io_to_dict(
                 if with_values:
                     value = getattr(node, io_)[label].value
                     data[io_][label] = {} if value is NOT_DATA else {"value": value}
+                else:
+                    data[io_][label] = {}
             else:
                 data[io_][label] = _extract_data(
                     inp, with_values=with_values, with_default=with_default
