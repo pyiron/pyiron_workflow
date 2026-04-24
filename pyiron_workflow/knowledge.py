@@ -257,7 +257,9 @@ def parse_workflow(
 
 
 def validate_workflow(
-    root, new_edge_change: SemantikonRecipeChange | None = None
+    root,
+    new_edge_change: SemantikonRecipeChange | None = None,
+    knowledge: rdflib.Graph | None = None,
 ) -> PyshaclValidationReport:
     """
     A shortcut for running `semantikon.validate_values` on a graph generated
@@ -270,6 +272,7 @@ def validate_workflow(
         root: The workflow or macro to validate.
         new_edge_change: A (semantikon-representation) node path to where the new edge
         should be added.
+        knowledge: Optional additional knoweldge to apply at validation time.
 
     Returns:
         dict: The validation report.
@@ -285,6 +288,9 @@ def validate_workflow(
 
     if hasattr(root, "knowledge") and isinstance(root.knowledge, rdflib.Graph):
         g += root.knowledge
+    if knowledge is not None:
+        g += knowledge
+
     return semantikon.validate_values(g)
 
 

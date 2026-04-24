@@ -739,6 +739,31 @@ class TestValidation(unittest.TestCase):
                     "for this purpose.",
                 )
 
+    def test_external_knowledge(self):
+        for node_class in [MismatchingInput, MismatchingOutput]:
+            with self.subTest(node_class=node_class.__name__):
+                node = node_class()
+
+                self.assertTrue(
+                    validate_workflow(node)[0],
+                    msg="It is a semantikon choice that mismatching parent-child URIs are "
+                    "evaluated with open world of reasoning, assuming the two URIs could "
+                    "be appropriately related.",
+                )
+
+                # Specify classiness and disjointness of parent and child URIs
+                external_knowledge = rdflib.Graph()
+                external_knowledge.add((EX.Input, onto.OWL.disjointWith, EX.NotInput))
+                external_knowledge.add((EX.Input, rdflib.RDF.type, onto.OWL.Class))
+                external_knowledge.add((EX.NotInput, rdflib.RDF.type, onto.OWL.Class))
+
+                self.assertFalse(
+                    validate_workflow(node, knowledge=external_knowledge)[0],
+                    msg="But if we have knowledge that the two URIs are disjoint, then "
+                    "we know at the recipe level that the parent _cannot_ fulfill the "
+                    "URI requirement of the child (for I-I; vice versa for O-O)",
+                )
+
     def test_restrictions(self):
         wf = pwf.Workflow("my_correct_workflow")
         wf.dyed_clothes = Dye(Clothes())
@@ -810,21 +835,8 @@ class TestValidation(unittest.TestCase):
         ):
             IncorrectMacro()
 
-        with self.subTest("Macro-subgraph communication"):
-            with self.subTest("Fully matching"):
-                self.assertTrue(MatchingWrapper(1).run())
-
-            with (
-                self.subTest("Bad parent input->child input flow"),
-                self.assertRaises(ChannelConnectionError),
-            ):
-                MismatchingInput()
-
-            with (
-                self.subTest("Bad child output->parent output flow"),
-                self.assertRaises(ChannelConnectionError),
-            ):
-                MismatchingOutput()
+        with self.subTest("Macro-subgraph communication fully matching"):
+            self.assertTrue(MatchingWrapper(1).run())
 
     def test_unparented(self):
         """
