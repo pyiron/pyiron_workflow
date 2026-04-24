@@ -174,6 +174,18 @@ def _export_composite_to_dict(
                 )
     io_stuff = _io_to_dict(workflow, with_values=with_values, with_default=with_default)
     data.update(io_stuff)
+
+    if isinstance(workflow, Workflow):
+        subgraph_io_edges: list[tuple[str, str]] = []
+        for outer_label, port in workflow.inputs.items():
+            subgraph_io_edges.append(
+                (f"inputs.{outer_label}", _get_scoped_label(port, "inputs"))
+            )
+        for outer_label, port in workflow.outputs.items():
+            subgraph_io_edges.append(
+                (_get_scoped_label(port, "outputs"), f"outputs.{outer_label}")
+            )
+        data["edges"] = subgraph_io_edges
     return data
 
 
