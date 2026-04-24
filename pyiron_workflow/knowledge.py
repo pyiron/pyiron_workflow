@@ -119,13 +119,17 @@ def _export_node_to_dict(
 
 
 def _export_composite_to_dict(
-    workflow: Composite, with_values: bool = True, with_default: bool = True
+    workflow: Composite,
+    change: SemantikonRecipeChange | None = None,
+    with_values: bool = True,
+    with_default: bool = True,
 ) -> dict:
     """
     Export a composite to a dictionary.
 
     Args:
         workflow (Composite): The composite to export.
+        change (SemantikonRecipeChange | None): The change to apply to the composite.
         with_values (bool): Whether to include the values of the channels in the
             dictionary. (Default is True.)
 
@@ -175,25 +179,43 @@ def _export_composite_to_dict(
     io_stuff = _io_to_dict(workflow, with_values=with_values, with_default=with_default)
     data.update(io_stuff)
 
+    if change is not None:
+        location = data
+        path = list(change.location[1:])
+        while path:
+            location = location["nodes"][path.pop(0)]
+        location["edges"].append(change.new_edge)
+        if change.parent_input:
+            location["inputs"].pop(change.parent_input, None)
+        if change.parent_output:
+            location["outputs"].pop(change.parent_output, None)
+
     if isinstance(workflow, Workflow):
+        edges_so_far = data["edges"]
         subgraph_io_edges: list[tuple[str, str]] = []
-        for outer_label, port in workflow.inputs.items():
-            subgraph_io_edges.append(
-                (f"inputs.{outer_label}", _get_scoped_label(port, "inputs"))
-            )
-        for outer_label, port in workflow.outputs.items():
+        already_has_source = {edge[1] for edge in edges_so_far}
+        for outer_label in data["inputs"]:
+            port = workflow.inputs[outer_label]
+            target = _get_scoped_label(port, "inputs")
+            if target not in already_has_source:
+                subgraph_io_edges.append((f"inputs.{outer_label}", target))
+        for outer_label in data["outputs"]:
+            port = workflow.outputs[outer_label]
             subgraph_io_edges.append(
                 (_get_scoped_label(port, "outputs"), f"outputs.{outer_label}")
             )
-        data["edges"] = subgraph_io_edges
+        data["edges"].extend(subgraph_io_edges)
     return data
 
 
 def export_to_dict(
-    node: Node, with_values: bool = True, with_default: bool = True
+    node: Node,
+    change: SemantikonRecipeChange | None = None,
+    with_values: bool = True,
+    with_default: bool = True,
 ) -> dict:
     if isinstance(node, Composite):
-        return _export_composite_to_dict(node, with_values=with_values)
+        return _export_composite_to_dict(node, change=change, with_values=with_values)
     elif isinstance(node, KnownAtomicNodes):
         return _export_node_to_dict(
             node,
@@ -254,22 +276,13 @@ def validate_workflow(
     """
     recipe = export_to_dict(
         root,
+        change=new_edge_change,
         with_values=False,
         with_default=False,
     )
 
-    if new_edge_change is not None:
-        location = recipe
-        path = list(new_edge_change.location[1:])
-        while path:
-            location = location["nodes"][path.pop(0)]
-        location["edges"].append(new_edge_change.new_edge)
-        if new_edge_change.parent_input:
-            location["inputs"].pop(new_edge_change.parent_input, None)
-        if new_edge_change.parent_output:
-            location["outputs"].pop(new_edge_change.parent_output, None)
-
     g = semantikon.get_knowledge_graph(wf_dict=recipe)
+
     if hasattr(root, "knowledge") and isinstance(root.knowledge, rdflib.Graph):
         g += root.knowledge
     return semantikon.validate_values(g)
