@@ -410,36 +410,73 @@ class TestDataclass(unittest.TestCase):
         wf.run()
         data = export_to_dict(wf)
         graph = semantikon.get_knowledge_graph(data)
-        i_txt = "my_wf.node.inputs.inp"
-        o_txt = "my_wf.node.outputs.out"
-        triples = (
-            (
-                rdflib.URIRef(f"{i_txt}.n.value"),
-                rdflib.RDFS.subClassOf,
-                rdflib.URIRef(f"{i_txt}.value"),
-            ),
-            (),
-            (rdflib.URIRef(f"{i_txt}.n.value"), rdflib.RDF.value, rdflib.Literal(100)),
-            (
-                rdflib.URIRef(f"{i_txt}.parameters.a.value"),
-                rdflib.RDF.value,
-                rdflib.Literal(1),
-            ),
-            (
-                rdflib.URIRef(o_txt),
-                onto.SNS.has_value,
-                rdflib.URIRef(f"{o_txt}.E.value"),
-            ),
-        )
-        s = graph.serialize(format="turtle")
-        for ii, triple in enumerate(triples):
-            with self.subTest(i=ii):
-                self.assertEqual(
-                    len(list(graph.triples(triple))),
-                    1,
-                    msg=f"{triple} not found in {s}",
+        dc_graph = semantikon.get_knowledge_graph(data, extract_dataclasses=True)
+
+        with self.subTest("Dataclass unpacking"):
+            self.assertEqual(
+                [],
+                list(
+                    graph.subjects(
+                        predicate=onto.SNS.has_value, object=rdflib.Literal(100)
+                    )
+                ),
+                msg="Without extracting dataclasses, the 100 value is buried inside "
+                "the composite dataclass object",
+            )
+            value_subject = list(
+                dc_graph.subjects(
+                    predicate=onto.SNS.has_value, object=rdflib.Literal(100)
                 )
-        self.assertIsNone(graph.value(rdflib.URIRef(f"{i_txt}.not_dataclass.b.value")))
+            )
+            self.assertEqual(
+                len(value_subject),
+                1,
+                msg="We should have exactly one value",
+            )
+            self.assertIn(
+                f"{wf.label}-inputs-{wf.node.inputs.inp.scoped_label}-n",
+                str(value_subject[0]),
+                msg="The value should be annotated with a lexical path to the "
+                "dataclass field name",
+            )
+
+        with self.subTest("Deep access"):
+            value_subject = list(
+                dc_graph.subjects(
+                    predicate=semantikon.ontology.SNS.has_value,
+                    object=rdflib.Literal(1),
+                )
+            )
+            self.assertEqual(
+                len(value_subject),
+                1,
+                msg="We should have exactly one value",
+            )
+            self.assertIn(
+                f"{wf.label}-inputs-{wf.node.inputs.inp.scoped_label}-parameters-a",
+                str(value_subject[0]),
+                msg="Unpacking the dataclass should proceed arbitrarily deep",
+            )
+
+        with self.subTest("Output unpacking"):
+            result = wf.outputs.node__out.value.L
+            value_subject = list(
+                dc_graph.subjects(
+                    predicate=semantikon.ontology.SNS.has_value,
+                    object=rdflib.Literal(result),
+                )
+            )
+            self.assertEqual(
+                len(value_subject),
+                1,
+                msg="We should have exactly one value",
+            )
+            self.assertIn(
+                f"{wf.label}-{wf.node.label}-outputs-{wf.node.outputs.out.label}-L",
+                str(value_subject[0]),
+                msg="Outputs should also be deeply recoverable from the graph under "
+                "unpacking",
+            )
 
 
 class Meal: ...
