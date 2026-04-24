@@ -7,7 +7,7 @@ import semantikon
 from semantikon import ontology as onto
 
 from pyiron_workflow.data import NOT_DATA, SemantikonRecipeChange
-from pyiron_workflow.nodes import function, transform
+from pyiron_workflow.nodes import function, macro, transform
 from pyiron_workflow.nodes.composite import Composite
 from pyiron_workflow.workflow import Workflow
 
@@ -94,6 +94,8 @@ def _io_to_dict(
 
 KnownAtomicNodes: TypeAlias = function.Function | transform.Transformer
 
+KnownCompositeNodes: TypeAlias = Workflow | macro.Macro
+
 
 def _export_node_to_dict(
     node: KnownAtomicNodes,
@@ -154,12 +156,14 @@ def _export_composite_to_dict(
             )
     for node in workflow:
         label = node.label
-        if isinstance(node, Composite):
+        if isinstance(node, KnownCompositeNodes):
             data["nodes"][label] = _export_composite_to_dict(
                 node, with_values=with_values
             )
-        else:
+        elif isinstance(node, KnownAtomicNodes):
             data["nodes"][label] = _export_node_to_dict(node, with_values=with_values)
+        else:
+            raise TypeError(f"Unsupported node type: {type(node)}")
         for inp in node.inputs:
             if _is_internal_connection(inp, workflow, "outputs"):
                 data["edges"].append(
@@ -214,7 +218,7 @@ def export_to_dict(
     with_values: bool = True,
     with_default: bool = True,
 ) -> dict:
-    if isinstance(node, Composite):
+    if isinstance(node, KnownCompositeNodes):
         return _export_composite_to_dict(node, change=change, with_values=with_values)
     elif isinstance(node, KnownAtomicNodes):
         return _export_node_to_dict(

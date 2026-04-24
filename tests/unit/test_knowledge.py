@@ -165,11 +165,24 @@ class TestParser(unittest.TestCase):
             self.assertIn(label, output_dict)
 
     def test_export_to_dict_failures(self):
-        with self.assertRaises(TypeError):
+        with self.assertRaisesRegex(
+            TypeError,
+            "Unsupported node type:",
+            msg="Fail cleanly on trivially unsupported node types",
+        ):
             export_to_dict(
                 "not a node of known type",
-                msg="Fail cleanly on unsupported node types",
             )
+
+        with self.assertRaisesRegex(
+            TypeError,
+            "Unsupported node type:",
+            msg="Fail cleanly on types known to pwf but not yet supported in "
+            "semantikon with an ontological framework",
+        ):
+            wf = pwf.Workflow("with_for_loop")
+            wf.control_flow = pwf.for_node(calculate_speed, iter_on="distance")
+            export_to_dict(wf)
 
     def test_units_with_sparql(self):
         wf = pwf.Workflow("speed_wf")
