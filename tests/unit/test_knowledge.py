@@ -321,9 +321,10 @@ class TestParser(unittest.TestCase):
         after_graph = semantikon.get_knowledge_graph(after_data)
         difference = after_graph - before_graph
         self.assertEqual(
-            2,
+            1,
             len(difference),
-            msg="We should now have nodes for the workflow and child node output values",
+            msg="Parent and child ports describe the same data object for subgraph IO "
+            "negotiation.",
         )
         diff_objects = list(
             difference.subjects(
@@ -337,7 +338,7 @@ class TestParser(unittest.TestCase):
             )
         )
         self.assertEqual(
-            2,
+            1,
             len(diff_objects),
             msg="And a sanity check that they're actually the right value in the graph",
         )
