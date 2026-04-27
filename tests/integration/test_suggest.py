@@ -30,7 +30,12 @@ class Storage:
 @pwf.as_function_node
 def AddNuts(
     gets_nuts: u(Storage, uri=EX.Shelf),
-) -> u(Storage, derived_from="inputs.gets_nuts", triples=(EX.hasComponents, EX.nut)):
+) -> u(
+    Storage,
+    uri=EX.Shelf,
+    derived_from="inputs.gets_nuts",
+    triples=(EX.hasComponents, EX.nut),
+):
     has_nuts = gets_nuts
     return has_nuts
 
@@ -39,7 +44,10 @@ def AddNuts(
 def AddWashers(
     gets_washer: u(Storage, uri=EX.Shelf),
 ) -> u(
-    Storage, derived_from="inputs.gets_washer", triples=(EX.hasComponents, EX.washer)
+    Storage,
+    uri=EX.Shelf,
+    derived_from="inputs.gets_washer",
+    triples=(EX.hasComponents, EX.washer),
 ):
     # Like a washer, the purpose here is to go between the nuts and bolts
     # In our case, to make sure we catch and avoid circular connection suggestions
@@ -50,7 +58,12 @@ def AddWashers(
 @pwf.as_function_node
 def AddBolts(
     gets_bolts: u(Storage, uri=EX.Shelf),
-) -> u(Storage, derived_from="inputs.gets_bolts", triples=(EX.hasComponents, EX.bolt)):
+) -> u(
+    Storage,
+    uri=EX.Shelf,
+    derived_from="inputs.gets_bolts",
+    triples=(EX.hasComponents, EX.bolt),
+):
     has_bolts = gets_bolts
     return has_bolts
 
@@ -75,7 +88,12 @@ def AssembleShelf(
             ),
         ),
     ),
-) -> u(Storage, derived_from="inputs.to_assemble", triples=(EX.hasState, EX.assembled)):
+) -> u(
+    Storage,
+    uri=EX.Shelf,
+    derived_from="inputs.to_assemble",
+    triples=(EX.hasState, EX.assembled),
+):
     assembled = to_assemble
     return assembled
 
@@ -91,7 +109,12 @@ def PlaceBooks(
         ),
     ),
     *books: str,
-) -> u(Storage, derived_from="inputs.bookshelf", triples=(EX.hasContents, EX.book)):
+) -> u(
+    Storage,
+    uri=EX.Shelf,
+    derived_from="inputs.bookshelf",
+    triples=(EX.hasContents, EX.book),
+):
     bookshelf.contents = books
     return bookshelf
 
@@ -109,7 +132,7 @@ def NoHints(shelf):
 @pwf.as_function_node
 def WrongHint(
     fridge: u(Storage, uri=EX.Fridge),
-) -> u(Storage, derived_from="inputs.fridge"):
+) -> u(Storage, uri=EX.Fridge, derived_from="inputs.fridge"):
     return fridge
 
 
