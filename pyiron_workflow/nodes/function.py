@@ -450,12 +450,13 @@ def to_function_node(
     Useful when the function does not exist in a context where you are free to
     decorate it, e.g.
 
-    >>> import numpy as np
+    >>> import inspect
+    >>>
     >>> from pyiron_workflow.nodes.function import to_function_node
     >>>
-    >>> Trapz = to_function_node("Trapz", np.trapz, "trapz")
-    >>> Trapz.preview_io()
-    {'inputs': {'y': (None, NOT_DATA), 'x': (None, None), 'dx': (None, 1.0), 'axis': (None, -1)}, 'outputs': {'trapz': None}}
+    >>> SigNode = to_function_node("Signature", inspect.signature, "sig")
+    >>> SigNode.preview_io()
+    {'inputs': {'obj': (None, NOT_DATA), 'follow_wrapped': (None, True), 'globals': (None, None), 'locals': (None, None), 'eval_str': (None, False)}, 'outputs': {'sig': None}}
 
     We still have two requirements on functions converted in this way:
     - The function must be inspectable
