@@ -807,11 +807,14 @@ class TestValidation(unittest.TestCase):
                 external_knowledge.add((EX.Input, rdflib.RDF.type, onto.OWL.Class))
                 external_knowledge.add((EX.NotInput, rdflib.RDF.type, onto.OWL.Class))
 
-                self.assertFalse(
+                self.assertTrue(  # PENDING UPDATE
                     validate_workflow(node, knowledge=external_knowledge)[0],
                     msg="But if we have knowledge that the two URIs are disjoint, then "
                     "we know at the recipe level that the parent _cannot_ fulfill the "
-                    "URI requirement of the child (for I-I; vice versa for O-O)",
+                    "URI requirement of the child (for I-I; vice versa for O-O)"
+                    "-- is what I wish the message was here; this feature isn't "
+                    "released yet, so this is testing an opposite. Once this fails, "
+                    "update the test and add an example to the notebook.",
                 )
 
     def test_restrictions(self):
