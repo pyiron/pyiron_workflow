@@ -40,6 +40,7 @@ dependencies = [
     "executorlib==1.9.2",
     "flowrep==0.4.1",
     "graphviz==0.21",
+    "networkx==3.6.1",
     "pandas==3.0.1",
     "pint==0.25",
     "pyiron_snippets==1.2.1",
