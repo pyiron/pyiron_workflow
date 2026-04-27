@@ -34,19 +34,20 @@ classifiers = [
     "Programming Language :: Python :: 3.13",
 ]
 dependencies = [
-    "bagofholding==0.1.11",
+    "bagofholding==0.1.9",
     "bidict==0.23.1",
     "cloudpickle==3.1.2",
     "executorlib==1.9.2",
     "flowrep==0.4.1",
     "graphviz==0.21",
+    "networkx==3.6.1",
     "pandas==3.0.1",
-    "pint==0.25",
+    "pint==0.25.3",
     "pyiron_snippets==1.2.1",
     "rdflib==7.1.4",
-    "semantikon==0.0.22",
+    "semantikon==1.0.0",
     "toposort==1.10",
-    "typeguard==4.4.4",
+    "typeguard==4.5.1",
 ]
 dynamic = [ "version",]
 authors = [

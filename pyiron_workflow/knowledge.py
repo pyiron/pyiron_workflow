@@ -1,18 +1,29 @@
 from __future__ import annotations
 
-from typing import TYPE_CHECKING, Any, TypeAlias
+from typing import TYPE_CHECKING, Annotated, Any, TypeAlias, get_args, get_origin
 
 import rdflib
+import semantikon
 from semantikon import ontology as onto
 
 from pyiron_workflow.data import NOT_DATA, SemantikonRecipeChange
-from pyiron_workflow.nodes import for_loop, function, transform, while_loop
+from pyiron_workflow.nodes import function, macro, transform
 from pyiron_workflow.nodes.composite import Composite
+from pyiron_workflow.workflow import Workflow
 
 if TYPE_CHECKING:
     from pyiron_workflow.channels import Channel
     from pyiron_workflow.node import Node
-    from pyiron_workflow.workflow import Workflow
+
+
+PyshaclValidationReport = tuple[bool, rdflib.ConjunctiveGraph | rdflib.Graph, str]
+
+
+LEXICAL_DELIMITER = "-"
+
+
+def _is_annotated(hint: object) -> bool:
+    return get_origin(hint) is Annotated
 
 
 def _extract_data(item: Channel, with_values=True, with_default=True) -> dict:
@@ -24,7 +35,20 @@ def _extract_data(item: Channel, with_values=True, with_default=True) -> dict:
         data_dict.pop("default")
     for key, value in data_dict.items():
         if getattr(item, key) is not value:
-            data[key] = getattr(item, key)
+            if key == "type_hint":
+                hint = getattr(item, key)
+                if _is_annotated(hint):
+                    type_, semantikon_metadata, *_ = get_args(hint)
+                    it = iter(semantikon_metadata)
+                    metadata_dict = dict(
+                        zip(it, it, strict=True)
+                    )  # {odd: even} pairings
+                    data.update(metadata_dict)
+                else:
+                    type_ = hint
+                data["dtype"] = type_
+            else:
+                data[key] = getattr(item, key)
     return data
 
 
@@ -54,21 +78,23 @@ def _io_to_dict(
 ) -> dict:
     data: dict[str, dict] = {"inputs": {}, "outputs": {}}
     for io_ in ["inputs", "outputs"]:
-        for inp in getattr(node, io_):
-            if isinstance(node, Composite):
-                data[io_][inp.scoped_label] = _extract_data(
-                    inp, with_values=with_values, with_default=with_default
-                )
+        for label, inp in getattr(node, io_).items():
+            if isinstance(node, Workflow):
+                if with_values:
+                    value = getattr(node, io_)[label].value
+                    data[io_][label] = {} if value is NOT_DATA else {"value": value}
+                else:
+                    data[io_][label] = {}
             else:
-                data[io_][inp.label] = _extract_data(
+                data[io_][label] = _extract_data(
                     inp, with_values=with_values, with_default=with_default
                 )
     return data
 
 
-KnownAtomicNodes: TypeAlias = (
-    for_loop.For | function.Function | transform.Transformer | while_loop.While
-)
+KnownAtomicNodes: TypeAlias = function.Function | transform.Transformer
+
+KnownCompositeNodes: TypeAlias = Workflow | macro.Macro
 
 
 def _export_node_to_dict(
@@ -87,7 +113,7 @@ def _export_node_to_dict(
     Returns:
         dict: The exported node as a dictionary.
     """
-    data: dict[str, Any] = {"inputs": {}, "outputs": {}}
+    data: dict[str, Any] = {"type": "atomic", "inputs": {}, "outputs": {}}
     if isinstance(node, function.Function):
         data["function"] = node.node_function
     data.update(_io_to_dict(node, with_values=with_values, with_default=with_default))
@@ -95,13 +121,17 @@ def _export_node_to_dict(
 
 
 def _export_composite_to_dict(
-    workflow: Composite, with_values: bool = True, with_default: bool = True
+    workflow: Composite,
+    change: SemantikonRecipeChange | None = None,
+    with_values: bool = True,
+    with_default: bool = True,
 ) -> dict:
     """
     Export a composite to a dictionary.
 
     Args:
         workflow (Composite): The composite to export.
+        change (SemantikonRecipeChange | None): The change to apply to the composite.
         with_values (bool): Whether to include the values of the channels in the
             dictionary. (Default is True.)
 
@@ -109,6 +139,7 @@ def _export_composite_to_dict(
         dict: The exported composite as a dictionary.
     """
     data: dict[str, Any] = {
+        "type": "workflow",
         "inputs": {},
         "outputs": {},
         "nodes": {},
@@ -119,18 +150,20 @@ def _export_composite_to_dict(
         if inp.value_receiver is not None and inp.value_receiver.owner in workflow:
             data["edges"].append(
                 (
-                    f"inputs.{inp.scoped_label}",
+                    f"inputs.{inp.label}",
                     _get_scoped_label(inp.value_receiver, "inputs"),
                 )
             )
     for node in workflow:
         label = node.label
-        if isinstance(node, Composite):
+        if isinstance(node, KnownCompositeNodes):
             data["nodes"][label] = _export_composite_to_dict(
                 node, with_values=with_values
             )
-        else:
+        elif isinstance(node, KnownAtomicNodes):
             data["nodes"][label] = _export_node_to_dict(node, with_values=with_values)
+        else:
+            raise TypeError(f"Unsupported node type: {type(node)}")
         for inp in node.inputs:
             if _is_internal_connection(inp, workflow, "outputs"):
                 data["edges"].append(
@@ -144,20 +177,49 @@ def _export_composite_to_dict(
                 data["edges"].append(
                     (
                         _get_scoped_label(out, "outputs"),
-                        f"outputs.{out.value_receiver.scoped_label}",
+                        f"outputs.{out.value_receiver.label}",
                     )
                 )
-    data.update(
-        _io_to_dict(workflow, with_values=with_values, with_default=with_default)
-    )
+    io_stuff = _io_to_dict(workflow, with_values=with_values, with_default=with_default)
+    data.update(io_stuff)
+
+    if change is not None:
+        location = data
+        path = list(change.location[1:])
+        while path:
+            location = location["nodes"][path.pop(0)]
+        location["edges"].append(change.new_edge)
+        if change.parent_input:
+            location["inputs"].pop(change.parent_input, None)
+        if change.parent_output:
+            location["outputs"].pop(change.parent_output, None)
+
+    if isinstance(workflow, Workflow):
+        edges_so_far = data["edges"]
+        subgraph_io_edges: list[tuple[str, str]] = []
+        already_has_source = {edge[1] for edge in edges_so_far}
+        for outer_label in data["inputs"]:
+            port = workflow.inputs[outer_label]
+            target = _get_scoped_label(port, "inputs")
+            if target not in already_has_source:
+                subgraph_io_edges.append((f"inputs.{outer_label}", target))
+        for outer_label in data["outputs"]:
+            port = workflow.outputs[outer_label]
+            subgraph_io_edges.append(
+                (_get_scoped_label(port, "outputs"), f"outputs.{outer_label}")
+            )
+        data["edges"].extend(subgraph_io_edges)
     return data
 
 
 def export_to_dict(
-    node: Node, with_values: bool = True, with_default: bool = True
+    node: Node,
+    change: SemantikonRecipeChange | None = None,
+    with_values: bool = True,
+    with_default: bool = True,
 ) -> dict:
-    if isinstance(node, Composite):
-        return _export_composite_to_dict(node, with_values=with_values)
+    if isinstance(node, KnownCompositeNodes):
+        return _export_composite_to_dict(node, change=change, with_values=with_values)
     elif isinstance(node, KnownAtomicNodes):
         return _export_node_to_dict(
             node,
@@ -185,10 +247,6 @@ def parse_workflow(
         with_values (bool): include channel values in the graph
         with_default (bool): include default values in the graph
         graph (rdflib.Graph): graph to add workflow information to
-        inherit_properties (bool): inherit properties from the ontology
-        ontology (str): ontology to use
-        append_missing_items (bool): append missing items for restrictions to
-            the ontology
 
     Returns:
         (rdflib.Graph): graph containing workflow information
@@ -196,18 +254,19 @@ def parse_workflow(
     wf_dict = export_to_dict(
         workflow, with_values=with_values, with_default=with_default
     )
-    return onto.get_knowledge_graph(
-        wf_dict=wf_dict,
-        graph=graph,
-        inherit_properties=inherit_properties,
-        ontology=ontology,
-        append_missing_items=append_missing_items,
-    )
+    g = semantikon.get_knowledge_graph(wf_dict=wf_dict)
+    if graph is not None:
+        g += graph
+    return g
 
 
-def validate_workflow(root, new_edge_change: SemantikonRecipeChange | None = None):
+def validate_workflow(
+    root,
+    new_edge_change: SemantikonRecipeChange | None = None,
+    knowledge: rdflib.Graph | None = None,
+) -> PyshaclValidationReport:
     """
-    A shortcut for running `semantikon.ontology.validate_values` on a graph generated
+    A shortcut for running `semantikon.validate_values` on a graph generated
     by a `pyiron_workflow` node (the graph root node).
 
     Takes care of converting the workflow to a compatible representation, and allows
@@ -217,87 +276,66 @@ def validate_workflow(root, new_edge_change: SemantikonRecipeChange | None = Non
         root: The workflow or macro to validate.
         new_edge_change: A (semantikon-representation) node path to where the new edge
         should be added.
+        knowledge: Optional additional knoweldge to apply at validation time.
 
     Returns:
         dict: The validation report.
     """
     recipe = export_to_dict(
         root,
+        change=new_edge_change,
         with_values=False,
         with_default=False,
     )
 
-    if new_edge_change is not None:
-        location = recipe
-        path = list(new_edge_change.location[1:])
-        while path:
-            location = location["nodes"][path.pop(0)]
-        location["edges"].append(new_edge_change.new_edge)
-        if new_edge_change.parent_input:
-            location["inputs"].pop(new_edge_change.parent_input, None)
-        if new_edge_change.parent_output:
-            location["outputs"].pop(new_edge_change.parent_output, None)
+    g = semantikon.get_knowledge_graph(wf_dict=recipe)
 
-    g = onto.get_knowledge_graph(
-        wf_dict=recipe,
-        graph=(
-            root.knowledge
-            if hasattr(root, "knowledge") and isinstance(root.knowledge, rdflib.Graph)
-            else None
-        ),
-    )
-    return onto.validate_values(g)
+    if hasattr(root, "knowledge") and isinstance(root.knowledge, rdflib.Graph):
+        g += root.knowledge
+    if knowledge is not None:
+        g += knowledge
+
+    return semantikon.validate_values(g)
 
 
-def is_valid(validation: dict[str, Any]) -> bool:
-    return (
-        len(validation["missing_triples"]) == 0
-        and len(validation["incompatible_connections"]) == 0
-        and len(validation["distinct_units"]) == 0
-    )
+def is_valid(validation: PyshaclValidationReport) -> bool:
+    return validation[0]
 
 
-def is_involved(validation, new_edge_change: SemantikonRecipeChange) -> bool:
+def is_involved(
+    validation: PyshaclValidationReport, new_edge_change: SemantikonRecipeChange
+) -> bool:
     # We only care if the receiving end of the new edge appears in the validation
     # report.
     # This is still not sufficient, because of limitations in how semantikon treats
     # restrictions: https://github.com/pyiron/semantikon/issues/262
     downstream_term = rdflib.term.URIRef(
-        f"{'.'.join(new_edge_change.location)}.{new_edge_change.new_edge[1]}"
+        f"{'.'.join(new_edge_change.location)}.{new_edge_change.new_edge[1]}".replace(
+            ".", LEXICAL_DELIMITER
+        )
     )
     # Also for units the validity report makes reference to the upstream term...
     upstream_term = rdflib.term.URIRef(
-        f"{'.'.join(new_edge_change.location)}.{new_edge_change.new_edge[0]}"
+        f"{'.'.join(new_edge_change.location)}.{new_edge_change.new_edge[0]}".replace(
+            ".", LEXICAL_DELIMITER
+        )
     )
-    return term_appears_in_validation(
-        downstream_term, validation
-    ) or _target_in_distinct_units(upstream_term, validation)
-
-
-def term_appears_in_validation(
-    term: rdflib.term.Node, validation: dict[str, Any]
-) -> bool:
     return (
-        _target_in_missing_triples(term, validation)
-        or _target_in_incompatible_connections(term, validation)
-        or _target_in_distinct_units(term, validation)
+        _ref_appears_in_validation_report(upstream_term, validation)
+        or _ref_appears_in_validation_report(downstream_term, validation)
+        # or _target_in_distinct_units(upstream_term, validation)
     )
 
 
-def _target_in_missing_triples(target, validation):
-    for triple in validation["missing_triples"]:
-        if any(target == t for t in triple):
-            return True
-    return False
+def _ref_appears_in_validation_report(
+    ref: rdflib.term.URIRef, validation: PyshaclValidationReport
+):
+    validation_message = validation[2]
+    term_equivalent = str(ref) + "_data"
+    return term_equivalent in validation_message
 
 
-def _target_in_incompatible_connections(target, validation):
-    for connection_report in validation["incompatible_connections"]:
-        if any(target == t for t in connection_report[:2]):
-            return True
-    return False
-
-
-def _target_in_distinct_units(target, validation):
+def _target_in_distinct_units(target, validation: PyshaclValidationReport):
+    raise NotImplementedError()
     unit_target = rdflib.term.URIRef(f"{target}.value")
     return any(unit_target == t for t in validation["distinct_units"])

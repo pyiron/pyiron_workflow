@@ -12,6 +12,7 @@ import inspect
 import typing
 from abc import ABC, abstractmethod
 
+import networkx as nx
 from semantikon import metadata as meta
 
 from pyiron_workflow.data import NOT_DATA, SemantikonRecipeChange
@@ -582,10 +583,21 @@ class DataChannel(FlavorChannel["DataChannel"], typing.Generic[ReceiverType], AB
                 parent_input=inp.scoped_label,
                 parent_output=out.scoped_label,
             )
-            validation = knowledge.validate_workflow(root, recipe_change)
-            is_valid = knowledge.is_valid(validation) or not knowledge.is_involved(
-                validation, recipe_change
-            )
+            try:
+                validation = knowledge.validate_workflow(root, recipe_change)
+            except RuntimeError as e:
+                if _is_nx_unfeasible(e):
+                    # Semantikon obfuscates the nx error behind a RuntimeError such that
+                    # validation on bad graphs can just fail hard.
+                    # We want to catch this particular case of invalidation and cleanly
+                    # report the invalidity.
+                    is_valid = False
+                else:
+                    raise e
+            else:
+                is_valid = knowledge.is_valid(validation) or not knowledge.is_involved(
+                    validation, recipe_change
+                )
             if not is_valid and exception_on_invalid:
                 raise ChannelConnectionError(
                     f"The upstream channel {out.full_label} cannot connect to the "
@@ -662,7 +674,8 @@ class InputData(DataChannel["InputData"], InputChannel["OutputData"]):
             f"inputs.{self.label}",
             f"{new_partner.owner.label}.inputs.{new_partner.label}",
         )
-        return SemantikonRecipeChange(proximate_parent, new_edge)
+        recipe_change = SemantikonRecipeChange(proximate_parent, new_edge)
+        return recipe_change
 
     def _valid_connection(self, other: DataChannel[typing.Any]) -> bool:
         if len(self.connections) > 0:
@@ -719,10 +732,11 @@ class OutputData(DataChannel["OutputData"], OutputChannel["InputData"]):
             self.owner.lexical_delimiter
         )[1:-1]
         new_edge = (
-            f"{new_partner.owner.label}.outputs.{new_partner.label}",
-            f"outputs.{self.owner.label}__{self.label}",
+            f"{self.owner.label}.outputs.{self.label}",
+            f"outputs.{new_partner.label}",
         )
-        return SemantikonRecipeChange(proximate_parent, new_edge)
+        recipe_change = SemantikonRecipeChange(proximate_parent, new_edge)
+        return recipe_change
 
 
 SignalType = typing.TypeVar("SignalType", bound="SignalChannel")
@@ -891,3 +905,12 @@ class OutputSignal(SignalChannel["InputSignal"], OutputChannel["InputSignal"]):
 
     def _connect_accumulating_input_signal(self, signal: AccumulatingInputSignal):
         self.connect(signal)
+
+
+def _is_nx_unfeasible(e: BaseException) -> bool:
+    ex: BaseException | None = e
+    while ex:
+        if isinstance(ex, nx.exception.NetworkXUnfeasible):
+            return True
+        ex = ex.__context__ or ex.__cause__
+    return False
