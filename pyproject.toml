@@ -38,6 +38,7 @@ dependencies = [
     "bidict==0.23.1",
     "cloudpickle==3.1.2",
     "executorlib==1.9.2",
+    "flowrep==0.4.1",
     "graphviz==0.21",
     "pandas==3.0.1",
     "pint==0.25",
