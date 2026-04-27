@@ -42,12 +42,12 @@ dependencies = [
     "graphviz==0.21",
     "networkx==3.6.1",
     "pandas==3.0.1",
-    "pint==0.25",
+    "pint==0.25.3",
     "pyiron_snippets==1.2.1",
     "rdflib==7.1.4",
     "semantikon==1.0.0",
     "toposort==1.10",
-    "typeguard==4.4.4",
+    "typeguard==4.5.1",
 ]
 dynamic = [ "version",]
 authors = [
