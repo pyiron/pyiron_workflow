@@ -6,7 +6,7 @@ import unittest
 from typing import Literal
 
 import rdflib
-from semantikon.metadata import u
+from semantikon.metadata import SemantikonURI, u
 
 import pyiron_workflow as pwf
 from pyiron_workflow.channels import ChannelConnectionError
@@ -21,6 +21,12 @@ from pyiron_workflow.suggest import (
 
 EX = rdflib.Namespace("http://example.org/")
 
+uri_nut = SemantikonURI(EX.nut)
+uri_washer = SemantikonURI(EX.washer)
+uri_bolt = SemantikonURI(EX.bolt)
+uri_assembled = SemantikonURI(EX.assembled)
+uri_book = SemantikonURI(EX.book)
+
 
 class Storage:
     def __init__(self, contents=None):
@@ -34,7 +40,7 @@ def AddNuts(
     Storage,
     uri=EX.Shelf,
     derived_from="inputs.gets_nuts",
-    triples=(EX.hasComponents, EX.nut),
+    triples=(EX.hasComponents, uri_nut),
 ):
     has_nuts = gets_nuts
     return has_nuts
@@ -47,7 +53,7 @@ def AddWashers(
     Storage,
     uri=EX.Shelf,
     derived_from="inputs.gets_washer",
-    triples=(EX.hasComponents, EX.washer),
+    triples=(EX.hasComponents, uri_washer),
 ):
     # Like a washer, the purpose here is to go between the nuts and bolts
     # In our case, to make sure we catch and avoid circular connection suggestions
@@ -62,7 +68,7 @@ def AddBolts(
     Storage,
     uri=EX.Shelf,
     derived_from="inputs.gets_bolts",
-    triples=(EX.hasComponents, EX.bolt),
+    triples=(EX.hasComponents, uri_bolt),
 ):
     has_bolts = gets_bolts
     return has_bolts
@@ -92,7 +98,7 @@ def AssembleShelf(
     Storage,
     uri=EX.Shelf,
     derived_from="inputs.to_assemble",
-    triples=(EX.hasState, EX.assembled),
+    triples=(EX.hasState, uri_assembled),
 ):
     assembled = to_assemble
     return assembled
@@ -113,7 +119,7 @@ def PlaceBooks(
     Storage,
     uri=EX.Shelf,
     derived_from="inputs.bookshelf",
-    triples=(EX.hasContents, EX.book),
+    triples=(EX.hasContents, uri_book),
 ):
     bookshelf.contents = books
     return bookshelf
