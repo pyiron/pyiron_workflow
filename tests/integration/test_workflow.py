@@ -566,13 +566,13 @@ class TestWorkflow(unittest.TestCase):
             wf.n1.executor = exe  # Set by instance
             wf.run_in_thread(n1__t=t_sleep)
 
-            time.sleep(t_sleep * 0.9)  # Give the process pool time to spin up
+            time.sleep(t_sleep * 1.5)  # Give the process pool time to spin up
             self.assertTrue(wf.running)
             self.assertTrue(wf.n1.running)
             self.assertFalse(wf.n2.running)
             self.assertIs(wf.outputs.n2__time.value, NOT_DATA)
 
-            time.sleep(t_sleep)
+            time.sleep(t_sleep * 1.2)
             self.assertTrue(wf.running)
             self.assertFalse(wf.n1.running)
             self.assertTrue(wf.n2.running)

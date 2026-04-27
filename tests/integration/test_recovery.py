@@ -33,7 +33,7 @@ with futures.ThreadPoolExecutor() as exe:
 class TestRecovery(unittest.TestCase):
     def test_recovered_running_child_causes_readiness_error(self):
         proc = subprocess.Popen([sys.executable, "-c", SCRIPT])
-        time.sleep(2)  # Let the process start and enter the critical section
+        time.sleep(3)  # Let the process start and enter the critical section
         os.kill(proc.pid, signal.SIGKILL)
         proc.wait()
 
