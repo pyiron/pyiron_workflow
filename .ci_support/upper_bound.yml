@@ -1,4 +1,5 @@
 channels:
   - conda-forge
 dependencies:
+  - bagofholding =0.2.0
   - pyiron_snippets =2.0.0

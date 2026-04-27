@@ -3,7 +3,7 @@ channels:
 dependencies:
 - coveralls
 - coverage
-- bagofholding =0.1.11
+- bagofholding =0.1.9
 - bidict =0.23.1
 - cloudpickle =3.0.0
 - executorlib =1.5.3
