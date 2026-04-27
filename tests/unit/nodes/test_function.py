@@ -46,6 +46,10 @@ def multiple_branches(x):
         return False
 
 
+def has_variadics(x, *args, **kwargs):
+    return (x, args, kwargs)
+
+
 class TestFunction(unittest.TestCase):
     def test_instantiation(self):
         with self.subTest("Void function is allowable"):
@@ -435,7 +439,7 @@ class TestFunction(unittest.TestCase):
             ValueError,
             msg="Known limitation: Can't have a bad signature, in this case '*args'",
         ):
-            to_function_node("Sin", np.sin, "sinx")
+            to_function_node("HasVariadics", has_variadics, "x", "args", "kwargs")
 
         with self.assertRaises(
             ValueError,
