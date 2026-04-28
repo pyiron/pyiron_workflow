@@ -556,7 +556,7 @@ class TestWorkflow(unittest.TestCase):
         Should be able to run workflows in a background thread, even if child nodes
         have their own executors.
         """
-        t_sleep = 1
+        t_sleep = 3
         wf = Workflow("background")
         wf.n1 = Workflow.create.std.Sleep()
         wf.n2 = Workflow.create.std.Sleep(wf.n1)
@@ -566,13 +566,13 @@ class TestWorkflow(unittest.TestCase):
             wf.n1.executor = exe  # Set by instance
             wf.run_in_thread(n1__t=t_sleep)
 
-            time.sleep(t_sleep * 1.7)  # Give the process pool time to spin up
+            time.sleep(t_sleep)  # Give the process pool time to spin up
             self.assertTrue(wf.running)
             self.assertTrue(wf.n1.running)
             self.assertFalse(wf.n2.running)
             self.assertIs(wf.outputs.n2__time.value, NOT_DATA)
 
-            time.sleep(t_sleep * 1.2)
+            time.sleep(t_sleep)
             self.assertTrue(wf.running)
             self.assertFalse(wf.n1.running)
             self.assertTrue(wf.n2.running)
