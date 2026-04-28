@@ -41,7 +41,7 @@ dependencies = [
     "flowrep==0.4.1",
     "graphviz==0.21",
     "networkx==3.6.1",
-    "pandas==3.0.1",
+    "pandas==3.0.2",
     "pint==0.25.3",
     "pyiron_snippets==1.2.1",
     "rdflib==7.1.4",
