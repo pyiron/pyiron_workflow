@@ -2,8 +2,8 @@ import dataclasses
 import unittest
 
 import rdflib
+import semantikon
 from semantikon import ontology as onto
-from semantikon.metadata import u
 
 import pyiron_workflow as pwf
 from pyiron_workflow.channels import ChannelConnectionError
@@ -20,37 +20,45 @@ from pyiron_workflow.nodes.composite import FailedChildError
 EX = rdflib.Namespace("http://example.org/")
 QUDT = rdflib.Namespace("http://qudt.org/vocab/unit/")
 
+uri_object = semantikon.SemantikonURI(EX.Object)
+uri_subject = semantikon.SemantikonURI(EX.Subject)
+
 
 @pwf.as_function_node("speed")
 def calculate_speed(
-    distance: u(float, units="meter") = 10.0,
-    time: u(float, units="second") = 2.0,
-) -> u(
+    distance: semantikon.u(float, units="meter") = 10.0,
+    time: semantikon.u(float, units="second") = 2.0,
+) -> semantikon.u(
     float,
     units="meter/second",
     triples=(
         (EX.somehowRelatedTo, "inputs.time"),
-        (EX.subject, EX.predicate, EX.object),
-        (EX.subject, EX.predicate, None),
-        (None, EX.predicate, EX.object),
+        (uri_subject, EX.predicate, uri_object),
+        (uri_subject, EX.predicate, None),
+        (None, EX.predicate, uri_object),
     ),
 ):
     return distance / time
 
 
+uri_addition = semantikon.SemantikonURI(EX.Addition)
+uri_multiplication = semantikon.SemantikonURI(EX.Multiplication)
+uri_division = semantikon.SemantikonURI(EX.Division)
+
+
 @pwf.as_function_node("result")
-@u(uri=EX.Addition)
-def add(a: float, b: float) -> u(float, triples=(EX.HasOperation, EX.Addition)):
+@semantikon.meta(uri=EX.Addition)
+def add(
+    a: float, b: float
+) -> semantikon.u(float, triples=(EX.HasOperation, uri_addition)):
     return a + b
 
 
 @pwf.as_function_node("result")
-def multiply(a: float, b: float) -> u(
-    float,
-    triples=(
-        (EX.HasOperation, EX.Multiplication),
-        (onto.PROV.wasDerivedFrom, "inputs.a"),
-    ),
+def multiply(
+    a: float, b: float
+) -> semantikon.u(
+    float, triples=(EX.HasOperation, uri_multiplication), derived_from="inputs.a"
 ):
     return a * b
 
@@ -64,7 +72,7 @@ def operation(macro=None, a: float = 1.0, b: float = 1.0) -> float:
 
 @pwf.as_function_node("result")
 def correct_analysis(
-    a: u(
+    a: semantikon.u(
         float,
         restrictions=(
             (rdflib.OWL.onProperty, EX.HasOperation),
@@ -77,7 +85,7 @@ def correct_analysis(
 
 @pwf.as_function_node("result")
 def wrong_analysis(
-    a: u(
+    a: semantikon.u(
         float,
         restrictions=(
             (rdflib.OWL.onProperty, EX.HasOperation),
@@ -94,33 +102,49 @@ def multiple_outputs(a: int = 1, b: int = 2) -> tuple[int, int]:
 
 
 @pwf.as_function_node("z")
-def AddOnetology(x: u(int, uri=EX.Data)) -> u(int, uri=EX.Data):
+def AddOnetology(x: semantikon.u(int, uri=EX.Data)) -> semantikon.u(int, uri=EX.Data):
     y = x + 1
     return y
 
 
 @pwf.as_macro_node("zout")
-def AddTwoMacrontology(self, inp: u(int, uri=EX.Data)) -> u(int, uri=EX.Data):
+def AddTwoMacrontology(
+    self, inp: semantikon.u(int, uri=EX.Data)
+) -> semantikon.u(int, uri=EX.Data):
     self.a1 = AddOnetology(inp)
     self.a2 = AddOnetology(self.a1)
     return self.a2
 
 
+@pwf.as_macro_node("zzout")
+def AddThreeMacrontology(
+    self, inpp: semantikon.u(int, uri=EX.Data)
+) -> semantikon.u(int, uri=EX.Data):
+    self.b1 = AddTwoMacrontology(inpp)
+    self.b2 = AddOnetology(self.b1)
+    return self.b2
+
+
 @pwf.as_function_node
-def Up(x: u(str, uri=EX.TriggerOnto)) -> u(str, uri=EX.TriggerOnto):
+def Up(
+    x: semantikon.u(str, uri=EX.TriggerOnto),
+) -> semantikon.u(str, uri=EX.TriggerOnto):
     return x
+
+
+uri_thing = semantikon.SemantikonURI(EX.thing)
 
 
 @pwf.as_function_node
 def Middle(
-    y: u(str, uri=EX.TriggerOnto),
-) -> u(str, uri=EX.TriggerOnto, triples=(EX.hasThing, EX.thing)):
+    y: semantikon.u(str, uri=EX.TriggerOnto),
+) -> semantikon.u(str, uri=EX.TriggerOnto, triples=(EX.hasThing, uri_thing)):
     return y
 
 
 @pwf.as_function_node
 def Down(
-    z: u(
+    z: semantikon.u(
         str,
         uri=EX.TriggerOnto,
         restrictions=(
@@ -134,82 +158,115 @@ def Down(
 
 class TestParser(unittest.TestCase):
     def test_parser(self):
-        wf = pwf.Workflow("speed")
+        wf = pwf.Workflow("speed_wf")
         wf.c = calculate_speed()
         output_dict = export_to_dict(wf)
         for label in ["inputs", "outputs", "nodes", "edges", "label"]:
             self.assertIn(label, output_dict)
 
     def test_export_to_dict_failures(self):
-        with self.assertRaises(TypeError):
+        with self.assertRaisesRegex(
+            TypeError,
+            "Unsupported node type:",
+            msg="Fail cleanly on trivially unsupported node types",
+        ):
             export_to_dict(
                 "not a node of known type",
-                msg="Fail cleanly on unsupported node types",
             )
 
+        with self.assertRaisesRegex(
+            TypeError,
+            "Unsupported node type:",
+            msg="Fail cleanly on types known to pwf but not yet supported in "
+            "semantikon with an ontological framework",
+        ):
+            wf = pwf.Workflow("with_for_loop")
+            wf.control_flow = pwf.for_node(calculate_speed, iter_on="distance")
+            export_to_dict(wf)
+
     def test_units_with_sparql(self):
-        wf = pwf.Workflow("speed")
+        wf = pwf.Workflow("speed_wf")
         wf.speed = calculate_speed()
         wf.run()
         graph = parse_workflow(wf)
         query_txt = [
-            "PREFIX ex: <http://example.org/>",
-            "PREFIX rdf: <http://www.w3.org/1999/02/22-rdf-syntax-ns#>",
-            f"PREFIX pns: <{onto.SNS.BASE}>",
-            "SELECT DISTINCT ?speed ?units",
+            "PREFIX ro: <http://purl.obolibrary.org/obo/RO_>",
+            "PREFIX pmd: <https://w3id.org/pmd/co/PMD_>",
+            "PREFIX qudt: <http://qudt.org/schema/qudt/>",
+            "SELECT DISTINCT ?value ?unit",
             "WHERE {",
-            "    ?output pns:hasValue ?output_tag .",
-            "    ?output_tag rdf:value ?speed .",
-            "    ?output_tag pns:hasUnits ?units .",
+            f"    ?assignment <{onto.SNS.has_participant}> ?data .",
+            f"    ?data <{onto.SNS.has_value}> ?value .",
+            "    ?data qudt:hasUnit ?unit .",
             "}",
         ]
         query = "\n".join(query_txt)
         results = graph.query(query)
         self.assertEqual(len(results), 3)
         result_list = [row[0].value for row in graph.query(query)]
-        self.assertEqual(sorted(result_list), [2.0, 5.0, 10.0])
+        self.assertEqual(
+            sorted(result_list),
+            [2.0, 5.0, 10.0],
+            msg="Query expected to find all data values associated with a unit. (Input "
+            "distance, input time, and output speed. (d=10)/(t=2) = (s=5).)",
+        )
 
     def test_triples(self):
-        wf = pwf.Workflow("speed")
+        wf = pwf.Workflow("speed_wf")
         wf.speed = calculate_speed()
         graph = parse_workflow(wf)
-        subj = rdflib.URIRef("http://example.org/subject")
-        obj = rdflib.URIRef("http://example.org/object")
-        label = rdflib.URIRef("speed.speed.outputs.speed")
         self.assertIn(
-            (None, onto.SNS.hasUnits, QUDT["M-PER-SEC"]),
+            (None, onto.QUDT.hasUnit, QUDT["M-PER-SEC"]),
             graph,
             msg=graph.serialize(format="turtle"),
         )
-        ex_triple = (
-            None,
-            EX.somehowRelatedTo,
-            rdflib.URIRef("speed.speed.inputs.time"),
+
+        related_to_time = list(graph.subject_objects(predicate=EX.somehowRelatedTo))
+        self.assertEqual(
+            len(related_to_time),
+            1,
+            msg="Sanity check: the child node (by definition) should hold the "
+            "annotation that it is `somehowRelatedTo` the input field. The parent "
+            "dynamic workflow input does not inherit annotations.",
+        )
+
+        lexical_output_path = "-".join(
+            [wf.label, wf.speed.label, "outputs", wf.speed.outputs.speed.label]
         )
         self.assertIn(
-            ex_triple,
-            graph,
-            msg=f"Triple {ex_triple} not found {graph.serialize(format='turtle')}",
+            lexical_output_path,
+            str(related_to_time[0]),
+            msg=f"Couldn't find {lexical_output_path!r} in {related_to_time}",
         )
+
+        speed_output = related_to_time[0][0]
+        subj = uri_subject.get_instance()
+        obj = uri_object.get_instance()
+        self.assertIn((subj, EX.predicate, speed_output), graph)
         self.assertIn((subj, EX.predicate, obj), graph)
-        self.assertIn((subj, EX.predicate, label), graph)
-        self.assertIn((label, EX.predicate, obj), graph)
+        self.assertIn((speed_output, EX.predicate, obj), graph)
 
     def test_correct_analysis(self):
-        wf = pwf.Workflow("correct_analysis")
+        wf = pwf.Workflow("correct_analysis_wf")
         wf.addition = add(a=1.0, b=2.0)
         wf.multiply = multiply(a=wf.addition, b=3.0)
         wf.analysis = correct_analysis(a=wf.multiply)
-        graph = onto.get_knowledge_graph(export_to_dict(wf))
-        self.assertEqual(onto.validate_values(graph)["missing_triples"], [])
-        wf = pwf.Workflow("wrong_analysis")
+        graph = semantikon.get_knowledge_graph(export_to_dict(wf))
+        validation = semantikon.validate_values(graph)
+        self.assertTrue(validation[0])
+        wf = pwf.Workflow("wrong_analysis_wf")
         wf.addition = add(a=1.0, b=2.0)
         wf.multiply = multiply(a=wf.addition, b=3.0)
         with self.assertRaises(ChannelConnectionError):
             wf.analysis = wrong_analysis(a=wf.multiply)
+            print(export_to_dict(wf))
+            validation = semantikon.validate_values(
+                semantikon.get_knowledge_graph(export_to_dict(wf))
+            )
+            print(validation)
 
     def test_multiple_outputs(self):
-        wf = pwf.Workflow("multiple_outputs")
+        wf = pwf.Workflow("multiple_outputs_wf")
         wf.node = multiple_outputs()
         wf.node.run()
         data = export_to_dict(wf)
@@ -220,55 +277,103 @@ class TestParser(unittest.TestCase):
         wf = pwf.Workflow("correct_analysis")
         wf.addition = add(a=1.0, b=2.0)
         data = export_to_dict(wf)
-        graph = onto.get_knowledge_graph(data)
-        self.assertTrue(
-            EX.Addition
-            in list(
-                graph.objects(
-                    rdflib.URIRef("correct_analysis.addition"), rdflib.RDF.type
-                )
+        graph = semantikon.get_knowledge_graph(data)
+        subjects_with_type_addition = list(
+            graph.subjects(predicate=rdflib.RDF.type, object=uri_addition.get_class())
+        )
+        self.assertEqual(len(subjects_with_type_addition), 1, msg="sanity check")
+        has_type_addition = subjects_with_type_addition[0]
+        self.assertEqual(
+            has_type_addition,
+            uri_addition.get_instance(),
+            msg="We already labelled this object! Make sure the label sticks.",
+        )
+        addition_annotated_terms = list(
+            graph.subjects(predicate=EX.HasOperation, object=has_type_addition)
+        )
+        expected_annotated_lexical_paths = [
+            # The dynamic workflow IO is created by reference and does not
+            # inherit annotations
+            "correct_analysis-addition-outputs-result",
+        ]
+        stringified_terms = [str(term) for term in addition_annotated_terms]
+        for path in expected_annotated_lexical_paths:
+            self.assertTrue(
+                any(path in sterm for sterm in stringified_terms),
+                msg=f"Couldn't find {path!r} as a substring in {stringified_terms}",
             )
+        self.assertEqual(
+            len(addition_annotated_terms),
+            len(expected_annotated_lexical_paths),
+            msg="There should be no others",
         )
 
     def test_namespace(self):
         self.assertEqual(
-            onto.SNS.hasUnits, rdflib.URIRef("http://pyiron.org/ontology/hasUnits")
+            onto.QUDT.hasUnit, rdflib.URIRef("http://qudt.org/schema/qudt/hasUnit")
+        )
+        self.assertEqual(
+            onto.SNS.derives_from,
+            rdflib.URIRef("http://purl.obolibrary.org/obo/RO_0001000"),
         )
         with self.assertRaises(AttributeError):
             _ = onto.SNS.ahoy
 
-    def test_parsing_without_running(self):
+    def test_parsing_across_a_run(self):
         wf = pwf.Workflow("test")
         wf.addition = add(a=1.0, b=2.0)
-        data = export_to_dict(wf)
-        self.assertFalse("value" in data["outputs"]["addition__result"])
-        graph = onto.get_knowledge_graph(data)
-        self.assertEqual(
-            len(list(graph.triples((None, rdflib.RDF.value, None)))),
-            4,
-            msg="There should be only values for a and b, but not for the output",
-        )
+        before_data = export_to_dict(wf)
+        self.assertFalse("value" in before_data["outputs"]["addition__result"])
+        before_graph = semantikon.get_knowledge_graph(before_data)
         wf.run()
-        data = export_to_dict(wf)
-        graph = onto.get_knowledge_graph(data)
+        after_data = export_to_dict(wf)
+        self.assertAlmostEqual(
+            after_data["outputs"]["addition__result"]["value"],
+            3.0,
+        )
+        after_graph = semantikon.get_knowledge_graph(after_data)
+        difference = after_graph - before_graph
         self.assertEqual(
-            len(list(graph.triples((None, rdflib.RDF.value, None)))),
-            6,
-            msg="There should be values for a, b and the output",
+            1,
+            len(difference),
+            msg="Parent and child ports describe the same data object for subgraph IO "
+            "negotiation.",
+        )
+        diff_objects = list(
+            difference.subjects(
+                predicate=onto.SNS.has_value,
+                object=rdflib.term.Literal(
+                    "3.0",
+                    datatype=rdflib.term.URIRef(
+                        "http://www.w3.org/2001/XMLSchema#double"
+                    ),
+                ),
+            )
+        )
+        self.assertEqual(
+            1,
+            len(diff_objects),
+            msg="And a sanity check that they're actually the right value in the graph",
         )
 
     def test_macro(self):
-        wf = pwf.Workflow("operation")
+        wf = pwf.Workflow("operation_wf")
         wf.node = operation(a=1.0, b=2.0)
         wf.run()
         data = export_to_dict(wf)
         self.assertEqual(
-            set(data.keys()), {"edges", "inputs", "label", "nodes", "outputs"}
+            set(data.keys()), {"type", "edges", "inputs", "label", "nodes", "outputs"}
         )
         self.assertEqual(
             data["inputs"]["node__b"],
-            {"default": 1.0, "value": 2.0, "type_hint": float},
+            {"value": 2.0},
+            msg="Dynamic workflows generate IO by reference and should not inherit "
+            "annotations or defaults from this",
         )
+
+    def test_nested_macro(self):
+        n = AddThreeMacrontology()
+        validate_workflow(n)
 
     def test_custom_labels(self):
         x0 = 5
@@ -286,7 +391,7 @@ class TestParser(unittest.TestCase):
 
 @dataclasses.dataclass
 class Input:
-    T: u(float, units="kelvin")
+    T: semantikon.u(float, units="kelvin")
     n: int
 
     @dataclasses.dataclass
@@ -299,8 +404,8 @@ class Input:
 
 @dataclasses.dataclass
 class Output:
-    E: u(float, units="electron_volt")
-    L: u(float, units="angstrom")
+    E: semantikon.u(float, units="electron_volt")
+    L: semantikon.u(float, units="angstrom")
 
 
 @pwf.as_function_node
@@ -317,36 +422,74 @@ class TestDataclass(unittest.TestCase):
         wf.node = run_md(inp)
         wf.run()
         data = export_to_dict(wf)
-        graph = onto.get_knowledge_graph(data)
-        i_txt = "my_wf.node.inputs.inp"
-        o_txt = "my_wf.node.outputs.out"
-        triples = (
-            (
-                rdflib.URIRef(f"{i_txt}.n.value"),
-                rdflib.RDFS.subClassOf,
-                rdflib.URIRef(f"{i_txt}.value"),
-            ),
-            (rdflib.URIRef(f"{i_txt}.n.value"), rdflib.RDF.value, rdflib.Literal(100)),
-            (
-                rdflib.URIRef(f"{i_txt}.parameters.a.value"),
-                rdflib.RDF.value,
-                rdflib.Literal(1),
-            ),
-            (
-                rdflib.URIRef(o_txt),
-                onto.SNS.hasValue,
-                rdflib.URIRef(f"{o_txt}.E.value"),
-            ),
-        )
-        s = graph.serialize(format="turtle")
-        for ii, triple in enumerate(triples):
-            with self.subTest(i=ii):
-                self.assertEqual(
-                    len(list(graph.triples(triple))),
-                    1,
-                    msg=f"{triple} not found in {s}",
+        graph = semantikon.get_knowledge_graph(data)
+        dc_graph = semantikon.get_knowledge_graph(data, extract_dataclasses=True)
+
+        with self.subTest("Dataclass unpacking"):
+            self.assertEqual(
+                [],
+                list(
+                    graph.subjects(
+                        predicate=onto.SNS.has_value, object=rdflib.Literal(100)
+                    )
+                ),
+                msg="Without extracting dataclasses, the 100 value is buried inside "
+                "the composite dataclass object",
+            )
+            value_subject = list(
+                dc_graph.subjects(
+                    predicate=onto.SNS.has_value, object=rdflib.Literal(100)
                 )
-        self.assertIsNone(graph.value(rdflib.URIRef(f"{i_txt}.not_dataclass.b.value")))
+            )
+            self.assertEqual(
+                len(value_subject),
+                1,
+                msg="We should have exactly one value",
+            )
+            self.assertIn(
+                f"{wf.label}-inputs-{wf.node.inputs.inp.scoped_label}-n",
+                str(value_subject[0]),
+                msg="The value should be annotated with a lexical path to the "
+                "dataclass field name",
+            )
+
+        with self.subTest("Deep access"):
+            value_subject = list(
+                dc_graph.subjects(
+                    predicate=semantikon.ontology.SNS.has_value,
+                    object=rdflib.Literal(1),
+                )
+            )
+            self.assertEqual(
+                len(value_subject),
+                1,
+                msg="We should have exactly one value",
+            )
+            self.assertIn(
+                f"{wf.label}-inputs-{wf.node.inputs.inp.scoped_label}-parameters-a",
+                str(value_subject[0]),
+                msg="Unpacking the dataclass should proceed arbitrarily deep",
+            )
+
+        with self.subTest("Output unpacking"):
+            result = wf.outputs.node__out.value.L
+            value_subject = list(
+                dc_graph.subjects(
+                    predicate=semantikon.ontology.SNS.has_value,
+                    object=rdflib.Literal(result),
+                )
+            )
+            self.assertEqual(
+                len(value_subject),
+                1,
+                msg="We should have exactly one value",
+            )
+            self.assertIn(
+                f"{wf.label}-{wf.node.label}-outputs-{wf.node.outputs.out.label}-L",
+                str(value_subject[0]),
+                msg="Outputs should also be deeply recoverable from the graph under "
+                "unpacking",
+            )
 
 
 class Meal: ...
@@ -356,7 +499,7 @@ class Garbage: ...
 
 
 @pwf.as_function_node("pizza")
-def PreparePizza() -> u(Meal, uri=EX.Pizza):
+def PreparePizza() -> semantikon.u(Meal, uri=EX.Pizza):
     return Meal()
 
 
@@ -366,12 +509,12 @@ def PrepareNonOntologicalMeal() -> Meal:
 
 
 @pwf.as_function_node("rice")
-def PrepareRice() -> u(Meal, uri=EX.Rice):
+def PrepareRice() -> semantikon.u(Meal, uri=EX.Rice):
     return Meal()
 
 
 @pwf.as_function_node("garbage")
-def PrepareGarbage() -> u(Garbage, uri=EX.Garbage):
+def PrepareGarbage() -> semantikon.u(Garbage, uri=EX.Garbage):
     return Garbage()
 
 
@@ -381,12 +524,12 @@ def PrepareUnhintedGarbage():
 
 
 @pwf.as_function_node("verdict")
-def Eat(meal: u(Meal, uri=EX.Meal)) -> str:
+def Eat(meal: semantikon.u(Meal, uri=EX.Meal)) -> str:
     return f"Yummy {meal.__class__.__name__} meal"
 
 
 @pwf.as_function_node("verdict")
-def EatPizza(meal: u(Meal, uri=EX.Pizza)) -> str:
+def EatPizza(meal: semantikon.u(Meal, uri=EX.Pizza)) -> str:
     return f"Yummy {meal.__class__.__name__} pizza"
 
 
@@ -394,18 +537,24 @@ class Clothes:
     pass
 
 
+uri_cleaned = semantikon.SemantikonURI(EX.cleaned)
+uri_color = semantikon.SemantikonURI(EX.color)
+
+
 @pwf.as_function_node
 def Wash(
-    clothes: u(Clothes, uri=EX.Clothes),
-) -> u(Clothes, triples=(EX.hasProperty, EX.cleaned), derived_from="inputs.clothes"):
+    clothes: semantikon.u(Clothes, uri=EX.Clothes),
+) -> semantikon.u(
+    Clothes, triples=(EX.hasProperty, uri_cleaned), derived_from="inputs.clothes"
+):
     ...
     return clothes
 
 
 @pwf.as_function_node
-def Dye(clothes: u(Clothes, uri=EX.Clothes), color="blue") -> u(
+def Dye(clothes: semantikon.u(Clothes, uri=EX.Clothes), color="blue") -> semantikon.u(
     Clothes,
-    triples=(EX.hasProperty, EX.color),
+    triples=(EX.hasProperty, uri_color),
     derived_from="inputs.clothes",
 ):
     ...
@@ -414,7 +563,7 @@ def Dye(clothes: u(Clothes, uri=EX.Clothes), color="blue") -> u(
 
 @pwf.as_function_node
 def Sell(
-    clothes: u(
+    clothes: semantikon.u(
         Clothes,
         uri=EX.Clothes,
         restrictions=(
@@ -434,9 +583,9 @@ def Sell(
 
 
 @pwf.as_function_node
-def DyeWithCancel(clothes: Clothes, color="blue") -> u(
+def DyeWithCancel(clothes: Clothes, color="blue") -> semantikon.u(
     Clothes,
-    triples=(EX.hasProperty, EX.color),
+    triples=(EX.hasProperty, uri_color),
     derived_from="inputs.clothes",
     cancel=(EX.hasProperty, EX.cleaned),
 ):
@@ -459,65 +608,76 @@ def IncorrectMacro(self, clothes: Clothes):
 
 
 @pwf.as_function_node
-def IOTransformer(x: u(int, uri=EX.Input)) -> u(int, uri=EX.Output):
+def IOTransformer(
+    x: semantikon.u(int, uri=EX.Input),
+) -> semantikon.u(int, uri=EX.Output):
     y = x
     return y
 
 
 @pwf.as_macro_node
-def MatchingWrapper(self, x_outer: u(int, uri=EX.Input)) -> u(int, uri=EX.Output):
+def MatchingWrapper(
+    self, x_outer: semantikon.u(int, uri=EX.Input)
+) -> semantikon.u(int, uri=EX.Output):
     self.add = IOTransformer(x_outer)
     return self.add
 
 
 @pwf.as_macro_node
-def MismatchingInput(self, x_outer: u(int, uri=EX.NotInput)) -> u(int, uri=EX.Output):
+def MismatchingInput(
+    self, x_outer: semantikon.u(int, uri=EX.NotInput)
+) -> semantikon.u(int, uri=EX.Output):
     self.add = IOTransformer(x_outer)
     return self.add
 
 
 @pwf.as_macro_node
 def MismatchingOutput(
-    self, x_outer: u(int, uri=EX.NotInput)
-) -> u(int, uri=EX.NotOutput):
+    self, x_outer: semantikon.u(int, uri=EX.NotInput)
+) -> semantikon.u(int, uri=EX.NotOutput):
     self.add = IOTransformer(x_outer)
     return self.add
 
 
 @pwf.as_function_node
-def Distance(x: u(float, units="meter")) -> u(float, derived_from="inputs.x"):
+def Distance(
+    x: semantikon.u(float, units="meter"),
+) -> semantikon.u(float, derived_from="inputs.x"):
     return x
 
 
 @pwf.as_function_node
 def Speed(
-    dx: u(float, units="meter"), dt: u(float, units="second")
-) -> u(float, units="meter/second"):
+    dx: semantikon.u(float, units="meter"), dt: semantikon.u(float, units="second")
+) -> semantikon.u(float, units="meter/second"):
     s = dx / dt
     return s
 
 
 @pwf.as_function_node
-def NanoTime(t: u(float, units="nanosecond")) -> u(float, units="nanosecond"):
+def NanoTime(
+    t: semantikon.u(float, units="nanosecond"),
+) -> semantikon.u(float, units="nanosecond"):
     return t
 
 
 @pwf.as_function_node
-def Time(t: u(float, units="second")) -> u(float, units="second"):
+def Time(t: semantikon.u(float, units="second")) -> semantikon.u(float, units="second"):
     return t
 
 
 @pwf.as_function_node
 def Canada(
-    british_distance: u(float, units="mile"),
-) -> u(float, derived_from="inputs.driving"):
-    canadian_distance = british_distance
+    british_distance: semantikon.u(float, units="mile"),
+) -> semantikon.u(float, derived_from="inputs.british_distance"):
+    km_per_mile = 1.6
+    canadian_distance = british_distance * km_per_mile
     return canadian_distance
 
 
 @pwf.as_function_node
 def HasNeed(
-    x: u(
+    x: semantikon.u(
         str,
         uri=EX.Foo,
         restrictions=(
@@ -525,7 +685,7 @@ def HasNeed(
             (rdflib.OWL.someValuesFrom, EX.need),
         ),
     ) = "foo",
-) -> u(int, uri=EX.Data):
+) -> semantikon.u(int, uri=EX.Data):
     data = 42
     return data
 
@@ -536,6 +696,12 @@ def UnconnectedMacro(self):
     self.adds = AddOnetology(1)
     self.transforms = IOTransformer(2)
     return self.adds, self.transforms
+
+
+@pwf.as_macro_node
+def SimplerMacro(self):
+    self.needy = HasNeed()
+    return self.needy
 
 
 class TestValidation(unittest.TestCase):
@@ -623,30 +789,45 @@ class TestValidation(unittest.TestCase):
                     "for this purpose.",
                 )
 
-    def test_restrictions(self):
-        with self.subTest("Restrictions fulfilled"):
-            wf = pwf.Workflow("my_correct_workflow")
-            wf.dyed_clothes = Dye(Clothes())
-            wf.washed_clothes = Wash(wf.dyed_clothes)
-            wf.money = Sell(wf.washed_clothes)
-            out = wf()
-            self.assertTrue(
-                out,
-                msg="Expected type and restrictions should be fulfilled by upstream "
-                "derivations and added triple.",
-            )
+    def test_external_knowledge(self):
+        for node_class in [MismatchingInput, MismatchingOutput]:
+            with self.subTest(node_class=node_class.__name__):
+                node = node_class()
 
-        with self.subTest("Restrictions denied by cancellation"):
-            wf = pwf.Workflow("my_wf_with_cancellation")
-            wf.washed_clothes = Wash(Clothes())
-            wf.unclean_dyed_clothes = DyeWithCancel(wf.washed_clothes)
-            wf.money = Sell()
-            with self.assertRaises(
-                ChannelConnectionError,
-                msg="Expect the cancel declaration to have cleared a required triple,"
-                "leading to failed ontological validation",
-            ):
-                wf.money.inputs.clothes = wf.unclean_dyed_clothes
+                self.assertTrue(
+                    validate_workflow(node)[0],
+                    msg="It is a semantikon choice that mismatching parent-child URIs are "
+                    "evaluated with open world of reasoning, assuming the two URIs could "
+                    "be appropriately related.",
+                )
+
+                # Specify classiness and disjointness of parent and child URIs
+                external_knowledge = rdflib.Graph()
+                external_knowledge.add((EX.Input, onto.OWL.disjointWith, EX.NotInput))
+                external_knowledge.add((EX.Input, rdflib.RDF.type, onto.OWL.Class))
+                external_knowledge.add((EX.NotInput, rdflib.RDF.type, onto.OWL.Class))
+
+                self.assertTrue(  # PENDING UPDATE
+                    validate_workflow(node, knowledge=external_knowledge)[0],
+                    msg="But if we have knowledge that the two URIs are disjoint, then "
+                    "we know at the recipe level that the parent _cannot_ fulfill the "
+                    "URI requirement of the child (for I-I; vice versa for O-O)"
+                    "-- is what I wish the message was here; this feature isn't "
+                    "released yet, so this is testing an opposite. Once this fails, "
+                    "update the test and add an example to the notebook.",
+                )
+
+    def test_restrictions(self):
+        wf = pwf.Workflow("my_correct_workflow")
+        wf.dyed_clothes = Dye(Clothes())
+        wf.washed_clothes = Wash(wf.dyed_clothes)
+        wf.money = Sell(wf.washed_clothes)
+        out = wf()
+        self.assertTrue(
+            out,
+            msg="Expected type and restrictions should be fulfilled by upstream "
+            "derivations and added triple.",
+        )
 
     def test_unrelated_problems(self):
         wf = pwf.Workflow("connect_later")
@@ -707,21 +888,8 @@ class TestValidation(unittest.TestCase):
         ):
             IncorrectMacro()
 
-        with self.subTest("Macro-subgraph communication"):
-            with self.subTest("Fully matching"):
-                self.assertTrue(MatchingWrapper(1).run())
-
-            with (
-                self.subTest("Bad parent input->child input flow"),
-                self.assertRaises(ChannelConnectionError),
-            ):
-                MismatchingInput()
-
-            with (
-                self.subTest("Bad child output->parent output flow"),
-                self.assertRaises(ChannelConnectionError),
-            ):
-                MismatchingOutput()
+        with self.subTest("Macro-subgraph communication fully matching"):
+            self.assertTrue(MatchingWrapper(1).run())
 
     def test_unparented(self):
         """
@@ -780,29 +948,28 @@ class TestValidation(unittest.TestCase):
         wf = pwf.Workflow("we_drive_in_miles")
         wf.lets_use_metric = Canada()
         graph = parse_workflow(wf)
-        reference_stem = f"{wf.label}.{wf.lets_use_metric.label}"
-        british_units = graph.objects(
-            rdflib.term.URIRef(f"{reference_stem}.inputs.british_distance.value"),
-            onto.SNS.hasUnits,
-        )
+        has_units = graph.subjects(onto.QUDT.hasUnit)
         self.assertEqual(
             1,
-            len(list(british_units)),
-            msg="Sanity check that we are parsing correctly for the units",
+            len(tuple(has_units)),
+            msg="Expect the child node input to be found unit'd (dynamic workflows "
+            "generate IO by reference and don't inherit annotations)",
         )
-        canadian_units = graph.objects(
-            rdflib.term.URIRef(f"{reference_stem}.outputs.canadian_distance.value"),
-            onto.SNS.hasUnits,
-        )
-        self.assertListEqual(
-            [],
-            list(canadian_units),
-            msg="Of course actually Canada uses kilometers where the UK uses miles. "
-            "But the point here is that unlike other properties, units are _not_ "
-            "inherited. This is an intentional choice in semantikon "
-            "(https://github.com/pyiron/semantikon/issues/256), but if that changes we "
-            "need to update the documentation notebook here.",
-        )
+        for subj in has_units:
+            self.assertIn(
+                "british_distance",
+                str(subj),
+                msg="The input british variable had a unit assigned to it",
+            )
+            self.assertNotIn(
+                "canadian_distance",
+                str(subj),
+                msg="Of course actually Canada uses kilometers where the UK uses "
+                "miles. But the point here is that unlike other properties, units are "
+                " _not_ inherited. This is an intentional choice in semantikon "
+                "(https://github.com/pyiron/semantikon/issues/256), but if that "
+                "changes we need to update the documentation notebook here.",
+            )
 
     def test_is_involved(self):
         wf = pwf.Workflow("validate_involvement")

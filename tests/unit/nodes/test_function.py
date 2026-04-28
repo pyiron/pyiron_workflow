@@ -2,8 +2,6 @@ import pickle
 import unittest
 from pathlib import Path
 
-import numpy as np
-
 from pyiron_workflow.data import NOT_DATA
 from pyiron_workflow.node import (
     Node as NonBuiltinTypeHint,
@@ -44,6 +42,16 @@ def multiple_branches(x):
         return True
     else:
         return False
+
+
+def has_variadics(x, *args, **kwargs):
+    return (x, args, kwargs)
+
+
+def trapz(y, x=None, dx=1.0):
+    if x is None:
+        x = [i * dx for i in range(len(y))]
+    return sum((x[i + 1] - x[i]) * (y[i] + y[i + 1]) / 2 for i in range(len(y) - 1))
 
 
 class TestFunction(unittest.TestCase):
@@ -435,15 +443,10 @@ class TestFunction(unittest.TestCase):
             ValueError,
             msg="Known limitation: Can't have a bad signature, in this case '*args'",
         ):
-            to_function_node("Sin", np.sin, "sinx")
+            to_function_node("HasVariadics", has_variadics, "x", "args", "kwargs")
 
-        with self.assertRaises(
-            ValueError,
-            msg="Known limitation: Must be inspectable "
-            "https://github.com/numpy/numpy/issues/16384, "
-            "https://github.com/numpy/numpy/issues/8734",
-        ):
-            to_function_node("ARange", np.arange, "arange")
+        with self.assertRaises(ValueError, msg="Known limitation: Must be inspectable"):
+            to_function_node("StrCast", str, "s")
 
         with self.subTest("Non-builtin type hints should be ok via a scoping kwarg"):
 
@@ -467,9 +470,9 @@ class TestFunction(unittest.TestCase):
             )
 
         output_label = "trapz"
-        Trapz = to_function_node("Trapz", np.trapz, output_label)
+        Trapz = to_function_node("Trapz", trapz, output_label)
         self.assertIs(
-            np.trapz,
+            trapz,
             Trapz.node_function,
             msg="We should be wrapping the requested function",
         )
@@ -480,7 +483,7 @@ class TestFunction(unittest.TestCase):
         )
 
         n = Trapz()
-        out = n(np.linspace(0, 1, 10))
+        out = n([0, 0.25, 0.5, 0.75])
         reloaded = pickle.loads(pickle.dumps(n))
         self.assertAlmostEqual(
             out,

@@ -16,7 +16,7 @@ from concurrent import futures
 import pyiron_workflow as pwf
 
 wf = pwf.Workflow("passive_run")
-wf.n1 = pwf.std.UserInput(3)
+wf.n1 = pwf.std.UserInput(5)
 wf.n2 = pwf.std.Sleep(wf.n1)
 wf.n3 = pwf.std.UserInput(wf.n2)
 
@@ -25,7 +25,7 @@ wf.n2.executor = (futures.ThreadPoolExecutor, (), {})
 with futures.ThreadPoolExecutor() as exe:
     wf.executor = exe
     wf.run()
-    time.sleep(1)
+    time.sleep(2)
     wf.save()
 """
 
@@ -33,7 +33,7 @@ with futures.ThreadPoolExecutor() as exe:
 class TestRecovery(unittest.TestCase):
     def test_recovered_running_child_causes_readiness_error(self):
         proc = subprocess.Popen([sys.executable, "-c", SCRIPT])
-        time.sleep(2)  # Let the process start and enter the critical section
+        time.sleep(5)  # Let the process start and enter the critical section
         os.kill(proc.pid, signal.SIGKILL)
         proc.wait()
 
