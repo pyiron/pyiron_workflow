@@ -7,6 +7,7 @@ from typing import TypeAlias
 from flowrep.api import schemas as frs
 from semantikon import datastructure as sds
 
+from pyiron_workflow._wfms import execution
 from pyiron_workflow._wfms.datatypes import (
     Graph,
     InputPort,
@@ -16,7 +17,6 @@ from pyiron_workflow._wfms.datatypes import (
     PortMap,
     PortType,
     RecipeType,
-    Run,
 )
 
 
@@ -93,10 +93,10 @@ class Workflow(Graph[frs.LiveWorkflow]):
     def recipe(self) -> RecipeType:
         raise NotImplementedError()
 
-    def _empty_live_node(self) -> frs.LiveWorkflow:
+    def generate_flowrep_live_node(self) -> frs.LiveWorkflow:
         raise NotImplementedError()
 
-    def _evaluate(self, *evaluate_args, **input_data_kwargs) -> Run[frs.LiveWorkflow]:
+    def evaluate(self, run: execution.Run[frs.LiveWorkflow]) -> None:
         raise NotImplementedError()
 
     @property

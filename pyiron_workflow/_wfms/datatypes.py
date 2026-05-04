@@ -3,17 +3,14 @@ from __future__ import annotations
 import abc
 import collections
 import dataclasses
-import datetime
-import enum
 import pathlib
-from collections.abc import Callable, Iterable
 from concurrent import futures
-from typing import Any, ClassVar, Generic, TypeAlias, TypeVar, cast
+from typing import Any, ClassVar, Generic, TypeAlias, TypeVar
 
 from flowrep.api import schemas as frs
 from semantikon import datastructure as sds
 
-from pyiron_workflow._wfms import lexical
+from pyiron_workflow._wfms import execution, lexical
 
 RecipeType: TypeAlias = (
     frs.AtomicNode
@@ -58,70 +55,12 @@ class PortMap(lexical.LexicalMap[PortType, lexical.OwnerType_co]): ...
 ExecutorInstructions = tuple[type[futures.Executor], tuple[Any, ...], dict[str, Any]]
 
 
-class RunStatus(enum.StrEnum):
-    PENDING = "pending"
-    RUNNING = "running"
-    FINISHED = "finished"
-    FAILED = "failed"
-
-
-ResultType = TypeVar("ResultType", bound=frs.LiveNode)
-
-
-@dataclasses.dataclass
-class Run(Generic[ResultType]):
-    result: ResultType
-    status: RunStatus
-    exception: BaseException | None = None
-    started_at: datetime.datetime | None = None
-    finished_at: datetime.datetime | None = None
-    progress_dir: pathlib.Path | None = None
-
-    @property
-    def outputs(self):
-        return self.result.output_ports
-
-    @property
-    def duration(self) -> datetime.timedelta | None:
-        if self.started_at is None or self.finished_at is None:
-            return None
-        return self.finished_at - self.started_at
-
-
-@dataclasses.dataclass(frozen=True)
-class RunConfig:
-    progress_dir: pathlib.Path
-    prime_mover: str
-    progress_hooks: Iterable[Callable[[str, RunStatus], None]]
-
-
-def _run_on_worker(
-    node: Node,
-    run_config: RunConfig,
-    **input_data,
-):
-    raise NotImplementedError()
-
-
-class ProgressSink:
-    """
-    Just a placeholder class -- there should be a way to avoid re-inventing the wheel
-    """
-
-    def __init__(self, run_config: RunConfig):
-        self._run_config = run_config
-
-    def emit(self, lexical_path: str, status: RunStatus):
-        for hook in self._run_config.progress_hooks:
-            hook(lexical_path, status)
-
-
-class Node(lexical.Lexical["Graph"], Generic[ResultType], abc.ABC):
+class Node(lexical.Lexical["Graph"], Generic[execution.ResultType], abc.ABC):
     _label: frs.Label
     _owner: Graph | None
     executor: futures.Executor | ExecutorInstructions | None
-    current_run: Run[ResultType] | None
-    run_history: collections.deque[Run[ResultType]]
+    current_run: execution.Run[execution.ResultType] | None
+    run_history: collections.deque[execution.Run[execution.ResultType]]
 
     @property
     @abc.abstractmethod
@@ -136,12 +75,10 @@ class Node(lexical.Lexical["Graph"], Generic[ResultType], abc.ABC):
     def recipe(self) -> RecipeType: ...
 
     @abc.abstractmethod
-    def _empty_live_node(self) -> ResultType: ...
+    def generate_flowrep_live_node(self) -> execution.ResultType: ...
 
     @abc.abstractmethod
-    def _evaluate(
-        self, _pwf_node_evaluate__run: Run[ResultType], **input_data_kwargs
-    ) -> Run[ResultType]: ...
+    def evaluate(self, run: execution.Run[execution.ResultType]) -> None: ...
 
     @property
     def label(self) -> frs.Label:
@@ -183,56 +120,15 @@ class Node(lexical.Lexical["Graph"], Generic[ResultType], abc.ABC):
     def history_limit(self, value: int) -> None:
         self.run_history = collections.deque(self.run_history, maxlen=value)
 
-    def run(
-        self,
-        _pwf_node_run__config: RunConfig | None = None,
-        /,
-        **input_data,
-    ) -> Run[ResultType]:
-        config = (
-            RunConfig(
-                progress_dir=pathlib.Path.cwd(),
-                prime_mover=self.lexical_path,
-                progress_hooks=[],
-            )
-            if _pwf_node_run__config is None
-            else _pwf_node_run__config
+    def run(self, **input_data) -> execution.Run[execution.ResultType]:
+        config = execution.RunConfig(
+            prime_mover=self.lexical_path,
+            progress_dir=pathlib.Path.cwd(),
+            progress_hooks=[],
         )
+        return execution.run(self, config, **input_data)
 
-        self.current_run = Run[ResultType](
-            result=self._empty_live_node(),
-            status=RunStatus.RUNNING,
-            started_at=datetime.datetime.now(),
-            progress_dir=config.progress_dir,
-        )
-        sink = self._open_progress_sink(config)
-        sink.emit(self.lexical_path, self.current_run.status)
-
-        try:
-            self._evaluate(self.current_run, **input_data)
-            # Needs careful thinking about how failure will be handled
-            self.current_run.status = RunStatus.FINISHED
-        except BaseException as e:
-            self.current_run.exception = e
-            self.current_run.status = RunStatus.FAILED
-            if self._is_prime_mover(config.prime_mover):
-                self._dump_recovery(config.progress_dir)
-            raise e
-        finally:
-            sink.emit(self.lexical_path, self.current_run.status)
-            if self._is_prime_mover(config.prime_mover):
-                self.run_history.append(cast(Run[ResultType], self.current_run))
-
-        return cast(Run[ResultType], self.current_run)
-
-    @staticmethod
-    def _open_progress_sink(config: RunConfig) -> ProgressSink:
-        return ProgressSink(config)
-
-    def _is_prime_mover(self, lexical_path: str) -> bool:
-        return lexical_path == self.lexical_path
-
-    def _dump_recovery(self, directory: pathlib.Path):
+    def dump(self, file: pathlib.Path):
         raise NotImplementedError()
 
     def __getstate__(self):
@@ -251,7 +147,7 @@ class Node(lexical.Lexical["Graph"], Generic[ResultType], abc.ABC):
 class NodeMap(lexical.LexicalMap[Node, "Graph"]): ...
 
 
-class Graph(Node[ResultType], abc.ABC):
+class Graph(Node[execution.ResultType], abc.ABC):
     input_edges: frs.InputEdges
     edges: frs.Edges
     output_edges: frs.OutputEdges

@@ -1,21 +1,18 @@
 from __future__ import annotations
 
 import collections
-import datetime
-from typing import cast
 
 from flowrep.api import schemas as frs
-from flowrep.api import tools as frt
+from flowrep.wfms import _call_atomic, _store_atomic_outputs
 from semantikon import converter, flowrep_dict
 from semantikon import datastructure as sds
 
+from pyiron_workflow._wfms import execution
 from pyiron_workflow._wfms.datatypes import (
     InputPort,
     Node,
     OutputPort,
     PortMap,
-    Run,
-    RunStatus,
 )
 
 
@@ -32,7 +29,7 @@ class Atomic(Node[frs.LiveAtomic]):
         self._label = label  # TODO: also accept None and use function name for default
         self._owner = None
         self._recipe = recipe
-        live_preview = self._empty_live_node()
+        live_preview = self.generate_flowrep_live_node()
         self._function = live_preview.function
         self._inputs = self._build_inputs(live_preview)
         self._outputs = self._build_outputs(live_preview)
@@ -99,17 +96,9 @@ class Atomic(Node[frs.LiveAtomic]):
     def recipe(self) -> frs.AtomicNode:
         return self._recipe
 
-    def _empty_live_node(self) -> frs.LiveAtomic:
+    def generate_flowrep_live_node(self) -> frs.LiveAtomic:
         return frs.LiveAtomic.from_recipe(self.recipe)
 
-    def _evaluate(
-        self, _pwf_node_evaluate__run: Run[frs.LiveAtomic], **input_data
-    ) -> Run[frs.LiveAtomic]:
-        if self.executor is not None:
-            raise NotImplementedError()
-        else:
-            result = frt.run_recipe(self.recipe, **input_data)
-        _pwf_node_evaluate__run.result = cast(frs.LiveAtomic, result)
-        _pwf_node_evaluate__run.status = RunStatus.FINISHED
-        _pwf_node_evaluate__run.finished_at = datetime.datetime.now()
-        return _pwf_node_evaluate__run
+    def evaluate(self, run: execution.Run[frs.LiveAtomic]) -> None:
+        output = _call_atomic(run.result)
+        _store_atomic_outputs(run.result, output)
