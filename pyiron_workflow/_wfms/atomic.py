@@ -4,10 +4,9 @@ import collections
 
 from flowrep.api import schemas as frs
 from flowrep.wfms import _call_atomic, _store_atomic_outputs
-from semantikon import converter, flowrep_dict
 from semantikon import datastructure as sds
 
-from pyiron_workflow._wfms import execution
+from pyiron_workflow._wfms import execution, helpers
 from pyiron_workflow._wfms.datatypes import (
     InputPort,
     Node,
@@ -31,58 +30,13 @@ class Atomic(Node[frs.LiveAtomic]):
         self._recipe = recipe
         live_preview = self.generate_flowrep_live_node()
         self._function = live_preview.function
-        self._inputs = self._build_inputs(live_preview)
-        self._outputs = self._build_outputs(live_preview)
+        self._inputs = helpers.build_inputs(self, live_preview)
+        self._outputs = helpers.build_outputs(self, live_preview)
         self.function_metadata = getattr(self._function, "_semantikon_metadata", None)
 
         self.executor = None
         self.current_run = None
         self.run_history = collections.deque(maxlen=history_limit)
-
-    def _build_inputs(self, live: frs.LiveAtomic) -> PortMap[InputPort, Node]:
-        return PortMap[InputPort, Node](
-            self,
-            *(
-                InputPort(
-                    label=label,
-                    owner=self,
-                    type_hint=(
-                        flowrep_dict._unwrap_annotated(flowrep_port.annotation)
-                        if flowrep_port.annotation is not None
-                        else None
-                    ),
-                    type_metadata=(
-                        converter.parse_metadata(flowrep_port.annotation)
-                        if flowrep_port.annotation is not None
-                        else None
-                    ),
-                    has_default=label in self._recipe.inputs_with_defaults,
-                )
-                for label, flowrep_port in live.input_ports.items()
-            ),
-        )
-
-    def _build_outputs(self, live: frs.LiveAtomic) -> PortMap[OutputPort, Node]:
-        return PortMap[OutputPort, Node](
-            self,
-            *(
-                OutputPort(
-                    label=label,
-                    owner=self,
-                    type_hint=(
-                        flowrep_dict._unwrap_annotated(flowrep_port.annotation)
-                        if flowrep_port.annotation is not None
-                        else None
-                    ),
-                    type_metadata=(
-                        converter.parse_metadata(flowrep_port.annotation)
-                        if flowrep_port.annotation is not None
-                        else None
-                    ),
-                )
-                for label, flowrep_port in live.output_ports.items()
-            ),
-        )
 
     @property
     def inputs(self) -> PortMap[InputPort, Node]:
