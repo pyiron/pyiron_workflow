@@ -16,7 +16,6 @@ from pyiron_workflow._wfms.datatypes import (
 
 
 class Atomic(Node[frs.LiveAtomic]):
-    function_metadata: sds.FunctionMetadata | None
 
     def __init__(
         self,
@@ -29,10 +28,11 @@ class Atomic(Node[frs.LiveAtomic]):
         self._owner = None
         self._recipe = recipe
         live_preview = self.generate_flowrep_live_node()
-        self._function = live_preview.function
         self._inputs = helpers.build_inputs(self, live_preview)
         self._outputs = helpers.build_outputs(self, live_preview)
-        self.function_metadata = getattr(self._function, "_semantikon_metadata", None)
+        self._function_metadata = getattr(
+            live_preview.function, "_semantikon_metadata", None
+        )
 
         self.executor = None
         self.current_run = None
@@ -56,3 +56,7 @@ class Atomic(Node[frs.LiveAtomic]):
     def evaluate(self, run: execution.Run[frs.LiveAtomic]) -> None:
         output = _call_atomic(run.result)
         _store_atomic_outputs(run.result, output)
+
+    @property
+    def function_metadata(self) -> sds.FunctionMetadata | None:
+        return self._function_metadata
