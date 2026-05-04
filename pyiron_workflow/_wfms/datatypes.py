@@ -148,15 +148,28 @@ class NodeMap(lexical.LexicalMap[Node, "Graph"]): ...
 
 
 class Graph(lexical.Lexical["Graph"], Protocol):
-    input_edges: frs.InputEdges
-    edges: frs.Edges
-    output_edges: frs.OutputEdges
+    @property
+    def input_edges(self) -> frs.InputEdges: ...
+
+    @property
+    def edges(self) -> frs.Edges: ...
+
+    @property
+    def output_edges(self) -> frs.OutputEdges: ...
 
     @property
     def nodes(self) -> NodeMap: ...
 
 
 class FlowControl(Node[frs.LiveWorkflow], Graph, abc.ABC):
-    prospective_input_edges: frs.InputEdges
-    prospective_edges: frs.Edges
-    prospective_output_edges: frs.OutputEdges
+    @property
+    @abc.abstractmethod
+    def prospective_input_edges(self) -> frs.InputEdges: ...
+
+    @property
+    @abc.abstractmethod
+    def prospective_edges(self) -> frs.Edges: ...
+
+    @property
+    @abc.abstractmethod
+    def prospective_output_edges(self) -> frs.OutputEdges: ...
