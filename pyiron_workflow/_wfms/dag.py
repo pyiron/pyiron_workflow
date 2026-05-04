@@ -56,7 +56,7 @@ GraphAction: TypeAlias = tuple  # TODO, but probably needs an enum for action ty
 GraphDiff: TypeAlias = list[GraphAction]
 
 
-class Workflow(Graph[frs.LiveWorkflow]):
+class Workflow(Node[frs.LiveWorkflow], Graph):
     """This is the key mutable one"""
 
     undo_stack: collections.deque[GraphDiff]
@@ -192,7 +192,7 @@ class Workflow(Graph[frs.LiveWorkflow]):
         raise NotImplementedError()
 
 
-class Macro(Graph[frs.LiveWorkflow]):  # Not implemented
+class Macro(Node[frs.LiveWorkflow], Graph):  # Not implemented
     function_metadata: sds.FunctionMetadata | None
 
     def to_unlocked_workflow(self) -> Workflow:

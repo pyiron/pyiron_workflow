@@ -5,7 +5,7 @@ import collections
 import dataclasses
 import pathlib
 from concurrent import futures
-from typing import Any, ClassVar, Generic, TypeAlias, TypeVar
+from typing import Any, ClassVar, Generic, Protocol, TypeAlias, TypeVar
 
 from flowrep.api import schemas as frs
 from semantikon import datastructure as sds
@@ -147,17 +147,16 @@ class Node(lexical.Lexical["Graph"], Generic[execution.ResultType], abc.ABC):
 class NodeMap(lexical.LexicalMap[Node, "Graph"]): ...
 
 
-class Graph(Node[execution.ResultType], abc.ABC):
+class Graph(lexical.Lexical["Graph"], Protocol):
     input_edges: frs.InputEdges
     edges: frs.Edges
     output_edges: frs.OutputEdges
 
     @property
-    @abc.abstractmethod
     def nodes(self) -> NodeMap: ...
 
 
-class FlowControl(Graph[frs.FlowControl], abc.ABC):
+class FlowControl(Node[frs.LiveWorkflow], Graph, abc.ABC):
     prospective_input_edges: frs.InputEdges
     prospective_edges: frs.Edges
     prospective_output_edges: frs.OutputEdges
