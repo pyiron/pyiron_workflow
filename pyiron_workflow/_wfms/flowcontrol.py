@@ -37,7 +37,9 @@ class ForEach(FlowControl):  # Not implemented
     def prospective_output_edges(self) -> frs.OutputEdges:
         raise NotImplementedError()
 
-    def evaluate(self, run: execution.Run[frs.LiveWorkflow]) -> None:
+    def evaluate(
+        self, run: execution.Run[frs.LiveWorkflow], config: execution.RunConfig
+    ) -> None:
         raise NotImplementedError()
 
 
@@ -70,7 +72,9 @@ class If(FlowControl):
     def prospective_output_edges(self) -> frs.OutputEdges:
         raise NotImplementedError()
 
-    def evaluate(self, run: execution.Run[frs.LiveWorkflow]) -> None:
+    def evaluate(
+        self, run: execution.Run[frs.LiveWorkflow], config: execution.RunConfig
+    ) -> None:
         raise NotImplementedError()
 
 
@@ -103,7 +107,9 @@ class Try(FlowControl):
     def prospective_output_edges(self) -> frs.OutputEdges:
         raise NotImplementedError()
 
-    def evaluate(self, run: execution.Run[frs.LiveWorkflow]) -> None:
+    def evaluate(
+        self, run: execution.Run[frs.LiveWorkflow], config: execution.RunConfig
+    ) -> None:
         raise NotImplementedError()
 
 
@@ -136,5 +142,7 @@ class While(FlowControl):
     def prospective_output_edges(self) -> frs.OutputEdges:
         raise NotImplementedError()
 
-    def evaluate(self, run: execution.Run[frs.LiveWorkflow]) -> None:
+    def evaluate(
+        self, run: execution.Run[frs.LiveWorkflow], config: execution.RunConfig
+    ) -> None:
         raise NotImplementedError()

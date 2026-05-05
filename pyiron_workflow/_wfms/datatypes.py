@@ -78,7 +78,9 @@ class Node(lexical.Lexical["Graph"], Generic[execution.ResultType], abc.ABC):
     def generate_flowrep_live_node(self) -> execution.ResultType: ...
 
     @abc.abstractmethod
-    def evaluate(self, run: execution.Run[execution.ResultType]) -> None: ...
+    def evaluate(
+        self, run: execution.Run[execution.ResultType], config: execution.RunConfig
+    ) -> None: ...
 
     @property
     def label(self) -> frs.Label:

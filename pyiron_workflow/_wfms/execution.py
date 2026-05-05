@@ -89,7 +89,7 @@ def run(
             # will be handled
             raise NotImplementedError()
         else:
-            node.evaluate(node.current_run)
+            node.evaluate(node.current_run, config)
         node.current_run.status = RunStatus.FINISHED
     except BaseException as e:
         node.current_run.exception = e

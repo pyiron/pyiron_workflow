@@ -27,7 +27,9 @@ class Atomic(StaticNode[frs.LiveAtomic]):
     def _result_type(cls) -> type[frs.LiveAtomic]:
         return frs.LiveAtomic
 
-    def evaluate(self, run: execution.Run[frs.LiveAtomic]) -> None:
+    def evaluate(
+        self, run: execution.Run[frs.LiveAtomic], config: execution.RunConfig
+    ) -> None:
         output = _call_atomic(run.result)
         _store_atomic_outputs(run.result, output)
 

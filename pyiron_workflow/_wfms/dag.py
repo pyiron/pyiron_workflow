@@ -99,7 +99,9 @@ class Workflow(Node[frs.LiveWorkflow], Graph):
     def generate_flowrep_live_node(self) -> frs.LiveWorkflow:
         raise NotImplementedError()
 
-    def evaluate(self, run: execution.Run[frs.LiveWorkflow]) -> None:
+    def evaluate(
+        self, run: execution.Run[frs.LiveWorkflow], config: execution.RunConfig
+    ) -> None:
         raise NotImplementedError()
 
     @property
@@ -246,7 +248,9 @@ class Macro(StaticNode[frs.LiveWorkflow], Graph):
     def nodes(self) -> NodeMap:
         return self._nodes
 
-    def evaluate(self, run: execution.Run[frs.LiveAtomic]) -> None:
+    def evaluate(
+        self, run: execution.Run[frs.LiveAtomic], config: execution.RunConfig
+    ) -> None:
         raise NotImplementedError()
 
     def to_unlocked_workflow(self) -> Workflow:
