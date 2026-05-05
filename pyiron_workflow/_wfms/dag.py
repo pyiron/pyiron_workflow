@@ -256,6 +256,8 @@ class Macro(StaticNode[frs.LiveWorkflow], Graph):
         result = run.result
 
         order = fr_wfms._topo_sort_children(recipe)
+        # TODO: order by topological layer; parallelize with intra-layer multithreading
+
         for label in order:
             node = self.nodes[label]
             input_data = fr_wfms._gather_child_inputs(label, recipe, result)
