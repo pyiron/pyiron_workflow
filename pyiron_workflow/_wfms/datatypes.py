@@ -252,7 +252,7 @@ class FlowControl(StaticNode[frs.LiveWorkflow], Graph, abc.ABC):
 
     @property
     @abc.abstractmethod
-    def prospective_output_edges(self) -> frs.OutputEdges: ...
+    def prospective_output_edges(self) -> frs.ProspectiveOutputEdges: ...
 
     @classmethod
     def _result_type(cls) -> type[frs.LiveWorkflow]:
