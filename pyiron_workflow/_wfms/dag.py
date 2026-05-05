@@ -17,6 +17,7 @@ from pyiron_workflow._wfms.datatypes import (
     PortMap,
     PortType,
     RecipeType,
+    StaticNode,
 )
 
 
@@ -192,8 +193,12 @@ class Workflow(Node[frs.LiveWorkflow], Graph):
         raise NotImplementedError()
 
 
-class Macro(Node[frs.LiveWorkflow], Graph):  # Not implemented
+class Macro(StaticNode[frs.LiveWorkflow], Graph):  # Not implemented
     function_metadata: sds.FunctionMetadata | None
+
+    @classmethod
+    def _result_type(cls) -> type[frs.LiveWorkflow]:
+        return frs.LiveWorkflow
 
     def to_unlocked_workflow(self) -> Workflow:
         raise NotImplementedError()

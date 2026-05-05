@@ -1,21 +1,14 @@
 from __future__ import annotations
 
-import collections
-
 from flowrep.api import schemas as frs
 from flowrep.wfms import _call_atomic, _store_atomic_outputs
 from semantikon import datastructure as sds
 
-from pyiron_workflow._wfms import execution, helpers
-from pyiron_workflow._wfms.datatypes import (
-    InputPort,
-    Node,
-    OutputPort,
-    PortMap,
-)
+from pyiron_workflow._wfms import execution
+from pyiron_workflow._wfms.datatypes import StaticNode
 
 
-class Atomic(Node[frs.LiveAtomic]):
+class Atomic(StaticNode[frs.LiveAtomic]):
 
     def __init__(
         self,
@@ -24,34 +17,14 @@ class Atomic(Node[frs.LiveAtomic]):
         *,
         history_limit: int = 10,
     ):
-        self._label = label  # TODO: also accept None and use function name for default
-        self._owner = None
-        self._recipe = recipe
-        live_preview = self.generate_flowrep_live_node()
-        self._inputs = helpers.build_inputs(self, live_preview)
-        self._outputs = helpers.build_outputs(self, live_preview)
+        super().__init__(label, recipe, history_limit=history_limit)
         self._function_metadata = getattr(
-            live_preview.function, "_semantikon_metadata", None
+            self.generate_flowrep_live_node().function, "_semantikon_metadata", None
         )
 
-        self.executor = None
-        self.current_run = None
-        self.run_history = collections.deque(maxlen=history_limit)
-
-    @property
-    def inputs(self) -> PortMap[InputPort, Node]:
-        return self._inputs
-
-    @property
-    def outputs(self) -> PortMap[OutputPort, Node]:
-        return self._outputs
-
-    @property
-    def recipe(self) -> frs.AtomicNode:
-        return self._recipe
-
-    def generate_flowrep_live_node(self) -> frs.LiveAtomic:
-        return frs.LiveAtomic.from_recipe(self.recipe)
+    @classmethod
+    def _result_type(cls) -> type[frs.LiveAtomic]:
+        return frs.LiveAtomic
 
     def evaluate(self, run: execution.Run[frs.LiveAtomic]) -> None:
         output = _call_atomic(run.result)

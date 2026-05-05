@@ -10,7 +10,7 @@ from typing import Any, ClassVar, Generic, Protocol, TypeAlias, TypeVar
 from flowrep.api import schemas as frs
 from semantikon import datastructure as sds
 
-from pyiron_workflow._wfms import execution, lexical
+from pyiron_workflow._wfms import execution, helpers, lexical
 
 RecipeType: TypeAlias = (
     frs.AtomicNode
@@ -144,6 +144,79 @@ class Node(lexical.Lexical["Graph"], Generic[execution.ResultType], abc.ABC):
         return state
 
 
+class StaticNode(Node[execution.ResultType], abc.ABC):
+
+    @classmethod
+    @abc.abstractmethod
+    def _result_type(cls) -> type[execution.ResultType]: ...
+
+    def __init__(
+        self,
+        label: frs.Label,
+        recipe: frs.AtomicNode,
+        *,
+        history_limit: int = 10,
+    ):
+        self._label = label  # TODO: also accept None and use function name for default
+        self._owner = None
+        self._recipe = recipe
+        live_preview = self.generate_flowrep_live_node()
+        self._inputs = self._build_inputs(live_preview)
+        self._outputs = self._build_outputs(live_preview)
+
+        self.executor = None
+        self.current_run = None
+        self.run_history = collections.deque(maxlen=history_limit)
+
+    @property
+    def inputs(self) -> PortMap[InputPort, Node]:
+        return self._inputs
+
+    @property
+    def outputs(self) -> PortMap[OutputPort, Node]:
+        return self._outputs
+
+    @property
+    def recipe(self) -> execution.ResultType:
+        return self._recipe
+
+    def generate_flowrep_live_node(self) -> frs.LiveAtomic:
+        return self._result_type().from_recipe(self.recipe)
+
+    def _build_inputs(self, live: frs.LiveNode) -> PortMap[InputPort, Node]:
+        return PortMap[InputPort, Node](
+            self,
+            *(
+                InputPort(
+                    label=label,
+                    owner=self,
+                    type_hint=helpers.annotation_to_type_hint(flowrep_port.annotation),
+                    type_metadata=helpers.annotation_to_type_metadata(
+                        flowrep_port.annotation
+                    ),
+                    has_default=label in self.recipe.inputs_with_defaults,
+                )
+                for label, flowrep_port in live.input_ports.items()
+            ),
+        )
+
+    def _build_outputs(self, live: frs.LiveNode) -> PortMap[OutputPort, Node]:
+        return PortMap[OutputPort, Node](
+            self,
+            *(
+                OutputPort(
+                    label=label,
+                    owner=self,
+                    type_hint=helpers.annotation_to_type_hint(flowrep_port.annotation),
+                    type_metadata=helpers.annotation_to_type_metadata(
+                        flowrep_port.annotation
+                    ),
+                )
+                for label, flowrep_port in live.output_ports.items()
+            ),
+        )
+
+
 class NodeMap(lexical.LexicalMap[Node, "Graph"]): ...
 
 
@@ -161,7 +234,7 @@ class Graph(lexical.Lexical["Graph"], Protocol):
     def nodes(self) -> NodeMap: ...
 
 
-class FlowControl(Node[frs.LiveWorkflow], Graph, abc.ABC):
+class FlowControl(StaticNode[frs.LiveWorkflow], Graph, abc.ABC):
     @property
     @abc.abstractmethod
     def prospective_input_edges(self) -> frs.InputEdges: ...
@@ -173,3 +246,7 @@ class FlowControl(Node[frs.LiveWorkflow], Graph, abc.ABC):
     @property
     @abc.abstractmethod
     def prospective_output_edges(self) -> frs.OutputEdges: ...
+
+    @classmethod
+    def _result_type(cls) -> type[frs.LiveWorkflow]:
+        return frs.LiveWorkflow
