@@ -263,6 +263,10 @@ class FlowControl(StaticNode[frs.LiveWorkflow], Graph, abc.ABC):
     @abc.abstractmethod
     def prospective_output_edges(self) -> frs.ProspectiveOutputEdges: ...
 
+    @property
+    @abc.abstractmethod
+    def prospective_nodes(self) -> NodeMap: ...
+
     @abc.abstractmethod
     def _build_retrospective_input_edges(
         self, run: execution.Run[frs.LiveWorkflow]

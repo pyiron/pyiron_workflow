@@ -21,6 +21,10 @@ class ForEach(FlowControl):
     def prospective_output_edges(self) -> frs.OutputEdges:
         raise NotImplementedError()
 
+    @property
+    def prospective_nodes(self) -> NodeMap:
+        raise NotImplementedError()
+
     def evaluate(
         self, run: execution.Run[frs.LiveWorkflow], config: execution.RunConfig
     ) -> None:
@@ -58,6 +62,10 @@ class If(FlowControl):
 
     @property
     def prospective_output_edges(self) -> frs.OutputEdges:
+        raise NotImplementedError()
+
+    @property
+    def prospective_nodes(self) -> NodeMap:
         raise NotImplementedError()
 
     def evaluate(
@@ -99,6 +107,10 @@ class Try(FlowControl):
     def prospective_output_edges(self) -> frs.OutputEdges:
         raise NotImplementedError()
 
+    @property
+    def prospective_nodes(self) -> NodeMap:
+        raise NotImplementedError()
+
     def evaluate(
         self, run: execution.Run[frs.LiveWorkflow], config: execution.RunConfig
     ) -> None:
@@ -137,6 +149,10 @@ class While(FlowControl):
 
     @property
     def prospective_output_edges(self) -> frs.OutputEdges:
+        raise NotImplementedError()
+
+    @property
+    def prospective_nodes(self) -> NodeMap:
         raise NotImplementedError()
 
     def evaluate(
