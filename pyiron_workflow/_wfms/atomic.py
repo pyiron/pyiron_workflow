@@ -15,9 +15,10 @@ class Atomic(StaticNode[frs.LiveAtomic]):
         label: frs.Label,
         recipe: frs.AtomicNode,
         *,
+        owner=None,
         history_limit: int = 10,
     ):
-        super().__init__(label, recipe, history_limit=history_limit)
+        super().__init__(label, recipe, owner=owner, history_limit=history_limit)
         self._function_metadata = getattr(
             self.generate_flowrep_live_node().function, "_semantikon_metadata", None
         )
