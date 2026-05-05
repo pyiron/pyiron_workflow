@@ -1,7 +1,7 @@
 from __future__ import annotations
 
+from flowrep import wfms as fr_wfms
 from flowrep.api import schemas as frs
-from flowrep.wfms import _call_atomic, _store_atomic_outputs
 from semantikon import datastructure as sds
 
 from pyiron_workflow._wfms import execution
@@ -30,8 +30,8 @@ class Atomic(StaticNode[frs.LiveAtomic]):
     def evaluate(
         self, run: execution.Run[frs.LiveAtomic], config: execution.RunConfig
     ) -> None:
-        output = _call_atomic(run.result)
-        _store_atomic_outputs(run.result, output)
+        output = fr_wfms._call_atomic(run.result)
+        fr_wfms._store_atomic_outputs(run.result, output)
 
     @property
     def function_metadata(self) -> sds.FunctionMetadata | None:
