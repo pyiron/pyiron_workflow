@@ -6,7 +6,7 @@ import enum
 import pathlib
 from collections.abc import Callable, Iterable
 from concurrent import futures
-from typing import TYPE_CHECKING, Any, Generic, TypeVar
+from typing import TYPE_CHECKING, Any, Generic, NamedTuple, TypeVar
 
 from flowrep.api import schemas as frs
 from flowrep.wfms import _populate_input_ports
@@ -25,6 +25,11 @@ class RunStatus(enum.StrEnum):
 ResultType = TypeVar("ResultType", bound=frs.LiveNode)
 
 
+class Step(NamedTuple):
+    label: frs.Label
+    run: Run[Any]
+
+
 @dataclasses.dataclass
 class Run(Generic[ResultType]):
     result: ResultType
@@ -33,7 +38,7 @@ class Run(Generic[ResultType]):
     started_at: datetime.datetime | None = None
     finished_at: datetime.datetime | None = None
     progress_dir: pathlib.Path | None = None
-    steps: list[Run[Any]] = dataclasses.field(default_factory=list)
+    steps: list[Step] = dataclasses.field(default_factory=list)
 
     @property
     def outputs(self):
