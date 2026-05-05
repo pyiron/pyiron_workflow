@@ -260,6 +260,7 @@ class Macro(StaticNode[frs.LiveWorkflow], Graph):
             node = self.nodes[label]
             input_data = fr_wfms._gather_child_inputs(label, recipe, result)
             sub_run = execution.run(node, config, **input_data)
+            run.steps.append(sub_run)
             result.nodes[label] = sub_run.result
 
         fr_wfms._populate_workflow_outputs(result, recipe)

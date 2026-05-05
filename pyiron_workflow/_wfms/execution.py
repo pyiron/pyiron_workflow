@@ -32,6 +32,7 @@ class Run(Generic[ResultType]):
     started_at: datetime.datetime | None = None
     finished_at: datetime.datetime | None = None
     progress_dir: pathlib.Path | None = None
+    steps: list[Run[Any]] = dataclasses.field(default_factory=list)
 
     @property
     def outputs(self):
