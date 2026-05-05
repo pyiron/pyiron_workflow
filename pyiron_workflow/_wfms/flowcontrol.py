@@ -1,8 +1,8 @@
 from __future__ import annotations
 
 from flowrep.api import schemas as frs
-from pyiron_workfow._wfms import execution
 
+from pyiron_workflow._wfms import execution
 from pyiron_workflow._wfms.datatypes import FlowControl, Node, NodeMap
 
 
