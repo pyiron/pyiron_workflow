@@ -4,6 +4,7 @@ import collections
 from collections.abc import MutableMapping
 from typing import TypeAlias
 
+from flowrep import wfms as fr_wfms
 from flowrep.api import schemas as frs
 from pyiron_snippets import retrieve
 from semantikon import datastructure as sds
@@ -249,9 +250,19 @@ class Macro(StaticNode[frs.LiveWorkflow], Graph):
         return self._nodes
 
     def evaluate(
-        self, run: execution.Run[frs.LiveAtomic], config: execution.RunConfig
+        self, run: execution.Run[frs.LiveWorkflow], config: execution.RunConfig
     ) -> None:
-        raise NotImplementedError()
+        recipe = run.result.recipe
+        result = run.result
+
+        order = fr_wfms._topo_sort_children(recipe)
+        for label in order:
+            node = self.nodes[label]
+            input_data = fr_wfms._gather_child_inputs(label, recipe, result)
+            sub_run = execution.run(node, config, **input_data)
+            result.nodes[label] = sub_run.result
+
+        fr_wfms._populate_workflow_outputs(result, recipe)
 
     def to_unlocked_workflow(self) -> Workflow:
         raise NotImplementedError()
