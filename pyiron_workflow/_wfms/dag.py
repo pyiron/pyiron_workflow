@@ -8,7 +8,7 @@ from flowrep.api import schemas as frs
 from pyiron_snippets import retrieve
 from semantikon import datastructure as sds
 
-from pyiron_workflow._wfms import execution
+from pyiron_workflow._wfms import atomic, execution, flowcontrol
 from pyiron_workflow._wfms.datatypes import (
     Graph,
     InputPort,
@@ -214,6 +214,14 @@ class Macro(StaticNode[frs.LiveWorkflow], Graph):
         else:
             self._function_metadata = None
 
+        self._nodes = NodeMap(
+            self,
+            *(
+                recipe2static(label, recipe, owner=self)
+                for label, recipe in recipe.nodes.items()
+            ),
+        )
+
     @classmethod
     def _result_type(cls) -> type[frs.LiveWorkflow]:
         return frs.LiveWorkflow
@@ -224,22 +232,43 @@ class Macro(StaticNode[frs.LiveWorkflow], Graph):
 
     @property
     def input_edges(self) -> frs.InputEdges:
-        raise NotImplementedError()
+        return self._recipe.input_edges
 
     @property
     def edges(self) -> frs.Edges:
-        raise NotImplementedError()
+        return self._recipe.edges
 
     @property
     def output_edges(self) -> frs.OutputEdges:
-        raise NotImplementedError()
+        return self._recipe.output_edges
 
     @property
     def nodes(self) -> NodeMap:
-        raise NotImplementedError()
+        return self._nodes
 
     def evaluate(self, run: execution.Run[frs.LiveAtomic]) -> None:
         raise NotImplementedError()
 
     def to_unlocked_workflow(self) -> Workflow:
         raise NotImplementedError()
+
+
+def recipe2static(
+    label: frs.Label,
+    recipe: RecipeType,
+    owner: Graph | None = None,
+) -> StaticNode:
+    if isinstance(recipe, frs.AtomicNode):
+        return atomic.Atomic(label, recipe, owner=owner)
+    elif isinstance(recipe, frs.ForEachNode):
+        return flowcontrol.ForEach(label, recipe, owner=owner)
+    elif isinstance(recipe, frs.IfNode):
+        return flowcontrol.If(label, recipe, owner=owner)
+    elif isinstance(recipe, frs.TryNode):
+        return flowcontrol.Try(label, recipe, owner=owner)
+    elif isinstance(recipe, frs.WhileNode):
+        return flowcontrol.While(label, recipe, owner=owner)
+    elif isinstance(recipe, frs.WorkflowNode):
+        return Macro(label, recipe, owner=owner)
+    else:
+        raise TypeError(f"Unknown recipe type: {recipe}. Expected one of {RecipeType}.")
