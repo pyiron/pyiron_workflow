@@ -242,6 +242,15 @@ class Graph(lexical.Lexical["Graph"], Protocol):
 
 
 class FlowControl(StaticNode[frs.LiveWorkflow], Graph, abc.ABC):
+    """
+    Flow controls all have a prospective recipe which resolves into a retrospective DAG.
+
+    In light of this, the :class:`Graph` properties all exist in reference only to the
+    current run, while new propsective properties are informed by the recipe itself.
+    This differs from macro graphs, where the topology of the recipe and run result are
+    identical, and we only need to populate the recipe topology with data values.
+    """
+
     @property
     @abc.abstractmethod
     def prospective_input_edges(self) -> frs.InputEdges: ...
@@ -254,6 +263,50 @@ class FlowControl(StaticNode[frs.LiveWorkflow], Graph, abc.ABC):
     @abc.abstractmethod
     def prospective_output_edges(self) -> frs.ProspectiveOutputEdges: ...
 
+    @abc.abstractmethod
+    def _build_retrospective_input_edges(
+        self, run: execution.Run[frs.LiveWorkflow]
+    ) -> frs.InputEdges: ...
+
+    @abc.abstractmethod
+    def _build_retrospective_edges(
+        self, run: execution.Run[frs.LiveWorkflow]
+    ) -> frs.Edges: ...
+
+    @abc.abstractmethod
+    def _build_retrospective_output_edges(
+        self, run: execution.Run[frs.LiveWorkflow]
+    ) -> frs.OutputEdges: ...
+
+    @abc.abstractmethod
+    def _build_retrospective_nodes(
+        self, run: execution.Run[frs.LiveWorkflow]
+    ) -> NodeMap: ...
+
     @classmethod
     def _result_type(cls) -> type[frs.LiveWorkflow]:
         return frs.LiveWorkflow
+
+    @property
+    def input_edges(self) -> frs.InputEdges:
+        if self.current_run is None:
+            return {}
+        return self._build_retrospective_input_edges(self.current_run)
+
+    @property
+    def edges(self) -> frs.Edges:
+        if self.current_run is None:
+            return {}
+        return self._build_retrospective_edges(self.current_run)
+
+    @property
+    def output_edges(self) -> frs.OutputEdges:
+        if self.current_run is None:
+            return {}
+        return self._build_retrospective_output_edges(self.current_run)
+
+    @property
+    def nodes(self) -> NodeMap:
+        if self.current_run is None:
+            return NodeMap(self)
+        return self._build_retrospective_nodes(self.current_run)
