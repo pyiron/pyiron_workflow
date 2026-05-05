@@ -10,7 +10,7 @@ from typing import Any, ClassVar, Generic, Protocol, TypeAlias, TypeVar
 from flowrep.api import schemas as frs
 from semantikon import datastructure as sds
 
-from pyiron_workflow._wfms import execution, helpers, lexical
+from pyiron_workflow._wfms import annotation, execution, lexical
 
 RecipeType: TypeAlias = (
     frs.AtomicNode
@@ -191,8 +191,10 @@ class StaticNode(Node[execution.ResultType], abc.ABC):
                 InputPort(
                     label=label,
                     owner=self,
-                    type_hint=helpers.annotation_to_type_hint(flowrep_port.annotation),
-                    type_metadata=helpers.annotation_to_type_metadata(
+                    type_hint=annotation.annotation_to_type_hint(
+                        flowrep_port.annotation
+                    ),
+                    type_metadata=annotation.annotation_to_type_metadata(
                         flowrep_port.annotation
                     ),
                     has_default=label in self.recipe.inputs_with_defaults,
@@ -208,8 +210,10 @@ class StaticNode(Node[execution.ResultType], abc.ABC):
                 OutputPort(
                     label=label,
                     owner=self,
-                    type_hint=helpers.annotation_to_type_hint(flowrep_port.annotation),
-                    type_metadata=helpers.annotation_to_type_metadata(
+                    type_hint=annotation.annotation_to_type_hint(
+                        flowrep_port.annotation
+                    ),
+                    type_metadata=annotation.annotation_to_type_metadata(
                         flowrep_port.annotation
                     ),
                 )
