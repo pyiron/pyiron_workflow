@@ -5,6 +5,7 @@ from collections.abc import MutableMapping
 from typing import TypeAlias
 
 from flowrep.api import schemas as frs
+from pyiron_snippets import retrieve
 from semantikon import datastructure as sds
 
 from pyiron_workflow._wfms import execution
@@ -193,12 +194,49 @@ class Workflow(Node[frs.LiveWorkflow], Graph):
         raise NotImplementedError()
 
 
-class Macro(StaticNode[frs.LiveWorkflow], Graph):  # Not implemented
-    function_metadata: sds.FunctionMetadata | None
+class Macro(StaticNode[frs.LiveWorkflow], Graph):
+
+    def __init__(
+        self,
+        label: frs.Label,
+        recipe: frs.WorkflowNode,
+        *,
+        history_limit: int = 10,
+    ):
+        super().__init__(label, recipe, history_limit=history_limit)
+        if reference := recipe.reference:
+            fqn = reference.info.fully_qualified_name
+            function = retrieve.import_from_string(fqn)
+            self._function_metadata = getattr(function, "_semantikon_metadata", None)
+        else:
+            self._function_metadata = None
 
     @classmethod
     def _result_type(cls) -> type[frs.LiveWorkflow]:
         return frs.LiveWorkflow
+
+    @property
+    def function_metadata(self) -> sds.FunctionMetadata | None:
+        return self._function_metadata
+
+    @property
+    def input_edges(self) -> frs.InputEdges:
+        raise NotImplementedError()
+
+    @property
+    def edges(self) -> frs.Edges:
+        raise NotImplementedError()
+
+    @property
+    def output_edges(self) -> frs.OutputEdges:
+        raise NotImplementedError()
+
+    @property
+    def nodes(self) -> NodeMap:
+        raise NotImplementedError()
+
+    def evaluate(self, run: execution.Run[frs.LiveAtomic]) -> None:
+        raise NotImplementedError()
 
     def to_unlocked_workflow(self) -> Workflow:
         raise NotImplementedError()
