@@ -5,6 +5,7 @@ import datetime
 import enum
 import pathlib
 from collections.abc import Callable, Iterable
+from concurrent import futures
 from typing import TYPE_CHECKING, Any, Generic, TypeVar
 
 from flowrep.api import schemas as frs
@@ -63,6 +64,16 @@ class RunConfig:
         return candidate.lexical_path == self.prime_mover
 
 
+@dataclasses.dataclass
+class ExecutorInstructions:
+    constructor: type[futures.Executor]
+    args: tuple[Any, ...] = dataclasses.field(default_factory=tuple)
+    kwargs: dict[str, Any] = dataclasses.field(default_factory=dict)
+
+    def instantiate(self) -> futures.Executor:
+        return self.constructor(*self.args, **self.kwargs)
+
+
 def run(
     _pwf_run__node: Node[ResultType],
     _pwf_run__config: RunConfig,
@@ -86,9 +97,17 @@ def run(
         node.current_run.status = RunStatus.RUNNING
         _populate_input_ports(node.current_run.result, input_data)
         if node.executor is not None:
-            # Needs careful thinking about how failure and parent process shutdowns
-            # will be handled
-            raise NotImplementedError()
+            if isinstance(node.executor, ExecutorInstructions):
+                with node.executor.instantiate() as exe:
+                    f = exe.submit(node.evaluate, node.current_run, config)
+            elif isinstance(node.executor, futures.Executor):
+                f = node.executor.submit(node.evaluate, node.current_run, config)
+            else:
+                raise TypeError(
+                    f"Expected executor to be an instance of ExecutorInstructions or "
+                    f"futures.Executor, but {node.lexical_path!r} got {node.executor}."
+                )
+            f.result()
         else:
             node.evaluate(node.current_run, config)
         node.current_run.status = RunStatus.FINISHED
