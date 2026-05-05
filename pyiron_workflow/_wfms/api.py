@@ -1,4 +1,5 @@
 from pyiron_workflow._wfms.atomic import Atomic as Atomic
+from pyiron_workflow._wfms.constructors import node as node
 from pyiron_workflow._wfms.dag import Macro as Macro
 from pyiron_workflow._wfms.dag import Workflow as Workflow
 from pyiron_workflow._wfms.flowcontrol import ForEach as ForEach
