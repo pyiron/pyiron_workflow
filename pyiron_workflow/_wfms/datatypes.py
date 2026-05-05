@@ -153,7 +153,7 @@ class StaticNode(Node[execution.ResultType], abc.ABC):
     def __init__(
         self,
         label: frs.Label,
-        recipe: frs.AtomicNode,
+        recipe: RecipeType,
         *,
         owner: Graph | None = None,
         history_limit: int = 10,
