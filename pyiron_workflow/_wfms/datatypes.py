@@ -289,7 +289,7 @@ class FlowControl(StaticNode[frs.LiveWorkflow], Graph, abc.ABC):
 
     @classmethod
     def _result_type(cls) -> type[frs.LiveWorkflow]:
-        return frs.LiveWorkflow
+        return frs.FlowControl
 
     @property
     def input_edges(self) -> frs.InputEdges:
