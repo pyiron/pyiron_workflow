@@ -68,12 +68,13 @@ class Workflow(Node[frs.LiveWorkflow], Graph):
         self,
         label: frs.Label,
         *,
+        owner: Graph | None = None,
         history_limit: int = 10,
         undo_limit: int = 10,
     ):
         # Add a super call later if needed
         self._label = label
-        self._owner = None
+        self._owner = owner
         self.executor = None
         self.current_run = None
         self.run_history = collections.deque(maxlen=history_limit)
@@ -201,9 +202,11 @@ class Macro(StaticNode[frs.LiveWorkflow], Graph):
         label: frs.Label,
         recipe: frs.WorkflowNode,
         *,
+        owner: Graph | None = None,
         history_limit: int = 10,
     ):
-        super().__init__(label, recipe, history_limit=history_limit)
+        super().__init__(label, recipe, owner=owner, history_limit=history_limit)
+
         if reference := recipe.reference:
             fqn = reference.info.fully_qualified_name
             function = retrieve.import_from_string(fqn)

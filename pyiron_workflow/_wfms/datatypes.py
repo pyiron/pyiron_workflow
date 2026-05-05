@@ -155,10 +155,11 @@ class StaticNode(Node[execution.ResultType], abc.ABC):
         label: frs.Label,
         recipe: frs.AtomicNode,
         *,
+        owner: Graph | None = None,
         history_limit: int = 10,
     ):
         self._label = label  # TODO: also accept None and use function name for default
-        self._owner = None
+        self._owner = owner
         self._recipe = recipe
         live_preview = self.generate_flowrep_live_node()
         self._inputs = self._build_inputs(live_preview)
