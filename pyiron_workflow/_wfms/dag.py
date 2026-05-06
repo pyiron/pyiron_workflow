@@ -4,10 +4,10 @@ import collections
 from collections.abc import MutableMapping
 from typing import TypeAlias
 
+import semantikon
 from flowrep import wfms as fr_wfms
 from flowrep.api import schemas as frs
 from pyiron_snippets import retrieve
-from semantikon import datastructure as sds
 
 from pyiron_workflow._wfms import atomic, execution, flowcontrol
 from pyiron_workflow._wfms.datatypes import (
@@ -125,7 +125,7 @@ class Workflow(Node[frs.LiveWorkflow], Graph):
         self,
         label: frs.Label,
         type_hint: type | None = None,
-        type_metadata: sds.TypeMetadata | None = None,
+        type_metadata: semantikon.TypeMetadata | None = None,
     ) -> GraphDiff:
         raise NotImplementedError()
 
@@ -152,7 +152,7 @@ class Workflow(Node[frs.LiveWorkflow], Graph):
         return self.add_port_hint(port, None)
 
     def add_port_metadata(
-        self, port: InputPort | OutputPort, metadata: sds.TypeMetadata | None
+        self, port: InputPort | OutputPort, metadata: semantikon.TypeMetadata | None
     ) -> GraphDiff:
         raise NotImplementedError()
 
@@ -230,7 +230,7 @@ class Macro(StaticNode[frs.LiveWorkflow], Graph):
         return frs.LiveWorkflow
 
     @property
-    def function_metadata(self) -> sds.FunctionMetadata | None:
+    def function_metadata(self) -> semantikon.FunctionMetadata | None:
         return self._function_metadata
 
     @property

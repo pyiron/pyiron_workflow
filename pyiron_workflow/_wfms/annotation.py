@@ -1,7 +1,6 @@
 from typing import Annotated, Any, get_args, get_origin
 
-from semantikon import converter
-from semantikon import datastructure as sds
+import semantikon
 
 
 def annotation_to_type_hint(annotation) -> type | None:
@@ -17,5 +16,5 @@ def _unwrap_annotated(annotation: Any) -> Any:
     return annotation
 
 
-def annotation_to_type_metadata(annotation) -> sds.TypeMetadata | None:
-    return converter.parse_metadata(annotation) if annotation is not None else None
+def annotation_to_type_metadata(annotation) -> semantikon.TypeMetadata | None:
+    return semantikon.parse_metadata(annotation) if annotation is not None else None

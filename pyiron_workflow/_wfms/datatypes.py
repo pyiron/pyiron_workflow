@@ -7,8 +7,8 @@ import pathlib
 from concurrent import futures
 from typing import Any, ClassVar, Generic, Protocol, TypeAlias, TypeVar
 
+import semantikon
 from flowrep.api import schemas as frs
-from semantikon import datastructure as sds
 
 from pyiron_workflow._wfms import annotation, execution, lexical
 
@@ -27,7 +27,7 @@ class Port(abc.ABC):  # Satisfies pyiron_workflow._wfms.lexical.Lexical["Node"]
     label: frs.Label
     owner: Node
     type_hint: type | None
-    type_metadata: sds.TypeMetadata | None
+    type_metadata: semantikon.TypeMetadata | None
     _io_indicator: ClassVar[str]
 
     @property

@@ -1,8 +1,8 @@
 from __future__ import annotations
 
+import semantikon
 from flowrep import wfms as fr_wfms
 from flowrep.api import schemas as frs
-from semantikon import datastructure as sds
 
 from pyiron_workflow._wfms import execution
 from pyiron_workflow._wfms.datatypes import StaticNode
@@ -34,5 +34,5 @@ class Atomic(StaticNode[frs.LiveAtomic]):
         fr_wfms._store_atomic_outputs(run.result, output)
 
     @property
-    def function_metadata(self) -> sds.FunctionMetadata | None:
+    def function_metadata(self) -> semantikon.FunctionMetadata | None:
         return self._function_metadata

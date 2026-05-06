@@ -11,3 +11,5 @@ from pyiron_workflow._wfms.flowcontrol import ForEach as ForEach
 from pyiron_workflow._wfms.flowcontrol import If as If
 from pyiron_workflow._wfms.flowcontrol import Try as Try
 from pyiron_workflow._wfms.flowcontrol import While as While
+from pyiron_workflow._wfms.transformers import Transform1toN as Transform1toN
+from pyiron_workflow._wfms.transformers import TransformNto1 as TransformNto1
