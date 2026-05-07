@@ -255,20 +255,59 @@ class Macro(StaticNode[frs.LiveWorkflow], Graph):
         recipe = run.result.recipe
         result = run.result
 
-        order = fr_wfms._topo_sort_children(recipe)
-        # TODO: order by topological layer; parallelize with intra-layer multithreading
+        layers = topo_sort_nodes(self.nodes, self.edges)
 
-        for label in order:
-            node = self.nodes[label]
-            input_data = gather_target_inputs(label, result)
-            sub_run = execution.run(node, config, **input_data)
-            run.steps.append(execution.Step(label, sub_run))
-            result.nodes[label] = sub_run.result
+        for layer in layers:
+            # TODO: Optionally multithread inside a given layer
+            for label in layer:
+                node = self.nodes[label]
+                input_data = gather_target_inputs(label, result)
+                sub_run = execution.run(node, config, **input_data)
+                run.steps.append(execution.Step(label, sub_run))
+                result.nodes[label] = sub_run.result
 
         fr_wfms._populate_workflow_outputs(result, recipe)
 
     def to_unlocked_workflow(self) -> Workflow:
         raise NotImplementedError()
+
+
+def topo_sort_nodes(nodes: NodeMap, edges: frs.Edges) -> list[list[frs.Label]]:
+    """
+    Kahn's algorithm over sibling edges, grouped into independent layers.
+
+    Each layer contains nodes whose dependencies all live in earlier layers, so
+    members of a layer may be executed concurrently. Deterministic tie-breaking
+    by label within each layer.
+    """
+    in_degree: dict[frs.Label, int] = dict.fromkeys(nodes, 0)
+    successors: dict[frs.Label, list[frs.Label]] = {label: [] for label in nodes}
+
+    for target, source in edges.items():
+        in_degree[target.node] += 1
+        successors[source.node].append(target.node)
+
+    current_layer = sorted(label for label in nodes if in_degree[label] == 0)
+    layers: list[list[frs.Label]] = []
+    processed = 0
+    while current_layer:
+        layers.append(current_layer)
+        processed += len(current_layer)
+        next_layer: list[str] = []
+        for label in current_layer:
+            for succ in successors.get(label, []):
+                in_degree[succ] -= 1
+                if in_degree[succ] == 0:
+                    next_layer.append(succ)
+        current_layer = sorted(next_layer)
+
+    if processed != len(nodes):  # pragma: no cover
+        raise ValueError(
+            "Cycle detected in workflow edges. This should have been caught by the "
+            "underlying recipe validation. Please raise a GitHub issue reporting "
+            "how you got here!"
+        )
+    return layers
 
 
 def gather_target_inputs(
