@@ -9,7 +9,7 @@ from flowrep import wfms as fr_wfms
 from flowrep.api import schemas as frs
 from pyiron_snippets import retrieve
 
-from pyiron_workflow._wfms import atomic, execution, flowcontrol
+from pyiron_workflow._wfms import atomic, execution, flowcontrollers
 from pyiron_workflow._wfms.datatypes import (
     Graph,
     InputPort,
@@ -279,13 +279,13 @@ def recipe2static(
     if isinstance(recipe, frs.AtomicNode):
         return atomic.Atomic(label, recipe, owner=owner)
     elif isinstance(recipe, frs.ForEachNode):
-        return flowcontrol.ForEach(label, recipe, owner=owner)
+        return flowcontrollers.ForEach(label, recipe, owner=owner)
     elif isinstance(recipe, frs.IfNode):
-        return flowcontrol.If(label, recipe, owner=owner)
+        return flowcontrollers.If(label, recipe, owner=owner)
     elif isinstance(recipe, frs.TryNode):
-        return flowcontrol.Try(label, recipe, owner=owner)
+        return flowcontrollers.Try(label, recipe, owner=owner)
     elif isinstance(recipe, frs.WhileNode):
-        return flowcontrol.While(label, recipe, owner=owner)
+        return flowcontrollers.While(label, recipe, owner=owner)
     elif isinstance(recipe, frs.WorkflowNode):
         return Macro(label, recipe, owner=owner)
     else:
