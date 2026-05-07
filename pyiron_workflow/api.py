@@ -10,7 +10,7 @@ from pyiron_workflow.executors import CloudpickleProcessPoolExecutor, NodeSlurmE
 from pyiron_workflow.find import (
     find_nodes as _find_nodes,  # Not formally in API -- don't rely on interface
 )
-from pyiron_workflow.logging import logger
+from pyiron_workflow.logger import logger
 from pyiron_workflow.nodes import standard as std  # User resource
 from pyiron_workflow.nodes.composite import FailedChildError
 from pyiron_workflow.nodes.for_loop import For, for_node, for_node_factory

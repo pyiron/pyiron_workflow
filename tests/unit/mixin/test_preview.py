@@ -4,7 +4,7 @@ from textwrap import dedent
 from pyiron_snippets.factory import classfactory
 
 from pyiron_workflow.data import NOT_DATA
-from pyiron_workflow.logging import logger
+from pyiron_workflow.logger import logger
 from pyiron_workflow.mixin.preview import ScrapesIO, no_output_validation_warning
 
 
