@@ -150,7 +150,6 @@ class ForEach(FlowControl):
         broadcast_labels = list(
             set(inputs) - set(nested_length_map).union(zipped_length_map)
         )
-        print(broadcast_labels)
 
         input_edges = {
             # parent to nested
@@ -195,10 +194,6 @@ class ForEach(FlowControl):
             ).items()
             for i in range(total_steps)
         }
-        print("******EDGES CHECK********")
-        print(recipe.output_edges)
-        print(self._transfer_label_map(recipe.output_edges))
-        print("******/EDGES CHECK********")
         edges.update(
             {
                 # scatterers to aggregators
