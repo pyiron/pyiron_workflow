@@ -2,7 +2,7 @@ from __future__ import annotations
 
 import collections
 from collections.abc import MutableMapping
-from typing import TypeAlias
+from typing import Any, TypeAlias
 
 import semantikon
 from flowrep import wfms as fr_wfms
@@ -260,7 +260,7 @@ class Macro(StaticNode[frs.LiveWorkflow], Graph):
 
         for label in order:
             node = self.nodes[label]
-            input_data = fr_wfms._gather_child_inputs(label, recipe, result)
+            input_data = gather_target_inputs(label, result)
             sub_run = execution.run(node, config, **input_data)
             run.steps.append(execution.Step(label, sub_run))
             result.nodes[label] = sub_run.result
@@ -269,3 +269,33 @@ class Macro(StaticNode[frs.LiveWorkflow], Graph):
 
     def to_unlocked_workflow(self) -> Workflow:
         raise NotImplementedError()
+
+
+def gather_target_inputs(
+    target_label: frs.Label,
+    owner: frs.Composite,
+) -> dict[str, Any]:
+    """
+    Resolve input values for a target node from graph input ports and sibling
+    output ports according to the graph recipe edges.
+
+    Ports not covered by any edge are omitted — the child's own defaults (if any)
+    will be used downstream.
+    """
+    owner_recipe = owner.recipe
+    target_recipe = owner_recipe.nodes[target_label]
+    inputs: dict[str, Any] = {}
+
+    for port in target_recipe.inputs:
+        th = frs.TargetHandle(node=target_label, port=port)
+
+        if th in owner_recipe.input_edges:
+            owner_source = owner_recipe.input_edges[th]
+            inputs[port] = owner.input_ports[owner_source.port].get_data()
+        elif th in owner_recipe.edges:
+            sibling_source = owner_recipe.edges[th]
+            sibling = owner.nodes[sibling_source.node]
+            inputs[port] = sibling.output_ports[sibling_source.port].value
+        # else: port has a default on the child, _call_atomic will handle it
+
+    return inputs
