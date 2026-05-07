@@ -9,7 +9,7 @@ from flowrep import wfms as fr_wfms
 from flowrep.api import schemas as frs
 from pyiron_snippets import retrieve
 
-from pyiron_workflow._wfms import atomic, execution, flowcontrollers
+from pyiron_workflow._wfms import constructors, execution
 from pyiron_workflow._wfms.datatypes import (
     Graph,
     InputPort,
@@ -220,7 +220,7 @@ class Macro(StaticNode[frs.LiveWorkflow], Graph):
         self._nodes = NodeMap(
             self,
             *(
-                recipe2static(label, recipe, owner=self)
+                constructors.recipe2static(label, recipe, owner=self)
                 for label, recipe in recipe.nodes.items()
             ),
         )
@@ -269,24 +269,3 @@ class Macro(StaticNode[frs.LiveWorkflow], Graph):
 
     def to_unlocked_workflow(self) -> Workflow:
         raise NotImplementedError()
-
-
-def recipe2static(
-    label: frs.Label,
-    recipe: RecipeType,
-    owner: Graph | None = None,
-) -> StaticNode:
-    if isinstance(recipe, frs.AtomicNode):
-        return atomic.Atomic(label, recipe, owner=owner)
-    elif isinstance(recipe, frs.ForEachNode):
-        return flowcontrollers.ForEach(label, recipe, owner=owner)
-    elif isinstance(recipe, frs.IfNode):
-        return flowcontrollers.If(label, recipe, owner=owner)
-    elif isinstance(recipe, frs.TryNode):
-        return flowcontrollers.Try(label, recipe, owner=owner)
-    elif isinstance(recipe, frs.WhileNode):
-        return flowcontrollers.While(label, recipe, owner=owner)
-    elif isinstance(recipe, frs.WorkflowNode):
-        return Macro(label, recipe, owner=owner)
-    else:
-        raise TypeError(f"Unknown recipe type: {recipe}. Expected one of {RecipeType}.")

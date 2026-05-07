@@ -6,7 +6,7 @@ from typing import Any
 
 from flowrep.api import schemas as frs
 
-from pyiron_workflow._wfms import atomic, dag, execution, transformers
+from pyiron_workflow._wfms import atomic, constructors, execution, transformers
 from pyiron_workflow._wfms.datatypes import FlowControl, Graph, NodeMap, StaticNode
 
 
@@ -24,7 +24,7 @@ class ForEach(FlowControl):
 
         bn = self.recipe.body_node
         self._prospective_nodes = NodeMap(
-            self, dag.recipe2static(bn.label, bn.node, owner=self)
+            self, constructors.recipe2static(bn.label, bn.node, owner=self)
         )
 
     @property
@@ -90,7 +90,9 @@ class ForEach(FlowControl):
     ) -> NodeMap:
         node_map = NodeMap(self)
         for step in run.steps:
-            node = dag.recipe2static(step.label, step.run.result.recipe, owner=self)
+            node = constructors.recipe2static(
+                step.label, step.run.result.recipe, owner=self
+            )
             node.current_run = step.run
             node_map[step.label] = node
         return node_map
@@ -129,7 +131,9 @@ class ForEach(FlowControl):
 
         total_steps = self._calculate_total_steps(nested_length_map, zipped_length_map)
         body_nodes: tuple[StaticNode[Any], ...] = tuple(
-            dag.recipe2static(self._body_label(body.label, i), body.node, owner=self)
+            constructors.recipe2static(
+                self._body_label(body.label, i), body.node, owner=self
+            )
             for i in range(total_steps)
         )
 
