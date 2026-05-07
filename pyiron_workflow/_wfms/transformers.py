@@ -1,3 +1,5 @@
+from typing import ClassVar
+
 from flowrep.api import schemas as frs
 from pyiron_snippets import versions
 
@@ -6,6 +8,12 @@ from pyiron_workflow._wfms.datatypes import Graph
 
 
 class Transform1toN:
+    input_label: ClassVar[frs.Label] = "items"
+
+    @staticmethod
+    def output_label(i: int) -> frs.Label:
+        return f"output_{i}"
+
     @staticmethod
     def iterable_to_outputs(items, /):
         return tuple(items)
@@ -19,11 +27,11 @@ class Transform1toN:
             reference=frs.PythonReference(
                 info=versions.VersionInfo.of(self.iterable_to_outputs),
                 restricted_input_kinds={
-                    "items": frs.RestrictedParamKind.POSITIONAL_ONLY
+                    self.input_label: frs.RestrictedParamKind.POSITIONAL_ONLY
                 },
             ),
-            inputs=["items"],
-            outputs=[f"output_{i}" for i in range(self.n)],
+            inputs=[self.input_label],
+            outputs=[self.output_label(i) for i in range(self.n)],
             unpack_mode=frs.UnpackMode.TUPLE,
         )
 
@@ -39,6 +47,12 @@ class Transform1toN:
 
 
 class TransformNto1:
+    output_label: ClassVar[frs.Label] = "output_0"
+
+    @staticmethod
+    def input_label(i: int) -> frs.Label:
+        return f"item_{i}"
+
     @staticmethod
     def inputs_to_list(*items):
         return list(items)
@@ -52,12 +66,12 @@ class TransformNto1:
             reference=frs.PythonReference(
                 info=versions.VersionInfo.of(self.inputs_to_list),
                 restricted_input_kinds={
-                    f"item_{i}": frs.RestrictedParamKind.POSITIONAL_ONLY
+                    self.input_label(i): frs.RestrictedParamKind.POSITIONAL_ONLY
                     for i in range(self.n)
                 },
             ),
-            inputs=[f"item_{i}" for i in range(self.n)],
-            outputs=["output_0"],
+            inputs=[self.input_label(i) for i in range(self.n)],
+            outputs=[self.output_label],
             unpack_mode=frs.UnpackMode.TUPLE,
         )
 
