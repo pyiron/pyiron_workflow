@@ -15,7 +15,7 @@ class ForEach(FlowControl):
     def __init__(
         self,
         label: frs.Label,
-        recipe: frs.WorkflowNode,
+        recipe: frs.ForEachNode,
         *,
         owner: Graph | None = None,
         history_limit: int = 10,
