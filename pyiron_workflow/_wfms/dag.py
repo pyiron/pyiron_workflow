@@ -251,23 +251,28 @@ class Macro(StaticNode[frs.LiveWorkflow], Graph):
     def evaluate(
         self, run: execution.Run[frs.LiveWorkflow], config: execution.RunConfig
     ) -> None:
-        result = run.result
-
-        layers = topo_sort_nodes(self.nodes, self.edges)
-
-        for layer in layers:
-            # TODO: Optionally multithread inside a given layer
-            for label in layer:
-                node = self.nodes[label]
-                input_data = gather_target_inputs(label, result)
-                sub_run = execution.run(node, config, **input_data)
-                run.steps.append(execution.Step(label, sub_run))
-                result.nodes[label] = sub_run.result
-
-        populate_outputs(result, result.output_edges)
+        evaluate_dag_by_layer(self.nodes, run, config)
 
     def to_unlocked_workflow(self) -> Workflow:
         raise NotImplementedError()
+
+
+def evaluate_dag_by_layer(
+    nodes: NodeMap, run: execution.Run[frs.Composite], config: execution.RunConfig
+) -> None:
+    result = run.result
+    layers = topo_sort_nodes(nodes, result.edges)
+
+    for layer in layers:
+        # TODO: Optionally multithread inside a given layer
+        for label in layer:
+            node = nodes[label]
+            input_data = gather_target_inputs(label, result)
+            sub_run = execution.run(node, config, **input_data)
+            run.steps.append(execution.Step(label, sub_run))
+            result.nodes[label] = sub_run.result
+
+    populate_outputs(result)
 
 
 def topo_sort_nodes(nodes: NodeMap, edges: frs.Edges) -> list[list[frs.Label]]:
@@ -338,8 +343,8 @@ def gather_target_inputs(
     return inputs
 
 
-def populate_outputs(result: frs.Composite, output_edges: frs.OutputEdges) -> None:
-    for target, source in output_edges.items():
+def populate_outputs(result: frs.Composite) -> None:
+    for target, source in result.output_edges.items():
         if isinstance(source, frs.InputSource):
             val = result.input_ports[source.port].get_data()
         elif isinstance(source, frs.SourceHandle):
