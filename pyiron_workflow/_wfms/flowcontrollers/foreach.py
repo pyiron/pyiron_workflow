@@ -148,6 +148,12 @@ class ForEach(FlowControl):
             set(inputs) - set(nested_length_map).union(zipped_length_map)
         )
 
+        # Mixed-radix decomposition: nested ports are outer dims, zipped is innermost.
+        nested_strides = self._nested_strides(total_steps, nested_length_map)
+        zipped_multiplier = (
+            next(iter(zipped_length_map.values())) if zipped_length_map else 1
+        )
+
         input_edges = {
             # parent to nested
             frs.TargetHandle(
@@ -179,22 +185,36 @@ class ForEach(FlowControl):
         )
 
         edges = {
-            # scatters to bodies
+            # nested scatters to bodies: each nested port advances at its own stride
             frs.TargetHandle(
                 node=self._body_label(body.label, i),
                 port=child_port,
             ): frs.SourceHandle(
                 node=self._scatter_label(parent_port),
-                port=transformers.Transform1toN.output_label(i),
+                port=transformers.Transform1toN.output_label(
+                    (i // nested_strides[parent_port]) % nested_length_map[parent_port]
+                ),
             )
-            for child_port, parent_port in self._body_to_parent_label_map(
-                recipe.input_edges, body.label, recipe.iterated_ports
-            ).items()
+            for child_port, parent_port in nested_label_map.items()
             for i in range(total_steps)
         }
         edges.update(
+            # zipped scatters to bodies: all zipped ports share the innermost index
             {
-                # bodies to aggregators
+                frs.TargetHandle(
+                    node=self._body_label(body.label, i),
+                    port=child_port,
+                ): frs.SourceHandle(
+                    node=self._scatter_label(parent_port),
+                    port=transformers.Transform1toN.output_label(i % zipped_multiplier),
+                )
+                for child_port, parent_port in zipped_label_map.items()
+                for i in range(total_steps)
+            }
+        )
+        edges.update(
+            {
+                # bodies to aggregators (genuinely 1:1)
                 frs.TargetHandle(
                     node=self._aggregate_label(parent_port),
                     port=transformers.TransformNto1.input_label(i),
@@ -208,19 +228,37 @@ class ForEach(FlowControl):
                 for i in range(total_steps)
             }
         )
+        transfer_label_map = self._transfer_label_map(recipe.output_edges)
         edges.update(
+            # nested scatters passed through to aggregators
             {
-                # scatterers to aggregators
                 frs.TargetHandle(
                     node=self._aggregate_label(aggregate_label),
                     port=transformers.TransformNto1.input_label(i),
                 ): frs.SourceHandle(
                     node=self._scatter_label(scatter_label),
-                    port=transformers.Transform1toN.output_label(i),
+                    port=transformers.Transform1toN.output_label(
+                        (i // nested_strides[scatter_label])
+                        % nested_length_map[scatter_label]
+                    ),
                 )
-                for aggregate_label, scatter_label in self._transfer_label_map(
-                    recipe.output_edges
-                ).items()
+                for aggregate_label, scatter_label in transfer_label_map.items()
+                if scatter_label in nested_length_map
+                for i in range(total_steps)
+            }
+        )
+        edges.update(
+            # zipped scatters passed through to aggregators
+            {
+                frs.TargetHandle(
+                    node=self._aggregate_label(aggregate_label),
+                    port=transformers.TransformNto1.input_label(i),
+                ): frs.SourceHandle(
+                    node=self._scatter_label(scatter_label),
+                    port=transformers.Transform1toN.output_label(i % zipped_multiplier),
+                )
+                for aggregate_label, scatter_label in transfer_label_map.items()
+                if scatter_label in zipped_length_map
                 for i in range(total_steps)
             }
         )
@@ -311,6 +349,24 @@ class ForEach(FlowControl):
             1 if len(zipped_length_map) == 0 else next(iter(zipped_length_map.values()))
         )
         return nested_multiplier * zipped_multiplier
+
+    @staticmethod
+    def _nested_strides(
+        total_steps: int, nested_length_map: dict[frs.Label, int]
+    ) -> dict[frs.Label, int]:
+        """
+        Per-port strides for mixed-radix decomposition of the body index.
+
+        Nested ports are outer dimensions in `nested_length_map` insertion order;
+        zipped ports occupy the innermost dimension (stride 1) and are not
+        represented here.
+        """
+        strides: dict[frs.Label, int] = {}
+        running = total_steps
+        for parent_label, length in nested_length_map.items():
+            running //= length
+            strides[parent_label] = running
+        return strides
 
     @staticmethod
     def _captured_output_label_map(
