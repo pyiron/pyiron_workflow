@@ -241,7 +241,7 @@ class Graph(lexical.Lexical["Graph"], Protocol):
     def nodes(self) -> NodeMap: ...
 
 
-class FlowControl(StaticNode[frs.LiveWorkflow], Graph, abc.ABC):
+class FlowControl(StaticNode[frs.FlowControl], Graph, abc.ABC):
     """
     Flow controls all have a prospective recipe which resolves into a retrospective DAG.
 
@@ -269,26 +269,26 @@ class FlowControl(StaticNode[frs.LiveWorkflow], Graph, abc.ABC):
 
     @abc.abstractmethod
     def _build_retrospective_input_edges(
-        self, run: execution.Run[frs.LiveWorkflow]
+        self, run: execution.Run[frs.FlowControl]
     ) -> frs.InputEdges: ...
 
     @abc.abstractmethod
     def _build_retrospective_edges(
-        self, run: execution.Run[frs.LiveWorkflow]
+        self, run: execution.Run[frs.FlowControl]
     ) -> frs.Edges: ...
 
     @abc.abstractmethod
     def _build_retrospective_output_edges(
-        self, run: execution.Run[frs.LiveWorkflow]
+        self, run: execution.Run[frs.FlowControl]
     ) -> frs.OutputEdges: ...
 
     @abc.abstractmethod
     def _build_retrospective_nodes(
-        self, run: execution.Run[frs.LiveWorkflow]
+        self, run: execution.Run[frs.FlowControl]
     ) -> NodeMap: ...
 
     @classmethod
-    def _result_type(cls) -> type[frs.LiveWorkflow]:
+    def _result_type(cls) -> type[frs.FlowControl]:
         return frs.FlowControl
 
     @property
