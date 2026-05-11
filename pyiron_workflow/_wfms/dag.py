@@ -267,7 +267,7 @@ def evaluate_dag_by_layer(
         # TODO: Optionally multithread inside a given layer
         for label in layer:
             node = nodes[label]
-            input_data = gather_target_inputs(label, result)
+            input_data = gather_target_inputs(node, result)
             sub_run = execution.run(node, config, **input_data)
             run.steps.append(execution.Step(label, sub_run))
             result.nodes[label] = sub_run.result
@@ -314,8 +314,8 @@ def topo_sort_nodes(nodes: NodeMap, edges: frs.Edges) -> list[list[frs.Label]]:
 
 
 def gather_target_inputs(
-    target_label: frs.Label,
-    owner: frs.Composite,
+    node: Node,
+    runtime_data: frs.Composite,
 ) -> dict[str, Any]:
     """
     Resolve input values for a target node from graph input ports and sibling
@@ -324,20 +324,20 @@ def gather_target_inputs(
     Ports not covered by any edge are omitted — the child's own defaults (if any)
     will be used downstream.
     """
-    owner_recipe = owner.recipe
-    target_recipe = owner_recipe.nodes[target_label]
     inputs: dict[str, Any] = {}
 
-    for port in target_recipe.inputs:
-        th = frs.TargetHandle(node=target_label, port=port)
+    for port in node.inputs:
+        th = frs.TargetHandle(node=node.label, port=port)
 
-        if th in owner_recipe.input_edges:
-            owner_source = owner_recipe.input_edges[th]
-            inputs[port] = owner.input_ports[owner_source.port].get_data()
-        elif th in owner_recipe.edges:
-            sibling_source = owner_recipe.edges[th]
-            sibling = owner.nodes[sibling_source.node]
-            inputs[port] = sibling.output_ports[sibling_source.port].value
+        if th in runtime_data.input_edges:
+            owner_source = runtime_data.input_edges[th]
+            owner_input_port = runtime_data.input_ports[owner_source.port]
+            inputs[port] = owner_input_port.get_data()
+        elif th in runtime_data.edges:
+            sibling_source = runtime_data.edges[th]
+            sibling_data = runtime_data.nodes[sibling_source.node]
+            sibling_output_port = sibling_data.output_ports[sibling_source.port]
+            inputs[port] = sibling_output_port.value
         # else: port has a default on the child, _call_atomic will handle it
 
     return inputs
