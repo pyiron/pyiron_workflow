@@ -180,6 +180,7 @@ class ForEach(FlowControl):
                 for i in range(total_steps)
             }
         )
+
         edges = {
             # bodies to aggregators
             frs.TargetHandle(
@@ -189,7 +190,7 @@ class ForEach(FlowControl):
                 node=self._body_label(body.label, i),
                 port=child_port,
             )
-            for child_port, parent_port in self._captured_output_label_map(
+            for parent_port, child_port in self._captured_output_label_map(
                 recipe.output_edges, body.label
             ).items()
             for i in range(total_steps)
