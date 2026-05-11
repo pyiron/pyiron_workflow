@@ -154,7 +154,7 @@ class ForEach(FlowControl):
         input_edges = {
             # parent to nested
             frs.TargetHandle(
-                node=self._scatter_label(child_port),
+                node=self._scatter_label(parent_port),
                 port=transformers.Transform1toN.input_label,
             ): frs.InputSource(port=parent_port)
             for child_port, parent_port in nested_label_map.items()
@@ -163,7 +163,7 @@ class ForEach(FlowControl):
             # parent to zipped
             {
                 frs.TargetHandle(
-                    node=self._scatter_label(child_port),
+                    node=self._scatter_label(parent_port),
                     port=transformers.Transform1toN.input_label,
                 ): frs.InputSource(port=parent_port)
                 for child_port, parent_port in zipped_label_map.items()
