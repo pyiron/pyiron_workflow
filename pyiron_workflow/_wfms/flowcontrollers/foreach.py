@@ -6,8 +6,13 @@ from typing import Any
 
 from flowrep.api import schemas as frs
 
-from pyiron_workflow._wfms import atomic, constructors, execution, transformers
-from pyiron_workflow._wfms.datatypes import FlowControl, Graph, NodeMap, StaticNode
+from pyiron_workflow._wfms import atomic, constructors, dag, execution, transformers
+from pyiron_workflow._wfms.datatypes import (
+    FlowControl,
+    Graph,
+    NodeMap,
+    StaticNode,
+)
 
 
 class ForEach(FlowControl):
@@ -55,13 +60,8 @@ class ForEach(FlowControl):
             result.output_edges,
         ) = self._build_runtime_dag(run)
 
-        # toposort node into layers
-        # for node in nodes
-        #   get input data from result and input edges and edges
-        #   sub run on input data
-        #   append step
-        #   set result node to run result
-        # populate outputs from result and output edges
+        dag.populate_outputs(result, result.output_edges)
+
         return result
 
     def _build_retrospective_input_edges(
