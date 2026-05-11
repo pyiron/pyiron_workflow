@@ -85,14 +85,14 @@ class ForEach(FlowControl):
     def _build_retrospective_nodes(
         self, run: execution.Run[frs.LiveWorkflow]
     ) -> NodeMap:
-        node_map = NodeMap(self)
+        nodes = []
         for step in run.steps:
             node = constructors.recipe2static(
                 step.label, step.run.result.recipe, owner=self
             )
             node.current_run = step.run
-            node_map[step.label] = node
-        return node_map
+            nodes.append(node)
+        return NodeMap(self, *nodes)
 
     def _build_runtime_dag(
         self, run: execution.Run[frs.LiveWorkflow]
