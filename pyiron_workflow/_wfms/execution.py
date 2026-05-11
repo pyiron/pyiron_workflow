@@ -22,7 +22,7 @@ class RunStatus(enum.StrEnum):
     FAILED = "failed"
 
 
-ResultType = TypeVar("ResultType", bound=frs.LiveNode)
+ResultType = TypeVar("ResultType", bound=frs.LiveNode[Any])
 
 
 class Step(NamedTuple):

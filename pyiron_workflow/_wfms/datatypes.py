@@ -72,7 +72,7 @@ class Node(lexical.Lexical["Graph"], Generic[execution.ResultType], abc.ABC):
 
     @property
     @abc.abstractmethod
-    def recipe(self) -> RecipeType: ...
+    def recipe(self) -> frs.NodeModel: ...
 
     @abc.abstractmethod
     def generate_flowrep_live_node(self) -> execution.ResultType: ...
@@ -147,6 +147,8 @@ class Node(lexical.Lexical["Graph"], Generic[execution.ResultType], abc.ABC):
 
 
 class StaticNode(Node[execution.ResultType], abc.ABC):
+    _owner: Graph | None
+    _recipe: frs.NodeModel
 
     @classmethod
     @abc.abstractmethod
@@ -180,13 +182,13 @@ class StaticNode(Node[execution.ResultType], abc.ABC):
         return self._outputs
 
     @property
-    def recipe(self) -> execution.ResultType:
+    def recipe(self) -> frs.NodeModel:
         return self._recipe
 
-    def generate_flowrep_live_node(self) -> frs.LiveAtomic:
+    def generate_flowrep_live_node(self) -> execution.ResultType:
         return self._result_type().from_recipe(self.recipe)
 
-    def _build_inputs(self, live: frs.LiveNode) -> PortMap[InputPort, Node]:
+    def _build_inputs(self, live: execution.ResultType) -> PortMap[InputPort, Node]:
         return PortMap[InputPort, Node](
             self,
             *(
@@ -205,7 +207,7 @@ class StaticNode(Node[execution.ResultType], abc.ABC):
             ),
         )
 
-    def _build_outputs(self, live: frs.LiveNode) -> PortMap[OutputPort, Node]:
+    def _build_outputs(self, live: execution.ResultType) -> PortMap[OutputPort, Node]:
         return PortMap[OutputPort, Node](
             self,
             *(
@@ -241,7 +243,7 @@ class Graph(lexical.Lexical["Graph"], Protocol):
     def nodes(self) -> NodeMap: ...
 
 
-class FlowControl(StaticNode[frs.FlowControl], Graph, abc.ABC):
+class FlowControl(StaticNode[execution.ResultType], Graph, abc.ABC):
     """
     Flow controls all have a prospective recipe which resolves into a retrospective DAG.
 
@@ -269,27 +271,23 @@ class FlowControl(StaticNode[frs.FlowControl], Graph, abc.ABC):
 
     @abc.abstractmethod
     def _build_retrospective_input_edges(
-        self, run: execution.Run[frs.FlowControl]
+        self, run: execution.Run[execution.ResultType]
     ) -> frs.InputEdges: ...
 
     @abc.abstractmethod
     def _build_retrospective_edges(
-        self, run: execution.Run[frs.FlowControl]
+        self, run: execution.Run[execution.ResultType]
     ) -> frs.Edges: ...
 
     @abc.abstractmethod
     def _build_retrospective_output_edges(
-        self, run: execution.Run[frs.FlowControl]
+        self, run: execution.Run[execution.ResultType]
     ) -> frs.OutputEdges: ...
 
     @abc.abstractmethod
     def _build_retrospective_nodes(
-        self, run: execution.Run[frs.FlowControl]
+        self, run: execution.Run[execution.ResultType]
     ) -> NodeMap: ...
-
-    @classmethod
-    def _result_type(cls) -> type[frs.FlowControl]:
-        return frs.FlowControl
 
     @property
     def input_edges(self) -> frs.InputEdges:

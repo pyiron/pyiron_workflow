@@ -15,7 +15,8 @@ from pyiron_workflow._wfms.datatypes import (
 )
 
 
-class ForEach(FlowControl):
+class ForEach(FlowControl[frs.LiveForEach]):
+    _recipe: frs.ForEachNode
 
     def __init__(
         self,
@@ -31,6 +32,10 @@ class ForEach(FlowControl):
         self._prospective_nodes = NodeMap(
             self, constructors.recipe2static(bn.label, bn.node, owner=self)
         )
+
+    @classmethod
+    def _result_type(cls) -> type[frs.LiveForEach]:
+        return frs.LiveForEach
 
     @property
     def prospective_input_edges(self) -> frs.InputEdges:
@@ -49,7 +54,7 @@ class ForEach(FlowControl):
         return self._prospective_nodes
 
     def evaluate(
-        self, run: execution.Run[frs.LiveWorkflow], config: execution.RunConfig
+        self, run: execution.Run[frs.LiveForEach], config: execution.RunConfig
     ) -> None:
         result = run.result
         nodes: NodeMap
@@ -62,28 +67,28 @@ class ForEach(FlowControl):
         dag.evaluate_dag_by_layer(nodes, run, config)
 
     def _build_retrospective_input_edges(
-        self, run: execution.Run[frs.LiveWorkflow]
+        self, run: execution.Run[frs.LiveForEach]
     ) -> frs.InputEdges:
         if self.current_run is None:
             return {}
         return self.current_run.result.input_edges
 
     def _build_retrospective_edges(
-        self, run: execution.Run[frs.LiveWorkflow]
+        self, run: execution.Run[frs.LiveForEach]
     ) -> frs.Edges:
         if self.current_run is None:
             return {}
         return self.current_run.result.edges
 
     def _build_retrospective_output_edges(
-        self, run: execution.Run[frs.LiveWorkflow]
+        self, run: execution.Run[frs.LiveForEach]
     ) -> frs.OutputEdges:
         if self.current_run is None:
             return {}
         return self.current_run.result.output_edges
 
     def _build_retrospective_nodes(
-        self, run: execution.Run[frs.LiveWorkflow]
+        self, run: execution.Run[frs.LiveForEach]
     ) -> NodeMap:
         nodes = []
         for step in run.steps:
@@ -95,10 +100,11 @@ class ForEach(FlowControl):
         return NodeMap(self, *nodes)
 
     def _build_runtime_dag(
-        self, run: execution.Run[frs.LiveWorkflow]
+        self, run: execution.Run[frs.LiveForEach]
     ) -> tuple[NodeMap, frs.InputEdges, frs.Edges, frs.OutputEdges]:
 
-        recipe = self._validate_recipe(run.result.recipe)
+        recipe = run.result.recipe
+
         body = recipe.body_node
         inputs = run.result.input_ports
 
@@ -280,15 +286,6 @@ class ForEach(FlowControl):
             edges,
             output_edges,
         )
-
-    @staticmethod
-    def _validate_recipe(recipe: frs.NodeType) -> frs.ForEachNode:
-        if not isinstance(recipe, frs.ForEachNode):
-            raise TypeError(
-                f"Expected a {frs.ForEachNode.__name__!r} recipe, but got "
-                f"{recipe!r}"
-            )
-        return recipe
 
     @staticmethod
     def _body_to_parent_label_map(
