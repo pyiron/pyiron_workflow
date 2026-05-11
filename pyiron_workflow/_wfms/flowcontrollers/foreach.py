@@ -182,19 +182,35 @@ class ForEach(FlowControl):
         )
 
         edges = {
-            # bodies to aggregators
+            # scatters to bodies
             frs.TargetHandle(
-                node=self._aggregate_label(parent_port),
-                port=transformers.TransformNto1.input_label(i),
-            ): frs.SourceHandle(
                 node=self._body_label(body.label, i),
                 port=child_port,
+            ): frs.SourceHandle(
+                node=self._scatter_label(parent_port),
+                port=transformers.Transform1toN.output_label(i),
             )
-            for parent_port, child_port in self._captured_output_label_map(
-                recipe.output_edges, body.label
+            for child_port, parent_port in self._body_to_parent_label_map(
+                recipe.input_edges, body.label, recipe.iterated_ports
             ).items()
             for i in range(total_steps)
         }
+        edges.update(
+            {
+                # bodies to aggregators
+                frs.TargetHandle(
+                    node=self._aggregate_label(parent_port),
+                    port=transformers.TransformNto1.input_label(i),
+                ): frs.SourceHandle(
+                    node=self._body_label(body.label, i),
+                    port=child_port,
+                )
+                for parent_port, child_port in self._captured_output_label_map(
+                    recipe.output_edges, body.label
+                ).items()
+                for i in range(total_steps)
+            }
+        )
         edges.update(
             {
                 # scatterers to aggregators
@@ -211,6 +227,7 @@ class ForEach(FlowControl):
                 for i in range(total_steps)
             }
         )
+
         output_edges = {
             # aggregators to parent
             frs.OutputTarget(
