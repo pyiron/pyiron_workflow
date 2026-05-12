@@ -29,8 +29,8 @@ class MutablePortMap(
         owner = self._pwf_lexical_map__owner
         if value.owner is not owner:
             raise ValueError(
-                f"Port {key} already has owner {value.owner.lexical_path!r} and cannot "
-                f"be assigned to a port map with owner {owner!r}"
+                f"Port {key!r} already has owner {value.owner.lexical_path!r} and cannot "
+                f"be assigned to a port map with owner {owner.lexical_path!r}"
             )
         self._pwf_lexical_map__data[key] = value
 
@@ -43,6 +43,11 @@ class MutablePortMap(
 
 class MutableNodeMap(NodeMap, MutableMapping[frs.Label, Node]):
     def __setitem__(self, key: frs.Label, value: Node):
+        if value.owner is not None:
+            raise ValueError(
+                f"Node {key!r} already has owner {value.owner.lexical_path!r} and "
+                f"cannot be assigned to a node map."
+            )
         value.owner = self._pwf_lexical_map__owner
         self._pwf_lexical_map__data[key] = value
 
