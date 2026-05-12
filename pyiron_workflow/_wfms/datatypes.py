@@ -5,7 +5,7 @@ import collections
 import dataclasses
 import pathlib
 from concurrent import futures
-from typing import Any, ClassVar, Generic, Protocol, TypeAlias, TypeVar
+from typing import ClassVar, Generic, Protocol, TypeAlias, TypeVar
 
 import semantikon
 from flowrep.api import schemas as frs
@@ -52,13 +52,10 @@ PortType = TypeVar("PortType", bound=Port)
 class PortMap(lexical.LexicalMap[PortType, lexical.OwnerType_co]): ...
 
 
-ExecutorInstructions = tuple[type[futures.Executor], tuple[Any, ...], dict[str, Any]]
-
-
 class Node(lexical.Lexical["Graph"], Generic[execution.ResultType], abc.ABC):
     _label: frs.Label
     _owner: Graph | None
-    executor: futures.Executor | ExecutorInstructions | None
+    executor: futures.Executor | execution.ExecutorInstructions | None
     current_run: execution.Run[execution.ResultType] | None
     run_history: collections.deque[execution.Run[execution.ResultType]]
 
