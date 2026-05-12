@@ -9,7 +9,6 @@ from concurrent import futures
 from typing import TYPE_CHECKING, Any, Generic, NamedTuple, TypeVar
 
 from flowrep.api import schemas as frs
-from flowrep.wfms import _populate_input_ports
 
 if TYPE_CHECKING:
     from pyiron_workflow._wfms.datatypes import Node
@@ -100,7 +99,7 @@ def run(
 
     try:
         node.current_run.status = RunStatus.RUNNING
-        _populate_input_ports(node.current_run.result, input_data)
+        populate_input_ports(node.current_run.result, input_data)
         if node.executor is not None:
             if isinstance(node.executor, ExecutorInstructions):
                 with node.executor.instantiate() as exe:
@@ -130,3 +129,14 @@ def run(
             node.run_history.append(node.current_run)
 
     return node.current_run
+
+
+def populate_input_ports(node: frs.LiveNode, values: dict[str, Any]) -> None:
+    for name, val in values.items():
+        if name in node.input_ports:
+            node.input_ports[name].value = val
+        else:
+            raise ValueError(
+                f"Input port '{name}' not found -- please select among "
+                f"{node.recipe.inputs}"
+            )
