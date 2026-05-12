@@ -26,10 +26,11 @@ class MutablePortMap(
     PortMap[PortType, "Workflow"], MutableMapping[frs.Label, PortType]
 ):
     def __setitem__(self, key: frs.Label, value: PortType):
-        if value.owner is not self.owner:
+        owner = self._pwf_lexical_map__owner
+        if value.owner is not owner:
             raise ValueError(
                 f"Port {key} already has owner {value.owner.lexical_path!r} and cannot "
-                f"be assigned to a port map with owner {self.owner!r}"
+                f"be assigned to a port map with owner {owner!r}"
             )
         self._pwf_lexical_map__data[key] = value
 
