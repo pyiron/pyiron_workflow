@@ -138,7 +138,7 @@ class Node(lexical.Lexical["Graph"], Generic[execution.ResultType], abc.ABC):
 
         owner = state.pop("_owner", None)
         if owner is not None:
-            state["_last_detatched_path"] = owner.lexical_path
+            state["_last_detached_path"] = owner.lexical_path
 
         if isinstance(self.executor, futures.Executor):
             state["executor"] = None
