@@ -223,7 +223,15 @@ class StaticNode(Node[execution.ResultType], abc.ABC):
         )
 
 
-class NodeMap(lexical.LexicalMap[Node, "Graph"]): ...
+class NodeMap(lexical.LexicalMap[Node, "Graph"]):
+
+    def __repr__(self) -> str:
+        return (
+            f"{self.__class__.__name__}({self._pwf_lexical_map__owner.lexical_path}):\n"
+            + "\n".join(
+                f"\t{label!r}: {type(node).__name__}" for label, node in self.items()
+            )
+        )
 
 
 class Graph(lexical.Lexical["Graph"], Protocol):
