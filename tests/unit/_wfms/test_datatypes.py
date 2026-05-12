@@ -96,14 +96,8 @@ class TestNodeLabel(unittest.TestCase):
 
         with self.subTest("With owner"):
             n = _fixtures.passthrough_node(label="owner")
-            n.nodes["add_0"].label = "child"
-            self.assertEqual(
-                n.nodes["add_0"].label,
-                "child",
-                msg="This is an anti-test; we _want_ this to raise an exception,"
-                "because it desychronizes the label from the owner's reference name "
-                "for the node. Celebrate the day this test fails.",
-            )
+            with self.assertRaises(ValueError):
+                n.nodes["add_0"].label = "child"
 
 
 class TestNodeOwner(unittest.TestCase):

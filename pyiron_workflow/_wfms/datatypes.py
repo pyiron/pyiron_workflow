@@ -85,7 +85,13 @@ class Node(lexical.Lexical["Graph"], Generic[execution.ResultType], abc.ABC):
 
     @label.setter
     def label(self, new_label: frs.Label) -> None:
-        # TODO: Validation and ownership location concerns
+        if self.owner is not None:
+            raise ValueError(
+                f"{self.__class__.__name__}({self.lexical_path!r}) already has an "
+                f"owner (lexical path = {getattr(self.owner, 'lexical_path', None)!r}). "
+                f"It cannot take the new label: {new_label!r}."
+                # TODO: Redirect to moving it on the owner once this is available
+            )
         self._label = new_label
 
     @property
