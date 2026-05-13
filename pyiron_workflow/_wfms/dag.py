@@ -275,6 +275,7 @@ def evaluate_dag_by_layer(
             node = nodes[label]
             input_data = gather_target_inputs(node, result)
             if frs.NOT_DATA in input_data.values():
+                # Possible development: raise a warning or optionally an exception here
                 continue
             sub_run = execution.run(node, config, **input_data)
             run.steps.append(execution.Step(label, sub_run))
