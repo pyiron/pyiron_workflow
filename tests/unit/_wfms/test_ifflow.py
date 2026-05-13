@@ -4,7 +4,7 @@ import unittest
 
 from flowrep.api import schemas as frs
 
-from pyiron_workflow._wfms import execution
+from pyiron_workflow._wfms import constructors, execution
 from pyiron_workflow._wfms.flowcontrollers import ifflow
 from tests.unit._wfms import _fixtures
 
@@ -93,6 +93,34 @@ def _two_case_recipe(with_else: bool) -> frs.IfNode:
         else_case=else_case,
         input_edges=input_edges,
         prospective_output_edges=prospective_output_edges,
+    )
+
+
+def _macro_with_no_else_and_downstream() -> frs.WorkflowNode:
+    """
+    Macro: `if add(x, y): add(x, y)` then a downstream `identity` sibling.
+
+    The macro's exported output is wired from the `IfNode`'s `out` port
+    (which stays `NOT_DATA` when no case fires), not from the downstream
+    sibling — so :func:`populate_outputs` does not hit the skipped node.
+    """
+    identity_recipe = _fixtures.identity.flowrep_recipe
+    return frs.WorkflowNode(
+        inputs=["x", "y"],
+        outputs=["z"],
+        nodes={"if_0": _no_else_recipe(), "downstream": identity_recipe},
+        input_edges={
+            frs.TargetHandle(node="if_0", port="x"): frs.InputSource(port="x"),
+            frs.TargetHandle(node="if_0", port="y"): frs.InputSource(port="y"),
+        },
+        edges={
+            frs.TargetHandle(node="downstream", port="x"): frs.SourceHandle(
+                node="if_0", port="out"
+            ),
+        },
+        output_edges={
+            frs.OutputTarget(port="z"): frs.SourceHandle(node="if_0", port="out"),
+        },
     )
 
 
@@ -261,6 +289,40 @@ class TestEvaluateMultipleCases(unittest.TestCase):
         labels = [step.label for step in run.steps]
         self.assertEqual(labels, ["cond_pos", "cond_neg"])
         self.assertEqual(ifn.output_edges, {})
+
+
+# --------------------------------------------------------------------------- #
+# Macro wrapping an If — downstream skip when no case fires                   #
+# --------------------------------------------------------------------------- #
+
+
+class TestMacroDownstreamOfFalsyIfIsSkipped(unittest.TestCase):
+    """
+    A sibling consuming an unfired `IfNode`'s output is skipped.
+
+    The behaviour under test lives in `dag.evaluate_dag_by_layer`: when a
+    node's gathered inputs contain `NOT_DATA` (because an upstream
+    conditional did not fire), the node is silently skipped instead of being
+    executed against the sentinel.
+    """
+
+    def setUp(self) -> None:
+        self.recipe = _macro_with_no_else_and_downstream()
+        self.macro = constructors.recipe2static("macro", self.recipe)
+        # cond = add(1, -1) = 0 (falsy); no else → if_0.out stays NOT_DATA.
+        self.run = self.macro.run(x=1, y=-1)
+
+    def test_run_finished(self) -> None:
+        self.assertEqual(self.run.status, execution.RunStatus.FINISHED)
+
+    def test_macro_output_is_not_data(self) -> None:
+        self.assertIsInstance(self.run.outputs["z"].value, frs.NotData)
+
+    def test_downstream_step_not_recorded(self) -> None:
+        labels = [step.label for step in self.run.steps]
+        self.assertEqual(labels, ["if_0"])
+        substep_labels = [step.label for step in self.run.steps[0].run.steps]
+        self.assertEqual(substep_labels, ["cond"])
 
 
 # --------------------------------------------------------------------------- #
