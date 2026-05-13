@@ -147,6 +147,23 @@ def if_recipe() -> frs.IfNode:
 
 
 # --------------------------------------------------------------------------- #
+# While-flow workflow                                                         #
+# --------------------------------------------------------------------------- #
+
+
+@fr.atomic
+def decrement(x):
+    return x - 1
+
+
+@fr.workflow
+def while_countdown(n):
+    while is_positive(n):
+        n = decrement(n)
+    return n
+
+
+# --------------------------------------------------------------------------- #
 # For-each workflow                                                           #
 # --------------------------------------------------------------------------- #
 
@@ -208,3 +225,48 @@ def for_wf_node(label: str = "for_wf"):
 def if_abs_node(label: str = "if_abs"):
     """Return a fresh ``Macro`` wrapping ``if_abs``."""
     return wfms.node(if_abs, label)
+
+
+def while_countdown_node(label: str = "while_countdown"):
+    """Return a fresh `Macro` wrapping `while_countdown`."""
+    return wfms.node(while_countdown, label)
+
+
+def while_recipe() -> frs.WhileNode:
+    """
+    Programmatically-built `WhileNode` matching `while_countdown`.
+
+    Decrements `n` while `is_positive(n)`. Mirrors `if_recipe()` so tests
+    can construct a `While` directly without going through the parser.
+    """
+    body = frs.WorkflowNode(
+        inputs=["n"],
+        outputs=["n"],
+        nodes={"decrement_0": decrement.flowrep_recipe},
+        input_edges={
+            frs.TargetHandle(node="decrement_0", port="x"): frs.InputSource(port="n"),
+        },
+        edges={},
+        output_edges={
+            frs.OutputTarget(port="n"): frs.SourceHandle(
+                node="decrement_0", port="output_0"
+            ),
+        },
+    )
+    return frs.WhileNode(
+        inputs=["n"],
+        outputs=["n"],
+        case=frs.ConditionalCase(
+            condition=frs.LabeledNode(
+                label="condition", node=is_positive.flowrep_recipe
+            ),
+            body=frs.LabeledNode(label="body", node=body),
+        ),
+        input_edges={
+            frs.TargetHandle(node="condition", port="n"): frs.InputSource(port="n"),
+            frs.TargetHandle(node="body", port="n"): frs.InputSource(port="n"),
+        },
+        output_edges={
+            frs.OutputTarget(port="n"): frs.SourceHandle(node="body", port="n"),
+        },
+    )

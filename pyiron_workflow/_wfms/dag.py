@@ -296,6 +296,8 @@ def topo_sort_nodes(nodes: NodeMap, edges: frs.Edges) -> list[list[frs.Label]]:
     successors: dict[frs.Label, list[frs.Label]] = {label: [] for label in nodes}
 
     for target, source in edges.items():
+        if target.node not in in_degree or source.node not in successors:
+            continue  # Skip edges that cross batch boundaries (e.g. While iterations)
         in_degree[target.node] += 1
         successors[source.node].append(target.node)
 
