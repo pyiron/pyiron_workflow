@@ -16,6 +16,7 @@ from __future__ import annotations
 
 import flowrep as fr
 from flowrep.api import schemas as frs
+from pyiron_snippets import versions
 
 from pyiron_workflow._wfms import api as wfms
 from pyiron_workflow._wfms import transformers
@@ -229,6 +230,61 @@ def if_abs_node(label: str = "if_abs"):
 def while_countdown_node(label: str = "while_countdown"):
     """Return a fresh `Macro` wrapping `while_countdown`."""
     return wfms.node(while_countdown, label)
+
+
+def try_safe_divide_node(label: str = "try_safe_divide"):
+    """Return a fresh `Macro` wrapping `try_safe_divide`."""
+    return wfms.node(try_safe_divide, label)
+
+
+# --------------------------------------------------------------------------- #
+# Try-flow workflow                                                           #
+# --------------------------------------------------------------------------- #
+
+
+@fr.atomic
+def divide(x, y):
+    return x / y
+
+
+@fr.workflow
+def try_safe_divide(x, y):
+    try:
+        z = divide(x, y)
+    except ZeroDivisionError:
+        z = identity(x)
+    return z
+
+
+def try_recipe() -> frs.TryNode:
+    """
+    Programmatically-built `TryNode` matching `try_safe_divide`: divides `x` by `y`,
+    falling back to `identity(x)` on `ZeroDivisionError`.
+    """
+    return frs.TryNode(
+        inputs=["x", "y"],
+        outputs=["z"],
+        try_node=frs.LabeledNode(label="try_body", node=divide.flowrep_recipe),
+        exception_cases=[
+            frs.ExceptionCase(
+                exceptions=[versions.VersionInfo.of(ZeroDivisionError)],
+                body=frs.LabeledNode(
+                    label="except_body_0", node=identity.flowrep_recipe
+                ),
+            ),
+        ],
+        input_edges={
+            frs.TargetHandle(node="try_body", port="x"): frs.InputSource(port="x"),
+            frs.TargetHandle(node="try_body", port="y"): frs.InputSource(port="y"),
+            frs.TargetHandle(node="except_body_0", port="x"): frs.InputSource(port="x"),
+        },
+        prospective_output_edges={
+            frs.OutputTarget(port="z"): [
+                frs.SourceHandle(node="try_body", port="output_0"),
+                frs.SourceHandle(node="except_body_0", port="x"),
+            ],
+        },
+    )
 
 
 def while_recipe() -> frs.WhileNode:
