@@ -77,7 +77,7 @@ class While(FlowControl[frs.LiveWhile]):
                 cond_label, cond_prefix, recipe, result, last_body_label
             )
             cond_node = constructors.recipe2static(cond_label, cond_recipe, owner=self)
-            dag.evaluate_dag_by_layer(NodeMap(self, cond_node), run, config)
+            dag.evaluate_node(cond_node, run, config)
 
             if not self._condition_value(cond_label, recipe.case, result):
                 break
@@ -87,7 +87,7 @@ class While(FlowControl[frs.LiveWhile]):
                 body_label, body_prefix, recipe, result, last_body_label
             )
             body_node = constructors.recipe2static(body_label, body_recipe, owner=self)
-            dag.evaluate_dag_by_layer(NodeMap(self, body_node), run, config)
+            dag.evaluate_node(body_node, run, config)
 
             last_body_label = body_label
             iteration += 1

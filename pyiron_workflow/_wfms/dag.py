@@ -258,6 +258,7 @@ class Macro(StaticNode[frs.LiveWorkflow], Graph):
         self, run: execution.Run[frs.LiveWorkflow], config: execution.RunConfig
     ) -> None:
         evaluate_dag_by_layer(self.nodes, run, config)
+        populate_outputs(run.result)
 
     def to_unlocked_workflow(self) -> Workflow:
         raise NotImplementedError()
@@ -272,16 +273,7 @@ def evaluate_dag_by_layer(
     for layer in layers:
         # TODO: Optionally multithread inside a given layer
         for label in layer:
-            node = nodes[label]
-            input_data = gather_target_inputs(node, result)
-            if frs.NOT_DATA in input_data.values():
-                # Possible development: raise a warning or optionally an exception here
-                continue
-            sub_run = execution.run(node, config, **input_data)
-            run.steps.append(execution.Step(label, sub_run))
-            result.nodes[label] = sub_run.result
-
-    populate_outputs(result)
+            evaluate_node(nodes[label], run, config)
 
 
 def topo_sort_nodes(nodes: NodeMap, edges: frs.Edges) -> list[list[frs.Label]]:
@@ -322,6 +314,21 @@ def topo_sort_nodes(nodes: NodeMap, edges: frs.Edges) -> list[list[frs.Label]]:
             "how you got here!"
         )
     return layers
+
+
+def evaluate_node(
+    node: Node, run: execution.Run[frs.Composite], config: execution.RunConfig
+):
+    result = run.result
+    label = node.label
+
+    input_data = gather_target_inputs(node, result)
+    if frs.NOT_DATA in input_data.values():
+        # Possible development: raise a warning or optionally an exception here
+        return
+    sub_run = execution.run(node, config, **input_data)
+    run.steps.append(execution.Step(label, sub_run))
+    result.nodes[label] = sub_run.result
 
 
 def gather_target_inputs(

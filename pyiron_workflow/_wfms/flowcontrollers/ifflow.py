@@ -68,7 +68,7 @@ class If(FlowControl[frs.LiveIf]):
             cond_node = constructors.recipe2static(
                 case.condition.label, case.condition.node, owner=self
             )
-            dag.evaluate_dag_by_layer(NodeMap(self, cond_node), run, config)
+            dag.evaluate_node(cond_node, run, config)
 
             if self._condition_value(case, result):
                 body_label = case.body.label
@@ -77,8 +77,9 @@ class If(FlowControl[frs.LiveIf]):
                 body_node = constructors.recipe2static(
                     body_label, case.body.node, owner=self
                 )
-                dag.evaluate_dag_by_layer(NodeMap(self, body_node), run, config)
+                dag.evaluate_node(body_node, run, config)
                 # Exit early if we've found a truthy conditional branch
+                dag.populate_outputs(result)
                 return
 
         if recipe.else_case is not None:
@@ -88,8 +89,9 @@ class If(FlowControl[frs.LiveIf]):
             else_node = constructors.recipe2static(
                 else_label, recipe.else_case.node, owner=self
             )
-            dag.evaluate_dag_by_layer(NodeMap(self, else_node), run, config)
+            dag.evaluate_node(else_node, run, config)
         # else: no case fired and no else_case — output ports stay at NOT_DATA.
+        dag.populate_outputs(result)
 
     def _build_retrospective_input_edges(
         self, run: execution.Run[frs.LiveIf]

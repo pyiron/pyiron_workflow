@@ -65,6 +65,7 @@ class ForEach(FlowControl[frs.LiveForEach]):
             result.output_edges,
         ) = self._build_runtime_dag(run)
         dag.evaluate_dag_by_layer(nodes, run, config)
+        dag.populate_outputs(result)
 
     def _build_retrospective_input_edges(
         self, run: execution.Run[frs.LiveForEach]
