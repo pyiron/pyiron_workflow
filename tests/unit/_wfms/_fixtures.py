@@ -16,6 +16,7 @@ Usage::
 from __future__ import annotations
 
 import flowrep as fr
+from flowrep.api import schemas as frs
 
 from pyiron_workflow._wfms import api as wfms
 from pyiron_workflow._wfms import transformers
@@ -33,6 +34,26 @@ def add(x, y):
 @fr.atomic
 def sub(x, y):
     return x - y
+
+
+@fr.atomic
+def identity(x):
+    return x
+
+
+@fr.atomic
+def negate(x):
+    return -x
+
+
+@fr.atomic
+def is_positive(n):
+    return n > 0
+
+
+@fr.atomic
+def is_negative(n):
+    return n < 0
 
 
 # --------------------------------------------------------------------------- #
@@ -78,6 +99,51 @@ def autoencoder(a, b, c):
     listy = _COMPRESS.recipe(item_0=a, item_1=b, item_2=c)
     x, y, z = _EXPAND.recipe(items=listy)
     return x, y, z
+
+
+# --------------------------------------------------------------------------- #
+# If-flow workflow                                                            #
+# --------------------------------------------------------------------------- #
+
+
+@fr.workflow
+def if_abs(x):
+    if is_positive(x):  # noqa: SIM108  (parsed as IfNode; ternary would collapse it)
+        y = identity(x)
+    else:
+        y = negate(x)
+    return y
+
+
+def if_recipe() -> frs.IfNode:
+    """
+    Minimal ``IfNode`` whose condition/body both wrap ``add``.
+
+    Promoted here from ``test_constructors.py`` so the if-flow tests share a
+    single source of truth for the canonical recipe shape.
+    """
+    add_recipe = add.flowrep_recipe
+    return frs.IfNode(
+        inputs=["x", "y"],
+        outputs=["out"],
+        cases=[
+            frs.ConditionalCase(
+                condition=frs.LabeledNode(label="cond", node=add_recipe),
+                body=frs.LabeledNode(label="body", node=add_recipe),
+            )
+        ],
+        input_edges={
+            frs.TargetHandle(node="cond", port="x"): frs.InputSource(port="x"),
+            frs.TargetHandle(node="cond", port="y"): frs.InputSource(port="y"),
+            frs.TargetHandle(node="body", port="x"): frs.InputSource(port="x"),
+            frs.TargetHandle(node="body", port="y"): frs.InputSource(port="y"),
+        },
+        prospective_output_edges={
+            frs.OutputTarget(port="out"): [
+                frs.SourceHandle(node="body", port="output_0")
+            ],
+        },
+    )
 
 
 # --------------------------------------------------------------------------- #
@@ -137,3 +203,8 @@ def autoencoder_node(label: str = "autoencoder"):
 def for_wf_node(label: str = "for_wf"):
     """Return a fresh ``Macro`` wrapping ``for_wf``."""
     return wfms.node(for_wf, label)
+
+
+def if_abs_node(label: str = "if_abs"):
+    """Return a fresh ``Macro`` wrapping ``if_abs``."""
+    return wfms.node(if_abs, label)

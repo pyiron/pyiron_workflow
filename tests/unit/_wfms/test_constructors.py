@@ -48,17 +48,7 @@ def _conditional_input_edges() -> dict[frs.TargetHandle, frs.InputSource]:
 
 
 def _if_recipe() -> frs.IfNode:
-    return frs.IfNode(
-        inputs=["x", "y"],
-        outputs=["out"],
-        cases=[_conditional_case()],
-        input_edges=_conditional_input_edges(),
-        prospective_output_edges={
-            frs.OutputTarget(port="out"): [
-                frs.SourceHandle(node="body", port="output_0")
-            ],
-        },
-    )
+    return _fixtures.if_recipe()
 
 
 def _while_recipe() -> frs.WhileNode:
