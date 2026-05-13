@@ -1,16 +1,15 @@
-"""Shared test fixtures for `_wfms` unit tests.
+"""
+Shared test fixtures for `_wfms` unit tests.
 
-These mirror the recipes in `_minimal_integration_examples.py`. They are kept
-in a single module so individual test files do not redefine — and possibly drift
-from — the same flowrep-decorated functions. Note that flowrep parses the
-*source* of a decorated function via `inspect.getsource`, so these functions
+These are kept in a single module so individual test files do not redefine — and
+possibly drift from — the same flowrep-decorated functions. Note that flowrep parses
+the *source* of a decorated function via `inspect.getsource`, so these functions
 must live in a real `.py` file (not in a `python -c` string or test scope).
 
-Usage::
-
-    from tests.unit._wfms import _fixtures
-    n = _fixtures.atomic_add_node()
-    run = n.run(x=1, y=2)
+Usage:
+>>>    from tests.unit._wfms import _fixtures
+>>>    n = _fixtures.atomic_add_node()
+>>>    run = n.run(x=1, y=2)
 """
 
 from __future__ import annotations
