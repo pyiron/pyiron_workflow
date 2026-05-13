@@ -1,7 +1,7 @@
 """
-The tests use the concrete ``Atomic`` / ``Macro`` instances exposed by
-``_fixtures`` (rather than rolling custom subclasses) wherever possible so we
-exercise the abstract ``Node`` / ``StaticNode`` surface as it is used in
+The tests use the concrete `Atomic` / `Macro` instances exposed by
+`_fixtures` (rather than rolling custom subclasses) wherever possible so we
+exercise the abstract `Node` / `StaticNode` surface as it is used in
 practice.
 """
 
@@ -60,15 +60,15 @@ class TestInputPort(unittest.TestCase):
 
     def test_has_default_false_when_recipe_has_no_defaults(self):
         n = _fixtures.atomic_add_node()
-        # ``add(x, y)`` has no default parameters, so the fixture's recipe
-        # exposes ``inputs_with_defaults == []``.
+        # `add(x, y)` has no default parameters, so the fixture's recipe
+        # exposes `inputs_with_defaults == []`.
         self.assertEqual(n.recipe.inputs_with_defaults, [])
         for label, port in n.inputs.items():
             self.assertFalse(port.has_default, msg=label)
 
     def test_has_default_true_when_constructed_with_default(self):
         # Directly exercise the dataclass field — the StaticNode builder sets
-        # this based on ``recipe.inputs_with_defaults``; we verify the
+        # this based on `recipe.inputs_with_defaults`; we verify the
         # InputPort *carries* the bit faithfully.
         owner = _fixtures.atomic_add_node()
         port = datatypes.InputPort(
@@ -182,8 +182,8 @@ class TestNodeRun(unittest.TestCase):
         n = _fixtures.atomic_add_node()
         run = n.run(x=1, y=2)
         self.assertEqual(run.status, execution.RunStatus.FINISHED)
-        # The fixture's ``add`` function returns a single value; flowrep's
-        # parser auto-labels it ``output_0``.
+        # The fixture's `add` function returns a single value; flowrep's
+        # parser auto-labels it `output_0`.
         out_label = next(iter(run.outputs.keys()))
         self.assertEqual(run.outputs[out_label].value, 3)
         # And the prime-mover's run history was appended.
@@ -231,10 +231,10 @@ class TestNodeGetState(unittest.TestCase):
 
 class _RecordingFC(datatypes.FlowControl[frs.LiveForEach]):
     """
-    Minimal concrete ``FlowControl`` whose ``_build_retrospective_*``
+    Minimal concrete `FlowControl` whose `_build_retrospective_*`
     methods record the run they were called with and return sentinel values.
 
-    Reused by ``TestFlowControlRetrospectiveFallbacks``.
+    Reused by `TestFlowControlRetrospectiveFallbacks`.
     """
 
     def __init__(self, label: frs.Label, recipe: frs.ForEachNode):
@@ -265,7 +265,7 @@ class _RecordingFC(datatypes.FlowControl[frs.LiveForEach]):
     def evaluate(self, run, config) -> None:  # pragma: no cover - unused
         raise NotImplementedError
 
-    # Sentinels — typed as ``Any`` for test purposes.
+    # Sentinels — typed as `Any` for test purposes.
     def _build_retrospective_input_edges(self, run):  # type: ignore[override]
         self.calls.append(("input_edges", run))
         return "sentinel_input_edges"
@@ -285,14 +285,14 @@ class _RecordingFC(datatypes.FlowControl[frs.LiveForEach]):
 
 class TestFlowControlRetrospectiveFallbacks(unittest.TestCase):
     """
-    The four retrospective ``Graph`` properties short-circuit to empty
-    forms when ``current_run is None`` and otherwise delegate to their
-    matching ``_build_retrospective_*`` method.
+    The four retrospective `Graph` properties short-circuit to empty
+    forms when `current_run is None` and otherwise delegate to their
+    matching `_build_retrospective_*` method.
     """
 
     def setUp(self):
-        # Borrow a real ``ForEachNode`` recipe from the for_wf fixture so
-        # ``StaticNode.__init__`` can build live input/output ports.
+        # Borrow a real `ForEachNode` recipe from the for_wf fixture so
+        # `StaticNode.__init__` can build live input/output ports.
         wrapper = _fixtures.for_wf_node()
         self._foreach_recipe = wrapper.nodes["for_each_0"].recipe
         self.fc = _RecordingFC("fc", self._foreach_recipe)

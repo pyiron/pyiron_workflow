@@ -14,7 +14,7 @@ from tests.unit._wfms import _fixtures
 
 
 def _no_else_recipe() -> frs.IfNode:
-    """``if add(x, y): add(x, y) else: <nothing>`` — single case, no ``else``."""
+    """`if add(x, y): add(x, y) else: <nothing>` — single case, no `else`."""
     add_recipe = _fixtures.add.flowrep_recipe
     return frs.IfNode(
         inputs=["x", "y"],
@@ -40,11 +40,11 @@ def _no_else_recipe() -> frs.IfNode:
 
 
 def _two_case_recipe(with_else: bool) -> frs.IfNode:
-    """Two-case If: ``is_positive(x) → identity(x); is_negative(x) → negate(x)``.
+    """Two-case If: `is_positive(x) → identity(x); is_negative(x) → negate(x)`.
 
-    With ``with_else=True`` the else branch returns ``identity(x)`` (so ``x=0``
-    routes there). With ``with_else=False`` ``x=0`` leaves the output as
-    ``NOT_DATA``.
+    With `with_else=True` the else branch returns `identity(x)` (so `x=0`
+    routes there). With `with_else=False` `x=0` leaves the output as
+    `NOT_DATA`.
     """
     pos_recipe = _fixtures.is_positive.flowrep_recipe
     neg_recipe = _fixtures.is_negative.flowrep_recipe
@@ -67,9 +67,9 @@ def _two_case_recipe(with_else: bool) -> frs.IfNode:
         frs.TargetHandle(node="body_pos", port="x"): frs.InputSource(port="x"),
         frs.TargetHandle(node="body_neg", port="x"): frs.InputSource(port="x"),
     }
-    # ``identity`` returns the input variable; the parsed recipe names that
-    # output port after the return-name (``x``). ``negate`` uses a unary op
-    # and falls back to ``output_0``.
+    # `identity` returns the input variable; the parsed recipe names that
+    # output port after the return-name (`x`). `negate` uses a unary op
+    # and falls back to `output_0`.
     prospective_output_edges = {
         frs.OutputTarget(port="out"): [
             frs.SourceHandle(node="body_pos", port="x"),
@@ -130,7 +130,7 @@ def _macro_with_no_else_and_downstream() -> frs.WorkflowNode:
 
 
 class TestIfProspectiveAndRetrospective(unittest.TestCase):
-    """Pre-run vs post-run views of the If in the ``if_abs`` fixture."""
+    """Pre-run vs post-run views of the If in the `if_abs` fixture."""
 
     def setUp(self) -> None:
         self.node = _fixtures.if_abs_node()
@@ -191,7 +191,7 @@ class TestEvaluateSingleCaseTrue(unittest.TestCase):
     def setUp(self) -> None:
         self.recipe = _fixtures.if_recipe()
         self.ifn = ifflow.If("ifn", self.recipe)
-        # cond and body both wrap ``add``; with x=1, y=2 the condition returns
+        # cond and body both wrap `add`; with x=1, y=2 the condition returns
         # 3 (truthy) and the body returns 3.
         self.run = self.ifn.run(x=1, y=2)
 
@@ -331,7 +331,7 @@ class TestMacroDownstreamOfFalsyIfIsSkipped(unittest.TestCase):
 
 
 class TestStageNodeInputEdges(unittest.TestCase):
-    """``_stage_node_input_edges`` filters by target node."""
+    """`_stage_node_input_edges` filters by target node."""
 
     def setUp(self) -> None:
         self.recipe = _fixtures.if_recipe()
@@ -356,7 +356,7 @@ class TestStageNodeInputEdges(unittest.TestCase):
 
 
 class TestStageBodyOutputEdges(unittest.TestCase):
-    """``_stage_body_output_edges`` picks the unique SourceHandle for the body."""
+    """`_stage_body_output_edges` picks the unique SourceHandle for the body."""
 
     def setUp(self) -> None:
         self.recipe = _two_case_recipe(with_else=True)

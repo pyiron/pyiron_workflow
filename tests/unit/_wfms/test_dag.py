@@ -1,15 +1,15 @@
 """
-Covers the testable surface of ``dag.py``:
+Covers the testable surface of `dag.py`:
 
-* ``MutablePortMap`` (owner-check insert, ``__setattr__`` delegation, ``__delitem__``).
-* ``MutableNodeMap`` (reparenting insert, conflict raise, ``__setattr__``,
-  ``__delitem__``).
-* ``Workflow.__init__`` and ``Workflow.undo_limit`` (the only non-stub surface).
-* ``Macro`` end-to-end via fixtures (children, edges identity, ``run``).
-* ``evaluate_dag_by_layer`` smoke (via a macro run).
-* ``topo_sort_nodes`` for empty / single-layer / linear chain / order-determinism.
-* ``gather_target_inputs`` for input-edge, sibling-edge, and port-omitted paths.
-* ``populate_outputs`` for both ``SourceHandle`` and ``InputSource`` sources.
+* `MutablePortMap` (owner-check insert, `__setattr__` delegation, `__delitem__`).
+* `MutableNodeMap` (reparenting insert, conflict raise, `__setattr__`,
+  `__delitem__`).
+* `Workflow.__init__` and `Workflow.undo_limit` (the only non-stub surface).
+* `Macro` end-to-end via fixtures (children, edges identity, `run`).
+* `evaluate_dag_by_layer` smoke (via a macro run).
+* `topo_sort_nodes` for empty / single-layer / linear chain / order-determinism.
+* `gather_target_inputs` for input-edge, sibling-edge, and port-omitted paths.
+* `populate_outputs` for both `SourceHandle` and `InputSource` sources.
 """
 
 from __future__ import annotations
@@ -134,13 +134,13 @@ class TestWorkflowUndoLimit(unittest.TestCase):
 
 
 class TestMacro(unittest.TestCase):
-    """End-to-end exercise of ``Macro`` via the ``macro`` fixture."""
+    """End-to-end exercise of `Macro` via the `macro` fixture."""
 
     def test_run_produces_expected_outputs(self) -> None:
         n = _fixtures.macro_node()
         run = n.run(x=1, y=2, z=3)
         self.assertEqual(run.status, wfms.RunStatus.FINISHED)
-        # Macro outputs come from inner ``add`` (a) and ``sub`` (s).
+        # Macro outputs come from inner `add` (a) and `sub` (s).
         self.assertEqual(run.outputs["a"].value, 3)
         self.assertEqual(run.outputs["s"].value, 0)
 
@@ -164,8 +164,8 @@ class TestMacro(unittest.TestCase):
         self.assertEqual(set(n.nodes), {"add_0", "sub_0"})
 
     def test_function_metadata_consistent_with_reference(self) -> None:
-        # The fixture-decorated macro has no ``_semantikon_metadata`` attribute,
-        # so the captured value is ``None``. The attribute exists in both cases.
+        # The fixture-decorated macro has no `_semantikon_metadata` attribute,
+        # so the captured value is `None`. The attribute exists in both cases.
         n = _fixtures.macro_node()
         self.assertTrue(hasattr(n, "_function_metadata"))
         self.assertEqual(n._function_metadata, n.function_metadata)
@@ -191,8 +191,8 @@ class TestTopoSortNodes(unittest.TestCase):
         self.assertEqual(dag.topo_sort_nodes({}, {}), [])
 
     def test_single_layer_no_edges_sorted_by_label(self) -> None:
-        # ``topo_sort_nodes`` only consumes ``nodes`` as an iterable of labels,
-        # so a plain ``dict`` is a valid stand-in for ``NodeMap``.
+        # `topo_sort_nodes` only consumes `nodes` as an iterable of labels,
+        # so a plain `dict` is a valid stand-in for `NodeMap`.
         nodes = {"c": None, "a": None, "b": None}
         self.assertEqual(dag.topo_sort_nodes(nodes, {}), [["a", "b", "c"]])
 
@@ -227,15 +227,15 @@ class TestTopoSortNodes(unittest.TestCase):
 
 class TestGatherTargetInputs(unittest.TestCase):
     def test_input_edge_path(self) -> None:
-        # ``add_0`` in the ``macro`` fixture takes both x and y from parent inputs.
+        # `add_0` in the `macro` fixture takes both x and y from parent inputs.
         n = _fixtures.macro_node()
         run = n.run(x=1, y=2, z=3)
         inputs = dag.gather_target_inputs(n.nodes["add_0"], run.result)
         self.assertEqual(inputs, {"x": 1, "y": 2})
 
     def test_sibling_edge_path(self) -> None:
-        # ``sub_0`` reads ``x`` from sibling ``add_0`` output and ``y`` from
-        # parent input ``z``.
+        # `sub_0` reads `x` from sibling `add_0` output and `y` from
+        # parent input `z`.
         n = _fixtures.macro_node()
         run = n.run(x=1, y=2, z=3)
         inputs = dag.gather_target_inputs(n.nodes["sub_0"], run.result)
@@ -243,7 +243,7 @@ class TestGatherTargetInputs(unittest.TestCase):
 
     def test_port_omitted_when_no_edge(self) -> None:
         # The macro node itself has inputs (x, y, z) but none of them appear as
-        # ``TargetHandle`` targets in the result's edges — so all ports omitted.
+        # `TargetHandle` targets in the result's edges — so all ports omitted.
         n = _fixtures.macro_node()
         run = n.run(x=1, y=2, z=3)
         self.assertEqual(dag.gather_target_inputs(n, run.result), {})
@@ -251,15 +251,15 @@ class TestGatherTargetInputs(unittest.TestCase):
 
 class TestPopulateOutputs(unittest.TestCase):
     def test_source_handle_path(self) -> None:
-        # ``macro`` output ``s`` is fed by ``sub_0.output_0`` (a SourceHandle).
+        # `macro` output `s` is fed by `sub_0.output_0` (a SourceHandle).
         n = _fixtures.macro_node()
         run = n.run(x=1, y=2, z=3)
         self.assertEqual(run.outputs["s"].value, 0)
         self.assertEqual(run.outputs["a"].value, 3)
 
     def test_input_source_path(self) -> None:
-        # ``passthrough`` output ``x`` is fed directly by parent input ``x``
-        # (an InputSource). ``s`` exercises the SourceHandle branch as a sanity
+        # `passthrough` output `x` is fed directly by parent input `x`
+        # (an InputSource). `s` exercises the SourceHandle branch as a sanity
         # check that both branches coexist in one run.
         n = _fixtures.passthrough_node()
         run = n.run(x=42, y=5)

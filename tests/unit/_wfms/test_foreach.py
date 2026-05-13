@@ -10,17 +10,17 @@ from tests.unit._wfms import _fixtures
 
 
 def _atomic_body_recipe() -> frs.AtomicNode:
-    """The ``add(x, y)`` atomic recipe — handy as a 2-input body."""
+    """The `add(x, y)` atomic recipe — handy as a 2-input body."""
     return _fixtures.add.flowrep_recipe
 
 
 def _macro_body_recipe() -> frs.WorkflowNode:
-    """The ``macro(x, y, z)`` workflow recipe — handy as a 3-input body."""
+    """The `macro(x, y, z)` workflow recipe — handy as a 3-input body."""
     return _fixtures.macro.flowrep_recipe
 
 
 def _build_nested_only_recipe() -> frs.ForEachNode:
-    """body=add(x, y); ``x`` nested, ``y`` broadcast."""
+    """body=add(x, y); `x` nested, `y` broadcast."""
     body = frs.LabeledNode(label="body", node=_atomic_body_recipe())
     return frs.ForEachNode(
         inputs=["xs", "y"],
@@ -62,7 +62,7 @@ def _build_zipped_only_recipe() -> frs.ForEachNode:
 
 
 def _build_mixed_recipe() -> frs.ForEachNode:
-    """body=macro(x, y, z); ``x`` nested, ``y`` and ``z`` zipped."""
+    """body=macro(x, y, z); `x` nested, `y` and `z` zipped."""
     body = frs.LabeledNode(label="body", node=_macro_body_recipe())
     return frs.ForEachNode(
         inputs=["xs", "ys", "ws"],
@@ -85,7 +85,7 @@ def _make_broadcast_only_recipe() -> frs.ForEachNode:
     """body=add(x, y); both broadcast.
 
     The recipe-level validators forbid a ForEach with no iterated ports, so
-    ``model_construct`` is used to bypass them — ``_build_runtime_dag`` doesn't
+    `model_construct` is used to bypass them — `_build_runtime_dag` doesn't
     care, it just reads fields.
     """
     body = frs.LabeledNode(label="body", node=_atomic_body_recipe())
@@ -118,7 +118,7 @@ def _prepare_run(
 
 
 class TestForEachProspectiveAndRetrospective(unittest.TestCase):
-    """Pre-run vs post-run views of the ForEach in the ``for_wf`` fixture."""
+    """Pre-run vs post-run views of the ForEach in the `for_wf` fixture."""
 
     def setUp(self) -> None:
         self.node = _fixtures.for_wf_node()
@@ -344,7 +344,7 @@ class TestBuildRuntimeDagMixed(unittest.TestCase):
 
 def _build_broadcast_seed_recipe() -> frs.ForEachNode:
     """
-    A valid ForEach recipe with the same input-port labels (``x``, ``y``)
+    A valid ForEach recipe with the same input-port labels (`x`, `y`)
     as the broadcast-only recipe we'll swap in later.
     """
     body = frs.LabeledNode(label="body", node=_atomic_body_recipe())
@@ -368,7 +368,7 @@ def _build_broadcast_seed_recipe() -> frs.ForEachNode:
 
 class TestBuildRuntimeDagBroadcastOnly(unittest.TestCase):
     """
-    Broadcast-only path; recipe is built via ``model_construct`` to
+    Broadcast-only path; recipe is built via `model_construct` to
     bypass the ForEach-recipe validator that requires at least one iterated
     port.
     """
@@ -405,7 +405,7 @@ class TestBuildRuntimeDagBroadcastOnly(unittest.TestCase):
 
     def test_no_sibling_scatter_edges_to_body(self) -> None:
         # No scatter -> body edges should exist; the only sibling edges in
-        # ``edges`` are body -> aggregator.
+        # `edges` are body -> aggregator.
         for target, source in self.edges.items():
             self.assertFalse(
                 target.node.startswith("body_"),

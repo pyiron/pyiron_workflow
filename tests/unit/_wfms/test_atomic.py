@@ -20,12 +20,12 @@ def with_default(x, y=10):
 
 
 def add_no_default(x, y):
-    """Variant of ``add`` without a default — used for the missing-value case."""
+    """Variant of `add` without a default — used for the missing-value case."""
     return x + y
 
 
 def func_with_metadata(x):
-    """Stand-in for a flowrep-decorated function carrying ``_semantikon_metadata``."""
+    """Stand-in for a flowrep-decorated function carrying `_semantikon_metadata`."""
     return x
 
 
@@ -37,14 +37,14 @@ func_with_metadata._semantikon_metadata = _METADATA_SENTINEL  # type: ignore[att
 
 @dataclasses.dataclass
 class _Pair:
-    """Two-field dataclass used for the ``UnpackMode.DATACLASS`` case."""
+    """Two-field dataclass used for the `UnpackMode.DATACLASS` case."""
 
     a: int
     b: int
 
 
 def _make_pair() -> _Pair:
-    """Returns a ``_Pair`` instance — module-level so flowrep can resolve it."""
+    """Returns a `_Pair` instance — module-level so flowrep can resolve it."""
     return _Pair(a=0, b=0)
 
 
@@ -106,7 +106,7 @@ class TestAtomicEvaluate(unittest.TestCase):
         node = _fixtures.atomic_add_node()
         run = node.run(x=1, y=2)
         self.assertEqual(run.status, execution.RunStatus.FINISHED)
-        # ``add``'s single output is named ``output_0`` by flowrep.
+        # `add`'s single output is named `output_0` by flowrep.
         (only_name,) = run.outputs.keys()
         self.assertEqual(run.outputs[only_name].value, 3)
 
@@ -118,8 +118,8 @@ class TestAtomicEvaluate(unittest.TestCase):
 
 class TestCallAtomic(unittest.TestCase):
     def test_positional_only_routing(self) -> None:
-        # ``Transform1toN`` marks ``items`` as POSITIONAL_ONLY, so the value
-        # must be routed through ``*positional`` rather than ``**keyword``.
+        # `Transform1toN` marks `items` as POSITIONAL_ONLY, so the value
+        # must be routed through `*positional` rather than `**keyword`.
         node = transformers.Transform1toN(2).node("split")
         live = node.generate_flowrep_live_node()
         live.input_ports["items"].value = [1, 2]
@@ -143,7 +143,7 @@ class TestCallAtomic(unittest.TestCase):
         )
         live = frs.LiveAtomic.from_recipe(recipe)
         live.input_ports["x"].value = 1
-        # ``y`` is left as NotData; the recipe carries a default of 10.
+        # `y` is left as NotData; the recipe carries a default of 10.
         self.assertEqual(atomic._call_atomic(live), 11)
 
     def test_missing_value_raises_value_error(self) -> None:
@@ -155,7 +155,7 @@ class TestCallAtomic(unittest.TestCase):
         )
         live = frs.LiveAtomic.from_recipe(recipe)
         live.input_ports["x"].value = 1
-        # ``y`` has neither value nor default.
+        # `y` has neither value nor default.
         with self.assertRaises(ValueError) as ctx:
             atomic._call_atomic(live)
         self.assertIn("'y'", str(ctx.exception))

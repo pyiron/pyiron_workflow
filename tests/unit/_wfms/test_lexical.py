@@ -6,7 +6,7 @@ from dataclasses import dataclass, field
 from pyiron_workflow._wfms import lexical
 
 # --------------------------------------------------------------------------- #
-# Tiny structural stubs (satisfy ``HasLexicalPath`` / ``Lexical`` protocols). #
+# Tiny structural stubs (satisfy `HasLexicalPath` / `Lexical` protocols). #
 # --------------------------------------------------------------------------- #
 
 
@@ -80,7 +80,7 @@ class TestLexicalMap(unittest.TestCase):
             lexical.LexicalMap(self.owner, orphan)
         msg = str(ctx.exception)
         self.assertIn(orphan.lexical_path, msg)
-        # The None branch must surface as ``None`` in the offending dict.
+        # The None branch must surface as `None` in the offending dict.
         self.assertIn("None", msg)
 
     # ---- __getitem__ ------------------------------------------------------- #
@@ -124,8 +124,8 @@ class TestLexicalMap(unittest.TestCase):
         self.assertIs(self.map.bar, self.bar)
 
     def test_getattr_reserved_data_name_raises(self) -> None:
-        # Note: ``__getattribute__`` finds the real slot first; we exercise the
-        # ``__getattr__`` guard by going through it directly.
+        # Note: `__getattribute__` finds the real slot first; we exercise the
+        # `__getattr__` guard by going through it directly.
         with self.assertRaises(AttributeError):
             self.map.__getattr__("_pwf_lexical_map__data")
 

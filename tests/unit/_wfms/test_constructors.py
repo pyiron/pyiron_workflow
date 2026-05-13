@@ -20,7 +20,7 @@ from tests.unit._wfms import _fixtures
 
 
 def plain_add(x, y):
-    """Undecorated callable — exercises the ``frt.parse_atomic`` branch of ``node``."""
+    """Undecorated callable — exercises the `frt.parse_atomic` branch of `node`."""
     return x + y
 
 
@@ -30,7 +30,7 @@ def plain_add(x, y):
 
 
 def _conditional_case() -> frs.ConditionalCase:
-    """Build a minimal ``ConditionalCase`` whose condition and body wrap ``add``."""
+    """Build a minimal `ConditionalCase` whose condition and body wrap `add`."""
     add_recipe = _fixtures.add.flowrep_recipe
     condition = frs.LabeledNode(label="cond", node=add_recipe)
     body = frs.LabeledNode(label="body", node=add_recipe)
@@ -38,7 +38,7 @@ def _conditional_case() -> frs.ConditionalCase:
 
 
 def _conditional_input_edges() -> dict[frs.TargetHandle, frs.InputSource]:
-    """Wire the ``cond`` / ``body`` inputs of the case above to parent ``x``, ``y``."""
+    """Wire the `cond` / `body` inputs of the case above to parent `x`, `y`."""
     return {
         frs.TargetHandle(node="cond", port="x"): frs.InputSource(port="x"),
         frs.TargetHandle(node="cond", port="y"): frs.InputSource(port="y"),
@@ -92,7 +92,7 @@ def _try_recipe() -> frs.TryNode:
 
 
 # --------------------------------------------------------------------------- #
-# Tests for ``node``                                                          #
+# Tests for `node`                                                          #
 # --------------------------------------------------------------------------- #
 
 
@@ -119,7 +119,7 @@ class TestNode(unittest.TestCase):
 
 
 # --------------------------------------------------------------------------- #
-# Tests for ``recipe2static``                                                 #
+# Tests for `recipe2static`                                                 #
 # --------------------------------------------------------------------------- #
 
 

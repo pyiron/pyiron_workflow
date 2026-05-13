@@ -1,10 +1,10 @@
-"""Shared test fixtures for ``_wfms`` unit tests.
+"""Shared test fixtures for `_wfms` unit tests.
 
-These mirror the recipes in ``_minimal_integration_examples.py``. They are kept
+These mirror the recipes in `_minimal_integration_examples.py`. They are kept
 in a single module so individual test files do not redefine — and possibly drift
 from — the same flowrep-decorated functions. Note that flowrep parses the
-*source* of a decorated function via ``inspect.getsource``, so these functions
-must live in a real ``.py`` file (not in a ``python -c`` string or test scope).
+*source* of a decorated function via `inspect.getsource`, so these functions
+must live in a real `.py` file (not in a `python -c` string or test scope).
 
 Usage::
 
@@ -80,7 +80,7 @@ def passthrough(x, y):
     """
     Macro that wires a parent input directly to a parent output.
 
-    Exercises the ``InputSource`` branch of :func:`dag.populate_outputs`.
+    Exercises the `InputSource` branch of :func:`dag.populate_outputs`.
     """
     s = add(x, y)
     return x, s
@@ -117,9 +117,9 @@ def if_abs(x):
 
 def if_recipe() -> frs.IfNode:
     """
-    Minimal ``IfNode`` whose condition/body both wrap ``add``.
+    Minimal `IfNode` whose condition/body both wrap `add`.
 
-    Promoted here from ``test_constructors.py`` so the if-flow tests share a
+    Promoted here from `test_constructors.py` so the if-flow tests share a
     single source of truth for the canonical recipe shape.
     """
     add_recipe = add.flowrep_recipe
@@ -188,42 +188,42 @@ def for_wf(xs, ys, z):
 
 
 def atomic_add_node(label: str = "add"):
-    """Return a fresh ``Atomic`` wrapping ``add``."""
+    """Return a fresh `Atomic` wrapping `add`."""
     return wfms.node(add, label)
 
 
 def atomic_sub_node(label: str = "sub"):
-    """Return a fresh ``Atomic`` wrapping ``sub``."""
+    """Return a fresh `Atomic` wrapping `sub`."""
     return wfms.node(sub, label)
 
 
 def macro_node(label: str = "my_macro"):
-    """Return a fresh ``Macro`` wrapping ``macro``."""
+    """Return a fresh `Macro` wrapping `macro`."""
     return wfms.node(macro, label)
 
 
 def nested_macro_node(label: str = "my_nested_macro"):
-    """Return a fresh ``Macro`` wrapping ``nested_macro``."""
+    """Return a fresh `Macro` wrapping `nested_macro`."""
     return wfms.node(nested_macro, label)
 
 
 def passthrough_node(label: str = "my_passthrough"):
-    """Return a fresh ``Macro`` wrapping ``passthrough``."""
+    """Return a fresh `Macro` wrapping `passthrough`."""
     return wfms.node(passthrough, label)
 
 
 def autoencoder_node(label: str = "autoencoder"):
-    """Return a fresh ``Macro`` wrapping ``autoencoder``."""
+    """Return a fresh `Macro` wrapping `autoencoder`."""
     return wfms.node(autoencoder, label)
 
 
 def for_wf_node(label: str = "for_wf"):
-    """Return a fresh ``Macro`` wrapping ``for_wf``."""
+    """Return a fresh `Macro` wrapping `for_wf`."""
     return wfms.node(for_wf, label)
 
 
 def if_abs_node(label: str = "if_abs"):
-    """Return a fresh ``Macro`` wrapping ``if_abs``."""
+    """Return a fresh `Macro` wrapping `if_abs`."""
     return wfms.node(if_abs, label)
 
 

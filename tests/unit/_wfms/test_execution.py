@@ -34,7 +34,7 @@ class _DumpingAtomic(atomic.Atomic):
 
 
 class _FailingDumpingAtomic(_DumpingAtomic):
-    """Like :class:`_DumpingAtomic` but :meth:`evaluate` raises ``RuntimeError``."""
+    """Like :class:`_DumpingAtomic` but :meth:`evaluate` raises `RuntimeError`."""
 
     def evaluate(
         self,
@@ -45,7 +45,7 @@ class _FailingDumpingAtomic(_DumpingAtomic):
 
 
 def _make_failing_node(label: str = "boom_node") -> _FailingDumpingAtomic:
-    """Build a :class:`_FailingDumpingAtomic` reusing the ``add`` recipe."""
+    """Build a :class:`_FailingDumpingAtomic` reusing the `add` recipe."""
     return _FailingDumpingAtomic(label, _fixtures.add.flowrep_recipe)
 
 
@@ -68,7 +68,7 @@ class TestRunDuration(unittest.TestCase):
         started_at: datetime.datetime | None,
         finished_at: datetime.datetime | None,
     ) -> execution.Run[frs.LiveAtomic]:
-        # ``result`` is not exercised here; a freshly minted live atomic suffices.
+        # `result` is not exercised here; a freshly minted live atomic suffices.
         live = _fixtures.atomic_add_node().generate_flowrep_live_node()
         return execution.Run[frs.LiveAtomic](
             result=live,
@@ -170,7 +170,7 @@ class TestExecutorInstructions(unittest.TestCase):
         exe = instructions.instantiate()
         try:
             self.assertIsInstance(exe, futures.ThreadPoolExecutor)
-            # ``_max_workers`` is the public-ish attribute used by the stdlib
+            # `_max_workers` is the public-ish attribute used by the stdlib
             # implementation; assert it matches the kwarg we passed in.
             self.assertEqual(exe._max_workers, 2)
         finally:
@@ -246,9 +246,9 @@ class TestRunFailurePath(unittest.TestCase):
             assert node.current_run is not None  # for mypy
             self.assertEqual(node.current_run.status, execution.RunStatus.FAILED)
             self.assertIs(node.current_run.exception, ctx.exception)
-            # ``dump`` is called exactly once with the ``failed_state`` path.
+            # `dump` is called exactly once with the `failed_state` path.
             self.assertEqual(node.dump_calls, [progress_dir / "failed_state"])
-            # The append in ``finally`` records even failed prime-mover runs.
+            # The append in `finally` records even failed prime-mover runs.
             self.assertEqual(len(node.run_history), 1)
 
 
@@ -290,9 +290,9 @@ class TestRunExecutorBranches(unittest.TestCase):
         self.assertEqual(run.outputs["output_0"].value, 3)
 
     def test_invalid_executor_type_raises_with_lexical_path(self) -> None:
-        # The prime-mover failure branch will call ``node.dump`` after the
-        # TypeError. Use ``_DumpingAtomic`` so that no-op succeeds rather than
-        # surfacing ``NotImplementedError``.
+        # The prime-mover failure branch will call `node.dump` after the
+        # TypeError. Use `_DumpingAtomic` so that no-op succeeds rather than
+        # surfacing `NotImplementedError`.
         node = _DumpingAtomic("add_invalid", _fixtures.add.flowrep_recipe)
         # Bypass static type checking — the branch under test is specifically
         # the "anything other than ExecutorInstructions / futures.Executor"

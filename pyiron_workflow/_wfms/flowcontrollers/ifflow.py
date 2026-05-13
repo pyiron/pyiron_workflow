@@ -121,12 +121,12 @@ class If(FlowControl[frs.LiveIf]):
         recipe: frs.IfNode,
     ) -> None:
         """
-        Copy ``recipe.input_edges`` entries targeting ``node_label`` onto ``result``.
+        Copy `recipe.input_edges` entries targeting `node_label` onto `result`.
 
         The runtime DAG of an :class:`If` is grown one stage at a time. Each stage
         depends on the parent input ports being visible to the next-evaluated
         condition or body, which :func:`dag.gather_target_inputs` resolves via
-        ``result.input_edges``.
+        `result.input_edges`.
         """
         for target, source in recipe.input_edges.items():
             if target.node == node_label:

@@ -43,8 +43,8 @@ class TestUnwrapAnnotated(unittest.TestCase):
         )
 
     def test_union_returned_unchanged(self) -> None:
-        # Keep the legacy ``typing.Union`` form deliberately: the test plan
-        # exercises this exact alias to confirm non-``Annotated`` generic
+        # Keep the legacy `typing.Union` form deliberately: the test plan
+        # exercises this exact alias to confirm non-`Annotated` generic
         # aliases are returned unchanged.
         union_hint = Union[int, str]  # noqa: UP007
         self.assertEqual(annotation._unwrap_annotated(union_hint), union_hint)
