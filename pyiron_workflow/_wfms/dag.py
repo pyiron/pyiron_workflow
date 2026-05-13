@@ -274,6 +274,8 @@ def evaluate_dag_by_layer(
         for label in layer:
             node = nodes[label]
             input_data = gather_target_inputs(node, result)
+            if frs.NOT_DATA in input_data.values():
+                continue
             sub_run = execution.run(node, config, **input_data)
             run.steps.append(execution.Step(label, sub_run))
             result.nodes[label] = sub_run.result
