@@ -273,6 +273,7 @@ def evaluate_dag_by_layer(
     for layer in layers:
         # TODO: Optionally multithread inside a given layer
         for label in layer:
+            # TODO: Try evaluation and collect any exceptions to optionally fail late
             evaluate_node(nodes[label], run, config)
 
 
