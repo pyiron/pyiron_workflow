@@ -39,11 +39,8 @@ class Transform1toN:
         self,
         label: frs.Label,
         owner: Graph | None = None,
-        history_limit: int = 10,
     ) -> atomic.Atomic:
-        return atomic.Atomic(
-            label, self.recipe, owner=owner, history_limit=history_limit
-        )
+        return atomic.Atomic(label, self.recipe, owner=owner)
 
 
 class TransformNto1:
@@ -79,8 +76,5 @@ class TransformNto1:
         self,
         label: frs.Label,
         owner: Graph | None = None,
-        history_limit: int = 10,
     ) -> atomic.Atomic:
-        return atomic.Atomic(
-            label, self.recipe, owner=owner, history_limit=history_limit
-        )
+        return atomic.Atomic(label, self.recipe, owner=owner)

@@ -20,9 +20,8 @@ class While(FlowControl[frs.WhileNode, frs.LiveWhile]):
         recipe: frs.WhileNode,
         *,
         owner: Graph | None = None,
-        history_limit: int = 10,
     ):
-        super().__init__(label, recipe, owner=owner, history_limit=history_limit)
+        super().__init__(label, recipe, owner=owner)
         self._prospective_nodes = NodeMap(
             self,
             constructors.recipe2static(

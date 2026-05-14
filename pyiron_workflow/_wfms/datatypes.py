@@ -1,7 +1,6 @@
 from __future__ import annotations
 
 import abc
-import collections
 import dataclasses
 import pathlib
 from concurrent import futures
@@ -61,7 +60,6 @@ class Node(
     _owner: Graph | None
     executor: futures.Executor | execution.ExecutorInstructions | None
     current_run: execution.Run[execution.ResultType] | None
-    run_history: collections.deque[execution.Run[execution.ResultType]]
 
     @property
     @abc.abstractmethod
@@ -121,14 +119,6 @@ class Node(
         root = "" if self.owner is None else f"{self.owner.lexical_path}."
         return root + self.label
 
-    @property
-    def history_limit(self) -> int | None:
-        return self.run_history.maxlen
-
-    @history_limit.setter
-    def history_limit(self, value: int) -> None:
-        self.run_history = collections.deque(self.run_history, maxlen=value)
-
     def run(self, **input_data) -> execution.Run[execution.ResultType]:
         config = execution.RunConfig(
             prime_mover=self.lexical_path,
@@ -164,7 +154,6 @@ class StaticNode(Node[RecipeType, execution.ResultType], abc.ABC):
         recipe: RecipeType,
         *,
         owner: Graph | None = None,
-        history_limit: int = 10,
     ):
         self._label = label  # TODO: also accept None and use function name for default
         self._owner = owner
@@ -175,7 +164,6 @@ class StaticNode(Node[RecipeType, execution.ResultType], abc.ABC):
 
         self.executor = None
         self.current_run = None
-        self.run_history = collections.deque(maxlen=history_limit)
 
     @property
     def inputs(self) -> PortMap[InputPort, Node]:

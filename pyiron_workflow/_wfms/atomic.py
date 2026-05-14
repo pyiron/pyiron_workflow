@@ -19,9 +19,8 @@ class Atomic(StaticNode[frs.AtomicNode, frs.LiveAtomic]):
         recipe: frs.AtomicNode,
         *,
         owner=None,
-        history_limit: int = 10,
     ):
-        super().__init__(label, recipe, owner=owner, history_limit=history_limit)
+        super().__init__(label, recipe, owner=owner)
         func = retrieve.import_from_string(recipe.fully_qualified_name)
         self._function_metadata = getattr(func, "_semantikon_metadata", None)
 

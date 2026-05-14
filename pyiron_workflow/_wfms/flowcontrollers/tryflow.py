@@ -21,9 +21,8 @@ class Try(FlowControl[frs.TryNode, frs.LiveTry]):
         recipe: frs.TryNode,
         *,
         owner: Graph | None = None,
-        history_limit: int = 10,
     ):
-        super().__init__(label, recipe, owner=owner, history_limit=history_limit)
+        super().__init__(label, recipe, owner=owner)
 
         nodes: list = [
             constructors.recipe2static(

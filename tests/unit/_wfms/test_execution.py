@@ -203,7 +203,6 @@ class TestRunHappyPath(unittest.TestCase):
         self.assertEqual(run.status, execution.RunStatus.FINISHED)
         self.assertEqual(run.outputs["output_0"].value, 3)
         self.assertIsNotNone(run.duration)
-        self.assertEqual(len(node.run_history), 1)
 
         # Hook sees PENDING and FINISHED (never RUNNING).
         statuses = [s for _, s in captured]
@@ -245,8 +244,6 @@ class TestRunFailurePath(unittest.TestCase):
             self.assertIs(node.current_run.exception, ctx.exception)
             # `dump` is called exactly once with the `failed_state` path.
             self.assertEqual(dump_calls, [progress_dir / "failed_state"])
-            # The append in `finally` records even failed prime-mover runs.
-            self.assertEqual(len(node.run_history), 1)
 
 
 # --------------------------------------------------------------------------- #
@@ -300,23 +297,6 @@ class TestRunExecutorBranches(unittest.TestCase):
             with self.assertRaises(TypeError) as ctx:
                 execution.run(node, config, x=1, y=2)
         self.assertIn(node.lexical_path, str(ctx.exception))
-
-
-# --------------------------------------------------------------------------- #
-# run() — prime-mover-only behaviour                                          #
-# --------------------------------------------------------------------------- #
-
-
-class TestRunPrimeMoverOnly(unittest.TestCase):
-    def test_run_history_appended_only_on_prime_mover(self) -> None:
-        macro = _fixtures.macro_node()
-        with tempfile.TemporaryDirectory() as tmp:
-            config = _default_config(macro, pathlib.Path(tmp))
-            execution.run(macro, config, x=1, y=2, z=3)
-        self.assertEqual(len(macro.run_history), 1)
-        # Child runs are not appended to per-child history.
-        child = macro.nodes["add_0"]
-        self.assertEqual(len(child.run_history), 0)
 
 
 # --------------------------------------------------------------------------- #

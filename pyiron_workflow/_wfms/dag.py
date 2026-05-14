@@ -74,7 +74,6 @@ class Workflow(Node[frs.WorkflowNode, frs.LiveWorkflow], Graph):
         label: frs.Label,
         *,
         owner: Graph | None = None,
-        history_limit: int = 10,
         undo_limit: int = 10,
     ):
         # Add a super call later if needed
@@ -82,7 +81,6 @@ class Workflow(Node[frs.WorkflowNode, frs.LiveWorkflow], Graph):
         self._owner = owner
         self.executor = None
         self.current_run = None
-        self.run_history = collections.deque(maxlen=history_limit)
         self._nodes = MutableNodeMap(self)
         self._inputs = MutablePortMap[InputPort](self)
         self._outputs = MutablePortMap[OutputPort](self)
@@ -211,9 +209,8 @@ class Macro(StaticNode[frs.WorkflowNode, frs.LiveWorkflow], Graph):
         recipe: frs.WorkflowNode,
         *,
         owner: Graph | None = None,
-        history_limit: int = 10,
     ):
-        super().__init__(label, recipe, owner=owner, history_limit=history_limit)
+        super().__init__(label, recipe, owner=owner)
 
         if reference := recipe.reference:
             fqn = reference.info.fully_qualified_name

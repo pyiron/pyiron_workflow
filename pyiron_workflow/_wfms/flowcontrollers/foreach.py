@@ -25,9 +25,8 @@ class ForEach(FlowControl[frs.ForEachNode, frs.LiveForEach]):
         recipe: frs.ForEachNode,
         *,
         owner: Graph | None = None,
-        history_limit: int = 10,
     ):
-        super().__init__(label, recipe, owner=owner, history_limit=history_limit)
+        super().__init__(label, recipe, owner=owner)
 
         bn = self.recipe.body_node
         self._prospective_nodes = NodeMap(

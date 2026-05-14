@@ -7,7 +7,6 @@ practice.
 
 from __future__ import annotations
 
-import collections
 import typing
 import unittest
 from concurrent import futures
@@ -138,31 +137,6 @@ class TestNodeLexicalPath(unittest.TestCase):
         self.assertEqual(grandchild.lexical_path, "my_nested_macro.macro_0.add_0")
 
 
-class TestNodeHistoryLimit(unittest.TestCase):
-    def test_default_history_limit(self):
-        n = _fixtures.atomic_add_node()
-        self.assertEqual(n.history_limit, 10)
-
-    def test_setter_rebuilds_deque(self):
-        n = _fixtures.atomic_add_node()
-        original = n.run_history
-        n.history_limit = 5
-        self.assertEqual(n.history_limit, 5)
-        self.assertIsNot(n.run_history, original)
-        self.assertEqual(n.run_history.maxlen, 5)
-
-    def test_shrink_clips_oldest_entries(self):
-        n = _fixtures.atomic_add_node()
-        # Populate with sentinel values; the values themselves don't have to be
-        # Run instances for the deque shrink test.
-        n.run_history = collections.deque(
-            [1, 2, 3, 4, 5], maxlen=10  # type: ignore[arg-type]
-        )
-        n.history_limit = 3
-        self.assertEqual(list(n.run_history), [3, 4, 5])
-        self.assertEqual(n.run_history.maxlen, 3)
-
-
 class TestNodeRun(unittest.TestCase):
     def test_run_integration(self):
         n = _fixtures.atomic_add_node()
@@ -172,8 +146,6 @@ class TestNodeRun(unittest.TestCase):
         # parser auto-labels it `output_0`.
         out_label = next(iter(run.outputs.keys()))
         self.assertEqual(run.outputs[out_label].value, 3)
-        # And the prime-mover's run history was appended.
-        self.assertEqual(len(n.run_history), 1)
 
 
 class TestNodeGetState(unittest.TestCase):

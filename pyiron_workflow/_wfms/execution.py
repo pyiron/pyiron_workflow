@@ -130,8 +130,6 @@ def run(
         end_time = datetime.datetime.now()
         node.current_run.finished_at = end_time
         config.emit_progress(end_time, node.lexical_path, node.current_run.status)
-        if config.is_prime_mover(node):
-            node.run_history.append(node.current_run)
 
     return node.current_run
 
