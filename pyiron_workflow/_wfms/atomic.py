@@ -5,6 +5,7 @@ from typing import Any
 
 import semantikon
 from flowrep.api import schemas as frs
+from pyiron_snippets import retrieve
 
 from pyiron_workflow._wfms import execution
 from pyiron_workflow._wfms.datatypes import StaticNode
@@ -21,9 +22,8 @@ class Atomic(StaticNode[frs.LiveAtomic]):
         history_limit: int = 10,
     ):
         super().__init__(label, recipe, owner=owner, history_limit=history_limit)
-        self._function_metadata = getattr(
-            self.generate_flowrep_live_node().function, "_semantikon_metadata", None
-        )
+        func = retrieve.import_from_string(recipe.fully_qualified_name)
+        self._function_metadata = getattr(func, "_semantikon_metadata", None)
 
     @classmethod
     def _result_type(cls) -> type[frs.LiveAtomic]:
