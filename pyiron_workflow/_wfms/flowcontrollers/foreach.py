@@ -42,10 +42,6 @@ class ForEach(FlowControl[frs.LiveForEach]):
         return frs.LiveForEach
 
     @property
-    def prospective_input_edges(self) -> frs.InputEdges:
-        return self.recipe.input_edges
-
-    @property
     def prospective_edges(self) -> frs.Edges:
         return {}
 

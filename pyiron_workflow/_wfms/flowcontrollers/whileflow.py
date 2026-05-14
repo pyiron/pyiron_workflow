@@ -52,10 +52,6 @@ class While(FlowControl[frs.LiveWhile]):
         return f"{prefix}_{index}"
 
     @property
-    def prospective_input_edges(self) -> frs.InputEdges:
-        return self._recipe.input_edges
-
-    @property
     def prospective_edges(self) -> frs.Edges:
         """
         Cyclic 'iteration' edges from the prospective body back to the prospective

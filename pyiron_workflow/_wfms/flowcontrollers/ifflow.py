@@ -47,10 +47,6 @@ class If(FlowControl[frs.LiveIf]):
         return frs.LiveIf
 
     @property
-    def prospective_input_edges(self) -> frs.InputEdges:
-        return self._recipe.input_edges
-
-    @property
     def prospective_edges(self) -> frs.Edges:
         return {}
 

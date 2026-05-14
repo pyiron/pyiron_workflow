@@ -268,6 +268,11 @@ ProspectiveOutputEdges: TypeAlias = dict[
 # flow control pattern).s
 
 
+FlowControlRecipeType: TypeAlias = (
+    frs.ForEachNode | frs.IfNode | frs.TryNode | frs.WhileNode
+)
+
+
 class FlowControl(StaticNode[execution.ResultType], Graph, abc.ABC):
     """
     Flow controls all have a prospective recipe which resolves into a retrospective DAG.
@@ -278,9 +283,7 @@ class FlowControl(StaticNode[execution.ResultType], Graph, abc.ABC):
     identical, and we only need to populate the recipe topology with data values.
     """
 
-    @property
-    @abc.abstractmethod
-    def prospective_input_edges(self) -> frs.InputEdges: ...
+    _recipe: FlowControlRecipeType
 
     @property
     @abc.abstractmethod
@@ -298,6 +301,10 @@ class FlowControl(StaticNode[execution.ResultType], Graph, abc.ABC):
     def _build_retrospective_nodes(
         self, run: execution.Run[execution.ResultType]
     ) -> NodeMap: ...
+
+    @property
+    def prospective_input_edges(self) -> frs.InputEdges:
+        return self._recipe.input_edges
 
     @property
     def input_edges(self) -> frs.InputEdges:

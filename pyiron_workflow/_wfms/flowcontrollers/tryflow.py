@@ -41,10 +41,6 @@ class Try(FlowControl[frs.LiveTry]):
         return frs.LiveTry
 
     @property
-    def prospective_input_edges(self) -> frs.InputEdges:
-        return self._recipe.input_edges
-
-    @property
     def prospective_edges(self) -> frs.Edges:
         return {}
 
