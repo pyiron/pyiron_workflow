@@ -12,15 +12,6 @@ from flowrep.api import schemas as frs
 
 from pyiron_workflow._wfms import annotation, execution, lexical
 
-RecipeType: TypeAlias = (
-    frs.AtomicNode
-    | frs.ForEachNode
-    | frs.IfNode
-    | frs.TryNode
-    | frs.WhileNode
-    | frs.WorkflowNode
-)
-
 
 @dataclasses.dataclass(frozen=True)
 class Port(abc.ABC):  # Satisfies pyiron_workflow._wfms.lexical.Lexical["Node"]
@@ -52,7 +43,20 @@ PortType = TypeVar("PortType", bound=Port)
 class PortMap(lexical.LexicalMap[PortType, lexical.OwnerType_co]): ...
 
 
-class Node(lexical.Lexical["Graph"], Generic[execution.ResultType], abc.ABC):
+RecipeType = TypeVar(
+    "RecipeType",
+    frs.AtomicNode,
+    frs.ForEachNode,
+    frs.IfNode,
+    frs.TryNode,
+    frs.WhileNode,
+    frs.WorkflowNode,
+)
+
+
+class Node(
+    lexical.Lexical["Graph"], Generic[RecipeType, execution.ResultType], abc.ABC
+):
     _label: frs.Label
     _owner: Graph | None
     executor: futures.Executor | execution.ExecutorInstructions | None
@@ -69,7 +73,7 @@ class Node(lexical.Lexical["Graph"], Generic[execution.ResultType], abc.ABC):
 
     @property
     @abc.abstractmethod
-    def recipe(self) -> frs.NodeModel: ...
+    def recipe(self) -> RecipeType: ...
 
     @abc.abstractmethod
     def generate_flowrep_live_node(self) -> execution.ResultType: ...
@@ -149,9 +153,9 @@ class Node(lexical.Lexical["Graph"], Generic[execution.ResultType], abc.ABC):
         return state
 
 
-class StaticNode(Node[execution.ResultType], abc.ABC):
+class StaticNode(Node[RecipeType, execution.ResultType], abc.ABC):
     _owner: Graph | None
-    _recipe: frs.NodeModel
+    _recipe: RecipeType
 
     @classmethod
     @abc.abstractmethod
@@ -185,7 +189,7 @@ class StaticNode(Node[execution.ResultType], abc.ABC):
         return self._outputs
 
     @property
-    def recipe(self) -> frs.NodeModel:
+    def recipe(self) -> RecipeType:
         return self._recipe
 
     def generate_flowrep_live_node(self) -> execution.ResultType:
@@ -268,12 +272,14 @@ ProspectiveOutputEdges: TypeAlias = dict[
 # flow control pattern).s
 
 
-FlowControlRecipeType: TypeAlias = (
-    frs.ForEachNode | frs.IfNode | frs.TryNode | frs.WhileNode
+FlowControlRecipeType = TypeVar(
+    "FlowControlRecipeType", frs.ForEachNode, frs.IfNode, frs.TryNode, frs.WhileNode
 )
 
 
-class FlowControl(StaticNode[execution.ResultType], Graph, abc.ABC):
+class FlowControl(
+    StaticNode[FlowControlRecipeType, execution.ResultType], Graph, abc.ABC
+):
     """
     Flow controls all have a prospective recipe which resolves into a retrospective DAG.
 

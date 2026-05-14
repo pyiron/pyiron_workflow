@@ -12,7 +12,7 @@ from pyiron_workflow._wfms.datatypes import (
 )
 
 
-class Try(FlowControl[frs.LiveTry]):
+class Try(FlowControl[frs.TryNode, frs.LiveTry]):
     _recipe: frs.TryNode
 
     def __init__(

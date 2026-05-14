@@ -11,7 +11,7 @@ from pyiron_workflow._wfms.datatypes import (
 )
 
 
-class While(FlowControl[frs.LiveWhile]):
+class While(FlowControl[frs.WhileNode, frs.LiveWhile]):
     _recipe: frs.WhileNode
 
     def __init__(

@@ -16,7 +16,7 @@ from pyiron_workflow._wfms.datatypes import (
 )
 
 
-class ForEach(FlowControl[frs.LiveForEach]):
+class ForEach(FlowControl[frs.ForEachNode, frs.LiveForEach]):
     _recipe: frs.ForEachNode
 
     def __init__(
@@ -113,7 +113,7 @@ class ForEach(FlowControl[frs.LiveForEach]):
         )
 
         total_steps = self._calculate_total_steps(nested_length_map, zipped_length_map)
-        body_nodes: tuple[StaticNode[Any], ...] = tuple(
+        body_nodes: tuple[StaticNode[Any, Any], ...] = tuple(
             constructors.recipe2static(
                 self._body_label(body.label, i), body.node, owner=self
             )

@@ -18,20 +18,6 @@ from pyiron_workflow._wfms import datatypes, execution
 from tests.unit._wfms import _fixtures
 
 
-class TestRecipeType(unittest.TestCase):
-    def test_recipe_type_members(self):
-        args = typing.get_args(datatypes.RecipeType)
-        expected = {
-            frs.AtomicNode,
-            frs.ForEachNode,
-            frs.IfNode,
-            frs.TryNode,
-            frs.WhileNode,
-            frs.WorkflowNode,
-        }
-        self.assertEqual(set(args), expected)
-
-
 class TestPort(unittest.TestCase):
     def test_input_port_lexical_path_one_level(self):
         m = _fixtures.macro_node()
@@ -229,7 +215,7 @@ class TestNodeGetState(unittest.TestCase):
         self.assertIsNone(state["executor"])
 
 
-class _RecordingFC(datatypes.FlowControl[frs.LiveForEach]):
+class _RecordingFC(datatypes.FlowControl[frs.ForEachNode, frs.LiveForEach]):
     """
     Minimal concrete `FlowControl` whose `_build_retrospective_*`
     methods record the run they were called with and return sentinel values.

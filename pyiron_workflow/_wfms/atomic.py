@@ -11,7 +11,7 @@ from pyiron_workflow._wfms import execution
 from pyiron_workflow._wfms.datatypes import StaticNode
 
 
-class Atomic(StaticNode[frs.LiveAtomic]):
+class Atomic(StaticNode[frs.AtomicNode, frs.LiveAtomic]):
 
     def __init__(
         self,

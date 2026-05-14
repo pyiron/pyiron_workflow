@@ -17,7 +17,6 @@ from pyiron_workflow._wfms.datatypes import (
     OutputPort,
     PortMap,
     PortType,
-    RecipeType,
     StaticNode,
 )
 
@@ -64,7 +63,7 @@ GraphAction: TypeAlias = tuple  # TODO, but probably needs an enum for action ty
 GraphDiff: TypeAlias = list[GraphAction]
 
 
-class Workflow(Node[frs.LiveWorkflow], Graph):
+class Workflow(Node[frs.WorkflowNode, frs.LiveWorkflow], Graph):
     """This is the key mutable one"""
 
     undo_stack: collections.deque[GraphDiff]
@@ -99,7 +98,7 @@ class Workflow(Node[frs.LiveWorkflow], Graph):
         return self._outputs
 
     @property
-    def recipe(self) -> RecipeType:
+    def recipe(self) -> frs.WorkflowNode:
         raise NotImplementedError()
 
     def generate_flowrep_live_node(self) -> frs.LiveWorkflow:
@@ -203,7 +202,7 @@ class Workflow(Node[frs.LiveWorkflow], Graph):
         raise NotImplementedError()
 
 
-class Macro(StaticNode[frs.LiveWorkflow], Graph):
+class Macro(StaticNode[frs.WorkflowNode, frs.LiveWorkflow], Graph):
     _recipe: frs.WorkflowNode
 
     def __init__(
@@ -319,7 +318,7 @@ def topo_sort_nodes(nodes: NodeMap, edges: frs.Edges) -> list[list[frs.Label]]:
 
 
 def evaluate_node(
-    node: Node, run: execution.Run[frs.Composite], config: execution.RunConfig
+    node: Node[Any, Any], run: execution.Run[frs.Composite], config: execution.RunConfig
 ):
     result = run.result
     label = node.label
@@ -334,7 +333,7 @@ def evaluate_node(
 
 
 def gather_target_inputs(
-    node: Node,
+    node: Node[Any, Any],
     runtime_data: frs.Composite,
 ) -> dict[str, Any]:
     """

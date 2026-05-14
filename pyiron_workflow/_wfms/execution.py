@@ -64,7 +64,7 @@ class RunConfig:
         for hook in self.progress_hooks:
             hook(self.progress_dir, time, lexical_path, status)
 
-    def is_prime_mover(self, candidate: Node[Any]) -> bool:
+    def is_prime_mover(self, candidate: Node[Any, Any]) -> bool:
         return candidate.lexical_path == self.prime_mover
 
 
@@ -79,7 +79,7 @@ class ExecutorInstructions:
 
 
 def run(
-    _pwf_run__node: Node[ResultType],
+    _pwf_run__node: Node[Any, ResultType],
     _pwf_run__config: RunConfig,
     /,
     **input_data,

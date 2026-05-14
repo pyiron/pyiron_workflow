@@ -1,7 +1,7 @@
 from __future__ import annotations
 
 import types
-from typing import cast
+from typing import TypeAlias, cast
 
 from flowrep.api import schemas as frs
 from flowrep.api import tools as frt
@@ -29,6 +29,16 @@ def node(
         return atomic.Atomic(label or function.__name__, recipe)
 
 
+RecipeOptions: TypeAlias = (
+    frs.AtomicNode
+    | frs.ForEachNode
+    | frs.IfNode
+    | frs.TryNode
+    | frs.WhileNode
+    | frs.WorkflowNode
+)
+
+
 def recipe2static(
     label: frs.Label,
     recipe: RecipeType,
@@ -47,4 +57,6 @@ def recipe2static(
     elif isinstance(recipe, frs.WorkflowNode):
         return dag.Macro(label, recipe, owner=owner)
     else:
-        raise TypeError(f"Unknown recipe type: {recipe}. Expected one of {RecipeType}.")
+        raise TypeError(
+            f"Unknown recipe type: {recipe}. Expected one of {RecipeOptions}."
+        )

@@ -11,7 +11,7 @@ from pyiron_workflow._wfms.datatypes import (
 )
 
 
-class If(FlowControl[frs.LiveIf]):
+class If(FlowControl[frs.IfNode, frs.LiveIf]):
     _recipe: frs.IfNode
 
     def __init__(
