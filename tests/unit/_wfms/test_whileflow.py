@@ -88,10 +88,34 @@ class TestWhileProspectiveAndRetrospective(unittest.TestCase):
         )
 
     def test_prospective_output_edges_matches_recipe(self) -> None:
-        self.assertEqual(
-            self.whl.prospective_output_edges, self.whl.recipe.output_edges
-        )
         self.assertGreater(len(self.whl.prospective_output_edges), 0)
+        self.assertTrue(
+            all(
+                len(v) == 1 or len(v) == 2
+                for v in self.whl.prospective_output_edges.values()
+            ),
+            msg="Expect all outputs to have at least the fallback input connection,"
+            "and some to be fed additionally by output from the body node.",
+        )
+
+        from_inputs = {k: v[-1] for k, v in self.whl.prospective_output_edges.items()}
+        from_bodies = {
+            k: v[0] for k, v in self.whl.prospective_output_edges.items() if len(v) == 2
+        }
+        # Note: this test implementation is brittle against the While implementation's
+        # choice to first leverage the underlying recipe output edges, and then to add
+        # the fallbacks
+
+        self.assertSetEqual(
+            {source.port for source in from_inputs.values()},
+            set(self.whl.inputs),
+            msg="All inputs should appear as fallback data",
+        )
+        self.assertDictEqual(
+            from_bodies,
+            self.whl.recipe.output_edges,
+            msg="Extra entries should be from recipe body->output edges",
+        )
 
     def test_prospective_nodes_has_condition_and_body(self) -> None:
         self.assertEqual(set(self.whl.prospective_nodes), {"condition", "body"})

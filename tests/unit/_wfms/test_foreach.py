@@ -134,8 +134,14 @@ class TestForEachProspectiveAndRetrospective(unittest.TestCase):
         self.assertEqual(self.fe.prospective_edges, {})
 
     def test_prospective_output_edges_matches_recipe(self) -> None:
-        self.assertEqual(self.fe.prospective_output_edges, self.fe.recipe.output_edges)
         self.assertGreater(len(self.fe.prospective_output_edges), 0)
+        self.assertTrue(
+            all(len(v) == 1 for v in self.fe.prospective_output_edges.values())
+        )
+        flattened_prospects = {
+            k: v[0] for k, v in self.fe.prospective_output_edges.items()
+        }
+        self.assertDictEqual(flattened_prospects, self.fe.recipe.output_edges)
 
     def test_prospective_nodes_has_single_body(self) -> None:
         self.assertEqual(len(self.fe.prospective_nodes), 1)

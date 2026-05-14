@@ -3,7 +3,12 @@ from __future__ import annotations
 from flowrep.api import schemas as frs
 
 from pyiron_workflow._wfms import constructors, dag, execution
-from pyiron_workflow._wfms.datatypes import FlowControl, Graph, NodeMap
+from pyiron_workflow._wfms.datatypes import (
+    FlowControl,
+    Graph,
+    NodeMap,
+    ProspectiveOutputEdges,
+)
 
 
 class If(FlowControl[frs.LiveIf]):
@@ -50,7 +55,7 @@ class If(FlowControl[frs.LiveIf]):
         return {}
 
     @property
-    def prospective_output_edges(self) -> frs.ProspectiveOutputEdges:
+    def prospective_output_edges(self) -> ProspectiveOutputEdges:
         return self._recipe.prospective_output_edges
 
     @property

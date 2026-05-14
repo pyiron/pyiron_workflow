@@ -3,7 +3,12 @@ from __future__ import annotations
 from flowrep.api import schemas as frs
 
 from pyiron_workflow._wfms import constructors, dag, execution
-from pyiron_workflow._wfms.datatypes import FlowControl, Graph, NodeMap
+from pyiron_workflow._wfms.datatypes import (
+    FlowControl,
+    Graph,
+    NodeMap,
+    ProspectiveOutputEdges,
+)
 
 
 class While(FlowControl[frs.LiveWhile]):
@@ -27,6 +32,16 @@ class While(FlowControl[frs.LiveWhile]):
                 recipe.case.body.label, recipe.case.body.node, owner=self
             ),
         )
+        self._prospective_output_edges = ProspectiveOutputEdges(
+            # Body -> output from recipe prospective outputs
+            {k: [v] for k, v in recipe.output_edges.items()}
+        )
+        for output_label in self.outputs:
+            # Input -> output to fulfill fallback values
+            output_target = frs.OutputTarget(port=output_label)
+            existing_outputs = self._prospective_output_edges.get(output_target, [])
+            existing_outputs.append(frs.InputSource(port=output_label))
+            self._prospective_output_edges[output_target] = existing_outputs
 
     @classmethod
     def _result_type(cls) -> type[frs.LiveWhile]:
@@ -51,8 +66,8 @@ class While(FlowControl[frs.LiveWhile]):
         return {**self._recipe.body_body_edges, **self._recipe.body_condition_edges}
 
     @property
-    def prospective_output_edges(self) -> frs.OutputEdges:
-        return self._recipe.output_edges
+    def prospective_output_edges(self) -> ProspectiveOutputEdges:
+        return self._prospective_output_edges
 
     @property
     def prospective_nodes(self) -> NodeMap:

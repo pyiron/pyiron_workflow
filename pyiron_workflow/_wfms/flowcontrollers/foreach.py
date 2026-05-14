@@ -11,6 +11,7 @@ from pyiron_workflow._wfms.datatypes import (
     FlowControl,
     Graph,
     NodeMap,
+    ProspectiveOutputEdges,
     StaticNode,
 )
 
@@ -32,6 +33,9 @@ class ForEach(FlowControl[frs.LiveForEach]):
         self._prospective_nodes = NodeMap(
             self, constructors.recipe2static(bn.label, bn.node, owner=self)
         )
+        self._prospective_output_edges = ProspectiveOutputEdges(
+            {k: [v] for k, v in recipe.output_edges.items()}
+        )
 
     @classmethod
     def _result_type(cls) -> type[frs.LiveForEach]:
@@ -47,7 +51,7 @@ class ForEach(FlowControl[frs.LiveForEach]):
 
     @property
     def prospective_output_edges(self) -> frs.OutputEdges:
-        return self.recipe.output_edges
+        return self._prospective_output_edges
 
     @property
     def prospective_nodes(self) -> NodeMap:

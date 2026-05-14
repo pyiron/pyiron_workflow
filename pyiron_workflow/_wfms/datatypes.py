@@ -254,6 +254,20 @@ class Graph(lexical.Lexical["Graph"], Protocol):
     def nodes(self) -> NodeMap: ...
 
 
+ProspectiveOutputEdges: TypeAlias = dict[
+    frs.OutputTarget, list[frs.SourceHandle | frs.InputSource]
+]
+# In flowrep, recipes with prospective bodies still leverage the usual IO fields,
+# and only if- and try- nodes have a separate field for propsective edges.
+# Those are exclusively from body nodes.
+# Here we distinguish `prospective_*edges` as belonging to the flow control recipe,
+# and want to be able to capture pass-through data (e.g. from for-loops) as well.
+# In many cases, this becomes redundant since all the values are single-element lists
+# and a plain dict would be sufficient; we do it here for consistency of data shape to
+# benefit the downstream consumer (e.g. a GUI that wants to render the prospective
+# flow control pattern).s
+
+
 class FlowControl(StaticNode[execution.ResultType], Graph, abc.ABC):
     """
     Flow controls all have a prospective recipe which resolves into a retrospective DAG.
