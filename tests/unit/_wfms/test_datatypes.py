@@ -266,21 +266,19 @@ class _RecordingFC(datatypes.FlowControl[frs.LiveForEach]):
         raise NotImplementedError
 
     # Sentinels — typed as `Any` for test purposes.
-    def _build_retrospective_input_edges(self, run):  # type: ignore[override]
-        self.calls.append(("input_edges", run))
-        return "sentinel_input_edges"
-
-    def _build_retrospective_edges(self, run):  # type: ignore[override]
-        self.calls.append(("edges", run))
-        return "sentinel_edges"
-
-    def _build_retrospective_output_edges(self, run):  # type: ignore[override]
-        self.calls.append(("output_edges", run))
-        return "sentinel_output_edges"
-
     def _build_retrospective_nodes(self, run):  # type: ignore[override]
         self.calls.append(("nodes", run))
         return "sentinel_nodes"
+
+
+class _SentinelResult:
+    input_edges = "sentinel_input_edges"
+    edges = "sentinel_edges"
+    output_edges = "sentinel_output_edges"
+
+
+class _SentinelRun:
+    result = _SentinelResult()
 
 
 class TestFlowControlRetrospectiveFallbacks(unittest.TestCase):
@@ -297,7 +295,7 @@ class TestFlowControlRetrospectiveFallbacks(unittest.TestCase):
         self._foreach_recipe = wrapper.nodes["for_each_0"].recipe
         self.fc = _RecordingFC("fc", self._foreach_recipe)
 
-    def test_no_run_returns_empty_forms_and_does_not_call_builders(self):
+    def test_no_run_returns_empty_forms_and_does_not_call_builder(self):
         self.fc.current_run = None
 
         self.assertEqual(self.fc.input_edges, {})
@@ -311,23 +309,15 @@ class TestFlowControlRetrospectiveFallbacks(unittest.TestCase):
         self.assertEqual(self.fc.calls, [])
 
     def test_with_run_delegates_to_builders(self):
-        sentinel_run = typing.cast(execution.Run[frs.LiveForEach], "sentinel-run")
+        sentinel_run = typing.cast(execution.Run[frs.LiveForEach], _SentinelRun())
         self.fc.current_run = sentinel_run
 
-        self.assertEqual(self.fc.input_edges, "sentinel_input_edges")
-        self.assertEqual(self.fc.edges, "sentinel_edges")
-        self.assertEqual(self.fc.output_edges, "sentinel_output_edges")
+        self.assertEqual(self.fc.input_edges, _SentinelResult.input_edges)
+        self.assertEqual(self.fc.edges, _SentinelResult.edges)
+        self.assertEqual(self.fc.output_edges, _SentinelResult.output_edges)
         self.assertEqual(self.fc.nodes, "sentinel_nodes")
 
-        self.assertEqual(
-            self.fc.calls,
-            [
-                ("input_edges", sentinel_run),
-                ("edges", sentinel_run),
-                ("output_edges", sentinel_run),
-                ("nodes", sentinel_run),
-            ],
-        )
+        self.assertEqual(self.fc.calls, [("nodes", sentinel_run)])
 
 
 if __name__ == "__main__":

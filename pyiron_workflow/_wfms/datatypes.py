@@ -281,42 +281,21 @@ class FlowControl(StaticNode[execution.ResultType], Graph, abc.ABC):
     def prospective_nodes(self) -> NodeMap: ...
 
     @abc.abstractmethod
-    def _build_retrospective_input_edges(
-        self, run: execution.Run[execution.ResultType]
-    ) -> frs.InputEdges: ...
-
-    @abc.abstractmethod
-    def _build_retrospective_edges(
-        self, run: execution.Run[execution.ResultType]
-    ) -> frs.Edges: ...
-
-    @abc.abstractmethod
-    def _build_retrospective_output_edges(
-        self, run: execution.Run[execution.ResultType]
-    ) -> frs.OutputEdges: ...
-
-    @abc.abstractmethod
     def _build_retrospective_nodes(
         self, run: execution.Run[execution.ResultType]
     ) -> NodeMap: ...
 
     @property
     def input_edges(self) -> frs.InputEdges:
-        if self.current_run is None:
-            return {}
-        return self._build_retrospective_input_edges(self.current_run)
+        return {} if self.current_run is None else self.current_run.result.input_edges
 
     @property
     def edges(self) -> frs.Edges:
-        if self.current_run is None:
-            return {}
-        return self._build_retrospective_edges(self.current_run)
+        return {} if self.current_run is None else self.current_run.result.edges
 
     @property
     def output_edges(self) -> frs.OutputEdges:
-        if self.current_run is None:
-            return {}
-        return self._build_retrospective_output_edges(self.current_run)
+        return {} if self.current_run is None else self.current_run.result.output_edges
 
     @property
     def nodes(self) -> NodeMap:

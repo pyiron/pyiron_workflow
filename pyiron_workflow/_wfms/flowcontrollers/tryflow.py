@@ -101,19 +101,6 @@ class Try(FlowControl[frs.LiveTry]):
         self._stage_body_output_edges(try_label, result, recipe)
         dag.populate_outputs(result)
 
-    def _build_retrospective_input_edges(
-        self, run: execution.Run[frs.LiveTry]
-    ) -> frs.InputEdges:
-        return run.result.input_edges
-
-    def _build_retrospective_edges(self, run: execution.Run[frs.LiveTry]) -> frs.Edges:
-        return run.result.edges
-
-    def _build_retrospective_output_edges(
-        self, run: execution.Run[frs.LiveTry]
-    ) -> frs.OutputEdges:
-        return run.result.output_edges
-
     def _build_retrospective_nodes(self, run: execution.Run[frs.LiveTry]) -> NodeMap:
         nodes = []
         for step in run.steps:

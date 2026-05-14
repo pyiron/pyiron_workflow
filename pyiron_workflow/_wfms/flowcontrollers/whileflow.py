@@ -95,21 +95,6 @@ class While(FlowControl[frs.LiveWhile]):
         self._stage_final_output_edges(result, recipe, last_body_label)
         dag.populate_outputs(result)
 
-    def _build_retrospective_input_edges(
-        self, run: execution.Run[frs.LiveWhile]
-    ) -> frs.InputEdges:
-        return run.result.input_edges
-
-    def _build_retrospective_edges(
-        self, run: execution.Run[frs.LiveWhile]
-    ) -> frs.Edges:
-        return run.result.edges
-
-    def _build_retrospective_output_edges(
-        self, run: execution.Run[frs.LiveWhile]
-    ) -> frs.OutputEdges:
-        return run.result.output_edges
-
     def _build_retrospective_nodes(self, run: execution.Run[frs.LiveWhile]) -> NodeMap:
         nodes = []
         for step in run.steps:

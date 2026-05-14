@@ -93,19 +93,6 @@ class If(FlowControl[frs.LiveIf]):
         # else: no case fired and no else_case — output ports stay at NOT_DATA.
         dag.populate_outputs(result)
 
-    def _build_retrospective_input_edges(
-        self, run: execution.Run[frs.LiveIf]
-    ) -> frs.InputEdges:
-        return run.result.input_edges
-
-    def _build_retrospective_edges(self, run: execution.Run[frs.LiveIf]) -> frs.Edges:
-        return run.result.edges
-
-    def _build_retrospective_output_edges(
-        self, run: execution.Run[frs.LiveIf]
-    ) -> frs.OutputEdges:
-        return run.result.output_edges
-
     def _build_retrospective_nodes(self, run: execution.Run[frs.LiveIf]) -> NodeMap:
         nodes = []
         for step in run.steps:
