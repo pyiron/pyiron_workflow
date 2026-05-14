@@ -53,10 +53,11 @@ class Run(Generic[ResultType]):
 @dataclasses.dataclass(frozen=True)
 class RunConfig:
     prime_mover: str
-    progress_dir: pathlib.Path
+    progress_dir: pathlib.Path = pathlib.Path.cwd()
     progress_hooks: Iterable[
         Callable[[pathlib.Path, datetime.datetime, str, RunStatus], None]
-    ]
+    ] = dataclasses.field(default_factory=list)
+    dump_hook: Callable[[pathlib.Path, Run[Any]], None] | None = None
 
     def emit_progress(
         self, time: datetime.datetime, lexical_path: str, status: RunStatus
@@ -66,6 +67,10 @@ class RunConfig:
 
     def is_prime_mover(self, candidate: Node[Any, Any]) -> bool:
         return candidate.lexical_path == self.prime_mover
+
+    def dump(self, filename: str, run: Run[Any]):
+        if self.dump_hook is not None:
+            self.dump_hook(self.progress_dir / filename, run)
 
 
 @dataclasses.dataclass
@@ -119,7 +124,7 @@ def run(
         node.current_run.exception = e
         node.current_run.status = RunStatus.FAILED
         if config.is_prime_mover(node):
-            node.dump(config.progress_dir / "failed_state")
+            config.dump("failed_state", node.current_run)
         raise e
     finally:
         end_time = datetime.datetime.now()

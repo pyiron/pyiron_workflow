@@ -137,9 +137,6 @@ class Node(
         )
         return execution.run(self, config, **input_data)
 
-    def dump(self, file: pathlib.Path):
-        raise NotImplementedError()
-
     def __getstate__(self):
         state = super().__getstate__()
 

@@ -17,24 +17,8 @@ from tests.unit._wfms import _fixtures
 # --------------------------------------------------------------------------- #
 
 
-class _DumpingAtomic(atomic.Atomic):
-    """
-    Atomic that records calls to :meth:`dump` instead of raising.
-
-    This facilitates place-holder tests while the dumping functionality is not
-    implemented.
-    """
-
-    def __init__(self, *args: Any, **kwargs: Any) -> None:
-        super().__init__(*args, **kwargs)
-        self.dump_calls: list[pathlib.Path] = []
-
-    def dump(self, file: pathlib.Path) -> None:
-        self.dump_calls.append(file)
-
-
-class _FailingDumpingAtomic(_DumpingAtomic):
-    """Like :class:`_DumpingAtomic` but :meth:`evaluate` raises `RuntimeError`."""
+class _FailingAtomic(atomic.Atomic):
+    """:meth:`evaluate` raises `RuntimeError`."""
 
     def evaluate(
         self,
@@ -44,9 +28,9 @@ class _FailingDumpingAtomic(_DumpingAtomic):
         raise RuntimeError("boom")
 
 
-def _make_failing_node(label: str = "boom_node") -> _FailingDumpingAtomic:
+def _make_failing_node(label: str = "boom_node") -> _FailingAtomic:
     """Build a :class:`_FailingDumpingAtomic` reusing the `add` recipe."""
-    return _FailingDumpingAtomic(label, _fixtures.add.flowrep_recipe)
+    return _FailingAtomic(label, _fixtures.add.flowrep_recipe)
 
 
 def _default_config(node: Any, progress_dir: pathlib.Path) -> execution.RunConfig:
@@ -236,9 +220,22 @@ class TestRunHappyPath(unittest.TestCase):
 class TestRunFailurePath(unittest.TestCase):
     def test_failure_records_state_and_dumps(self) -> None:
         node = _make_failing_node()
+
+        dump_calls = []
+
+        def dump(progress_dir: pathlib.Path, run) -> None:
+            dump_calls.append(progress_dir)
+
         with tempfile.TemporaryDirectory() as tmp:
             progress_dir = pathlib.Path(tmp)
-            config = _default_config(node, progress_dir)
+
+            config = execution.RunConfig(
+                prime_mover=node.lexical_path,
+                progress_dir=progress_dir,
+                progress_hooks=[],
+                dump_hook=dump,
+            )
+
             with self.assertRaises(RuntimeError) as ctx:
                 execution.run(node, config, x=1, y=2)
 
@@ -247,7 +244,7 @@ class TestRunFailurePath(unittest.TestCase):
             self.assertEqual(node.current_run.status, execution.RunStatus.FAILED)
             self.assertIs(node.current_run.exception, ctx.exception)
             # `dump` is called exactly once with the `failed_state` path.
-            self.assertEqual(node.dump_calls, [progress_dir / "failed_state"])
+            self.assertEqual(dump_calls, [progress_dir / "failed_state"])
             # The append in `finally` records even failed prime-mover runs.
             self.assertEqual(len(node.run_history), 1)
 
@@ -293,7 +290,7 @@ class TestRunExecutorBranches(unittest.TestCase):
         # The prime-mover failure branch will call `node.dump` after the
         # TypeError. Use `_DumpingAtomic` so that no-op succeeds rather than
         # surfacing `NotImplementedError`.
-        node = _DumpingAtomic("add_invalid", _fixtures.add.flowrep_recipe)
+        node = _FailingAtomic("add_invalid", _fixtures.add.flowrep_recipe)
         # Bypass static type checking — the branch under test is specifically
         # the "anything other than ExecutorInstructions / futures.Executor"
         # fallthrough.
