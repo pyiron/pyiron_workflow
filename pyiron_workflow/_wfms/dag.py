@@ -204,6 +204,7 @@ class Workflow(Node[frs.LiveWorkflow], Graph):
 
 
 class Macro(StaticNode[frs.LiveWorkflow], Graph):
+    _recipe: frs.WorkflowNode
 
     def __init__(
         self,
