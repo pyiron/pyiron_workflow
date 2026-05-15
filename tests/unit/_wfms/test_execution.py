@@ -243,7 +243,7 @@ class TestRunFailurePath(unittest.TestCase):
             self.assertEqual(node.current_run.status, execution.RunStatus.FAILED)
             self.assertIs(node.current_run.exception, ctx.exception)
             # `dump` is called exactly once with the `failed_state` path.
-            self.assertEqual(dump_calls, [progress_dir / "failed_state"])
+            self.assertEqual(dump_calls, [progress_dir / config.failure_name(node)])
 
 
 # --------------------------------------------------------------------------- #

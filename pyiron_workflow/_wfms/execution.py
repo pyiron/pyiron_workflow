@@ -72,6 +72,15 @@ class RunConfig:
         if self.dump_hook is not None:
             self.dump_hook(self.progress_dir / filename, run)
 
+    def dump_failure(self, node: Node[Any, Any]):
+        if node.current_run is None:
+            raise ValueError(f"current_run for {node.lexical_path!r} cannot be None")
+        self.dump(self.failure_name(node), node.current_run)
+
+    @staticmethod
+    def failure_name(node: Node) -> str:
+        return "failure_" + node.lexical_path.replace(".", "-")
+
 
 @dataclasses.dataclass
 class ExecutorInstructions:
@@ -124,7 +133,7 @@ def run(
         node.current_run.exception = e
         node.current_run.status = RunStatus.FAILED
         if config.is_prime_mover(node):
-            config.dump("failed_state", node.current_run)
+            config.dump_failure(node)
         raise e
     finally:
         end_time = datetime.datetime.now()
