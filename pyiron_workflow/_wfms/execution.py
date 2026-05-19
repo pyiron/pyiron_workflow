@@ -37,7 +37,7 @@ def _make_steps():
 
 @dataclasses.dataclass
 class Run(Generic[ResultType]):
-    lexical_path: lexical.LexicalPathStr
+    lexical_path: lexical.LexicalPath
     result: ResultType
     status: RunStatus
     exception: BaseException | None = None
@@ -93,7 +93,7 @@ class RunConfig:
         self.dump(self.failure_name(failed_run.lexical_path), failed_run)
 
     @staticmethod
-    def failure_name(lexical_path: lexical.LexicalPathStr) -> str:
+    def failure_name(lexical_path: lexical.LexicalPath) -> str:
         return "failure_" + lexical_path.replace(".", "-")
 
 
@@ -110,13 +110,15 @@ class ExecutorInstructions:
 def run(
     node: Node[Any, ResultType],
     config: RunConfig,
-    root: lexical.LexicalPathStr = "",
+    root: lexical.LexicalPath | None = None,
     label: frs.Label | None = None,
     /,
     **input_data,
 ) -> Run[ResultType]:
+    if root is None:
+        root = lexical.LexicalPath()
     data_label = node.label if label is None else label
-    lexical_path = lexical.lexical_path(root, data_label) if root else data_label
+    lexical_path = lexical.lexical_path(root, data_label)
 
     start_time = datetime.datetime.now()
     status = RunStatus.PENDING

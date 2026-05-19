@@ -1,28 +1,73 @@
 from __future__ import annotations
 
+import keyword
 from collections.abc import Mapping
-from typing import Any, Generic, Protocol, TypeAlias, TypeVar
+from typing import Any, Generic, Protocol, TypeVar
 
 from flowrep.api import schemas as frs
 
 LEXICAL_PATH_DELIMITER = "."
 
-LexicalPathStr: TypeAlias = str
-# TODO: Make a formal lexical path string type that's labels with delimiters,
-#       then take frs.Label | LexicalPath here. This is just a placeholder
+
+def _is_valid_segment(seg: str) -> bool:
+    # Equivalent to frs.Label rules with frs.RESERVED_NAMES (inputs/outputs)
+    # exempted, since port paths legitimately contain the IO indicator.
+    # NOTE: does not auto-track future flowrep label-rule changes beyond
+    # identifier+keyword.
+    return seg.isidentifier() and not keyword.iskeyword(seg)
 
 
-def lexical_path(*labels: LexicalPathStr) -> LexicalPathStr:
-    return ".".join(labels)
+class LexicalPath(str):
+    """A delimiter-joined chain of identifier segments.
+
+    Drop-in ``str`` (comparison, ``.replace``, f-strings, dict keys all work);
+    construction validates every segment. Empty path == "" is permitted and
+    represents "no path/root".
+    """
+
+    __slots__ = ()
+
+    def __new__(cls, *parts: str) -> LexicalPath:
+        segments: list[str] = []
+        for part in parts:
+            if part == "":
+                continue  # tolerate the empty-root sentinel when concatenating
+            for seg in part.split(LEXICAL_PATH_DELIMITER):
+                if not _is_valid_segment(seg):
+                    raise ValueError(
+                        f"Invalid lexical path segment {seg!r} in {part!r}: "
+                        f"each segment must be a valid Python identifier and "
+                        f"not a keyword (reserved IO names "
+                        f"{sorted(frs.RESERVED_NAMES)} are permitted as path "
+                        f"segments)."
+                    )
+                segments.append(seg)
+        return super().__new__(cls, LEXICAL_PATH_DELIMITER.join(segments))
+
+    @property
+    def segments(self) -> tuple[str, ...]:
+        return tuple(self.split(LEXICAL_PATH_DELIMITER)) if self else ()
+
+    @property
+    def label(self) -> str:
+        return self.rsplit(LEXICAL_PATH_DELIMITER, 1)[-1]
+
+    @property
+    def parent(self) -> LexicalPath:
+        return LexicalPath(*self.segments[:-1])
 
 
-def get_label(path: LexicalPathStr) -> str:
+def lexical_path(*labels: LexicalPath | frs.Label) -> LexicalPath:
+    return LexicalPath(*labels)
+
+
+def get_label(path: LexicalPath | frs.Label) -> str:
     return path.rsplit(LEXICAL_PATH_DELIMITER, 1)[-1]
 
 
 class HasLexicalPath(Protocol):
     @property
-    def lexical_path(self) -> LexicalPathStr: ...
+    def lexical_path(self) -> LexicalPath: ...
 
 
 OwnerType_co = TypeVar("OwnerType_co", bound=HasLexicalPath, covariant=True)  # for maps
@@ -36,7 +81,7 @@ class Lexical(Protocol[OwnerType_co]):
     def owner(self) -> OwnerType_co | None: ...
 
     @property
-    def lexical_path(self) -> LexicalPathStr: ...
+    def lexical_path(self) -> LexicalPath: ...
 
 
 LexicalType = TypeVar("LexicalType", bound=Lexical[Any])

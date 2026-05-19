@@ -21,7 +21,7 @@ class Port(abc.ABC):  # Satisfies pyiron_workflow._wfms.lexical.Lexical["Node"]
     _io_indicator: ClassVar[str]
 
     @property
-    def lexical_path(self) -> lexical.LexicalPathStr:
+    def lexical_path(self) -> lexical.LexicalPath:
         return lexical.lexical_path(
             self.owner.lexical_path, self._io_indicator, self.label
         )
@@ -60,7 +60,7 @@ class Node(
 ):
     _label: frs.Label
     _owner: Graph | None
-    _detached_root: lexical.LexicalPathStr | None
+    _detached_root: lexical.LexicalPath | None
     executor: futures.Executor | execution.ExecutorInstructions | None
     current_run: execution.Run[execution.ResultType] | None
 
@@ -120,16 +120,16 @@ class Node(
         self._owner = new_owner
 
     @property
-    def lexical_root(self) -> lexical.LexicalPathStr:
+    def lexical_root(self) -> lexical.LexicalPath:
         if self.owner is not None:
             return self.owner.lexical_path
         elif detached := self._detached_root:
             return detached
         else:
-            return ""
+            return lexical.LexicalPath()
 
     @property
-    def lexical_path(self) -> lexical.LexicalPathStr:
+    def lexical_path(self) -> lexical.LexicalPath:
         if self.lexical_root:
             return lexical.lexical_path(self.lexical_root, self.label)
         return self.label

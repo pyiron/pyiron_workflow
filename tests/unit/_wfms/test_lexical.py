@@ -3,6 +3,8 @@ from __future__ import annotations
 import unittest
 from dataclasses import dataclass, field
 
+from flowrep.api import schemas as frs
+
 from pyiron_workflow._wfms import lexical
 
 # --------------------------------------------------------------------------- #
@@ -145,6 +147,77 @@ class TestLexicalMap(unittest.TestCase):
         self.assertIn("has no attribute", msg)
         self.assertIn("nonexistent", msg)
         self.assertIn(type(self.map).__name__, msg)
+
+
+class TestLexicalPath(unittest.TestCase):
+    def test_single_segment(self) -> None:
+        p = lexical.LexicalPath("foo")
+        self.assertEqual(p, "foo")
+
+    def test_multi_segment_from_dotted_string(self) -> None:
+        p = lexical.LexicalPath("a.b.c")
+        self.assertEqual(p, "a.b.c")
+
+    def test_flatten_mixed_paths_and_labels(self) -> None:
+        p = lexical.LexicalPath("my_macro.add_0", "inputs", "x")
+        self.assertEqual(p, "my_macro.add_0.inputs.x")
+
+    def test_io_indicator_segments_allowed(self) -> None:
+        for name in frs.RESERVED_NAMES:
+            with self.subTest(name=name):
+                p = lexical.LexicalPath(name)
+                self.assertEqual(p, name)
+
+    def test_empty_path_valid_and_falsy(self) -> None:
+        p = lexical.LexicalPath()
+        self.assertEqual(p, "")
+        self.assertFalse(p)
+
+    def test_empty_parts_skipped_on_concat(self) -> None:
+        p = lexical.LexicalPath(lexical.LexicalPath(), "foo")
+        self.assertEqual(p, "foo")
+
+    def test_invalid_segments_raise(self) -> None:
+        bad = ["a..b", "a.b.", ".a", "a b", "1abc"]
+        for val in bad:
+            with self.subTest(val=val), self.assertRaises(ValueError):
+                lexical.LexicalPath(val)
+
+    def test_keyword_segment_rejected(self) -> None:
+        with self.assertRaises(ValueError):
+            lexical.LexicalPath("for")
+
+    def test_label_property(self) -> None:
+        self.assertEqual(lexical.LexicalPath("a.b.c").label, "c")
+        self.assertEqual(lexical.LexicalPath("solo").label, "solo")
+
+    def test_parent_property(self) -> None:
+        self.assertEqual(lexical.LexicalPath("a.b.c").parent, "a.b")
+        self.assertFalse(lexical.LexicalPath("solo").parent)
+
+    def test_segments_property(self) -> None:
+        self.assertEqual(lexical.LexicalPath("a.b.c").segments, ("a", "b", "c"))
+        self.assertEqual(lexical.LexicalPath().segments, ())
+
+    def test_str_ops_preserved(self) -> None:
+        p = lexical.LexicalPath("a.b.c")
+        self.assertEqual(p.replace(".", "-"), "a-b-c")
+        self.assertEqual(p, "a.b.c")
+        self.assertIsInstance(p, str)
+        self.assertIn("a.b.c", repr(p))
+
+
+class TestLexicalPathHelpers(unittest.TestCase):
+    def test_lexical_path_returns_lexical_path_instance(self) -> None:
+        result = lexical.lexical_path("a", "b")
+        self.assertIsInstance(result, lexical.LexicalPath)
+        self.assertEqual(result, "a.b")
+
+    def test_get_label_dotted_input(self) -> None:
+        self.assertEqual(lexical.get_label("a.b.c"), "c")
+
+    def test_get_label_single_input(self) -> None:
+        self.assertEqual(lexical.get_label("a"), "a")
 
 
 if __name__ == "__main__":
