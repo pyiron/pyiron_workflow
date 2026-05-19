@@ -2,97 +2,67 @@ from __future__ import annotations
 
 import math
 from collections.abc import MutableMapping
-from typing import Any
 
 from flowrep.api import schemas as frs
 
-from pyiron_workflow._wfms import atomic, constructors, dag, execution, transformers
+from pyiron_workflow._wfms import (
+    constructors,
+    dag,
+    execution,
+    transformers,
+)
 from pyiron_workflow._wfms.datatypes import (
-    FlowControl,
-    Graph,
+    EdgeList,
     NodeMap,
-    ProspectiveOutputEdges,
-    StaticNode,
+    StaticGraph,
 )
 
 
-class ForEach(FlowControl[frs.ForEachNode, frs.LiveForEach]):
+class ForEach(StaticGraph[frs.ForEachNode, frs.LiveForEach]):
     _recipe: frs.ForEachNode
-
-    def __init__(
-        self,
-        label: frs.Label,
-        recipe: frs.ForEachNode,
-        *,
-        owner: Graph | None = None,
-    ):
-        super().__init__(label, recipe, owner=owner)
-
-        bn = self.recipe.body_node
-        self._prospective_nodes = NodeMap(
-            self, constructors.recipe2static(bn.label, bn.node, owner=self)
-        )
-        self._prospective_output_edges = ProspectiveOutputEdges(
-            {k: [v] for k, v in recipe.output_edges.items()}
-        )
 
     @classmethod
     def _result_type(cls) -> type[frs.LiveForEach]:
         return frs.LiveForEach
 
-    @property
-    def prospective_edges(self) -> frs.Edges:
-        return {}
+    def _build_nodes(self, recipe: frs.ForEachNode) -> NodeMap:
+        bn = self.recipe.body_node
+        return NodeMap(self, constructors.recipe2static(bn.label, bn.node, owner=self))
 
-    @property
-    def prospective_output_edges(self) -> frs.OutputEdges:
-        return self._prospective_output_edges
-
-    @property
-    def prospective_nodes(self) -> NodeMap:
-        return self._prospective_nodes
+    def _build_edges(self, recipe: frs.ForEachNode) -> EdgeList:
+        return [(source, target) for target, source in recipe.input_edges.items()] + [
+            (source, target) for target, source in recipe.output_edges.items()
+        ]  # No peer-edges for the for-each loop recipes
 
     def evaluate(
-        self, run: execution.Run[frs.LiveForEach], config: execution.RunConfig
-    ) -> None:
+        self,
+        run: execution.Run[execution.ResultType],
+        config: execution.RunConfig,
+    ) -> execution.Run[execution.ResultType]:
         result = run.result
-        nodes: NodeMap
-        (
-            nodes,
-            result.input_edges,
-            result.edges,
-            result.output_edges,
-        ) = self._build_runtime_dag(run)
+        nodes = self._build_runtime_dag(run)
         dag.evaluate_dag_by_layer(nodes, run, config)
         dag.populate_outputs(result)
-
-    def _build_retrospective_nodes(
-        self, run: execution.Run[frs.LiveForEach]
-    ) -> NodeMap:
-        nodes = []
-        for step in run.steps:
-            node = constructors.recipe2static(
-                step.label, step.run.result.recipe, owner=self
-            )
-            node.current_run = step.run
-            nodes.append(node)
-        return NodeMap(self, *nodes)
+        return run
 
     def _build_runtime_dag(
         self, run: execution.Run[frs.LiveForEach]
-    ) -> tuple[NodeMap, frs.InputEdges, frs.Edges, frs.OutputEdges]:
+    ) -> dag.MutableNodeMap:
+        node_map = dag.MutableNodeMap(self)
 
-        recipe = run.result.recipe
+        result = run.result
+        recipe = result.recipe
 
-        body = recipe.body_node
-        inputs = run.result.input_ports
+        body_label = recipe.body_node.label
+        inputs = result.input_ports
+        body_node = self.nodes[body_label]
 
         # Map body port names -> parent port names
         nested_label_map = self._body_to_parent_label_map(
-            recipe.input_edges, body.label, recipe.nested_ports
+            recipe.input_edges, body_label, recipe.nested_ports
         )
         zipped_label_map = self._body_to_parent_label_map(
-            recipe.input_edges, body.label, recipe.zipped_ports
+            recipe.input_edges, body_label, recipe.zipped_ports
         )
 
         # Map parent port names -> input data length
@@ -104,30 +74,34 @@ class ForEach(FlowControl[frs.ForEachNode, frs.LiveForEach]):
         )
         iterated_length_map = {**nested_length_map, **zipped_length_map}
 
-        scatter_nodes: tuple[atomic.Atomic, ...] = tuple(
-            transformers.Transform1toN(length).node(
-                self._scatter_label(label), owner=self
+        # Scatter nodes
+        for label, length in iterated_length_map.items():
+            result_scatter_label = self._scatter_label(label)
+            scatter_node = transformers.Transform1toN(length).node(
+                result_scatter_label, owner=self
             )
-            for label, length in iterated_length_map.items()
-        )
+            node_map[result_scatter_label] = scatter_node
+            result.nodes[result_scatter_label] = (
+                scatter_node.generate_flowrep_live_node()
+            )
 
         total_steps = self._calculate_total_steps(nested_length_map, zipped_length_map)
-        body_nodes: tuple[StaticNode[Any, Any], ...] = tuple(
-            constructors.recipe2static(
-                self._body_label(body.label, i), body.node, owner=self
+        # Body nodes
+        for i in range(total_steps):
+            result_body_label = self._body_label(body_label, i)
+            node_map[result_body_label] = body_node
+            result.nodes[result_body_label] = body_node.generate_flowrep_live_node()
+
+        # Aggregator nodes
+        for label in recipe.outputs:
+            result_aggregator_label = self._aggregate_label(label)
+            aggregator_node = transformers.TransformNto1(total_steps).node(
+                label, owner=self
             )
-            for i in range(total_steps)
-        )
-
-        aggregate_transformer_map: dict[frs.Label, transformers.TransformNto1] = {
-            label: transformers.TransformNto1(total_steps) for label in recipe.outputs
-        }
-        aggregator_nodes = tuple(
-            t.node(self._aggregate_label(label), owner=self)
-            for label, t in aggregate_transformer_map.items()
-        )
-
-        nodes = NodeMap(self, *(scatter_nodes + body_nodes + aggregator_nodes))
+            node_map[result_aggregator_label] = aggregator_node
+            result.nodes[result_aggregator_label] = (
+                aggregator_node.generate_flowrep_live_node()
+            )
 
         broadcast_labels = list(
             set(inputs) - set(nested_length_map).union(zipped_length_map)
@@ -161,18 +135,19 @@ class ForEach(FlowControl[frs.ForEachNode, frs.LiveForEach]):
             # broadcast input to bodies
             {
                 frs.TargetHandle(
-                    node=self._body_label(body.label, i),
+                    node=self._body_label(body_label, i),
                     port=label,
                 ): frs.InputSource(port=label)
                 for label in broadcast_labels
                 for i in range(total_steps)
             }
         )
+        result.input_edges = input_edges
 
         edges = {
             # nested scatters to bodies: each nested port advances at its own stride
             frs.TargetHandle(
-                node=self._body_label(body.label, i),
+                node=self._body_label(body_label, i),
                 port=child_port,
             ): frs.SourceHandle(
                 node=self._scatter_label(parent_port),
@@ -187,7 +162,7 @@ class ForEach(FlowControl[frs.ForEachNode, frs.LiveForEach]):
             # zipped scatters to bodies: all zipped ports share the innermost index
             {
                 frs.TargetHandle(
-                    node=self._body_label(body.label, i),
+                    node=self._body_label(body_label, i),
                     port=child_port,
                 ): frs.SourceHandle(
                     node=self._scatter_label(parent_port),
@@ -204,11 +179,11 @@ class ForEach(FlowControl[frs.ForEachNode, frs.LiveForEach]):
                     node=self._aggregate_label(parent_port),
                     port=transformers.TransformNto1.input_label(i),
                 ): frs.SourceHandle(
-                    node=self._body_label(body.label, i),
+                    node=self._body_label(body_label, i),
                     port=child_port,
                 )
                 for parent_port, child_port in self._captured_output_label_map(
-                    recipe.output_edges, body.label
+                    recipe.output_edges, body_label
                 ).items()
                 for i in range(total_steps)
             }
@@ -247,6 +222,7 @@ class ForEach(FlowControl[frs.ForEachNode, frs.LiveForEach]):
                 for i in range(total_steps)
             }
         )
+        result.edges = edges
 
         output_edges = {
             # aggregators to parent
@@ -258,13 +234,9 @@ class ForEach(FlowControl[frs.ForEachNode, frs.LiveForEach]):
             )
             for label in recipe.outputs
         }
+        result.output_edges = output_edges
 
-        return (
-            nodes,
-            input_edges,
-            edges,
-            output_edges,
-        )
+        return node_map
 
     @staticmethod
     def _body_to_parent_label_map(

@@ -7,11 +7,8 @@ practice.
 
 from __future__ import annotations
 
-import typing
 import unittest
 from concurrent import futures
-
-from flowrep.api import schemas as frs
 
 from pyiron_workflow._wfms import datatypes, execution
 from tests.unit._wfms import _fixtures
@@ -152,15 +149,16 @@ class TestNodeGetState(unittest.TestCase):
     def test_owner_present_records_last_detached_path(self):
         m = _fixtures.macro_node()
         child = m.nodes["add_0"]
+        self.assertIsNotNone(child.owner)
         state = child.__getstate__()
-        self.assertNotIn("_owner", state)
-        self.assertEqual(state["_last_detached_path"], m.lexical_path)
+        self.assertIsNone(state["_owner"])
+        self.assertEqual(state["_detached_root"], m.lexical_path)
 
     def test_owner_absent_records_neither_key(self):
         n = _fixtures.atomic_add_node()
         state = n.__getstate__()
-        self.assertNotIn("_owner", state)
-        self.assertNotIn("_last_detached_path", state)
+        self.assertIsNone(state["_owner"])
+        self.assertIsNone(state["_detached_root"])
 
     def test_live_executor_stripped_to_none(self):
         n = _fixtures.atomic_add_node()
@@ -185,97 +183,6 @@ class TestNodeGetState(unittest.TestCase):
         n.executor = None
         state = n.__getstate__()
         self.assertIsNone(state["executor"])
-
-
-class _RecordingFC(datatypes.FlowControl[frs.ForEachNode, frs.LiveForEach]):
-    """
-    Minimal concrete `FlowControl` whose `_build_retrospective_*`
-    methods record the run they were called with and return sentinel values.
-
-    Reused by `TestFlowControlRetrospectiveFallbacks`.
-    """
-
-    def __init__(self, label: frs.Label, recipe: frs.ForEachNode):
-        super().__init__(label, recipe)
-        self.calls: list[tuple[str, object]] = []
-
-    @classmethod
-    def _result_type(cls) -> type[frs.LiveForEach]:
-        return frs.LiveForEach
-
-    # Prospective stubs — not exercised here, but required to satisfy the ABC.
-    @property
-    def prospective_input_edges(self) -> frs.InputEdges:
-        return {}
-
-    @property
-    def prospective_edges(self) -> frs.Edges:
-        return {}
-
-    @property
-    def prospective_output_edges(self) -> frs.ProspectiveOutputEdges:
-        return {}
-
-    @property
-    def prospective_nodes(self) -> datatypes.NodeMap:
-        return datatypes.NodeMap(self)
-
-    def evaluate(self, run, config) -> None:  # pragma: no cover - unused
-        raise NotImplementedError
-
-    # Sentinels — typed as `Any` for test purposes.
-    def _build_retrospective_nodes(self, run):  # type: ignore[override]
-        self.calls.append(("nodes", run))
-        return "sentinel_nodes"
-
-
-class _SentinelResult:
-    input_edges = "sentinel_input_edges"
-    edges = "sentinel_edges"
-    output_edges = "sentinel_output_edges"
-
-
-class _SentinelRun:
-    result = _SentinelResult()
-
-
-class TestFlowControlRetrospectiveFallbacks(unittest.TestCase):
-    """
-    The four retrospective `Graph` properties short-circuit to empty
-    forms when `current_run is None` and otherwise delegate to their
-    matching `_build_retrospective_*` method.
-    """
-
-    def setUp(self):
-        # Borrow a real `ForEachNode` recipe from the for_wf fixture so
-        # `StaticNode.__init__` can build live input/output ports.
-        wrapper = _fixtures.for_wf_node()
-        self._foreach_recipe = wrapper.nodes["for_each_0"].recipe
-        self.fc = _RecordingFC("fc", self._foreach_recipe)
-
-    def test_no_run_returns_empty_forms_and_does_not_call_builder(self):
-        self.fc.current_run = None
-
-        self.assertEqual(self.fc.input_edges, {})
-        self.assertEqual(self.fc.edges, {})
-        self.assertEqual(self.fc.output_edges, {})
-
-        nodes = self.fc.nodes
-        self.assertIsInstance(nodes, datatypes.NodeMap)
-        self.assertEqual(len(nodes), 0)
-
-        self.assertEqual(self.fc.calls, [])
-
-    def test_with_run_delegates_to_builders(self):
-        sentinel_run = typing.cast(execution.Run[frs.LiveForEach], _SentinelRun())
-        self.fc.current_run = sentinel_run
-
-        self.assertEqual(self.fc.input_edges, _SentinelResult.input_edges)
-        self.assertEqual(self.fc.edges, _SentinelResult.edges)
-        self.assertEqual(self.fc.output_edges, _SentinelResult.output_edges)
-        self.assertEqual(self.fc.nodes, "sentinel_nodes")
-
-        self.assertEqual(self.fc.calls, [("nodes", sentinel_run)])
 
 
 if __name__ == "__main__":

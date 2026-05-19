@@ -114,69 +114,9 @@ def _prepare_run(
     live = fe.generate_flowrep_live_node()
     for name, val in inputs.items():
         live.input_ports[name].value = val
-    return execution.Run(result=live, status=execution.RunStatus.PENDING)
-
-
-class TestForEachProspectiveAndRetrospective(unittest.TestCase):
-    """Pre-run vs post-run views of the ForEach in the `for_wf` fixture."""
-
-    def setUp(self) -> None:
-        self.node = _fixtures.for_wf_node()
-        self.fe = self.node.nodes.for_each_0
-
-    # ---- pre-run: prospective populated, retrospective empty ---------------- #
-
-    def test_prospective_input_edges_matches_recipe(self) -> None:
-        self.assertEqual(self.fe.prospective_input_edges, self.fe.recipe.input_edges)
-        self.assertGreater(len(self.fe.prospective_input_edges), 0)
-
-    def test_prospective_edges_is_empty(self) -> None:
-        self.assertEqual(self.fe.prospective_edges, {})
-
-    def test_prospective_output_edges_matches_recipe(self) -> None:
-        self.assertGreater(len(self.fe.prospective_output_edges), 0)
-        self.assertTrue(
-            all(len(v) == 1 for v in self.fe.prospective_output_edges.values())
-        )
-        flattened_prospects = {
-            k: v[0] for k, v in self.fe.prospective_output_edges.items()
-        }
-        self.assertDictEqual(flattened_prospects, self.fe.recipe.output_edges)
-
-    def test_prospective_nodes_has_single_body(self) -> None:
-        self.assertEqual(len(self.fe.prospective_nodes), 1)
-        body_label = self.fe.recipe.body_node.label
-        self.assertIn(body_label, self.fe.prospective_nodes)
-
-    def test_pre_run_retrospective_views_empty(self) -> None:
-        self.assertEqual(self.fe.input_edges, {})
-        self.assertEqual(self.fe.edges, {})
-        self.assertEqual(self.fe.output_edges, {})
-        self.assertEqual(len(self.fe.nodes), 0)
-
-    # ---- post-run: prospective unchanged, retrospective populated ---------- #
-
-    def test_post_run_views(self) -> None:
-        prospective_input_before = self.fe.prospective_input_edges
-        prospective_edges_before = self.fe.prospective_edges
-        prospective_output_before = self.fe.prospective_output_edges
-        prospective_nodes_before = list(self.fe.prospective_nodes)
-
-        self.node.run(xs=[1, 2], ys=[10, 20], z=1000)
-
-        # prospective unchanged
-        self.assertEqual(self.fe.prospective_input_edges, prospective_input_before)
-        self.assertEqual(self.fe.prospective_edges, prospective_edges_before)
-        self.assertEqual(self.fe.prospective_output_edges, prospective_output_before)
-        self.assertEqual(list(self.fe.prospective_nodes), prospective_nodes_before)
-
-        # retrospective populated
-        self.assertGreater(len(self.fe.input_edges), 0)
-        self.assertGreater(len(self.fe.edges), 0)
-        self.assertGreater(len(self.fe.output_edges), 0)
-
-        body_count = sum(1 for label in self.fe.nodes if label.startswith("body_"))
-        self.assertEqual(body_count, 4)  # 2 (xs) x 2 (ys)
+    return execution.Run(
+        lexical_path=fe.lexical_path, result=live, status=execution.RunStatus.PENDING
+    )
 
 
 class TestBuildRuntimeDagNestedOnly(unittest.TestCase):
@@ -184,12 +124,7 @@ class TestBuildRuntimeDagNestedOnly(unittest.TestCase):
         self.recipe = _build_nested_only_recipe()
         self.fe = foreach.ForEach("fe", self.recipe)
         self.dag_run = _prepare_run(self.fe, {"xs": [1, 2], "y": 100})
-        (
-            self.nodes,
-            self.input_edges,
-            self.edges,
-            self.output_edges,
-        ) = self.fe._build_runtime_dag(self.dag_run)
+        self.nodes = self.fe._build_runtime_dag(self.dag_run)
 
     def test_total_body_count(self) -> None:
         body_labels = [label for label in self.nodes if label.startswith("body_")]
@@ -202,7 +137,7 @@ class TestBuildRuntimeDagNestedOnly(unittest.TestCase):
         self.assertIn("aggregate_sums", self.nodes)
 
     def test_input_edge_to_scatter(self) -> None:
-        scatter_input = self.input_edges[
+        scatter_input = self.dag_run.result.input_edges[
             frs.TargetHandle(
                 node="scatter_xs",
                 port=transformers.Transform1toN.input_label,
@@ -212,7 +147,9 @@ class TestBuildRuntimeDagNestedOnly(unittest.TestCase):
 
     def test_scatter_to_bodies_indexed_correctly(self) -> None:
         for i in range(2):
-            src = self.edges[frs.TargetHandle(node=f"body_{i}", port="x")]
+            src = self.dag_run.result.edges[
+                frs.TargetHandle(node=f"body_{i}", port="x")
+            ]
             self.assertEqual(
                 src,
                 frs.SourceHandle(
@@ -223,12 +160,14 @@ class TestBuildRuntimeDagNestedOnly(unittest.TestCase):
 
     def test_broadcast_y_to_each_body(self) -> None:
         for i in range(2):
-            src = self.input_edges[frs.TargetHandle(node=f"body_{i}", port="y")]
+            src = self.dag_run.result.input_edges[
+                frs.TargetHandle(node=f"body_{i}", port="y")
+            ]
             self.assertEqual(src, frs.InputSource(port="y"))
 
     def test_bodies_to_aggregator(self) -> None:
         for i in range(2):
-            src = self.edges[
+            src = self.dag_run.result.edges[
                 frs.TargetHandle(
                     node="aggregate_sums",
                     port=transformers.TransformNto1.input_label(i),
@@ -237,7 +176,7 @@ class TestBuildRuntimeDagNestedOnly(unittest.TestCase):
             self.assertEqual(src, frs.SourceHandle(node=f"body_{i}", port="output_0"))
 
     def test_output_edge_from_aggregator(self) -> None:
-        src = self.output_edges[frs.OutputTarget(port="sums")]
+        src = self.dag_run.result.output_edges[frs.OutputTarget(port="sums")]
         self.assertEqual(
             src,
             frs.SourceHandle(
@@ -252,12 +191,7 @@ class TestBuildRuntimeDagZippedOnly(unittest.TestCase):
         self.recipe = _build_zipped_only_recipe()
         self.fe = foreach.ForEach("fe", self.recipe)
         self.dag_run = _prepare_run(self.fe, {"xs": [1, 2, 3], "ys": [10, 20, 30]})
-        (
-            self.nodes,
-            self.input_edges,
-            self.edges,
-            self.output_edges,
-        ) = self.fe._build_runtime_dag(self.dag_run)
+        self.nodes = self.fe._build_runtime_dag(self.dag_run)
 
     def test_total_steps_is_zipped_width(self) -> None:
         body_labels = [label for label in self.nodes if label.startswith("body_")]
@@ -269,8 +203,12 @@ class TestBuildRuntimeDagZippedOnly(unittest.TestCase):
 
     def test_zipped_indices_pair_per_body(self) -> None:
         for i in range(3):
-            x_src = self.edges[frs.TargetHandle(node=f"body_{i}", port="x")]
-            y_src = self.edges[frs.TargetHandle(node=f"body_{i}", port="y")]
+            x_src = self.dag_run.result.edges[
+                frs.TargetHandle(node=f"body_{i}", port="x")
+            ]
+            y_src = self.dag_run.result.edges[
+                frs.TargetHandle(node=f"body_{i}", port="y")
+            ]
             self.assertEqual(
                 x_src,
                 frs.SourceHandle(
@@ -295,12 +233,7 @@ class TestBuildRuntimeDagMixed(unittest.TestCase):
             self.fe,
             {"xs": [1, 2], "ys": [10, 20, 30], "ws": [100, 200, 300]},
         )
-        (
-            self.nodes,
-            self.input_edges,
-            self.edges,
-            self.output_edges,
-        ) = self.fe._build_runtime_dag(self.dag_run)
+        self.nodes = self.fe._build_runtime_dag(self.dag_run)
 
     def test_total_steps_equals_product(self) -> None:
         body_labels = [label for label in self.nodes if label.startswith("body_")]
@@ -312,9 +245,15 @@ class TestBuildRuntimeDagMixed(unittest.TestCase):
         # nested stride from spec: _nested_strides(6, {'xs': 2}) == {'xs': 3}
         observed_pairs: set[tuple[int, int]] = set()
         for i in range(nested_length * zipped_width):
-            x_src = self.edges[frs.TargetHandle(node=f"body_{i}", port="x")]
-            y_src = self.edges[frs.TargetHandle(node=f"body_{i}", port="y")]
-            z_src = self.edges[frs.TargetHandle(node=f"body_{i}", port="z")]
+            x_src = self.dag_run.result.edges[
+                frs.TargetHandle(node=f"body_{i}", port="x")
+            ]
+            y_src = self.dag_run.result.edges[
+                frs.TargetHandle(node=f"body_{i}", port="y")
+            ]
+            z_src = self.dag_run.result.edges[
+                frs.TargetHandle(node=f"body_{i}", port="z")
+            ]
 
             nested_idx = (i // 3) % nested_length
             zipped_idx = i % zipped_width
@@ -387,13 +326,7 @@ class TestBuildRuntimeDagBroadcastOnly(unittest.TestCase):
         self.dag_run = _prepare_run(self.fe, {"x": 42, "y": 100})
 
         self.dag_run.result.recipe = _make_broadcast_only_recipe()
-
-        (
-            self.nodes,
-            self.input_edges,
-            self.edges,
-            self.output_edges,
-        ) = self.fe._build_runtime_dag(self.dag_run)
+        self.nodes = self.fe._build_runtime_dag(self.dag_run)
 
     def test_single_body_copy(self) -> None:
         body_labels = [label for label in self.nodes if label.startswith("body_")]
@@ -404,22 +337,26 @@ class TestBuildRuntimeDagBroadcastOnly(unittest.TestCase):
         self.assertEqual(scatters, [])
 
     def test_all_parent_inputs_broadcast_to_body(self) -> None:
-        x_src = self.input_edges[frs.TargetHandle(node="body_0", port="x")]
-        y_src = self.input_edges[frs.TargetHandle(node="body_0", port="y")]
+        x_src = self.dag_run.result.input_edges[
+            frs.TargetHandle(node="body_0", port="x")
+        ]
+        y_src = self.dag_run.result.input_edges[
+            frs.TargetHandle(node="body_0", port="y")
+        ]
         self.assertEqual(x_src, frs.InputSource(port="x"))
         self.assertEqual(y_src, frs.InputSource(port="y"))
 
     def test_no_sibling_scatter_edges_to_body(self) -> None:
         # No scatter -> body edges should exist; the only sibling edges in
         # `edges` are body -> aggregator.
-        for target, source in self.edges.items():
+        for target, source in self.dag_run.result.edges.items():
             self.assertFalse(
                 target.node.startswith("body_"),
                 msg=f"Unexpected scatter->body sibling edge: {target} <- {source}",
             )
 
     def test_body_to_aggregator(self) -> None:
-        src = self.edges[
+        src = self.dag_run.result.edges[
             frs.TargetHandle(
                 node="aggregate_out",
                 port=transformers.TransformNto1.input_label(0),

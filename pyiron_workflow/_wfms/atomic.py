@@ -29,10 +29,13 @@ class Atomic(StaticNode[frs.AtomicNode, frs.LiveAtomic]):
         return frs.LiveAtomic
 
     def evaluate(
-        self, run: execution.Run[frs.LiveAtomic], config: execution.RunConfig
-    ) -> None:
+        self,
+        run: execution.Run[execution.ResultType],
+        config: execution.RunConfig,
+    ) -> execution.Run[execution.ResultType]:
         output = _call_atomic(run.result)
         _store_atomic_outputs(run.result, output)
+        return run
 
     @property
     def function_metadata(self) -> semantikon.FunctionMetadata | None:

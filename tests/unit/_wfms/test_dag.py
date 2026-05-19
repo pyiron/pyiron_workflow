@@ -151,12 +151,14 @@ class TestMacro(unittest.TestCase):
         self.assertEqual(sorted(labels), ["add_0", "sub_0"])
         self.assertEqual(len(run.steps), 2)
 
-    def test_edges_are_pass_throughs_to_recipe(self) -> None:
+    def test_edges_constructed_from_recipe(self) -> None:
         n = _fixtures.macro_node()
-        # Identity (the same object as the underlying recipe).
-        self.assertIs(n.input_edges, n._recipe.input_edges)
-        self.assertIs(n.edges, n._recipe.edges)
-        self.assertIs(n.output_edges, n._recipe.output_edges)
+        recipe_edges = (
+            [(source, target) for target, source in n._recipe.input_edges.items()]
+            + [(source, target) for target, source in n._recipe.edges.items()]
+            + [(source, target) for target, source in n._recipe.output_edges.items()]
+        )
+        self.assertSetEqual(set(recipe_edges), set(n.edges))
 
     def test_nodes_property_returns_constructed_node_map(self) -> None:
         n = _fixtures.macro_node()
@@ -166,10 +168,11 @@ class TestMacro(unittest.TestCase):
     def test_function_metadata_consistent_with_reference(self) -> None:
         # The fixture-decorated macro has no `_semantikon_metadata` attribute,
         # so the captured value is `None`. The attribute exists in both cases.
-        n = _fixtures.macro_node()
-        self.assertTrue(hasattr(n, "_function_metadata"))
-        self.assertEqual(n._function_metadata, n.function_metadata)
-        self.assertIsNone(n.function_metadata)
+        undecorated = _fixtures.macro_node()
+        self.assertIsNone(undecorated.function_metadata)
+
+        decorated = _fixtures.annotated_macro_node()
+        self.assertEqual("This is decorated", decorated.function_metadata["uri"])
 
     def test_result_type_classmethod(self) -> None:
         self.assertIs(dag.Macro._result_type(), frs.LiveWorkflow)
@@ -230,7 +233,7 @@ class TestGatherTargetInputs(unittest.TestCase):
         # `add_0` in the `macro` fixture takes both x and y from parent inputs.
         n = _fixtures.macro_node()
         run = n.run(x=1, y=2, z=3)
-        inputs = dag.gather_target_inputs(n.nodes["add_0"], run.result)
+        inputs = dag.gather_target_inputs("add_0", run.result)
         self.assertEqual(inputs, {"x": 1, "y": 2})
 
     def test_sibling_edge_path(self) -> None:
@@ -238,15 +241,17 @@ class TestGatherTargetInputs(unittest.TestCase):
         # parent input `z`.
         n = _fixtures.macro_node()
         run = n.run(x=1, y=2, z=3)
-        inputs = dag.gather_target_inputs(n.nodes["sub_0"], run.result)
+        inputs = dag.gather_target_inputs("sub_0", run.result)
         self.assertEqual(inputs, {"x": 3, "y": 3})
 
     def test_port_omitted_when_no_edge(self) -> None:
-        # The macro node itself has inputs (x, y, z) but none of them appear as
-        # `TargetHandle` targets in the result's edges — so all ports omitted.
-        n = _fixtures.macro_node()
-        run = n.run(x=1, y=2, z=3)
-        self.assertEqual(dag.gather_target_inputs(n, run.result), {})
+        n = _fixtures.container_node()
+        run = n.run()
+        self.assertEqual(
+            dag.gather_target_inputs("multiply_with_defaults_0", run.result),
+            {},
+            msg="The child has no input edges, so all ports should be omitted",
+        )
 
 
 class TestPopulateOutputs(unittest.TestCase):

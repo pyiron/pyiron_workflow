@@ -125,64 +125,6 @@ def _macro_with_no_else_and_downstream() -> frs.WorkflowNode:
 
 
 # --------------------------------------------------------------------------- #
-# Prospective + retrospective surface                                         #
-# --------------------------------------------------------------------------- #
-
-
-class TestIfProspectiveAndRetrospective(unittest.TestCase):
-    """Pre-run vs post-run views of the If in the `if_abs` fixture."""
-
-    def setUp(self) -> None:
-        self.node = _fixtures.if_abs_node()
-        self.ifn = self.node.nodes.if_0
-
-    def test_prospective_input_edges_matches_recipe(self) -> None:
-        self.assertEqual(self.ifn.prospective_input_edges, self.ifn.recipe.input_edges)
-        self.assertGreater(len(self.ifn.prospective_input_edges), 0)
-
-    def test_prospective_edges_is_empty(self) -> None:
-        self.assertEqual(self.ifn.prospective_edges, {})
-
-    def test_prospective_output_edges_matches_recipe(self) -> None:
-        self.assertEqual(
-            self.ifn.prospective_output_edges,
-            self.ifn.recipe.prospective_output_edges,
-        )
-        self.assertGreater(len(self.ifn.prospective_output_edges), 0)
-
-    def test_prospective_nodes_has_all_case_and_else_nodes(self) -> None:
-        # 1 case → cond + body, plus the else body.
-        self.assertEqual(
-            set(self.ifn.prospective_nodes), {"condition_0", "body_0", "else_body"}
-        )
-
-    def test_pre_run_retrospective_views_empty(self) -> None:
-        self.assertEqual(self.ifn.input_edges, {})
-        self.assertEqual(self.ifn.edges, {})
-        self.assertEqual(self.ifn.output_edges, {})
-        self.assertEqual(len(self.ifn.nodes), 0)
-
-    def test_post_run_views(self) -> None:
-        prospective_input_before = self.ifn.prospective_input_edges
-        prospective_edges_before = self.ifn.prospective_edges
-        prospective_output_before = self.ifn.prospective_output_edges
-        prospective_nodes_before = list(self.ifn.prospective_nodes)
-
-        self.node.run(x=5)
-
-        self.assertEqual(self.ifn.prospective_input_edges, prospective_input_before)
-        self.assertEqual(self.ifn.prospective_edges, prospective_edges_before)
-        self.assertEqual(self.ifn.prospective_output_edges, prospective_output_before)
-        self.assertEqual(list(self.ifn.prospective_nodes), prospective_nodes_before)
-
-        self.assertGreater(len(self.ifn.input_edges), 0)
-        self.assertEqual(self.ifn.edges, {})
-        self.assertGreater(len(self.ifn.output_edges), 0)
-        # condition + body ran (else_body did not)
-        self.assertEqual(set(self.ifn.nodes), {"condition_0", "body_0"})
-
-
-# --------------------------------------------------------------------------- #
 # evaluate — single case                                                      #
 # --------------------------------------------------------------------------- #
 
@@ -227,7 +169,7 @@ class TestEvaluateSingleCaseFalseNoElse(unittest.TestCase):
         self.assertEqual(labels, ["cond"])
 
     def test_no_output_edges_recorded(self) -> None:
-        self.assertEqual(self.ifn.output_edges, {})
+        self.assertEqual(self.run.result.output_edges, {})
 
 
 class TestEvaluateSingleCaseFalseWithElse(unittest.TestCase):
@@ -236,6 +178,7 @@ class TestEvaluateSingleCaseFalseWithElse(unittest.TestCase):
         # x=-5 → is_positive=False → else fires → negate(-5)=5.
         self.run = self.node.run(x=-5)
         self.ifn = self.node.nodes.if_0
+        self.if_step = self.run.steps[0][1]
 
     def test_run_finished(self) -> None:
         self.assertEqual(self.run.status, execution.RunStatus.FINISHED)
@@ -244,11 +187,13 @@ class TestEvaluateSingleCaseFalseWithElse(unittest.TestCase):
         self.assertEqual(self.run.outputs["y"].value, 5)
 
     def test_steps_visit_condition_then_else_body(self) -> None:
-        labels = [step.label for step in self.ifn.current_run.steps]
+        labels = [step.label for step in self.if_step.steps]
         self.assertEqual(labels, ["condition_0", "else_body"])
 
     def test_retrospective_excludes_body_0(self) -> None:
-        self.assertEqual(set(self.ifn.nodes), {"condition_0", "else_body"})
+        self.assertEqual(
+            set(self.run.result.nodes["if_0"].nodes), {"condition_0", "else_body"}
+        )
 
 
 # --------------------------------------------------------------------------- #
@@ -288,7 +233,7 @@ class TestEvaluateMultipleCases(unittest.TestCase):
         self.assertIsInstance(run.outputs["out"].value, frs.NotData)
         labels = [step.label for step in run.steps]
         self.assertEqual(labels, ["cond_pos", "cond_neg"])
-        self.assertEqual(ifn.output_edges, {})
+        self.assertEqual(run.result.output_edges, {})
 
 
 # --------------------------------------------------------------------------- #

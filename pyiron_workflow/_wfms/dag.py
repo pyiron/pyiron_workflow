@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import collections
+import datetime
 from collections.abc import MutableMapping
 from typing import Any, TypeAlias
 
@@ -8,8 +9,9 @@ import semantikon
 from flowrep.api import schemas as frs
 from pyiron_snippets import retrieve
 
-from pyiron_workflow._wfms import constructors, execution
+from pyiron_workflow._wfms import constructors, execution, lexical
 from pyiron_workflow._wfms.datatypes import (
+    EdgeList,
     Graph,
     InputPort,
     Node,
@@ -17,7 +19,7 @@ from pyiron_workflow._wfms.datatypes import (
     OutputPort,
     PortMap,
     PortType,
-    StaticNode,
+    StaticGraph,
 )
 
 
@@ -42,10 +44,11 @@ class MutablePortMap(
 
 class MutableNodeMap(NodeMap, MutableMapping[frs.Label, Node]):
     def __setitem__(self, key: frs.Label, value: Node):
-        if value.owner is not None:
+        if value.owner is not None and value.owner is not self._pwf_lexical_map__owner:
             raise ValueError(
                 f"Node {key!r} already has owner {value.owner.lexical_path!r} and "
-                f"cannot be assigned to a node map."
+                f"cannot be assigned to a node map (owner "
+                f"{self._pwf_lexical_map__owner.lexical_path!r})."
             )
         value.owner = self._pwf_lexical_map__owner
         self._pwf_lexical_map__data[key] = value
@@ -79,9 +82,11 @@ class Workflow(Node[frs.WorkflowNode, frs.LiveWorkflow], Graph):
         # Add a super call later if needed
         self._label = label
         self._owner = owner
+        self._detached_root = None
         self.executor = None
         self.current_run = None
         self._nodes = MutableNodeMap(self)
+        self._edges: EdgeList = []
         self._inputs = MutablePortMap[InputPort](self)
         self._outputs = MutablePortMap[OutputPort](self)
         self.undo_stack = collections.deque(maxlen=undo_limit)
@@ -103,13 +108,19 @@ class Workflow(Node[frs.WorkflowNode, frs.LiveWorkflow], Graph):
         raise NotImplementedError()
 
     def evaluate(
-        self, run: execution.Run[frs.LiveWorkflow], config: execution.RunConfig
-    ) -> None:
+        self,
+        run: execution.Run[execution.ResultType],
+        config: execution.RunConfig,
+    ) -> execution.Run[execution.ResultType]:
         raise NotImplementedError()
 
     @property
     def nodes(self) -> MutableNodeMap:
         return self._nodes
+
+    @property
+    def edges(self) -> EdgeList:
+        return self._edges
 
     @property
     def undo_limit(self) -> int | None:
@@ -200,62 +211,45 @@ class Workflow(Node[frs.WorkflowNode, frs.LiveWorkflow], Graph):
         raise NotImplementedError()
 
 
-class Macro(StaticNode[frs.WorkflowNode, frs.LiveWorkflow], Graph):
+class Macro(StaticGraph[frs.WorkflowNode, frs.LiveWorkflow], Graph):
     _recipe: frs.WorkflowNode
-
-    def __init__(
-        self,
-        label: frs.Label,
-        recipe: frs.WorkflowNode,
-        *,
-        owner: Graph | None = None,
-    ):
-        super().__init__(label, recipe, owner=owner)
-
-        if reference := recipe.reference:
-            fqn = reference.info.fully_qualified_name
-            function = retrieve.import_from_string(fqn)
-            self._function_metadata = getattr(function, "_semantikon_metadata", None)
-        else:
-            self._function_metadata = None
-
-        self._nodes = NodeMap(
-            self,
-            *(
-                constructors.recipe2static(label, recipe, owner=self)
-                for label, recipe in recipe.nodes.items()
-            ),
-        )
 
     @classmethod
     def _result_type(cls) -> type[frs.LiveWorkflow]:
         return frs.LiveWorkflow
 
-    @property
-    def function_metadata(self) -> semantikon.FunctionMetadata | None:
-        return self._function_metadata
+    def _build_nodes(self, recipe: frs.WorkflowNode) -> NodeMap:
+        return NodeMap(
+            self,
+            *(
+                constructors.recipe2static(node_label, node_recipe, owner=self)
+                for node_label, node_recipe in recipe.nodes.items()
+            ),
+        )
 
-    @property
-    def input_edges(self) -> frs.InputEdges:
-        return self._recipe.input_edges
-
-    @property
-    def edges(self) -> frs.Edges:
-        return self._recipe.edges
-
-    @property
-    def output_edges(self) -> frs.OutputEdges:
-        return self._recipe.output_edges
-
-    @property
-    def nodes(self) -> NodeMap:
-        return self._nodes
+    def _build_edges(self, recipe: frs.WorkflowNode) -> EdgeList:
+        return (
+            [(source, target) for target, source in recipe.input_edges.items()]
+            + [(source, target) for target, source in recipe.edges.items()]
+            + [(source, target) for target, source in recipe.output_edges.items()]
+        )
 
     def evaluate(
-        self, run: execution.Run[frs.LiveWorkflow], config: execution.RunConfig
-    ) -> None:
+        self,
+        run: execution.Run[execution.ResultType],
+        config: execution.RunConfig,
+    ) -> execution.Run[execution.ResultType]:
         evaluate_dag_by_layer(self.nodes, run, config)
         populate_outputs(run.result)
+        return run
+
+    @property
+    def function_metadata(self) -> semantikon.FunctionMetadata | None:
+        if reference := self.recipe.reference:
+            fqn = reference.info.fully_qualified_name
+            function = retrieve.import_from_string(fqn)
+            return getattr(function, "_semantikon_metadata", None)
+        return None
 
     def to_unlocked_workflow(self) -> Workflow:
         raise NotImplementedError()
@@ -271,7 +265,7 @@ def evaluate_dag_by_layer(
         # TODO: Optionally multithread inside a given layer
         for label in layer:
             # TODO: Try evaluation and collect any exceptions to optionally fail late
-            evaluate_node(nodes[label], run, config)
+            evaluate_node(nodes[label], label, run, config)
 
 
 def topo_sort_nodes(nodes: NodeMap, edges: frs.Edges) -> list[list[frs.Label]]:
@@ -315,22 +309,39 @@ def topo_sort_nodes(nodes: NodeMap, edges: frs.Edges) -> list[list[frs.Label]]:
 
 
 def evaluate_node(
-    node: Node[Any, Any], run: execution.Run[frs.Composite], config: execution.RunConfig
+    node: Node[Any, Any],
+    label_in_run: frs.Label,
+    run: execution.Run[frs.Composite],
+    config: execution.RunConfig,
 ):
     result = run.result
-    label = node.label
-
-    input_data = gather_target_inputs(node, result)
+    input_data = gather_target_inputs(label_in_run, result)
     if frs.NOT_DATA in input_data.values():
         # Possible development: raise a warning or optionally an exception here
         return
-    sub_run = execution.run(node, config, **input_data)
-    run.steps.append(execution.Step(label, sub_run))
-    result.nodes[label] = sub_run.result
+    t_start = datetime.datetime.now()
+    try:
+        sub_run = execution.run(
+            node, config, run.lexical_path, label_in_run, **input_data
+        )
+    except Exception as e:
+        sub_run = execution.Run(
+            lexical_path=lexical.lexical_path(run.lexical_path, label_in_run),
+            result=node.generate_flowrep_live_node(),
+            status=execution.RunStatus.FAILED,
+            exception=e,
+            started_at=run.started_at,
+            finished_at=t_start,
+            progress_dir=config.progress_dir,
+        )
+        raise e
+    finally:
+        run.steps.append(execution.Step(label_in_run, sub_run))
+        result.nodes[label_in_run] = sub_run.result
 
 
 def gather_target_inputs(
-    node: Node[Any, Any],
+    node_label: frs.Label,
     runtime_data: frs.Composite,
 ) -> dict[str, Any]:
     """
@@ -342,8 +353,12 @@ def gather_target_inputs(
     """
     inputs: dict[str, Any] = {}
 
-    for port in node.inputs:
-        th = frs.TargetHandle(node=node.label, port=port)
+    try:
+        input_names = runtime_data.nodes[node_label].recipe.inputs
+    except Exception as e:
+        raise e
+    for port in input_names:
+        th = frs.TargetHandle(node=node_label, port=port)
 
         if th in runtime_data.input_edges:
             owner_source = runtime_data.input_edges[th]

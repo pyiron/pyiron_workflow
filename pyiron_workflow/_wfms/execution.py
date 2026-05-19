@@ -10,6 +10,8 @@ from typing import TYPE_CHECKING, Any, Generic, NamedTuple, TypeVar
 
 from flowrep.api import schemas as frs
 
+from pyiron_workflow._wfms import lexical
+
 if TYPE_CHECKING:
     from pyiron_workflow._wfms.datatypes import Node
 
@@ -31,6 +33,7 @@ class Step(NamedTuple):
 
 @dataclasses.dataclass
 class Run(Generic[ResultType]):
+    lexical_path: lexical.LexicalPathStr
     result: ResultType
     status: RunStatus
     exception: BaseException | None = None
@@ -72,14 +75,12 @@ class RunConfig:
         if self.dump_hook is not None:
             self.dump_hook(self.progress_dir / filename, run)
 
-    def dump_failure(self, node: Node[Any, Any]):
-        if node.current_run is None:
-            raise ValueError(f"current_run for {node.lexical_path!r} cannot be None")
-        self.dump(self.failure_name(node), node.current_run)
+    def dump_failure(self, failed_run: Run[Any]):
+        self.dump(self.failure_name(failed_run.lexical_path), failed_run)
 
     @staticmethod
-    def failure_name(node: Node) -> str:
-        return "failure_" + node.lexical_path.replace(".", "-")
+    def failure_name(lexical_path: lexical.LexicalPathStr) -> str:
+        return "failure_" + lexical_path.replace(".", "-")
 
 
 @dataclasses.dataclass
@@ -93,18 +94,21 @@ class ExecutorInstructions:
 
 
 def run(
-    _pwf_run__node: Node[Any, ResultType],
-    _pwf_run__config: RunConfig,
+    node: Node[Any, ResultType],
+    config: RunConfig,
+    root: lexical.LexicalPathStr = "",
+    label: frs.Label | None = None,
     /,
     **input_data,
 ) -> Run[ResultType]:
-    node = _pwf_run__node
-    config = _pwf_run__config
+    data_label = node.label if label is None else label
+    lexical_path = lexical.lexical_path(root, data_label) if root else data_label
 
     start_time = datetime.datetime.now()
     status = RunStatus.PENDING
-    config.emit_progress(start_time, node.lexical_path, status)
-    node.current_run = Run[ResultType](
+    config.emit_progress(start_time, lexical_path, status)
+    current_run = Run[ResultType](
+        lexical_path=lexical_path,
         result=node.generate_flowrep_live_node(),
         status=RunStatus.PENDING,
         started_at=start_time,
@@ -112,35 +116,35 @@ def run(
     )
 
     try:
-        node.current_run.status = RunStatus.RUNNING
-        populate_input_ports(node.current_run.result, input_data)
+        current_run.status = RunStatus.RUNNING
+        populate_input_ports(current_run.result, input_data)
         if node.executor is not None:
             if isinstance(node.executor, ExecutorInstructions):
                 with node.executor.instantiate() as exe:
-                    f = exe.submit(node.evaluate, node.current_run, config)
+                    f = exe.submit(node.evaluate, current_run, config)
             elif isinstance(node.executor, futures.Executor):
-                f = node.executor.submit(node.evaluate, node.current_run, config)
+                f = node.executor.submit(node.evaluate, current_run, config)
             else:
                 raise TypeError(
                     f"Expected executor to be an instance of ExecutorInstructions or "
                     f"futures.Executor, but {node.lexical_path!r} got {node.executor}."
                 )
-            f.result()
+            current_run = f.result()
         else:
-            node.evaluate(node.current_run, config)
-        node.current_run.status = RunStatus.FINISHED
+            current_run = node.evaluate(current_run, config)
+        current_run.status = RunStatus.FINISHED
     except BaseException as e:
-        node.current_run.exception = e
-        node.current_run.status = RunStatus.FAILED
+        current_run.exception = e
+        current_run.status = RunStatus.FAILED
         if config.is_prime_mover(node):
-            config.dump_failure(node)
+            config.dump_failure(current_run)
         raise e
     finally:
         end_time = datetime.datetime.now()
-        node.current_run.finished_at = end_time
-        config.emit_progress(end_time, node.lexical_path, node.current_run.status)
+        current_run.finished_at = end_time
+        config.emit_progress(end_time, node.lexical_path, current_run.status)
 
-    return node.current_run
+    return current_run
 
 
 def populate_input_ports(node: frs.LiveNode, values: dict[str, Any]) -> None:

@@ -1,12 +1,11 @@
 from __future__ import annotations
 
-import contextlib
 import unittest
 
 from flowrep.api import schemas as frs
 from pyiron_snippets import versions
 
-from pyiron_workflow._wfms import constructors, execution
+from pyiron_workflow._wfms import execution
 from pyiron_workflow._wfms.flowcontrollers import tryflow
 from tests.unit._wfms import _fixtures
 
@@ -180,70 +179,6 @@ def _macro_wrapping_try() -> frs.WorkflowNode:
 
 
 # --------------------------------------------------------------------------- #
-# Prospective + retrospective surface                                         #
-# --------------------------------------------------------------------------- #
-
-
-class TestTryProspectiveAndRetrospective(unittest.TestCase):
-    """Pre-run vs post-run views of the Try in the `try_safe_divide` fixture."""
-
-    def setUp(self) -> None:
-        self.node = _fixtures.try_safe_divide_node()
-        self.tryn = self.node.nodes.try_0
-
-    def test_prospective_input_edges_matches_recipe(self) -> None:
-        self.assertEqual(
-            self.tryn.prospective_input_edges, self.tryn.recipe.input_edges
-        )
-        self.assertGreater(len(self.tryn.prospective_input_edges), 0)
-
-    def test_prospective_edges_is_empty(self) -> None:
-        self.assertEqual(self.tryn.prospective_edges, {})
-
-    def test_prospective_output_edges_matches_recipe(self) -> None:
-        self.assertEqual(
-            self.tryn.prospective_output_edges,
-            self.tryn.recipe.prospective_output_edges,
-        )
-        self.assertGreater(len(self.tryn.prospective_output_edges), 0)
-
-    def test_prospective_nodes_has_try_and_except_bodies(self) -> None:
-        self.assertSetEqual(
-            set(self.tryn.prospective_nodes), {"try_body", "except_body_0"}
-        )
-
-    def test_pre_run_retrospective_views_empty(self) -> None:
-        self.assertEqual(self.tryn.input_edges, {})
-        self.assertEqual(self.tryn.edges, {})
-        self.assertEqual(self.tryn.output_edges, {})
-        self.assertEqual(len(self.tryn.nodes), 0)
-
-    def test_post_run_success_path(self) -> None:
-        prospective_input_before = dict(self.tryn.prospective_input_edges)
-        prospective_edges_before = dict(self.tryn.prospective_edges)
-        prospective_output_before = dict(self.tryn.prospective_output_edges)
-        prospective_nodes_before = list(self.tryn.prospective_nodes)
-
-        self.node.run(x=10, y=2)
-
-        self.assertEqual(self.tryn.prospective_input_edges, prospective_input_before)
-        self.assertEqual(self.tryn.prospective_edges, prospective_edges_before)
-        self.assertEqual(self.tryn.prospective_output_edges, prospective_output_before)
-        self.assertEqual(list(self.tryn.prospective_nodes), prospective_nodes_before)
-
-        self.assertGreater(len(self.tryn.input_edges), 0)
-        self.assertEqual(self.tryn.edges, {})
-        self.assertGreater(len(self.tryn.output_edges), 0)
-        self.assertEqual(set(self.tryn.nodes), {"try_body"})
-
-    def test_post_run_exception_path(self) -> None:
-        node = _fixtures.try_safe_divide_node()
-        tryn = node.nodes.try_0
-        node.run(x=10, y=0)
-        self.assertSetEqual(set(tryn.nodes), {"try_body", "except_body_0"})
-
-
-# --------------------------------------------------------------------------- #
 # evaluate — try succeeds                                                      #
 # --------------------------------------------------------------------------- #
 
@@ -265,7 +200,7 @@ class TestEvaluateTrySucceeds(unittest.TestCase):
         self.assertEqual(labels, ["try_body"])
 
     def test_retrospective_nodes_keyset(self) -> None:
-        self.assertEqual(set(self.tryn.nodes), {"try_body"})
+        self.assertEqual(set(self.run.result.nodes), {"try_body"})
 
     def test_try_body_step_finished(self) -> None:
         step = self.run.steps[0]
@@ -311,31 +246,16 @@ class TestEvaluateExceptionHandled(unittest.TestCase):
 
 
 class TestEvaluateExceptionUnmatched(unittest.TestCase):
-    # Node.dump() is a known stub; when tryn is the prime mover and fails,
-    # execution.run calls dump() → NotImplementedError. The interesting state
-    # (current_run.exception, current_run.steps) is recorded before dump() is
-    # called, so assertions remain valid after catching either exception.
-    _EXPECTED_EXC = (ZeroDivisionError, NotImplementedError)
+    _EXPECTED_EXC = (ZeroDivisionError, tryflow.UnmatchedExceptionError)
 
     def setUp(self) -> None:
         self.recipe = _no_match_recipe()
         self.tryn = tryflow.Try("tryn", self.recipe)
 
     def test_unmatched_exception_propagates(self) -> None:
-        with self.assertRaises(self._EXPECTED_EXC):
+        with self.assertRaises(tryflow.UnmatchedExceptionError) as ctx:
             self.tryn.run(x=10, y=0)
-
-    def test_try_run_status_failed(self) -> None:
-        with contextlib.suppress(*self._EXPECTED_EXC):
-            self.tryn.run(x=10, y=0)
-        self.assertEqual(self.tryn.current_run.status, execution.RunStatus.FAILED)
-        self.assertIsInstance(self.tryn.current_run.exception, ZeroDivisionError)
-
-    def test_only_try_body_step_recorded(self) -> None:
-        with contextlib.suppress(*self._EXPECTED_EXC):
-            self.tryn.run(x=10, y=0)
-        labels = [step.label for step in self.tryn.current_run.steps]
-        self.assertEqual(labels, ["try_body"])
+        self.assertIsInstance(ctx.exception.__cause__, ZeroDivisionError)
 
 
 # --------------------------------------------------------------------------- #
@@ -389,22 +309,12 @@ class TestEvaluateTupleExceptions(unittest.TestCase):
 
 
 class TestEvaluateHandlerBodyRaisesPropagates(unittest.TestCase):
-    # Same dump()-stub caveat as TestEvaluateExceptionUnmatched.
-    _EXPECTED_EXC = (ZeroDivisionError, NotImplementedError)
+    _EXPECTED_EXC = (ZeroDivisionError, tryflow.UnmatchedExceptionError)
 
     def setUp(self) -> None:
         self.recipe = _handler_raises_recipe()
         self.tryn = tryflow.Try("tryn", self.recipe)
         # Both try and handler call divide(x, y) with y=0 → ZeroDivisionError twice
-        with contextlib.suppress(*self._EXPECTED_EXC):
-            self.tryn.run(x=10, y=0)
-
-    def test_try_run_status_failed(self) -> None:
-        self.assertEqual(self.tryn.current_run.status, execution.RunStatus.FAILED)
-
-    def test_both_body_steps_recorded(self) -> None:
-        labels = [step.label for step in self.tryn.current_run.steps]
-        self.assertEqual(labels, ["try_body", "handler_0"])
 
     def test_propagated_exception_is_from_handler(self) -> None:
         with self.assertRaises(self._EXPECTED_EXC):
@@ -457,30 +367,6 @@ def _no_match_macro_recipe() -> frs.WorkflowNode:
             frs.OutputTarget(port="w"): frs.SourceHandle(node="try_0", port="z"),
         },
     )
-
-
-class TestMacroDownstreamOfFailedTry(unittest.TestCase):
-    # The macro is the prime mover; when its Try child fails with an unmatched
-    # exception, execution.run for the macro calls dump() → NotImplementedError.
-    _EXPECTED_EXC = (ZeroDivisionError, NotImplementedError)
-
-    def setUp(self) -> None:
-        self.macro = constructors.recipe2static("macro", _no_match_macro_recipe())
-
-    def test_unmatched_exception_raises_from_macro(self) -> None:
-        with self.assertRaises(self._EXPECTED_EXC):
-            self.macro.run(x=10, y=0)
-
-    def test_failed_macro_status(self) -> None:
-        with contextlib.suppress(*self._EXPECTED_EXC):
-            self.macro.run(x=10, y=0)
-        self.assertEqual(self.macro.current_run.status, execution.RunStatus.FAILED)
-
-    def test_downstream_step_not_recorded_when_try_fails(self) -> None:
-        with contextlib.suppress(*self._EXPECTED_EXC):
-            self.macro.run(x=10, y=0)
-        step_labels = [step.label for step in self.macro.current_run.steps]
-        self.assertNotIn("downstream", step_labels)
 
 
 # --------------------------------------------------------------------------- #

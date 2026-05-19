@@ -51,10 +51,12 @@ class TestRunDuration(unittest.TestCase):
         self,
         started_at: datetime.datetime | None,
         finished_at: datetime.datetime | None,
+        lexical_path: str = "some_path_root",
     ) -> execution.Run[frs.LiveAtomic]:
         # `result` is not exercised here; a freshly minted live atomic suffices.
         live = _fixtures.atomic_add_node().generate_flowrep_live_node()
         return execution.Run[frs.LiveAtomic](
+            lexical_path=lexical_path,
             result=live,
             status=execution.RunStatus.PENDING,
             started_at=started_at,
@@ -223,7 +225,7 @@ class TestRunFailurePath(unittest.TestCase):
         dump_calls = []
 
         def dump(progress_dir: pathlib.Path, run) -> None:
-            dump_calls.append(progress_dir)
+            dump_calls.append((progress_dir, run.status))
 
         with tempfile.TemporaryDirectory() as tmp:
             progress_dir = pathlib.Path(tmp)
@@ -239,11 +241,15 @@ class TestRunFailurePath(unittest.TestCase):
                 execution.run(node, config, x=1, y=2)
 
             self.assertEqual(str(ctx.exception), "boom")
-            assert node.current_run is not None  # for mypy
-            self.assertEqual(node.current_run.status, execution.RunStatus.FAILED)
-            self.assertIs(node.current_run.exception, ctx.exception)
-            # `dump` is called exactly once with the `failed_state` path.
-            self.assertEqual(dump_calls, [progress_dir / config.failure_name(node)])
+            self.assertEqual(
+                dump_calls,
+                [
+                    (
+                        progress_dir / config.failure_name(node.lexical_path),
+                        execution.RunStatus.FAILED,
+                    )
+                ],
+            )
 
 
 # --------------------------------------------------------------------------- #
@@ -260,7 +266,7 @@ class TestRunExecutorBranches(unittest.TestCase):
         )
         with tempfile.TemporaryDirectory() as tmp:
             config = _default_config(node, pathlib.Path(tmp))
-            run = execution.run(node, config, x=1, y=2)
+            run = execution.run(node, config, node.lexical_root, node.label, x=1, y=2)
         self.assertEqual(run.status, execution.RunStatus.FINISHED)
         self.assertEqual(run.outputs["output_0"].value, 3)
 
@@ -270,7 +276,9 @@ class TestRunExecutorBranches(unittest.TestCase):
             node.executor = exe
             with tempfile.TemporaryDirectory() as tmp:
                 config = _default_config(node, pathlib.Path(tmp))
-                run = execution.run(node, config, x=1, y=2)
+                run = execution.run(
+                    node, config, node.lexical_root, node.label, x=1, y=2
+                )
         self.assertEqual(run.status, execution.RunStatus.FINISHED)
         self.assertEqual(run.outputs["output_0"].value, 3)
 
@@ -279,7 +287,7 @@ class TestRunExecutorBranches(unittest.TestCase):
         self.assertIsNone(node.executor)
         with tempfile.TemporaryDirectory() as tmp:
             config = _default_config(node, pathlib.Path(tmp))
-            run = execution.run(node, config, x=1, y=2)
+            run = execution.run(node, config, node.lexical_root, node.label, x=1, y=2)
         self.assertEqual(run.status, execution.RunStatus.FINISHED)
         self.assertEqual(run.outputs["output_0"].value, 3)
 
@@ -295,7 +303,7 @@ class TestRunExecutorBranches(unittest.TestCase):
         with tempfile.TemporaryDirectory() as tmp:
             config = _default_config(node, pathlib.Path(tmp))
             with self.assertRaises(TypeError) as ctx:
-                execution.run(node, config, x=1, y=2)
+                execution.run(node, config, node.lexical_root, node.label, x=1, y=2)
         self.assertIn(node.lexical_path, str(ctx.exception))
 
 
@@ -323,7 +331,7 @@ class TestRunProgressHooks(unittest.TestCase):
                 progress_dir=pathlib.Path(tmp),
                 progress_hooks=[hook],
             )
-            execution.run(macro, config, x=1, y=2, z=3)
+            execution.run(macro, config, macro.lexical_root, macro.label, x=1, y=2, z=3)
 
         prime_statuses = {status for lp, status in captured if lp == macro.lexical_path}
         self.assertEqual(

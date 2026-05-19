@@ -15,6 +15,7 @@ Usage:
 from __future__ import annotations
 
 import flowrep as fr
+import semantikon
 from flowrep.api import schemas as frs
 from pyiron_snippets import versions
 
@@ -56,6 +57,11 @@ def is_negative(n):
     return n < 0
 
 
+@fr.atomic
+def multiply_with_defaults(x=1, y=2):
+    return x * y
+
+
 # --------------------------------------------------------------------------- #
 # Macro recipes                                                               #
 # --------------------------------------------------------------------------- #
@@ -63,6 +69,14 @@ def is_negative(n):
 
 @fr.workflow
 def macro(x, y, z):
+    a = add(x, y)
+    s = sub(a, z)
+    return a, s
+
+
+@fr.workflow
+@semantikon.meta(uri="This is decorated")
+def annotated_macro(x, y, z):
     a = add(x, y)
     s = sub(a, z)
     return a, s
@@ -84,6 +98,12 @@ def passthrough(x, y):
     """
     s = add(x, y)
     return x, s
+
+
+@fr.workflow
+def container():
+    m = multiply_with_defaults()
+    return m
 
 
 # --------------------------------------------------------------------------- #
@@ -202,6 +222,11 @@ def macro_node(label: str = "my_macro"):
     return wfms.node(macro, label)
 
 
+def annotated_macro_node(label: str = "my_annotated_macro"):
+    """Return a fresh `Macro` wrapping `annotated_macro`."""
+    return wfms.node(annotated_macro, label)
+
+
 def nested_macro_node(label: str = "my_nested_macro"):
     """Return a fresh `Macro` wrapping `nested_macro`."""
     return wfms.node(nested_macro, label)
@@ -210,6 +235,11 @@ def nested_macro_node(label: str = "my_nested_macro"):
 def passthrough_node(label: str = "my_passthrough"):
     """Return a fresh `Macro` wrapping `passthrough`."""
     return wfms.node(passthrough, label)
+
+
+def container_node(label: str = "container"):
+    """Return a fresh `Macro` wrapping `container`."""
+    return wfms.node(container, label)
 
 
 def autoencoder_node(label: str = "autoencoder"):

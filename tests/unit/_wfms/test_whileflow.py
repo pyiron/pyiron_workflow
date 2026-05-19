@@ -56,109 +56,6 @@ def _non_looping_recipe() -> frs.WhileNode:
 
 
 # --------------------------------------------------------------------------- #
-# Prospective + retrospective surface                                         #
-# --------------------------------------------------------------------------- #
-
-
-class TestWhileProspectiveAndRetrospective(unittest.TestCase):
-    """Pre-run vs post-run views of the While in the `while_countdown` fixture."""
-
-    def setUp(self) -> None:
-        self.node = _fixtures.while_countdown_node()
-        self.whl = self.node.nodes.while_0
-
-    def test_prospective_input_edges_matches_recipe(self) -> None:
-        self.assertEqual(self.whl.prospective_input_edges, self.whl.recipe.input_edges)
-        self.assertGreater(len(self.whl.prospective_input_edges), 0)
-
-    def test_prospective_edges_is_non_empty_and_matches_recipe(self) -> None:
-        recipe = self.whl.recipe
-        expected = {**recipe.body_body_edges, **recipe.body_condition_edges}
-        self.assertEqual(self.whl.prospective_edges, expected)
-        self.assertGreater(len(self.whl.prospective_edges), 0)
-
-    def test_prospective_edges_contains_body_to_body_loop_edge(self) -> None:
-        self.assertIn(
-            frs.TargetHandle(node="body", port="n"),
-            self.whl.prospective_edges,
-        )
-        self.assertEqual(
-            self.whl.prospective_edges[frs.TargetHandle(node="body", port="n")],
-            frs.SourceHandle(node="body", port="n"),
-        )
-
-    def test_prospective_output_edges_matches_recipe(self) -> None:
-        self.assertGreater(len(self.whl.prospective_output_edges), 0)
-        self.assertTrue(
-            all(
-                len(v) == 1 or len(v) == 2
-                for v in self.whl.prospective_output_edges.values()
-            ),
-            msg="Expect all outputs to have at least the fallback input connection,"
-            "and some to be fed additionally by output from the body node.",
-        )
-
-        from_inputs = {k: v[-1] for k, v in self.whl.prospective_output_edges.items()}
-        from_bodies = {
-            k: v[0] for k, v in self.whl.prospective_output_edges.items() if len(v) == 2
-        }
-        # Note: this test implementation is brittle against the While implementation's
-        # choice to first leverage the underlying recipe output edges, and then to add
-        # the fallbacks
-
-        self.assertSetEqual(
-            {source.port for source in from_inputs.values()},
-            set(self.whl.inputs),
-            msg="All inputs should appear as fallback data",
-        )
-        self.assertDictEqual(
-            from_bodies,
-            self.whl.recipe.output_edges,
-            msg="Extra entries should be from recipe body->output edges",
-        )
-
-    def test_prospective_nodes_has_condition_and_body(self) -> None:
-        self.assertEqual(set(self.whl.prospective_nodes), {"condition", "body"})
-
-    def test_pre_run_retrospective_views_empty(self) -> None:
-        self.assertEqual(self.whl.input_edges, {})
-        self.assertEqual(self.whl.edges, {})
-        self.assertEqual(self.whl.output_edges, {})
-        self.assertEqual(len(self.whl.nodes), 0)
-
-    def test_post_run_views(self) -> None:
-        prospective_input_before = self.whl.prospective_input_edges
-        prospective_edges_before = self.whl.prospective_edges
-        prospective_output_before = self.whl.prospective_output_edges
-        prospective_nodes_before = list(self.whl.prospective_nodes)
-
-        self.node.run(n=3)
-
-        # prospective unchanged
-        self.assertEqual(self.whl.prospective_input_edges, prospective_input_before)
-        self.assertEqual(self.whl.prospective_edges, prospective_edges_before)
-        self.assertEqual(self.whl.prospective_output_edges, prospective_output_before)
-        self.assertEqual(list(self.whl.prospective_nodes), prospective_nodes_before)
-
-        # retrospective populated: condition_0..3 + body_0..2
-        self.assertGreater(len(self.whl.input_edges), 0)
-        self.assertGreater(len(self.whl.edges), 0)
-        self.assertGreater(len(self.whl.output_edges), 0)
-        self.assertEqual(
-            set(self.whl.nodes),
-            {
-                "condition_0",
-                "body_0",
-                "condition_1",
-                "body_1",
-                "condition_2",
-                "body_2",
-                "condition_3",
-            },
-        )
-
-
-# --------------------------------------------------------------------------- #
 # evaluate — zero iterations                                                  #
 # --------------------------------------------------------------------------- #
 
@@ -181,7 +78,7 @@ class TestEvaluateZeroIterations(unittest.TestCase):
 
     def test_output_edge_is_input_source_fallback(self) -> None:
         self.assertEqual(
-            self.whl.output_edges[frs.OutputTarget(port="n")],
+            self.run.result.output_edges[frs.OutputTarget(port="n")],
             frs.InputSource(port="n"),
         )
 
@@ -209,7 +106,7 @@ class TestEvaluateSingleIteration(unittest.TestCase):
 
     def test_output_edge_points_to_last_body(self) -> None:
         self.assertEqual(
-            self.whl.output_edges[frs.OutputTarget(port="n")],
+            self.run.result.output_edges[frs.OutputTarget(port="n")],
             frs.SourceHandle(node="body_0", port="n"),
         )
 
@@ -245,7 +142,7 @@ class TestEvaluateMultipleIterations(unittest.TestCase):
 
     def test_retrospective_nodes_keyset(self) -> None:
         self.assertEqual(
-            set(self.whl.nodes),
+            set(self.run.result.nodes),
             {
                 "condition_0",
                 "body_0",
@@ -260,24 +157,24 @@ class TestEvaluateMultipleIterations(unittest.TestCase):
     def test_body_sibling_edges_present(self) -> None:
         # body_1 gets n from body_0
         self.assertEqual(
-            self.whl.edges[frs.TargetHandle(node="body_1", port="n")],
+            self.run.result.edges[frs.TargetHandle(node="body_1", port="n")],
             frs.SourceHandle(node="body_0", port="n"),
         )
         # body_2 gets n from body_1
         self.assertEqual(
-            self.whl.edges[frs.TargetHandle(node="body_2", port="n")],
+            self.run.result.edges[frs.TargetHandle(node="body_2", port="n")],
             frs.SourceHandle(node="body_1", port="n"),
         )
 
     def test_condition_sibling_edges_present(self) -> None:
         # condition_1 gets n from body_0
         self.assertEqual(
-            self.whl.edges[frs.TargetHandle(node="condition_1", port="n")],
+            self.run.result.edges[frs.TargetHandle(node="condition_1", port="n")],
             frs.SourceHandle(node="body_0", port="n"),
         )
         # condition_3 gets n from body_2
         self.assertEqual(
-            self.whl.edges[frs.TargetHandle(node="condition_3", port="n")],
+            self.run.result.edges[frs.TargetHandle(node="condition_3", port="n")],
             frs.SourceHandle(node="body_2", port="n"),
         )
 
@@ -297,7 +194,7 @@ class TestMacroWrappedWhile(unittest.TestCase):
         self.assertEqual(self.run.outputs["n"].value, _fixtures.while_countdown(n=3))
 
     def test_inner_while_steps_are_wired(self) -> None:
-        inner_steps = self.whl.current_run.steps
+        inner_steps = self.run.steps[0][1].steps
         labels = [step.label for step in inner_steps]
         self.assertEqual(
             labels,
@@ -471,11 +368,11 @@ class TestNonLoopingInputs(unittest.TestCase):
         self.assertEqual(self.run.outputs["n"].value, 0)
 
     def test_step_always_sourced_from_input(self) -> None:
-        for key, val in self.whl.input_edges.items():
+        for key, val in self.run.result.input_edges.items():
             if key.port == "step":
                 self.assertEqual(val, frs.InputSource(port="step"))
         # No sibling edge for "step"
-        for key in self.whl.edges:
+        for key in self.run.result.edges:
             self.assertNotEqual(key.port, "step")
 
     def test_terminates_correctly(self) -> None:

@@ -21,8 +21,10 @@ class Port(abc.ABC):  # Satisfies pyiron_workflow._wfms.lexical.Lexical["Node"]
     _io_indicator: ClassVar[str]
 
     @property
-    def lexical_path(self) -> str:
-        return f"{self.owner.lexical_path}.{self._io_indicator}.{self.label}"
+    def lexical_path(self) -> lexical.LexicalPathStr:
+        return lexical.lexical_path(
+            self.owner.lexical_path, self._io_indicator, self.label
+        )
 
 
 @dataclasses.dataclass(frozen=True)
@@ -58,6 +60,7 @@ class Node(
 ):
     _label: frs.Label
     _owner: Graph | None
+    _detached_root: lexical.LexicalPathStr | None
     executor: futures.Executor | execution.ExecutorInstructions | None
     current_run: execution.Run[execution.ResultType] | None
 
@@ -78,8 +81,10 @@ class Node(
 
     @abc.abstractmethod
     def evaluate(
-        self, run: execution.Run[execution.ResultType], config: execution.RunConfig
-    ) -> None: ...
+        self,
+        run: execution.Run[execution.ResultType],
+        config: execution.RunConfig,
+    ) -> execution.Run[execution.ResultType]: ...
 
     @property
     def label(self) -> frs.Label:
@@ -115,9 +120,19 @@ class Node(
         self._owner = new_owner
 
     @property
-    def lexical_path(self) -> str:
-        root = "" if self.owner is None else f"{self.owner.lexical_path}."
-        return root + self.label
+    def lexical_root(self) -> lexical.LexicalPathStr:
+        if self.owner is not None:
+            return self.owner.lexical_path
+        elif detached := self._detached_root:
+            return detached
+        else:
+            return ""
+
+    @property
+    def lexical_path(self) -> lexical.LexicalPathStr:
+        if self.lexical_root:
+            return lexical.lexical_path(self.lexical_root, self.label)
+        return self.label
 
     def run(self, **input_data) -> execution.Run[execution.ResultType]:
         config = execution.RunConfig(
@@ -125,14 +140,16 @@ class Node(
             progress_dir=pathlib.Path.cwd(),
             progress_hooks=[],
         )
-        return execution.run(self, config, **input_data)
+        current_run = execution.run(self, config, **input_data)
+        self.current_run = current_run
+        return current_run
 
     def __getstate__(self):
         state = super().__getstate__()
 
-        owner = state.pop("_owner", None)
-        if owner is not None:
-            state["_last_detached_path"] = owner.lexical_path
+        if self.owner is not None:
+            state["_detached_root"] = self.owner.lexical_path
+        state["_owner"] = None
 
         if isinstance(self.executor, futures.Executor):
             state["executor"] = None
@@ -157,6 +174,7 @@ class StaticNode(Node[RecipeType, execution.ResultType], abc.ABC):
     ):
         self._label = label  # TODO: also accept None and use function name for default
         self._owner = owner
+        self._detached_root = None
         self._recipe = recipe
         live_preview = self.generate_flowrep_live_node()
         self._inputs = self._build_inputs(live_preview)
@@ -229,88 +247,46 @@ class NodeMap(lexical.LexicalMap[Node, "Graph"]):
         )
 
 
+_BODY_FEED: TypeAlias = tuple[frs.InputSource | frs.SourceHandle, frs.TargetHandle]
+_OUTPUT_FEED: TypeAlias = tuple[frs.SourceHandle | frs.InputSource, frs.OutputTarget]
+EdgeList: TypeAlias = list[_BODY_FEED | _OUTPUT_FEED]
+
+
 class Graph(lexical.Lexical["Graph"], Protocol):
-    @property
-    def input_edges(self) -> frs.InputEdges: ...
-
-    @property
-    def edges(self) -> frs.Edges: ...
-
-    @property
-    def output_edges(self) -> frs.OutputEdges: ...
 
     @property
     def nodes(self) -> NodeMap: ...
 
-
-ProspectiveOutputEdges: TypeAlias = dict[
-    frs.OutputTarget, list[frs.SourceHandle | frs.InputSource]
-]
-# In flowrep, recipes with prospective bodies still leverage the usual IO fields,
-# and only if- and try- nodes have a separate field for propsective edges.
-# Those are exclusively from body nodes.
-# Here we distinguish `prospective_*edges` as belonging to the flow control recipe,
-# and want to be able to capture pass-through data (e.g. from for-loops) as well.
-# In many cases, this becomes redundant since all the values are single-element lists
-# and a plain dict would be sufficient; we do it here for consistency of data shape to
-# benefit the downstream consumer (e.g. a GUI that wants to render the prospective
-# flow control pattern).s
-
-
-FlowControlRecipeType = TypeVar(
-    "FlowControlRecipeType", frs.ForEachNode, frs.IfNode, frs.TryNode, frs.WhileNode
-)
-
-
-class FlowControl(
-    StaticNode[FlowControlRecipeType, execution.ResultType], Graph, abc.ABC
-):
-    """
-    Flow controls all have a prospective recipe which resolves into a retrospective DAG.
-
-    In light of this, the :class:`Graph` properties all exist in reference only to the
-    current run, while new propsective properties are informed by the recipe itself.
-    This differs from macro graphs, where the topology of the recipe and run result are
-    identical, and we only need to populate the recipe topology with data values.
-    """
-
-    _recipe: FlowControlRecipeType
-
     @property
-    @abc.abstractmethod
-    def prospective_edges(self) -> frs.Edges: ...
+    def edges(self) -> EdgeList: ...
 
-    @property
-    @abc.abstractmethod
-    def prospective_output_edges(self) -> frs.ProspectiveOutputEdges: ...
 
-    @property
-    @abc.abstractmethod
-    def prospective_nodes(self) -> NodeMap: ...
+class StaticGraph(StaticNode[RecipeType, execution.ResultType], Graph, abc.ABC):
+
+    _nodes: NodeMap
+    _edges: EdgeList
+
+    def __init__(
+        self,
+        label: frs.Label,
+        recipe: RecipeType,
+        *,
+        owner: Graph | None = None,
+    ):
+        super().__init__(label, recipe, owner=owner)
+        self._nodes = self._build_nodes(recipe)
+        self._edges = self._build_edges(recipe)
 
     @abc.abstractmethod
-    def _build_retrospective_nodes(
-        self, run: execution.Run[execution.ResultType]
-    ) -> NodeMap: ...
+    def _build_nodes(self, recipe: RecipeType) -> NodeMap: ...
 
-    @property
-    def prospective_input_edges(self) -> frs.InputEdges:
-        return self._recipe.input_edges
-
-    @property
-    def input_edges(self) -> frs.InputEdges:
-        return {} if self.current_run is None else self.current_run.result.input_edges
-
-    @property
-    def edges(self) -> frs.Edges:
-        return {} if self.current_run is None else self.current_run.result.edges
-
-    @property
-    def output_edges(self) -> frs.OutputEdges:
-        return {} if self.current_run is None else self.current_run.result.output_edges
+    @abc.abstractmethod
+    def _build_edges(self, recipe: RecipeType) -> EdgeList: ...
 
     @property
     def nodes(self) -> NodeMap:
-        if self.current_run is None:
-            return NodeMap(self)
-        return self._build_retrospective_nodes(self.current_run)
+        return self._nodes
+
+    @property
+    def edges(self) -> EdgeList:
+        return self._edges

@@ -1,14 +1,22 @@
 from __future__ import annotations
 
 from collections.abc import Mapping
-from typing import Any, Generic, Protocol, TypeVar
+from typing import Any, Generic, Protocol, TypeAlias, TypeVar
 
 from flowrep.api import schemas as frs
+
+LexicalPathStr: TypeAlias = str
+# TODO: Make a formal lexical path string type that's labels with delimiters,
+#       then take frs.Label | LexicalPath here. This is just a placeholder
+
+
+def lexical_path(*labels: LexicalPathStr) -> LexicalPathStr:
+    return ".".join(labels)
 
 
 class HasLexicalPath(Protocol):
     @property
-    def lexical_path(self) -> str: ...
+    def lexical_path(self) -> LexicalPathStr: ...
 
 
 OwnerType_co = TypeVar("OwnerType_co", bound=HasLexicalPath, covariant=True)  # for maps
@@ -22,7 +30,7 @@ class Lexical(Protocol[OwnerType_co]):
     def owner(self) -> OwnerType_co | None: ...
 
     @property
-    def lexical_path(self) -> str: ...
+    def lexical_path(self) -> LexicalPathStr: ...
 
 
 LexicalType = TypeVar("LexicalType", bound=Lexical[Any])

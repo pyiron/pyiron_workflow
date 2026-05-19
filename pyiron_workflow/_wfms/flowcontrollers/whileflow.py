@@ -1,28 +1,24 @@
 from __future__ import annotations
 
 from flowrep.api import schemas as frs
+from flowrep.api import tools as frt
 
 from pyiron_workflow._wfms import constructors, dag, execution
 from pyiron_workflow._wfms.datatypes import (
-    FlowControl,
-    Graph,
     NodeMap,
-    ProspectiveOutputEdges,
+    StaticGraph,
 )
 
 
-class While(FlowControl[frs.WhileNode, frs.LiveWhile]):
+class While(StaticGraph[frs.WhileNode, frs.LiveWhile]):
     _recipe: frs.WhileNode
 
-    def __init__(
-        self,
-        label: frs.Label,
-        recipe: frs.WhileNode,
-        *,
-        owner: Graph | None = None,
-    ):
-        super().__init__(label, recipe, owner=owner)
-        self._prospective_nodes = NodeMap(
+    @classmethod
+    def _result_type(cls) -> type[frs.LiveWhile]:
+        return frs.LiveWhile
+
+    def _build_nodes(self, recipe: frs.WhileNode) -> NodeMap:
+        return NodeMap(
             self,
             constructors.recipe2static(
                 recipe.case.condition.label, recipe.case.condition.node, owner=self
@@ -31,89 +27,91 @@ class While(FlowControl[frs.WhileNode, frs.LiveWhile]):
                 recipe.case.body.label, recipe.case.body.node, owner=self
             ),
         )
-        self._prospective_output_edges = ProspectiveOutputEdges(
-            # Body -> output from recipe prospective outputs
-            {k: [v] for k, v in recipe.output_edges.items()}
-        )
-        for output_label in self.outputs:
-            # Input -> output to fulfill fallback values
-            output_target = frs.OutputTarget(port=output_label)
-            existing_outputs = self._prospective_output_edges.get(output_target, [])
-            existing_outputs.append(frs.InputSource(port=output_label))
-            self._prospective_output_edges[output_target] = existing_outputs
 
-    @classmethod
-    def _result_type(cls) -> type[frs.LiveWhile]:
-        return frs.LiveWhile
+    def _build_edges(self, recipe: frs.WhileNode) -> frs.Edges:
+        """
+        Cyclic 'iteration' edges exist from the prospective body back to the
+        prospective condition and prospective body inputs. The resulting edges list
+        does *not* give a DAG — they describe the loop structure at the recipe level
+        for tools (GUIs, visualisations) that want to express the while-loop's
+        iteration semantics.
+        """
+        input_edges = [
+            (source, target) for target, source in recipe.input_edges.items()
+        ]
+
+        looped_edges = [
+            (source, target) for target, source in recipe.body_body_edges.items()
+        ] + [(source, target) for target, source in recipe.body_condition_edges.items()]
+
+        body_return_edges = [
+            (source, target) for target, source in recipe.output_edges.items()
+        ]
+
+        fallback_edges = [
+            (frs.InputSource(port=output_label), frs.OutputTarget(port=output_label))
+            for output_label in self.outputs
+        ]
+
+        return input_edges + looped_edges + body_return_edges + fallback_edges
 
     @staticmethod
     def _indexed_label(prefix: frs.Label, index: int) -> frs.Label:
         return f"{prefix}_{index}"
 
-    @property
-    def prospective_edges(self) -> frs.Edges:
-        """
-        Cyclic 'iteration' edges from the prospective body back to the prospective
-        condition and prospective body inputs. These are *not* DAG edges and are never
-        executed — they describe the loop structure at the recipe level for tools
-        (GUIs, visualisations) that want to render the while-loop's iteration semantics.
-        """
-        return {**self._recipe.body_body_edges, **self._recipe.body_condition_edges}
-
-    @property
-    def prospective_output_edges(self) -> ProspectiveOutputEdges:
-        return self._prospective_output_edges
-
-    @property
-    def prospective_nodes(self) -> NodeMap:
-        return self._prospective_nodes
-
     def evaluate(
         self, run: execution.Run[frs.LiveWhile], config: execution.RunConfig
-    ) -> None:
+    ) -> execution.Run[frs.LiveWhile]:
         recipe = self._recipe
         result = run.result
         cond_prefix = recipe.case.condition.label
         body_prefix = recipe.case.body.label
-        cond_recipe = recipe.case.condition.node
-        body_recipe = recipe.case.body.node
+        # The two pwf children — these are the durable authoring objects
+        # that carry executors, fleche policies, etc.
+        condition_node = self.nodes[cond_prefix]
+        body_node = self.nodes[body_prefix]
 
         last_body_label: frs.Label | None = None
         iteration = 0
-
         while True:
             cond_label = self._indexed_label(cond_prefix, iteration)
+            self._stage_node(cond_label, result, recipe.case.condition.node)
             self._stage_child_edges(
                 cond_label, cond_prefix, recipe, result, last_body_label
             )
-            cond_node = constructors.recipe2static(cond_label, cond_recipe, owner=self)
-            dag.evaluate_node(cond_node, run, config)
+            dag.evaluate_node(condition_node, cond_label, run, config)
 
             if not self._condition_value(cond_label, recipe.case, result):
                 break
 
             body_label = self._indexed_label(body_prefix, iteration)
+            self._stage_node(body_label, result, recipe.case.body.node)
             self._stage_child_edges(
                 body_label, body_prefix, recipe, result, last_body_label
             )
-            body_node = constructors.recipe2static(body_label, body_recipe, owner=self)
-            dag.evaluate_node(body_node, run, config)
+            dag.evaluate_node(body_node, body_label, run, config)
 
             last_body_label = body_label
             iteration += 1
 
         self._stage_final_output_edges(result, recipe, last_body_label)
         dag.populate_outputs(result)
+        return run
 
-    def _build_retrospective_nodes(self, run: execution.Run[frs.LiveWhile]) -> NodeMap:
-        nodes = []
-        for step in run.steps:
-            node = constructors.recipe2static(
-                step.label, step.run.result.recipe, owner=self
-            )
-            node.current_run = step.run
-            nodes.append(node)
-        return NodeMap(self, *nodes)
+    @staticmethod
+    def _stage_node(
+        node_label: frs.Label,
+        result: frs.LiveIf,
+        node_recipe: (
+            frs.AtomicNode
+            | frs.ForEachNode
+            | frs.IfNode
+            | frs.TryNode
+            | frs.WhileNode
+            | frs.WorkflowNode
+        ),
+    ) -> None:
+        result.nodes[node_label] = frt.recipe2live(node_recipe)
 
     @staticmethod
     def _stage_child_edges(

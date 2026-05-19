@@ -1,29 +1,28 @@
 from __future__ import annotations
 
 from flowrep.api import schemas as frs
+from flowrep.api import tools as frt
 from pyiron_snippets import retrieve
 
 from pyiron_workflow._wfms import constructors, dag, execution
 from pyiron_workflow._wfms.datatypes import (
-    FlowControl,
-    Graph,
+    EdgeList,
     NodeMap,
-    ProspectiveOutputEdges,
+    StaticGraph,
 )
 
 
-class Try(FlowControl[frs.TryNode, frs.LiveTry]):
+class UnmatchedExceptionError(TypeError): ...
+
+
+class Try(StaticGraph[frs.TryNode, frs.LiveTry]):
     _recipe: frs.TryNode
 
-    def __init__(
-        self,
-        label: frs.Label,
-        recipe: frs.TryNode,
-        *,
-        owner: Graph | None = None,
-    ):
-        super().__init__(label, recipe, owner=owner)
+    @classmethod
+    def _result_type(cls) -> type[frs.LiveTry]:
+        return frs.LiveTry
 
+    def _build_nodes(self, recipe: frs.TryNode) -> NodeMap:
         nodes: list = [
             constructors.recipe2static(
                 recipe.try_node.label, recipe.try_node.node, owner=self
@@ -33,83 +32,54 @@ class Try(FlowControl[frs.TryNode, frs.LiveTry]):
             nodes.append(
                 constructors.recipe2static(case.body.label, case.body.node, owner=self)
             )
-        self._prospective_nodes = NodeMap(self, *nodes)
+        return NodeMap(self, *nodes)
 
-    @classmethod
-    def _result_type(cls) -> type[frs.LiveTry]:
-        return frs.LiveTry
-
-    @property
-    def prospective_edges(self) -> frs.Edges:
-        return {}
-
-    @property
-    def prospective_output_edges(self) -> ProspectiveOutputEdges:
-        return self._recipe.prospective_output_edges
-
-    @property
-    def prospective_nodes(self) -> NodeMap:
-        return self._prospective_nodes
+    def _build_edges(self, recipe: frs.TryNode) -> EdgeList:
+        return []
 
     def evaluate(
-        self, run: execution.Run[frs.LiveTry], config: execution.RunConfig
-    ) -> None:
+        self,
+        run: execution.Run[execution.ResultType],
+        config: execution.RunConfig,
+    ) -> execution.Run[execution.ResultType]:
         result = run.result
         recipe = result.recipe
 
         try_label = recipe.try_node.label
+        self._stage_node(try_label, result, recipe.try_node.node)
         self._stage_node_input_edges(try_label, result, recipe)
-        try_node = constructors.recipe2static(
-            try_label, recipe.try_node.node, owner=self
-        )
+        try_node = self.nodes[try_label]
 
         try:
-            dag.evaluate_node(try_node, run, config)
+            dag.evaluate_node(try_node, try_label, run, config)
         except BaseException as exc:
-            # evaluate_node skips step-bookkeeping when execution.run raises.
-            # Record the failed try-body manually so the run is introspectable.
-            if try_node.current_run is not None:
-                run.steps.append(execution.Step(try_label, try_node.current_run))
-                result.nodes[try_label] = try_node.current_run.result
-
             for case in recipe.exception_cases:
                 exc_types = self._resolve_exception_types(case)
                 if not isinstance(exc, exc_types):
                     continue
 
                 body_label = case.body.label
+                self._stage_node(body_label, result, case.body.node)
                 self._stage_node_input_edges(body_label, result, recipe)
-                body_node = constructors.recipe2static(
-                    body_label, case.body.node, owner=self
-                )
+                body_node = self.nodes[body_label]
                 try:
-                    dag.evaluate_node(body_node, run, config)
+                    dag.evaluate_node(body_node, body_label, run, config)
                 except BaseException:
-                    # Handler itself raised; record the step before propagating.
-                    if body_node.current_run is not None:
-                        run.steps.append(
-                            execution.Step(body_label, body_node.current_run)
-                        )
-                        result.nodes[body_label] = body_node.current_run.result
+                    # Handler itself raised!
                     raise
                 self._stage_body_output_edges(body_label, result, recipe)
                 dag.populate_outputs(result)
-                return
-
-            raise
+                return run
+            raise UnmatchedExceptionError(
+                f"Expected an exception among "
+                f"{[e.qualname for case in recipe.exception_cases for e in case.exceptions]} "
+                f"while evaluating {run.lexical_path!r}, but got a {type(exc).__name__!r} "
+                "instead."
+            ) from exc
 
         self._stage_body_output_edges(try_label, result, recipe)
         dag.populate_outputs(result)
-
-    def _build_retrospective_nodes(self, run: execution.Run[frs.LiveTry]) -> NodeMap:
-        nodes = []
-        for step in run.steps:
-            node = constructors.recipe2static(
-                step.label, step.run.result.recipe, owner=self
-            )
-            node.current_run = step.run
-            nodes.append(node)
-        return NodeMap(self, *nodes)
+        return run
 
     @staticmethod
     def _resolve_exception_types(
@@ -119,6 +89,21 @@ class Try(FlowControl[frs.TryNode, frs.LiveTry]):
             retrieve.import_from_string(info.fully_qualified_name)
             for info in case.exceptions
         )
+
+    @staticmethod
+    def _stage_node(
+        node_label: frs.Label,
+        result: frs.LiveIf,
+        node_recipe: (
+            frs.AtomicNode
+            | frs.ForEachNode
+            | frs.IfNode
+            | frs.TryNode
+            | frs.WhileNode
+            | frs.WorkflowNode
+        ),
+    ) -> None:
+        result.nodes[node_label] = frt.recipe2live(node_recipe)
 
     @staticmethod
     def _stage_node_input_edges(

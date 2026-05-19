@@ -1,28 +1,24 @@
 from __future__ import annotations
 
 from flowrep.api import schemas as frs
+from flowrep.api import tools as frt
 
 from pyiron_workflow._wfms import constructors, dag, execution
 from pyiron_workflow._wfms.datatypes import (
-    FlowControl,
-    Graph,
+    EdgeList,
     NodeMap,
-    ProspectiveOutputEdges,
+    StaticGraph,
 )
 
 
-class If(FlowControl[frs.IfNode, frs.LiveIf]):
+class If(StaticGraph[frs.IfNode, frs.LiveIf]):
     _recipe: frs.IfNode
 
-    def __init__(
-        self,
-        label: frs.Label,
-        recipe: frs.IfNode,
-        *,
-        owner: Graph | None = None,
-    ):
-        super().__init__(label, recipe, owner=owner)
+    @classmethod
+    def _result_type(cls) -> type[frs.LiveIf]:
+        return frs.LiveIf
 
+    def _build_nodes(self, recipe: frs.IfNode) -> NodeMap:
         nodes: list = []
         for case in recipe.cases:
             nodes.append(
@@ -39,69 +35,62 @@ class If(FlowControl[frs.IfNode, frs.LiveIf]):
                     recipe.else_case.label, recipe.else_case.node, owner=self
                 )
             )
-        self._prospective_nodes = NodeMap(self, *nodes)
+        return NodeMap(self, *nodes)
 
-    @classmethod
-    def _result_type(cls) -> type[frs.LiveIf]:
-        return frs.LiveIf
-
-    @property
-    def prospective_edges(self) -> frs.Edges:
-        return {}
-
-    @property
-    def prospective_output_edges(self) -> ProspectiveOutputEdges:
-        return self._recipe.prospective_output_edges
-
-    @property
-    def prospective_nodes(self) -> NodeMap:
-        return self._prospective_nodes
+    def _build_edges(self, recipe: frs.IfNode) -> EdgeList:
+        return []
 
     def evaluate(
-        self, run: execution.Run[frs.LiveIf], config: execution.RunConfig
-    ) -> None:
+        self,
+        run: execution.Run[execution.ResultType],
+        config: execution.RunConfig,
+    ) -> execution.Run[execution.ResultType]:
         recipe = self._recipe
         result = run.result
 
         for case in recipe.cases:
-            self._stage_node_input_edges(case.condition.label, result, recipe)
-            cond_node = constructors.recipe2static(
-                case.condition.label, case.condition.node, owner=self
-            )
-            dag.evaluate_node(cond_node, run, config)
+            condition_label = case.condition.label
+            self._stage_node(condition_label, result, case.condition.node)
+            self._stage_node_input_edges(condition_label, result, recipe)
+            condition_node = self.nodes[condition_label]
+            dag.evaluate_node(condition_node, condition_label, run, config)
 
             if self._condition_value(case, result):
                 body_label = case.body.label
+                self._stage_node(body_label, result, case.body.node)
                 self._stage_node_input_edges(body_label, result, recipe)
                 self._stage_body_output_edges(body_label, result, recipe)
-                body_node = constructors.recipe2static(
-                    body_label, case.body.node, owner=self
-                )
-                dag.evaluate_node(body_node, run, config)
+                body_node = self.nodes[body_label]
+                dag.evaluate_node(body_node, body_label, run, config)
                 # Exit early if we've found a truthy conditional branch
                 dag.populate_outputs(result)
-                return
+                return run
 
         if recipe.else_case is not None:
             else_label = recipe.else_case.label
+            self._stage_node(else_label, result, recipe.else_case.node)
             self._stage_node_input_edges(else_label, result, recipe)
             self._stage_body_output_edges(else_label, result, recipe)
-            else_node = constructors.recipe2static(
-                else_label, recipe.else_case.node, owner=self
-            )
-            dag.evaluate_node(else_node, run, config)
+            else_node = self.nodes[else_label]
+            dag.evaluate_node(else_node, else_label, run, config)
         # else: no case fired and no else_case — output ports stay at NOT_DATA.
         dag.populate_outputs(result)
+        return run
 
-    def _build_retrospective_nodes(self, run: execution.Run[frs.LiveIf]) -> NodeMap:
-        nodes = []
-        for step in run.steps:
-            node = constructors.recipe2static(
-                step.label, step.run.result.recipe, owner=self
-            )
-            node.current_run = step.run
-            nodes.append(node)
-        return NodeMap(self, *nodes)
+    @staticmethod
+    def _stage_node(
+        node_label: frs.Label,
+        result: frs.LiveIf,
+        node_recipe: (
+            frs.AtomicNode
+            | frs.ForEachNode
+            | frs.IfNode
+            | frs.TryNode
+            | frs.WhileNode
+            | frs.WorkflowNode
+        ),
+    ) -> None:
+        result.nodes[node_label] = frt.recipe2live(node_recipe)
 
     @staticmethod
     def _stage_node_input_edges(
