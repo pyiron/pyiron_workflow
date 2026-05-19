@@ -336,7 +336,7 @@ def evaluate_node(
         )
         raise e
     finally:
-        run.steps.append(execution.Step(label_in_run, sub_run))
+        run.steps.append(sub_run)
         result.nodes[label_in_run] = sub_run.result
 
 

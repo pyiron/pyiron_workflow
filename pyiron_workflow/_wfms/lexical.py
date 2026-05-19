@@ -5,6 +5,8 @@ from typing import Any, Generic, Protocol, TypeAlias, TypeVar
 
 from flowrep.api import schemas as frs
 
+LEXICAL_PATH_DELIMITER = "."
+
 LexicalPathStr: TypeAlias = str
 # TODO: Make a formal lexical path string type that's labels with delimiters,
 #       then take frs.Label | LexicalPath here. This is just a placeholder
@@ -12,6 +14,10 @@ LexicalPathStr: TypeAlias = str
 
 def lexical_path(*labels: LexicalPathStr) -> LexicalPathStr:
     return ".".join(labels)
+
+
+def get_label(path: LexicalPathStr) -> str:
+    return path.rsplit(LEXICAL_PATH_DELIMITER, 1)[-1]
 
 
 class HasLexicalPath(Protocol):

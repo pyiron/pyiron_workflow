@@ -178,7 +178,7 @@ class TestEvaluateSingleCaseFalseWithElse(unittest.TestCase):
         # x=-5 → is_positive=False → else fires → negate(-5)=5.
         self.run = self.node.run(x=-5)
         self.ifn = self.node.nodes.if_0
-        self.if_step = self.run.steps[0][1]
+        self.if_step = self.run.steps[0]
 
     def test_run_finished(self) -> None:
         self.assertEqual(self.run.status, execution.RunStatus.FINISHED)
@@ -266,7 +266,7 @@ class TestMacroDownstreamOfFalsyIfIsSkipped(unittest.TestCase):
     def test_downstream_step_not_recorded(self) -> None:
         labels = [step.label for step in self.run.steps]
         self.assertEqual(labels, ["if_0"])
-        substep_labels = [step.label for step in self.run.steps[0].run.steps]
+        substep_labels = self.run.steps[0].steps.labels
         self.assertEqual(substep_labels, ["cond"])
 
 

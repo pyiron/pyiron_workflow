@@ -203,8 +203,7 @@ class TestEvaluateTrySucceeds(unittest.TestCase):
         self.assertEqual(set(self.run.result.nodes), {"try_body"})
 
     def test_try_body_step_finished(self) -> None:
-        step = self.run.steps[0]
-        self.assertEqual(step.run.status, execution.RunStatus.FINISHED)
+        self.assertEqual(self.run.steps[0].status, execution.RunStatus.FINISHED)
 
 
 # --------------------------------------------------------------------------- #
@@ -231,13 +230,13 @@ class TestEvaluateExceptionHandled(unittest.TestCase):
     def test_try_body_step_failed(self) -> None:
         try_step = self.run.steps[0]
         self.assertEqual(try_step.label, "try_body")
-        self.assertEqual(try_step.run.status, execution.RunStatus.FAILED)
-        self.assertIsInstance(try_step.run.exception, ZeroDivisionError)
+        self.assertEqual(try_step.status, execution.RunStatus.FAILED)
+        self.assertIsInstance(try_step.exception, ZeroDivisionError)
 
     def test_handler_step_finished(self) -> None:
         handler_step = self.run.steps[1]
         self.assertEqual(handler_step.label, "except_body_0")
-        self.assertEqual(handler_step.run.status, execution.RunStatus.FINISHED)
+        self.assertEqual(handler_step.status, execution.RunStatus.FINISHED)
 
 
 # --------------------------------------------------------------------------- #

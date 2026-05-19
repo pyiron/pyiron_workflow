@@ -31,6 +31,10 @@ class Step(NamedTuple):
     run: Run[Any]
 
 
+def _make_steps():
+    return Steps()
+
+
 @dataclasses.dataclass
 class Run(Generic[ResultType]):
     lexical_path: lexical.LexicalPathStr
@@ -40,7 +44,7 @@ class Run(Generic[ResultType]):
     started_at: datetime.datetime | None = None
     finished_at: datetime.datetime | None = None
     progress_dir: pathlib.Path | None = None
-    steps: list[Step] = dataclasses.field(default_factory=list)
+    steps: Steps = dataclasses.field(default_factory=_make_steps)
 
     @property
     def outputs(self):
@@ -51,6 +55,16 @@ class Run(Generic[ResultType]):
         if self.started_at is None or self.finished_at is None:
             return None
         return self.finished_at - self.started_at
+
+    @property
+    def label(self) -> str:
+        return lexical.get_label(self.lexical_path)
+
+
+class Steps(list[Run[Any]]):
+    @property
+    def labels(self):
+        return [lexical.get_label(step.label) for step in self]
 
 
 @dataclasses.dataclass(frozen=True)

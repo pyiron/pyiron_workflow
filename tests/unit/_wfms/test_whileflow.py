@@ -194,10 +194,9 @@ class TestMacroWrappedWhile(unittest.TestCase):
         self.assertEqual(self.run.outputs["n"].value, _fixtures.while_countdown(n=3))
 
     def test_inner_while_steps_are_wired(self) -> None:
-        inner_steps = self.run.steps[0][1].steps
-        labels = [step.label for step in inner_steps]
+        inner_steps = self.run.steps[0].steps
         self.assertEqual(
-            labels,
+            inner_steps.labels,
             [
                 "condition_0",
                 "body_0",

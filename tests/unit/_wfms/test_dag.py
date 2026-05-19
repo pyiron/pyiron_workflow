@@ -186,7 +186,7 @@ class TestEvaluateDagByLayer(unittest.TestCase):
         # and a successfully finished sub-run.
         self.assertEqual(set(run.result.nodes), {"add_0", "sub_0"})
         for step in run.steps:
-            self.assertEqual(step.run.status, wfms.RunStatus.FINISHED)
+            self.assertEqual(step.status, wfms.RunStatus.FINISHED)
 
 
 class TestTopoSortNodes(unittest.TestCase):
