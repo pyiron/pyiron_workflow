@@ -102,10 +102,18 @@ class Workflow(Node[frs.WorkflowNode, frs.LiveWorkflow], Graph):
 
     @property
     def recipe(self) -> frs.WorkflowNode:
-        raise NotImplementedError()
+        inp, peer, out = self._decompose_edges()
+        return frs.WorkflowNode(
+            inputs=list(self.inputs.keys()),
+            outputs=list(self.outputs.keys()),
+            nodes={label: node.recipe for label, node in self.nodes.items()},
+            input_edges=inp,
+            edges=peer,
+            output_edges=out,
+        )
 
     def generate_flowrep_live_node(self) -> frs.LiveWorkflow:
-        raise NotImplementedError()
+        return frs.LiveWorkflow.from_recipe(self.recipe)
 
     def evaluate(
         self,
@@ -121,6 +129,30 @@ class Workflow(Node[frs.WorkflowNode, frs.LiveWorkflow], Graph):
     @property
     def edges(self) -> EdgeList:
         return self._edges
+
+    def _decompose_edges(self) -> tuple[frs.InputEdges, frs.Edges, frs.OutputEdges]:
+        inp: frs.InputEdges = {}
+        peer: frs.Edges = {}
+        out: frs.OutputEdges = {}
+        for source, target in self.edges:
+            if isinstance(source, frs.InputSource) and isinstance(
+                target, frs.TargetHandle
+            ):
+                inp[target] = source
+            elif isinstance(source, frs.SourceHandle) and isinstance(
+                target, frs.TargetHandle
+            ):
+                peer[target] = source
+            elif isinstance(source, frs.SourceHandle | frs.InputSource) and isinstance(
+                target, frs.OutputTarget
+            ):
+                out[target] = source
+            else:
+                raise TypeError(
+                    f"{self.lexical_path!r} has an edge that does not fit into known "
+                    f"input/peer/output buckets: {source!r} -> {target!r}"
+                )
+        return inp, peer, out
 
     @property
     def undo_limit(self) -> int | None:
