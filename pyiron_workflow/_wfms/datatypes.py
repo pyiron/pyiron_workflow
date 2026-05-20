@@ -4,7 +4,7 @@ import abc
 import dataclasses
 import pathlib
 from concurrent import futures
-from typing import ClassVar, Generic, Protocol, TypeAlias, TypeVar
+from typing import ClassVar, Generic, NamedTuple, Protocol, TypeAlias, TypeVar
 
 import semantikon
 from flowrep.api import schemas as frs
@@ -247,9 +247,12 @@ class NodeMap(lexical.LexicalMap[Node, "Graph"]):
         )
 
 
-_BODY_FEED: TypeAlias = tuple[frs.InputSource | frs.SourceHandle, frs.TargetHandle]
-_OUTPUT_FEED: TypeAlias = tuple[frs.SourceHandle | frs.InputSource, frs.OutputTarget]
-EdgeList: TypeAlias = list[_BODY_FEED | _OUTPUT_FEED]
+class EdgeTuple(NamedTuple):
+    source: frs.InputSource | frs.SourceHandle
+    target: frs.OutputTarget | frs.TargetHandle
+
+
+EdgeList: TypeAlias = list[EdgeTuple]
 
 
 class Graph(lexical.Lexical["Graph"], Protocol):

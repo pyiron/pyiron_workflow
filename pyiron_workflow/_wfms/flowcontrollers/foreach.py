@@ -13,6 +13,7 @@ from pyiron_workflow._wfms import (
 )
 from pyiron_workflow._wfms.datatypes import (
     EdgeList,
+    EdgeTuple,
     NodeMap,
     StaticGraph,
 )
@@ -30,9 +31,11 @@ class ForEach(StaticGraph[frs.ForEachNode, frs.LiveForEach]):
         return NodeMap(self, constructors.recipe2static(bn.label, bn.node, owner=self))
 
     def _build_edges(self, recipe: frs.ForEachNode) -> EdgeList:
-        return [(source, target) for target, source in recipe.input_edges.items()] + [
-            (source, target) for target, source in recipe.output_edges.items()
-        ]  # No peer-edges for the for-each loop recipes
+        return EdgeList(
+            EdgeTuple(source, target) for target, source in recipe.input_edges.items()
+        ) + EdgeList(
+            EdgeTuple(source, target) for target, source in recipe.output_edges.items()
+        )  # No peer-edges for the for-each loop recipes
 
     def evaluate(
         self,
