@@ -39,9 +39,6 @@ class MutablePortMap(
     def __delitem__(self, key: frs.Label):
         del self._pwf_lexical_map__data[key]
 
-    def __setattr__(self, key: frs.Label, value: PortType):
-        self.__setitem__(key, value)
-
 
 class MutableNodeMap(NodeMap, MutableMapping[frs.Label, Node]):
     def __setitem__(self, key: frs.Label, value: Node):
