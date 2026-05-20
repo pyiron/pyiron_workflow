@@ -3,8 +3,7 @@ from __future__ import annotations
 import collections
 import dataclasses
 import functools
-import itertools
-from collections.abc import Callable, Iterable, MutableMapping
+from collections.abc import Callable, MutableMapping
 from typing import Any, Protocol, TypeAlias
 
 import semantikon
@@ -261,10 +260,6 @@ class Workflow(Node[frs.WorkflowNode, frs.LiveWorkflow], Graph):
     def undo_limit(self, value: int) -> None:
         self.undo_stack = collections.deque(self.undo_stack, maxlen=value)
         self.redo_stack = collections.deque(self.redo_stack, maxlen=value)
-
-    @staticmethod
-    def _flatten(diffs: Iterable[GraphDiff]) -> GraphDiff:
-        return list(itertools.chain.from_iterable(diffs))
 
     @staticmethod
     def _records(method: Callable[..., Any]) -> Callable[..., Any]:
