@@ -4,12 +4,12 @@ import collections
 import dataclasses
 import functools
 from collections.abc import Callable, MutableMapping
-from typing import Any, Protocol, TypeAlias
+from typing import Any, Protocol, TypeAlias, TypeVar
 
 import semantikon
 from flowrep.api import schemas as frs
 
-from pyiron_workflow._wfms import dag, execution
+from pyiron_workflow._wfms import dag, execution, lexical
 from pyiron_workflow._wfms.datatypes import (
     EdgeList,
     EdgeTuple,
@@ -66,6 +66,9 @@ class MutableNodeMap(NodeMap, MutableMapping[frs.Label, Node]):
         """Syntactic sugar for adding fresh nodes to the graph"""
         value.label = key  # Rely on Node.label setter protection for ownership
         self._pwf_lexical_map__owner.add_node(value)
+
+
+_MappedType = TypeVar("_MappedType", bound=lexical.Lexical[Any])
 
 
 class GraphAction(Protocol):
@@ -305,38 +308,29 @@ class Workflow(Node[frs.WorkflowNode, frs.LiveWorkflow], Graph):
 
         return wrapper
 
+    @staticmethod
+    def _get_item_from_map(
+        item: _MappedType | frs.Label,
+        map_: lexical.LexicalMap[_MappedType, Any],
+        kind: str,
+    ) -> _MappedType:
+        if isinstance(item, str):
+            return map_[item]
+        owned = map_.get(item.label, None)
+        if owned is None or item is not owned:
+            raise KeyError(
+                f"Cannot get {item!r} named {item.label!r} -- no such {kind} is owned."
+            )
+        return item
+
     def get_node(self, node: Node | frs.Label) -> Node:
-        if isinstance(node, str):
-            return self.nodes[node]
-        else:
-            owned = self.nodes.get(node.label, None)
-            if owned is None or node is not owned:
-                raise KeyError(
-                    f"Cannot get {node!r} named {node.label!r} -- no such node is owned."
-                )
-            return node
+        return self._get_item_from_map(node, self.nodes, "node")
 
     def get_input(self, port: InputPort | frs.Label) -> InputPort:
-        if isinstance(port, str):
-            return self.inputs[port]
-        else:
-            owned = self.inputs.get(port.label, None)
-            if owned is None or port is not owned:
-                raise KeyError(
-                    f"Cannot get {port!r} named {port.label!r} -- no such input port is owned."
-                )
-            return port
+        return self._get_item_from_map(port, self.inputs, "input port")
 
     def get_output(self, port: OutputPort | frs.Label) -> OutputPort:
-        if isinstance(port, str):
-            return self.outputs[port]
-        else:
-            owned = self.outputs.get(port.label, None)
-            if owned is None or port is not owned:
-                raise KeyError(
-                    f"Cannot get {port!r} named {port.label!r} -- no such output port is owned."
-                )
-            return port
+        return self._get_item_from_map(port, self.outputs, "output port")
 
     # --- Leaf private mutations (each returns one GraphAction) ---
 
