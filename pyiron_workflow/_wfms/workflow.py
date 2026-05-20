@@ -41,6 +41,8 @@ class MutablePortMap(
 
 
 class MutableNodeMap(NodeMap, MutableMapping[frs.Label, Node]):
+    _pwf_lexical_map__owner: Workflow
+
     def __setitem__(self, key: frs.Label, value: Node):
         if value.owner is not None and value.owner is not self._pwf_lexical_map__owner:
             raise ValueError(
@@ -57,7 +59,8 @@ class MutableNodeMap(NodeMap, MutableMapping[frs.Label, Node]):
         del self._pwf_lexical_map__data[key]
 
     def __setattr__(self, key: frs.Label, value: Node):
-        self.__setitem__(key, value)
+        value.label = key  # Rely on Node.label setter protection for ownership
+        self._pwf_lexical_map__owner.add_node(value)
 
 
 class GraphAction(Protocol):
