@@ -9,7 +9,7 @@ EXPECTED: list[tuple[str, str]] = [
     ("Atomic", "pyiron_workflow._wfms.atomic"),
     ("node", "pyiron_workflow._wfms.constructors"),
     ("Macro", "pyiron_workflow._wfms.dag"),
-    ("Workflow", "pyiron_workflow._wfms.dag"),
+    ("Workflow", "pyiron_workflow._wfms.workflow"),
     ("ExecutorInstructions", "pyiron_workflow._wfms.execution"),
     ("Run", "pyiron_workflow._wfms.execution"),
     ("RunConfig", "pyiron_workflow._wfms.execution"),

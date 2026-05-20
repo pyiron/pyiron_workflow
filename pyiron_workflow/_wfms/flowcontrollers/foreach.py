@@ -10,6 +10,7 @@ from pyiron_workflow._wfms import (
     dag,
     execution,
     transformers,
+    workflow,
 )
 from pyiron_workflow._wfms.datatypes import (
     EdgeList,
@@ -50,8 +51,8 @@ class ForEach(StaticGraph[frs.ForEachNode, frs.LiveForEach]):
 
     def _build_runtime_dag(
         self, run: execution.Run[frs.LiveForEach]
-    ) -> dag.MutableNodeMap:
-        node_map = dag.MutableNodeMap(self)
+    ) -> workflow.MutableNodeMap:
+        node_map = workflow.MutableNodeMap(self)
 
         result = run.result
         recipe = result.recipe
