@@ -50,6 +50,11 @@ class MutableNodeMap(NodeMap, MutableMapping[frs.Label, Node]):
                 f"cannot be assigned to a node map (owner "
                 f"{self._pwf_lexical_map__owner.lexical_path!r})."
             )
+        if key != value.label:
+            raise ValueError(
+                f"Node {key!r} already has label {value.label!r} and cannot be assigned "
+                f"to a node map with label {value.label!r}."
+            )
         value.owner = self._pwf_lexical_map__owner
         self._pwf_lexical_map__data[key] = value
 
