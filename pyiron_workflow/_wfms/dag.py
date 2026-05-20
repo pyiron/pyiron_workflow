@@ -1,9 +1,12 @@
 from __future__ import annotations
 
 import collections
+import dataclasses
 import datetime
-from collections.abc import MutableMapping
-from typing import Any, TypeAlias
+import functools
+import itertools
+from collections.abc import Iterable, MutableMapping
+from typing import Any, Protocol, TypeAlias
 
 import semantikon
 from flowrep.api import schemas as frs
@@ -12,6 +15,7 @@ from pyiron_snippets import retrieve
 from pyiron_workflow._wfms import constructors, execution, lexical
 from pyiron_workflow._wfms.datatypes import (
     EdgeList,
+    EdgeTuple,
     Graph,
     InputPort,
     Node,
@@ -62,7 +66,54 @@ class MutableNodeMap(NodeMap, MutableMapping[frs.Label, Node]):
         self.__setitem__(key, value)
 
 
-GraphAction: TypeAlias = tuple  # TODO, but probably needs an enum for action type
+class GraphAction(Protocol):
+    def inverse(self) -> GraphAction: ...
+
+
+@dataclasses.dataclass(frozen=True)
+class AddNode:
+    node: Node
+
+    def inverse(self) -> RemoveNode:
+        return RemoveNode(self.node)
+
+
+@dataclasses.dataclass(frozen=True)
+class RemoveNode:
+    node: Node
+
+    def inverse(self) -> AddNode:
+        return AddNode(self.node)
+
+
+@dataclasses.dataclass(frozen=True)
+class AddEdge:
+    edge: EdgeTuple
+
+    def inverse(self) -> RemoveEdge:
+        return RemoveEdge(self.edge)
+
+
+@dataclasses.dataclass(frozen=True)
+class RemoveEdge:
+    edge: EdgeTuple
+
+    def inverse(self) -> AddEdge:
+        return AddEdge(self.edge)
+
+
+@dataclasses.dataclass(frozen=True)
+class RenameNode:
+    node: Node
+    old_label: frs.Label
+    new_label: frs.Label
+
+    def inverse(self) -> RenameNode:
+        return RenameNode(self.node, self.new_label, self.old_label)
+
+
+# ...
+
 GraphDiff: TypeAlias = list[GraphAction]
 
 
@@ -166,6 +217,32 @@ class Workflow(Node[frs.WorkflowNode, frs.LiveWorkflow], Graph):
     def to_locked_macro(self) -> Macro:
         raise NotImplementedError()
 
+    @staticmethod
+    def _flatten(diffs: Iterable[GraphDiff]) -> GraphDiff:
+        return list(itertools.chain.from_iterable(diffs))
+
+    @staticmethod
+    def _undoable(method):
+        @functools.wraps(method)
+        def wrapper(self, *args, **kwargs):
+            diff = method(self, *args, **kwargs)
+            self.undo_stack.append(diff)
+            self.redo_stack.clear()  # branching invalidates redo history
+            return diff
+
+        return wrapper
+
+    def get_node(self, node: Node | frs.Label) -> Node:
+        if isinstance(node, str):
+            return self.nodes[node]
+        else:
+            owned = self.nodes.get(node.label, None)
+            if owned is None or node is not owned:
+                raise KeyError(
+                    f"Cannot get {node!r} named {node.label!r} -- no such node is owned."
+                )
+            return node
+
     def create_input(
         self,
         label: frs.Label,
@@ -174,72 +251,151 @@ class Workflow(Node[frs.WorkflowNode, frs.LiveWorkflow], Graph):
     ) -> GraphDiff:
         raise NotImplementedError()
 
+    @_undoable
     def remove_input(self, label: frs.Label) -> GraphDiff:
         raise NotImplementedError()
 
+    @_undoable
     def rename_input(self, label: frs.Label) -> GraphDiff:
         raise NotImplementedError()
 
+    @_undoable
     def create_output(
         self, label: frs.Label, type_hint: type | None = None
     ) -> GraphDiff:
         raise NotImplementedError()
 
+    @_undoable
     def remove_output(self, label: frs.Label) -> GraphDiff:
         raise NotImplementedError()
 
+    @_undoable
     def add_port_hint(
         self, port: InputPort | OutputPort, hint: type | None
     ) -> GraphDiff:
         raise NotImplementedError()
 
+    @_undoable
     def remove_port_hint(self, port: InputPort | OutputPort) -> GraphDiff:
         return self.add_port_hint(port, None)
 
+    @_undoable
     def add_port_metadata(
         self, port: InputPort | OutputPort, metadata: semantikon.TypeMetadata | None
     ) -> GraphDiff:
         raise NotImplementedError()
 
+    @_undoable
     def remove_port_metadata(self, port: InputPort | OutputPort) -> GraphDiff:
         return self.add_port_metadata(port, None)
 
+    @_undoable
     def rename_output(self, label: frs.Label) -> GraphDiff:
         raise NotImplementedError()
 
+    @_undoable
     def add_node(self, *nodes: Node) -> GraphDiff:
-        raise NotImplementedError()
+        return self._flatten(self._add_node(node) for node in nodes)
 
-    def remove_node(self, *nodes: Node) -> GraphDiff:
-        raise NotImplementedError()
+    def _add_node(self, node: Node) -> GraphDiff:
+        self.nodes[node.label] = node
+        return [AddNode(node)]
 
+    @_undoable
+    def remove_node(self, *nodes: Node | frs.Label) -> GraphDiff:
+        return self._flatten(self._remove_node(self.get_node(node)) for node in nodes)
+
+    def _remove_node(self, node: Node) -> GraphDiff:
+        disconnect_diff = self.disconnect(node)
+        del self.nodes[node.label]
+        remove_diff = [RemoveNode(node)]
+        return disconnect_diff + remove_diff
+
+    @_undoable
     def rename_node(self, node: Node, label: frs.Label) -> GraphDiff:
         raise NotImplementedError()
 
-    def connect(self, *edges) -> GraphDiff:
+    @_undoable
+    def add_edge(self, *edges: EdgeTuple) -> GraphDiff:
+        return self._flatten(self._add_edge(edge) for edge in edges)
+
+    def _add_edge(self, edge: EdgeTuple) -> GraphDiff:
+        # TODO: Maybe verify it's not already there? Not costless though
+        self.edges.append(edge)
+        return [AddEdge(edge)]
+
+    @_undoable
+    def remove_edge(self, *edges: EdgeTuple) -> GraphDiff:
+        return self._flatten(self._add_edge(edge) for edge in edges)
+
+    def _remove_edge(self, edge: EdgeTuple):
+        # TODO: Fail more cleanly
+        self.edges.remove(edge)
+        return [RemoveEdge(edge)]
+
+    @_undoable
+    def disconnect(self, *nodes: Node | frs.Label) -> GraphDiff:
+        return self._flatten(self._disconnect(self.get_node(node)) for node in nodes)
+
+    def _disconnect(self, node: Node) -> GraphDiff:
+        participating_edges: EdgeList = [
+            edge
+            for edge in self.edges
+            if node.label in (edge.source.node, edge.target.node)
+        ]
+        return self.remove_edge(*participating_edges)
+
+    @_undoable
+    def group(self, *nodes: Node) -> GraphDiff:
         raise NotImplementedError()
 
-    def disconnect(self, *edges) -> GraphDiff:
-        raise NotImplementedError()
-
-    def group(self, *nodes) -> GraphDiff:
-        raise NotImplementedError()
-
-    def ungroup(self, *nodes) -> GraphDiff:
+    @_undoable  # Lossy on underlying macro function reference, if any
+    def ungroup(
+        self, graph: Macro | Workflow, block_if_reference: bool = False
+    ) -> GraphDiff:
+        if (
+            block_if_reference
+            and isinstance(graph, Macro)
+            and graph.recipe.reference is not None
+        ):
+            raise ValueError(
+                f"Cannot ungroup {graph.lexical_path!r} a -- it is a "
+                f"{graph.__class__.__name__} with an underlying python reference "
+                f"({graph.recipe.reference!r}). Override by setting "
+                "`block_if_reference=False`"
+            )
         raise NotImplementedError()
 
     def _undo_diff(self, diff: GraphDiff) -> GraphDiff:
-        # For user-facing undo, and for rolling back failed change attempts
-        raise NotImplementedError()
+        inverse_diff = [action.inverse() for action in reversed(diff)]
+        for action in inverse_diff:
+            self._dispatch(action)
+        return inverse_diff
 
     def undo(self, steps: int = 1) -> list[GraphDiff]:
         # Iteratively pop from the undo stack and send to the private _undo_diff
+        # Move undone activity onto the redo stack
         raise NotImplementedError()
 
     def _redo_diff(self, diff: GraphDiff) -> GraphDiff:
-        raise NotImplementedError()
+        for action in reversed(diff):
+            self._dispatch(action)
+        return diff
 
     def redo(self, steps: int = 1) -> list[GraphDiff]:
+        # Iteratively pop from the redo stack and send to the private _redo_diff
+        # Move redone activity back onto the undo stack
+        raise NotImplementedError()
+
+    def _dispatch(self, action: GraphAction) -> None:
+        match action:
+            case AddNode(node=node):
+                self._add_node(node)  # node: Node, fully narrowed
+            case RemoveNode(node=node):
+                self._remove_node(node)
+            case AddEdge(edge=edge):
+                self._add_edge(edge)
+            # ...
         raise NotImplementedError()
 
 
@@ -261,9 +417,9 @@ class Macro(StaticGraph[frs.WorkflowNode, frs.LiveWorkflow], Graph):
 
     def _build_edges(self, recipe: frs.WorkflowNode) -> EdgeList:
         return (
-            [(source, target) for target, source in recipe.input_edges.items()]
-            + [(source, target) for target, source in recipe.edges.items()]
-            + [(source, target) for target, source in recipe.output_edges.items()]
+            EdgeList(EdgeTuple(s, t) for t, s in recipe.input_edges.items())
+            + EdgeList(EdgeTuple(s, t) for t, s in recipe.edges.items())
+            + EdgeList(EdgeTuple(s, t) for t, s in recipe.output_edges.items())
         )
 
     def evaluate(
