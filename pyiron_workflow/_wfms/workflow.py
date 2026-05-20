@@ -118,6 +118,8 @@ GraphDiff: TypeAlias = list[GraphAction]
 class Workflow(Node[frs.WorkflowNode, frs.LiveWorkflow], Graph):
     """This is the key mutable one"""
 
+    _inputs: MutablePortMap[InputPort]
+    _outputs: MutablePortMap[OutputPort]
     undo_stack: collections.deque[GraphDiff]
     redo_stack: collections.deque[GraphDiff]
 

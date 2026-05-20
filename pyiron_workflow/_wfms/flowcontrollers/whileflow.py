@@ -20,12 +20,14 @@ class While(StaticGraph[frs.WhileNode, frs.LiveWhile]):
     def _build_nodes(self, recipe: frs.WhileNode) -> NodeMap:
         return NodeMap(
             self,
-            constructors.recipe2static(
-                recipe.case.condition.label, recipe.case.condition.node, owner=self
-            ),
-            constructors.recipe2static(
-                recipe.case.body.label, recipe.case.body.node, owner=self
-            ),
+            {
+                recipe.case.condition.label: constructors.recipe2static(
+                    recipe.case.condition.label, recipe.case.condition.node, owner=self
+                ),
+                recipe.case.body.label: constructors.recipe2static(
+                    recipe.case.body.label, recipe.case.body.node, owner=self
+                ),
+            },
         )
 
     def _build_edges(self, recipe: frs.WhileNode) -> frs.Edges:

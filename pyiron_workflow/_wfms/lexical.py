@@ -1,7 +1,7 @@
 from __future__ import annotations
 
 import keyword
-from collections.abc import Mapping
+from collections.abc import Iterable, Mapping
 from typing import Any, Generic, Protocol, TypeVar
 
 from flowrep.api import schemas as frs
@@ -70,6 +70,7 @@ class HasLexicalPath(Protocol):
     def lexical_path(self) -> LexicalPath: ...
 
 
+OwnerType = TypeVar("OwnerType", bound=HasLexicalPath)
 OwnerType_co = TypeVar("OwnerType_co", bound=HasLexicalPath, covariant=True)  # for maps
 
 
@@ -87,25 +88,22 @@ class Lexical(Protocol[OwnerType_co]):
 LexicalType = TypeVar("LexicalType", bound=Lexical[Any])
 
 
-class LexicalMap(Mapping[frs.Label, LexicalType], Generic[LexicalType, OwnerType_co]):
+class LexicalMap(Mapping[frs.Label, LexicalType], Generic[LexicalType, OwnerType]):
 
     __slots__ = ("_pwf_lexical_map__data", "_pwf_lexical_map__owner")
-
     _pwf_lexical_map__data: dict[frs.Label, LexicalType]
-    _pwf_lexical_map__owner: OwnerType_co
+    _pwf_lexical_map__owner: OwnerType
 
-    def __init__(self, owner: OwnerType_co, *items: LexicalType):
+    def __init__(
+        self,
+        owner: OwnerType,
+        data: Mapping[frs.Label, LexicalType] | None = None,
+        /,
+    ):
         object.__setattr__(self, "_pwf_lexical_map__owner", owner)
-        if not_co_owned := {
-            i.lexical_path: None if i.owner is None else i.owner.lexical_path
-            for i in items
-            if i.owner is not owner
-        }:
-            raise ValueError(
-                f"Map owned by {owner.lexical_path!r} cannot be initialized with "
-                f"items that have a different owner. item: owner = {not_co_owned}"
-            )
-        object.__setattr__(self, "_pwf_lexical_map__data", {i.label: i for i in items})
+        data = data if data is not None else {}
+        check_co_ownership(owner, data.values())
+        object.__setattr__(self, "_pwf_lexical_map__data", dict(data))
 
     def __getitem__(self, k):
         if k in self.__slots__:
@@ -127,3 +125,15 @@ class LexicalMap(Mapping[frs.Label, LexicalType], Generic[LexicalType, OwnerType
             raise AttributeError(
                 f"{type(self).__name__!r} has no attribute {item!r}"
             ) from None
+
+
+def check_co_ownership(owner: HasLexicalPath, items: Iterable[Lexical[Any]]) -> None:
+    if not_co_owned := {
+        i.lexical_path: None if i.owner is None else i.owner.lexical_path
+        for i in items
+        if i.owner is not owner
+    }:
+        raise ValueError(
+            f"Map owned by {owner.lexical_path!r} cannot be initialized with "
+            f"items that have a different owner. item: owner = {not_co_owned}"
+        )

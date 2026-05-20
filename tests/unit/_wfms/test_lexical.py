@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import types
 import unittest
 from dataclasses import dataclass, field
 
@@ -8,7 +9,7 @@ from flowrep.api import schemas as frs
 from pyiron_workflow._wfms import lexical
 
 # --------------------------------------------------------------------------- #
-# Tiny structural stubs (satisfy `HasLexicalPath` / `Lexical` protocols). #
+# Tiny structural stubs (satisfy `HasLexicalPath` / `Lexical` protocols).     #
 # --------------------------------------------------------------------------- #
 
 
@@ -28,6 +29,10 @@ class _StubItem:
         self.lexical_path = f"{base}.{self.label}"
 
 
+class _LexicalMapSubclass(lexical.LexicalMap[_StubItem, _StubOwner]):
+    """Used to verify helpers preserve the concrete class type."""
+
+
 class TestLexicalMap(unittest.TestCase):
     def setUp(self) -> None:
         self.owner = _StubOwner(lexical_path="owner")
@@ -35,10 +40,10 @@ class TestLexicalMap(unittest.TestCase):
         self.foo = _StubItem(label="foo", owner=self.owner)
         self.bar = _StubItem(label="bar", owner=self.owner)
         self.map: lexical.LexicalMap[_StubItem, _StubOwner] = lexical.LexicalMap(
-            self.owner, self.foo, self.bar
+            self.owner, {"foo": self.foo, "bar": self.bar}
         )
 
-    # ---- __slots__ contract ------------------------------------------------ #
+    # ---- __slots__ contract ----------------------------------------------- #
 
     def test_slots_is_the_contract(self) -> None:
         self.assertEqual(
@@ -46,17 +51,44 @@ class TestLexicalMap(unittest.TestCase):
             ("_pwf_lexical_map__data", "_pwf_lexical_map__owner"),
         )
 
-    # ---- __init__ co-ownership invariant ----------------------------------- #
+    # ---- __init__ --------------------------------------------------------- #
 
-    def test_init_co_owned_items_silent(self) -> None:
-        # The fixture-built map already exercises this; an explicit assertion
-        # documents intent.
-        m = lexical.LexicalMap(self.owner, self.foo, self.bar)
-        self.assertEqual(len(m), 2)
-
-    def test_init_empty_is_silent(self) -> None:
+    def test_init_no_data(self) -> None:
         m: lexical.LexicalMap[_StubItem, _StubOwner] = lexical.LexicalMap(self.owner)
         self.assertEqual(len(m), 0)
+
+    def test_init_empty_dict(self) -> None:
+        m = lexical.LexicalMap(self.owner, {})
+        self.assertEqual(len(m), 0)
+
+    def test_init_with_data(self) -> None:
+        m = lexical.LexicalMap(self.owner, {"foo": self.foo, "bar": self.bar})
+        self.assertEqual(set(m), {"foo", "bar"})
+        self.assertIs(m["foo"], self.foo)
+        self.assertIs(m["bar"], self.bar)
+
+    def test_init_keys_independent_of_labels(self) -> None:
+        # The dict path trusts caller-chosen keys; they need not match
+        # `value.label`.
+        m = lexical.LexicalMap(
+            self.owner, {"alias_foo": self.foo, "alias_bar": self.bar}
+        )
+        self.assertEqual(set(m), {"alias_foo", "alias_bar"})
+        self.assertIs(m["alias_foo"], self.foo)
+        self.assertIs(m["alias_bar"], self.bar)
+
+    def test_init_copies_input_dict(self) -> None:
+        src = {"foo": self.foo}
+        m = lexical.LexicalMap(self.owner, src)
+        src["bar"] = self.bar  # mutate source post-construction
+        self.assertNotIn("bar", m)
+
+    def test_init_accepts_non_dict_mapping(self) -> None:
+        # Any Mapping is acceptable; it's coerced to dict internally.
+
+        proxy = types.MappingProxyType({"foo": self.foo})
+        m = lexical.LexicalMap(self.owner, proxy)
+        self.assertIs(m["foo"], self.foo)
 
     def test_init_mismatched_owner_raises(self) -> None:
         bad = _StubItem(label="bad", owner=self.other)
@@ -64,13 +96,10 @@ class TestLexicalMap(unittest.TestCase):
             ValueError,
             "Map owned by 'owner' cannot be initialized with items that have a different owner",
         ) as ctx:
-            lexical.LexicalMap(self.owner, self.foo, bad)
+            lexical.LexicalMap(self.owner, {"foo": self.foo, "bad": bad})
         msg = str(ctx.exception)
-        self.assertIn("owner", msg)
-        # Offending dict {item.lexical_path: owner.lexical_path} appears in msg.
         self.assertIn(bad.lexical_path, msg)
         self.assertIn(self.other.lexical_path, msg)
-        # Owner of the map is also referenced.
         self.assertIn(self.owner.lexical_path, msg)
 
     def test_init_none_owner_raises(self) -> None:
@@ -79,13 +108,12 @@ class TestLexicalMap(unittest.TestCase):
             ValueError,
             "Map owned by 'owner' cannot be initialized with items that have a different owner",
         ) as ctx:
-            lexical.LexicalMap(self.owner, orphan)
+            lexical.LexicalMap(self.owner, {"orphan": orphan})
         msg = str(ctx.exception)
         self.assertIn(orphan.lexical_path, msg)
-        # The None branch must surface as `None` in the offending dict.
         self.assertIn("None", msg)
 
-    # ---- __getitem__ ------------------------------------------------------- #
+    # ---- __getitem__ ------------------------------------------------------ #
 
     def test_getitem_normal_label(self) -> None:
         self.assertIs(self.map["foo"], self.foo)
@@ -107,7 +135,7 @@ class TestLexicalMap(unittest.TestCase):
         self.assertIn("reserved", str(ctx.exception))
         self.assertIn("_pwf_lexical_map__owner", str(ctx.exception))
 
-    # ---- __iter__ / __len__ ----------------------------------------------- #
+    # ---- __iter__ / __len__ ---------------------------------------------- #
 
     def test_iter_matches_underlying_dict(self) -> None:
         self.assertEqual(list(iter(self.map)), ["foo", "bar"])
@@ -119,15 +147,13 @@ class TestLexicalMap(unittest.TestCase):
         )
         self.assertEqual(len(empty), 0)
 
-    # ---- __getattr__ ------------------------------------------------------- #
+    # ---- __getattr__ ------------------------------------------------------ #
 
     def test_getattr_returns_item(self) -> None:
         self.assertIs(self.map.foo, self.foo)
         self.assertIs(self.map.bar, self.bar)
 
     def test_getattr_reserved_data_name_raises(self) -> None:
-        # Note: `__getattribute__` finds the real slot first; we exercise the
-        # `__getattr__` guard by going through it directly.
         with self.assertRaises(AttributeError):
             self.map.__getattr__("_pwf_lexical_map__data")
 
@@ -136,7 +162,6 @@ class TestLexicalMap(unittest.TestCase):
             self.map.__getattr__("_pwf_lexical_map__owner")
 
     def test_getattr_reserved_prefix_raises(self) -> None:
-        # Any name with the guarded prefix short-circuits.
         with self.assertRaises(AttributeError):
             self.map.__getattr__("_pwf_lexical_map_anything")
 
@@ -147,6 +172,36 @@ class TestLexicalMap(unittest.TestCase):
         self.assertIn("has no attribute", msg)
         self.assertIn("nonexistent", msg)
         self.assertIn(type(self.map).__name__, msg)
+
+
+class TestCheckCoOwnership(unittest.TestCase):
+    def setUp(self) -> None:
+        self.owner = _StubOwner(lexical_path="owner")
+        self.other = _StubOwner(lexical_path="other")
+        self.foo = _StubItem(label="foo", owner=self.owner)
+
+    def test_silent_on_co_owned(self) -> None:
+        lexical.check_co_ownership(self.owner, [self.foo])  # no raise
+
+    def test_silent_on_empty(self) -> None:
+        lexical.check_co_ownership(self.owner, [])  # no raise
+
+    def test_raises_on_mismatched(self) -> None:
+        bad = _StubItem(label="bad", owner=self.other)
+        with self.assertRaisesRegex(ValueError, "different owner") as ctx:
+            lexical.check_co_ownership(self.owner, [self.foo, bad])
+        msg = str(ctx.exception)
+        self.assertIn(bad.lexical_path, msg)
+        self.assertIn(self.other.lexical_path, msg)
+        self.assertIn(self.owner.lexical_path, msg)
+
+    def test_raises_on_none_owner(self) -> None:
+        orphan = _StubItem(label="orphan", owner=None)
+        with self.assertRaisesRegex(ValueError, "different owner") as ctx:
+            lexical.check_co_ownership(self.owner, [orphan])
+        msg = str(ctx.exception)
+        self.assertIn(orphan.lexical_path, msg)
+        self.assertIn("None", msg)
 
 
 class TestLexicalPath(unittest.TestCase):

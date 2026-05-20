@@ -7,6 +7,7 @@ from pyiron_snippets import retrieve
 from pyiron_workflow._wfms import constructors, dag, execution
 from pyiron_workflow._wfms.datatypes import (
     EdgeList,
+    Node,
     NodeMap,
     StaticGraph,
 )
@@ -23,16 +24,16 @@ class Try(StaticGraph[frs.TryNode, frs.LiveTry]):
         return frs.LiveTry
 
     def _build_nodes(self, recipe: frs.TryNode) -> NodeMap:
-        nodes: list = [
-            constructors.recipe2static(
+        nodes: dict[frs.Label, Node] = {
+            recipe.try_node.label: constructors.recipe2static(
                 recipe.try_node.label, recipe.try_node.node, owner=self
             )
-        ]
+        }
         for case in recipe.exception_cases:
-            nodes.append(
-                constructors.recipe2static(case.body.label, case.body.node, owner=self)
+            nodes[case.body.label] = constructors.recipe2static(
+                case.body.label, case.body.node, owner=self
             )
-        return NodeMap(self, *nodes)
+        return NodeMap(self, nodes)
 
     def _build_edges(self, recipe: frs.TryNode) -> EdgeList:
         return []

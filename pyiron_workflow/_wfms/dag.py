@@ -28,10 +28,12 @@ class Macro(StaticGraph[frs.WorkflowNode, frs.LiveWorkflow], Graph):
     def _build_nodes(self, recipe: frs.WorkflowNode) -> NodeMap:
         return NodeMap(
             self,
-            *(
-                constructors.recipe2static(node_label, node_recipe, owner=self)
+            {
+                node_label: constructors.recipe2static(
+                    node_label, node_recipe, owner=self
+                )
                 for node_label, node_recipe in recipe.nodes.items()
-            ),
+            },
         )
 
     def _build_edges(self, recipe: frs.WorkflowNode) -> EdgeList:

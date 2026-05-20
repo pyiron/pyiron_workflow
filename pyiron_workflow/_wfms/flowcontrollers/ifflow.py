@@ -6,6 +6,7 @@ from flowrep.api import tools as frt
 from pyiron_workflow._wfms import constructors, dag, execution
 from pyiron_workflow._wfms.datatypes import (
     EdgeList,
+    Node,
     NodeMap,
     StaticGraph,
 )
@@ -19,23 +20,19 @@ class If(StaticGraph[frs.IfNode, frs.LiveIf]):
         return frs.LiveIf
 
     def _build_nodes(self, recipe: frs.IfNode) -> NodeMap:
-        nodes: list = []
+        nodes: dict[frs.Label, Node] = {}
         for case in recipe.cases:
-            nodes.append(
-                constructors.recipe2static(
-                    case.condition.label, case.condition.node, owner=self
-                )
+            nodes[case.condition.label] = constructors.recipe2static(
+                case.condition.label, case.condition.node, owner=self
             )
-            nodes.append(
-                constructors.recipe2static(case.body.label, case.body.node, owner=self)
+            nodes[case.body.label] = constructors.recipe2static(
+                case.body.label, case.body.node, owner=self
             )
         if recipe.else_case is not None:
-            nodes.append(
-                constructors.recipe2static(
-                    recipe.else_case.label, recipe.else_case.node, owner=self
-                )
+            nodes[recipe.else_case.label] = constructors.recipe2static(
+                recipe.else_case.label, recipe.else_case.node, owner=self
             )
-        return NodeMap(self, *nodes)
+        return NodeMap(self, nodes)
 
     def _build_edges(self, recipe: frs.IfNode) -> EdgeList:
         return []

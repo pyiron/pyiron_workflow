@@ -3,6 +3,7 @@ from __future__ import annotations
 import abc
 import dataclasses
 import pathlib
+from collections.abc import Mapping
 from concurrent import futures
 from typing import ClassVar, Generic, NamedTuple, Protocol, TypeAlias, TypeVar
 
@@ -41,7 +42,7 @@ class OutputPort(Port):
 PortType = TypeVar("PortType", bound=Port)
 
 
-class PortMap(lexical.LexicalMap[PortType, lexical.OwnerType_co]): ...
+class PortMap(lexical.LexicalMap[PortType, lexical.OwnerType]): ...
 
 
 RecipeType = TypeVar(
@@ -66,11 +67,11 @@ class Node(
 
     @property
     @abc.abstractmethod
-    def inputs(self) -> PortMap[InputPort, Node]: ...
+    def inputs(self) -> Mapping[frs.Label, InputPort]: ...
 
     @property
     @abc.abstractmethod
-    def outputs(self) -> PortMap[OutputPort, Node]: ...
+    def outputs(self) -> Mapping[frs.Label, OutputPort]: ...
 
     @property
     @abc.abstractmethod
@@ -201,8 +202,8 @@ class StaticNode(Node[RecipeType, execution.ResultType], abc.ABC):
     def _build_inputs(self, live: execution.ResultType) -> PortMap[InputPort, Node]:
         return PortMap[InputPort, Node](
             self,
-            *(
-                InputPort(
+            {
+                label: InputPort(
                     label=label,
                     owner=self,
                     type_hint=annotation.annotation_to_type_hint(
@@ -214,14 +215,14 @@ class StaticNode(Node[RecipeType, execution.ResultType], abc.ABC):
                     has_default=label in self.recipe.inputs_with_defaults,
                 )
                 for label, flowrep_port in live.input_ports.items()
-            ),
+            },
         )
 
     def _build_outputs(self, live: execution.ResultType) -> PortMap[OutputPort, Node]:
         return PortMap[OutputPort, Node](
             self,
-            *(
-                OutputPort(
+            {
+                label: OutputPort(
                     label=label,
                     owner=self,
                     type_hint=annotation.annotation_to_type_hint(
@@ -232,7 +233,7 @@ class StaticNode(Node[RecipeType, execution.ResultType], abc.ABC):
                     ),
                 )
                 for label, flowrep_port in live.output_ports.items()
-            ),
+            },
         )
 
 

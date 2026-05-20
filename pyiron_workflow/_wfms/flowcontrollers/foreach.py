@@ -10,11 +10,11 @@ from pyiron_workflow._wfms import (
     dag,
     execution,
     transformers,
-    workflow,
 )
 from pyiron_workflow._wfms.datatypes import (
     EdgeList,
     EdgeTuple,
+    Node,
     NodeMap,
     StaticGraph,
 )
@@ -29,7 +29,10 @@ class ForEach(StaticGraph[frs.ForEachNode, frs.LiveForEach]):
 
     def _build_nodes(self, recipe: frs.ForEachNode) -> NodeMap:
         bn = self.recipe.body_node
-        return NodeMap(self, constructors.recipe2static(bn.label, bn.node, owner=self))
+        return NodeMap(
+            self,
+            {bn.label: constructors.recipe2static(bn.label, bn.node, owner=self)},
+        )
 
     def _build_edges(self, recipe: frs.ForEachNode) -> EdgeList:
         return EdgeList(
@@ -49,10 +52,8 @@ class ForEach(StaticGraph[frs.ForEachNode, frs.LiveForEach]):
         dag.populate_outputs(result)
         return run
 
-    def _build_runtime_dag(
-        self, run: execution.Run[frs.LiveForEach]
-    ) -> workflow.MutableNodeMap:
-        node_map = workflow.MutableNodeMap(self)
+    def _build_runtime_dag(self, run: execution.Run[frs.LiveForEach]) -> NodeMap:
+        runtime_map: dict[frs.Label, Node] = {}
 
         result = run.result
         recipe = result.recipe
@@ -84,7 +85,7 @@ class ForEach(StaticGraph[frs.ForEachNode, frs.LiveForEach]):
             scatter_node = transformers.Transform1toN(length).node(
                 result_scatter_label, owner=self
             )
-            node_map[result_scatter_label] = scatter_node
+            runtime_map[result_scatter_label] = scatter_node
             result.nodes[result_scatter_label] = (
                 scatter_node.generate_flowrep_live_node()
             )
@@ -93,7 +94,7 @@ class ForEach(StaticGraph[frs.ForEachNode, frs.LiveForEach]):
         # Body nodes
         for i in range(total_steps):
             result_body_label = self._body_label(body_label, i)
-            node_map[result_body_label] = body_node
+            runtime_map[result_body_label] = body_node
             result.nodes[result_body_label] = body_node.generate_flowrep_live_node()
 
         # Aggregator nodes
@@ -102,7 +103,7 @@ class ForEach(StaticGraph[frs.ForEachNode, frs.LiveForEach]):
             aggregator_node = transformers.TransformNto1(total_steps).node(
                 label, owner=self
             )
-            node_map[result_aggregator_label] = aggregator_node
+            runtime_map[result_aggregator_label] = aggregator_node
             result.nodes[result_aggregator_label] = (
                 aggregator_node.generate_flowrep_live_node()
             )
@@ -240,7 +241,7 @@ class ForEach(StaticGraph[frs.ForEachNode, frs.LiveForEach]):
         }
         result.output_edges = output_edges
 
-        return node_map
+        return NodeMap(self, runtime_map)
 
     @staticmethod
     def _body_to_parent_label_map(
