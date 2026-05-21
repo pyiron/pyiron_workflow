@@ -61,13 +61,13 @@ def _atomic_recipe(
     unpack_mode: frs.UnpackMode,
     restricted: dict[str, frs.RestrictedParamKind] | None = None,
     inputs_with_defaults: list[str] | None = None,
-) -> frs.AtomicNode:
+) -> frs.AtomicRecipe:
     reference = frs.PythonReference(
         info=versions.VersionInfo.of(func),
         inputs_with_defaults=inputs_with_defaults or [],
         restricted_input_kinds=restricted or {},
     )
-    return frs.AtomicNode(
+    return frs.AtomicRecipe(
         reference=reference,
         inputs=inputs,
         outputs=outputs,

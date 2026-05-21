@@ -47,12 +47,12 @@ class PortMap(lexical.LexicalMap[PortType, lexical.OwnerType]): ...
 
 RecipeType = TypeVar(
     "RecipeType",
-    frs.AtomicNode,
-    frs.ForEachNode,
-    frs.IfNode,
-    frs.TryNode,
-    frs.WhileNode,
-    frs.WorkflowNode,
+    frs.AtomicRecipe,
+    frs.ForEachRecipe,
+    frs.IfRecipe,
+    frs.TryRecipe,
+    frs.WhileRecipe,
+    frs.WorkflowRecipe,
 )
 
 

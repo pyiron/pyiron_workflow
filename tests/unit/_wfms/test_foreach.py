@@ -9,20 +9,20 @@ from pyiron_workflow._wfms.flowcontrollers import foreach
 from tests.unit._wfms import _fixtures
 
 
-def _atomic_body_recipe() -> frs.AtomicNode:
+def _atomic_body_recipe() -> frs.AtomicRecipe:
     """The `add(x, y)` atomic recipe — handy as a 2-input body."""
     return _fixtures.add.flowrep_recipe
 
 
-def _macro_body_recipe() -> frs.WorkflowNode:
+def _macro_body_recipe() -> frs.WorkflowRecipe:
     """The `macro(x, y, z)` workflow recipe — handy as a 3-input body."""
     return _fixtures.macro.flowrep_recipe
 
 
-def _build_nested_only_recipe() -> frs.ForEachNode:
+def _build_nested_only_recipe() -> frs.ForEachRecipe:
     """body=add(x, y); `x` nested, `y` broadcast."""
-    body = frs.LabeledNode(label="body", node=_atomic_body_recipe())
-    return frs.ForEachNode(
+    body = frs.LabeledRecipe(label="body", node=_atomic_body_recipe())
+    return frs.ForEachRecipe(
         inputs=["xs", "y"],
         outputs=["sums"],
         body_node=body,
@@ -40,10 +40,10 @@ def _build_nested_only_recipe() -> frs.ForEachNode:
     )
 
 
-def _build_zipped_only_recipe() -> frs.ForEachNode:
+def _build_zipped_only_recipe() -> frs.ForEachRecipe:
     """body=add(x, y); both zipped."""
-    body = frs.LabeledNode(label="body", node=_atomic_body_recipe())
-    return frs.ForEachNode(
+    body = frs.LabeledRecipe(label="body", node=_atomic_body_recipe())
+    return frs.ForEachRecipe(
         inputs=["xs", "ys"],
         outputs=["sums"],
         body_node=body,
@@ -61,10 +61,10 @@ def _build_zipped_only_recipe() -> frs.ForEachNode:
     )
 
 
-def _build_mixed_recipe() -> frs.ForEachNode:
+def _build_mixed_recipe() -> frs.ForEachRecipe:
     """body=macro(x, y, z); `x` nested, `y` and `z` zipped."""
-    body = frs.LabeledNode(label="body", node=_macro_body_recipe())
-    return frs.ForEachNode(
+    body = frs.LabeledRecipe(label="body", node=_macro_body_recipe())
+    return frs.ForEachRecipe(
         inputs=["xs", "ys", "ws"],
         outputs=["sums"],
         body_node=body,
@@ -81,15 +81,15 @@ def _build_mixed_recipe() -> frs.ForEachNode:
     )
 
 
-def _make_broadcast_only_recipe() -> frs.ForEachNode:
+def _make_broadcast_only_recipe() -> frs.ForEachRecipe:
     """body=add(x, y); both broadcast.
 
     The recipe-level validators forbid a ForEach with no iterated ports, so
     `model_construct` is used to bypass them — `_build_runtime_dag` doesn't
     care, it just reads fields.
     """
-    body = frs.LabeledNode(label="body", node=_atomic_body_recipe())
-    return frs.ForEachNode.model_construct(
+    body = frs.LabeledRecipe(label="body", node=_atomic_body_recipe())
+    return frs.ForEachRecipe.model_construct(
         inputs=["x", "y"],
         outputs=["out"],
         body_node=body,
@@ -287,13 +287,13 @@ class TestBuildRuntimeDagMixed(unittest.TestCase):
         self.assertEqual(observed_pairs, expected_pairs)
 
 
-def _build_broadcast_seed_recipe() -> frs.ForEachNode:
+def _build_broadcast_seed_recipe() -> frs.ForEachRecipe:
     """
     A valid ForEach recipe with the same input-port labels (`x`, `y`)
     as the broadcast-only recipe we'll swap in later.
     """
-    body = frs.LabeledNode(label="body", node=_atomic_body_recipe())
-    return frs.ForEachNode(
+    body = frs.LabeledRecipe(label="body", node=_atomic_body_recipe())
+    return frs.ForEachRecipe(
         inputs=["x", "y"],
         outputs=["out"],
         body_node=body,

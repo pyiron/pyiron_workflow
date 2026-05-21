@@ -13,16 +13,16 @@ from tests.unit._wfms import _fixtures
 # --------------------------------------------------------------------------- #
 
 
-def _no_else_recipe() -> frs.IfNode:
+def _no_else_recipe() -> frs.IfRecipe:
     """`if add(x, y): add(x, y) else: <nothing>` — single case, no `else`."""
     add_recipe = _fixtures.add.flowrep_recipe
-    return frs.IfNode(
+    return frs.IfRecipe(
         inputs=["x", "y"],
         outputs=["out"],
         cases=[
             frs.ConditionalCase(
-                condition=frs.LabeledNode(label="cond", node=add_recipe),
-                body=frs.LabeledNode(label="body", node=add_recipe),
+                condition=frs.LabeledRecipe(label="cond", node=add_recipe),
+                body=frs.LabeledRecipe(label="body", node=add_recipe),
             )
         ],
         input_edges={
@@ -39,7 +39,7 @@ def _no_else_recipe() -> frs.IfNode:
     )
 
 
-def _two_case_recipe(with_else: bool) -> frs.IfNode:
+def _two_case_recipe(with_else: bool) -> frs.IfRecipe:
     """Two-case If: `is_positive(x) → identity(x); is_negative(x) → negate(x)`.
 
     With `with_else=True` the else branch returns `identity(x)` (so `x=0`
@@ -53,12 +53,12 @@ def _two_case_recipe(with_else: bool) -> frs.IfNode:
 
     cases = [
         frs.ConditionalCase(
-            condition=frs.LabeledNode(label="cond_pos", node=pos_recipe),
-            body=frs.LabeledNode(label="body_pos", node=identity_recipe),
+            condition=frs.LabeledRecipe(label="cond_pos", node=pos_recipe),
+            body=frs.LabeledRecipe(label="body_pos", node=identity_recipe),
         ),
         frs.ConditionalCase(
-            condition=frs.LabeledNode(label="cond_neg", node=neg_recipe),
-            body=frs.LabeledNode(label="body_neg", node=negate_recipe),
+            condition=frs.LabeledRecipe(label="cond_neg", node=neg_recipe),
+            body=frs.LabeledRecipe(label="body_neg", node=negate_recipe),
         ),
     ]
     input_edges: dict[frs.TargetHandle, frs.InputSource] = {
@@ -84,9 +84,9 @@ def _two_case_recipe(with_else: bool) -> frs.IfNode:
         prospective_output_edges[frs.OutputTarget(port="out")].append(
             frs.SourceHandle(node="else_body", port="x")
         )
-        else_case = frs.LabeledNode(label="else_body", node=identity_recipe)
+        else_case = frs.LabeledRecipe(label="else_body", node=identity_recipe)
 
-    return frs.IfNode(
+    return frs.IfRecipe(
         inputs=["x"],
         outputs=["out"],
         cases=cases,
@@ -96,7 +96,7 @@ def _two_case_recipe(with_else: bool) -> frs.IfNode:
     )
 
 
-def _macro_with_no_else_and_downstream() -> frs.WorkflowNode:
+def _macro_with_no_else_and_downstream() -> frs.WorkflowRecipe:
     """
     Macro: `if add(x, y): add(x, y)` then a downstream `identity` sibling.
 
@@ -105,7 +105,7 @@ def _macro_with_no_else_and_downstream() -> frs.WorkflowNode:
     sibling — so :func:`populate_outputs` does not hit the skipped node.
     """
     identity_recipe = _fixtures.identity.flowrep_recipe
-    return frs.WorkflowNode(
+    return frs.WorkflowRecipe(
         inputs=["x", "y"],
         outputs=["z"],
         nodes={"if_0": _no_else_recipe(), "downstream": identity_recipe},
@@ -327,23 +327,23 @@ class TestStageBodyOutputEdges(unittest.TestCase):
         )
 
     def test_skips_outputs_without_matching_body(self) -> None:
-        unrelated_body_recipe = frs.IfNode(
+        unrelated_body_recipe = frs.IfRecipe(
             inputs=["x"],
             outputs=["out"],
             cases=[
                 frs.ConditionalCase(
-                    condition=frs.LabeledNode(
+                    condition=frs.LabeledRecipe(
                         label="cond", node=_fixtures.is_positive.flowrep_recipe
                     ),
-                    body=frs.LabeledNode(
+                    body=frs.LabeledRecipe(
                         label="body_a", node=_fixtures.identity.flowrep_recipe
                     ),
                 ),
                 frs.ConditionalCase(
-                    condition=frs.LabeledNode(
+                    condition=frs.LabeledRecipe(
                         label="cond2", node=_fixtures.is_negative.flowrep_recipe
                     ),
-                    body=frs.LabeledNode(
+                    body=frs.LabeledRecipe(
                         label="body_b", node=_fixtures.identity.flowrep_recipe
                     ),
                 ),
@@ -385,11 +385,11 @@ class TestConditionValue(unittest.TestCase):
         cond_recipe = _fixtures.add.flowrep_recipe
         body_recipe = _fixtures.identity.flowrep_recipe
         case = frs.ConditionalCase(
-            condition=frs.LabeledNode(label="cond", node=cond_recipe),
-            body=frs.LabeledNode(label="body", node=body_recipe),
+            condition=frs.LabeledRecipe(label="cond", node=cond_recipe),
+            body=frs.LabeledRecipe(label="body", node=body_recipe),
             condition_output="output_0",
         )
-        recipe = frs.IfNode(
+        recipe = frs.IfRecipe(
             inputs=["x", "y"],
             outputs=["out"],
             cases=[case],

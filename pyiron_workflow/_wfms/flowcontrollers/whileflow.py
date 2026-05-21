@@ -10,14 +10,14 @@ from pyiron_workflow._wfms.datatypes import (
 )
 
 
-class While(StaticGraph[frs.WhileNode, frs.LiveWhile]):
-    _recipe: frs.WhileNode
+class While(StaticGraph[frs.WhileRecipe, frs.LiveWhile]):
+    _recipe: frs.WhileRecipe
 
     @classmethod
     def _result_type(cls) -> type[frs.LiveWhile]:
         return frs.LiveWhile
 
-    def _build_nodes(self, recipe: frs.WhileNode) -> NodeMap:
+    def _build_nodes(self, recipe: frs.WhileRecipe) -> NodeMap:
         return NodeMap(
             self,
             {
@@ -30,7 +30,7 @@ class While(StaticGraph[frs.WhileNode, frs.LiveWhile]):
             },
         )
 
-    def _build_edges(self, recipe: frs.WhileNode) -> frs.Edges:
+    def _build_edges(self, recipe: frs.WhileRecipe) -> frs.Edges:
         """
         Cyclic 'iteration' edges exist from the prospective body back to the
         prospective condition and prospective body inputs. The resulting edges list
@@ -105,12 +105,12 @@ class While(StaticGraph[frs.WhileNode, frs.LiveWhile]):
         node_label: frs.Label,
         result: frs.LiveIf,
         node_recipe: (
-            frs.AtomicNode
-            | frs.ForEachNode
-            | frs.IfNode
-            | frs.TryNode
-            | frs.WhileNode
-            | frs.WorkflowNode
+            frs.AtomicRecipe
+            | frs.ForEachRecipe
+            | frs.IfRecipe
+            | frs.TryRecipe
+            | frs.WhileRecipe
+            | frs.WorkflowRecipe
         ),
     ) -> None:
         result.nodes[node_label] = frt.recipe2live(node_recipe)
@@ -119,7 +119,7 @@ class While(StaticGraph[frs.WhileNode, frs.LiveWhile]):
     def _stage_child_edges(
         indexed_label: frs.Label,
         base_label: frs.Label,
-        recipe: frs.WhileNode,
+        recipe: frs.WhileRecipe,
         result: frs.LiveWhile,
         last_body_label: frs.Label | None,
     ) -> None:
@@ -141,7 +141,7 @@ class While(StaticGraph[frs.WhileNode, frs.LiveWhile]):
     @staticmethod
     def _stage_final_output_edges(
         result: frs.LiveWhile,
-        recipe: frs.WhileNode,
+        recipe: frs.WhileRecipe,
         last_body_label: frs.Label | None,
     ) -> None:
         for target, source in recipe.output_edges.items():

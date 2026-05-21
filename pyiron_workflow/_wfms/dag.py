@@ -18,14 +18,14 @@ from pyiron_workflow._wfms.datatypes import (
 )
 
 
-class Macro(StaticGraph[frs.WorkflowNode, frs.LiveWorkflow], Graph):
-    _recipe: frs.WorkflowNode
+class Macro(StaticGraph[frs.WorkflowRecipe, frs.LiveWorkflow], Graph):
+    _recipe: frs.WorkflowRecipe
 
     @classmethod
     def _result_type(cls) -> type[frs.LiveWorkflow]:
         return frs.LiveWorkflow
 
-    def _build_nodes(self, recipe: frs.WorkflowNode) -> NodeMap:
+    def _build_nodes(self, recipe: frs.WorkflowRecipe) -> NodeMap:
         return NodeMap(
             self,
             {
@@ -36,7 +36,7 @@ class Macro(StaticGraph[frs.WorkflowNode, frs.LiveWorkflow], Graph):
             },
         )
 
-    def _build_edges(self, recipe: frs.WorkflowNode) -> EdgeList:
+    def _build_edges(self, recipe: frs.WorkflowRecipe) -> EdgeList:
         return (
             EdgeList(EdgeTuple(s, t) for t, s in recipe.input_edges.items())
             + EdgeList(EdgeTuple(s, t) for t, s in recipe.edges.items())

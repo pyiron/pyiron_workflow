@@ -11,12 +11,12 @@ from pyiron_workflow._wfms import execution
 from pyiron_workflow._wfms.datatypes import StaticNode
 
 
-class Atomic(StaticNode[frs.AtomicNode, frs.LiveAtomic]):
+class Atomic(StaticNode[frs.AtomicRecipe, frs.LiveAtomic]):
 
     def __init__(
         self,
         label: frs.Label,
-        recipe: frs.AtomicNode,
+        recipe: frs.AtomicRecipe,
         *,
         owner=None,
     ):

@@ -16,14 +16,14 @@ from pyiron_workflow._wfms.datatypes import (
 class UnmatchedExceptionError(TypeError): ...
 
 
-class Try(StaticGraph[frs.TryNode, frs.LiveTry]):
-    _recipe: frs.TryNode
+class Try(StaticGraph[frs.TryRecipe, frs.LiveTry]):
+    _recipe: frs.TryRecipe
 
     @classmethod
     def _result_type(cls) -> type[frs.LiveTry]:
         return frs.LiveTry
 
-    def _build_nodes(self, recipe: frs.TryNode) -> NodeMap:
+    def _build_nodes(self, recipe: frs.TryRecipe) -> NodeMap:
         nodes: dict[frs.Label, Node] = {
             recipe.try_node.label: constructors.recipe2static(
                 recipe.try_node.label, recipe.try_node.node, owner=self
@@ -35,7 +35,7 @@ class Try(StaticGraph[frs.TryNode, frs.LiveTry]):
             )
         return NodeMap(self, nodes)
 
-    def _build_edges(self, recipe: frs.TryNode) -> EdgeList:
+    def _build_edges(self, recipe: frs.TryRecipe) -> EdgeList:
         return []
 
     def evaluate(
@@ -96,12 +96,12 @@ class Try(StaticGraph[frs.TryNode, frs.LiveTry]):
         node_label: frs.Label,
         result: frs.LiveIf,
         node_recipe: (
-            frs.AtomicNode
-            | frs.ForEachNode
-            | frs.IfNode
-            | frs.TryNode
-            | frs.WhileNode
-            | frs.WorkflowNode
+            frs.AtomicRecipe
+            | frs.ForEachRecipe
+            | frs.IfRecipe
+            | frs.TryRecipe
+            | frs.WhileRecipe
+            | frs.WorkflowRecipe
         ),
     ) -> None:
         result.nodes[node_label] = frt.recipe2live(node_recipe)
@@ -110,7 +110,7 @@ class Try(StaticGraph[frs.TryNode, frs.LiveTry]):
     def _stage_node_input_edges(
         node_label: frs.Label,
         result: frs.LiveTry,
-        recipe: frs.TryNode,
+        recipe: frs.TryRecipe,
     ) -> None:
         for target, source in recipe.input_edges.items():
             if target.node == node_label:
@@ -120,7 +120,7 @@ class Try(StaticGraph[frs.TryNode, frs.LiveTry]):
     def _stage_body_output_edges(
         body_label: frs.Label,
         result: frs.LiveTry,
-        recipe: frs.TryNode,
+        recipe: frs.TryRecipe,
     ) -> None:
         for target, sources in recipe.prospective_output_edges.items():
             for source in sources:

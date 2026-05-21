@@ -22,8 +22,8 @@ class Transform1toN:
         self.n = n
 
     @property
-    def recipe(self) -> frs.AtomicNode:
-        return frs.AtomicNode(
+    def recipe(self) -> frs.AtomicRecipe:
+        return frs.AtomicRecipe(
             reference=frs.PythonReference(
                 info=versions.VersionInfo.of(self.iterable_to_outputs),
                 restricted_input_kinds={
@@ -58,8 +58,8 @@ class TransformNto1:
         self.n = n
 
     @property
-    def recipe(self) -> frs.AtomicNode:
-        return frs.AtomicNode(
+    def recipe(self) -> frs.AtomicRecipe:
+        return frs.AtomicRecipe(
             reference=frs.PythonReference(
                 info=versions.VersionInfo.of(self.inputs_to_list),
                 restricted_input_kinds={

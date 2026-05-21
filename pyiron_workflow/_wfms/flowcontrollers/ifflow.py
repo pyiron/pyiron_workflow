@@ -12,14 +12,14 @@ from pyiron_workflow._wfms.datatypes import (
 )
 
 
-class If(StaticGraph[frs.IfNode, frs.LiveIf]):
-    _recipe: frs.IfNode
+class If(StaticGraph[frs.IfRecipe, frs.LiveIf]):
+    _recipe: frs.IfRecipe
 
     @classmethod
     def _result_type(cls) -> type[frs.LiveIf]:
         return frs.LiveIf
 
-    def _build_nodes(self, recipe: frs.IfNode) -> NodeMap:
+    def _build_nodes(self, recipe: frs.IfRecipe) -> NodeMap:
         nodes: dict[frs.Label, Node] = {}
         for case in recipe.cases:
             nodes[case.condition.label] = constructors.recipe2static(
@@ -34,7 +34,7 @@ class If(StaticGraph[frs.IfNode, frs.LiveIf]):
             )
         return NodeMap(self, nodes)
 
-    def _build_edges(self, recipe: frs.IfNode) -> EdgeList:
+    def _build_edges(self, recipe: frs.IfRecipe) -> EdgeList:
         return []
 
     def evaluate(
@@ -79,12 +79,12 @@ class If(StaticGraph[frs.IfNode, frs.LiveIf]):
         node_label: frs.Label,
         result: frs.LiveIf,
         node_recipe: (
-            frs.AtomicNode
-            | frs.ForEachNode
-            | frs.IfNode
-            | frs.TryNode
-            | frs.WhileNode
-            | frs.WorkflowNode
+            frs.AtomicRecipe
+            | frs.ForEachRecipe
+            | frs.IfRecipe
+            | frs.TryRecipe
+            | frs.WhileRecipe
+            | frs.WorkflowRecipe
         ),
     ) -> None:
         result.nodes[node_label] = frt.recipe2live(node_recipe)
@@ -93,7 +93,7 @@ class If(StaticGraph[frs.IfNode, frs.LiveIf]):
     def _stage_node_input_edges(
         node_label: frs.Label,
         result: frs.LiveIf,
-        recipe: frs.IfNode,
+        recipe: frs.IfRecipe,
     ) -> None:
         """
         Copy `recipe.input_edges` entries targeting `node_label` onto `result`.
@@ -111,7 +111,7 @@ class If(StaticGraph[frs.IfNode, frs.LiveIf]):
     def _stage_body_output_edges(
         body_label: frs.Label,
         result: frs.LiveIf,
-        recipe: frs.IfNode,
+        recipe: frs.IfRecipe,
     ) -> None:
         """
         Project `recipe.prospective_output_edges` onto a single body's sources.

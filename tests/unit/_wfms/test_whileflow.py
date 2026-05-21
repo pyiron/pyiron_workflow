@@ -13,7 +13,7 @@ from tests.unit._wfms import _fixtures
 # --------------------------------------------------------------------------- #
 
 
-def _non_looping_recipe() -> frs.WhileNode:
+def _non_looping_recipe() -> frs.WhileRecipe:
     """
     WhileNode with inputs=["n", "step"] but outputs=["n"] only.
 
@@ -22,7 +22,7 @@ def _non_looping_recipe() -> frs.WhileNode:
     `step` from `n`.
     """
     sub_recipe = _fixtures.sub.flowrep_recipe  # sub(x, y) → output_0
-    body = frs.WorkflowNode(
+    body = frs.WorkflowRecipe(
         inputs=["n", "step"],
         outputs=["n"],
         nodes={"sub_0": sub_recipe},
@@ -35,14 +35,14 @@ def _non_looping_recipe() -> frs.WhileNode:
             frs.OutputTarget(port="n"): frs.SourceHandle(node="sub_0", port="output_0"),
         },
     )
-    return frs.WhileNode(
+    return frs.WhileRecipe(
         inputs=["n", "step"],
         outputs=["n"],
         case=frs.ConditionalCase(
-            condition=frs.LabeledNode(
+            condition=frs.LabeledRecipe(
                 label="condition", node=_fixtures.is_positive.flowrep_recipe
             ),
-            body=frs.LabeledNode(label="body", node=body),
+            body=frs.LabeledRecipe(label="body", node=body),
         ),
         input_edges={
             frs.TargetHandle(node="condition", port="n"): frs.InputSource(port="n"),
@@ -319,11 +319,11 @@ class TestConditionValue(unittest.TestCase):
         cond_recipe = _fixtures.add.flowrep_recipe
         body_recipe = _fixtures.identity.flowrep_recipe
         case = frs.ConditionalCase(
-            condition=frs.LabeledNode(label="condition", node=cond_recipe),
-            body=frs.LabeledNode(label="body", node=body_recipe),
+            condition=frs.LabeledRecipe(label="condition", node=cond_recipe),
+            body=frs.LabeledRecipe(label="body", node=body_recipe),
             condition_output="output_0",
         )
-        recipe = frs.WhileNode(
+        recipe = frs.WhileRecipe(
             inputs=["x", "y"],
             outputs=["x"],
             case=case,

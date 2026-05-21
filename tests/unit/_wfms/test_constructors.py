@@ -32,8 +32,8 @@ def plain_add(x, y):
 def _conditional_case() -> frs.ConditionalCase:
     """Build a minimal `ConditionalCase` whose condition and body wrap `add`."""
     add_recipe = _fixtures.add.flowrep_recipe
-    condition = frs.LabeledNode(label="cond", node=add_recipe)
-    body = frs.LabeledNode(label="body", node=add_recipe)
+    condition = frs.LabeledRecipe(label="cond", node=add_recipe)
+    body = frs.LabeledRecipe(label="body", node=add_recipe)
     return frs.ConditionalCase(condition=condition, body=body)
 
 
@@ -47,12 +47,12 @@ def _conditional_input_edges() -> dict[frs.TargetHandle, frs.InputSource]:
     }
 
 
-def _if_recipe() -> frs.IfNode:
+def _if_recipe() -> frs.IfRecipe:
     return _fixtures.if_recipe()
 
 
-def _while_recipe() -> frs.WhileNode:
-    return frs.WhileNode(
+def _while_recipe() -> frs.WhileRecipe:
+    return frs.WhileRecipe(
         inputs=["x", "y"],
         outputs=["x"],  # While outputs must be a subset of inputs
         case=_conditional_case(),
@@ -63,10 +63,10 @@ def _while_recipe() -> frs.WhileNode:
     )
 
 
-def _try_recipe() -> frs.TryNode:
+def _try_recipe() -> frs.TryRecipe:
     add_recipe = _fixtures.add.flowrep_recipe
-    try_body = frs.LabeledNode(label="trybody", node=add_recipe)
-    handler = frs.LabeledNode(label="handler", node=add_recipe)
+    try_body = frs.LabeledRecipe(label="trybody", node=add_recipe)
+    handler = frs.LabeledRecipe(label="handler", node=add_recipe)
     exc_case = frs.ExceptionCase(
         exceptions=[versions.VersionInfo.of(ValueError)],
         body=handler,
@@ -77,7 +77,7 @@ def _try_recipe() -> frs.TryNode:
         frs.TargetHandle(node="handler", port="x"): frs.InputSource(port="x"),
         frs.TargetHandle(node="handler", port="y"): frs.InputSource(port="y"),
     }
-    return frs.TryNode(
+    return frs.TryRecipe(
         inputs=["x", "y"],
         outputs=["out"],
         try_node=try_body,

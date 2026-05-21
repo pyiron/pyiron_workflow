@@ -135,7 +135,7 @@ def if_abs(x):
     return y
 
 
-def if_recipe() -> frs.IfNode:
+def if_recipe() -> frs.IfRecipe:
     """
     Minimal `IfNode` whose condition/body both wrap `add`.
 
@@ -143,13 +143,13 @@ def if_recipe() -> frs.IfNode:
     single source of truth for the canonical recipe shape.
     """
     add_recipe = add.flowrep_recipe
-    return frs.IfNode(
+    return frs.IfRecipe(
         inputs=["x", "y"],
         outputs=["out"],
         cases=[
             frs.ConditionalCase(
-                condition=frs.LabeledNode(label="cond", node=add_recipe),
-                body=frs.LabeledNode(label="body", node=add_recipe),
+                condition=frs.LabeledRecipe(label="cond", node=add_recipe),
+                body=frs.LabeledRecipe(label="body", node=add_recipe),
             )
         ],
         input_edges={
@@ -286,19 +286,19 @@ def try_safe_divide(x, y):
     return z
 
 
-def try_recipe() -> frs.TryNode:
+def try_recipe() -> frs.TryRecipe:
     """
     Programmatically-built `TryNode` matching `try_safe_divide`: divides `x` by `y`,
     falling back to `identity(x)` on `ZeroDivisionError`.
     """
-    return frs.TryNode(
+    return frs.TryRecipe(
         inputs=["x", "y"],
         outputs=["z"],
-        try_node=frs.LabeledNode(label="try_body", node=divide.flowrep_recipe),
+        try_node=frs.LabeledRecipe(label="try_body", node=divide.flowrep_recipe),
         exception_cases=[
             frs.ExceptionCase(
                 exceptions=[versions.VersionInfo.of(ZeroDivisionError)],
-                body=frs.LabeledNode(
+                body=frs.LabeledRecipe(
                     label="except_body_0", node=identity.flowrep_recipe
                 ),
             ),
@@ -317,14 +317,14 @@ def try_recipe() -> frs.TryNode:
     )
 
 
-def while_recipe() -> frs.WhileNode:
+def while_recipe() -> frs.WhileRecipe:
     """
     Programmatically-built `WhileNode` matching `while_countdown`.
 
     Decrements `n` while `is_positive(n)`. Mirrors `if_recipe()` so tests
     can construct a `While` directly without going through the parser.
     """
-    body = frs.WorkflowNode(
+    body = frs.WorkflowRecipe(
         inputs=["n"],
         outputs=["n"],
         nodes={"decrement_0": decrement.flowrep_recipe},
@@ -338,14 +338,14 @@ def while_recipe() -> frs.WhileNode:
             ),
         },
     )
-    return frs.WhileNode(
+    return frs.WhileRecipe(
         inputs=["n"],
         outputs=["n"],
         case=frs.ConditionalCase(
-            condition=frs.LabeledNode(
+            condition=frs.LabeledRecipe(
                 label="condition", node=is_positive.flowrep_recipe
             ),
-            body=frs.LabeledNode(label="body", node=body),
+            body=frs.LabeledRecipe(label="body", node=body),
         ),
         input_edges={
             frs.TargetHandle(node="condition", port="n"): frs.InputSource(port="n"),

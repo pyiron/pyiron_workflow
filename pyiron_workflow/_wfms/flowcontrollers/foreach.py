@@ -20,21 +20,21 @@ from pyiron_workflow._wfms.datatypes import (
 )
 
 
-class ForEach(StaticGraph[frs.ForEachNode, frs.LiveForEach]):
-    _recipe: frs.ForEachNode
+class ForEach(StaticGraph[frs.ForEachRecipe, frs.LiveForEach]):
+    _recipe: frs.ForEachRecipe
 
     @classmethod
     def _result_type(cls) -> type[frs.LiveForEach]:
         return frs.LiveForEach
 
-    def _build_nodes(self, recipe: frs.ForEachNode) -> NodeMap:
+    def _build_nodes(self, recipe: frs.ForEachRecipe) -> NodeMap:
         bn = self.recipe.body_node
         return NodeMap(
             self,
             {bn.label: constructors.recipe2static(bn.label, bn.node, owner=self)},
         )
 
-    def _build_edges(self, recipe: frs.ForEachNode) -> EdgeList:
+    def _build_edges(self, recipe: frs.ForEachRecipe) -> EdgeList:
         return EdgeList(
             EdgeTuple(source, target) for target, source in recipe.input_edges.items()
         ) + EdgeList(

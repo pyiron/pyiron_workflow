@@ -14,20 +14,20 @@ from tests.unit._wfms import _fixtures
 # --------------------------------------------------------------------------- #
 
 
-def _no_match_recipe() -> frs.TryNode:
+def _no_match_recipe() -> frs.TryRecipe:
     """
     try divide(x, y); except TypeError → identity(x). No match for ZeroDivisionError.
     """
-    return frs.TryNode(
+    return frs.TryRecipe(
         inputs=["x", "y"],
         outputs=["z"],
-        try_node=frs.LabeledNode(
+        try_node=frs.LabeledRecipe(
             label="try_body", node=_fixtures.divide.flowrep_recipe
         ),
         exception_cases=[
             frs.ExceptionCase(
                 exceptions=[versions.VersionInfo.of(TypeError)],
-                body=frs.LabeledNode(
+                body=frs.LabeledRecipe(
                     label="handler_0", node=_fixtures.identity.flowrep_recipe
                 ),
             ),
@@ -46,7 +46,7 @@ def _no_match_recipe() -> frs.TryNode:
     )
 
 
-def _multi_case_recipe() -> frs.TryNode:
+def _multi_case_recipe() -> frs.TryRecipe:
     """try divide(x, y); except TypeError → identity; except ValueError → negate.
 
     try_body raises ValueError (via negate with a string — actually we need to raise
@@ -56,22 +56,22 @@ def _multi_case_recipe() -> frs.TryNode:
     Simpler approach: try_body = divide(x, y) where x="bad", y=1 → TypeError.
     First handler catches ZeroDivisionError (no match), second catches TypeError (match).
     """
-    return frs.TryNode(
+    return frs.TryRecipe(
         inputs=["x", "y"],
         outputs=["z"],
-        try_node=frs.LabeledNode(
+        try_node=frs.LabeledRecipe(
             label="try_body", node=_fixtures.divide.flowrep_recipe
         ),
         exception_cases=[
             frs.ExceptionCase(
                 exceptions=[versions.VersionInfo.of(ZeroDivisionError)],
-                body=frs.LabeledNode(
+                body=frs.LabeledRecipe(
                     label="handler_0", node=_fixtures.negate.flowrep_recipe
                 ),
             ),
             frs.ExceptionCase(
                 exceptions=[versions.VersionInfo.of(TypeError)],
-                body=frs.LabeledNode(
+                body=frs.LabeledRecipe(
                     label="handler_1", node=_fixtures.identity.flowrep_recipe
                 ),
             ),
@@ -92,12 +92,12 @@ def _multi_case_recipe() -> frs.TryNode:
     )
 
 
-def _tuple_exceptions_recipe() -> frs.TryNode:
+def _tuple_exceptions_recipe() -> frs.TryRecipe:
     """Single handler catching both ZeroDivisionError and TypeError."""
-    return frs.TryNode(
+    return frs.TryRecipe(
         inputs=["x", "y"],
         outputs=["z"],
-        try_node=frs.LabeledNode(
+        try_node=frs.LabeledRecipe(
             label="try_body", node=_fixtures.divide.flowrep_recipe
         ),
         exception_cases=[
@@ -106,7 +106,7 @@ def _tuple_exceptions_recipe() -> frs.TryNode:
                     versions.VersionInfo.of(ZeroDivisionError),
                     versions.VersionInfo.of(TypeError),
                 ],
-                body=frs.LabeledNode(
+                body=frs.LabeledRecipe(
                     label="handler_0", node=_fixtures.identity.flowrep_recipe
                 ),
             ),
@@ -125,18 +125,18 @@ def _tuple_exceptions_recipe() -> frs.TryNode:
     )
 
 
-def _handler_raises_recipe() -> frs.TryNode:
+def _handler_raises_recipe() -> frs.TryRecipe:
     """try divide(x, 0) raises ZeroDivisionError; handler also calls divide(x, 0)."""
-    return frs.TryNode(
+    return frs.TryRecipe(
         inputs=["x", "y"],
         outputs=["z"],
-        try_node=frs.LabeledNode(
+        try_node=frs.LabeledRecipe(
             label="try_body", node=_fixtures.divide.flowrep_recipe
         ),
         exception_cases=[
             frs.ExceptionCase(
                 exceptions=[versions.VersionInfo.of(ZeroDivisionError)],
-                body=frs.LabeledNode(
+                body=frs.LabeledRecipe(
                     label="handler_0", node=_fixtures.divide.flowrep_recipe
                 ),
             ),
@@ -156,10 +156,10 @@ def _handler_raises_recipe() -> frs.TryNode:
     )
 
 
-def _macro_wrapping_try() -> frs.WorkflowNode:
+def _macro_wrapping_try() -> frs.WorkflowRecipe:
     """Macro: try_safe_divide(x, y) → downstream identity(z). Output from try."""
     identity_recipe = _fixtures.identity.flowrep_recipe
-    return frs.WorkflowNode(
+    return frs.WorkflowRecipe(
         inputs=["x", "y"],
         outputs=["w"],
         nodes={"try_0": _fixtures.try_recipe(), "downstream": identity_recipe},
@@ -344,9 +344,9 @@ class TestMacroWrappedTry(unittest.TestCase):
 # --------------------------------------------------------------------------- #
 
 
-def _no_match_macro_recipe() -> frs.WorkflowNode:
+def _no_match_macro_recipe() -> frs.WorkflowRecipe:
     """Macro wrapping a no-match Try, with a downstream identity sibling."""
-    return frs.WorkflowNode(
+    return frs.WorkflowRecipe(
         inputs=["x", "y"],
         outputs=["w"],
         nodes={
@@ -377,7 +377,7 @@ class TestResolveExceptionTypes(unittest.TestCase):
     def test_single_exception(self) -> None:
         case = frs.ExceptionCase(
             exceptions=[versions.VersionInfo.of(ZeroDivisionError)],
-            body=frs.LabeledNode(label="h", node=_fixtures.identity.flowrep_recipe),
+            body=frs.LabeledRecipe(label="h", node=_fixtures.identity.flowrep_recipe),
         )
         result = tryflow.Try._resolve_exception_types(case)
         self.assertEqual(len(result), 1)
@@ -389,7 +389,7 @@ class TestResolveExceptionTypes(unittest.TestCase):
                 versions.VersionInfo.of(ZeroDivisionError),
                 versions.VersionInfo.of(TypeError),
             ],
-            body=frs.LabeledNode(label="h", node=_fixtures.identity.flowrep_recipe),
+            body=frs.LabeledRecipe(label="h", node=_fixtures.identity.flowrep_recipe),
         )
         result = tryflow.Try._resolve_exception_types(case)
         self.assertEqual(len(result), 2)
