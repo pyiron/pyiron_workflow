@@ -122,7 +122,7 @@ def evaluate_node(
 ):
     result = run.result
     input_data = gather_target_inputs(label_in_run, result)
-    if frs.NOT_DATA in input_data.values():
+    if any(val is frs.NOT_DATA for val in input_data.values()):
         # Possible development: raise a warning or optionally an exception here
         return
     t_start = datetime.datetime.now()
