@@ -355,3 +355,33 @@ def while_recipe() -> frs.WhileRecipe:
             frs.OutputTarget(port="n"): frs.SourceHandle(node="body", port="n"),
         },
     )
+
+
+# --------------------------------------------------------------------------- #
+# Attribute-sugar collisions                                                  #
+# --------------------------------------------------------------------------- #
+
+
+def attr_sugar_recipe() -> frs.WorkflowRecipe:
+    """
+    Programmatic `WorkflowRecipe` whose node labels collide with graph
+    attributes: `executor` and `nodes` shadow real attributes, `plain` does
+    not. Every node wraps `multiply_with_defaults`, so no edges are needed.
+    """
+    return frs.WorkflowRecipe(
+        inputs=[],
+        outputs=[],
+        nodes={
+            "executor": multiply_with_defaults.flowrep_recipe,
+            "nodes": multiply_with_defaults.flowrep_recipe,
+            "plain": multiply_with_defaults.flowrep_recipe,
+        },
+        input_edges={},
+        edges={},
+        output_edges={},
+    )
+
+
+def attr_sugar_macro_node(label: str = "attr_sugar_macro"):
+    """Return a fresh `Macro` whose node labels collide with graph attributes."""
+    return wfms.Macro(label, attr_sugar_recipe())

@@ -162,5 +162,32 @@ class TestPopulateOutputs(unittest.TestCase):
         self.assertEqual(run.outputs["s"].value, 47)
 
 
+class TestMacroAttributeSugar(unittest.TestCase):
+    """`__getattr__` node-map fallback on `Macro` (a `StaticGraph`)."""
+
+    def test_sugar_returns_node(self) -> None:
+        m = _fixtures.attr_sugar_macro_node()
+        self.assertIs(m.plain, m.nodes["plain"])
+
+    def test_real_attribute_shadows_node(self) -> None:
+        m = _fixtures.attr_sugar_macro_node()
+        # `executor` is a real attribute; the same-named node stays hidden.
+        self.assertIsNone(m.executor)
+        self.assertIsNot(m.executor, m.nodes["executor"])
+        # `nodes` is a real property returning the node map itself.
+        self.assertIsInstance(m.nodes, datatypes.NodeMap)
+
+    def test_unknown_attribute_raises(self) -> None:
+        m = _fixtures.attr_sugar_macro_node()
+        with self.assertRaises(AttributeError):
+            _ = m.does_not_exist
+
+    def test_underscore_name_not_resolved(self) -> None:
+        # Names starting with `_` are never routed to the nodes map.
+        m = _fixtures.attr_sugar_macro_node()
+        with self.assertRaises(AttributeError):
+            _ = m._does_not_exist
+
+
 if __name__ == "__main__":
     unittest.main()

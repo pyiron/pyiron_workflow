@@ -257,6 +257,11 @@ EdgeList: TypeAlias = list[EdgeTuple]
 
 
 class Graph(lexical.Lexical["Graph"], Protocol):
+    """
+    Graphs should additionally make public, non-name-conflicting nodes available via
+    attribute access by mixing in `NodeAttributeAccess`, but this is difficult to
+    indicate via protocol, and is anyhow just for syntactic sugar.
+    """
 
     @property
     def nodes(self) -> NodeMap: ...
@@ -265,7 +270,35 @@ class Graph(lexical.Lexical["Graph"], Protocol):
     def edges(self) -> EdgeList: ...
 
 
-class StaticGraph(StaticNode[RecipeType, execution.ResultType], Graph, abc.ABC):
+class NodeAttributeAccess(abc.ABC):
+    """
+    Mixin: unknown public attribute access falls back to the graph's nodes map.
+
+    `__getattr__` runs only after normal attribute lookup fails, so genuine
+    attributes (properties, methods, instance state) always shadow a node of
+    the same name. Names starting with `_` are never resolved this way: it
+    keeps the fallback recursion-safe and avoids exposing private-looking
+    state. Such nodes remain reachable via `graph.nodes[label]`.
+    """
+
+    @property
+    @abc.abstractmethod
+    def nodes(self) -> NodeMap: ...
+
+    def __getattr__(self, item: str) -> Node:
+        if item.startswith("_"):
+            raise AttributeError(item)
+        try:
+            return self.nodes[item]
+        except KeyError:
+            raise AttributeError(
+                f"{type(self).__name__!r} object has no attribute {item!r}"
+            ) from None
+
+
+class StaticGraph(
+    StaticNode[RecipeType, execution.ResultType], NodeAttributeAccess, Graph, abc.ABC
+):
 
     _nodes: NodeMap
     _edges: EdgeList

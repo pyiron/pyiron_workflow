@@ -1107,5 +1107,45 @@ class TestAtomicRollback(unittest.TestCase):
         )
 
 
+class TestWorkflowAttributeSugar(unittest.TestCase):
+    """`__getattr__` node-map fallback on `Workflow`."""
+
+    @staticmethod
+    def _populated_workflow() -> workflow.Workflow:
+        wf = workflow.Workflow("wf")
+        wf.add_node(
+            _fixtures.atomic_add_node("executor"),
+            _fixtures.atomic_add_node("nodes"),
+            _fixtures.atomic_add_node("plain"),
+        )
+        return wf
+
+    def test_sugar_returns_node(self) -> None:
+        wf = self._populated_workflow()
+        self.assertIs(wf.plain, wf.nodes["plain"])
+
+    def test_real_attribute_shadows_node(self) -> None:
+        wf = self._populated_workflow()
+        # `executor` is a real instance attribute (set to None in __init__).
+        self.assertIsNone(wf.executor)
+        self.assertIsNot(wf.executor, wf.nodes["executor"])
+        # `nodes` is a real property returning the node map itself.
+        self.assertIsInstance(wf.nodes, workflow.MutableNodeMap)
+
+    def test_underscore_label_excluded(self) -> None:
+        wf = workflow.Workflow("wf")
+        hidden = _fixtures.atomic_add_node("_hidden")
+        wf.add_node(hidden)
+        with self.assertRaises(AttributeError):
+            _ = wf._hidden
+        # The node is still reachable through the nodes map.
+        self.assertIs(wf.nodes["_hidden"], hidden)
+
+    def test_unknown_attribute_raises(self) -> None:
+        wf = workflow.Workflow("wf")
+        with self.assertRaises(AttributeError):
+            _ = wf.does_not_exist
+
+
 if __name__ == "__main__":
     unittest.main()

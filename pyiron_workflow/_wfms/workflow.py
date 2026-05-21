@@ -16,6 +16,7 @@ from pyiron_workflow._wfms.datatypes import (
     Graph,
     InputPort,
     Node,
+    NodeAttributeAccess,
     NodeMap,
     OutputPort,
     PortMap,
@@ -161,7 +162,7 @@ class RenameNode:
 GraphDiff: TypeAlias = list[GraphAction]
 
 
-class Workflow(Node[frs.WorkflowRecipe, frs.DagData], Graph):
+class Workflow(Node[frs.WorkflowRecipe, frs.DagData], NodeAttributeAccess, Graph):
     """This is the key mutable one"""
 
     _inputs: MutablePortMap[InputPort]
