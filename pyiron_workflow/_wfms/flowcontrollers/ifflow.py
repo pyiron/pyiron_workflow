@@ -87,7 +87,7 @@ class If(StaticGraph[frs.IfRecipe, frs.IfData]):
             | frs.WorkflowRecipe
         ),
     ) -> None:
-        result.nodes[node_label] = frt.recipe2live(node_recipe)
+        result.nodes[node_label] = frt.recipe2data(node_recipe)
 
     @staticmethod
     def _stage_node_input_edges(
