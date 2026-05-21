@@ -146,7 +146,7 @@ class Node(
         return current_run
 
     def __getstate__(self):
-        state = super().__getstate__()
+        state = dict(super().__getstate__())
 
         if self.owner is not None:
             state["_detached_root"] = self.owner.lexical_path

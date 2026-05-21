@@ -184,6 +184,25 @@ class TestNodeGetState(unittest.TestCase):
         state = n.__getstate__()
         self.assertIsNone(state["executor"])
 
+    def test_getstate_does_not_mutate_live_node(self):
+        m = _fixtures.macro_node()
+        child = m.nodes["add_0"]
+        owner = child.owner
+        with futures.ThreadPoolExecutor(max_workers=1) as exe:
+            child.executor = exe
+            child.__getstate__()
+            self.assertIs(
+                child.executor,
+                exe,
+                msg="__getstate__ must strip the executor from the returned state "
+                "only, not from the live node",
+            )
+            self.assertIs(
+                child.owner,
+                owner,
+                msg="__getstate__ must not detach the live node from its owner",
+            )
+
 
 if __name__ == "__main__":
     unittest.main()
