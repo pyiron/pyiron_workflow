@@ -109,7 +109,7 @@ def _make_broadcast_only_recipe() -> frs.ForEachRecipe:
 
 def _prepare_run(
     fe: foreach.ForEach, inputs: dict[str, object]
-) -> execution.Run[frs.LiveForEach]:
+) -> execution.Run[frs.ForEachData]:
     """Build a Run with seeded input port values, ready for _build_runtime_dag."""
     live = fe.generate_flowrep_live_node()
     for name, val in inputs.items():

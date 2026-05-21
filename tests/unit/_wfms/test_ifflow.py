@@ -376,7 +376,7 @@ class TestConditionValue(unittest.TestCase):
         ifn = ifflow.If("ifn", recipe)
         live = ifn.generate_flowrep_live_node()
         case = recipe.cases[0]
-        cond_live = frs.LiveAtomic.from_recipe(case.condition.node)
+        cond_live = frs.AtomicData.from_recipe(case.condition.node)
         cond_live.output_ports["output_0"].value = 7  # truthy
         live.nodes[case.condition.label] = cond_live
         self.assertTrue(ifflow.If._condition_value(case, live))
@@ -404,7 +404,7 @@ class TestConditionValue(unittest.TestCase):
         )
         ifn = ifflow.If("ifn", recipe)
         live = ifn.generate_flowrep_live_node()
-        cond_live = frs.LiveAtomic.from_recipe(cond_recipe)
+        cond_live = frs.AtomicData.from_recipe(cond_recipe)
         cond_live.output_ports["output_0"].value = 0  # falsy via explicit label
         live.nodes["cond"] = cond_live
         self.assertFalse(ifflow.If._condition_value(case, live))

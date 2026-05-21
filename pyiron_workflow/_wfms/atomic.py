@@ -11,7 +11,7 @@ from pyiron_workflow._wfms import execution
 from pyiron_workflow._wfms.datatypes import StaticNode
 
 
-class Atomic(StaticNode[frs.AtomicRecipe, frs.LiveAtomic]):
+class Atomic(StaticNode[frs.AtomicRecipe, frs.AtomicData]):
 
     def __init__(
         self,
@@ -25,8 +25,8 @@ class Atomic(StaticNode[frs.AtomicRecipe, frs.LiveAtomic]):
         self._function_metadata = getattr(func, "_semantikon_metadata", None)
 
     @classmethod
-    def _result_type(cls) -> type[frs.LiveAtomic]:
-        return frs.LiveAtomic
+    def _result_type(cls) -> type[frs.AtomicData]:
+        return frs.AtomicData
 
     def evaluate(
         self,
@@ -42,7 +42,7 @@ class Atomic(StaticNode[frs.AtomicRecipe, frs.LiveAtomic]):
         return self._function_metadata
 
 
-def _call_atomic(node: frs.LiveAtomic) -> Any:
+def _call_atomic(node: frs.AtomicData) -> Any:
     """
     Invoke the underlying function, respecting positional-only parameter kinds.
 
@@ -69,7 +69,7 @@ def _call_atomic(node: frs.LiveAtomic) -> Any:
     return node.function(*positional, **keyword)
 
 
-def _store_atomic_outputs(node: frs.LiveAtomic, result: Any) -> None:
+def _store_atomic_outputs(node: frs.AtomicData, result: Any) -> None:
     recipe = node.recipe
     output_names = list(node.output_ports.keys())
 

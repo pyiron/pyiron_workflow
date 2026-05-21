@@ -20,12 +20,12 @@ from pyiron_workflow._wfms.datatypes import (
 )
 
 
-class ForEach(StaticGraph[frs.ForEachRecipe, frs.LiveForEach]):
+class ForEach(StaticGraph[frs.ForEachRecipe, frs.ForEachData]):
     _recipe: frs.ForEachRecipe
 
     @classmethod
-    def _result_type(cls) -> type[frs.LiveForEach]:
-        return frs.LiveForEach
+    def _result_type(cls) -> type[frs.ForEachData]:
+        return frs.ForEachData
 
     def _build_nodes(self, recipe: frs.ForEachRecipe) -> NodeMap:
         bn = self.recipe.body_node
@@ -52,7 +52,7 @@ class ForEach(StaticGraph[frs.ForEachRecipe, frs.LiveForEach]):
         dag.populate_outputs(result)
         return run
 
-    def _build_runtime_dag(self, run: execution.Run[frs.LiveForEach]) -> NodeMap:
+    def _build_runtime_dag(self, run: execution.Run[frs.ForEachData]) -> NodeMap:
         runtime_map: dict[frs.Label, Node] = {}
 
         result = run.result
@@ -256,7 +256,7 @@ class ForEach(StaticGraph[frs.ForEachRecipe, frs.LiveForEach]):
     @staticmethod
     def _input_length_map(
         label_map: dict[frs.Label, frs.Label],
-        inputs: MutableMapping[frs.Label, frs.InputPort],
+        inputs: MutableMapping[frs.Label, frs.InputDataPort],
         iterated_body_ports: frs.Labels,
     ) -> dict[frs.Label, int]:
         length_map: dict[frs.Label, int] = {}

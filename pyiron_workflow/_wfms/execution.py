@@ -23,7 +23,7 @@ class RunStatus(enum.StrEnum):
     FAILED = "failed"
 
 
-ResultType = TypeVar("ResultType", bound=frs.LiveNode[Any])
+ResultType = TypeVar("ResultType", bound=frs.NodeData[Any])
 
 
 class Step(NamedTuple):
@@ -163,7 +163,7 @@ def run(
     return current_run
 
 
-def populate_input_ports(node: frs.LiveNode, values: dict[str, Any]) -> None:
+def populate_input_ports(node: frs.NodeData, values: dict[str, Any]) -> None:
     for name, val in values.items():
         if name in node.input_ports:
             node.input_ports[name].value = val

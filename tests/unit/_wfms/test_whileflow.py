@@ -294,11 +294,11 @@ class TestStageFinalOutputEdges(unittest.TestCase):
 class TestConditionValue(unittest.TestCase):
     def _make_result_with_cond(
         self, cond_label: str, output_val: object
-    ) -> frs.LiveWhile:
+    ) -> frs.WhileData:
         recipe = _fixtures.while_recipe()
         whl = whileflow.While("whl", recipe)
         result = whl.generate_flowrep_live_node()
-        cond_live = frs.LiveAtomic.from_recipe(recipe.case.condition.node)
+        cond_live = frs.AtomicData.from_recipe(recipe.case.condition.node)
         cond_live.output_ports["output_0"].value = output_val
         result.nodes[cond_label] = cond_live
         return result, recipe
@@ -340,7 +340,7 @@ class TestConditionValue(unittest.TestCase):
         )
         whl = whileflow.While("whl", recipe)
         result = whl.generate_flowrep_live_node()
-        cond_live = frs.LiveAtomic.from_recipe(cond_recipe)
+        cond_live = frs.AtomicData.from_recipe(cond_recipe)
         cond_live.output_ports["output_0"].value = 0  # falsy via explicit label
         result.nodes["condition_0"] = cond_live
         self.assertFalse(whileflow.While._condition_value("condition_0", case, result))

@@ -65,7 +65,7 @@ class TestMacro(unittest.TestCase):
         self.assertEqual("This is decorated", decorated.function_metadata["uri"])
 
     def test_result_type_classmethod(self) -> None:
-        self.assertIs(dag.Macro._result_type(), frs.LiveWorkflow)
+        self.assertIs(dag.Macro._result_type(), frs.DagData)
 
 
 class TestEvaluateDagByLayer(unittest.TestCase):

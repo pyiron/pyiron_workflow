@@ -161,7 +161,7 @@ class RenameNode:
 GraphDiff: TypeAlias = list[GraphAction]
 
 
-class Workflow(Node[frs.WorkflowRecipe, frs.LiveWorkflow], Graph):
+class Workflow(Node[frs.WorkflowRecipe, frs.DagData], Graph):
     """This is the key mutable one"""
 
     _inputs: MutablePortMap[InputPort]
@@ -213,8 +213,8 @@ class Workflow(Node[frs.WorkflowRecipe, frs.LiveWorkflow], Graph):
             output_edges=out,
         )
 
-    def generate_flowrep_live_node(self) -> frs.LiveWorkflow:
-        return frs.LiveWorkflow.from_recipe(self.recipe)
+    def generate_flowrep_live_node(self) -> frs.DagData:
+        return frs.DagData.from_recipe(self.recipe)
 
     def evaluate(
         self,

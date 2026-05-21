@@ -16,12 +16,12 @@ from pyiron_workflow._wfms.datatypes import (
 class UnmatchedExceptionError(TypeError): ...
 
 
-class Try(StaticGraph[frs.TryRecipe, frs.LiveTry]):
+class Try(StaticGraph[frs.TryRecipe, frs.TryData]):
     _recipe: frs.TryRecipe
 
     @classmethod
-    def _result_type(cls) -> type[frs.LiveTry]:
-        return frs.LiveTry
+    def _result_type(cls) -> type[frs.TryData]:
+        return frs.TryData
 
     def _build_nodes(self, recipe: frs.TryRecipe) -> NodeMap:
         nodes: dict[frs.Label, Node] = {
@@ -94,7 +94,7 @@ class Try(StaticGraph[frs.TryRecipe, frs.LiveTry]):
     @staticmethod
     def _stage_node(
         node_label: frs.Label,
-        result: frs.LiveIf,
+        result: frs.IfData,
         node_recipe: (
             frs.AtomicRecipe
             | frs.ForEachRecipe
@@ -109,7 +109,7 @@ class Try(StaticGraph[frs.TryRecipe, frs.LiveTry]):
     @staticmethod
     def _stage_node_input_edges(
         node_label: frs.Label,
-        result: frs.LiveTry,
+        result: frs.TryData,
         recipe: frs.TryRecipe,
     ) -> None:
         for target, source in recipe.input_edges.items():
@@ -119,7 +119,7 @@ class Try(StaticGraph[frs.TryRecipe, frs.LiveTry]):
     @staticmethod
     def _stage_body_output_edges(
         body_label: frs.Label,
-        result: frs.LiveTry,
+        result: frs.TryData,
         recipe: frs.TryRecipe,
     ) -> None:
         for target, sources in recipe.prospective_output_edges.items():

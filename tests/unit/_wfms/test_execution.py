@@ -22,7 +22,7 @@ class _FailingAtomic(atomic.Atomic):
 
     def evaluate(
         self,
-        run: execution.Run[frs.LiveAtomic],
+        run: execution.Run[frs.AtomicData],
         config: execution.RunConfig,
     ) -> None:
         raise RuntimeError("boom")
@@ -52,10 +52,10 @@ class TestRunDuration(unittest.TestCase):
         started_at: datetime.datetime | None,
         finished_at: datetime.datetime | None,
         lexical_path: str = "some_path_root",
-    ) -> execution.Run[frs.LiveAtomic]:
+    ) -> execution.Run[frs.AtomicData]:
         # `result` is not exercised here; a freshly minted live atomic suffices.
         live = _fixtures.atomic_add_node().generate_flowrep_live_node()
-        return execution.Run[frs.LiveAtomic](
+        return execution.Run[frs.AtomicData](
             lexical_path=lexical_path,
             result=live,
             status=execution.RunStatus.PENDING,

@@ -12,12 +12,12 @@ from pyiron_workflow._wfms.datatypes import (
 )
 
 
-class If(StaticGraph[frs.IfRecipe, frs.LiveIf]):
+class If(StaticGraph[frs.IfRecipe, frs.IfData]):
     _recipe: frs.IfRecipe
 
     @classmethod
-    def _result_type(cls) -> type[frs.LiveIf]:
-        return frs.LiveIf
+    def _result_type(cls) -> type[frs.IfData]:
+        return frs.IfData
 
     def _build_nodes(self, recipe: frs.IfRecipe) -> NodeMap:
         nodes: dict[frs.Label, Node] = {}
@@ -77,7 +77,7 @@ class If(StaticGraph[frs.IfRecipe, frs.LiveIf]):
     @staticmethod
     def _stage_node(
         node_label: frs.Label,
-        result: frs.LiveIf,
+        result: frs.IfData,
         node_recipe: (
             frs.AtomicRecipe
             | frs.ForEachRecipe
@@ -92,7 +92,7 @@ class If(StaticGraph[frs.IfRecipe, frs.LiveIf]):
     @staticmethod
     def _stage_node_input_edges(
         node_label: frs.Label,
-        result: frs.LiveIf,
+        result: frs.IfData,
         recipe: frs.IfRecipe,
     ) -> None:
         """
@@ -110,7 +110,7 @@ class If(StaticGraph[frs.IfRecipe, frs.LiveIf]):
     @staticmethod
     def _stage_body_output_edges(
         body_label: frs.Label,
-        result: frs.LiveIf,
+        result: frs.IfData,
         recipe: frs.IfRecipe,
     ) -> None:
         """
@@ -129,7 +129,7 @@ class If(StaticGraph[frs.IfRecipe, frs.LiveIf]):
                     break
 
     @staticmethod
-    def _condition_value(case: frs.ConditionalCase, result: frs.LiveIf) -> bool:
+    def _condition_value(case: frs.ConditionalCase, result: frs.IfData) -> bool:
         output_label = case.condition_output
         if output_label is None:
             output_label = next(iter(case.condition.node.outputs))

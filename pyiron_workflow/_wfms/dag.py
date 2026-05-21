@@ -18,12 +18,12 @@ from pyiron_workflow._wfms.datatypes import (
 )
 
 
-class Macro(StaticGraph[frs.WorkflowRecipe, frs.LiveWorkflow], Graph):
+class Macro(StaticGraph[frs.WorkflowRecipe, frs.DagData], Graph):
     _recipe: frs.WorkflowRecipe
 
     @classmethod
-    def _result_type(cls) -> type[frs.LiveWorkflow]:
-        return frs.LiveWorkflow
+    def _result_type(cls) -> type[frs.DagData]:
+        return frs.DagData
 
     def _build_nodes(self, recipe: frs.WorkflowRecipe) -> NodeMap:
         return NodeMap(
@@ -62,7 +62,7 @@ class Macro(StaticGraph[frs.WorkflowRecipe, frs.LiveWorkflow], Graph):
 
 
 def evaluate_dag_by_layer(
-    nodes: NodeMap, run: execution.Run[frs.Composite], config: execution.RunConfig
+    nodes: NodeMap, run: execution.Run[frs.CompositeData], config: execution.RunConfig
 ) -> None:
     result = run.result
     layers = topo_sort_nodes(nodes, result.edges)
@@ -117,7 +117,7 @@ def topo_sort_nodes(nodes: NodeMap, edges: frs.Edges) -> list[list[frs.Label]]:
 def evaluate_node(
     node: Node[Any, Any],
     label_in_run: frs.Label,
-    run: execution.Run[frs.Composite],
+    run: execution.Run[frs.CompositeData],
     config: execution.RunConfig,
 ):
     result = run.result
@@ -148,7 +148,7 @@ def evaluate_node(
 
 def gather_target_inputs(
     node_label: frs.Label,
-    runtime_data: frs.Composite,
+    runtime_data: frs.CompositeData,
 ) -> dict[str, Any]:
     """
     Resolve input values for a target node from graph input ports and sibling
@@ -180,7 +180,7 @@ def gather_target_inputs(
     return inputs
 
 
-def populate_outputs(result: frs.Composite) -> None:
+def populate_outputs(result: frs.CompositeData) -> None:
     for target, source in result.output_edges.items():
         if isinstance(source, frs.InputSource):
             val = result.input_ports[source.port].get_data()

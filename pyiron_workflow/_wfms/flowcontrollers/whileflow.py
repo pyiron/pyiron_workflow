@@ -10,12 +10,12 @@ from pyiron_workflow._wfms.datatypes import (
 )
 
 
-class While(StaticGraph[frs.WhileRecipe, frs.LiveWhile]):
+class While(StaticGraph[frs.WhileRecipe, frs.WhileData]):
     _recipe: frs.WhileRecipe
 
     @classmethod
-    def _result_type(cls) -> type[frs.LiveWhile]:
-        return frs.LiveWhile
+    def _result_type(cls) -> type[frs.WhileData]:
+        return frs.WhileData
 
     def _build_nodes(self, recipe: frs.WhileRecipe) -> NodeMap:
         return NodeMap(
@@ -62,8 +62,8 @@ class While(StaticGraph[frs.WhileRecipe, frs.LiveWhile]):
         return f"{prefix}_{index}"
 
     def evaluate(
-        self, run: execution.Run[frs.LiveWhile], config: execution.RunConfig
-    ) -> execution.Run[frs.LiveWhile]:
+        self, run: execution.Run[frs.WhileData], config: execution.RunConfig
+    ) -> execution.Run[frs.WhileData]:
         recipe = self._recipe
         result = run.result
         cond_prefix = recipe.case.condition.label
@@ -103,7 +103,7 @@ class While(StaticGraph[frs.WhileRecipe, frs.LiveWhile]):
     @staticmethod
     def _stage_node(
         node_label: frs.Label,
-        result: frs.LiveIf,
+        result: frs.IfData,
         node_recipe: (
             frs.AtomicRecipe
             | frs.ForEachRecipe
@@ -120,7 +120,7 @@ class While(StaticGraph[frs.WhileRecipe, frs.LiveWhile]):
         indexed_label: frs.Label,
         base_label: frs.Label,
         recipe: frs.WhileRecipe,
-        result: frs.LiveWhile,
+        result: frs.WhileData,
         last_body_label: frs.Label | None,
     ) -> None:
         output_port_to_body_port = {
@@ -140,7 +140,7 @@ class While(StaticGraph[frs.WhileRecipe, frs.LiveWhile]):
 
     @staticmethod
     def _stage_final_output_edges(
-        result: frs.LiveWhile,
+        result: frs.WhileData,
         recipe: frs.WhileRecipe,
         last_body_label: frs.Label | None,
     ) -> None:
@@ -154,7 +154,7 @@ class While(StaticGraph[frs.WhileRecipe, frs.LiveWhile]):
 
     @staticmethod
     def _condition_value(
-        cond_label: frs.Label, case: frs.ConditionalCase, result: frs.LiveWhile
+        cond_label: frs.Label, case: frs.ConditionalCase, result: frs.WhileData
     ) -> bool:
         output_label = case.condition_output or next(iter(case.condition.node.outputs))
         return bool(result.nodes[cond_label].output_ports[output_label].value)
