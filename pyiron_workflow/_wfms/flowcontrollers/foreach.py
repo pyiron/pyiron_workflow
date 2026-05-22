@@ -237,10 +237,6 @@ class ForEach(StaticGraph[frs.ForEachRecipe, frs.ForEachData]):
         }
         result.output_edges = output_edges
 
-        print("FOR EACH DAG")
-        for k, v in runtime_map.items():
-            print("\t", k, v.label)
-        print("DONE")
         return NodeMap(self, runtime_map)
 
     @staticmethod
