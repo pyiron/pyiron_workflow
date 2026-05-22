@@ -31,7 +31,7 @@ def _duplicate_node_error(owner: Graph, key: frs.Label) -> ValueError:
     )
 
 
-def _is_node_like(value: object) -> bool:
+def is_nodelike(value: object) -> bool:
     """Whether `value` is convertible to a node."""
     return isinstance(value, Node | constructors.RecipeOptions | types.FunctionType)
 
@@ -254,7 +254,7 @@ class Workflow(Node[frs.WorkflowRecipe, frs.DagData], Graph):
         if name.startswith("_"):
             object.__setattr__(self, name, value)
             return
-        if not _is_node_like(value):
+        if not is_nodelike(value):
             object.__setattr__(self, name, value)
             return
         if hasattr(type(self), name) or name in self.__dict__:

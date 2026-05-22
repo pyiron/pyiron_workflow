@@ -148,12 +148,12 @@ class TestNodeAssignmentHelpers(unittest.TestCase):
     """Module-level `_is_node_like` / `_coerce_to_node` helpers."""
 
     def test_is_node_like_true_for_node(self) -> None:
-        self.assertTrue(workflow._is_node_like(_fixtures.atomic_add_node()))
+        self.assertTrue(workflow.is_nodelike(_fixtures.atomic_add_node()))
 
     def test_is_node_like_false_for_non_node(self) -> None:
-        self.assertFalse(workflow._is_node_like(42))
-        self.assertFalse(workflow._is_node_like("a string"))
-        self.assertFalse(workflow._is_node_like(None))
+        self.assertFalse(workflow.is_nodelike(42))
+        self.assertFalse(workflow.is_nodelike("a string"))
+        self.assertFalse(workflow.is_nodelike(None))
 
     def test_coerce_to_node_relabels_node(self) -> None:
         node = _fixtures.atomic_add_node("original")
@@ -166,11 +166,11 @@ class TestNodeAssignmentHelpers(unittest.TestCase):
             workflow.coerce_to_node(42, "x")
 
     def test_is_node_like_true_for_recipe(self) -> None:
-        self.assertTrue(workflow._is_node_like(_fixtures.add.flowrep_recipe))
+        self.assertTrue(workflow.is_nodelike(_fixtures.add.flowrep_recipe))
 
     def test_is_node_like_true_for_function(self) -> None:
-        self.assertTrue(workflow._is_node_like(_fixtures.add))
-        self.assertTrue(workflow._is_node_like(plain_increment))
+        self.assertTrue(workflow.is_nodelike(_fixtures.add))
+        self.assertTrue(workflow.is_nodelike(plain_increment))
 
     def test_coerce_atomic_recipe(self) -> None:
         result = workflow.coerce_to_node(_fixtures.add.flowrep_recipe, "added")
