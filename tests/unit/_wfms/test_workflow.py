@@ -7,7 +7,7 @@ import pickle
 import unittest
 
 import semantikon
-from _wfms import datatypes, workflow
+from _wfms import datatypes, execution, workflow
 from flowrep.api import schemas as frs
 from unit._wfms import _fixtures
 
@@ -1279,6 +1279,143 @@ class TestWorkflowPickle(unittest.TestCase):
             self.assertIsNone(
                 child._detached_root, msg=f"{label} kept a stale detached root"
             )
+
+
+class TestWorkflowEvaluate(unittest.TestCase):
+    """
+    End-to-end evaluation tests for `Workflow`, covering every edge-type scenario.
+    """
+
+    def test_empty_workflow_finishes(self) -> None:
+        wf = _fixtures.build_workflow()
+        run = wf.run()
+        self.assertEqual(run.status, execution.RunStatus.FINISHED)
+        self.assertEqual(len(run.steps), 0)
+        self.assertEqual(len(run.outputs), 0)
+
+    def test_node_with_defaults_no_edges(self) -> None:
+        wf = _fixtures.build_workflow(
+            node_specs={"m": _fixtures.multiply_with_defaults_node}
+        )
+        run = wf.run()
+        self.assertEqual(run.status, execution.RunStatus.FINISHED)
+        self.assertEqual(len(run.steps), 1)
+
+    def test_unconnected_workflow_input_does_not_interfere(self) -> None:
+        # Workflow has an input port that is not wired to any child.
+        # The child should still evaluate using its own defaults (1*2=2).
+        wf = _fixtures.build_workflow(
+            inputs=["unused"],
+            node_specs={"m": _fixtures.multiply_with_defaults_node},
+        )
+        run = wf.run()
+        self.assertEqual(run.status, execution.RunStatus.FINISHED)
+        self.assertEqual(run.steps[0].result.output_ports["output_0"].value, 2)
+
+    def test_no_output_edges_run_finishes_with_empty_outputs(self) -> None:
+        wf = _fixtures.build_workflow(
+            node_specs={"m": _fixtures.multiply_with_defaults_node}
+        )
+        run = wf.run()
+        self.assertEqual(run.status, execution.RunStatus.FINISHED)
+        self.assertEqual(len(run.outputs), 0)
+
+    def test_input_edge_feeds_child_node(self) -> None:
+        # Workflow input "x" wired to multiply_with_defaults.x; y uses default (2).
+        wf = _fixtures.build_workflow(
+            inputs=["x"],
+            node_specs={"m": _fixtures.multiply_with_defaults_node},
+            edges=[
+                datatypes.EdgeTuple(
+                    frs.InputSource(port="x"),
+                    frs.TargetHandle(node="m", port="x"),
+                )
+            ],
+        )
+        run = wf.run(x=5)
+        self.assertEqual(run.status, execution.RunStatus.FINISHED)
+        # x=5, y=2 (default) → 5*2=10
+        self.assertEqual(run.steps[0].result.output_ports["output_0"].value, 10)
+
+    def test_output_edge_captures_result(self) -> None:
+        wf = _fixtures.build_workflow(
+            outputs=["out"],
+            node_specs={"m": _fixtures.multiply_with_defaults_node},
+            edges=[
+                datatypes.EdgeTuple(
+                    frs.SourceHandle(node="m", port="output_0"),
+                    frs.OutputTarget(port="out"),
+                )
+            ],
+        )
+        run = wf.run()
+        self.assertEqual(run.outputs["out"].value, 2)  # 1*2=2
+
+    def test_sibling_edge_sequences_nodes(self) -> None:
+        # n1 uses defaults (1*2=2); n2 receives x=n1.output_0=2, uses default y=2 → 4.
+        wf = _fixtures.build_workflow(
+            outputs=["result"],
+            node_specs={
+                "n1": _fixtures.multiply_with_defaults_node,
+                "n2": _fixtures.multiply_with_defaults_node,
+            },
+            edges=[
+                datatypes.EdgeTuple(
+                    frs.SourceHandle(node="n1", port="output_0"),
+                    frs.TargetHandle(node="n2", port="x"),
+                ),
+                datatypes.EdgeTuple(
+                    frs.SourceHandle(node="n2", port="output_0"),
+                    frs.OutputTarget(port="result"),
+                ),
+            ],
+        )
+        run = wf.run()
+        self.assertEqual(run.status, execution.RunStatus.FINISHED)
+        self.assertEqual(run.outputs["result"].value, 4)
+
+    def test_full_wiring_matches_expected_values(self) -> None:
+        wf = _fixtures.build_workflow(
+            inputs=["x", "y", "z"],
+            outputs=["a", "s"],
+            node_specs={
+                "add_0": _fixtures.atomic_add_node,
+                "sub_0": _fixtures.atomic_sub_node,
+            },
+            edges=_fixtures._MACRO_WF_EDGES,
+        )
+        run = wf.run(x=1, y=2, z=3)
+        self.assertEqual(run.outputs["a"].value, 3)  # 1+2
+        self.assertEqual(run.outputs["s"].value, 0)  # 3-3
+
+    def test_passthrough_input_to_output(self) -> None:
+        # No child nodes: InputSource edge wired directly to OutputTarget.
+        wf = _fixtures.build_workflow(
+            inputs=["x"],
+            outputs=["out"],
+            edges=[
+                datatypes.EdgeTuple(
+                    frs.InputSource(port="x"), frs.OutputTarget(port="out")
+                )
+            ],
+        )
+        run = wf.run(x=42)
+        self.assertEqual(run.outputs["out"].value, 42)
+
+    def test_steps_and_status(self) -> None:
+        wf = _fixtures.build_workflow(
+            inputs=["x", "y", "z"],
+            outputs=["a", "s"],
+            node_specs={
+                "add_0": _fixtures.atomic_add_node,
+                "sub_0": _fixtures.atomic_sub_node,
+            },
+            edges=_fixtures._MACRO_WF_EDGES,
+        )
+        run = wf.run(x=1, y=2, z=3)
+        self.assertEqual(run.status, execution.RunStatus.FINISHED)
+        self.assertEqual(len(run.steps), 2)
+        self.assertEqual({step.label for step in run.steps}, {"add_0", "sub_0"})
 
 
 if __name__ == "__main__":

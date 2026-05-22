@@ -20,7 +20,6 @@ from flowrep.api import schemas as frs
 from pyiron_snippets import versions
 
 from pyiron_workflow._wfms import api as wfms
-from pyiron_workflow._wfms import transformers
 
 # --------------------------------------------------------------------------- #
 # Plain functions                                                             #
@@ -119,8 +118,8 @@ def container():
 # Autoencoder (round-trips TransformNto1 -> Transform1toN)                    #
 # --------------------------------------------------------------------------- #
 
-_COMPRESS = transformers.TransformNto1(3)
-_EXPAND = transformers.Transform1toN(3)
+_COMPRESS = wfms.TransformNto1(3)
+_EXPAND = wfms.Transform1toN(3)
 
 
 @fr.workflow
@@ -254,6 +253,56 @@ def container_node(label: str = "container"):
 def autoencoder_node(label: str = "autoencoder"):
     """Return a fresh `Macro` wrapping `autoencoder`."""
     return wfms.function2node(autoencoder, label)
+
+
+def multiply_with_defaults_node(label: str = "multiply_with_defaults"):
+    """Return a fresh `Atomic` wrapping `multiply_with_defaults`."""
+    return wfms.function2node(multiply_with_defaults, label)
+
+
+# --------------------------------------------------------------------------- #
+# Workflow builder                                                             #
+# --------------------------------------------------------------------------- #
+
+_MACRO_WF_EDGES = [
+    wfms.EdgeTuple(frs.InputSource(port="x"), frs.TargetHandle(node="add_0", port="x")),
+    wfms.EdgeTuple(frs.InputSource(port="y"), frs.TargetHandle(node="add_0", port="y")),
+    wfms.EdgeTuple(frs.InputSource(port="z"), frs.TargetHandle(node="sub_0", port="y")),
+    wfms.EdgeTuple(
+        frs.SourceHandle(node="add_0", port="output_0"),
+        frs.TargetHandle(node="sub_0", port="x"),
+    ),
+    wfms.EdgeTuple(
+        frs.SourceHandle(node="add_0", port="output_0"),
+        frs.OutputTarget(port="a"),
+    ),
+    wfms.EdgeTuple(
+        frs.SourceHandle(node="sub_0", port="output_0"),
+        frs.OutputTarget(port="s"),
+    ),
+]
+
+
+def build_workflow(inputs=(), outputs=(), node_specs=None, edges=(), label="wf"):
+    """
+    Build a Workflow for testing.
+
+    node_specs: dict mapping node label -> factory function, e.g.
+        {"add_0": atomic_add_node, "sub_0": atomic_sub_node}
+    edges: iterable of EdgeTuple
+    """
+    if node_specs is None:
+        node_specs = {}
+    wf = wfms.Workflow(label)
+    for name in inputs:
+        wf.create_input(name)
+    for name in outputs:
+        wf.create_output(name)
+    for node_label, factory in node_specs.items():
+        wf.add_node(factory(node_label))
+    for edge in edges:
+        wf.add_edge(edge)
+    return wf
 
 
 def for_wf_node(label: str = "for_wf"):

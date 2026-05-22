@@ -11,6 +11,7 @@ EXPECTED: list[tuple[str, str]] = [
     ("node", "pyiron_workflow._wfms.constructors"),
     ("recipe2node", "pyiron_workflow._wfms.constructors"),
     ("Macro", "pyiron_workflow._wfms.dag"),
+    ("EdgeTuple", "pyiron_workflow._wfms.datatypes"),
     ("Workflow", "pyiron_workflow._wfms.workflow"),
     ("ExecutorInstructions", "pyiron_workflow._wfms.execution"),
     ("Run", "pyiron_workflow._wfms.execution"),

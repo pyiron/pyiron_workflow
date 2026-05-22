@@ -272,7 +272,9 @@ class Workflow(Node[frs.WorkflowRecipe, frs.DagData], Graph):
         run: execution.Run[execution.ResultType],
         config: execution.RunConfig,
     ) -> execution.Run[execution.ResultType]:
-        raise NotImplementedError()
+        dag.evaluate_dag_by_layer(self.nodes, run, config)
+        dag.populate_outputs(run.result)
+        return run
 
     @property
     def nodes(self) -> MutableNodeMap:
