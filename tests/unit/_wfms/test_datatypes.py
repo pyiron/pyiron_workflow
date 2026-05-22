@@ -83,20 +83,28 @@ class TestNodeLabel(unittest.TestCase):
 
 
 class TestNodeOwner(unittest.TestCase):
-    def test_initial_parenting_is_silent(self):
+    """
+    Node ownership is read-only, and managed privately by node maps.
+
+    To accommodate foreach building a runtime DAG, we don't guarantee that all owned
+    nodes appear in a graph's `.nodes` attribute, _but_ we do guarantee that all nodes
+    belonging to a `NodeMap` share that node map's owner.
+    """
+
+    def test_map_assignment_parents_nodes(self):
         n = _fixtures.atomic_add_node()
         owner = _fixtures.macro_node("owner_b")
         self.assertIsNone(n.owner)
-        n.owner = owner
+        datatypes.NodeMap(owner, {"some_label": n})
         self.assertIs(n.owner, owner)
 
     def test_reparenting_raises_value_error(self):
         n = _fixtures.atomic_add_node()
         owner_a = _fixtures.macro_node("owner_a")
         owner_b = _fixtures.macro_node("owner_b")
-        n.owner = owner_a
+        datatypes.NodeMap(owner_a, {"some_label": n})
         with self.assertRaises(ValueError) as ctx:
-            n.owner = owner_b
+            datatypes.NodeMap(owner_b, {"some_label": n})
         message = str(ctx.exception)
         self.assertIn("owner_a", message)
         self.assertIn("owner_b", message)
@@ -106,16 +114,10 @@ class TestNodeOwner(unittest.TestCase):
     def test_idempotent_reassignment_is_silent(self):
         n = _fixtures.atomic_add_node()
         owner = _fixtures.macro_node("owner_a")
-        n.owner = owner
-        n.owner = owner  # same owner — must not raise
+        datatypes.NodeMap(owner, {"some_label": n})
         self.assertIs(n.owner, owner)
-
-    def test_detach_is_silent(self):
-        n = _fixtures.atomic_add_node()
-        owner = _fixtures.macro_node("owner_a")
-        n.owner = owner
-        n.owner = None
-        self.assertIsNone(n.owner)
+        datatypes.NodeMap(owner, {"some_other_label": n})
+        self.assertIs(n.owner, owner)
 
 
 class TestNodeLexicalPath(unittest.TestCase):

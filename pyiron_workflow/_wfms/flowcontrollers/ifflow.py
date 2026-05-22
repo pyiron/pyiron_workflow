@@ -23,14 +23,14 @@ class If(StaticGraph[frs.IfRecipe, frs.IfData]):
         nodes: dict[frs.Label, Node] = {}
         for case in recipe.cases:
             nodes[case.condition.label] = constructors.recipe2node(
-                case.condition.node, case.condition.label, owner=self
+                case.condition.node, case.condition.label
             )
             nodes[case.body.label] = constructors.recipe2node(
-                case.body.node, case.body.label, owner=self
+                case.body.node, case.body.label
             )
         if recipe.else_case is not None:
             nodes[recipe.else_case.label] = constructors.recipe2node(
-                recipe.else_case.node, recipe.else_case.label, owner=self
+                recipe.else_case.node, recipe.else_case.label
             )
         return NodeMap(self, nodes)
 

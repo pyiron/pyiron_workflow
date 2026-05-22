@@ -74,7 +74,7 @@ class MutableNodeMap(NodeMap, MutableMapping[frs.Label, Node]):
 
     def __delitem__(self, key: frs.Label):
         value = self._pwf_lexical_map__data[key]
-        value.owner = None
+        value._owner = None
         del self._pwf_lexical_map__data[key]
 
     def __setattr__(self, key: frs.Label, value: object) -> None:
@@ -202,12 +202,11 @@ class Workflow(Node[frs.WorkflowRecipe, frs.DagData], Graph):
         self,
         label: frs.Label,
         *,
-        owner: Graph | None = None,
         undo_limit: int = 10,
     ):
         # Add a super call later if needed
         self._label = label
-        self._owner = owner
+        self._owner = None
         self._detached_root = None
         self.executor = None
         self.current_run = None

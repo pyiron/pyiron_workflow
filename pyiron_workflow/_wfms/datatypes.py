@@ -106,20 +106,6 @@ class Node(
     def owner(self) -> Graph | None:
         return self._owner
 
-    @owner.setter
-    def owner(self, new_owner: Graph | None):
-        if (
-            self.owner is not None
-            and new_owner is not None
-            and self.owner is not new_owner
-        ):
-            raise ValueError(
-                f"{self.label!r} ({self.__class__.__name__}) already has an owner: "
-                f"{self.owner.lexical_path!r}. It cannot take a new owner: "
-                f"{new_owner.lexical_path!r}."
-            )
-        self._owner = new_owner
-
     @property
     def lexical_root(self) -> lexical.LexicalPath:
         if self.owner is not None:
@@ -159,7 +145,6 @@ class Node(
 
 
 class StaticNode(Node[RecipeType, execution.ResultType], abc.ABC):
-    _owner: Graph | None
     _recipe: RecipeType
 
     @classmethod
@@ -170,11 +155,9 @@ class StaticNode(Node[RecipeType, execution.ResultType], abc.ABC):
         self,
         label: frs.Label,
         recipe: RecipeType,
-        *,
-        owner: Graph | None = None,
     ):
         self._label = label  # TODO: also accept None and use function name for default
-        self._owner = owner
+        self._owner = None
         self._detached_root = None
         self._recipe = recipe
         live_preview = self.generate_flowrep_live_node()
@@ -321,10 +304,8 @@ class StaticGraph(StaticNode[RecipeType, execution.ResultType], Graph, abc.ABC):
         self,
         label: frs.Label,
         recipe: RecipeType,
-        *,
-        owner: Graph | None = None,
     ):
-        super().__init__(label, recipe, owner=owner)
+        super().__init__(label, recipe)
         self._nodes = self._build_nodes(recipe)
         self._edges = self._build_edges(recipe)
 

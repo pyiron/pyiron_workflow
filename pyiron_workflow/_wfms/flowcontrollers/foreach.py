@@ -31,7 +31,7 @@ class ForEach(StaticGraph[frs.ForEachRecipe, frs.ForEachData]):
         bn = self.recipe.body_node
         return NodeMap(
             self,
-            {bn.label: constructors.recipe2node(bn.node, bn.label, owner=self)},
+            {bn.label: constructors.recipe2node(bn.node, bn.label)},
         )
 
     def _build_edges(self, recipe: frs.ForEachRecipe) -> EdgeList:
@@ -82,9 +82,7 @@ class ForEach(StaticGraph[frs.ForEachRecipe, frs.ForEachData]):
         # Scatter nodes
         for label, length in iterated_length_map.items():
             result_scatter_label = self._scatter_label(label)
-            scatter_node = transformers.Transform1toN(length).node(
-                result_scatter_label, owner=self
-            )
+            scatter_node = transformers.Transform1toN(length).node(result_scatter_label)
             runtime_map[result_scatter_label] = scatter_node
             result.nodes[result_scatter_label] = (
                 scatter_node.generate_flowrep_live_node()
@@ -100,9 +98,7 @@ class ForEach(StaticGraph[frs.ForEachRecipe, frs.ForEachData]):
         # Aggregator nodes
         for label in recipe.outputs:
             result_aggregator_label = self._aggregate_label(label)
-            aggregator_node = transformers.TransformNto1(total_steps).node(
-                label, owner=self
-            )
+            aggregator_node = transformers.TransformNto1(total_steps).node(label)
             runtime_map[result_aggregator_label] = aggregator_node
             result.nodes[result_aggregator_label] = (
                 aggregator_node.generate_flowrep_live_node()
@@ -241,6 +237,10 @@ class ForEach(StaticGraph[frs.ForEachRecipe, frs.ForEachData]):
         }
         result.output_edges = output_edges
 
+        print("FOR EACH DAG")
+        for k, v in runtime_map.items():
+            print("\t", k, v.label)
+        print("DONE")
         return NodeMap(self, runtime_map)
 
     @staticmethod

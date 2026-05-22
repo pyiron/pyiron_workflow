@@ -4,7 +4,6 @@ from flowrep.api import schemas as frs
 from pyiron_snippets import versions
 
 from pyiron_workflow._wfms import atomic
-from pyiron_workflow._wfms.datatypes import Graph
 
 
 class Transform1toN:
@@ -38,9 +37,8 @@ class Transform1toN:
     def node(
         self,
         label: frs.Label,
-        owner: Graph | None = None,
     ) -> atomic.Atomic:
-        return atomic.Atomic(label, self.recipe, owner=owner)
+        return atomic.Atomic(label, self.recipe)
 
 
 class TransformNto1:
@@ -75,6 +73,5 @@ class TransformNto1:
     def node(
         self,
         label: frs.Label,
-        owner: Graph | None = None,
     ) -> atomic.Atomic:
-        return atomic.Atomic(label, self.recipe, owner=owner)
+        return atomic.Atomic(label, self.recipe)

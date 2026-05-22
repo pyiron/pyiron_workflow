@@ -11,7 +11,6 @@ from pyiron_workflow._wfms import (
     dag,
     flowcontrollers,
     transformers,
-    workflow,
 )
 from tests.unit._wfms import _fixtures
 
@@ -109,19 +108,6 @@ class TestNode(unittest.TestCase):
         self.assertIs(result, node)
         self.assertEqual(result.label, "renamed")
 
-    def test_node_assigns_owner(self) -> None:
-        node = _fixtures.atomic_add_node("original")
-        wf = workflow.Workflow("wf")
-        result = constructors.node(node, owner=wf)
-        self.assertIs(result.owner, wf)
-        self.assertNotIn(
-            node.label,
-            wf.nodes,
-            msg="Node ownership does not guarantee that the owned nodes are exposed in "
-            "the nodes attribute (although being in the nodes attribute ensure "
-            "ownership).",
-        )
-
     def test_node_rejects_non_node(self) -> None:
         with self.assertRaisesRegex(TypeError, "expected a Node"):
             constructors.node(42, "x")
@@ -173,12 +159,6 @@ class TestFunction2Node(unittest.TestCase):
         self.assertIsInstance(n, atomic.Atomic)
         self.assertEqual(n.label, "plain_add")
 
-    def test_ownership_is_assigned(self) -> None:
-        wf = workflow.Workflow("wf")
-        n = constructors.function2node(_fixtures.macro, owner=wf)
-        self.assertEqual(n.owner, wf)
-        self.assertNotIn("macro", wf.nodes)
-
 
 # --------------------------------------------------------------------------- #
 # Tests for `recipe2node`                                                     #
@@ -197,14 +177,6 @@ class TestRecipe2Node(unittest.TestCase):
         self.assertEqual(n.label, "atomic_recipe_node")
         n = constructors.recipe2node(recipe, label="explicit_label")
         self.assertEqual(n.label, "explicit_label")
-
-    def test_owner(self) -> None:
-        recipe = transformers.Transform1toN(2).recipe
-        n = constructors.recipe2node(recipe)
-        self.assertIsNone(n.owner)
-        m = workflow.Workflow("m")
-        n = constructors.recipe2node(recipe, owner=m)
-        self.assertEqual(n.owner, m)
 
     def test_workflow_recipe_returns_macro(self) -> None:
         recipe = _fixtures.macro.flowrep_recipe
