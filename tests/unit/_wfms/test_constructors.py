@@ -92,11 +92,11 @@ def _try_recipe() -> frs.TryRecipe:
 
 
 # --------------------------------------------------------------------------- #
-# Tests for `node`                                                          #
+# Tests for `function2node`                                                   #
 # --------------------------------------------------------------------------- #
 
 
-class TestNode(unittest.TestCase):
+class TestFunction2Node(unittest.TestCase):
     def test_atomic_decorated_default_label(self) -> None:
         n = constructors.function2node(_fixtures.add)
         self.assertIsInstance(n, atomic.Atomic)
@@ -119,7 +119,7 @@ class TestNode(unittest.TestCase):
 
 
 # --------------------------------------------------------------------------- #
-# Tests for `recipe2static`                                                 #
+# Tests for `recipe2node`                                                     #
 # --------------------------------------------------------------------------- #
 
 
