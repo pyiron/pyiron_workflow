@@ -51,7 +51,7 @@ def coerce_to_node(value: object, label: frs.Label) -> Node:
     if isinstance(value, constructors.RecipeOptions):
         return constructors.recipe2static(label, value)
     if isinstance(value, types.FunctionType):
-        return constructors.node(value, label)
+        return constructors.function2node(value, label)
     raise TypeError(
         f"Cannot assign {value!r} as node {label!r}: expected a Node, "
         f"flowrep recipe, or function (with or without a flowrep recipe attached)."

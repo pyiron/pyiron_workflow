@@ -10,7 +10,7 @@ from pyiron_workflow._wfms import atomic, dag, flowcontrollers
 from pyiron_workflow._wfms.datatypes import Graph, StaticNode
 
 
-def node(
+def function2node(
     function: types.FunctionType, label: frs.Label | None = None
 ) -> atomic.Atomic | dag.Macro:
     recipe = getattr(function, "flowrep_recipe", None)

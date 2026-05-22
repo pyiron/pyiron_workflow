@@ -209,62 +209,62 @@ def for_wf(xs, ys, z):
 
 def atomic_add_node(label: str = "add"):
     """Return a fresh `Atomic` wrapping `add`."""
-    return wfms.node(add, label)
+    return wfms.function2node(add, label)
 
 
 def atomic_sub_node(label: str = "sub"):
     """Return a fresh `Atomic` wrapping `sub`."""
-    return wfms.node(sub, label)
+    return wfms.function2node(sub, label)
 
 
 def macro_node(label: str = "my_macro"):
     """Return a fresh `Macro` wrapping `macro`."""
-    return wfms.node(macro, label)
+    return wfms.function2node(macro, label)
 
 
 def annotated_macro_node(label: str = "my_annotated_macro"):
     """Return a fresh `Macro` wrapping `annotated_macro`."""
-    return wfms.node(annotated_macro, label)
+    return wfms.function2node(annotated_macro, label)
 
 
 def nested_macro_node(label: str = "my_nested_macro"):
     """Return a fresh `Macro` wrapping `nested_macro`."""
-    return wfms.node(nested_macro, label)
+    return wfms.function2node(nested_macro, label)
 
 
 def passthrough_node(label: str = "my_passthrough"):
     """Return a fresh `Macro` wrapping `passthrough`."""
-    return wfms.node(passthrough, label)
+    return wfms.function2node(passthrough, label)
 
 
 def container_node(label: str = "container"):
     """Return a fresh `Macro` wrapping `container`."""
-    return wfms.node(container, label)
+    return wfms.function2node(container, label)
 
 
 def autoencoder_node(label: str = "autoencoder"):
     """Return a fresh `Macro` wrapping `autoencoder`."""
-    return wfms.node(autoencoder, label)
+    return wfms.function2node(autoencoder, label)
 
 
 def for_wf_node(label: str = "for_wf"):
     """Return a fresh `Macro` wrapping `for_wf`."""
-    return wfms.node(for_wf, label)
+    return wfms.function2node(for_wf, label)
 
 
 def if_abs_node(label: str = "if_abs"):
     """Return a fresh `Macro` wrapping `if_abs`."""
-    return wfms.node(if_abs, label)
+    return wfms.function2node(if_abs, label)
 
 
 def while_countdown_node(label: str = "while_countdown"):
     """Return a fresh `Macro` wrapping `while_countdown`."""
-    return wfms.node(while_countdown, label)
+    return wfms.function2node(while_countdown, label)
 
 
 def try_safe_divide_node(label: str = "try_safe_divide"):
     """Return a fresh `Macro` wrapping `try_safe_divide`."""
-    return wfms.node(try_safe_divide, label)
+    return wfms.function2node(try_safe_divide, label)
 
 
 # --------------------------------------------------------------------------- #

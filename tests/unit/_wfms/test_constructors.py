@@ -98,22 +98,22 @@ def _try_recipe() -> frs.TryRecipe:
 
 class TestNode(unittest.TestCase):
     def test_atomic_decorated_default_label(self) -> None:
-        n = constructors.node(_fixtures.add)
+        n = constructors.function2node(_fixtures.add)
         self.assertIsInstance(n, atomic.Atomic)
         self.assertEqual(n.label, "add")
 
     def test_atomic_decorated_explicit_label(self) -> None:
-        n = constructors.node(_fixtures.add, label="custom")
+        n = constructors.function2node(_fixtures.add, label="custom")
         self.assertIsInstance(n, atomic.Atomic)
         self.assertEqual(n.label, "custom")
 
     def test_workflow_decorated_default_label(self) -> None:
-        n = constructors.node(_fixtures.macro)
+        n = constructors.function2node(_fixtures.macro)
         self.assertIsInstance(n, dag.Macro)
         self.assertEqual(n.label, "macro")
 
     def test_undecorated_function_parses_as_atomic(self) -> None:
-        n = constructors.node(plain_add)
+        n = constructors.function2node(plain_add)
         self.assertIsInstance(n, atomic.Atomic)
         self.assertEqual(n.label, "plain_add")
 
