@@ -92,6 +92,44 @@ def _try_recipe() -> frs.TryRecipe:
 
 
 # --------------------------------------------------------------------------- #
+# Tests for `node`                                                   #
+# --------------------------------------------------------------------------- #
+
+
+class TestNode(unittest.TestCase):
+
+    def test_node_relabels_node(self) -> None:
+        node = _fixtures.atomic_add_node("original")
+        result = constructors.node(node, "renamed")
+        self.assertIs(result, node)
+        self.assertEqual(result.label, "renamed")
+
+    def test_node_rejects_non_node(self) -> None:
+        with self.assertRaisesRegex(TypeError, "expected a Node"):
+            constructors.node(42, "x")
+
+    def test_atomic_recipe(self) -> None:
+        result = constructors.node(_fixtures.add.flowrep_recipe, "added")
+        self.assertIsInstance(result, atomic.Atomic)
+        self.assertEqual(result.label, "added")
+
+    def test_workflow_recipe(self) -> None:
+        result = constructors.node(_fixtures.macro.flowrep_recipe, "m")
+        self.assertIsInstance(result, dag.Macro)
+        self.assertEqual(result.label, "m")
+
+    def test_decorated_function(self) -> None:
+        result = constructors.node(_fixtures.add, "added")
+        self.assertIsInstance(result, atomic.Atomic)
+        self.assertEqual(result.label, "added")
+
+    def test_undecorated_function(self) -> None:
+        result = constructors.node(_fixtures.plain_increment, "inc")
+        self.assertIsInstance(result, atomic.Atomic)
+        self.assertEqual(result.label, "inc")
+
+
+# --------------------------------------------------------------------------- #
 # Tests for `function2node`                                                   #
 # --------------------------------------------------------------------------- #
 

@@ -6,7 +6,7 @@ from typing import TypeAlias, cast
 from flowrep.api import schemas as frs
 from flowrep.api import tools as frt
 
-from pyiron_workflow._wfms import atomic, dag, flowcontrollers
+from pyiron_workflow._wfms import atomic, dag, datatypes, flowcontrollers
 from pyiron_workflow._wfms.datatypes import Graph, StaticNode
 
 RecipeOptions: TypeAlias = (
@@ -17,6 +17,28 @@ RecipeOptions: TypeAlias = (
     | frs.WhileRecipe
     | frs.WorkflowRecipe
 )
+
+
+def node(value: object, label: frs.Label) -> datatypes.Node:
+    """
+    Convert a node-like `value` into a `Node` labelled `label`.
+
+    Accepts a `Node`, an `frs` recipe, or a plain function. Raises
+    `TypeError` otherwise. Has side effects (it mutates a passed-in `Node`'s
+    label / constructs new objects), so callers must run their collision and
+    duplicate-label checks first.
+    """
+    if isinstance(value, datatypes.Node):
+        value.label = label
+        return value
+    if isinstance(value, RecipeOptions):
+        return recipe2node(label, value)
+    if isinstance(value, types.FunctionType):
+        return function2node(value, label)
+    raise TypeError(
+        f"Cannot assign {value!r} as node {label!r}: expected a Node, "
+        f"flowrep recipe, or function (with or without a flowrep recipe attached)."
+    )
 
 
 def function2node(

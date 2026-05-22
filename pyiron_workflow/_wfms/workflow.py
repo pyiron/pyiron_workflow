@@ -36,28 +36,6 @@ def is_nodelike(value: object) -> bool:
     return isinstance(value, Node | constructors.RecipeOptions | types.FunctionType)
 
 
-def coerce_to_node(value: object, label: frs.Label) -> Node:
-    """
-    Convert a node-like `value` into a `Node` labelled `label`.
-
-    Accepts a `Node`, an `frs` recipe, or a plain function. Raises
-    `TypeError` otherwise. Has side effects (it mutates a passed-in `Node`'s
-    label / constructs new objects), so callers must run their collision and
-    duplicate-label checks first.
-    """
-    if isinstance(value, Node):
-        value.label = label
-        return value
-    if isinstance(value, constructors.RecipeOptions):
-        return constructors.recipe2node(label, value)
-    if isinstance(value, types.FunctionType):
-        return constructors.function2node(value, label)
-    raise TypeError(
-        f"Cannot assign {value!r} as node {label!r}: expected a Node, "
-        f"flowrep recipe, or function (with or without a flowrep recipe attached)."
-    )
-
-
 class MutablePortMap(
     PortMap[PortType, "Workflow"], MutableMapping[frs.Label, PortType]
 ):
@@ -113,7 +91,7 @@ class MutableNodeMap(NodeMap, MutableMapping[frs.Label, Node]):
             return
         if key in self._pwf_lexical_map__data:
             raise _duplicate_node_error(self._pwf_lexical_map__owner, key)
-        self._pwf_lexical_map__owner.add_node(coerce_to_node(value, key))
+        self._pwf_lexical_map__owner.add_node(constructors.node(value, key))
 
 
 _MappedType = TypeVar("_MappedType", bound=lexical.Lexical[Any])
@@ -265,7 +243,7 @@ class Workflow(Node[frs.WorkflowRecipe, frs.DagData], Graph):
             )
         if name in self.nodes:
             raise _duplicate_node_error(self, name)
-        self.add_node(coerce_to_node(value, name))
+        self.add_node(constructors.node(value, name))
 
     @property
     def inputs(self) -> MutablePortMap[InputPort]:
