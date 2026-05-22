@@ -32,7 +32,7 @@ def _duplicate_node_error(owner: Graph, key: frs.Label) -> ValueError:
 
 
 def _is_node_like(value: object) -> bool:
-    """Whether `value` should trigger the node-assignment sugar."""
+    """Whether `value` is convertible to a node."""
     return isinstance(value, Node | constructors.RecipeOptions | types.FunctionType)
 
 
