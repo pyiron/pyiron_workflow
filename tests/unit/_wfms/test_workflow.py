@@ -11,6 +11,12 @@ from _wfms import datatypes, workflow
 from flowrep.api import schemas as frs
 from unit._wfms import _fixtures
 
+from pyiron_workflow._wfms import atomic, dag
+
+
+def plain_increment(x):
+    return x + 1
+
 
 class TestMutablePortMap(unittest.TestCase):
     def setUp(self) -> None:
@@ -110,6 +116,81 @@ class TestMutableNodeMap(unittest.TestCase):
         del self.wf.nodes["add"]
         self.assertIsNone(node.owner)
         self.assertNotIn("add", self.wf.nodes)
+
+    def test_setitem_duplicate_label_raises(self) -> None:
+        self.wf.nodes["add"] = _fixtures.atomic_add_node("add")
+        with self.assertRaisesRegex(ValueError, "'wf' already has a node 'add'"):
+            self.wf.nodes["add"] = _fixtures.atomic_add_node("add")
+
+    def test_setattr_duplicate_label_raises(self) -> None:
+        self.wf.nodes.adder = _fixtures.atomic_add_node()
+        second = _fixtures.atomic_add_node()
+        with self.assertRaisesRegex(ValueError, "already has a node 'adder'"):
+            self.wf.nodes.adder = second
+        self.assertEqual(
+            second.label,
+            "add",
+            msg="A doomed assignment must not relabel the node",
+        )
+
+    def test_setattr_non_node_raises(self) -> None:
+        with self.assertRaisesRegex(
+            TypeError, "expected a Node, flowrep recipe, or function"
+        ):
+            self.wf.nodes.adder = 42
+
+    def test_setattr_accepts_recipe(self) -> None:
+        self.wf.nodes.m = _fixtures.macro.flowrep_recipe
+        self.assertIsInstance(self.wf.nodes["m"], dag.Macro)
+
+
+class TestNodeAssignmentHelpers(unittest.TestCase):
+    """Module-level `_is_node_like` / `_coerce_to_node` helpers."""
+
+    def test_is_node_like_true_for_node(self) -> None:
+        self.assertTrue(workflow._is_node_like(_fixtures.atomic_add_node()))
+
+    def test_is_node_like_false_for_non_node(self) -> None:
+        self.assertFalse(workflow._is_node_like(42))
+        self.assertFalse(workflow._is_node_like("a string"))
+        self.assertFalse(workflow._is_node_like(None))
+
+    def test_coerce_to_node_relabels_node(self) -> None:
+        node = _fixtures.atomic_add_node("original")
+        result = workflow._coerce_to_node(node, "renamed")
+        self.assertIs(result, node)
+        self.assertEqual(result.label, "renamed")
+
+    def test_coerce_to_node_rejects_non_node(self) -> None:
+        with self.assertRaisesRegex(TypeError, "expected a Node"):
+            workflow._coerce_to_node(42, "x")
+
+    def test_is_node_like_true_for_recipe(self) -> None:
+        self.assertTrue(workflow._is_node_like(_fixtures.add.flowrep_recipe))
+
+    def test_is_node_like_true_for_function(self) -> None:
+        self.assertTrue(workflow._is_node_like(_fixtures.add))
+        self.assertTrue(workflow._is_node_like(plain_increment))
+
+    def test_coerce_atomic_recipe(self) -> None:
+        result = workflow._coerce_to_node(_fixtures.add.flowrep_recipe, "added")
+        self.assertIsInstance(result, atomic.Atomic)
+        self.assertEqual(result.label, "added")
+
+    def test_coerce_workflow_recipe(self) -> None:
+        result = workflow._coerce_to_node(_fixtures.macro.flowrep_recipe, "m")
+        self.assertIsInstance(result, dag.Macro)
+        self.assertEqual(result.label, "m")
+
+    def test_coerce_decorated_function(self) -> None:
+        result = workflow._coerce_to_node(_fixtures.add, "added")
+        self.assertIsInstance(result, atomic.Atomic)
+        self.assertEqual(result.label, "added")
+
+    def test_coerce_undecorated_function(self) -> None:
+        result = workflow._coerce_to_node(plain_increment, "inc")
+        self.assertIsInstance(result, atomic.Atomic)
+        self.assertEqual(result.label, "inc")
 
 
 class TestGraphActions(unittest.TestCase):
@@ -1106,6 +1187,79 @@ class TestAtomicRollback(unittest.TestCase):
             len(acc),
             msg="Should have been called at each action rolled back",
         )
+
+
+class TestWorkflowSetattrSugar(unittest.TestCase):
+    """`Workflow.__setattr__` node-assignment sugar."""
+
+    def setUp(self) -> None:
+        self.wf = workflow.Workflow("wf")
+
+    def test_assigning_node_adds_it(self) -> None:
+        node = _fixtures.atomic_add_node("original")
+        self.wf.adder = node
+        self.assertIs(self.wf.nodes["adder"], node)
+        self.assertEqual(node.label, "adder")
+        self.assertIs(node.owner, self.wf)
+
+    def test_assignment_is_undoable(self) -> None:
+        self.wf.adder = _fixtures.atomic_add_node()
+        self.assertIn("adder", self.wf.nodes)
+        self.wf.undo()
+        self.assertNotIn("adder", self.wf.nodes)
+
+    def test_collision_with_method_raises(self) -> None:
+        with self.assertRaisesRegex(AttributeError, "collides with an existing"):
+            self.wf.run = _fixtures.atomic_add_node()
+
+    def test_collision_with_property_raises(self) -> None:
+        with self.assertRaisesRegex(AttributeError, "collides with an existing"):
+            self.wf.recipe = _fixtures.atomic_add_node()
+
+    def test_collision_with_instance_attribute_raises(self) -> None:
+        with self.assertRaisesRegex(AttributeError, "collides with an existing"):
+            self.wf.executor = _fixtures.atomic_add_node()
+
+    def test_duplicate_label_raises(self) -> None:
+        self.wf.adder = _fixtures.atomic_add_node()
+        with self.assertRaisesRegex(ValueError, "already has a node 'adder'"):
+            self.wf.adder = _fixtures.atomic_add_node()
+
+    def test_assigning_owned_node_raises(self) -> None:
+        other = workflow.Workflow("other")
+        node = _fixtures.atomic_add_node()
+        other.adder = node
+        with self.assertRaisesRegex(ValueError, "already has an owner"):
+            self.wf.adder = node
+
+    def test_non_node_value_assigned_normally(self) -> None:
+        self.wf.executor = None
+        self.assertIsNone(self.wf.executor)
+
+    def test_non_node_public_attribute_assigned_normally(self) -> None:
+        self.wf.some_flag = 42
+        self.assertEqual(self.wf.some_flag, 42)
+
+    def test_private_node_assigned_normally(self) -> None:
+        node = _fixtures.atomic_add_node()
+        self.wf._stash = node
+        self.assertIs(self.wf._stash, node)
+        self.assertNotIn("_stash", self.wf.nodes)
+
+    def test_init_still_works(self) -> None:
+        wf = workflow.Workflow("fresh", undo_limit=4)
+        self.assertEqual(len(wf.nodes), 0)
+        self.assertIsNone(wf.executor)
+        self.assertIsNone(wf.current_run)
+        self.assertEqual(wf.undo_limit, 4)
+
+    def test_assigning_recipe_adds_macro(self) -> None:
+        self.wf.m = _fixtures.macro.flowrep_recipe
+        self.assertIsInstance(self.wf.nodes["m"], dag.Macro)
+
+    def test_assigning_function_adds_atomic(self) -> None:
+        self.wf.inc = plain_increment
+        self.assertIsInstance(self.wf.nodes["inc"], atomic.Atomic)
 
 
 class TestWorkflowAttributeSugar(unittest.TestCase):

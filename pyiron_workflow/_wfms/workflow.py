@@ -3,13 +3,14 @@ from __future__ import annotations
 import collections
 import dataclasses
 import functools
+import types
 from collections.abc import Callable, MutableMapping
 from typing import Any, Protocol, TypeAlias, TypeVar
 
 import semantikon
 from flowrep.api import schemas as frs
 
-from pyiron_workflow._wfms import dag, execution, lexical
+from pyiron_workflow._wfms import constructors, dag, execution, lexical
 from pyiron_workflow._wfms.datatypes import (
     EdgeList,
     EdgeTuple,
@@ -21,6 +22,40 @@ from pyiron_workflow._wfms.datatypes import (
     PortMap,
     PortType,
 )
+
+
+def _duplicate_node_error(owner: Graph, key: frs.Label) -> ValueError:
+    return ValueError(
+        f"{owner.lexical_path!r} already has a node {key!r}; remove or rename "
+        f"it before assigning a new one."
+    )
+
+
+def _is_node_like(value: object) -> bool:
+    """Whether `value` should trigger the node-assignment sugar."""
+    return isinstance(value, Node | constructors.RecipeOptions | types.FunctionType)
+
+
+def _coerce_to_node(value: object, label: frs.Label) -> Node:
+    """
+    Convert a node-like `value` into a `Node` labelled `label`.
+
+    Accepts a `Node`, an `frs` recipe, or a plain function. Raises
+    `TypeError` otherwise. Has side effects (it mutates a passed-in `Node`'s
+    label / constructs new objects), so callers must run their collision and
+    duplicate-label checks first.
+    """
+    if isinstance(value, Node):
+        value.label = label
+        return value
+    if isinstance(value, constructors.RecipeOptions):
+        return constructors.recipe2static(label, value)  # type: ignore[type-var]
+    if isinstance(value, types.FunctionType):
+        return constructors.node(value, label)
+    raise TypeError(
+        f"Cannot assign {value!r} as node {label!r}: expected a Node, "
+        f"flowrep recipe, or function (with or without a flowrep recipe attached)."
+    )
 
 
 class MutablePortMap(
@@ -43,6 +78,8 @@ class MutableNodeMap(NodeMap, MutableMapping[frs.Label, Node]):
     _pwf_lexical_map__owner: Workflow
 
     def __setitem__(self, key: frs.Label, value: Node):
+        if key in self._pwf_lexical_map__data:
+            raise _duplicate_node_error(self._pwf_lexical_map__owner, key)
         if value.owner is not None and value.owner is not self._pwf_lexical_map__owner:
             raise ValueError(
                 f"Node {key!r} already has owner {value.owner.lexical_path!r} and "
@@ -62,17 +99,21 @@ class MutableNodeMap(NodeMap, MutableMapping[frs.Label, Node]):
         value.owner = None
         del self._pwf_lexical_map__data[key]
 
-    def __setattr__(self, key: frs.Label, value: Node):
-        """Syntactic sugar for adding fresh nodes to the graph.
+    def __setattr__(self, key: frs.Label, value: object) -> None:
+        """
+        Syntactic sugar for adding a fresh node to the graph.
 
-        Internal slot assignments (the `_pwf_lexical_map__*` names, e.g. when
-        unpickling) bypass the sugar and set the attribute directly.
+        Assigning a node-like value to a public attribute name converts it to
+        a `Node`, labels it with the attribute name, and adds it to the owning
+        workflow. Internal slot assignments (the `_pwf_lexical_map__*` names,
+        e.g. when unpickling) bypass the sugar and set the attribute directly.
         """
         if key.startswith("_pwf_lexical_map"):
             object.__setattr__(self, key, value)
             return
-        value.label = key  # Rely on Node.label setter protection for ownership
-        self._pwf_lexical_map__owner.add_node(value)
+        if key in self._pwf_lexical_map__data:
+            raise _duplicate_node_error(self._pwf_lexical_map__owner, key)
+        self._pwf_lexical_map__owner.add_node(_coerce_to_node(value, key))
 
 
 _MappedType = TypeVar("_MappedType", bound=lexical.Lexical[Any])
@@ -199,6 +240,32 @@ class Workflow(Node[frs.WorkflowRecipe, frs.DagData], Graph):
         self._diff_accumulator: GraphDiff | None = None
         self.undo_stack = collections.deque(maxlen=undo_limit)
         self.redo_stack = collections.deque(maxlen=undo_limit)
+
+    def __setattr__(self, name: str, value: object) -> None:
+        """Syntactic sugar for adding a fresh node to the graph.
+
+        Assigning a node-like value to a public attribute name converts it to
+        a `Node`, labels it with the attribute name, and adds it via
+        `add_node` (so the assignment is undoable). Private (`_`-prefixed)
+        names and non-node-like values are assigned normally. A name that
+        collides with a real attribute, or a label already taken by a node,
+        is rejected.
+        """
+        if name.startswith("_"):
+            object.__setattr__(self, name, value)
+            return
+        if not _is_node_like(value):
+            object.__setattr__(self, name, value)
+            return
+        if hasattr(type(self), name) or name in self.__dict__:
+            raise AttributeError(
+                f"Cannot assign a node to {name!r} on {self.lexical_path!r}: it "
+                f"collides with an existing attribute. Use a different label, or "
+                f"add the node via `nodes[{name!r}] = ...`."
+            )
+        if name in self.nodes:
+            raise _duplicate_node_error(self, name)
+        self.add_node(_coerce_to_node(value, name))
 
     @property
     def inputs(self) -> MutablePortMap[InputPort]:
