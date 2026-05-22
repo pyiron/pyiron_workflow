@@ -157,13 +157,13 @@ class TestNodeAssignmentHelpers(unittest.TestCase):
 
     def test_coerce_to_node_relabels_node(self) -> None:
         node = _fixtures.atomic_add_node("original")
-        result = workflow._coerce_to_node(node, "renamed")
+        result = workflow.coerce_to_node(node, "renamed")
         self.assertIs(result, node)
         self.assertEqual(result.label, "renamed")
 
     def test_coerce_to_node_rejects_non_node(self) -> None:
         with self.assertRaisesRegex(TypeError, "expected a Node"):
-            workflow._coerce_to_node(42, "x")
+            workflow.coerce_to_node(42, "x")
 
     def test_is_node_like_true_for_recipe(self) -> None:
         self.assertTrue(workflow._is_node_like(_fixtures.add.flowrep_recipe))
@@ -173,22 +173,22 @@ class TestNodeAssignmentHelpers(unittest.TestCase):
         self.assertTrue(workflow._is_node_like(plain_increment))
 
     def test_coerce_atomic_recipe(self) -> None:
-        result = workflow._coerce_to_node(_fixtures.add.flowrep_recipe, "added")
+        result = workflow.coerce_to_node(_fixtures.add.flowrep_recipe, "added")
         self.assertIsInstance(result, atomic.Atomic)
         self.assertEqual(result.label, "added")
 
     def test_coerce_workflow_recipe(self) -> None:
-        result = workflow._coerce_to_node(_fixtures.macro.flowrep_recipe, "m")
+        result = workflow.coerce_to_node(_fixtures.macro.flowrep_recipe, "m")
         self.assertIsInstance(result, dag.Macro)
         self.assertEqual(result.label, "m")
 
     def test_coerce_decorated_function(self) -> None:
-        result = workflow._coerce_to_node(_fixtures.add, "added")
+        result = workflow.coerce_to_node(_fixtures.add, "added")
         self.assertIsInstance(result, atomic.Atomic)
         self.assertEqual(result.label, "added")
 
     def test_coerce_undecorated_function(self) -> None:
-        result = workflow._coerce_to_node(plain_increment, "inc")
+        result = workflow.coerce_to_node(plain_increment, "inc")
         self.assertIsInstance(result, atomic.Atomic)
         self.assertEqual(result.label, "inc")
 

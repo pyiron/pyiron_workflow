@@ -36,7 +36,7 @@ def _is_node_like(value: object) -> bool:
     return isinstance(value, Node | constructors.RecipeOptions | types.FunctionType)
 
 
-def _coerce_to_node(value: object, label: frs.Label) -> Node:
+def coerce_to_node(value: object, label: frs.Label) -> Node:
     """
     Convert a node-like `value` into a `Node` labelled `label`.
 
@@ -113,7 +113,7 @@ class MutableNodeMap(NodeMap, MutableMapping[frs.Label, Node]):
             return
         if key in self._pwf_lexical_map__data:
             raise _duplicate_node_error(self._pwf_lexical_map__owner, key)
-        self._pwf_lexical_map__owner.add_node(_coerce_to_node(value, key))
+        self._pwf_lexical_map__owner.add_node(coerce_to_node(value, key))
 
 
 _MappedType = TypeVar("_MappedType", bound=lexical.Lexical[Any])
@@ -265,7 +265,7 @@ class Workflow(Node[frs.WorkflowRecipe, frs.DagData], Graph):
             )
         if name in self.nodes:
             raise _duplicate_node_error(self, name)
-        self.add_node(_coerce_to_node(value, name))
+        self.add_node(coerce_to_node(value, name))
 
     @property
     def inputs(self) -> MutablePortMap[InputPort]:
