@@ -23,10 +23,13 @@ def node(value: object, label: frs.Label) -> datatypes.Node:
     """
     Convert a node-like `value` into a `Node` labelled `label`.
 
-    Accepts a `Node`, an `frs` recipe, or a plain function. Raises
-    `TypeError` otherwise. Has side effects (it mutates a passed-in `Node`'s
-    label / constructs new objects), so callers must run their collision and
-    duplicate-label checks first.
+    Accepts a `Node`, an `flowrep` recipe, or a plain function. Raises
+    `TypeError` otherwise.
+
+    When the passed object is already a node instance, simply attempts to relabel it.
+
+    Functions will be searched for an attached `flowrep` recipe, and otherwise parsed
+    as atomic nodes. Un-parseable functions will raise the underlying `flowrep` error.
     """
     if isinstance(value, datatypes.Node):
         value.label = label
