@@ -20,7 +20,9 @@ RecipeOptions: TypeAlias = (
 )
 
 
-def node(value: object, label: frs.Label | None = None) -> datatypes.Node:
+def node(
+    value: object, label: frs.Label | None = None, owner: Graph | None = None
+) -> datatypes.Node:
     """
     Convert a node-like `value` into a `Node` labelled `label`.
 
@@ -35,11 +37,13 @@ def node(value: object, label: frs.Label | None = None) -> datatypes.Node:
     if isinstance(value, datatypes.Node):
         if label is not None:
             value.label = label
+        if owner is not None:
+            value.owner = owner
         return value
     if isinstance(value, RecipeOptions):
-        return recipe2node(value, label)
+        return recipe2node(value, label, owner)
     if isinstance(value, types.FunctionType):
-        return function2node(value, label)
+        return function2node(value, label, owner)
     raise TypeError(
         f"Cannot assign {value!r} as node {label!r}: expected a Node, "
         f"flowrep recipe, or function (with or without a flowrep recipe attached)."
@@ -47,7 +51,9 @@ def node(value: object, label: frs.Label | None = None) -> datatypes.Node:
 
 
 def function2node(
-    function: types.FunctionType, label: frs.Label | None = None
+    function: types.FunctionType,
+    label: frs.Label | None = None,
+    owner: Graph | None = None,
 ) -> atomic.Atomic | dag.Macro:
     recipe = getattr(function, "flowrep_recipe", None)
     if recipe:
@@ -57,12 +63,13 @@ def function2node(
             recipe2node(
                 cast(frs.AtomicRecipe | frs.WorkflowRecipe, recipe),
                 label or function.__name__,
+                owner,
             ),
         )
     else:
         # Otherwise parse undecorated functions as atomic nodes
         recipe = frt.parse_atomic(function)
-        return atomic.Atomic(label or function.__name__, recipe)
+        return atomic.Atomic(label or function.__name__, recipe, owner=owner)
 
 
 def recipe2node(

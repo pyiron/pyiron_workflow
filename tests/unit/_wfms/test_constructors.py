@@ -98,7 +98,7 @@ def _try_recipe() -> frs.TryRecipe:
 
 
 class TestNode(unittest.TestCase):
-    def test_node_passes_through_node_instances(self):
+    def test_node_passes_through_node_instances(self) -> None:
         node = _fixtures.atomic_add_node("original")
         still_node = constructors.node(node)
         self.assertIs(still_node, node)
@@ -108,6 +108,19 @@ class TestNode(unittest.TestCase):
         result = constructors.node(node, "renamed")
         self.assertIs(result, node)
         self.assertEqual(result.label, "renamed")
+
+    def test_node_assigns_owner(self) -> None:
+        node = _fixtures.atomic_add_node("original")
+        wf = workflow.Workflow("wf")
+        result = constructors.node(node, owner=wf)
+        self.assertIs(result.owner, wf)
+        self.assertNotIn(
+            node.label,
+            wf.nodes,
+            msg="Node ownership does not guarantee that the owned nodes are exposed in "
+            "the nodes attribute (although being in the nodes attribute ensure "
+            "ownership).",
+        )
 
     def test_node_rejects_non_node(self) -> None:
         with self.assertRaisesRegex(TypeError, "expected a Node"):
@@ -159,6 +172,12 @@ class TestFunction2Node(unittest.TestCase):
         n = constructors.function2node(plain_add)
         self.assertIsInstance(n, atomic.Atomic)
         self.assertEqual(n.label, "plain_add")
+
+    def test_ownership_is_assigned(self) -> None:
+        wf = workflow.Workflow("wf")
+        n = constructors.function2node(_fixtures.macro, owner=wf)
+        self.assertEqual(n.owner, wf)
+        self.assertNotIn("macro", wf.nodes)
 
 
 # --------------------------------------------------------------------------- #
