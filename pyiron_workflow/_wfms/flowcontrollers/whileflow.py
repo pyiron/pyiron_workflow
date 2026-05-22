@@ -21,10 +21,10 @@ class While(StaticGraph[frs.WhileRecipe, frs.WhileData]):
         return NodeMap(
             self,
             {
-                recipe.case.condition.label: constructors.recipe2static(
+                recipe.case.condition.label: constructors.recipe2node(
                     recipe.case.condition.label, recipe.case.condition.node, owner=self
                 ),
-                recipe.case.body.label: constructors.recipe2static(
+                recipe.case.body.label: constructors.recipe2node(
                     recipe.case.body.label, recipe.case.body.node, owner=self
                 ),
             },

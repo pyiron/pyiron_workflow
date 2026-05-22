@@ -123,37 +123,37 @@ class TestNode(unittest.TestCase):
 # --------------------------------------------------------------------------- #
 
 
-class TestRecipe2Static(unittest.TestCase):
+class TestRecipe2Node(unittest.TestCase):
     def test_atomic_recipe_returns_atomic(self) -> None:
         recipe = transformers.Transform1toN(2).recipe
-        n = constructors.recipe2static("lbl", recipe)
+        n = constructors.recipe2node("lbl", recipe)
         self.assertIsInstance(n, atomic.Atomic)
 
     def test_workflow_recipe_returns_macro(self) -> None:
         recipe = _fixtures.macro.flowrep_recipe
-        n = constructors.recipe2static("lbl", recipe)
+        n = constructors.recipe2node("lbl", recipe)
         self.assertIsInstance(n, dag.Macro)
 
     def test_for_each_recipe_returns_for_each(self) -> None:
         recipe = _fixtures.for_wf.flowrep_recipe.nodes["for_each_0"]
-        n = constructors.recipe2static("lbl", recipe)
+        n = constructors.recipe2node("lbl", recipe)
         self.assertIsInstance(n, flowcontrollers.ForEach)
 
     def test_if_recipe_returns_if(self) -> None:
-        n = constructors.recipe2static("lbl", _if_recipe())
+        n = constructors.recipe2node("lbl", _if_recipe())
         self.assertIsInstance(n, flowcontrollers.If)
 
     def test_try_recipe_returns_try(self) -> None:
-        n = constructors.recipe2static("lbl", _try_recipe())
+        n = constructors.recipe2node("lbl", _try_recipe())
         self.assertIsInstance(n, flowcontrollers.Try)
 
     def test_while_recipe_returns_while(self) -> None:
-        n = constructors.recipe2static("lbl", _while_recipe())
+        n = constructors.recipe2node("lbl", _while_recipe())
         self.assertIsInstance(n, flowcontrollers.While)
 
     def test_unknown_recipe_type_raises_type_error(self) -> None:
         with self.assertRaises(TypeError) as ctx:
-            constructors.recipe2static(label="x", recipe=object())  # type: ignore[arg-type]
+            constructors.recipe2node(label="x", recipe=object())  # type: ignore[arg-type]
         self.assertIn("Unknown recipe type", str(ctx.exception))
 
 

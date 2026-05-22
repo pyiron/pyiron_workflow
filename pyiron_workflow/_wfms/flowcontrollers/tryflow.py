@@ -25,12 +25,12 @@ class Try(StaticGraph[frs.TryRecipe, frs.TryData]):
 
     def _build_nodes(self, recipe: frs.TryRecipe) -> NodeMap:
         nodes: dict[frs.Label, Node] = {
-            recipe.try_node.label: constructors.recipe2static(
+            recipe.try_node.label: constructors.recipe2node(
                 recipe.try_node.label, recipe.try_node.node, owner=self
             )
         }
         for case in recipe.exception_cases:
-            nodes[case.body.label] = constructors.recipe2static(
+            nodes[case.body.label] = constructors.recipe2node(
                 case.body.label, case.body.node, owner=self
             )
         return NodeMap(self, nodes)

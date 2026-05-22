@@ -18,7 +18,7 @@ def function2node(
         # flowrep-decorated functions are all either atomic or workflow recipes
         return cast(
             atomic.Atomic | dag.Macro,
-            recipe2static(
+            recipe2node(
                 label or function.__name__,
                 cast(frs.AtomicRecipe | frs.WorkflowRecipe, recipe),
             ),
@@ -39,7 +39,7 @@ RecipeOptions: TypeAlias = (
 )
 
 
-def recipe2static(
+def recipe2node(
     label: frs.Label,
     recipe: RecipeOptions,
     owner: Graph | None = None,
