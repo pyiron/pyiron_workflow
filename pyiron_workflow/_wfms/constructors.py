@@ -7,7 +7,7 @@ from flowrep.api import schemas as frs
 from flowrep.api import tools as frt
 
 from pyiron_workflow._wfms import atomic, dag, flowcontrollers
-from pyiron_workflow._wfms.datatypes import Graph, RecipeType, StaticNode
+from pyiron_workflow._wfms.datatypes import Graph, StaticNode
 
 
 def node(
@@ -41,7 +41,7 @@ RecipeOptions: TypeAlias = (
 
 def recipe2static(
     label: frs.Label,
-    recipe: RecipeType,
+    recipe: RecipeOptions,
     owner: Graph | None = None,
 ) -> StaticNode:
     if isinstance(recipe, frs.AtomicRecipe):

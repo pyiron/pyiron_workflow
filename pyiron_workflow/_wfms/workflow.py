@@ -49,7 +49,7 @@ def _coerce_to_node(value: object, label: frs.Label) -> Node:
         value.label = label
         return value
     if isinstance(value, constructors.RecipeOptions):
-        return constructors.recipe2static(label, value)  # type: ignore[type-var]
+        return constructors.recipe2static(label, value)
     if isinstance(value, types.FunctionType):
         return constructors.node(value, label)
     raise TypeError(
