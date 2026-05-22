@@ -9,6 +9,15 @@ from flowrep.api import tools as frt
 from pyiron_workflow._wfms import atomic, dag, flowcontrollers
 from pyiron_workflow._wfms.datatypes import Graph, StaticNode
 
+RecipeOptions: TypeAlias = (
+    frs.AtomicRecipe
+    | frs.ForEachRecipe
+    | frs.IfRecipe
+    | frs.TryRecipe
+    | frs.WhileRecipe
+    | frs.WorkflowRecipe
+)
+
 
 def function2node(
     function: types.FunctionType, label: frs.Label | None = None
@@ -27,16 +36,6 @@ def function2node(
         # Otherwise parse undecorated functions as atomic nodes
         recipe = frt.parse_atomic(function)
         return atomic.Atomic(label or function.__name__, recipe)
-
-
-RecipeOptions: TypeAlias = (
-    frs.AtomicRecipe
-    | frs.ForEachRecipe
-    | frs.IfRecipe
-    | frs.TryRecipe
-    | frs.WhileRecipe
-    | frs.WorkflowRecipe
-)
 
 
 def recipe2node(
