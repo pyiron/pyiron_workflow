@@ -22,10 +22,10 @@ class While(StaticGraph[frs.WhileRecipe, frs.WhileData]):
             self,
             {
                 recipe.case.condition.label: constructors.recipe2node(
-                    recipe.case.condition.label, recipe.case.condition.node, owner=self
+                    recipe.case.condition.node, recipe.case.condition.label, owner=self
                 ),
                 recipe.case.body.label: constructors.recipe2node(
-                    recipe.case.body.label, recipe.case.body.node, owner=self
+                    recipe.case.body.node, recipe.case.body.label, owner=self
                 ),
             },
         )

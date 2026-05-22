@@ -253,7 +253,7 @@ class TestMacroDownstreamOfFalsyIfIsSkipped(unittest.TestCase):
 
     def setUp(self) -> None:
         self.recipe = _macro_with_no_else_and_downstream()
-        self.macro = constructors.recipe2node("macro", self.recipe)
+        self.macro = constructors.recipe2node(self.recipe, "macro")
         # cond = add(1, -1) = 0 (falsy); no else → if_0.out stays NOT_DATA.
         self.run = self.macro.run(x=1, y=-1)
 

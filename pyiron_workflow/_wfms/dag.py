@@ -30,7 +30,7 @@ class Macro(StaticGraph[frs.WorkflowRecipe, frs.DagData], Graph):
             self,
             {
                 node_label: constructors.recipe2node(
-                    node_label, node_recipe, owner=self
+                    node_recipe, node_label, owner=self
                 )
                 for node_label, node_recipe in recipe.nodes.items()
             },

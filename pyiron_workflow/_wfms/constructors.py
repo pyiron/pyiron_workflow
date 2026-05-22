@@ -35,7 +35,7 @@ def node(value: object, label: frs.Label) -> datatypes.Node:
         value.label = label
         return value
     if isinstance(value, RecipeOptions):
-        return recipe2node(label, value)
+        return recipe2node(value, label)
     if isinstance(value, types.FunctionType):
         return function2node(value, label)
     raise TypeError(
@@ -53,8 +53,8 @@ def function2node(
         return cast(
             atomic.Atomic | dag.Macro,
             recipe2node(
-                label or function.__name__,
                 cast(frs.AtomicRecipe | frs.WorkflowRecipe, recipe),
+                label or function.__name__,
             ),
         )
     else:
@@ -64,9 +64,7 @@ def function2node(
 
 
 def recipe2node(
-    label: frs.Label,
-    recipe: RecipeOptions,
-    owner: Graph | None = None,
+    recipe: RecipeOptions, label: frs.Label, owner: Graph | None = None
 ) -> StaticNode:
     if isinstance(recipe, frs.AtomicRecipe):
         return atomic.Atomic(label, recipe, owner=owner)
