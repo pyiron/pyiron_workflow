@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import re
 import types
 from typing import TypeAlias, cast
 
@@ -64,8 +65,14 @@ def function2node(
 
 
 def recipe2node(
-    recipe: RecipeOptions, label: frs.Label, owner: Graph | None = None
+    recipe: RecipeOptions, label: frs.Label | None = None, owner: Graph | None = None
 ) -> StaticNode:
+    label = (
+        f"{_pascal_to_snake(recipe.__class__.__name__)}_node"
+        if label is None
+        else label
+    )
+
     if isinstance(recipe, frs.AtomicRecipe):
         return atomic.Atomic(label, recipe, owner=owner)
     elif isinstance(recipe, frs.ForEachRecipe):
@@ -82,3 +89,8 @@ def recipe2node(
         raise TypeError(
             f"Unknown recipe type: {recipe}. Expected one of {RecipeOptions}."
         )
+
+
+def _pascal_to_snake(name: str):
+    snake_case = re.sub(r"(?<!^)(?=[A-Z])", "_", name).lower()
+    return snake_case
