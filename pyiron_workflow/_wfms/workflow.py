@@ -16,7 +16,6 @@ from pyiron_workflow._wfms.datatypes import (
     Graph,
     InputPort,
     Node,
-    NodeAttributeAccess,
     NodeMap,
     OutputPort,
     PortMap,
@@ -64,7 +63,14 @@ class MutableNodeMap(NodeMap, MutableMapping[frs.Label, Node]):
         del self._pwf_lexical_map__data[key]
 
     def __setattr__(self, key: frs.Label, value: Node):
-        """Syntactic sugar for adding fresh nodes to the graph"""
+        """Syntactic sugar for adding fresh nodes to the graph.
+
+        Internal slot assignments (the `_pwf_lexical_map__*` names, e.g. when
+        unpickling) bypass the sugar and set the attribute directly.
+        """
+        if key.startswith("_pwf_lexical_map"):
+            object.__setattr__(self, key, value)
+            return
         value.label = key  # Rely on Node.label setter protection for ownership
         self._pwf_lexical_map__owner.add_node(value)
 
@@ -162,7 +168,7 @@ class RenameNode:
 GraphDiff: TypeAlias = list[GraphAction]
 
 
-class Workflow(Node[frs.WorkflowRecipe, frs.DagData], NodeAttributeAccess, Graph):
+class Workflow(Node[frs.WorkflowRecipe, frs.DagData], Graph):
     """This is the key mutable one"""
 
     _inputs: MutablePortMap[InputPort]

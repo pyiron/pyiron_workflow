@@ -3,6 +3,7 @@ from __future__ import annotations
 import collections
 import contextlib
 import dataclasses
+import pickle
 import unittest
 
 import semantikon
@@ -1145,6 +1146,21 @@ class TestWorkflowAttributeSugar(unittest.TestCase):
         wf = workflow.Workflow("wf")
         with self.assertRaises(AttributeError):
             _ = wf.does_not_exist
+
+
+class TestWorkflowPickle(unittest.TestCase):
+    """A Workflow must survive a pickle round-trip with children parented."""
+
+    def test_round_trip_reparents_children(self) -> None:
+        wf = workflow.Workflow("wf")
+        wf.add_node(_fixtures.atomic_add_node("a"), _fixtures.atomic_sub_node("b"))
+        restored = pickle.loads(pickle.dumps(wf))
+        self.assertEqual(sorted(restored.nodes), ["a", "b"])
+        for label, child in restored.nodes.items():
+            self.assertIs(child.owner, restored, msg=f"{label} lost its owner")
+            self.assertIsNone(
+                child._detached_root, msg=f"{label} kept a stale detached root"
+            )
 
 
 if __name__ == "__main__":

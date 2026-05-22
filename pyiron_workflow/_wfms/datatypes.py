@@ -5,7 +5,7 @@ import dataclasses
 import pathlib
 from collections.abc import Mapping
 from concurrent import futures
-from typing import ClassVar, Generic, NamedTuple, Protocol, TypeAlias, TypeVar
+from typing import ClassVar, Generic, NamedTuple, TypeAlias, TypeVar
 
 import semantikon
 from flowrep.api import schemas as frs
@@ -256,34 +256,30 @@ class EdgeTuple(NamedTuple):
 EdgeList: TypeAlias = list[EdgeTuple]
 
 
-class Graph(lexical.Lexical["Graph"], Protocol):
-    """
-    Graphs should additionally make public, non-name-conflicting nodes available via
-    attribute access by mixing in `NodeAttributeAccess`, but this is difficult to
-    indicate via protocol, and is anyhow just for syntactic sugar.
-    """
+class Graph(lexical.HasLexicalPath, abc.ABC):
+    """A node that owns a map of child nodes and the edges between them.
 
-    @property
-    def nodes(self) -> NodeMap: ...
+    Concrete graphs (`StaticGraph`, `Workflow`) are also `Node`s and take their
+    lexical identity from there; `Graph` only contributes the graph-specific
+    surface. It depends on `HasLexicalPath` rather than the full `Lexical`
+    protocol so that it shares no base with `Node` -- keeping the
+    `StaticGraph` / `Workflow` inheritance free of a `Lexical` diamond.
 
-    @property
-    def edges(self) -> EdgeList: ...
-
-
-class NodeAttributeAccess(abc.ABC):
-    """
-    Mixin: unknown public attribute access falls back to the graph's nodes map.
-
-    `__getattr__` runs only after normal attribute lookup fails, so genuine
-    attributes (properties, methods, instance state) always shadow a node of
-    the same name. Names starting with `_` are never resolved this way: it
-    keeps the fallback recursion-safe and avoids exposing private-looking
-    state. Such nodes remain reachable via `graph.nodes[label]`.
+    `__getattr__` makes child nodes reachable as attributes: it runs only after
+    normal attribute lookup fails, so genuine attributes (properties, methods,
+    instance state) always shadow a node of the same name. Names starting with
+    `_` are never resolved this way -- it keeps the fallback recursion-safe and
+    avoids exposing private-looking state. Such nodes remain reachable via
+    `graph.nodes[label]`.
     """
 
     @property
     @abc.abstractmethod
     def nodes(self) -> NodeMap: ...
+
+    @property
+    @abc.abstractmethod
+    def edges(self) -> EdgeList: ...
 
     def __getattr__(self, item: str) -> Node:
         if item.startswith("_"):
@@ -295,10 +291,18 @@ class NodeAttributeAccess(abc.ABC):
                 f"{type(self).__name__!r} object has no attribute {item!r}"
             ) from None
 
+    def __setstate__(self, state: dict[str, object]) -> None:
+        # `Node.__getstate__` nulls every node's `_owner` so a node shipped to
+        # an executor does not drag its antecedent graph along. A graph's
+        # children travel inside `nodes` but arrive detached, so re-attach
+        # them (and drop the now-stale detached root) here.
+        self.__dict__.update(state)
+        for child in self.nodes.values():
+            child._owner = self
+            child._detached_root = None
 
-class StaticGraph(
-    StaticNode[RecipeType, execution.ResultType], NodeAttributeAccess, Graph, abc.ABC
-):
+
+class StaticGraph(StaticNode[RecipeType, execution.ResultType], Graph, abc.ABC):
 
     _nodes: NodeMap
     _edges: EdgeList

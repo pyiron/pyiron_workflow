@@ -14,6 +14,7 @@ Covers the testable surface of `dag.py`:
 
 from __future__ import annotations
 
+import pickle
 import unittest
 
 from flowrep.api import schemas as frs
@@ -187,6 +188,28 @@ class TestMacroAttributeSugar(unittest.TestCase):
         m = _fixtures.attr_sugar_macro_node()
         with self.assertRaises(AttributeError):
             _ = m._does_not_exist
+
+
+class TestMacroPickle(unittest.TestCase):
+    """A pickled graph must keep its children parented (executor round-trip)."""
+
+    def test_round_trip_reparents_children(self) -> None:
+        m = _fixtures.macro_node()
+        restored = pickle.loads(pickle.dumps(m))
+        self.assertEqual(sorted(restored.nodes), sorted(m.nodes))
+        for label, child in restored.nodes.items():
+            self.assertIs(child.owner, restored, msg=f"{label} lost its owner")
+            self.assertIsNone(
+                child._detached_root, msg=f"{label} kept a stale detached root"
+            )
+
+    def test_round_trip_reparents_nested_children(self) -> None:
+        m = _fixtures.nested_macro_node()
+        restored = pickle.loads(pickle.dumps(m))
+        inner = next(c for c in restored.nodes.values() if isinstance(c, dag.Macro))
+        self.assertIs(inner.owner, restored)
+        for label, child in inner.nodes.items():
+            self.assertIs(child.owner, inner, msg=f"nested {label} lost its owner")
 
 
 if __name__ == "__main__":
