@@ -102,16 +102,10 @@ class TestLexicalMap(unittest.TestCase):
         self.assertIn(self.other.lexical_path, msg)
         self.assertIn(self.owner.lexical_path, msg)
 
-    def test_init_none_owner_raises(self) -> None:
+    def test_init_none_owner_passes(self) -> None:
         orphan = _StubItem(label="orphan", owner=None)
-        with self.assertRaisesRegex(
-            ValueError,
-            "Map owned by 'owner' cannot be initialized with items that have a different owner",
-        ) as ctx:
-            lexical.LexicalMap(self.owner, {"orphan": orphan})
-        msg = str(ctx.exception)
-        self.assertIn(orphan.lexical_path, msg)
-        self.assertIn("None", msg)
+        map_ = lexical.LexicalMap(self.owner, {"orphan": orphan})
+        self.assertIn(orphan.label, map_)
 
     # ---- __getitem__ ------------------------------------------------------ #
 
@@ -195,13 +189,9 @@ class TestCheckCoOwnership(unittest.TestCase):
         self.assertIn(self.other.lexical_path, msg)
         self.assertIn(self.owner.lexical_path, msg)
 
-    def test_raises_on_none_owner(self) -> None:
+    def test_silent_on_none_owner(self) -> None:
         orphan = _StubItem(label="orphan", owner=None)
-        with self.assertRaisesRegex(ValueError, "different owner") as ctx:
-            lexical.check_co_ownership(self.owner, [orphan])
-        msg = str(ctx.exception)
-        self.assertIn(orphan.lexical_path, msg)
-        self.assertIn("None", msg)
+        lexical.check_co_ownership(self.owner, [orphan])
 
 
 class TestLexicalPath(unittest.TestCase):

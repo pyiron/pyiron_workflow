@@ -239,6 +239,16 @@ class StaticNode(Node[RecipeType, execution.ResultType], abc.ABC):
 
 class NodeMap(lexical.LexicalMap[Node, "Graph"]):
 
+    def __init__(
+        self,
+        owner: Graph,
+        data: Mapping[frs.Label, Node] | None = None,
+        /,
+    ):
+        super().__init__(owner, data)
+        for value in self._pwf_lexical_map__data.values():
+            value._owner = owner
+
     def __repr__(self) -> str:
         return (
             f"{self.__class__.__name__}({self._pwf_lexical_map__owner.lexical_path}):\n"

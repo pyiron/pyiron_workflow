@@ -129,9 +129,9 @@ class LexicalMap(Mapping[frs.Label, LexicalType], Generic[LexicalType, OwnerType
 
 def check_co_ownership(owner: HasLexicalPath, items: Iterable[Lexical[Any]]) -> None:
     if not_co_owned := {
-        i.lexical_path: None if i.owner is None else i.owner.lexical_path
+        i.lexical_path: i.owner.lexical_path
         for i in items
-        if i.owner is not owner
+        if i.owner is not None and i.owner is not owner
     }:
         raise ValueError(
             f"Map owned by {owner.lexical_path!r} cannot be initialized with "

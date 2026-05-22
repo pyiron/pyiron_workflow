@@ -69,7 +69,7 @@ class MutableNodeMap(NodeMap, MutableMapping[frs.Label, Node]):
                 f"Node {key!r} already has label {value.label!r} and cannot be assigned "
                 f"to a node map with label {value.label!r}."
             )
-        value.owner = self._pwf_lexical_map__owner
+        value._owner = self._pwf_lexical_map__owner
         self._pwf_lexical_map__data[key] = value
 
     def __delitem__(self, key: frs.Label):
