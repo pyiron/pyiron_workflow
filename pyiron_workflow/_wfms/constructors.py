@@ -20,7 +20,7 @@ RecipeOptions: TypeAlias = (
 )
 
 
-def node(value: object, label: frs.Label) -> datatypes.Node:
+def node(value: object, label: frs.Label | None = None) -> datatypes.Node:
     """
     Convert a node-like `value` into a `Node` labelled `label`.
 
@@ -33,7 +33,8 @@ def node(value: object, label: frs.Label) -> datatypes.Node:
     as atomic nodes. Un-parseable functions will raise the underlying `flowrep` error.
     """
     if isinstance(value, datatypes.Node):
-        value.label = label
+        if label is not None:
+            value.label = label
         return value
     if isinstance(value, RecipeOptions):
         return recipe2node(value, label)

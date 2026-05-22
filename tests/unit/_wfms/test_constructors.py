@@ -98,6 +98,10 @@ def _try_recipe() -> frs.TryRecipe:
 
 
 class TestNode(unittest.TestCase):
+    def test_node_passes_through_node_instances(self):
+        node = _fixtures.atomic_add_node("original")
+        still_node = constructors.node(node)
+        self.assertIs(still_node, node)
 
     def test_node_relabels_node(self) -> None:
         node = _fixtures.atomic_add_node("original")
