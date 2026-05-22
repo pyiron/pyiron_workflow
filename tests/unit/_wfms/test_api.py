@@ -8,6 +8,8 @@ import unittest
 EXPECTED: list[tuple[str, str]] = [
     ("Atomic", "pyiron_workflow._wfms.atomic"),
     ("function2node", "pyiron_workflow._wfms.constructors"),
+    ("node", "pyiron_workflow._wfms.constructors"),
+    ("recipe2node", "pyiron_workflow._wfms.constructors"),
     ("Macro", "pyiron_workflow._wfms.dag"),
     ("Workflow", "pyiron_workflow._wfms.workflow"),
     ("ExecutorInstructions", "pyiron_workflow._wfms.execution"),
