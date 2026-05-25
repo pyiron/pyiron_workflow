@@ -4,7 +4,7 @@ dependencies:
 - bagofholding =0.1.11
 - bidict =0.23.1
 - cloudpickle =3.1.2
-- executorlib =1.9.2
+- executorlib =1.9.3
 - flowrep =0.4.1
 - graphviz =12.2.1
 - hatchling =1.29.0
@@ -18,4 +18,4 @@ dependencies:
 - rdflib =7.6.0
 - semantikon =1.1.0
 - toposort =1.10
-- typeguard =4.5.1
+- typeguard =4.5.2
