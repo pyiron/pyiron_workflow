@@ -2,8 +2,8 @@ from pyiron_workflow._wfms.atomic import Atomic as Atomic
 from pyiron_workflow._wfms.constructors import function2node as function2node
 from pyiron_workflow._wfms.constructors import node as node
 from pyiron_workflow._wfms.constructors import recipe2node as recipe2node
-from pyiron_workflow._wfms.dag import EdgeTuple as EdgeTuple
 from pyiron_workflow._wfms.dag import Macro as Macro
+from pyiron_workflow._wfms.datatypes import EdgeTuple as EdgeTuple
 from pyiron_workflow._wfms.execution import ExecutorInstructions as ExecutorInstructions
 from pyiron_workflow._wfms.execution import Run as Run
 from pyiron_workflow._wfms.execution import RunConfig as RunConfig
