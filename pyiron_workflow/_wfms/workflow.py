@@ -602,6 +602,24 @@ class Workflow(Node[frs.WorkflowRecipe, frs.DagData], Graph):
     def group(self, *nodes: Node) -> None:
         raise NotImplementedError()
 
+    @_undoable
+    def unlock_subgraph(self, macro: Workflow | dag.Macro | frs.Label) -> None:
+        instance = self.get_node(macro)
+        if isinstance(instance, Workflow):
+            return  # Already unlocked -- workflows are mutable
+        elif not isinstance(instance, dag.Macro):
+            raise TypeError(
+                f"Cannot unlock {instance.lexical_path!r} -- it is not a "
+                f"{dag.Macro.__name__}."
+            )
+        wf_equivalent = constructors.macro2workflow(instance)
+        touching = self._edges_touching_node(instance.label)
+        self._disconnect(instance)
+        self._remove_node_shallow(instance)
+        self._add_node(wf_equivalent)
+        for edge in touching:
+            self._add_edge(edge)
+
     @_undoable  # Lossy on underlying macro function reference, if any
     def ungroup(
         self, graph: dag.Macro | Workflow, block_if_reference: bool = False
@@ -618,6 +636,24 @@ class Workflow(Node[frs.WorkflowRecipe, frs.DagData], Graph):
                 "`block_if_reference=False`"
             )
         raise NotImplementedError()
+
+    @_undoable
+    def lock_subgraph(self, workflow_child: Workflow | dag.Macro | frs.Label) -> None:
+        instance = self.get_node(workflow_child)
+        if isinstance(instance, dag.Macro):
+            return  # Already locked -- macros are static
+        elif not isinstance(instance, Workflow):
+            raise TypeError(
+                f"Cannot lock {instance.lexical_path!r} -- it is a {type(instance)} but "
+                f"we need a {Workflow.__name__}."
+            )
+        macro_equivalent = constructors.workflow2macro(instance)
+        touching = self._edges_touching_node(instance.label)
+        self._disconnect(instance)
+        self._remove_node_shallow(instance)
+        self._add_node(macro_equivalent)
+        for edge in touching:
+            self._add_edge(edge)
 
     # --- Undo / redo ---
 
