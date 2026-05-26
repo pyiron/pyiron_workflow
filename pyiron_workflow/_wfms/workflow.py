@@ -254,7 +254,9 @@ class Workflow(Node[frs.WorkflowRecipe, frs.DagData], Graph):
 
     @property
     def recipe(self) -> frs.WorkflowRecipe:
-        inp, peer, out = self._decompose_edges()
+        inp, peer, out = constructors.edgelist2edges(
+            self.edges, f"{self.lexical_path!r}"
+        )
         return frs.WorkflowRecipe(
             inputs=list(self.inputs.keys()),
             outputs=list(self.outputs.keys()),
@@ -283,30 +285,6 @@ class Workflow(Node[frs.WorkflowRecipe, frs.DagData], Graph):
     @property
     def edges(self) -> EdgeList:
         return self._edges
-
-    def _decompose_edges(self) -> tuple[frs.InputEdges, frs.Edges, frs.OutputEdges]:
-        inp: frs.InputEdges = {}
-        peer: frs.Edges = {}
-        out: frs.OutputEdges = {}
-        for source, target in self.edges:
-            if isinstance(source, frs.InputSource) and isinstance(
-                target, frs.TargetHandle
-            ):
-                inp[target] = source
-            elif isinstance(source, frs.SourceHandle) and isinstance(
-                target, frs.TargetHandle
-            ):
-                peer[target] = source
-            elif isinstance(source, frs.SourceHandle | frs.InputSource) and isinstance(
-                target, frs.OutputTarget
-            ):
-                out[target] = source
-            else:
-                raise TypeError(
-                    f"{self.lexical_path!r} has an edge that does not fit into known "
-                    f"input/peer/output buckets: {source!r} -> {target!r}"
-                )
-        return inp, peer, out
 
     @property
     def undo_limit(self) -> int | None:

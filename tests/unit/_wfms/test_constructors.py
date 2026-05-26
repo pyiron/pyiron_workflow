@@ -9,8 +9,10 @@ from pyiron_workflow._wfms import (
     atomic,
     constructors,
     dag,
+    datatypes,
     flowcontrollers,
     transformers,
+    workflow,
 )
 from tests.unit._wfms import _fixtures
 
@@ -204,6 +206,280 @@ class TestRecipe2Node(unittest.TestCase):
         with self.assertRaises(TypeError) as ctx:
             constructors.recipe2node(recipe=object(), label="x")  # type: ignore[arg-type]
         self.assertIn("Unknown recipe type", str(ctx.exception))
+
+
+class TestWorkflow2MacroNonLossy(unittest.TestCase):
+    def test_input_port_hints_preserved(self) -> None:
+        wf = _fixtures.build_workflow(inputs=["x"], label="wf")
+        wf.add_port_hint(wf.inputs["x"], int)
+        macro = constructors.workflow2macro(wf)
+        self.assertEqual(macro.inputs["x"].type_hint, int)
+
+    def test_output_port_hints_preserved(self) -> None:
+        wf = _fixtures.build_workflow(inputs=["y"], outputs=["y"], label="wf")
+        wf.add_edge(
+            datatypes.EdgeTuple(frs.InputSource(port="y"), frs.OutputTarget(port="y"))
+        )
+        wf.add_port_hint(wf.outputs["y"], float)
+        macro = constructors.workflow2macro(wf)
+        self.assertEqual(macro.outputs["y"].type_hint, float)
+
+
+class _Sentinel:
+    """Stand-in for `concurrent.futures.Executor` in tests; identity-comparable."""
+
+    def __init__(self, name: str) -> None:
+        self.name = name
+
+
+class TestConvertersExecutorPreservation(unittest.TestCase):
+    def test_workflow2macro_preserves_nested_executors(self) -> None:
+        wf = _fixtures.build_workflow(
+            inputs=["x", "y"],
+            outputs=["a", "s"],
+            node_specs={"nested": _fixtures.nested_macro_node},
+            edges=[
+                datatypes.EdgeTuple(
+                    frs.InputSource(port="x"),
+                    frs.TargetHandle(node="nested", port="x"),
+                ),
+                datatypes.EdgeTuple(
+                    frs.InputSource(port="y"),
+                    frs.TargetHandle(node="nested", port="y"),
+                ),
+                datatypes.EdgeTuple(
+                    frs.SourceHandle(node="nested", port="a"),
+                    frs.OutputTarget(port="a"),
+                ),
+                datatypes.EdgeTuple(
+                    frs.SourceHandle(node="nested", port="s"),
+                    frs.OutputTarget(port="s"),
+                ),
+            ],
+            label="root",
+        )
+        outer = _Sentinel("outer")
+        depth1 = _Sentinel("depth1")
+        depth2 = _Sentinel("depth2")
+        wf.executor = outer
+        wf.nodes["nested"].executor = depth1
+        wf.nodes["nested"].nodes["macro_0"].executor = depth2
+
+        macro = constructors.workflow2macro(wf)
+
+        self.assertIs(macro.executor, outer)
+        self.assertIs(macro.nodes["nested"].executor, depth1)
+        self.assertIs(macro.nodes["nested"].nodes["macro_0"].executor, depth2)
+
+    def test_macro2workflow_preserves_nested_executors(self) -> None:
+        m = _fixtures.nested_macro_node("nested")
+        outer = _Sentinel("outer")
+        depth1 = _Sentinel("depth1")
+        m.executor = outer
+        m.nodes["macro_0"].executor = depth1
+
+        wf = constructors.macro2workflow(m)
+
+        self.assertIs(wf.executor, outer)
+        self.assertIs(wf.nodes["macro_0"].executor, depth1)
+
+
+class TestEdges2EdgeList(unittest.TestCase):
+    def test_empty(self) -> None:
+        out = constructors.edges2edgelist({}, {}, {})
+        self.assertEqual(out, [])
+
+    def test_input_edges_only(self) -> None:
+        e = {
+            frs.TargetHandle(node="a", port="x"): frs.InputSource(port="x"),
+        }
+        out = constructors.edges2edgelist(e, {}, {})
+        self.assertEqual(
+            out,
+            [
+                datatypes.EdgeTuple(
+                    frs.InputSource(port="x"),
+                    frs.TargetHandle(node="a", port="x"),
+                )
+            ],
+        )
+
+    def test_peer_edges_only(self) -> None:
+        e = {
+            frs.TargetHandle(node="b", port="x"): frs.SourceHandle(
+                node="a", port="output_0"
+            ),
+        }
+        out = constructors.edges2edgelist({}, e, {})
+        self.assertEqual(
+            out,
+            [
+                datatypes.EdgeTuple(
+                    frs.SourceHandle(node="a", port="output_0"),
+                    frs.TargetHandle(node="b", port="x"),
+                )
+            ],
+        )
+
+    def test_output_edges_only(self) -> None:
+        e = {
+            frs.OutputTarget(port="out"): frs.SourceHandle(node="a", port="output_0"),
+        }
+        out = constructors.edges2edgelist({}, {}, e)
+        self.assertEqual(
+            out,
+            [
+                datatypes.EdgeTuple(
+                    frs.SourceHandle(node="a", port="output_0"),
+                    frs.OutputTarget(port="out"),
+                )
+            ],
+        )
+
+    def test_round_trip_via_recipe_macro(self) -> None:
+        recipe = _fixtures.macro.flowrep_recipe
+        edge_list = constructors.edges2edgelist(
+            recipe.input_edges, recipe.edges, recipe.output_edges
+        )
+        inp, peer, out = constructors.edgelist2edges(edge_list)
+        self.assertEqual(inp, recipe.input_edges)
+        self.assertEqual(peer, recipe.edges)
+        self.assertEqual(out, recipe.output_edges)
+
+
+class TestEdgeList2Edges(unittest.TestCase):
+    def test_partitions_each_kind(self) -> None:
+        edges: datatypes.EdgeList = [
+            datatypes.EdgeTuple(
+                frs.InputSource(port="x"),
+                frs.TargetHandle(node="a", port="x"),
+            ),
+            datatypes.EdgeTuple(
+                frs.SourceHandle(node="a", port="output_0"),
+                frs.TargetHandle(node="b", port="x"),
+            ),
+            datatypes.EdgeTuple(
+                frs.SourceHandle(node="b", port="output_0"),
+                frs.OutputTarget(port="out"),
+            ),
+        ]
+        inp, peer, out = constructors.edgelist2edges(edges)
+        self.assertEqual(len(inp), 1)
+        self.assertEqual(len(peer), 1)
+        self.assertEqual(len(out), 1)
+        self.assertEqual(
+            inp[frs.TargetHandle(node="a", port="x")],
+            frs.InputSource(port="x"),
+        )
+
+    def test_passthrough_output_edge(self) -> None:
+        edges: datatypes.EdgeList = [
+            datatypes.EdgeTuple(
+                frs.InputSource(port="x"),
+                frs.OutputTarget(port="y"),
+            ),
+        ]
+        inp, peer, out = constructors.edgelist2edges(edges)
+        self.assertEqual(inp, {})
+        self.assertEqual(peer, {})
+        self.assertEqual(out[frs.OutputTarget(port="y")], frs.InputSource(port="x"))
+
+    def test_invalid_combination_raises(self) -> None:
+        edges: datatypes.EdgeList = [
+            datatypes.EdgeTuple(
+                frs.InputSource(port="x"),
+                frs.InputSource(port="y"),  # type: ignore[arg-type]
+            ),
+        ]
+        with self.assertRaises(TypeError) as ctx:
+            constructors.edgelist2edges(edges, scope="bad_owner")
+        self.assertIn("bad_owner", str(ctx.exception))
+
+
+class TestWorkflow2Macro(unittest.TestCase):
+    def _build_wf(self) -> workflow.Workflow:
+        return _fixtures.build_workflow(
+            inputs=["x", "y", "z"],
+            outputs=["a", "s"],
+            node_specs={
+                "add_0": _fixtures.atomic_add_node,
+                "sub_0": _fixtures.atomic_sub_node,
+            },
+            edges=_fixtures._MACRO_WF_EDGES,
+            label="wf",
+        )
+
+    def test_basic_shape(self) -> None:
+        wf = self._build_wf()
+        macro = constructors.workflow2macro(wf)
+        self.assertIsInstance(macro, dag.Macro)
+        self.assertEqual(macro.label, wf.label)
+        self.assertEqual(set(macro.nodes.keys()), set(wf.nodes.keys()))
+        self.assertEqual(set(macro.inputs.keys()), set(wf.inputs.keys()))
+        self.assertEqual(set(macro.outputs.keys()), set(wf.outputs.keys()))
+        self.assertEqual(set(macro.edges), set(wf.edges))
+
+    def test_run_round_trips(self) -> None:
+        wf = self._build_wf()
+        macro = constructors.workflow2macro(wf)
+        run = macro.run(x=1, y=2, z=4)
+        self.assertEqual(run.result.output_ports["a"].value, 3)
+        self.assertEqual(run.result.output_ports["s"].value, -1)
+
+
+class TestMacro2Workflow(unittest.TestCase):
+    def test_basic_shape(self) -> None:
+        m = _fixtures.macro_node("m")
+        wf = constructors.macro2workflow(m)
+        self.assertIsInstance(wf, workflow.Workflow)
+        self.assertEqual(wf.label, m.label)
+        self.assertEqual(set(wf.nodes.keys()), set(m.nodes.keys()))
+        self.assertEqual(set(wf.inputs.keys()), set(m.inputs.keys()))
+        self.assertEqual(set(wf.outputs.keys()), set(m.outputs.keys()))
+        self.assertEqual(set(wf.edges), set(m.edges))
+
+    def test_input_port_hints_preserved(self) -> None:
+        m = _fixtures.macro_node("m")
+        wf = constructors.macro2workflow(m)
+        for label, port in m.inputs.items():
+            self.assertEqual(wf.inputs[label].type_hint, port.type_hint)
+            self.assertEqual(wf.inputs[label].type_metadata, port.type_metadata)
+
+    def test_output_port_hints_preserved(self) -> None:
+        m = _fixtures.macro_node("m")
+        wf = constructors.macro2workflow(m)
+        for label, port in m.outputs.items():
+            self.assertEqual(wf.outputs[label].type_hint, port.type_hint)
+            self.assertEqual(wf.outputs[label].type_metadata, port.type_metadata)
+
+    def test_run_round_trips(self) -> None:
+        m = _fixtures.macro_node("m")
+        wf = constructors.macro2workflow(m)
+        run = wf.run(x=1, y=2, z=4)
+        self.assertEqual(run.result.output_ports["a"].value, 3)
+        self.assertEqual(run.result.output_ports["s"].value, -1)
+
+    def test_recipe_round_trips(self) -> None:
+        m = _fixtures.macro_node("m")
+        wf = constructors.macro2workflow(m)
+        round_tripped = constructors.workflow2macro(wf)
+        self.assertEqual(
+            set(round_tripped.recipe.nodes.keys()),
+            set(m.recipe.nodes.keys()),
+        )
+        self.assertEqual(round_tripped.recipe.input_edges, m.recipe.input_edges)
+        self.assertEqual(round_tripped.recipe.edges, m.recipe.edges)
+        self.assertEqual(round_tripped.recipe.output_edges, m.recipe.output_edges)
+
+    def test_port_annotation_round_trips(self) -> None:
+        m = _fixtures.macro_node("m")
+        wf = constructors.macro2workflow(m)
+        round_tripped = constructors.workflow2macro(wf)
+        for label, port in m.outputs.items():
+            self.assertEqual(round_tripped.outputs[label].type_hint, port.type_hint)
+            self.assertEqual(
+                round_tripped.outputs[label].type_metadata, port.type_metadata
+            )
 
 
 if __name__ == "__main__":

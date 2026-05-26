@@ -10,7 +10,6 @@ from pyiron_snippets import retrieve
 from pyiron_workflow._wfms import constructors, execution, lexical
 from pyiron_workflow._wfms.datatypes import (
     EdgeList,
-    EdgeTuple,
     Graph,
     Node,
     NodeMap,
@@ -35,10 +34,8 @@ class Macro(StaticGraph[frs.WorkflowRecipe, frs.DagData], Graph):
         )
 
     def _build_edges(self, recipe: frs.WorkflowRecipe) -> EdgeList:
-        return (
-            EdgeList(EdgeTuple(s, t) for t, s in recipe.input_edges.items())
-            + EdgeList(EdgeTuple(s, t) for t, s in recipe.edges.items())
-            + EdgeList(EdgeTuple(s, t) for t, s in recipe.output_edges.items())
+        return constructors.edges2edgelist(
+            recipe.input_edges, recipe.edges, recipe.output_edges
         )
 
     def evaluate(
