@@ -7,11 +7,17 @@ import pickle
 import unittest
 
 import semantikon
-from _wfms import datatypes, execution, workflow
 from flowrep.api import schemas as frs
 from unit._wfms import _fixtures
 
-from pyiron_workflow._wfms import atomic, dag
+from pyiron_workflow._wfms import (
+    atomic,
+    constructors,
+    dag,
+    datatypes,
+    execution,
+    workflow,
+)
 
 
 class TestMutablePortMap(unittest.TestCase):
@@ -1416,6 +1422,221 @@ class TestWorkflowEvaluate(unittest.TestCase):
         self.assertEqual(run.status, execution.RunStatus.FINISHED)
         self.assertEqual(len(run.steps), 2)
         self.assertEqual({step.label for step in run.steps}, {"add_0", "sub_0"})
+
+
+class TestUnlockSubgraph(unittest.TestCase):
+    def test_passing_atomic_raises_typeerror(self) -> None:
+        parent = _fixtures.build_workflow(label="parent")
+        parent.add_node(_fixtures.atomic_add_node("a"))
+        with self.assertRaises(TypeError) as ctx:
+            parent.unlock_subgraph("a")
+        self.assertIn("a", str(ctx.exception))
+        self.assertIn(dag.Macro.__name__, str(ctx.exception))
+
+    def _parent_with_macro_child(self, child_label: str = "m") -> workflow.Workflow:
+        parent = workflow.Workflow("parent")
+        parent.create_input("x")
+        parent.create_input("y")
+        parent.create_input("z")
+        parent.create_output("a")
+        parent.create_output("s")
+        parent.add_node(_fixtures.macro_node(child_label))
+        parent.add_edge(
+            datatypes.EdgeTuple(
+                frs.InputSource(port="x"),
+                frs.TargetHandle(node=child_label, port="x"),
+            ),
+            datatypes.EdgeTuple(
+                frs.InputSource(port="y"),
+                frs.TargetHandle(node=child_label, port="y"),
+            ),
+            datatypes.EdgeTuple(
+                frs.InputSource(port="z"),
+                frs.TargetHandle(node=child_label, port="z"),
+            ),
+            datatypes.EdgeTuple(
+                frs.SourceHandle(node=child_label, port="a"),
+                frs.OutputTarget(port="a"),
+            ),
+            datatypes.EdgeTuple(
+                frs.SourceHandle(node=child_label, port="s"),
+                frs.OutputTarget(port="s"),
+            ),
+        )
+        return parent
+
+    def test_replaces_macro_with_workflow(self) -> None:
+        parent = self._parent_with_macro_child()
+        edges_before = set(parent.edges)
+        parent.unlock_subgraph("m")
+        # Use class name to avoid dual-import-root isinstance failure
+        self.assertEqual(type(parent.nodes["m"]).__name__, workflow.Workflow.__name__)
+        self.assertEqual(set(parent.edges), edges_before)
+
+    def test_passing_workflow_is_noop(self) -> None:
+        parent = workflow.Workflow("parent")
+        parent.add_node(workflow.Workflow("inner"))
+        # Use class name to avoid dual-import-root isinstance failure
+        self.assertEqual(
+            type(parent.nodes["inner"]).__name__, workflow.Workflow.__name__
+        )
+        # _undoable always pushes a diff (even empty) so the stack grows by at
+        # most 1; the diff itself should be empty (no graph mutations occurred).
+        undo_len_before = len(parent.undo_stack)
+        parent.unlock_subgraph("inner")
+        self.assertLessEqual(len(parent.undo_stack), undo_len_before + 1)
+        # The most recent entry must be an empty diff (no actual graph changes)
+        if len(parent.undo_stack) > undo_len_before:
+            self.assertEqual(parent.undo_stack[-1], [])
+
+    def test_unknown_label_raises_keyerror(self) -> None:
+        parent = workflow.Workflow("parent")
+        with self.assertRaises(KeyError):
+            parent.unlock_subgraph("not_there")
+
+    def test_undo_restores_macro(self) -> None:
+        parent = self._parent_with_macro_child()
+        original_child = parent.nodes["m"]
+        edges_before = set(parent.edges)
+        parent.unlock_subgraph("m")
+        parent.undo()
+        self.assertIs(parent.nodes["m"], original_child)
+        self.assertEqual(set(parent.edges), edges_before)
+
+    def test_redo_replays(self) -> None:
+        parent = self._parent_with_macro_child()
+        parent.unlock_subgraph("m")
+        unlocked = parent.nodes["m"]
+        parent.undo()
+        parent.redo()
+        self.assertIs(parent.nodes["m"], unlocked)
+
+    def test_run_after_unlock_matches_pre_unlock(self) -> None:
+        baseline = self._parent_with_macro_child()
+        baseline_run = baseline.run(x=1, y=2, z=4)
+        candidate = self._parent_with_macro_child()
+        candidate.unlock_subgraph("m")
+        candidate_run = candidate.run(x=1, y=2, z=4)
+        self.assertEqual(
+            baseline_run.result.output_ports["a"].value,
+            candidate_run.result.output_ports["a"].value,
+        )
+        self.assertEqual(
+            baseline_run.result.output_ports["s"].value,
+            candidate_run.result.output_ports["s"].value,
+        )
+
+
+class TestLockSubgraph(unittest.TestCase):
+    def _parent_with_workflow_child(self) -> workflow.Workflow:
+        parent = workflow.Workflow("parent")
+        parent.create_input("x")
+        parent.create_input("y")
+        parent.create_input("z")
+        parent.create_output("a")
+        parent.create_output("s")
+        inner = constructors.macro2workflow(_fixtures.macro_node("m"))
+        parent.add_node(inner)
+        parent.add_edge(
+            datatypes.EdgeTuple(
+                frs.InputSource(port="x"),
+                frs.TargetHandle(node="m", port="x"),
+            ),
+            datatypes.EdgeTuple(
+                frs.InputSource(port="y"),
+                frs.TargetHandle(node="m", port="y"),
+            ),
+            datatypes.EdgeTuple(
+                frs.InputSource(port="z"),
+                frs.TargetHandle(node="m", port="z"),
+            ),
+            datatypes.EdgeTuple(
+                frs.SourceHandle(node="m", port="a"),
+                frs.OutputTarget(port="a"),
+            ),
+            datatypes.EdgeTuple(
+                frs.SourceHandle(node="m", port="s"),
+                frs.OutputTarget(port="s"),
+            ),
+        )
+        return parent
+
+    def test_replaces_workflow_with_macro(self) -> None:
+        parent = self._parent_with_workflow_child()
+        edges_before = set(parent.edges)
+        parent.lock_subgraph("m")
+        self.assertIsInstance(parent.nodes["m"], dag.Macro)
+        self.assertEqual(set(parent.edges), edges_before)
+
+    def test_passing_macro_is_noop(self) -> None:
+        parent = workflow.Workflow("parent")
+        parent.add_node(_fixtures.macro_node("m"))
+        undo_len_before = len(parent.undo_stack)
+        parent.lock_subgraph("m")
+        self.assertIsInstance(parent.nodes["m"], dag.Macro)
+        # `@_undoable` always pushes a diff even for early-return; allow that
+        # but require it to be empty.
+        grew_by = len(parent.undo_stack) - undo_len_before
+        self.assertLessEqual(grew_by, 1)
+        if grew_by == 1:
+            self.assertEqual(parent.undo_stack[-1], [])
+
+    def test_passing_atomic_raises_typeerror(self) -> None:
+        parent = workflow.Workflow("parent")
+        parent.add_node(_fixtures.atomic_add_node("a"))
+        with self.assertRaises(TypeError) as ctx:
+            parent.lock_subgraph("a")
+        self.assertIn("a", str(ctx.exception))
+        self.assertIn(workflow.Workflow.__name__, str(ctx.exception))
+
+    def test_unknown_label_raises_keyerror(self) -> None:
+        parent = workflow.Workflow("parent")
+        with self.assertRaises(KeyError):
+            parent.lock_subgraph("not_there")
+
+    def test_undo_restores_workflow(self) -> None:
+        parent = self._parent_with_workflow_child()
+        original_child = parent.nodes["m"]
+        edges_before = set(parent.edges)
+        parent.lock_subgraph("m")
+        parent.undo()
+        self.assertIs(parent.nodes["m"], original_child)
+        self.assertEqual(set(parent.edges), edges_before)
+
+    def test_redo_replays(self) -> None:
+        parent = self._parent_with_workflow_child()
+        parent.lock_subgraph("m")
+        locked = parent.nodes["m"]
+        parent.undo()
+        parent.redo()
+        self.assertIs(parent.nodes["m"], locked)
+
+    def test_lock_then_unlock_round_trips_hints(self) -> None:
+        parent = self._parent_with_workflow_child()
+        inner = parent.nodes["m"]
+        inner.add_port_hint(inner.inputs["x"], int)
+        inner.add_port_hint(inner.outputs["a"], float)
+        parent.lock_subgraph("m")
+        parent.unlock_subgraph("m")
+        round_tripped = parent.nodes["m"]
+        self.assertIsInstance(round_tripped, workflow.Workflow)
+        self.assertEqual(round_tripped.inputs["x"].type_hint, int)
+        self.assertEqual(round_tripped.outputs["a"].type_hint, float)
+
+    def test_run_after_lock_matches_pre_lock(self) -> None:
+        baseline = self._parent_with_workflow_child()
+        baseline_run = baseline.run(x=1, y=2, z=4)
+        candidate = self._parent_with_workflow_child()
+        candidate.lock_subgraph("m")
+        candidate_run = candidate.run(x=1, y=2, z=4)
+        self.assertEqual(
+            baseline_run.result.output_ports["a"].value,
+            candidate_run.result.output_ports["a"].value,
+        )
+        self.assertEqual(
+            baseline_run.result.output_ports["s"].value,
+            candidate_run.result.output_ports["s"].value,
+        )
 
 
 if __name__ == "__main__":
