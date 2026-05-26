@@ -599,8 +599,22 @@ class Workflow(Node[frs.WorkflowRecipe, frs.DagData], Graph):
             self._disconnect(self.get_node(n))
 
     @_undoable
-    def group(self, *nodes: Node) -> None:
-        raise NotImplementedError()
+    def lock_subgraph(self, workflow_child: Workflow | dag.Macro | frs.Label) -> None:
+        instance = self.get_node(workflow_child)
+        if isinstance(instance, dag.Macro):
+            return  # Already locked -- macros are static
+        elif not isinstance(instance, Workflow):
+            raise TypeError(
+                f"Cannot lock {instance.lexical_path!r} -- it is a {type(instance)} but "
+                f"we need a {Workflow.__name__}."
+            )
+        macro_equivalent = constructors.workflow2macro(instance)
+        touching = self._edges_touching_node(instance.label)
+        self._disconnect(instance)
+        self._remove_node_shallow(instance)
+        self._add_node(macro_equivalent)
+        for edge in touching:
+            self._add_edge(edge)
 
     @_undoable
     def unlock_subgraph(self, macro: Workflow | dag.Macro | frs.Label) -> None:
@@ -620,6 +634,10 @@ class Workflow(Node[frs.WorkflowRecipe, frs.DagData], Graph):
         for edge in touching:
             self._add_edge(edge)
 
+    @_undoable
+    def group(self, *nodes: Node) -> None:
+        raise NotImplementedError()
+
     @_undoable  # Lossy on underlying macro function reference, if any
     def ungroup(
         self, graph: dag.Macro | Workflow, block_if_reference: bool = False
@@ -636,24 +654,6 @@ class Workflow(Node[frs.WorkflowRecipe, frs.DagData], Graph):
                 "`block_if_reference=False`"
             )
         raise NotImplementedError()
-
-    @_undoable
-    def lock_subgraph(self, workflow_child: Workflow | dag.Macro | frs.Label) -> None:
-        instance = self.get_node(workflow_child)
-        if isinstance(instance, dag.Macro):
-            return  # Already locked -- macros are static
-        elif not isinstance(instance, Workflow):
-            raise TypeError(
-                f"Cannot lock {instance.lexical_path!r} -- it is a {type(instance)} but "
-                f"we need a {Workflow.__name__}."
-            )
-        macro_equivalent = constructors.workflow2macro(instance)
-        touching = self._edges_touching_node(instance.label)
-        self._disconnect(instance)
-        self._remove_node_shallow(instance)
-        self._add_node(macro_equivalent)
-        for edge in touching:
-            self._add_edge(edge)
 
     # --- Undo / redo ---
 
