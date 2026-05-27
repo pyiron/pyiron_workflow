@@ -443,3 +443,52 @@ def attr_sugar_recipe() -> frs.WorkflowRecipe:
 def attr_sugar_macro_node(label: str = "attr_sugar_macro"):
     """Return a fresh `Macro` whose node labels collide with graph attributes."""
     return wfms.Macro(label, attr_sugar_recipe())
+
+
+# --------------------------------------------------------------------------- #
+# Grouping fixtures                                                            #
+# --------------------------------------------------------------------------- #
+
+
+def grouping_wf_node_specs():
+    """Three siblings whose connectivity exercises every cross-boundary case."""
+    return {
+        "add_0": atomic_add_node,
+        "sub_0": atomic_sub_node,
+        "mul_0": multiply_with_defaults_node,
+    }
+
+
+_GROUPING_WF_EDGES = [
+    wfms.EdgeTuple(frs.InputSource(port="x"), frs.TargetHandle(node="add_0", port="x")),
+    wfms.EdgeTuple(frs.InputSource(port="y"), frs.TargetHandle(node="add_0", port="y")),
+    wfms.EdgeTuple(
+        frs.SourceHandle(node="add_0", port="output_0"),
+        frs.TargetHandle(node="sub_0", port="x"),
+    ),
+    wfms.EdgeTuple(frs.InputSource(port="z"), frs.TargetHandle(node="sub_0", port="y")),
+    wfms.EdgeTuple(
+        frs.SourceHandle(node="sub_0", port="output_0"),
+        frs.OutputTarget(port="diff"),
+    ),
+]
+
+
+def grouping_wf(label: str = "grouping_wf"):
+    """Parent containing `add_0`, `sub_0`, `mul_0` plus the edge set above."""
+    return build_workflow(
+        inputs=["x", "y", "z"],
+        outputs=["diff"],
+        node_specs=grouping_wf_node_specs(),
+        edges=_GROUPING_WF_EDGES,
+        label=label,
+    )
+
+
+def passthrough_subgraph_wf(label: str = "passthrough_subgraph"):
+    """Subgraph whose only inner edge is `InputSource('a') -> OutputTarget('b')`."""
+    sub = wfms.Workflow(label)
+    sub.create_input("a")
+    sub.create_output("b")
+    sub.add_edge(wfms.EdgeTuple(frs.InputSource(port="a"), frs.OutputTarget(port="b")))
+    return sub

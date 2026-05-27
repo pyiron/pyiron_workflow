@@ -1639,5 +1639,464 @@ class TestLockSubgraph(unittest.TestCase):
         )
 
 
+class TestGroup(unittest.TestCase):
+    def test_groups_two_nodes_shape(self) -> None:
+        parent = _fixtures.grouping_wf("parent")
+        parent.group("grp", parent.nodes["add_0"], parent.nodes["sub_0"])
+
+        self.assertEqual(set(parent.nodes.keys()), {"grp", "mul_0"})
+        grp = parent.nodes["grp"]
+        # Use class-name check to avoid dual-import-root isinstance failure
+        self.assertEqual(type(grp).__name__, workflow.Workflow.__name__)
+        self.assertEqual(set(grp.nodes.keys()), {"add_0", "sub_0"})
+
+        # The internal `add_0 -> sub_0` edge moved into the subgraph.
+        self.assertIn(
+            datatypes.EdgeTuple(
+                frs.SourceHandle(node="add_0", port="output_0"),
+                frs.TargetHandle(node="sub_0", port="x"),
+            ),
+            grp.edges,
+        )
+
+        # Parent input edges now land on the subgraph's generated ports.
+        self.assertIn(
+            datatypes.EdgeTuple(
+                frs.InputSource(port="x"),
+                frs.TargetHandle(node="grp", port="add_0__x"),
+            ),
+            parent.edges,
+        )
+        self.assertIn(
+            datatypes.EdgeTuple(
+                frs.InputSource(port="z"),
+                frs.TargetHandle(node="grp", port="sub_0__y"),
+            ),
+            parent.edges,
+        )
+        self.assertIn(
+            datatypes.EdgeTuple(
+                frs.SourceHandle(node="grp", port="sub_0__output_0"),
+                frs.OutputTarget(port="diff"),
+            ),
+            parent.edges,
+        )
+
+        # Generated port labels match the convention.
+        self.assertEqual(set(grp.inputs.keys()), {"add_0__x", "add_0__y", "sub_0__y"})
+        self.assertEqual(set(grp.outputs.keys()), {"sub_0__output_0"})
+
+    def test_groups_one_node(self) -> None:
+        parent = _fixtures.grouping_wf("parent")
+        parent.group("grp", parent.nodes["mul_0"])
+        self.assertIn("grp", parent.nodes)
+        grp = parent.nodes["grp"]
+        # Use class-name check to avoid dual-import-root isinstance failure
+        self.assertEqual(type(grp).__name__, workflow.Workflow.__name__)
+        self.assertEqual(set(grp.nodes.keys()), {"mul_0"})
+
+    def test_label_collision_raises(self) -> None:
+        parent = _fixtures.grouping_wf("parent")
+        with self.assertRaises(ValueError):
+            parent.group("add_0", parent.nodes["sub_0"])
+
+    def test_non_child_raises(self) -> None:
+        parent = _fixtures.grouping_wf("parent")
+        stranger = _fixtures.atomic_add_node("stranger")
+        with self.assertRaises(KeyError):
+            parent.group("grp", stranger)
+
+    def test_empty_node_list_raises(self) -> None:
+        parent = _fixtures.grouping_wf("parent")
+        with self.assertRaises(ValueError):
+            parent.group("grp")
+
+    def test_unrelated_edges_untouched(self) -> None:
+        parent = _fixtures.grouping_wf("parent")
+        parent.add_edge(
+            datatypes.EdgeTuple(
+                frs.InputSource(port="x"),
+                frs.TargetHandle(node="mul_0", port="x"),
+            )
+        )
+        unrelated_edge = datatypes.EdgeTuple(
+            frs.InputSource(port="x"),
+            frs.TargetHandle(node="mul_0", port="x"),
+        )
+        parent.group("grp", parent.nodes["add_0"], parent.nodes["sub_0"])
+        self.assertIn(unrelated_edge, parent.edges)
+
+    def test_undo_restores_pre_group_state(self) -> None:
+        parent = _fixtures.grouping_wf("parent")
+        nodes_before = dict(parent.nodes._pwf_lexical_map__data)
+        edges_before = set(parent.edges)
+        inputs_before = dict(parent.inputs._pwf_lexical_map__data)
+        outputs_before = dict(parent.outputs._pwf_lexical_map__data)
+
+        parent.group("grp", parent.nodes["add_0"], parent.nodes["sub_0"])
+        parent.undo()
+
+        self.assertEqual(dict(parent.nodes._pwf_lexical_map__data), nodes_before)
+        self.assertEqual(set(parent.edges), edges_before)
+        self.assertEqual(dict(parent.inputs._pwf_lexical_map__data), inputs_before)
+        self.assertEqual(dict(parent.outputs._pwf_lexical_map__data), outputs_before)
+
+    def test_run_after_group_matches_pre_group(self) -> None:
+        baseline = _fixtures.grouping_wf("parent")
+        baseline_run = baseline.run(x=2, y=3, z=4)
+
+        candidate = _fixtures.grouping_wf("parent")
+        candidate.group("grp", candidate.nodes["add_0"], candidate.nodes["sub_0"])
+        candidate_run = candidate.run(x=2, y=3, z=4)
+
+        self.assertEqual(
+            baseline_run.result.output_ports["diff"].value,
+            candidate_run.result.output_ports["diff"].value,
+        )
+
+    def test_dedups_multiple_inbound_edges_to_same_target(self) -> None:
+        """Two cross-boundary edges hitting the same (child, port) collapse
+        to a single subgraph input port."""
+        parent = _fixtures.grouping_wf("parent")
+        # `add_0/x` already receives `InputSource("x")`; add a second feeder.
+        parent.add_edge(
+            datatypes.EdgeTuple(
+                frs.InputSource(port="y"),
+                frs.TargetHandle(node="add_0", port="x"),
+            )
+        )
+        parent.group("grp", parent.nodes["add_0"], parent.nodes["sub_0"])
+        grp = parent.nodes["grp"]
+        self.assertIn("add_0__x", grp.inputs)
+        self.assertEqual(sum(1 for k in grp.inputs if k == "add_0__x"), 1)
+
+    def test_dedups_multiple_outbound_edges_from_same_source(self) -> None:
+        """Two cross-boundary edges leaving the same (child, port) collapse
+        to a single subgraph output port."""
+        parent = _fixtures.grouping_wf("parent")
+        # `add_0/output_0` already feeds `sub_0/x` (inside). Add two outside
+        # edges from the same source.
+        parent.add_edge(
+            datatypes.EdgeTuple(
+                frs.SourceHandle(node="add_0", port="output_0"),
+                frs.TargetHandle(node="mul_0", port="x"),
+            ),
+            datatypes.EdgeTuple(
+                frs.SourceHandle(node="add_0", port="output_0"),
+                frs.TargetHandle(node="mul_0", port="y"),
+            ),
+        )
+        parent.group("grp", parent.nodes["add_0"], parent.nodes["sub_0"])
+        grp = parent.nodes["grp"]
+        self.assertIn("add_0__output_0", grp.outputs)
+        self.assertEqual(sum(1 for k in grp.outputs if k == "add_0__output_0"), 1)
+
+    def test_fan_in_one_inner_edge_per_target(self) -> None:
+        """
+        Two cross-boundary feeders into the same (child, port) produce
+        one inner edge, not one per feeder.
+
+        Two inputs for the same target will fail to recipe, but preserve the mistake
+        and let the recipe handle it.
+        """
+        parent = _fixtures.grouping_wf("parent")
+        parent.add_edge(
+            datatypes.EdgeTuple(
+                frs.InputSource(port="y"),
+                frs.TargetHandle(node="add_0", port="x"),
+            )
+        )
+        parent.group("grp", parent.nodes["add_0"], parent.nodes["sub_0"])
+        grp = parent.nodes["grp"]
+
+        inner = [
+            e
+            for e in grp.edges
+            if isinstance(e.source, frs.InputSource) and e.source.port == "add_0__x"
+        ]
+        self.assertEqual(len(inner), 1)
+
+    def test_fan_out_one_inner_edge_per_source(self) -> None:
+        """Two cross-boundary consumers of the same (child, port) produce
+        one inner edge, not one per consumer."""
+        parent = _fixtures.grouping_wf("parent")
+        parent.add_edge(
+            datatypes.EdgeTuple(
+                frs.SourceHandle(node="add_0", port="output_0"),
+                frs.TargetHandle(node="mul_0", port="x"),
+            ),
+            datatypes.EdgeTuple(
+                frs.SourceHandle(node="add_0", port="output_0"),
+                frs.TargetHandle(node="mul_0", port="y"),
+            ),
+        )
+        parent.group("grp", parent.nodes["add_0"], parent.nodes["sub_0"])
+        grp = parent.nodes["grp"]
+        inner = [
+            e
+            for e in grp.edges
+            if isinstance(e.target, frs.OutputTarget)
+            and e.target.port == "add_0__output_0"
+        ]
+        self.assertEqual(len(inner), 1)
+
+    def test_fan_out_rewires_all_outer_edges(self) -> None:
+        """Each cross-out edge still gets its own outer-side rewrite."""
+        parent = _fixtures.grouping_wf("parent")
+        parent.add_edge(
+            datatypes.EdgeTuple(
+                frs.SourceHandle(node="add_0", port="output_0"),
+                frs.TargetHandle(node="mul_0", port="x"),
+            ),
+            datatypes.EdgeTuple(
+                frs.SourceHandle(node="add_0", port="output_0"),
+                frs.TargetHandle(node="mul_0", port="y"),
+            ),
+        )
+        parent.group("grp", parent.nodes["add_0"], parent.nodes["sub_0"])
+        for tgt_port in ("x", "y"):
+            self.assertIn(
+                datatypes.EdgeTuple(
+                    frs.SourceHandle(node="grp", port="add_0__output_0"),
+                    frs.TargetHandle(node="mul_0", port=tgt_port),
+                ),
+                parent.edges,
+            )
+
+    def test_group_leaves_subgraph_undo_stack_empty(self) -> None:
+        """Constructing the subgraph during group() must not pollute its undo
+        history; the new subgraph should look freshly minted."""
+        parent = _fixtures.grouping_wf("parent")
+        parent.group("grp", parent.nodes["add_0"], parent.nodes["sub_0"])
+        grp = parent.nodes["grp"]
+        self.assertEqual(len(grp.undo_stack), 0)
+        self.assertEqual(len(grp.redo_stack), 0)
+
+
+class TestUngroup(unittest.TestCase):
+    def _group_then(self) -> workflow.Workflow:
+        """Return a parent that has had `add_0` + `sub_0` grouped into 'grp'."""
+        parent = _fixtures.grouping_wf("parent")
+        parent.group("grp", parent.nodes["add_0"], parent.nodes["sub_0"])
+        return parent
+
+    def test_ungroup_workflow_child_shape(self) -> None:
+        parent = self._group_then()
+        parent.ungroup("grp")
+        self.assertEqual(set(parent.nodes.keys()), {"grp_add_0", "grp_sub_0", "mul_0"})
+        self.assertIn(
+            datatypes.EdgeTuple(
+                frs.InputSource(port="x"),
+                frs.TargetHandle(node="grp_add_0", port="x"),
+            ),
+            parent.edges,
+        )
+        self.assertIn(
+            datatypes.EdgeTuple(
+                frs.SourceHandle(node="grp_sub_0", port="output_0"),
+                frs.OutputTarget(port="diff"),
+            ),
+            parent.edges,
+        )
+        self.assertIn(
+            datatypes.EdgeTuple(
+                frs.SourceHandle(node="grp_add_0", port="output_0"),
+                frs.TargetHandle(node="grp_sub_0", port="x"),
+            ),
+            parent.edges,
+        )
+
+    def test_ungroup_macro_child_calls_unlock_first(self) -> None:
+        parent = workflow.Workflow("parent")
+        parent.create_input("x")
+        parent.create_input("y")
+        parent.create_input("z")
+        parent.create_output("a")
+        parent.create_output("s")
+        parent.add_node(_fixtures.macro_node("m"))
+        parent.add_edge(
+            datatypes.EdgeTuple(
+                frs.InputSource(port="x"),
+                frs.TargetHandle(node="m", port="x"),
+            ),
+            datatypes.EdgeTuple(
+                frs.InputSource(port="y"),
+                frs.TargetHandle(node="m", port="y"),
+            ),
+            datatypes.EdgeTuple(
+                frs.InputSource(port="z"),
+                frs.TargetHandle(node="m", port="z"),
+            ),
+            datatypes.EdgeTuple(
+                frs.SourceHandle(node="m", port="a"),
+                frs.OutputTarget(port="a"),
+            ),
+            datatypes.EdgeTuple(
+                frs.SourceHandle(node="m", port="s"),
+                frs.OutputTarget(port="s"),
+            ),
+        )
+
+        original_macro = parent.nodes["m"]
+        original_child_labels = set(original_macro.recipe.nodes.keys())
+        parent_nodes_before = set(parent.nodes.keys())
+        edges_before = set(parent.edges)
+
+        parent.ungroup("m")
+
+        self.assertNotIn("m", parent.nodes)
+        self.assertIn("m_add_0", parent.nodes)
+        self.assertIn("m_sub_0", parent.nodes)
+
+        parent.undo()
+
+        self.assertIs(
+            parent.nodes["m"],
+            original_macro,
+            msg="undo should restore the original Macro instance, not a rebuild",
+        )
+        self.assertIsInstance(parent.nodes["m"], dag.Macro)
+        self.assertEqual(
+            set(parent.nodes["m"].recipe.nodes.keys()),
+            original_child_labels,
+            msg="restored macro should retain its original children",
+        )
+        self.assertEqual(
+            set(parent.nodes.keys()),
+            parent_nodes_before,
+            msg="no lifted children should remain at the top level after undo",
+        )
+        self.assertEqual(set(parent.edges), edges_before)
+
+    def test_label_map_overrides_defaults(self) -> None:
+        parent = self._group_then()
+        parent.ungroup("grp", label_map={"add_0": "renamed_add"})
+        self.assertIn("renamed_add", parent.nodes)
+        self.assertIn("grp_sub_0", parent.nodes)
+
+    def test_label_map_unknown_key_raises(self) -> None:
+        parent = self._group_then()
+        with self.assertRaises(ValueError):
+            parent.ungroup("grp", label_map={"not_a_child": "x"})
+
+    def test_label_map_value_duplicates_raise(self) -> None:
+        parent = self._group_then()
+        with self.assertRaises(ValueError):
+            parent.ungroup("grp", label_map={"add_0": "same", "sub_0": "same"})
+
+    def test_label_collision_raises(self) -> None:
+        parent = self._group_then()
+        parent.rename_node("mul_0", "grp_add_0")
+        with self.assertRaises(ValueError):
+            parent.ungroup("grp")
+
+    def test_block_if_reference_blocks(self) -> None:
+        parent = workflow.Workflow("parent")
+        parent.add_node(_fixtures.macro_node("m"))
+        with self.assertRaises(ValueError):
+            parent.ungroup("m", block_if_reference=True)
+
+    def test_block_if_reference_false_succeeds(self) -> None:
+        parent = workflow.Workflow("parent")
+        parent.add_node(_fixtures.macro_node("m"))
+        parent.ungroup("m", block_if_reference=False)
+        self.assertNotIn("m", parent.nodes)
+
+    def test_inner_passthrough_composes_outer_edges(self) -> None:
+        parent = workflow.Workflow("parent")
+        parent.create_input("p_in")
+        parent.create_output("p_out")
+        sub = _fixtures.passthrough_subgraph_wf("sub")
+        parent.add_node(sub)
+        parent.add_edge(
+            datatypes.EdgeTuple(
+                frs.InputSource(port="p_in"),
+                frs.TargetHandle(node="sub", port="a"),
+            ),
+            datatypes.EdgeTuple(
+                frs.SourceHandle(node="sub", port="b"),
+                frs.OutputTarget(port="p_out"),
+            ),
+        )
+
+        parent.ungroup("sub")
+
+        self.assertNotIn("sub", parent.nodes)
+        self.assertEqual(
+            set(parent.edges),
+            {
+                datatypes.EdgeTuple(
+                    frs.InputSource(port="p_in"),
+                    frs.OutputTarget(port="p_out"),
+                )
+            },
+        )
+
+    def test_inner_passthrough_multi_driver_multi_consumer(self) -> None:
+        parent = workflow.Workflow("parent")
+        parent.create_input("p_in_1")
+        parent.create_input("p_in_2")
+        parent.create_output("p_out_1")
+        parent.create_output("p_out_2")
+        sub = _fixtures.passthrough_subgraph_wf("sub")
+        parent.add_node(sub)
+        parent.add_edge(
+            datatypes.EdgeTuple(
+                frs.InputSource(port="p_in_1"),
+                frs.TargetHandle(node="sub", port="a"),
+            ),
+            datatypes.EdgeTuple(
+                frs.InputSource(port="p_in_2"),
+                frs.TargetHandle(node="sub", port="a"),
+            ),
+            datatypes.EdgeTuple(
+                frs.SourceHandle(node="sub", port="b"),
+                frs.OutputTarget(port="p_out_1"),
+            ),
+            datatypes.EdgeTuple(
+                frs.SourceHandle(node="sub", port="b"),
+                frs.OutputTarget(port="p_out_2"),
+            ),
+        )
+
+        parent.ungroup("sub")
+
+        expected = {
+            datatypes.EdgeTuple(
+                frs.InputSource(port=src),
+                frs.OutputTarget(port=tgt),
+            )
+            for src in ("p_in_1", "p_in_2")
+            for tgt in ("p_out_1", "p_out_2")
+        }
+        self.assertEqual(set(parent.edges), expected)
+
+    def test_undo_restores_pre_ungroup_state(self) -> None:
+        parent = self._group_then()
+        nodes_before = dict(parent.nodes._pwf_lexical_map__data)
+        edges_before = set(parent.edges)
+        parent.ungroup("grp")
+        parent.undo()
+        self.assertEqual(dict(parent.nodes._pwf_lexical_map__data), nodes_before)
+        self.assertEqual(set(parent.edges), edges_before)
+
+    def test_run_after_ungroup_matches_pre_ungroup(self) -> None:
+        baseline = self._group_then()
+        baseline_run = baseline.run(x=2, y=3, z=4)
+        candidate = self._group_then()
+        candidate.ungroup("grp")
+        candidate_run = candidate.run(x=2, y=3, z=4)
+        self.assertEqual(
+            baseline_run.result.output_ports["diff"].value,
+            candidate_run.result.output_ports["diff"].value,
+        )
+
+    def test_passing_atomic_raises_typeerror(self) -> None:
+        parent = workflow.Workflow("parent")
+        parent.add_node(_fixtures.atomic_add_node("a"))
+        with self.assertRaises(TypeError):
+            parent.ungroup("a")
+
+
 if __name__ == "__main__":
     unittest.main()

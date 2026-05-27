@@ -184,6 +184,24 @@ class RenameNode:
         return RenameNode(self.node, self.new_label, self.old_label)
 
 
+@dataclasses.dataclass(frozen=True)
+class MoveNode:
+    node: Node
+    from_graph: Workflow
+    to_graph: Workflow
+    old_label: frs.Label
+    new_label: frs.Label
+
+    def inverse(self) -> MoveNode:
+        return MoveNode(
+            node=self.node,
+            from_graph=self.to_graph,
+            to_graph=self.from_graph,
+            old_label=self.new_label,
+            new_label=self.old_label,
+        )
+
+
 GraphDiff: TypeAlias = list[GraphAction]
 
 
@@ -432,6 +450,34 @@ class Workflow(Node[frs.WorkflowRecipe, frs.DagData], Graph):
         self.nodes[new_label] = node
         return RenameNode(node, old_label, new_label)
 
+    @_records
+    def _move_node(
+        self,
+        node: Node,
+        from_graph: Workflow,
+        to_graph: Workflow,
+        new_label: frs.Label | None = None,
+    ) -> MoveNode:
+        """Move `node` from `from_graph` to `to_graph`, optionally renaming it.
+
+        Bare slot manipulation is used because the public node-map setters
+        validate ownership transitions; here we explicitly know the move is
+        intentional and atomic from the perspective of the diff accumulator.
+        """
+        old_label = node.label
+        target_label = new_label if new_label is not None else old_label
+        del from_graph._nodes._pwf_lexical_map__data[old_label]
+        node._label = target_label  # type: ignore[misc]
+        node._owner = to_graph
+        to_graph._nodes._pwf_lexical_map__data[target_label] = node
+        return MoveNode(
+            node=node,
+            from_graph=from_graph,
+            to_graph=to_graph,
+            old_label=old_label,
+            new_label=target_label,
+        )
+
     # --- Composite private helpers (orchestrate leaves, not themselves decorated) ---
 
     def _edges_touching_node(self, label: frs.Label) -> EdgeList:
@@ -635,25 +681,248 @@ class Workflow(Node[frs.WorkflowRecipe, frs.DagData], Graph):
             self._add_edge(edge)
 
     @_undoable
-    def group(self, *nodes: Node) -> None:
-        raise NotImplementedError()
+    def group(self, label: frs.Label, *nodes: Node | frs.Label) -> None:
+        if not nodes:
+            raise ValueError(
+                f"Cannot group an empty set of nodes on {self.lexical_path!r}."
+            )
+        if label in self.nodes:
+            raise _duplicate_node_error(self, label)
+
+        resolved = [self.get_node(n) for n in nodes]
+        if duplicate := {x.label for x in resolved if resolved.count(x) > 1}:
+            raise ValueError(
+                f"{self.lexical_path!r} encountered a problem creating group "
+                f"{label!r}: Duplicate nodes found in group request: {duplicate}"
+            )
+        grouped_labels = {x.label for x in resolved}
+
+        subgraph = Workflow(label)
+        new_edges: EdgeList = []
+        seen_inputs: set[tuple[frs.Label, frs.Label]] = set()
+        seen_outputs: set[tuple[frs.Label, frs.Label]] = set()
+
+        for edge in self.edges:
+            src_in_group = (
+                isinstance(edge.source, frs.SourceHandle)
+                and edge.source.node in grouped_labels
+            )
+            tgt_in_group = (
+                isinstance(edge.target, frs.TargetHandle)
+                and edge.target.node in grouped_labels
+            )
+            if src_in_group and tgt_in_group:
+                subgraph._add_edge(edge)
+            elif tgt_in_group:
+                new_label = self._ensure_boundary_input(
+                    subgraph, self._target_handle(edge), seen_inputs
+                )
+                new_edges.append(
+                    EdgeTuple(edge.source, frs.TargetHandle(node=label, port=new_label))
+                )
+            elif src_in_group:
+                new_label = self._ensure_boundary_output(
+                    subgraph, self._source_handle(edge), seen_outputs
+                )
+                new_edges.append(
+                    EdgeTuple(frs.SourceHandle(node=label, port=new_label), edge.target)
+                )
+
+        for node in resolved:
+            self._disconnect(node)
+            self._move_node(node, self, subgraph)
+
+        self._add_node(subgraph)
+        for edge in new_edges:
+            self._add_edge(edge)
+
+    @staticmethod
+    def _target_handle(edge: EdgeTuple) -> frs.TargetHandle:
+        """Narrow `edge.target` to `TargetHandle`. Caller must have verified."""
+        assert isinstance(edge.target, frs.TargetHandle)
+        return edge.target
+
+    @staticmethod
+    def _source_handle(edge: EdgeTuple) -> frs.SourceHandle:
+        """Narrow `edge.source` to `SourceHandle`. Caller must have verified."""
+        assert isinstance(edge.source, frs.SourceHandle)
+        return edge.source
+
+    @staticmethod
+    def _ensure_boundary_port(
+        subgraph: Workflow,
+        handle: frs.SourceHandle | frs.TargetHandle,
+        seen: set[tuple[frs.Label, frs.Label]],
+        port_cls: type[InputPort] | type[OutputPort],
+        add_port: Callable[[InputPort | OutputPort], Any],
+        make_edge: Callable[[frs.Label], EdgeTuple],
+    ) -> frs.Label:
+        """Create a boundary port on `subgraph` plus its inner edge for
+        `handle`, if `(handle.node, handle.port)` hasn't been seen yet.
+        Returns the boundary port label either way."""
+        new_label = f"{handle.node}__{handle.port}"
+        key = (handle.node, handle.port)
+        if key not in seen:
+            seen.add(key)
+            add_port(
+                port_cls(
+                    label=new_label,
+                    owner=subgraph,
+                    type_hint=None,
+                    type_metadata=None,
+                )
+            )
+            subgraph._add_edge(make_edge(new_label))
+        return new_label
+
+    @staticmethod
+    def _ensure_boundary_input(
+        subgraph: Workflow,
+        target: frs.TargetHandle,
+        seen: set[tuple[frs.Label, frs.Label]],
+    ) -> frs.Label:
+        return Workflow._ensure_boundary_port(
+            subgraph,
+            target,
+            seen,
+            InputPort,
+            subgraph._add_input,
+            lambda new_label: EdgeTuple(frs.InputSource(port=new_label), target),
+        )
+
+    @staticmethod
+    def _ensure_boundary_output(
+        subgraph: Workflow,
+        source: frs.SourceHandle,
+        seen: set[tuple[frs.Label, frs.Label]],
+    ) -> frs.Label:
+        return Workflow._ensure_boundary_port(
+            subgraph,
+            source,
+            seen,
+            OutputPort,
+            subgraph._add_output,
+            lambda new_label: EdgeTuple(source, frs.OutputTarget(port=new_label)),
+        )
 
     @_undoable  # Lossy on underlying macro function reference, if any
     def ungroup(
-        self, graph: dag.Macro | Workflow, block_if_reference: bool = False
+        self,
+        graph: Workflow | dag.Macro | frs.Label,
+        block_if_reference: bool = False,
+        label_map: dict[frs.Label, frs.Label] | None = None,
     ) -> None:
-        if (
-            block_if_reference
-            and isinstance(graph, dag.Macro)
-            and graph.recipe.reference is not None
-        ):
-            raise ValueError(
-                f"Cannot ungroup {graph.lexical_path!r} a -- it is a "
-                f"{graph.__class__.__name__} with an underlying python reference "
-                f"({graph.recipe.reference!r}). Override by setting "
-                "`block_if_reference=False`"
+        instance = self.get_node(graph)
+        if isinstance(instance, dag.Macro):
+            if block_if_reference and instance.recipe.reference is not None:
+                raise ValueError(
+                    f"Cannot ungroup {instance.lexical_path!r} -- it is a "
+                    f"{instance.__class__.__name__} with an underlying python "
+                    f"reference ({instance.recipe.reference!r}). Override by "
+                    "setting `block_if_reference=False`."
+                )
+            self.unlock_subgraph(instance)
+            instance = self.nodes[instance.label]
+        if not isinstance(instance, Workflow):
+            raise TypeError(
+                f"Cannot ungroup {instance.lexical_path!r} -- it is not a "
+                f"{Workflow.__name__} or {dag.Macro.__name__}."
             )
-        raise NotImplementedError()
+
+        label_map = dict(label_map or {})
+        for k in label_map:
+            if k not in instance.nodes:
+                raise ValueError(
+                    f"label_map key {k!r} is not a child of "
+                    f"{instance.lexical_path!r}."
+                )
+
+        renames: dict[frs.Label, frs.Label] = {
+            child_label: label_map.get(child_label, f"{instance.label}_{child_label}")
+            for child_label in instance.nodes
+        }
+        new_labels = list(renames.values())
+        if duplicates := {x for x in new_labels if new_labels.count(x) > 1}:
+            raise ValueError(
+                f"Ungrouping {instance.lexical_path!r} would create duplicate "
+                f"labels among lifted children: {sorted(duplicates)!r}."
+            )
+        for new_label in new_labels:
+            if new_label in self.nodes and new_label != instance.label:
+                raise ValueError(
+                    f"Ungrouping {instance.lexical_path!r} would create a name "
+                    f"collision on {self.lexical_path!r}: {new_label!r} is "
+                    "already present."
+                )
+
+        # Index outer edges by the subgraph port they touch -- inner
+        # InputSource/OutputTarget endpoints fan in/out to several outer peers,
+        # and passthrough inner edges must compose with every (feeder, consumer)
+        # pair.
+        touching = self._edges_touching_node(instance.label)
+        incoming_by_port: dict[frs.Label, list[EdgeTuple]] = {}
+        outgoing_by_port: dict[frs.Label, list[EdgeTuple]] = {}
+        for edge in touching:
+            if (
+                isinstance(edge.target, frs.TargetHandle)
+                and edge.target.node == instance.label
+            ):
+                incoming_by_port.setdefault(edge.target.port, []).append(edge)
+            else:
+                assert (
+                    isinstance(edge.source, frs.SourceHandle)
+                    and edge.source.node == instance.label
+                )
+                outgoing_by_port.setdefault(edge.source.port, []).append(edge)
+
+        # Single pass over inner edges: dispatch by (source kind, target kind) and
+        # build the list of edges to lift into the parent.
+        rewritten_outer: EdgeList = []
+        for inner in instance.edges:
+            src, tgt = inner.source, inner.target
+            if isinstance(src, frs.SourceHandle) and isinstance(tgt, frs.TargetHandle):
+                # Peer edge: rename both endpoints
+                rewritten_outer.append(
+                    EdgeTuple(
+                        frs.SourceHandle(node=renames[src.node], port=src.port),
+                        frs.TargetHandle(node=renames[tgt.node], port=tgt.port),
+                    )
+                )
+            elif isinstance(src, frs.InputSource) and isinstance(tgt, frs.TargetHandle):
+                # Subgraph input -> child: each outer feeder now drives the lifted child
+                for outer in incoming_by_port.get(src.port, []):
+                    rewritten_outer.append(
+                        EdgeTuple(
+                            outer.source,
+                            frs.TargetHandle(node=renames[tgt.node], port=tgt.port),
+                        )
+                    )
+            elif isinstance(src, frs.SourceHandle) and isinstance(
+                tgt, frs.OutputTarget
+            ):
+                # Child -> subgraph output: each outer consumer reads from the lifted child
+                for outer in outgoing_by_port.get(tgt.port, []):
+                    rewritten_outer.append(
+                        EdgeTuple(
+                            frs.SourceHandle(node=renames[src.node], port=src.port),
+                            outer.target,
+                        )
+                    )
+            elif isinstance(src, frs.InputSource) and isinstance(tgt, frs.OutputTarget):
+                # Passthrough: compose every (feeder, consumer) pair
+                for outer_in in incoming_by_port.get(src.port, []):
+                    for outer_out in outgoing_by_port.get(tgt.port, []):
+                        rewritten_outer.append(
+                            EdgeTuple(outer_in.source, outer_out.target)
+                        )
+
+        for edge in touching:
+            self._remove_edge(edge)
+        for child_label, child in list(instance.nodes.items()):
+            self._move_node(child, instance, self, new_label=renames[child_label])
+        self._remove_node_shallow(instance)
+        for edge in rewritten_outer:
+            self._add_edge(edge)
 
     # --- Undo / redo ---
 
@@ -712,5 +981,12 @@ class Workflow(Node[frs.WorkflowRecipe, frs.DagData], Graph):
                 self._replace_port(o, n)
             case RenameNode(node=n, new_label=label):
                 self._rename_node_label(n, label)
+            case MoveNode(
+                node=n,
+                from_graph=fg,
+                to_graph=tg,
+                new_label=nl,
+            ):
+                self._move_node(n, fg, tg, new_label=nl)
             case _:
                 raise TypeError(f"Unknown {GraphAction.__name__}: {action!r}")
