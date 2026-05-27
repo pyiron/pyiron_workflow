@@ -70,6 +70,16 @@ def multiply_with_defaults(x=1, y=2):
     return x * y
 
 
+@fr.atomic
+def typed_int(x: int) -> int:
+    return x + 0
+
+
+@fr.atomic
+def typed_float(x: float) -> float:
+    return x + 0.0
+
+
 # --------------------------------------------------------------------------- #
 # Macro recipes                                                               #
 # --------------------------------------------------------------------------- #
@@ -258,6 +268,16 @@ def autoencoder_node(label: str = "autoencoder"):
 def multiply_with_defaults_node(label: str = "multiply_with_defaults"):
     """Return a fresh `Atomic` wrapping `multiply_with_defaults`."""
     return wfms.function2node(multiply_with_defaults, label)
+
+
+def typed_int_node(label: str = "typed_int"):
+    """Return a fresh `Atomic` wrapping `typed_int` (input/output hinted `int`)."""
+    return wfms.function2node(typed_int, label)
+
+
+def typed_float_node(label: str = "typed_float"):
+    """Return a fresh `Atomic` wrapping `typed_float` (input/output hinted `float`)."""
+    return wfms.function2node(typed_float, label)
 
 
 # --------------------------------------------------------------------------- #

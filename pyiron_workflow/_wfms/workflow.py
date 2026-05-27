@@ -10,7 +10,7 @@ from typing import Any, Protocol, TypeAlias
 import semantikon
 from flowrep.api import schemas as frs
 
-from pyiron_workflow._wfms import constructors, dag, execution
+from pyiron_workflow._wfms import constructors, dag, execution, validation
 from pyiron_workflow._wfms.datatypes import (
     EdgeList,
     EdgeTuple,
@@ -628,9 +628,13 @@ class Workflow(Node[frs.WorkflowRecipe, frs.DagData], Graph):
         return EdgeTuple(source, target)
 
     @_undoable
-    def add_edge(self, *edges: EdgeTuple) -> None:
-        for e in edges:
-            self._add_edge(e)
+    def add_edge(self, *edges: EdgeTuple, type_validate: bool = True) -> None:
+        if type_validate:
+            for e in edges:
+                self._add_edge(validation.validate_edge(e, self))
+        else:
+            for e in edges:
+                self._add_edge(e)
 
     @_undoable
     def remove_edge(self, *edges: EdgeTuple) -> None:

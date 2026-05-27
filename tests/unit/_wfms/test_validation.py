@@ -1,31 +1,20 @@
+"""
+Unit tests for :mod:`pyiron_workflow._wfms.validation`.
+
+These tests construct small :class:`Workflow` instances directly and invoke
+`validate_edge` against them in isolation (i.e. not through
+:meth:`Workflow.add_edge`, which now wraps the validator).
+"""
+
 from __future__ import annotations
 
 import unittest
 
-import flowrep as fr
 from flowrep.api import schemas as frs
 
 from pyiron_workflow._wfms import api as wfms
 from pyiron_workflow._wfms import validation
 from tests.unit._wfms import _fixtures
-
-
-@fr.atomic
-def typed_int(x: int) -> int:
-    return x + 0
-
-
-@fr.atomic
-def typed_float(x: float) -> float:
-    return x + 0.0
-
-
-def _typed_int_node(label: str = "typed_int"):
-    return wfms.function2node(typed_int, label)
-
-
-def _typed_float_node(label: str = "typed_float"):
-    return wfms.function2node(typed_float, label)
 
 
 class TestValidateEdge(unittest.TestCase):
@@ -79,19 +68,27 @@ class TestValidateEdge(unittest.TestCase):
         self.assertIs(validation.validate_edge(edge, wf), edge)
 
     def test_sibling_source_hint_only(self):
-        wf, edge = self._sibling_workflow(_typed_int_node, _fixtures.atomic_add_node)
+        wf, edge = self._sibling_workflow(
+            _fixtures.typed_int_node, _fixtures.atomic_add_node
+        )
         self.assertIs(validation.validate_edge(edge, wf), edge)
 
     def test_sibling_target_hint_only(self):
-        wf, edge = self._sibling_workflow(_fixtures.atomic_add_node, _typed_int_node)
+        wf, edge = self._sibling_workflow(
+            _fixtures.atomic_add_node, _fixtures.typed_int_node
+        )
         self.assertIs(validation.validate_edge(edge, wf), edge)
 
     def test_sibling_both_hinted_ok(self):
-        wf, edge = self._sibling_workflow(_typed_int_node, _typed_int_node)
+        wf, edge = self._sibling_workflow(
+            _fixtures.typed_int_node, _fixtures.typed_int_node
+        )
         self.assertIs(validation.validate_edge(edge, wf), edge)
 
     def test_sibling_both_hinted_fail(self):
-        wf, edge = self._sibling_workflow(_typed_float_node, _typed_int_node)
+        wf, edge = self._sibling_workflow(
+            _fixtures.typed_float_node, _fixtures.typed_int_node
+        )
         with self.assertRaises(TypeError) as ctx:
             validation.validate_edge(edge, wf)
         msg = str(ctx.exception)
@@ -102,11 +99,13 @@ class TestValidateEdge(unittest.TestCase):
     # ---------- input edges (parent → child) -------------------------------
 
     def test_input_edge_both_hinted_ok(self):
-        wf, edge = self._parent_workflow_with_input_hint(_typed_int_node, int)
+        wf, edge = self._parent_workflow_with_input_hint(_fixtures.typed_int_node, int)
         self.assertIs(validation.validate_edge(edge, wf), edge)
 
     def test_input_edge_both_hinted_fail(self):
-        wf, edge = self._parent_workflow_with_input_hint(_typed_int_node, float)
+        wf, edge = self._parent_workflow_with_input_hint(
+            _fixtures.typed_int_node, float
+        )
         with self.assertRaises(TypeError) as ctx:
             validation.validate_edge(edge, wf)
         self.assertIn("float", str(ctx.exception))
@@ -115,11 +114,13 @@ class TestValidateEdge(unittest.TestCase):
     # ---------- output edges (child → parent) ------------------------------
 
     def test_output_edge_both_hinted_ok(self):
-        wf, edge = self._parent_workflow_with_output_hint(_typed_int_node, int)
+        wf, edge = self._parent_workflow_with_output_hint(_fixtures.typed_int_node, int)
         self.assertIs(validation.validate_edge(edge, wf), edge)
 
     def test_output_edge_both_hinted_fail(self):
-        wf, edge = self._parent_workflow_with_output_hint(_typed_int_node, float)
+        wf, edge = self._parent_workflow_with_output_hint(
+            _fixtures.typed_int_node, float
+        )
         with self.assertRaises(TypeError) as ctx:
             validation.validate_edge(edge, wf)
         self.assertIn("int", str(ctx.exception))

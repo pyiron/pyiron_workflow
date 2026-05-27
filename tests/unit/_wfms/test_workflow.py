@@ -8,7 +8,6 @@ import unittest
 
 import semantikon
 from flowrep.api import schemas as frs
-from unit._wfms import _fixtures
 
 from pyiron_workflow._wfms import (
     atomic,
@@ -18,6 +17,7 @@ from pyiron_workflow._wfms import (
     execution,
     workflow,
 )
+from tests.unit._wfms import _fixtures
 
 
 class TestMutablePortMap(unittest.TestCase):
@@ -515,6 +515,7 @@ class TestNodeMutations(unittest.TestCase):
     def test_remove_node_cascades_edges(self) -> None:
         node = _fixtures.atomic_add_node("adder")
         self.wf.add_node(node)
+        self.wf.create_output("out")
         edge = datatypes.EdgeTuple(
             frs.SourceHandle(node="adder", port="output_0"),
             frs.OutputTarget(port="out"),
@@ -527,6 +528,7 @@ class TestNodeMutations(unittest.TestCase):
     def test_remove_node_diff_includes_edges(self) -> None:
         node = _fixtures.atomic_add_node("adder")
         self.wf.add_node(node)
+        self.wf.create_output("out")
         edge = datatypes.EdgeTuple(
             frs.SourceHandle(node="adder", port="output_0"),
             frs.OutputTarget(port="out"),
@@ -623,6 +625,8 @@ class TestNodeMutations(unittest.TestCase):
 class TestEdgeMutations(unittest.TestCase):
     def setUp(self) -> None:
         self.wf = workflow.Workflow("wf")
+        self.wf.create_input("x")
+        self.wf.create_output("y")
         self.edge = datatypes.EdgeTuple(
             frs.InputSource(port="x"), frs.OutputTarget(port="y")
         )
@@ -657,6 +661,9 @@ class TestEdgeMutations(unittest.TestCase):
     def test_disconnect_removes_node_edges(self) -> None:
         node = _fixtures.atomic_add_node("adder")
         self.wf.add_node(node)
+        self.wf.create_input("z")
+        self.wf.create_output("out")
+        self.wf.create_output("w")
         e1 = datatypes.EdgeTuple(
             frs.InputSource(port="x"), frs.TargetHandle(node="adder", port="x")
         )
@@ -678,6 +685,7 @@ class TestEdgeMutations(unittest.TestCase):
     def test_disconnect_undo(self) -> None:
         node = _fixtures.atomic_add_node("adder")
         self.wf.add_node(node)
+        self.wf.create_output("out")
         edge = datatypes.EdgeTuple(
             frs.SourceHandle(node="adder", port="output_0"),
             frs.OutputTarget(port="out"),
@@ -686,6 +694,91 @@ class TestEdgeMutations(unittest.TestCase):
         self.wf.disconnect("adder")
         self.wf.undo()
         self.assertIn(edge, self.wf.edges)
+
+
+class TestAddEdgeValidation(unittest.TestCase):
+    """`Workflow.add_edge` wraps `validation.validate_edge` by default and
+    accepts a `type_validate=False` kwarg to skip the check."""
+
+    def _sibling_wf(self, src_factory, tgt_factory):
+        return _fixtures.build_workflow(
+            node_specs={"src": src_factory, "tgt": tgt_factory},
+            label="wf",
+        )
+
+    def _sibling_edge(self) -> datatypes.EdgeTuple:
+        return datatypes.EdgeTuple(
+            frs.SourceHandle(node="src", port="output_0"),
+            frs.TargetHandle(node="tgt", port="x"),
+        )
+
+    def test_validates_by_default_passes_compatible(self) -> None:
+        wf = self._sibling_wf(_fixtures.typed_int_node, _fixtures.typed_int_node)
+        edge = self._sibling_edge()
+        wf.add_edge(edge)
+        self.assertIn(edge, wf.edges)
+
+    def test_validates_by_default_rejects_type_hint_mismatch(self) -> None:
+        wf = self._sibling_wf(_fixtures.typed_float_node, _fixtures.typed_int_node)
+        edge = self._sibling_edge()
+        with self.assertRaises(TypeError):
+            wf.add_edge(edge)
+        self.assertNotIn(edge, wf.edges)
+
+    def test_validates_by_default_rejects_unknown_port(self) -> None:
+        wf = workflow.Workflow("wf")
+        bad = datatypes.EdgeTuple(
+            frs.InputSource(port="nope"), frs.OutputTarget(port="nada")
+        )
+        with self.assertRaises(KeyError):
+            wf.add_edge(bad)
+        self.assertEqual(wf.edges, [])
+
+    def test_skip_validation_allows_type_hint_mismatch(self) -> None:
+        wf = self._sibling_wf(_fixtures.typed_float_node, _fixtures.typed_int_node)
+        edge = self._sibling_edge()
+        wf.add_edge(edge, type_validate=False)
+        self.assertIn(edge, wf.edges)
+
+    def test_skip_validation_allows_unknown_port(self) -> None:
+        wf = workflow.Workflow("wf")
+        bad = datatypes.EdgeTuple(
+            frs.InputSource(port="nope"), frs.OutputTarget(port="nada")
+        )
+        wf.add_edge(bad, type_validate=False)
+        self.assertIn(bad, wf.edges)
+
+    def test_failed_validation_does_not_grow_undo_stack(self) -> None:
+        wf = self._sibling_wf(_fixtures.typed_float_node, _fixtures.typed_int_node)
+        edge = self._sibling_edge()
+        initial_undo_len = len(wf.undo_stack)
+        with self.assertRaises(TypeError):
+            wf.add_edge(edge)
+        self.assertEqual(len(wf.undo_stack), initial_undo_len)
+
+    def test_multi_edge_call_rolls_back_when_later_edge_fails(self) -> None:
+        """If a later edge in a single `add_edge` call fails validation, earlier
+        edges from the same call must not remain in the graph."""
+        wf = _fixtures.build_workflow(
+            node_specs={
+                "src": _fixtures.typed_int_node,
+                "tgt_ok": _fixtures.typed_int_node,
+                "tgt_bad": _fixtures.typed_float_node,
+            },
+            label="wf",
+        )
+        ok = datatypes.EdgeTuple(
+            frs.SourceHandle(node="src", port="output_0"),
+            frs.TargetHandle(node="tgt_ok", port="x"),
+        )
+        bad = datatypes.EdgeTuple(  # int source → float target → fails
+            frs.SourceHandle(node="src", port="output_0"),
+            frs.TargetHandle(node="tgt_bad", port="x"),
+        )
+        with self.assertRaises(TypeError):
+            wf.add_edge(ok, bad)
+        self.assertNotIn(ok, wf.edges)
+        self.assertNotIn(bad, wf.edges)
 
 
 class TestInputPortMutations(unittest.TestCase):
@@ -1088,6 +1181,7 @@ class TestAtomicRollback(unittest.TestCase):
         """
         n1 = _fixtures.atomic_add_node("n1")
         self.wf.add_node(n1)
+        self.wf.create_output("out")
         edge = datatypes.EdgeTuple(
             frs.SourceHandle(node="n1", port="output_0"),
             frs.OutputTarget(port="out"),
