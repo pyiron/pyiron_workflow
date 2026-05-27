@@ -2098,5 +2098,77 @@ class TestUngroup(unittest.TestCase):
             parent.ungroup("a")
 
 
+class TestWorkflowFromRecipe(unittest.TestCase):
+    """`Workflow.from_recipe` round-trips structure through a `WorkflowRecipe`."""
+
+    @staticmethod
+    def _source() -> workflow.Workflow:
+        # 3 inputs, 1 output, 3 nodes, edges covering input/peer/output kinds.
+        return _fixtures.grouping_wf("source")
+
+    def test_nodes_preserved(self) -> None:
+        src = self._source()
+        rebuilt = workflow.Workflow.from_recipe("rebuilt", src.recipe)
+        self.assertEqual(set(rebuilt.nodes.keys()), set(src.nodes.keys()))
+
+    def test_inputs_preserved(self) -> None:
+        src = self._source()
+        rebuilt = workflow.Workflow.from_recipe("rebuilt", src.recipe)
+        self.assertEqual(set(rebuilt.inputs.keys()), set(src.inputs.keys()))
+
+    def test_outputs_preserved(self) -> None:
+        src = self._source()
+        rebuilt = workflow.Workflow.from_recipe("rebuilt", src.recipe)
+        self.assertEqual(set(rebuilt.outputs.keys()), set(src.outputs.keys()))
+
+    def test_edges_preserved(self) -> None:
+        src = self._source()
+        rebuilt = workflow.Workflow.from_recipe("rebuilt", src.recipe)
+        self.assertEqual(set(rebuilt.edges), set(src.edges))
+
+    def test_label_uses_argument(self) -> None:
+        src = self._source()
+        rebuilt = workflow.Workflow.from_recipe("custom", src.recipe)
+        self.assertEqual(rebuilt.label, "custom")
+
+    def test_rebuilt_owns_children(self) -> None:
+        src = self._source()
+        rebuilt = workflow.Workflow.from_recipe("rebuilt", src.recipe)
+        for child in rebuilt.nodes.values():
+            self.assertIs(child.owner, rebuilt)
+
+    def test_ports_owned_by_rebuilt(self) -> None:
+        src = self._source()
+        rebuilt = workflow.Workflow.from_recipe("rebuilt", src.recipe)
+        for port in rebuilt.inputs.values():
+            self.assertIs(port.owner, rebuilt)
+        for port in rebuilt.outputs.values():
+            self.assertIs(port.owner, rebuilt)
+
+    def test_run_matches_source(self) -> None:
+        src = self._source()
+        src_run = src.run(x=2, y=3, z=4)
+        rebuilt = workflow.Workflow.from_recipe("rebuilt", src.recipe)
+        rebuilt_run = rebuilt.run(x=2, y=3, z=4)
+        self.assertEqual(
+            src_run.outputs["diff"].value,
+            rebuilt_run.outputs["diff"].value,
+        )
+
+    def test_undo_stack_empty(self) -> None:
+        src = self._source()
+        rebuilt = workflow.Workflow.from_recipe("rebuilt", src.recipe)
+        self.assertEqual(len(rebuilt.undo_stack), 0)
+        self.assertEqual(len(rebuilt.redo_stack), 0)
+
+    def test_empty_recipe(self) -> None:
+        empty_recipe = workflow.Workflow("empty").recipe
+        rebuilt = workflow.Workflow.from_recipe("rebuilt", empty_recipe)
+        self.assertEqual(len(rebuilt.nodes), 0)
+        self.assertEqual(len(rebuilt.inputs), 0)
+        self.assertEqual(len(rebuilt.outputs), 0)
+        self.assertEqual(len(rebuilt.edges), 0)
+
+
 if __name__ == "__main__":
     unittest.main()

@@ -216,6 +216,31 @@ class Workflow(Node[frs.WorkflowRecipe, frs.DagData], Graph):
     undo_stack: collections.deque[GraphDiff]
     redo_stack: collections.deque[GraphDiff]
 
+    @classmethod
+    def from_recipe(cls, label: frs.Label, recipe: frs.WorkflowRecipe) -> Workflow:
+        wf = cls(label)
+
+        for input_label in recipe.inputs:
+            wf._add_input(
+                InputPort(
+                    label=input_label, owner=wf, type_hint=None, type_metadata=None
+                )
+            )
+        for output_label in recipe.outputs:
+            wf._add_output(
+                OutputPort(
+                    label=output_label, owner=wf, type_hint=None, type_metadata=None
+                )
+            )
+        for child_label, child_recipe in recipe.nodes.items():
+            wf._add_node(constructors.node(child_recipe, child_label))
+        for edge in constructors.edges2edgelist(
+            recipe.input_edges, recipe.edges, recipe.output_edges
+        ):
+            wf._add_edge(edge)
+
+        return wf
+
     def __init__(
         self,
         label: frs.Label,
