@@ -1,7 +1,14 @@
 from __future__ import annotations
 
-from pyiron_workflow._wfms import workflow
-from pyiron_workflow._wfms.datatypes import EdgeTuple, StaticGraph
+from typing import Any, cast
+
+import rdflib
+import semantikon
+from flowrep.api import schemas as frs
+from semantikon import flowrep_dict as semantikon2flowrep
+
+from pyiron_workflow._wfms import execution, workflow
+from pyiron_workflow._wfms.datatypes import EdgeTuple, Node, StaticGraph
 from pyiron_workflow.type_hinting import type_hint_is_as_or_more_specific_than
 
 
@@ -33,3 +40,51 @@ def validate_edge(edge: EdgeTuple, owner: StaticGraph | workflow.Workflow) -> Ed
             f"is not as-or-more-specific-than the target ({target_hint})."
         )
     return edge
+
+
+PyshaclValidationReport = tuple[bool, rdflib.ConjunctiveGraph | rdflib.Graph, str]
+
+
+def validate_ontology(
+    data: frs.NodeData[Any],
+    with_io: bool = False,
+    with_function: bool = False,
+    label: str | None = None,
+    extra_knowledge: rdflib.Graph | None = None,
+) -> PyshaclValidationReport:
+    as_dict = semantikon2flowrep.node_data_to_dict(
+        data,
+        with_io=with_io,
+        with_function=with_function,
+        label=label,
+    )
+    g = semantikon.get_knowledge_graph(wf_dict=as_dict)
+    if extra_knowledge is not None:
+        g += extra_knowledge
+    return cast(PyshaclValidationReport, semantikon.validate_values(g))
+
+
+def validate_prospective_ontology(
+    node: Node[Any, Any],
+    extra_knowledge: rdflib.Graph | None = None,
+):
+    return validate_ontology(
+        node.generate_flowrep_live_node(),
+        with_io=False,
+        with_function=False,
+        label=node.label,
+        extra_knowledge=extra_knowledge,
+    )
+
+
+def validate_retrospective_ontology(
+    run: execution.Run[Any],
+    extra_knowledge: rdflib.Graph | None = None,
+):
+    return validate_ontology(
+        run.result,
+        with_io=True,
+        with_function=True,
+        label=run.label,
+        extra_knowledge=extra_knowledge,
+    )
