@@ -54,13 +54,8 @@ class TestAnnotationToTypeMetadata(unittest.TestCase):
     def test_none_returns_none(self) -> None:
         self.assertIsNone(annotation.annotation_to_type_metadata(None))
 
-    def test_plain_type_propagates_semantikon_error(self) -> None:
-        # semantikon.parse_metadata expects an Annotated alias; this wrapper
-        # does not guard against bare types, so the underlying AttributeError
-        # from semantikon should surface unchanged. This asserts the
-        # passthrough contract without mocking the collaborator.
-        with self.assertRaises(AttributeError):
-            annotation.annotation_to_type_metadata(int)
+    def test_plain_type_returns_none(self) -> None:
+        self.assertIsNone(annotation.annotation_to_type_metadata(int))
 
     def test_annotated_with_semantikon_metadata(self) -> None:
         payload = {"units": "meter", "label": "length"}

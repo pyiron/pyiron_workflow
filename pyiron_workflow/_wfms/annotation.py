@@ -17,4 +17,6 @@ def _unwrap_annotated(annotation: Any) -> Any:
 
 
 def annotation_to_type_metadata(annotation) -> semantikon.TypeMetadata | None:
-    return semantikon.parse_metadata(annotation) if annotation is not None else None
+    if annotation is None or get_origin(annotation) is not Annotated:
+        return None
+    return semantikon.parse_metadata(annotation)
