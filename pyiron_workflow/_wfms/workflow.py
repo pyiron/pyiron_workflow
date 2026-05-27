@@ -10,7 +10,7 @@ from typing import Any, Protocol, TypeAlias
 import semantikon
 from flowrep.api import schemas as frs
 
-from pyiron_workflow._wfms import constructors, dag, execution, lexical
+from pyiron_workflow._wfms import constructors, dag, execution
 from pyiron_workflow._wfms.datatypes import (
     EdgeList,
     EdgeTuple,
@@ -378,15 +378,6 @@ class Workflow(Node[frs.WorkflowRecipe, frs.DagData], Graph):
             return accumulator
 
         return wrapper
-
-    def get_node(self, node: Node | frs.Label) -> Node:
-        return lexical.get_item_from_map(node, self.nodes, "node")
-
-    def get_input(self, port: InputPort | frs.Label) -> InputPort:
-        return lexical.get_item_from_map(port, self.inputs, "input port")
-
-    def get_output(self, port: OutputPort | frs.Label) -> OutputPort:
-        return lexical.get_item_from_map(port, self.outputs, "output port")
 
     # --- Leaf private mutations (each returns one GraphAction) ---
 

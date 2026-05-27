@@ -5,7 +5,7 @@ import dataclasses
 import pathlib
 from collections.abc import Mapping
 from concurrent import futures
-from typing import ClassVar, Generic, NamedTuple, TypeAlias, TypeVar
+from typing import Any, ClassVar, Generic, NamedTuple, TypeAlias, TypeVar
 
 import semantikon
 from flowrep.api import schemas as frs
@@ -67,11 +67,11 @@ class Node(
 
     @property
     @abc.abstractmethod
-    def inputs(self) -> Mapping[frs.Label, InputPort]: ...
+    def inputs(self) -> lexical.LexicalMap[InputPort, Any]: ...
 
     @property
     @abc.abstractmethod
-    def outputs(self) -> Mapping[frs.Label, OutputPort]: ...
+    def outputs(self) -> lexical.LexicalMap[OutputPort, Any]: ...
 
     @property
     @abc.abstractmethod
@@ -120,6 +120,14 @@ class Node(
         if self.lexical_root:
             return lexical.lexical_path(self.lexical_root, self.label)
         return self.label
+
+    def get_input(self, port: InputPort | frs.Label) -> InputPort:
+        """A flexible wrapper to access inputs by object or by label"""
+        return lexical.get_item_from_map(port, self.inputs, "input port")
+
+    def get_output(self, port: OutputPort | frs.Label) -> OutputPort:
+        """A flexible wrapper to access outputs by object or by label"""
+        return lexical.get_item_from_map(port, self.outputs, "output port")
 
     def run(self, **input_data) -> execution.Run[execution.ResultType]:
         config = execution.RunConfig(
@@ -273,6 +281,10 @@ class Graph(lexical.HasLexicalPath, abc.ABC):
     @property
     @abc.abstractmethod
     def edges(self) -> EdgeList: ...
+
+    def get_node(self, node: Node | frs.Label) -> Node:
+        """A flexible wrapper to access nodes by object or by label"""
+        return lexical.get_item_from_map(node, self.nodes, "node")
 
     def __getattr__(self, item: str) -> Node:
         if item.startswith("_"):
