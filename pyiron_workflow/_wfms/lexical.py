@@ -137,3 +137,21 @@ def check_co_ownership(owner: HasLexicalPath, items: Iterable[Lexical[Any]]) -> 
             f"Map owned by {owner.lexical_path!r} cannot be initialized with "
             f"items that have a different owner. item: owner = {not_co_owned}"
         )
+
+
+_MappedType = TypeVar("_MappedType", bound=Lexical[Any])
+
+
+def get_item_from_map(
+    item: _MappedType | frs.Label,
+    map_: LexicalMap[_MappedType, Any],
+    kind: str,
+) -> _MappedType:
+    if isinstance(item, str):
+        return map_[item]
+    owned = map_.get(item.label, None)
+    if owned is None or item is not owned:
+        raise KeyError(
+            f"Cannot get {item!r} named {item.label!r} -- no such {kind} is owned."
+        )
+    return item

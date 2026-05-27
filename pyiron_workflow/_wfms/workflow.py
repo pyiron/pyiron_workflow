@@ -5,7 +5,7 @@ import dataclasses
 import functools
 import types
 from collections.abc import Callable, MutableMapping
-from typing import Any, Protocol, TypeAlias, TypeVar
+from typing import Any, Protocol, TypeAlias
 
 import semantikon
 from flowrep.api import schemas as frs
@@ -92,9 +92,6 @@ class MutableNodeMap(NodeMap, MutableMapping[frs.Label, Node]):
         if key in self._pwf_lexical_map__data:
             raise _duplicate_node_error(self._pwf_lexical_map__owner, key)
         self._pwf_lexical_map__owner.add_node(constructors.node(value, key))
-
-
-_MappedType = TypeVar("_MappedType", bound=lexical.Lexical[Any])
 
 
 class GraphAction(Protocol):
@@ -382,29 +379,14 @@ class Workflow(Node[frs.WorkflowRecipe, frs.DagData], Graph):
 
         return wrapper
 
-    @staticmethod
-    def _get_item_from_map(
-        item: _MappedType | frs.Label,
-        map_: lexical.LexicalMap[_MappedType, Any],
-        kind: str,
-    ) -> _MappedType:
-        if isinstance(item, str):
-            return map_[item]
-        owned = map_.get(item.label, None)
-        if owned is None or item is not owned:
-            raise KeyError(
-                f"Cannot get {item!r} named {item.label!r} -- no such {kind} is owned."
-            )
-        return item
-
     def get_node(self, node: Node | frs.Label) -> Node:
-        return self._get_item_from_map(node, self.nodes, "node")
+        return lexical.get_item_from_map(node, self.nodes, "node")
 
     def get_input(self, port: InputPort | frs.Label) -> InputPort:
-        return self._get_item_from_map(port, self.inputs, "input port")
+        return lexical.get_item_from_map(port, self.inputs, "input port")
 
     def get_output(self, port: OutputPort | frs.Label) -> OutputPort:
-        return self._get_item_from_map(port, self.outputs, "output port")
+        return lexical.get_item_from_map(port, self.outputs, "output port")
 
     # --- Leaf private mutations (each returns one GraphAction) ---
 
