@@ -158,7 +158,7 @@ def run(
     finally:
         end_time = datetime.datetime.now()
         current_run.finished_at = end_time
-        config.emit_progress(end_time, node.lexical_path, current_run.status)
+        config.emit_progress(end_time, lexical_path, current_run.status)
 
     return current_run
 
