@@ -1,5 +1,4 @@
-"""
-Regression tests for partial-state preservation across nested failures.
+"""Regression tests for partial-state preservation across nested failures.
 
 These tests verify that when a workflow crashes deep inside nested control
 flow (macros, while loops, for-each loops), the dump-on-failure mechanism
@@ -73,6 +72,29 @@ def risk_it_for(limit):
         m = raise_if_5(n)
         out.append(m)
     return out
+
+
+@fr.workflow
+def risk_it_if(limit, n=42):
+    if less_than(n, limit):  # noqa: SIM108
+        x = raise_if_5(n)
+    else:
+        x = raise_if_5(limit)
+    return x
+
+
+def value_out(x):
+    raise ValueError("To force the try-node's hand")
+    return 42  # Force the parser to see an output
+
+
+@fr.workflow
+def risk_it_try(limit, n=42):
+    try:
+        x = value_out(n)
+    except ValueError:
+        x = raise_if_5(limit)
+    return x
 
 
 # --------------------------------------------------------------------------- #
@@ -235,6 +257,57 @@ class TestForEachFailure(unittest.TestCase):
         self.assertEqual(for_each_step.steps[1].outputs["m"].value, 0)
         self.assertEqual(for_each_step.steps[-2].outputs["m"].value, 4)
         self.assertTrue(_is_not_data(for_each_step.steps[-1].outputs["m"].value))
+
+
+# --------------------------------------------------------------------------- #
+# If failure                                                            #
+# --------------------------------------------------------------------------- #
+
+
+class TestIfFailure(unittest.TestCase):
+    """An If whose clauses both crash but will pass condition evaluation."""
+
+    def test_partial_state_preserved_in_for_each(self) -> None:
+        run_obj = _run_and_reload(risk_it_if, limit=5)
+
+        self.assertEqual(run_obj.status, wfms.RunStatus.FAILED)
+
+        condition_step = run_obj.steps[0].steps[0]
+        self.assertEqual(condition_step.outputs["lt"].value, False)
+        self.assertEqual(condition_step.status, wfms.RunStatus.FINISHED)
+
+        else_step = run_obj.steps[0].steps[1]
+        self.assertEqual(else_step.status, wfms.RunStatus.FAILED)
+        self.assertTrue(_is_not_data(else_step.outputs["x"].value))
+
+
+# --------------------------------------------------------------------------- #
+# Try failure                                                            #
+# --------------------------------------------------------------------------- #
+
+
+class TestTryFailure(unittest.TestCase):
+    """A Try who encounters an unhandled error"""
+
+    def test_partial_state_preserved_in_for_each(self) -> None:
+        run_obj = _run_and_reload(risk_it_try, limit=5)
+
+        self.assertEqual(run_obj.status, wfms.RunStatus.FAILED)
+        try_body = run_obj.steps[0].steps[0]
+        self.assertIn("try", try_body.label)
+        self.assertEqual(
+            try_body.status,
+            wfms.RunStatus.FAILED,
+            msg="It fails as a regular part of the try/except node",
+        )
+        except_body = run_obj.steps[0].steps[1]
+        self.assertIn("except", except_body.label)
+        self.assertEqual(
+            except_body.status,
+            wfms.RunStatus.FAILED,
+            msg="It fails because of our forced runtime error, triggering the dump",
+        )
+        self.assertEqual(len(run_obj.steps[0].steps), 2, msg="And that's all there is")
 
 
 if __name__ == "__main__":
