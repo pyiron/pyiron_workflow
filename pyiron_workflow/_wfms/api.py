@@ -12,6 +12,9 @@ from pyiron_workflow._wfms.execution import run as run
 from pyiron_workflow._wfms.flowcontrollers.foreach import ForEach as ForEach
 from pyiron_workflow._wfms.flowcontrollers.ifflow import If as If
 from pyiron_workflow._wfms.flowcontrollers.tryflow import Try as Try
+from pyiron_workflow._wfms.flowcontrollers.tryflow import (
+    UnmatchedExceptionError as UnmatchedExceptionError,
+)
 from pyiron_workflow._wfms.flowcontrollers.whileflow import While as While
 from pyiron_workflow._wfms.transformers import Transform1toN as Transform1toN
 from pyiron_workflow._wfms.transformers import TransformNto1 as TransformNto1
