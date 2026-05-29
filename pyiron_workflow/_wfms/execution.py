@@ -3,7 +3,6 @@ from __future__ import annotations
 import dataclasses
 import datetime
 import enum
-import os
 import pathlib
 from collections.abc import Callable, Iterable
 from concurrent import futures
@@ -75,8 +74,9 @@ class RunConfig:
     progress_hooks: Iterable[
         Callable[[pathlib.Path, datetime.datetime, str, RunStatus], None]
     ] = dataclasses.field(default_factory=list)
-    dump_hook: Callable[[pathlib.Path, Run[Any]], None] | None = None
-    _config_pid: int = dataclasses.field(default_factory=os.getpid)
+    exception_hooks: Iterable[
+        Callable[[pathlib.Path, Run[ResultType], BaseException], None]
+    ] = dataclasses.field(default_factory=list)
 
     def emit_progress(
         self, time: datetime.datetime, lexical_path: str, status: RunStatus
@@ -84,22 +84,12 @@ class RunConfig:
         for hook in self.progress_hooks:
             hook(self.progress_dir, time, lexical_path, status)
 
+    def emit_exception(self, failed_run: Run[ResultType], exception: BaseException):
+        for hook in self.exception_hooks:
+            hook(self.progress_dir, failed_run, exception)
+
     def is_prime_mover(self, candidate: Node[Any, Any]) -> bool:
         return candidate.lexical_path == self.prime_mover
-
-    def on_config_process(self) -> bool:
-        return self._config_pid == os.getpid()
-
-    def dump(self, filename: str, run: Run[Any]):
-        if self.dump_hook is not None:
-            self.dump_hook(self.progress_dir / filename, run)
-
-    def dump_failure(self, failed_run: Run[Any]):
-        self.dump(self.failure_name(failed_run.lexical_path), failed_run)
-
-    @staticmethod
-    def failure_name(lexical_path: lexical.LexicalPath) -> str:
-        return "failure_" + lexical_path.replace(".", "-")
 
 
 @dataclasses.dataclass
@@ -156,8 +146,8 @@ def run(
     except BaseException as e:
         current_run.exception = e
         current_run.status = RunStatus.FAILED
-        if config.is_prime_mover(node):  # Only generate a dump from the launcher
-            config.dump_failure(current_run)
+        if config.is_prime_mover(node):
+            config.emit_exception(current_run, e)
         raise
     finally:
         current_run.finished_at = datetime.datetime.now()

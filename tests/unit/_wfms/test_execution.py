@@ -224,8 +224,8 @@ class TestRunFailurePath(unittest.TestCase):
 
         dump_calls = []
 
-        def dump(progress_dir: pathlib.Path, run) -> None:
-            dump_calls.append((progress_dir, run.status))
+        def dump(progress_dir: pathlib.Path, run, exception) -> None:
+            dump_calls.append((progress_dir / run.lexical_path, run.status))
 
         with tempfile.TemporaryDirectory() as tmp:
             progress_dir = pathlib.Path(tmp)
@@ -234,7 +234,7 @@ class TestRunFailurePath(unittest.TestCase):
                 prime_mover=node.lexical_path,
                 progress_dir=progress_dir,
                 progress_hooks=[],
-                dump_hook=dump,
+                exception_hooks=[dump],
             )
 
             with self.assertRaises(RuntimeError) as ctx:
@@ -245,7 +245,7 @@ class TestRunFailurePath(unittest.TestCase):
                 dump_calls,
                 [
                     (
-                        progress_dir / config.failure_name(node.lexical_path),
+                        progress_dir / node.lexical_path,
                         execution.RunStatus.FAILED,
                     )
                 ],

@@ -114,8 +114,12 @@ def composite_failure(limit, n=0):
 _LABEL = "risk_it_wf"
 
 
-def _pickle_failure(path: pathlib.Path, run: wfms.Run) -> None:
-    with open(path, "wb") as f:
+def _failure_name(lexical_path: str) -> str:
+    return f"failure_{lexical_path}"
+
+
+def _pickle_failure(path: pathlib.Path, run: wfms.Run, exception) -> None:
+    with open(path / _failure_name(run.lexical_path), "wb") as f:
         pickle.dump(run, f)
 
 
@@ -128,12 +132,12 @@ def _run_and_reload(wf_fnc, **input_data) -> wfms.Run:
             prime_mover=_LABEL,
             progress_dir=progress_dir,
             progress_hooks=[],
-            dump_hook=_pickle_failure,
+            exception_hooks=[_pickle_failure],
         )
         try:
             return wfms.run(wf, config, **input_data)
         except RuntimeError:
-            dump_path = progress_dir / f"failure_{_LABEL}"
+            dump_path = progress_dir / _failure_name(wf.lexical_path)
             with open(dump_path, "rb") as f:
                 return pickle.load(f)
 
@@ -340,7 +344,7 @@ class TestOutOfProcessFailure(unittest.TestCase):
                 prime_mover=_LABEL,
                 progress_dir=progress_dir,
                 progress_hooks=[],
-                dump_hook=_pickle_failure,
+                exception_hooks=[_pickle_failure],
             )
             try:
                 with futures.ProcessPoolExecutor() as exe:
@@ -350,7 +354,7 @@ class TestOutOfProcessFailure(unittest.TestCase):
             except RuntimeError:
                 pass  # That's the point here
 
-            with open(progress_dir / f"failure_{_LABEL}", "rb") as f:
+            with open(progress_dir / _failure_name(wf.lexical_path), "rb") as f:
                 reloaded = pickle.load(f)
 
             penultimate_body_child = (
