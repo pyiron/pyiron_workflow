@@ -177,7 +177,7 @@ def _submit(
 
 
 def _copy_run_fields(from_run: Run[ResultType], into: Run[ResultType]) -> None:
-    into.result = from_run.result
+    vars(into.result).update(vars(from_run.result))
     into.status = from_run.status
     into.exception = from_run.exception
     into.started_at = from_run.started_at
