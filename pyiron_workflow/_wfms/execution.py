@@ -3,6 +3,7 @@ from __future__ import annotations
 import dataclasses
 import datetime
 import enum
+import os
 import pathlib
 from collections.abc import Callable, Iterable
 from concurrent import futures
@@ -75,6 +76,7 @@ class RunConfig:
         Callable[[pathlib.Path, datetime.datetime, str, RunStatus], None]
     ] = dataclasses.field(default_factory=list)
     dump_hook: Callable[[pathlib.Path, Run[Any]], None] | None = None
+    _config_pid: int = dataclasses.field(default_factory=os.getpid)
 
     def emit_progress(
         self, time: datetime.datetime, lexical_path: str, status: RunStatus
@@ -84,6 +86,9 @@ class RunConfig:
 
     def is_prime_mover(self, candidate: Node[Any, Any]) -> bool:
         return candidate.lexical_path == self.prime_mover
+
+    def on_config_process(self) -> bool:
+        return self._config_pid == os.getpid()
 
     def dump(self, filename: str, run: Run[Any]):
         if self.dump_hook is not None:
@@ -143,13 +148,15 @@ def run(
         else:
             # Across-process: copy back rather than rebind
             f = _submit(node, current_run, config)
-            returned = f.result()
+            returned, encountered_exception = f.result()
             _copy_run_fields(returned, into=current_run)
+            if encountered_exception:
+                raise encountered_exception
         current_run.status = RunStatus.FINISHED
     except BaseException as e:
         current_run.exception = e
         current_run.status = RunStatus.FAILED
-        if config.is_prime_mover(node) or _is_executor_subrun(node, config):
+        if config.is_prime_mover(node):  # Only generate a dump from the launcher
             config.dump_failure(current_run)
         raise
     finally:
@@ -165,15 +172,40 @@ def _submit(
 ) -> futures.Future:
     if isinstance(node.executor, ExecutorInstructions):
         with node.executor.instantiate() as exe:
-            f = exe.submit(node.evaluate, current_run, config)
+            f = exe.submit(
+                _return_mutated_state_with_any_exception, node, current_run, config
+            )
     elif isinstance(node.executor, futures.Executor):
-        f = node.executor.submit(node.evaluate, current_run, config)
+        f = node.executor.submit(
+            _return_mutated_state_with_any_exception, node, current_run, config
+        )
     else:
         raise TypeError(
             f"Expected executor to be an instance of ExecutorInstructions or "
             f"futures.Executor, but {node.lexical_path!r} got {node.executor}."
         )
     return f
+
+
+def _return_mutated_state_with_any_exception(
+    node: Node[Any, ResultType], current_run: Run[ResultType], config: RunConfig
+) -> tuple[Run[ResultType], BaseException | None]:
+    """
+    If an out-of-process evaluation fails, we have no way of recovering its
+    state-so-far from the parent process; so we need to set its failure state and
+    trigger exception hooks right there in that remote process.
+
+    For successes or in-process routines (i.e., multithreading), the state management
+    in the main `run` routine is sufficient.
+    """
+    try:
+        node.evaluate(current_run, config)
+        return current_run, None
+    except BaseException as e:
+        current_run.exception = e
+        current_run.status = RunStatus.FAILED
+        current_run.finished_at = datetime.datetime.now()
+        return current_run, e
 
 
 def _copy_run_fields(from_run: Run[ResultType], into: Run[ResultType]) -> None:
@@ -183,10 +215,6 @@ def _copy_run_fields(from_run: Run[ResultType], into: Run[ResultType]) -> None:
     into.started_at = from_run.started_at
     into.finished_at = from_run.finished_at
     into.steps = from_run.steps
-
-
-def _is_executor_subrun(node: Node, config: RunConfig) -> bool:
-    return False
 
 
 def populate_input_ports(node: frs.NodeData, values: dict[str, Any]) -> None:

@@ -12,6 +12,7 @@ import pathlib
 import pickle
 import tempfile
 import unittest
+from concurrent import futures
 
 import flowrep as fr
 from flowrep.api import schemas as frs
@@ -95,6 +96,15 @@ def risk_it_try(limit, n=42):
     except ValueError:
         x = raise_if_5(limit)
     return x
+
+
+@fr.workflow
+def composite_failure(limit, n=0):
+    m = increment(n)
+    while less_than(m, limit):
+        incremented = increment(m)
+        m = raise_if_5(incremented)
+    return m
 
 
 # --------------------------------------------------------------------------- #
@@ -308,6 +318,76 @@ class TestTryFailure(unittest.TestCase):
             msg="It fails because of our forced runtime error, triggering the dump",
         )
         self.assertEqual(len(run_obj.steps[0].steps), 2, msg="And that's all there is")
+
+
+# --------------------------------------------------------------------------- #
+# Out-of-process failure                                                            #
+# --------------------------------------------------------------------------- #
+
+
+class TestOutOfProcessFailure(unittest.TestCase):
+    """
+    A composite node where we can nest the failure.
+    We expect multiple dump files: one for the parent, and one for the out-of-process
+    failure.
+    """
+
+    def test_while_failure_on_process_pool(self) -> None:
+        with tempfile.TemporaryDirectory() as tmp:
+            progress_dir = pathlib.Path(tmp)
+            wf = wfms.node(composite_failure, label=_LABEL)
+            config = wfms.RunConfig(
+                prime_mover=_LABEL,
+                progress_dir=progress_dir,
+                progress_hooks=[],
+                dump_hook=_pickle_failure,
+            )
+            try:
+                with futures.ProcessPoolExecutor() as exe:
+                    # Apply an executor deeply inside the graph
+                    wf.while_0.body.raise_if_5_0.executor = exe
+                    wfms.run(wf, config, limit=6)
+            except RuntimeError:
+                pass  # That's the point here
+
+            with open(progress_dir / f"failure_{_LABEL}", "rb") as f:
+                reloaded = pickle.load(f)
+
+            penultimate_body_child = (
+                reloaded.steps[1]  # while_0
+                .steps[-3]  # body_2
+                .steps[1]  # raise_if_5_0
+            )
+            self.assertEqual(
+                penultimate_body_child.outputs["x"].value,
+                4,
+                msg="Penultimate state should be recovered, even though it's from a "
+                "remote process (and different remote than the failure process)",
+            )
+            self.assertIs(
+                penultimate_body_child.result,
+                reloaded.result.nodes["while_0"].nodes["body_2"].nodes["raise_if_5_0"],
+                msg="Memory-efficient `is` synchronization between steps and result "
+                "must be preserved, even in cross-process runs.",
+            )
+            failed_body = reloaded.steps[1].steps[-1]  # while_0  # body_3
+            failed_body_increment = failed_body.steps[0]
+            failed_body_raise_if_5 = failed_body.steps[1]
+            self.assertEqual(
+                failed_body_increment.outputs["output_0"].value,
+                5,
+                msg="We should be recovering state right up until the very last minute",
+            )
+            self.assertTrue(
+                _is_not_data(failed_body_raise_if_5.outputs["x"].value),
+                msg="And this is it, this is the last instance and we cannot recover "
+                "data from the failed atomic node",
+            )
+            self.assertTrue(
+                _is_not_data(failed_body.outputs["m"].value),
+                msg="Unavailability of output should have propagated up to the parent "
+                "output.",
+            )
 
 
 if __name__ == "__main__":
