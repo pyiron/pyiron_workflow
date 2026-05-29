@@ -2,7 +2,6 @@ from __future__ import annotations
 
 import abc
 import dataclasses
-import pathlib
 from collections.abc import Mapping
 from concurrent import futures
 from typing import Any, ClassVar, Generic, NamedTuple, TypeAlias, TypeVar
@@ -130,12 +129,7 @@ class Node(
         return lexical.get_item_from_map(port, self.outputs, "output port")
 
     def run(self, **input_data) -> execution.Run[execution.ResultType]:
-        config = execution.RunConfig(
-            prime_mover=self.lexical_path,
-            progress_dir=pathlib.Path.cwd(),
-            progress_hooks=[],
-        )
-        current_run = execution.run(self, config, **input_data)
+        current_run = execution.run(self, **input_data)
         self.current_run = current_run
         return current_run
 

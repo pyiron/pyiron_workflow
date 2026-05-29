@@ -1,6 +1,5 @@
 from __future__ import annotations
 
-import datetime
 from typing import Any
 
 import semantikon
@@ -110,7 +109,7 @@ def topo_sort_nodes(nodes: NodeMap, edges: frs.Edges) -> list[list[frs.Label]]:
 
 
 def evaluate_node(
-    node: Node[Any, Any],
+    node: Node[Any, execution.ResultType],
     label_in_run: frs.Label,
     run: execution.Run[frs.CompositeData],
     config: execution.RunConfig,
@@ -120,25 +119,15 @@ def evaluate_node(
     if any(val is frs.NOT_DATA for val in input_data.values()):
         # Possible development: raise a warning or optionally an exception here
         return
-    t_start = datetime.datetime.now()
-    try:
-        sub_run = execution.run(
-            node, config, run.lexical_path, label_in_run, **input_data
-        )
-    except Exception as e:
-        sub_run = execution.Run(
-            lexical_path=lexical.lexical_path(run.lexical_path, label_in_run),
-            result=node.generate_flowrep_live_node(),
-            status=execution.RunStatus.FAILED,
-            exception=e,
-            started_at=run.started_at,
-            finished_at=t_start,
-            progress_dir=config.progress_dir,
-        )
-        raise e
-    finally:
-        run.steps.append(sub_run)
-        result.nodes[label_in_run] = sub_run.result
+    sub_run = execution.Run[execution.ResultType](
+        lexical_path=lexical.lexical_path(run.lexical_path, label_in_run),
+        result=node.generate_flowrep_live_node(),
+        status=execution.RunStatus.PENDING,
+        progress_dir=config.progress_dir,
+    )
+    run.steps.append(sub_run)
+    result.nodes[label_in_run] = sub_run.result
+    execution.run(node, config, sub_run, **input_data)
 
 
 def gather_target_inputs(

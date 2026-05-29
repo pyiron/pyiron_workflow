@@ -206,11 +206,11 @@ class TestRunHappyPath(unittest.TestCase):
         self.assertEqual(run.outputs["output_0"].value, 3)
         self.assertIsNotNone(run.duration)
 
-        # Hook sees PENDING and FINISHED (never RUNNING).
+        # Hook sees RUNNING and FINISHED (never PENDING).
         statuses = [s for _, s in captured]
-        self.assertIn(execution.RunStatus.PENDING, statuses)
+        self.assertNotIn(execution.RunStatus.PENDING, statuses)
         self.assertIn(execution.RunStatus.FINISHED, statuses)
-        self.assertNotIn(execution.RunStatus.RUNNING, statuses)
+        self.assertIn(execution.RunStatus.RUNNING, statuses)
 
 
 # --------------------------------------------------------------------------- #
@@ -266,7 +266,7 @@ class TestRunExecutorBranches(unittest.TestCase):
         )
         with tempfile.TemporaryDirectory() as tmp:
             config = _default_config(node, pathlib.Path(tmp))
-            run = execution.run(node, config, node.lexical_root, node.label, x=1, y=2)
+            run = execution.run(node, config, x=1, y=2)
         self.assertEqual(run.status, execution.RunStatus.FINISHED)
         self.assertEqual(run.outputs["output_0"].value, 3)
 
@@ -276,9 +276,7 @@ class TestRunExecutorBranches(unittest.TestCase):
             node.executor = exe
             with tempfile.TemporaryDirectory() as tmp:
                 config = _default_config(node, pathlib.Path(tmp))
-                run = execution.run(
-                    node, config, node.lexical_root, node.label, x=1, y=2
-                )
+                run = execution.run(node, config, x=1, y=2)
         self.assertEqual(run.status, execution.RunStatus.FINISHED)
         self.assertEqual(run.outputs["output_0"].value, 3)
 
@@ -287,7 +285,7 @@ class TestRunExecutorBranches(unittest.TestCase):
         self.assertIsNone(node.executor)
         with tempfile.TemporaryDirectory() as tmp:
             config = _default_config(node, pathlib.Path(tmp))
-            run = execution.run(node, config, node.lexical_root, node.label, x=1, y=2)
+            run = execution.run(node, config, x=1, y=2)
         self.assertEqual(run.status, execution.RunStatus.FINISHED)
         self.assertEqual(run.outputs["output_0"].value, 3)
 
@@ -303,7 +301,7 @@ class TestRunExecutorBranches(unittest.TestCase):
         with tempfile.TemporaryDirectory() as tmp:
             config = _default_config(node, pathlib.Path(tmp))
             with self.assertRaises(TypeError) as ctx:
-                execution.run(node, config, node.lexical_root, node.label, x=1, y=2)
+                execution.run(node, config, x=1, y=2)
         self.assertIn(node.lexical_path, str(ctx.exception))
 
 
@@ -313,7 +311,7 @@ class TestRunExecutorBranches(unittest.TestCase):
 
 
 class TestRunProgressHooks(unittest.TestCase):
-    def test_prime_mover_status_set_is_pending_finished(self) -> None:
+    def test_prime_mover_status_set_is_running_then_finished(self) -> None:
         macro = _fixtures.macro_node()
         captured: list[tuple[str, execution.RunStatus]] = []
 
@@ -331,12 +329,12 @@ class TestRunProgressHooks(unittest.TestCase):
                 progress_dir=pathlib.Path(tmp),
                 progress_hooks=[hook],
             )
-            execution.run(macro, config, macro.lexical_root, macro.label, x=1, y=2, z=3)
+            execution.run(macro, config, x=1, y=2, z=3)
 
         prime_statuses = {status for lp, status in captured if lp == macro.lexical_path}
         self.assertEqual(
             prime_statuses,
-            {execution.RunStatus.PENDING, execution.RunStatus.FINISHED},
+            {execution.RunStatus.RUNNING, execution.RunStatus.FINISHED},
         )
 
 

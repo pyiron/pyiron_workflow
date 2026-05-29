@@ -108,59 +108,85 @@ class ExecutorInstructions:
 
 
 def run(
-    node: Node[Any, ResultType],
-    config: RunConfig,
-    root: lexical.LexicalPath | None = None,
-    label: frs.Label | None = None,
+    node: Node,
+    config: RunConfig | None = None,
+    _current_run: Run[ResultType] | None = None,
     /,
     **input_data,
-) -> Run[ResultType]:
-    if root is None:
-        root = lexical.LexicalPath()
-    data_label = node.label if label is None else label
-    lexical_path = lexical.lexical_path(root, data_label)
+):
+    if config is None:
+        config = RunConfig(
+            prime_mover=node.lexical_path,
+            progress_dir=pathlib.Path.cwd(),
+            progress_hooks=[],
+        )
 
-    start_time = datetime.datetime.now()
-    status = RunStatus.PENDING
-    config.emit_progress(start_time, lexical_path, status)
-    current_run = Run[ResultType](
-        lexical_path=lexical_path,
-        result=node.generate_flowrep_live_node(),
-        status=RunStatus.PENDING,
-        started_at=start_time,
-        progress_dir=config.progress_dir,
+    if _current_run is None:
+        current_run = Run[ResultType](
+            lexical_path=lexical.LexicalPath(node.label),
+            result=node.generate_flowrep_live_node(),
+            status=RunStatus.PENDING,
+            progress_dir=config.progress_dir,
+        )
+    else:
+        current_run = _current_run
+
+    current_run.started_at = datetime.datetime.now()
+    current_run.status = RunStatus.RUNNING
+    config.emit_progress(
+        current_run.started_at, current_run.lexical_path, current_run.status
     )
-
     try:
-        current_run.status = RunStatus.RUNNING
         populate_input_ports(current_run.result, input_data)
-        if node.executor is not None:
-            if isinstance(node.executor, ExecutorInstructions):
-                with node.executor.instantiate() as exe:
-                    f = exe.submit(node.evaluate, current_run, config)
-            elif isinstance(node.executor, futures.Executor):
-                f = node.executor.submit(node.evaluate, current_run, config)
-            else:
-                raise TypeError(
-                    f"Expected executor to be an instance of ExecutorInstructions or "
-                    f"futures.Executor, but {node.lexical_path!r} got {node.executor}."
-                )
-            current_run = f.result()
+        if node.executor is None:
+            node.evaluate(current_run, config)
         else:
-            current_run = node.evaluate(current_run, config)
+            # Across-process: copy back rather than rebind
+            f = _submit(node, current_run, config)
+            returned = f.result()
+            _copy_run_fields(returned, into=current_run)
         current_run.status = RunStatus.FINISHED
     except BaseException as e:
         current_run.exception = e
         current_run.status = RunStatus.FAILED
-        if config.is_prime_mover(node):
+        if config.is_prime_mover(node) or _is_executor_subrun(node, config):
             config.dump_failure(current_run)
-        raise e
+        raise
     finally:
-        end_time = datetime.datetime.now()
-        current_run.finished_at = end_time
-        config.emit_progress(end_time, lexical_path, current_run.status)
-
+        current_run.finished_at = datetime.datetime.now()
+        config.emit_progress(
+            current_run.finished_at, current_run.lexical_path, current_run.status
+        )
     return current_run
+
+
+def _submit(
+    node: Node, current_run: Run[ResultType], config: RunConfig
+) -> futures.Future:
+    if isinstance(node.executor, ExecutorInstructions):
+        with node.executor.instantiate() as exe:
+            f = exe.submit(node.evaluate, current_run, config)
+    elif isinstance(node.executor, futures.Executor):
+        f = node.executor.submit(node.evaluate, current_run, config)
+    else:
+        raise TypeError(
+            f"Expected executor to be an instance of ExecutorInstructions or "
+            f"futures.Executor, but {node.lexical_path!r} got {node.executor}."
+        )
+    return f
+
+
+def _copy_run_fields(from_run: Run[ResultType], into: Run[ResultType]) -> None:
+    into.result = from_run.result
+    into.status = from_run.status
+    into.exception = from_run.exception
+    into.started_at = from_run.started_at
+    into.finished_at = from_run.finished_at
+    into.steps = from_run.steps
+
+
+def _is_executor_subrun(node: Node, config: RunConfig) -> bool:
+    return False
 
 
 def populate_input_ports(node: frs.NodeData, values: dict[str, Any]) -> None:
