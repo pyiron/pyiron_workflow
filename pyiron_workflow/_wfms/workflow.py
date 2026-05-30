@@ -579,8 +579,8 @@ class Workflow(Node[frs.WorkflowRecipe, frs.DagData], Graph):
         new_port = dataclasses.replace(port, type_hint=hint)
         self._replace_port(port, new_port)
 
-    def remove_port_hint(self, port: InputPort | OutputPort) -> GraphDiff:
-        return self.add_port_hint(port, None)  # type: ignore[return-value]
+    def remove_port_hint(self, port: InputPort | OutputPort) -> None:
+        return self.add_port_hint(port, None)
 
     @_undoable
     def add_port_metadata(
@@ -589,8 +589,8 @@ class Workflow(Node[frs.WorkflowRecipe, frs.DagData], Graph):
         new_port = dataclasses.replace(port, type_metadata=metadata)
         self._replace_port(port, new_port)
 
-    def remove_port_metadata(self, port: InputPort | OutputPort) -> GraphDiff:
-        return self.add_port_metadata(port, None)  # type: ignore[return-value]
+    def remove_port_metadata(self, port: InputPort | OutputPort) -> None:
+        return self.add_port_metadata(port, None)
 
     @_undoable
     def add_node(self, *nodes: Node) -> None:
