@@ -10,7 +10,7 @@ from typing import Any, Protocol, TypeAlias
 import semantikon
 from flowrep.api import schemas as frs
 
-from pyiron_workflow._wfms import constructors, dag, execution, validation
+from pyiron_workflow._wfms import actions, constructors, dag, execution, validation
 from pyiron_workflow._wfms.datatypes import (
     EdgeList,
     EdgeTuple,
@@ -209,9 +209,9 @@ class Workflow(Node[frs.WorkflowRecipe, frs.DagData], Graph):
     _outputs: MutablePortMap[OutputPort]
     _nodes: MutableNodeMap
     _edges: EdgeList
-    _diff_accumulator: GraphDiff | None
-    undo_stack: collections.deque[GraphDiff]
-    redo_stack: collections.deque[GraphDiff]
+    _diff_accumulator: actions.GraphDiff | None
+    undo_stack: collections.deque[actions.GraphDiff]
+    redo_stack: collections.deque[actions.GraphDiff]
 
     @classmethod
     def from_recipe(cls, label: frs.Label, recipe: frs.WorkflowRecipe) -> Workflow:
@@ -254,7 +254,7 @@ class Workflow(Node[frs.WorkflowRecipe, frs.DagData], Graph):
         self._outputs = MutablePortMap[OutputPort](self)
         self._nodes = MutableNodeMap(self)
         self._edges: EdgeList = []
-        self._diff_accumulator: GraphDiff | None = None
+        self._diff_accumulator: actions.GraphDiff | None = None
         self.undo_stack = collections.deque(maxlen=undo_limit)
         self.redo_stack = collections.deque(maxlen=undo_limit)
 
@@ -331,7 +331,7 @@ class Workflow(Node[frs.WorkflowRecipe, frs.DagData], Graph):
         return self.undo_stack.maxlen
 
     @undo_limit.setter
-    def undo_limit(self, value: int) -> None:
+    def undo_limit(self, value: int | None) -> None:
         self.undo_stack = collections.deque(self.undo_stack, maxlen=value)
         self.redo_stack = collections.deque(self.redo_stack, maxlen=value)
 
@@ -363,7 +363,7 @@ class Workflow(Node[frs.WorkflowRecipe, frs.DagData], Graph):
         def wrapper(self: Workflow, *args: Any, **kwargs: Any) -> Any:
             if self._diff_accumulator is not None:
                 return method(self, *args, **kwargs)  # nested: parent commits
-            accumulator: GraphDiff = []
+            accumulator: actions.GraphDiff = []
             self._diff_accumulator = accumulator
             try:
                 method(self, *args, **kwargs)
@@ -379,52 +379,52 @@ class Workflow(Node[frs.WorkflowRecipe, frs.DagData], Graph):
 
         return wrapper
 
-    # --- Leaf private mutations (each returns one GraphAction) ---
+    # --- Leaf private mutations (each returns one actions.GraphAction) ---
 
     @_records
-    def _add_node(self, node: Node) -> AddNode:
+    def _add_node(self, node: Node) -> actions.AddNode:
         self.nodes[node.label] = node
-        return AddNode(node)
+        return actions.AddNode(node)
 
     @_records
-    def _remove_node_shallow(self, node: Node) -> RemoveNode:
+    def _remove_node_shallow(self, node: Node) -> actions.RemoveNode:
         del self.nodes[node.label]
-        return RemoveNode(node)
+        return actions.RemoveNode(node)
 
     @_records
-    def _add_edge(self, edge: EdgeTuple) -> AddEdge:
+    def _add_edge(self, edge: EdgeTuple) -> actions.AddEdge:
         self.edges.append(edge)
-        return AddEdge(edge)
+        return actions.AddEdge(edge)
 
     @_records
-    def _remove_edge(self, edge: EdgeTuple) -> RemoveEdge:
+    def _remove_edge(self, edge: EdgeTuple) -> actions.RemoveEdge:
         self.edges.remove(edge)
-        return RemoveEdge(edge)
+        return actions.RemoveEdge(edge)
 
     @_records
-    def _add_input(self, port: InputPort) -> AddInput:
+    def _add_input(self, port: InputPort) -> actions.AddInput:
         self.inputs[port.label] = port
-        return AddInput(port)
+        return actions.AddInput(port)
 
     @_records
-    def _remove_input_shallow(self, port: InputPort) -> RemoveInput:
+    def _remove_input_shallow(self, port: InputPort) -> actions.RemoveInput:
         del self.inputs[port.label]
-        return RemoveInput(port)
+        return actions.RemoveInput(port)
 
     @_records
-    def _add_output(self, port: OutputPort) -> AddOutput:
+    def _add_output(self, port: OutputPort) -> actions.AddOutput:
         self.outputs[port.label] = port
-        return AddOutput(port)
+        return actions.AddOutput(port)
 
     @_records
-    def _remove_output_shallow(self, port: OutputPort) -> RemoveOutput:
+    def _remove_output_shallow(self, port: OutputPort) -> actions.RemoveOutput:
         del self.outputs[port.label]
-        return RemoveOutput(port)
+        return actions.RemoveOutput(port)
 
     @_records
     def _replace_port(
         self, old: InputPort | OutputPort, new: InputPort | OutputPort
-    ) -> ReplacePort:
+    ) -> actions.ReplacePort:
         if old.label in self.inputs and self.inputs[old.label] is old:
             target_map: MutablePortMap[InputPort] | MutablePortMap[OutputPort] = (
                 self.inputs
@@ -437,16 +437,18 @@ class Workflow(Node[frs.WorkflowRecipe, frs.DagData], Graph):
             )
         del target_map[old.label]
         target_map[new.label] = new  # type: ignore[assignment]
-        return ReplacePort(old, new)
+        return actions.ReplacePort(old, new)
 
     @_records
-    def _rename_node_label(self, node: Node, new_label: frs.Label) -> RenameNode:
+    def _rename_node_label(
+        self, node: Node, new_label: frs.Label
+    ) -> actions.RenameNode:
         old_label = node.label
         # Bypass MutableNodeMap.__setitem__ (which rejects relabelling owned nodes)
         del self.nodes[old_label]
         node._label = new_label  # type: ignore[misc]
         self.nodes[new_label] = node
-        return RenameNode(node, old_label, new_label)
+        return actions.RenameNode(node, old_label, new_label)
 
     @_records
     def _move_node(
@@ -455,7 +457,7 @@ class Workflow(Node[frs.WorkflowRecipe, frs.DagData], Graph):
         from_graph: Workflow,
         to_graph: Workflow,
         new_label: frs.Label | None = None,
-    ) -> MoveNode:
+    ) -> actions.MoveNode:
         """Move `node` from `from_graph` to `to_graph`, optionally renaming it.
 
         Bare slot manipulation is used because the public node-map setters
@@ -468,7 +470,7 @@ class Workflow(Node[frs.WorkflowRecipe, frs.DagData], Graph):
         node._label = target_label  # type: ignore[misc]
         node._owner = to_graph
         to_graph._nodes._pwf_lexical_map__data[target_label] = node
-        return MoveNode(
+        return actions.MoveNode(
             node=node,
             from_graph=from_graph,
             to_graph=to_graph,
@@ -928,13 +930,13 @@ class Workflow(Node[frs.WorkflowRecipe, frs.DagData], Graph):
 
     # --- Undo / redo ---
 
-    def _undo_diff(self, diff: GraphDiff) -> GraphDiff:
+    def _undo_diff(self, diff: actions.GraphDiff) -> actions.GraphDiff:
         inverse = [action.inverse() for action in reversed(diff)]
         for action in inverse:
             self._dispatch(action)
         return inverse
 
-    def undo(self, steps: int = 1) -> list[GraphDiff]:
+    def undo(self, steps: int = 1) -> list[actions.GraphDiff]:
         undone = []
         for _ in range(steps):
             if not self.undo_stack:
@@ -945,12 +947,12 @@ class Workflow(Node[frs.WorkflowRecipe, frs.DagData], Graph):
             undone.append(inverse)
         return undone
 
-    def _redo_diff(self, diff: GraphDiff) -> GraphDiff:
+    def _redo_diff(self, diff: actions.GraphDiff) -> actions.GraphDiff:
         for action in diff:
             self._dispatch(action)
         return diff
 
-    def redo(self, steps: int = 1) -> list[GraphDiff]:
+    def redo(self, steps: int = 1) -> list[actions.GraphDiff]:
         redone = []
         for _ in range(steps):
             if not self.redo_stack:
@@ -961,29 +963,29 @@ class Workflow(Node[frs.WorkflowRecipe, frs.DagData], Graph):
             redone.append(diff)
         return redone
 
-    def _dispatch(self, action: GraphAction) -> None:
+    def _dispatch(self, action: actions.GraphAction) -> None:
         match action:
-            case AddNode(node=node):
+            case actions.AddNode(node=node):
                 self._add_node(node)
-            case RemoveNode(node=node):
+            case actions.RemoveNode(node=node):
                 self._remove_node_shallow(node)
-            case AddEdge(edge=edge):
+            case actions.AddEdge(edge=edge):
                 self._add_edge(edge)
-            case RemoveEdge(edge=edge):
+            case actions.RemoveEdge(edge=edge):
                 self._remove_edge(edge)
-            case AddInput(port=port):
+            case actions.AddInput(port=port):
                 self._add_input(port)
-            case RemoveInput(port=port):
+            case actions.RemoveInput(port=port):
                 self._remove_input_shallow(port)
-            case AddOutput(port=port):
+            case actions.AddOutput(port=port):
                 self._add_output(port)
-            case RemoveOutput(port=port):
+            case actions.RemoveOutput(port=port):
                 self._remove_output_shallow(port)
-            case ReplacePort(old_port=o, new_port=n):
+            case actions.ReplacePort(old_port=o, new_port=n):
                 self._replace_port(o, n)
-            case RenameNode(node=n, new_label=label):
+            case actions.RenameNode(node=n, new_label=label):
                 self._rename_node_label(n, label)
-            case MoveNode(
+            case actions.MoveNode(
                 node=n,
                 from_graph=fg,
                 to_graph=tg,
@@ -991,4 +993,4 @@ class Workflow(Node[frs.WorkflowRecipe, frs.DagData], Graph):
             ):
                 self._move_node(n, fg, tg, new_label=nl)
             case _:
-                raise TypeError(f"Unknown {GraphAction.__name__}: {action!r}")
+                raise TypeError(f"Unknown {actions.GraphAction.__name__}: {action!r}")

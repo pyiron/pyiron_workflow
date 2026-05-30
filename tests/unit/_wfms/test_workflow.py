@@ -10,6 +10,7 @@ import semantikon
 from flowrep.api import schemas as frs
 
 from pyiron_workflow._wfms import (
+    actions,
     atomic,
     constructors,
     dag,
@@ -186,89 +187,89 @@ class TestGraphActions(unittest.TestCase):
 
     def test_add_node_inverse_symmetric(self) -> None:
         node = self._fresh_node()
-        a = workflow.AddNode(node)
+        a = actions.AddNode(node)
         self.assertEqual(a.inverse().inverse(), a)
 
     def test_remove_node_inverse_symmetric(self) -> None:
         node = self._fresh_node()
-        a = workflow.RemoveNode(node)
+        a = actions.RemoveNode(node)
         self.assertEqual(a.inverse().inverse(), a)
 
     def test_add_edge_inverse_symmetric(self) -> None:
         edge = datatypes.EdgeTuple(
             frs.InputSource(port="x"), frs.TargetHandle(node="n", port="p")
         )
-        a = workflow.AddEdge(edge)
+        a = actions.AddEdge(edge)
         self.assertEqual(a.inverse().inverse(), a)
 
     def test_remove_edge_inverse_symmetric(self) -> None:
         edge = datatypes.EdgeTuple(
             frs.InputSource(port="x"), frs.TargetHandle(node="n", port="p")
         )
-        a = workflow.RemoveEdge(edge)
+        a = actions.RemoveEdge(edge)
         self.assertEqual(a.inverse().inverse(), a)
 
     def test_rename_node_inverse_symmetric(self) -> None:
         node = self._fresh_node()
-        a = workflow.RenameNode(node, "old", "new")
+        a = actions.RenameNode(node, "old", "new")
         self.assertEqual(a.inverse().inverse(), a)
 
     def test_add_input_inverse_symmetric(self) -> None:
         port = self._fresh_input()
-        a = workflow.AddInput(port)
+        a = actions.AddInput(port)
         self.assertEqual(a.inverse().inverse(), a)
 
     def test_remove_input_inverse_symmetric(self) -> None:
         port = self._fresh_input()
-        a = workflow.RemoveInput(port)
+        a = actions.RemoveInput(port)
         self.assertEqual(a.inverse().inverse(), a)
 
     def test_add_output_inverse_symmetric(self) -> None:
         port = self._fresh_output()
-        a = workflow.AddOutput(port)
+        a = actions.AddOutput(port)
         self.assertEqual(a.inverse().inverse(), a)
 
     def test_remove_output_inverse_symmetric(self) -> None:
         port = self._fresh_output()
-        a = workflow.RemoveOutput(port)
+        a = actions.RemoveOutput(port)
         self.assertEqual(a.inverse().inverse(), a)
 
     def test_replace_port_inverse_symmetric(self) -> None:
         p1 = self._fresh_input("x")
         p2 = self._fresh_input("y")
-        a = workflow.ReplacePort(p1, p2)
+        a = actions.ReplacePort(p1, p2)
         self.assertEqual(a.inverse().inverse(), a)
 
     # _dispatch correctness
 
     def test_dispatch_add_remove_node(self) -> None:
         node = self._fresh_node()
-        self.wf._dispatch(workflow.AddNode(node))
+        self.wf._dispatch(actions.AddNode(node))
         self.assertIn("n", self.wf.nodes)
-        self.wf._dispatch(workflow.RemoveNode(node))
+        self.wf._dispatch(actions.RemoveNode(node))
         self.assertNotIn("n", self.wf.nodes)
 
     def test_dispatch_add_remove_edge(self) -> None:
         edge = datatypes.EdgeTuple(
             frs.InputSource(port="x"), frs.OutputTarget(port="y")
         )
-        self.wf._dispatch(workflow.AddEdge(edge))
+        self.wf._dispatch(actions.AddEdge(edge))
         self.assertIn(edge, self.wf.edges)
-        self.wf._dispatch(workflow.RemoveEdge(edge))
+        self.wf._dispatch(actions.RemoveEdge(edge))
         self.assertNotIn(edge, self.wf.edges)
 
     def test_dispatch_add_remove_input(self) -> None:
         port = self._fresh_input()
-        self.wf._dispatch(workflow.AddInput(port))
+        self.wf._dispatch(actions.AddInput(port))
         self.assertIn("x", self.wf.inputs)
-        self.wf._dispatch(workflow.RemoveInput(port))
+        self.wf._dispatch(actions.RemoveInput(port))
         self.assertNotIn("x", self.wf.inputs)
 
     def test_dispatch_add_remove_output(self) -> None:
         port = self._fresh_output()
-        self.wf._dispatch(workflow.AddOutput(port))
+        self.wf._dispatch(actions.AddOutput(port))
         self.assertIn("y", self.wf.outputs)
-        self.wf._dispatch(workflow.RemoveOutput(port))
+        self.wf._dispatch(actions.RemoveOutput(port))
         self.assertNotIn("y", self.wf.outputs)
 
     def test_dispatch_replace_port(self) -> None:
@@ -277,15 +278,15 @@ class TestGraphActions(unittest.TestCase):
         p1 = self.wf.inputs["x"]
         # Build replacement by copying the owned port (preserves the right class).
         p2 = dataclasses.replace(p1, label="z", type_hint=int)
-        self.wf._dispatch(workflow.ReplacePort(p1, p2))
+        self.wf._dispatch(actions.ReplacePort(p1, p2))
         self.assertNotIn("x", self.wf.inputs)
         self.assertIn("z", self.wf.inputs)
         self.assertIs(self.wf.inputs["z"], p2)
 
     def test_dispatch_rename_node(self) -> None:
         node = self._fresh_node("old")
-        self.wf._dispatch(workflow.AddNode(node))
-        self.wf._dispatch(workflow.RenameNode(node, "old", "new"))
+        self.wf._dispatch(actions.AddNode(node))
+        self.wf._dispatch(actions.RenameNode(node, "old", "new"))
         self.assertNotIn("old", self.wf.nodes)
         self.assertIn("new", self.wf.nodes)
         self.assertEqual(node.label, "new")
@@ -315,7 +316,7 @@ class TestRecordsDecorator(unittest.TestCase):
         self.wf = workflow.Workflow("wf")
 
     def test_appends_to_active_accumulator(self) -> None:
-        acc: workflow.GraphDiff = []
+        acc: actions.GraphDiff = []
         self.wf._diff_accumulator = acc
         port = datatypes.InputPort(
             label="x", owner=self.wf, type_hint=None, type_metadata=None
@@ -336,14 +337,14 @@ class TestRecordsDecorator(unittest.TestCase):
         # But no accumulator was touched (it's still None)
         self.assertIsNone(self.wf._diff_accumulator)
         # Action is still returned
-        self.assertIsInstance(action, workflow.AddInput)
+        self.assertIsInstance(action, actions.AddInput)
 
     def test_returns_action(self) -> None:
         port = datatypes.InputPort(
             label="x", owner=self.wf, type_hint=None, type_metadata=None
         )
         action = self.wf._add_input(port)
-        self.assertIsInstance(action, workflow.AddInput)
+        self.assertIsInstance(action, actions.AddInput)
         self.assertIs(action.port, port)
 
 
@@ -370,7 +371,7 @@ class TestUndoableDecorator(unittest.TestCase):
         diff = self.wf.create_input("x")
         self.assertIsInstance(diff, list)
         self.assertEqual(len(diff), 1)
-        self.assertIsInstance(diff[0], workflow.AddInput)
+        self.assertIsInstance(diff[0], actions.AddInput)
 
     def test_accumulator_none_after_call(self) -> None:
         self.wf.create_input("x")
@@ -417,7 +418,7 @@ class TestUndoableDecorator(unittest.TestCase):
 
     def test_undoable_nested_skips_stack_management(self) -> None:
         """When accumulator is already active, _undoable delegates without pushing stack."""
-        outer_acc: workflow.GraphDiff = []
+        outer_acc: actions.GraphDiff = []
         self.wf._diff_accumulator = outer_acc
         try:
             result = self.wf.create_input("x")
@@ -429,7 +430,7 @@ class TestUndoableDecorator(unittest.TestCase):
             self.assertEqual(len(self.wf.undo_stack), 0)
             # State was mutated and action appended to outer accumulator
             self.assertIn("x", self.wf.inputs)
-            self.assertIsInstance(outer_acc[0], workflow.AddInput)
+            self.assertIsInstance(outer_acc[0], actions.AddInput)
         finally:
             self.wf._diff_accumulator = None
 
@@ -497,7 +498,7 @@ class TestNodeMutations(unittest.TestCase):
         node = _fixtures.atomic_add_node("adder")
         diff = self.wf.add_node(node)
         self.assertEqual(len(diff), 1)
-        self.assertIsInstance(diff[0], workflow.AddNode)
+        self.assertIsInstance(diff[0], actions.AddNode)
         self.assertIs(diff[0].node, node)
 
     def test_add_multiple_nodes_diff(self) -> None:
@@ -536,8 +537,8 @@ class TestNodeMutations(unittest.TestCase):
         self.wf.add_edge(edge)
         diff = self.wf.remove_node("adder")
         action_types = [type(a) for a in diff]
-        self.assertIn(workflow.RemoveEdge, action_types)
-        self.assertIn(workflow.RemoveNode, action_types)
+        self.assertIn(actions.RemoveEdge, action_types)
+        self.assertIn(actions.RemoveNode, action_types)
 
     def test_remove_node_by_label(self) -> None:
         node = _fixtures.atomic_add_node("adder")
@@ -638,7 +639,7 @@ class TestEdgeMutations(unittest.TestCase):
     def test_add_edge_diff(self) -> None:
         diff = self.wf.add_edge(self.edge)
         self.assertEqual(len(diff), 1)
-        self.assertIsInstance(diff[0], workflow.AddEdge)
+        self.assertIsInstance(diff[0], actions.AddEdge)
 
     def test_remove_edge_state(self) -> None:
         self.wf.add_edge(self.edge)
@@ -649,7 +650,7 @@ class TestEdgeMutations(unittest.TestCase):
         self.wf.add_edge(self.edge)
         diff = self.wf.remove_edge(self.edge)
         self.assertEqual(len(diff), 1)
-        self.assertIsInstance(diff[0], workflow.RemoveEdge)
+        self.assertIsInstance(diff[0], actions.RemoveEdge)
 
     def test_remove_edge_undo_regression(self) -> None:
         self.wf.add_edge(self.edge)
@@ -796,7 +797,7 @@ class TestInputPortMutations(unittest.TestCase):
     def test_create_input_diff(self) -> None:
         diff = self.wf.create_input("x")
         self.assertEqual(len(diff), 1)
-        self.assertIsInstance(diff[0], workflow.AddInput)
+        self.assertIsInstance(diff[0], actions.AddInput)
 
     def test_create_input_undo(self) -> None:
         self.wf.create_input("x")
@@ -835,8 +836,8 @@ class TestInputPortMutations(unittest.TestCase):
         self.wf.add_edge(edge)
         diff = self.wf.remove_input("x")
         types = [type(a) for a in diff]
-        self.assertIn(workflow.RemoveEdge, types)
-        self.assertIn(workflow.RemoveInput, types)
+        self.assertIn(actions.RemoveEdge, types)
+        self.assertIn(actions.RemoveInput, types)
 
     def test_remove_input_undo(self) -> None:
         self.wf.create_input("x")
@@ -957,7 +958,7 @@ class TestOutputPortMutations(unittest.TestCase):
     def test_create_output_diff(self) -> None:
         diff = self.wf.create_output("y")
         self.assertEqual(len(diff), 1)
-        self.assertIsInstance(diff[0], workflow.AddOutput)
+        self.assertIsInstance(diff[0], actions.AddOutput)
 
     def test_create_output_undo(self) -> None:
         self.wf.create_output("y")
@@ -998,8 +999,8 @@ class TestOutputPortMutations(unittest.TestCase):
         self.wf.add_edge(edge)
         diff = self.wf.remove_output("out")
         types = [type(a) for a in diff]
-        self.assertIn(workflow.RemoveEdge, types)
-        self.assertIn(workflow.RemoveOutput, types)
+        self.assertIn(actions.RemoveEdge, types)
+        self.assertIn(actions.RemoveOutput, types)
 
     def test_remove_output_undo(self) -> None:
         node = _fixtures.atomic_add_node("adder")
@@ -1137,7 +1138,7 @@ class TestUndoRedo(unittest.TestCase):
         undone = self.wf.undo()
         self.assertEqual(len(undone), 1)
         self.assertIsInstance(undone[0], list)
-        self.assertIsInstance(undone[0][0], workflow.RemoveInput)
+        self.assertIsInstance(undone[0][0], actions.RemoveInput)
 
     def test_redo_returns_original_diffs(self) -> None:
         diff = self.wf.create_input("x")
@@ -1219,7 +1220,7 @@ class TestAtomicRollback(unittest.TestCase):
 
         call_count = [0]
 
-        def patched_dispatch(action: workflow.GraphAction) -> None:
+        def patched_dispatch(action: actions.GraphAction) -> None:
             call_count[0] += 1
             if call_count[0] == 2:
                 raise RuntimeError("dispatch failed during rollback")
@@ -1232,7 +1233,7 @@ class TestAtomicRollback(unittest.TestCase):
         n2 = _fixtures.atomic_add_node("n2")
 
         # Accumulate two forward actions manually
-        acc: workflow.GraphDiff = []
+        acc: actions.GraphDiff = []
         self.wf._diff_accumulator = acc
         self.wf._add_node(n1)
         self.wf._add_node(n2)
