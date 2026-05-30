@@ -5,7 +5,7 @@ import dataclasses
 import functools
 import types
 from collections.abc import Callable, MutableMapping
-from typing import Any, Protocol, TypeAlias
+from typing import Any
 
 import semantikon
 from flowrep.api import schemas as frs
@@ -16,6 +16,7 @@ from pyiron_workflow._wfms.datatypes import (
     EdgeTuple,
     Graph,
     InputPort,
+    MutableDag,
     Node,
     NodeMap,
     OutputPort,
@@ -94,115 +95,7 @@ class MutableNodeMap(NodeMap, MutableMapping[frs.Label, Node]):
         self._pwf_lexical_map__owner.add_node(constructors.node(value, key))
 
 
-class GraphAction(Protocol):
-    def inverse(self) -> GraphAction: ...
-
-
-@dataclasses.dataclass(frozen=True)
-class AddInput:
-    port: InputPort
-
-    def inverse(self) -> RemoveInput:
-        return RemoveInput(self.port)
-
-
-@dataclasses.dataclass(frozen=True)
-class RemoveInput:
-    port: InputPort
-
-    def inverse(self) -> AddInput:
-        return AddInput(self.port)
-
-
-@dataclasses.dataclass(frozen=True)
-class AddOutput:
-    port: OutputPort
-
-    def inverse(self) -> RemoveOutput:
-        return RemoveOutput(self.port)
-
-
-@dataclasses.dataclass(frozen=True)
-class RemoveOutput:
-    port: OutputPort
-
-    def inverse(self) -> AddOutput:
-        return AddOutput(self.port)
-
-
-@dataclasses.dataclass(frozen=True)
-class ReplacePort:
-    old_port: InputPort | OutputPort
-    new_port: InputPort | OutputPort
-
-    def inverse(self) -> ReplacePort:
-        return ReplacePort(self.new_port, self.old_port)
-
-
-@dataclasses.dataclass(frozen=True)
-class AddNode:
-    node: Node
-
-    def inverse(self) -> RemoveNode:
-        return RemoveNode(self.node)
-
-
-@dataclasses.dataclass(frozen=True)
-class RemoveNode:
-    node: Node
-
-    def inverse(self) -> AddNode:
-        return AddNode(self.node)
-
-
-@dataclasses.dataclass(frozen=True)
-class AddEdge:
-    edge: EdgeTuple
-
-    def inverse(self) -> RemoveEdge:
-        return RemoveEdge(self.edge)
-
-
-@dataclasses.dataclass(frozen=True)
-class RemoveEdge:
-    edge: EdgeTuple
-
-    def inverse(self) -> AddEdge:
-        return AddEdge(self.edge)
-
-
-@dataclasses.dataclass(frozen=True)
-class RenameNode:
-    node: Node
-    old_label: frs.Label
-    new_label: frs.Label
-
-    def inverse(self) -> RenameNode:
-        return RenameNode(self.node, self.new_label, self.old_label)
-
-
-@dataclasses.dataclass(frozen=True)
-class MoveNode:
-    node: Node
-    from_graph: Workflow
-    to_graph: Workflow
-    old_label: frs.Label
-    new_label: frs.Label
-
-    def inverse(self) -> MoveNode:
-        return MoveNode(
-            node=self.node,
-            from_graph=self.to_graph,
-            to_graph=self.from_graph,
-            old_label=self.new_label,
-            new_label=self.old_label,
-        )
-
-
-GraphDiff: TypeAlias = list[GraphAction]
-
-
-class Workflow(Node[frs.WorkflowRecipe, frs.DagData], Graph):
+class Workflow(MutableDag):
     """This is the key mutable one"""
 
     _inputs: MutablePortMap[InputPort]

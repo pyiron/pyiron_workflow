@@ -4,12 +4,23 @@ import abc
 import dataclasses
 from collections.abc import Mapping
 from concurrent import futures
-from typing import Any, ClassVar, Generic, NamedTuple, TypeAlias, TypeVar
+from typing import (
+    TYPE_CHECKING,
+    Any,
+    ClassVar,
+    Generic,
+    NamedTuple,
+    TypeAlias,
+    TypeVar,
+)
 
 import semantikon
 from flowrep.api import schemas as frs
 
 from pyiron_workflow._wfms import annotation, execution, lexical
+
+if TYPE_CHECKING:
+    from pyiron_workflow._wfms import actions
 
 
 @dataclasses.dataclass(frozen=True)
@@ -328,3 +339,101 @@ class StaticGraph(StaticNode[RecipeType, execution.ResultType], Graph, abc.ABC):
     @property
     def edges(self) -> EdgeList:
         return self._edges
+
+
+class ImmutableDag(StaticGraph[frs.WorkflowRecipe, frs.DagData], abc.ABC): ...
+
+
+class MutableDag(Node[frs.WorkflowRecipe, frs.DagData], Graph, abc.ABC):
+    undo_limit: int | None
+
+    @abc.abstractmethod
+    def create_input(
+        self,
+        label: frs.Label,
+        type_hint: type | None = None,
+        type_metadata: semantikon.TypeMetadata | None = None,
+    ) -> None: ...
+
+    @abc.abstractmethod
+    def remove_input(self, port: InputPort | frs.Label) -> None: ...
+
+    @abc.abstractmethod
+    def rename_input(
+        self, port: InputPort | frs.Label, new_label: frs.Label
+    ) -> None: ...
+
+    @abc.abstractmethod
+    def create_output(
+        self,
+        label: frs.Label,
+        type_hint: type | None = None,
+        type_metadata: semantikon.TypeMetadata | None = None,
+    ) -> None: ...
+
+    @abc.abstractmethod
+    def remove_output(self, port: OutputPort | frs.Label) -> None: ...
+
+    @abc.abstractmethod
+    def rename_output(
+        self, port: OutputPort | frs.Label, new_label: frs.Label
+    ) -> None: ...
+
+    @abc.abstractmethod
+    def add_port_hint(
+        self, port: InputPort | OutputPort, hint: type | None
+    ) -> None: ...
+
+    @abc.abstractmethod
+    def remove_port_hint(self, port: InputPort | OutputPort) -> None: ...
+
+    @abc.abstractmethod
+    def add_port_metadata(
+        self, port: InputPort | OutputPort, metadata: semantikon.TypeMetadata | None
+    ) -> None: ...
+
+    @abc.abstractmethod
+    def remove_port_metadata(self, port: InputPort | OutputPort) -> None: ...
+
+    @abc.abstractmethod
+    def add_node(self, *nodes: Node) -> None: ...
+
+    @abc.abstractmethod
+    def remove_node(self, *nodes: Node | frs.Label) -> None: ...
+
+    @abc.abstractmethod
+    def rename_node(self, node: Node | frs.Label, new_label: frs.Label) -> None: ...
+
+    @abc.abstractmethod
+    def add_edge(self, *edges: EdgeTuple, type_validate: bool = True) -> None: ...
+
+    @abc.abstractmethod
+    def remove_edge(self, *edges: EdgeTuple) -> None: ...
+
+    @abc.abstractmethod
+    def disconnect(self, *nodes: Node | frs.Label) -> None: ...
+
+    @abc.abstractmethod
+    def lock_subgraph(
+        self, workflow_child: MutableDag | ImmutableDag | frs.Label
+    ) -> None: ...
+
+    @abc.abstractmethod
+    def unlock_subgraph(self, macro: MutableDag | ImmutableDag | frs.Label) -> None: ...
+
+    @abc.abstractmethod
+    def group(self, label: frs.Label, *nodes: Node | frs.Label) -> None: ...
+
+    @abc.abstractmethod
+    def ungroup(
+        self,
+        graph: MutableDag | ImmutableDag | frs.Label,
+        block_if_reference: bool = False,
+        label_map: dict[frs.Label, frs.Label] | None = None,
+    ) -> None: ...
+
+    @abc.abstractmethod
+    def undo(self, steps: int = 1) -> list[actions.GraphDiff]: ...
+
+    @abc.abstractmethod
+    def redo(self, steps: int = 1) -> list[actions.GraphDiff]: ...

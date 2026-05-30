@@ -9,14 +9,13 @@ from pyiron_snippets import retrieve
 from pyiron_workflow._wfms import constructors, execution, lexical
 from pyiron_workflow._wfms.datatypes import (
     EdgeList,
-    Graph,
+    ImmutableDag,
     Node,
     NodeMap,
-    StaticGraph,
 )
 
 
-class Macro(StaticGraph[frs.WorkflowRecipe, frs.DagData], Graph):
+class Macro(ImmutableDag):
     _recipe: frs.WorkflowRecipe
 
     @classmethod
