@@ -5,7 +5,7 @@ import unittest
 from flowrep.api import schemas as frs
 
 from pyiron_workflow._wfms import execution, transformers
-from pyiron_workflow._wfms.flowcontrollers import foreach
+from pyiron_workflow._wfms.flowcontrollers import forflow
 from tests.unit._wfms import _fixtures
 
 
@@ -108,7 +108,7 @@ def _make_broadcast_only_recipe() -> frs.ForEachRecipe:
 
 
 def _prepare_run(
-    fe: foreach.ForEach, inputs: dict[str, object]
+    fe: forflow.ForEach, inputs: dict[str, object]
 ) -> execution.Run[frs.ForEachData]:
     """Build a Run with seeded input port values, ready for _build_runtime_dag."""
     live = fe.generate_flowrep_live_node()
@@ -122,7 +122,7 @@ def _prepare_run(
 class TestBuildRuntimeDagNestedOnly(unittest.TestCase):
     def setUp(self) -> None:
         self.recipe = _build_nested_only_recipe()
-        self.fe = foreach.ForEach("fe", self.recipe)
+        self.fe = forflow.ForEach("fe", self.recipe)
         self.dag_run = _prepare_run(self.fe, {"xs": [1, 2], "y": 100})
         self.nodes = self.fe._build_runtime_dag(self.dag_run)
 
@@ -189,7 +189,7 @@ class TestBuildRuntimeDagNestedOnly(unittest.TestCase):
 class TestBuildRuntimeDagZippedOnly(unittest.TestCase):
     def setUp(self) -> None:
         self.recipe = _build_zipped_only_recipe()
-        self.fe = foreach.ForEach("fe", self.recipe)
+        self.fe = forflow.ForEach("fe", self.recipe)
         self.dag_run = _prepare_run(self.fe, {"xs": [1, 2, 3], "ys": [10, 20, 30]})
         self.nodes = self.fe._build_runtime_dag(self.dag_run)
 
@@ -228,7 +228,7 @@ class TestBuildRuntimeDagZippedOnly(unittest.TestCase):
 class TestBuildRuntimeDagMixed(unittest.TestCase):
     def setUp(self) -> None:
         self.recipe = _build_mixed_recipe()
-        self.fe = foreach.ForEach("fe", self.recipe)
+        self.fe = forflow.ForEach("fe", self.recipe)
         self.dag_run = _prepare_run(
             self.fe,
             {"xs": [1, 2], "ys": [10, 20, 30], "ws": [100, 200, 300]},
@@ -322,7 +322,7 @@ class TestBuildRuntimeDagBroadcastOnly(unittest.TestCase):
         # Build with a valid seed recipe whose inputs (x, y) match the
         # broadcast-only recipe; then swap recipes on the live.
         seed_recipe = _build_broadcast_seed_recipe()
-        self.fe = foreach.ForEach("fe", seed_recipe)
+        self.fe = forflow.ForEach("fe", seed_recipe)
         self.dag_run = _prepare_run(self.fe, {"x": 42, "y": 100})
 
         self.dag_run.result.recipe = _make_broadcast_only_recipe()
@@ -367,19 +367,19 @@ class TestBuildRuntimeDagBroadcastOnly(unittest.TestCase):
 
 class TestValidateZippedLengths(unittest.TestCase):
     def test_empty_returns_empty(self) -> None:
-        self.assertEqual(foreach.ForEach._validate_zipped_lengths({}), {})
+        self.assertEqual(forflow.ForEach._validate_zipped_lengths({}), {})
 
     def test_equal_lengths_returned_unchanged(self) -> None:
         length_map = {"a": 3, "b": 3}
         self.assertEqual(
-            foreach.ForEach._validate_zipped_lengths(length_map), length_map
+            forflow.ForEach._validate_zipped_lengths(length_map), length_map
         )
 
     def test_mismatch_raises(self) -> None:
         with self.assertRaisesRegex(
             ValueError, "Expected all zipped ports to have the same length"
         ) as ctx:
-            foreach.ForEach._validate_zipped_lengths({"a": 3, "b": 4})
+            forflow.ForEach._validate_zipped_lengths({"a": 3, "b": 4})
         msg = str(ctx.exception)
         self.assertIn("'a'", msg)
         self.assertIn("'b'", msg)
@@ -389,52 +389,52 @@ class TestValidateZippedLengths(unittest.TestCase):
 
 class TestCalculateTotalSteps(unittest.TestCase):
     def test_both_empty(self) -> None:
-        self.assertEqual(foreach.ForEach._calculate_total_steps({}, {}), 1)
+        self.assertEqual(forflow.ForEach._calculate_total_steps({}, {}), 1)
 
     def test_nested_only(self) -> None:
         self.assertEqual(
-            foreach.ForEach._calculate_total_steps({"a": 2, "b": 3}, {}), 6
+            forflow.ForEach._calculate_total_steps({"a": 2, "b": 3}, {}), 6
         )
 
     def test_zipped_only(self) -> None:
         self.assertEqual(
-            foreach.ForEach._calculate_total_steps({}, {"a": 4, "b": 4}), 4
+            forflow.ForEach._calculate_total_steps({}, {"a": 4, "b": 4}), 4
         )
 
     def test_mixed(self) -> None:
-        self.assertEqual(foreach.ForEach._calculate_total_steps({"a": 2}, {"b": 3}), 6)
+        self.assertEqual(forflow.ForEach._calculate_total_steps({"a": 2}, {"b": 3}), 6)
 
 
 class TestNestedStrides(unittest.TestCase):
     def test_empty(self) -> None:
-        self.assertEqual(foreach.ForEach._nested_strides(1, {}), {})
+        self.assertEqual(forflow.ForEach._nested_strides(1, {}), {})
 
     def test_single_nested(self) -> None:
-        self.assertEqual(foreach.ForEach._nested_strides(3, {"a": 3}), {"a": 1})
+        self.assertEqual(forflow.ForEach._nested_strides(3, {"a": 3}), {"a": 1})
 
     def test_two_nested_leftmost_widest(self) -> None:
         self.assertEqual(
-            foreach.ForEach._nested_strides(6, {"a": 2, "b": 3}),
+            forflow.ForEach._nested_strides(6, {"a": 2, "b": 3}),
             {"a": 3, "b": 1},
         )
 
     def test_mixed_with_zipped_width(self) -> None:
         # total = 2 * 3 (nested) * 4 (zipped) = 24
         self.assertEqual(
-            foreach.ForEach._nested_strides(24, {"a": 2, "b": 3}),
+            forflow.ForEach._nested_strides(24, {"a": 2, "b": 3}),
             {"a": 12, "b": 4},
         )
 
 
 class TestLabelHelpers(unittest.TestCase):
     def test_scatter_label(self) -> None:
-        self.assertEqual(foreach.ForEach._scatter_label("xs"), "scatter_xs")
+        self.assertEqual(forflow.ForEach._scatter_label("xs"), "scatter_xs")
 
     def test_body_label(self) -> None:
-        self.assertEqual(foreach.ForEach._body_label("body", 3), "body_3")
+        self.assertEqual(forflow.ForEach._body_label("body", 3), "body_3")
 
     def test_aggregate_label(self) -> None:
-        self.assertEqual(foreach.ForEach._aggregate_label("sums"), "aggregate_sums")
+        self.assertEqual(forflow.ForEach._aggregate_label("sums"), "aggregate_sums")
 
 
 class TestBodyToParentLabelMap(unittest.TestCase):
@@ -446,12 +446,12 @@ class TestBodyToParentLabelMap(unittest.TestCase):
             frs.TargetHandle(node="body", port="ignored"): frs.InputSource(port="z"),
             frs.TargetHandle(node="other", port="x"): frs.InputSource(port="xs"),
         }
-        result = foreach.ForEach._body_to_parent_label_map(edges, "body", ["x", "y"])
+        result = forflow.ForEach._body_to_parent_label_map(edges, "body", ["x", "y"])
         self.assertEqual(result, {"x": "xs", "y": "ys"})
 
     def test_empty_inputs(self) -> None:
         self.assertEqual(
-            foreach.ForEach._body_to_parent_label_map({}, "body", ["x"]), {}
+            forflow.ForEach._body_to_parent_label_map({}, "body", ["x"]), {}
         )
 
 
@@ -464,7 +464,7 @@ class TestCapturedOutputLabelMap(unittest.TestCase):
                 node="elsewhere", port="o"
             ),
         }
-        result = foreach.ForEach._captured_output_label_map(edges, "body")
+        result = forflow.ForEach._captured_output_label_map(edges, "body")
         self.assertEqual(result, {"sums": "s"})
 
 
@@ -475,11 +475,11 @@ class TestTransferLabelMap(unittest.TestCase):
             frs.OutputTarget(port="x_used"): frs.InputSource(port="xs"),
             frs.OutputTarget(port="y_used"): frs.InputSource(port="ys"),
         }
-        result = foreach.ForEach._transfer_label_map(edges)
+        result = forflow.ForEach._transfer_label_map(edges)
         self.assertEqual(result, {"x_used": "xs", "y_used": "ys"})
 
     def test_empty(self) -> None:
-        self.assertEqual(foreach.ForEach._transfer_label_map({}), {})
+        self.assertEqual(forflow.ForEach._transfer_label_map({}), {})
 
 
 if __name__ == "__main__":

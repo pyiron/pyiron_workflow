@@ -9,7 +9,7 @@ from pyiron_workflow._wfms.execution import Run as Run
 from pyiron_workflow._wfms.execution import RunConfig as RunConfig
 from pyiron_workflow._wfms.execution import RunStatus as RunStatus
 from pyiron_workflow._wfms.execution import run as run
-from pyiron_workflow._wfms.flowcontrollers.foreach import ForEach as ForEach
+from pyiron_workflow._wfms.flowcontrollers.forflow import ForEach as ForEach
 from pyiron_workflow._wfms.flowcontrollers.ifflow import If as If
 from pyiron_workflow._wfms.flowcontrollers.tryflow import Try as Try
 from pyiron_workflow._wfms.flowcontrollers.tryflow import (

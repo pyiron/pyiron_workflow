@@ -86,7 +86,7 @@ class TestNodeOwner(unittest.TestCase):
     """
     Node ownership is read-only, and managed privately by node maps.
 
-    To accommodate foreach building a runtime DAG, we don't guarantee that all owned
+    To accommodate forflow building a runtime DAG, we don't guarantee that all owned
     nodes appear in a graph's `.nodes` attribute, _but_ we do guarantee that all nodes
     belonging to a `NodeMap` share that node map's owner.
     """
