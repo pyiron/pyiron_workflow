@@ -141,6 +141,7 @@ class Workflow(MutableDag):
         self._label = label
         self._owner = None
         self._detached_root = None
+        self._pending_connections = {}
         self.executor = None
         self.current_run = None
         self._inputs = MutablePortMap[InputPort](self)
@@ -491,6 +492,8 @@ class Workflow(MutableDag):
     def add_node(self, *nodes: Node) -> None:
         for n in nodes:
             self._add_node(n)
+            n(**n._pending_connections)
+            n._pending_connections.clear()
 
     @_undoable
     def remove_node(self, *nodes: Node | frs.Label) -> None:

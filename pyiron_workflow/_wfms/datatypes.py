@@ -10,8 +10,10 @@ from typing import (
     ClassVar,
     Generic,
     NamedTuple,
+    Self,
     TypeAlias,
     TypeVar,
+    cast,
 )
 
 import semantikon
@@ -72,6 +74,7 @@ class Node(
     _label: frs.Label
     _owner: Graph | None
     _detached_root: lexical.LexicalPath | None
+    _pending_connections: dict[str, Port]
     executor: futures.Executor | execution.ExecutorInstructions | None
     current_run: execution.Run[execution.ResultType] | None
 
@@ -144,6 +147,40 @@ class Node(
         self.current_run = current_run
         return current_run
 
+    def __call__(self, *args: Port, **kwargs: Port) -> Self:
+        """
+        A syntactic shortcut for adding new edges feeding this node on the owning graph.
+
+        If this node does not yet have an owner, caches these edges for later.
+
+        Raises if this node has an immutable owner.
+        """
+        connections = dict(zip(self.inputs.keys(), args, strict=False))
+        connections.update(kwargs)
+        if self._owner is None:
+            self._pending_connections = connections
+        elif isinstance(self.owner, MutableDag):
+            edges: EdgeList = []
+            for target_label, source_port in connections.items():
+                if source_port.owner is self.owner:
+                    source = frs.InputSource(port=source_port.label)
+                else:
+                    source = frs.SourceHandle(
+                        node=source_port.owner.label, port=source_port.label
+                    )
+                target = frs.TargetHandle(node=self.label, port=target_label)
+                edges.append(EdgeTuple(source, target))
+            cast(MutableDag, self.owner).add_edge(*edges)
+        else:
+            tag = ""
+            if isinstance(self.owner, ImmutableDag):
+                tag = "Try unlocking owner to a mutable graph first."
+            raise TypeError(
+                f"{self.lexical_path!r} does not have a mutable owner, and so its "
+                f"inputs cannot be modified." + tag
+            )
+        return self
+
     def __getstate__(self):
         state = dict(super().__getstate__())
 
@@ -172,6 +209,7 @@ class StaticNode(Node[RecipeType, execution.ResultType], abc.ABC):
         self._label = label  # TODO: also accept None and use function name for default
         self._owner = None
         self._detached_root = None
+        self._pending_connections = {}
         self._recipe = recipe
         live_preview = self.generate_flowrep_live_node()
         self._inputs = self._build_inputs(live_preview)
