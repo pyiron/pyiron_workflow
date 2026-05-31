@@ -157,13 +157,13 @@ class Node(
         """
         connections = dict(zip(self.inputs.keys(), args, strict=False))
         connections.update(kwargs)
+        for k, v in connections.items():
+            connections[k] = self._coerce_to_port(v, k)
         if self._owner is None:
             self._pending_connections = connections
         elif isinstance(self.owner, MutableDag):
             edges: EdgeList = []
-            for target_label, source_obj in connections.items():
-                source_port = self._coerce_to_port(source_obj, target_label)
-
+            for target_label, source_port in connections.items():
                 if source_port.owner is self.owner:
                     source = frs.InputSource(port=source_port.label)
                 else:
