@@ -159,11 +159,15 @@ class Node(
         connections.update(kwargs)
         for k, v in connections.items():
             connections[k] = self._coerce_to_port(v, k)
-        if self._owner is None:
-            self._pending_connections = connections
-        elif isinstance(self.owner, MutableDag):
+        self._pending_connections.update(connections)
+        if self._owner is not None:
+            self.apply_pending_connections()
+        return self
+
+    def apply_pending_connections(self) -> None:
+        if isinstance(self.owner, MutableDag):
             edges: EdgeList = []
-            for target_label, source_port in connections.items():
+            for target_label, source_port in self._pending_connections.items():
                 if source_port.owner is self.owner:
                     source = frs.InputSource(port=source_port.label)
                 else:
@@ -173,6 +177,7 @@ class Node(
                 target = frs.TargetHandle(node=self.label, port=target_label)
                 edges.append(EdgeTuple(source, target))
             cast(MutableDag, self.owner).add_edge(*edges)
+            self._pending_connections.clear()
         else:
             tag = ""
             if isinstance(self.owner, ImmutableDag):
@@ -181,7 +186,6 @@ class Node(
                 f"{self.lexical_path!r} does not have a mutable owner, and so its "
                 f"inputs cannot be modified." + tag
             )
-        return self
 
     def _coerce_to_port(self, source_obj: Port | Node, target_label: str):
         if isinstance(source_obj, Port):
