@@ -147,7 +147,7 @@ class Node(
         self.current_run = current_run
         return current_run
 
-    def __call__(self, *args: Port, **kwargs: Port) -> Self:
+    def __call__(self, *args: Port | Node, **kwargs: Port | Node) -> Self:
         """
         A syntactic shortcut for adding new edges feeding this node on the owning graph.
 
