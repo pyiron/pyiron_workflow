@@ -162,25 +162,7 @@ class Node(
         elif isinstance(self.owner, MutableDag):
             edges: EdgeList = []
             for target_label, source_obj in connections.items():
-                if isinstance(source_obj, Port):
-                    source_port = source_obj
-                elif isinstance(source_obj, Node):
-                    if len(source_obj.outputs) != 1:
-                        raise ValueError(
-                            "Nodes can only be used as proxies for ports in edge "
-                            "creation sugar if they have a single output port."
-                            f"{self.lexical_path!r} received "
-                            f"{source_obj.lexical_path!r} as input for the "
-                            f"{target_label!r} port, but {source_obj.label!r} does not "
-                            f"have exactly one output port."
-                        )
-                    source_port = next(iter(source_obj.outputs.values()))
-                else:
-                    raise TypeError(
-                        f"Syntax sugar for edge creation only accepts {Port.__name__} "
-                        f"objects or a node with a single output port. Got "
-                        f"{source_obj} instead."
-                    )
+                source_port = self._coerce_to_port(source_obj, target_label)
 
                 if source_port.owner is self.owner:
                     source = frs.InputSource(port=source_port.label)
@@ -200,6 +182,27 @@ class Node(
                 f"inputs cannot be modified." + tag
             )
         return self
+
+    def _coerce_to_port(self, source_obj: Port | Node, target_label: str):
+        if isinstance(source_obj, Port):
+            return source_obj
+        elif isinstance(source_obj, Node):
+            if len(source_obj.outputs) != 1:
+                raise ValueError(
+                    "Nodes can only be used as proxies for ports in edge "
+                    "creation sugar if they have a single output port."
+                    f"{self.lexical_path!r} received "
+                    f"{source_obj.lexical_path!r} as input for the "
+                    f"{target_label!r} port, but {source_obj.label!r} does not "
+                    f"have exactly one output port."
+                )
+            return next(iter(source_obj.outputs.values()))
+        else:
+            raise TypeError(
+                f"Syntax sugar for edge creation only accepts {Port.__name__} "
+                f"objects or a node with a single output port. Got "
+                f"{source_obj} instead."
+            )
 
     def __getstate__(self):
         state = dict(super().__getstate__())
