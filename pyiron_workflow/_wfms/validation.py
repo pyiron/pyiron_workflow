@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-from typing import Any, cast
+from typing import Any, NamedTuple
 
 import rdflib
 import semantikon
@@ -43,7 +43,10 @@ def validate_edge(edge: EdgeTuple, owner: StaticGraph | workflow.Workflow) -> Ed
     return edge
 
 
-PyshaclValidationReport = tuple[bool, rdflib.ConjunctiveGraph | rdflib.Graph, str]
+class SemantikonValidationReport(NamedTuple):
+    valid: bool
+    graph: rdflib.ConjunctiveGraph | rdflib.Graph
+    report: str
 
 
 def _validate_data_ontology(
@@ -52,7 +55,7 @@ def _validate_data_ontology(
     with_function: bool,
     label: str | None = None,
     extra_knowledge: rdflib.Graph | None = None,
-) -> PyshaclValidationReport:
+) -> SemantikonValidationReport:
     as_dict = semantikon2flowrep.node_data_to_dict(
         data,
         with_io=with_io,
@@ -62,7 +65,7 @@ def _validate_data_ontology(
     g = semantikon.get_knowledge_graph(wf_dict=as_dict)
     if extra_knowledge is not None:
         g += extra_knowledge
-    return cast(PyshaclValidationReport, semantikon.validate_values(g))
+    return SemantikonValidationReport(*semantikon.validate_values(g))
 
 
 def validate_ontology(
@@ -75,7 +78,7 @@ def validate_ontology(
     with_io: bool = True,
     with_function: bool = True,
     extra_knowledge: rdflib.Graph | None = None,
-):
+) -> SemantikonValidationReport:
     if isinstance(target, Node):
         return _validate_data_ontology(
             target.generate_flowrep_live_node(),
