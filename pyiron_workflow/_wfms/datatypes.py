@@ -13,7 +13,6 @@ from typing import (
     Self,
     TypeAlias,
     TypeVar,
-    cast,
 )
 
 import semantikon
@@ -148,23 +147,33 @@ class Node(
         return current_run
 
     def __call__(self, *args: Port | Node, **kwargs: Port | Node) -> Self:
+        self.connect(*args, **kwargs)
+        return self
+
+    def connect(self, *args: Port | Node, **kwargs: Port | Node) -> None:
         """
         A syntactic shortcut for adding new edges feeding this node on the owning graph.
 
-        If this node does not yet have an owner, caches these edges for later.
-
-        Raises if this node has an immutable owner.
+        If this node does not yet have an owner, caches these edges for later use with
+        :meth:`apply_pending_connections`.
         """
         connections = dict(zip(self.inputs.keys(), args, strict=False))
         connections.update(kwargs)
         for k, v in connections.items():
             connections[k] = self._coerce_to_port(v, k)
         self._pending_connections.update(connections)
-        if self._owner is not None:
-            self.apply_pending_connections()
-        return self
+        if isinstance(self._owner, MutableDag):
+            self._owner.add_edge(*self.use_pending_edges())
+        elif self._owner is not None:
+            raise self._mutable_owner_error()
 
-    def apply_pending_connections(self) -> None:
+    def use_pending_edges(self) -> EdgeList:
+        """
+        Converts the internal pending connections to a list of edges and clears the
+        pending dictionary -- use 'em or lose 'em.
+
+        Raises instead if the current owner is not a mutable dag.
+        """
         if isinstance(self.owner, MutableDag):
             edges: EdgeList = []
             for target_label, source_port in self._pending_connections.items():
@@ -176,16 +185,10 @@ class Node(
                     )
                 target = frs.TargetHandle(node=self.label, port=target_label)
                 edges.append(EdgeTuple(source, target))
-            cast(MutableDag, self.owner).add_edge(*edges)
             self._pending_connections.clear()
+            return edges
         else:
-            tag = ""
-            if isinstance(self.owner, ImmutableDag):
-                tag = "Try unlocking owner to a mutable graph first."
-            raise TypeError(
-                f"{self.lexical_path!r} does not have a mutable owner, and so its "
-                f"inputs cannot be modified." + tag
-            )
+            raise self._mutable_owner_error()
 
     def _coerce_to_port(self, source_obj: Port | Node, target_label: str):
         if isinstance(source_obj, Port):
@@ -207,6 +210,15 @@ class Node(
                 f"objects or a node with a single output port. Got "
                 f"{source_obj} instead."
             )
+
+    def _mutable_owner_error(self) -> TypeError:
+        tag = ""
+        if isinstance(self.owner, ImmutableDag):
+            tag = "Try unlocking owner to a mutable graph first."
+        return TypeError(
+            f"{self.lexical_path!r} does not have a mutable owner, and so its "
+            f"inputs cannot be modified." + tag
+        )
 
     def __getstate__(self):
         state = dict(super().__getstate__())

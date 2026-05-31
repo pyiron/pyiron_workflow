@@ -492,7 +492,8 @@ class Workflow(MutableDag):
     def add_node(self, *nodes: Node) -> None:
         for n in nodes:
             self._add_node(n)
-            n.apply_pending_connections()
+            for edge in n.use_pending_edges():
+                self._add_edge(edge)
 
     @_undoable
     def remove_node(self, *nodes: Node | frs.Label) -> None:
