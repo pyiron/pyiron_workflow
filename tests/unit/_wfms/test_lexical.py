@@ -163,8 +163,8 @@ class TestLexicalMap(unittest.TestCase):
         with self.assertRaises(AttributeError) as ctx:
             _ = self.map.nonexistent
         msg = str(ctx.exception)
-        self.assertIn("has no attribute", msg)
-        self.assertIn("nonexistent", msg)
+        self.assertIn("has no element 'nonexistent'", msg)
+        self.assertIn("Available elements: dict_keys(['foo', 'bar'])", msg)
         self.assertIn(type(self.map).__name__, msg)
 
 

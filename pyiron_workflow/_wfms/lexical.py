@@ -105,10 +105,20 @@ class LexicalMap(Mapping[frs.Label, LexicalType], Generic[LexicalType, OwnerType
         check_co_ownership(owner, data.values())
         object.__setattr__(self, "_pwf_lexical_map__data", dict(data))
 
+    def _not_there_message(self, key: str):
+        return (
+            f"{self.__class__.__name__!r} on "
+            f"{self._pwf_lexical_map__owner.lexical_path!r} has no element {key!r}. "
+            f"Available elements: {self._pwf_lexical_map__data.keys()}"
+        )
+
     def __getitem__(self, k):
         if k in self.__slots__:
             raise KeyError(f"Cannot use reserved name {k!r} as a label")
-        return self._pwf_lexical_map__data[k]
+        try:
+            return self._pwf_lexical_map__data[k]
+        except KeyError:
+            raise KeyError(self._not_there_message(k)) from None
 
     def __iter__(self):
         return iter(self._pwf_lexical_map__data)
@@ -116,15 +126,13 @@ class LexicalMap(Mapping[frs.Label, LexicalType], Generic[LexicalType, OwnerType
     def __len__(self):
         return len(self._pwf_lexical_map__data)
 
-    def __getattr__(self, item):
+    def __getattr__(self, item: str):
         if item.startswith("_pwf_lexical_map"):
             raise AttributeError(item)
         try:
             return self._pwf_lexical_map__data[item]
         except KeyError:
-            raise AttributeError(
-                f"{type(self).__name__!r} has no attribute {item!r}"
-            ) from None
+            raise AttributeError(self._not_there_message(item)) from None
 
 
 def check_co_ownership(owner: HasLexicalPath, items: Iterable[Lexical[Any]]) -> None:
