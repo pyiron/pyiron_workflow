@@ -1,7 +1,7 @@
 from __future__ import annotations
 
 import dataclasses
-from typing import Any, ClassVar, NamedTuple
+from typing import Any, ClassVar
 
 import rdflib
 import semantikon
@@ -173,7 +173,8 @@ def _validate_graph(
     )
 
 
-class SemantikonValidationReport(NamedTuple):
+@dataclasses.dataclass(frozen=True)
+class SemantikonValidationReport:
     valid: bool
     graph: rdflib.ConjunctiveGraph | rdflib.Graph
     text: str
@@ -198,7 +199,12 @@ def _validate_data_ontology(
     g = semantikon.get_knowledge_graph(wf_dict=as_dict)
     if extra_knowledge is not None:
         g += extra_knowledge
-    return SemantikonValidationReport(*semantikon.validate_values(g))
+    semantikon_report = semantikon.validate_values(g)
+    return SemantikonValidationReport(
+        valid=semantikon_report[0],
+        graph=semantikon_report[1],
+        text=semantikon_report[2],
+    )
 
 
 def validate_ontology(
