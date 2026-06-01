@@ -20,6 +20,7 @@ from flowrep.api import schemas as frs
 from pyiron_snippets import versions
 
 from pyiron_workflow._wfms import api as wfms
+from pyiron_workflow._wfms.flowcontrollers import forflow
 
 # --------------------------------------------------------------------------- #
 # Plain functions                                                             #
@@ -328,6 +329,29 @@ def build_workflow(inputs=(), outputs=(), node_specs=None, edges=(), label="wf")
 def for_wf_node(label: str = "for_wf"):
     """Return a fresh `Macro` wrapping `for_wf`."""
     return wfms.function2node(for_wf, label)
+
+
+def foreach_node(label: str = "fe"):
+    """Return a fresh `ForEach` flow-control node (a `NotParseable` to the type
+    validator) wrapping `add(x, y)` with `x` nested and `y` broadcast."""
+    body = frs.LabeledRecipe(label="body", node=add.flowrep_recipe)
+    recipe = frs.ForEachRecipe(
+        inputs=["xs", "y"],
+        outputs=["sums"],
+        body_node=body,
+        input_edges={
+            frs.TargetHandle(node="body", port="x"): frs.InputSource(port="xs"),
+            frs.TargetHandle(node="body", port="y"): frs.InputSource(port="y"),
+        },
+        output_edges={
+            frs.OutputTarget(port="sums"): frs.SourceHandle(
+                node="body", port="output_0"
+            ),
+        },
+        nested_ports=["x"],
+        zipped_ports=[],
+    )
+    return forflow.ForEach(label, recipe)
 
 
 def if_abs_node(label: str = "if_abs"):

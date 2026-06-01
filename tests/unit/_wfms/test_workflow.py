@@ -757,6 +757,26 @@ class TestAddEdgeValidation(unittest.TestCase):
             wf.add_edge(edge)
         self.assertEqual(len(wf.undo_stack), initial_undo_len)
 
+    def _unfulfilled_edge(self) -> datatypes.EdgeTuple:
+        # src=add (output_0 unhinted) -> tgt=typed_int (x hinted int)
+        return datatypes.EdgeTuple(
+            frs.SourceHandle(node="src", port="output_0"),
+            frs.TargetHandle(node="tgt", port="x"),
+        )
+
+    def test_strict_rejects_unfulfilled_request(self) -> None:
+        wf = self._sibling_wf(_fixtures.atomic_add_node, _fixtures.typed_int_node)
+        edge = self._unfulfilled_edge()
+        with self.assertRaises(TypeError):
+            wf.add_edge(edge, strict=True)
+        self.assertNotIn(edge, wf.edges)
+
+    def test_default_allows_unfulfilled_request(self) -> None:
+        wf = self._sibling_wf(_fixtures.atomic_add_node, _fixtures.typed_int_node)
+        edge = self._unfulfilled_edge()
+        wf.add_edge(edge)
+        self.assertIn(edge, wf.edges)
+
     def test_multi_edge_call_rolls_back_when_later_edge_fails(self) -> None:
         """If a later edge in a single `add_edge` call fails validation, earlier
         edges from the same call must not remain in the graph."""

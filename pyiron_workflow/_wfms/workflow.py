@@ -529,10 +529,12 @@ class Workflow(MutableDag):
         return EdgeTuple(source, target)
 
     @_undoable
-    def add_edge(self, *edges: EdgeTuple, type_validate: bool = True) -> None:
+    def add_edge(
+        self, *edges: EdgeTuple, type_validate: bool = True, strict: bool = False
+    ) -> None:
         if type_validate:
             for e in edges:
-                self._add_edge(validation.validate_edge(e, self))
+                self._add_edge(validation.validate_edge(e, self, strict=strict))
         else:
             for e in edges:
                 self._add_edge(e)
