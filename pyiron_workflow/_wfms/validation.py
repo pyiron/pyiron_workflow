@@ -46,7 +46,7 @@ def validate_edge(edge: EdgeTuple, owner: StaticGraph | workflow.Workflow) -> Ed
 class SemantikonValidationReport(NamedTuple):
     valid: bool
     graph: rdflib.ConjunctiveGraph | rdflib.Graph
-    report: str
+    text: str
 
 
 def _validate_data_ontology(
