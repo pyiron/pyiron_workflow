@@ -7,6 +7,8 @@ practice.
 
 from __future__ import annotations
 
+import datetime
+import pathlib
 import unittest
 from concurrent import futures
 
@@ -143,6 +145,55 @@ class TestNodeRun(unittest.TestCase):
         self.assertEqual(run.status, execution.RunStatus.FINISHED)
         # The fixture's `add` function returns a single value; flowrep's
         # parser auto-labels it `output_0`.
+        out_label = next(iter(run.outputs.keys()))
+        self.assertEqual(run.outputs[out_label].value, 3)
+
+    def test_run_forwards_positional_config(self):
+        """A config passed positionally reaches `execution.run`."""
+        n = _fixtures.atomic_add_node()
+        calls: list[execution.RunStatus] = []
+
+        def hook(
+            progress_dir: pathlib.Path,
+            time: datetime.datetime,
+            lexical_path: str,
+            status: execution.RunStatus,
+        ) -> None:
+            calls.append(status)
+
+        config = execution.RunConfig(
+            prime_mover=n.lexical_path,
+            progress_hooks=[hook],
+        )
+        run = n.run(config, x=1, y=2)
+        self.assertEqual(run.status, execution.RunStatus.FINISHED)
+        # The default config carries no hooks, so a populated `calls` proves the
+        # custom config was forwarded through to `execution.run`.
+        self.assertIn(execution.RunStatus.RUNNING, calls)
+        self.assertIn(execution.RunStatus.FINISHED, calls)
+
+    def test_run_positional_config_does_not_pollute_inputs(self):
+        """A positional config is consumed by `run`, not the input data."""
+        n = _fixtures.atomic_add_node()
+        seen_paths: list[str] = []
+
+        def hook(
+            progress_dir: pathlib.Path,
+            time: datetime.datetime,
+            lexical_path: str,
+            status: execution.RunStatus,
+        ) -> None:
+            seen_paths.append(lexical_path)
+
+        config = execution.RunConfig(
+            prime_mover=n.lexical_path,
+            progress_hooks=[hook],
+        )
+        run = n.run(config, x=1, y=2)
+        # The config is forwarded (hook fired) *and* the keyword inputs still
+        # reach the node and compute correctly -- the config did not leak into
+        # `**input_data`.
+        self.assertTrue(seen_paths)
         out_label = next(iter(run.outputs.keys()))
         self.assertEqual(run.outputs[out_label].value, 3)
 

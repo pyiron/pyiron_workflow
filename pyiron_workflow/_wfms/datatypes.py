@@ -141,8 +141,10 @@ class Node(
         """A flexible wrapper to access outputs by object or by label"""
         return lexical.get_item_from_map(port, self.outputs, "output port")
 
-    def run(self, **input_data) -> execution.Run[execution.ResultType]:
-        current_run = execution.run(self, **input_data)
+    def run(
+        self, config: execution.RunConfig | None = None, /, **input_data
+    ) -> execution.Run[execution.ResultType]:
+        current_run = execution.run(self, config, **input_data)
         self.current_run = current_run
         return current_run
 
