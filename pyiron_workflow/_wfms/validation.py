@@ -6,7 +6,6 @@ import rdflib
 import semantikon
 from flowrep.api import schemas as frs
 from flowrep.api import tools as frt
-from semantikon import flowrep_dict as semantikon2flowrep
 
 from pyiron_workflow._wfms import constructors, execution, workflow
 from pyiron_workflow._wfms.datatypes import EdgeTuple, Node, StaticGraph
@@ -56,7 +55,7 @@ def _validate_data_ontology(
     label: str | None = None,
     extra_knowledge: rdflib.Graph | None = None,
 ) -> SemantikonValidationReport:
-    as_dict = semantikon2flowrep.node_data_to_dict(
+    as_dict = semantikon.nodedata2dict(
         data,
         with_io=with_io,
         with_function=with_function,
