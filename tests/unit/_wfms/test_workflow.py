@@ -69,7 +69,7 @@ class TestWorkflowInit(unittest.TestCase):
             self.assertNotEqual(wf.redo_stack.maxlen, explicit_limit)
 
         with self.subTest("Explicit limit set"):
-            wf = workflow.Workflow("wf", undo_limit=explicit_limit)
+            wf = workflow.Workflow("wf", explicit_limit)
             self.assertEqual(wf.undo_stack.maxlen, explicit_limit)
             self.assertEqual(wf.redo_stack.maxlen, explicit_limit)
             self.assertEqual(wf.undo_limit, explicit_limit)
@@ -81,7 +81,7 @@ class TestWorkflowInit(unittest.TestCase):
 
 class TestWorkflowUndoLimit(unittest.TestCase):
     def test_setter_updates_both_stacks(self) -> None:
-        wf = workflow.Workflow("wf", undo_limit=5)
+        wf = workflow.Workflow("wf", 5)
         wf.undo_limit = 12
         self.assertEqual(wf.undo_limit, 12)
         self.assertEqual(wf.undo_stack.maxlen, 12)
@@ -1106,7 +1106,7 @@ class TestUndoRedo(unittest.TestCase):
         self.assertEqual(len(self.wf.redo_stack), 0)
 
     def test_undo_limit_eviction(self) -> None:
-        wf = workflow.Workflow("wf", undo_limit=3)
+        wf = workflow.Workflow("wf", 3)
         for label in ("a", "b", "c", "d"):
             wf.create_input(label)
         self.assertEqual(len(wf.undo_stack), 3)
@@ -1312,7 +1312,7 @@ class TestWorkflowSetattrSugar(unittest.TestCase):
         self.assertNotIn("_stash", self.wf.nodes)
 
     def test_init_still_works(self) -> None:
-        wf = workflow.Workflow("fresh", undo_limit=4)
+        wf = workflow.Workflow("fresh", 4)
         self.assertEqual(len(wf.nodes), 0)
         self.assertIsNone(wf.executor)
         self.assertIsNone(wf.current_run)

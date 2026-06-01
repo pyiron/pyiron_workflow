@@ -17,6 +17,7 @@ class Atomic(StaticNode[frs.AtomicRecipe, frs.AtomicData]):
         self,
         label: frs.Label,
         recipe: frs.AtomicRecipe,
+        /,
     ):
         super().__init__(label, recipe)
         func = retrieve.import_from_string(recipe.fully_qualified_name)

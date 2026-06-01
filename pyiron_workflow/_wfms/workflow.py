@@ -134,8 +134,8 @@ class Workflow(MutableDag):
     def __init__(
         self,
         label: frs.Label,
-        *,
         undo_limit: int = 10,
+        /,
     ):
         # Add a super call later if needed
         self._label = label

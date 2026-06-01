@@ -244,6 +244,7 @@ class StaticNode(Node[RecipeType, execution.ResultType], abc.ABC):
         self,
         label: frs.Label,
         recipe: RecipeType,
+        /,
     ):
         self._label = label  # TODO: also accept None and use function name for default
         self._owner = None
@@ -398,6 +399,7 @@ class StaticGraph(StaticNode[RecipeType, execution.ResultType], Graph, abc.ABC):
         self,
         label: frs.Label,
         recipe: RecipeType,
+        /,
     ):
         super().__init__(label, recipe)
         self._nodes = self._build_nodes(recipe)
