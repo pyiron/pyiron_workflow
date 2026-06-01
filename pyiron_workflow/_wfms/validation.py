@@ -178,6 +178,9 @@ class SemantikonValidationReport(NamedTuple):
     graph: rdflib.ConjunctiveGraph | rdflib.Graph
     text: str
 
+    def __repr__(self):
+        return self.text
+
 
 def _validate_data_ontology(
     data: frs.NodeData[Any],
