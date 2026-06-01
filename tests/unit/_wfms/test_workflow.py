@@ -2265,5 +2265,46 @@ class TestWorkflowFromRecipe(unittest.TestCase):
         self.assertEqual(len(rebuilt.edges), 0)
 
 
+class TestWorkflowConnectAtInit(unittest.TestCase):
+    """`Workflow` connection sugar at construction.
+
+    A freshly-built workflow has no owner, so every connection takes the
+    'pending' route rather than being applied as an edge immediately.
+    """
+
+    def test_connect_port_is_pending(self) -> None:
+        src = _fixtures.atomic_add_node("src")
+        port = src.outputs["output_0"]
+        wf = workflow.Workflow("wf", x=port)
+        self.assertIs(wf._pending_connections["x"], port)
+
+    def test_connect_single_output_node_coerces_to_its_port(self) -> None:
+        src = _fixtures.atomic_add_node("src")
+        wf = workflow.Workflow("wf", y=src)
+        self.assertIs(wf._pending_connections["y"], src.outputs["output_0"])
+
+    def test_connect_multi_output_node_raises(self) -> None:
+        multi = _fixtures.macro_node("multi")  # outputs `a` and `s`
+        with self.assertRaises(ValueError):
+            workflow.Workflow("wf", x=multi)
+
+    def test_connect_wrong_type_raises(self) -> None:
+        with self.assertRaises(TypeError):
+            workflow.Workflow("wf", x=42)
+
+    def test_connections_stay_pending_without_owner(self) -> None:
+        src = _fixtures.atomic_add_node("src")
+        wf = workflow.Workflow("wf", x=src.outputs["output_0"])
+        self.assertIsNone(wf.owner)
+        self.assertEqual(wf.edges, [])
+        self.assertIn("x", wf._pending_connections)
+
+    def test_undo_limit_and_connections_coexist(self) -> None:
+        src = _fixtures.atomic_add_node("src")
+        wf = workflow.Workflow("wf", 5, x=src.outputs["output_0"])
+        self.assertEqual(wf.undo_limit, 5)
+        self.assertIn("x", wf._pending_connections)
+
+
 if __name__ == "__main__":
     unittest.main()

@@ -92,7 +92,7 @@ class TestAtomicInit(unittest.TestCase):
             outputs=["out"],
             unpack_mode=frs.UnpackMode.NONE,
         )
-        node = atomic.Atomic(label="lbl", recipe=recipe)
+        node = atomic.Atomic("lbl", recipe)
         self.assertIs(node.function_metadata, _METADATA_SENTINEL)
 
 

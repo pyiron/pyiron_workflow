@@ -10,7 +10,7 @@ from __future__ import annotations
 import unittest
 from concurrent import futures
 
-from pyiron_workflow._wfms import datatypes, execution
+from pyiron_workflow._wfms import dag, datatypes, execution
 from tests.unit._wfms import _fixtures
 
 
@@ -204,6 +204,46 @@ class TestNodeGetState(unittest.TestCase):
                 owner,
                 msg="__getstate__ must not detach the live node from its owner",
             )
+
+
+class TestConnectAtInit(unittest.TestCase):
+    """`StaticNode` / `StaticGraph` connection sugar at construction.
+
+    Exercised through `Macro`, a concrete `StaticGraph` that reaches the
+    `StaticNode.connect` call only via `super().__init__` -- so the one class
+    covers both the connect logic and the `StaticGraph` super-call chain. With
+    no owner at construction every connection takes the 'pending' route.
+    """
+
+    @staticmethod
+    def _macro(**connections):
+        return dag.Macro("m", _fixtures.macro.flowrep_recipe, **connections)
+
+    def test_connect_port_is_pending(self):
+        src = _fixtures.atomic_add_node("src")
+        port = src.outputs["output_0"]
+        m = self._macro(x=port)
+        self.assertIs(m._pending_connections["x"], port)
+
+    def test_connect_single_output_node_coerces_to_its_port(self):
+        src = _fixtures.atomic_add_node("src")
+        m = self._macro(y=src)
+        self.assertIs(m._pending_connections["y"], src.outputs["output_0"])
+
+    def test_connect_multi_output_node_raises(self):
+        multi = _fixtures.macro_node("multi")  # outputs `a` and `s`
+        with self.assertRaises(ValueError):
+            self._macro(x=multi)
+
+    def test_connect_wrong_type_raises(self):
+        with self.assertRaises(TypeError):
+            self._macro(x=42)
+
+    def test_connections_stay_pending_without_owner(self):
+        src = _fixtures.atomic_add_node("src")
+        m = self._macro(x=src.outputs["output_0"], y=src)
+        self.assertIsNone(m.owner)
+        self.assertEqual(set(m._pending_connections), {"x", "y"})
 
 
 if __name__ == "__main__":
