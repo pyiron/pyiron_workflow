@@ -8,7 +8,7 @@ from flowrep.api import schemas as frs
 from pyiron_snippets import retrieve
 
 from pyiron_workflow._wfms import execution
-from pyiron_workflow._wfms.datatypes import StaticNode
+from pyiron_workflow._wfms.datatypes import Node, Port, StaticNode
 
 
 class Atomic(StaticNode[frs.AtomicRecipe, frs.AtomicData]):
@@ -18,8 +18,9 @@ class Atomic(StaticNode[frs.AtomicRecipe, frs.AtomicData]):
         label: frs.Label,
         recipe: frs.AtomicRecipe,
         /,
+        **connections: Port | Node,
     ):
-        super().__init__(label, recipe)
+        super().__init__(label, recipe, **connections)
         func = retrieve.import_from_string(recipe.fully_qualified_name)
         self._function_metadata = getattr(func, "_semantikon_metadata", None)
 

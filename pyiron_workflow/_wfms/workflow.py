@@ -20,6 +20,7 @@ from pyiron_workflow._wfms.datatypes import (
     Node,
     NodeMap,
     OutputPort,
+    Port,
     PortMap,
     PortType,
 )
@@ -136,6 +137,7 @@ class Workflow(MutableDag):
         label: frs.Label,
         undo_limit: int = 10,
         /,
+        **connections: Port | Node,
     ):
         # Add a super call later if needed
         self._label = label
@@ -151,6 +153,7 @@ class Workflow(MutableDag):
         self._diff_accumulator: actions.GraphDiff | None = None
         self.undo_stack = collections.deque(maxlen=undo_limit)
         self.redo_stack = collections.deque(maxlen=undo_limit)
+        self.connect(**connections)
 
     def __setattr__(self, name: str, value: object) -> None:
         """Syntactic sugar for adding a fresh node to the graph.
