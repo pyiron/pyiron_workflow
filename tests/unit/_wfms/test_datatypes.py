@@ -296,6 +296,21 @@ class TestConnectAtInit(unittest.TestCase):
         self.assertIsNone(m.owner)
         self.assertEqual(set(m._pending_connections), {"x", "y"})
 
+    def test_positional_connection_zips_to_first_input(self):
+        # Positional connections at construction map onto input ports in order;
+        # the fixture's inputs are (x, y, z), so a lone positional lands on `x`.
+        src = _fixtures.atomic_add_node("src")
+        port = src.outputs["output_0"]
+        m = dag.Macro("m", _fixtures.macro.flowrep_recipe, port)
+        self.assertIs(m._pending_connections["x"], port)
+
+    def test_positional_and_keyword_connections_combine(self):
+        src = _fixtures.atomic_add_node("src")
+        port = src.outputs["output_0"]
+        m = dag.Macro("m", _fixtures.macro.flowrep_recipe, port, z=src)
+        self.assertIs(m._pending_connections["x"], port)
+        self.assertIs(m._pending_connections["z"], src.outputs["output_0"])
+
 
 if __name__ == "__main__":
     unittest.main()

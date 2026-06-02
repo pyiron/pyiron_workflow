@@ -18,9 +18,10 @@ class Atomic(StaticNode[frs.AtomicRecipe, frs.AtomicData]):
         label: frs.Label,
         recipe: frs.AtomicRecipe,
         /,
-        **connections: Port | Node,
+        *positional_connections: Port | Node,
+        **keyword_connections: Port | Node,
     ):
-        super().__init__(label, recipe, **connections)
+        super().__init__(label, recipe, *positional_connections, **keyword_connections)
         func = retrieve.import_from_string(recipe.fully_qualified_name)
         self._function_metadata = getattr(func, "_semantikon_metadata", None)
 

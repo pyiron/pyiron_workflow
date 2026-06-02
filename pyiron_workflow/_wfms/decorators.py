@@ -29,9 +29,9 @@ class PwfTools(Generic[_RecipeType]):
     def _recipe(self) -> _RecipeType:
         return self.function.flowrep_recipe  # type: ignore[attr-defined]
 
-    def node(self, label: frs.Label | None = None, /, **connections):
+    def node(self, label: frs.Label | None = None, /, *positional, **keyword):
         used_label = self.function.__name__ if label is None else label
-        return self.node_type(used_label, self._recipe, **connections)
+        return self.node_type(used_label, self._recipe, *positional, **keyword)
 
     def run(self, config: execution.RunConfig | None = None, **input_data):
         return self.node().run(config, **input_data)
