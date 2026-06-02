@@ -10,6 +10,7 @@ from __future__ import annotations
 
 import unittest
 
+import rdflib
 from flowrep.api import schemas as frs
 
 from pyiron_workflow._wfms import api as wfms
@@ -334,6 +335,119 @@ class TestValidateTypes(unittest.TestCase):
         # `repr` round-trips through `text`; the NotParseable child is listed.
         self.assertEqual(repr(report), report.text)
         self.assertIn("fe: <NOT PARSEABLE>", report.text)
+
+
+class TestCombinedValidationReport(unittest.TestCase):
+    """`.valid` composition — does NOT exercise the ontology machinery."""
+
+    def _types_report(self, *, valid: bool) -> validation.TypeValidationReport:
+        edges = (
+            []
+            if valid
+            else [
+                wfms.EdgeTuple(
+                    frs.SourceHandle(node="a", port="output_0"),
+                    frs.TargetHandle(node="b", port="x"),
+                )
+            ]
+        )
+        return validation.TypeValidationReport("g", edges, [], {})
+
+    def _meta_report(self, *, valid: bool) -> validation.SemantikonValidationReport:
+        # Hand-built report: no semantikon call, just the dataclass container.
+        return validation.SemantikonValidationReport(
+            valid=valid, graph=rdflib.Graph(), text="ok" if valid else "bad"
+        )
+
+    def test_valid_when_both_present_and_valid(self):
+        report = validation.CombinedValidationReport(
+            self._types_report(valid=True), self._meta_report(valid=True)
+        )
+        self.assertTrue(report.valid)
+
+    def test_invalid_when_types_invalid(self):
+        report = validation.CombinedValidationReport(
+            self._types_report(valid=False), self._meta_report(valid=True)
+        )
+        self.assertFalse(report.valid)
+
+    def test_invalid_when_metadata_invalid(self):
+        report = validation.CombinedValidationReport(
+            self._types_report(valid=True), self._meta_report(valid=False)
+        )
+        self.assertFalse(report.valid)
+
+    def test_none_components_are_ignored(self):
+        report = validation.CombinedValidationReport(
+            self._types_report(valid=True), None
+        )
+        self.assertTrue(report.valid)
+
+    def test_both_none_is_vacuously_valid(self):
+        report = validation.CombinedValidationReport(None, None)
+        self.assertTrue(report.valid)
+
+    def test_repr_is_a_string(self):
+        report = validation.CombinedValidationReport(
+            self._types_report(valid=True), self._meta_report(valid=True)
+        )
+        self.assertIsInstance(repr(report), str)
+
+
+class TestValidatePlan(unittest.TestCase):
+    """`validate_plan` with ontology disabled (the only branch we test now)."""
+
+    def _typed_wf(self) -> workflow.Workflow:
+        return _fixtures.build_workflow(
+            node_specs={
+                "src": _fixtures.typed_int_node,
+                "tgt": _fixtures.typed_int_node,
+            },
+            label="wf",
+        )
+
+    def test_macro_types_only(self):
+        report = validation.validate_plan(_fixtures.macro_node(), do_ontology=False)
+        self.assertIsInstance(report, validation.CombinedValidationReport)
+        self.assertIsInstance(report.types, validation.TypeValidationReport)
+        self.assertIsNone(report.metadata)
+        self.assertTrue(report.valid)
+
+    def test_workflow_types_only(self):
+        report = validation.validate_plan(self._typed_wf(), do_ontology=False)
+        self.assertIsInstance(report.types, validation.TypeValidationReport)
+        self.assertIsNone(report.metadata)
+        self.assertTrue(report.valid)
+
+    def test_both_disabled_is_vacuously_valid(self):
+        report = validation.validate_plan(
+            _fixtures.macro_node(), do_types=False, do_ontology=False
+        )
+        self.assertIsNone(report.types)
+        self.assertIsNone(report.metadata)
+        self.assertTrue(report.valid)
+
+
+class TestNodeValidateMethods(unittest.TestCase):
+    """`.validate` forwards `self` + kwargs to `validate_plan` (ontology off)."""
+
+    def test_macro_validate_forwards(self):
+        report = _fixtures.macro_node().validate(do_ontology=False)
+        self.assertIsInstance(report, validation.CombinedValidationReport)
+        self.assertIsInstance(report.types, validation.TypeValidationReport)
+        self.assertIsNone(report.metadata)
+
+    def test_workflow_validate_forwards(self):
+        wf = _fixtures.build_workflow(
+            node_specs={
+                "src": _fixtures.typed_int_node,
+                "tgt": _fixtures.typed_int_node,
+            },
+            label="wf",
+        )
+        report = wf.validate(do_ontology=False)
+        self.assertIsInstance(report, validation.CombinedValidationReport)
+        self.assertIsNone(report.metadata)
 
 
 if __name__ == "__main__":

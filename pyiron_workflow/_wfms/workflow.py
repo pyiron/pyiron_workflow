@@ -5,7 +5,7 @@ import dataclasses
 import functools
 import types
 from collections.abc import Callable, MutableMapping
-from typing import Any
+from typing import TYPE_CHECKING, Any
 
 import semantikon
 from flowrep.api import schemas as frs
@@ -24,6 +24,9 @@ from pyiron_workflow._wfms.datatypes import (
     PortMap,
     PortType,
 )
+
+if TYPE_CHECKING:
+    import rdflib
 
 
 def _duplicate_node_error(owner: Graph, key: frs.Label) -> ValueError:
@@ -214,6 +217,27 @@ class Workflow(MutableDag):
         dag.evaluate_dag_by_layer(self.nodes, run, config)
         dag.populate_outputs(run.result)
         return run
+
+    def validate(
+        self,
+        do_types: bool = True,
+        do_ontology: bool = True,
+        with_io: bool = True,
+        with_function: bool = True,
+        extra_knowledge: rdflib.Graph | None = None,
+    ) -> validation.CombinedValidationReport:
+        """Validate this node's types and (optionally) ontology.
+
+        Thin wrapper around :func:`validation.validate_plan`.
+        """
+        return validation.validate_plan(
+            self,
+            do_types=do_types,
+            do_ontology=do_ontology,
+            with_io=with_io,
+            with_function=with_function,
+            extra_knowledge=extra_knowledge,
+        )
 
     @property
     def nodes(self) -> MutableNodeMap:

@@ -1,12 +1,15 @@
 from __future__ import annotations
 
-from typing import Any
+from typing import TYPE_CHECKING, Any
 
 import semantikon
 from flowrep.api import schemas as frs
 from pyiron_snippets import retrieve
 
-from pyiron_workflow._wfms import constructors, execution, lexical
+from pyiron_workflow._wfms import constructors, execution, lexical, validation
+
+if TYPE_CHECKING:
+    import rdflib
 from pyiron_workflow._wfms.datatypes import (
     EdgeList,
     ImmutableDag,
@@ -44,6 +47,27 @@ class Macro(ImmutableDag):
         evaluate_dag_by_layer(self.nodes, run, config)
         populate_outputs(run.result)
         return run
+
+    def validate(
+        self,
+        do_types: bool = True,
+        do_ontology: bool = True,
+        with_io: bool = True,
+        with_function: bool = True,
+        extra_knowledge: rdflib.Graph | None = None,
+    ) -> validation.CombinedValidationReport:
+        """Validate this node's types and (optionally) ontology.
+
+        Thin wrapper around :func:`validation.validate_plan`.
+        """
+        return validation.validate_plan(
+            self,
+            do_types=do_types,
+            do_ontology=do_ontology,
+            with_io=with_io,
+            with_function=with_function,
+            extra_knowledge=extra_knowledge,
+        )
 
     @property
     def function_metadata(self) -> semantikon.FunctionMetadata | None:

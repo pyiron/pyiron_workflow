@@ -18,4 +18,8 @@ from pyiron_workflow._wfms.flowcontrollers.tryflow import (
 from pyiron_workflow._wfms.flowcontrollers.whileflow import While as While
 from pyiron_workflow._wfms.transformers import Transform1toN as Transform1toN
 from pyiron_workflow._wfms.transformers import TransformNto1 as TransformNto1
+from pyiron_workflow._wfms.validation import (
+    CombinedValidationReport as CombinedValidationReport,
+)
+from pyiron_workflow._wfms.validation import validate_plan as validate_plan
 from pyiron_workflow._wfms.workflow import Workflow as Workflow

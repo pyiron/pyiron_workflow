@@ -253,3 +253,38 @@ def validate_ontology(
             f"Unknown target type: {target}. Please provide a {Node.__name__}, "
             f"{execution.Run.__name__}, or {frs.NodeData.__name__}."
         )
+
+
+@dataclasses.dataclass
+class CombinedValidationReport:
+    types: TypeValidationReport | None
+    metadata: SemantikonValidationReport | None
+
+    @property
+    def valid(self) -> bool:
+        return all(r.valid for r in (self.types, self.metadata) if r is not None)
+
+    def __repr__(self):
+        return f"{self.types}\n{self.metadata}"
+
+
+def validate_plan(
+    target: atomic.Atomic | dag.Macro | workflow.Workflow,
+    do_types: bool = True,
+    do_ontology: bool = True,
+    with_io: bool = True,
+    with_function: bool = True,
+    extra_knowledge: rdflib.Graph | None = None,
+) -> CombinedValidationReport:
+    types_report = validate_types(target) if do_types else None
+    onto_report = (
+        validate_ontology(
+            target,
+            with_io=with_io,
+            with_function=with_function,
+            extra_knowledge=extra_knowledge,
+        )
+        if do_ontology
+        else None
+    )
+    return CombinedValidationReport(types_report, onto_report)
