@@ -8,13 +8,14 @@ These tests construct small :class:`Workflow` instances directly and invoke
 
 from __future__ import annotations
 
+import inspect
 import unittest
 
 import rdflib
 from flowrep.api import schemas as frs
 
 from pyiron_workflow._wfms import api as wfms
-from pyiron_workflow._wfms import validation, workflow
+from pyiron_workflow._wfms import dag, decorators, validation, workflow
 from tests.unit._wfms import _fixtures
 
 
@@ -448,6 +449,23 @@ class TestNodeValidateMethods(unittest.TestCase):
         report = wf.validate(do_ontology=False)
         self.assertIsInstance(report, validation.CombinedValidationReport)
         self.assertIsNone(report.metadata)
+
+
+class TestValidationSignatureCoherence(unittest.TestCase):
+    """Ensure that the validation methods are consistent with their signatures."""
+
+    def test_validate_signatures_match_validate_plan(self):
+        base = list(inspect.signature(validation.validate_plan).parameters)[
+            1:
+        ]  # drop `target`
+        for fn in (
+            dag.Macro.validate,
+            workflow.Workflow.validate,
+            decorators.MacroTools.validate,
+        ):
+            self.assertEqual(
+                list(inspect.signature(fn).parameters)[1:], base
+            )  # drop `self`
 
 
 if __name__ == "__main__":
