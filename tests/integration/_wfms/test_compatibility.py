@@ -35,7 +35,7 @@ class TestOutOfProcess(unittest.TestCase):
     def test_process_pool_execution(self) -> None:
         for factory in (add_with_pid, NestedScope.add_with_pid):
             with self.subTest(factory=factory):
-                node = add_with_pid("job")
+                node = add_with_pid()
                 with futures.ProcessPoolExecutor() as exe:
                     node.executor = exe
                     result = node.run(x=-1, y=43)

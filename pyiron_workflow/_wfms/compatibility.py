@@ -33,8 +33,8 @@ class SimpleFactory:
         )
         self.decorated.__qualname__ = new_qualname
 
-    def __call__(self, label):
-        return self.decorated.pwf.node(label)
+    def __call__(self, *args, **kwargs):
+        return self.decorated.pwf.node(self.decorated.__name__, *args, **kwargs)
 
 
 @multiple_distpatch.dispatch_output_labels
