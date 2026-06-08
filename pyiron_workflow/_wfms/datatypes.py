@@ -187,7 +187,7 @@ class Node(
             raise TypeError(
                 f"Syntax sugar for edge creation only accepts {Port.__name__} "
                 f"objects or a node with a single output port. Got "
-                f"{source_obj} instead."
+                f"{source_obj!r} {type(source_obj)} instead."
             )
 
     def use_pending_edges(self) -> EdgeList:
