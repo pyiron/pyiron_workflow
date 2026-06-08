@@ -69,8 +69,8 @@ _assigned = tuple(
 
 
 @functools.wraps(frt.atomic, assigned=_assigned)
-def atomic(*args, **kwarg):
-    wrapped = frt.atomic(*args, **kwarg)
+def atomic(*args, **kwargs):
+    wrapped = frt.atomic(*args, **kwargs)
     wrapped.pwf = AtomicTools(wrapped)
     return wrapped
 
@@ -88,8 +88,8 @@ Base `flowrep` documentation:
 
 
 @functools.wraps(frt.workflow, assigned=_assigned)
-def workflow(*args, **kwarg):
-    wrapped = frt.workflow(*args, **kwarg)
+def workflow(*args, **kwargs):
+    wrapped = frt.workflow(*args, **kwargs)
     wrapped.pwf = MacroTools(wrapped)
     return wrapped
 
