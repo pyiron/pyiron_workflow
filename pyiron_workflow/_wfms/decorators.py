@@ -61,7 +61,14 @@ class MacroTools(PwfTools[frs.WorkflowRecipe]):
         )
 
 
-@functools.wraps(frt.atomic)
+_assigned = tuple(
+    a
+    for a in functools.WRAPPER_ASSIGNMENTS
+    if a not in {"__name__", "__module__", "__qualname__"}
+)  # Let the wrapping functions keep their identity
+
+
+@functools.wraps(frt.atomic, assigned=_assigned)
 def atomic(*args, **kwarg):
     wrapped = frt.atomic(*args, **kwarg)
     wrapped.pwf = AtomicTools(wrapped)
@@ -80,7 +87,7 @@ Base `flowrep` documentation:
 """ + (frt.atomic.__doc__ or "")
 
 
-@functools.wraps(frt.workflow)
+@functools.wraps(frt.workflow, assigned=_assigned)
 def workflow(*args, **kwarg):
     wrapped = frt.workflow(*args, **kwarg)
     wrapped.pwf = MacroTools(wrapped)
