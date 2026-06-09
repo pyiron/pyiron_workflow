@@ -91,7 +91,7 @@ passes is ignored, and such functions raise a `ValueError` at decoration time.
 def as_macro_node(*output_labels, **kwargs):
     def decorator(func):
         wf = _legacy_as_macro_node2workflow(func, *output_labels)
-        rendered = frt.dagdata2python(
+        rendered = frt.flowrep2python(
             wf.generate_flowrep_live_node(),
             function_name=func.__name__,
             _workflow_decorator=(
