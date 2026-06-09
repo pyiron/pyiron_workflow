@@ -1,8 +1,13 @@
+import inspect
+import itertools
+import re
+
 from flowrep.api import schemas as frs
 from flowrep.api import tools as frt
 from pyiron_snippets import versions
 
-from pyiron_workflow._wfms import decorators
+from pyiron_workflow import output_parser
+from pyiron_workflow._wfms import annotation, datatypes, decorators, workflow
 from pyiron_workflow.nodes import multiple_distpatch
 
 
@@ -21,13 +26,17 @@ class SimpleFactory:
     def __init__(self, func):
         self.decorated = func
         original_ref = func.flowrep_recipe.reference
-        new_qualname = original_ref.info.qualname + ".decorated"
+        new_qualname = func.__qualname__ + ".decorated"
+
+        func_info = versions.VersionInfo.of(func)
+        replacement_info = versions.VersionInfo(
+            module=func_info.module,
+            qualname=new_qualname,
+            version=func_info.version,
+        )
+
         self.decorated.flowrep_recipe.reference = frs.PythonReference(
-            info=versions.VersionInfo(
-                module=original_ref.info.module,
-                qualname=new_qualname,
-                version=original_ref.info.version,
-            ),
+            info=replacement_info,
             inputs_with_defaults=original_ref.inputs_with_defaults,
             restricted_input_kinds=original_ref.restricted_input_kinds,
         )
@@ -76,3 +85,123 @@ passes is ignored, and such functions raise a `ValueError` at decoration time.
 `pyiron_workflow` decorator docstring:
 
 """ + (decorators.atomic.__doc__ or "")
+
+
+@multiple_distpatch.dispatch_output_labels
+def as_macro_node(*output_labels, **kwargs):
+    def decorator(func):
+        wf = _legacy_as_macro_node2workflow(func, *output_labels)
+        rendered = frt.dagdata2python(
+            func.__name__,
+            wf.generate_flowrep_live_node(),  # Wait, does this even have the annotations?
+            workflow_decorator=(
+                "pyiron_workflow._wfms.api",  # Recovering proximate modules is tough,
+                # so just hard-code the proximate API reference
+                "workflow",
+            ),
+        )
+        new_form = rendered.build()
+        new_form.__module__ = func.__module__
+        new_form.__qualname__ = func.__qualname__
+        return SimpleFactory(new_form)
+
+    return decorator
+
+
+def _legacy_as_macro_node2workflow(func, *output_labels) -> workflow.Workflow:
+    wf = workflow.Workflow(func.__name__)
+    sig = inspect.signature(func)
+    ports_to_pass = _build_inputs_and_collect_input_ports(wf, sig)
+    returns: (
+        datatypes.Node | datatypes.Port | tuple[datatypes.Node | datatypes.Port]
+    ) = func(wf, **ports_to_pass)
+
+    # Ensure tuple-structure from single-return functions
+    returned_ports = (returns,) if not isinstance(returns, tuple) else returns
+
+    legacy_scraped_labels = _parse_legacy_output_labels(func)
+    output_port_labels = _get_output_labels(
+        len(returned_ports),
+        output_labels,
+        legacy_scraped_labels,
+    )
+    _convert_returns_to_outputs_and_edges(wf, returned_ports, output_port_labels)
+
+    return wf
+
+
+def _build_inputs_and_collect_input_ports(
+    wf: workflow.Workflow, sig: inspect.Signature
+) -> dict[str, datatypes.Port]:
+    kwargs: dict[str, datatypes.Port] = {}
+    for port_name, param in itertools.islice(
+        sig.parameters.items(), 1, None
+    ):  # skip self
+        if param.annotation is not inspect.Signature.empty:
+            type_hint = annotation.annotation_to_type_hint(annotation)
+            type_metadata = annotation.annotation_to_type_metadata(annotation)
+        else:
+            type_hint, type_metadata = None, None
+        wf.create_input(port_name, type_hint=type_hint, type_metadata=type_metadata)
+        kwargs[port_name] = wf.inputs[port_name]
+    return kwargs
+
+
+def _parse_legacy_output_labels(func):
+    scraped_labels = output_parser.ParseOutput(func).output
+    sig = inspect.signature(func)
+    self_argument = next(iter(sig.parameters))
+    if scraped_labels is not None:
+        # Strip off the first argument, e.g. self.foo just becomes foo
+        cleaned_labels = tuple(
+            re.sub(r"^" + re.escape(f"{self_argument}."), "", label)
+            for label in scraped_labels
+        )
+        if any("." in label for label in cleaned_labels):
+            raise ValueError(
+                f"Tried to scrape cleaned labels for {func.__name__}, but at least "
+                f"one of {cleaned_labels} still contains a '.' -- please provide "
+                f"explicit labels"
+            )
+        return cleaned_labels
+    else:
+        return scraped_labels
+
+
+def _get_output_labels(
+    n_expected, output_labels: tuple[str, ...], scraped_labels: tuple[str, ...]
+):
+    if len(output_labels) == 0:
+        return (
+            tuple(f"output_{i}" for i in range(n_expected))
+            if scraped_labels is None
+            else scraped_labels
+        )
+    elif len(output_labels) == n_expected:
+        return output_labels
+    else:
+        raise ValueError(
+            f"Found {n_expected} return values, but got an incommensurate number of labels: {output_labels!r}."
+        )
+
+
+def _convert_returns_to_outputs_and_edges(
+    wf: workflow.Workflow,
+    returned_ports: tuple[datatypes.Node | datatypes.Port],
+    output_port_labels: tuple[str],
+) -> None:
+    for label, obj in zip(output_port_labels, returned_ports, strict=True):
+        if isinstance(obj, datatypes.Port):
+            if obj.owner is wf:
+                source = frs.InputSource(port=obj.label)
+            else:
+                source = frs.SourceHandle(node=obj.owner.label, port=obj.label)
+        elif isinstance(obj, datatypes.Node) and len(obj.outputs) == 1:
+            port: datatypes.Port = next(iter(obj.outputs.values()))
+            source = frs.SourceHandle(node=port.owner.label, port=port.label)
+        else:
+            raise NotImplementedError()
+
+        wf.create_output(label)
+        target = frs.OutputTarget(port=label)
+        wf.add_edge(datatypes.EdgeTuple(source, target))
