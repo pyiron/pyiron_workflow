@@ -48,14 +48,12 @@ class MacroTools(PwfTools[frs.WorkflowRecipe]):
         self,
         do_types: bool = True,
         do_ontology: bool = True,
-        with_io: bool = True,
         with_function: bool = True,
         extra_knowledge: rdflib.Graph | None = None,
     ) -> validation.CombinedValidationReport:
         return self.node().validate(
             do_types=do_types,
             do_ontology=do_ontology,
-            with_io=with_io,
             with_function=with_function,
             extra_knowledge=extra_knowledge,
         )

@@ -185,14 +185,12 @@ class SemantikonValidationReport:
 
 def _validate_data_ontology(
     data: frs.NodeData[Any],
-    with_io: bool,
     with_function: bool,
     label: str | None = None,
     extra_knowledge: rdflib.Graph | None = None,
 ) -> SemantikonValidationReport:
     as_dict = semantikon.nodedata2dict(
         data,
-        with_io=with_io,
         with_function=with_function,
         label=label,
     )
@@ -214,14 +212,12 @@ def validate_ontology(
         | constructors.RecipeOptions
         | frs.NodeData[Any]
     ),
-    with_io: bool = True,
     with_function: bool = True,
     extra_knowledge: rdflib.Graph | None = None,
 ) -> SemantikonValidationReport:
     if isinstance(target, Node):
         return _validate_data_ontology(
             target.generate_flowrep_live_node(),
-            with_io=with_io,
             with_function=with_function,
             label=target.label,
             extra_knowledge=extra_knowledge,
@@ -229,7 +225,6 @@ def validate_ontology(
     elif isinstance(target, execution.Run):
         return _validate_data_ontology(
             target.result,
-            with_io=with_io,
             with_function=with_function,
             label=target.label,
             extra_knowledge=extra_knowledge,
@@ -237,14 +232,12 @@ def validate_ontology(
     elif isinstance(target, constructors.RecipeOptions):
         return _validate_data_ontology(
             frt.recipe2data(recipe=target),
-            with_io=with_io,
             with_function=with_function,
             extra_knowledge=extra_knowledge,
         )
     elif isinstance(target, frs.NodeData):
         return _validate_data_ontology(
             target,
-            with_io=with_io,
             with_function=with_function,
             extra_knowledge=extra_knowledge,
         )
@@ -272,7 +265,6 @@ def validate_plan(
     target: atomic.Atomic | dag.Macro | workflow.Workflow,
     do_types: bool = True,
     do_ontology: bool = True,
-    with_io: bool = True,
     with_function: bool = True,
     extra_knowledge: rdflib.Graph | None = None,
 ) -> CombinedValidationReport:
@@ -280,7 +272,6 @@ def validate_plan(
     onto_report = (
         validate_ontology(
             target,
-            with_io=with_io,
             with_function=with_function,
             extra_knowledge=extra_knowledge,
         )
