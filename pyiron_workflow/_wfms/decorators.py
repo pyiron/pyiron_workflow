@@ -71,8 +71,7 @@ _assigned = tuple(
 @functools.wraps(frt.atomic, assigned=_assigned)
 def atomic(*args, **kwargs):
     wrapped = frt.atomic(*args, **kwargs)
-    wrapped.pwf = AtomicTools(wrapped)
-    return wrapped
+    return _double_wrap_if_decorator_got_args(args[0], wrapped, AtomicTools, "@atomic")
 
 
 atomic.__doc__ = """
@@ -87,11 +86,39 @@ Base `flowrep` documentation:
 """ + (frt.atomic.__doc__ or "")
 
 
+def _double_wrap_if_decorator_got_args(
+    arg0: str | types.FunctionType,
+    wrapped: types.FunctionType,
+    tool: type[AtomicTools] | type[MacroTools],
+    decorator_name: str,
+):
+    if isinstance(arg0, types.FunctionType):
+        if not hasattr(wrapped, "pwf"):  # pragma: no cover
+            raise ValueError(
+                f"The {decorator_name} decorator must be applied to a function "
+                f"decorated with flowrep. This is an internal error and likely flags "
+                f"a development bug."
+            )
+        wrapped.pwf = tool(wrapped)
+        return wrapped
+    elif isinstance(arg0, str):
+
+        def wrapped_decorator(func):
+            double_wrapped = wrapped(func)
+            double_wrapped.pwf = tool(double_wrapped)
+            return double_wrapped
+
+        return wrapped_decorator
+    else:
+        raise TypeError(
+            f"{decorator_name} can only decorate functions, got {type(arg0).__name__}"
+        )
+
+
 @functools.wraps(frt.workflow, assigned=_assigned)
 def workflow(*args, **kwargs):
     wrapped = frt.workflow(*args, **kwargs)
-    wrapped.pwf = MacroTools(wrapped)
-    return wrapped
+    return _double_wrap_if_decorator_got_args(args[0], wrapped, MacroTools, "@workflow")
 
 
 workflow.__doc__ = """
