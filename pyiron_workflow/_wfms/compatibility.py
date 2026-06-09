@@ -93,8 +93,8 @@ def as_macro_node(*output_labels, **kwargs):
         wf = _legacy_as_macro_node2workflow(func, *output_labels)
         rendered = frt.dagdata2python(
             wf.generate_flowrep_live_node(),
-            func.__name__,
-            workflow_decorator=(
+            function_name=func.__name__,
+            _workflow_decorator=(
                 "pyiron_workflow._wfms.api",  # Recovering proximate modules is tough,
                 # so just hard-code the proximate API reference
                 "workflow",
