@@ -52,7 +52,6 @@ class Macro(ImmutableDag):
         self,
         do_types: bool = True,
         do_ontology: bool = True,
-        with_function: bool = True,
         extra_knowledge: rdflib.Graph | None = None,
     ) -> validation.CombinedValidationReport:
         """Validate this node's types and (optionally) ontology.
@@ -63,7 +62,6 @@ class Macro(ImmutableDag):
             self,
             do_types=do_types,
             do_ontology=do_ontology,
-            with_function=with_function,
             extra_knowledge=extra_knowledge,
         )
 

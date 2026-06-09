@@ -1,14 +1,13 @@
 from __future__ import annotations
 
 import dataclasses
-from typing import Any, ClassVar
+from typing import ClassVar
 
 import rdflib
 import semantikon
 from flowrep.api import schemas as frs
-from flowrep.api import tools as frt
 
-from pyiron_workflow._wfms import atomic, constructors, dag, execution, workflow
+from pyiron_workflow._wfms import atomic, dag, execution, workflow
 from pyiron_workflow._wfms.datatypes import EdgeList, EdgeTuple, Node, StaticGraph
 from pyiron_workflow.type_hinting import type_hint_is_as_or_more_specific_than
 
@@ -183,69 +182,24 @@ class SemantikonValidationReport:
         return self.text
 
 
-def _validate_data_ontology(
-    data: frs.NodeData[Any],
-    with_function: bool,
-    label: str | None = None,
-    extra_knowledge: rdflib.Graph | None = None,
-) -> SemantikonValidationReport:
-    as_dict = semantikon.nodedata2dict(
-        data,
-        with_function=with_function,
-        label=label,
-    )
-    g = semantikon.get_knowledge_graph(wf_dict=as_dict)
-    if extra_knowledge is not None:
-        g += extra_knowledge
-    semantikon_report = semantikon.validate_values(g)
-    return SemantikonValidationReport(
-        valid=semantikon_report[0],
-        graph=semantikon_report[1],
-        text=semantikon_report[2],
-    )
-
-
 def validate_ontology(
-    target: (
-        Node[Any, Any]
-        | execution.Run[Any]
-        | constructors.RecipeOptions
-        | frs.NodeData[Any]
-    ),
-    with_function: bool = True,
+    data: Node[frs.WorkflowRecipe, frs.DagData] | execution.Run[frs.DagData],
     extra_knowledge: rdflib.Graph | None = None,
-) -> SemantikonValidationReport:
-    if isinstance(target, Node):
-        return _validate_data_ontology(
-            target.generate_flowrep_live_node(),
-            with_function=with_function,
-            label=target.label,
-            extra_knowledge=extra_knowledge,
-        )
-    elif isinstance(target, execution.Run):
-        return _validate_data_ontology(
-            target.result,
-            with_function=with_function,
-            label=target.label,
-            extra_knowledge=extra_knowledge,
-        )
-    elif isinstance(target, constructors.RecipeOptions):
-        return _validate_data_ontology(
-            frt.recipe2data(recipe=target),
-            with_function=with_function,
-            extra_knowledge=extra_knowledge,
-        )
-    elif isinstance(target, frs.NodeData):
-        return _validate_data_ontology(
-            target,
-            with_function=with_function,
-            extra_knowledge=extra_knowledge,
-        )
+):
+    if isinstance(data, Node):
+        resolved_data = data.generate_flowrep_live_node()
+    elif isinstance(data, execution.Run):
+        resolved_data = data.result
     else:
         raise TypeError(
-            f"Unknown target type: {target}. Please provide a {Node.__name__}, "
-            f"{execution.Run.__name__}, or {frs.NodeData.__name__}."
+            f"Cannot validate ontology for {data!r}; expected a "
+            f"{Node.__name__} or {execution.Run.__name__}."
         )
+
+    kg = semantikon.get_knowledge_graph(wf_dict=resolved_data)
+    if extra_knowledge is not None:
+        kg += extra_knowledge
+    return semantikon.validate_values(kg)
 
 
 @dataclasses.dataclass
@@ -265,17 +219,15 @@ def validate_plan(
     target: atomic.Atomic | dag.Macro | workflow.Workflow,
     do_types: bool = True,
     do_ontology: bool = True,
-    with_function: bool = True,
     extra_knowledge: rdflib.Graph | None = None,
 ) -> CombinedValidationReport:
     types_report = validate_types(target) if do_types else None
     onto_report = (
         validate_ontology(
             target,
-            with_function=with_function,
             extra_knowledge=extra_knowledge,
         )
-        if do_ontology
+        if do_ontology and isinstance(target, dag.Macro | workflow.Workflow)
         else None
     )
     return CombinedValidationReport(types_report, onto_report)
