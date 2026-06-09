@@ -51,13 +51,13 @@ class TestAsFunctionNodeBehaviour(unittest.TestCase):
         self.assertIsInstance(add, compatibility.SimpleFactory)
 
     def test_calling_factory_builds_a_runnable_node(self) -> None:
-        node = add("my_label")
-        self.assertEqual(node.label, "my_label")
+        node = add()
+        self.assertEqual(node.label, add.decorated.__name__)
         run = node.run(x=-1, y=43)
         self.assertEqual(run.outputs["z"].value, 42)
 
     def test_nested_scope_works(self) -> None:
-        run = NestedScope.add("lbl").run(x=2, y=3)
+        run = NestedScope.add().run(x=2, y=3)
         self.assertEqual(run.outputs["z"].value, 5)
 
     def test_locals_fail_at_decoration(self) -> None:
@@ -80,7 +80,7 @@ class TestAsFunctionNodeBehaviour(unittest.TestCase):
                 return z
 
     def test_output_label_argument_renames_the_output(self) -> None:
-        run = add_renamed("lbl").run(x=2, y=3)
+        run = add_renamed().run(x=2, y=3)
         self.assertEqual(
             list(run.outputs.keys()),
             ["renamed"],
@@ -91,7 +91,7 @@ class TestAsFunctionNodeBehaviour(unittest.TestCase):
     def test_flowrep_kwargs_flow_through_to_the_recipe(self) -> None:
         # `unpack_mode="none"` should keep the tuple return as a *single* output port
         # rather than unpacking it into two -- proving the kwarg reached flowrep.
-        run = two_returns("lbl").run(a=1, b=2)
+        run = two_returns().run(a=1, b=2)
         self.assertEqual(list(run.outputs.keys()), ["output_0"])
         self.assertEqual(run.outputs["output_0"].value, (1, 2))
 
