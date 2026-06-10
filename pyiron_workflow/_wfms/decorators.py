@@ -88,13 +88,14 @@ def _double_wrap_if_decorator_got_args(
     decorator_name: str,
 ):
     if isinstance(arg0, types.FunctionType):
-        if not hasattr(wrapped, "pwf"):  # pragma: no cover
+        if not hasattr(wrapped, "flowrep_recipe"):  # pragma: no cover
             raise ValueError(
                 f"The {decorator_name} decorator must be applied to a function "
-                f"decorated with flowrep. This is an internal error and likely flags "
-                f"a development bug."
+                f"decorated with flowrep, as evidenced by the presence of a "
+                f"`flowrep_recipe` attribute. This is an internal error and likely flags "
+                f"a development bug. dir({wrapped!r}) = {dir(wrapped)}."
             )
-        wrapped.pwf = tool(wrapped)
+        wrapped.pwf = tool(wrapped)  # type: ignore[attr-defined]
         return wrapped
     elif isinstance(arg0, str):
 
