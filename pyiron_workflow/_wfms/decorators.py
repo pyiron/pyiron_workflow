@@ -4,8 +4,7 @@ import functools
 import types
 from typing import TYPE_CHECKING, ClassVar, Generic, TypeVar
 
-from flowrep.api import schemas as frs
-from flowrep.api import tools as frt
+import flowrep as fr
 
 from pyiron_workflow._wfms import (
     atomic as atomic_mod,
@@ -16,7 +15,7 @@ if TYPE_CHECKING:
     import rdflib
 
 
-_RecipeType = TypeVar("_RecipeType", frs.AtomicRecipe, frs.WorkflowRecipe)
+_RecipeType = TypeVar("_RecipeType", fr.schemas.AtomicRecipe, fr.schemas.WorkflowRecipe)
 
 
 class PwfTools(Generic[_RecipeType]):
@@ -29,7 +28,7 @@ class PwfTools(Generic[_RecipeType]):
     def _recipe(self) -> _RecipeType:
         return self.function.flowrep_recipe  # type: ignore[attr-defined]
 
-    def node(self, label: frs.Label | None = None, /, *positional, **keyword):
+    def node(self, label: fr.schemas.Label | None = None, /, *positional, **keyword):
         used_label = self.function.__name__ if label is None else label
         return self.node_type(used_label, self._recipe, *positional, **keyword)
 
@@ -37,11 +36,11 @@ class PwfTools(Generic[_RecipeType]):
         return self.node().run(config, **input_data)
 
 
-class AtomicTools(PwfTools[frs.AtomicRecipe]):
+class AtomicTools(PwfTools[fr.schemas.AtomicRecipe]):
     node_type = atomic_mod.Atomic
 
 
-class MacroTools(PwfTools[frs.WorkflowRecipe]):
+class MacroTools(PwfTools[fr.schemas.WorkflowRecipe]):
     node_type = dag.Macro
 
     def validate(
@@ -64,9 +63,9 @@ _assigned = tuple(
 )  # Let the wrapping functions keep their identity
 
 
-@functools.wraps(frt.atomic, assigned=_assigned)
+@functools.wraps(fr.tools.atomic, assigned=_assigned)
 def atomic(*args, **kwargs):
-    wrapped = frt.atomic(*args, **kwargs)
+    wrapped = fr.tools.atomic(*args, **kwargs)
     return _double_wrap_if_decorator_got_args(args[0], wrapped, AtomicTools, "@atomic")
 
 
@@ -79,7 +78,7 @@ Additionally adds a `.pwf` attribute holding methods to instantiate the function
 
 Base `flowrep` documentation:
 
-""" + (frt.atomic.__doc__ or "")
+""" + (fr.tools.atomic.__doc__ or "")
 
 
 def _double_wrap_if_decorator_got_args(
@@ -111,9 +110,9 @@ def _double_wrap_if_decorator_got_args(
         )
 
 
-@functools.wraps(frt.workflow, assigned=_assigned)
+@functools.wraps(fr.tools.workflow, assigned=_assigned)
 def workflow(*args, **kwargs):
-    wrapped = frt.workflow(*args, **kwargs)
+    wrapped = fr.tools.workflow(*args, **kwargs)
     return _double_wrap_if_decorator_got_args(args[0], wrapped, MacroTools, "@workflow")
 
 
@@ -126,4 +125,4 @@ create a dynamic node instance and run it.
 
 Base `flowrep` documentation:
 
-""" + (frt.workflow.__doc__ or "")
+""" + (fr.tools.workflow.__doc__ or "")

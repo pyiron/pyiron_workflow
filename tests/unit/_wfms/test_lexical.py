@@ -4,7 +4,7 @@ import types
 import unittest
 from dataclasses import dataclass, field
 
-from flowrep.api import schemas as frs
+import flowrep as fr
 
 from pyiron_workflow._wfms import lexical
 
@@ -208,7 +208,7 @@ class TestLexicalPath(unittest.TestCase):
         self.assertEqual(p, "my_macro.add_0.inputs.x")
 
     def test_io_indicator_segments_allowed(self) -> None:
-        for name in frs.RESERVED_NAMES:
+        for name in fr.schemas.RESERVED_NAMES:
             with self.subTest(name=name):
                 p = lexical.LexicalPath(name)
                 self.assertEqual(p, name)

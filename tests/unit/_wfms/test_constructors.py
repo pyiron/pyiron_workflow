@@ -2,7 +2,7 @@ from __future__ import annotations
 
 import unittest
 
-from flowrep.api import schemas as frs
+import flowrep as fr
 from pyiron_snippets import versions
 
 from pyiron_workflow._wfms import (
@@ -22,7 +22,7 @@ from tests.unit._wfms import _fixtures
 
 
 def plain_add(x, y):
-    """Undecorated callable — exercises the `frt.parse_atomic` branch of `node`."""
+    """Undecorated callable — exercises the `fr.tools.parse_atomic` branch of `node`."""
     return x + y
 
 
@@ -31,63 +31,81 @@ def plain_add(x, y):
 # --------------------------------------------------------------------------- #
 
 
-def _conditional_case() -> frs.ConditionalCase:
+def _conditional_case() -> fr.schemas.ConditionalCase:
     """Build a minimal `ConditionalCase` whose condition and body wrap `add`."""
     add_recipe = _fixtures.add.flowrep_recipe
-    condition = frs.LabeledRecipe(label="cond", node=add_recipe)
-    body = frs.LabeledRecipe(label="body", node=add_recipe)
-    return frs.ConditionalCase(condition=condition, body=body)
+    condition = fr.schemas.LabeledRecipe(label="cond", node=add_recipe)
+    body = fr.schemas.LabeledRecipe(label="body", node=add_recipe)
+    return fr.schemas.ConditionalCase(condition=condition, body=body)
 
 
-def _conditional_input_edges() -> dict[frs.TargetHandle, frs.InputSource]:
+def _conditional_input_edges() -> dict[fr.schemas.TargetHandle, fr.schemas.InputSource]:
     """Wire the `cond` / `body` inputs of the case above to parent `x`, `y`."""
     return {
-        frs.TargetHandle(node="cond", port="x"): frs.InputSource(port="x"),
-        frs.TargetHandle(node="cond", port="y"): frs.InputSource(port="y"),
-        frs.TargetHandle(node="body", port="x"): frs.InputSource(port="x"),
-        frs.TargetHandle(node="body", port="y"): frs.InputSource(port="y"),
+        fr.schemas.TargetHandle(node="cond", port="x"): fr.schemas.InputSource(
+            port="x"
+        ),
+        fr.schemas.TargetHandle(node="cond", port="y"): fr.schemas.InputSource(
+            port="y"
+        ),
+        fr.schemas.TargetHandle(node="body", port="x"): fr.schemas.InputSource(
+            port="x"
+        ),
+        fr.schemas.TargetHandle(node="body", port="y"): fr.schemas.InputSource(
+            port="y"
+        ),
     }
 
 
-def _if_recipe() -> frs.IfRecipe:
+def _if_recipe() -> fr.schemas.IfRecipe:
     return _fixtures.if_recipe()
 
 
-def _while_recipe() -> frs.WhileRecipe:
-    return frs.WhileRecipe(
+def _while_recipe() -> fr.schemas.WhileRecipe:
+    return fr.schemas.WhileRecipe(
         inputs=["x", "y"],
         outputs=["x"],  # While outputs must be a subset of inputs
         case=_conditional_case(),
         input_edges=_conditional_input_edges(),
         output_edges={
-            frs.OutputTarget(port="x"): frs.SourceHandle(node="body", port="output_0"),
+            fr.schemas.OutputTarget(port="x"): fr.schemas.SourceHandle(
+                node="body", port="output_0"
+            ),
         },
     )
 
 
-def _try_recipe() -> frs.TryRecipe:
+def _try_recipe() -> fr.schemas.TryRecipe:
     add_recipe = _fixtures.add.flowrep_recipe
-    try_body = frs.LabeledRecipe(label="trybody", node=add_recipe)
-    handler = frs.LabeledRecipe(label="handler", node=add_recipe)
-    exc_case = frs.ExceptionCase(
+    try_body = fr.schemas.LabeledRecipe(label="trybody", node=add_recipe)
+    handler = fr.schemas.LabeledRecipe(label="handler", node=add_recipe)
+    exc_case = fr.schemas.ExceptionCase(
         exceptions=[versions.VersionInfo.of(ValueError)],
         body=handler,
     )
     input_edges = {
-        frs.TargetHandle(node="trybody", port="x"): frs.InputSource(port="x"),
-        frs.TargetHandle(node="trybody", port="y"): frs.InputSource(port="y"),
-        frs.TargetHandle(node="handler", port="x"): frs.InputSource(port="x"),
-        frs.TargetHandle(node="handler", port="y"): frs.InputSource(port="y"),
+        fr.schemas.TargetHandle(node="trybody", port="x"): fr.schemas.InputSource(
+            port="x"
+        ),
+        fr.schemas.TargetHandle(node="trybody", port="y"): fr.schemas.InputSource(
+            port="y"
+        ),
+        fr.schemas.TargetHandle(node="handler", port="x"): fr.schemas.InputSource(
+            port="x"
+        ),
+        fr.schemas.TargetHandle(node="handler", port="y"): fr.schemas.InputSource(
+            port="y"
+        ),
     }
-    return frs.TryRecipe(
+    return fr.schemas.TryRecipe(
         inputs=["x", "y"],
         outputs=["out"],
         try_node=try_body,
         exception_cases=[exc_case],
         input_edges=input_edges,
         prospective_output_edges={
-            frs.OutputTarget(port="out"): [
-                frs.SourceHandle(node="trybody", port="output_0")
+            fr.schemas.OutputTarget(port="out"): [
+                fr.schemas.SourceHandle(node="trybody", port="output_0")
             ],
         },
     )
@@ -218,7 +236,9 @@ class TestWorkflow2MacroNonLossy(unittest.TestCase):
     def test_output_port_hints_preserved(self) -> None:
         wf = _fixtures.build_workflow(inputs=["y"], outputs=["y"], label="wf")
         wf.add_edge(
-            datatypes.EdgeTuple(frs.InputSource(port="y"), frs.OutputTarget(port="y"))
+            datatypes.EdgeTuple(
+                fr.schemas.InputSource(port="y"), fr.schemas.OutputTarget(port="y")
+            )
         )
         wf.add_port_hint(wf.outputs["y"], float)
         macro = constructors.workflow2macro(wf)
@@ -240,20 +260,20 @@ class TestConvertersExecutorPreservation(unittest.TestCase):
             node_specs={"nested": _fixtures.nested_macro_node},
             edges=[
                 datatypes.EdgeTuple(
-                    frs.InputSource(port="x"),
-                    frs.TargetHandle(node="nested", port="x"),
+                    fr.schemas.InputSource(port="x"),
+                    fr.schemas.TargetHandle(node="nested", port="x"),
                 ),
                 datatypes.EdgeTuple(
-                    frs.InputSource(port="y"),
-                    frs.TargetHandle(node="nested", port="y"),
+                    fr.schemas.InputSource(port="y"),
+                    fr.schemas.TargetHandle(node="nested", port="y"),
                 ),
                 datatypes.EdgeTuple(
-                    frs.SourceHandle(node="nested", port="a"),
-                    frs.OutputTarget(port="a"),
+                    fr.schemas.SourceHandle(node="nested", port="a"),
+                    fr.schemas.OutputTarget(port="a"),
                 ),
                 datatypes.EdgeTuple(
-                    frs.SourceHandle(node="nested", port="s"),
-                    frs.OutputTarget(port="s"),
+                    fr.schemas.SourceHandle(node="nested", port="s"),
+                    fr.schemas.OutputTarget(port="s"),
                 ),
             ],
             label="root",
@@ -291,22 +311,24 @@ class TestEdges2EdgeList(unittest.TestCase):
 
     def test_input_edges_only(self) -> None:
         e = {
-            frs.TargetHandle(node="a", port="x"): frs.InputSource(port="x"),
+            fr.schemas.TargetHandle(node="a", port="x"): fr.schemas.InputSource(
+                port="x"
+            ),
         }
         out = constructors.edges2edgelist(e, {}, {})
         self.assertEqual(
             out,
             [
                 datatypes.EdgeTuple(
-                    frs.InputSource(port="x"),
-                    frs.TargetHandle(node="a", port="x"),
+                    fr.schemas.InputSource(port="x"),
+                    fr.schemas.TargetHandle(node="a", port="x"),
                 )
             ],
         )
 
     def test_peer_edges_only(self) -> None:
         e = {
-            frs.TargetHandle(node="b", port="x"): frs.SourceHandle(
+            fr.schemas.TargetHandle(node="b", port="x"): fr.schemas.SourceHandle(
                 node="a", port="output_0"
             ),
         }
@@ -315,23 +337,25 @@ class TestEdges2EdgeList(unittest.TestCase):
             out,
             [
                 datatypes.EdgeTuple(
-                    frs.SourceHandle(node="a", port="output_0"),
-                    frs.TargetHandle(node="b", port="x"),
+                    fr.schemas.SourceHandle(node="a", port="output_0"),
+                    fr.schemas.TargetHandle(node="b", port="x"),
                 )
             ],
         )
 
     def test_output_edges_only(self) -> None:
         e = {
-            frs.OutputTarget(port="out"): frs.SourceHandle(node="a", port="output_0"),
+            fr.schemas.OutputTarget(port="out"): fr.schemas.SourceHandle(
+                node="a", port="output_0"
+            ),
         }
         out = constructors.edges2edgelist({}, {}, e)
         self.assertEqual(
             out,
             [
                 datatypes.EdgeTuple(
-                    frs.SourceHandle(node="a", port="output_0"),
-                    frs.OutputTarget(port="out"),
+                    fr.schemas.SourceHandle(node="a", port="output_0"),
+                    fr.schemas.OutputTarget(port="out"),
                 )
             ],
         )
@@ -351,16 +375,16 @@ class TestEdgeList2Edges(unittest.TestCase):
     def test_partitions_each_kind(self) -> None:
         edges: datatypes.EdgeList = [
             datatypes.EdgeTuple(
-                frs.InputSource(port="x"),
-                frs.TargetHandle(node="a", port="x"),
+                fr.schemas.InputSource(port="x"),
+                fr.schemas.TargetHandle(node="a", port="x"),
             ),
             datatypes.EdgeTuple(
-                frs.SourceHandle(node="a", port="output_0"),
-                frs.TargetHandle(node="b", port="x"),
+                fr.schemas.SourceHandle(node="a", port="output_0"),
+                fr.schemas.TargetHandle(node="b", port="x"),
             ),
             datatypes.EdgeTuple(
-                frs.SourceHandle(node="b", port="output_0"),
-                frs.OutputTarget(port="out"),
+                fr.schemas.SourceHandle(node="b", port="output_0"),
+                fr.schemas.OutputTarget(port="out"),
             ),
         ]
         inp, peer, out = constructors.edgelist2edges(edges)
@@ -368,27 +392,29 @@ class TestEdgeList2Edges(unittest.TestCase):
         self.assertEqual(len(peer), 1)
         self.assertEqual(len(out), 1)
         self.assertEqual(
-            inp[frs.TargetHandle(node="a", port="x")],
-            frs.InputSource(port="x"),
+            inp[fr.schemas.TargetHandle(node="a", port="x")],
+            fr.schemas.InputSource(port="x"),
         )
 
     def test_passthrough_output_edge(self) -> None:
         edges: datatypes.EdgeList = [
             datatypes.EdgeTuple(
-                frs.InputSource(port="x"),
-                frs.OutputTarget(port="y"),
+                fr.schemas.InputSource(port="x"),
+                fr.schemas.OutputTarget(port="y"),
             ),
         ]
         inp, peer, out = constructors.edgelist2edges(edges)
         self.assertEqual(inp, {})
         self.assertEqual(peer, {})
-        self.assertEqual(out[frs.OutputTarget(port="y")], frs.InputSource(port="x"))
+        self.assertEqual(
+            out[fr.schemas.OutputTarget(port="y")], fr.schemas.InputSource(port="x")
+        )
 
     def test_invalid_combination_raises(self) -> None:
         edges: datatypes.EdgeList = [
             datatypes.EdgeTuple(
-                frs.InputSource(port="x"),
-                frs.InputSource(port="y"),  # type: ignore[arg-type]
+                fr.schemas.InputSource(port="x"),
+                fr.schemas.InputSource(port="y"),  # type: ignore[arg-type]
             ),
         ]
         with self.assertRaises(TypeError) as ctx:

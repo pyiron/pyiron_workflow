@@ -1,6 +1,6 @@
 import unittest
 
-from flowrep.api import schemas as frs
+import flowrep as fr
 
 from pyiron_workflow._wfms import api as wfms
 
@@ -31,16 +31,16 @@ class TestUnwind(unittest.TestCase):
         # Set up half the input edges in alignment with type hints
         first_half = [
             wfms.EdgeTuple(
-                frs.InputSource(port="n"),
-                frs.TargetHandle(node="matching", port="n"),
+                fr.schemas.InputSource(port="n"),
+                fr.schemas.TargetHandle(node="matching", port="n"),
             ),
             wfms.EdgeTuple(
-                frs.InputSource(port="n"),
-                frs.TargetHandle(node="as_or_more_specific", port="n"),
+                fr.schemas.InputSource(port="n"),
+                fr.schemas.TargetHandle(node="as_or_more_specific", port="n"),
             ),
             wfms.EdgeTuple(
-                frs.InputSource(port="y"),
-                frs.TargetHandle(node="wrong", port="y"),
+                fr.schemas.InputSource(port="y"),
+                fr.schemas.TargetHandle(node="wrong", port="y"),
             ),
         ]
         wf.add_edge(*first_half)
@@ -52,16 +52,16 @@ class TestUnwind(unittest.TestCase):
 
         second_half = [
             wfms.EdgeTuple(  # Perfect match
-                frs.InputSource(port="y"),
-                frs.TargetHandle(node="matching", port="y"),
+                fr.schemas.InputSource(port="y"),
+                fr.schemas.TargetHandle(node="matching", port="y"),
             ),
             wfms.EdgeTuple(  # More specific: passing int to float
-                frs.InputSource(port="m"),
-                frs.TargetHandle(node="as_or_more_specific", port="y"),
+                fr.schemas.InputSource(port="m"),
+                fr.schemas.TargetHandle(node="as_or_more_specific", port="y"),
             ),
             wfms.EdgeTuple(  # WRONG: passing float to int
-                frs.InputSource(port="x"),
-                frs.TargetHandle(node="wrong", port="n"),
+                fr.schemas.InputSource(port="x"),
+                fr.schemas.TargetHandle(node="wrong", port="n"),
             ),
         ]
 

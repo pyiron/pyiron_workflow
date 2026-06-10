@@ -1,7 +1,6 @@
 from __future__ import annotations
 
-from flowrep.api import schemas as frs
-from flowrep.api import tools as frt
+import flowrep as fr
 from pyiron_snippets import retrieve
 
 from pyiron_workflow._wfms import constructors, dag, execution
@@ -16,15 +15,15 @@ from pyiron_workflow._wfms.datatypes import (
 class UnmatchedExceptionError(TypeError): ...
 
 
-class Try(StaticGraph[frs.TryRecipe, frs.TryData]):
-    _recipe: frs.TryRecipe
+class Try(StaticGraph[fr.schemas.TryRecipe, fr.schemas.TryData]):
+    _recipe: fr.schemas.TryRecipe
 
     @classmethod
-    def _result_type(cls) -> type[frs.TryData]:
-        return frs.TryData
+    def _result_type(cls) -> type[fr.schemas.TryData]:
+        return fr.schemas.TryData
 
-    def _build_nodes(self, recipe: frs.TryRecipe) -> NodeMap:
-        nodes: dict[frs.Label, Node] = {
+    def _build_nodes(self, recipe: fr.schemas.TryRecipe) -> NodeMap:
+        nodes: dict[fr.schemas.Label, Node] = {
             recipe.try_node.label: constructors.recipe2node(
                 recipe.try_node.node, recipe.try_node.label
             )
@@ -35,7 +34,7 @@ class Try(StaticGraph[frs.TryRecipe, frs.TryData]):
             )
         return NodeMap(self, nodes)
 
-    def _build_edges(self, recipe: frs.TryRecipe) -> EdgeList:
+    def _build_edges(self, recipe: fr.schemas.TryRecipe) -> EdgeList:
         return []
 
     def evaluate(
@@ -84,7 +83,7 @@ class Try(StaticGraph[frs.TryRecipe, frs.TryData]):
 
     @staticmethod
     def _resolve_exception_types(
-        case: frs.ExceptionCase,
+        case: fr.schemas.ExceptionCase,
     ) -> tuple[type[BaseException], ...]:
         return tuple(
             retrieve.import_from_string(info.fully_qualified_name)
@@ -93,24 +92,24 @@ class Try(StaticGraph[frs.TryRecipe, frs.TryData]):
 
     @staticmethod
     def _stage_node(
-        node_label: frs.Label,
-        result: frs.IfData,
+        node_label: fr.schemas.Label,
+        result: fr.schemas.IfData,
         node_recipe: (
-            frs.AtomicRecipe
-            | frs.ForEachRecipe
-            | frs.IfRecipe
-            | frs.TryRecipe
-            | frs.WhileRecipe
-            | frs.WorkflowRecipe
+            fr.schemas.AtomicRecipe
+            | fr.schemas.ForEachRecipe
+            | fr.schemas.IfRecipe
+            | fr.schemas.TryRecipe
+            | fr.schemas.WhileRecipe
+            | fr.schemas.WorkflowRecipe
         ),
     ) -> None:
-        result.nodes[node_label] = frt.recipe2data(node_recipe)
+        result.nodes[node_label] = fr.tools.recipe2data(node_recipe)
 
     @staticmethod
     def _stage_node_input_edges(
-        node_label: frs.Label,
-        result: frs.TryData,
-        recipe: frs.TryRecipe,
+        node_label: fr.schemas.Label,
+        result: fr.schemas.TryData,
+        recipe: fr.schemas.TryRecipe,
     ) -> None:
         for target, source in recipe.input_edges.items():
             if target.node == node_label:
@@ -118,9 +117,9 @@ class Try(StaticGraph[frs.TryRecipe, frs.TryData]):
 
     @staticmethod
     def _stage_body_output_edges(
-        body_label: frs.Label,
-        result: frs.TryData,
-        recipe: frs.TryRecipe,
+        body_label: fr.schemas.Label,
+        result: fr.schemas.TryData,
+        recipe: fr.schemas.TryRecipe,
     ) -> None:
         for target, sources in recipe.prospective_output_edges.items():
             for source in sources:

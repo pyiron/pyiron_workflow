@@ -1,7 +1,6 @@
 from __future__ import annotations
 
-from flowrep.api import schemas as frs
-from flowrep.api import tools as frt
+import flowrep as fr
 
 from pyiron_workflow._wfms import constructors, dag, execution
 from pyiron_workflow._wfms.datatypes import (
@@ -12,15 +11,15 @@ from pyiron_workflow._wfms.datatypes import (
 )
 
 
-class If(StaticGraph[frs.IfRecipe, frs.IfData]):
-    _recipe: frs.IfRecipe
+class If(StaticGraph[fr.schemas.IfRecipe, fr.schemas.IfData]):
+    _recipe: fr.schemas.IfRecipe
 
     @classmethod
-    def _result_type(cls) -> type[frs.IfData]:
-        return frs.IfData
+    def _result_type(cls) -> type[fr.schemas.IfData]:
+        return fr.schemas.IfData
 
-    def _build_nodes(self, recipe: frs.IfRecipe) -> NodeMap:
-        nodes: dict[frs.Label, Node] = {}
+    def _build_nodes(self, recipe: fr.schemas.IfRecipe) -> NodeMap:
+        nodes: dict[fr.schemas.Label, Node] = {}
         for case in recipe.cases:
             nodes[case.condition.label] = constructors.recipe2node(
                 case.condition.node, case.condition.label
@@ -34,7 +33,7 @@ class If(StaticGraph[frs.IfRecipe, frs.IfData]):
             )
         return NodeMap(self, nodes)
 
-    def _build_edges(self, recipe: frs.IfRecipe) -> EdgeList:
+    def _build_edges(self, recipe: fr.schemas.IfRecipe) -> EdgeList:
         return []
 
     def evaluate(
@@ -76,24 +75,24 @@ class If(StaticGraph[frs.IfRecipe, frs.IfData]):
 
     @staticmethod
     def _stage_node(
-        node_label: frs.Label,
-        result: frs.IfData,
+        node_label: fr.schemas.Label,
+        result: fr.schemas.IfData,
         node_recipe: (
-            frs.AtomicRecipe
-            | frs.ForEachRecipe
-            | frs.IfRecipe
-            | frs.TryRecipe
-            | frs.WhileRecipe
-            | frs.WorkflowRecipe
+            fr.schemas.AtomicRecipe
+            | fr.schemas.ForEachRecipe
+            | fr.schemas.IfRecipe
+            | fr.schemas.TryRecipe
+            | fr.schemas.WhileRecipe
+            | fr.schemas.WorkflowRecipe
         ),
     ) -> None:
-        result.nodes[node_label] = frt.recipe2data(node_recipe)
+        result.nodes[node_label] = fr.tools.recipe2data(node_recipe)
 
     @staticmethod
     def _stage_node_input_edges(
-        node_label: frs.Label,
-        result: frs.IfData,
-        recipe: frs.IfRecipe,
+        node_label: fr.schemas.Label,
+        result: fr.schemas.IfData,
+        recipe: fr.schemas.IfRecipe,
     ) -> None:
         """
         Copy `recipe.input_edges` entries targeting `node_label` onto `result`.
@@ -109,9 +108,9 @@ class If(StaticGraph[frs.IfRecipe, frs.IfData]):
 
     @staticmethod
     def _stage_body_output_edges(
-        body_label: frs.Label,
-        result: frs.IfData,
-        recipe: frs.IfRecipe,
+        body_label: fr.schemas.Label,
+        result: fr.schemas.IfData,
+        recipe: fr.schemas.IfRecipe,
     ) -> None:
         """
         Project `recipe.prospective_output_edges` onto a single body's sources.
@@ -129,7 +128,9 @@ class If(StaticGraph[frs.IfRecipe, frs.IfData]):
                     break
 
     @staticmethod
-    def _condition_value(case: frs.ConditionalCase, result: frs.IfData) -> bool:
+    def _condition_value(
+        case: fr.schemas.ConditionalCase, result: fr.schemas.IfData
+    ) -> bool:
         output_label = case.condition_output
         if output_label is None:
             output_label = next(iter(case.condition.node.outputs))

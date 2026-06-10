@@ -3,7 +3,7 @@ from __future__ import annotations
 import dataclasses
 import unittest
 
-from flowrep.api import schemas as frs
+import flowrep as fr
 from pyiron_snippets import versions
 
 from pyiron_workflow._wfms import atomic, execution, transformers
@@ -58,16 +58,16 @@ def _atomic_recipe(
     *,
     inputs: list[str],
     outputs: list[str],
-    unpack_mode: frs.UnpackMode,
-    restricted: dict[str, frs.RestrictedParamKind] | None = None,
+    unpack_mode: fr.schemas.UnpackMode,
+    restricted: dict[str, fr.schemas.RestrictedParamKind] | None = None,
     inputs_with_defaults: list[str] | None = None,
-) -> frs.AtomicRecipe:
-    reference = frs.PythonReference(
+) -> fr.schemas.AtomicRecipe:
+    reference = fr.schemas.PythonReference(
         info=versions.VersionInfo.of(func),
         inputs_with_defaults=inputs_with_defaults or [],
         restricted_input_kinds=restricted or {},
     )
-    return frs.AtomicRecipe(
+    return fr.schemas.AtomicRecipe(
         reference=reference,
         inputs=inputs,
         outputs=outputs,
@@ -90,7 +90,7 @@ class TestAtomicInit(unittest.TestCase):
             func_with_metadata,
             inputs=["x"],
             outputs=["out"],
-            unpack_mode=frs.UnpackMode.NONE,
+            unpack_mode=fr.schemas.UnpackMode.NONE,
         )
         node = atomic.Atomic("lbl", recipe)
         self.assertIs(node.function_metadata, _METADATA_SENTINEL)
@@ -98,7 +98,7 @@ class TestAtomicInit(unittest.TestCase):
 
 class TestAtomicResultType(unittest.TestCase):
     def test_result_type_is_live_atomic(self) -> None:
-        self.assertIs(atomic.Atomic._result_type(), frs.AtomicData)
+        self.assertIs(atomic.Atomic._result_type(), fr.schemas.AtomicData)
 
 
 class TestAtomicEvaluate(unittest.TestCase):
@@ -138,10 +138,10 @@ class TestCallAtomic(unittest.TestCase):
             with_default,
             inputs=["x", "y"],
             outputs=["out"],
-            unpack_mode=frs.UnpackMode.NONE,
+            unpack_mode=fr.schemas.UnpackMode.NONE,
             inputs_with_defaults=["y"],
         )
-        live = frs.AtomicData.from_recipe(recipe)
+        live = fr.schemas.AtomicData.from_recipe(recipe)
         live.input_ports["x"].value = 1
         # `y` is left as NotData; the recipe carries a default of 10.
         self.assertEqual(atomic._call_atomic(live), 11)
@@ -151,9 +151,9 @@ class TestCallAtomic(unittest.TestCase):
             add_no_default,
             inputs=["x", "y"],
             outputs=["out"],
-            unpack_mode=frs.UnpackMode.NONE,
+            unpack_mode=fr.schemas.UnpackMode.NONE,
         )
-        live = frs.AtomicData.from_recipe(recipe)
+        live = fr.schemas.AtomicData.from_recipe(recipe)
         live.input_ports["x"].value = 1
         # `y` has neither value nor default.
         with self.assertRaises(ValueError) as ctx:
@@ -172,9 +172,9 @@ class TestStoreAtomicOutputs(unittest.TestCase):
             with_default,
             inputs=["x"],
             outputs=["out"],
-            unpack_mode=frs.UnpackMode.NONE,
+            unpack_mode=fr.schemas.UnpackMode.NONE,
         )
-        live = frs.AtomicData.from_recipe(recipe)
+        live = fr.schemas.AtomicData.from_recipe(recipe)
         payload = [1, 2, 3]
         atomic._store_atomic_outputs(live, payload)
         self.assertEqual(live.output_ports["out"].value, payload)
@@ -184,9 +184,9 @@ class TestStoreAtomicOutputs(unittest.TestCase):
             with_default,
             inputs=["x"],
             outputs=["out"],
-            unpack_mode=frs.UnpackMode.TUPLE,
+            unpack_mode=fr.schemas.UnpackMode.TUPLE,
         )
-        live = frs.AtomicData.from_recipe(recipe)
+        live = fr.schemas.AtomicData.from_recipe(recipe)
         payload = (1, 2, 3)
         atomic._store_atomic_outputs(live, payload)
         self.assertEqual(live.output_ports["out"].value, payload)
@@ -196,9 +196,9 @@ class TestStoreAtomicOutputs(unittest.TestCase):
             with_default,
             inputs=["x"],
             outputs=["a", "b", "c"],
-            unpack_mode=frs.UnpackMode.TUPLE,
+            unpack_mode=fr.schemas.UnpackMode.TUPLE,
         )
-        live = frs.AtomicData.from_recipe(recipe)
+        live = fr.schemas.AtomicData.from_recipe(recipe)
         atomic._store_atomic_outputs(live, (1, 2, 3))
         self.assertEqual(live.output_ports["a"].value, 1)
         self.assertEqual(live.output_ports["b"].value, 2)
@@ -209,9 +209,9 @@ class TestStoreAtomicOutputs(unittest.TestCase):
             with_default,
             inputs=["x"],
             outputs=["a", "b", "c"],
-            unpack_mode=frs.UnpackMode.TUPLE,
+            unpack_mode=fr.schemas.UnpackMode.TUPLE,
         )
-        live = frs.AtomicData.from_recipe(recipe)
+        live = fr.schemas.AtomicData.from_recipe(recipe)
         with self.assertRaises(ValueError):
             atomic._store_atomic_outputs(live, (1, 2))
 
@@ -220,9 +220,9 @@ class TestStoreAtomicOutputs(unittest.TestCase):
             _make_pair,
             inputs=[],
             outputs=["a", "b"],
-            unpack_mode=frs.UnpackMode.DATACLASS,
+            unpack_mode=fr.schemas.UnpackMode.DATACLASS,
         )
-        live = frs.AtomicData.from_recipe(recipe)
+        live = fr.schemas.AtomicData.from_recipe(recipe)
         result = _Pair(a=11, b=22)
         atomic._store_atomic_outputs(live, result)
         self.assertEqual(live.output_ports["a"].value, 11)

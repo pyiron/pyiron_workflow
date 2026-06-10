@@ -2,36 +2,40 @@ from __future__ import annotations
 
 import unittest
 
-from flowrep.api import schemas as frs
+import flowrep as fr
 
 from pyiron_workflow._wfms import execution, transformers
 from pyiron_workflow._wfms.flowcontrollers import forflow
 from tests.unit._wfms import _fixtures
 
 
-def _atomic_body_recipe() -> frs.AtomicRecipe:
+def _atomic_body_recipe() -> fr.schemas.AtomicRecipe:
     """The `add(x, y)` atomic recipe — handy as a 2-input body."""
     return _fixtures.add.flowrep_recipe
 
 
-def _macro_body_recipe() -> frs.WorkflowRecipe:
+def _macro_body_recipe() -> fr.schemas.WorkflowRecipe:
     """The `macro(x, y, z)` workflow recipe — handy as a 3-input body."""
     return _fixtures.macro.flowrep_recipe
 
 
-def _build_nested_only_recipe() -> frs.ForEachRecipe:
+def _build_nested_only_recipe() -> fr.schemas.ForEachRecipe:
     """body=add(x, y); `x` nested, `y` broadcast."""
-    body = frs.LabeledRecipe(label="body", node=_atomic_body_recipe())
-    return frs.ForEachRecipe(
+    body = fr.schemas.LabeledRecipe(label="body", node=_atomic_body_recipe())
+    return fr.schemas.ForEachRecipe(
         inputs=["xs", "y"],
         outputs=["sums"],
         body_node=body,
         input_edges={
-            frs.TargetHandle(node="body", port="x"): frs.InputSource(port="xs"),
-            frs.TargetHandle(node="body", port="y"): frs.InputSource(port="y"),
+            fr.schemas.TargetHandle(node="body", port="x"): fr.schemas.InputSource(
+                port="xs"
+            ),
+            fr.schemas.TargetHandle(node="body", port="y"): fr.schemas.InputSource(
+                port="y"
+            ),
         },
         output_edges={
-            frs.OutputTarget(port="sums"): frs.SourceHandle(
+            fr.schemas.OutputTarget(port="sums"): fr.schemas.SourceHandle(
                 node="body", port="output_0"
             ),
         },
@@ -40,19 +44,23 @@ def _build_nested_only_recipe() -> frs.ForEachRecipe:
     )
 
 
-def _build_zipped_only_recipe() -> frs.ForEachRecipe:
+def _build_zipped_only_recipe() -> fr.schemas.ForEachRecipe:
     """body=add(x, y); both zipped."""
-    body = frs.LabeledRecipe(label="body", node=_atomic_body_recipe())
-    return frs.ForEachRecipe(
+    body = fr.schemas.LabeledRecipe(label="body", node=_atomic_body_recipe())
+    return fr.schemas.ForEachRecipe(
         inputs=["xs", "ys"],
         outputs=["sums"],
         body_node=body,
         input_edges={
-            frs.TargetHandle(node="body", port="x"): frs.InputSource(port="xs"),
-            frs.TargetHandle(node="body", port="y"): frs.InputSource(port="ys"),
+            fr.schemas.TargetHandle(node="body", port="x"): fr.schemas.InputSource(
+                port="xs"
+            ),
+            fr.schemas.TargetHandle(node="body", port="y"): fr.schemas.InputSource(
+                port="ys"
+            ),
         },
         output_edges={
-            frs.OutputTarget(port="sums"): frs.SourceHandle(
+            fr.schemas.OutputTarget(port="sums"): fr.schemas.SourceHandle(
                 node="body", port="output_0"
             ),
         },
@@ -61,44 +69,56 @@ def _build_zipped_only_recipe() -> frs.ForEachRecipe:
     )
 
 
-def _build_mixed_recipe() -> frs.ForEachRecipe:
+def _build_mixed_recipe() -> fr.schemas.ForEachRecipe:
     """body=macro(x, y, z); `x` nested, `y` and `z` zipped."""
-    body = frs.LabeledRecipe(label="body", node=_macro_body_recipe())
-    return frs.ForEachRecipe(
+    body = fr.schemas.LabeledRecipe(label="body", node=_macro_body_recipe())
+    return fr.schemas.ForEachRecipe(
         inputs=["xs", "ys", "ws"],
         outputs=["sums"],
         body_node=body,
         input_edges={
-            frs.TargetHandle(node="body", port="x"): frs.InputSource(port="xs"),
-            frs.TargetHandle(node="body", port="y"): frs.InputSource(port="ys"),
-            frs.TargetHandle(node="body", port="z"): frs.InputSource(port="ws"),
+            fr.schemas.TargetHandle(node="body", port="x"): fr.schemas.InputSource(
+                port="xs"
+            ),
+            fr.schemas.TargetHandle(node="body", port="y"): fr.schemas.InputSource(
+                port="ys"
+            ),
+            fr.schemas.TargetHandle(node="body", port="z"): fr.schemas.InputSource(
+                port="ws"
+            ),
         },
         output_edges={
-            frs.OutputTarget(port="sums"): frs.SourceHandle(node="body", port="s"),
+            fr.schemas.OutputTarget(port="sums"): fr.schemas.SourceHandle(
+                node="body", port="s"
+            ),
         },
         nested_ports=["x"],
         zipped_ports=["y", "z"],
     )
 
 
-def _make_broadcast_only_recipe() -> frs.ForEachRecipe:
+def _make_broadcast_only_recipe() -> fr.schemas.ForEachRecipe:
     """body=add(x, y); both broadcast.
 
     The recipe-level validators forbid a ForEach with no iterated ports, so
     `model_construct` is used to bypass them — `_build_runtime_dag` doesn't
     care, it just reads fields.
     """
-    body = frs.LabeledRecipe(label="body", node=_atomic_body_recipe())
-    return frs.ForEachRecipe.model_construct(
+    body = fr.schemas.LabeledRecipe(label="body", node=_atomic_body_recipe())
+    return fr.schemas.ForEachRecipe.model_construct(
         inputs=["x", "y"],
         outputs=["out"],
         body_node=body,
         input_edges={
-            frs.TargetHandle(node="body", port="x"): frs.InputSource(port="x"),
-            frs.TargetHandle(node="body", port="y"): frs.InputSource(port="y"),
+            fr.schemas.TargetHandle(node="body", port="x"): fr.schemas.InputSource(
+                port="x"
+            ),
+            fr.schemas.TargetHandle(node="body", port="y"): fr.schemas.InputSource(
+                port="y"
+            ),
         },
         output_edges={
-            frs.OutputTarget(port="out"): frs.SourceHandle(
+            fr.schemas.OutputTarget(port="out"): fr.schemas.SourceHandle(
                 node="body", port="output_0"
             ),
         },
@@ -109,7 +129,7 @@ def _make_broadcast_only_recipe() -> frs.ForEachRecipe:
 
 def _prepare_run(
     fe: forflow.ForEach, inputs: dict[str, object]
-) -> execution.Run[frs.ForEachData]:
+) -> execution.Run[fr.schemas.ForEachData]:
     """Build a Run with seeded input port values, ready for _build_runtime_dag."""
     live = fe.generate_flowrep_live_node()
     for name, val in inputs.items():
@@ -138,21 +158,21 @@ class TestBuildRuntimeDagNestedOnly(unittest.TestCase):
 
     def test_input_edge_to_scatter(self) -> None:
         scatter_input = self.dag_run.result.input_edges[
-            frs.TargetHandle(
+            fr.schemas.TargetHandle(
                 node="scatter_xs",
                 port=transformers.Transform1toN.input_label,
             )
         ]
-        self.assertEqual(scatter_input, frs.InputSource(port="xs"))
+        self.assertEqual(scatter_input, fr.schemas.InputSource(port="xs"))
 
     def test_scatter_to_bodies_indexed_correctly(self) -> None:
         for i in range(2):
             src = self.dag_run.result.edges[
-                frs.TargetHandle(node=f"body_{i}", port="x")
+                fr.schemas.TargetHandle(node=f"body_{i}", port="x")
             ]
             self.assertEqual(
                 src,
-                frs.SourceHandle(
+                fr.schemas.SourceHandle(
                     node="scatter_xs",
                     port=transformers.Transform1toN.output_label(i),
                 ),
@@ -161,25 +181,27 @@ class TestBuildRuntimeDagNestedOnly(unittest.TestCase):
     def test_broadcast_y_to_each_body(self) -> None:
         for i in range(2):
             src = self.dag_run.result.input_edges[
-                frs.TargetHandle(node=f"body_{i}", port="y")
+                fr.schemas.TargetHandle(node=f"body_{i}", port="y")
             ]
-            self.assertEqual(src, frs.InputSource(port="y"))
+            self.assertEqual(src, fr.schemas.InputSource(port="y"))
 
     def test_bodies_to_aggregator(self) -> None:
         for i in range(2):
             src = self.dag_run.result.edges[
-                frs.TargetHandle(
+                fr.schemas.TargetHandle(
                     node="aggregate_sums",
                     port=transformers.TransformNto1.input_label(i),
                 )
             ]
-            self.assertEqual(src, frs.SourceHandle(node=f"body_{i}", port="output_0"))
+            self.assertEqual(
+                src, fr.schemas.SourceHandle(node=f"body_{i}", port="output_0")
+            )
 
     def test_output_edge_from_aggregator(self) -> None:
-        src = self.dag_run.result.output_edges[frs.OutputTarget(port="sums")]
+        src = self.dag_run.result.output_edges[fr.schemas.OutputTarget(port="sums")]
         self.assertEqual(
             src,
-            frs.SourceHandle(
+            fr.schemas.SourceHandle(
                 node="aggregate_sums",
                 port=transformers.TransformNto1.output_label,
             ),
@@ -204,21 +226,21 @@ class TestBuildRuntimeDagZippedOnly(unittest.TestCase):
     def test_zipped_indices_pair_per_body(self) -> None:
         for i in range(3):
             x_src = self.dag_run.result.edges[
-                frs.TargetHandle(node=f"body_{i}", port="x")
+                fr.schemas.TargetHandle(node=f"body_{i}", port="x")
             ]
             y_src = self.dag_run.result.edges[
-                frs.TargetHandle(node=f"body_{i}", port="y")
+                fr.schemas.TargetHandle(node=f"body_{i}", port="y")
             ]
             self.assertEqual(
                 x_src,
-                frs.SourceHandle(
+                fr.schemas.SourceHandle(
                     node="scatter_xs",
                     port=transformers.Transform1toN.output_label(i % 3),
                 ),
             )
             self.assertEqual(
                 y_src,
-                frs.SourceHandle(
+                fr.schemas.SourceHandle(
                     node="scatter_ys",
                     port=transformers.Transform1toN.output_label(i % 3),
                 ),
@@ -246,13 +268,13 @@ class TestBuildRuntimeDagMixed(unittest.TestCase):
         observed_pairs: set[tuple[int, int]] = set()
         for i in range(nested_length * zipped_width):
             x_src = self.dag_run.result.edges[
-                frs.TargetHandle(node=f"body_{i}", port="x")
+                fr.schemas.TargetHandle(node=f"body_{i}", port="x")
             ]
             y_src = self.dag_run.result.edges[
-                frs.TargetHandle(node=f"body_{i}", port="y")
+                fr.schemas.TargetHandle(node=f"body_{i}", port="y")
             ]
             z_src = self.dag_run.result.edges[
-                frs.TargetHandle(node=f"body_{i}", port="z")
+                fr.schemas.TargetHandle(node=f"body_{i}", port="z")
             ]
 
             nested_idx = (i // 3) % nested_length
@@ -260,21 +282,21 @@ class TestBuildRuntimeDagMixed(unittest.TestCase):
 
             self.assertEqual(
                 x_src,
-                frs.SourceHandle(
+                fr.schemas.SourceHandle(
                     node="scatter_xs",
                     port=transformers.Transform1toN.output_label(nested_idx),
                 ),
             )
             self.assertEqual(
                 y_src,
-                frs.SourceHandle(
+                fr.schemas.SourceHandle(
                     node="scatter_ys",
                     port=transformers.Transform1toN.output_label(zipped_idx),
                 ),
             )
             self.assertEqual(
                 z_src,
-                frs.SourceHandle(
+                fr.schemas.SourceHandle(
                     node="scatter_ws",
                     port=transformers.Transform1toN.output_label(zipped_idx),
                 ),
@@ -287,22 +309,26 @@ class TestBuildRuntimeDagMixed(unittest.TestCase):
         self.assertEqual(observed_pairs, expected_pairs)
 
 
-def _build_broadcast_seed_recipe() -> frs.ForEachRecipe:
+def _build_broadcast_seed_recipe() -> fr.schemas.ForEachRecipe:
     """
     A valid ForEach recipe with the same input-port labels (`x`, `y`)
     as the broadcast-only recipe we'll swap in later.
     """
-    body = frs.LabeledRecipe(label="body", node=_atomic_body_recipe())
-    return frs.ForEachRecipe(
+    body = fr.schemas.LabeledRecipe(label="body", node=_atomic_body_recipe())
+    return fr.schemas.ForEachRecipe(
         inputs=["x", "y"],
         outputs=["out"],
         body_node=body,
         input_edges={
-            frs.TargetHandle(node="body", port="x"): frs.InputSource(port="x"),
-            frs.TargetHandle(node="body", port="y"): frs.InputSource(port="y"),
+            fr.schemas.TargetHandle(node="body", port="x"): fr.schemas.InputSource(
+                port="x"
+            ),
+            fr.schemas.TargetHandle(node="body", port="y"): fr.schemas.InputSource(
+                port="y"
+            ),
         },
         output_edges={
-            frs.OutputTarget(port="out"): frs.SourceHandle(
+            fr.schemas.OutputTarget(port="out"): fr.schemas.SourceHandle(
                 node="body", port="output_0"
             ),
         },
@@ -338,13 +364,13 @@ class TestBuildRuntimeDagBroadcastOnly(unittest.TestCase):
 
     def test_all_parent_inputs_broadcast_to_body(self) -> None:
         x_src = self.dag_run.result.input_edges[
-            frs.TargetHandle(node="body_0", port="x")
+            fr.schemas.TargetHandle(node="body_0", port="x")
         ]
         y_src = self.dag_run.result.input_edges[
-            frs.TargetHandle(node="body_0", port="y")
+            fr.schemas.TargetHandle(node="body_0", port="y")
         ]
-        self.assertEqual(x_src, frs.InputSource(port="x"))
-        self.assertEqual(y_src, frs.InputSource(port="y"))
+        self.assertEqual(x_src, fr.schemas.InputSource(port="x"))
+        self.assertEqual(y_src, fr.schemas.InputSource(port="y"))
 
     def test_no_sibling_scatter_edges_to_body(self) -> None:
         # No scatter -> body edges should exist; the only sibling edges in
@@ -357,12 +383,12 @@ class TestBuildRuntimeDagBroadcastOnly(unittest.TestCase):
 
     def test_body_to_aggregator(self) -> None:
         src = self.dag_run.result.edges[
-            frs.TargetHandle(
+            fr.schemas.TargetHandle(
                 node="aggregate_out",
                 port=transformers.TransformNto1.input_label(0),
             )
         ]
-        self.assertEqual(src, frs.SourceHandle(node="body_0", port="output_0"))
+        self.assertEqual(src, fr.schemas.SourceHandle(node="body_0", port="output_0"))
 
 
 class TestValidateZippedLengths(unittest.TestCase):
@@ -439,12 +465,20 @@ class TestLabelHelpers(unittest.TestCase):
 
 class TestBodyToParentLabelMap(unittest.TestCase):
     def test_filters_by_body_label_and_port(self) -> None:
-        edges: frs.InputEdges = {
-            frs.TargetHandle(node="body", port="x"): frs.InputSource(port="xs"),
-            frs.TargetHandle(node="body", port="y"): frs.InputSource(port="ys"),
+        edges: fr.schemas.InputEdges = {
+            fr.schemas.TargetHandle(node="body", port="x"): fr.schemas.InputSource(
+                port="xs"
+            ),
+            fr.schemas.TargetHandle(node="body", port="y"): fr.schemas.InputSource(
+                port="ys"
+            ),
             # Unrelated entries that must be filtered out:
-            frs.TargetHandle(node="body", port="ignored"): frs.InputSource(port="z"),
-            frs.TargetHandle(node="other", port="x"): frs.InputSource(port="xs"),
+            fr.schemas.TargetHandle(
+                node="body", port="ignored"
+            ): fr.schemas.InputSource(port="z"),
+            fr.schemas.TargetHandle(node="other", port="x"): fr.schemas.InputSource(
+                port="xs"
+            ),
         }
         result = forflow.ForEach._body_to_parent_label_map(edges, "body", ["x", "y"])
         self.assertEqual(result, {"x": "xs", "y": "ys"})
@@ -457,10 +491,12 @@ class TestBodyToParentLabelMap(unittest.TestCase):
 
 class TestCapturedOutputLabelMap(unittest.TestCase):
     def test_includes_only_source_handle_entries_from_body(self) -> None:
-        edges: frs.OutputEdges = {
-            frs.OutputTarget(port="sums"): frs.SourceHandle(node="body", port="s"),
-            frs.OutputTarget(port="passed"): frs.InputSource(port="xs"),
-            frs.OutputTarget(port="other"): frs.SourceHandle(
+        edges: fr.schemas.OutputEdges = {
+            fr.schemas.OutputTarget(port="sums"): fr.schemas.SourceHandle(
+                node="body", port="s"
+            ),
+            fr.schemas.OutputTarget(port="passed"): fr.schemas.InputSource(port="xs"),
+            fr.schemas.OutputTarget(port="other"): fr.schemas.SourceHandle(
                 node="elsewhere", port="o"
             ),
         }
@@ -470,10 +506,12 @@ class TestCapturedOutputLabelMap(unittest.TestCase):
 
 class TestTransferLabelMap(unittest.TestCase):
     def test_only_input_source_entries_returned(self) -> None:
-        edges: frs.OutputEdges = {
-            frs.OutputTarget(port="sums"): frs.SourceHandle(node="body", port="s"),
-            frs.OutputTarget(port="x_used"): frs.InputSource(port="xs"),
-            frs.OutputTarget(port="y_used"): frs.InputSource(port="ys"),
+        edges: fr.schemas.OutputEdges = {
+            fr.schemas.OutputTarget(port="sums"): fr.schemas.SourceHandle(
+                node="body", port="s"
+            ),
+            fr.schemas.OutputTarget(port="x_used"): fr.schemas.InputSource(port="xs"),
+            fr.schemas.OutputTarget(port="y_used"): fr.schemas.InputSource(port="ys"),
         }
         result = forflow.ForEach._transfer_label_map(edges)
         self.assertEqual(result, {"x_used": "xs", "y_used": "ys"})

@@ -11,8 +11,8 @@ from __future__ import annotations
 import inspect
 import unittest
 
+import flowrep as fr
 import rdflib
-from flowrep.api import schemas as frs
 
 from pyiron_workflow._wfms import api as wfms
 from pyiron_workflow._wfms import dag, decorators, validation, workflow
@@ -30,8 +30,8 @@ class TestValidateEdge(unittest.TestCase):
             label="wf",
         )
         edge = wfms.EdgeTuple(
-            frs.SourceHandle(node="src", port="output_0"),
-            frs.TargetHandle(node="tgt", port="x"),
+            fr.schemas.SourceHandle(node="src", port="output_0"),
+            fr.schemas.TargetHandle(node="tgt", port="x"),
         )
         return wf, edge
 
@@ -43,8 +43,8 @@ class TestValidateEdge(unittest.TestCase):
         )
         wf.add_port_hint(wf.inputs["p"], hint)
         edge = wfms.EdgeTuple(
-            frs.InputSource(port="p"),
-            frs.TargetHandle(node="child", port="x"),
+            fr.schemas.InputSource(port="p"),
+            fr.schemas.TargetHandle(node="child", port="x"),
         )
         return wf, edge
 
@@ -56,8 +56,8 @@ class TestValidateEdge(unittest.TestCase):
         )
         wf.add_port_hint(wf.outputs["p"], hint)
         edge = wfms.EdgeTuple(
-            frs.SourceHandle(node="child", port="output_0"),
-            frs.OutputTarget(port="p"),
+            fr.schemas.SourceHandle(node="child", port="output_0"),
+            fr.schemas.OutputTarget(port="p"),
         )
         return wf, edge
 
@@ -171,8 +171,8 @@ class TestTypeValidationReport(unittest.TestCase):
 
     def _edge(self, src="a", tgt="b") -> wfms.EdgeTuple:
         return wfms.EdgeTuple(
-            frs.SourceHandle(node=src, port="output_0"),
-            frs.TargetHandle(node=tgt, port="x"),
+            fr.schemas.SourceHandle(node=src, port="output_0"),
+            fr.schemas.TargetHandle(node=tgt, port="x"),
         )
 
     def test_clean_report_is_valid_and_complete(self):
@@ -224,8 +224,8 @@ class TestValidateTypes(unittest.TestCase):
             node_specs={"src": src_factory, "tgt": tgt_factory}, label="wf"
         )
         edge = wfms.EdgeTuple(
-            frs.SourceHandle(node="src", port="output_0"),
-            frs.TargetHandle(node="tgt", port="x"),
+            fr.schemas.SourceHandle(node="src", port="output_0"),
+            fr.schemas.TargetHandle(node="tgt", port="x"),
         )
         wf.add_edge(edge, type_validate=type_validate)
         return wf
@@ -347,8 +347,8 @@ class TestCombinedValidationReport(unittest.TestCase):
             if valid
             else [
                 wfms.EdgeTuple(
-                    frs.SourceHandle(node="a", port="output_0"),
-                    frs.TargetHandle(node="b", port="x"),
+                    fr.schemas.SourceHandle(node="a", port="output_0"),
+                    fr.schemas.TargetHandle(node="b", port="x"),
                 )
             ]
         )

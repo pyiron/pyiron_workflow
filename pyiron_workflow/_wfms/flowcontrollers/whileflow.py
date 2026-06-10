@@ -1,7 +1,6 @@
 from __future__ import annotations
 
-from flowrep.api import schemas as frs
-from flowrep.api import tools as frt
+import flowrep as fr
 
 from pyiron_workflow._wfms import constructors, dag, execution
 from pyiron_workflow._wfms.datatypes import (
@@ -10,14 +9,14 @@ from pyiron_workflow._wfms.datatypes import (
 )
 
 
-class While(StaticGraph[frs.WhileRecipe, frs.WhileData]):
-    _recipe: frs.WhileRecipe
+class While(StaticGraph[fr.schemas.WhileRecipe, fr.schemas.WhileData]):
+    _recipe: fr.schemas.WhileRecipe
 
     @classmethod
-    def _result_type(cls) -> type[frs.WhileData]:
-        return frs.WhileData
+    def _result_type(cls) -> type[fr.schemas.WhileData]:
+        return fr.schemas.WhileData
 
-    def _build_nodes(self, recipe: frs.WhileRecipe) -> NodeMap:
+    def _build_nodes(self, recipe: fr.schemas.WhileRecipe) -> NodeMap:
         return NodeMap(
             self,
             {
@@ -30,7 +29,7 @@ class While(StaticGraph[frs.WhileRecipe, frs.WhileData]):
             },
         )
 
-    def _build_edges(self, recipe: frs.WhileRecipe) -> frs.Edges:
+    def _build_edges(self, recipe: fr.schemas.WhileRecipe) -> fr.schemas.Edges:
         """
         Cyclic 'iteration' edges exist from the prospective body back to the
         prospective condition and prospective body inputs. The resulting edges list
@@ -51,19 +50,22 @@ class While(StaticGraph[frs.WhileRecipe, frs.WhileData]):
         ]
 
         fallback_edges = [
-            (frs.InputSource(port=output_label), frs.OutputTarget(port=output_label))
+            (
+                fr.schemas.InputSource(port=output_label),
+                fr.schemas.OutputTarget(port=output_label),
+            )
             for output_label in self.outputs
         ]
 
         return input_edges + looped_edges + body_return_edges + fallback_edges
 
     @staticmethod
-    def _indexed_label(prefix: frs.Label, index: int) -> frs.Label:
+    def _indexed_label(prefix: fr.schemas.Label, index: int) -> fr.schemas.Label:
         return f"{prefix}_{index}"
 
     def evaluate(
-        self, run: execution.Run[frs.WhileData], config: execution.RunConfig
-    ) -> execution.Run[frs.WhileData]:
+        self, run: execution.Run[fr.schemas.WhileData], config: execution.RunConfig
+    ) -> execution.Run[fr.schemas.WhileData]:
         recipe = self._recipe
         result = run.result
         cond_prefix = recipe.case.condition.label
@@ -73,7 +75,7 @@ class While(StaticGraph[frs.WhileRecipe, frs.WhileData]):
         condition_node = self.nodes[cond_prefix]
         body_node = self.nodes[body_prefix]
 
-        last_body_label: frs.Label | None = None
+        last_body_label: fr.schemas.Label | None = None
         iteration = 0
         while True:
             cond_label = self._indexed_label(cond_prefix, iteration)
@@ -102,26 +104,26 @@ class While(StaticGraph[frs.WhileRecipe, frs.WhileData]):
 
     @staticmethod
     def _stage_node(
-        node_label: frs.Label,
-        result: frs.IfData,
+        node_label: fr.schemas.Label,
+        result: fr.schemas.IfData,
         node_recipe: (
-            frs.AtomicRecipe
-            | frs.ForEachRecipe
-            | frs.IfRecipe
-            | frs.TryRecipe
-            | frs.WhileRecipe
-            | frs.WorkflowRecipe
+            fr.schemas.AtomicRecipe
+            | fr.schemas.ForEachRecipe
+            | fr.schemas.IfRecipe
+            | fr.schemas.TryRecipe
+            | fr.schemas.WhileRecipe
+            | fr.schemas.WorkflowRecipe
         ),
     ) -> None:
-        result.nodes[node_label] = frt.recipe2data(node_recipe)
+        result.nodes[node_label] = fr.tools.recipe2data(node_recipe)
 
     @staticmethod
     def _stage_child_edges(
-        indexed_label: frs.Label,
-        base_label: frs.Label,
-        recipe: frs.WhileRecipe,
-        result: frs.WhileData,
-        last_body_label: frs.Label | None,
+        indexed_label: fr.schemas.Label,
+        base_label: fr.schemas.Label,
+        recipe: fr.schemas.WhileRecipe,
+        result: fr.schemas.WhileData,
+        last_body_label: fr.schemas.Label | None,
     ) -> None:
         output_port_to_body_port = {
             ot.port: src.port for ot, src in recipe.output_edges.items()
@@ -129,10 +131,10 @@ class While(StaticGraph[frs.WhileRecipe, frs.WhileData]):
         for target, source in recipe.input_edges.items():
             if target.node != base_label:
                 continue
-            new_target = frs.TargetHandle(node=indexed_label, port=target.port)
+            new_target = fr.schemas.TargetHandle(node=indexed_label, port=target.port)
             if source.port in output_port_to_body_port and last_body_label is not None:
                 body_port = output_port_to_body_port[source.port]
-                result.edges[new_target] = frs.SourceHandle(
+                result.edges[new_target] = fr.schemas.SourceHandle(
                     node=last_body_label, port=body_port
                 )
             else:
@@ -140,21 +142,23 @@ class While(StaticGraph[frs.WhileRecipe, frs.WhileData]):
 
     @staticmethod
     def _stage_final_output_edges(
-        result: frs.WhileData,
-        recipe: frs.WhileRecipe,
-        last_body_label: frs.Label | None,
+        result: fr.schemas.WhileData,
+        recipe: fr.schemas.WhileRecipe,
+        last_body_label: fr.schemas.Label | None,
     ) -> None:
         for target, source in recipe.output_edges.items():
             if last_body_label is None:
-                result.output_edges[target] = frs.InputSource(port=target.port)
+                result.output_edges[target] = fr.schemas.InputSource(port=target.port)
             else:
-                result.output_edges[target] = frs.SourceHandle(
+                result.output_edges[target] = fr.schemas.SourceHandle(
                     node=last_body_label, port=source.port
                 )
 
     @staticmethod
     def _condition_value(
-        cond_label: frs.Label, case: frs.ConditionalCase, result: frs.WhileData
+        cond_label: fr.schemas.Label,
+        case: fr.schemas.ConditionalCase,
+        result: fr.schemas.WhileData,
     ) -> bool:
         output_label = case.condition_output or next(iter(case.condition.node.outputs))
         return bool(result.nodes[cond_label].output_ports[output_label].value)

@@ -2,7 +2,7 @@ from __future__ import annotations
 
 import unittest
 
-from flowrep.api import schemas as frs
+import flowrep as fr
 
 from pyiron_workflow._wfms import constructors, execution
 from pyiron_workflow._wfms.flowcontrollers import ifflow
@@ -13,33 +13,41 @@ from tests.unit._wfms import _fixtures
 # --------------------------------------------------------------------------- #
 
 
-def _no_else_recipe() -> frs.IfRecipe:
+def _no_else_recipe() -> fr.schemas.IfRecipe:
     """`if add(x, y): add(x, y) else: <nothing>` — single case, no `else`."""
     add_recipe = _fixtures.add.flowrep_recipe
-    return frs.IfRecipe(
+    return fr.schemas.IfRecipe(
         inputs=["x", "y"],
         outputs=["out"],
         cases=[
-            frs.ConditionalCase(
-                condition=frs.LabeledRecipe(label="cond", node=add_recipe),
-                body=frs.LabeledRecipe(label="body", node=add_recipe),
+            fr.schemas.ConditionalCase(
+                condition=fr.schemas.LabeledRecipe(label="cond", node=add_recipe),
+                body=fr.schemas.LabeledRecipe(label="body", node=add_recipe),
             )
         ],
         input_edges={
-            frs.TargetHandle(node="cond", port="x"): frs.InputSource(port="x"),
-            frs.TargetHandle(node="cond", port="y"): frs.InputSource(port="y"),
-            frs.TargetHandle(node="body", port="x"): frs.InputSource(port="x"),
-            frs.TargetHandle(node="body", port="y"): frs.InputSource(port="y"),
+            fr.schemas.TargetHandle(node="cond", port="x"): fr.schemas.InputSource(
+                port="x"
+            ),
+            fr.schemas.TargetHandle(node="cond", port="y"): fr.schemas.InputSource(
+                port="y"
+            ),
+            fr.schemas.TargetHandle(node="body", port="x"): fr.schemas.InputSource(
+                port="x"
+            ),
+            fr.schemas.TargetHandle(node="body", port="y"): fr.schemas.InputSource(
+                port="y"
+            ),
         },
         prospective_output_edges={
-            frs.OutputTarget(port="out"): [
-                frs.SourceHandle(node="body", port="output_0")
+            fr.schemas.OutputTarget(port="out"): [
+                fr.schemas.SourceHandle(node="body", port="output_0")
             ],
         },
     )
 
 
-def _two_case_recipe(with_else: bool) -> frs.IfRecipe:
+def _two_case_recipe(with_else: bool) -> fr.schemas.IfRecipe:
     """Two-case If: `is_positive(x) → identity(x); is_negative(x) → negate(x)`.
 
     With `with_else=True` the else branch returns `identity(x)` (so `x=0`
@@ -52,41 +60,49 @@ def _two_case_recipe(with_else: bool) -> frs.IfRecipe:
     negate_recipe = _fixtures.negate.flowrep_recipe
 
     cases = [
-        frs.ConditionalCase(
-            condition=frs.LabeledRecipe(label="cond_pos", node=pos_recipe),
-            body=frs.LabeledRecipe(label="body_pos", node=identity_recipe),
+        fr.schemas.ConditionalCase(
+            condition=fr.schemas.LabeledRecipe(label="cond_pos", node=pos_recipe),
+            body=fr.schemas.LabeledRecipe(label="body_pos", node=identity_recipe),
         ),
-        frs.ConditionalCase(
-            condition=frs.LabeledRecipe(label="cond_neg", node=neg_recipe),
-            body=frs.LabeledRecipe(label="body_neg", node=negate_recipe),
+        fr.schemas.ConditionalCase(
+            condition=fr.schemas.LabeledRecipe(label="cond_neg", node=neg_recipe),
+            body=fr.schemas.LabeledRecipe(label="body_neg", node=negate_recipe),
         ),
     ]
-    input_edges: dict[frs.TargetHandle, frs.InputSource] = {
-        frs.TargetHandle(node="cond_pos", port="n"): frs.InputSource(port="x"),
-        frs.TargetHandle(node="cond_neg", port="n"): frs.InputSource(port="x"),
-        frs.TargetHandle(node="body_pos", port="x"): frs.InputSource(port="x"),
-        frs.TargetHandle(node="body_neg", port="x"): frs.InputSource(port="x"),
+    input_edges: dict[fr.schemas.TargetHandle, fr.schemas.InputSource] = {
+        fr.schemas.TargetHandle(node="cond_pos", port="n"): fr.schemas.InputSource(
+            port="x"
+        ),
+        fr.schemas.TargetHandle(node="cond_neg", port="n"): fr.schemas.InputSource(
+            port="x"
+        ),
+        fr.schemas.TargetHandle(node="body_pos", port="x"): fr.schemas.InputSource(
+            port="x"
+        ),
+        fr.schemas.TargetHandle(node="body_neg", port="x"): fr.schemas.InputSource(
+            port="x"
+        ),
     }
     # `identity` returns the input variable; the parsed recipe names that
     # output port after the return-name (`x`). `negate` uses a unary op
     # and falls back to `output_0`.
     prospective_output_edges = {
-        frs.OutputTarget(port="out"): [
-            frs.SourceHandle(node="body_pos", port="x"),
-            frs.SourceHandle(node="body_neg", port="output_0"),
+        fr.schemas.OutputTarget(port="out"): [
+            fr.schemas.SourceHandle(node="body_pos", port="x"),
+            fr.schemas.SourceHandle(node="body_neg", port="output_0"),
         ],
     }
     else_case = None
     if with_else:
-        input_edges[frs.TargetHandle(node="else_body", port="x")] = frs.InputSource(
-            port="x"
+        input_edges[fr.schemas.TargetHandle(node="else_body", port="x")] = (
+            fr.schemas.InputSource(port="x")
         )
-        prospective_output_edges[frs.OutputTarget(port="out")].append(
-            frs.SourceHandle(node="else_body", port="x")
+        prospective_output_edges[fr.schemas.OutputTarget(port="out")].append(
+            fr.schemas.SourceHandle(node="else_body", port="x")
         )
-        else_case = frs.LabeledRecipe(label="else_body", node=identity_recipe)
+        else_case = fr.schemas.LabeledRecipe(label="else_body", node=identity_recipe)
 
-    return frs.IfRecipe(
+    return fr.schemas.IfRecipe(
         inputs=["x"],
         outputs=["out"],
         cases=cases,
@@ -96,7 +112,7 @@ def _two_case_recipe(with_else: bool) -> frs.IfRecipe:
     )
 
 
-def _macro_with_no_else_and_downstream() -> frs.WorkflowRecipe:
+def _macro_with_no_else_and_downstream() -> fr.schemas.WorkflowRecipe:
     """
     Macro: `if add(x, y): add(x, y)` then a downstream `identity` sibling.
 
@@ -105,21 +121,27 @@ def _macro_with_no_else_and_downstream() -> frs.WorkflowRecipe:
     sibling — so :func:`populate_outputs` does not hit the skipped node.
     """
     identity_recipe = _fixtures.identity.flowrep_recipe
-    return frs.WorkflowRecipe(
+    return fr.schemas.WorkflowRecipe(
         inputs=["x", "y"],
         outputs=["z"],
         nodes={"if_0": _no_else_recipe(), "downstream": identity_recipe},
         input_edges={
-            frs.TargetHandle(node="if_0", port="x"): frs.InputSource(port="x"),
-            frs.TargetHandle(node="if_0", port="y"): frs.InputSource(port="y"),
-        },
-        edges={
-            frs.TargetHandle(node="downstream", port="x"): frs.SourceHandle(
-                node="if_0", port="out"
+            fr.schemas.TargetHandle(node="if_0", port="x"): fr.schemas.InputSource(
+                port="x"
+            ),
+            fr.schemas.TargetHandle(node="if_0", port="y"): fr.schemas.InputSource(
+                port="y"
             ),
         },
+        edges={
+            fr.schemas.TargetHandle(
+                node="downstream", port="x"
+            ): fr.schemas.SourceHandle(node="if_0", port="out"),
+        },
         output_edges={
-            frs.OutputTarget(port="z"): frs.SourceHandle(node="if_0", port="out"),
+            fr.schemas.OutputTarget(port="z"): fr.schemas.SourceHandle(
+                node="if_0", port="out"
+            ),
         },
     )
 
@@ -162,7 +184,7 @@ class TestEvaluateSingleCaseFalseNoElse(unittest.TestCase):
         self.assertEqual(self.run.status, execution.RunStatus.FINISHED)
 
     def test_output_stays_not_data(self) -> None:
-        self.assertIsInstance(self.run.outputs["out"].value, frs.NotData)
+        self.assertIsInstance(self.run.outputs["out"].value, fr.schemas.NotData)
 
     def test_only_condition_ran(self) -> None:
         labels = [step.label for step in self.run.steps]
@@ -230,7 +252,7 @@ class TestEvaluateMultipleCases(unittest.TestCase):
         ifn = ifflow.If("ifn", _two_case_recipe(with_else=False))
         run = ifn.run(x=0)
         self.assertEqual(run.status, execution.RunStatus.FINISHED)
-        self.assertIsInstance(run.outputs["out"].value, frs.NotData)
+        self.assertIsInstance(run.outputs["out"].value, fr.schemas.NotData)
         labels = [step.label for step in run.steps]
         self.assertEqual(labels, ["cond_pos", "cond_neg"])
         self.assertEqual(run.result.output_edges, {})
@@ -261,7 +283,7 @@ class TestMacroDownstreamOfFalsyIfIsSkipped(unittest.TestCase):
         self.assertEqual(self.run.status, execution.RunStatus.FINISHED)
 
     def test_macro_output_is_not_data(self) -> None:
-        self.assertIsInstance(self.run.outputs["z"].value, frs.NotData)
+        self.assertIsInstance(self.run.outputs["z"].value, fr.schemas.NotData)
 
     def test_downstream_step_not_recorded(self) -> None:
         labels = [step.label for step in self.run.steps]
@@ -288,8 +310,8 @@ class TestStageNodeInputEdges(unittest.TestCase):
         self.assertEqual(
             set(self.live.input_edges),
             {
-                frs.TargetHandle(node="cond", port="x"),
-                frs.TargetHandle(node="cond", port="y"),
+                fr.schemas.TargetHandle(node="cond", port="x"),
+                fr.schemas.TargetHandle(node="cond", port="y"),
             },
         )
 
@@ -297,7 +319,9 @@ class TestStageNodeInputEdges(unittest.TestCase):
         ifflow.If._stage_node_input_edges("cond", self.live, self.recipe)
         ifflow.If._stage_node_input_edges("body", self.live, self.recipe)
         self.assertEqual(len(self.live.input_edges), 4)
-        self.assertIn(frs.TargetHandle(node="body", port="x"), self.live.input_edges)
+        self.assertIn(
+            fr.schemas.TargetHandle(node="body", port="x"), self.live.input_edges
+        )
 
 
 class TestStageBodyOutputEdges(unittest.TestCase):
@@ -313,7 +337,7 @@ class TestStageBodyOutputEdges(unittest.TestCase):
         self.assertEqual(
             self.live.output_edges,
             {
-                frs.OutputTarget(port="out"): frs.SourceHandle(
+                fr.schemas.OutputTarget(port="out"): fr.schemas.SourceHandle(
                     node="body_pos", port="x"
                 ),
             },
@@ -322,42 +346,50 @@ class TestStageBodyOutputEdges(unittest.TestCase):
     def test_picks_else_body_handle(self) -> None:
         ifflow.If._stage_body_output_edges("else_body", self.live, self.recipe)
         self.assertEqual(
-            self.live.output_edges[frs.OutputTarget(port="out")],
-            frs.SourceHandle(node="else_body", port="x"),
+            self.live.output_edges[fr.schemas.OutputTarget(port="out")],
+            fr.schemas.SourceHandle(node="else_body", port="x"),
         )
 
     def test_skips_outputs_without_matching_body(self) -> None:
-        unrelated_body_recipe = frs.IfRecipe(
+        unrelated_body_recipe = fr.schemas.IfRecipe(
             inputs=["x"],
             outputs=["out"],
             cases=[
-                frs.ConditionalCase(
-                    condition=frs.LabeledRecipe(
+                fr.schemas.ConditionalCase(
+                    condition=fr.schemas.LabeledRecipe(
                         label="cond", node=_fixtures.is_positive.flowrep_recipe
                     ),
-                    body=frs.LabeledRecipe(
+                    body=fr.schemas.LabeledRecipe(
                         label="body_a", node=_fixtures.identity.flowrep_recipe
                     ),
                 ),
-                frs.ConditionalCase(
-                    condition=frs.LabeledRecipe(
+                fr.schemas.ConditionalCase(
+                    condition=fr.schemas.LabeledRecipe(
                         label="cond2", node=_fixtures.is_negative.flowrep_recipe
                     ),
-                    body=frs.LabeledRecipe(
+                    body=fr.schemas.LabeledRecipe(
                         label="body_b", node=_fixtures.identity.flowrep_recipe
                     ),
                 ),
             ],
             input_edges={
-                frs.TargetHandle(node="cond", port="n"): frs.InputSource(port="x"),
-                frs.TargetHandle(node="cond2", port="n"): frs.InputSource(port="x"),
-                frs.TargetHandle(node="body_a", port="x"): frs.InputSource(port="x"),
-                frs.TargetHandle(node="body_b", port="x"): frs.InputSource(port="x"),
+                fr.schemas.TargetHandle(node="cond", port="n"): fr.schemas.InputSource(
+                    port="x"
+                ),
+                fr.schemas.TargetHandle(node="cond2", port="n"): fr.schemas.InputSource(
+                    port="x"
+                ),
+                fr.schemas.TargetHandle(
+                    node="body_a", port="x"
+                ): fr.schemas.InputSource(port="x"),
+                fr.schemas.TargetHandle(
+                    node="body_b", port="x"
+                ): fr.schemas.InputSource(port="x"),
             },
             prospective_output_edges={
-                frs.OutputTarget(port="out"): [
-                    frs.SourceHandle(node="body_a", port="x"),
-                    frs.SourceHandle(node="body_b", port="x"),
+                fr.schemas.OutputTarget(port="out"): [
+                    fr.schemas.SourceHandle(node="body_a", port="x"),
+                    fr.schemas.SourceHandle(node="body_b", port="x"),
                 ],
             },
         )
@@ -365,8 +397,8 @@ class TestStageBodyOutputEdges(unittest.TestCase):
         live = ifn.generate_flowrep_live_node()
         ifflow.If._stage_body_output_edges("body_a", live, unrelated_body_recipe)
         self.assertEqual(
-            live.output_edges[frs.OutputTarget(port="out")],
-            frs.SourceHandle(node="body_a", port="x"),
+            live.output_edges[fr.schemas.OutputTarget(port="out")],
+            fr.schemas.SourceHandle(node="body_a", port="x"),
         )
 
 
@@ -376,7 +408,7 @@ class TestConditionValue(unittest.TestCase):
         ifn = ifflow.If("ifn", recipe)
         live = ifn.generate_flowrep_live_node()
         case = recipe.cases[0]
-        cond_live = frs.AtomicData.from_recipe(case.condition.node)
+        cond_live = fr.schemas.AtomicData.from_recipe(case.condition.node)
         cond_live.output_ports["output_0"].value = 7  # truthy
         live.nodes[case.condition.label] = cond_live
         self.assertTrue(ifflow.If._condition_value(case, live))
@@ -384,27 +416,35 @@ class TestConditionValue(unittest.TestCase):
     def test_uses_condition_output_when_set(self) -> None:
         cond_recipe = _fixtures.add.flowrep_recipe
         body_recipe = _fixtures.identity.flowrep_recipe
-        case = frs.ConditionalCase(
-            condition=frs.LabeledRecipe(label="cond", node=cond_recipe),
-            body=frs.LabeledRecipe(label="body", node=body_recipe),
+        case = fr.schemas.ConditionalCase(
+            condition=fr.schemas.LabeledRecipe(label="cond", node=cond_recipe),
+            body=fr.schemas.LabeledRecipe(label="body", node=body_recipe),
             condition_output="output_0",
         )
-        recipe = frs.IfRecipe(
+        recipe = fr.schemas.IfRecipe(
             inputs=["x", "y"],
             outputs=["out"],
             cases=[case],
             input_edges={
-                frs.TargetHandle(node="cond", port="x"): frs.InputSource(port="x"),
-                frs.TargetHandle(node="cond", port="y"): frs.InputSource(port="y"),
-                frs.TargetHandle(node="body", port="x"): frs.InputSource(port="x"),
+                fr.schemas.TargetHandle(node="cond", port="x"): fr.schemas.InputSource(
+                    port="x"
+                ),
+                fr.schemas.TargetHandle(node="cond", port="y"): fr.schemas.InputSource(
+                    port="y"
+                ),
+                fr.schemas.TargetHandle(node="body", port="x"): fr.schemas.InputSource(
+                    port="x"
+                ),
             },
             prospective_output_edges={
-                frs.OutputTarget(port="out"): [frs.SourceHandle(node="body", port="x")],
+                fr.schemas.OutputTarget(port="out"): [
+                    fr.schemas.SourceHandle(node="body", port="x")
+                ],
             },
         )
         ifn = ifflow.If("ifn", recipe)
         live = ifn.generate_flowrep_live_node()
-        cond_live = frs.AtomicData.from_recipe(cond_recipe)
+        cond_live = fr.schemas.AtomicData.from_recipe(cond_recipe)
         cond_live.output_ports["output_0"].value = 0  # falsy via explicit label
         live.nodes["cond"] = cond_live
         self.assertFalse(ifflow.If._condition_value(case, live))

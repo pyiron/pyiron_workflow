@@ -5,23 +5,22 @@ import re
 import types
 from typing import TypeAlias, cast
 
-from flowrep.api import schemas as frs
-from flowrep.api import tools as frt
+import flowrep as fr
 
 from pyiron_workflow._wfms import atomic, dag, datatypes, flowcontrollers, workflow
 from pyiron_workflow._wfms.datatypes import EdgeList, EdgeTuple, StaticNode
 
 RecipeOptions: TypeAlias = (
-    frs.AtomicRecipe
-    | frs.ForEachRecipe
-    | frs.IfRecipe
-    | frs.TryRecipe
-    | frs.WhileRecipe
-    | frs.WorkflowRecipe
+    fr.schemas.AtomicRecipe
+    | fr.schemas.ForEachRecipe
+    | fr.schemas.IfRecipe
+    | fr.schemas.TryRecipe
+    | fr.schemas.WhileRecipe
+    | fr.schemas.WorkflowRecipe
 )
 
 
-def node(value: object, label: frs.Label | None = None) -> datatypes.Node:
+def node(value: object, label: fr.schemas.Label | None = None) -> datatypes.Node:
     """
     Convert a node-like `value` into a `Node` labelled `label`.
 
@@ -49,7 +48,7 @@ def node(value: object, label: frs.Label | None = None) -> datatypes.Node:
 
 def function2node(
     function: types.FunctionType,
-    label: frs.Label | None = None,
+    label: fr.schemas.Label | None = None,
 ) -> atomic.Atomic | dag.Macro:
     recipe = getattr(function, "flowrep_recipe", None)
     if recipe:
@@ -57,34 +56,36 @@ def function2node(
         return cast(
             atomic.Atomic | dag.Macro,
             recipe2node(
-                cast(frs.AtomicRecipe | frs.WorkflowRecipe, recipe),
+                cast(fr.schemas.AtomicRecipe | fr.schemas.WorkflowRecipe, recipe),
                 label or function.__name__,
             ),
         )
     else:
         # Otherwise parse undecorated functions as atomic nodes
-        recipe = frt.parse_atomic(function)
+        recipe = fr.tools.parse_atomic(function)
         return atomic.Atomic(label or function.__name__, recipe)
 
 
-def recipe2node(recipe: RecipeOptions, label: frs.Label | None = None) -> StaticNode:
+def recipe2node(
+    recipe: RecipeOptions, label: fr.schemas.Label | None = None
+) -> StaticNode:
     label = (
         f"{_pascal_to_snake(recipe.__class__.__name__)}_node"
         if label is None
         else label
     )
 
-    if isinstance(recipe, frs.AtomicRecipe):
+    if isinstance(recipe, fr.schemas.AtomicRecipe):
         return atomic.Atomic(label, recipe)
-    elif isinstance(recipe, frs.ForEachRecipe):
+    elif isinstance(recipe, fr.schemas.ForEachRecipe):
         return flowcontrollers.ForEach(label, recipe)
-    elif isinstance(recipe, frs.IfRecipe):
+    elif isinstance(recipe, fr.schemas.IfRecipe):
         return flowcontrollers.If(label, recipe)
-    elif isinstance(recipe, frs.TryRecipe):
+    elif isinstance(recipe, fr.schemas.TryRecipe):
         return flowcontrollers.Try(label, recipe)
-    elif isinstance(recipe, frs.WhileRecipe):
+    elif isinstance(recipe, fr.schemas.WhileRecipe):
         return flowcontrollers.While(label, recipe)
-    elif isinstance(recipe, frs.WorkflowRecipe):
+    elif isinstance(recipe, fr.schemas.WorkflowRecipe):
         return dag.Macro(label, recipe)
     else:
         raise TypeError(
@@ -98,9 +99,9 @@ def _pascal_to_snake(name: str):
 
 
 def edges2edgelist(
-    input_edges: frs.InputEdges,
-    edges: frs.Edges,
-    output_edges: frs.OutputEdges,
+    input_edges: fr.schemas.InputEdges,
+    edges: fr.schemas.Edges,
+    output_edges: fr.schemas.OutputEdges,
 ) -> EdgeList:
     return (
         EdgeList(EdgeTuple(s, t) for t, s in input_edges.items())
@@ -112,20 +113,22 @@ def edges2edgelist(
 def edgelist2edges(
     edges: EdgeList,
     scope: str = "<unknown EdgeList owner>",
-) -> tuple[frs.InputEdges, frs.Edges, frs.OutputEdges]:
-    inp: frs.InputEdges = {}
-    peer: frs.Edges = {}
-    out: frs.OutputEdges = {}
+) -> tuple[fr.schemas.InputEdges, fr.schemas.Edges, fr.schemas.OutputEdges]:
+    inp: fr.schemas.InputEdges = {}
+    peer: fr.schemas.Edges = {}
+    out: fr.schemas.OutputEdges = {}
     for source, target in edges:
-        if isinstance(source, frs.InputSource) and isinstance(target, frs.TargetHandle):
+        if isinstance(source, fr.schemas.InputSource) and isinstance(
+            target, fr.schemas.TargetHandle
+        ):
             inp[target] = source
-        elif isinstance(source, frs.SourceHandle) and isinstance(
-            target, frs.TargetHandle
+        elif isinstance(source, fr.schemas.SourceHandle) and isinstance(
+            target, fr.schemas.TargetHandle
         ):
             peer[target] = source
-        elif isinstance(source, frs.SourceHandle | frs.InputSource) and isinstance(
-            target, frs.OutputTarget
-        ):
+        elif isinstance(
+            source, fr.schemas.SourceHandle | fr.schemas.InputSource
+        ) and isinstance(target, fr.schemas.OutputTarget):
             out[target] = source
         else:
             raise TypeError(

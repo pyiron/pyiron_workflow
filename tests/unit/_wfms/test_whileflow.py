@@ -2,7 +2,7 @@ from __future__ import annotations
 
 import unittest
 
-from flowrep.api import schemas as frs
+import flowrep as fr
 
 from pyiron_workflow._wfms import execution
 from pyiron_workflow._wfms.flowcontrollers import whileflow
@@ -13,7 +13,7 @@ from tests.unit._wfms import _fixtures
 # --------------------------------------------------------------------------- #
 
 
-def _non_looping_recipe() -> frs.WhileRecipe:
+def _non_looping_recipe() -> fr.schemas.WhileRecipe:
     """
     WhileNode with inputs=["n", "step"] but outputs=["n"] only.
 
@@ -22,35 +22,49 @@ def _non_looping_recipe() -> frs.WhileRecipe:
     `step` from `n`.
     """
     sub_recipe = _fixtures.sub.flowrep_recipe  # sub(x, y) → output_0
-    body = frs.WorkflowRecipe(
+    body = fr.schemas.WorkflowRecipe(
         inputs=["n", "step"],
         outputs=["n"],
         nodes={"sub_0": sub_recipe},
         input_edges={
-            frs.TargetHandle(node="sub_0", port="x"): frs.InputSource(port="n"),
-            frs.TargetHandle(node="sub_0", port="y"): frs.InputSource(port="step"),
+            fr.schemas.TargetHandle(node="sub_0", port="x"): fr.schemas.InputSource(
+                port="n"
+            ),
+            fr.schemas.TargetHandle(node="sub_0", port="y"): fr.schemas.InputSource(
+                port="step"
+            ),
         },
         edges={},
         output_edges={
-            frs.OutputTarget(port="n"): frs.SourceHandle(node="sub_0", port="output_0"),
+            fr.schemas.OutputTarget(port="n"): fr.schemas.SourceHandle(
+                node="sub_0", port="output_0"
+            ),
         },
     )
-    return frs.WhileRecipe(
+    return fr.schemas.WhileRecipe(
         inputs=["n", "step"],
         outputs=["n"],
-        case=frs.ConditionalCase(
-            condition=frs.LabeledRecipe(
+        case=fr.schemas.ConditionalCase(
+            condition=fr.schemas.LabeledRecipe(
                 label="condition", node=_fixtures.is_positive.flowrep_recipe
             ),
-            body=frs.LabeledRecipe(label="body", node=body),
+            body=fr.schemas.LabeledRecipe(label="body", node=body),
         ),
         input_edges={
-            frs.TargetHandle(node="condition", port="n"): frs.InputSource(port="n"),
-            frs.TargetHandle(node="body", port="n"): frs.InputSource(port="n"),
-            frs.TargetHandle(node="body", port="step"): frs.InputSource(port="step"),
+            fr.schemas.TargetHandle(node="condition", port="n"): fr.schemas.InputSource(
+                port="n"
+            ),
+            fr.schemas.TargetHandle(node="body", port="n"): fr.schemas.InputSource(
+                port="n"
+            ),
+            fr.schemas.TargetHandle(node="body", port="step"): fr.schemas.InputSource(
+                port="step"
+            ),
         },
         output_edges={
-            frs.OutputTarget(port="n"): frs.SourceHandle(node="body", port="n"),
+            fr.schemas.OutputTarget(port="n"): fr.schemas.SourceHandle(
+                node="body", port="n"
+            ),
         },
     )
 
@@ -78,8 +92,8 @@ class TestEvaluateZeroIterations(unittest.TestCase):
 
     def test_output_edge_is_input_source_fallback(self) -> None:
         self.assertEqual(
-            self.run.result.output_edges[frs.OutputTarget(port="n")],
-            frs.InputSource(port="n"),
+            self.run.result.output_edges[fr.schemas.OutputTarget(port="n")],
+            fr.schemas.InputSource(port="n"),
         )
 
 
@@ -106,8 +120,8 @@ class TestEvaluateSingleIteration(unittest.TestCase):
 
     def test_output_edge_points_to_last_body(self) -> None:
         self.assertEqual(
-            self.run.result.output_edges[frs.OutputTarget(port="n")],
-            frs.SourceHandle(node="body_0", port="n"),
+            self.run.result.output_edges[fr.schemas.OutputTarget(port="n")],
+            fr.schemas.SourceHandle(node="body_0", port="n"),
         )
 
 
@@ -157,25 +171,29 @@ class TestEvaluateMultipleIterations(unittest.TestCase):
     def test_body_sibling_edges_present(self) -> None:
         # body_1 gets n from body_0
         self.assertEqual(
-            self.run.result.edges[frs.TargetHandle(node="body_1", port="n")],
-            frs.SourceHandle(node="body_0", port="n"),
+            self.run.result.edges[fr.schemas.TargetHandle(node="body_1", port="n")],
+            fr.schemas.SourceHandle(node="body_0", port="n"),
         )
         # body_2 gets n from body_1
         self.assertEqual(
-            self.run.result.edges[frs.TargetHandle(node="body_2", port="n")],
-            frs.SourceHandle(node="body_1", port="n"),
+            self.run.result.edges[fr.schemas.TargetHandle(node="body_2", port="n")],
+            fr.schemas.SourceHandle(node="body_1", port="n"),
         )
 
     def test_condition_sibling_edges_present(self) -> None:
         # condition_1 gets n from body_0
         self.assertEqual(
-            self.run.result.edges[frs.TargetHandle(node="condition_1", port="n")],
-            frs.SourceHandle(node="body_0", port="n"),
+            self.run.result.edges[
+                fr.schemas.TargetHandle(node="condition_1", port="n")
+            ],
+            fr.schemas.SourceHandle(node="body_0", port="n"),
         )
         # condition_3 gets n from body_2
         self.assertEqual(
-            self.run.result.edges[frs.TargetHandle(node="condition_3", port="n")],
-            frs.SourceHandle(node="body_2", port="n"),
+            self.run.result.edges[
+                fr.schemas.TargetHandle(node="condition_3", port="n")
+            ],
+            fr.schemas.SourceHandle(node="body_2", port="n"),
         )
 
 
@@ -225,7 +243,8 @@ class TestStageChildEdges(unittest.TestCase):
             "condition_0", "condition", self.recipe, self.result, None
         )
         self.assertIn(
-            frs.TargetHandle(node="condition_0", port="n"), self.result.input_edges
+            fr.schemas.TargetHandle(node="condition_0", port="n"),
+            self.result.input_edges,
         )
         self.assertEqual(self.result.edges, {})
 
@@ -233,13 +252,16 @@ class TestStageChildEdges(unittest.TestCase):
         whileflow.While._stage_child_edges(
             "condition_1", "condition", self.recipe, self.result, "body_0"
         )
-        self.assertIn(frs.TargetHandle(node="condition_1", port="n"), self.result.edges)
+        self.assertIn(
+            fr.schemas.TargetHandle(node="condition_1", port="n"), self.result.edges
+        )
         self.assertEqual(
-            self.result.edges[frs.TargetHandle(node="condition_1", port="n")],
-            frs.SourceHandle(node="body_0", port="n"),
+            self.result.edges[fr.schemas.TargetHandle(node="condition_1", port="n")],
+            fr.schemas.SourceHandle(node="body_0", port="n"),
         )
         self.assertNotIn(
-            frs.TargetHandle(node="condition_1", port="n"), self.result.input_edges
+            fr.schemas.TargetHandle(node="condition_1", port="n"),
+            self.result.input_edges,
         )
 
     def test_non_looping_port_always_from_input_edges(self) -> None:
@@ -250,13 +272,15 @@ class TestStageChildEdges(unittest.TestCase):
         # Second call (last_body_label set): "step" is not a while output,
         # so it must still land in input_edges.
         whileflow.While._stage_child_edges("body_1", "body", recipe, result, "body_0")
-        self.assertIn(frs.TargetHandle(node="body_1", port="step"), result.input_edges)
+        self.assertIn(
+            fr.schemas.TargetHandle(node="body_1", port="step"), result.input_edges
+        )
         self.assertEqual(
-            result.input_edges[frs.TargetHandle(node="body_1", port="step")],
-            frs.InputSource(port="step"),
+            result.input_edges[fr.schemas.TargetHandle(node="body_1", port="step")],
+            fr.schemas.InputSource(port="step"),
         )
         # "n" is a while output so it routes via sibling edge
-        self.assertIn(frs.TargetHandle(node="body_1", port="n"), result.edges)
+        self.assertIn(fr.schemas.TargetHandle(node="body_1", port="n"), result.edges)
 
 
 # --------------------------------------------------------------------------- #
@@ -273,16 +297,16 @@ class TestStageFinalOutputEdges(unittest.TestCase):
         result = self.whl.generate_flowrep_live_node()
         whileflow.While._stage_final_output_edges(result, self.recipe, None)
         self.assertEqual(
-            result.output_edges[frs.OutputTarget(port="n")],
-            frs.InputSource(port="n"),
+            result.output_edges[fr.schemas.OutputTarget(port="n")],
+            fr.schemas.InputSource(port="n"),
         )
 
     def test_iterations_produce_source_handle_from_last_body(self) -> None:
         result = self.whl.generate_flowrep_live_node()
         whileflow.While._stage_final_output_edges(result, self.recipe, "body_2")
         self.assertEqual(
-            result.output_edges[frs.OutputTarget(port="n")],
-            frs.SourceHandle(node="body_2", port="n"),
+            result.output_edges[fr.schemas.OutputTarget(port="n")],
+            fr.schemas.SourceHandle(node="body_2", port="n"),
         )
 
 
@@ -294,11 +318,11 @@ class TestStageFinalOutputEdges(unittest.TestCase):
 class TestConditionValue(unittest.TestCase):
     def _make_result_with_cond(
         self, cond_label: str, output_val: object
-    ) -> frs.WhileData:
+    ) -> fr.schemas.WhileData:
         recipe = _fixtures.while_recipe()
         whl = whileflow.While("whl", recipe)
         result = whl.generate_flowrep_live_node()
-        cond_live = frs.AtomicData.from_recipe(recipe.case.condition.node)
+        cond_live = fr.schemas.AtomicData.from_recipe(recipe.case.condition.node)
         cond_live.output_ports["output_0"].value = output_val
         result.nodes[cond_label] = cond_live
         return result, recipe
@@ -318,29 +342,35 @@ class TestConditionValue(unittest.TestCase):
     def test_explicit_condition_output_label(self) -> None:
         cond_recipe = _fixtures.add.flowrep_recipe
         body_recipe = _fixtures.identity.flowrep_recipe
-        case = frs.ConditionalCase(
-            condition=frs.LabeledRecipe(label="condition", node=cond_recipe),
-            body=frs.LabeledRecipe(label="body", node=body_recipe),
+        case = fr.schemas.ConditionalCase(
+            condition=fr.schemas.LabeledRecipe(label="condition", node=cond_recipe),
+            body=fr.schemas.LabeledRecipe(label="body", node=body_recipe),
             condition_output="output_0",
         )
-        recipe = frs.WhileRecipe(
+        recipe = fr.schemas.WhileRecipe(
             inputs=["x", "y"],
             outputs=["x"],
             case=case,
             input_edges={
-                frs.TargetHandle(node="condition", port="x"): frs.InputSource(port="x"),
-                frs.TargetHandle(node="condition", port="y"): frs.InputSource(port="y"),
-                frs.TargetHandle(node="body", port="x"): frs.InputSource(port="x"),
+                fr.schemas.TargetHandle(
+                    node="condition", port="x"
+                ): fr.schemas.InputSource(port="x"),
+                fr.schemas.TargetHandle(
+                    node="condition", port="y"
+                ): fr.schemas.InputSource(port="y"),
+                fr.schemas.TargetHandle(node="body", port="x"): fr.schemas.InputSource(
+                    port="x"
+                ),
             },
             output_edges={
-                frs.OutputTarget(port="x"): frs.SourceHandle(
+                fr.schemas.OutputTarget(port="x"): fr.schemas.SourceHandle(
                     node="body", port="x"  # identity outputs "x" (named return)
                 ),
             },
         )
         whl = whileflow.While("whl", recipe)
         result = whl.generate_flowrep_live_node()
-        cond_live = frs.AtomicData.from_recipe(cond_recipe)
+        cond_live = fr.schemas.AtomicData.from_recipe(cond_recipe)
         cond_live.output_ports["output_0"].value = 0  # falsy via explicit label
         result.nodes["condition_0"] = cond_live
         self.assertFalse(whileflow.While._condition_value("condition_0", case, result))
@@ -369,7 +399,7 @@ class TestNonLoopingInputs(unittest.TestCase):
     def test_step_always_sourced_from_input(self) -> None:
         for key, val in self.run.result.input_edges.items():
             if key.port == "step":
-                self.assertEqual(val, frs.InputSource(port="step"))
+                self.assertEqual(val, fr.schemas.InputSource(port="step"))
         # No sibling edge for "step"
         for key in self.run.result.edges:
             self.assertNotEqual(key.port, "step")

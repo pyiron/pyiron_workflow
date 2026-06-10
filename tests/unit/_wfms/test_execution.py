@@ -7,7 +7,7 @@ import unittest
 from concurrent import futures
 from typing import Any
 
-from flowrep.api import schemas as frs
+import flowrep as fr
 
 from pyiron_workflow._wfms import atomic, execution
 from tests.unit._wfms import _fixtures
@@ -22,7 +22,7 @@ class _FailingAtomic(atomic.Atomic):
 
     def evaluate(
         self,
-        run: execution.Run[frs.AtomicData],
+        run: execution.Run[fr.schemas.AtomicData],
         config: execution.RunConfig,
     ) -> None:
         raise RuntimeError("boom")
@@ -52,10 +52,10 @@ class TestRunDuration(unittest.TestCase):
         started_at: datetime.datetime | None,
         finished_at: datetime.datetime | None,
         lexical_path: str = "some_path_root",
-    ) -> execution.Run[frs.AtomicData]:
+    ) -> execution.Run[fr.schemas.AtomicData]:
         # `result` is not exercised here; a freshly minted live atomic suffices.
         live = _fixtures.atomic_add_node().generate_flowrep_live_node()
-        return execution.Run[frs.AtomicData](
+        return execution.Run[fr.schemas.AtomicData](
             lexical_path=lexical_path,
             result=live,
             status=execution.RunStatus.PENDING,

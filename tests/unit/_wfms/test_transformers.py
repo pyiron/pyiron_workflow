@@ -4,7 +4,7 @@ from __future__ import annotations
 
 import unittest
 
-from flowrep.api import schemas as frs
+import flowrep as fr
 
 from pyiron_workflow._wfms import atomic, transformers
 from tests.unit._wfms import _fixtures
@@ -36,13 +36,13 @@ class TestTransform1toN(unittest.TestCase):
 
     def test_recipe_unpack_mode(self) -> None:
         recipe = transformers.Transform1toN(3).recipe
-        self.assertEqual(recipe.unpack_mode, frs.UnpackMode.TUPLE)
+        self.assertEqual(recipe.unpack_mode, fr.schemas.UnpackMode.TUPLE)
 
     def test_recipe_restricted_input_kinds(self) -> None:
         recipe = transformers.Transform1toN(3).recipe
         self.assertEqual(
             recipe.reference.restricted_input_kinds["items"],
-            frs.RestrictedParamKind.POSITIONAL_ONLY,
+            fr.schemas.RestrictedParamKind.POSITIONAL_ONLY,
         )
 
     def test_node_returns_atomic_with_label_and_recipe(self) -> None:
@@ -80,7 +80,7 @@ class TestTransformNto1(unittest.TestCase):
 
     def test_recipe_unpack_mode(self) -> None:
         recipe = transformers.TransformNto1(3).recipe
-        self.assertEqual(recipe.unpack_mode, frs.UnpackMode.TUPLE)
+        self.assertEqual(recipe.unpack_mode, fr.schemas.UnpackMode.TUPLE)
 
     def test_recipe_restricted_input_kinds(self) -> None:
         recipe = transformers.TransformNto1(3).recipe
@@ -88,7 +88,7 @@ class TestTransformNto1(unittest.TestCase):
             with self.subTest(i=i):
                 self.assertEqual(
                     recipe.reference.restricted_input_kinds[f"item_{i}"],
-                    frs.RestrictedParamKind.POSITIONAL_ONLY,
+                    fr.schemas.RestrictedParamKind.POSITIONAL_ONLY,
                 )
 
     def test_node_returns_atomic_with_label(self) -> None:

@@ -15,7 +15,6 @@ import unittest
 from concurrent import futures
 
 import flowrep as fr
-from flowrep.api import schemas as frs
 
 from pyiron_workflow._wfms import api as wfms
 
@@ -143,7 +142,7 @@ def _run_and_reload(wf_fnc, **input_data) -> wfms.Run:
 
 
 def _is_not_data(value) -> bool:
-    return isinstance(value, frs.NotData)
+    return isinstance(value, fr.schemas.NotData)
 
 
 # --------------------------------------------------------------------------- #

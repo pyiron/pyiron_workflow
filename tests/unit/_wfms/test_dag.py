@@ -17,7 +17,7 @@ from __future__ import annotations
 import pickle
 import unittest
 
-from flowrep.api import schemas as frs
+import flowrep as fr
 
 from pyiron_workflow._wfms import api as wfms
 from pyiron_workflow._wfms import dag, datatypes
@@ -66,7 +66,7 @@ class TestMacro(unittest.TestCase):
         self.assertEqual("This is decorated", decorated.function_metadata["uri"])
 
     def test_result_type_classmethod(self) -> None:
-        self.assertIs(dag.Macro._result_type(), frs.DagData)
+        self.assertIs(dag.Macro._result_type(), fr.schemas.DagData)
 
 
 class TestEvaluateDagByLayer(unittest.TestCase):
@@ -93,10 +93,10 @@ class TestTopoSortNodes(unittest.TestCase):
     def test_linear_chain(self) -> None:
         nodes = {"a": None, "b": None, "c": None}
         edges = {
-            frs.TargetHandle(node="b", port="x"): frs.SourceHandle(
+            fr.schemas.TargetHandle(node="b", port="x"): fr.schemas.SourceHandle(
                 node="a", port="out"
             ),
-            frs.TargetHandle(node="c", port="x"): frs.SourceHandle(
+            fr.schemas.TargetHandle(node="c", port="x"): fr.schemas.SourceHandle(
                 node="b", port="out"
             ),
         }
@@ -104,10 +104,10 @@ class TestTopoSortNodes(unittest.TestCase):
 
     def test_layered_deterministic_across_insertion_orders(self) -> None:
         edges = {
-            frs.TargetHandle(node="b", port="x"): frs.SourceHandle(
+            fr.schemas.TargetHandle(node="b", port="x"): fr.schemas.SourceHandle(
                 node="a", port="out"
             ),
-            frs.TargetHandle(node="c", port="x"): frs.SourceHandle(
+            fr.schemas.TargetHandle(node="c", port="x"): fr.schemas.SourceHandle(
                 node="b", port="out"
             ),
         }

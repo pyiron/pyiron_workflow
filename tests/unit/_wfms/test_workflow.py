@@ -6,8 +6,8 @@ import dataclasses
 import pickle
 import unittest
 
+import flowrep as fr
 import semantikon
-from flowrep.api import schemas as frs
 
 from pyiron_workflow._wfms import (
     actions,
@@ -197,14 +197,16 @@ class TestGraphActions(unittest.TestCase):
 
     def test_add_edge_inverse_symmetric(self) -> None:
         edge = datatypes.EdgeTuple(
-            frs.InputSource(port="x"), frs.TargetHandle(node="n", port="p")
+            fr.schemas.InputSource(port="x"),
+            fr.schemas.TargetHandle(node="n", port="p"),
         )
         a = actions.AddEdge(edge)
         self.assertEqual(a.inverse().inverse(), a)
 
     def test_remove_edge_inverse_symmetric(self) -> None:
         edge = datatypes.EdgeTuple(
-            frs.InputSource(port="x"), frs.TargetHandle(node="n", port="p")
+            fr.schemas.InputSource(port="x"),
+            fr.schemas.TargetHandle(node="n", port="p"),
         )
         a = actions.RemoveEdge(edge)
         self.assertEqual(a.inverse().inverse(), a)
@@ -251,7 +253,7 @@ class TestGraphActions(unittest.TestCase):
 
     def test_dispatch_add_remove_edge(self) -> None:
         edge = datatypes.EdgeTuple(
-            frs.InputSource(port="x"), frs.OutputTarget(port="y")
+            fr.schemas.InputSource(port="x"), fr.schemas.OutputTarget(port="y")
         )
         self.wf._dispatch(actions.AddEdge(edge))
         self.assertIn(edge, self.wf.edges)
@@ -518,8 +520,8 @@ class TestNodeMutations(unittest.TestCase):
         self.wf.add_node(node)
         self.wf.create_output("out")
         edge = datatypes.EdgeTuple(
-            frs.SourceHandle(node="adder", port="output_0"),
-            frs.OutputTarget(port="out"),
+            fr.schemas.SourceHandle(node="adder", port="output_0"),
+            fr.schemas.OutputTarget(port="out"),
         )
         self.wf.add_edge(edge)
         self.assertEqual(len(self.wf.edges), 1)
@@ -531,8 +533,8 @@ class TestNodeMutations(unittest.TestCase):
         self.wf.add_node(node)
         self.wf.create_output("out")
         edge = datatypes.EdgeTuple(
-            frs.SourceHandle(node="adder", port="output_0"),
-            frs.OutputTarget(port="out"),
+            fr.schemas.SourceHandle(node="adder", port="output_0"),
+            fr.schemas.OutputTarget(port="out"),
         )
         self.wf.add_edge(edge)
         diff = self.wf.remove_node("adder")
@@ -573,14 +575,14 @@ class TestNodeMutations(unittest.TestCase):
         self.wf.add_node(node)
         self.wf.create_output("out")
         edge = datatypes.EdgeTuple(
-            frs.SourceHandle(node="old", port="output_0"),
-            frs.OutputTarget(port="out"),
+            fr.schemas.SourceHandle(node="old", port="output_0"),
+            fr.schemas.OutputTarget(port="out"),
         )
         self.wf.add_edge(edge)
         self.wf.rename_node("old", "new")
         self.assertEqual(len(self.wf.edges), 1)
         src = self.wf.edges[0].source
-        self.assertIsInstance(src, frs.SourceHandle)
+        self.assertIsInstance(src, fr.schemas.SourceHandle)
         self.assertEqual(src.node, "new")  # type: ignore[union-attr]
 
     def test_rename_node_undo(self) -> None:
@@ -588,8 +590,8 @@ class TestNodeMutations(unittest.TestCase):
         self.wf.add_node(node)
         self.wf.create_output("out")
         edge = datatypes.EdgeTuple(
-            frs.SourceHandle(node="old", port="output_0"),
-            frs.OutputTarget(port="out"),
+            fr.schemas.SourceHandle(node="old", port="output_0"),
+            fr.schemas.OutputTarget(port="out"),
         )
         self.wf.add_edge(edge)
         self.wf.rename_node("old", "new")
@@ -612,14 +614,14 @@ class TestNodeMutations(unittest.TestCase):
         self.wf.add_node(n1)
         self.wf.add_node(n2)
         peer_edge = datatypes.EdgeTuple(
-            frs.SourceHandle(node="n1", port="output_0"),
-            frs.TargetHandle(node="old", port="x"),
+            fr.schemas.SourceHandle(node="n1", port="output_0"),
+            fr.schemas.TargetHandle(node="old", port="x"),
         )
         self.wf.add_edge(peer_edge)
         self.wf.rename_node("old", "new")
         self.assertEqual(len(self.wf.edges), 1)
         tgt = self.wf.edges[0].target
-        self.assertIsInstance(tgt, frs.TargetHandle)
+        self.assertIsInstance(tgt, fr.schemas.TargetHandle)
         self.assertEqual(tgt.node, "new")  # type: ignore[union-attr]
 
 
@@ -629,7 +631,7 @@ class TestEdgeMutations(unittest.TestCase):
         self.wf.create_input("x")
         self.wf.create_output("y")
         self.edge = datatypes.EdgeTuple(
-            frs.InputSource(port="x"), frs.OutputTarget(port="y")
+            fr.schemas.InputSource(port="x"), fr.schemas.OutputTarget(port="y")
         )
 
     def test_add_edge_state(self) -> None:
@@ -666,14 +668,15 @@ class TestEdgeMutations(unittest.TestCase):
         self.wf.create_output("out")
         self.wf.create_output("w")
         e1 = datatypes.EdgeTuple(
-            frs.InputSource(port="x"), frs.TargetHandle(node="adder", port="x")
+            fr.schemas.InputSource(port="x"),
+            fr.schemas.TargetHandle(node="adder", port="x"),
         )
         e2 = datatypes.EdgeTuple(
-            frs.SourceHandle(node="adder", port="output_0"),
-            frs.OutputTarget(port="out"),
+            fr.schemas.SourceHandle(node="adder", port="output_0"),
+            fr.schemas.OutputTarget(port="out"),
         )
         unrelated = datatypes.EdgeTuple(
-            frs.InputSource(port="z"), frs.OutputTarget(port="w")
+            fr.schemas.InputSource(port="z"), fr.schemas.OutputTarget(port="w")
         )
         self.wf.add_edge(e1)
         self.wf.add_edge(e2)
@@ -688,8 +691,8 @@ class TestEdgeMutations(unittest.TestCase):
         self.wf.add_node(node)
         self.wf.create_output("out")
         edge = datatypes.EdgeTuple(
-            frs.SourceHandle(node="adder", port="output_0"),
-            frs.OutputTarget(port="out"),
+            fr.schemas.SourceHandle(node="adder", port="output_0"),
+            fr.schemas.OutputTarget(port="out"),
         )
         self.wf.add_edge(edge)
         self.wf.disconnect("adder")
@@ -709,8 +712,8 @@ class TestAddEdgeValidation(unittest.TestCase):
 
     def _sibling_edge(self) -> datatypes.EdgeTuple:
         return datatypes.EdgeTuple(
-            frs.SourceHandle(node="src", port="output_0"),
-            frs.TargetHandle(node="tgt", port="x"),
+            fr.schemas.SourceHandle(node="src", port="output_0"),
+            fr.schemas.TargetHandle(node="tgt", port="x"),
         )
 
     def test_validates_by_default_passes_compatible(self) -> None:
@@ -729,7 +732,7 @@ class TestAddEdgeValidation(unittest.TestCase):
     def test_validates_by_default_rejects_unknown_port(self) -> None:
         wf = workflow.Workflow("wf")
         bad = datatypes.EdgeTuple(
-            frs.InputSource(port="nope"), frs.OutputTarget(port="nada")
+            fr.schemas.InputSource(port="nope"), fr.schemas.OutputTarget(port="nada")
         )
         with self.assertRaises(KeyError):
             wf.add_edge(bad)
@@ -744,7 +747,7 @@ class TestAddEdgeValidation(unittest.TestCase):
     def test_skip_validation_allows_unknown_port(self) -> None:
         wf = workflow.Workflow("wf")
         bad = datatypes.EdgeTuple(
-            frs.InputSource(port="nope"), frs.OutputTarget(port="nada")
+            fr.schemas.InputSource(port="nope"), fr.schemas.OutputTarget(port="nada")
         )
         wf.add_edge(bad, type_validate=False)
         self.assertIn(bad, wf.edges)
@@ -760,8 +763,8 @@ class TestAddEdgeValidation(unittest.TestCase):
     def _unfulfilled_edge(self) -> datatypes.EdgeTuple:
         # src=add (output_0 unhinted) -> tgt=typed_int (x hinted int)
         return datatypes.EdgeTuple(
-            frs.SourceHandle(node="src", port="output_0"),
-            frs.TargetHandle(node="tgt", port="x"),
+            fr.schemas.SourceHandle(node="src", port="output_0"),
+            fr.schemas.TargetHandle(node="tgt", port="x"),
         )
 
     def test_strict_rejects_unfulfilled_request(self) -> None:
@@ -789,12 +792,12 @@ class TestAddEdgeValidation(unittest.TestCase):
             label="wf",
         )
         ok = datatypes.EdgeTuple(
-            frs.SourceHandle(node="src", port="output_0"),
-            frs.TargetHandle(node="tgt_ok", port="x"),
+            fr.schemas.SourceHandle(node="src", port="output_0"),
+            fr.schemas.TargetHandle(node="tgt_ok", port="x"),
         )
         bad = datatypes.EdgeTuple(  # int source → float target → fails
-            frs.SourceHandle(node="src", port="output_0"),
-            frs.TargetHandle(node="tgt_bad", port="x"),
+            fr.schemas.SourceHandle(node="src", port="output_0"),
+            fr.schemas.TargetHandle(node="tgt_bad", port="x"),
         )
         with self.assertRaises(TypeError):
             wf.add_edge(ok, bad)
@@ -840,7 +843,8 @@ class TestInputPortMutations(unittest.TestCase):
         node = _fixtures.atomic_add_node("adder")
         self.wf.add_node(node)
         edge = datatypes.EdgeTuple(
-            frs.InputSource(port="x"), frs.TargetHandle(node="adder", port="x")
+            fr.schemas.InputSource(port="x"),
+            fr.schemas.TargetHandle(node="adder", port="x"),
         )
         self.wf.add_edge(edge)
         self.wf.remove_input("x")
@@ -851,7 +855,8 @@ class TestInputPortMutations(unittest.TestCase):
         node = _fixtures.atomic_add_node("adder")
         self.wf.add_node(node)
         edge = datatypes.EdgeTuple(
-            frs.InputSource(port="x"), frs.TargetHandle(node="adder", port="x")
+            fr.schemas.InputSource(port="x"),
+            fr.schemas.TargetHandle(node="adder", port="x"),
         )
         self.wf.add_edge(edge)
         diff = self.wf.remove_input("x")
@@ -864,7 +869,8 @@ class TestInputPortMutations(unittest.TestCase):
         node = _fixtures.atomic_add_node("adder")
         self.wf.add_node(node)
         edge = datatypes.EdgeTuple(
-            frs.InputSource(port="x"), frs.TargetHandle(node="adder", port="x")
+            fr.schemas.InputSource(port="x"),
+            fr.schemas.TargetHandle(node="adder", port="x"),
         )
         self.wf.add_edge(edge)
         self.wf.remove_input("x")
@@ -889,13 +895,14 @@ class TestInputPortMutations(unittest.TestCase):
         node = _fixtures.atomic_add_node("adder")
         self.wf.add_node(node)
         edge = datatypes.EdgeTuple(
-            frs.InputSource(port="x"), frs.TargetHandle(node="adder", port="x")
+            fr.schemas.InputSource(port="x"),
+            fr.schemas.TargetHandle(node="adder", port="x"),
         )
         self.wf.add_edge(edge)
         self.wf.rename_input("x", "z")
         self.assertEqual(len(self.wf.edges), 1)
         src = self.wf.edges[0].source
-        self.assertIsInstance(src, frs.InputSource)
+        self.assertIsInstance(src, fr.schemas.InputSource)
         self.assertEqual(src.port, "z")  # type: ignore[union-attr]
 
     def test_rename_input_undo(self) -> None:
@@ -903,7 +910,8 @@ class TestInputPortMutations(unittest.TestCase):
         node = _fixtures.atomic_add_node("adder")
         self.wf.add_node(node)
         edge = datatypes.EdgeTuple(
-            frs.InputSource(port="x"), frs.TargetHandle(node="adder", port="x")
+            fr.schemas.InputSource(port="x"),
+            fr.schemas.TargetHandle(node="adder", port="x"),
         )
         self.wf.add_edge(edge)
         self.wf.rename_input("x", "z")
@@ -1001,8 +1009,8 @@ class TestOutputPortMutations(unittest.TestCase):
         self.wf.add_node(node)
         self.wf.create_output("out")
         edge = datatypes.EdgeTuple(
-            frs.SourceHandle(node="adder", port="output_0"),
-            frs.OutputTarget(port="out"),
+            fr.schemas.SourceHandle(node="adder", port="output_0"),
+            fr.schemas.OutputTarget(port="out"),
         )
         self.wf.add_edge(edge)
         self.wf.remove_output("out")
@@ -1013,8 +1021,8 @@ class TestOutputPortMutations(unittest.TestCase):
         self.wf.add_node(node)
         self.wf.create_output("out")
         edge = datatypes.EdgeTuple(
-            frs.SourceHandle(node="adder", port="output_0"),
-            frs.OutputTarget(port="out"),
+            fr.schemas.SourceHandle(node="adder", port="output_0"),
+            fr.schemas.OutputTarget(port="out"),
         )
         self.wf.add_edge(edge)
         diff = self.wf.remove_output("out")
@@ -1027,8 +1035,8 @@ class TestOutputPortMutations(unittest.TestCase):
         self.wf.add_node(node)
         self.wf.create_output("out")
         edge = datatypes.EdgeTuple(
-            frs.SourceHandle(node="adder", port="output_0"),
-            frs.OutputTarget(port="out"),
+            fr.schemas.SourceHandle(node="adder", port="output_0"),
+            fr.schemas.OutputTarget(port="out"),
         )
         self.wf.add_edge(edge)
         self.wf.remove_output("out")
@@ -1053,14 +1061,14 @@ class TestOutputPortMutations(unittest.TestCase):
         self.wf.add_node(node)
         self.wf.create_output("out")
         edge = datatypes.EdgeTuple(
-            frs.SourceHandle(node="adder", port="output_0"),
-            frs.OutputTarget(port="out"),
+            fr.schemas.SourceHandle(node="adder", port="output_0"),
+            fr.schemas.OutputTarget(port="out"),
         )
         self.wf.add_edge(edge)
         self.wf.rename_output("out", "result")
         self.assertEqual(len(self.wf.edges), 1)
         tgt = self.wf.edges[0].target
-        self.assertIsInstance(tgt, frs.OutputTarget)
+        self.assertIsInstance(tgt, fr.schemas.OutputTarget)
         self.assertEqual(tgt.port, "result")  # type: ignore[union-attr]
 
     def test_rename_output_undo(self) -> None:
@@ -1068,8 +1076,8 @@ class TestOutputPortMutations(unittest.TestCase):
         self.wf.add_node(node)
         self.wf.create_output("out")
         edge = datatypes.EdgeTuple(
-            frs.SourceHandle(node="adder", port="output_0"),
-            frs.OutputTarget(port="out"),
+            fr.schemas.SourceHandle(node="adder", port="output_0"),
+            fr.schemas.OutputTarget(port="out"),
         )
         self.wf.add_edge(edge)
         self.wf.rename_output("out", "result")
@@ -1204,8 +1212,8 @@ class TestAtomicRollback(unittest.TestCase):
         self.wf.add_node(n1)
         self.wf.create_output("out")
         edge = datatypes.EdgeTuple(
-            frs.SourceHandle(node="n1", port="output_0"),
-            frs.OutputTarget(port="out"),
+            fr.schemas.SourceHandle(node="n1", port="output_0"),
+            fr.schemas.OutputTarget(port="out"),
         )
         self.wf.add_edge(edge)
 
@@ -1448,8 +1456,8 @@ class TestWorkflowEvaluate(unittest.TestCase):
             node_specs={"m": _fixtures.multiply_with_defaults_node},
             edges=[
                 datatypes.EdgeTuple(
-                    frs.InputSource(port="x"),
-                    frs.TargetHandle(node="m", port="x"),
+                    fr.schemas.InputSource(port="x"),
+                    fr.schemas.TargetHandle(node="m", port="x"),
                 )
             ],
         )
@@ -1464,8 +1472,8 @@ class TestWorkflowEvaluate(unittest.TestCase):
             node_specs={"m": _fixtures.multiply_with_defaults_node},
             edges=[
                 datatypes.EdgeTuple(
-                    frs.SourceHandle(node="m", port="output_0"),
-                    frs.OutputTarget(port="out"),
+                    fr.schemas.SourceHandle(node="m", port="output_0"),
+                    fr.schemas.OutputTarget(port="out"),
                 )
             ],
         )
@@ -1482,12 +1490,12 @@ class TestWorkflowEvaluate(unittest.TestCase):
             },
             edges=[
                 datatypes.EdgeTuple(
-                    frs.SourceHandle(node="n1", port="output_0"),
-                    frs.TargetHandle(node="n2", port="x"),
+                    fr.schemas.SourceHandle(node="n1", port="output_0"),
+                    fr.schemas.TargetHandle(node="n2", port="x"),
                 ),
                 datatypes.EdgeTuple(
-                    frs.SourceHandle(node="n2", port="output_0"),
-                    frs.OutputTarget(port="result"),
+                    fr.schemas.SourceHandle(node="n2", port="output_0"),
+                    fr.schemas.OutputTarget(port="result"),
                 ),
             ],
         )
@@ -1516,7 +1524,8 @@ class TestWorkflowEvaluate(unittest.TestCase):
             outputs=["out"],
             edges=[
                 datatypes.EdgeTuple(
-                    frs.InputSource(port="x"), frs.OutputTarget(port="out")
+                    fr.schemas.InputSource(port="x"),
+                    fr.schemas.OutputTarget(port="out"),
                 )
             ],
         )
@@ -1558,24 +1567,24 @@ class TestUnlockSubgraph(unittest.TestCase):
         parent.add_node(_fixtures.macro_node(child_label))
         parent.add_edge(
             datatypes.EdgeTuple(
-                frs.InputSource(port="x"),
-                frs.TargetHandle(node=child_label, port="x"),
+                fr.schemas.InputSource(port="x"),
+                fr.schemas.TargetHandle(node=child_label, port="x"),
             ),
             datatypes.EdgeTuple(
-                frs.InputSource(port="y"),
-                frs.TargetHandle(node=child_label, port="y"),
+                fr.schemas.InputSource(port="y"),
+                fr.schemas.TargetHandle(node=child_label, port="y"),
             ),
             datatypes.EdgeTuple(
-                frs.InputSource(port="z"),
-                frs.TargetHandle(node=child_label, port="z"),
+                fr.schemas.InputSource(port="z"),
+                fr.schemas.TargetHandle(node=child_label, port="z"),
             ),
             datatypes.EdgeTuple(
-                frs.SourceHandle(node=child_label, port="a"),
-                frs.OutputTarget(port="a"),
+                fr.schemas.SourceHandle(node=child_label, port="a"),
+                fr.schemas.OutputTarget(port="a"),
             ),
             datatypes.EdgeTuple(
-                frs.SourceHandle(node=child_label, port="s"),
-                frs.OutputTarget(port="s"),
+                fr.schemas.SourceHandle(node=child_label, port="s"),
+                fr.schemas.OutputTarget(port="s"),
             ),
         )
         return parent
@@ -1654,24 +1663,24 @@ class TestLockSubgraph(unittest.TestCase):
         parent.add_node(inner)
         parent.add_edge(
             datatypes.EdgeTuple(
-                frs.InputSource(port="x"),
-                frs.TargetHandle(node="m", port="x"),
+                fr.schemas.InputSource(port="x"),
+                fr.schemas.TargetHandle(node="m", port="x"),
             ),
             datatypes.EdgeTuple(
-                frs.InputSource(port="y"),
-                frs.TargetHandle(node="m", port="y"),
+                fr.schemas.InputSource(port="y"),
+                fr.schemas.TargetHandle(node="m", port="y"),
             ),
             datatypes.EdgeTuple(
-                frs.InputSource(port="z"),
-                frs.TargetHandle(node="m", port="z"),
+                fr.schemas.InputSource(port="z"),
+                fr.schemas.TargetHandle(node="m", port="z"),
             ),
             datatypes.EdgeTuple(
-                frs.SourceHandle(node="m", port="a"),
-                frs.OutputTarget(port="a"),
+                fr.schemas.SourceHandle(node="m", port="a"),
+                fr.schemas.OutputTarget(port="a"),
             ),
             datatypes.EdgeTuple(
-                frs.SourceHandle(node="m", port="s"),
-                frs.OutputTarget(port="s"),
+                fr.schemas.SourceHandle(node="m", port="s"),
+                fr.schemas.OutputTarget(port="s"),
             ),
         )
         return parent
@@ -1768,8 +1777,8 @@ class TestGroup(unittest.TestCase):
         # The internal `add_0 -> sub_0` edge moved into the subgraph.
         self.assertIn(
             datatypes.EdgeTuple(
-                frs.SourceHandle(node="add_0", port="output_0"),
-                frs.TargetHandle(node="sub_0", port="x"),
+                fr.schemas.SourceHandle(node="add_0", port="output_0"),
+                fr.schemas.TargetHandle(node="sub_0", port="x"),
             ),
             grp.edges,
         )
@@ -1777,22 +1786,22 @@ class TestGroup(unittest.TestCase):
         # Parent input edges now land on the subgraph's generated ports.
         self.assertIn(
             datatypes.EdgeTuple(
-                frs.InputSource(port="x"),
-                frs.TargetHandle(node="grp", port="add_0__x"),
+                fr.schemas.InputSource(port="x"),
+                fr.schemas.TargetHandle(node="grp", port="add_0__x"),
             ),
             parent.edges,
         )
         self.assertIn(
             datatypes.EdgeTuple(
-                frs.InputSource(port="z"),
-                frs.TargetHandle(node="grp", port="sub_0__y"),
+                fr.schemas.InputSource(port="z"),
+                fr.schemas.TargetHandle(node="grp", port="sub_0__y"),
             ),
             parent.edges,
         )
         self.assertIn(
             datatypes.EdgeTuple(
-                frs.SourceHandle(node="grp", port="sub_0__output_0"),
-                frs.OutputTarget(port="diff"),
+                fr.schemas.SourceHandle(node="grp", port="sub_0__output_0"),
+                fr.schemas.OutputTarget(port="diff"),
             ),
             parent.edges,
         )
@@ -1830,13 +1839,13 @@ class TestGroup(unittest.TestCase):
         parent = _fixtures.grouping_wf("parent")
         parent.add_edge(
             datatypes.EdgeTuple(
-                frs.InputSource(port="x"),
-                frs.TargetHandle(node="mul_0", port="x"),
+                fr.schemas.InputSource(port="x"),
+                fr.schemas.TargetHandle(node="mul_0", port="x"),
             )
         )
         unrelated_edge = datatypes.EdgeTuple(
-            frs.InputSource(port="x"),
-            frs.TargetHandle(node="mul_0", port="x"),
+            fr.schemas.InputSource(port="x"),
+            fr.schemas.TargetHandle(node="mul_0", port="x"),
         )
         parent.group("grp", parent.nodes["add_0"], parent.nodes["sub_0"])
         self.assertIn(unrelated_edge, parent.edges)
@@ -1876,8 +1885,8 @@ class TestGroup(unittest.TestCase):
         # `add_0/x` already receives `InputSource("x")`; add a second feeder.
         parent.add_edge(
             datatypes.EdgeTuple(
-                frs.InputSource(port="y"),
-                frs.TargetHandle(node="add_0", port="x"),
+                fr.schemas.InputSource(port="y"),
+                fr.schemas.TargetHandle(node="add_0", port="x"),
             )
         )
         parent.group("grp", parent.nodes["add_0"], parent.nodes["sub_0"])
@@ -1893,12 +1902,12 @@ class TestGroup(unittest.TestCase):
         # edges from the same source.
         parent.add_edge(
             datatypes.EdgeTuple(
-                frs.SourceHandle(node="add_0", port="output_0"),
-                frs.TargetHandle(node="mul_0", port="x"),
+                fr.schemas.SourceHandle(node="add_0", port="output_0"),
+                fr.schemas.TargetHandle(node="mul_0", port="x"),
             ),
             datatypes.EdgeTuple(
-                frs.SourceHandle(node="add_0", port="output_0"),
-                frs.TargetHandle(node="mul_0", port="y"),
+                fr.schemas.SourceHandle(node="add_0", port="output_0"),
+                fr.schemas.TargetHandle(node="mul_0", port="y"),
             ),
         )
         parent.group("grp", parent.nodes["add_0"], parent.nodes["sub_0"])
@@ -1917,8 +1926,8 @@ class TestGroup(unittest.TestCase):
         parent = _fixtures.grouping_wf("parent")
         parent.add_edge(
             datatypes.EdgeTuple(
-                frs.InputSource(port="y"),
-                frs.TargetHandle(node="add_0", port="x"),
+                fr.schemas.InputSource(port="y"),
+                fr.schemas.TargetHandle(node="add_0", port="x"),
             )
         )
         parent.group("grp", parent.nodes["add_0"], parent.nodes["sub_0"])
@@ -1927,7 +1936,8 @@ class TestGroup(unittest.TestCase):
         inner = [
             e
             for e in grp.edges
-            if isinstance(e.source, frs.InputSource) and e.source.port == "add_0__x"
+            if isinstance(e.source, fr.schemas.InputSource)
+            and e.source.port == "add_0__x"
         ]
         self.assertEqual(len(inner), 1)
 
@@ -1937,12 +1947,12 @@ class TestGroup(unittest.TestCase):
         parent = _fixtures.grouping_wf("parent")
         parent.add_edge(
             datatypes.EdgeTuple(
-                frs.SourceHandle(node="add_0", port="output_0"),
-                frs.TargetHandle(node="mul_0", port="x"),
+                fr.schemas.SourceHandle(node="add_0", port="output_0"),
+                fr.schemas.TargetHandle(node="mul_0", port="x"),
             ),
             datatypes.EdgeTuple(
-                frs.SourceHandle(node="add_0", port="output_0"),
-                frs.TargetHandle(node="mul_0", port="y"),
+                fr.schemas.SourceHandle(node="add_0", port="output_0"),
+                fr.schemas.TargetHandle(node="mul_0", port="y"),
             ),
         )
         parent.group("grp", parent.nodes["add_0"], parent.nodes["sub_0"])
@@ -1950,7 +1960,7 @@ class TestGroup(unittest.TestCase):
         inner = [
             e
             for e in grp.edges
-            if isinstance(e.target, frs.OutputTarget)
+            if isinstance(e.target, fr.schemas.OutputTarget)
             and e.target.port == "add_0__output_0"
         ]
         self.assertEqual(len(inner), 1)
@@ -1960,20 +1970,20 @@ class TestGroup(unittest.TestCase):
         parent = _fixtures.grouping_wf("parent")
         parent.add_edge(
             datatypes.EdgeTuple(
-                frs.SourceHandle(node="add_0", port="output_0"),
-                frs.TargetHandle(node="mul_0", port="x"),
+                fr.schemas.SourceHandle(node="add_0", port="output_0"),
+                fr.schemas.TargetHandle(node="mul_0", port="x"),
             ),
             datatypes.EdgeTuple(
-                frs.SourceHandle(node="add_0", port="output_0"),
-                frs.TargetHandle(node="mul_0", port="y"),
+                fr.schemas.SourceHandle(node="add_0", port="output_0"),
+                fr.schemas.TargetHandle(node="mul_0", port="y"),
             ),
         )
         parent.group("grp", parent.nodes["add_0"], parent.nodes["sub_0"])
         for tgt_port in ("x", "y"):
             self.assertIn(
                 datatypes.EdgeTuple(
-                    frs.SourceHandle(node="grp", port="add_0__output_0"),
-                    frs.TargetHandle(node="mul_0", port=tgt_port),
+                    fr.schemas.SourceHandle(node="grp", port="add_0__output_0"),
+                    fr.schemas.TargetHandle(node="mul_0", port=tgt_port),
                 ),
                 parent.edges,
             )
@@ -2001,22 +2011,22 @@ class TestUngroup(unittest.TestCase):
         self.assertEqual(set(parent.nodes.keys()), {"grp_add_0", "grp_sub_0", "mul_0"})
         self.assertIn(
             datatypes.EdgeTuple(
-                frs.InputSource(port="x"),
-                frs.TargetHandle(node="grp_add_0", port="x"),
+                fr.schemas.InputSource(port="x"),
+                fr.schemas.TargetHandle(node="grp_add_0", port="x"),
             ),
             parent.edges,
         )
         self.assertIn(
             datatypes.EdgeTuple(
-                frs.SourceHandle(node="grp_sub_0", port="output_0"),
-                frs.OutputTarget(port="diff"),
+                fr.schemas.SourceHandle(node="grp_sub_0", port="output_0"),
+                fr.schemas.OutputTarget(port="diff"),
             ),
             parent.edges,
         )
         self.assertIn(
             datatypes.EdgeTuple(
-                frs.SourceHandle(node="grp_add_0", port="output_0"),
-                frs.TargetHandle(node="grp_sub_0", port="x"),
+                fr.schemas.SourceHandle(node="grp_add_0", port="output_0"),
+                fr.schemas.TargetHandle(node="grp_sub_0", port="x"),
             ),
             parent.edges,
         )
@@ -2031,24 +2041,24 @@ class TestUngroup(unittest.TestCase):
         parent.add_node(_fixtures.macro_node("m"))
         parent.add_edge(
             datatypes.EdgeTuple(
-                frs.InputSource(port="x"),
-                frs.TargetHandle(node="m", port="x"),
+                fr.schemas.InputSource(port="x"),
+                fr.schemas.TargetHandle(node="m", port="x"),
             ),
             datatypes.EdgeTuple(
-                frs.InputSource(port="y"),
-                frs.TargetHandle(node="m", port="y"),
+                fr.schemas.InputSource(port="y"),
+                fr.schemas.TargetHandle(node="m", port="y"),
             ),
             datatypes.EdgeTuple(
-                frs.InputSource(port="z"),
-                frs.TargetHandle(node="m", port="z"),
+                fr.schemas.InputSource(port="z"),
+                fr.schemas.TargetHandle(node="m", port="z"),
             ),
             datatypes.EdgeTuple(
-                frs.SourceHandle(node="m", port="a"),
-                frs.OutputTarget(port="a"),
+                fr.schemas.SourceHandle(node="m", port="a"),
+                fr.schemas.OutputTarget(port="a"),
             ),
             datatypes.EdgeTuple(
-                frs.SourceHandle(node="m", port="s"),
-                frs.OutputTarget(port="s"),
+                fr.schemas.SourceHandle(node="m", port="s"),
+                fr.schemas.OutputTarget(port="s"),
             ),
         )
 
@@ -2125,12 +2135,12 @@ class TestUngroup(unittest.TestCase):
         parent.add_node(sub)
         parent.add_edge(
             datatypes.EdgeTuple(
-                frs.InputSource(port="p_in"),
-                frs.TargetHandle(node="sub", port="a"),
+                fr.schemas.InputSource(port="p_in"),
+                fr.schemas.TargetHandle(node="sub", port="a"),
             ),
             datatypes.EdgeTuple(
-                frs.SourceHandle(node="sub", port="b"),
-                frs.OutputTarget(port="p_out"),
+                fr.schemas.SourceHandle(node="sub", port="b"),
+                fr.schemas.OutputTarget(port="p_out"),
             ),
         )
 
@@ -2141,8 +2151,8 @@ class TestUngroup(unittest.TestCase):
             set(parent.edges),
             {
                 datatypes.EdgeTuple(
-                    frs.InputSource(port="p_in"),
-                    frs.OutputTarget(port="p_out"),
+                    fr.schemas.InputSource(port="p_in"),
+                    fr.schemas.OutputTarget(port="p_out"),
                 )
             },
         )
@@ -2157,20 +2167,20 @@ class TestUngroup(unittest.TestCase):
         parent.add_node(sub)
         parent.add_edge(
             datatypes.EdgeTuple(
-                frs.InputSource(port="p_in_1"),
-                frs.TargetHandle(node="sub", port="a"),
+                fr.schemas.InputSource(port="p_in_1"),
+                fr.schemas.TargetHandle(node="sub", port="a"),
             ),
             datatypes.EdgeTuple(
-                frs.InputSource(port="p_in_2"),
-                frs.TargetHandle(node="sub", port="a"),
+                fr.schemas.InputSource(port="p_in_2"),
+                fr.schemas.TargetHandle(node="sub", port="a"),
             ),
             datatypes.EdgeTuple(
-                frs.SourceHandle(node="sub", port="b"),
-                frs.OutputTarget(port="p_out_1"),
+                fr.schemas.SourceHandle(node="sub", port="b"),
+                fr.schemas.OutputTarget(port="p_out_1"),
             ),
             datatypes.EdgeTuple(
-                frs.SourceHandle(node="sub", port="b"),
-                frs.OutputTarget(port="p_out_2"),
+                fr.schemas.SourceHandle(node="sub", port="b"),
+                fr.schemas.OutputTarget(port="p_out_2"),
             ),
         )
 
@@ -2178,8 +2188,8 @@ class TestUngroup(unittest.TestCase):
 
         expected = {
             datatypes.EdgeTuple(
-                frs.InputSource(port=src),
-                frs.OutputTarget(port=tgt),
+                fr.schemas.InputSource(port=src),
+                fr.schemas.OutputTarget(port=tgt),
             )
             for src in ("p_in_1", "p_in_2")
             for tgt in ("p_out_1", "p_out_2")

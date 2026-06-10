@@ -16,7 +16,6 @@ from __future__ import annotations
 
 import flowrep as fr
 import semantikon
-from flowrep.api import schemas as frs
 from pyiron_snippets import versions
 
 from pyiron_workflow._wfms import api as wfms
@@ -154,7 +153,7 @@ def if_abs(x):
     return y
 
 
-def if_recipe() -> frs.IfRecipe:
+def if_recipe() -> fr.schemas.IfRecipe:
     """
     Minimal `IfNode` whose condition/body both wrap `add`.
 
@@ -162,24 +161,32 @@ def if_recipe() -> frs.IfRecipe:
     single source of truth for the canonical recipe shape.
     """
     add_recipe = add.flowrep_recipe
-    return frs.IfRecipe(
+    return fr.schemas.IfRecipe(
         inputs=["x", "y"],
         outputs=["out"],
         cases=[
-            frs.ConditionalCase(
-                condition=frs.LabeledRecipe(label="cond", node=add_recipe),
-                body=frs.LabeledRecipe(label="body", node=add_recipe),
+            fr.schemas.ConditionalCase(
+                condition=fr.schemas.LabeledRecipe(label="cond", node=add_recipe),
+                body=fr.schemas.LabeledRecipe(label="body", node=add_recipe),
             )
         ],
         input_edges={
-            frs.TargetHandle(node="cond", port="x"): frs.InputSource(port="x"),
-            frs.TargetHandle(node="cond", port="y"): frs.InputSource(port="y"),
-            frs.TargetHandle(node="body", port="x"): frs.InputSource(port="x"),
-            frs.TargetHandle(node="body", port="y"): frs.InputSource(port="y"),
+            fr.schemas.TargetHandle(node="cond", port="x"): fr.schemas.InputSource(
+                port="x"
+            ),
+            fr.schemas.TargetHandle(node="cond", port="y"): fr.schemas.InputSource(
+                port="y"
+            ),
+            fr.schemas.TargetHandle(node="body", port="x"): fr.schemas.InputSource(
+                port="x"
+            ),
+            fr.schemas.TargetHandle(node="body", port="y"): fr.schemas.InputSource(
+                port="y"
+            ),
         },
         prospective_output_edges={
-            frs.OutputTarget(port="out"): [
-                frs.SourceHandle(node="body", port="output_0")
+            fr.schemas.OutputTarget(port="out"): [
+                fr.schemas.SourceHandle(node="body", port="output_0")
             ],
         },
     )
@@ -286,20 +293,29 @@ def typed_float_node(label: str = "typed_float"):
 # --------------------------------------------------------------------------- #
 
 _MACRO_WF_EDGES = [
-    wfms.EdgeTuple(frs.InputSource(port="x"), frs.TargetHandle(node="add_0", port="x")),
-    wfms.EdgeTuple(frs.InputSource(port="y"), frs.TargetHandle(node="add_0", port="y")),
-    wfms.EdgeTuple(frs.InputSource(port="z"), frs.TargetHandle(node="sub_0", port="y")),
     wfms.EdgeTuple(
-        frs.SourceHandle(node="add_0", port="output_0"),
-        frs.TargetHandle(node="sub_0", port="x"),
+        fr.schemas.InputSource(port="x"),
+        fr.schemas.TargetHandle(node="add_0", port="x"),
     ),
     wfms.EdgeTuple(
-        frs.SourceHandle(node="add_0", port="output_0"),
-        frs.OutputTarget(port="a"),
+        fr.schemas.InputSource(port="y"),
+        fr.schemas.TargetHandle(node="add_0", port="y"),
     ),
     wfms.EdgeTuple(
-        frs.SourceHandle(node="sub_0", port="output_0"),
-        frs.OutputTarget(port="s"),
+        fr.schemas.InputSource(port="z"),
+        fr.schemas.TargetHandle(node="sub_0", port="y"),
+    ),
+    wfms.EdgeTuple(
+        fr.schemas.SourceHandle(node="add_0", port="output_0"),
+        fr.schemas.TargetHandle(node="sub_0", port="x"),
+    ),
+    wfms.EdgeTuple(
+        fr.schemas.SourceHandle(node="add_0", port="output_0"),
+        fr.schemas.OutputTarget(port="a"),
+    ),
+    wfms.EdgeTuple(
+        fr.schemas.SourceHandle(node="sub_0", port="output_0"),
+        fr.schemas.OutputTarget(port="s"),
     ),
 ]
 
@@ -334,17 +350,21 @@ def for_wf_node(label: str = "for_wf"):
 def foreach_node(label: str = "fe"):
     """Return a fresh `ForEach` flow-control node (a `NotParseable` to the type
     validator) wrapping `add(x, y)` with `x` nested and `y` broadcast."""
-    body = frs.LabeledRecipe(label="body", node=add.flowrep_recipe)
-    recipe = frs.ForEachRecipe(
+    body = fr.schemas.LabeledRecipe(label="body", node=add.flowrep_recipe)
+    recipe = fr.schemas.ForEachRecipe(
         inputs=["xs", "y"],
         outputs=["sums"],
         body_node=body,
         input_edges={
-            frs.TargetHandle(node="body", port="x"): frs.InputSource(port="xs"),
-            frs.TargetHandle(node="body", port="y"): frs.InputSource(port="y"),
+            fr.schemas.TargetHandle(node="body", port="x"): fr.schemas.InputSource(
+                port="xs"
+            ),
+            fr.schemas.TargetHandle(node="body", port="y"): fr.schemas.InputSource(
+                port="y"
+            ),
         },
         output_edges={
-            frs.OutputTarget(port="sums"): frs.SourceHandle(
+            fr.schemas.OutputTarget(port="sums"): fr.schemas.SourceHandle(
                 node="body", port="output_0"
             ),
         },
@@ -388,73 +408,87 @@ def try_safe_divide(x, y):
     return z
 
 
-def try_recipe() -> frs.TryRecipe:
+def try_recipe() -> fr.schemas.TryRecipe:
     """
     Programmatically-built `TryNode` matching `try_safe_divide`: divides `x` by `y`,
     falling back to `identity(x)` on `ZeroDivisionError`.
     """
-    return frs.TryRecipe(
+    return fr.schemas.TryRecipe(
         inputs=["x", "y"],
         outputs=["z"],
-        try_node=frs.LabeledRecipe(label="try_body", node=divide.flowrep_recipe),
+        try_node=fr.schemas.LabeledRecipe(label="try_body", node=divide.flowrep_recipe),
         exception_cases=[
-            frs.ExceptionCase(
+            fr.schemas.ExceptionCase(
                 exceptions=[versions.VersionInfo.of(ZeroDivisionError)],
-                body=frs.LabeledRecipe(
+                body=fr.schemas.LabeledRecipe(
                     label="except_body_0", node=identity.flowrep_recipe
                 ),
             ),
         ],
         input_edges={
-            frs.TargetHandle(node="try_body", port="x"): frs.InputSource(port="x"),
-            frs.TargetHandle(node="try_body", port="y"): frs.InputSource(port="y"),
-            frs.TargetHandle(node="except_body_0", port="x"): frs.InputSource(port="x"),
+            fr.schemas.TargetHandle(node="try_body", port="x"): fr.schemas.InputSource(
+                port="x"
+            ),
+            fr.schemas.TargetHandle(node="try_body", port="y"): fr.schemas.InputSource(
+                port="y"
+            ),
+            fr.schemas.TargetHandle(
+                node="except_body_0", port="x"
+            ): fr.schemas.InputSource(port="x"),
         },
         prospective_output_edges={
-            frs.OutputTarget(port="z"): [
-                frs.SourceHandle(node="try_body", port="output_0"),
-                frs.SourceHandle(node="except_body_0", port="x"),
+            fr.schemas.OutputTarget(port="z"): [
+                fr.schemas.SourceHandle(node="try_body", port="output_0"),
+                fr.schemas.SourceHandle(node="except_body_0", port="x"),
             ],
         },
     )
 
 
-def while_recipe() -> frs.WhileRecipe:
+def while_recipe() -> fr.schemas.WhileRecipe:
     """
     Programmatically-built `WhileNode` matching `while_countdown`.
 
     Decrements `n` while `is_positive(n)`. Mirrors `if_recipe()` so tests
     can construct a `While` directly without going through the parser.
     """
-    body = frs.WorkflowRecipe(
+    body = fr.schemas.WorkflowRecipe(
         inputs=["n"],
         outputs=["n"],
         nodes={"decrement_0": decrement.flowrep_recipe},
         input_edges={
-            frs.TargetHandle(node="decrement_0", port="x"): frs.InputSource(port="n"),
+            fr.schemas.TargetHandle(
+                node="decrement_0", port="x"
+            ): fr.schemas.InputSource(port="n"),
         },
         edges={},
         output_edges={
-            frs.OutputTarget(port="n"): frs.SourceHandle(
+            fr.schemas.OutputTarget(port="n"): fr.schemas.SourceHandle(
                 node="decrement_0", port="output_0"
             ),
         },
     )
-    return frs.WhileRecipe(
+    return fr.schemas.WhileRecipe(
         inputs=["n"],
         outputs=["n"],
-        case=frs.ConditionalCase(
-            condition=frs.LabeledRecipe(
+        case=fr.schemas.ConditionalCase(
+            condition=fr.schemas.LabeledRecipe(
                 label="condition", node=is_positive.flowrep_recipe
             ),
-            body=frs.LabeledRecipe(label="body", node=body),
+            body=fr.schemas.LabeledRecipe(label="body", node=body),
         ),
         input_edges={
-            frs.TargetHandle(node="condition", port="n"): frs.InputSource(port="n"),
-            frs.TargetHandle(node="body", port="n"): frs.InputSource(port="n"),
+            fr.schemas.TargetHandle(node="condition", port="n"): fr.schemas.InputSource(
+                port="n"
+            ),
+            fr.schemas.TargetHandle(node="body", port="n"): fr.schemas.InputSource(
+                port="n"
+            ),
         },
         output_edges={
-            frs.OutputTarget(port="n"): frs.SourceHandle(node="body", port="n"),
+            fr.schemas.OutputTarget(port="n"): fr.schemas.SourceHandle(
+                node="body", port="n"
+            ),
         },
     )
 
@@ -464,13 +498,13 @@ def while_recipe() -> frs.WhileRecipe:
 # --------------------------------------------------------------------------- #
 
 
-def attr_sugar_recipe() -> frs.WorkflowRecipe:
+def attr_sugar_recipe() -> fr.schemas.WorkflowRecipe:
     """
     Programmatic `WorkflowRecipe` whose node labels collide with graph
     attributes: `executor` and `nodes` shadow real attributes, `plain` does
     not. Every node wraps `multiply_with_defaults`, so no edges are needed.
     """
-    return frs.WorkflowRecipe(
+    return fr.schemas.WorkflowRecipe(
         inputs=[],
         outputs=[],
         nodes={
@@ -504,16 +538,25 @@ def grouping_wf_node_specs():
 
 
 _GROUPING_WF_EDGES = [
-    wfms.EdgeTuple(frs.InputSource(port="x"), frs.TargetHandle(node="add_0", port="x")),
-    wfms.EdgeTuple(frs.InputSource(port="y"), frs.TargetHandle(node="add_0", port="y")),
     wfms.EdgeTuple(
-        frs.SourceHandle(node="add_0", port="output_0"),
-        frs.TargetHandle(node="sub_0", port="x"),
+        fr.schemas.InputSource(port="x"),
+        fr.schemas.TargetHandle(node="add_0", port="x"),
     ),
-    wfms.EdgeTuple(frs.InputSource(port="z"), frs.TargetHandle(node="sub_0", port="y")),
     wfms.EdgeTuple(
-        frs.SourceHandle(node="sub_0", port="output_0"),
-        frs.OutputTarget(port="diff"),
+        fr.schemas.InputSource(port="y"),
+        fr.schemas.TargetHandle(node="add_0", port="y"),
+    ),
+    wfms.EdgeTuple(
+        fr.schemas.SourceHandle(node="add_0", port="output_0"),
+        fr.schemas.TargetHandle(node="sub_0", port="x"),
+    ),
+    wfms.EdgeTuple(
+        fr.schemas.InputSource(port="z"),
+        fr.schemas.TargetHandle(node="sub_0", port="y"),
+    ),
+    wfms.EdgeTuple(
+        fr.schemas.SourceHandle(node="sub_0", port="output_0"),
+        fr.schemas.OutputTarget(port="diff"),
     ),
 ]
 
@@ -534,5 +577,9 @@ def passthrough_subgraph_wf(label: str = "passthrough_subgraph"):
     sub = wfms.Workflow(label)
     sub.create_input("a")
     sub.create_output("b")
-    sub.add_edge(wfms.EdgeTuple(frs.InputSource(port="a"), frs.OutputTarget(port="b")))
+    sub.add_edge(
+        wfms.EdgeTuple(
+            fr.schemas.InputSource(port="a"), fr.schemas.OutputTarget(port="b")
+        )
+    )
     return sub

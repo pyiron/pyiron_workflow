@@ -2,8 +2,7 @@ import inspect
 import itertools
 import re
 
-from flowrep.api import schemas as frs
-from flowrep.api import tools as frt
+import flowrep as fr
 from pyiron_snippets import versions
 
 from pyiron_workflow import output_parser
@@ -35,7 +34,7 @@ class SimpleFactory:
             version=func_info.version,
         )
 
-        self.decorated.flowrep_recipe.reference = frs.PythonReference(
+        self.decorated.flowrep_recipe.reference = fr.schemas.PythonReference(
             info=replacement_info,
             inputs_with_defaults=original_ref.inputs_with_defaults,
             restricted_input_kinds=original_ref.restricted_input_kinds,
@@ -58,7 +57,7 @@ def as_function_node(*output_labels, **kwargs):
     kwargs["forbid_locals"] = True
 
     def decorator(func):
-        decorated = frt.atomic(*output_labels, **kwargs)(func)
+        decorated = fr.tools.atomic(*output_labels, **kwargs)(func)
         decorated.pwf = decorators.AtomicTools(decorated)
         return SimpleFactory(decorated)
 
@@ -91,7 +90,7 @@ passes is ignored, and such functions raise a `ValueError` at decoration time.
 def as_macro_node(*output_labels, **kwargs):
     def decorator(func):
         wf = _legacy_as_macro_node2workflow(func, *output_labels)
-        rendered = frt.flowrep2python(
+        rendered = fr.tools.flowrep2python(
             wf.generate_flowrep_live_node(),
             function_name=func.__name__,
             _workflow_decorator=(
@@ -193,15 +192,15 @@ def _convert_returns_to_outputs_and_edges(
     for label, obj in zip(output_port_labels, returned_ports, strict=True):
         if isinstance(obj, datatypes.Port):
             if obj.owner is wf:
-                source = frs.InputSource(port=obj.label)
+                source = fr.schemas.InputSource(port=obj.label)
             else:
-                source = frs.SourceHandle(node=obj.owner.label, port=obj.label)
+                source = fr.schemas.SourceHandle(node=obj.owner.label, port=obj.label)
         elif isinstance(obj, datatypes.Node) and len(obj.outputs) == 1:
             port: datatypes.Port = next(iter(obj.outputs.values()))
-            source = frs.SourceHandle(node=port.owner.label, port=port.label)
+            source = fr.schemas.SourceHandle(node=port.owner.label, port=port.label)
         else:
             raise NotImplementedError()
 
         wf.create_output(label)
-        target = frs.OutputTarget(port=label)
+        target = fr.schemas.OutputTarget(port=label)
         wf.add_edge(datatypes.EdgeTuple(source, target))

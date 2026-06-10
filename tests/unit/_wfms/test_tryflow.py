@@ -2,7 +2,7 @@ from __future__ import annotations
 
 import unittest
 
-from flowrep.api import schemas as frs
+import flowrep as fr
 from pyiron_snippets import versions
 
 from pyiron_workflow._wfms import execution
@@ -14,39 +14,45 @@ from tests.unit._wfms import _fixtures
 # --------------------------------------------------------------------------- #
 
 
-def _no_match_recipe() -> frs.TryRecipe:
+def _no_match_recipe() -> fr.schemas.TryRecipe:
     """
     try divide(x, y); except TypeError → identity(x). No match for ZeroDivisionError.
     """
-    return frs.TryRecipe(
+    return fr.schemas.TryRecipe(
         inputs=["x", "y"],
         outputs=["z"],
-        try_node=frs.LabeledRecipe(
+        try_node=fr.schemas.LabeledRecipe(
             label="try_body", node=_fixtures.divide.flowrep_recipe
         ),
         exception_cases=[
-            frs.ExceptionCase(
+            fr.schemas.ExceptionCase(
                 exceptions=[versions.VersionInfo.of(TypeError)],
-                body=frs.LabeledRecipe(
+                body=fr.schemas.LabeledRecipe(
                     label="handler_0", node=_fixtures.identity.flowrep_recipe
                 ),
             ),
         ],
         input_edges={
-            frs.TargetHandle(node="try_body", port="x"): frs.InputSource(port="x"),
-            frs.TargetHandle(node="try_body", port="y"): frs.InputSource(port="y"),
-            frs.TargetHandle(node="handler_0", port="x"): frs.InputSource(port="x"),
+            fr.schemas.TargetHandle(node="try_body", port="x"): fr.schemas.InputSource(
+                port="x"
+            ),
+            fr.schemas.TargetHandle(node="try_body", port="y"): fr.schemas.InputSource(
+                port="y"
+            ),
+            fr.schemas.TargetHandle(node="handler_0", port="x"): fr.schemas.InputSource(
+                port="x"
+            ),
         },
         prospective_output_edges={
-            frs.OutputTarget(port="z"): [
-                frs.SourceHandle(node="try_body", port="output_0"),
-                frs.SourceHandle(node="handler_0", port="x"),
+            fr.schemas.OutputTarget(port="z"): [
+                fr.schemas.SourceHandle(node="try_body", port="output_0"),
+                fr.schemas.SourceHandle(node="handler_0", port="x"),
             ],
         },
     )
 
 
-def _multi_case_recipe() -> frs.TryRecipe:
+def _multi_case_recipe() -> fr.schemas.TryRecipe:
     """try divide(x, y); except TypeError → identity; except ValueError → negate.
 
     try_body raises ValueError (via negate with a string — actually we need to raise
@@ -56,124 +62,152 @@ def _multi_case_recipe() -> frs.TryRecipe:
     Simpler approach: try_body = divide(x, y) where x="bad", y=1 → TypeError.
     First handler catches ZeroDivisionError (no match), second catches TypeError (match).
     """
-    return frs.TryRecipe(
+    return fr.schemas.TryRecipe(
         inputs=["x", "y"],
         outputs=["z"],
-        try_node=frs.LabeledRecipe(
+        try_node=fr.schemas.LabeledRecipe(
             label="try_body", node=_fixtures.divide.flowrep_recipe
         ),
         exception_cases=[
-            frs.ExceptionCase(
+            fr.schemas.ExceptionCase(
                 exceptions=[versions.VersionInfo.of(ZeroDivisionError)],
-                body=frs.LabeledRecipe(
+                body=fr.schemas.LabeledRecipe(
                     label="handler_0", node=_fixtures.negate.flowrep_recipe
                 ),
             ),
-            frs.ExceptionCase(
+            fr.schemas.ExceptionCase(
                 exceptions=[versions.VersionInfo.of(TypeError)],
-                body=frs.LabeledRecipe(
+                body=fr.schemas.LabeledRecipe(
                     label="handler_1", node=_fixtures.identity.flowrep_recipe
                 ),
             ),
         ],
         input_edges={
-            frs.TargetHandle(node="try_body", port="x"): frs.InputSource(port="x"),
-            frs.TargetHandle(node="try_body", port="y"): frs.InputSource(port="y"),
-            frs.TargetHandle(node="handler_0", port="x"): frs.InputSource(port="x"),
-            frs.TargetHandle(node="handler_1", port="x"): frs.InputSource(port="x"),
+            fr.schemas.TargetHandle(node="try_body", port="x"): fr.schemas.InputSource(
+                port="x"
+            ),
+            fr.schemas.TargetHandle(node="try_body", port="y"): fr.schemas.InputSource(
+                port="y"
+            ),
+            fr.schemas.TargetHandle(node="handler_0", port="x"): fr.schemas.InputSource(
+                port="x"
+            ),
+            fr.schemas.TargetHandle(node="handler_1", port="x"): fr.schemas.InputSource(
+                port="x"
+            ),
         },
         prospective_output_edges={
-            frs.OutputTarget(port="z"): [
-                frs.SourceHandle(node="try_body", port="output_0"),
-                frs.SourceHandle(node="handler_0", port="output_0"),
-                frs.SourceHandle(node="handler_1", port="x"),
+            fr.schemas.OutputTarget(port="z"): [
+                fr.schemas.SourceHandle(node="try_body", port="output_0"),
+                fr.schemas.SourceHandle(node="handler_0", port="output_0"),
+                fr.schemas.SourceHandle(node="handler_1", port="x"),
             ],
         },
     )
 
 
-def _tuple_exceptions_recipe() -> frs.TryRecipe:
+def _tuple_exceptions_recipe() -> fr.schemas.TryRecipe:
     """Single handler catching both ZeroDivisionError and TypeError."""
-    return frs.TryRecipe(
+    return fr.schemas.TryRecipe(
         inputs=["x", "y"],
         outputs=["z"],
-        try_node=frs.LabeledRecipe(
+        try_node=fr.schemas.LabeledRecipe(
             label="try_body", node=_fixtures.divide.flowrep_recipe
         ),
         exception_cases=[
-            frs.ExceptionCase(
+            fr.schemas.ExceptionCase(
                 exceptions=[
                     versions.VersionInfo.of(ZeroDivisionError),
                     versions.VersionInfo.of(TypeError),
                 ],
-                body=frs.LabeledRecipe(
+                body=fr.schemas.LabeledRecipe(
                     label="handler_0", node=_fixtures.identity.flowrep_recipe
                 ),
             ),
         ],
         input_edges={
-            frs.TargetHandle(node="try_body", port="x"): frs.InputSource(port="x"),
-            frs.TargetHandle(node="try_body", port="y"): frs.InputSource(port="y"),
-            frs.TargetHandle(node="handler_0", port="x"): frs.InputSource(port="x"),
+            fr.schemas.TargetHandle(node="try_body", port="x"): fr.schemas.InputSource(
+                port="x"
+            ),
+            fr.schemas.TargetHandle(node="try_body", port="y"): fr.schemas.InputSource(
+                port="y"
+            ),
+            fr.schemas.TargetHandle(node="handler_0", port="x"): fr.schemas.InputSource(
+                port="x"
+            ),
         },
         prospective_output_edges={
-            frs.OutputTarget(port="z"): [
-                frs.SourceHandle(node="try_body", port="output_0"),
-                frs.SourceHandle(node="handler_0", port="x"),
+            fr.schemas.OutputTarget(port="z"): [
+                fr.schemas.SourceHandle(node="try_body", port="output_0"),
+                fr.schemas.SourceHandle(node="handler_0", port="x"),
             ],
         },
     )
 
 
-def _handler_raises_recipe() -> frs.TryRecipe:
+def _handler_raises_recipe() -> fr.schemas.TryRecipe:
     """try divide(x, 0) raises ZeroDivisionError; handler also calls divide(x, 0)."""
-    return frs.TryRecipe(
+    return fr.schemas.TryRecipe(
         inputs=["x", "y"],
         outputs=["z"],
-        try_node=frs.LabeledRecipe(
+        try_node=fr.schemas.LabeledRecipe(
             label="try_body", node=_fixtures.divide.flowrep_recipe
         ),
         exception_cases=[
-            frs.ExceptionCase(
+            fr.schemas.ExceptionCase(
                 exceptions=[versions.VersionInfo.of(ZeroDivisionError)],
-                body=frs.LabeledRecipe(
+                body=fr.schemas.LabeledRecipe(
                     label="handler_0", node=_fixtures.divide.flowrep_recipe
                 ),
             ),
         ],
         input_edges={
-            frs.TargetHandle(node="try_body", port="x"): frs.InputSource(port="x"),
-            frs.TargetHandle(node="try_body", port="y"): frs.InputSource(port="y"),
-            frs.TargetHandle(node="handler_0", port="x"): frs.InputSource(port="x"),
-            frs.TargetHandle(node="handler_0", port="y"): frs.InputSource(port="y"),
+            fr.schemas.TargetHandle(node="try_body", port="x"): fr.schemas.InputSource(
+                port="x"
+            ),
+            fr.schemas.TargetHandle(node="try_body", port="y"): fr.schemas.InputSource(
+                port="y"
+            ),
+            fr.schemas.TargetHandle(node="handler_0", port="x"): fr.schemas.InputSource(
+                port="x"
+            ),
+            fr.schemas.TargetHandle(node="handler_0", port="y"): fr.schemas.InputSource(
+                port="y"
+            ),
         },
         prospective_output_edges={
-            frs.OutputTarget(port="z"): [
-                frs.SourceHandle(node="try_body", port="output_0"),
-                frs.SourceHandle(node="handler_0", port="output_0"),
+            fr.schemas.OutputTarget(port="z"): [
+                fr.schemas.SourceHandle(node="try_body", port="output_0"),
+                fr.schemas.SourceHandle(node="handler_0", port="output_0"),
             ],
         },
     )
 
 
-def _macro_wrapping_try() -> frs.WorkflowRecipe:
+def _macro_wrapping_try() -> fr.schemas.WorkflowRecipe:
     """Macro: try_safe_divide(x, y) → downstream identity(z). Output from try."""
     identity_recipe = _fixtures.identity.flowrep_recipe
-    return frs.WorkflowRecipe(
+    return fr.schemas.WorkflowRecipe(
         inputs=["x", "y"],
         outputs=["w"],
         nodes={"try_0": _fixtures.try_recipe(), "downstream": identity_recipe},
         input_edges={
-            frs.TargetHandle(node="try_0", port="x"): frs.InputSource(port="x"),
-            frs.TargetHandle(node="try_0", port="y"): frs.InputSource(port="y"),
-        },
-        edges={
-            frs.TargetHandle(node="downstream", port="x"): frs.SourceHandle(
-                node="try_0", port="z"
+            fr.schemas.TargetHandle(node="try_0", port="x"): fr.schemas.InputSource(
+                port="x"
+            ),
+            fr.schemas.TargetHandle(node="try_0", port="y"): fr.schemas.InputSource(
+                port="y"
             ),
         },
+        edges={
+            fr.schemas.TargetHandle(
+                node="downstream", port="x"
+            ): fr.schemas.SourceHandle(node="try_0", port="z"),
+        },
         output_edges={
-            frs.OutputTarget(port="w"): frs.SourceHandle(node="try_0", port="z"),
+            fr.schemas.OutputTarget(port="w"): fr.schemas.SourceHandle(
+                node="try_0", port="z"
+            ),
         },
     )
 
@@ -344,9 +378,9 @@ class TestMacroWrappedTry(unittest.TestCase):
 # --------------------------------------------------------------------------- #
 
 
-def _no_match_macro_recipe() -> frs.WorkflowRecipe:
+def _no_match_macro_recipe() -> fr.schemas.WorkflowRecipe:
     """Macro wrapping a no-match Try, with a downstream identity sibling."""
-    return frs.WorkflowRecipe(
+    return fr.schemas.WorkflowRecipe(
         inputs=["x", "y"],
         outputs=["w"],
         nodes={
@@ -354,16 +388,22 @@ def _no_match_macro_recipe() -> frs.WorkflowRecipe:
             "downstream": _fixtures.identity.flowrep_recipe,
         },
         input_edges={
-            frs.TargetHandle(node="try_0", port="x"): frs.InputSource(port="x"),
-            frs.TargetHandle(node="try_0", port="y"): frs.InputSource(port="y"),
-        },
-        edges={
-            frs.TargetHandle(node="downstream", port="x"): frs.SourceHandle(
-                node="try_0", port="z"
+            fr.schemas.TargetHandle(node="try_0", port="x"): fr.schemas.InputSource(
+                port="x"
+            ),
+            fr.schemas.TargetHandle(node="try_0", port="y"): fr.schemas.InputSource(
+                port="y"
             ),
         },
+        edges={
+            fr.schemas.TargetHandle(
+                node="downstream", port="x"
+            ): fr.schemas.SourceHandle(node="try_0", port="z"),
+        },
         output_edges={
-            frs.OutputTarget(port="w"): frs.SourceHandle(node="try_0", port="z"),
+            fr.schemas.OutputTarget(port="w"): fr.schemas.SourceHandle(
+                node="try_0", port="z"
+            ),
         },
     )
 
@@ -375,21 +415,25 @@ def _no_match_macro_recipe() -> frs.WorkflowRecipe:
 
 class TestResolveExceptionTypes(unittest.TestCase):
     def test_single_exception(self) -> None:
-        case = frs.ExceptionCase(
+        case = fr.schemas.ExceptionCase(
             exceptions=[versions.VersionInfo.of(ZeroDivisionError)],
-            body=frs.LabeledRecipe(label="h", node=_fixtures.identity.flowrep_recipe),
+            body=fr.schemas.LabeledRecipe(
+                label="h", node=_fixtures.identity.flowrep_recipe
+            ),
         )
         result = tryflow.Try._resolve_exception_types(case)
         self.assertEqual(len(result), 1)
         self.assertIs(result[0], ZeroDivisionError)
 
     def test_multiple_exceptions_preserves_order(self) -> None:
-        case = frs.ExceptionCase(
+        case = fr.schemas.ExceptionCase(
             exceptions=[
                 versions.VersionInfo.of(ZeroDivisionError),
                 versions.VersionInfo.of(TypeError),
             ],
-            body=frs.LabeledRecipe(label="h", node=_fixtures.identity.flowrep_recipe),
+            body=fr.schemas.LabeledRecipe(
+                label="h", node=_fixtures.identity.flowrep_recipe
+            ),
         )
         result = tryflow.Try._resolve_exception_types(case)
         self.assertEqual(len(result), 2)
@@ -413,8 +457,8 @@ class TestStageNodeInputEdges(unittest.TestCase):
         self.assertEqual(
             set(self.live.input_edges),
             {
-                frs.TargetHandle(node="try_body", port="x"),
-                frs.TargetHandle(node="try_body", port="y"),
+                fr.schemas.TargetHandle(node="try_body", port="x"),
+                fr.schemas.TargetHandle(node="try_body", port="y"),
             },
         )
 
@@ -423,7 +467,8 @@ class TestStageNodeInputEdges(unittest.TestCase):
         tryflow.Try._stage_node_input_edges("except_body_0", self.live, self.recipe)
         self.assertEqual(len(self.live.input_edges), 3)
         self.assertIn(
-            frs.TargetHandle(node="except_body_0", port="x"), self.live.input_edges
+            fr.schemas.TargetHandle(node="except_body_0", port="x"),
+            self.live.input_edges,
         )
 
 
@@ -443,7 +488,7 @@ class TestStageBodyOutputEdges(unittest.TestCase):
         self.assertEqual(
             self.live.output_edges,
             {
-                frs.OutputTarget(port="z"): frs.SourceHandle(
+                fr.schemas.OutputTarget(port="z"): fr.schemas.SourceHandle(
                     node="try_body", port="output_0"
                 ),
             },
@@ -452,8 +497,8 @@ class TestStageBodyOutputEdges(unittest.TestCase):
     def test_picks_except_body_source(self) -> None:
         tryflow.Try._stage_body_output_edges("except_body_0", self.live, self.recipe)
         self.assertEqual(
-            self.live.output_edges[frs.OutputTarget(port="z")],
-            frs.SourceHandle(node="except_body_0", port="x"),
+            self.live.output_edges[fr.schemas.OutputTarget(port="z")],
+            fr.schemas.SourceHandle(node="except_body_0", port="x"),
         )
 
     def test_skips_outputs_without_matching_body(self) -> None:
