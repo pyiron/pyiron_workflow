@@ -123,12 +123,13 @@ def _legacy_as_macro_node2workflow(func, *output_labels) -> workflow.Workflow:
 
     # Ensure tuple-structure from single-return functions
     returned_ports = (returns,) if not isinstance(returns, tuple) else returns
+    n_outputs = len(returned_ports)
 
-    legacy_scraped_labels = _parse_legacy_output_labels(func)
+    default_labels = _parse_legacy_output_labels(func, n_outputs)
     output_port_labels = _get_output_labels(
-        len(returned_ports),
+        n_outputs,
         output_labels,
-        legacy_scraped_labels,
+        default_labels,
     )
     _convert_returns_to_outputs_and_edges(wf, returned_ports, output_port_labels)
     return wf
@@ -151,41 +152,36 @@ def _build_inputs_and_collect_input_ports(
     return kwargs
 
 
-def _parse_legacy_output_labels(func):
+def _parse_legacy_output_labels(func, n_outputs: int) -> tuple[str, ...]:
     scraped_labels = output_parser.ParseOutput(func).output
     sig = inspect.signature(func)
     self_argument = next(iter(sig.parameters))
     if scraped_labels is not None:
         # Strip off the first argument, e.g. self.foo just becomes foo
-        cleaned_labels = tuple(
+        stripped_labels = tuple(
             re.sub(r"^" + re.escape(f"{self_argument}."), "", label)
             for label in scraped_labels
         )
-        if any("." in label for label in cleaned_labels):
-            raise ValueError(
-                f"Tried to scrape cleaned labels for {func.__name__}, but at least "
-                f"one of {cleaned_labels} still contains a '.' -- please provide "
-                f"explicit labels"
-            )
+        cleaned_labels = tuple(
+            f"output_{i}" if "." in label else label
+            for i, label in enumerate(stripped_labels)
+        )
         return cleaned_labels
     else:
-        return scraped_labels
+        return tuple(f"output_{i}" for i in range(n_outputs))
 
 
 def _get_output_labels(
-    n_expected, output_labels: tuple[str, ...], scraped_labels: tuple[str, ...]
+    n_expected, output_labels: tuple[str, ...], default_labels: tuple[str, ...]
 ):
     if len(output_labels) == 0:
-        return (
-            tuple(f"output_{i}" for i in range(n_expected))
-            if scraped_labels is None
-            else scraped_labels
-        )
+        return default_labels
     elif len(output_labels) == n_expected:
         return output_labels
     else:
         raise ValueError(
-            f"Found {n_expected} return values, but got an incommensurate number of labels: {output_labels!r}."
+            f"Found {n_expected} return values, but got an incommensurate number of "
+            f"labels: {output_labels!r}."
         )
 
 
