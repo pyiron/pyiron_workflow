@@ -136,6 +136,12 @@ class LexicalMap(
         except KeyError:
             raise AttributeError(self._not_there_message(item)) from None
 
+    def __str__(self):
+        data = "  ".join(
+            f"{k!r}: {str(v)}\n" for k, v in self._pwf_lexical_map__data.items()
+        )
+        return f"{self.__class__.__name__}({self._pwf_lexical_map__owner.lexical_path}): {data}"
+
 
 def check_co_ownership(owner: HasLexicalPath, items: Iterable[Lexical[Any]]) -> None:
     if not_co_owned := {

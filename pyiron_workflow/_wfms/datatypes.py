@@ -38,6 +38,15 @@ class Port(abc.ABC):  # Satisfies pyiron_workflow._wfms.lexical.Lexical["Node"]
             self.owner.lexical_path, self._io_indicator, self.label
         )
 
+    def __str__(self):
+        hint = f", type_hint: {self.type_hint}" if self.type_hint is not None else ""
+        meta = (
+            f", type_metadata: {self.type_metadata}"
+            if self.type_metadata is not None
+            else ""
+        )
+        return f"{self.__class__.__name__}({self.lexical_path}" + hint + meta + ")"
+
 
 @dataclasses.dataclass(frozen=True)
 class InputPort(Port):
