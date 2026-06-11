@@ -199,7 +199,7 @@ def validate_ontology(
     kg = semantikon.get_knowledge_graph(wf_dict=resolved_data)
     if extra_knowledge is not None:
         kg += extra_knowledge
-    return semantikon.validate_values(kg)
+    return SemantikonValidationReport(*semantikon.validate_values(kg))
 
 
 @dataclasses.dataclass
