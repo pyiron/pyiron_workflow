@@ -3,10 +3,11 @@ import itertools
 import re
 
 import flowrep as fr
+import semantikon
 from pyiron_snippets import versions
 
 from pyiron_workflow import output_parser
-from pyiron_workflow._wfms import annotation, datatypes, decorators, workflow
+from pyiron_workflow._wfms import datatypes, decorators, workflow
 from pyiron_workflow.nodes import multiple_distpatch
 
 
@@ -137,8 +138,8 @@ def _build_inputs_and_collect_input_ports(
         sig.parameters.items(), 1, None
     ):  # skip self
         if param.annotation is not inspect.Signature.empty:
-            type_hint = annotation.annotation_to_type_hint(param.annotation)
-            type_metadata = annotation.annotation_to_type_metadata(param.annotation)
+            type_hint = semantikon.annotation_to_type_hint(param.annotation)
+            type_metadata = semantikon.annotation_to_type_metadata(param.annotation)
         else:
             type_hint, type_metadata = None, None
         wf.create_input(port_name, type_hint=type_hint, type_metadata=type_metadata)
