@@ -137,8 +137,8 @@ def _build_inputs_and_collect_input_ports(
         sig.parameters.items(), 1, None
     ):  # skip self
         if param.annotation is not inspect.Signature.empty:
-            type_hint = annotation.annotation_to_type_hint(annotation)
-            type_metadata = annotation.annotation_to_type_metadata(annotation)
+            type_hint = annotation.annotation_to_type_hint(param.annotation)
+            type_metadata = annotation.annotation_to_type_metadata(param.annotation)
         else:
             type_hint, type_metadata = None, None
         wf.create_input(port_name, type_hint=type_hint, type_metadata=type_metadata)
