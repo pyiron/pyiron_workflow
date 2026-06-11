@@ -14,6 +14,8 @@ Usage:
 
 from __future__ import annotations
 
+from typing import Annotated
+
 import flowrep as fr
 import rdflib
 import semantikon
@@ -123,6 +125,14 @@ def passthrough(x, y):
 def container():
     m = multiply_with_defaults()
     return m
+
+
+@fr.workflow
+def annotated_wf(
+    w, x: int, y: int = 100, z: Annotated[float, ("units", "meters")] = 1.0
+) -> tuple[int, Annotated[float, ("units", "centimeters")]]:
+    m2cm = multiply_with_defaults(x=y, y=z)
+    return x, m2cm
 
 
 # --------------------------------------------------------------------------- #

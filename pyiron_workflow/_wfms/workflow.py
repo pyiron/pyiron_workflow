@@ -9,6 +9,7 @@ from typing import TYPE_CHECKING, Any
 
 import flowrep as fr
 import semantikon
+from semantikon.metadata import Missing
 
 from pyiron_workflow._wfms import actions, constructors, dag, execution, validation
 from pyiron_workflow._wfms.datatypes import (
@@ -100,7 +101,16 @@ class MutableNodeMap(NodeMap, MutableMapping[fr.schemas.Label, Node]):
 
 
 class Workflow(MutableDag):
-    """This is the key mutable one"""
+    """
+    This is the key mutable one.
+
+    Workflow inputs must not hold default values, as they have no underlying python
+    reference, and so this execution-impacting data would truly live as part of the
+    WfMS Workflow node state. However, their ports are free to hold type and metadata
+    annotations; these impact validation (directly a WfMS concern), but have no impact
+    on the actual execution of the python dataflow, and so are both useful and safe at
+    this level.
+    """
 
     _inputs: MutablePortMap[InputPort]
     _outputs: MutablePortMap[OutputPort]
@@ -115,17 +125,30 @@ class Workflow(MutableDag):
         cls, label: fr.schemas.Label, recipe: fr.schemas.WorkflowRecipe
     ) -> Workflow:
         wf = cls(label)
+        flowrep_data = fr.tools.recipe2data(recipe)
 
         for input_label in recipe.inputs:
+            annotation = flowrep_data.input_ports[input_label].annotation
+            if annotation is not None:
+                hint = semantikon.annotation_to_type_hint(annotation)
+                metadata = semantikon.annotation_to_type_metadata(annotation)
+            else:
+                hint, metadata = None, None
             wf._add_input(
                 InputPort(
-                    label=input_label, owner=wf, type_hint=None, type_metadata=None
+                    label=input_label, owner=wf, type_hint=hint, type_metadata=metadata
                 )
             )
         for output_label in recipe.outputs:
+            annotation = flowrep_data.output_ports[output_label].annotation
+            if annotation is not None:
+                hint = semantikon.annotation_to_type_hint(annotation)
+                metadata = semantikon.annotation_to_type_metadata(annotation)
+            else:
+                hint, metadata = None, None
             wf._add_output(
                 OutputPort(
-                    label=output_label, owner=wf, type_hint=None, type_metadata=None
+                    label=output_label, owner=wf, type_hint=hint, type_metadata=metadata
                 )
             )
         for child_label, child_recipe in recipe.nodes.items():
@@ -210,7 +233,31 @@ class Workflow(MutableDag):
         )
 
     def generate_flowrep_live_node(self) -> fr.schemas.DagData:
-        return fr.schemas.DagData.from_recipe(self.recipe)
+        data = fr.schemas.DagData.from_recipe(self.recipe)
+        for label, input_port in self.inputs.items():
+            self._update_data_port_metadata(input_port, data.input_ports[label])
+        for label, output_port in self.outputs.items():
+            self._update_data_port_metadata(output_port, data.output_ports[label])
+        return data
+
+    @staticmethod
+    def _update_data_port_metadata(
+        pwf_port: InputPort | OutputPort,
+        flowrep_port: fr.schemas.InputDataPort | fr.schemas.OutputDataPort,
+    ) -> None:
+        if pwf_port.type_hint is not None:
+            if pwf_port.type_metadata is not None:
+                annotation = semantikon.u(
+                    pwf_port.type_hint,
+                    **{
+                        k: v
+                        for k, v in dataclasses.asdict(pwf_port.type_metadata).items()
+                        if not isinstance(v, Missing)
+                    },
+                )
+            else:
+                annotation = pwf_port.type_hint
+            flowrep_port.annotation = annotation
 
     def evaluate(
         self,

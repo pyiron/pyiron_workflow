@@ -2336,5 +2336,31 @@ class TestWorkflowConnectAtInit(unittest.TestCase):
         self.assertIn("x", wf._pending_connections)
 
 
+class TestWorkflowData(unittest.TestCase):
+    def test_annotations_propagate_from_wfms_to_data(self):
+        wf = workflow.Workflow.from_recipe("wf", _fixtures.annotated_wf.flowrep_recipe)
+        self.assertIs(wf.inputs.w.type_hint, None)
+        self.assertIs(wf.inputs.w.type_metadata, None)
+        self.assertIs(wf.inputs.x.type_hint, int)
+        self.assertIs(wf.inputs.x.type_metadata, None)
+        self.assertIs(wf.inputs.y.type_hint, int)
+        self.assertIs(wf.inputs.y.type_metadata, None)
+        self.assertFalse(
+            wf.inputs.y.has_default,
+            msg="Mutable workflows have no underlying python reference and thus eschew "
+            "storing defaults to avoid the WfMS containing data state.",
+        )
+        self.assertIs(wf.inputs.z.type_hint, float)
+        self.assertEqual(
+            wf.inputs.z.type_metadata, semantikon.TypeMetadata(units="meters")
+        )
+        self.assertIs(wf.outputs.x.type_hint, int)
+        self.assertIs(wf.outputs.x.type_metadata, None)
+        self.assertIs(wf.outputs.m2cm.type_hint, float)
+        self.assertEqual(
+            wf.outputs.m2cm.type_metadata, semantikon.TypeMetadata(units="centimeters")
+        )
+
+
 if __name__ == "__main__":
     unittest.main()
