@@ -2,8 +2,8 @@ from __future__ import annotations
 
 from typing import TYPE_CHECKING, Any
 
+import flowrep as fr
 import semantikon
-from flowrep.api import schemas as frs
 from pyiron_snippets import retrieve
 
 from pyiron_workflow._wfms import constructors, execution, lexical, validation
@@ -19,13 +19,13 @@ from pyiron_workflow._wfms.datatypes import (
 
 
 class Macro(ImmutableDag):
-    _recipe: frs.WorkflowRecipe
+    _recipe: fr.schemas.WorkflowRecipe
 
     @classmethod
-    def _result_type(cls) -> type[frs.DagData]:
-        return frs.DagData
+    def _result_type(cls) -> type[fr.schemas.DagData]:
+        return fr.schemas.DagData
 
-    def _build_nodes(self, recipe: frs.WorkflowRecipe) -> NodeMap:
+    def _build_nodes(self, recipe: fr.schemas.WorkflowRecipe) -> NodeMap:
         return NodeMap(
             self,
             {
@@ -34,7 +34,7 @@ class Macro(ImmutableDag):
             },
         )
 
-    def _build_edges(self, recipe: frs.WorkflowRecipe) -> EdgeList:
+    def _build_edges(self, recipe: fr.schemas.WorkflowRecipe) -> EdgeList:
         return constructors.edges2edgelist(
             recipe.input_edges, recipe.edges, recipe.output_edges
         )
@@ -75,7 +75,9 @@ class Macro(ImmutableDag):
 
 
 def evaluate_dag_by_layer(
-    nodes: NodeMap, run: execution.Run[frs.CompositeData], config: execution.RunConfig
+    nodes: NodeMap,
+    run: execution.Run[fr.schemas.CompositeData],
+    config: execution.RunConfig,
 ) -> None:
     result = run.result
     layers = topo_sort_nodes(nodes, result.edges)
@@ -87,7 +89,9 @@ def evaluate_dag_by_layer(
             evaluate_node(nodes[label], label, run, config)
 
 
-def topo_sort_nodes(nodes: NodeMap, edges: frs.Edges) -> list[list[frs.Label]]:
+def topo_sort_nodes(
+    nodes: NodeMap, edges: fr.schemas.Edges
+) -> list[list[fr.schemas.Label]]:
     """
     Kahn's algorithm over sibling edges, grouped into independent layers.
 
@@ -95,8 +99,10 @@ def topo_sort_nodes(nodes: NodeMap, edges: frs.Edges) -> list[list[frs.Label]]:
     members of a layer may be executed concurrently. Deterministic tie-breaking
     by label within each layer.
     """
-    in_degree: dict[frs.Label, int] = dict.fromkeys(nodes, 0)
-    successors: dict[frs.Label, list[frs.Label]] = {label: [] for label in nodes}
+    in_degree: dict[fr.schemas.Label, int] = dict.fromkeys(nodes, 0)
+    successors: dict[fr.schemas.Label, list[fr.schemas.Label]] = {
+        label: [] for label in nodes
+    }
 
     for target, source in edges.items():
         if target.node not in in_degree or source.node not in successors:
@@ -105,7 +111,7 @@ def topo_sort_nodes(nodes: NodeMap, edges: frs.Edges) -> list[list[frs.Label]]:
         successors[source.node].append(target.node)
 
     current_layer = sorted(label for label in nodes if in_degree[label] == 0)
-    layers: list[list[frs.Label]] = []
+    layers: list[list[fr.schemas.Label]] = []
     processed = 0
     while current_layer:
         layers.append(current_layer)
@@ -129,13 +135,13 @@ def topo_sort_nodes(nodes: NodeMap, edges: frs.Edges) -> list[list[frs.Label]]:
 
 def evaluate_node(
     node: Node[Any, execution.ResultType],
-    label_in_run: frs.Label,
-    run: execution.Run[frs.CompositeData],
+    label_in_run: fr.schemas.Label,
+    run: execution.Run[fr.schemas.CompositeData],
     config: execution.RunConfig,
 ):
     result = run.result
     input_data = gather_target_inputs(label_in_run, result)
-    if any(val is frs.NOT_DATA for val in input_data.values()):
+    if any(val is fr.schemas.NOT_DATA for val in input_data.values()):
         # Possible development: raise a warning or optionally an exception here
         return
     sub_run = execution.Run[execution.ResultType](
@@ -150,8 +156,8 @@ def evaluate_node(
 
 
 def gather_target_inputs(
-    node_label: frs.Label,
-    runtime_data: frs.CompositeData,
+    node_label: fr.schemas.Label,
+    runtime_data: fr.schemas.CompositeData,
 ) -> dict[str, Any]:
     """
     Resolve input values for a target node from graph input ports and sibling
@@ -167,7 +173,7 @@ def gather_target_inputs(
     except Exception as e:
         raise e
     for port in input_names:
-        th = frs.TargetHandle(node=node_label, port=port)
+        th = fr.schemas.TargetHandle(node=node_label, port=port)
 
         if th in runtime_data.input_edges:
             owner_source = runtime_data.input_edges[th]
@@ -183,11 +189,11 @@ def gather_target_inputs(
     return inputs
 
 
-def populate_outputs(result: frs.CompositeData) -> None:
+def populate_outputs(result: fr.schemas.CompositeData) -> None:
     for target, source in result.output_edges.items():
-        if isinstance(source, frs.InputSource):
+        if isinstance(source, fr.schemas.InputSource):
             val = result.input_ports[source.port].get_data()
-        elif isinstance(source, frs.SourceHandle):
+        elif isinstance(source, fr.schemas.SourceHandle):
             child = result.nodes[source.node]
             val = child.output_ports[source.port].value
         else:  # pragma: no cover

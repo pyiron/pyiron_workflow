@@ -3,7 +3,7 @@ from __future__ import annotations
 import math
 from collections.abc import MutableMapping
 
-from flowrep.api import schemas as frs
+import flowrep as fr
 
 from pyiron_workflow._wfms import (
     constructors,
@@ -20,21 +20,21 @@ from pyiron_workflow._wfms.datatypes import (
 )
 
 
-class ForEach(StaticGraph[frs.ForEachRecipe, frs.ForEachData]):
-    _recipe: frs.ForEachRecipe
+class ForEach(StaticGraph[fr.schemas.ForEachRecipe, fr.schemas.ForEachData]):
+    _recipe: fr.schemas.ForEachRecipe
 
     @classmethod
-    def _result_type(cls) -> type[frs.ForEachData]:
-        return frs.ForEachData
+    def _result_type(cls) -> type[fr.schemas.ForEachData]:
+        return fr.schemas.ForEachData
 
-    def _build_nodes(self, recipe: frs.ForEachRecipe) -> NodeMap:
+    def _build_nodes(self, recipe: fr.schemas.ForEachRecipe) -> NodeMap:
         bn = self.recipe.body_node
         return NodeMap(
             self,
             {bn.label: constructors.recipe2node(bn.node, bn.label)},
         )
 
-    def _build_edges(self, recipe: frs.ForEachRecipe) -> EdgeList:
+    def _build_edges(self, recipe: fr.schemas.ForEachRecipe) -> EdgeList:
         return EdgeList(
             EdgeTuple(source, target) for target, source in recipe.input_edges.items()
         ) + EdgeList(
@@ -52,8 +52,8 @@ class ForEach(StaticGraph[frs.ForEachRecipe, frs.ForEachData]):
         dag.populate_outputs(result)
         return run
 
-    def _build_runtime_dag(self, run: execution.Run[frs.ForEachData]) -> NodeMap:
-        runtime_map: dict[frs.Label, Node] = {}
+    def _build_runtime_dag(self, run: execution.Run[fr.schemas.ForEachData]) -> NodeMap:
+        runtime_map: dict[fr.schemas.Label, Node] = {}
 
         result = run.result
         recipe = result.recipe
@@ -116,29 +116,29 @@ class ForEach(StaticGraph[frs.ForEachRecipe, frs.ForEachData]):
 
         input_edges = {
             # parent to nested
-            frs.TargetHandle(
+            fr.schemas.TargetHandle(
                 node=self._scatter_label(parent_port),
                 port=transformers.Transform1toN.input_label,
-            ): frs.InputSource(port=parent_port)
+            ): fr.schemas.InputSource(port=parent_port)
             for child_port, parent_port in nested_label_map.items()
         }
         input_edges.update(
             # parent to zipped
             {
-                frs.TargetHandle(
+                fr.schemas.TargetHandle(
                     node=self._scatter_label(parent_port),
                     port=transformers.Transform1toN.input_label,
-                ): frs.InputSource(port=parent_port)
+                ): fr.schemas.InputSource(port=parent_port)
                 for child_port, parent_port in zipped_label_map.items()
             }
         )
         input_edges.update(
             # broadcast input to bodies
             {
-                frs.TargetHandle(
+                fr.schemas.TargetHandle(
                     node=self._body_label(body_label, i),
                     port=label,
-                ): frs.InputSource(port=label)
+                ): fr.schemas.InputSource(port=label)
                 for label in broadcast_labels
                 for i in range(total_steps)
             }
@@ -147,10 +147,10 @@ class ForEach(StaticGraph[frs.ForEachRecipe, frs.ForEachData]):
 
         edges = {
             # nested scatters to bodies: each nested port advances at its own stride
-            frs.TargetHandle(
+            fr.schemas.TargetHandle(
                 node=self._body_label(body_label, i),
                 port=child_port,
-            ): frs.SourceHandle(
+            ): fr.schemas.SourceHandle(
                 node=self._scatter_label(parent_port),
                 port=transformers.Transform1toN.output_label(
                     (i // nested_strides[parent_port]) % nested_length_map[parent_port]
@@ -162,10 +162,10 @@ class ForEach(StaticGraph[frs.ForEachRecipe, frs.ForEachData]):
         edges.update(
             # zipped scatters to bodies: all zipped ports share the innermost index
             {
-                frs.TargetHandle(
+                fr.schemas.TargetHandle(
                     node=self._body_label(body_label, i),
                     port=child_port,
-                ): frs.SourceHandle(
+                ): fr.schemas.SourceHandle(
                     node=self._scatter_label(parent_port),
                     port=transformers.Transform1toN.output_label(i % zipped_multiplier),
                 )
@@ -176,10 +176,10 @@ class ForEach(StaticGraph[frs.ForEachRecipe, frs.ForEachData]):
         edges.update(
             {
                 # bodies to aggregators (genuinely 1:1)
-                frs.TargetHandle(
+                fr.schemas.TargetHandle(
                     node=self._aggregate_label(parent_port),
                     port=transformers.TransformNto1.input_label(i),
-                ): frs.SourceHandle(
+                ): fr.schemas.SourceHandle(
                     node=self._body_label(body_label, i),
                     port=child_port,
                 )
@@ -193,10 +193,10 @@ class ForEach(StaticGraph[frs.ForEachRecipe, frs.ForEachData]):
         edges.update(
             # nested scatters passed through to aggregators
             {
-                frs.TargetHandle(
+                fr.schemas.TargetHandle(
                     node=self._aggregate_label(aggregate_label),
                     port=transformers.TransformNto1.input_label(i),
-                ): frs.SourceHandle(
+                ): fr.schemas.SourceHandle(
                     node=self._scatter_label(scatter_label),
                     port=transformers.Transform1toN.output_label(
                         (i // nested_strides[scatter_label])
@@ -211,10 +211,10 @@ class ForEach(StaticGraph[frs.ForEachRecipe, frs.ForEachData]):
         edges.update(
             # zipped scatters passed through to aggregators
             {
-                frs.TargetHandle(
+                fr.schemas.TargetHandle(
                     node=self._aggregate_label(aggregate_label),
                     port=transformers.TransformNto1.input_label(i),
-                ): frs.SourceHandle(
+                ): fr.schemas.SourceHandle(
                     node=self._scatter_label(scatter_label),
                     port=transformers.Transform1toN.output_label(i % zipped_multiplier),
                 )
@@ -227,9 +227,9 @@ class ForEach(StaticGraph[frs.ForEachRecipe, frs.ForEachData]):
 
         output_edges = {
             # aggregators to parent
-            frs.OutputTarget(
+            fr.schemas.OutputTarget(
                 port=label,
-            ): frs.SourceHandle(
+            ): fr.schemas.SourceHandle(
                 node=self._aggregate_label(label),
                 port=transformers.TransformNto1.output_label,
             )
@@ -241,8 +241,10 @@ class ForEach(StaticGraph[frs.ForEachRecipe, frs.ForEachData]):
 
     @staticmethod
     def _body_to_parent_label_map(
-        input_edges: frs.InputEdges, body_label: frs.Label, references: frs.Labels
-    ) -> dict[frs.Label, frs.Label]:
+        input_edges: fr.schemas.InputEdges,
+        body_label: fr.schemas.Label,
+        references: fr.schemas.Labels,
+    ) -> dict[fr.schemas.Label, fr.schemas.Label]:
         return {
             target.port: source.port
             for (target, source) in input_edges.items()
@@ -251,11 +253,11 @@ class ForEach(StaticGraph[frs.ForEachRecipe, frs.ForEachData]):
 
     @staticmethod
     def _input_length_map(
-        label_map: dict[frs.Label, frs.Label],
-        inputs: MutableMapping[frs.Label, frs.InputDataPort],
-        iterated_body_ports: frs.Labels,
-    ) -> dict[frs.Label, int]:
-        length_map: dict[frs.Label, int] = {}
+        label_map: dict[fr.schemas.Label, fr.schemas.Label],
+        inputs: MutableMapping[fr.schemas.Label, fr.schemas.InputDataPort],
+        iterated_body_ports: fr.schemas.Labels,
+    ) -> dict[fr.schemas.Label, int]:
+        length_map: dict[fr.schemas.Label, int] = {}
         for body_port_label in iterated_body_ports:
             parent_port_label = label_map[body_port_label]
             length_map[parent_port_label] = len(inputs[parent_port_label].value)
@@ -263,8 +265,8 @@ class ForEach(StaticGraph[frs.ForEachRecipe, frs.ForEachData]):
 
     @staticmethod
     def _validate_zipped_lengths(
-        length_map: dict[frs.Label, int],
-    ) -> dict[frs.Label, int]:
+        length_map: dict[fr.schemas.Label, int],
+    ) -> dict[fr.schemas.Label, int]:
         if len(length_map) > 0:
             expected_length = next(iter(length_map.values()))
             if not all(z == expected_length for z in length_map.values()):
@@ -275,21 +277,21 @@ class ForEach(StaticGraph[frs.ForEachRecipe, frs.ForEachData]):
         return length_map
 
     @staticmethod
-    def _scatter_label(suffix: frs.Label) -> frs.Label:
+    def _scatter_label(suffix: fr.schemas.Label) -> fr.schemas.Label:
         return f"scatter_{suffix}"
 
     @staticmethod
-    def _body_label(prefix: frs.Label, n: int) -> frs.Label:
+    def _body_label(prefix: fr.schemas.Label, n: int) -> fr.schemas.Label:
         return f"{prefix}_{n}"
 
     @staticmethod
-    def _aggregate_label(suffix: frs.Label) -> frs.Label:
+    def _aggregate_label(suffix: fr.schemas.Label) -> fr.schemas.Label:
         return f"aggregate_{suffix}"
 
     @staticmethod
     def _calculate_total_steps(
-        nested_length_map: dict[frs.Label, int],
-        zipped_length_map: dict[frs.Label, int],
+        nested_length_map: dict[fr.schemas.Label, int],
+        zipped_length_map: dict[fr.schemas.Label, int],
     ) -> int:
         nested_multiplier = (
             1 if len(nested_length_map) == 0 else math.prod(nested_length_map.values())
@@ -301,8 +303,8 @@ class ForEach(StaticGraph[frs.ForEachRecipe, frs.ForEachData]):
 
     @staticmethod
     def _nested_strides(
-        total_steps: int, nested_length_map: dict[frs.Label, int]
-    ) -> dict[frs.Label, int]:
+        total_steps: int, nested_length_map: dict[fr.schemas.Label, int]
+    ) -> dict[fr.schemas.Label, int]:
         """
         Per-port strides for mixed-radix decomposition of the body index.
 
@@ -310,7 +312,7 @@ class ForEach(StaticGraph[frs.ForEachRecipe, frs.ForEachData]):
         zipped ports occupy the innermost dimension (stride 1) and are not
         represented here.
         """
-        strides: dict[frs.Label, int] = {}
+        strides: dict[fr.schemas.Label, int] = {}
         running = total_steps
         for parent_label, length in nested_length_map.items():
             running //= length
@@ -319,8 +321,8 @@ class ForEach(StaticGraph[frs.ForEachRecipe, frs.ForEachData]):
 
     @staticmethod
     def _captured_output_label_map(
-        output_edges: frs.OutputEdges, body_label: frs.Label
-    ) -> dict[frs.Label, frs.Label]:
+        output_edges: fr.schemas.OutputEdges, body_label: fr.schemas.Label
+    ) -> dict[fr.schemas.Label, fr.schemas.Label]:
         return {
             target.port: source.port
             for (target, source) in output_edges.items()
@@ -329,10 +331,10 @@ class ForEach(StaticGraph[frs.ForEachRecipe, frs.ForEachData]):
 
     @staticmethod
     def _transfer_label_map(
-        output_edges: frs.OutputEdges,
-    ) -> dict[frs.Label, frs.Label]:
+        output_edges: fr.schemas.OutputEdges,
+    ) -> dict[fr.schemas.Label, fr.schemas.Label]:
         return {
             aggregate.port: scatter.port
             for (aggregate, scatter) in output_edges.items()
-            if (isinstance(scatter, frs.InputSource))
+            if (isinstance(scatter, fr.schemas.InputSource))
         }

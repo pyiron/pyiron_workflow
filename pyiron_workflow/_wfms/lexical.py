@@ -4,13 +4,13 @@ import keyword
 from collections.abc import Iterable, Mapping
 from typing import Any, Generic, Protocol, TypeVar
 
-from flowrep.api import schemas as frs
+import flowrep as fr
 
 LEXICAL_PATH_DELIMITER = "."
 
 
 def _is_valid_segment(seg: str) -> bool:
-    # Equivalent to frs.Label rules with frs.RESERVED_NAMES (inputs/outputs)
+    # Equivalent to fr.schemas.Label rules with fr.schemas.RESERVED_NAMES (inputs/outputs)
     # exempted, since port paths legitimately contain the IO indicator.
     # NOTE: does not auto-track future flowrep label-rule changes beyond
     # identifier+keyword.
@@ -38,7 +38,7 @@ class LexicalPath(str):
                         f"Invalid lexical path segment {seg!r} in {part!r}: "
                         f"each segment must be a valid Python identifier and "
                         f"not a keyword (reserved IO names "
-                        f"{sorted(frs.RESERVED_NAMES)} are permitted as path "
+                        f"{sorted(fr.schemas.RESERVED_NAMES)} are permitted as path "
                         f"segments)."
                     )
                 segments.append(seg)
@@ -57,11 +57,11 @@ class LexicalPath(str):
         return LexicalPath(*self.segments[:-1])
 
 
-def lexical_path(*labels: LexicalPath | frs.Label) -> LexicalPath:
+def lexical_path(*labels: LexicalPath | fr.schemas.Label) -> LexicalPath:
     return LexicalPath(*labels)
 
 
-def get_label(path: LexicalPath | frs.Label) -> str:
+def get_label(path: LexicalPath | fr.schemas.Label) -> str:
     return path.rsplit(LEXICAL_PATH_DELIMITER, 1)[-1]
 
 
@@ -76,7 +76,7 @@ OwnerType_co = TypeVar("OwnerType_co", bound=HasLexicalPath, covariant=True)  # 
 
 class Lexical(Protocol[OwnerType_co]):
     @property
-    def label(self) -> frs.Label: ...
+    def label(self) -> fr.schemas.Label: ...
 
     @property
     def owner(self) -> OwnerType_co | None: ...
@@ -88,16 +88,18 @@ class Lexical(Protocol[OwnerType_co]):
 LexicalType = TypeVar("LexicalType", bound=Lexical[Any])
 
 
-class LexicalMap(Mapping[frs.Label, LexicalType], Generic[LexicalType, OwnerType]):
+class LexicalMap(
+    Mapping[fr.schemas.Label, LexicalType], Generic[LexicalType, OwnerType]
+):
 
     __slots__ = ("_pwf_lexical_map__data", "_pwf_lexical_map__owner")
-    _pwf_lexical_map__data: dict[frs.Label, LexicalType]
+    _pwf_lexical_map__data: dict[fr.schemas.Label, LexicalType]
     _pwf_lexical_map__owner: OwnerType
 
     def __init__(
         self,
         owner: OwnerType,
-        data: Mapping[frs.Label, LexicalType] | None = None,
+        data: Mapping[fr.schemas.Label, LexicalType] | None = None,
         /,
     ):
         object.__setattr__(self, "_pwf_lexical_map__owner", owner)
@@ -151,7 +153,7 @@ _MappedType = TypeVar("_MappedType", bound=Lexical[Any])
 
 
 def get_item_from_map(
-    item: _MappedType | frs.Label,
+    item: _MappedType | fr.schemas.Label,
     map_: LexicalMap[_MappedType, Any],
     kind: str,
 ) -> _MappedType:

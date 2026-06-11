@@ -8,7 +8,7 @@ from collections.abc import Callable, Iterable
 from concurrent import futures
 from typing import TYPE_CHECKING, Any, Generic, NamedTuple, TypeVar
 
-from flowrep.api import schemas as frs
+import flowrep as fr
 
 from pyiron_workflow._wfms import lexical
 
@@ -23,11 +23,11 @@ class RunStatus(enum.StrEnum):
     FAILED = "failed"
 
 
-ResultType = TypeVar("ResultType", bound=frs.NodeData[Any])
+ResultType = TypeVar("ResultType", bound=fr.schemas.NodeData[Any])
 
 
 class Step(NamedTuple):
-    label: frs.Label
+    label: fr.schemas.Label
     run: Run[Any]
 
 
@@ -207,7 +207,7 @@ def _copy_run_fields(from_run: Run[ResultType], into: Run[ResultType]) -> None:
     into.steps = from_run.steps
 
 
-def populate_input_ports(node: frs.NodeData, values: dict[str, Any]) -> None:
+def populate_input_ports(node: fr.schemas.NodeData, values: dict[str, Any]) -> None:
     for name, val in values.items():
         if name in node.input_ports:
             node.input_ports[name].value = val

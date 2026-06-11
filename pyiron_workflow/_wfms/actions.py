@@ -4,7 +4,7 @@ import dataclasses
 from typing import TYPE_CHECKING, Protocol, TypeAlias
 
 if TYPE_CHECKING:
-    from flowrep.api import schemas as frs
+    import flowrep as fr
 
     from pyiron_workflow._wfms.datatypes import (
         EdgeTuple,
@@ -95,8 +95,8 @@ class RemoveEdge:
 @dataclasses.dataclass(frozen=True)
 class RenameNode:
     node: Node
-    old_label: frs.Label
-    new_label: frs.Label
+    old_label: fr.schemas.Label
+    new_label: fr.schemas.Label
 
     def inverse(self) -> RenameNode:
         return RenameNode(self.node, self.new_label, self.old_label)
@@ -107,8 +107,8 @@ class MoveNode:
     node: Node
     from_graph: MutableDag
     to_graph: MutableDag
-    old_label: frs.Label
-    new_label: frs.Label
+    old_label: fr.schemas.Label
+    new_label: fr.schemas.Label
 
     def inverse(self) -> MoveNode:
         return MoveNode(

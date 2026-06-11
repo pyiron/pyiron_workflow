@@ -7,8 +7,8 @@ import types
 from collections.abc import Callable, MutableMapping
 from typing import TYPE_CHECKING, Any
 
+import flowrep as fr
 import semantikon
-from flowrep.api import schemas as frs
 
 from pyiron_workflow._wfms import actions, constructors, dag, execution, validation
 from pyiron_workflow._wfms.datatypes import (
@@ -29,7 +29,7 @@ if TYPE_CHECKING:
     import rdflib
 
 
-def _duplicate_node_error(owner: Graph, key: frs.Label) -> ValueError:
+def _duplicate_node_error(owner: Graph, key: fr.schemas.Label) -> ValueError:
     return ValueError(
         f"{owner.lexical_path!r} already has a node {key!r}; remove or rename "
         f"it before assigning a new one."
@@ -42,9 +42,9 @@ def is_nodelike(value: object) -> bool:
 
 
 class MutablePortMap(
-    PortMap[PortType, "Workflow"], MutableMapping[frs.Label, PortType]
+    PortMap[PortType, "Workflow"], MutableMapping[fr.schemas.Label, PortType]
 ):
-    def __setitem__(self, key: frs.Label, value: PortType):
+    def __setitem__(self, key: fr.schemas.Label, value: PortType):
         owner = self._pwf_lexical_map__owner
         if value.owner is not owner:
             raise ValueError(
@@ -53,14 +53,14 @@ class MutablePortMap(
             )
         self._pwf_lexical_map__data[key] = value
 
-    def __delitem__(self, key: frs.Label):
+    def __delitem__(self, key: fr.schemas.Label):
         del self._pwf_lexical_map__data[key]
 
 
-class MutableNodeMap(NodeMap, MutableMapping[frs.Label, Node]):
+class MutableNodeMap(NodeMap, MutableMapping[fr.schemas.Label, Node]):
     _pwf_lexical_map__owner: Workflow
 
-    def __setitem__(self, key: frs.Label, value: Node):
+    def __setitem__(self, key: fr.schemas.Label, value: Node):
         if key in self._pwf_lexical_map__data:
             raise _duplicate_node_error(self._pwf_lexical_map__owner, key)
         if value.owner is not None and value.owner is not self._pwf_lexical_map__owner:
@@ -77,12 +77,12 @@ class MutableNodeMap(NodeMap, MutableMapping[frs.Label, Node]):
         value._owner = self._pwf_lexical_map__owner
         self._pwf_lexical_map__data[key] = value
 
-    def __delitem__(self, key: frs.Label):
+    def __delitem__(self, key: fr.schemas.Label):
         value = self._pwf_lexical_map__data[key]
         value._owner = None
         del self._pwf_lexical_map__data[key]
 
-    def __setattr__(self, key: frs.Label, value: object) -> None:
+    def __setattr__(self, key: fr.schemas.Label, value: object) -> None:
         """
         Syntactic sugar for adding a fresh node to the graph.
 
@@ -111,7 +111,9 @@ class Workflow(MutableDag):
     redo_stack: collections.deque[actions.GraphDiff]
 
     @classmethod
-    def from_recipe(cls, label: frs.Label, recipe: frs.WorkflowRecipe) -> Workflow:
+    def from_recipe(
+        cls, label: fr.schemas.Label, recipe: fr.schemas.WorkflowRecipe
+    ) -> Workflow:
         wf = cls(label)
 
         for input_label in recipe.inputs:
@@ -137,7 +139,7 @@ class Workflow(MutableDag):
 
     def __init__(
         self,
-        label: frs.Label,
+        label: fr.schemas.Label,
         undo_limit: int = 10,
         /,
         *positional_connections: Port | Node,
@@ -194,11 +196,11 @@ class Workflow(MutableDag):
         return self._outputs
 
     @property
-    def recipe(self) -> frs.WorkflowRecipe:
+    def recipe(self) -> fr.schemas.WorkflowRecipe:
         inp, peer, out = constructors.edgelist2edges(
             self.edges, f"{self.lexical_path!r}"
         )
-        return frs.WorkflowRecipe(
+        return fr.schemas.WorkflowRecipe(
             inputs=list(self.inputs.keys()),
             outputs=list(self.outputs.keys()),
             nodes={label: node.recipe for label, node in self.nodes.items()},
@@ -207,8 +209,8 @@ class Workflow(MutableDag):
             output_edges=out,
         )
 
-    def generate_flowrep_live_node(self) -> frs.DagData:
-        return frs.DagData.from_recipe(self.recipe)
+    def generate_flowrep_live_node(self) -> fr.schemas.DagData:
+        return fr.schemas.DagData.from_recipe(self.recipe)
 
     def evaluate(
         self,
@@ -359,7 +361,7 @@ class Workflow(MutableDag):
 
     @_records
     def _rename_node_label(
-        self, node: Node, new_label: frs.Label
+        self, node: Node, new_label: fr.schemas.Label
     ) -> actions.RenameNode:
         old_label = node.label
         # Bypass MutableNodeMap.__setitem__ (which rejects relabelling owned nodes)
@@ -374,7 +376,7 @@ class Workflow(MutableDag):
         node: Node,
         from_graph: Workflow,
         to_graph: Workflow,
-        new_label: frs.Label | None = None,
+        new_label: fr.schemas.Label | None = None,
     ) -> actions.MoveNode:
         """Move `node` from `from_graph` to `to_graph`, optionally renaming it.
 
@@ -398,26 +400,30 @@ class Workflow(MutableDag):
 
     # --- Composite private helpers (orchestrate leaves, not themselves decorated) ---
 
-    def _edges_touching_node(self, label: frs.Label) -> EdgeList:
+    def _edges_touching_node(self, label: fr.schemas.Label) -> EdgeList:
         return [
             e
             for e in self.edges
-            if (isinstance(e.source, frs.SourceHandle) and e.source.node == label)
-            or (isinstance(e.target, frs.TargetHandle) and e.target.node == label)
+            if (
+                isinstance(e.source, fr.schemas.SourceHandle) and e.source.node == label
+            )
+            or (
+                isinstance(e.target, fr.schemas.TargetHandle) and e.target.node == label
+            )
         ]
 
-    def _edges_using_input(self, label: frs.Label) -> EdgeList:
+    def _edges_using_input(self, label: fr.schemas.Label) -> EdgeList:
         return [
             e
             for e in self.edges
-            if isinstance(e.source, frs.InputSource) and e.source.port == label
+            if isinstance(e.source, fr.schemas.InputSource) and e.source.port == label
         ]
 
-    def _edges_using_output(self, label: frs.Label) -> EdgeList:
+    def _edges_using_output(self, label: fr.schemas.Label) -> EdgeList:
         return [
             e
             for e in self.edges
-            if isinstance(e.target, frs.OutputTarget) and e.target.port == label
+            if isinstance(e.target, fr.schemas.OutputTarget) and e.target.port == label
         ]
 
     def _disconnect(self, node: Node) -> None:
@@ -429,7 +435,7 @@ class Workflow(MutableDag):
     @_undoable
     def create_input(
         self,
-        label: frs.Label,
+        label: fr.schemas.Label,
         type_hint: type | None = None,
         type_metadata: semantikon.TypeMetadata | None = None,
     ) -> None:
@@ -443,19 +449,21 @@ class Workflow(MutableDag):
         )
 
     @_undoable
-    def remove_input(self, port: InputPort | frs.Label) -> None:
+    def remove_input(self, port: InputPort | fr.schemas.Label) -> None:
         resolved = self.get_input(port)
         for edge in self._edges_using_input(resolved.label):
             self._remove_edge(edge)
         self._remove_input_shallow(resolved)
 
     @_undoable
-    def rename_input(self, port: InputPort | frs.Label, new_label: frs.Label) -> None:
+    def rename_input(
+        self, port: InputPort | fr.schemas.Label, new_label: fr.schemas.Label
+    ) -> None:
         resolved = self.get_input(port)
         old_label = resolved.label
         new_port = dataclasses.replace(resolved, label=new_label)
         for edge in self._edges_using_input(old_label):
-            rewritten = EdgeTuple(frs.InputSource(port=new_label), edge.target)
+            rewritten = EdgeTuple(fr.schemas.InputSource(port=new_label), edge.target)
             self._remove_edge(edge)
             self._add_edge(rewritten)
         self._replace_port(resolved, new_port)
@@ -463,7 +471,7 @@ class Workflow(MutableDag):
     @_undoable
     def create_output(
         self,
-        label: frs.Label,
+        label: fr.schemas.Label,
         type_hint: type | None = None,
         type_metadata: semantikon.TypeMetadata | None = None,
     ) -> None:
@@ -477,19 +485,21 @@ class Workflow(MutableDag):
         )
 
     @_undoable
-    def remove_output(self, port: OutputPort | frs.Label) -> None:
+    def remove_output(self, port: OutputPort | fr.schemas.Label) -> None:
         resolved = self.get_output(port)
         for edge in self._edges_using_output(resolved.label):
             self._remove_edge(edge)
         self._remove_output_shallow(resolved)
 
     @_undoable
-    def rename_output(self, port: OutputPort | frs.Label, new_label: frs.Label) -> None:
+    def rename_output(
+        self, port: OutputPort | fr.schemas.Label, new_label: fr.schemas.Label
+    ) -> None:
         resolved = self.get_output(port)
         old_label = resolved.label
         new_port = dataclasses.replace(resolved, label=new_label)
         for edge in self._edges_using_output(old_label):
-            rewritten = EdgeTuple(edge.source, frs.OutputTarget(port=new_label))
+            rewritten = EdgeTuple(edge.source, fr.schemas.OutputTarget(port=new_label))
             self._remove_edge(edge)
             self._add_edge(rewritten)
         self._replace_port(resolved, new_port)
@@ -520,14 +530,16 @@ class Workflow(MutableDag):
                 self._add_edge(edge)
 
     @_undoable
-    def remove_node(self, *nodes: Node | frs.Label) -> None:
+    def remove_node(self, *nodes: Node | fr.schemas.Label) -> None:
         for n in nodes:
             resolved = self.get_node(n)
             self._disconnect(resolved)
             self._remove_node_shallow(resolved)
 
     @_undoable
-    def rename_node(self, node: Node | frs.Label, new_label: frs.Label) -> None:
+    def rename_node(
+        self, node: Node | fr.schemas.Label, new_label: fr.schemas.Label
+    ) -> None:
         resolved = self.get_node(node)
         old_label = resolved.label
         for edge in self._edges_touching_node(old_label):
@@ -539,14 +551,14 @@ class Workflow(MutableDag):
 
     @staticmethod
     def _rewrite_edge_for_node_rename(
-        edge: EdgeTuple, old_label: frs.Label, new_label: frs.Label
+        edge: EdgeTuple, old_label: fr.schemas.Label, new_label: fr.schemas.Label
     ) -> EdgeTuple:
         source = edge.source
         target = edge.target
-        if isinstance(source, frs.SourceHandle) and source.node == old_label:
-            source = frs.SourceHandle(node=new_label, port=source.port)
-        if isinstance(target, frs.TargetHandle) and target.node == old_label:
-            target = frs.TargetHandle(node=new_label, port=target.port)
+        if isinstance(source, fr.schemas.SourceHandle) and source.node == old_label:
+            source = fr.schemas.SourceHandle(node=new_label, port=source.port)
+        if isinstance(target, fr.schemas.TargetHandle) and target.node == old_label:
+            target = fr.schemas.TargetHandle(node=new_label, port=target.port)
         return EdgeTuple(source, target)
 
     @_undoable
@@ -566,12 +578,14 @@ class Workflow(MutableDag):
             self._remove_edge(e)
 
     @_undoable
-    def disconnect(self, *nodes: Node | frs.Label) -> None:
+    def disconnect(self, *nodes: Node | fr.schemas.Label) -> None:
         for n in nodes:
             self._disconnect(self.get_node(n))
 
     @_undoable
-    def lock_subgraph(self, workflow_child: Workflow | dag.Macro | frs.Label) -> None:
+    def lock_subgraph(
+        self, workflow_child: Workflow | dag.Macro | fr.schemas.Label
+    ) -> None:
         instance = self.get_node(workflow_child)
         if isinstance(instance, dag.Macro):
             return  # Already locked -- macros are static
@@ -589,7 +603,7 @@ class Workflow(MutableDag):
             self._add_edge(edge)
 
     @_undoable
-    def unlock_subgraph(self, macro: Workflow | dag.Macro | frs.Label) -> None:
+    def unlock_subgraph(self, macro: Workflow | dag.Macro | fr.schemas.Label) -> None:
         instance = self.get_node(macro)
         if isinstance(instance, Workflow):
             return  # Already unlocked -- workflows are mutable
@@ -607,7 +621,7 @@ class Workflow(MutableDag):
             self._add_edge(edge)
 
     @_undoable
-    def group(self, label: frs.Label, *nodes: Node | frs.Label) -> None:
+    def group(self, label: fr.schemas.Label, *nodes: Node | fr.schemas.Label) -> None:
         if not nodes:
             raise ValueError(
                 f"Cannot group an empty set of nodes on {self.lexical_path!r}."
@@ -625,16 +639,16 @@ class Workflow(MutableDag):
 
         subgraph = Workflow(label)
         new_edges: EdgeList = []
-        seen_inputs: set[tuple[frs.Label, frs.Label]] = set()
-        seen_outputs: set[tuple[frs.Label, frs.Label]] = set()
+        seen_inputs: set[tuple[fr.schemas.Label, fr.schemas.Label]] = set()
+        seen_outputs: set[tuple[fr.schemas.Label, fr.schemas.Label]] = set()
 
         for edge in self.edges:
             src_in_group = (
-                isinstance(edge.source, frs.SourceHandle)
+                isinstance(edge.source, fr.schemas.SourceHandle)
                 and edge.source.node in grouped_labels
             )
             tgt_in_group = (
-                isinstance(edge.target, frs.TargetHandle)
+                isinstance(edge.target, fr.schemas.TargetHandle)
                 and edge.target.node in grouped_labels
             )
             if src_in_group and tgt_in_group:
@@ -644,14 +658,18 @@ class Workflow(MutableDag):
                     subgraph, self._target_handle(edge), seen_inputs
                 )
                 new_edges.append(
-                    EdgeTuple(edge.source, frs.TargetHandle(node=label, port=new_label))
+                    EdgeTuple(
+                        edge.source, fr.schemas.TargetHandle(node=label, port=new_label)
+                    )
                 )
             elif src_in_group:
                 new_label = self._ensure_boundary_output(
                     subgraph, self._source_handle(edge), seen_outputs
                 )
                 new_edges.append(
-                    EdgeTuple(frs.SourceHandle(node=label, port=new_label), edge.target)
+                    EdgeTuple(
+                        fr.schemas.SourceHandle(node=label, port=new_label), edge.target
+                    )
                 )
 
         for node in resolved:
@@ -663,26 +681,26 @@ class Workflow(MutableDag):
             self._add_edge(edge)
 
     @staticmethod
-    def _target_handle(edge: EdgeTuple) -> frs.TargetHandle:
+    def _target_handle(edge: EdgeTuple) -> fr.schemas.TargetHandle:
         """Narrow `edge.target` to `TargetHandle`. Caller must have verified."""
-        assert isinstance(edge.target, frs.TargetHandle)
+        assert isinstance(edge.target, fr.schemas.TargetHandle)
         return edge.target
 
     @staticmethod
-    def _source_handle(edge: EdgeTuple) -> frs.SourceHandle:
+    def _source_handle(edge: EdgeTuple) -> fr.schemas.SourceHandle:
         """Narrow `edge.source` to `SourceHandle`. Caller must have verified."""
-        assert isinstance(edge.source, frs.SourceHandle)
+        assert isinstance(edge.source, fr.schemas.SourceHandle)
         return edge.source
 
     @staticmethod
     def _ensure_boundary_port(
         subgraph: Workflow,
-        handle: frs.SourceHandle | frs.TargetHandle,
-        seen: set[tuple[frs.Label, frs.Label]],
+        handle: fr.schemas.SourceHandle | fr.schemas.TargetHandle,
+        seen: set[tuple[fr.schemas.Label, fr.schemas.Label]],
         port_cls: type[InputPort] | type[OutputPort],
         add_port: Callable[[InputPort | OutputPort], Any],
-        make_edge: Callable[[frs.Label], EdgeTuple],
-    ) -> frs.Label:
+        make_edge: Callable[[fr.schemas.Label], EdgeTuple],
+    ) -> fr.schemas.Label:
         """Create a boundary port on `subgraph` plus its inner edge for
         `handle`, if `(handle.node, handle.port)` hasn't been seen yet.
         Returns the boundary port label either way."""
@@ -704,39 +722,41 @@ class Workflow(MutableDag):
     @staticmethod
     def _ensure_boundary_input(
         subgraph: Workflow,
-        target: frs.TargetHandle,
-        seen: set[tuple[frs.Label, frs.Label]],
-    ) -> frs.Label:
+        target: fr.schemas.TargetHandle,
+        seen: set[tuple[fr.schemas.Label, fr.schemas.Label]],
+    ) -> fr.schemas.Label:
         return Workflow._ensure_boundary_port(
             subgraph,
             target,
             seen,
             InputPort,
             subgraph._add_input,
-            lambda new_label: EdgeTuple(frs.InputSource(port=new_label), target),
+            lambda new_label: EdgeTuple(fr.schemas.InputSource(port=new_label), target),
         )
 
     @staticmethod
     def _ensure_boundary_output(
         subgraph: Workflow,
-        source: frs.SourceHandle,
-        seen: set[tuple[frs.Label, frs.Label]],
-    ) -> frs.Label:
+        source: fr.schemas.SourceHandle,
+        seen: set[tuple[fr.schemas.Label, fr.schemas.Label]],
+    ) -> fr.schemas.Label:
         return Workflow._ensure_boundary_port(
             subgraph,
             source,
             seen,
             OutputPort,
             subgraph._add_output,
-            lambda new_label: EdgeTuple(source, frs.OutputTarget(port=new_label)),
+            lambda new_label: EdgeTuple(
+                source, fr.schemas.OutputTarget(port=new_label)
+            ),
         )
 
     @_undoable  # Lossy on underlying macro function reference, if any
     def ungroup(
         self,
-        graph: Workflow | dag.Macro | frs.Label,
+        graph: Workflow | dag.Macro | fr.schemas.Label,
         block_if_reference: bool = False,
-        label_map: dict[frs.Label, frs.Label] | None = None,
+        label_map: dict[fr.schemas.Label, fr.schemas.Label] | None = None,
     ) -> None:
         instance = self.get_node(graph)
         if isinstance(instance, dag.Macro):
@@ -763,7 +783,7 @@ class Workflow(MutableDag):
                     f"{instance.lexical_path!r}."
                 )
 
-        renames: dict[frs.Label, frs.Label] = {
+        renames: dict[fr.schemas.Label, fr.schemas.Label] = {
             child_label: label_map.get(child_label, f"{instance.label}_{child_label}")
             for child_label in instance.nodes
         }
@@ -786,17 +806,17 @@ class Workflow(MutableDag):
         # and passthrough inner edges must compose with every (feeder, consumer)
         # pair.
         touching = self._edges_touching_node(instance.label)
-        incoming_by_port: dict[frs.Label, list[EdgeTuple]] = {}
-        outgoing_by_port: dict[frs.Label, list[EdgeTuple]] = {}
+        incoming_by_port: dict[fr.schemas.Label, list[EdgeTuple]] = {}
+        outgoing_by_port: dict[fr.schemas.Label, list[EdgeTuple]] = {}
         for edge in touching:
             if (
-                isinstance(edge.target, frs.TargetHandle)
+                isinstance(edge.target, fr.schemas.TargetHandle)
                 and edge.target.node == instance.label
             ):
                 incoming_by_port.setdefault(edge.target.port, []).append(edge)
             else:
                 assert (
-                    isinstance(edge.source, frs.SourceHandle)
+                    isinstance(edge.source, fr.schemas.SourceHandle)
                     and edge.source.node == instance.label
                 )
                 outgoing_by_port.setdefault(edge.source.port, []).append(edge)
@@ -806,35 +826,45 @@ class Workflow(MutableDag):
         rewritten_outer: EdgeList = []
         for inner in instance.edges:
             src, tgt = inner.source, inner.target
-            if isinstance(src, frs.SourceHandle) and isinstance(tgt, frs.TargetHandle):
+            if isinstance(src, fr.schemas.SourceHandle) and isinstance(
+                tgt, fr.schemas.TargetHandle
+            ):
                 # Peer edge: rename both endpoints
                 rewritten_outer.append(
                     EdgeTuple(
-                        frs.SourceHandle(node=renames[src.node], port=src.port),
-                        frs.TargetHandle(node=renames[tgt.node], port=tgt.port),
+                        fr.schemas.SourceHandle(node=renames[src.node], port=src.port),
+                        fr.schemas.TargetHandle(node=renames[tgt.node], port=tgt.port),
                     )
                 )
-            elif isinstance(src, frs.InputSource) and isinstance(tgt, frs.TargetHandle):
+            elif isinstance(src, fr.schemas.InputSource) and isinstance(
+                tgt, fr.schemas.TargetHandle
+            ):
                 # Subgraph input -> child: each outer feeder now drives the lifted child
                 for outer in incoming_by_port.get(src.port, []):
                     rewritten_outer.append(
                         EdgeTuple(
                             outer.source,
-                            frs.TargetHandle(node=renames[tgt.node], port=tgt.port),
+                            fr.schemas.TargetHandle(
+                                node=renames[tgt.node], port=tgt.port
+                            ),
                         )
                     )
-            elif isinstance(src, frs.SourceHandle) and isinstance(
-                tgt, frs.OutputTarget
+            elif isinstance(src, fr.schemas.SourceHandle) and isinstance(
+                tgt, fr.schemas.OutputTarget
             ):
                 # Child -> subgraph output: each outer consumer reads from the lifted child
                 for outer in outgoing_by_port.get(tgt.port, []):
                     rewritten_outer.append(
                         EdgeTuple(
-                            frs.SourceHandle(node=renames[src.node], port=src.port),
+                            fr.schemas.SourceHandle(
+                                node=renames[src.node], port=src.port
+                            ),
                             outer.target,
                         )
                     )
-            elif isinstance(src, frs.InputSource) and isinstance(tgt, frs.OutputTarget):
+            elif isinstance(src, fr.schemas.InputSource) and isinstance(
+                tgt, fr.schemas.OutputTarget
+            ):
                 # Passthrough: compose every (feeder, consumer) pair
                 for outer_in in incoming_by_port.get(src.port, []):
                     for outer_out in outgoing_by_port.get(tgt.port, []):

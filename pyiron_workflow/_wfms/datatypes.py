@@ -15,8 +15,8 @@ from typing import (
     TypeVar,
 )
 
+import flowrep as fr
 import semantikon
-from flowrep.api import schemas as frs
 
 from pyiron_workflow._wfms import execution, lexical
 
@@ -26,7 +26,7 @@ if TYPE_CHECKING:
 
 @dataclasses.dataclass(frozen=True)
 class Port(abc.ABC):  # Satisfies pyiron_workflow._wfms.lexical.Lexical["Node"]
-    label: frs.Label
+    label: fr.schemas.Label
     owner: Node
     type_hint: type | None
     type_metadata: semantikon.TypeMetadata | None
@@ -58,19 +58,19 @@ class PortMap(lexical.LexicalMap[PortType, lexical.OwnerType]): ...
 
 RecipeType = TypeVar(
     "RecipeType",
-    frs.AtomicRecipe,
-    frs.ForEachRecipe,
-    frs.IfRecipe,
-    frs.TryRecipe,
-    frs.WhileRecipe,
-    frs.WorkflowRecipe,
+    fr.schemas.AtomicRecipe,
+    fr.schemas.ForEachRecipe,
+    fr.schemas.IfRecipe,
+    fr.schemas.TryRecipe,
+    fr.schemas.WhileRecipe,
+    fr.schemas.WorkflowRecipe,
 )
 
 
 class Node(
     lexical.Lexical["Graph"], Generic[RecipeType, execution.ResultType], abc.ABC
 ):
-    _label: frs.Label
+    _label: fr.schemas.Label
     _owner: Graph | None
     _detached_root: lexical.LexicalPath | None
     _pending_connections: dict[str, Port]
@@ -100,11 +100,11 @@ class Node(
     ) -> execution.Run[execution.ResultType]: ...
 
     @property
-    def label(self) -> frs.Label:
+    def label(self) -> fr.schemas.Label:
         return self._label
 
     @label.setter
-    def label(self, new_label: frs.Label) -> None:
+    def label(self, new_label: fr.schemas.Label) -> None:
         if self.owner is not None:
             raise ValueError(
                 f"{self.__class__.__name__}({self.lexical_path!r}) already has an "
@@ -133,11 +133,11 @@ class Node(
             return lexical.lexical_path(self.lexical_root, self.label)
         return self.label
 
-    def get_input(self, port: InputPort | frs.Label) -> InputPort:
+    def get_input(self, port: InputPort | fr.schemas.Label) -> InputPort:
         """A flexible wrapper to access inputs by object or by label"""
         return lexical.get_item_from_map(port, self.inputs, "input port")
 
-    def get_output(self, port: OutputPort | frs.Label) -> OutputPort:
+    def get_output(self, port: OutputPort | fr.schemas.Label) -> OutputPort:
         """A flexible wrapper to access outputs by object or by label"""
         return lexical.get_item_from_map(port, self.outputs, "output port")
 
@@ -201,12 +201,12 @@ class Node(
             edges: EdgeList = []
             for target_label, source_port in self._pending_connections.items():
                 if source_port.owner is self.owner:
-                    source = frs.InputSource(port=source_port.label)
+                    source = fr.schemas.InputSource(port=source_port.label)
                 else:
-                    source = frs.SourceHandle(
+                    source = fr.schemas.SourceHandle(
                         node=source_port.owner.label, port=source_port.label
                     )
-                target = frs.TargetHandle(node=self.label, port=target_label)
+                target = fr.schemas.TargetHandle(node=self.label, port=target_label)
                 edges.append(EdgeTuple(source, target))
             self._pending_connections.clear()
             return edges
@@ -244,7 +244,7 @@ class StaticNode(Node[RecipeType, execution.ResultType], abc.ABC):
 
     def __init__(
         self,
-        label: frs.Label,
+        label: fr.schemas.Label,
         recipe: RecipeType,
         /,
         *positional_connections: Port | Node,
@@ -321,7 +321,7 @@ class NodeMap(lexical.LexicalMap[Node, "Graph"]):
     def __init__(
         self,
         owner: Graph,
-        data: Mapping[frs.Label, Node] | None = None,
+        data: Mapping[fr.schemas.Label, Node] | None = None,
         /,
     ):
         super().__init__(owner, data)
@@ -338,8 +338,8 @@ class NodeMap(lexical.LexicalMap[Node, "Graph"]):
 
 
 class EdgeTuple(NamedTuple):
-    source: frs.InputSource | frs.SourceHandle
-    target: frs.OutputTarget | frs.TargetHandle
+    source: fr.schemas.InputSource | fr.schemas.SourceHandle
+    target: fr.schemas.OutputTarget | fr.schemas.TargetHandle
 
 
 EdgeList: TypeAlias = list[EdgeTuple]
@@ -370,7 +370,7 @@ class Graph(lexical.HasLexicalPath, abc.ABC):
     @abc.abstractmethod
     def edges(self) -> EdgeList: ...
 
-    def get_node(self, node: Node | frs.Label) -> Node:
+    def get_node(self, node: Node | fr.schemas.Label) -> Node:
         """A flexible wrapper to access nodes by object or by label"""
         return lexical.get_item_from_map(node, self.nodes, "node")
 
@@ -402,7 +402,7 @@ class StaticGraph(StaticNode[RecipeType, execution.ResultType], Graph, abc.ABC):
 
     def __init__(
         self,
-        label: frs.Label,
+        label: fr.schemas.Label,
         recipe: RecipeType,
         /,
         *positional_connections: Port | Node,
@@ -427,42 +427,44 @@ class StaticGraph(StaticNode[RecipeType, execution.ResultType], Graph, abc.ABC):
         return self._edges
 
 
-class ImmutableDag(StaticGraph[frs.WorkflowRecipe, frs.DagData], abc.ABC): ...
+class ImmutableDag(
+    StaticGraph[fr.schemas.WorkflowRecipe, fr.schemas.DagData], abc.ABC
+): ...
 
 
-class MutableDag(Node[frs.WorkflowRecipe, frs.DagData], Graph, abc.ABC):
+class MutableDag(Node[fr.schemas.WorkflowRecipe, fr.schemas.DagData], Graph, abc.ABC):
     undo_limit: int | None
 
     @abc.abstractmethod
     def create_input(
         self,
-        label: frs.Label,
+        label: fr.schemas.Label,
         type_hint: type | None = None,
         type_metadata: semantikon.TypeMetadata | None = None,
     ) -> None: ...
 
     @abc.abstractmethod
-    def remove_input(self, port: InputPort | frs.Label) -> None: ...
+    def remove_input(self, port: InputPort | fr.schemas.Label) -> None: ...
 
     @abc.abstractmethod
     def rename_input(
-        self, port: InputPort | frs.Label, new_label: frs.Label
+        self, port: InputPort | fr.schemas.Label, new_label: fr.schemas.Label
     ) -> None: ...
 
     @abc.abstractmethod
     def create_output(
         self,
-        label: frs.Label,
+        label: fr.schemas.Label,
         type_hint: type | None = None,
         type_metadata: semantikon.TypeMetadata | None = None,
     ) -> None: ...
 
     @abc.abstractmethod
-    def remove_output(self, port: OutputPort | frs.Label) -> None: ...
+    def remove_output(self, port: OutputPort | fr.schemas.Label) -> None: ...
 
     @abc.abstractmethod
     def rename_output(
-        self, port: OutputPort | frs.Label, new_label: frs.Label
+        self, port: OutputPort | fr.schemas.Label, new_label: fr.schemas.Label
     ) -> None: ...
 
     @abc.abstractmethod
@@ -485,10 +487,12 @@ class MutableDag(Node[frs.WorkflowRecipe, frs.DagData], Graph, abc.ABC):
     def add_node(self, *nodes: Node) -> None: ...
 
     @abc.abstractmethod
-    def remove_node(self, *nodes: Node | frs.Label) -> None: ...
+    def remove_node(self, *nodes: Node | fr.schemas.Label) -> None: ...
 
     @abc.abstractmethod
-    def rename_node(self, node: Node | frs.Label, new_label: frs.Label) -> None: ...
+    def rename_node(
+        self, node: Node | fr.schemas.Label, new_label: fr.schemas.Label
+    ) -> None: ...
 
     @abc.abstractmethod
     def add_edge(
@@ -499,25 +503,29 @@ class MutableDag(Node[frs.WorkflowRecipe, frs.DagData], Graph, abc.ABC):
     def remove_edge(self, *edges: EdgeTuple) -> None: ...
 
     @abc.abstractmethod
-    def disconnect(self, *nodes: Node | frs.Label) -> None: ...
+    def disconnect(self, *nodes: Node | fr.schemas.Label) -> None: ...
 
     @abc.abstractmethod
     def lock_subgraph(
-        self, workflow_child: MutableDag | ImmutableDag | frs.Label
+        self, workflow_child: MutableDag | ImmutableDag | fr.schemas.Label
     ) -> None: ...
 
     @abc.abstractmethod
-    def unlock_subgraph(self, macro: MutableDag | ImmutableDag | frs.Label) -> None: ...
+    def unlock_subgraph(
+        self, macro: MutableDag | ImmutableDag | fr.schemas.Label
+    ) -> None: ...
 
     @abc.abstractmethod
-    def group(self, label: frs.Label, *nodes: Node | frs.Label) -> None: ...
+    def group(
+        self, label: fr.schemas.Label, *nodes: Node | fr.schemas.Label
+    ) -> None: ...
 
     @abc.abstractmethod
     def ungroup(
         self,
-        graph: MutableDag | ImmutableDag | frs.Label,
+        graph: MutableDag | ImmutableDag | fr.schemas.Label,
         block_if_reference: bool = False,
-        label_map: dict[frs.Label, frs.Label] | None = None,
+        label_map: dict[fr.schemas.Label, fr.schemas.Label] | None = None,
     ) -> None: ...
 
     @abc.abstractmethod

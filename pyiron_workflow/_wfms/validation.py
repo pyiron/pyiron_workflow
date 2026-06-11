@@ -3,9 +3,9 @@ from __future__ import annotations
 import dataclasses
 from typing import ClassVar
 
+import flowrep as fr
 import rdflib
 import semantikon
-from flowrep.api import schemas as frs
 
 from pyiron_workflow._wfms import atomic, dag, execution, workflow
 from pyiron_workflow._wfms.datatypes import EdgeList, EdgeTuple, Node, StaticGraph
@@ -125,7 +125,7 @@ def validate_types(
         atomic.Atomic
         | dag.Macro
         | workflow.Workflow  # Prospective nodes
-        | frs.WorkflowRecipe  # Prospective flowrep recipes
+        | fr.schemas.WorkflowRecipe  # Prospective flowrep recipes
     ),
 ) -> TypeValidationReport:
     if isinstance(target, atomic.Atomic):
@@ -133,13 +133,13 @@ def validate_types(
         return TypeValidationReport(target.lexical_path, [], [], {})
     if isinstance(target, dag.Macro | workflow.Workflow):
         owner: StaticGraph | workflow.Workflow = target
-    elif isinstance(target, frs.WorkflowRecipe):
+    elif isinstance(target, fr.schemas.WorkflowRecipe):
         owner = dag.Macro("from_recipe", target)
     else:
         raise TypeError(
             f"Cannot validate types for {target!r}; expected a "
             f"{atomic.Atomic.__name__}, {dag.Macro.__name__}, "
-            f"{workflow.Workflow.__name__}, or {frs.WorkflowRecipe.__name__}."
+            f"{workflow.Workflow.__name__}, or {fr.schemas.WorkflowRecipe.__name__}."
         )
     return _validate_graph(owner, depth=0)
 
@@ -183,7 +183,10 @@ class SemantikonValidationReport:
 
 
 def validate_ontology(
-    data: Node[frs.WorkflowRecipe, frs.DagData] | execution.Run[frs.DagData],
+    data: (
+        Node[fr.schemas.WorkflowRecipe, fr.schemas.DagData]
+        | execution.Run[fr.schemas.DagData]
+    ),
     extra_knowledge: rdflib.Graph | None = None,
 ):
     if isinstance(data, Node):
