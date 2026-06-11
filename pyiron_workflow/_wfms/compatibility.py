@@ -91,8 +91,13 @@ passes is ignored, and such functions raise a `ValueError` at decoration time.
 def as_macro_node(*output_labels, **kwargs):
     def decorator(func):
         wf = _legacy_as_macro_node2workflow(func, *output_labels)
+        full_signature = inspect.signature(func)
+        selfless_signature = full_signature.replace(
+            parameters=list(full_signature.parameters.values())[1:]
+        )
         rendered = fr.tools.flowrep2python(
-            wf.generate_flowrep_live_node(),
+            wf.recipe,
+            signature=selfless_signature,
             function_name=func.__name__,
             _workflow_decorator=(
                 "pyiron_workflow._wfms.api",  # Recovering proximate modules is tough,
@@ -126,7 +131,6 @@ def _legacy_as_macro_node2workflow(func, *output_labels) -> workflow.Workflow:
         legacy_scraped_labels,
     )
     _convert_returns_to_outputs_and_edges(wf, returned_ports, output_port_labels)
-
     return wf
 
 
