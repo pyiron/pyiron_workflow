@@ -75,7 +75,7 @@ class Node(
     _detached_root: lexical.LexicalPath | None
     _pending_connections: dict[str, Port]
     executor: futures.Executor | execution.ExecutorInstructions | None
-    current_run: execution.Run[execution.ResultType] | None
+    last_run: execution.Run[execution.ResultType] | None
 
     @property
     @abc.abstractmethod
@@ -145,7 +145,7 @@ class Node(
         self, config: execution.RunConfig | None = None, /, **input_data
     ) -> execution.Run[execution.ResultType]:
         current_run = execution.run(self, config, **input_data)
-        self.current_run = current_run
+        self.last_run = current_run
         return current_run
 
     def __call__(self, *args: Port | Node, **kwargs: Port | Node) -> Self:
@@ -260,7 +260,7 @@ class StaticNode(Node[RecipeType, execution.ResultType], abc.ABC):
         self._outputs = self._build_outputs(live_preview)
 
         self.executor = None
-        self.current_run = None
+        self.last_run = None
         self.connect(*positional_connections, **keyword_connections)
 
     @property

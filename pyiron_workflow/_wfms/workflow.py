@@ -149,7 +149,7 @@ class Workflow(MutableDag):
         self._detached_root = None
         self._pending_connections = {}
         self.executor = None
-        self.current_run = None
+        self.last_run = None
         self._inputs = MutablePortMap[InputPort](self)
         self._outputs = MutablePortMap[OutputPort](self)
         self._nodes = MutableNodeMap(self)

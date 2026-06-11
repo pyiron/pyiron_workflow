@@ -1343,7 +1343,7 @@ class TestWorkflowSetattrSugar(unittest.TestCase):
         wf = workflow.Workflow("fresh", 4)
         self.assertEqual(len(wf.nodes), 0)
         self.assertIsNone(wf.executor)
-        self.assertIsNone(wf.current_run)
+        self.assertIsNone(wf.last_run)
         self.assertEqual(wf.undo_limit, 4)
 
     def test_assigning_recipe_adds_macro(self) -> None:
