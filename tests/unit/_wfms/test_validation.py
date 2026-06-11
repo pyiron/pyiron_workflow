@@ -15,7 +15,7 @@ import flowrep as fr
 import rdflib
 
 from pyiron_workflow._wfms import api as wfms
-from pyiron_workflow._wfms import dag, decorators, validation, workflow
+from pyiron_workflow._wfms import dag, decorators, execution, validation, workflow
 from tests.unit._wfms import _fixtures
 
 
@@ -466,6 +466,98 @@ class TestValidationSignatureCoherence(unittest.TestCase):
             self.assertEqual(
                 list(inspect.signature(fn).parameters)[1:], base
             )  # drop `self`
+
+
+class TestValidateOntology(unittest.TestCase):
+    """`validate_ontology` over the clothes pipeline (real semantikon/SHACL)."""
+
+    def test_correct_macro_node_is_valid(self):
+        report = validation.validate_ontology(_fixtures.clothes_correct_macro_node())
+        self.assertTrue(report.valid)
+
+    def test_incorrect_macro_node_is_invalid(self):
+        report = validation.validate_ontology(_fixtures.clothes_incorrect_macro_node())
+        self.assertFalse(report.valid)
+
+    def test_report_is_semantikon_report(self):
+        report = validation.validate_ontology(_fixtures.clothes_correct_macro_node())
+        self.assertIsInstance(report, validation.SemantikonValidationReport)
+        self.assertIsInstance(report.valid, bool)
+        self.assertIsInstance(report.graph, rdflib.Graph)
+        self.assertIsInstance(report.text, str)
+
+    def test_text_conforms_line(self):
+        correct = validation.validate_ontology(_fixtures.clothes_correct_macro_node())
+        incorrect = validation.validate_ontology(
+            _fixtures.clothes_incorrect_macro_node()
+        )
+        self.assertIn("Conforms: True", correct.text)
+        self.assertIn("Conforms: False", incorrect.text)
+
+    def test_incorrect_text_mentions_violation(self):
+        report = validation.validate_ontology(_fixtures.clothes_incorrect_macro_node())
+        self.assertIn("Violation", report.text)
+
+    def test_repr_returns_text(self):
+        report = validation.validate_ontology(_fixtures.clothes_correct_macro_node())
+        self.assertEqual(repr(report), report.text)
+
+    def test_run_input_branch(self):
+        # The `execution.Run` branch: run with a hashable value, then validate
+        # the resulting Run. The bodies return their input unchanged.
+        node = _fixtures.clothes_correct_macro_node()
+        run = node.run(clothes="shirt")
+        self.assertIsInstance(run, execution.Run)
+        report = validation.validate_ontology(run)
+        self.assertTrue(report.valid)
+
+    def test_extra_knowledge_empty_graph_is_noop(self):
+        report = validation.validate_ontology(
+            _fixtures.clothes_correct_macro_node(),
+            extra_knowledge=rdflib.Graph(),
+        )
+        self.assertTrue(report.valid)
+
+    def test_bad_input_type_raises(self):
+        with self.assertRaises(TypeError):
+            validation.validate_ontology(object())  # type: ignore[arg-type]
+
+
+class TestValidatePlanOntology(unittest.TestCase):
+    """`validate_plan` / `.pwf.validate` with the ontology branch enabled."""
+
+    def test_correct_macro_plan_valid(self):
+        report = validation.validate_plan(_fixtures.clothes_correct_macro_node())
+        self.assertIsInstance(report, validation.CombinedValidationReport)
+        self.assertIsInstance(report.types, validation.TypeValidationReport)
+        self.assertIsInstance(report.metadata, validation.SemantikonValidationReport)
+        self.assertTrue(report.valid)
+
+    def test_incorrect_macro_plan_invalid(self):
+        report = validation.validate_plan(_fixtures.clothes_incorrect_macro_node())
+        # Types are fine for this graph; ontology drives the failure.
+        self.assertTrue(report.types.valid)
+        self.assertFalse(report.metadata.valid)
+        self.assertFalse(report.valid)
+
+    def test_ontology_only(self):
+        report = validation.validate_plan(
+            _fixtures.clothes_correct_macro_node(), do_types=False
+        )
+        self.assertIsNone(report.types)
+        self.assertIsInstance(report.metadata, validation.SemantikonValidationReport)
+        self.assertTrue(report.metadata.valid)
+
+    def test_pwf_validate_runs_ontology(self):
+        report = _fixtures.my_correct_macro.pwf.validate()
+        self.assertIsInstance(report, validation.CombinedValidationReport)
+        self.assertIsInstance(report.metadata, validation.SemantikonValidationReport)
+        self.assertTrue(report.valid)
+
+    def test_combined_repr_is_string(self):
+        report = validation.validate_plan(_fixtures.clothes_correct_macro_node())
+        self.assertIsInstance(repr(report), str)
+        self.assertTrue(repr(report))
 
 
 if __name__ == "__main__":

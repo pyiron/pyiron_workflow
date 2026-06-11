@@ -15,6 +15,7 @@ Usage:
 from __future__ import annotations
 
 import flowrep as fr
+import rdflib
 import semantikon
 from pyiron_snippets import versions
 
@@ -583,3 +584,91 @@ def passthrough_subgraph_wf(label: str = "passthrough_subgraph"):
         )
     )
     return sub
+
+
+# --------------------------------------------------------------------------- #
+# Ontology fixtures (clothes domain)                                          #
+#                                                                             #
+# A minimal semantikon-annotated pipeline. `sell` requires the clothes to     #
+# carry BOTH the `cleaned` and `color` properties (OWL restrictions).         #
+# `my_correct_macro` dyes then washes before selling (valid); the            #
+# `my_incorrect_macro` skips washing, so `cleaned` is missing (invalid).      #
+# Must live at module scope: flowrep parses these from source.                #
+# --------------------------------------------------------------------------- #
+
+EX = rdflib.Namespace("http://www.example.org/")
+uri_cleaned = semantikon.SemantikonURI(EX.cleaned)
+uri_color = semantikon.SemantikonURI(EX.color)
+
+
+class Clothes:
+    pass
+
+
+@wfms.atomic
+def wash(clothes: semantikon.u(Clothes, uri=EX.Clothes)) -> semantikon.u(
+    Clothes,
+    uri=EX.Clothes,
+    triples=(EX.hasProperty, uri_cleaned),
+    derived_from="inputs.clothes",
+):
+    ...
+    return clothes
+
+
+@wfms.atomic
+def dye(clothes: semantikon.u(Clothes, uri=EX.Clothes), color="blue") -> semantikon.u(
+    Clothes,
+    uri=EX.Clothes,
+    triples=(EX.hasProperty, uri_color),
+    derived_from="inputs.clothes",
+):
+    ...
+    return clothes
+
+
+@wfms.atomic
+def sell(
+    clothes: semantikon.u(
+        Clothes,
+        uri=EX.Clothes,
+        restrictions=(
+            (
+                (rdflib.OWL.onProperty, EX.hasProperty),
+                (rdflib.OWL.someValuesFrom, EX.cleaned),
+            ),
+            (
+                (rdflib.OWL.onProperty, EX.hasProperty),
+                (rdflib.OWL.someValuesFrom, EX.color),
+            ),
+        ),
+    ),
+) -> int:
+    price = 10
+    return price
+
+
+@wfms.workflow
+def my_correct_macro(clothes: Clothes):
+    dyed_clothes = dye(clothes)
+    washed_clothes = wash(dyed_clothes)
+    money = sell(washed_clothes)
+    return money
+
+
+@wfms.workflow
+def my_incorrect_macro(clothes: Clothes):
+    dyed_clothes = dye(clothes)
+    # Not washed! `cleaned` property is missing, so `sell` is unsatisfied.
+    money = sell(dyed_clothes)
+    return money
+
+
+def clothes_correct_macro_node(label: str = "my_correct_macro"):
+    """Return a fresh `Macro` for the valid clothes pipeline (dye -> wash -> sell)."""
+    return my_correct_macro.pwf.node(label)
+
+
+def clothes_incorrect_macro_node(label: str = "my_incorrect_macro"):
+    """Return a fresh `Macro` for the invalid clothes pipeline (dye -> sell)."""
+    return my_incorrect_macro.pwf.node(label)
