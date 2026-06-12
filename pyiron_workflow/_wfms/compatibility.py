@@ -1,6 +1,8 @@
+import abc
 import inspect
 import itertools
 import re
+import types
 
 import flowrep as fr
 import semantikon
@@ -11,7 +13,7 @@ from pyiron_workflow._wfms import datatypes, decorators, workflow
 from pyiron_workflow.nodes import multiple_distpatch
 
 
-class SimpleFactory:
+class SimpleFactory(abc.ABC):
     """
     Wraps a :mod:`flowrep`-decorated function so that *calling* it produces a node
     instance, recapturing the legacy :mod:`pyiron_workflow` decorator philosophy.
@@ -23,8 +25,42 @@ class SimpleFactory:
     by reference (e.g. for out-of-process execution).
     """
 
-    def __init__(self, func):
-        self.decorated = func
+    def __init__(self, func, *output_labels: str):
+        self._received_function = func
+        self._output_labels = output_labels
+        self._decorated = None
+
+    @staticmethod
+    @abc.abstractmethod
+    def _to_flowrep(
+        func: types.FunctionType,
+        *output_labels: str,
+    ) -> types.FunctionType:
+        """
+        Macro nodes compile new python functions, so to avoid circular import errors
+        from partially-initialized modules, we must delay this compilation and _not_
+        do it at decoration time, but only later when the factory is actually used.
+
+        This is managed by making the ``decorated`` function a property, and here we
+        give an abstract interface for macros and function nodes to cast themselves
+        differently.
+        """
+
+    def __call__(self, *args, **kwargs):
+        return self.decorated.pwf.node(self.decorated.__name__, *args, **kwargs)
+
+    @property
+    def decorated(self):
+        if self._decorated is None:
+            flowrep_func = self._to_flowrep(
+                self._received_function,
+                *self._output_labels,
+            )
+            self._decorated = self._override_metadata(flowrep_func)
+        return self._decorated
+
+    @staticmethod
+    def _override_metadata(func):
         original_ref = func.flowrep_recipe.reference
         new_qualname = func.__qualname__ + ".decorated"
 
@@ -35,15 +71,50 @@ class SimpleFactory:
             version=func_info.version,
         )
 
-        self.decorated.flowrep_recipe.reference = fr.schemas.PythonReference(
+        func.flowrep_recipe.reference = fr.schemas.PythonReference(
             info=replacement_info,
             inputs_with_defaults=original_ref.inputs_with_defaults,
             restricted_input_kinds=original_ref.restricted_input_kinds,
         )
-        self.decorated.__qualname__ = new_qualname
+        func.__qualname__ = new_qualname
+        return func
 
-    def __call__(self, *args, **kwargs):
-        return self.decorated.pwf.node(self.decorated.__name__, *args, **kwargs)
+
+class AtomicFactory(SimpleFactory):
+    @staticmethod
+    def _to_flowrep(
+        func: types.FunctionType,
+        *output_labels: str,
+    ) -> types.FunctionType:
+        decorated = fr.tools.atomic(func, *output_labels)
+        decorated.pwf = decorators.AtomicTools(decorated)
+        return decorated
+
+
+class MacroFactory(SimpleFactory):
+    @staticmethod
+    def _to_flowrep(
+        func: types.FunctionType, *output_labels: str
+    ) -> types.FunctionType:
+        wf = _legacy_as_macro_node2workflow(func, *output_labels)
+        full_signature = inspect.signature(func)
+        selfless_signature = full_signature.replace(
+            parameters=list(full_signature.parameters.values())[1:]
+        )
+        rendered = fr.tools.flowrep2python(
+            wf.recipe,
+            signature=selfless_signature,
+            function_name=func.__name__,
+            _workflow_decorator=(
+                "pyiron_workflow._wfms.api",  # Recovering proximate modules is tough,
+                # so just hard-code the proximate API reference
+                "workflow",
+            ),
+        )
+        new_form = rendered.build()
+        new_form.__module__ = func.__module__
+        new_form.__qualname__ = func.__qualname__
+        return new_form
 
 
 @multiple_distpatch.dispatch_output_labels
@@ -58,9 +129,7 @@ def as_function_node(*output_labels, **kwargs):
     kwargs["forbid_locals"] = True
 
     def decorator(func):
-        decorated = fr.tools.atomic(*output_labels, **kwargs)(func)
-        decorated.pwf = decorators.AtomicTools(decorated)
-        return SimpleFactory(decorated)
+        return AtomicFactory(func, *output_labels)
 
     return decorator
 
@@ -90,25 +159,7 @@ passes is ignored, and such functions raise a `ValueError` at decoration time.
 @multiple_distpatch.dispatch_output_labels
 def as_macro_node(*output_labels, **kwargs):
     def decorator(func):
-        wf = _legacy_as_macro_node2workflow(func, *output_labels)
-        full_signature = inspect.signature(func)
-        selfless_signature = full_signature.replace(
-            parameters=list(full_signature.parameters.values())[1:]
-        )
-        rendered = fr.tools.flowrep2python(
-            wf.recipe,
-            signature=selfless_signature,
-            function_name=func.__name__,
-            _workflow_decorator=(
-                "pyiron_workflow._wfms.api",  # Recovering proximate modules is tough,
-                # so just hard-code the proximate API reference
-                "workflow",
-            ),
-        )
-        new_form = rendered.build()
-        new_form.__module__ = func.__module__
-        new_form.__qualname__ = func.__qualname__
-        return SimpleFactory(new_form)
+        return MacroFactory(func, *output_labels, **kwargs)
 
     return decorator
 
