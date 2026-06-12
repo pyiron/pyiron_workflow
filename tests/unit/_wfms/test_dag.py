@@ -19,8 +19,7 @@ import unittest
 
 import flowrep as fr
 
-from pyiron_workflow._wfms import api as wfms
-from pyiron_workflow._wfms import dag, datatypes
+from pyiron_workflow._wfms import dag, datatypes, execution
 from tests.unit._wfms import _fixtures
 
 
@@ -30,7 +29,7 @@ class TestMacro(unittest.TestCase):
     def test_run_produces_expected_outputs(self) -> None:
         n = _fixtures.macro_node()
         run = n.run(x=1, y=2, z=3)
-        self.assertEqual(run.status, wfms.RunStatus.FINISHED)
+        self.assertEqual(run.status, execution.RunStatus.FINISHED)
         # Macro outputs come from inner `add` (a) and `sub` (s).
         self.assertEqual(run.outputs["a"].value, 3)
         self.assertEqual(run.outputs["s"].value, 0)
@@ -77,7 +76,7 @@ class TestEvaluateDagByLayer(unittest.TestCase):
         # and a successfully finished sub-run.
         self.assertEqual(set(run.result.nodes), {"add_0", "sub_0"})
         for step in run.steps:
-            self.assertEqual(step.status, wfms.RunStatus.FINISHED)
+            self.assertEqual(step.status, execution.RunStatus.FINISHED)
 
 
 class TestTopoSortNodes(unittest.TestCase):

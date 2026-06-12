@@ -83,8 +83,8 @@ atomic.__doc__ = """
 A powered-up version of the `flowrep` decorator of the same name.
 
 Additionally adds a `.pwf` attribute holding methods to instantiate the function as a 
-`pyiron_workflow._wfms.api.Atomic` node instance or create a dynamic node instance and 
- run it.
+`pyiron_workflow._wfms.api.schemas.Atomic` node instance or create a dynamic node  
+instance and run it.
 
 Base `flowrep` documentation:
 
@@ -131,8 +131,8 @@ workflow.__doc__ = """
 A powered-up version of the `flowrep` decorator of the same name.
 
 Additionally adds a `.pwf` attribute holding methods to instantiate the function as a 
-`pyiron_workflow._wfms.api.Macro` node instance, validate the underlying graph, or 
-create a dynamic node instance and run it.
+`pyiron_workflow._wfms.api.schemas.Macro` node instance, validate the underlying graph, 
+or create a dynamic node instance and run it.
 
 Base `flowrep` documentation:
 

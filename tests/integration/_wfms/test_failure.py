@@ -117,12 +117,12 @@ def _failure_name(lexical_path: str) -> str:
     return f"failure_{lexical_path}"
 
 
-def _pickle_failure(path: pathlib.Path, run: wfms.Run, exception) -> None:
+def _pickle_failure(path: pathlib.Path, run: wfms.schemas.Run, exception) -> None:
     with open(path / _failure_name(run.lexical_path), "wb") as f:
         pickle.dump(run, f)
 
 
-def _run_and_reload(wf_fnc, **input_data) -> wfms.Run:
+def _run_and_reload(wf_fnc, **input_data) -> wfms.schemas.Run:
     """Run ``wf_fnc``, expect RuntimeError, return the loaded pickled failure."""
     with tempfile.TemporaryDirectory() as tmp:
         progress_dir = pathlib.Path(tmp)
@@ -134,7 +134,7 @@ def _run_and_reload(wf_fnc, **input_data) -> wfms.Run:
             exception_hooks=[_pickle_failure],
         )
         try:
-            return wfms.run(wf, config, **input_data)
+            return wfms.tools.run(wf, config, **input_data)
         except RuntimeError:
             dump_path = progress_dir / _failure_name(wf.lexical_path)
             with open(dump_path, "rb") as f:
@@ -156,7 +156,7 @@ class TestLinearFailure(unittest.TestCase):
     def test_partial_state_preserved(self) -> None:
         run_obj = _run_and_reload(risk_it, limit=5)
 
-        self.assertEqual(run_obj.status, wfms.RunStatus.FAILED)
+        self.assertEqual(run_obj.status, wfms.schemas.RunStatus.FAILED)
 
         # The first raise_if_5 (n=42) finished and stored its output.
         self.assertEqual(
@@ -183,7 +183,7 @@ class TestNestedFailure(unittest.TestCase):
     def test_partial_state_preserved_through_nesting(self) -> None:
         run_obj = _run_and_reload(risk_it_nested, limit=5)
 
-        self.assertEqual(run_obj.status, wfms.RunStatus.FAILED)
+        self.assertEqual(run_obj.status, wfms.schemas.RunStatus.FAILED)
 
         inner = run_obj.result.nodes["risk_it_0"]
         self.assertEqual(inner.nodes["raise_if_5_0"].output_ports["x"].value, 42)
@@ -212,7 +212,7 @@ class TestWhileFailure(unittest.TestCase):
     def test_partial_state_preserved_across_iterations(self) -> None:
         run_obj = _run_and_reload(risk_it_while, limit=6)
 
-        self.assertEqual(run_obj.status, wfms.RunStatus.FAILED)
+        self.assertEqual(run_obj.status, wfms.schemas.RunStatus.FAILED)
 
         # `risk_it_while` is the single top-level step; its `.steps` is the
         # alternating list [cond_0, body_0, cond_1, body_1, ...]. With limit=6,
@@ -251,7 +251,7 @@ class TestForEachFailure(unittest.TestCase):
     def test_partial_state_preserved_in_for_each(self) -> None:
         run_obj = _run_and_reload(risk_it_for, limit=6)
 
-        self.assertEqual(run_obj.status, wfms.RunStatus.FAILED)
+        self.assertEqual(run_obj.status, wfms.schemas.RunStatus.FAILED)
 
         # The for-each runtime DAG scatters raise_if_5_{0..5}; iteration 5
         # crashes inside raise_if_5(5).
@@ -283,14 +283,14 @@ class TestIfFailure(unittest.TestCase):
     def test_partial_state_preserved_in_for_each(self) -> None:
         run_obj = _run_and_reload(risk_it_if, limit=5)
 
-        self.assertEqual(run_obj.status, wfms.RunStatus.FAILED)
+        self.assertEqual(run_obj.status, wfms.schemas.RunStatus.FAILED)
 
         condition_step = run_obj.steps[0].steps[0]
         self.assertEqual(condition_step.outputs["lt"].value, False)
-        self.assertEqual(condition_step.status, wfms.RunStatus.FINISHED)
+        self.assertEqual(condition_step.status, wfms.schemas.RunStatus.FINISHED)
 
         else_step = run_obj.steps[0].steps[1]
-        self.assertEqual(else_step.status, wfms.RunStatus.FAILED)
+        self.assertEqual(else_step.status, wfms.schemas.RunStatus.FAILED)
         self.assertTrue(_is_not_data(else_step.outputs["x"].value))
 
 
@@ -305,19 +305,19 @@ class TestTryFailure(unittest.TestCase):
     def test_partial_state_preserved_in_for_each(self) -> None:
         run_obj = _run_and_reload(risk_it_try, limit=5)
 
-        self.assertEqual(run_obj.status, wfms.RunStatus.FAILED)
+        self.assertEqual(run_obj.status, wfms.schemas.RunStatus.FAILED)
         try_body = run_obj.steps[0].steps[0]
         self.assertIn("try", try_body.label)
         self.assertEqual(
             try_body.status,
-            wfms.RunStatus.FAILED,
+            wfms.schemas.RunStatus.FAILED,
             msg="It fails as a regular part of the try/except node",
         )
         except_body = run_obj.steps[0].steps[1]
         self.assertIn("except", except_body.label)
         self.assertEqual(
             except_body.status,
-            wfms.RunStatus.FAILED,
+            wfms.schemas.RunStatus.FAILED,
             msg="It fails because of our forced runtime error, triggering the dump",
         )
         self.assertEqual(len(run_obj.steps[0].steps), 2, msg="And that's all there is")
@@ -349,7 +349,7 @@ class TestOutOfProcessFailure(unittest.TestCase):
                 with futures.ProcessPoolExecutor() as exe:
                     # Apply an executor deeply inside the graph
                     wf.while_0.body.raise_if_5_0.executor = exe
-                    wfms.run(wf, config, limit=6)
+                    wfms.tools.run(wf, config, limit=6)
             except RuntimeError:
                 pass  # That's the point here
 

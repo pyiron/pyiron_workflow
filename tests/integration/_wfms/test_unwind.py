@@ -30,15 +30,15 @@ class TestUnwind(unittest.TestCase):
 
         # Set up half the input edges in alignment with type hints
         first_half = [
-            wfms.EdgeTuple(
+            wfms.schemas.EdgeTuple(
                 fr.schemas.InputSource(port="n"),
                 fr.schemas.TargetHandle(node="matching", port="n"),
             ),
-            wfms.EdgeTuple(
+            wfms.schemas.EdgeTuple(
                 fr.schemas.InputSource(port="n"),
                 fr.schemas.TargetHandle(node="as_or_more_specific", port="n"),
             ),
-            wfms.EdgeTuple(
+            wfms.schemas.EdgeTuple(
                 fr.schemas.InputSource(port="y"),
                 fr.schemas.TargetHandle(node="wrong", port="y"),
             ),
@@ -51,15 +51,15 @@ class TestUnwind(unittest.TestCase):
         )
 
         second_half = [
-            wfms.EdgeTuple(  # Perfect match
+            wfms.schemas.EdgeTuple(  # Perfect match
                 fr.schemas.InputSource(port="y"),
                 fr.schemas.TargetHandle(node="matching", port="y"),
             ),
-            wfms.EdgeTuple(  # More specific: passing int to float
+            wfms.schemas.EdgeTuple(  # More specific: passing int to float
                 fr.schemas.InputSource(port="m"),
                 fr.schemas.TargetHandle(node="as_or_more_specific", port="y"),
             ),
-            wfms.EdgeTuple(  # WRONG: passing float to int
+            wfms.schemas.EdgeTuple(  # WRONG: passing float to int
                 fr.schemas.InputSource(port="x"),
                 fr.schemas.TargetHandle(node="wrong", port="n"),
             ),

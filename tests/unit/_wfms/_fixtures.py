@@ -22,7 +22,6 @@ import semantikon
 from pyiron_snippets import versions
 
 from pyiron_workflow._wfms import api as wfms
-from pyiron_workflow._wfms.flowcontrollers import forflow
 
 # --------------------------------------------------------------------------- #
 # Plain functions                                                             #
@@ -139,8 +138,8 @@ def annotated_wf(
 # Autoencoder (round-trips TransformNto1 -> Transform1toN)                    #
 # --------------------------------------------------------------------------- #
 
-_COMPRESS = wfms.TransformNto1(3)
-_EXPAND = wfms.Transform1toN(3)
+_COMPRESS = wfms.schemas.TransformNto1(3)
+_EXPAND = wfms.schemas.Transform1toN(3)
 
 
 @fr.workflow
@@ -246,57 +245,57 @@ def for_wf(xs, ys, z):
 
 def atomic_add_node(label: str = "add"):
     """Return a fresh `Atomic` wrapping `add`."""
-    return wfms.function2node(add, label)
+    return wfms.tools.function2node(add, label)
 
 
 def atomic_sub_node(label: str = "sub"):
     """Return a fresh `Atomic` wrapping `sub`."""
-    return wfms.function2node(sub, label)
+    return wfms.tools.function2node(sub, label)
 
 
 def macro_node(label: str = "my_macro"):
     """Return a fresh `Macro` wrapping `macro`."""
-    return wfms.function2node(macro, label)
+    return wfms.tools.function2node(macro, label)
 
 
 def annotated_macro_node(label: str = "my_annotated_macro"):
     """Return a fresh `Macro` wrapping `annotated_macro`."""
-    return wfms.function2node(annotated_macro, label)
+    return wfms.tools.function2node(annotated_macro, label)
 
 
 def nested_macro_node(label: str = "my_nested_macro"):
     """Return a fresh `Macro` wrapping `nested_macro`."""
-    return wfms.function2node(nested_macro, label)
+    return wfms.tools.function2node(nested_macro, label)
 
 
 def passthrough_node(label: str = "my_passthrough"):
     """Return a fresh `Macro` wrapping `passthrough`."""
-    return wfms.function2node(passthrough, label)
+    return wfms.tools.function2node(passthrough, label)
 
 
 def container_node(label: str = "container"):
     """Return a fresh `Macro` wrapping `container`."""
-    return wfms.function2node(container, label)
+    return wfms.tools.function2node(container, label)
 
 
 def autoencoder_node(label: str = "autoencoder"):
     """Return a fresh `Macro` wrapping `autoencoder`."""
-    return wfms.function2node(autoencoder, label)
+    return wfms.tools.function2node(autoencoder, label)
 
 
 def multiply_with_defaults_node(label: str = "multiply_with_defaults"):
     """Return a fresh `Atomic` wrapping `multiply_with_defaults`."""
-    return wfms.function2node(multiply_with_defaults, label)
+    return wfms.tools.function2node(multiply_with_defaults, label)
 
 
 def typed_int_node(label: str = "typed_int"):
     """Return a fresh `Atomic` wrapping `typed_int` (input/output hinted `int`)."""
-    return wfms.function2node(typed_int, label)
+    return wfms.tools.function2node(typed_int, label)
 
 
 def typed_float_node(label: str = "typed_float"):
     """Return a fresh `Atomic` wrapping `typed_float` (input/output hinted `float`)."""
-    return wfms.function2node(typed_float, label)
+    return wfms.tools.function2node(typed_float, label)
 
 
 # --------------------------------------------------------------------------- #
@@ -304,27 +303,27 @@ def typed_float_node(label: str = "typed_float"):
 # --------------------------------------------------------------------------- #
 
 _MACRO_WF_EDGES = [
-    wfms.EdgeTuple(
+    wfms.schemas.EdgeTuple(
         fr.schemas.InputSource(port="x"),
         fr.schemas.TargetHandle(node="add_0", port="x"),
     ),
-    wfms.EdgeTuple(
+    wfms.schemas.EdgeTuple(
         fr.schemas.InputSource(port="y"),
         fr.schemas.TargetHandle(node="add_0", port="y"),
     ),
-    wfms.EdgeTuple(
+    wfms.schemas.EdgeTuple(
         fr.schemas.InputSource(port="z"),
         fr.schemas.TargetHandle(node="sub_0", port="y"),
     ),
-    wfms.EdgeTuple(
+    wfms.schemas.EdgeTuple(
         fr.schemas.SourceHandle(node="add_0", port="output_0"),
         fr.schemas.TargetHandle(node="sub_0", port="x"),
     ),
-    wfms.EdgeTuple(
+    wfms.schemas.EdgeTuple(
         fr.schemas.SourceHandle(node="add_0", port="output_0"),
         fr.schemas.OutputTarget(port="a"),
     ),
-    wfms.EdgeTuple(
+    wfms.schemas.EdgeTuple(
         fr.schemas.SourceHandle(node="sub_0", port="output_0"),
         fr.schemas.OutputTarget(port="s"),
     ),
@@ -355,7 +354,7 @@ def build_workflow(inputs=(), outputs=(), node_specs=None, edges=(), label="wf")
 
 def for_wf_node(label: str = "for_wf"):
     """Return a fresh `Macro` wrapping `for_wf`."""
-    return wfms.function2node(for_wf, label)
+    return wfms.tools.function2node(for_wf, label)
 
 
 def foreach_node(label: str = "fe"):
@@ -382,22 +381,22 @@ def foreach_node(label: str = "fe"):
         nested_ports=["x"],
         zipped_ports=[],
     )
-    return forflow.ForEach(label, recipe)
+    return wfms.schemas.ForEach(label, recipe)
 
 
 def if_abs_node(label: str = "if_abs"):
     """Return a fresh `Macro` wrapping `if_abs`."""
-    return wfms.function2node(if_abs, label)
+    return wfms.tools.function2node(if_abs, label)
 
 
 def while_countdown_node(label: str = "while_countdown"):
     """Return a fresh `Macro` wrapping `while_countdown`."""
-    return wfms.function2node(while_countdown, label)
+    return wfms.tools.function2node(while_countdown, label)
 
 
 def try_safe_divide_node(label: str = "try_safe_divide"):
     """Return a fresh `Macro` wrapping `try_safe_divide`."""
-    return wfms.function2node(try_safe_divide, label)
+    return wfms.tools.function2node(try_safe_divide, label)
 
 
 # --------------------------------------------------------------------------- #
@@ -531,7 +530,7 @@ def attr_sugar_recipe() -> fr.schemas.WorkflowRecipe:
 
 def attr_sugar_macro_node(label: str = "attr_sugar_macro"):
     """Return a fresh `Macro` whose node labels collide with graph attributes."""
-    return wfms.Macro(label, attr_sugar_recipe())
+    return wfms.schemas.Macro(label, attr_sugar_recipe())
 
 
 # --------------------------------------------------------------------------- #
@@ -549,23 +548,23 @@ def grouping_wf_node_specs():
 
 
 _GROUPING_WF_EDGES = [
-    wfms.EdgeTuple(
+    wfms.schemas.EdgeTuple(
         fr.schemas.InputSource(port="x"),
         fr.schemas.TargetHandle(node="add_0", port="x"),
     ),
-    wfms.EdgeTuple(
+    wfms.schemas.EdgeTuple(
         fr.schemas.InputSource(port="y"),
         fr.schemas.TargetHandle(node="add_0", port="y"),
     ),
-    wfms.EdgeTuple(
+    wfms.schemas.EdgeTuple(
         fr.schemas.SourceHandle(node="add_0", port="output_0"),
         fr.schemas.TargetHandle(node="sub_0", port="x"),
     ),
-    wfms.EdgeTuple(
+    wfms.schemas.EdgeTuple(
         fr.schemas.InputSource(port="z"),
         fr.schemas.TargetHandle(node="sub_0", port="y"),
     ),
-    wfms.EdgeTuple(
+    wfms.schemas.EdgeTuple(
         fr.schemas.SourceHandle(node="sub_0", port="output_0"),
         fr.schemas.OutputTarget(port="diff"),
     ),
@@ -589,7 +588,7 @@ def passthrough_subgraph_wf(label: str = "passthrough_subgraph"):
     sub.create_input("a")
     sub.create_output("b")
     sub.add_edge(
-        wfms.EdgeTuple(
+        wfms.schemas.EdgeTuple(
             fr.schemas.InputSource(port="a"), fr.schemas.OutputTarget(port="b")
         )
     )
