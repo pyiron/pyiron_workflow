@@ -13,7 +13,7 @@ from pyiron_workflow._wfms import datatypes, decorators, workflow
 from pyiron_workflow.nodes import multiple_distpatch
 
 
-class _CombatibilityFactory(abc.ABC):
+class _CompatibilityFactory(abc.ABC):
     """
     Wraps a :mod:`flowrep`-decorated function so that *calling* it produces a node
     instance, recapturing the legacy :mod:`pyiron_workflow` decorator philosophy.
@@ -80,7 +80,7 @@ class _CombatibilityFactory(abc.ABC):
         return func
 
 
-class AtomicFactory(_CombatibilityFactory):
+class AtomicFactory(_CompatibilityFactory):
     @staticmethod
     def _to_flowrep(
         func: types.FunctionType,
@@ -91,7 +91,7 @@ class AtomicFactory(_CombatibilityFactory):
         return decorated
 
 
-class MacroFactory(_CombatibilityFactory):
+class MacroFactory(_CompatibilityFactory):
     @staticmethod
     def _to_flowrep(
         func: types.FunctionType, *output_labels: str
