@@ -259,9 +259,16 @@ def _convert_returns_to_outputs_and_edges(
                 source = fr.schemas.InputSource(port=obj.label)
             else:
                 source = fr.schemas.SourceHandle(node=obj.owner.label, port=obj.label)
-        elif isinstance(obj, datatypes.Node) and len(obj.outputs) == 1:
-            port: datatypes.Port = next(iter(obj.outputs.values()))
-            source = fr.schemas.SourceHandle(node=port.owner.label, port=port.label)
+        elif isinstance(obj, datatypes.Node):
+            if len(obj.outputs) == 1:
+                port: datatypes.Port = next(iter(obj.outputs.values()))
+                source = fr.schemas.SourceHandle(node=port.owner.label, port=port.label)
+            else:
+                raise ValueError(
+                    f"{wf.lexical_path!r} was created by the legacy compatibility "
+                    f"decorator, but a returned node {obj.label!r} has multiple ports "
+                    f"and is not a valid return item; please choose individual ports."
+                )
         else:
             raise NotImplementedError()
 
