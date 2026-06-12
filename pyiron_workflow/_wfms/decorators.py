@@ -22,6 +22,7 @@ class PwfTools(Generic[_RecipeType]):
     node_type: ClassVar[type[atomic_mod.Atomic] | type[dag.Macro]]
 
     def __init__(self, wrapped: types.FunctionType):
+        _disallow_locals(wrapped)
         self.function = wrapped
 
     @property
@@ -34,6 +35,15 @@ class PwfTools(Generic[_RecipeType]):
 
     def run(self, config: execution.RunConfig | None = None, **input_data):
         return self.node().run(config, **input_data)
+
+
+def _disallow_locals(func: types.FunctionType):
+    if "<locals>" in func.__qualname__:
+        raise ImportError(
+            "To turn decorated functions into nodes, pyiron_workflow needs to be "
+            "able to import the underlying decorated function; "
+            f"but {func.__qualname__!r} contains '<locals>'."
+        )
 
 
 class AtomicTools(PwfTools[fr.schemas.AtomicRecipe]):
