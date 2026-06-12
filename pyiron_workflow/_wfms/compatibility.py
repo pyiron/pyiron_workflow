@@ -79,7 +79,7 @@ class _CompatibilityFactory(abc.ABC):
     by reference (e.g. for out-of-process execution).
     """
 
-    def __init__(self, func, *output_labels: str):
+    def __init__(self, func: types.FunctionType, *output_labels: str):
         self._received_function = func
         self._output_labels = output_labels
         self._decorated = None
@@ -114,8 +114,8 @@ class _CompatibilityFactory(abc.ABC):
         return self._decorated
 
     @staticmethod
-    def _override_metadata(func):
-        original_ref = func.flowrep_recipe.reference
+    def _override_metadata(func: types.FunctionType):
+        original_ref = func.flowrep_recipe.reference  # type: ignore[attr-defined]
         new_qualname = func.__qualname__ + ".decorated"
 
         func_info = versions.VersionInfo.of(func)
@@ -125,7 +125,7 @@ class _CompatibilityFactory(abc.ABC):
             version=func_info.version,
         )
 
-        func.flowrep_recipe.reference = fr.schemas.PythonReference(
+        func.flowrep_recipe.reference = fr.schemas.PythonReference(  # type: ignore[attr-defined]
             info=replacement_info,
             inputs_with_defaults=original_ref.inputs_with_defaults,
             restricted_input_kinds=original_ref.restricted_input_kinds,
@@ -171,7 +171,9 @@ class _MacroFactory(_CompatibilityFactory):
         return new_form
 
 
-def _legacy_as_macro_node2workflow(func, *output_labels) -> workflow.Workflow:
+def _legacy_as_macro_node2workflow(
+    func: types.FunctionType, *output_labels: str
+) -> workflow.Workflow:
     wf = workflow.Workflow(func.__name__)
     sig = inspect.signature(func)
     ports_to_pass = _build_inputs_and_collect_input_ports(wf, sig)
@@ -210,7 +212,9 @@ def _build_inputs_and_collect_input_ports(
     return kwargs
 
 
-def _parse_legacy_output_labels(func, n_outputs: int) -> tuple[str, ...]:
+def _parse_legacy_output_labels(
+    func: types.FunctionType, n_outputs: int
+) -> tuple[str, ...]:
     scraped_labels = output_parser.ParseOutput(func).output
     sig = inspect.signature(func)
     self_argument = next(iter(sig.parameters))
@@ -230,8 +234,8 @@ def _parse_legacy_output_labels(func, n_outputs: int) -> tuple[str, ...]:
 
 
 def _get_output_labels(
-    n_expected, output_labels: tuple[str, ...], default_labels: tuple[str, ...]
-):
+    n_expected: int, output_labels: tuple[str, ...], default_labels: tuple[str, ...]
+) -> tuple[str, ...]:
     if len(output_labels) == 0:
         return default_labels
     elif len(output_labels) == n_expected:
