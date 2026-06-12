@@ -269,8 +269,11 @@ def _convert_returns_to_outputs_and_edges(
                     f"decorator, but a returned node {obj.label!r} has multiple ports "
                     f"and is not a valid return item; please choose individual ports."
                 )
-        else:
-            raise NotImplementedError()
+        else:  # pragma: no cover
+            raise NotImplementedError(
+                "This is a protective guard; if you reached it please raise an issue "
+                "on GitHub explaining how."
+            )
 
         wf.create_output(label)
         target = fr.schemas.OutputTarget(port=label)
