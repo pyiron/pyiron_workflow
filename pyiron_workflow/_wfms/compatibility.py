@@ -129,6 +129,16 @@ def _kwargs_error(func, **kwargs) -> str:
 
 @multiple_distpatch.dispatch_output_labels
 def as_function_node(*output_labels, **kwargs):
+    """
+    This is a compatibility decorator so that legacy ``.py`` files with decorated
+    functions continue to work, but return new-style nodes. I.e. this object will
+    return a ``flowrep``-based node.
+
+    In the case of decorated atomic nodes, no changes need to be made to the function
+    definition to move from `@as_function_node` to `@atomic` -- just update the
+    decorator, and note that modern decorated function _stay functions_ and do not
+    become node factories.
+    """
     if kwargs:
         raise ValueError(_kwargs_error(as_function_node, **kwargs))
 
@@ -136,28 +146,6 @@ def as_function_node(*output_labels, **kwargs):
         return AtomicFactory(func, *output_labels)
 
     return decorator
-
-
-as_function_node.__doc__ = """
-This is a compatibility tool for the legacy implementation of
-:mod:`pyiron_workflow`. The signature matches the modern :mod:`flowrep` decorators
-(which overlap with the legacy PWF decorator in taking output labels as variadic args,
-and additionally accept the `flowrep` keyword arguments) but follows the legacy pattern
-of converting the decorated function from a plain function to a node-creator.
-
-I.e. the decorator returns a `Callable[..., Atomic]` node factory, such that the 
-decorated function has its return modified to `Atomic`. This is here to maximize 
-_syntactic_ compatibility with node definitions in legacy .py code -- the object you 
-are actually going to get back is the new-style node.
-
-Unlike the underlying `flowrep` decorator, this forces `forbid_locals=True`: a function
-defined inside another function (`<locals>` in its qualname) cannot be re-imported, so
-the resulting node could never be instantiated. Any `forbid_locals` value the caller
-passes is ignored, and such functions raise a `ValueError` at decoration time.
-
-`pyiron_workflow` decorator docstring:
-
-""" + (decorators.atomic.__doc__ or "")
 
 
 @multiple_distpatch.dispatch_output_labels
