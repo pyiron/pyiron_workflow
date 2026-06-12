@@ -188,7 +188,7 @@ def _get_output_labels(
 def _convert_returns_to_outputs_and_edges(
     wf: workflow.Workflow,
     returned_ports: tuple[datatypes.Node | datatypes.Port],
-    output_port_labels: tuple[str],
+    output_port_labels: tuple[str, ...],
 ) -> None:
     for label, obj in zip(output_port_labels, returned_ports, strict=True):
         if isinstance(obj, datatypes.Port):
