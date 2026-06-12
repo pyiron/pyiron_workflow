@@ -48,7 +48,7 @@ class TestAsFunctionNodeBehaviour(unittest.TestCase):
     """The decorated function should behave as a legacy-style node factory."""
 
     def test_naked_decorator_builds_a_factory(self) -> None:
-        self.assertIsInstance(add, compatibility.SimpleFactory)
+        self.assertIsInstance(add, compatibility.AtomicFactory)
 
     def test_calling_factory_builds_a_runnable_node(self) -> None:
         node = add()
