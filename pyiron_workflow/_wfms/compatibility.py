@@ -29,7 +29,7 @@ def as_function_node(*output_labels, **kwargs):
         raise ValueError(_kwargs_error(as_function_node, **kwargs))
 
     def decorator(func):
-        return AtomicFactory(func, *output_labels)
+        return _AtomicFactory(func, *output_labels)
 
     return decorator
 
@@ -40,7 +40,7 @@ def as_macro_node(*output_labels, **kwargs):
         raise ValueError(_kwargs_error(as_function_node, **kwargs))
 
     def decorator(func):
-        return MacroFactory(func, *output_labels, **kwargs)
+        return _MacroFactory(func, *output_labels, **kwargs)
 
     return decorator
 
@@ -122,7 +122,7 @@ class _CompatibilityFactory(abc.ABC):
         return func
 
 
-class AtomicFactory(_CompatibilityFactory):
+class _AtomicFactory(_CompatibilityFactory):
     @staticmethod
     def _to_flowrep(
         func: types.FunctionType,
@@ -133,7 +133,7 @@ class AtomicFactory(_CompatibilityFactory):
         return decorated
 
 
-class MacroFactory(_CompatibilityFactory):
+class _MacroFactory(_CompatibilityFactory):
     @staticmethod
     def _to_flowrep(
         func: types.FunctionType, *output_labels: str
