@@ -13,6 +13,48 @@ from pyiron_workflow._wfms import datatypes, decorators, workflow
 from pyiron_workflow.nodes import multiple_distpatch
 
 
+@multiple_distpatch.dispatch_output_labels
+def as_function_node(*output_labels, **kwargs):
+    """
+    This is a compatibility decorator so that legacy ``.py`` files with decorated
+    functions continue to work, but return new-style nodes. I.e. this object will
+    return a ``flowrep``-based node.
+
+    In the case of decorated atomic nodes, no changes need to be made to the function
+    definition to move from `@as_function_node` to `@atomic` -- just update the
+    decorator, and note that modern decorated function _stay functions_ and do not
+    become node factories.
+    """
+    if kwargs:
+        raise ValueError(_kwargs_error(as_function_node, **kwargs))
+
+    def decorator(func):
+        return AtomicFactory(func, *output_labels)
+
+    return decorator
+
+
+@multiple_distpatch.dispatch_output_labels
+def as_macro_node(*output_labels, **kwargs):
+    if kwargs:
+        raise ValueError(_kwargs_error(as_function_node, **kwargs))
+
+    def decorator(func):
+        return MacroFactory(func, *output_labels, **kwargs)
+
+    return decorator
+
+
+def _kwargs_error(func, **kwargs) -> str:
+    return (
+        "Compatibility decorators take legacy-decorated functions, and turn them into "
+        "factories for new node classes. In this context, arguments (other than output "
+        "labels) to the decorator are not meaningful. Can't parse "
+        f"{func.__qualname__!r} as a compatiblity factory because it received kwargs "
+        f"{kwargs!r}"
+    )
+
+
 class _CompatibilityFactory(abc.ABC):
     """
     Wraps a :mod:`flowrep`-decorated function so that *calling* it produces a node
@@ -115,48 +157,6 @@ class MacroFactory(_CompatibilityFactory):
         new_form.__module__ = func.__module__
         new_form.__qualname__ = func.__qualname__
         return new_form
-
-
-def _kwargs_error(func, **kwargs) -> str:
-    return (
-        "Compatibility decorators take legacy-decorated functions, and turn them into "
-        "factories for new node classes. In this context, arguments (other than output "
-        "labels) to the decorator are not meaningful. Can't parse "
-        f"{func.__qualname__!r} as a compatiblity factory because it received kwargs "
-        f"{kwargs!r}"
-    )
-
-
-@multiple_distpatch.dispatch_output_labels
-def as_function_node(*output_labels, **kwargs):
-    """
-    This is a compatibility decorator so that legacy ``.py`` files with decorated
-    functions continue to work, but return new-style nodes. I.e. this object will
-    return a ``flowrep``-based node.
-
-    In the case of decorated atomic nodes, no changes need to be made to the function
-    definition to move from `@as_function_node` to `@atomic` -- just update the
-    decorator, and note that modern decorated function _stay functions_ and do not
-    become node factories.
-    """
-    if kwargs:
-        raise ValueError(_kwargs_error(as_function_node, **kwargs))
-
-    def decorator(func):
-        return AtomicFactory(func, *output_labels)
-
-    return decorator
-
-
-@multiple_distpatch.dispatch_output_labels
-def as_macro_node(*output_labels, **kwargs):
-    if kwargs:
-        raise ValueError(_kwargs_error(as_function_node, **kwargs))
-
-    def decorator(func):
-        return MacroFactory(func, *output_labels, **kwargs)
-
-    return decorator
 
 
 def _legacy_as_macro_node2workflow(func, *output_labels) -> workflow.Workflow:
