@@ -36,6 +36,18 @@ def as_function_node(*output_labels, **kwargs):
 
 @multiple_distpatch.dispatch_output_labels
 def as_macro_node(*output_labels, **kwargs):
+    """
+    This is a compatibility decorator so that legacy ``.py`` files with decorated
+    functions continue to work, but return new-style nodes. I.e. this object will
+    return a ``flowrep``-based node.
+
+    In the case of decorated macro nodes, changes need to be made to the function
+    definition to move from `@as_macro_node` to `@workflow` -- in particular, modern
+    workflow-decorated functions do not take any form of ``self`` argument.
+    ``flowrep.tools.flowrep2python`` provides tools for compiling recipes to source
+    code and dumping it to a ``.py`` file; you may find this useful in transitioning
+    legacy workflows to new workflows.
+    """
     if kwargs:
         raise ValueError(_kwargs_error(as_function_node, **kwargs))
 
