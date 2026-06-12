@@ -117,16 +117,20 @@ class MacroFactory(_CompatibilityFactory):
         return new_form
 
 
+def _kwargs_error(func, **kwargs) -> str:
+    return (
+        "Compatibility decorators take legacy-decorated functions, and turn them into "
+        "factories for new node classes. In this context, arguments (other than output "
+        "labels) to the decorator are not meaningful. Can't parse "
+        f"{func.__qualname__!r} as a compatiblity factory because it received kwargs "
+        f"{kwargs!r}"
+    )
+
+
 @multiple_distpatch.dispatch_output_labels
 def as_function_node(*output_labels, **kwargs):
-    if not kwargs.get("forbid_locals", True):
-        raise ValueError(
-            "Nodes built from `<locals>` functions cannot be instantiated -- the "
-            "underlying function is unimportable, so `generate_flowrep_live_node` "
-            "would fail. We pin flowrep's `forbid_locals` on (clobbering any user "
-            "value). You got clobbered."
-        )
-    kwargs["forbid_locals"] = True
+    if kwargs:
+        raise ValueError(_kwargs_error(as_function_node, **kwargs))
 
     def decorator(func):
         return AtomicFactory(func, *output_labels)
@@ -158,6 +162,9 @@ passes is ignored, and such functions raise a `ValueError` at decoration time.
 
 @multiple_distpatch.dispatch_output_labels
 def as_macro_node(*output_labels, **kwargs):
+    if kwargs:
+        raise ValueError(_kwargs_error(as_function_node, **kwargs))
+
     def decorator(func):
         return MacroFactory(func, *output_labels, **kwargs)
 
