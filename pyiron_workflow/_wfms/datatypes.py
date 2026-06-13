@@ -59,6 +59,24 @@ class OutputPort(Port):
     _io_indicator: ClassVar[str] = "outputs"
 
 
+def coerce_to_port(obj: Port | Node) -> Port:
+    if isinstance(obj, Port):
+        return obj
+    elif isinstance(obj, Node):
+        if len(obj.outputs) != 1:
+            raise ValueError(
+                "Nodes can only be used as proxies for ports in edge "
+                "creation sugar if they have a single output port."
+                f"{obj.lexical_path!r} cannot be coerced to a port since it has more "
+                f"than one output port. "
+            )
+        return next(iter(obj.outputs.values()))
+    else:
+        raise TypeError(
+            f"Expected a {Port.__name__} or a {Node.__name__} object, got {obj} "
+        )
+
+
 def source_port_to_handle(port: Port, context: MutableDag):
     if port.owner is context and port.label in context.inputs:
         return fr.schemas.InputSource(port=port.label)
@@ -195,7 +213,7 @@ class Node(
         connections = dict(zip(self.inputs.keys(), args, strict=False))
         connections.update(kwargs)
         for k, v in connections.items():
-            connections[k] = self._coerce_to_port(v, k)
+            connections[k] = coerce_to_port(v)
         self._pending_connections.update(connections)
         if isinstance(self._owner, MutableDag):
             self._owner.add_edge(*self.use_pending_edges())
