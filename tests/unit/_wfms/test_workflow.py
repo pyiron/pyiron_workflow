@@ -1333,6 +1333,21 @@ class TestWorkflowSetattrSugar(unittest.TestCase):
         with self.assertRaisesRegex(ValueError, "already has a node 'adder'"):
             self.wf.adder = _fixtures.atomic_add_node()
 
+    def test_existing_node_to_new_attr_relabels(self) -> None:
+        node = _fixtures.atomic_add_node()
+        self.wf.adder = node
+        self.wf.new_name = node
+        self.assertIn("new_name", self.wf.nodes)
+        self.assertNotIn("adder", self.wf.nodes)
+        self.assertEqual("new_name", node.label)
+
+    def test_reassinging_existing_has_no_impact(self) -> None:
+        node = _fixtures.atomic_add_node()
+        self.wf.adder = node
+        self.wf.adder = node
+        self.assertIn("adder", self.wf.nodes)
+        self.assertEqual(1, len(self.wf.nodes))
+
     def test_assigning_owned_node_raises(self) -> None:
         other = workflow.Workflow("other")
         node = _fixtures.atomic_add_node()

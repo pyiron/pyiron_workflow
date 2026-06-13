@@ -5,7 +5,7 @@ import dataclasses
 import functools
 import types
 from collections.abc import Callable, MutableMapping
-from typing import TYPE_CHECKING, Any
+from typing import TYPE_CHECKING, Any, cast
 
 import flowrep as fr
 import semantikon
@@ -209,9 +209,16 @@ class Workflow(MutableDag):
                 f"collides with an existing attribute. Use a different label, or "
                 f"add the node via `nodes[{name!r}] = ...`."
             )
-        if name in self.nodes:
+
+        if name in self.nodes and self.nodes[name] is not value:
             raise _duplicate_node_error(self, name)
-        self.add_node(constructors.node(value, name))
+
+        if value in self.nodes.values():
+            node = cast(Node, value)
+            if node.label != name:
+                self.rename_node(node, name)
+        else:
+            self.add_node(constructors.node(value, name))
 
     @property
     def inputs(self) -> MutablePortMap[InputPort]:
