@@ -158,10 +158,10 @@ class Node(
         return current_run
 
     def __call__(self, *args: Port | Node, **kwargs: Port | Node) -> Self:
-        self.connect(*args, **kwargs)
+        self.connect_input(*args, **kwargs)
         return self
 
-    def connect(self, *args: Port | Node, **kwargs: Port | Node) -> None:
+    def connect_input(self, *args: Port | Node, **kwargs: Port | Node) -> None:
         """
         A syntactic shortcut for adding new edges feeding this node on the owning graph.
 
@@ -270,7 +270,7 @@ class StaticNode(Node[RecipeType, execution.ResultType], abc.ABC):
 
         self.executor = None
         self.last_run = None
-        self.connect(*positional_connections, **keyword_connections)
+        self.connect_input(*positional_connections, **keyword_connections)
 
     @property
     def inputs(self) -> PortMap[InputPort, Node]:

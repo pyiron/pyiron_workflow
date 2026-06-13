@@ -182,7 +182,7 @@ class Workflow(MutableDag):
         self._diff_accumulator: actions.GraphDiff | None = None
         self.undo_stack = collections.deque(maxlen=undo_limit)
         self.redo_stack = collections.deque(maxlen=undo_limit)
-        self.connect(*positional_connections, **keyword_connections)
+        self.connect_input(*positional_connections, **keyword_connections)
 
     def __setattr__(self, name: str, value: object) -> None:
         """Syntactic sugar for adding a fresh node to the graph.
