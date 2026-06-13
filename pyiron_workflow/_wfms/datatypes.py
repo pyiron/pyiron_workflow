@@ -549,6 +549,9 @@ class MutableDag(Node[fr.schemas.WorkflowRecipe, fr.schemas.DagData], Graph, abc
     def remove_edge(self, *edges: EdgeTuple) -> None: ...
 
     @abc.abstractmethod
+    def connect(self, source: Node | Port, target: Port): ...
+
+    @abc.abstractmethod
     def disconnect(self, *nodes: Node | fr.schemas.Label) -> None: ...
 
     @abc.abstractmethod

@@ -24,6 +24,9 @@ from pyiron_workflow._wfms.datatypes import (
     Port,
     PortMap,
     PortType,
+    coerce_to_port,
+    source_port_to_handle,
+    target_port_to_handle,
 )
 
 if TYPE_CHECKING:
@@ -623,6 +626,16 @@ class Workflow(MutableDag):
     def remove_edge(self, *edges: EdgeTuple) -> None:
         for e in edges:
             self._remove_edge(e)
+
+    @_undoable
+    def connect(self, source: Node | Port, target: Port):
+        source_port = coerce_to_port(source)
+        self._add_edge(
+            EdgeTuple(
+                source_port_to_handle(source_port, context=self),
+                target_port_to_handle(target, context=self),
+            )
+        )
 
     @_undoable
     def disconnect(self, *nodes: Node | fr.schemas.Label) -> None:

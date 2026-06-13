@@ -699,6 +699,21 @@ class TestEdgeMutations(unittest.TestCase):
         self.wf.undo()
         self.assertIn(edge, self.wf.edges)
 
+    def test_connect(self):
+        self.wf.create_input("x")
+        self.wf.create_input("a")
+        self.wf.create_output("y")
+        self.wf.first = _fixtures.atomic_add_node("first")
+        self.wf.second = _fixtures.atomic_add_node("first")
+        self.wf.connect(self.wf.inputs.x, self.wf.first.inputs.x)
+        self.wf.connect(self.wf.inputs.a, self.wf.first.inputs.y)
+        self.wf.connect(self.wf.inputs.a, self.wf.second.inputs.y)
+        self.wf.connect(self.wf.first.outputs.output_0, self.wf.second.inputs.x)
+        self.wf.connect(self.wf.second, self.wf.outputs.y)
+        self.assertEqual(42 + 2, self.wf.run(x=42, a=1).outputs["y"].value)
+        self.wf.undo(5)  # n connect calls
+        self.assertEqual([], self.wf.edges)
+
 
 class TestAddEdgeValidation(unittest.TestCase):
     """`Workflow.add_edge` wraps `validation.validate_edge` by default and
