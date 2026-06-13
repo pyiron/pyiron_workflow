@@ -1,3 +1,7 @@
+"""
+A standard library of flowrep recipes built around fundamental python operations.
+"""
+
 import operator
 from collections.abc import Callable, Iterable, Mapping
 from typing import Any
