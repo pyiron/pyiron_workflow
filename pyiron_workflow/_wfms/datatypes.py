@@ -59,6 +59,30 @@ class OutputPort(Port):
     _io_indicator: ClassVar[str] = "outputs"
 
 
+def source_port_to_handle(port: Port, context: MutableDag):
+    if port.owner is context and port.label in context.inputs:
+        return fr.schemas.InputSource(port=port.label)
+    elif port.owner.owner is context and port.label in port.owner.outputs:
+        return fr.schemas.SourceHandle(node=port.owner.label, port=port.label)
+    else:
+        raise ValueError(
+            f"Port {port.label!r} is not owned by the inputs of context mutable graph "
+            f"{context.lexical_path!r}, nor an output of that graph's child."
+        )
+
+
+def target_port_to_handle(port: Port, context: MutableDag):
+    if port.owner is context and port.label in context.outputs:
+        return fr.schemas.OutputTarget(port=port.label)
+    elif port.owner.owner is context and port.label in port.owner.inputs:
+        return fr.schemas.TargetHandle(node=port.owner.label, port=port.label)
+    else:
+        raise ValueError(
+            f"Port {port.label!r} is not owned by the outputs of context mutable graph "
+            f"{context.lexical_path!r}, nor an input of that graph's child."
+        )
+
+
 PortType = TypeVar("PortType", bound=Port)
 
 
@@ -209,12 +233,7 @@ class Node(
         if isinstance(self.owner, MutableDag):
             edges: EdgeList = []
             for target_label, source_port in self._pending_connections.items():
-                if source_port.owner is self.owner:
-                    source = fr.schemas.InputSource(port=source_port.label)
-                else:
-                    source = fr.schemas.SourceHandle(
-                        node=source_port.owner.label, port=source_port.label
-                    )
+                source = source_port_to_handle(source_port, self.owner)
                 target = fr.schemas.TargetHandle(node=self.label, port=target_label)
                 edges.append(EdgeTuple(source, target))
             self._pending_connections.clear()
