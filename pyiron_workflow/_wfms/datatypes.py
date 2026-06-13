@@ -18,14 +18,16 @@ from typing import (
 import flowrep as fr
 import semantikon
 
-from pyiron_workflow._wfms import execution, lexical
+from pyiron_workflow._wfms import execution, injection, lexical
 
 if TYPE_CHECKING:
     from pyiron_workflow._wfms import actions
 
 
 @dataclasses.dataclass(frozen=True)
-class Port(abc.ABC):  # Satisfies pyiron_workflow._wfms.lexical.Lexical["Node"]
+class Port(
+    injection.OperatorInjectionMixin, abc.ABC
+):  # Satisfies pyiron_workflow._wfms.lexical.Lexical["Node"]
     label: fr.schemas.Label
     owner: Node
     type_hint: type | None
@@ -46,6 +48,22 @@ class Port(abc.ABC):  # Satisfies pyiron_workflow._wfms.lexical.Lexical["Node"]
             else ""
         )
         return f"{self.__class__.__name__}({self.lexical_path}" + hint + meta + ")"
+
+    def _injectable_object(self) -> Port:
+        return self
+
+    def _injectable_object_owner(self) -> Node:
+        return self.owner
+
+    def _injection_context(self) -> MutableDag | None:
+        context = self.owner.owner
+        if context is None or isinstance(context, MutableDag):
+            return context
+        else:
+            raise TypeError(
+                f"{self.lexical_path!r} cannot be used for injection since its owner "
+                f"lives in an immutable context."
+            )
 
 
 @dataclasses.dataclass(frozen=True)
@@ -119,7 +137,10 @@ RecipeType = TypeVar(
 
 
 class Node(
-    lexical.Lexical["Graph"], Generic[RecipeType, execution.ResultType], abc.ABC
+    lexical.Lexical["Graph"],
+    injection.OperatorInjectionMixin,
+    Generic[RecipeType, execution.ResultType],
+    abc.ABC,
 ):
     _label: fr.schemas.Label
     _owner: Graph | None
@@ -267,6 +288,27 @@ class Node(
             f"{self.lexical_path!r} does not have a mutable owner, and so its "
             f"inputs cannot be modified." + tag
         )
+
+    def _injectable_object(self) -> Port:
+        if len(self.outputs) != 1:
+            raise ValueError(
+                f"{self.lexical_path!r} cannot be injected since it has more than "
+                f"one output port."
+            )
+        return next(iter(self.outputs.values()))
+
+    def _injectable_object_owner(self) -> Node:
+        return self
+
+    def _injection_context(self) -> MutableDag | None:
+        context = self.owner
+        if context is None or isinstance(context, MutableDag):
+            return context
+        else:
+            raise TypeError(
+                f"{self.lexical_path!r} cannot be used for injection since it lives in "
+                f"an immutable context."
+            )
 
     def __getstate__(self):
         state = dict(super().__getstate__())
