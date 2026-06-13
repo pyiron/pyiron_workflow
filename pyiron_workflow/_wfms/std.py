@@ -1,4 +1,6 @@
 import operator
+from collections.abc import Callable, Iterable, Mapping
+from typing import Any
 
 import flowrep as fr
 from pyiron_snippets import versions
@@ -856,16 +858,29 @@ methodcaller = fr.schemas.LabeledRecipe(
     ),
 )
 
+
+def _call_wrapper(
+    obj: Callable,
+    args_: Iterable[Any] | None = None,
+    kwargs_: Mapping[str, Any] | None = None,
+):
+    args_ = () if args_ is None else args_
+    kwargs_ = {} if kwargs_ is None else kwargs_
+    return obj(*args_, **kwargs_)
+
+
 call = fr.schemas.LabeledRecipe(
     label="call",
     node=fr.schemas.AtomicRecipe(
         reference=fr.schemas.PythonReference(
-            info=versions.VersionInfo.of(operator.call),
+            info=versions.VersionInfo.of(_call_wrapper),
             restricted_input_kinds={
                 "obj": fr.schemas.RestrictedParamKind.POSITIONAL_ONLY,
+                "args_": fr.schemas.RestrictedParamKind.KEYWORD_ONLY,
+                "kwargs_": fr.schemas.RestrictedParamKind.KEYWORD_ONLY,
             },
         ),
-        inputs=["obj"],
+        inputs=["obj", "args_", "kwargs_"],
         outputs=["result"],
         unpack_mode=fr.schemas.UnpackMode.NONE,
     ),

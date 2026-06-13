@@ -255,7 +255,25 @@ class TestStdExecution(unittest.TestCase):
 
     def test_call(self):
         n = constructors.recipe2node(std.call.node)
-        self.assertEqual(42, n.run(obj=_return_42).outputs["result"].value)
+        with self.subTest("no variadics"):
+            self.assertEqual(42, n.run(obj=_return_42).outputs["result"].value)
+        with self.subTest("args"):
+            self.assertEqual(
+                (42, (1, 2)),
+                n.run(obj=_return_42, args_=(1, 2)).outputs["result"].value,
+            )
+        with self.subTest("kwargs"):
+            self.assertEqual(
+                (42, {"a": 3, "b": 4}),
+                n.run(obj=_return_42, kwargs_={"a": 3, "b": 4}).outputs["result"].value,
+            )
+        with self.subTest("both"):
+            self.assertEqual(
+                (42, (1, 2), {"a": 3, "b": 4}),
+                n.run(obj=_return_42, args_=(1, 2), kwargs_={"a": 3, "b": 4})
+                .outputs["result"]
+                .value,
+            )
 
 
 if __name__ == "__main__":
