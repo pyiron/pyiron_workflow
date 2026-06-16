@@ -288,6 +288,20 @@ class Node(
         else:
             raise self._mutable_owner_error()
 
+    def detach_pending_connections(self) -> dict[str, Port]:
+        """
+        Return a copy of the pending input connections and clear them, *without*
+        attempting to realize them as edges.
+
+        Unlike :meth:`use_pending_edges`, this neither requires a mutable owner nor
+        resolves the connections against one. It is used when a node carrying pending
+        connections is absorbed into a new graph during operator injection, so the
+        connections can be re-homed (lifted) onto the absorbing graph.
+        """
+        detached = dict(self._pending_connections)
+        self._pending_connections.clear()
+        return detached
+
     def _mutable_owner_error(self) -> TypeError:
         tag = ""
         if isinstance(self.owner, ImmutableDag):
@@ -306,6 +320,13 @@ class Node(
         port = next(iter(self.outputs.values()))
         node = self
         context = self.owner
+        if context is None and self._pending_connections:
+            # A freshly-built injection graph is unparented but logically belongs to the
+            # context that owns its pending sources. They share one context by construction
+            # (cross-context combination is rejected before any graph is built), so any
+            # representative resolves it.
+            representative = next(iter(self._pending_connections.values()))
+            context = representative._injection_context().graph
         if context is not None and not isinstance(context, MutableDag):
             raise TypeError(
                 f"{self.lexical_path!r} cannot be used for injection since it lives in "

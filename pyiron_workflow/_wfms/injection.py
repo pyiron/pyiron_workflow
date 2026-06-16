@@ -130,7 +130,10 @@ def _build_injection_graph(
             negotiated_sources.append(graph.inputs[port_label])
             graph.connect_input(**{port_label: source})
         elif source_node.owner is None:
-            # Add the source node to the new graph and wire its inputs from graph inputs
+            # Add the source node to the new graph and wire its inputs from graph inputs.
+            # Capture any pending connections *before* add_node would try to realize them
+            # against the wrong context, so they can be lifted onto the new graph.
+            lifted = source_node.detach_pending_connections()
             source_node.label = label_helpers.unique_suffix(
                 source_node.label, graph.nodes
             )
@@ -145,6 +148,11 @@ def _build_injection_graph(
                     type_metadata=iport.type_metadata,
                 )
                 graph.connect(graph.inputs[port_label], iport)
+                if iport_label in lifted:
+                    # This input was fed from an outer context; re-register the edge as a
+                    # pending connection on the new (still unparented) graph so it resolves
+                    # when the new graph is finally attached to that context.
+                    graph.connect_input(**{port_label: lifted[iport_label]})
         else:  # pragma: no cover
             raise ValueError(
                 "Can't inject across graph contexts. Fallback exception; should not be "
