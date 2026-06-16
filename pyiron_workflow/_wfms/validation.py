@@ -178,7 +178,7 @@ class SemantikonValidationReport:
     graph: rdflib.ConjunctiveGraph | rdflib.Graph
     text: str
 
-    def __repr__(self):
+    def __str__(self):
         return self.text
 
 

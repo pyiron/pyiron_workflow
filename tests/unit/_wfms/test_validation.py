@@ -506,7 +506,7 @@ class TestValidateOntology(unittest.TestCase):
 
     def test_repr_returns_text(self):
         report = validation.validate_ontology(_fixtures.clothes_correct_macro_node())
-        self.assertEqual(repr(report), report.text)
+        self.assertEqual(str(report), report.text)
 
     def test_run_input_branch(self):
         # The `execution.Run` branch: run with a hashable value, then validate
