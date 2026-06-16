@@ -54,7 +54,7 @@ class OperatorInjectionMixin(abc.ABC):
                     type_hint=oport.type_hint,
                     type_metadata=oport.type_metadata,
                 )
-                graph.connect(oport, graph.outputs[label])
+                graph.connect(oport, graph.outputs[port_label])
             return graph
         else:
             operation_node = constructors.node(
