@@ -49,32 +49,40 @@ class Port(
         )
         return f"{self.__class__.__name__}({self.lexical_path}" + hint + meta + ")"
 
-    def _injectable_object(self) -> Port:
-        return self
-
-    def _injectable_object_owner(self) -> Node:
-        return self.owner
-
-    def _injection_context(self) -> MutableDag | None:
-        context = self.owner.owner
-        if context is None or isinstance(context, MutableDag):
-            return context
-        else:
-            raise TypeError(
-                f"{self.lexical_path!r} cannot be used for injection since its owner "
-                f"lives in an immutable context."
-            )
-
 
 @dataclasses.dataclass(frozen=True)
 class InputPort(Port):
     has_default: bool = False
     _io_indicator: ClassVar[str] = "inputs"
 
+    def _injection_context(self) -> injection.InjectionContext:
+        context = self.owner
+        if not isinstance(context, MutableDag):
+            raise TypeError(
+                f"{self.lexical_path!r} cannot be used for injection since its owner "
+                f"is immutable."
+            )
+
+        return injection.InjectionContext(
+            self, self.owner, context, self.lexical_path, self.label
+        )
+
 
 @dataclasses.dataclass(frozen=True)
 class OutputPort(Port):
     _io_indicator: ClassVar[str] = "outputs"
+
+    def _injection_context(self) -> injection.InjectionContext:
+        context = self.owner.owner
+        if context is not None and not isinstance(context, MutableDag):
+            raise TypeError(
+                f"{self.lexical_path!r} cannot be used for injection since its owner "
+                f"lives in an immutable context."
+            )
+
+        return injection.InjectionContext(
+            self, self.owner, context, self.lexical_path, self.label
+        )
 
 
 def coerce_to_port(obj: Port | Node) -> Port:
@@ -289,26 +297,23 @@ class Node(
             f"inputs cannot be modified." + tag
         )
 
-    def _injectable_object(self) -> Port:
+    def _injection_context(self) -> injection.InjectionContext:
         if len(self.outputs) != 1:
             raise ValueError(
                 f"{self.lexical_path!r} cannot be injected since it has more than "
                 f"one output port."
             )
-        return next(iter(self.outputs.values()))
-
-    def _injectable_object_owner(self) -> Node:
-        return self
-
-    def _injection_context(self) -> MutableDag | None:
+        port = next(iter(self.outputs.values()))
+        node = self
         context = self.owner
-        if context is None or isinstance(context, MutableDag):
-            return context
-        else:
+        if context is not None and not isinstance(context, MutableDag):
             raise TypeError(
                 f"{self.lexical_path!r} cannot be used for injection since it lives in "
                 f"an immutable context."
             )
+        return injection.InjectionContext(
+            port, node, context, self.lexical_path, self.label
+        )
 
     def __getstate__(self):
         state = dict(super().__getstate__())

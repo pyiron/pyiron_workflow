@@ -1,48 +1,45 @@
 from __future__ import annotations
 
 import abc
-from typing import TYPE_CHECKING
+from typing import TYPE_CHECKING, NamedTuple
 
 import flowrep as fr
 
-from pyiron_workflow._wfms import std
+from pyiron_workflow._wfms import lexical, std
 
 if TYPE_CHECKING:
     from pyiron_workflow._wfms.datatypes import MutableDag, Node, Port
 
 
-class OperatorInjectionMixin(abc.ABC):
+class InjectionContext(NamedTuple):
+    port: Port
+    node: Node
+    graph: MutableDag | None
+    lexical_path: lexical.LexicalPath
     label: fr.schemas.Label
 
-    @abc.abstractmethod
-    def _injectable_object(self) -> Port: ...
+
+class OperatorInjectionMixin(abc.ABC):
 
     @abc.abstractmethod
-    def _injectable_object_owner(self) -> Node: ...
-
-    @abc.abstractmethod
-    def _injection_context(self) -> MutableDag | None: ...
+    def _injection_context(self) -> InjectionContext: ...
 
     def _unary_operation(self, operation: fr.schemas.LabeledRecipe) -> Node:
         from pyiron_workflow._wfms import constructors  # noqa: PLC0415
 
         context = self._injection_context()
-        if context is None:
-            from pyiron_workflow._wfms import workflow  # noqa: PLC0415
-
-            subgraph = workflow.Workflow(f"{operation.label}_{self.label}")
-            subgraph.add_node(self._injectable_object_owner())
-            operation = constructors.node(operation.node, label=operation.label)
-            subgraph.connect(self._injectable_object(), operation._injectable_object())
-
-            return subgraph
-        else:
-            operation = constructors.node(
-                operation.node, label=f"{operation.label}_{self.label}"
+        if context.graph is None:
+            raise ValueError(
+                f"Cannot perform unary injection on {context.lexical_path!r} because it "
+                f"has no  with no graph context."
             )
-            context.add_node(operation)
-            operation.connect_input(self._injectable_object())
-            return operation
+
+        operation = constructors.node(
+            operation.node, label=f"{operation.label}_{context.label}"
+        )
+        context.graph.add_node(operation)
+        operation.connect_input(context.port)
+        return operation
 
     def _binary_operations(
         self, other: OperatorInjectionMixin, operation: fr.schemas.LabeledRecipe
