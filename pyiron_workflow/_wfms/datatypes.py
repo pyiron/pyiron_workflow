@@ -110,8 +110,8 @@ def source_port_to_handle(port: Port, context: MutableDag):
         return fr.schemas.SourceHandle(node=port.owner.label, port=port.label)
     else:
         raise ValueError(
-            f"Port {port.label!r} is not owned by the inputs of context mutable graph "
-            f"{context.lexical_path!r}, nor an output of that graph's child."
+            f"Port {port.lexical_path!r} is not owned by the inputs of context mutable "
+            f"graph {context.lexical_path!r}, nor an output of that graph's child."
         )
 
 
