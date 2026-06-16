@@ -34,11 +34,11 @@ class OperatorInjectionMixin(abc.ABC):
             from pyiron_workflow._wfms.workflow import Workflow  # noqa: PLC0415
 
             graph = Workflow(label)
-            operation = constructors.node(operation.node, label=operation.label)
-            graph.add_node(operation)
+            operation_node = constructors.node(operation.node, label=operation.label)
+            graph.add_node(operation_node)
             context.node.label = label_helpers.unique_suffix(context.label, graph.nodes)
             graph.add_node(context.node)
-            operation.connect_input(context.port)
+            operation_node.connect_input(context.port)
 
             for port_label, iport in context.node.inputs.items():
                 graph.create_input(
@@ -48,7 +48,7 @@ class OperatorInjectionMixin(abc.ABC):
                 )
                 graph.connect(graph.inputs[port_label], iport)
 
-            for port_label, oport in operation.outputs.items():
+            for port_label, oport in operation_node.outputs.items():
                 graph.create_output(
                     port_label,
                     type_hint=oport.type_hint,
@@ -57,13 +57,13 @@ class OperatorInjectionMixin(abc.ABC):
                 graph.connect(oport, graph.outputs[label])
             return graph
         else:
-            operation = constructors.node(
+            operation_node = constructors.node(
                 operation.node,
                 label=label_helpers.unique_suffix(label, context.graph.nodes),
             )
-            context.graph.add_node(operation)
-            operation.connect_input(context.port)
-            return operation
+            context.graph.add_node(operation_node)
+            operation_node.connect_input(context.port)
+            return operation_node
 
     def _binary_operations(
         self, other: OperatorInjectionMixin, operation: fr.schemas.LabeledRecipe
