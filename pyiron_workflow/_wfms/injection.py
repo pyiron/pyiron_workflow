@@ -61,7 +61,6 @@ class OperatorInjectionMixin(abc.ABC):
                 operation.node,
                 label=label_helpers.unique_suffix(label, context.graph.nodes),
             )
-            context.graph.add_node(operation_node)
             operation_node.connect_input(context.port)
             return operation_node
 
