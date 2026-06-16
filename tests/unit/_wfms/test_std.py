@@ -238,21 +238,6 @@ class TestStdExecution(unittest.TestCase):
         n.run(a=d, b="k")
         self.assertNotIn("k", d)
 
-    def test_attrgetter(self):
-        n = constructors.recipe2node(std.attrgetter.node)
-        getter = n.run(attr="real").outputs["getter"].value
-        self.assertEqual(5, getter(5))
-
-    def test_itemgetter(self):
-        n = constructors.recipe2node(std.itemgetter.node)
-        getter = n.run(item=0).outputs["getter"].value
-        self.assertEqual(10, getter([10, 20]))
-
-    def test_methodcaller(self):
-        n = constructors.recipe2node(std.methodcaller.node)
-        caller = n.run(name="upper").outputs["caller"].value
-        self.assertEqual("HI", caller("hi"))
-
     def test_call(self):
         n = constructors.recipe2node(std.call.node)
         with self.subTest("no variadics"):

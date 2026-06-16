@@ -817,51 +817,6 @@ delitem = fr.schemas.LabeledRecipe(
     ),
 )
 
-attrgetter = fr.schemas.LabeledRecipe(
-    label="attrgetter",
-    node=fr.schemas.AtomicRecipe(
-        reference=fr.schemas.PythonReference(
-            info=versions.VersionInfo.of(operator.attrgetter),
-            restricted_input_kinds={
-                "attr": fr.schemas.RestrictedParamKind.POSITIONAL_ONLY,
-            },
-        ),
-        inputs=["attr"],
-        outputs=["getter"],
-        unpack_mode=fr.schemas.UnpackMode.NONE,
-    ),
-)
-
-itemgetter = fr.schemas.LabeledRecipe(
-    label="itemgetter",
-    node=fr.schemas.AtomicRecipe(
-        reference=fr.schemas.PythonReference(
-            info=versions.VersionInfo.of(operator.itemgetter),
-            restricted_input_kinds={
-                "item": fr.schemas.RestrictedParamKind.POSITIONAL_ONLY,
-            },
-        ),
-        inputs=["item"],
-        outputs=["getter"],
-        unpack_mode=fr.schemas.UnpackMode.NONE,
-    ),
-)
-
-methodcaller = fr.schemas.LabeledRecipe(
-    label="methodcaller",
-    node=fr.schemas.AtomicRecipe(
-        reference=fr.schemas.PythonReference(
-            info=versions.VersionInfo.of(operator.methodcaller),
-            restricted_input_kinds={
-                "name": fr.schemas.RestrictedParamKind.POSITIONAL_ONLY,
-            },
-        ),
-        inputs=["name"],
-        outputs=["caller"],
-        unpack_mode=fr.schemas.UnpackMode.NONE,
-    ),
-)
-
 
 def _call_wrapper(
     obj: Callable,
