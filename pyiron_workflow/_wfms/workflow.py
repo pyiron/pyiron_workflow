@@ -585,6 +585,13 @@ class Workflow(MutableDag):
             self._add_node(n)
             for edge in n.use_pending_edges():
                 self._add_edge(edge)
+            try:
+                n.lexical_root  # noqa: B018 -- brute-force cycle check
+            except RecursionError:
+                raise ValueError(
+                    f"Cannot add {n.label!r} to {self.label!r} because it "
+                    f"contains a cycle."
+                ) from None
 
     @_undoable
     def remove_node(self, *nodes: Node | fr.schemas.Label) -> None:

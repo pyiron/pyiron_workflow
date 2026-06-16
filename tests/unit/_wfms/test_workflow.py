@@ -242,6 +242,12 @@ class TestGraphActions(unittest.TestCase):
         a = actions.ReplacePort(p1, p2)
         self.assertEqual(a.inverse().inverse(), a)
 
+    def test_adding_circular_node_raises(self):
+        sub_wf = workflow.Workflow("sub_wf")
+        sub_wf.my_own_grandpa = self.wf
+        with self.assertRaisesRegex(ValueError, "contains a cycle"):
+            self.wf.add_node(sub_wf)
+
     # _dispatch correctness
 
     def test_dispatch_add_remove_node(self) -> None:
