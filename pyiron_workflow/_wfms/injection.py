@@ -28,18 +28,33 @@ class OperatorInjectionMixin(abc.ABC):
         from pyiron_workflow._wfms import constructors  # noqa: PLC0415
 
         context = self._injection_context()
+        label = f"{operation.label}_{context.label}"
         if context.graph is None:
-            raise ValueError(
-                f"Cannot perform unary injection on {context.lexical_path!r} because it "
-                f"has no  with no graph context."
-            )
+            from pyiron_workflow._wfms.workflow import Workflow  # noqa: PLC0415
 
-        operation = constructors.node(
-            operation.node, label=f"{operation.label}_{context.label}"
-        )
-        context.graph.add_node(operation)
-        operation.connect_input(context.port)
-        return operation
+            graph = Workflow(label)
+            operation = constructors.node(operation.node, label=operation.label)
+            graph.add_node(operation)
+            graph.add_node(context.node)
+            operation.connect_input(context.port)
+
+            for label, iport in context.node.inputs.items():
+                graph.create_input(
+                    label, type_hint=iport.type_hint, type_metadata=iport.type_metadata
+                )
+                graph.connect(graph.inputs[label], iport)
+
+            for label, oport in operation.outputs.items():
+                graph.create_output(
+                    label, type_hint=oport.type_hint, type_metadata=oport.type_metadata
+                )
+                graph.connect(oport, graph.outputs[label])
+            return graph
+        else:
+            operation = constructors.node(operation.node, label=label)
+            context.graph.add_node(operation)
+            operation.connect_input(context.port)
+            return operation
 
     def _binary_operations(
         self, other: OperatorInjectionMixin, operation: fr.schemas.LabeledRecipe
