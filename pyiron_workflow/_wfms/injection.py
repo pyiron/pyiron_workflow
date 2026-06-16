@@ -4,6 +4,7 @@ import abc
 from typing import TYPE_CHECKING, NamedTuple
 
 import flowrep as fr
+from flowrep.parsers import label_helpers
 
 from pyiron_workflow._wfms import lexical, std
 
@@ -35,6 +36,7 @@ class OperatorInjectionMixin(abc.ABC):
             graph = Workflow(label)
             operation = constructors.node(operation.node, label=operation.label)
             graph.add_node(operation)
+            context.node.label = label_helpers.unique_suffix(context.label, graph.nodes)
             graph.add_node(context.node)
             operation.connect_input(context.port)
 
@@ -55,7 +57,10 @@ class OperatorInjectionMixin(abc.ABC):
                 graph.connect(oport, graph.outputs[label])
             return graph
         else:
-            operation = constructors.node(operation.node, label=label)
+            operation = constructors.node(
+                operation.node,
+                label=label_helpers.unique_suffix(label, context.graph.nodes),
+            )
             context.graph.add_node(operation)
             operation.connect_input(context.port)
             return operation
