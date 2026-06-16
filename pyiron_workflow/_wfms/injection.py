@@ -98,10 +98,9 @@ def _build_injection_graph(
     context_graph: MutableDag | None,
     *sources: Port,
 ) -> workflow.Workflow:
-    from pyiron_workflow._wfms import constructors  # noqa: PLC0415
-    from pyiron_workflow._wfms.workflow import Workflow  # noqa: PLC0415
+    from pyiron_workflow._wfms import constructors, workflow  # noqa: PLC0415
 
-    graph = Workflow(label)
+    graph = workflow.Workflow(label)
 
     # Add the operation and wire its outputs to graph outputs
     operation_node = constructors.node(operation.node, label=operation.label)
