@@ -38,15 +38,19 @@ class OperatorInjectionMixin(abc.ABC):
             graph.add_node(context.node)
             operation.connect_input(context.port)
 
-            for label, iport in context.node.inputs.items():
+            for port_label, iport in context.node.inputs.items():
                 graph.create_input(
-                    label, type_hint=iport.type_hint, type_metadata=iport.type_metadata
+                    port_label,
+                    type_hint=iport.type_hint,
+                    type_metadata=iport.type_metadata,
                 )
-                graph.connect(graph.inputs[label], iport)
+                graph.connect(graph.inputs[port_label], iport)
 
-            for label, oport in operation.outputs.items():
+            for port_label, oport in operation.outputs.items():
                 graph.create_output(
-                    label, type_hint=oport.type_hint, type_metadata=oport.type_metadata
+                    port_label,
+                    type_hint=oport.type_hint,
+                    type_metadata=oport.type_metadata,
                 )
                 graph.connect(oport, graph.outputs[label])
             return graph
