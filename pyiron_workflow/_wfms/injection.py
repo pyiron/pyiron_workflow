@@ -10,7 +10,7 @@ from pyiron_workflow._wfms import lexical, std
 
 if TYPE_CHECKING:
     from pyiron_workflow._wfms import workflow
-    from pyiron_workflow._wfms.datatypes import MutableDag, Node, Port
+    from pyiron_workflow._wfms.datatypes import Graph, MutableDag, Node, Port
 
 
 class InjectionContext(NamedTuple):
@@ -34,6 +34,19 @@ class OperatorInjectionMixin(abc.ABC):
 
     @abc.abstractmethod
     def _injection_port(self) -> Port: ...
+
+    def _validate_injection_context(
+        self, context: Node | Graph | None
+    ) -> MutableDag | None:
+        from pyiron_workflow._wfms.datatypes import MutableDag  # noqa: PLC0415
+
+        if context is not None and not isinstance(context, MutableDag):
+            raise TypeError(
+                f"{self._injection_lexical_path!r} cannot be used for injection, "
+                f"because its injection context graph non-None and not a "
+                f"{MutableDag.__name__}. {context!r} is a {type(context)!r}."
+            )
+        return context
 
     def _unary_operation(
         self, operation: fr.schemas.LabeledRecipe
@@ -150,7 +163,9 @@ def _build_injection_graph(
             negotiated_source_ports.append(source_port)
 
             for iport_label, iport in source_node.inputs.items():
-                port_label = f"{source._injection_label()}_{iport_label}"
+                # Without an owner we always need to scope input ports by the (now
+                # forced-unique inside the new graph context) node label
+                port_label = f"{source_node.label}_{iport_label}"
                 graph.create_input(
                     port_label,
                     type_hint=iport.type_hint,

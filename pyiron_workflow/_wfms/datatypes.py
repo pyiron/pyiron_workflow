@@ -64,14 +64,8 @@ class InputPort(Port):
     def _injection_label(self) -> fr.schemas.Label:
         return self.label
 
-    def _injection_context(self) -> MutableDag:
-        context = self.owner
-        if not isinstance(context, MutableDag):
-            raise TypeError(
-                f"{self.lexical_path!r} cannot be used for injection since its owner "
-                f"is immutable."
-            )
-        return context
+    def _injection_context(self) -> MutableDag | None:
+        return self._validate_injection_context(self.owner)
 
 
 @dataclasses.dataclass(frozen=True)
@@ -82,13 +76,7 @@ class OutputPort(Port):
         return f"{self.owner.label}_{self.label}"
 
     def _injection_context(self) -> MutableDag | None:
-        context = self.owner.owner
-        if context is not None and not isinstance(context, MutableDag):
-            raise TypeError(
-                f"{self.lexical_path!r} cannot be used for injection since its owner "
-                f"lives in an immutable context."
-            )
-        return context
+        return self._validate_injection_context(self.owner.owner)
 
 
 def coerce_to_port(obj: Port | Node) -> Port:
@@ -326,12 +314,7 @@ class Node(
             # representative resolves it.
             representative = next(iter(self._pending_connections.values()))
             context = representative._injection_context()
-        if context is not None and not isinstance(context, MutableDag):
-            raise TypeError(
-                f"{self.lexical_path!r} cannot be used for injection since it lives in "
-                f"an immutable context."
-            )
-        return context
+        return self._validate_injection_context(context)
 
     def _injection_label(self) -> fr.schemas.Label:
         return self.label
