@@ -1,0 +1,298 @@
+from __future__ import annotations
+
+import unittest
+
+from pyiron_workflow._wfms import constructors, workflow
+from tests.unit._wfms import _fixtures
+
+
+def _only(mapping):
+    """Return the single key in a one-element port map."""
+    keys = list(mapping)
+    assert len(keys) == 1, f"expected exactly one entry, got {keys}"
+    return keys[0]
+
+
+def _new_node():
+    """A fresh single-output Atomic wrapping `plain_increment` (x -> x + 1)."""
+    return constructors.node(_fixtures.plain_increment)
+
+
+class TestUnaryInjection(unittest.TestCase):
+    def test_free_unary_on_single_output_node(self):
+        result = abs(_new_node())
+        self.assertIsInstance(result, workflow.Workflow)
+        # operation node + absorbed source node
+        self.assertEqual(2, len(result.nodes))
+        in_label = _only(result.inputs)
+        out_label = _only(result.outputs)
+        value = result.run(**{in_label: -5}).outputs[out_label].value
+        self.assertEqual(abs(-5 + 1), value)  # abs(-4) == 4
+
+    def test_unary_on_input_port(self):
+        wf = workflow.Workflow("unary_input")
+        wf.create_input("n")
+        wf.create_output("out")
+        wf.absn = abs(wf.inputs.n)
+        wf.connect(wf.absn, wf.outputs.out)
+        self.assertEqual(42, wf.run(n=-42).outputs["out"].value)
+
+    def test_unary_on_output_port(self):
+        wf = workflow.Workflow("unary_output")
+        wf.create_input("n")
+        wf.create_output("out")
+        wf.first = _new_node()
+        wf.connect(wf.inputs.n, wf.first.inputs.x)
+        wf.absf = abs(wf.first.outputs.output_0)
+        wf.connect(wf.absf, wf.outputs.out)
+        self.assertEqual(42, wf.run(n=-43).outputs["out"].value)  # abs(-43 + 1) == 42
+
+    def test_owned_unary(self):
+        wf = workflow.Workflow("owned_unary")
+        wf.create_input("n")
+        wf.create_output("out")
+        wf.first = _new_node()
+        wf.absf = abs(wf.first)
+        wf.connect(wf.inputs.n, wf.first.inputs.x)
+        wf.connect(wf.absf, wf.outputs.out)
+        self.assertEqual(42, wf.run(n=-43).outputs["out"].value)
+
+    def test_repeated_injection_unique_labels(self):
+        wf = workflow.Workflow("repeated_unary")
+        wf.first = _new_node()
+        wf.a = abs(wf.first)
+        wf.b = abs(wf.first)
+        self.assertIsNot(wf.a, wf.b)
+        self.assertNotEqual(wf.a.label, wf.b.label)
+
+
+class TestBinaryInjection(unittest.TestCase):
+    def test_doubly_owned_binary_runs_independently(self):
+        wf = workflow.Workflow("doubly_owned")
+        wf.first = _new_node()
+        wf.second = _new_node()
+        result = wf.first + wf.second
+        self.assertIsInstance(result, workflow.Workflow)
+        # The inputs are the OUTPUT PORTS of the owned source nodes fed as plumbing
+        # inputs to the add operation. Running result directly feeds those plumbing
+        # inputs; the increment nodes inside wf do not execute again here.
+        out_label = _only(result.outputs)
+        value = result.run(first=1, second=2).outputs[out_label].value
+        self.assertEqual(1 + 2, value)  # 3
+
+    def test_binary_naming_node_vs_output_port(self):
+        wf = workflow.Workflow("naming")
+        wf.first = _new_node()
+        wf.second = _new_node()
+
+        by_node = wf.first + wf.second
+        by_port = wf.first.outputs.output_0 + wf.second.outputs.output_0
+
+        node_out = _only(by_node.outputs)
+        port_out = _only(by_port.outputs)
+        self.assertEqual(3, by_node.run(first=1, second=2).outputs[node_out].value)
+        self.assertEqual(
+            3,
+            by_port.run(first_output_0=1, second_output_0=2).outputs[port_out].value,
+        )
+
+    def test_binary_on_input_ports(self):
+        wf = workflow.Workflow("binary_inputs")
+        wf.create_input("m")
+        wf.create_input("n")
+        wf.create_output("product")
+        wf.prod = wf.inputs.m * wf.inputs.n
+        wf.connect(wf.prod, wf.outputs.product)
+        self.assertEqual(6, wf.run(m=2, n=3).outputs["product"].value)
+
+    def test_self_binary_same_port(self):
+        wf = workflow.Workflow("self_binary")
+        wf.create_input("m")
+        wf.create_output("out")
+        wf.doubled = wf.inputs.m + wf.inputs.m
+        wf.connect(wf.doubled, wf.outputs.out)
+        self.assertEqual(8, wf.run(m=4).outputs["out"].value)
+
+
+class TestMixedOwnership(unittest.TestCase):
+    def test_full_mixed_pipeline(self):
+        # lin is increment(m) multiplied by x; y is lin plus increment(b).
+        # run(m=1, x=2, b=0.5) gives ((1+1)*2) + (0.5+1) == 5.5
+        wf = workflow.Workflow("mixed_ownership")
+        wf.create_input("m")
+        wf.create_input("x")
+        wf.create_input("b")
+        wf.lin = _new_node() * wf.inputs.x
+        # lin inputs: plain_increment_0_x (free), x (owned)
+        wf.connect(wf.inputs.m, wf.lin.inputs["plain_increment_0_x"])
+        wf.y = wf.lin + _new_node()
+        # y inputs: lin (owned via pending edge), plain_increment_0_x (free)
+        wf.connect(wf.inputs.b, wf.y.inputs["plain_increment_0_x"])
+        wf.create_output("y")
+        wf.connect(wf.y, wf.outputs.y)
+        self.assertEqual(5.5, wf.run(m=1, x=2, b=0.5).outputs["y"].value)
+
+    def test_right_owned_left_free(self):
+        # (increment(k) + b) with b owned, increment free.
+        wf = workflow.Workflow("right_owned")
+        wf.create_input("b")
+        wf.create_input("k")
+        wf.create_output("out")
+        free = _new_node()
+        wf.y = free + wf.inputs.b
+        # y inputs: plain_increment_0_x (free), b (owned)
+        wf.connect(wf.inputs.k, wf.y.inputs["plain_increment_0_x"])
+        wf.connect(wf.y, wf.outputs.out)
+        self.assertEqual(
+            (5 + 1) + 10,
+            wf.run(k=5, b=10).outputs["out"].value,
+        )
+
+
+class TestChainedInjection(unittest.TestCase):
+    def test_chained_with_context_builds_and_runs(self):
+        wf = workflow.Workflow("chained_with_context")
+        wf.create_input("m")
+        wf.create_input("x")
+        wf.create_input("b")
+        wf.y = (wf.inputs.m * wf.inputs.x) + wf.inputs.b
+        wf.create_output("result")
+        wf.connect(wf.y, wf.outputs.result)
+        self.assertEqual((2 * 3) + 4, wf.run(m=2, x=3, b=4).outputs["result"].value)
+
+    def test_no_context_chain_still_works(self):
+        # Regression: chaining unowned nodes must keep working.
+        # Real labels discovered at runtime:
+        #   plain_increment_mul_plain_increment_0_plain_increment_0_x  (left mul operand)
+        #   plain_increment_mul_plain_increment_0_plain_increment_1_x  (right mul operand)
+        #   plain_increment_0_x                                        (add's right operand)
+        chained = (_new_node() * _new_node()) + _new_node()
+        out_label = _only(chained.outputs)
+        self.assertEqual(
+            7.5,
+            chained.run(
+                plain_increment_mul_plain_increment_0_plain_increment_0_x=1,
+                plain_increment_mul_plain_increment_0_plain_increment_1_x=2,
+                plain_increment_0_x=0.5,
+            )
+            .outputs[out_label]
+            .value,
+        )
+
+    def test_cross_context_via_pending_rejected_early(self):
+        wf = workflow.Workflow("one_owner")
+        wf.create_input("m")
+        wf.create_input("x")
+        wf2 = workflow.Workflow("another_owner")
+        wf2.create_input("b")
+        with self.assertRaises(ValueError):
+            (wf.inputs.m * wf.inputs.x) + wf2.inputs.b
+
+
+class TestPendingConnectionLifting(unittest.TestCase):
+    def test_absorb_source_with_pending_connection(self):
+        # n1 -> n2 (pending, both free), then abs(n2) must lift n2's pending edge onto
+        # the new graph.  The lifted edge resolves when the new graph is attached to an
+        # outer workflow that also owns n1.
+        n1 = _new_node()
+        n2 = _new_node()
+        n2(n1)  # connect_input: caches a pending connection on the free n2
+        result = abs(n2)
+        self.assertIsInstance(result, workflow.Workflow)
+        # n2 is absorbed; result has a pending connection 'plain_increment_0_x' <- n1.output_0
+        # To realise the full n1 -> n2 -> abs chain, attach both to an outer workflow.
+        outer = workflow.Workflow("outer_lifting")
+        outer.create_input("x")
+        outer.create_output("out")
+        outer.n1 = n1
+        outer.connect(outer.inputs.x, outer.n1.inputs.x)
+        outer.sub = (
+            result  # pending edge n1.output_0 -> sub.plain_increment_0_x resolves
+        )
+        outer.connect(outer.sub, outer.outputs.out)
+        # abs((x+1)+1) with x=-7 -> abs(-5) == 5
+        self.assertEqual(5, outer.run(x=-7).outputs["out"].value)
+
+
+class TestInjectionFailures(unittest.TestCase):
+    def test_cross_context_binary_direct(self):
+        wf = workflow.Workflow("ctx_a")
+        wf.create_input("a")
+        wf2 = workflow.Workflow("ctx_b")
+        wf2.create_input("b")
+        with self.assertRaisesRegex(ValueError, "across graph contexts"):
+            wf.inputs.a + wf2.inputs.b
+
+    def test_multi_output_node_rejected(self):
+        macro = _fixtures.macro_node()  # outputs: a, s  (>1 output)
+        with self.assertRaisesRegex(ValueError, "more than one output port"):
+            abs(macro)
+
+    def test_add_injection_graph_to_wrong_workflow(self):
+        wf = workflow.Workflow("owner")
+        wf.first = _new_node()
+        wf.second = _new_node()
+        elsewise = wf.first + wf.second
+        wf2 = workflow.Workflow("stranger")
+        with self.assertRaisesRegex(ValueError, "not owned"):
+            wf2.added = elsewise
+
+    def test_source_node_removed_breaks_attachment(self):
+        wf = workflow.Workflow("owner_rm")
+        wf.first = _new_node()
+        wf.second = _new_node()
+        elsewise = wf.first + wf.second
+        wf.remove_node("first")
+        with self.assertRaisesRegex(ValueError, "not owned"):
+            wf.added = elsewise
+        wf.undo()  # restore removed node
+
+    def test_source_node_renamed_then_attaches(self):
+        # Pending edges are by object reference, so renaming does not break attachment.
+        wf = workflow.Workflow("owner_rn")
+        wf.create_input("a")
+        wf.create_input("b_in")
+        wf.create_output("out")
+        wf.first = _new_node()
+        wf.second = _new_node()
+        elsewise = wf.first + wf.second
+        wf.rename_node(wf.first, "fiiiiirst")
+        wf.added = elsewise  # succeeds: pending edges by object reference
+        # Wire the child node inputs through the outer workflow inputs
+        wf.connect(wf.inputs.a, wf.fiiiiirst.inputs.x)
+        wf.connect(wf.inputs.b_in, wf.second.inputs.x)
+        wf.connect(wf.added, wf.outputs.out)
+        self.assertEqual(
+            (1 + 1) + (2 + 1),
+            wf.run(a=1, b_in=2).outputs["out"].value,
+        )
+
+
+class TestInjectionTypeHints(unittest.TestCase):
+    def test_hints_propagate_to_generated_ports(self):
+        node = _fixtures.typed_int_node()  # input x: int, output output_0: int
+        result = abs(node)
+        in_label = _only(result.inputs)
+        out_label = _only(result.outputs)
+        # The source-derived plumbing input carries the type_hint from the source node's
+        # input port.
+        self.assertEqual(int, result.inputs[in_label].type_hint)
+        # The output hint reflects the abs operation's own recipe output typing,
+        # which is None (the std recipe is untyped).
+        self.assertIsNone(result.outputs[out_label].type_hint)
+
+
+class TestImmutableContext(unittest.TestCase):
+    def test_inject_on_immutable_context_raises(self):
+        # A child node inside a Macro has an injection context that is the Macro itself
+        # (an ImmutableDag, not a MutableDag) -> TypeError from
+        # InjectionContext._validate_injection_context_graph.
+        macro = _fixtures.macro_node()
+        child = next(iter(macro.nodes.values()))
+        child_out = next(iter(child.outputs.values()))
+        with self.assertRaises(TypeError):
+            abs(child_out)
+
+
+if __name__ == "__main__":
+    unittest.main()
