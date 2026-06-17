@@ -243,27 +243,6 @@ class Node(
         elif self._owner is not None:
             raise self._mutable_owner_error()
 
-    def _coerce_to_port(self, source_obj: Port | Node, target_label: str):
-        if isinstance(source_obj, Port):
-            return source_obj
-        elif isinstance(source_obj, Node):
-            if len(source_obj.outputs) != 1:
-                raise ValueError(
-                    "Nodes can only be used as proxies for ports in edge "
-                    "creation sugar if they have a single output port."
-                    f"{self.lexical_path!r} received "
-                    f"{source_obj.lexical_path!r} as input for the "
-                    f"{target_label!r} port, but {source_obj.label!r} does not "
-                    f"have exactly one output port."
-                )
-            return next(iter(source_obj.outputs.values()))
-        else:
-            raise TypeError(
-                f"Syntax sugar for edge creation only accepts {Port.__name__} "
-                f"objects or a node with a single output port. Got "
-                f"{source_obj!r} {type(source_obj)} instead."
-            )
-
     def use_pending_edges(self) -> EdgeList:
         """
         Converts the internal pending connections to a list of edges and clears the
