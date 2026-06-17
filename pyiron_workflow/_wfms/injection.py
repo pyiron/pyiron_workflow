@@ -10,7 +10,7 @@ from flowrep.parsers import label_helpers
 from pyiron_workflow._wfms import lexical, std
 
 if TYPE_CHECKING:
-    from pyiron_workflow._wfms import workflow
+    from pyiron_workflow._wfms import atomic, workflow
     from pyiron_workflow._wfms.datatypes import Graph, MutableDag, Node, Port
 
 
@@ -71,18 +71,19 @@ class OperatorInjectionMixin(abc.ABC):
 
     def _unary_operation(
         self, operation: fr.schemas.LabeledRecipe
-    ) -> workflow.Workflow:
+    ) -> atomic.Atomic | workflow.Workflow:
         context_graph = self._injection.graph
+        label = f"{operation.label}_{self._injection.label}"
         return _build_injection_graph(
             operation,
-            f"{operation.label}_{self._injection.label}",
+            label,
             context_graph,
             self,
         )
 
     def _binary_operations(
         self, other: OperatorInjectionMixin, operation: fr.schemas.LabeledRecipe
-    ) -> workflow.Workflow:
+    ) -> atomic.Atomic | workflow.Workflow:
         self_context = self._injection.graph
         other_context = other._injection.graph
         context_graph = self_context or other_context
@@ -96,37 +97,43 @@ class OperatorInjectionMixin(abc.ABC):
                 f"{operation.label!r} with {other._injection.lexical_path!r} because "
                 "of mis-matched owners."
             )
+        return _build_injection_graph(operation, label, context_graph, self, other)
 
-        return _build_injection_graph(
-            operation,
-            label,
-            context_graph,
-            self,
-            other,
-        )
-
-    def __abs__(self) -> workflow.Workflow:
+    def __abs__(self) -> atomic.Atomic | workflow.Workflow:
         return self._unary_operation(std.abs)
 
-    def __add__(self, other: OperatorInjectionMixin) -> workflow.Workflow:
+    def __add__(
+        self, other: OperatorInjectionMixin
+    ) -> atomic.Atomic | workflow.Workflow:
         return self._binary_operations(other, std.add)
 
-    def __mul__(self, other: OperatorInjectionMixin) -> workflow.Workflow:
+    def __mul__(
+        self, other: OperatorInjectionMixin
+    ) -> atomic.Atomic | workflow.Workflow:
         return self._binary_operations(other, std.mul)
 
 
 def _build_operation(
     operation: fr.schemas.LabeledRecipe,
     label: fr.schemas.Label,
-    context_graph: MutableDag,
+    context_graph: MutableDag | None,
     *sources: OperatorInjectionMixin,
-) -> Node:
-    from pyiron_workflow._wfms import constructors  # noqa: PLC0415
+) -> atomic.Atomic:
+    from pyiron_workflow._wfms import atomic  # noqa: PLC0415
 
-    operation_node = constructors.node(
-        operation.node,
-        label=label_helpers.unique_suffix(label, context_graph.nodes),
+    if not isinstance(operation.node, fr.schemas.AtomicRecipe):  # pragma: no cover
+        raise TypeError(
+            f"Can't inject non-atomic recipe as an operator {operation.node!r}."
+            f"This should be unreachable, and is a fallback in case injection gets "
+            f"extended later."
+        )
+
+    label = (
+        label_helpers.unique_suffix(label, context_graph.nodes)
+        if context_graph
+        else label
     )
+    operation_node = atomic.Atomic(label, operation.node)
     operation_node.connect_input(*[s._injection.port for s in sources])
 
     return operation_node
@@ -138,12 +145,12 @@ def _build_injection_graph(
     context_graph: MutableDag | None,
     *sources: OperatorInjectionMixin,
 ) -> workflow.Workflow:
-    from pyiron_workflow._wfms import constructors, workflow  # noqa: PLC0415
+    from pyiron_workflow._wfms import workflow  # noqa: PLC0415
 
     graph = workflow.Workflow(label)
 
     # Add the operation and wire its outputs to graph outputs
-    operation_node = constructors.node(operation.node, label=operation.label)
+    operation_node = _build_operation(operation, label, None)
     graph.add_node(operation_node)
 
     for port_label, oport in operation_node.outputs.items():
