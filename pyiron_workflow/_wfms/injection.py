@@ -1,3 +1,17 @@
+"""
+This module provides a mixing class for ports and (single-output) nodes to produce
+_new nodes_ when they are subjected to an operation.
+
+Only unary operations on such an injectable object and operations between two such
+objects are permitted -- i.e. operations on literals are not supported. As a side
+effect
+
+Not _all_ operations are injectable. Notably absent are comparators (e.g. `==`), which
+are reserved for use by the actual port/node objects themselves (e.g. to investigate
+membership in collections), and reflexive operations (e.g. `*=`), which don't make
+sense in a graph paradigm (E.g., `wf.some_node.inputs.foo *= wf.inputs.bar`?!).
+"""
+
 from __future__ import annotations
 
 import abc
