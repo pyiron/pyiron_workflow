@@ -49,34 +49,34 @@ class Port(
         )
         return f"{self.__class__.__name__}({self.lexical_path}" + hint + meta + ")"
 
-    def _injection_lexical_path(self) -> lexical.LexicalPath:
-        return self.lexical_path
-
-    def _injection_port(self) -> Self:
-        return self
-
 
 @dataclasses.dataclass(frozen=True)
 class InputPort(Port):
     has_default: bool = False
     _io_indicator: ClassVar[str] = "inputs"
 
-    def _injection_label(self) -> fr.schemas.Label:
-        return self.label
-
-    def _injection_context(self) -> MutableDag | None:
-        return self._validate_injection_context(self.owner)
+    @property
+    def _injection(self) -> injection.InjectionContext:
+        return injection.InjectionContext(
+            port=lambda: self,
+            graph=lambda: self.owner,
+            label=lambda: self.label,
+            lexical_path=lambda: self.lexical_path,
+        )
 
 
 @dataclasses.dataclass(frozen=True)
 class OutputPort(Port):
     _io_indicator: ClassVar[str] = "outputs"
 
-    def _injection_label(self) -> fr.schemas.Label:
-        return f"{self.owner.label}_{self.label}"
-
-    def _injection_context(self) -> MutableDag | None:
-        return self._validate_injection_context(self.owner.owner)
+    @property
+    def _injection(self) -> injection.InjectionContext:
+        return injection.InjectionContext(
+            port=lambda: self,
+            graph=lambda: self.owner.owner,
+            label=lambda: f"{self.owner.label}_{self.label}",
+            lexical_path=lambda: self.lexical_path,
+        )
 
 
 def coerce_to_port(obj: Port | Node) -> Port:
@@ -305,22 +305,14 @@ class Node(
             f"inputs cannot be modified." + tag
         )
 
-    def _injection_context(self) -> MutableDag | None:
-        context = self.owner
-        if context is None and self._pending_connections:
-            # A freshly-built injection graph is unparented but logically belongs to the
-            # context that owns its pending sources. They share one context by construction
-            # (cross-context combination is rejected before any graph is built), so any
-            # representative resolves it.
-            representative = next(iter(self._pending_connections.values()))
-            context = representative._injection_context()
-        return self._validate_injection_context(context)
-
-    def _injection_label(self) -> fr.schemas.Label:
-        return self.label
-
-    def _injection_lexical_path(self) -> lexical.LexicalPath:
-        return self.lexical_path
+    @property
+    def _injection(self) -> injection.InjectionContext:
+        return injection.InjectionContext(
+            port=self._injection_port,
+            graph=self._injection_context,
+            label=lambda: self.label,
+            lexical_path=lambda: self.lexical_path,
+        )
 
     def _injection_port(self) -> OutputPort:
         if len(self.outputs) != 1:
@@ -329,6 +321,17 @@ class Node(
                 f"one output port."
             )
         return next(iter(self.outputs.values()))
+
+    def _injection_context(self) -> Graph | None:
+        context_graph = self.owner
+        if context_graph is None and self._pending_connections:
+            # A freshly-built injection graph is unparented but logically belongs to the
+            # context that owns its pending sources. They share one context by construction
+            # (cross-context combination is rejected before any graph is built), so any
+            # representative resolves it.
+            representative = next(iter(self._pending_connections.values()))
+            context_graph = representative._injection.graph
+        return context_graph
 
     def __getstate__(self):
         state = dict(super().__getstate__())
@@ -644,3 +647,18 @@ class MutableDag(Node[fr.schemas.WorkflowRecipe, fr.schemas.DagData], Graph, abc
 
     @abc.abstractmethod
     def redo(self, steps: int = 1) -> list[actions.GraphDiff]: ...
+
+
+class InjectionContextHelper(injection.InjectionContext, abc.ABC):
+
+    @property
+    @abc.abstractmethod
+    def port(self) -> Port: ...
+
+    @property
+    @abc.abstractmethod
+    def graph(self) -> MutableDag | None: ...
+
+    @property
+    @abc.abstractmethod
+    def label(self) -> fr.schemas.Label: ...

@@ -1,7 +1,8 @@
 from __future__ import annotations
 
 import abc
-from typing import TYPE_CHECKING, NamedTuple
+from collections.abc import Callable
+from typing import TYPE_CHECKING
 
 import flowrep as fr
 from flowrep.parsers import label_helpers
@@ -13,68 +14,86 @@ if TYPE_CHECKING:
     from pyiron_workflow._wfms.datatypes import Graph, MutableDag, Node, Port
 
 
-class InjectionContext(NamedTuple):
-    port: Port
-    node: Node
-    graph: MutableDag | None
-    lexical_path: lexical.LexicalPath
-    label: fr.schemas.Label
+class InjectionContext:
+    """
+    Track ``OperatorInjectionMixin`` context through mutations by using
+    callable references.
+    """
 
+    def __init__(
+        self,
+        *,
+        port: Callable[[], Port],
+        graph: Callable[[], Graph | Node | None],
+        label: Callable[[], fr.schemas.Label],
+        lexical_path: Callable[[], lexical.LexicalPath],
+    ) -> None:
+        self._port = port
+        self._graph = graph
+        self._lexical_path = lexical_path
+        self._label = label
 
-class OperatorInjectionMixin(abc.ABC):
+    @property
+    def port(self) -> Port:
+        return self._port()
 
-    @abc.abstractmethod
-    def _injection_context(self) -> MutableDag | None: ...
+    @property
+    def graph(self) -> MutableDag | None:
+        return self._validate_injection_context_graph(self._graph())
 
-    @abc.abstractmethod
-    def _injection_label(self) -> fr.schemas.Label: ...
+    @property
+    def label(self) -> fr.schemas.Label:
+        return self._label()
 
-    @abc.abstractmethod
-    def _injection_lexical_path(self) -> lexical.LexicalPath: ...
+    @property
+    def lexical_path(self) -> lexical.LexicalPath:
+        return self._lexical_path()
 
-    @abc.abstractmethod
-    def _injection_port(self) -> Port: ...
-
-    def _validate_injection_context(
-        self, context: Node | Graph | None
+    def _validate_injection_context_graph(
+        self, graph: Node | Graph | None
     ) -> MutableDag | None:
         from pyiron_workflow._wfms.datatypes import MutableDag  # noqa: PLC0415
 
-        if context is not None and not isinstance(context, MutableDag):
+        if graph is not None and not isinstance(graph, MutableDag):
             raise TypeError(
-                f"{self._injection_lexical_path!r} cannot be used for injection, "
+                f"{self.lexical_path!r} cannot be used for injection, "
                 f"because its injection context graph non-None and not a "
-                f"{MutableDag.__name__}. {context!r} is a {type(context)!r}."
+                f"{MutableDag.__name__}. {graph!r} is a {type(graph)!r}."
             )
-        return context
+        return graph
+
+
+class OperatorInjectionMixin(abc.ABC):
+    @property
+    @abc.abstractmethod
+    def _injection(self) -> InjectionContext:
+        """The single point of interaction for mixin users."""
 
     def _unary_operation(
         self, operation: fr.schemas.LabeledRecipe
     ) -> workflow.Workflow:
-        context = self._injection_context()
+        context_graph = self._injection.graph
         return _build_injection_graph(
             operation,
-            f"{operation.label}_{self._injection_label()}",
-            context,
+            f"{operation.label}_{self._injection.label}",
+            context_graph,
             self,
         )
 
     def _binary_operations(
         self, other: OperatorInjectionMixin, operation: fr.schemas.LabeledRecipe
     ) -> workflow.Workflow:
-        self_context = self._injection_context()
-        other_context = other._injection_context()
+        self_context = self._injection.graph
+        other_context = other._injection.graph
         context_graph = self_context or other_context
 
-        label = (
-            f"{self._injection_label()}_{operation.label}_{other._injection_label()}"
-        )
+        label = f"{self._injection.label}_{operation.label}_{other._injection.label}"
 
         if self_context and other_context and self_context is not other_context:
             raise ValueError(
                 f"Can't inject across graph contexts. "
-                f"{self._injection_lexical_path()!r} cannot inject operation "
-                f"{operation.label!r} with {other._injection_lexical_path()!r} because "
+                f"{self._injection.lexical_path!r} cannot inject operation "
+                f"{operation.label!r} with {other._injection.lexical_path!r} because "
                 "of mis-matched owners."
             )
 
@@ -108,7 +127,7 @@ def _build_operation(
         operation.node,
         label=label_helpers.unique_suffix(label, context_graph.nodes),
     )
-    operation_node.connect_input(*[s._injection_port() for s in sources])
+    operation_node.connect_input(*[s._injection.port for s in sources])
 
     return operation_node
 
@@ -137,13 +156,13 @@ def _build_injection_graph(
 
     negotiated_source_ports: list[Port] = []
     for source in sources:
-        source_port = source._injection_port()
+        source_port = source._injection.port
         source_node = source_port.owner
         if context_graph is not None and (
             source_node is context_graph or source_node in context_graph.nodes.values()
         ):
             # Create a new input to accept the source, and wire graph and child inputs
-            port_label = source._injection_label()
+            port_label = source._injection.label
             graph.create_input(
                 port_label,
                 type_hint=source_port.type_hint,
