@@ -24,7 +24,16 @@ class InjectionContext(NamedTuple):
 class OperatorInjectionMixin(abc.ABC):
 
     @abc.abstractmethod
-    def _injection_context(self) -> InjectionContext: ...
+    def _injection_context(self) -> MutableDag | None: ...
+
+    @abc.abstractmethod
+    def _injection_label(self) -> fr.schemas.Label: ...
+
+    @abc.abstractmethod
+    def _injection_lexical_path(self) -> lexical.LexicalPath: ...
+
+    @abc.abstractmethod
+    def _injection_port(self) -> Port: ...
 
     def _unary_operation(
         self, operation: fr.schemas.LabeledRecipe
@@ -32,9 +41,9 @@ class OperatorInjectionMixin(abc.ABC):
         context = self._injection_context()
         return _build_injection_graph(
             operation,
-            f"{operation.label}_{context.label}",
-            context.graph,
-            context.port,
+            f"{operation.label}_{self._injection_label()}",
+            context,
+            self,
         )
 
     def _binary_operations(
@@ -42,27 +51,26 @@ class OperatorInjectionMixin(abc.ABC):
     ) -> workflow.Workflow:
         self_context = self._injection_context()
         other_context = other._injection_context()
-        context_graph = self_context.graph or other_context.graph
+        context_graph = self_context or other_context
 
-        if (
-            self_context.graph
-            and other_context.graph
-            and self_context.graph is not other_context.graph
-        ):
+        if self_context and other_context and self_context is not other_context:
             raise ValueError(
-                f"Can't inject across graph contexts. {self_context.lexical_path!r} "
-                f"cannot inject operation {operation.label!r} with "
-                f"{other_context.lexical_path!r} because of mis-matched owners."
+                f"Can't inject across graph contexts. "
+                f"{self._injection_lexical_path()!r} cannot inject operation "
+                f"{operation.label!r} with {other._injection_lexical_path()!r} because "
+                "of mis-matched owners."
             )
 
-        label = f"{self_context.label}_{operation.label}_{other_context.label}"
+        label = (
+            f"{self._injection_label()}_{operation.label}_{other._injection_label()}"
+        )
 
         return _build_injection_graph(
             operation,
             label,
             context_graph,
-            self_context.port,
-            other_context.port,
+            self,
+            other,
         )
 
     def __abs__(self) -> workflow.Workflow:
@@ -79,7 +87,7 @@ def _build_operation(
     operation: fr.schemas.LabeledRecipe,
     label: fr.schemas.Label,
     context_graph: MutableDag,
-    *sources: Port,
+    *sources: OperatorInjectionMixin,
 ) -> Node:
     from pyiron_workflow._wfms import constructors  # noqa: PLC0415
 
@@ -87,7 +95,7 @@ def _build_operation(
         operation.node,
         label=label_helpers.unique_suffix(label, context_graph.nodes),
     )
-    operation_node.connect_input(*sources)
+    operation_node.connect_input(*[s._injection_port() for s in sources])
 
     return operation_node
 
@@ -96,7 +104,7 @@ def _build_injection_graph(
     operation: fr.schemas.LabeledRecipe,
     label: fr.schemas.Label,
     context_graph: MutableDag | None,
-    *sources: Port,
+    *sources: OperatorInjectionMixin,
 ) -> workflow.Workflow:
     from pyiron_workflow._wfms import constructors, workflow  # noqa: PLC0415
 
@@ -114,21 +122,22 @@ def _build_injection_graph(
         )
         graph.connect(oport, graph.outputs[port_label])
 
-    negotiated_sources: list[Port] = []
+    negotiated_source_ports: list[Port] = []
     for source in sources:
-        source_node = source.owner
+        source_port = source._injection_port()
+        source_node = source_port.owner
         if context_graph is not None and (
             source_node is context_graph or source_node in context_graph.nodes.values()
         ):
             # Create a new input to accept the source, and wire graph and child inputs
-            port_label = f"{source_node.label}_{source.label}"
+            port_label = source._injection_label()
             graph.create_input(
                 port_label,
-                type_hint=source.type_hint,
-                type_metadata=source.type_metadata,
+                type_hint=source_port.type_hint,
+                type_metadata=source_port.type_metadata,
             )
-            negotiated_sources.append(graph.inputs[port_label])
-            graph.connect_input(**{port_label: source})
+            negotiated_source_ports.append(graph.inputs[port_label])
+            graph.connect_input(**{port_label: source_port})
         elif source_node.owner is None:
             # Add the source node to the new graph and wire its inputs from graph inputs.
             # Capture any pending connections *before* add_node would try to realize them
@@ -138,10 +147,10 @@ def _build_injection_graph(
                 source_node.label, graph.nodes
             )
             graph.add_node(source_node)
-            negotiated_sources.append(source)
+            negotiated_source_ports.append(source_port)
 
             for iport_label, iport in source_node.inputs.items():
-                port_label = f"{source_node.label}_{iport_label}"
+                port_label = f"{source._injection_label()}_{iport_label}"
                 graph.create_input(
                     port_label,
                     type_hint=iport.type_hint,
@@ -159,6 +168,6 @@ def _build_injection_graph(
                 "reachable."
             )
 
-    operation_node.connect_input(*negotiated_sources)
+    operation_node.connect_input(*negotiated_source_ports)
 
     return graph
