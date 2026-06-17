@@ -53,6 +53,10 @@ class OperatorInjectionMixin(abc.ABC):
         other_context = other._injection_context()
         context_graph = self_context or other_context
 
+        label = (
+            f"{self._injection_label()}_{operation.label}_{other._injection_label()}"
+        )
+
         if self_context and other_context and self_context is not other_context:
             raise ValueError(
                 f"Can't inject across graph contexts. "
@@ -60,10 +64,6 @@ class OperatorInjectionMixin(abc.ABC):
                 f"{operation.label!r} with {other._injection_lexical_path()!r} because "
                 "of mis-matched owners."
             )
-
-        label = (
-            f"{self._injection_label()}_{operation.label}_{other._injection_label()}"
-        )
 
         return _build_injection_graph(
             operation,
