@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import operator
 import unittest
 
 from pyiron_workflow._wfms import constructors, workflow
@@ -16,6 +17,29 @@ def _only(mapping):
 def _new_node():
     """A fresh single-output Atomic wrapping `plain_increment` (x -> x + 1)."""
     return constructors.node(_fixtures.plain_increment)
+
+
+class _Mat:
+    """Minimal object supporting `@`; returns a sentinel so the result is exact."""
+
+    def __init__(self, v):
+        self.v = v
+
+    def __matmul__(self, other):
+        return ("mm", self.v, other.v)
+
+
+def _run_binary(label, op, a_val, b_val):
+    """Build a workflow with inputs a, b; inject `op(a, b)` wired to output `out`;
+    return the run value. `op` is an `operator` function so `op(port_a, port_b)`
+    invokes the corresponding port dunder."""
+    wf = workflow.Workflow(label)
+    wf.create_input("a")
+    wf.create_input("b")
+    wf.create_output("out")
+    wf.r = op(wf.inputs.a, wf.inputs.b)
+    wf.connect(wf.r, wf.outputs.out)
+    return wf.run(a=a_val, b=b_val).outputs["out"].value
 
 
 class TestUnaryInjection(unittest.TestCase):
@@ -292,6 +316,87 @@ class TestImmutableContext(unittest.TestCase):
         child_out = next(iter(child.outputs.values()))
         with self.assertRaises(TypeError):
             abs(child_out)
+
+
+class TestGetitemOperator(unittest.TestCase):
+    def test_getitem_port_index(self):
+        # container[index] with both supplied as ports -> indexed element
+        self.assertEqual(20, _run_binary("getitem", operator.getitem, [10, 20, 30], 1))
+
+    def test_literal_index_rejected(self):
+        # The index must be a port/single-output node; a literal has no `_injection`.
+        wf = workflow.Workflow("getitem_literal")
+        wf.create_input("container")
+        with self.assertRaises((AttributeError, TypeError)):
+            wf.inputs.container[0]
+
+
+class TestMatmulOperator(unittest.TestCase):
+    def test_matmul(self):
+        self.assertEqual(
+            ("mm", 1, 2),
+            _run_binary("matmul", operator.matmul, _Mat(1), _Mat(2)),
+        )
+
+
+class TestBitwiseOperators(unittest.TestCase):
+    def test_and(self):
+        self.assertEqual(2, _run_binary("and_", operator.and_, 6, 3))
+
+    def test_or(self):
+        self.assertEqual(7, _run_binary("or_", operator.or_, 6, 1))
+
+    def test_xor(self):
+        self.assertEqual(5, _run_binary("xor", operator.xor, 6, 3))
+
+    def test_lshift(self):
+        self.assertEqual(8, _run_binary("lshift", operator.lshift, 1, 3))
+
+    def test_rshift(self):
+        self.assertEqual(2, _run_binary("rshift", operator.rshift, 8, 2))
+
+
+class TestArithmeticOperators(unittest.TestCase):
+    def test_sub(self):
+        self.assertEqual(2, _run_binary("sub", operator.sub, 5, 3))
+
+    def test_truediv(self):
+        self.assertEqual(3.0, _run_binary("truediv", operator.truediv, 6, 2))
+
+    def test_floordiv(self):
+        self.assertEqual(3, _run_binary("floordiv", operator.floordiv, 7, 2))
+
+    def test_mod(self):
+        self.assertEqual(1, _run_binary("mod", operator.mod, 7, 3))
+
+    def test_pow(self):
+        self.assertEqual(8, _run_binary("pow", operator.pow, 2, 3))
+
+
+class TestUnaryOperators(unittest.TestCase):
+    def test_neg(self):
+        wf = workflow.Workflow("neg")
+        wf.create_input("a")
+        wf.create_output("out")
+        wf.r = -wf.inputs.a
+        wf.connect(wf.r, wf.outputs.out)
+        self.assertEqual(-5, wf.run(a=5).outputs["out"].value)
+
+    def test_pos(self):
+        wf = workflow.Workflow("pos")
+        wf.create_input("a")
+        wf.create_output("out")
+        wf.r = +wf.inputs.a
+        wf.connect(wf.r, wf.outputs.out)
+        self.assertEqual(-5, wf.run(a=-5).outputs["out"].value)
+
+    def test_invert(self):
+        wf = workflow.Workflow("invert")
+        wf.create_input("a")
+        wf.create_output("out")
+        wf.r = ~wf.inputs.a
+        wf.connect(wf.r, wf.outputs.out)
+        self.assertEqual(-6, wf.run(a=5).outputs["out"].value)  # ~5 == -6
 
 
 if __name__ == "__main__":

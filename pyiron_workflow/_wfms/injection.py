@@ -112,6 +112,75 @@ class OperatorInjectionMixin(abc.ABC):
     ) -> atomic.Atomic | workflow.Workflow:
         return self._binary_operations(other, std.mul)
 
+    def __neg__(self) -> atomic.Atomic | workflow.Workflow:
+        return self._unary_operation(std.neg)
+
+    def __pos__(self) -> atomic.Atomic | workflow.Workflow:
+        return self._unary_operation(std.pos)
+
+    def __invert__(self) -> atomic.Atomic | workflow.Workflow:
+        return self._unary_operation(std.invert)
+
+    def __sub__(
+        self, other: OperatorInjectionMixin
+    ) -> atomic.Atomic | workflow.Workflow:
+        return self._binary_operations(other, std.sub)
+
+    def __truediv__(
+        self, other: OperatorInjectionMixin
+    ) -> atomic.Atomic | workflow.Workflow:
+        return self._binary_operations(other, std.truediv)
+
+    def __floordiv__(
+        self, other: OperatorInjectionMixin
+    ) -> atomic.Atomic | workflow.Workflow:
+        return self._binary_operations(other, std.floordiv)
+
+    def __mod__(
+        self, other: OperatorInjectionMixin
+    ) -> atomic.Atomic | workflow.Workflow:
+        return self._binary_operations(other, std.mod)
+
+    def __pow__(
+        self, other: OperatorInjectionMixin
+    ) -> atomic.Atomic | workflow.Workflow:
+        return self._binary_operations(other, std.pow)
+
+    def __lshift__(
+        self, other: OperatorInjectionMixin
+    ) -> atomic.Atomic | workflow.Workflow:
+        return self._binary_operations(other, std.lshift)
+
+    def __rshift__(
+        self, other: OperatorInjectionMixin
+    ) -> atomic.Atomic | workflow.Workflow:
+        return self._binary_operations(other, std.rshift)
+
+    def __and__(
+        self, other: OperatorInjectionMixin
+    ) -> atomic.Atomic | workflow.Workflow:
+        return self._binary_operations(other, std.and_)
+
+    def __or__(
+        self, other: OperatorInjectionMixin
+    ) -> atomic.Atomic | workflow.Workflow:
+        return self._binary_operations(other, std.or_)
+
+    def __xor__(
+        self, other: OperatorInjectionMixin
+    ) -> atomic.Atomic | workflow.Workflow:
+        return self._binary_operations(other, std.xor)
+
+    def __matmul__(
+        self, other: OperatorInjectionMixin
+    ) -> atomic.Atomic | workflow.Workflow:
+        return self._binary_operations(other, std.matmul)
+
+    def __getitem__(
+        self, item: OperatorInjectionMixin
+    ) -> atomic.Atomic | workflow.Workflow:
+        return self._binary_operations(item, std.getitem)
+
 
 def _build_operation(
     operation: fr.schemas.LabeledRecipe,
