@@ -506,6 +506,32 @@ class Workflow(MutableDag):
         )
 
     @_undoable
+    def create_input_for(
+        self, destination: Port, label: fr.schemas.Label | None = None
+    ) -> None:
+        """Create a new input port to feed a child port and wire it."""
+        if destination.owner.owner is not self:
+            raise ValueError(
+                f"Cannot create input for {destination.lexical_path!r} because it "
+                f"does not belong to this workflow {self.lexical_path!r}."
+            )
+        new_port_label = label if label is not None else destination.label
+        self._add_input(
+            InputPort(
+                label=new_port_label,
+                owner=self,
+                type_hint=destination.type_hint,
+                type_metadata=destination.type_metadata,
+            )
+        )
+        self._add_edge(
+            EdgeTuple(
+                source_port_to_handle(self.get_input(new_port_label), context=self),
+                target_port_to_handle(destination, context=self),
+            )
+        )
+
+    @_undoable
     def remove_input(self, port: InputPort | fr.schemas.Label) -> None:
         resolved = self.get_input(port)
         for edge in self._edges_using_input(resolved.label):
@@ -538,6 +564,33 @@ class Workflow(MutableDag):
                 owner=self,
                 type_hint=type_hint,
                 type_metadata=type_metadata,
+            )
+        )
+
+    @_undoable
+    def create_output_from(
+        self, source: Port | Node, label: fr.schemas.Label | None = None
+    ) -> None:
+        """Create a new output port to receive data from a child source and wire it."""
+        source_port = coerce_to_port(source)
+        if source_port.owner.owner is not self:
+            raise ValueError(
+                f"Cannot create output from {source_port.lexical_path!r} because it "
+                f"does not belong to this workflow {self.lexical_path!r}."
+            )
+        new_port_label = label if label is not None else source_port.label
+        self._add_output(
+            OutputPort(
+                label=new_port_label,
+                owner=self,
+                type_hint=source_port.type_hint,
+                type_metadata=source_port.type_metadata,
+            )
+        )
+        self._add_edge(
+            EdgeTuple(
+                source_port_to_handle(source_port, context=self),
+                target_port_to_handle(self.get_output(new_port_label), context=self),
             )
         )
 
