@@ -1122,6 +1122,143 @@ class TestOutputPortMutations(unittest.TestCase):
         self.assertIsNone(self.wf.outputs["y"].type_hint)
 
 
+class TestCreateInputFor(unittest.TestCase):
+    def setUp(self) -> None:
+        self.wf = workflow.Workflow("wf")
+        self.wf.add_node(_fixtures.atomic_add_node("adder"))
+
+    def test_creates_input_port(self) -> None:
+        self.wf.create_input_for(self.wf.adder.inputs.x)
+        self.assertIn("x", self.wf.inputs)
+
+    def test_wires_edge_to_destination(self) -> None:
+        self.wf.create_input_for(self.wf.adder.inputs.x)
+        edge = datatypes.EdgeTuple(
+            fr.schemas.InputSource(port="x"),
+            fr.schemas.TargetHandle(node="adder", port="x"),
+        )
+        self.assertIn(edge, self.wf.edges)
+
+    def test_label_defaults_to_destination_label(self) -> None:
+        self.wf.create_input_for(self.wf.adder.inputs.y)
+        self.assertIn("y", self.wf.inputs)
+
+    def test_custom_label(self) -> None:
+        self.wf.create_input_for(self.wf.adder.inputs.x, label="custom")
+        self.assertIn("custom", self.wf.inputs)
+        edge = datatypes.EdgeTuple(
+            fr.schemas.InputSource(port="custom"),
+            fr.schemas.TargetHandle(node="adder", port="x"),
+        )
+        self.assertIn(edge, self.wf.edges)
+
+    def test_propagates_type_hint_and_metadata(self) -> None:
+        self.wf.add_node(_fixtures.typed_int_node("ti"))
+        destination = self.wf.ti.inputs.x
+        self.wf.create_input_for(destination)
+        self.assertEqual(self.wf.inputs["x"].type_hint, destination.type_hint)
+        self.assertEqual(self.wf.inputs["x"].type_metadata, destination.type_metadata)
+
+    def test_diff_includes_input_and_edge(self) -> None:
+        diff = self.wf.create_input_for(self.wf.adder.inputs.x)
+        types = [type(a) for a in diff]
+        self.assertIn(actions.AddInput, types)
+        self.assertIn(actions.AddEdge, types)
+
+    def test_undo_removes_input_and_edge(self) -> None:
+        self.wf.create_input_for(self.wf.adder.inputs.x)
+        self.wf.undo()
+        self.assertNotIn("x", self.wf.inputs)
+        self.assertEqual([], self.wf.edges)
+
+    def test_own_port_raises(self) -> None:
+        self.wf.create_output("y")
+        with self.assertRaises(ValueError):
+            self.wf.create_input_for(self.wf.outputs.y)
+
+    def test_foreign_child_port_raises(self) -> None:
+        other = workflow.Workflow("other")
+        other.add_node(_fixtures.atomic_add_node("adder"))
+        with self.assertRaises(ValueError):
+            self.wf.create_input_for(other.adder.inputs.x)
+
+    def test_foreign_port_leaves_workflow_unchanged(self) -> None:
+        other = workflow.Workflow("other")
+        other.add_node(_fixtures.atomic_add_node("adder"))
+        with contextlib.suppress(ValueError):
+            self.wf.create_input_for(other.adder.inputs.x)
+        self.assertEqual([], list(self.wf.inputs))
+        self.assertEqual([], self.wf.edges)
+
+
+class TestCreateOutputFrom(unittest.TestCase):
+    def setUp(self) -> None:
+        self.wf = workflow.Workflow("wf")
+        self.wf.add_node(_fixtures.atomic_add_node("adder"))
+
+    def test_creates_output_port_from_port(self) -> None:
+        self.wf.create_output_from(self.wf.adder.outputs.output_0)
+        self.assertIn("output_0", self.wf.outputs)
+
+    def test_wires_edge_from_source(self) -> None:
+        self.wf.create_output_from(self.wf.adder.outputs.output_0)
+        edge = datatypes.EdgeTuple(
+            fr.schemas.SourceHandle(node="adder", port="output_0"),
+            fr.schemas.OutputTarget(port="output_0"),
+        )
+        self.assertIn(edge, self.wf.edges)
+
+    def test_accepts_node_with_single_output(self) -> None:
+        self.wf.create_output_from(self.wf.adder, label="result")
+        self.assertIn("result", self.wf.outputs)
+        edge = datatypes.EdgeTuple(
+            fr.schemas.SourceHandle(node="adder", port="output_0"),
+            fr.schemas.OutputTarget(port="result"),
+        )
+        self.assertIn(edge, self.wf.edges)
+
+    def test_custom_label(self) -> None:
+        self.wf.create_output_from(self.wf.adder.outputs.output_0, label="result")
+        self.assertIn("result", self.wf.outputs)
+
+    def test_propagates_type_hint_and_metadata(self) -> None:
+        self.wf.add_node(_fixtures.typed_int_node("ti"))
+        source = self.wf.ti.outputs.output_0
+        self.wf.create_output_from(source)
+        self.assertEqual(self.wf.outputs["output_0"].type_hint, source.type_hint)
+        self.assertEqual(
+            self.wf.outputs["output_0"].type_metadata, source.type_metadata
+        )
+
+    def test_diff_includes_output_and_edge(self) -> None:
+        diff = self.wf.create_output_from(self.wf.adder.outputs.output_0)
+        types = [type(a) for a in diff]
+        self.assertIn(actions.AddOutput, types)
+        self.assertIn(actions.AddEdge, types)
+
+    def test_undo_removes_output_and_edge(self) -> None:
+        self.wf.create_output_from(self.wf.adder.outputs.output_0)
+        self.wf.undo()
+        self.assertNotIn("output_0", self.wf.outputs)
+        self.assertEqual([], self.wf.edges)
+
+    def test_multi_output_node_raises(self) -> None:
+        self.wf.add_node(_fixtures.macro_node("multi"))
+        with self.assertRaises(ValueError):
+            self.wf.create_output_from(self.wf.multi)
+
+    def test_own_port_raises(self) -> None:
+        self.wf.create_input("x")
+        with self.assertRaises(ValueError):
+            self.wf.create_output_from(self.wf.inputs.x)
+
+    def test_foreign_child_source_raises(self) -> None:
+        other = workflow.Workflow("other")
+        other.add_node(_fixtures.atomic_add_node("adder"))
+        with self.assertRaises(ValueError):
+            self.wf.create_output_from(other.adder.outputs.output_0)
+
+
 class TestUndoRedo(unittest.TestCase):
     def setUp(self) -> None:
         self.wf = workflow.Workflow("wf")
