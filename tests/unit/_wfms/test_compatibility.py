@@ -352,5 +352,12 @@ class TestUnsupportedReturns(unittest.TestCase):
             # extra work
 
 
+class TestRenderHelper(unittest.TestCase):
+    def test_flowrep_rendered(self):
+        rendered = dotted_return.flowrep_rendered()
+        self.assertIn("@flowrep.workflow", rendered.source)
+        self.assertIn("def dotted_return", rendered.source)
+
+
 if __name__ == "__main__":
     unittest.main()

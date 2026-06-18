@@ -171,6 +171,17 @@ class _MacroFactory(_CompatibilityFactory):
         new_form.__qualname__ = func.__qualname__
         return new_form
 
+    def flowrep_rendered(self) -> fr.schemas.RenderedSource:
+        """
+        The flowrep converter complains if the recipe in question already has an
+        underlying python reference function -- which legacy-decorated declarations do!
+        This is just a convenience method to purge that reference and get back the
+        rendered object.
+        """
+        node = self()
+        recipe = node.recipe.model_copy(update={"reference": None})
+        return fr.tools.flowrep2python(recipe, function_name=self.decorated.__name__)
+
 
 def _legacy_as_macro_node2workflow(
     func: types.FunctionType, *output_labels: str
