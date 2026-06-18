@@ -68,6 +68,9 @@ cluster = [
     "pysqa==0.4.1",
     "h5py==3.16.0",
 ]
+notebook = [
+    "python-workflow-definition==0.1.5",
+]
 
 [tool.hatch.build]
 include = [
