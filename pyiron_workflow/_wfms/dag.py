@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+from concurrent import futures
 from typing import TYPE_CHECKING, Any
 
 import flowrep as fr
@@ -82,11 +83,45 @@ def evaluate_dag_by_layer(
     result = run.result
     layers = topo_sort_nodes(nodes, result.edges)
 
-    for layer in layers:
-        # TODO: Optionally multithread inside a given layer
-        for label in layer:
-            # TODO: Try evaluation and collect any exceptions to optionally fail late
-            evaluate_node(nodes[label], label, run, config)
+    if config.dag_layers_multithreaded:
+        _multithreaded_layers(layers, nodes, run, config)
+    else:
+        for layer in layers:
+            for label in layer:
+                evaluate_node(nodes[label], label, run, config)
+
+
+def _multithreaded_layers(
+    layers: list[list[fr.schemas.Label]],
+    nodes: NodeMap,
+    run: execution.Run[fr.schemas.CompositeData],
+    config: execution.RunConfig,
+):
+    with futures.ThreadPoolExecutor(
+        max_workers=config.dag_layers_max_threads
+    ) as executor:
+        for layer in layers:
+            pending = {
+                executor.submit(evaluate_node, nodes[label], label, run, config): label
+                for label in layer
+            }
+            errors: dict[str, Exception] = {}
+            for future in futures.as_completed(pending):
+                exc = future.exception()
+                if exc is None:
+                    continue
+                if not isinstance(exc, Exception):
+                    raise exc  # don't defer KeyboardInterrupt / SystemExit
+                if config.dag_layers_fail_fast:
+                    raise exc
+                errors[pending[future]] = exc
+            if errors:
+                if len(errors) == 1:
+                    raise errors.popitem()[1]
+                else:
+                    raise ExceptionGroup(
+                        f"{len(errors)} node(s) failed in layer", list(errors.values())
+                    )
 
 
 def topo_sort_nodes(

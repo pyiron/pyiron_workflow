@@ -1,4 +1,5 @@
 import os
+import time
 import unittest
 from concurrent import futures
 
@@ -45,6 +46,21 @@ def some_complex_workflow(start, stop, n, target):
         pids.append(pid)
 
     return pids
+
+
+@fr.atomic
+def sleepy(t_sleep):
+    time.sleep(t_sleep)
+    return t_sleep
+
+
+@fr.workflow
+def sleepy_array(times: list[float]) -> list[float]:
+    slept_for = []
+    for t in times:
+        t_sleep = sleepy(t)
+        slept_for.append(t_sleep)
+    return slept_for
 
 
 class TestExecutors(unittest.TestCase):
@@ -139,3 +155,48 @@ class TestExecutors(unittest.TestCase):
             "if-branch PID, which has no executor of its own, should match this parent "
             "process",
         )
+
+
+class TestDagParallelism(unittest.TestCase):
+    def setUp(self) -> None:
+        self.node = wfms.node(sleepy_array.flowrep_recipe)
+        self.times = [0.4, 0.3, 0.2, 0.1]
+        self.tot_time = sum(self.times)
+        self.max_time = max(self.times)
+
+    def test_with_parallelism(self):
+        t_start = time.time()
+        out = self.node.run(times=self.times)
+        t_diff = time.time() - t_start
+        self.assertAlmostEqual(t_diff, self.max_time, delta=0.1)
+
+        diff_to_max = abs(t_diff - self.max_time)
+        diff_to_tot = abs(t_diff - self.tot_time)
+        self.assertLess(diff_to_max, diff_to_tot)
+
+        self.assertListEqual(
+            out.outputs["slept_for"].value,
+            self.times,
+            msg="Regardless of the fact the last entry finished first, the for-loop"
+            "should be re-aggregating the results according to the original error.",
+        )
+
+    def test_without_parallelism(self):
+        cfg_off = wfms.schemas.RunConfig(
+            prime_mover=self.node.lexical_path,
+            dag_layers_multithreaded=False,
+        )
+        cfg_choked = wfms.schemas.RunConfig(
+            prime_mover=self.node.lexical_path,
+            dag_layers_max_threads=1,
+        )
+        for cfg in (cfg_off, cfg_choked):
+            with self.subTest(cfg=cfg):
+                t_start = time.time()
+                self.node.run(cfg, times=self.times)
+                t_diff = time.time() - t_start
+                self.assertAlmostEqual(t_diff, self.tot_time, delta=0.1)
+
+                diff_to_max = abs(t_diff - self.max_time)
+                diff_to_tot = abs(t_diff - self.tot_time)
+                self.assertLess(diff_to_tot, diff_to_max)

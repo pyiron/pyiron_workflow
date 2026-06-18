@@ -40,7 +40,7 @@ class Run(Generic[ResultType]):
     lexical_path: lexical.LexicalPath
     result: ResultType
     status: RunStatus
-    exception: BaseException | None = None
+    exception: BaseException | ExceptionGroup | None = None
     started_at: datetime.datetime | None = None
     finished_at: datetime.datetime | None = None
     progress_dir: pathlib.Path | None = None
@@ -77,6 +77,9 @@ class RunConfig:
     exception_hooks: Iterable[
         Callable[[pathlib.Path, Run[ResultType], BaseException], None]
     ] = dataclasses.field(default_factory=list)
+    dag_layers_multithreaded: bool = True
+    dag_layers_max_threads: int = 10
+    dag_layers_fail_fast: bool = False
 
     def emit_progress(
         self, time: datetime.datetime, lexical_path: str, status: RunStatus

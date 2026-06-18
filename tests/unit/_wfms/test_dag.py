@@ -23,6 +23,28 @@ from pyiron_workflow._wfms import dag, datatypes, execution
 from tests.unit._wfms import _fixtures
 
 
+@fr.atomic
+def _problematic(x):
+    raise ValueError("problem in node")
+    return x  # noqa: F841
+
+
+@fr.workflow
+def _single_error(x):
+    ok = _fixtures.plain_increment(x)
+    problem = _problematic(x)
+    ok_again = _fixtures.plain_increment(x)
+    return ok, problem, ok_again
+
+
+@fr.workflow
+def _double_error(x):
+    ok = _fixtures.plain_increment(x)
+    problem = _problematic(x)
+    problem_again = _problematic(x)
+    return ok, problem, problem_again
+
+
 class TestMacro(unittest.TestCase):
     """End-to-end exercise of `Macro` via the `macro` fixture."""
 
@@ -209,6 +231,40 @@ class TestMacroPickle(unittest.TestCase):
         self.assertIs(inner.owner, restored)
         for label, child in inner.nodes.items():
             self.assertIs(child.owner, inner, msg=f"nested {label} lost its owner")
+
+
+class TestErrorParallelism(unittest.TestCase):
+    def setUp(self) -> None:
+        self.single = dag.Macro("single", _single_error.flowrep_recipe)
+        self.double = dag.Macro("double", _double_error.flowrep_recipe)
+
+    def test_single_error_raises(self):
+        with self.assertRaises(ValueError):
+            self.single.run(x=1)
+
+    def test_double_error_raises_group(self):
+        with self.assertRaises(ExceptionGroup) as e:
+            self.double.run(x=1)
+        group = e.exception
+        self.assertEqual(len(group.exceptions), 2)
+        for exc in group.exceptions:
+            self.assertIsInstance(exc, ValueError)
+
+    def test_fast_failure_raises_single_error(self):
+        cfg = execution.RunConfig(
+            prime_mover=self.double.lexical_path,
+            dag_layers_fail_fast=True,
+        )
+        with self.assertRaises(ValueError):
+            self.double.run(cfg, x=1)
+
+    def test_unthreaded_raises_single_error(self):
+        cfg = execution.RunConfig(
+            prime_mover=self.double.lexical_path,
+            dag_layers_multithreaded=False,
+        )
+        with self.assertRaises(ValueError):
+            self.double.run(cfg, x=1)
 
 
 if __name__ == "__main__":
