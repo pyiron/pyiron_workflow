@@ -69,7 +69,7 @@ class Steps(list[Run[Any]]):
 
 @dataclasses.dataclass(frozen=True)
 class RunConfig:
-    prime_mover: str
+    prime_mover: lexical.LexicalPath
     progress_dir: pathlib.Path = pathlib.Path.cwd()
     progress_hooks: Iterable[
         Callable[[pathlib.Path, datetime.datetime, str, RunStatus], None]
