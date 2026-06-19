@@ -132,7 +132,7 @@ class TestExecutors(unittest.TestCase):
         )
 
     def test_instructions_inside_instance(self):
-        with futures.ProcessPoolExecutor() as exe:
+        with futures.ProcessPoolExecutor(max_workers=1) as exe:
             _, for_each_pid = exe.submit(get_pid, 0).result()
             self.node.for_each_0.executor = exe
             self.node.for_each_0.body.conditional_value_0.if_0.else_body.get_pid_0.executor = wfms.ExecutorInstructions(
