@@ -1031,6 +1031,17 @@ class Workflow(MutableDag):
         for edge in rewritten_outer:
             self._add_edge(edge)
 
+    def flatten(self) -> None:
+        has_subgraphs = True
+        while has_subgraphs:
+            to_ungroup = [n for n in self.nodes.values() if isinstance(n, Graph)]
+            for n in to_ungroup:
+                self.unlock_subgraph(n)
+                # Get back the unlocked instance, in case it was a Macro
+                unlocked_n = self.nodes[n.label]
+                self.ungroup(unlocked_n)
+            has_subgraphs = any(isinstance(n, Graph) for n in self.nodes.values())
+
     # --- Undo / redo ---
 
     def _undo_diff(self, diff: actions.GraphDiff) -> actions.GraphDiff:

@@ -2402,6 +2402,29 @@ class TestUngroup(unittest.TestCase):
         with self.assertRaises(TypeError):
             parent.ungroup("a")
 
+    def test_flatten(self):
+        wf = workflow.Workflow("to_flatten")
+        wf.create_input("m", "x", "b")
+        wf.y = wf.inputs.m * wf.inputs.x + wf.inputs.b
+        wf.create_output_from(wf.y, "y")
+        expected_output = wf.run(m=2, x=3, b=4).result.output_ports["y"].value
+        wf.flatten()
+        self.assertEqual(
+            len(wf.nodes), 2, msg="Expect the add node and the multiply node"
+        )
+        self.assertEqual(
+            wf.run(m=2, x=3, b=4).result.output_ports["y"].value, expected_output
+        )
+
+    def test_flatten_flow_control_raises(self):
+        wf = workflow.Workflow("to_flatten")
+        wf.child_with_flow_controls = _fixtures.if_abs_node()
+        with self.assertRaisesRegex(
+            TypeError,
+            "Cannot unlock 'to_flatten.child_with_flow_controls_if_0'",
+        ):
+            wf.flatten()
+
 
 class TestWorkflowFromRecipe(unittest.TestCase):
     """`Workflow.from_recipe` round-trips structure through a `WorkflowRecipe`."""
