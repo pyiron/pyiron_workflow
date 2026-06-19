@@ -1,0 +1,236 @@
+from __future__ import annotations
+
+import dataclasses
+from typing import ClassVar
+
+import flowrep as fr
+import rdflib
+import semantikon
+
+from pyiron_workflow._wfms import atomic, dag, execution, workflow
+from pyiron_workflow._wfms.datatypes import EdgeList, EdgeTuple, Node, StaticGraph
+from pyiron_workflow.type_hinting import type_hint_is_as_or_more_specific_than
+
+
+def _resolve_edge_hints(
+    edge: EdgeTuple, owner: StaticGraph | workflow.Workflow
+) -> tuple[type | None, type | None]:
+    source_node = owner.get_node(edge.source.node) if edge.source.node else owner
+    source_port = (
+        source_node.get_output(edge.source.port)
+        if edge.source.node
+        else source_node.get_input(edge.source.port)
+    )
+    target_node = owner.get_node(edge.target.node) if edge.target.node else owner
+    target_port = (
+        target_node.get_input(edge.target.port)
+        if edge.target.node
+        else target_node.get_output(edge.target.port)
+    )
+    return source_port.type_hint, target_port.type_hint
+
+
+def validate_edge(
+    edge: EdgeTuple,
+    owner: StaticGraph | workflow.Workflow,
+    strict: bool = False,
+) -> EdgeTuple:
+    source_hint, target_hint = _resolve_edge_hints(edge, owner)
+
+    if source_hint is not None and target_hint is not None:
+        if not type_hint_is_as_or_more_specific_than(source_hint, target_hint):
+            raise TypeError(
+                "Processing edge "
+                f"'{edge.source.serialize()}->{edge.target.serialize()}' on "
+                f"{owner.lexical_path!r}, the type hint of the source ({source_hint}) "
+                f"is not as-or-more-specific-than the target ({target_hint})."
+            )
+    elif strict and target_hint is not None and source_hint is None:
+        raise TypeError(
+            "Processing edge "
+            f"'{edge.source.serialize()}->{edge.target.serialize()}' on "
+            f"{owner.lexical_path!r} in strict mode, the target requests a type hint "
+            f"({target_hint}) but the source provides none."
+        )
+    return edge
+
+
+class NotParseable:
+    valid: ClassVar[bool] = True  # no *detectable* type error
+    complete: ClassVar[bool] = False  # but it could not be checked
+
+    def __repr__(self) -> str:
+        return "<NOT PARSEABLE>"
+
+
+@dataclasses.dataclass(frozen=True)
+class TypeValidationReport:
+    name: str
+    invalid_edges: EdgeList
+    unfulfilled_edges: EdgeList
+    subreports: dict[str, TypeValidationReport | NotParseable]
+    depth: int = 0
+
+    @property
+    def valid(self) -> bool:
+        return not self.invalid_edges and all(s.valid for s in self.subreports.values())
+
+    @property
+    def complete(self) -> bool:
+        return not self.unfulfilled_edges and all(
+            s.complete for s in self.subreports.values()
+        )
+
+    @property
+    def text(self) -> str:
+        indent = "\t" * self.depth
+        header = (
+            f"{indent}Type validation for {self.name!r} "
+            f"(valid={self.valid}, complete={self.complete})"
+        )
+        if (
+            not self.invalid_edges
+            and not self.unfulfilled_edges
+            and not self.subreports
+        ):
+            return f"{header}: OK"
+
+        lines = [f"{header}:"]
+        for title, edges in (
+            ("invalid edges", self.invalid_edges),
+            ("unfulfilled edges", self.unfulfilled_edges),
+        ):
+            if edges:
+                lines.append(f"{indent}\t{title}:")
+                lines.extend(
+                    f"{indent}\t\t{edge.source.serialize()}->{edge.target.serialize()}"
+                    for edge in edges
+                )
+        if self.subreports:
+            lines.append(f"{indent}\tsubreports:")
+            for label, sub in self.subreports.items():
+                if isinstance(sub, NotParseable):
+                    lines.append(f"{indent}\t{label}: {sub!r}")
+                else:
+                    # `sub.text` already self-indents to `depth + 1`.
+                    lines.append(sub.text)
+        return "\n".join(lines)
+
+    def __repr__(self) -> str:
+        return self.text
+
+
+def validate_types(
+    target: (
+        atomic.Atomic
+        | dag.Macro
+        | workflow.Workflow  # Prospective nodes
+        | fr.schemas.WorkflowRecipe  # Prospective flowrep recipes
+    ),
+) -> TypeValidationReport:
+    if isinstance(target, atomic.Atomic):
+        # An Atomic has no internal structure, so it is trivially valid.
+        return TypeValidationReport(target.lexical_path, [], [], {})
+    if isinstance(target, dag.Macro | workflow.Workflow):
+        owner: StaticGraph | workflow.Workflow = target
+    elif isinstance(target, fr.schemas.WorkflowRecipe):
+        owner = dag.Macro("from_recipe", target)
+    else:
+        raise TypeError(
+            f"Cannot validate types for {target!r}; expected a "
+            f"{atomic.Atomic.__name__}, {dag.Macro.__name__}, "
+            f"{workflow.Workflow.__name__}, or {fr.schemas.WorkflowRecipe.__name__}."
+        )
+    return _validate_graph(owner, depth=0)
+
+
+def _validate_graph(
+    owner: StaticGraph | workflow.Workflow, depth: int
+) -> TypeValidationReport:
+    invalid_edges: EdgeList = []
+    unfulfilled_edges: EdgeList = []
+    subreports: dict[str, TypeValidationReport | NotParseable] = {}
+
+    for edge in owner.edges:
+        source_hint, target_hint = _resolve_edge_hints(edge, owner)
+        if source_hint is not None and target_hint is not None:
+            if not type_hint_is_as_or_more_specific_than(source_hint, target_hint):
+                invalid_edges.append(edge)
+        elif target_hint is not None and source_hint is None:
+            unfulfilled_edges.append(edge)
+
+    for label, node in owner.nodes.items():
+        if isinstance(node, atomic.Atomic):
+            continue
+        elif isinstance(node, dag.Macro | workflow.Workflow):
+            subreports[label] = _validate_graph(node, depth=depth + 1)
+        else:
+            subreports[label] = NotParseable()
+
+    return TypeValidationReport(
+        owner.lexical_path, invalid_edges, unfulfilled_edges, subreports, depth=depth
+    )
+
+
+@dataclasses.dataclass(frozen=True)
+class SemantikonValidationReport:
+    valid: bool
+    graph: rdflib.ConjunctiveGraph | rdflib.Graph
+    text: str
+
+    def __str__(self):
+        return self.text
+
+
+def validate_ontology(
+    data: (
+        Node[fr.schemas.WorkflowRecipe, fr.schemas.DagData]
+        | execution.Run[fr.schemas.DagData]
+    ),
+    extra_knowledge: rdflib.Graph | None = None,
+):
+    if isinstance(data, Node):
+        resolved_data = data.generate_flowrep_live_node()
+    elif isinstance(data, execution.Run):
+        resolved_data = data.result
+    else:
+        raise TypeError(
+            f"Cannot validate ontology for {data!r}; expected a "
+            f"{Node.__name__} or {execution.Run.__name__}."
+        )
+
+    kg = semantikon.get_knowledge_graph(wf_dict=resolved_data)
+    if extra_knowledge is not None:
+        kg += extra_knowledge
+    return SemantikonValidationReport(*semantikon.validate_values(kg))
+
+
+@dataclasses.dataclass
+class CombinedValidationReport:
+    types: TypeValidationReport | None
+    metadata: SemantikonValidationReport | None
+
+    @property
+    def valid(self) -> bool:
+        return all(r.valid for r in (self.types, self.metadata) if r is not None)
+
+    def __repr__(self):
+        return f"{self.types}\n{self.metadata}"
+
+
+def validate_plan(
+    target: atomic.Atomic | dag.Macro | workflow.Workflow,
+    do_types: bool = True,
+    do_ontology: bool = True,
+    extra_knowledge: rdflib.Graph | None = None,
+) -> CombinedValidationReport:
+    types_report = validate_types(target) if do_types else None
+    onto_report = (
+        validate_ontology(
+            target,
+            extra_knowledge=extra_knowledge,
+        )
+        if do_ontology and isinstance(target, dag.Macro | workflow.Workflow)
+        else None
+    )
+    return CombinedValidationReport(types_report, onto_report)

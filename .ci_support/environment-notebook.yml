@@ -1,0 +1,4 @@
+channels:
+- conda-forge
+dependencies:
+- python-workflow-definition =0.1.5

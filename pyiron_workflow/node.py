@@ -29,7 +29,7 @@ from pyiron_workflow.channels import (
 from pyiron_workflow.draw import Node as GraphvizNode
 from pyiron_workflow.executors.wrapped_executorlib import CacheOverride
 from pyiron_workflow.io import IO, Inputs, Signals
-from pyiron_workflow.logging import logger
+from pyiron_workflow.logger import logger
 from pyiron_workflow.mixin.display_state import HasStateDisplay
 from pyiron_workflow.mixin.injection import (
     InjectsOnChannel,

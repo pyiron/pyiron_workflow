@@ -25,7 +25,7 @@ from pyiron_workflow.channels import (
     OutputType,
     SignalChannel,
 )
-from pyiron_workflow.logging import logger
+from pyiron_workflow.logger import logger
 from pyiron_workflow.mixin.display_state import HasStateDisplay
 from pyiron_workflow.mixin.has_interface_mixins import HasChannel
 

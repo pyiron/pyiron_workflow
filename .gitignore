@@ -1,6 +1,8 @@
 *.pyc
 .DS_Store
+.claude/
 .coverage
+CLAUDE.md
 nohup.out
 pyiron.log
 .idea/
