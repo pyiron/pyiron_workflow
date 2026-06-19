@@ -648,6 +648,7 @@ class Workflow(MutableDag):
 
     @_undoable
     def remove_node(self, *nodes: Node | fr.schemas.Label) -> None:
+        """Disconnects target node(s) and then removes."""
         for n in nodes:
             resolved = self.get_node(n)
             self._disconnect(resolved)
@@ -696,6 +697,7 @@ class Workflow(MutableDag):
 
     @_undoable
     def connect(self, source: Node | Port, target: Port):
+        """Adds edge between source and target ports."""
         source_port = coerce_to_port(source)
         self._add_edge(
             EdgeTuple(
@@ -706,6 +708,7 @@ class Workflow(MutableDag):
 
     @_undoable
     def disconnect(self, *nodes: Node | fr.schemas.Label) -> None:
+        """Removes all edges involving node(s)."""
         for n in nodes:
             self._disconnect(self.get_node(n))
 
@@ -713,6 +716,7 @@ class Workflow(MutableDag):
     def lock_subgraph(
         self, workflow_child: Workflow | dag.Macro | fr.schemas.Label
     ) -> None:
+        """Ensure target subgraph is in its immutable macro form."""
         instance = self.get_node(workflow_child)
         if isinstance(instance, dag.Macro):
             return  # Already locked -- macros are static
@@ -731,6 +735,7 @@ class Workflow(MutableDag):
 
     @_undoable
     def unlock_subgraph(self, macro: Workflow | dag.Macro | fr.schemas.Label) -> None:
+        """Ensure target subgraph is in its mutable workflow form."""
         instance = self.get_node(macro)
         if isinstance(instance, Workflow):
             return  # Already unlocked -- workflows are mutable
@@ -749,6 +754,7 @@ class Workflow(MutableDag):
 
     @_undoable
     def group(self, label: fr.schemas.Label, *nodes: Node | fr.schemas.Label) -> None:
+        """Relocate a set of nodes into a new subgraph."""
         if not nodes:
             raise ValueError(
                 f"Cannot group an empty set of nodes on {self.lexical_path!r}."
@@ -885,6 +891,10 @@ class Workflow(MutableDag):
         block_if_reference: bool = False,
         label_map: dict[fr.schemas.Label, fr.schemas.Label] | None = None,
     ) -> None:
+        """
+        Move all nodes in target subgraph up into this scope, and remove the empty
+        subgraph
+        """
         instance = self.get_node(graph)
         if isinstance(instance, dag.Macro):
             if block_if_reference and instance.recipe.reference is not None:
@@ -1016,6 +1026,7 @@ class Workflow(MutableDag):
         return inverse
 
     def undo(self, steps: int = 1) -> list[actions.GraphDiff]:
+        """Undo the last graph mutation action(s)"""
         undone = []
         for _ in range(steps):
             if not self.undo_stack:
@@ -1032,6 +1043,7 @@ class Workflow(MutableDag):
         return diff
 
     def redo(self, steps: int = 1) -> list[actions.GraphDiff]:
+        """Redo available undone graph mutation action(s)"""
         redone = []
         for _ in range(steps):
             if not self.redo_stack:
