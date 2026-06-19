@@ -169,5 +169,6 @@ def get_item_from_map(
     if owned is None or item is not owned:
         raise KeyError(
             f"Cannot get {item!r} named {item.label!r} -- no such {kind} is owned."
+            f"Available: {map_.keys()}"
         )
     return item

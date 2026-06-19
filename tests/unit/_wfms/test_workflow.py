@@ -1131,6 +1131,16 @@ class TestCreateInputFor(unittest.TestCase):
         self.wf.create_input_for(self.wf.adder.inputs.x)
         self.assertIn("x", self.wf.inputs)
 
+    def test_creates_multiple_input_ports(self) -> None:
+        self.wf.create_input_for(
+            self.wf.adder.inputs.x,
+            self.wf.adder.inputs.y,
+            label="pan",
+        )
+        self.assertIn("pan", self.wf.inputs)
+        self.assertEqual(len(self.wf.inputs), 1)
+        self.assertEqual(len(self.wf.edges), 2)
+
     def test_wires_edge_to_destination(self) -> None:
         self.wf.create_input_for(self.wf.adder.inputs.x)
         edge = datatypes.EdgeTuple(
@@ -1732,11 +1742,8 @@ class TestUnlockSubgraph(unittest.TestCase):
 
     def _parent_with_macro_child(self, child_label: str = "m") -> workflow.Workflow:
         parent = workflow.Workflow("parent")
-        parent.create_input("x")
-        parent.create_input("y")
-        parent.create_input("z")
-        parent.create_output("a")
-        parent.create_output("s")
+        parent.create_input("x", "y", "z")
+        parent.create_output("a", "s")
         parent.add_node(_fixtures.macro_node(child_label))
         parent.add_edge(
             datatypes.EdgeTuple(
@@ -2394,6 +2401,29 @@ class TestUngroup(unittest.TestCase):
         parent.add_node(_fixtures.atomic_add_node("a"))
         with self.assertRaises(TypeError):
             parent.ungroup("a")
+
+    def test_flatten(self):
+        wf = workflow.Workflow("to_flatten")
+        wf.create_input("m", "x", "b")
+        wf.y = wf.inputs.m * wf.inputs.x + wf.inputs.b
+        wf.create_output_from(wf.y, "y")
+        expected_output = wf.run(m=2, x=3, b=4).result.output_ports["y"].value
+        wf.flatten()
+        self.assertEqual(
+            len(wf.nodes), 2, msg="Expect the add node and the multiply node"
+        )
+        self.assertEqual(
+            wf.run(m=2, x=3, b=4).result.output_ports["y"].value, expected_output
+        )
+
+    def test_flatten_flow_control_raises(self):
+        wf = workflow.Workflow("to_flatten")
+        wf.child_with_flow_controls = _fixtures.if_abs_node()
+        with self.assertRaisesRegex(
+            TypeError,
+            "Cannot unlock 'to_flatten.child_with_flow_controls_if_0'",
+        ):
+            wf.flatten()
 
 
 class TestWorkflowFromRecipe(unittest.TestCase):

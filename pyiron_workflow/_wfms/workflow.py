@@ -493,28 +493,28 @@ class Workflow(MutableDag):
     def create_input(
         self,
         label: fr.schemas.Label,
+        *additional_labels: fr.schemas.Label,
         type_hint: type | None = None,
         type_metadata: semantikon.TypeMetadata | None = None,
     ) -> None:
-        self._add_input(
-            InputPort(
-                label=label,
-                owner=self,
-                type_hint=type_hint,
-                type_metadata=type_metadata,
+        for lbl in (label, *additional_labels):
+            self._add_input(
+                InputPort(
+                    label=lbl,
+                    owner=self,
+                    type_hint=type_hint,
+                    type_metadata=type_metadata,
+                )
             )
-        )
 
     @_undoable
     def create_input_for(
-        self, destination: Port, label: fr.schemas.Label | None = None
+        self,
+        destination: Port,
+        *additional_destinations: Port,
+        label: fr.schemas.Label | None = None,
     ) -> None:
-        """Create a new input port to feed a child port and wire it."""
-        if destination.owner.owner is not self:
-            raise ValueError(
-                f"Cannot create input for {destination.lexical_path!r} because it "
-                f"does not belong to this workflow {self.lexical_path!r}."
-            )
+        """Create a new input port to feed a child port (or ports) and wire it."""
         new_port_label = label if label is not None else destination.label
         self._add_input(
             InputPort(
@@ -524,19 +524,30 @@ class Workflow(MutableDag):
                 type_metadata=destination.type_metadata,
             )
         )
-        self._add_edge(
-            EdgeTuple(
-                source_port_to_handle(self.get_input(new_port_label), context=self),
-                target_port_to_handle(destination, context=self),
+        source = source_port_to_handle(self.get_input(new_port_label), context=self)
+        for d in (destination, *additional_destinations):
+            self._add_edge(
+                EdgeTuple(
+                    source,
+                    target_port_to_handle(self._validate_destination(d), context=self),
+                )
             )
-        )
+
+    def _validate_destination(self, destination: Port) -> Port:
+        if destination.owner.owner is not self:
+            raise ValueError(
+                f"Cannot create input for {destination.lexical_path!r} because it "
+                f"does not belong to this workflow {self.lexical_path!r}."
+            )
+        return destination
 
     @_undoable
-    def remove_input(self, port: InputPort | fr.schemas.Label) -> None:
-        resolved = self.get_input(port)
-        for edge in self._edges_using_input(resolved.label):
-            self._remove_edge(edge)
-        self._remove_input_shallow(resolved)
+    def remove_input(self, *port: InputPort | fr.schemas.Label) -> None:
+        for p in port:
+            resolved = self.get_input(p)
+            for edge in self._edges_using_input(resolved.label):
+                self._remove_edge(edge)
+            self._remove_input_shallow(resolved)
 
     @_undoable
     def rename_input(
@@ -555,17 +566,19 @@ class Workflow(MutableDag):
     def create_output(
         self,
         label: fr.schemas.Label,
+        *additional_labels: fr.schemas.Label,
         type_hint: type | None = None,
         type_metadata: semantikon.TypeMetadata | None = None,
     ) -> None:
-        self._add_output(
-            OutputPort(
-                label=label,
-                owner=self,
-                type_hint=type_hint,
-                type_metadata=type_metadata,
+        for lbl in (label, *additional_labels):
+            self._add_output(
+                OutputPort(
+                    label=lbl,
+                    owner=self,
+                    type_hint=type_hint,
+                    type_metadata=type_metadata,
+                )
             )
-        )
 
     @_undoable
     def create_output_from(
@@ -595,11 +608,12 @@ class Workflow(MutableDag):
         )
 
     @_undoable
-    def remove_output(self, port: OutputPort | fr.schemas.Label) -> None:
-        resolved = self.get_output(port)
-        for edge in self._edges_using_output(resolved.label):
-            self._remove_edge(edge)
-        self._remove_output_shallow(resolved)
+    def remove_output(self, *port: OutputPort | fr.schemas.Label) -> None:
+        for p in port:
+            resolved = self.get_output(p)
+            for edge in self._edges_using_output(resolved.label):
+                self._remove_edge(edge)
+            self._remove_output_shallow(resolved)
 
     @_undoable
     def rename_output(
@@ -648,6 +662,7 @@ class Workflow(MutableDag):
 
     @_undoable
     def remove_node(self, *nodes: Node | fr.schemas.Label) -> None:
+        """Disconnects target node(s) and then removes."""
         for n in nodes:
             resolved = self.get_node(n)
             self._disconnect(resolved)
@@ -696,6 +711,7 @@ class Workflow(MutableDag):
 
     @_undoable
     def connect(self, source: Node | Port, target: Port):
+        """Adds edge between source and target ports."""
         source_port = coerce_to_port(source)
         self._add_edge(
             EdgeTuple(
@@ -706,6 +722,7 @@ class Workflow(MutableDag):
 
     @_undoable
     def disconnect(self, *nodes: Node | fr.schemas.Label) -> None:
+        """Removes all edges involving node(s)."""
         for n in nodes:
             self._disconnect(self.get_node(n))
 
@@ -713,6 +730,7 @@ class Workflow(MutableDag):
     def lock_subgraph(
         self, workflow_child: Workflow | dag.Macro | fr.schemas.Label
     ) -> None:
+        """Ensure target subgraph is in its immutable macro form."""
         instance = self.get_node(workflow_child)
         if isinstance(instance, dag.Macro):
             return  # Already locked -- macros are static
@@ -731,6 +749,7 @@ class Workflow(MutableDag):
 
     @_undoable
     def unlock_subgraph(self, macro: Workflow | dag.Macro | fr.schemas.Label) -> None:
+        """Ensure target subgraph is in its mutable workflow form."""
         instance = self.get_node(macro)
         if isinstance(instance, Workflow):
             return  # Already unlocked -- workflows are mutable
@@ -749,6 +768,7 @@ class Workflow(MutableDag):
 
     @_undoable
     def group(self, label: fr.schemas.Label, *nodes: Node | fr.schemas.Label) -> None:
+        """Relocate a set of nodes into a new subgraph."""
         if not nodes:
             raise ValueError(
                 f"Cannot group an empty set of nodes on {self.lexical_path!r}."
@@ -885,6 +905,10 @@ class Workflow(MutableDag):
         block_if_reference: bool = False,
         label_map: dict[fr.schemas.Label, fr.schemas.Label] | None = None,
     ) -> None:
+        """
+        Move all nodes in target subgraph up into this scope, and remove the empty
+        subgraph
+        """
         instance = self.get_node(graph)
         if isinstance(instance, dag.Macro):
             if block_if_reference and instance.recipe.reference is not None:
@@ -1007,6 +1031,17 @@ class Workflow(MutableDag):
         for edge in rewritten_outer:
             self._add_edge(edge)
 
+    def flatten(self) -> None:
+        has_subgraphs = True
+        while has_subgraphs:
+            to_ungroup = [n for n in self.nodes.values() if isinstance(n, Graph)]
+            for n in to_ungroup:
+                self.unlock_subgraph(n)
+                # Get back the unlocked instance, in case it was a Macro
+                unlocked_n = self.nodes[n.label]
+                self.ungroup(unlocked_n)
+            has_subgraphs = any(isinstance(n, Graph) for n in self.nodes.values())
+
     # --- Undo / redo ---
 
     def _undo_diff(self, diff: actions.GraphDiff) -> actions.GraphDiff:
@@ -1016,6 +1051,7 @@ class Workflow(MutableDag):
         return inverse
 
     def undo(self, steps: int = 1) -> list[actions.GraphDiff]:
+        """Undo the last graph mutation action(s)"""
         undone = []
         for _ in range(steps):
             if not self.undo_stack:
@@ -1032,6 +1068,7 @@ class Workflow(MutableDag):
         return diff
 
     def redo(self, steps: int = 1) -> list[actions.GraphDiff]:
+        """Redo available undone graph mutation action(s)"""
         redone = []
         for _ in range(steps):
             if not self.redo_stack:
