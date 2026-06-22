@@ -3,7 +3,7 @@ from __future__ import annotations
 import abc
 import functools
 import types
-from typing import TYPE_CHECKING
+from typing import TYPE_CHECKING, Generic, TypeVar
 
 import flowrep as fr
 
@@ -16,28 +16,34 @@ if TYPE_CHECKING:
     import rdflib
 
 
-class _DecoratedFunction(abc.ABC):
-    def __init__(self, wrapped: types.FunctionType):
+_DecoratedType = TypeVar("_DecoratedType", types.FunctionType, type)
+_RecipeType = TypeVar("_RecipeType", fr.schemas.AtomicRecipe, fr.schemas.WorkflowRecipe)
+_NodeType = TypeVar("_NodeType", atomic_mod.Atomic, dag.Macro)
+
+
+class _PwfTools(Generic[_DecoratedType, _RecipeType], abc.ABC):
+
+    def __init__(self, wrapped: _DecoratedType):
         self._disallow_locals(wrapped)
-        self._decorated_object = wrapped
+        self._decorated_object: _DecoratedType = wrapped
 
     @property
-    def recipe(self) -> fr.schemas.AtomicRecipe | fr.schemas.WorkflowRecipe:
-        return self._decorated_object.flowrep_recipe  # type: ignore[attr-defined]
+    @abc.abstractmethod
+    def recipe(self) -> _RecipeType: ...
 
     @abc.abstractmethod
     def node(
         self, label: fr.schemas.Label | None = None, /, *positional, **keyword
     ) -> atomic_mod.Atomic | dag.Macro: ...
 
-    def _label(self, label: fr.schemas.Label | None = None) -> fr.schemas.Label:
-        return self._decorated_object.__name__ if label is None else label
+    @abc.abstractmethod
+    def _label(self, label: fr.schemas.Label | None = None) -> fr.schemas.Label: ...
 
     def run(self, config: execution.RunConfig | None = None, **input_data):
         return self.node().run(config, **input_data)
 
     @staticmethod
-    def _disallow_locals(func: types.FunctionType):
+    def _disallow_locals(func: types.FunctionType | type):
         if "<locals>" in func.__qualname__:
             raise ImportError(
                 "To turn decorated functions into nodes, pyiron_workflow needs to be "
@@ -46,20 +52,30 @@ class _DecoratedFunction(abc.ABC):
             )
 
 
-class DecoratedAtomic(_DecoratedFunction):
+class _DecoratedFunction(
+    _PwfTools[types.FunctionType, _RecipeType], Generic[_RecipeType, _NodeType], abc.ABC
+):
+    _node_type: type[_NodeType]
+
+    @property
+    def recipe(self) -> _RecipeType:
+        return self._decorated_object.flowrep_recipe  # type: ignore[attr-defined]
+
+    def _label(self, label: fr.schemas.Label | None = None) -> fr.schemas.Label:
+        return self._decorated_object.__name__ if label is None else label
+
     def node(
         self, label: fr.schemas.Label | None = None, /, *positional, **keyword
-    ) -> atomic_mod.Atomic:
-        return atomic_mod.Atomic(
-            self._label(label), self.recipe, *positional, **keyword
-        )
+    ) -> _NodeType:
+        return self._node_type(self._label(label), self.recipe, *positional, **keyword)
 
 
-class DecoratedMacro(_DecoratedFunction):
-    def node(
-        self, label: fr.schemas.Label | None = None, /, *positional, **keyword
-    ) -> dag.Macro:
-        return dag.Macro(self._label(label), self.recipe, *positional, **keyword)
+class DecoratedAtomic(_DecoratedFunction[fr.schemas.AtomicRecipe, atomic_mod.Atomic]):
+    _node_type = atomic_mod.Atomic
+
+
+class DecoratedMacro(_DecoratedFunction[fr.schemas.WorkflowRecipe, dag.Macro]):
+    _node_type = dag.Macro
 
     def validate(
         self,
