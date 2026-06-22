@@ -80,7 +80,7 @@ class _CompatibilityFactory(abc.ABC):
     """
 
     def __init__(self, func: types.FunctionType, *output_labels: str):
-        decorators._disallow_locals(func)
+        decorators._DecoratedFunction._disallow_locals(func)
         self._received_function = func
         self._output_labels = output_labels
         self._decorated = None
