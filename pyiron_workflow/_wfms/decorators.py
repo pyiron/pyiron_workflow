@@ -3,7 +3,7 @@ from __future__ import annotations
 import abc
 import functools
 import types
-from typing import TYPE_CHECKING, Generic, TypeVar
+from typing import TYPE_CHECKING, ClassVar, Generic, TypeVar
 
 import flowrep as fr
 
@@ -22,6 +22,7 @@ _NodeType = TypeVar("_NodeType", atomic_mod.Atomic, dag.Macro)
 
 
 class _PwfTools(Generic[_DecoratedType, _RecipeType], abc.ABC):
+    assign_to: ClassVar[str]
 
     def __init__(self, wrapped: _DecoratedType):
         self._disallow_locals(wrapped)
@@ -131,13 +132,21 @@ def _double_wrap_if_decorator_got_args(
                 f"`flowrep_recipe` attribute. This is an internal error and likely flags "
                 f"a development bug. dir({wrapped!r}) = {dir(wrapped)}."
             )
-        wrapped.pwf = tool(wrapped)  # type: ignore[attr-defined]
+        setattr(
+            wrapped,
+            tool.assign_to,
+            tool(wrapped),
+        )
         return wrapped
     elif isinstance(arg0, str):
 
         def wrapped_decorator(func):
             double_wrapped = wrapped(func)
-            double_wrapped.pwf = tool(double_wrapped)
+            setattr(
+                double_wrapped,
+                tool.assign_to,
+                tool(double_wrapped),
+            )
             return double_wrapped
 
         return wrapped_decorator
