@@ -21,8 +21,9 @@ _RecipeType = TypeVar("_RecipeType", fr.schemas.AtomicRecipe, fr.schemas.Workflo
 _NodeType = TypeVar("_NodeType", atomic_mod.Atomic, dag.Macro)
 
 
-class _PwfTools(Generic[_DecoratedType, _RecipeType], abc.ABC):
+class _PwfTools(Generic[_DecoratedType, _RecipeType, _NodeType], abc.ABC):
     assign_to: ClassVar[str]
+    _node_type: type[_NodeType]
 
     def __init__(self, wrapped: _DecoratedType):
         self._disallow_locals(wrapped)
@@ -33,12 +34,12 @@ class _PwfTools(Generic[_DecoratedType, _RecipeType], abc.ABC):
     def recipe(self) -> _RecipeType: ...
 
     @abc.abstractmethod
+    def _label(self, label: fr.schemas.Label | None = None) -> fr.schemas.Label: ...
+
     def node(
         self, label: fr.schemas.Label | None = None, /, *positional, **keyword
-    ) -> atomic_mod.Atomic | dag.Macro: ...
-
-    @abc.abstractmethod
-    def _label(self, label: fr.schemas.Label | None = None) -> fr.schemas.Label: ...
+    ) -> _NodeType:
+        return self._node_type(self._label(label), self.recipe, *positional, **keyword)
 
     def run(self, config: execution.RunConfig | None = None, **input_data):
         return self.node().run(config, **input_data)
@@ -54,9 +55,11 @@ class _PwfTools(Generic[_DecoratedType, _RecipeType], abc.ABC):
 
 
 class _DecoratedFunction(
-    _PwfTools[types.FunctionType, _RecipeType], Generic[_RecipeType, _NodeType], abc.ABC
+    _PwfTools[types.FunctionType, _RecipeType, _NodeType],
+    Generic[_RecipeType, _NodeType],
+    abc.ABC,
 ):
-    _node_type: type[_NodeType]
+    assign_to: ClassVar[str] = "pwf"
 
     @property
     def recipe(self) -> _RecipeType:
@@ -64,11 +67,6 @@ class _DecoratedFunction(
 
     def _label(self, label: fr.schemas.Label | None = None) -> fr.schemas.Label:
         return self._decorated_object.__name__ if label is None else label
-
-    def node(
-        self, label: fr.schemas.Label | None = None, /, *positional, **keyword
-    ) -> _NodeType:
-        return self._node_type(self._label(label), self.recipe, *positional, **keyword)
 
 
 class DecoratedAtomic(_DecoratedFunction[fr.schemas.AtomicRecipe, atomic_mod.Atomic]):
