@@ -19,11 +19,11 @@ if TYPE_CHECKING:
 class _DecoratedFunction(abc.ABC):
     def __init__(self, wrapped: types.FunctionType):
         self._disallow_locals(wrapped)
-        self._decorated_function = wrapped
+        self._decorated_object = wrapped
 
     @property
     def recipe(self) -> fr.schemas.AtomicRecipe | fr.schemas.WorkflowRecipe:
-        return self._decorated_function.flowrep_recipe  # type: ignore[attr-defined]
+        return self._decorated_object.flowrep_recipe  # type: ignore[attr-defined]
 
     @abc.abstractmethod
     def node(
@@ -31,7 +31,7 @@ class _DecoratedFunction(abc.ABC):
     ) -> atomic_mod.Atomic | dag.Macro: ...
 
     def _label(self, label: fr.schemas.Label | None = None) -> fr.schemas.Label:
-        return self._decorated_function.__name__ if label is None else label
+        return self._decorated_object.__name__ if label is None else label
 
     def run(self, config: execution.RunConfig | None = None, **input_data):
         return self.node().run(config, **input_data)
