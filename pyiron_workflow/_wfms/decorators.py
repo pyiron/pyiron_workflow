@@ -26,12 +26,12 @@ class _DecoratedFunction(Generic[_RecipeType]):
         self.function = wrapped
 
     @property
-    def _recipe(self) -> _RecipeType:
+    def recipe(self) -> _RecipeType:
         return self.function.flowrep_recipe  # type: ignore[attr-defined]
 
     def node(self, label: fr.schemas.Label | None = None, /, *positional, **keyword):
         used_label = self.function.__name__ if label is None else label
-        return self.node_type(used_label, self._recipe, *positional, **keyword)
+        return self.node_type(used_label, self.recipe, *positional, **keyword)
 
     def run(self, config: execution.RunConfig | None = None, **input_data):
         return self.node().run(config, **input_data)
