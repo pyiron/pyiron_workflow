@@ -142,7 +142,7 @@ class _AtomicFactory(_CompatibilityFactory):
         *output_labels: str,
     ) -> types.FunctionType:
         decorated = fr.tools.atomic(*output_labels)(func)
-        decorated.pwf = decorators.AtomicTools(decorated)
+        decorated.pwf = decorators.DecoratedAtomic(decorated)
         return decorated
 
 

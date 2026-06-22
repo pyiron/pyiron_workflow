@@ -18,7 +18,7 @@ if TYPE_CHECKING:
 _RecipeType = TypeVar("_RecipeType", fr.schemas.AtomicRecipe, fr.schemas.WorkflowRecipe)
 
 
-class _PwfTools(Generic[_RecipeType]):
+class _DecoratedFunction(Generic[_RecipeType]):
     node_type: ClassVar[type[atomic_mod.Atomic] | type[dag.Macro]]
 
     def __init__(self, wrapped: types.FunctionType):
@@ -46,11 +46,11 @@ def _disallow_locals(func: types.FunctionType):
         )
 
 
-class AtomicTools(_PwfTools[fr.schemas.AtomicRecipe]):
+class DecoratedAtomic(_DecoratedFunction[fr.schemas.AtomicRecipe]):
     node_type = atomic_mod.Atomic
 
 
-class MacroTools(_PwfTools[fr.schemas.WorkflowRecipe]):
+class DecoratedMacro(_DecoratedFunction[fr.schemas.WorkflowRecipe]):
     node_type = dag.Macro
 
     def validate(
@@ -76,7 +76,9 @@ _assigned = tuple(
 @functools.wraps(fr.tools.atomic, assigned=_assigned)
 def atomic(*args, **kwargs):
     wrapped = fr.tools.atomic(*args, **kwargs)
-    return _double_wrap_if_decorator_got_args(args[0], wrapped, AtomicTools, "@atomic")
+    return _double_wrap_if_decorator_got_args(
+        args[0], wrapped, DecoratedAtomic, "@atomic"
+    )
 
 
 atomic.__doc__ = """
@@ -94,7 +96,7 @@ Base `flowrep` documentation:
 def _double_wrap_if_decorator_got_args(
     arg0: str | types.FunctionType,
     wrapped: types.FunctionType,
-    tool: type[AtomicTools] | type[MacroTools],
+    tool: type[DecoratedAtomic] | type[DecoratedMacro],
     decorator_name: str,
 ):
     if isinstance(arg0, types.FunctionType):
@@ -124,7 +126,9 @@ def _double_wrap_if_decorator_got_args(
 @functools.wraps(fr.tools.workflow, assigned=_assigned)
 def workflow(*args, **kwargs):
     wrapped = fr.tools.workflow(*args, **kwargs)
-    return _double_wrap_if_decorator_got_args(args[0], wrapped, MacroTools, "@workflow")
+    return _double_wrap_if_decorator_got_args(
+        args[0], wrapped, DecoratedMacro, "@workflow"
+    )
 
 
 workflow.__doc__ = """

@@ -467,7 +467,7 @@ class TestValidationSignatureCoherence(unittest.TestCase):
         for fn in (
             dag.Macro.validate,
             workflow.Workflow.validate,
-            decorators.MacroTools.validate,
+            decorators.DecoratedMacro.validate,
         ):
             self.assertEqual(
                 list(inspect.signature(fn).parameters)[1:], base
