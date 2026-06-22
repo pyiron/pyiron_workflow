@@ -20,7 +20,6 @@ class _DecoratedFunction(abc.ABC):
     def __init__(self, wrapped: types.FunctionType):
         self._disallow_locals(wrapped)
         self._decorated_function = wrapped
-        self._default_name = wrapped.__name__
 
     @property
     def recipe(self) -> fr.schemas.AtomicRecipe | fr.schemas.WorkflowRecipe:
@@ -30,6 +29,9 @@ class _DecoratedFunction(abc.ABC):
     def node(
         self, label: fr.schemas.Label | None = None, /, *positional, **keyword
     ) -> atomic_mod.Atomic | dag.Macro: ...
+
+    def _label(self, label: fr.schemas.Label | None = None) -> fr.schemas.Label:
+        return self._decorated_function.__name__ if label is None else label
 
     def run(self, config: execution.RunConfig | None = None, **input_data):
         return self.node().run(config, **input_data)
@@ -48,16 +50,16 @@ class DecoratedAtomic(_DecoratedFunction):
     def node(
         self, label: fr.schemas.Label | None = None, /, *positional, **keyword
     ) -> atomic_mod.Atomic:
-        used_label = self._default_name if label is None else label
-        return atomic_mod.Atomic(used_label, self.recipe, *positional, **keyword)
+        return atomic_mod.Atomic(
+            self._label(label), self.recipe, *positional, **keyword
+        )
 
 
 class DecoratedMacro(_DecoratedFunction):
     def node(
         self, label: fr.schemas.Label | None = None, /, *positional, **keyword
     ) -> dag.Macro:
-        used_label = self._default_name if label is None else label
-        return dag.Macro(used_label, self.recipe, *positional, **keyword)
+        return dag.Macro(self._label(label), self.recipe, *positional, **keyword)
 
     def validate(
         self,
