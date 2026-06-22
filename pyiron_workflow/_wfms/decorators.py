@@ -18,7 +18,7 @@ if TYPE_CHECKING:
 _RecipeType = TypeVar("_RecipeType", fr.schemas.AtomicRecipe, fr.schemas.WorkflowRecipe)
 
 
-class PwfTools(Generic[_RecipeType]):
+class _PwfTools(Generic[_RecipeType]):
     node_type: ClassVar[type[atomic_mod.Atomic] | type[dag.Macro]]
 
     def __init__(self, wrapped: types.FunctionType):
@@ -46,11 +46,11 @@ def _disallow_locals(func: types.FunctionType):
         )
 
 
-class AtomicTools(PwfTools[fr.schemas.AtomicRecipe]):
+class AtomicTools(_PwfTools[fr.schemas.AtomicRecipe]):
     node_type = atomic_mod.Atomic
 
 
-class MacroTools(PwfTools[fr.schemas.WorkflowRecipe]):
+class MacroTools(_PwfTools[fr.schemas.WorkflowRecipe]):
     node_type = dag.Macro
 
     def validate(
