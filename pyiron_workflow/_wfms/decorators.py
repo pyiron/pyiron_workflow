@@ -1,8 +1,9 @@
 from __future__ import annotations
 
+import abc
 import functools
 import types
-from typing import TYPE_CHECKING, ClassVar, Generic, TypeVar
+from typing import TYPE_CHECKING
 
 import flowrep as fr
 
@@ -15,24 +16,20 @@ if TYPE_CHECKING:
     import rdflib
 
 
-_RecipeType = TypeVar("_RecipeType", fr.schemas.AtomicRecipe, fr.schemas.WorkflowRecipe)
-
-
-class _DecoratedFunction(Generic[_RecipeType]):
-    node_type: ClassVar[type[atomic_mod.Atomic] | type[dag.Macro]]
-
+class _DecoratedFunction(abc.ABC):
     def __init__(self, wrapped: types.FunctionType):
         self._disallow_locals(wrapped)
         self._decorated_function = wrapped
         self._default_name = wrapped.__name__
 
     @property
-    def recipe(self) -> _RecipeType:
+    def recipe(self) -> fr.schemas.AtomicRecipe | fr.schemas.WorkflowRecipe:
         return self._decorated_function.flowrep_recipe  # type: ignore[attr-defined]
 
-    def node(self, label: fr.schemas.Label | None = None, /, *positional, **keyword):
-        used_label = self._default_name if label is None else label
-        return self.node_type(used_label, self.recipe, *positional, **keyword)
+    @abc.abstractmethod
+    def node(
+        self, label: fr.schemas.Label | None = None, /, *positional, **keyword
+    ) -> atomic_mod.Atomic | dag.Macro: ...
 
     def run(self, config: execution.RunConfig | None = None, **input_data):
         return self.node().run(config, **input_data)
@@ -47,12 +44,20 @@ class _DecoratedFunction(Generic[_RecipeType]):
             )
 
 
-class DecoratedAtomic(_DecoratedFunction[fr.schemas.AtomicRecipe]):
-    node_type = atomic_mod.Atomic
+class DecoratedAtomic(_DecoratedFunction):
+    def node(
+        self, label: fr.schemas.Label | None = None, /, *positional, **keyword
+    ) -> atomic_mod.Atomic:
+        used_label = self._default_name if label is None else label
+        return atomic_mod.Atomic(used_label, self.recipe, *positional, **keyword)
 
 
-class DecoratedMacro(_DecoratedFunction[fr.schemas.WorkflowRecipe]):
-    node_type = dag.Macro
+class DecoratedMacro(_DecoratedFunction):
+    def node(
+        self, label: fr.schemas.Label | None = None, /, *positional, **keyword
+    ) -> dag.Macro:
+        used_label = self._default_name if label is None else label
+        return dag.Macro(used_label, self.recipe, *positional, **keyword)
 
     def validate(
         self,
