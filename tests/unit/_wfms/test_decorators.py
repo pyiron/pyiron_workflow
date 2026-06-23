@@ -10,6 +10,24 @@ from pyiron_workflow._wfms import decorators
 from tests.unit._wfms import _fixtures
 
 
+class _ReservedFieldCarrier:
+    """Plain class whose field name collides with the reserved 'dataclass' port."""
+
+    dataclass: int = 0
+
+
+def _make_local_dataclass():
+    @wfms.dataclass
+    class Local:
+        a: int
+
+    return Local
+
+
+class _NoVersionCarrier:
+    a: int = 0
+
+
 class TestDataclassDecorator(unittest.TestCase):
     def test_attaches_both_tools(self) -> None:
         self.assertIsInstance(
@@ -136,6 +154,20 @@ class TestDataclass2Outputs(unittest.TestCase):
             wf.run(dataclass=_fixtures.PlainPoint(1.0, 2.0)).outputs["dataclass"].value
         )
         self.assertEqual(result, _fixtures.PlainPoint(1.0, 2.0))
+
+
+class TestDataclassGuards(unittest.TestCase):
+    def test_reserved_field_name_raises(self) -> None:
+        with self.assertRaises(ValueError):
+            wfms.dataclass(_ReservedFieldCarrier)
+
+    def test_local_dataclass_rejected(self) -> None:
+        with self.assertRaises(ImportError):
+            _make_local_dataclass()
+
+    def test_require_version_raises_without_version(self) -> None:
+        with self.assertRaises(ValueError):
+            wfms.dataclass(require_version=True)(_NoVersionCarrier)
 
 
 if __name__ == "__main__":

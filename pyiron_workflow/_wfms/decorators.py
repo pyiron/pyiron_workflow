@@ -351,6 +351,20 @@ class Dataclass2Outputs(_DecoratedDataclass):
         )
 
 
+_RESERVED_DATACLASS_PORT = "dataclass"
+
+
+def _check_reserved_fields(dcls: type) -> None:
+    for field in dataclasses.fields(dcls):
+        if field.name == _RESERVED_DATACLASS_PORT:
+            raise ValueError(
+                f"@dataclass attaches node tools that reserve the port name "
+                f"{_RESERVED_DATACLASS_PORT!r}, but dataclass "
+                f"{dcls.__qualname__!r} declares a field named "
+                f"{_RESERVED_DATACLASS_PORT!r}. Rename that field."
+            )
+
+
 @functools.wraps(dataclasses.dataclass, assigned=_assigned)
 def dataclass(
     cls=None,
@@ -363,6 +377,7 @@ def dataclass(
 ):
     def wrap(cls):
         dcls = dataclasses.dataclass(**dataclasses_dataclass_kwargs)(cls)
+        _check_reserved_fields(dcls)
         setattr(
             dcls,
             Inputs2Dataclass.assign_to,
