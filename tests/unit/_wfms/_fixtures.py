@@ -14,6 +14,7 @@ Usage:
 
 from __future__ import annotations
 
+import dataclasses
 from typing import Annotated
 
 import flowrep as fr
@@ -681,3 +682,63 @@ def clothes_correct_macro_node(label: str = "my_correct_macro"):
 def clothes_incorrect_macro_node(label: str = "my_incorrect_macro"):
     """Return a fresh `Macro` for the invalid clothes pipeline (dye -> sell)."""
     return my_incorrect_macro.pwf.node(label)
+
+
+# --------------------------------------------------------------------------- #
+# Decorator-tool fixtures (wfms.atomic / wfms.workflow)                        #
+# --------------------------------------------------------------------------- #
+
+
+@wfms.atomic
+def wfms_add(x, y):
+    return x + y
+
+
+@wfms.atomic("relabelled_sum")
+def wfms_add_relabelled(x, y):
+    return x + y
+
+
+@wfms.workflow
+def wfms_macro(x, y, z):
+    a = add(x, y)
+    s = sub(a, z)
+    return a, s
+
+
+# --------------------------------------------------------------------------- #
+# Dataclass fixtures (wfms.dataclass)                                          #
+# --------------------------------------------------------------------------- #
+
+
+@wfms.dataclass
+class PlainPoint:
+    x: float
+    y: float
+
+
+@wfms.dataclass
+class WithDefaults:
+    a: int
+    b: int = 5
+    c: list = dataclasses.field(default_factory=list)
+
+
+@wfms.dataclass(frozen=True, kw_only=True)
+class FrozenKw:
+    nova: float
+    foo: int = 42
+    not_a_field = 13  # unannotated -> NOT a dataclass field
+
+
+@wfms.dataclass
+class WithInitFalse:
+    a: int
+    c: int = dataclasses.field(init=False, default=7)
+
+
+@wfms.dataclass
+class WithInitVar:
+    a: int
+    d: dataclasses.InitVar[int] = 3
+    b: int = 5
