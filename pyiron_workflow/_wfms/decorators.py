@@ -1,11 +1,14 @@
 from __future__ import annotations
 
 import abc
+import dataclasses
 import functools
+import inspect
 import types
-from typing import TYPE_CHECKING, ClassVar, Generic, TypeVar
+from typing import TYPE_CHECKING, Any, ClassVar, Generic, TypeVar
 
 import flowrep as fr
+from pyiron_snippets import versions
 
 from pyiron_workflow._wfms import (
     atomic as atomic_mod,
@@ -172,3 +175,234 @@ or create a dynamic node instance and run it.
 Base `flowrep` documentation:
 
 """ + (fr.tools.workflow.__doc__ or "")
+
+
+class _DecoratedDataclass(
+    _PwfTools[type, fr.schemas.AtomicRecipe, atomic_mod.Atomic], abc.ABC
+):
+    _root_function: ClassVar[staticmethod[..., Any]]
+    _unpack_mode = type[fr.schemas.UnpackMode]
+
+    _node_type = atomic_mod.Atomic
+
+    def __init__(
+        self,
+        wrapped,
+        version_scraping: versions.VersionScrapingMap | None = None,
+        forbid_main: bool = False,
+        forbid_locals: bool = False,
+        forbid_lambda: bool = False,
+        require_version: bool = False,
+    ):
+        super().__init__(wrapped)
+
+        inputs, inputs_with_defaults, restricted_input_kinds, outputs, func_sig = (
+            self._parse_dataclass(wrapped)
+        )
+
+        self._function = functools.partial(self._root_function, *self._partials())
+        self._function.__name__ = wrapped.__name__  # type: ignore[attr-defined]
+        self._function.__signature__ = func_sig  # type: ignore[attr-defined]
+        self._function.__annotations__ = {  # type: ignore[attr-defined]
+            name: p.annotation
+            for name, p in func_sig.parameters.items()
+            if p.annotation is not inspect.Parameter.empty
+        }
+        self._function.__annotations__["return"] = wrapped
+
+        dc_version = versions.VersionInfo.of(
+            wrapped,
+            version_scraping=version_scraping,
+            forbid_main=forbid_main,
+            forbid_locals=forbid_locals,
+            forbid_lambda=forbid_lambda,
+            require_version=require_version,
+        )
+        self._recipe = fr.schemas.AtomicRecipe(
+            inputs=inputs,
+            outputs=outputs,
+            reference=fr.schemas.PythonReference(
+                info=versions.VersionInfo(
+                    module=dc_version.module,
+                    qualname=dc_version.qualname + f".{self.assign_to}._function",
+                    version=dc_version.version,
+                ),
+                inputs_with_defaults=inputs_with_defaults,
+                restricted_input_kinds=restricted_input_kinds,
+            ),
+            unpack_mode=self._unpack_mode,
+        )
+
+    @abc.abstractmethod
+    def _parse_dataclass(self, cls) -> tuple[
+        list[str],
+        list[str],
+        dict[str, fr.schemas.RestrictedParamKind],
+        list[str],
+        inspect.Signature,
+    ]: ...
+
+    @abc.abstractmethod
+    def _partials(self) -> tuple: ...
+
+    @property
+    def recipe(self) -> fr.schemas.AtomicRecipe:
+        return self._recipe
+
+
+def _inputs_to_dataclass(cls, *args, **kwargs):
+    return cls(*args, **kwargs)
+
+
+class Inputs2Dataclass(_DecoratedDataclass):
+    assign_to: ClassVar[str] = "pwf_inputs2dc"
+    _root_function = staticmethod(_inputs_to_dataclass)
+    _unpack_mode = fr.schemas.UnpackMode.NONE
+
+    def _parse_dataclass(self, cls) -> tuple[
+        list[str],
+        list[str],
+        dict[str, fr.schemas.RestrictedParamKind],
+        list[str],
+        inspect.Signature,
+    ]:
+        dc_sig = inspect.signature(cls)
+        params = dc_sig.parameters
+
+        inputs = list(params)
+        inputs_with_defaults = [
+            name
+            for name, p in params.items()
+            if p.default is not inspect.Parameter.empty
+        ]
+        restricted_input_kinds = {
+            name: fr.schemas.RestrictedParamKind.KEYWORD_ONLY
+            for name, p in params.items()
+            if p.kind == inspect.Parameter.KEYWORD_ONLY
+        }
+
+        output_name = "dataclass"
+
+        func_sig = dc_sig.replace(return_annotation=cls)
+
+        return (
+            inputs,
+            inputs_with_defaults,
+            restricted_input_kinds,
+            [output_name],
+            func_sig,
+        )
+
+    def _partials(self) -> tuple:
+        return (self._decorated_object,)
+
+    def _label(self, label: fr.schemas.Label | None = None) -> fr.schemas.Label:
+        return f"Inputs2{self._decorated_object.__name__}" if label is None else label
+
+
+def _dataclass_to_outputs(dataclass):
+    return dataclass
+
+
+class Dataclass2Outputs(_DecoratedDataclass):
+    assign_to: ClassVar[str] = "pwf_dc2outputs"
+    _root_function = staticmethod(_dataclass_to_outputs)
+    _unpack_mode = fr.schemas.UnpackMode.DATACLASS
+
+    def _parse_dataclass(self, cls) -> tuple[
+        list[str],
+        list[str],
+        dict[str, fr.schemas.RestrictedParamKind],
+        list[str],
+        inspect.Signature,
+    ]:
+        dc_sig = inspect.signature(cls)
+        params = dc_sig.parameters
+
+        outputs = list(params)
+
+        input_name = "dataclass"
+        func_sig = inspect.Signature(
+            parameters=[
+                inspect.Parameter(
+                    input_name,
+                    inspect.Parameter.POSITIONAL_OR_KEYWORD,
+                    annotation=cls,
+                )
+            ],
+            return_annotation=cls,
+        )
+
+        return (
+            [input_name],
+            [],
+            {},
+            outputs,
+            func_sig,
+        )
+
+    def _partials(self) -> tuple:
+        return ()
+
+    def _label(self, label: fr.schemas.Label | None = None) -> fr.schemas.Label:
+        return (
+            f"Dataclass2{self._decorated_object.__name__}" if label is None else label
+        )
+
+
+@functools.wraps(dataclasses.dataclass, assigned=_assigned)
+def dataclass(
+    cls=None,
+    /,
+    version_scraping: versions.VersionScrapingMap | None = None,
+    forbid_main: bool = False,
+    forbid_locals: bool = False,
+    require_version: bool = False,
+    **dataclasses_dataclass_kwargs,
+):
+    def wrap(cls):
+        dcls = dataclasses.dataclass(**dataclasses_dataclass_kwargs)(cls)
+        setattr(
+            dcls,
+            Inputs2Dataclass.assign_to,
+            Inputs2Dataclass(
+                dcls,
+                version_scraping=version_scraping,
+                forbid_main=forbid_main,
+                forbid_locals=forbid_locals,
+                require_version=require_version,
+            ),
+        )
+        setattr(
+            dcls,
+            Dataclass2Outputs.assign_to,
+            Dataclass2Outputs(
+                dcls,
+                version_scraping=version_scraping,
+                forbid_main=forbid_main,
+                forbid_locals=forbid_locals,
+                require_version=require_version,
+            ),
+        )
+        return dcls
+
+    # See if we're being called as @dataclass or @dataclass().
+    if cls is None:
+        # We're called with parens.
+        return wrap
+
+    # We're called as @dataclass without parens.
+    return wrap(cls)
+
+
+dataclass.__doc__ = """
+A powered-up version of the standard `dataclasses` decorator of the same name.
+
+Additionally adds a `.pwf_dc2outputs` and `.pwf_inputs2dc` attributes which host methods 
+to instantiate atomic nodes converting between multiple graph IO and a single dataclass 
+instance. The decorated dataclass is still usable as a regular dataclass, but don't 
+use fields which conflict with these two new attribute names.
+
+Base `dataclass` documentation:
+
+""" + (dataclasses.dataclass.__doc__ or "")
