@@ -22,7 +22,7 @@ dependencies:
 - python >=3.11,<3.14
 - python-graphviz =0.21
 - rdflib =7.6.0
-- semantikon =1.3.1
+- semantikon =1.3.2
 - toposort =1.10
 - typeguard =4.5.2
 - python-workflow-definition =0.1.5
