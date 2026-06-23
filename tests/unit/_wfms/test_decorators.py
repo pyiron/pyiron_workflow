@@ -6,7 +6,7 @@ import unittest
 import flowrep as fr
 
 from pyiron_workflow._wfms import api as wfms
-from pyiron_workflow._wfms import decorators
+from pyiron_workflow._wfms import decorators, validation
 from tests.unit._wfms import _fixtures
 
 
@@ -22,6 +22,14 @@ def _make_local_dataclass():
         a: int
 
     return Local
+
+
+def _make_local_atomic():
+    @wfms.atomic
+    def inner(x):
+        return x
+
+    return inner
 
 
 class _NoVersionCarrier:
@@ -168,6 +176,46 @@ class TestDataclassGuards(unittest.TestCase):
     def test_require_version_raises_without_version(self) -> None:
         with self.assertRaises(ValueError):
             wfms.dataclass(require_version=True)(_NoVersionCarrier)
+
+
+class TestAtomicWorkflowDecorators(unittest.TestCase):
+    def test_bare_atomic_attaches_tool(self) -> None:
+        self.assertIsInstance(_fixtures.wfms_add.pwf, decorators.DecoratedAtomic)
+
+    def test_atomic_default_and_explicit_label(self) -> None:
+        self.assertEqual(_fixtures.wfms_add.pwf.node().label, "wfms_add")
+        self.assertEqual(_fixtures.wfms_add.pwf.node("custom").label, "custom")
+
+    def test_atomic_run(self) -> None:
+        run = _fixtures.wfms_add.pwf.run(x=1, y=2)
+        (only,) = run.outputs.keys()
+        self.assertEqual(run.outputs[only].value, 3)
+
+    def test_string_dispatch_relabels_output(self) -> None:
+        self.assertIsInstance(
+            _fixtures.wfms_add_relabelled.pwf, decorators.DecoratedAtomic
+        )
+        self.assertEqual(
+            list(_fixtures.wfms_add_relabelled.pwf.node().outputs), ["relabelled_sum"]
+        )
+
+    def test_workflow_attaches_macro_tool(self) -> None:
+        self.assertIsInstance(_fixtures.wfms_macro.pwf, decorators.DecoratedMacro)
+        self.assertEqual(_fixtures.wfms_macro.pwf.node().label, "wfms_macro")
+
+    def test_macro_validate_returns_report(self) -> None:
+        report = _fixtures.wfms_macro.pwf.validate()
+        self.assertIsInstance(report, validation.CombinedValidationReport)
+
+    def test_invalid_dispatch_raises_type_error(self) -> None:
+        with self.assertRaises(TypeError):
+            decorators._double_wrap_if_decorator_got_args(
+                123, lambda: None, decorators.DecoratedAtomic, "@atomic"
+            )
+
+    def test_local_function_rejected(self) -> None:
+        with self.assertRaises(ImportError):
+            _make_local_atomic()
 
 
 if __name__ == "__main__":
