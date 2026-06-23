@@ -5,6 +5,7 @@ import unittest
 
 import flowrep as fr
 
+from pyiron_workflow._wfms import api as wfms
 from pyiron_workflow._wfms import decorators
 from tests.unit._wfms import _fixtures
 
@@ -75,6 +76,62 @@ class TestInputs2Dataclass(unittest.TestCase):
                 for kind in ref.restricted_input_kinds.values()
             )
         )
+
+
+class TestDataclass2Outputs(unittest.TestCase):
+    def test_plain_ports(self) -> None:
+        node = _fixtures.PlainPoint.pwf_dc2outputs.node()
+        self.assertEqual(list(node.inputs), ["dataclass"])
+        self.assertEqual(list(node.outputs), ["x", "y"])
+
+    def test_plain_run_unpacks_fields(self) -> None:
+        run = _fixtures.PlainPoint.pwf_dc2outputs.run(
+            dataclass=_fixtures.PlainPoint(1.0, 2.0)
+        )
+        self.assertEqual(run.outputs["x"].value, 1.0)
+        self.assertEqual(run.outputs["y"].value, 2.0)
+
+    def test_frozen_read_back(self) -> None:
+        run = _fixtures.FrozenKw.pwf_dc2outputs.run(
+            dataclass=_fixtures.FrozenKw(nova=1.1)
+        )
+        self.assertEqual(run.outputs["nova"].value, 1.1)
+        self.assertEqual(run.outputs["foo"].value, 42)
+
+    def test_init_false_field_is_output_not_input(self) -> None:
+        # init=False -> real field (output) but not a constructor param (no input)
+        self.assertEqual(
+            list(_fixtures.WithInitFalse.pwf_dc2outputs.node().outputs), ["a", "c"]
+        )
+        self.assertEqual(
+            list(_fixtures.WithInitFalse.pwf_inputs2dc.node().inputs), ["a"]
+        )
+        run = _fixtures.WithInitFalse.pwf_dc2outputs.run(
+            dataclass=_fixtures.WithInitFalse(a=1)
+        )
+        self.assertEqual(run.outputs["c"].value, 7)
+
+    def test_init_var_is_input_not_output(self) -> None:
+        # InitVar -> constructor param (input) but not a real field (no output)
+        self.assertEqual(
+            list(_fixtures.WithInitVar.pwf_dc2outputs.node().outputs), ["a", "b"]
+        )
+        self.assertEqual(
+            list(_fixtures.WithInitVar.pwf_inputs2dc.node().inputs), ["a", "d", "b"]
+        )
+
+    def test_round_trip(self) -> None:
+        wf = wfms.Workflow("roundtrip")
+        wf.to_values = _fixtures.PlainPoint.pwf_dc2outputs.node()
+        wf.to_dc = _fixtures.PlainPoint.pwf_inputs2dc.node()
+        wf.create_input_for(wf.to_values.inputs.dataclass)
+        wf.create_output_from(wf.to_dc)
+        for k in wf.to_values.outputs:
+            wf.connect(wf.to_values.outputs[k], wf.to_dc.inputs[k])
+        result = (
+            wf.run(dataclass=_fixtures.PlainPoint(1.0, 2.0)).outputs["dataclass"].value
+        )
+        self.assertEqual(result, _fixtures.PlainPoint(1.0, 2.0))
 
 
 if __name__ == "__main__":

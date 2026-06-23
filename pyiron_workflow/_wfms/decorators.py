@@ -181,7 +181,7 @@ class _DecoratedDataclass(
     _PwfTools[type, fr.schemas.AtomicRecipe, atomic_mod.Atomic], abc.ABC
 ):
     _root_function: ClassVar[staticmethod[..., Any]]
-    _unpack_mode = type[fr.schemas.UnpackMode]
+    _unpack_mode: ClassVar[fr.schemas.UnpackMode]
 
     _node_type = atomic_mod.Atomic
 
@@ -209,6 +209,10 @@ class _DecoratedDataclass(
             if p.annotation is not inspect.Parameter.empty
         }
         self._function.__annotations__["return"] = wrapped
+        # Point __wrapped__ at the dataclass __init__ so that get_type_hints()
+        # can resolve forward-reference annotations (e.g. dataclasses.InitVar[int])
+        # using the dataclass module's globals rather than _root_function's globals.
+        self._function.__wrapped__ = wrapped.__init__  # type: ignore[attr-defined]
 
         dc_version = versions.VersionInfo.of(
             wrapped,
@@ -316,10 +320,7 @@ class Dataclass2Outputs(_DecoratedDataclass):
         list[str],
         inspect.Signature,
     ]:
-        dc_sig = inspect.signature(cls)
-        params = dc_sig.parameters
-
-        outputs = list(params)
+        outputs = [f.name for f in dataclasses.fields(cls)]
 
         input_name = "dataclass"
         func_sig = inspect.Signature(
