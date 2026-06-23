@@ -739,6 +739,6 @@ class WithInitFalse:
 
 @wfms.dataclass
 class WithInitVar:
-    a: int
+    a: "int"  # noqa: UP037
     d: dataclasses.InitVar[int] = 3
     b: int = 5

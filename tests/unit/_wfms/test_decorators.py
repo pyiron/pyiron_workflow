@@ -79,6 +79,10 @@ class TestInputs2Dataclass(unittest.TestCase):
 
 
 class TestDataclass2Outputs(unittest.TestCase):
+    def test_string_annotation_resolves(self):
+        node = _fixtures.WithInitVar.pwf_dc2outputs.node()
+        self.assertEqual(node.outputs["a"].type_hint, int)
+
     def test_plain_ports(self) -> None:
         node = _fixtures.PlainPoint.pwf_dc2outputs.node()
         self.assertEqual(list(node.inputs), ["dataclass"])
