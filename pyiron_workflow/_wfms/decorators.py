@@ -5,7 +5,8 @@ import dataclasses
 import functools
 import inspect
 import types
-from typing import TYPE_CHECKING, Any, ClassVar, Generic, TypeVar
+from collections.abc import Callable
+from typing import TYPE_CHECKING, Any, ClassVar, Generic, TypeVar, cast
 
 import flowrep as fr
 from pyiron_snippets import versions
@@ -101,10 +102,7 @@ _assigned = tuple(
 
 @functools.wraps(fr.tools.atomic, assigned=_assigned)
 def atomic(*args, **kwargs):
-    wrapped = fr.tools.atomic(*args, **kwargs)
-    return _double_wrap_if_decorator_got_args(
-        args[0], wrapped, DecoratedAtomic, "@atomic"
-    )
+    return _attach_pwf_tool(fr.tools.atomic(*args, **kwargs), DecoratedAtomic)
 
 
 atomic.__doc__ = """
@@ -119,50 +117,34 @@ Base `flowrep` documentation:
 """ + (fr.tools.atomic.__doc__ or "")
 
 
-def _double_wrap_if_decorator_got_args(
-    arg0: str | types.FunctionType,
-    wrapped: types.FunctionType,
+def _attach_pwf_tool(
+    flowrep_result: (
+        types.FunctionType | Callable[[types.FunctionType], types.FunctionType]
+    ),
     tool: type[DecoratedAtomic] | type[DecoratedMacro],
-    decorator_name: str,
-):
-    if isinstance(arg0, types.FunctionType):
-        if not hasattr(wrapped, "flowrep_recipe"):  # pragma: no cover
-            raise ValueError(
-                f"The {decorator_name} decorator must be applied to a function "
-                f"decorated with flowrep, as evidenced by the presence of a "
-                f"`flowrep_recipe` attribute. This is an internal error and likely flags "
-                f"a development bug. dir({wrapped!r}) = {dir(wrapped)}."
-            )
-        setattr(
-            wrapped,
-            tool.assign_to,
-            tool(wrapped),
-        )
-        return wrapped
-    elif isinstance(arg0, str):
+) -> types.FunctionType | Callable[[types.FunctionType], types.FunctionType]:
+    if hasattr(flowrep_result, "flowrep_recipe"):
+        # Bare form: flowrep already decorated the function.
+        decorated = cast(types.FunctionType, flowrep_result)
+        setattr(decorated, tool.assign_to, tool(decorated))
+        return decorated
 
-        def wrapped_decorator(func):
-            double_wrapped = wrapped(func)
-            setattr(
-                double_wrapped,
-                tool.assign_to,
-                tool(double_wrapped),
-            )
-            return double_wrapped
+    # Parametrized form: flowrep returned a decorator awaiting the function.
+    flowrep_decorator = cast(
+        Callable[[types.FunctionType], types.FunctionType], flowrep_result
+    )
 
-        return wrapped_decorator
-    else:
-        raise TypeError(
-            f"{decorator_name} can only decorate functions, got {type(arg0).__name__}"
-        )
+    def decorator(func: types.FunctionType) -> types.FunctionType:
+        decorated = flowrep_decorator(func)
+        setattr(decorated, tool.assign_to, tool(decorated))
+        return decorated
+
+    return decorator
 
 
 @functools.wraps(fr.tools.workflow, assigned=_assigned)
 def workflow(*args, **kwargs):
-    wrapped = fr.tools.workflow(*args, **kwargs)
-    return _double_wrap_if_decorator_got_args(
-        args[0], wrapped, DecoratedMacro, "@workflow"
-    )
+    return _attach_pwf_tool(fr.tools.workflow(*args, **kwargs), DecoratedMacro)
 
 
 workflow.__doc__ = """

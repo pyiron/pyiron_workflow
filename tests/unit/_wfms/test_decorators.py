@@ -40,6 +40,10 @@ class _ForbidLambdaCarrier:
     a: int = 0
 
 
+def _nounpack_target(x):
+    return x, x  # with UnpackMode.NONE this stays a single output port
+
+
 class TestDataclassDecorator(unittest.TestCase):
     def test_attaches_both_tools(self) -> None:
         self.assertIsInstance(
@@ -220,9 +224,14 @@ class TestAtomicWorkflowDecorators(unittest.TestCase):
 
     def test_invalid_dispatch_raises_type_error(self) -> None:
         with self.assertRaises(TypeError):
-            decorators._double_wrap_if_decorator_got_args(
-                123, lambda: None, decorators.DecoratedAtomic, "@atomic"
-            )
+            wfms.atomic(123)
+
+    def test_keyword_param_form_attaches_tool(self) -> None:
+        decorated = wfms.atomic(unpack_mode=fr.schemas.UnpackMode.NONE)(
+            _nounpack_target
+        )
+        self.assertIsInstance(decorated.pwf, decorators.DecoratedAtomic)
+        self.assertEqual(len(list(decorated.pwf.node().outputs)), 1)
 
     def test_local_function_rejected(self) -> None:
         with self.assertRaises(ImportError):
