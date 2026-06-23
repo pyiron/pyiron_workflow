@@ -191,7 +191,7 @@ class _DecoratedDataclass(
         version_scraping: versions.VersionScrapingMap | None = None,
         forbid_main: bool = False,
         forbid_locals: bool = False,
-        forbid_lambda: bool = False,
+        forbid_lambda: bool = True,
         require_version: bool = False,
     ):
         super().__init__(wrapped)
@@ -372,6 +372,7 @@ def dataclass(
     version_scraping: versions.VersionScrapingMap | None = None,
     forbid_main: bool = False,
     forbid_locals: bool = False,
+    forbid_lambda: bool = False,  # Meaningless, but harmless
     require_version: bool = False,
     **dataclasses_dataclass_kwargs,
 ):
@@ -386,6 +387,7 @@ def dataclass(
                 version_scraping=version_scraping,
                 forbid_main=forbid_main,
                 forbid_locals=forbid_locals,
+                forbid_lambda=forbid_lambda,
                 require_version=require_version,
             ),
         )
@@ -397,6 +399,7 @@ def dataclass(
                 version_scraping=version_scraping,
                 forbid_main=forbid_main,
                 forbid_locals=forbid_locals,
+                forbid_lambda=forbid_lambda,
                 require_version=require_version,
             ),
         )

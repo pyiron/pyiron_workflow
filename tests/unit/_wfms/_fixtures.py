@@ -694,6 +694,11 @@ def wfms_add(x, y):
     return x + y
 
 
+@wfms.atomic
+def wfms_sub(x, y):
+    return x - y
+
+
 @wfms.atomic("relabelled_sum")
 def wfms_add_relabelled(x, y):
     return x + y
@@ -701,8 +706,8 @@ def wfms_add_relabelled(x, y):
 
 @wfms.workflow
 def wfms_macro(x, y, z):
-    a = add(x, y)
-    s = sub(a, z)
+    a = wfms_add(x, y)
+    s = wfms_sub(a, z)
     return a, s
 
 

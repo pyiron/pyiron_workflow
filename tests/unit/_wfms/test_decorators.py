@@ -36,6 +36,10 @@ class _NoVersionCarrier:
     a: int = 0
 
 
+class _ForbidLambdaCarrier:
+    a: int = 0
+
+
 class TestDataclassDecorator(unittest.TestCase):
     def test_attaches_both_tools(self) -> None:
         self.assertIsInstance(
@@ -176,6 +180,13 @@ class TestDataclassGuards(unittest.TestCase):
     def test_require_version_raises_without_version(self) -> None:
         with self.assertRaises(ValueError):
             wfms.dataclass(require_version=True)(_NoVersionCarrier)
+
+    def test_forbid_lambda_forwarded(self) -> None:
+        # forbid_lambda is irrelevant for a class but must be accepted and
+        # forwarded to both tools without error.
+        dcls = wfms.dataclass(forbid_lambda=True)(_ForbidLambdaCarrier)
+        self.assertIsInstance(dcls.pwf_inputs2dc, decorators.Inputs2Dataclass)
+        self.assertIsInstance(dcls.pwf_dc2outputs, decorators.Dataclass2Outputs)
 
 
 class TestAtomicWorkflowDecorators(unittest.TestCase):
