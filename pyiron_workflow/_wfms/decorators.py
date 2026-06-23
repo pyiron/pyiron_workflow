@@ -117,6 +117,23 @@ Base `flowrep` documentation:
 """ + (fr.tools.atomic.__doc__ or "")
 
 
+@functools.wraps(fr.tools.workflow, assigned=_assigned)
+def workflow(*args, **kwargs):
+    return _attach_pwf_tool(fr.tools.workflow(*args, **kwargs), DecoratedMacro)
+
+
+workflow.__doc__ = """
+A powered-up version of the `flowrep` decorator of the same name.
+
+Additionally adds a `.pwf` attribute holding methods to instantiate the function as a 
+`pyiron_workflow._wfms.api.schemas.Macro` node instance, validate the underlying graph, 
+or create a dynamic node instance and run it.
+
+Base `flowrep` documentation:
+
+""" + (fr.tools.workflow.__doc__ or "")
+
+
 def _attach_pwf_tool(
     flowrep_result: (
         types.FunctionType | Callable[[types.FunctionType], types.FunctionType]
@@ -140,23 +157,6 @@ def _attach_pwf_tool(
         return decorated
 
     return decorator
-
-
-@functools.wraps(fr.tools.workflow, assigned=_assigned)
-def workflow(*args, **kwargs):
-    return _attach_pwf_tool(fr.tools.workflow(*args, **kwargs), DecoratedMacro)
-
-
-workflow.__doc__ = """
-A powered-up version of the `flowrep` decorator of the same name.
-
-Additionally adds a `.pwf` attribute holding methods to instantiate the function as a 
-`pyiron_workflow._wfms.api.schemas.Macro` node instance, validate the underlying graph, 
-or create a dynamic node instance and run it.
-
-Base `flowrep` documentation:
-
-""" + (fr.tools.workflow.__doc__ or "")
 
 
 class _DecoratedDataclass(
