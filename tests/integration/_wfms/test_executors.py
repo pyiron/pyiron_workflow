@@ -1,4 +1,7 @@
 import os
+import pathlib
+import shutil
+import tempfile
 import time
 import unittest
 from concurrent import futures
@@ -6,6 +9,7 @@ from concurrent import futures
 import flowrep as fr
 
 from pyiron_workflow._wfms import api as wfms
+from pyiron_workflow._wfms import executorlib
 
 
 def get_pid(trigger):
@@ -61,6 +65,23 @@ def sleepy_array(times: list[float]) -> list[float]:
         t_sleep = sleepy(t)
         slept_for.append(t_sleep)
     return slept_for
+
+
+@fr.workflow
+def slow_wf(t):
+    s = sleepy(t)
+    return s
+
+
+@fr.workflow
+def two_slow(a, b):
+    x = sleepy(a)
+    y = sleepy(b)
+    return x, y
+
+
+def plain_fn(x):
+    return x
 
 
 class TestExecutors(unittest.TestCase):
@@ -194,3 +215,123 @@ class TestDagParallelism(unittest.TestCase):
                 diff_to_max = abs(t_diff - self.max_time)
                 diff_to_tot = abs(t_diff - self.tot_time)
                 self.assertLess(diff_to_tot, diff_to_max)
+
+
+class TestCachingExecutors(unittest.TestCase):
+    T = 1.0
+
+    def setUp(self) -> None:
+        self.run_root = pathlib.Path(tempfile.mkdtemp())
+
+    def tearDown(self) -> None:
+        shutil.rmtree(self.run_root, ignore_errors=True)
+
+    def _fresh_node(self, executor_cls):
+        node = wfms.node(slow_wf.flowrep_recipe)
+        node.sleepy_0.executor = wfms.ExecutorInstructions(executor_cls)
+        return node
+
+    def _cache_dir(self, run_dir):
+        return run_dir / executorlib.CacheOverride.cache_directory
+
+    def _assert_cached(self, run_dir, lexical_path):
+        names = [p.name for p in self._cache_dir(run_dir).iterdir()]
+        self.assertTrue(
+            any(lexical_path in name for name in names),
+            msg=f"Expected a cache file named for {lexical_path} among {names}",
+        )
+
+    def test_cache_lifecycle(self):
+        for executor_cls in (
+            wfms.tools._CacheTestExecutor,
+            wfms.tools.NodeSingleExecutor,
+        ):
+            with self.subTest(executor=executor_cls.__name__):
+                run_dir = self.run_root / executor_cls.__name__
+                cfg = wfms.RunConfig(run_dir=run_dir)
+
+                node = self._fresh_node(executor_cls)
+                t0 = time.perf_counter()
+                out_cold = node.run(cfg, t=self.T)
+                dt_first = time.perf_counter() - t0
+                self.assertEqual(out_cold.outputs["s"].value, self.T)
+                self._assert_cached(run_dir, node.sleepy_0.lexical_path)
+
+                # Fresh node instance + same run_dir -> reconnect to the cache
+                warm = self._fresh_node(executor_cls)
+                t1 = time.perf_counter()
+                out_warm = warm.run(cfg, t=self.T)
+                dt_second = time.perf_counter() - t1
+                self.assertEqual(out_warm.outputs["s"].value, self.T)
+                self.assertLess(dt_second, dt_first / 2)
+                self.assertLess(dt_second, 1.0)
+
+                # Footgun: different input, same node/dir -> stale cached value
+                t2 = time.perf_counter()
+                out_stale = warm.run(cfg, t=self.T * 99)
+                dt_third = time.perf_counter() - t2
+                self.assertEqual(
+                    out_stale.outputs["s"].value,
+                    self.T,
+                    msg="Cache key is the lexical path only; stale value expected",
+                )
+                self.assertLess(dt_third, 1.0)
+
+    def test_fresh_run_dir_recomputes(self):
+        node_a = self._fresh_node(wfms.tools._CacheTestExecutor)
+        out_a = node_a.run(wfms.RunConfig(run_dir=self.run_root / "a"), t=self.T)
+        self.assertEqual(out_a.outputs["s"].value, self.T)
+
+        # A different run_dir must miss the cache and recompute the new value
+        node_b = self._fresh_node(wfms.tools._CacheTestExecutor)
+        out_b = node_b.run(wfms.RunConfig(run_dir=self.run_root / "b"), t=self.T * 2)
+        self.assertEqual(
+            out_b.outputs["s"].value,
+            self.T * 2,
+            msg="A fresh run_dir must not return a stale cache hit",
+        )
+
+    def test_instance_form_caches(self):
+        cfg = wfms.RunConfig(run_dir=self.run_root / "instance")
+
+        cold = wfms.node(slow_wf.flowrep_recipe)
+        with wfms.tools._CacheTestExecutor() as exe:
+            cold.sleepy_0.executor = exe
+            t0 = time.perf_counter()
+            out_cold = cold.run(cfg, t=self.T)
+            dt_first = time.perf_counter() - t0
+        self.assertEqual(out_cold.outputs["s"].value, self.T)
+
+        warm = wfms.node(slow_wf.flowrep_recipe)
+        with wfms.tools._CacheTestExecutor() as exe:
+            warm.sleepy_0.executor = exe
+            t1 = time.perf_counter()
+            out_warm = warm.run(cfg, t=self.T)
+            dt_second = time.perf_counter() - t1
+        self.assertEqual(out_warm.outputs["s"].value, self.T)
+        self.assertLess(dt_second, dt_first / 2)
+        self.assertLess(dt_second, 1.0)
+
+    def test_distinct_nodes_distinct_cache(self):
+        run_dir = self.run_root / "distinct"
+        cfg = wfms.RunConfig(run_dir=run_dir)
+
+        node = wfms.node(two_slow.flowrep_recipe)
+        node.sleepy_0.executor = wfms.ExecutorInstructions(
+            wfms.tools._CacheTestExecutor
+        )
+        node.sleepy_1.executor = wfms.ExecutorInstructions(
+            wfms.tools._CacheTestExecutor
+        )
+        node.run(cfg, a=0.01, b=0.01)
+
+        self.assertNotEqual(node.sleepy_0.lexical_path, node.sleepy_1.lexical_path)
+        self._assert_cached(run_dir, node.sleepy_0.lexical_path)
+        self._assert_cached(run_dir, node.sleepy_1.lexical_path)
+
+    def test_dedicated_executor_error(self):
+        with (
+            wfms.tools._CacheTestExecutor() as exe,
+            self.assertRaises(executorlib.DedicatedExecutorError),
+        ):
+            exe.submit(plain_fn, 1)
