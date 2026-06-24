@@ -69,7 +69,6 @@ class Steps(list[Run[Any]]):
 
 @dataclasses.dataclass(frozen=True)
 class RunConfig:
-    prime_mover: lexical.LexicalPath
     progress_dir: pathlib.Path = pathlib.Path.cwd()
     progress_hooks: Iterable[
         Callable[[pathlib.Path, datetime.datetime, str, RunStatus], None]
@@ -80,6 +79,15 @@ class RunConfig:
     dag_layers_multithreaded: bool = True
     dag_layers_max_threads: int = 10
     dag_layers_fail_fast: bool = False
+    _prime_mover: lexical.LexicalPath | None = dataclasses.field(
+        default=None, kw_only=True
+    )
+
+    @property
+    def prime_mover(self) -> lexical.LexicalPath:
+        if self._prime_mover is None:
+            raise ValueError("No prime mover specified")
+        return self._prime_mover
 
     def emit_progress(
         self, time: datetime.datetime, lexical_path: str, status: RunStatus
@@ -113,11 +121,9 @@ def run(
     **input_data,
 ):
     if config is None:
-        config = RunConfig(
-            prime_mover=node.lexical_path,
-            progress_dir=pathlib.Path.cwd(),
-            progress_hooks=[],
-        )
+        config = RunConfig(_prime_mover=node.lexical_path)
+    elif config._prime_mover is None:
+        config = dataclasses.replace(config, _prime_mover=node.lexical_path)
 
     if _current_run is None:
         current_run = Run[ResultType](

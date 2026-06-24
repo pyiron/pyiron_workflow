@@ -128,7 +128,6 @@ def _run_and_reload(wf_fnc, **input_data) -> wfms.schemas.Run:
         progress_dir = pathlib.Path(tmp)
         wf = wfms.node(wf_fnc, label=_LABEL)
         config = wfms.RunConfig(
-            prime_mover=_LABEL,
             progress_dir=progress_dir,
             progress_hooks=[],
             exception_hooks=[_pickle_failure],
@@ -340,7 +339,6 @@ class TestOutOfProcessFailure(unittest.TestCase):
             progress_dir = pathlib.Path(tmp)
             wf = wfms.node(composite_failure, label=_LABEL)
             config = wfms.RunConfig(
-                prime_mover=_LABEL,
                 progress_dir=progress_dir,
                 progress_hooks=[],
                 exception_hooks=[_pickle_failure],

@@ -35,9 +35,9 @@ def _make_failing_node(label: str = "boom_node") -> _FailingAtomic:
 
 def _default_config(node: Any, progress_dir: pathlib.Path) -> execution.RunConfig:
     return execution.RunConfig(
-        prime_mover=node.lexical_path,
         progress_dir=progress_dir,
         progress_hooks=[],
+        prime_mover=node.lexical_path,
     )
 
 
@@ -92,13 +92,13 @@ class TestRunDuration(unittest.TestCase):
 class TestRunConfigIsPrimeMover(unittest.TestCase):
     def test_matching_lexical_path_returns_true(self) -> None:
         node = _fixtures.atomic_add_node()
-        config = _default_config(node, pathlib.Path.cwd())
+        config = execution.RunConfig(_prime_mover=node.lexical_path)
         self.assertTrue(config.is_prime_mover(node))
 
     def test_non_matching_lexical_path_returns_false(self) -> None:
         node = _fixtures.atomic_add_node()
         other = _fixtures.atomic_add_node(label="not_the_same")
-        config = _default_config(node, pathlib.Path.cwd())
+        config = execution.RunConfig(_prime_mover=node.lexical_path)
         self.assertFalse(config.is_prime_mover(other))
 
 
@@ -127,18 +127,17 @@ class TestRunConfigEmitProgress(unittest.TestCase):
         ) -> None:
             captured_b.append((progress_dir, t, lp, status))
 
-        progress_dir = pathlib.Path("/tmp/whatever")
-        config = execution.RunConfig(
-            prime_mover="pm",
-            progress_dir=progress_dir,
-            progress_hooks=[hook_a, hook_b],
-        )
-        now = datetime.datetime(2026, 1, 1, 12, 0, 0)
-        config.emit_progress(now, "pm", execution.RunStatus.PENDING)
+        with tempfile.TemporaryDirectory() as tmp:
+            config = execution.RunConfig(
+                progress_dir=tmp,
+                progress_hooks=[hook_a, hook_b],
+            )
+            now = datetime.datetime(2026, 1, 1, 12, 0, 0)
+            config.emit_progress(now, "pm", execution.RunStatus.PENDING)
 
-        expected = [(progress_dir, now, "pm", execution.RunStatus.PENDING)]
-        self.assertEqual(captured_a, expected)
-        self.assertEqual(captured_b, expected)
+            expected = [(tmp, now, "pm", execution.RunStatus.PENDING)]
+            self.assertEqual(captured_a, expected)
+            self.assertEqual(captured_b, expected)
 
 
 # --------------------------------------------------------------------------- #
@@ -196,7 +195,6 @@ class TestRunHappyPath(unittest.TestCase):
 
         with tempfile.TemporaryDirectory() as tmp:
             config = execution.RunConfig(
-                prime_mover=node.lexical_path,
                 progress_dir=pathlib.Path(tmp),
                 progress_hooks=[hook],
             )
@@ -231,7 +229,6 @@ class TestRunFailurePath(unittest.TestCase):
             progress_dir = pathlib.Path(tmp)
 
             config = execution.RunConfig(
-                prime_mover=node.lexical_path,
                 progress_dir=progress_dir,
                 progress_hooks=[],
                 exception_hooks=[dump],
@@ -265,7 +262,7 @@ class TestRunExecutorBranches(unittest.TestCase):
             kwargs={"max_workers": 1},
         )
         with tempfile.TemporaryDirectory() as tmp:
-            config = _default_config(node, pathlib.Path(tmp))
+            config = execution.RunConfig(progress_dir=pathlib.Path(tmp))
             run = execution.run(node, config, x=1, y=2)
         self.assertEqual(run.status, execution.RunStatus.FINISHED)
         self.assertEqual(run.outputs["output_0"].value, 3)
@@ -275,7 +272,7 @@ class TestRunExecutorBranches(unittest.TestCase):
         with futures.ThreadPoolExecutor(max_workers=1) as exe:
             node.executor = exe
             with tempfile.TemporaryDirectory() as tmp:
-                config = _default_config(node, pathlib.Path(tmp))
+                config = execution.RunConfig(progress_dir=pathlib.Path(tmp))
                 run = execution.run(node, config, x=1, y=2)
         self.assertEqual(run.status, execution.RunStatus.FINISHED)
         self.assertEqual(run.outputs["output_0"].value, 3)
@@ -284,7 +281,7 @@ class TestRunExecutorBranches(unittest.TestCase):
         node = _fixtures.atomic_add_node()
         self.assertIsNone(node.executor)
         with tempfile.TemporaryDirectory() as tmp:
-            config = _default_config(node, pathlib.Path(tmp))
+            config = execution.RunConfig(progress_dir=pathlib.Path(tmp))
             run = execution.run(node, config, x=1, y=2)
         self.assertEqual(run.status, execution.RunStatus.FINISHED)
         self.assertEqual(run.outputs["output_0"].value, 3)
@@ -299,7 +296,7 @@ class TestRunExecutorBranches(unittest.TestCase):
         # fallthrough.
         node.executor = "not an executor"  # type: ignore[assignment]
         with tempfile.TemporaryDirectory() as tmp:
-            config = _default_config(node, pathlib.Path(tmp))
+            config = execution.RunConfig(progress_dir=pathlib.Path(tmp))
             with self.assertRaises(TypeError) as ctx:
                 execution.run(node, config, x=1, y=2)
         self.assertIn(node.lexical_path, str(ctx.exception))
@@ -325,7 +322,6 @@ class TestRunProgressHooks(unittest.TestCase):
 
         with tempfile.TemporaryDirectory() as tmp:
             config = execution.RunConfig(
-                prime_mover=macro.lexical_path,
                 progress_dir=pathlib.Path(tmp),
                 progress_hooks=[hook],
             )
