@@ -85,8 +85,13 @@ class RunConfig:
 
     @property
     def prime_mover(self) -> lexical.LexicalPath:
-        if self._prime_mover is None:
-            raise ValueError("No prime mover specified")
+        if self._prime_mover is None:  # pragma: no cover
+            raise ValueError(
+                f"No prime mover specified. The only known application of "
+                f"{self.__class__.__name__} is inside "
+                f"{run.__module__}.{run.__qualname__}, which should manually override "
+                f"None-values; this should be unreachable."
+            )
         return self._prime_mover
 
     def emit_progress(
