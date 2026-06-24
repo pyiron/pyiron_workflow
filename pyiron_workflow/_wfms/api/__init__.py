@@ -7,5 +7,6 @@ from pyiron_workflow._wfms.api.schemas import (
 from pyiron_workflow._wfms.api.schemas import RunConfig as RunConfig
 from pyiron_workflow._wfms.api.schemas import Workflow as Workflow
 from pyiron_workflow._wfms.api.tools import atomic as atomic
+from pyiron_workflow._wfms.api.tools import dataclass as dataclass
 from pyiron_workflow._wfms.api.tools import node as node
 from pyiron_workflow._wfms.api.tools import workflow as workflow

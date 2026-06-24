@@ -66,9 +66,9 @@ class TestMacro(unittest.TestCase):
     def test_edges_constructed_from_recipe(self) -> None:
         n = _fixtures.macro_node()
         recipe_edges = (
-            [(source, target) for target, source in n._recipe.input_edges.items()]
-            + [(source, target) for target, source in n._recipe.edges.items()]
-            + [(source, target) for target, source in n._recipe.output_edges.items()]
+            [(source, target) for target, source in n.recipe.input_edges.items()]
+            + [(source, target) for target, source in n.recipe.edges.items()]
+            + [(source, target) for target, source in n.recipe.output_edges.items()]
         )
         self.assertSetEqual(set(recipe_edges), set(n.edges))
 
