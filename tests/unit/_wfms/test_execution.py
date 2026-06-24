@@ -33,9 +33,9 @@ def _make_failing_node(label: str = "boom_node") -> _FailingAtomic:
     return _FailingAtomic(label, _fixtures.add.flowrep_recipe)
 
 
-def _default_config(node: Any, progress_dir: pathlib.Path) -> execution.RunConfig:
+def _default_config(node: Any, run_dir: pathlib.Path) -> execution.RunConfig:
     return execution.RunConfig(
-        progress_dir=progress_dir,
+        run_dir=run_dir,
         progress_hooks=[],
         prime_mover=node.lexical_path,
     )
@@ -112,30 +112,31 @@ class TestRunConfigEmitProgress(unittest.TestCase):
         ] = []
 
         def hook_a(
-            progress_dir: pathlib.Path,
+            run_dir: pathlib.Path,
             t: datetime.datetime,
             lp: str,
             status: execution.RunStatus,
         ) -> None:
-            captured_a.append((progress_dir, t, lp, status))
+            captured_a.append((run_dir, t, lp, status))
 
         def hook_b(
-            progress_dir: pathlib.Path,
+            run_dir: pathlib.Path,
             t: datetime.datetime,
             lp: str,
             status: execution.RunStatus,
         ) -> None:
-            captured_b.append((progress_dir, t, lp, status))
+            captured_b.append((run_dir, t, lp, status))
 
         with tempfile.TemporaryDirectory() as tmp:
+            run_dir = pathlib.Path(tmp)
             config = execution.RunConfig(
-                progress_dir=tmp,
+                run_dir=run_dir,
                 progress_hooks=[hook_a, hook_b],
             )
             now = datetime.datetime(2026, 1, 1, 12, 0, 0)
             config.emit_progress(now, "pm", execution.RunStatus.PENDING)
 
-            expected = [(tmp, now, "pm", execution.RunStatus.PENDING)]
+            expected = [(run_dir, now, "pm", execution.RunStatus.PENDING)]
             self.assertEqual(captured_a, expected)
             self.assertEqual(captured_b, expected)
 
@@ -186,7 +187,7 @@ class TestRunHappyPath(unittest.TestCase):
         captured: list[tuple[str, execution.RunStatus]] = []
 
         def hook(
-            progress_dir: pathlib.Path,
+            run_dir: pathlib.Path,
             t: datetime.datetime,
             lp: str,
             status: execution.RunStatus,
@@ -195,7 +196,7 @@ class TestRunHappyPath(unittest.TestCase):
 
         with tempfile.TemporaryDirectory() as tmp:
             config = execution.RunConfig(
-                progress_dir=pathlib.Path(tmp),
+                run_dir=pathlib.Path(tmp),
                 progress_hooks=[hook],
             )
             run = execution.run(node, config, x=1, y=2)
@@ -222,14 +223,14 @@ class TestRunFailurePath(unittest.TestCase):
 
         dump_calls = []
 
-        def dump(progress_dir: pathlib.Path, run, exception) -> None:
-            dump_calls.append((progress_dir / run.lexical_path, run.status))
+        def dump(run_dir: pathlib.Path, run, exception) -> None:
+            dump_calls.append((run_dir / run.lexical_path, run.status))
 
         with tempfile.TemporaryDirectory() as tmp:
-            progress_dir = pathlib.Path(tmp)
+            run_dir = pathlib.Path(tmp)
 
             config = execution.RunConfig(
-                progress_dir=progress_dir,
+                run_dir=run_dir,
                 progress_hooks=[],
                 exception_hooks=[dump],
             )
@@ -242,7 +243,7 @@ class TestRunFailurePath(unittest.TestCase):
                 dump_calls,
                 [
                     (
-                        progress_dir / node.lexical_path,
+                        run_dir / node.lexical_path,
                         execution.RunStatus.FAILED,
                     )
                 ],
@@ -262,7 +263,7 @@ class TestRunExecutorBranches(unittest.TestCase):
             kwargs={"max_workers": 1},
         )
         with tempfile.TemporaryDirectory() as tmp:
-            config = execution.RunConfig(progress_dir=pathlib.Path(tmp))
+            config = execution.RunConfig(run_dir=pathlib.Path(tmp))
             run = execution.run(node, config, x=1, y=2)
         self.assertEqual(run.status, execution.RunStatus.FINISHED)
         self.assertEqual(run.outputs["output_0"].value, 3)
@@ -272,7 +273,7 @@ class TestRunExecutorBranches(unittest.TestCase):
         with futures.ThreadPoolExecutor(max_workers=1) as exe:
             node.executor = exe
             with tempfile.TemporaryDirectory() as tmp:
-                config = execution.RunConfig(progress_dir=pathlib.Path(tmp))
+                config = execution.RunConfig(run_dir=pathlib.Path(tmp))
                 run = execution.run(node, config, x=1, y=2)
         self.assertEqual(run.status, execution.RunStatus.FINISHED)
         self.assertEqual(run.outputs["output_0"].value, 3)
@@ -281,7 +282,7 @@ class TestRunExecutorBranches(unittest.TestCase):
         node = _fixtures.atomic_add_node()
         self.assertIsNone(node.executor)
         with tempfile.TemporaryDirectory() as tmp:
-            config = execution.RunConfig(progress_dir=pathlib.Path(tmp))
+            config = execution.RunConfig(run_dir=pathlib.Path(tmp))
             run = execution.run(node, config, x=1, y=2)
         self.assertEqual(run.status, execution.RunStatus.FINISHED)
         self.assertEqual(run.outputs["output_0"].value, 3)
@@ -296,7 +297,7 @@ class TestRunExecutorBranches(unittest.TestCase):
         # fallthrough.
         node.executor = "not an executor"  # type: ignore[assignment]
         with tempfile.TemporaryDirectory() as tmp:
-            config = execution.RunConfig(progress_dir=pathlib.Path(tmp))
+            config = execution.RunConfig(run_dir=pathlib.Path(tmp))
             with self.assertRaises(TypeError) as ctx:
                 execution.run(node, config, x=1, y=2)
         self.assertIn(node.lexical_path, str(ctx.exception))
@@ -313,7 +314,7 @@ class TestRunProgressHooks(unittest.TestCase):
         captured: list[tuple[str, execution.RunStatus]] = []
 
         def hook(
-            progress_dir: pathlib.Path,
+            run_dir: pathlib.Path,
             t: datetime.datetime,
             lp: str,
             status: execution.RunStatus,
@@ -322,7 +323,7 @@ class TestRunProgressHooks(unittest.TestCase):
 
         with tempfile.TemporaryDirectory() as tmp:
             config = execution.RunConfig(
-                progress_dir=pathlib.Path(tmp),
+                run_dir=pathlib.Path(tmp),
                 progress_hooks=[hook],
             )
             execution.run(macro, config, x=1, y=2, z=3)

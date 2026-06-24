@@ -125,17 +125,17 @@ def _pickle_failure(path: pathlib.Path, run: wfms.schemas.Run, exception) -> Non
 def _run_and_reload(wf_fnc, **input_data) -> wfms.schemas.Run:
     """Run ``wf_fnc``, expect RuntimeError, return the loaded pickled failure."""
     with tempfile.TemporaryDirectory() as tmp:
-        progress_dir = pathlib.Path(tmp)
+        run_dir = pathlib.Path(tmp)
         wf = wfms.node(wf_fnc, label=_LABEL)
         config = wfms.RunConfig(
-            progress_dir=progress_dir,
+            run_dir=run_dir,
             progress_hooks=[],
             exception_hooks=[_pickle_failure],
         )
         try:
             return wfms.tools.run(wf, config, **input_data)
         except RuntimeError:
-            dump_path = progress_dir / _failure_name(wf.lexical_path)
+            dump_path = run_dir / _failure_name(wf.lexical_path)
             with open(dump_path, "rb") as f:
                 return pickle.load(f)
 
@@ -336,10 +336,10 @@ class TestOutOfProcessFailure(unittest.TestCase):
 
     def test_while_failure_on_process_pool(self) -> None:
         with tempfile.TemporaryDirectory() as tmp:
-            progress_dir = pathlib.Path(tmp)
+            run_dir = pathlib.Path(tmp)
             wf = wfms.node(composite_failure, label=_LABEL)
             config = wfms.RunConfig(
-                progress_dir=progress_dir,
+                run_dir=run_dir,
                 progress_hooks=[],
                 exception_hooks=[_pickle_failure],
             )
@@ -351,7 +351,7 @@ class TestOutOfProcessFailure(unittest.TestCase):
             except RuntimeError:
                 pass  # That's the point here
 
-            with open(progress_dir / _failure_name(wf.lexical_path), "rb") as f:
+            with open(run_dir / _failure_name(wf.lexical_path), "rb") as f:
                 reloaded = pickle.load(f)
 
             penultimate_body_child = (

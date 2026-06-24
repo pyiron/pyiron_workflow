@@ -43,7 +43,7 @@ class Run(Generic[ResultType]):
     exception: BaseException | ExceptionGroup | None = None
     started_at: datetime.datetime | None = None
     finished_at: datetime.datetime | None = None
-    progress_dir: pathlib.Path | None = None
+    run_dir: pathlib.Path | None = None
     steps: Steps = dataclasses.field(default_factory=_make_steps)
 
     @property
@@ -69,7 +69,7 @@ class Steps(list[Run[Any]]):
 
 @dataclasses.dataclass(frozen=True)
 class RunConfig:
-    progress_dir: pathlib.Path = pathlib.Path.cwd()
+    run_dir: pathlib.Path = pathlib.Path.cwd()
     progress_hooks: Iterable[
         Callable[[pathlib.Path, datetime.datetime, str, RunStatus], None]
     ] = dataclasses.field(default_factory=list)
@@ -93,11 +93,11 @@ class RunConfig:
         self, time: datetime.datetime, lexical_path: str, status: RunStatus
     ):
         for hook in self.progress_hooks:
-            hook(self.progress_dir, time, lexical_path, status)
+            hook(self.run_dir, time, lexical_path, status)
 
     def emit_exception(self, failed_run: Run[ResultType], exception: BaseException):
         for hook in self.exception_hooks:
-            hook(self.progress_dir, failed_run, exception)
+            hook(self.run_dir, failed_run, exception)
 
     def is_prime_mover(self, candidate: Node[Any, Any]) -> bool:
         return candidate.lexical_path == self.prime_mover
@@ -130,7 +130,7 @@ def run(
             lexical_path=lexical.LexicalPath(node.label),
             result=node.generate_flowrep_live_node(),
             status=RunStatus.PENDING,
-            progress_dir=config.progress_dir,
+            run_dir=config.run_dir,
         )
     else:
         current_run = _current_run

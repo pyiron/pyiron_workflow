@@ -154,7 +154,7 @@ class TestNodeRun(unittest.TestCase):
         calls: list[execution.RunStatus] = []
 
         def hook(
-            progress_dir: pathlib.Path,
+            run_dir: pathlib.Path,
             time: datetime.datetime,
             lexical_path: str,
             status: execution.RunStatus,
@@ -175,7 +175,7 @@ class TestNodeRun(unittest.TestCase):
         seen_paths: list[str] = []
 
         def hook(
-            progress_dir: pathlib.Path,
+            run_dir: pathlib.Path,
             time: datetime.datetime,
             lexical_path: str,
             status: execution.RunStatus,
