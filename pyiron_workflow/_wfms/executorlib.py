@@ -1,0 +1,88 @@
+"""
+Simple wrappers around executorlib executors, which are exclusively intended to
+submit the core execution routine, and which override executorlib caching directory with
+the run configuration directory and cache file roots with the lexical path.
+
+This makes it possible to recover executorlib-cached data between python processes
+(e.g. shutting down your notebook and coming back), but the onus is on the _user_ to
+specify the right terminal input data to correspond with this run configuration
+directory -- we don't do any data hashing.
+I.e., make a fresh run config directory for each iteration of input data where the
+caching executors are being leveraged.
+"""
+
+from typing import Any, ClassVar
+
+import executorlib
+import executorlib.api as exlib_api
+
+from pyiron_workflow._wfms import execution
+
+
+class DedicatedExecutorError(TypeError):
+    """
+    To raise when you try to use one of these executors outside the context of a node.
+    """
+
+
+class ProtectedResourceError(ValueError):
+    """
+    Raise when a user provides executorlib resources that we need to override.
+    """
+
+
+class CacheOverride(executorlib.BaseExecutor):
+    cache_directory: ClassVar[str] = "executorlib_cache"
+
+    def submit(self, fn, /, *args, **kwargs):
+        """
+        Modify behaviour when submitting for a pyiron_workflow execution loop
+        """
+        if fn is execution._return_mutated_state_with_any_exception:
+            assert len(args) == 3, "enforce implementation expectations on _return..."
+            node, _, config = args
+            cache_key_info = {
+                "cache_key": node.lexical_path,
+                "cache_directory": str(config.run_dir / self.cache_directory),
+            }
+        else:
+            raise DedicatedExecutorError(
+                f"{self.__class__.__name__} is only intended to work with the "
+                f"run routine of pyiron_workflow, but got submitted {fn!r} with input"
+                f"{args!r}, and {kwargs!r}"
+            )
+
+        _validate_existing_resource_dict(kwargs)
+
+        if "resource_dict" in kwargs:
+            kwargs["resource_dict"].update(cache_key_info)
+        else:
+            kwargs["resource_dict"] = cache_key_info
+
+        return super().submit(fn, *args, **kwargs)
+
+
+def _validate_existing_resource_dict(kwargs: dict[str, Any]):
+    if "resource_dict" in kwargs:
+        if "cache_key" in kwargs["resource_dict"]:
+            raise ProtectedResourceError(
+                f"pyiron_workflow needs the freedom to specify the cache, so the "
+                f'requested "cache_key" '
+                f"({kwargs['resource_dict']['cache_key']}) would get overwritten."
+            )
+        if "cache_directory" in kwargs["resource_dict"]:
+            raise ProtectedResourceError(
+                f"pyiron_workflow needs the freedom to specify the cache, so the "
+                f'requested "cache_directory" '
+                f"({kwargs['resource_dict']['cache_directory']})would get "
+                f"overwritten."
+            )
+
+
+class NodeSingleExecutor(CacheOverride, executorlib.SingleNodeExecutor): ...
+
+
+class NodeSlurmExecutor(CacheOverride, executorlib.SlurmClusterExecutor): ...
+
+
+class _CacheTestExecutor(CacheOverride, exlib_api.TestClusterExecutor): ...
