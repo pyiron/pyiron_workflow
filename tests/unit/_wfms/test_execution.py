@@ -5,7 +5,6 @@ import pathlib
 import tempfile
 import unittest
 from concurrent import futures
-from typing import Any
 
 import flowrep as fr
 
@@ -31,14 +30,6 @@ class _FailingAtomic(atomic.Atomic):
 def _make_failing_node(label: str = "boom_node") -> _FailingAtomic:
     """Build a :class:`_FailingDumpingAtomic` reusing the `add` recipe."""
     return _FailingAtomic(label, _fixtures.add.flowrep_recipe)
-
-
-def _default_config(node: Any, run_dir: pathlib.Path) -> execution.RunConfig:
-    return execution.RunConfig(
-        run_dir=run_dir,
-        progress_hooks=[],
-        prime_mover=node.lexical_path,
-    )
 
 
 # --------------------------------------------------------------------------- #
