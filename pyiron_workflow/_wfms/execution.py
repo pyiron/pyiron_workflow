@@ -181,7 +181,7 @@ def _submit(
 
 
 def _return_mutated_state_with_any_exception(
-    node: Node[Any, ResultType], current_run: Run[ResultType], config: RunConfig
+    node: Node[Any, ResultType], current_run: Run[ResultType], config: RunConfig, /
 ) -> tuple[Run[ResultType], BaseException | None]:
     """
     If an out-of-process evaluation fails, we have no way of recovering its
