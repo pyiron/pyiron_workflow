@@ -43,7 +43,7 @@ class Run(Generic[ResultType]):
     exception: BaseException | ExceptionGroup | None = None
     started_at: datetime.datetime | None = None
     finished_at: datetime.datetime | None = None
-    progress_dir: pathlib.Path | None = None
+    run_dir: pathlib.Path | None = None
     steps: Steps = dataclasses.field(default_factory=_make_steps)
 
     @property
@@ -69,8 +69,7 @@ class Steps(list[Run[Any]]):
 
 @dataclasses.dataclass(frozen=True)
 class RunConfig:
-    prime_mover: lexical.LexicalPath
-    progress_dir: pathlib.Path = pathlib.Path.cwd()
+    run_dir: pathlib.Path = pathlib.Path.cwd()
     progress_hooks: Iterable[
         Callable[[pathlib.Path, datetime.datetime, str, RunStatus], None]
     ] = dataclasses.field(default_factory=list)
@@ -80,16 +79,30 @@ class RunConfig:
     dag_layers_multithreaded: bool = True
     dag_layers_max_threads: int = 10
     dag_layers_fail_fast: bool = False
+    _prime_mover: lexical.LexicalPath | None = dataclasses.field(
+        default=None, kw_only=True
+    )
+
+    @property
+    def prime_mover(self) -> lexical.LexicalPath:
+        if self._prime_mover is None:  # pragma: no cover
+            raise ValueError(
+                f"No prime mover specified. The only known application of "
+                f"{self.__class__.__name__} is inside "
+                f"{run.__module__}.{run.__qualname__}, which should manually override "
+                f"None-values; this should be unreachable."
+            )
+        return self._prime_mover
 
     def emit_progress(
         self, time: datetime.datetime, lexical_path: str, status: RunStatus
     ):
         for hook in self.progress_hooks:
-            hook(self.progress_dir, time, lexical_path, status)
+            hook(self.run_dir, time, lexical_path, status)
 
     def emit_exception(self, failed_run: Run[ResultType], exception: BaseException):
         for hook in self.exception_hooks:
-            hook(self.progress_dir, failed_run, exception)
+            hook(self.run_dir, failed_run, exception)
 
     def is_prime_mover(self, candidate: Node[Any, Any]) -> bool:
         return candidate.lexical_path == self.prime_mover
@@ -113,18 +126,16 @@ def run(
     **input_data,
 ):
     if config is None:
-        config = RunConfig(
-            prime_mover=node.lexical_path,
-            progress_dir=pathlib.Path.cwd(),
-            progress_hooks=[],
-        )
+        config = RunConfig(_prime_mover=node.lexical_path)
+    elif config._prime_mover is None:
+        config = dataclasses.replace(config, _prime_mover=node.lexical_path)
 
     if _current_run is None:
         current_run = Run[ResultType](
             lexical_path=lexical.LexicalPath(node.label),
             result=node.generate_flowrep_live_node(),
             status=RunStatus.PENDING,
-            progress_dir=config.progress_dir,
+            run_dir=config.run_dir,
         )
     else:
         current_run = _current_run
@@ -181,7 +192,7 @@ def _submit(
 
 
 def _return_mutated_state_with_any_exception(
-    node: Node[Any, ResultType], current_run: Run[ResultType], config: RunConfig
+    node: Node[Any, ResultType], current_run: Run[ResultType], config: RunConfig, /
 ) -> tuple[Run[ResultType], BaseException | None]:
     """
     If an out-of-process evaluation fails, we have no way of recovering its

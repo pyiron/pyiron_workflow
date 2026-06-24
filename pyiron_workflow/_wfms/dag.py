@@ -183,7 +183,7 @@ def evaluate_node(
         lexical_path=lexical.lexical_path(run.lexical_path, label_in_run),
         result=node.generate_flowrep_live_node(),
         status=execution.RunStatus.PENDING,
-        progress_dir=config.progress_dir,
+        run_dir=config.run_dir,
     )
     run.steps.append(sub_run)
     result.nodes[label_in_run] = sub_run.result
