@@ -5,4 +5,7 @@ from pyiron_workflow._wfms.decorators import atomic as atomic
 from pyiron_workflow._wfms.decorators import dataclass as dataclass
 from pyiron_workflow._wfms.decorators import workflow as workflow
 from pyiron_workflow._wfms.execution import run as run
+from pyiron_workflow._wfms.executorlib import NodeSingleExecutor as NodeSingleExecutor
+from pyiron_workflow._wfms.executorlib import NodeSlurmExecutor as NodeSlurmExecutor
+from pyiron_workflow._wfms.executorlib import _CacheTestExecutor as _CacheTestExecutor
 from pyiron_workflow._wfms.validation import validate_plan as validate_plan
