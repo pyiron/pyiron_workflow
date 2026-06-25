@@ -93,8 +93,7 @@ def setup(callbacks=None):
     wf = three_step.pwf.node()
 
     wf.sleepy_0.executor = pwf.ExecutorInstructions(
-        # pwf.tools.NodeSlurmExecutor,
-        pwf.tools.NodeSingleExecutor,
+        pwf.tools.NodeSlurmExecutor,
         (),
         {"resource_dict": resource_dict},
     )
@@ -103,13 +102,28 @@ def setup(callbacks=None):
     return wf, cfg
 
 
+def setup_node_executor(callbacks=None):
+    wf = three_step.pwf.node()
+
+    wf.sleepy_0.executor = pwf.ExecutorInstructions(
+        pwf.tools.NodeSingleExecutor, (), {}
+    )
+
+    cfg = pwf.RunConfig(run_dir=TEMPDIR, progress_hooks=callbacks or [])
+    return wf, cfg
+
+
 def submission():
+    return
     wf, cfg = setup([pwf.ProgressHook(kill_sleeper)])
     out = wf.run(cfg, t=T_SLEEP)
     print("FINISHED", out.outputs)
 
 
 def interruption():
+    wf, cfg = setup([pwf.ProgressHook(kill_sleeper)])
+    out = wf.run(cfg, t=T_SLEEP)
+    print("FINISHED", out.outputs)
     return
     print_queue("Queue at interruption time")
     assert_queue_has_n_items(1)
@@ -127,6 +141,9 @@ def interruption():
 
 
 def discovery():
+    wf, cfg = setup_node_executor([pwf.ProgressHook(kill_sleeper)])
+    out = wf.run(cfg, t=T_SLEEP)
+    print("FINISHED", out.outputs)
     return
     print_queue("Queue at discovery time")
     assert_queue_has_n_items(1)
