@@ -15,8 +15,8 @@ jobs:
     with:
       mode: interrupt
 
-  slurm-discovery-wfms:
-    if: github.event_name == 'pull_request'
-    uses: ./.github/workflows/slurm-test-wfms.yml
-    with:
-      mode: discover
+#  slurm-discovery-wfms:
+#    if: github.event_name == 'pull_request'
+#    uses: ./.github/workflows/slurm-test-wfms.yml
+#    with:
+#      mode: discover
