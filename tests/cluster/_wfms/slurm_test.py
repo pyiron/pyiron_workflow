@@ -73,7 +73,7 @@ def assert_queue_has_n_items(n: int) -> None:
     assert len(jobs) == n, f"Expected {n} job(s) in queue, found {len(jobs)}: {jobs}"
 
 
-def setup(dir: str, callbacks=None):
+def setup(callbacks=None):
     submission_template = """\
 #!/bin/bash
 #SBATCH --output=time.out
