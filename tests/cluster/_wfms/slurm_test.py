@@ -39,6 +39,7 @@ def kill_sleeper(
     lexical_path: str,
     status: pwf.schemas.RunStatus,
 ):
+    print("CALLBACK REACHED")
     hard_coded_sleepy_path = "three_step.sleepy_0"
     if (
         lexical_path == hard_coded_sleepy_path
@@ -69,7 +70,7 @@ def assert_queue_has_n_items(n: int) -> None:
     assert len(jobs) == n, f"Expected {n} job(s) in queue, found {len(jobs)}: {jobs}"
 
 
-def setup():
+def setup(callbacks=None):
     submission_template = """\
     #!/bin/bash
     #SBATCH --output=time.out
@@ -90,12 +91,12 @@ def setup():
         {"resource_dict": resource_dict},
     )
 
-    cfg = pwf.RunConfig(run_dir=TEMPDIR, progress_hooks=[kill_sleeper])
+    cfg = pwf.RunConfig(run_dir=TEMPDIR, progress_hooks=callbacks or [])
     return wf, cfg
 
 
 def submission():
-    wf, cfg = setup()
+    wf, cfg = setup([kill_sleeper])
     wf.run(cfg, t=T_SLEEP)
 
 
