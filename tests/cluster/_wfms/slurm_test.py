@@ -102,7 +102,7 @@ def setup(callbacks=None):
 
 
 def submission():
-    wf, cfg = setup([kill_sleeper])
+    wf, cfg = setup([pwf.ProgressHook(kill_sleeper)])
     wf.run(cfg, t=T_SLEEP)
 
 
