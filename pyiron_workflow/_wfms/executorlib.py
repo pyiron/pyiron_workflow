@@ -38,28 +38,28 @@ class CacheOverride(executorlib.BaseExecutor):
         """
         Modify behaviour when submitting for a pyiron_workflow execution loop
         """
-        if fn is execution._return_mutated_state_with_any_exception:
-            assert len(args) == 3, "enforce implementation expectations on _return..."
-            node, _, config = args
-            cache_key_info = {
-                "cache_key": node.lexical_path,
-                "cache_directory": str(config.run_dir / self.cache_directory),
-            }
-        else:
+        if (
+            fn is not execution._return_mutated_state_with_any_exception
+            or len(args) != 3
+            or len(kwargs) != 0
+        ):
             raise DedicatedExecutorError(
                 f"{self.__class__.__name__} is only intended to work with the "
-                f"run routine of pyiron_workflow, but got submitted {fn!r} with input"
+                f"run routine of pyiron_workflow: "
+                f"{execution._return_mutated_state_with_any_exception.__module__}."
+                f"{execution._return_mutated_state_with_any_exception.__qualname__}, and "
+                f"its three expected arguments, but got submitted {fn!r} with input "
                 f"{args!r}, and {kwargs!r}"
             )
 
-        _validate_existing_resource_dict(kwargs)
+        node, _, config = args
+        cache_key_info = {
+            "cache_key": node.lexical_path,
+            "cache_directory": str(config.run_dir / self.cache_directory),
+        }
+        super_kwargs = {"resource_dict": cache_key_info}
 
-        if "resource_dict" in kwargs:
-            kwargs["resource_dict"].update(cache_key_info)
-        else:
-            kwargs["resource_dict"] = cache_key_info
-
-        return super().submit(fn, *args, **kwargs)
+        return super().submit(fn, *args, **super_kwargs)
 
 
 def _validate_existing_resource_dict(kwargs: dict[str, Any]):
