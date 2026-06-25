@@ -122,6 +122,7 @@ def interruption():
     t0 = time.time()
     out = wf.run(cfg, t=T_SLEEP)
     dt = time.time() - t0
+    print("Result", out.outputs, "in", dt)
     assert_queue_has_n_items(0)
     assert (
         dt > 0.5 * T_SLEEP
@@ -141,6 +142,7 @@ def discovery():
     t0 = time.time()
     out = wf.run(cfg, t=T_SLEEP)
     dt = time.time() - t0
+    print("Result", out.outputs, "in", dt)
     assert (
         dt < 0.1 * T_SLEEP
     ), f"Expected to get a quick cache hit, but got a large -- {dt}"
