@@ -45,6 +45,7 @@ def kill_sleeper(
         and status == pwf.schemas.RunStatus.RUNNING
     ):
         time.sleep(1)  # give the job a second to process
+        print_queue("Queue at kill time")
         assert_queue_has_n_items(1)
         os._exit(0)  # Then hard exit so that we don't even wait for the executor
 
