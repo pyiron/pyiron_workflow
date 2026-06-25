@@ -44,8 +44,11 @@ def kill_sleeper(
         lexical_path == hard_coded_sleepy_path
         and status == pwf.schemas.RunStatus.RUNNING
     ):
-        time.sleep(0.5)  # give the job a second to process
-        print_queue("Queue at callback kill-time")
+        print_queue("Queue at callback kill-time -- immediate")
+        time.sleep(0.25)  # give the job a second to process
+        print_queue("Queue at callback kill-time -- fast")
+        time.sleep(1)  # give the job a second to process
+        print_queue("Queue at callback kill-time -- slow")
         os._exit(0)  # Then hard exit so that we don't even wait for the executor
 
 
