@@ -35,7 +35,7 @@ T_SLEEP = 10
 
 def kill_sleeper(
     run_dir: pathlib.Path,
-    time: datetime.datetime,
+    timestamp: datetime.datetime,
     lexical_path: str,
     status: pwf.schemas.RunStatus,
 ):
