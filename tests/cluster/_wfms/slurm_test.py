@@ -97,17 +97,6 @@ def setup(callbacks=None):
     return wf, cfg
 
 
-def setup_node_executor(callbacks=None):
-    wf = three_step.pwf.node()
-
-    wf.sleepy_0.executor = pwf.ExecutorInstructions(
-        pwf.tools.NodeSingleExecutor, (), {}
-    )
-
-    cfg = pwf.RunConfig(run_dir=TEMPDIR, progress_hooks=callbacks or [])
-    return wf, cfg
-
-
 def submission():
     wf, cfg = setup([pwf.ProgressHook(kill_sleeper)])
     print("submission cfg.run_dir", cfg.run_dir)
