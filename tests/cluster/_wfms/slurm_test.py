@@ -39,6 +39,7 @@ def kill_sleeper(
     lexical_path: str,
     status: pwf.schemas.RunStatus,
 ):
+    print("Callback at", lexical_path, status)
     hard_coded_sleepy_path = "three_step.sleepy_0"
     if (
         lexical_path == hard_coded_sleepy_path
