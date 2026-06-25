@@ -227,7 +227,12 @@ def run(
         else:
             # Across-process: copy back rather than rebind
             f = _submit(node, current_run, config)
-            returned, encountered_exception = f.result()
+            try:
+                returned, encountered_exception = f.result()
+            except Exception as e:
+                excep = f.exception()
+                print("FUTURE EXCEPTION:", excep.output)
+                raise e
             _copy_run_fields(returned, into=current_run)
             if encountered_exception:
                 raise encountered_exception
