@@ -44,9 +44,8 @@ def kill_sleeper(
         lexical_path == hard_coded_sleepy_path
         and status == pwf.schemas.RunStatus.RUNNING
     ):
-        print("CALLBACK REACHED")
         time.sleep(0.5)  # give the job a second to process
-        print_queue()
+        print_queue("Queue at callback kill-time")
         os._exit(0)  # Then hard exit so that we don't even wait for the executor
 
 
@@ -61,7 +60,9 @@ def get_queue() -> list[dict[str, str]]:
     return jobs
 
 
-def print_queue() -> None:
+def print_queue(extra_message: str | None = None) -> None:
+    if extra_message:
+        print(extra_message)
     cmd = ["squeue"]
     subprocess.run(cmd, check=True)
 
@@ -102,7 +103,7 @@ def submission():
 
 
 def interruption():
-    print_queue()
+    print_queue("Queue at interruption time")
     assert_queue_has_n_items(1)
     wf, cfg = setup()
     t0 = time.time()
@@ -118,7 +119,7 @@ def interruption():
 
 
 def discovery():
-    print_queue()
+    print_queue("Queue at discovery time")
     assert_queue_has_n_items(1)
     time.sleep(1.5 * T_SLEEP)  # Wait for it to finish
     assert_queue_has_n_items(0)
