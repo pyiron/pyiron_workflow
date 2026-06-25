@@ -112,6 +112,7 @@ def interruption():
     out = wf.run(cfg, t=T_SLEEP)
     dt = time.time() - t0
     print("Result", out.outputs, "in", dt)
+    time.sleep(1)  # Let everything settle
     assert_queue_has_n_items(0)
     assert (
         dt > 0.5 * T_SLEEP
