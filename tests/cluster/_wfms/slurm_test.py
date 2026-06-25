@@ -29,6 +29,7 @@ def three_step(t):
 
 
 CACHE_DIR = pathlib.Path("/tmp/slurm_test")
+CACHE_DIR.mkdir(parents=True, exist_ok=True)
 T_SLEEP = 10
 
 
