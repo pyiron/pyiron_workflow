@@ -39,17 +39,13 @@ def kill_sleeper(
     lexical_path: str,
     status: pwf.schemas.RunStatus,
 ):
-    print("Callback at", lexical_path, status)
     hard_coded_sleepy_path = "three_step.sleepy_0"
     if (
         lexical_path == hard_coded_sleepy_path
         and status == pwf.schemas.RunStatus.RUNNING
     ):
-        print_queue("Queue at callback kill-time -- immediate")
-        time.sleep(0.25)  # give the job a second to process
-        print_queue("Queue at callback kill-time -- fast")
         time.sleep(1)  # give the job a second to process
-        print_queue("Queue at callback kill-time -- slow")
+        assert_queue_has_n_items(1)
         os._exit(0)  # Then hard exit so that we don't even wait for the executor
 
 
