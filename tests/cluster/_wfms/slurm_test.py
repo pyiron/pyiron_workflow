@@ -79,15 +79,15 @@ def assert_queue_has_n_items(n: int) -> None:
 
 def setup(callbacks=None):
     submission_template = """\
-    #!/bin/bash
-    #SBATCH --output=time.out
-    #SBATCH --job-name={{job_name}}
-    #SBATCH --chdir={{working_directory}}
-    #SBATCH --get-user-env=L
-    #SBATCH --cpus-per-task={{cores}}
+#!/bin/bash
+#SBATCH --output=time.out
+#SBATCH --job-name={{job_name}}
+#SBATCH --chdir={{working_directory}}
+#SBATCH --get-user-env=L
+#SBATCH --cpus-per-task={{cores}}
 
-    {{command}}
-    """
+{{command}}
+"""
     resource_dict = {"submission_template": submission_template}
 
     wf = three_step.pwf.node()
