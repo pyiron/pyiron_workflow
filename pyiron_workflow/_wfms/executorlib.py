@@ -11,7 +11,7 @@ I.e., make a fresh run config directory for each iteration of input data where t
 caching executors are being leveraged.
 """
 
-from typing import Any, ClassVar
+from typing import ClassVar
 
 import executorlib
 import executorlib.api as exlib_api
@@ -60,23 +60,6 @@ class CacheOverride(executorlib.BaseExecutor):
         super_kwargs = {"resource_dict": cache_key_info}
 
         return super().submit(fn, *args, **super_kwargs)
-
-
-def _validate_existing_resource_dict(kwargs: dict[str, Any]):
-    if "resource_dict" in kwargs:
-        if "cache_key" in kwargs["resource_dict"]:
-            raise ProtectedResourceError(
-                f"pyiron_workflow needs the freedom to specify the cache, so the "
-                f'requested "cache_key" '
-                f"({kwargs['resource_dict']['cache_key']}) would get overwritten."
-            )
-        if "cache_directory" in kwargs["resource_dict"]:
-            raise ProtectedResourceError(
-                f"pyiron_workflow needs the freedom to specify the cache, so the "
-                f'requested "cache_directory" '
-                f"({kwargs['resource_dict']['cache_directory']})would get "
-                f"overwritten."
-            )
 
 
 class NodeSingleExecutor(CacheOverride, executorlib.SingleNodeExecutor): ...
