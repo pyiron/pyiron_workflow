@@ -3,3 +3,5 @@
 source = pyiron_workflow
 omit = pyiron_workflow/_version.py
 concurrency = multiprocessing
+parallel = true
+sigterm = true
