@@ -84,7 +84,7 @@ def setup():
 
     wf = three_step.pwf.node()
 
-    wf.n2.executor = pwf.ExecutorInstructions(
+    wf.sleepy_0.executor = pwf.ExecutorInstructions(
         pwf.tools.NodeSlurmExecutor,
         (),
         {"resource_dict": resource_dict},
