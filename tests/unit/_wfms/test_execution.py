@@ -317,18 +317,25 @@ class TestRunProgressHooks(unittest.TestCase):
         ) -> None:
             captured.append((lp, status))
 
-        with tempfile.TemporaryDirectory() as tmp:
-            config = execution.RunConfig(
-                run_dir=pathlib.Path(tmp),
-                progress_hooks=[execution.ProgressHook(hook, True)],
-            )
-            execution.run(macro, config, x=1, y=2, z=3)
+        for progress in (
+            [execution.ProgressHook(hook, True)],
+            [hook],
+        ):
+            with self.subTest(progress=progress):
+                with tempfile.TemporaryDirectory() as tmp:
+                    config = execution.RunConfig(
+                        run_dir=pathlib.Path(tmp),
+                        progress_hooks=progress,
+                    )
+                    execution.run(macro, config, x=1, y=2, z=3)
 
-        prime_statuses = {status for lp, status in captured if lp == macro.lexical_path}
-        self.assertEqual(
-            prime_statuses,
-            {execution.RunStatus.RUNNING, execution.RunStatus.FINISHED},
-        )
+                prime_statuses = {
+                    status for lp, status in captured if lp == macro.lexical_path
+                }
+                self.assertEqual(
+                    prime_statuses,
+                    {execution.RunStatus.RUNNING, execution.RunStatus.FINISHED},
+                )
 
 
 # --------------------------------------------------------------------------- #

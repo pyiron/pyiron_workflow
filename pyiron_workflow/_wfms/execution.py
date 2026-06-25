@@ -9,7 +9,7 @@ import pathlib
 import threading
 from collections.abc import Callable, Iterable
 from concurrent import futures
-from typing import TYPE_CHECKING, Any, Generic, NamedTuple, TypeVar
+from typing import TYPE_CHECKING, Any, Generic, NamedTuple, TypeAlias, TypeVar
 
 import flowrep as fr
 
@@ -82,8 +82,13 @@ def _guarded(
         )
 
 
+HookFunction: TypeAlias = Callable[
+    [pathlib.Path, datetime.datetime, str, RunStatus], None
+]
+
+
 class ProgressHook(NamedTuple):
-    fn: Callable[[pathlib.Path, datetime.datetime, str, RunStatus], None]
+    fn: HookFunction
     blocking: bool = False
 
 
@@ -134,7 +139,9 @@ class Steps(list[Run[Any]]):
 @dataclasses.dataclass(frozen=True)
 class RunConfig:
     run_dir: pathlib.Path = pathlib.Path.cwd()
-    progress_hooks: Iterable[ProgressHook] = dataclasses.field(default_factory=list)
+    progress_hooks: Iterable[ProgressHook | HookFunction] = dataclasses.field(
+        default_factory=list
+    )
     exception_hooks: Iterable[
         Callable[[pathlib.Path, Run[ResultType], BaseException], None]
     ] = dataclasses.field(default_factory=list)
@@ -162,12 +169,15 @@ class RunConfig:
         self, time: datetime.datetime, lexical_path: str, status: RunStatus
     ):
         for hook in self.progress_hooks:
-            if hook.blocking:
-                hook.fn(self.run_dir, time, lexical_path, status)
+            progress_hook = (
+                hook if isinstance(hook, ProgressHook) else ProgressHook(hook)
+            )
+            if progress_hook.blocking:
+                progress_hook.fn(self.run_dir, time, lexical_path, status)
             else:
                 _get_hook_pool(self.hooks_max_threads).submit(
                     _guarded,
-                    hook.fn,
+                    progress_hook.fn,
                     logging.getLogger(self.logger_name),
                     self.run_dir,
                     time,
