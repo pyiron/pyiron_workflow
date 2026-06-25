@@ -1,5 +1,6 @@
 import argparse
 import os
+import subprocess
 import time
 
 import pyiron_workflow as pwf
@@ -31,6 +32,13 @@ def state_check(
     )
 
 
+def print_queue(extra_message: str | None = None) -> None:
+    if extra_message:
+        print(extra_message)
+    cmd = ["squeue"]
+    subprocess.run(cmd, check=True)
+
+
 def submission():
     submission_template = """\
 #!/bin/bash
@@ -53,27 +61,32 @@ def submission():
     print(time.time())
     wf.n2.executor = (NodeSlurmExecutor, (), {"resource_dict": resource_dict})
     out = wf.run_in_thread()
+    print_queue("Queue immediately after submitting:")
     print("run return", out)
     state_check(wf, True, True)
     print("sleeping", t_overhead + t_sleep / 4)
     time.sleep(t_overhead + t_sleep / 4)
     print("saving")
     state_check(wf, True, True)
+    print_queue("Queue before saving:")
     wf.save()
     print("sleeping", t_sleep / 4)
     time.sleep(t_sleep / 4)
     print("pre-exit state")
     state_check(wf, True, True)
+    print_queue("Queue before exit:")
     print("hard exit at time", time.time())
     os._exit(0)  # Hard exit so that we don't wait for the executor
 
 
 def interruption():
+    print_queue("Queue at interruption launch:")
     print("loading at time", time.time())
     wf = pwf.Workflow("slurm_test")
     state_check(wf, True, True)
     print("re-running")
     out = wf.run_in_thread(rerun=True)
+    print_queue("Queue at rerun:")
     print("run return", out)
     state_check(wf, True, True)
     print("sleeping", t_overhead + t_sleep)
@@ -83,6 +96,7 @@ def interruption():
 
 
 def discovery():
+    print_queue("Queue at discovery launch:")
     print("loading at time", time.time())
     wf = pwf.Workflow("slurm_test")
     state_check(wf, True, True)
@@ -90,6 +104,7 @@ def discovery():
     time.sleep(t_overhead + t_sleep)
     print("re-running")
     out = wf.run_in_thread(rerun=True)
+    print_queue("Queue at rerun:")
     print("run return", out)
     state_check(wf, True, True)
     print("sleeping", t_sleep / 10)
