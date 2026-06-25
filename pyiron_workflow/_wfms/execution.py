@@ -1,9 +1,12 @@
 from __future__ import annotations
 
+import atexit
 import dataclasses
 import datetime
 import enum
+import logging
 import pathlib
+import threading
 from collections.abc import Callable, Iterable
 from concurrent import futures
 from typing import TYPE_CHECKING, Any, Generic, NamedTuple, TypeVar
@@ -21,6 +24,67 @@ class RunStatus(enum.StrEnum):
     RUNNING = "running"
     FINISHED = "finished"
     FAILED = "failed"
+
+
+_hook_pool: futures.ThreadPoolExecutor | None = None
+_hook_pool_lock = threading.Lock()
+
+
+def _get_hook_pool(max_threads: int) -> futures.ThreadPoolExecutor:
+    """Lazily build the per-process, non-blocking-hook thread pool.
+
+    A ``ThreadPoolExecutor`` is process-local, so each process (parent and any
+    executor worker) gets its own singleton; ``atexit`` drains it on exit. The
+    pool is sized on first creation; later ``max_threads`` values are ignored
+    for the lifetime of that process.
+    """
+    global _hook_pool  # noqa: PLW0603 -- deliberate per-process pool singleton
+    with _hook_pool_lock:
+        if _hook_pool is None:
+            _hook_pool = futures.ThreadPoolExecutor(max_workers=max_threads)
+            atexit.register(_shutdown_hook_pool)
+        return _hook_pool
+
+
+def _shutdown_hook_pool() -> None:
+    """Drain and discard the hook pool. Registered with ``atexit``; also the
+    reset hook tests call in ``tearDown``."""
+    global _hook_pool  # noqa: PLW0603 -- deliberate per-process pool singleton
+    with _hook_pool_lock:
+        if _hook_pool is not None:
+            _hook_pool.shutdown(wait=True)
+            _hook_pool = None
+
+
+def _guarded(
+    fn: Callable[[pathlib.Path, datetime.datetime, str, RunStatus], None],
+    logger: logging.Logger,
+    run_dir: pathlib.Path,
+    time: datetime.datetime,
+    lexical_path: str,
+    status: RunStatus,
+) -> None:
+    """Run a non-blocking progress hook, logging (not raising) ordinary errors.
+
+    Catches ``Exception`` only, so ``KeyboardInterrupt``/``SystemExit`` are left
+    to propagate to the caller (here, the pool worker, which absorbs them into
+    its discarded future); a deliberate ``os._exit`` raises nothing so it is
+    unaffected.
+    """
+    try:
+        fn(run_dir, time, lexical_path, status)
+    except Exception:
+        logger.exception(
+            "Non-blocking progress hook %r failed for %s @ %s",
+            fn,
+            lexical_path,
+            status,
+        )
+
+
+class ProgressHook(NamedTuple):
+    fn: Callable[[pathlib.Path, datetime.datetime, str, RunStatus], None]
+    blocking: bool = False
 
 
 ResultType = TypeVar("ResultType", bound=fr.schemas.NodeData[Any])
@@ -70,15 +134,15 @@ class Steps(list[Run[Any]]):
 @dataclasses.dataclass(frozen=True)
 class RunConfig:
     run_dir: pathlib.Path = pathlib.Path.cwd()
-    progress_hooks: Iterable[
-        Callable[[pathlib.Path, datetime.datetime, str, RunStatus], None]
-    ] = dataclasses.field(default_factory=list)
+    progress_hooks: Iterable[ProgressHook] = dataclasses.field(default_factory=list)
     exception_hooks: Iterable[
         Callable[[pathlib.Path, Run[ResultType], BaseException], None]
     ] = dataclasses.field(default_factory=list)
     dag_layers_multithreaded: bool = True
     dag_layers_max_threads: int = 10
     dag_layers_fail_fast: bool = False
+    hooks_max_threads: int = 10
+    logger_name: str = __name__
     _prime_mover: lexical.LexicalPath | None = dataclasses.field(
         default=None, kw_only=True
     )
@@ -98,7 +162,18 @@ class RunConfig:
         self, time: datetime.datetime, lexical_path: str, status: RunStatus
     ):
         for hook in self.progress_hooks:
-            hook(self.run_dir, time, lexical_path, status)
+            if hook.blocking:
+                hook.fn(self.run_dir, time, lexical_path, status)
+            else:
+                _get_hook_pool(self.hooks_max_threads).submit(
+                    _guarded,
+                    hook.fn,
+                    logging.getLogger(self.logger_name),
+                    self.run_dir,
+                    time,
+                    lexical_path,
+                    status,
+                )
 
     def emit_exception(self, failed_run: Run[ResultType], exception: BaseException):
         for hook in self.exception_hooks:

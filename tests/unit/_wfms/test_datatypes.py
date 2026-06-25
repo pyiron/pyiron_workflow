@@ -161,7 +161,9 @@ class TestNodeRun(unittest.TestCase):
         ) -> None:
             calls.append(status)
 
-        config = execution.RunConfig(progress_hooks=[hook])
+        config = execution.RunConfig(
+            progress_hooks=[execution.ProgressHook(hook, True)]
+        )
         run = n.run(config, x=1, y=2)
         self.assertEqual(run.status, execution.RunStatus.FINISHED)
         # The default config carries no hooks, so a populated `calls` proves the
@@ -182,7 +184,9 @@ class TestNodeRun(unittest.TestCase):
         ) -> None:
             seen_paths.append(lexical_path)
 
-        config = execution.RunConfig(progress_hooks=[hook])
+        config = execution.RunConfig(
+            progress_hooks=[execution.ProgressHook(hook, True)]
+        )
         run = n.run(config, x=1, y=2)
         # The config is forwarded (hook fired) *and* the keyword inputs still
         # reach the node and compute correctly -- the config did not leak into

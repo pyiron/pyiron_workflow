@@ -1,8 +1,10 @@
 from __future__ import annotations
 
 import datetime
+import logging
 import pathlib
 import tempfile
+import threading
 import unittest
 from concurrent import futures
 
@@ -122,7 +124,10 @@ class TestRunConfigEmitProgress(unittest.TestCase):
             run_dir = pathlib.Path(tmp)
             config = execution.RunConfig(
                 run_dir=run_dir,
-                progress_hooks=[hook_a, hook_b],
+                progress_hooks=[
+                    execution.ProgressHook(hook_a, True),
+                    execution.ProgressHook(hook_b, True),
+                ],
             )
             now = datetime.datetime(2026, 1, 1, 12, 0, 0)
             config.emit_progress(now, "pm", execution.RunStatus.PENDING)
@@ -188,7 +193,7 @@ class TestRunHappyPath(unittest.TestCase):
         with tempfile.TemporaryDirectory() as tmp:
             config = execution.RunConfig(
                 run_dir=pathlib.Path(tmp),
-                progress_hooks=[hook],
+                progress_hooks=[execution.ProgressHook(hook, True)],
             )
             run = execution.run(node, config, x=1, y=2)
 
@@ -315,7 +320,7 @@ class TestRunProgressHooks(unittest.TestCase):
         with tempfile.TemporaryDirectory() as tmp:
             config = execution.RunConfig(
                 run_dir=pathlib.Path(tmp),
-                progress_hooks=[hook],
+                progress_hooks=[execution.ProgressHook(hook, True)],
             )
             execution.run(macro, config, x=1, y=2, z=3)
 
@@ -347,6 +352,171 @@ class TestPopulateInputPorts(unittest.TestCase):
         self.assertIn("nonsense", msg)
         # The error message includes the recipe's input list verbatim.
         self.assertIn(str(live.recipe.inputs), msg)
+
+
+# --------------------------------------------------------------------------- #
+# process-local hook pool                                                     #
+# --------------------------------------------------------------------------- #
+
+
+class TestHookPool(unittest.TestCase):
+    def tearDown(self) -> None:
+        execution._shutdown_hook_pool()
+
+    def test_get_hook_pool_is_lazy_singleton_with_max_workers(self) -> None:
+        self.assertIsNone(execution._hook_pool)
+        pool = execution._get_hook_pool(3)
+        self.assertIsInstance(pool, futures.ThreadPoolExecutor)
+        self.assertEqual(pool._max_workers, 3)
+        self.assertIs(execution._get_hook_pool(3), pool)  # same instance reused
+
+    def test_shutdown_resets_singleton_and_rebuilds(self) -> None:
+        first = execution._get_hook_pool(1)
+        execution._shutdown_hook_pool()
+        self.assertIsNone(execution._hook_pool)
+        second = execution._get_hook_pool(1)
+        self.assertIsNot(second, first)  # fresh pool after reset
+
+    def test_shutdown_is_noop_when_no_pool(self) -> None:
+        self.assertIsNone(execution._hook_pool)
+        execution._shutdown_hook_pool()  # must not raise
+        self.assertIsNone(execution._hook_pool)
+
+
+# --------------------------------------------------------------------------- #
+# _guarded                                                                    #
+# --------------------------------------------------------------------------- #
+
+
+class TestGuarded(unittest.TestCase):
+    def _args(self):
+        return (
+            pathlib.Path("/run/dir"),
+            datetime.datetime(2026, 1, 1, 12, 0, 0),
+            "node.path",
+            execution.RunStatus.RUNNING,
+        )
+
+    def test_calls_fn_with_four_hook_args(self) -> None:
+        seen: list[tuple] = []
+        logger = logging.getLogger("test._guarded.ok")
+        execution._guarded(lambda *a: seen.append(a), logger, *self._args())
+        self.assertEqual(seen, [self._args()])
+
+    def test_logs_and_swallows_exception(self) -> None:
+        logger = logging.getLogger("test._guarded.boom")
+
+        def raising(*_a) -> None:
+            raise ValueError("nope")
+
+        with self.assertLogs(logger, level="ERROR") as cm:
+            execution._guarded(raising, logger, *self._args())  # must not raise
+        self.assertTrue(any("nope" in line for line in cm.output))
+
+    def test_propagates_base_exception(self) -> None:
+        logger = logging.getLogger("test._guarded.kbd")
+
+        def interrupt(*_a) -> None:
+            raise KeyboardInterrupt
+
+        with self.assertRaises(KeyboardInterrupt):
+            execution._guarded(interrupt, logger, *self._args())
+
+
+# --------------------------------------------------------------------------- #
+# ProgressHook dispatch                                                       #
+# --------------------------------------------------------------------------- #
+
+
+class TestProgressHookDispatch(unittest.TestCase):
+    def tearDown(self) -> None:
+        execution._shutdown_hook_pool()
+
+    def _emit(self, config: execution.RunConfig) -> None:
+        config.emit_progress(
+            datetime.datetime(2026, 1, 1, 12, 0, 0),
+            "pm",
+            execution.RunStatus.RUNNING,
+        )
+
+    def test_default_is_non_blocking(self) -> None:
+        self.assertFalse(execution.ProgressHook(lambda *a: None).blocking)
+
+    def test_blocking_hook_runs_inline(self) -> None:
+        seen: list[str] = []
+        config = execution.RunConfig(
+            progress_hooks=[execution.ProgressHook(lambda *a: seen.append("x"), True)]
+        )
+        self._emit(config)
+        self.assertEqual(seen, ["x"])  # already ran, no flush needed
+
+    def test_non_blocking_hook_runs_after_flush(self) -> None:
+        seen: list[str] = []
+        config = execution.RunConfig(
+            progress_hooks=[execution.ProgressHook(lambda *a: seen.append("x"))]
+        )
+        self._emit(config)
+        execution._shutdown_hook_pool()  # flush the pool (wait=True)
+        self.assertEqual(seen, ["x"])
+
+    def test_non_blocking_hooks_all_run_with_single_thread(self) -> None:
+        seen: list[int] = []
+        config = execution.RunConfig(
+            hooks_max_threads=1,
+            progress_hooks=[
+                execution.ProgressHook(lambda *a: seen.append(1)),
+                execution.ProgressHook(lambda *a: seen.append(2)),
+            ],
+        )
+        self._emit(config)
+        execution._shutdown_hook_pool()
+        self.assertEqual(sorted(seen), [1, 2])
+
+    def test_non_blocking_exception_routes_to_configured_logger(self) -> None:
+        def raising(*_a) -> None:
+            raise ValueError("kaboom")
+
+        config = execution.RunConfig(
+            logger_name="my.custom.sink",
+            progress_hooks=[execution.ProgressHook(raising)],
+        )
+        with self.assertLogs("my.custom.sink", level="ERROR") as cm:
+            self._emit(config)
+            execution._shutdown_hook_pool()  # ensure the worker finished logging
+        self.assertTrue(any("kaboom" in line for line in cm.output))
+
+
+# --------------------------------------------------------------------------- #
+# run() — non-blocking hooks do not stall the run thread                      #
+# --------------------------------------------------------------------------- #
+
+
+class TestRunDoesNotBlockOnHooks(unittest.TestCase):
+    def tearDown(self) -> None:
+        execution._shutdown_hook_pool()
+
+    def test_run_completes_while_non_blocking_hook_is_still_blocked(self) -> None:
+        release = threading.Event()
+        entered = threading.Event()
+
+        def slow_hook(run_dir, t, lp, status) -> None:
+            entered.set()
+            if not release.wait(timeout=5):  # generous; released by the test
+                raise AssertionError("hook never released")
+
+        node = _fixtures.atomic_add_node()
+        with tempfile.TemporaryDirectory() as tmp:
+            config = execution.RunConfig(
+                run_dir=pathlib.Path(tmp),
+                progress_hooks=[execution.ProgressHook(slow_hook)],  # non-blocking
+            )
+            run = execution.run(node, config, x=1, y=2)
+            # run() returned even though the hook is parked in release.wait():
+            self.assertTrue(entered.wait(timeout=5))
+            self.assertFalse(release.is_set())
+            self.assertEqual(run.status, execution.RunStatus.FINISHED)
+            self.assertEqual(run.outputs["output_0"].value, 3)
+            release.set()  # let the hook finish before teardown flushes the pool
 
 
 if __name__ == "__main__":
