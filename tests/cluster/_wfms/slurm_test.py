@@ -110,6 +110,7 @@ def setup_node_executor(callbacks=None):
 
 def submission():
     wf, cfg = setup([pwf.ProgressHook(kill_sleeper)])
+    print("submission cfg.run_dir", cfg.run_dir)
     wf.run(cfg, t=T_SLEEP)
 
 
@@ -117,6 +118,7 @@ def interruption():
     print_queue("Queue at interruption time")
     assert_queue_has_n_items(1)
     wf, cfg = setup()
+    print("interruption cfg.run_dir", cfg.run_dir)
     t0 = time.time()
     out = wf.run(cfg, t=T_SLEEP)
     dt = time.time() - t0
@@ -135,6 +137,7 @@ def discovery():
     time.sleep(1.5 * T_SLEEP)  # Wait for it to finish
     assert_queue_has_n_items(0)
     wf, cfg = setup()
+    print("discovery cfg.run_dir", cfg.run_dir)
     t0 = time.time()
     out = wf.run(cfg, t=T_SLEEP)
     dt = time.time() - t0
