@@ -8,14 +8,14 @@ on:
   pull_request:
 
 jobs:
-  slurm-interruption:
+  slurm-interruption-wfms:
     if: github.event_name == 'pull_request'
-    uses: ./.github/workflows/slurm-test.yml
+    uses: ./.github/workflows/slurm-test-wfms.yml
     with:
       mode: interrupt
 
-  slurm-discovery:
+  slurm-discovery-wfms:
     if: github.event_name == 'pull_request'
-    uses: ./.github/workflows/slurm-test.yml
+    uses: ./.github/workflows/slurm-test-wfms.yml
     with:
       mode: discover
