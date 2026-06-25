@@ -45,13 +45,12 @@ def kill_sleeper(
         lexical_path == hard_coded_sleepy_path
         and status == pwf.schemas.RunStatus.RUNNING
     ):
-        print("Not killing the sleepy node")
-        # print_queue("Queue at callback kill-time -- immediate")
-        # time.sleep(0.25)  # give the job a second to process
-        # print_queue("Queue at callback kill-time -- fast")
-        # time.sleep(1)  # give the job a second to process
-        # print_queue("Queue at callback kill-time -- slow")
-        # os._exit(0)  # Then hard exit so that we don't even wait for the executor
+        print_queue("Queue at callback kill-time -- immediate")
+        time.sleep(0.25)  # give the job a second to process
+        print_queue("Queue at callback kill-time -- fast")
+        time.sleep(1)  # give the job a second to process
+        print_queue("Queue at callback kill-time -- slow")
+        os._exit(0)  # Then hard exit so that we don't even wait for the executor
 
 
 def get_queue() -> list[dict[str, str]]:
@@ -114,17 +113,11 @@ def setup_node_executor(callbacks=None):
 
 
 def submission():
-    return
     wf, cfg = setup([pwf.ProgressHook(kill_sleeper)])
-    out = wf.run(cfg, t=T_SLEEP)
-    print("FINISHED", out.outputs)
+    wf.run(cfg, t=T_SLEEP)
 
 
 def interruption():
-    wf, cfg = setup([pwf.ProgressHook(kill_sleeper)])
-    out = wf.run(cfg, t=T_SLEEP)
-    print("FINISHED", out.outputs)
-    return
     print_queue("Queue at interruption time")
     assert_queue_has_n_items(1)
     wf, cfg = setup()
@@ -141,10 +134,6 @@ def interruption():
 
 
 def discovery():
-    wf, cfg = setup_node_executor([pwf.ProgressHook(kill_sleeper)])
-    out = wf.run(cfg, t=T_SLEEP)
-    print("FINISHED", out.outputs)
-    return
     print_queue("Queue at discovery time")
     assert_queue_has_n_items(1)
     time.sleep(1.5 * T_SLEEP)  # Wait for it to finish
