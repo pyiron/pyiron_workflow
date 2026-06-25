@@ -2,7 +2,6 @@ import argparse
 import os
 import pathlib
 import subprocess
-import tempfile
 import time
 
 from pip._internal.utils import datetime
@@ -29,7 +28,7 @@ def three_step(t):
     return n3
 
 
-TEMPDIR = pathlib.Path(tempfile.mkdtemp())
+CACHE_DIR = pathlib.Path("/tmp/slurm_test")
 T_SLEEP = 10
 
 
@@ -72,7 +71,7 @@ def assert_queue_has_n_items(n: int) -> None:
     assert len(jobs) == n, f"Expected {n} job(s) in queue, found {len(jobs)}: {jobs}"
 
 
-def setup(callbacks=None):
+def setup(dir: str, callbacks=None):
     submission_template = """\
 #!/bin/bash
 #SBATCH --output=time.out
@@ -93,7 +92,7 @@ def setup(callbacks=None):
         {"resource_dict": resource_dict},
     )
 
-    cfg = pwf.RunConfig(run_dir=TEMPDIR, progress_hooks=callbacks or [])
+    cfg = pwf.RunConfig(run_dir=CACHE_DIR, progress_hooks=callbacks or [])
     return wf, cfg
 
 
