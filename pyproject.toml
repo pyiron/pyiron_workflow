@@ -1,6 +1,6 @@
 [build-system]
 requires = [
-    "hatchling==1.29.0",
+    "hatchling==1.30.1",
     "hatch-vcs==0.5.0",
     "bagofholding",
     "bidict",
@@ -35,16 +35,16 @@ classifiers = [
     "Programming Language :: Python :: 3.13",
 ]
 dependencies = [
-    "bagofholding==0.1.11",
+    "bagofholding==0.1.12",
     "bidict==0.23.1",
     "cloudpickle==3.1.2",
     "executorlib==1.10.1",
     "flowrep==0.5.2",
     "graphviz==0.21",
     "networkx==3.6.1",
-    "pandas==3.0.2",
+    "pandas==3.0.3",
     "pint==0.25.3",
-    "pyiron_snippets==1.3.0",
+    "pyiron_snippets==1.4.0",
     "rdflib==7.6.0",
     "semantikon==1.3.2",
     "toposort==1.10",
@@ -65,7 +65,7 @@ Repository = "https://github.com/pyiron/pyiron_workflow"
 
 [project.optional-dependencies]
 cluster = [
-    "pysqa==0.4.1",
+    "pysqa==0.4.3",
     "h5py==3.16.0",
 ]
 notebook = [
