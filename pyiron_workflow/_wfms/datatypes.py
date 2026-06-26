@@ -222,6 +222,34 @@ class Node(
         self.last_run = current_run
         return current_run
 
+    def pull(
+        self,
+        break_out_of_context: bool = False,
+        expose_defaults: bool = False,
+        config: execution.RunConfig | None = None,
+        /,
+        **input_kwargs,
+    ) -> execution.Run[execution.ResultType]:
+        from pyiron_workflow._wfms import pull as _pull  # noqa: PLC0415 -- cycle guard
+
+        return _pull.pull(
+            self, break_out_of_context, expose_defaults, config, **input_kwargs
+        )
+
+    def pulled_workflow(
+        self, break_out_of_context: bool = False, expose_defaults: bool = False, /
+    ):
+        from pyiron_workflow._wfms import pull as _pull  # noqa: PLC0415 -- cycle guard
+
+        return _pull.pulled_workflow(self, break_out_of_context, expose_defaults)
+
+    def pulled_inputs(
+        self, break_out_of_context: bool = False, expose_defaults: bool = False, /
+    ):
+        from pyiron_workflow._wfms import pull as _pull  # noqa: PLC0415 -- cycle guard
+
+        return _pull.pulled_inputs(self, break_out_of_context, expose_defaults)
+
     def __call__(self, *args: Port | Node, **kwargs: Port | Node) -> Self:
         self.connect_input(*args, **kwargs)
         return self

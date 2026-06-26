@@ -8,4 +8,7 @@ from pyiron_workflow._wfms.execution import run as run
 from pyiron_workflow._wfms.executorlib import NodeSingleExecutor as NodeSingleExecutor
 from pyiron_workflow._wfms.executorlib import NodeSlurmExecutor as NodeSlurmExecutor
 from pyiron_workflow._wfms.executorlib import _CacheTestExecutor as _CacheTestExecutor
+from pyiron_workflow._wfms.pull import pull as pull
+from pyiron_workflow._wfms.pull import pulled_inputs as pulled_inputs
+from pyiron_workflow._wfms.pull import pulled_workflow as pulled_workflow
 from pyiron_workflow._wfms.validation import validate_plan as validate_plan
