@@ -253,6 +253,40 @@ class TestPullCoverageEdgeCases(unittest.TestCase):
         self.assertIn("flow controller", str(ctx.exception))
 
 
+class TestPullExposeDefaultsNestedScoping(unittest.TestCase):
+    """expose_defaults must surface unconnected *defaulted* ports on nested
+    children with labels scoped by the child's path from the ceiling."""
+
+    def _nested_defaulted_child(self):
+        # Workflow root -> macro "inner" (container) -> "multiply_with_defaults_0",
+        # whose x/y inputs are defaulted and left unconnected inside the macro.
+        wf = _fixtures.build_workflow(node_specs={"inner": _fixtures.container_node})
+        return wf.nodes["inner"].nodes["multiply_with_defaults_0"]
+
+    def test_exposed_nested_defaults_get_scoped_labels_and_run(self):
+        child = self._nested_defaulted_child()
+        # Riding the defaults (expose_defaults=False), nothing is surfaced.
+        self.assertEqual(set(child.pulled_inputs(True).keys()), set())
+        # Forcing exposure surfaces both ports, scoped by the child's path from
+        # the root ceiling -- not bare "x"/"y".
+        scoped = {
+            "inner__multiply_with_defaults_0__x",
+            "inner__multiply_with_defaults_0__y",
+        }
+        self.assertEqual(set(child.pulled_inputs(True, True).keys()), scoped)
+        # The scoped ports wire correctly and feed the isolated child.
+        run = child.pull(
+            True,
+            True,
+            None,
+            **{
+                "inner__multiply_with_defaults_0__x": 3,
+                "inner__multiply_with_defaults_0__y": 4,
+            },
+        )
+        self.assertEqual(run.outputs["output_0"].value, 12)
+
+
 class TestPullPublicSurface(unittest.TestCase):
     def test_exposed_via_tools(self):
         n = _fixtures.atomic_add_node()
