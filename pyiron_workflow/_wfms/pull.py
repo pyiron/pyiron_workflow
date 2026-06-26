@@ -140,7 +140,11 @@ def _resolve_boundary(
     seen: set[str],
     pulled: Node,
 ) -> None:
-    if graph is ceiling:
+    if (
+        graph is ceiling
+        or graph.owner is None
+        # These are _equivalent conditions_ -- if the owner is None, this is the ceiling
+    ):
         ceiling_port = graph.inputs[boundary_port]
         _add_input(
             cone,
