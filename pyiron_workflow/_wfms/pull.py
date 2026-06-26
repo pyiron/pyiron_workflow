@@ -156,22 +156,10 @@ def _resolve_boundary(
             ceiling_port.type_metadata,
         )
         return
-    if parent is None or not _is_traceable(parent):
-        if parent is not None:
-            raise _flow_control_error(parent, pulled)
-        # `graph`'s boundary port is unfed at the parent level: required input,
-        # keyed by the deep consumer.
-        _add_input(  # pragma: no cover  -- only reachable if parent is None (unreachable)
-            cone,
-            f"{consumer_label}__{consumer_port}",
-            consumer_label,
-            consumer_port,
-            consumer_port_obj.type_hint,
-            consumer_port_obj.type_metadata,
-        )
-        return  # pragma: no cover
-    # else _is_traceable(parent) and parent: ImmutableDag | MutableDag
-    # TODO: structure the function better so that the inspectors can just see this
+
+    if not _is_traceable(parent):
+        raise _flow_control_error(parent, pulled)
+
     edge = _incoming_edge(parent, graph.label, boundary_port)
     if edge is None:
         _add_input(
