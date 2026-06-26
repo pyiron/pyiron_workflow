@@ -249,10 +249,12 @@ def _resolve_input(
 ) -> None:
     if port.has_default and not expose_defaults:
         return
+
     graph = member.owner
     if graph is None:
         _require(member, port_label, port, ceiling, cone)
         return
+
     if not _is_traceable(graph):
         # `graph` is a flow controller: its edges are prospective and may not be
         # walked. Punching out is impossible; stopping isolates the node.
@@ -260,8 +262,8 @@ def _resolve_input(
             raise _flow_control_error(graph, pulled)
         _require(member, port_label, port, ceiling, cone)
         return
+
     # else _is_traceable(graph) and graph: ImmutableDag | MutableDag
-    # TODO: structure the function better so that the inspectors can just see this
     edge = _incoming_edge(graph, member.label, port_label)
     if edge is None:
         _require(member, port_label, port, ceiling, cone)
