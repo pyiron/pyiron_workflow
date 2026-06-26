@@ -1,10 +1,11 @@
 from __future__ import annotations
 
 import unittest
+from concurrent import futures
 
 import flowrep as fr
 
-from pyiron_workflow._wfms import api, flowcontrollers, pull
+from pyiron_workflow._wfms import api, execution, flowcontrollers, pull
 from pyiron_workflow._wfms.datatypes import EdgeTuple
 from tests.unit._wfms import _fixtures
 
@@ -285,6 +286,21 @@ class TestPullExposeDefaultsNestedScoping(unittest.TestCase):
             },
         )
         self.assertEqual(run.outputs["output_0"].value, 12)
+
+
+class TestPullCopiesExecutors(unittest.TestCase):
+    def test_pulled_workflow_carries_member_executor(self):
+        n = _fixtures.atomic_add_node("addy")
+        exe: execution.ExecutorInstructions = (
+            futures.ThreadPoolExecutor,
+            (),
+            {"max_workers": 1},
+        )
+        n.executor = exe
+
+        wf = n.pulled_workflow()
+
+        self.assertIs(wf.nodes["addy"].executor, exe)
 
 
 class TestPullPublicSurface(unittest.TestCase):

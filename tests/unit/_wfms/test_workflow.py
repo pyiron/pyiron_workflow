@@ -5,6 +5,7 @@ import contextlib
 import dataclasses
 import pickle
 import unittest
+from concurrent import futures
 
 import flowrep as fr
 import semantikon
@@ -2563,6 +2564,44 @@ class TestWorkflowData(unittest.TestCase):
         self.assertEqual(
             wf.outputs.m2cm.type_metadata, semantikon.TypeMetadata(units="centimeters")
         )
+
+
+class TestWorkflowCopy(unittest.TestCase):
+    def test_copy_carries_executors_and_drops_parentage(self):
+        # A recipe-valid (fully wired) workflow -- Workflow.copy routes through
+        # `self.recipe`, which validates that every target has a source/default.
+        wf = _fixtures.build_workflow(
+            inputs=["x", "y", "z"],
+            outputs=["a", "s"],
+            node_specs={
+                "add_0": _fixtures.atomic_add_node,
+                "sub_0": _fixtures.atomic_sub_node,
+            },
+            edges=_fixtures._MACRO_WF_EDGES,
+        )
+        child = wf.nodes["add_0"]
+        wf_exe: execution.ExecutorInstructions = (
+            futures.ThreadPoolExecutor,
+            (),
+            {"max_workers": 1},
+        )
+        child_exe: execution.ExecutorInstructions = (
+            futures.ThreadPoolExecutor,
+            (),
+            {"max_workers": 2},
+        )
+        wf.executor = wf_exe
+        child.executor = child_exe
+
+        copy = wf.copy()
+        copied_child = copy.nodes["add_0"]
+
+        self.assertIsNot(copy, wf)
+        self.assertIs(copy.executor, wf_exe)
+        self.assertIs(copied_child.executor, child_exe)
+        self.assertIsNone(copy.owner)
+        self.assertIs(copied_child.owner, copy)
+        self.assertIs(wf.nodes["add_0"].owner, wf)
 
 
 if __name__ == "__main__":

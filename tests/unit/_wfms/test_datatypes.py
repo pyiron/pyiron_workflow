@@ -255,6 +255,66 @@ class TestNodeGetState(unittest.TestCase):
             )
 
 
+class TestNodeCopy(unittest.TestCase):
+    def test_atomic_copy_carries_executor_drops_parentage(self):
+        n = _fixtures.atomic_add_node()
+        exe: execution.ExecutorInstructions = (
+            futures.ThreadPoolExecutor,
+            (),
+            {"max_workers": 1},
+        )
+        n.executor = exe
+        n.last_run = "fake history"
+
+        copy = n.copy()
+
+        self.assertIsNot(copy, n, "copy must be a fresh object")
+        self.assertIs(copy.executor, exe, "executor must ride along")
+        self.assertIsNone(copy.owner, "parentage must not be carried")
+        self.assertIsNone(copy.last_run, "history must not be carried")
+
+    def test_nested_macro_copy_carries_executors_and_reparents(self):
+        nm = _fixtures.nested_macro_node()
+        child = nm.nodes["macro_0"]
+        grandchild = child.nodes["add_0"]
+
+        top_exe: execution.ExecutorInstructions = (
+            futures.ThreadPoolExecutor,
+            (),
+            {"max_workers": 1},
+        )
+        child_exe: execution.ExecutorInstructions = (
+            futures.ThreadPoolExecutor,
+            (),
+            {"max_workers": 2},
+        )
+        grandchild_exe: execution.ExecutorInstructions = (
+            futures.ThreadPoolExecutor,
+            (),
+            {"max_workers": 3},
+        )
+        nm.executor = top_exe
+        child.executor = child_exe
+        grandchild.executor = grandchild_exe
+
+        copy = nm.copy()
+        copied_child = copy.nodes["macro_0"]
+        copied_grandchild = copied_child.nodes["add_0"]
+
+        # Executors ride at every depth.
+        self.assertIs(copy.executor, top_exe)
+        self.assertIs(copied_child.executor, child_exe)
+        self.assertIs(copied_grandchild.executor, grandchild_exe)
+
+        # Copies are fresh objects re-parented into the new tree.
+        self.assertIsNot(copied_child, child)
+        self.assertIsNone(copy.owner)
+        self.assertIs(copied_child.owner, copy)
+
+        # The original tree is untouched.
+        self.assertIs(nm.nodes["macro_0"].owner, nm)
+
+
 class TestConnectAtInit(unittest.TestCase):
     """`StaticNode` / `StaticGraph` connection sugar at construction.
 
