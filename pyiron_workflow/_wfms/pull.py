@@ -140,9 +140,10 @@ def _resolve_boundary(
     seen: set[str],
     pulled: Node,
 ) -> None:
+    parent = graph.owner  # the subgraph `graph` is itself a child of `parent`
     if (
         graph is ceiling
-        or graph.owner is None
+        or parent is None
         # These are _equivalent conditions_ -- if the owner is None, this is the ceiling
     ):
         ceiling_port = graph.inputs[boundary_port]
@@ -155,7 +156,6 @@ def _resolve_boundary(
             ceiling_port.type_metadata,
         )
         return
-    parent = graph.owner  # the subgraph `graph` is itself a child of `parent`
     if parent is None or not _is_traceable(parent):
         if parent is not None:
             raise _flow_control_error(parent, pulled)
