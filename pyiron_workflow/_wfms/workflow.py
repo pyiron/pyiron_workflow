@@ -5,7 +5,7 @@ import dataclasses
 import functools
 import types
 from collections.abc import Callable, MutableMapping
-from typing import TYPE_CHECKING, Any, cast
+from typing import TYPE_CHECKING, Any, Self, cast
 
 import flowrep as fr
 import semantikon
@@ -186,6 +186,15 @@ class Workflow(MutableDag):
         self.undo_stack = collections.deque(maxlen=undo_limit)
         self.redo_stack = collections.deque(maxlen=undo_limit)
         self.connect_input(*positional_connections, **keyword_connections)
+
+    def copy(
+        self, new_label: fr.schemas.Label | None = None, _copy_to: Self | None = None
+    ) -> Workflow:
+        node_copy = _copy_to or self.from_recipe(new_label or self.label, self.recipe)
+        self._copy_data(self, node_copy)
+        for label, child in self.nodes.items():
+            child.copy(_copy_to=node_copy.nodes[label])
+        return node_copy
 
     def __setattr__(self, name: str, value: object) -> None:
         """Syntactic sugar for adding a fresh node to the graph.

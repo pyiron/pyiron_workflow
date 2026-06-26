@@ -222,6 +222,50 @@ class Node(
         self.last_run = current_run
         return current_run
 
+    def pull(
+        self,
+        config: execution.RunConfig | None = None,
+        break_out_of_context: bool = False,
+        expose_defaults: bool = False,
+        /,
+        **input_kwargs,
+    ) -> execution.Run[execution.ResultType]:
+        from pyiron_workflow._wfms import pull as _pull  # noqa: PLC0415 -- cycle guard
+
+        return _pull.pull(
+            self, config, break_out_of_context, expose_defaults, **input_kwargs
+        )
+
+    def pulled_workflow(
+        self, break_out_of_context: bool = False, expose_defaults: bool = False, /
+    ):
+        from pyiron_workflow._wfms import pull as _pull  # noqa: PLC0415 -- cycle guard
+
+        return _pull.pulled_workflow(self, break_out_of_context, expose_defaults)
+
+    def pulled_inputs(
+        self, break_out_of_context: bool = False, expose_defaults: bool = False, /
+    ):
+        from pyiron_workflow._wfms import pull as _pull  # noqa: PLC0415 -- cycle guard
+
+        return _pull.pulled_inputs(self, break_out_of_context, expose_defaults)
+
+    @abc.abstractmethod
+    def copy(
+        self, new_label: fr.schemas.Label | None = None, _copy_to: Self | None = None
+    ) -> Self:
+        """
+        Make a new copy of this node based on its recipe, and copy over node-state
+        (so far, just the executor.)
+
+        Intentionally loses scope information like the owner and any pending
+        connections, and history information like the ``last_run``.
+        """
+
+    @staticmethod
+    def _copy_data(from_: Node, to_: Node, /) -> None:
+        to_.executor = from_.executor
+
     def __call__(self, *args: Port | Node, **kwargs: Port | Node) -> Self:
         self.connect_input(*args, **kwargs)
         return self
@@ -365,6 +409,13 @@ class StaticNode(Node[RecipeType, execution.ResultType], abc.ABC):
     def recipe(self) -> RecipeType:
         return self._recipe
 
+    def copy(
+        self, new_label: fr.schemas.Label | None = None, _copy_to: Self | None = None
+    ) -> Self:
+        node_copy = _copy_to or self.__class__(new_label or self.label, self.recipe)
+        self._copy_data(self, node_copy)
+        return node_copy
+
     def generate_flowrep_live_node(self) -> execution.ResultType:
         return self._result_type().from_recipe(self.recipe)
 
@@ -501,6 +552,14 @@ class StaticGraph(StaticNode[RecipeType, execution.ResultType], Graph, abc.ABC):
         super().__init__(label, recipe, *positional_connections, **keyword_connections)
         self._nodes = self._build_nodes(recipe)
         self._edges = self._build_edges(recipe)
+
+    def copy(
+        self, new_label: fr.schemas.Label | None = None, _copy_to: Self | None = None
+    ) -> Self:
+        node_copy = super().copy(new_label=new_label, _copy_to=_copy_to)
+        for label, child in self.nodes.items():
+            child.copy(_copy_to=node_copy.nodes[label])
+        return node_copy
 
     @abc.abstractmethod
     def _build_nodes(self, recipe: RecipeType) -> NodeMap: ...
