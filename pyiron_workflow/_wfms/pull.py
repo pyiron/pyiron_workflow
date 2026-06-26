@@ -4,6 +4,7 @@ import dataclasses
 from typing import TYPE_CHECKING
 
 import flowrep as fr
+import typing_extensions
 
 from pyiron_workflow._wfms import constructors, execution, workflow
 from pyiron_workflow._wfms.datatypes import (
@@ -56,7 +57,7 @@ def _member_label(node: Node, ceiling: Graph | None) -> str:
     return _relative(node, ceiling) or node.label
 
 
-def _is_traceable(graph: object) -> bool:
+def _is_traceable(graph: object) -> typing_extensions.TypeIs[ImmutableDag | MutableDag]:
     """Whether a graph exposes concrete (non-prospective) edges we may walk."""
     return isinstance(graph, ImmutableDag | MutableDag)
 
@@ -167,7 +168,6 @@ def _resolve_boundary(
         )
         return  # pragma: no cover
     # else _is_traceable(parent) and parent: ImmutableDag | MutableDag
-    assert isinstance(parent, ImmutableDag | MutableDag)
     # TODO: structure the function better so that the inspectors can just see this
     edge = _incoming_edge(parent, graph.label, boundary_port)
     if edge is None:
@@ -261,7 +261,6 @@ def _resolve_input(
         _require(member, port_label, port, ceiling, cone)
         return
     # else _is_traceable(graph) and graph: ImmutableDag | MutableDag
-    assert isinstance(graph, ImmutableDag | MutableDag)
     # TODO: structure the function better so that the inspectors can just see this
     edge = _incoming_edge(graph, member.label, port_label)
     if edge is None:
