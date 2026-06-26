@@ -135,7 +135,6 @@ def _resolve_boundary(
     consumer_port: str,
     consumer_port_obj: InputPort,
     ceiling: Graph | None,
-    break_out: bool,
     cone: _Cone,
     worklist: list[Node],
     seen: set[str],
@@ -154,7 +153,7 @@ def _resolve_boundary(
         return
     parent = graph.owner  # the subgraph `graph` is itself a child of `parent`
     if parent is None or not _is_traceable(parent):
-        if parent is not None and break_out:
+        if parent is not None:
             raise _flow_control_error(parent, pulled)
         # `graph`'s boundary port is unfed at the parent level: required input,
         # keyed by the deep consumer.
@@ -201,7 +200,6 @@ def _resolve_boundary(
             consumer_port,
             consumer_port_obj,
             ceiling,
-            break_out,
             cone,
             worklist,
             seen,
@@ -283,7 +281,6 @@ def _resolve_input(
             port_label,
             port,
             ceiling,
-            break_out,
             cone,
             worklist,
             seen,
