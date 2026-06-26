@@ -12,12 +12,13 @@ from pyiron_workflow._wfms.datatypes import (
     Graph,
     ImmutableDag,
     MutableDag,
+    Node,
 )
 
 if TYPE_CHECKING:
     import semantikon
 
-    from pyiron_workflow._wfms.datatypes import InputPort, Node
+    from pyiron_workflow._wfms.datatypes import InputPort
 
 
 @dataclasses.dataclass
@@ -33,28 +34,25 @@ class _Cone:
     input_edges: EdgeList = dataclasses.field(default_factory=list)
 
 
-def _root(node: Node) -> Node:
-    current = node
-    while current.owner is not None:
-        current = current.owner
-    return current
+def _ceiling(node: Node, break_out_of_context: bool) -> Graph | None:
+    if break_out_of_context:
+        root: Graph | None = node.owner
+        while isinstance(root, Node) and root.owner is not None:
+            root = root.owner
+        return root
+    else:
+        return node.owner
 
 
-def _ceiling(node: Node, break_out_of_context: bool) -> Node:
-    if node.owner is None:
-        return node
-    return _root(node) if break_out_of_context else node.owner
-
-
-def _relative(node: Node, ceiling: Node) -> str:
+def _relative(node: Node, ceiling: Graph | None) -> str:
     """Flat label relative to `ceiling`; '' iff `node is ceiling`."""
-    if node is ceiling:
+    if ceiling is None:
         return ""
     prefix = ceiling.lexical_path
     return node.lexical_path[len(prefix) + 1 :].replace(".", "__")
 
 
-def _member_label(node: Node, ceiling: Node) -> str:
+def _member_label(node: Node, ceiling: Graph | None) -> str:
     return _relative(node, ceiling) or node.label
 
 
@@ -71,7 +69,7 @@ def _incoming_edge(graph: Graph, node_label: str, port: str) -> EdgeTuple | None
     return None
 
 
-def _flow_control_error(controller: Node, pulled: Node) -> ValueError:
+def _flow_control_error(controller: Graph, pulled: Node) -> ValueError:
     return ValueError(
         f"Cannot pull {pulled.lexical_path!r} out of the flow controller "
         f"{controller.lexical_path!r} (a {type(controller).__name__}): a pull cannot "
@@ -98,7 +96,7 @@ def _add_input(
 
 
 def _require(
-    member: Node, port_label: str, port: InputPort, ceiling: Node, cone: _Cone
+    member: Node, port_label: str, port: InputPort, ceiling: Graph | None, cone: _Cone
 ) -> None:
     """Surface a genuinely-unfed input port as a required workflow input."""
     rel = _relative(member, ceiling)
@@ -112,7 +110,7 @@ def _add_dependency(
     dep_port: str,
     consumer_label: str,
     consumer_port: str,
-    ceiling: Node,
+    ceiling: Graph | None,
     cone: _Cone,
     worklist: list[Node],
     seen: set[str],
@@ -130,12 +128,12 @@ def _add_dependency(
 
 
 def _resolve_boundary(
-    graph: Graph,
+    graph: ImmutableDag | MutableDag,
     boundary_port: str,
     consumer_label: str,
     consumer_port: str,
     consumer_port_obj: InputPort,
-    ceiling: Node,
+    ceiling: Graph | None,
     break_out: bool,
     cone: _Cone,
     worklist: list[Node],
@@ -143,7 +141,7 @@ def _resolve_boundary(
     pulled: Node,
 ) -> None:
     if graph is ceiling:
-        ceiling_port = ceiling.inputs[boundary_port]
+        ceiling_port = graph.inputs[boundary_port]
         _add_input(
             cone,
             boundary_port,
@@ -168,6 +166,9 @@ def _resolve_boundary(
             consumer_port_obj.type_metadata,
         )
         return  # pragma: no cover
+    # else _is_traceable(parent) and parent: ImmutableDag | MutableDag
+    assert isinstance(parent, ImmutableDag | MutableDag)
+    # TODO: structure the function better so that the inspectors can just see this
     edge = _incoming_edge(parent, graph.label, boundary_port)
     if edge is None:
         _add_input(
@@ -210,7 +211,7 @@ def _resolve_boundary(
 
 def _build_cone(
     node: Node, break_out_of_context: bool, expose_defaults: bool
-) -> tuple[_Cone, Node]:
+) -> tuple[_Cone, Graph | None]:
     ceiling = _ceiling(node, break_out_of_context)
     cone = _Cone(pulled_label=_member_label(node, ceiling))
     seen = {cone.pulled_label}
@@ -238,7 +239,7 @@ def _resolve_input(
     member: Node,
     port_label: str,
     port: InputPort,
-    ceiling: Node,
+    ceiling: Graph | None,
     break_out: bool,
     expose_defaults: bool,
     cone: _Cone,
@@ -259,6 +260,9 @@ def _resolve_input(
             raise _flow_control_error(graph, pulled)
         _require(member, port_label, port, ceiling, cone)
         return
+    # else _is_traceable(graph) and graph: ImmutableDag | MutableDag
+    assert isinstance(graph, ImmutableDag | MutableDag)
+    # TODO: structure the function better so that the inspectors can just see this
     edge = _incoming_edge(graph, member.label, port_label)
     if edge is None:
         _require(member, port_label, port, ceiling, cone)
