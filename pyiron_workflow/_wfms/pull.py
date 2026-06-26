@@ -317,9 +317,9 @@ def pulled_inputs(
 
 def pull(
     node: Node,
+    config: execution.RunConfig | None = None,
     break_out_of_context: bool = False,
     expose_defaults: bool = False,
-    config: execution.RunConfig | None = None,
     /,
     **input_kwargs: object,
 ) -> execution.Run:

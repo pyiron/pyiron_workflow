@@ -224,16 +224,16 @@ class Node(
 
     def pull(
         self,
+        config: execution.RunConfig | None = None,
         break_out_of_context: bool = False,
         expose_defaults: bool = False,
-        config: execution.RunConfig | None = None,
         /,
         **input_kwargs,
     ) -> execution.Run[execution.ResultType]:
         from pyiron_workflow._wfms import pull as _pull  # noqa: PLC0415 -- cycle guard
 
         return _pull.pull(
-            self, break_out_of_context, expose_defaults, config, **input_kwargs
+            self, config, break_out_of_context, expose_defaults, **input_kwargs
         )
 
     def pulled_workflow(
