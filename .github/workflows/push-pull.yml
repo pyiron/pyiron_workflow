@@ -38,3 +38,15 @@ jobs:
     uses: ./.github/workflows/slurm-test.yml
     with:
       mode: discover
+
+  slurm-interruption-wfms:
+    if: github.event_name == 'pull_request'
+    uses: ./.github/workflows/slurm-test-wfms.yml
+    with:
+      mode: interrupt
+
+  slurm-discovery-wfms:
+    if: github.event_name == 'pull_request'
+    uses: ./.github/workflows/slurm-test-wfms.yml
+    with:
+      mode: discover
