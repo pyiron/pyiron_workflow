@@ -51,3 +51,16 @@ jobs:
     uses: ./.github/workflows/slurm-test-wfms.yml
     with:
       mode: discover
+
+  tests-without-optionals:
+    runs-on: 'ubuntu-22.04'
+    steps:
+      - uses: actions/checkout@v4
+      - uses: pyiron/actions/unit-tests@actions-4.2.1
+        with:
+          python-version: '3.12'  # Copy pyiron/python-version
+          env-files: .ci_support/environment.yml  # WITHOUT optional dependencies
+          test-dir: tests/unit
+          add-standard-codacy-env: false  # Not needed, override default
+          add-standard-coveralls-env: false  # Not needed, override default
+        timeout-minutes: 10
