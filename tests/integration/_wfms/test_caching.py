@@ -6,10 +6,11 @@ import tempfile
 import unittest
 from concurrent import futures
 
-from pyiron_workflow._wfms import api as pwf
-from tests.integration._wfms import _fixtures
+from static._wfms import integration_fixtures
 
-HAS_FLECHE = _fixtures.cached_sleep is not None
+from pyiron_workflow._wfms import api as pwf
+
+HAS_FLECHE = integration_fixtures.cached_sleep is not None
 
 
 @unittest.skipUnless(HAS_FLECHE, "requires the optional 'fleche' dependency")
@@ -42,13 +43,13 @@ class TestFlecheCaching(unittest.TestCase):
         return out.duration.total_seconds(), out.outputs["s"].value
 
     def _assert_speedup(self, place_executors, replace_executors) -> None:
-        cache = _fixtures.make_cache(self.root)
+        cache = integration_fixtures.make_cache(self.root)
 
-        cold_node = pwf.node(_fixtures.outer_caching.flowrep_recipe)
+        cold_node = pwf.node(integration_fixtures.outer_caching.flowrep_recipe)
         place_executors(cold_node)
         dt_cold, v_cold = self._run(cold_node, cache)
 
-        warm_node = pwf.node(_fixtures.outer_caching.flowrep_recipe)
+        warm_node = pwf.node(integration_fixtures.outer_caching.flowrep_recipe)
         replace_executors(warm_node)
         dt_warm, v_warm = self._run(warm_node, cache)
 
