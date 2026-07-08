@@ -210,11 +210,14 @@ class RunConfig:
         return candidate.lexical_path == self.prime_mover
 
     def _fleche_cache_context(self) -> BaseCache | contextlib.AbstractContextManager:
-        return (
-            fleche.cache(self.fleche_cache)
-            if self.fleche_cache
-            else fleche.cache("void")
-        )
+        try:
+            return (
+                fleche.cache(self.fleche_cache)
+                if self.fleche_cache
+                else fleche.cache("void")
+            )
+        except NameError:
+            return contextlib.nullcontext()
 
 
 @dataclasses.dataclass
