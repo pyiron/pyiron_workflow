@@ -3,8 +3,6 @@ import time
 
 try:
     import fleche
-    from fleche.caches import Cache
-    from fleche.storage import CallPickleFile, ValuePickleFile
 
     import pyiron_workflow._wfms.api as pwf
 
@@ -35,9 +33,11 @@ if HAS_FLECHE:
         return s
 
     def make_cache(root: pathlib.Path):
-        return Cache(
-            values=ValuePickleFile.with_pickle(root=str(root / "values")),
-            calls=CallPickleFile.with_pickle(root=str(root / "calls")),
+        return fleche.caches.Cache(
+            values=fleche.storage.ValuePickleFile.with_pickle(
+                root=str(root / "values")
+            ),
+            calls=fleche.storage.CallPickleFile.with_pickle(root=str(root / "calls")),
         )
 
 else:

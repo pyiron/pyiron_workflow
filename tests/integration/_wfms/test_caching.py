@@ -12,8 +12,6 @@ import pyiron_workflow._wfms.api as pwf
 
 try:
     import fleche
-    from fleche.caches import Cache
-    from fleche.storage import CallMemory, ValueMemory
 
     HAS_FLECHE = True
 except ImportError:
@@ -124,7 +122,12 @@ class TestFlecheCaching(unittest.TestCase):
 
     def test_run_config_overrides_fleche(self):
         node = pwf.node(integration_fixtures.outer_caching.flowrep_recipe)
-        with fleche.cache(Cache(values=ValueMemory({}), calls=CallMemory({}))):
+        with fleche.cache(
+            fleche.caches.Cache(
+                values=fleche.storage.ValueMemory({}),
+                calls=fleche.storage.CallMemory({}),
+            ),
+        ):
             t1, _ = self._run(node, None)
             t2, _ = self._run(node, None)
         self.assertLess(self.T, t1)
