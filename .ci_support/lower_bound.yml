@@ -3,10 +3,11 @@ channels:
 dependencies:
 - coveralls
 - coverage
-- bagofholding =0.1.9
+- bagofholding =0.1.12
 - bidict =0.23.1
 - cloudpickle =3.0.0
 - executorlib =1.5.3
+- fleche =0.19.2
 - flowrep =0.5.2
 - graphviz =12.2.1
 - hatchling =1.27.0

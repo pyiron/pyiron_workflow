@@ -38,11 +38,7 @@ class CacheOverride(executorlib.BaseExecutor):
         """
         Modify behaviour when submitting for a pyiron_workflow execution loop
         """
-        if (
-            fn is not execution._return_mutated_state_with_any_exception
-            or len(args) != 3
-            or len(kwargs) != 0
-        ):
+        if not self._recognized_submission(fn) or len(args) != 3 or len(kwargs) != 0:
             raise DedicatedExecutorError(
                 f"{self.__class__.__name__} is only intended to work with the "
                 f"run routine of pyiron_workflow: "
@@ -60,6 +56,14 @@ class CacheOverride(executorlib.BaseExecutor):
         super_kwargs = {"resource_dict": cache_key_info}
 
         return super().submit(fn, *args, **super_kwargs)
+
+    @staticmethod
+    def _recognized_submission(fn):
+        return fn is execution._return_mutated_state_with_any_exception or (
+            type(fn).__name__ == "BoundWrapper"
+            and getattr(fn, "func", None)
+            is execution._return_mutated_state_with_any_exception
+        )
 
 
 class NodeSingleExecutor(CacheOverride, executorlib.SingleNodeExecutor): ...

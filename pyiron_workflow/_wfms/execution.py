@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import atexit
+import contextlib
 import dataclasses
 import datetime
 import enum
@@ -12,8 +13,15 @@ from concurrent import futures
 from typing import TYPE_CHECKING, Any, Generic, NamedTuple, TypeAlias, TypeVar
 
 import flowrep as fr
+from pyiron_snippets import import_alarm
 
 from pyiron_workflow._wfms import lexical
+
+with import_alarm.ImportAlarm(
+    "Using a fleche-cache requires 'fleche'.", raise_exception=True
+) as _import_alarm:
+    import fleche
+    from fleche.caches import BaseCache, Cache
 
 if TYPE_CHECKING:
     from pyiron_workflow._wfms.datatypes import Node
@@ -150,9 +158,18 @@ class RunConfig:
     dag_layers_fail_fast: bool = False
     hooks_max_threads: int = 10
     logger_name: str = __name__
+    fleche_cache: Cache | None = None
     _prime_mover: lexical.LexicalPath | None = dataclasses.field(
         default=None, kw_only=True
     )
+
+    def __post_init__(self) -> None:
+        if self.fleche_cache is not None:
+            self._assert_fleche_available()
+
+    @_import_alarm
+    def _assert_fleche_available(self) -> None:
+        pass
 
     @property
     def prime_mover(self) -> lexical.LexicalPath:
@@ -191,6 +208,16 @@ class RunConfig:
 
     def is_prime_mover(self, candidate: Node[Any, Any]) -> bool:
         return candidate.lexical_path == self.prime_mover
+
+    def _fleche_cache_context(self) -> BaseCache | contextlib.AbstractContextManager:
+        try:
+            return (
+                fleche.cache(self.fleche_cache)
+                if self.fleche_cache
+                else fleche.cache("void")
+            )
+        except NameError:
+            return contextlib.nullcontext()
 
 
 @dataclasses.dataclass
@@ -233,7 +260,8 @@ def run(
     try:
         populate_input_ports(current_run.result, input_data)
         if node.executor is None:
-            node.evaluate(current_run, config)
+            with config._fleche_cache_context():
+                node.evaluate(current_run, config)
         else:
             # Across-process: copy back rather than rebind
             f = _submit(node, current_run, config)
@@ -260,14 +288,19 @@ def _submit(
     node: Node, current_run: Run[ResultType], config: RunConfig
 ) -> futures.Future:
     if isinstance(node.executor, ExecutorInstructions):
-        with node.executor.instantiate() as exe:
+        with config._fleche_cache_context(), node.executor.instantiate() as exe:
+            if config.fleche_cache is not None:
+                fleche.wrap_executor(exe)
             f = exe.submit(
                 _return_mutated_state_with_any_exception, node, current_run, config
             )
     elif isinstance(node.executor, futures.Executor):
-        f = node.executor.submit(
-            _return_mutated_state_with_any_exception, node, current_run, config
-        )
+        with config._fleche_cache_context():
+            if config.fleche_cache is not None:
+                fleche.wrap_executor(node.executor)
+            f = node.executor.submit(
+                _return_mutated_state_with_any_exception, node, current_run, config
+            )
     else:
         raise TypeError(
             f"Expected executor to be an instance of ExecutorInstructions or "

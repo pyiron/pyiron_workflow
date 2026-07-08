@@ -13,6 +13,15 @@ import flowrep as fr
 from pyiron_workflow._wfms import atomic, execution
 from tests.unit._wfms import _fixtures
 
+try:
+    import fleche  # noqa: F401
+    from fleche.caches import Cache
+    from fleche.storage import CallMemory, ValueMemory
+
+    HAS_FLECHE = True
+except ImportError:
+    HAS_FLECHE = False
+
 # --------------------------------------------------------------------------- #
 # Helper subclasses                                                           #
 # --------------------------------------------------------------------------- #
@@ -524,6 +533,22 @@ class TestRunDoesNotBlockOnHooks(unittest.TestCase):
             self.assertEqual(run.status, execution.RunStatus.FINISHED)
             self.assertEqual(run.outputs["output_0"].value, 3)
             release.set()  # let the hook finish before teardown flushes the pool
+
+
+class TestRunConfigFlecheCache(unittest.TestCase):
+    def test_default_is_none(self):
+        self.assertIsNone(execution.RunConfig().fleche_cache)
+
+    @unittest.skipUnless(HAS_FLECHE, "requires the optional 'fleche' dependency")
+    def test_accepts_cache_when_available(self):
+        cache = Cache(values=ValueMemory({}), calls=CallMemory({}))
+        config = execution.RunConfig(fleche_cache=cache)
+        self.assertIs(config.fleche_cache, cache)
+
+    @unittest.skipIf(HAS_FLECHE, "only meaningful when 'fleche' is absent")
+    def test_rejects_cache_when_unavailable(self):
+        with self.assertRaises(ImportError):
+            execution.RunConfig(fleche_cache=object())
 
 
 if __name__ == "__main__":

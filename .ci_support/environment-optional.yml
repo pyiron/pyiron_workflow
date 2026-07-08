@@ -1,0 +1,4 @@
+channels:
+- conda-forge
+dependencies:
+- fleche =0.19.2
