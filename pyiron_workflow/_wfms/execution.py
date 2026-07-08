@@ -213,7 +213,7 @@ class RunConfig:
         return (
             fleche.cache(self.fleche_cache)
             if self.fleche_cache
-            else fleche.cache("void")  # contextlib.nullcontext()
+            else fleche.cache("void")
         )
 
 
