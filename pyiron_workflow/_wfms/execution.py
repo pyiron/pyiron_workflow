@@ -18,7 +18,7 @@ from pyiron_snippets import import_alarm
 from pyiron_workflow._wfms import lexical
 
 with import_alarm.ImportAlarm(
-    "Using a flech-cache requires 'fleche'.", raise_exception=True
+    "Using a fleche-cache requires 'fleche'.", raise_exception=True
 ) as _import_alarm:
     import fleche
     from fleche.caches import BaseCache, Cache
