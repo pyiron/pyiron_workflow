@@ -8,9 +8,16 @@ from concurrent import futures
 
 from static._wfms import integration_fixtures
 
-from pyiron_workflow._wfms import api as pwf
+import pyiron_workflow._wfms.api as pwf
 
-HAS_FLECHE = integration_fixtures.cached_sleep is not None
+try:
+    import fleche
+    from fleche.caches import Cache
+    from fleche.storage import CallMemory, ValueMemory
+
+    HAS_FLECHE = True
+except ImportError:
+    HAS_FLECHE = False
 
 
 @unittest.skipUnless(HAS_FLECHE, "requires the optional 'fleche' dependency")
@@ -114,6 +121,19 @@ class TestFlecheCaching(unittest.TestCase):
 
     def test_pool_executor_pool_instructions(self) -> None:
         self._assert_speedup(self._executor_instructions, self._executor_instance)
+
+    def test_run_config_overrides_fleche(self):
+        node = pwf.node(integration_fixtures.outer_caching.flowrep_recipe)
+        with fleche.cache(Cache(values=ValueMemory({}), calls=CallMemory({}))):
+            t1, _ = self._run(node, None)
+            t2, _ = self._run(node, None)
+        self.assertLess(self.T, t1)
+        self.assertLess(
+            self.T,
+            t2,
+            msg="With no cache provided to the run config, we should not cache -- no "
+            "matter what, even inside a cache context",
+        )
 
 
 if __name__ == "__main__":
