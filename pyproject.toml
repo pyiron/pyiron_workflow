@@ -72,7 +72,7 @@ notebook = [
     "python-workflow-definition==0.1.5",
 ]
 fleche = [
-    "fleche==0.19.2",
+    "fleche==0.20.0",
 ]
 
 [tool.hatch.build]
