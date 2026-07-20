@@ -34,8 +34,8 @@ def plain_add(x, y):
 def _conditional_case() -> fr.schemas.ConditionalCase:
     """Build a minimal `ConditionalCase` whose condition and body wrap `add`."""
     add_recipe = _fixtures.add.flowrep_recipe
-    condition = fr.schemas.LabeledRecipe(label="cond", node=add_recipe)
-    body = fr.schemas.LabeledRecipe(label="body", node=add_recipe)
+    condition = fr.schemas.LabeledRecipe(label="cond", recipe=add_recipe)
+    body = fr.schemas.LabeledRecipe(label="body", recipe=add_recipe)
     return fr.schemas.ConditionalCase(condition=condition, body=body)
 
 
@@ -77,8 +77,8 @@ def _while_recipe() -> fr.schemas.WhileRecipe:
 
 def _try_recipe() -> fr.schemas.TryRecipe:
     add_recipe = _fixtures.add.flowrep_recipe
-    try_body = fr.schemas.LabeledRecipe(label="trybody", node=add_recipe)
-    handler = fr.schemas.LabeledRecipe(label="handler", node=add_recipe)
+    try_body = fr.schemas.LabeledRecipe(label="trybody", recipe=add_recipe)
+    handler = fr.schemas.LabeledRecipe(label="handler", recipe=add_recipe)
     exc_case = fr.schemas.ExceptionCase(
         exceptions=[versions.VersionInfo.of(ValueError)],
         body=handler,

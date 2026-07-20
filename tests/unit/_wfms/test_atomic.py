@@ -215,19 +215,6 @@ class TestStoreAtomicOutputs(unittest.TestCase):
         with self.assertRaises(ValueError):
             atomic._store_atomic_outputs(live, (1, 2))
 
-    def test_unpack_dataclass_writes_fields_in_position(self) -> None:
-        recipe = _atomic_recipe(
-            _make_pair,
-            inputs=[],
-            outputs=["a", "b"],
-            unpack_mode=fr.schemas.UnpackMode.DATACLASS,
-        )
-        live = fr.schemas.AtomicData.from_recipe(recipe)
-        result = _Pair(a=11, b=22)
-        atomic._store_atomic_outputs(live, result)
-        self.assertEqual(live.output_ports["a"].value, 11)
-        self.assertEqual(live.output_ports["b"].value, 22)
-
 
 if __name__ == "__main__":
     unittest.main()

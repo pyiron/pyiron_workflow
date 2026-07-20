@@ -21,10 +21,10 @@ class While(StaticGraph[fr.schemas.WhileRecipe, fr.schemas.WhileData]):
             self,
             {
                 recipe.case.condition.label: constructors.recipe2node(
-                    recipe.case.condition.node, recipe.case.condition.label
+                    recipe.case.condition.recipe, recipe.case.condition.label
                 ),
                 recipe.case.body.label: constructors.recipe2node(
-                    recipe.case.body.node, recipe.case.body.label
+                    recipe.case.body.recipe, recipe.case.body.label
                 ),
             },
         )
@@ -79,7 +79,7 @@ class While(StaticGraph[fr.schemas.WhileRecipe, fr.schemas.WhileData]):
         iteration = 0
         while True:
             cond_label = self._indexed_label(cond_prefix, iteration)
-            self._stage_node(cond_label, result, recipe.case.condition.node)
+            self._stage_node(cond_label, result, recipe.case.condition.recipe)
             self._stage_child_edges(
                 cond_label, cond_prefix, recipe, result, last_body_label
             )
@@ -89,7 +89,7 @@ class While(StaticGraph[fr.schemas.WhileRecipe, fr.schemas.WhileData]):
                 break
 
             body_label = self._indexed_label(body_prefix, iteration)
-            self._stage_node(body_label, result, recipe.case.body.node)
+            self._stage_node(body_label, result, recipe.case.body.recipe)
             self._stage_child_edges(
                 body_label, body_prefix, recipe, result, last_body_label
             )
@@ -160,5 +160,7 @@ class While(StaticGraph[fr.schemas.WhileRecipe, fr.schemas.WhileData]):
         case: fr.schemas.ConditionalCase,
         result: fr.schemas.WhileData,
     ) -> bool:
-        output_label = case.condition_output or next(iter(case.condition.node.outputs))
+        output_label = case.condition_output or next(
+            iter(case.condition.recipe.outputs)
+        )
         return bool(result.nodes[cond_label].output_ports[output_label].value)

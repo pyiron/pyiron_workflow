@@ -22,13 +22,13 @@ def _no_match_recipe() -> fr.schemas.TryRecipe:
         inputs=["x", "y"],
         outputs=["z"],
         try_node=fr.schemas.LabeledRecipe(
-            label="try_body", node=_fixtures.divide.flowrep_recipe
+            label="try_body", recipe=_fixtures.divide.flowrep_recipe
         ),
         exception_cases=[
             fr.schemas.ExceptionCase(
                 exceptions=[versions.VersionInfo.of(TypeError)],
                 body=fr.schemas.LabeledRecipe(
-                    label="handler_0", node=_fixtures.identity.flowrep_recipe
+                    label="handler_0", recipe=_fixtures.identity.flowrep_recipe
                 ),
             ),
         ],
@@ -66,19 +66,19 @@ def _multi_case_recipe() -> fr.schemas.TryRecipe:
         inputs=["x", "y"],
         outputs=["z"],
         try_node=fr.schemas.LabeledRecipe(
-            label="try_body", node=_fixtures.divide.flowrep_recipe
+            label="try_body", recipe=_fixtures.divide.flowrep_recipe
         ),
         exception_cases=[
             fr.schemas.ExceptionCase(
                 exceptions=[versions.VersionInfo.of(ZeroDivisionError)],
                 body=fr.schemas.LabeledRecipe(
-                    label="handler_0", node=_fixtures.negate.flowrep_recipe
+                    label="handler_0", recipe=_fixtures.negate.flowrep_recipe
                 ),
             ),
             fr.schemas.ExceptionCase(
                 exceptions=[versions.VersionInfo.of(TypeError)],
                 body=fr.schemas.LabeledRecipe(
-                    label="handler_1", node=_fixtures.identity.flowrep_recipe
+                    label="handler_1", recipe=_fixtures.identity.flowrep_recipe
                 ),
             ),
         ],
@@ -112,7 +112,7 @@ def _tuple_exceptions_recipe() -> fr.schemas.TryRecipe:
         inputs=["x", "y"],
         outputs=["z"],
         try_node=fr.schemas.LabeledRecipe(
-            label="try_body", node=_fixtures.divide.flowrep_recipe
+            label="try_body", recipe=_fixtures.divide.flowrep_recipe
         ),
         exception_cases=[
             fr.schemas.ExceptionCase(
@@ -121,7 +121,7 @@ def _tuple_exceptions_recipe() -> fr.schemas.TryRecipe:
                     versions.VersionInfo.of(TypeError),
                 ],
                 body=fr.schemas.LabeledRecipe(
-                    label="handler_0", node=_fixtures.identity.flowrep_recipe
+                    label="handler_0", recipe=_fixtures.identity.flowrep_recipe
                 ),
             ),
         ],
@@ -151,13 +151,13 @@ def _handler_raises_recipe() -> fr.schemas.TryRecipe:
         inputs=["x", "y"],
         outputs=["z"],
         try_node=fr.schemas.LabeledRecipe(
-            label="try_body", node=_fixtures.divide.flowrep_recipe
+            label="try_body", recipe=_fixtures.divide.flowrep_recipe
         ),
         exception_cases=[
             fr.schemas.ExceptionCase(
                 exceptions=[versions.VersionInfo.of(ZeroDivisionError)],
                 body=fr.schemas.LabeledRecipe(
-                    label="handler_0", node=_fixtures.divide.flowrep_recipe
+                    label="handler_0", recipe=_fixtures.divide.flowrep_recipe
                 ),
             ),
         ],
@@ -418,7 +418,7 @@ class TestResolveExceptionTypes(unittest.TestCase):
         case = fr.schemas.ExceptionCase(
             exceptions=[versions.VersionInfo.of(ZeroDivisionError)],
             body=fr.schemas.LabeledRecipe(
-                label="h", node=_fixtures.identity.flowrep_recipe
+                label="h", recipe=_fixtures.identity.flowrep_recipe
             ),
         )
         result = tryflow.Try._resolve_exception_types(case)
@@ -432,7 +432,7 @@ class TestResolveExceptionTypes(unittest.TestCase):
                 versions.VersionInfo.of(TypeError),
             ],
             body=fr.schemas.LabeledRecipe(
-                label="h", node=_fixtures.identity.flowrep_recipe
+                label="h", recipe=_fixtures.identity.flowrep_recipe
             ),
         )
         result = tryflow.Try._resolve_exception_types(case)

@@ -25,12 +25,12 @@ class Try(StaticGraph[fr.schemas.TryRecipe, fr.schemas.TryData]):
     def _build_nodes(self, recipe: fr.schemas.TryRecipe) -> NodeMap:
         nodes: dict[fr.schemas.Label, Node] = {
             recipe.try_node.label: constructors.recipe2node(
-                recipe.try_node.node, recipe.try_node.label
+                recipe.try_node.recipe, recipe.try_node.label
             )
         }
         for case in recipe.exception_cases:
             nodes[case.body.label] = constructors.recipe2node(
-                case.body.node, case.body.label
+                case.body.recipe, case.body.label
             )
         return NodeMap(self, nodes)
 
@@ -46,7 +46,7 @@ class Try(StaticGraph[fr.schemas.TryRecipe, fr.schemas.TryData]):
         recipe = result.recipe
 
         try_label = recipe.try_node.label
-        self._stage_node(try_label, result, recipe.try_node.node)
+        self._stage_node(try_label, result, recipe.try_node.recipe)
         self._stage_node_input_edges(try_label, result, recipe)
         try_node = self.nodes[try_label]
 
@@ -59,7 +59,7 @@ class Try(StaticGraph[fr.schemas.TryRecipe, fr.schemas.TryData]):
                     continue
 
                 body_label = case.body.label
-                self._stage_node(body_label, result, case.body.node)
+                self._stage_node(body_label, result, case.body.recipe)
                 self._stage_node_input_edges(body_label, result, recipe)
                 body_node = self.nodes[body_label]
                 try:

@@ -31,7 +31,7 @@ class ForEach(StaticGraph[fr.schemas.ForEachRecipe, fr.schemas.ForEachData]):
         bn = self.recipe.body_node
         return NodeMap(
             self,
-            {bn.label: constructors.recipe2node(bn.node, bn.label)},
+            {bn.label: constructors.recipe2node(bn.recipe, bn.label)},
         )
 
     def _build_edges(self, recipe: fr.schemas.ForEachRecipe) -> EdgeList:

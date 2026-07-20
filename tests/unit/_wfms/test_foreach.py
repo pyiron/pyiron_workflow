@@ -21,7 +21,7 @@ def _macro_body_recipe() -> fr.schemas.WorkflowRecipe:
 
 def _build_nested_only_recipe() -> fr.schemas.ForEachRecipe:
     """body=add(x, y); `x` nested, `y` broadcast."""
-    body = fr.schemas.LabeledRecipe(label="body", node=_atomic_body_recipe())
+    body = fr.schemas.LabeledRecipe(label="body", recipe=_atomic_body_recipe())
     return fr.schemas.ForEachRecipe(
         inputs=["xs", "y"],
         outputs=["sums"],
@@ -46,7 +46,7 @@ def _build_nested_only_recipe() -> fr.schemas.ForEachRecipe:
 
 def _build_zipped_only_recipe() -> fr.schemas.ForEachRecipe:
     """body=add(x, y); both zipped."""
-    body = fr.schemas.LabeledRecipe(label="body", node=_atomic_body_recipe())
+    body = fr.schemas.LabeledRecipe(label="body", recipe=_atomic_body_recipe())
     return fr.schemas.ForEachRecipe(
         inputs=["xs", "ys"],
         outputs=["sums"],
@@ -71,7 +71,7 @@ def _build_zipped_only_recipe() -> fr.schemas.ForEachRecipe:
 
 def _build_mixed_recipe() -> fr.schemas.ForEachRecipe:
     """body=macro(x, y, z); `x` nested, `y` and `z` zipped."""
-    body = fr.schemas.LabeledRecipe(label="body", node=_macro_body_recipe())
+    body = fr.schemas.LabeledRecipe(label="body", recipe=_macro_body_recipe())
     return fr.schemas.ForEachRecipe(
         inputs=["xs", "ys", "ws"],
         outputs=["sums"],
@@ -104,7 +104,7 @@ def _make_broadcast_only_recipe() -> fr.schemas.ForEachRecipe:
     `model_construct` is used to bypass them — `_build_runtime_dag` doesn't
     care, it just reads fields.
     """
-    body = fr.schemas.LabeledRecipe(label="body", node=_atomic_body_recipe())
+    body = fr.schemas.LabeledRecipe(label="body", recipe=_atomic_body_recipe())
     return fr.schemas.ForEachRecipe.model_construct(
         inputs=["x", "y"],
         outputs=["out"],
@@ -314,7 +314,7 @@ def _build_broadcast_seed_recipe() -> fr.schemas.ForEachRecipe:
     A valid ForEach recipe with the same input-port labels (`x`, `y`)
     as the broadcast-only recipe we'll swap in later.
     """
-    body = fr.schemas.LabeledRecipe(label="body", node=_atomic_body_recipe())
+    body = fr.schemas.LabeledRecipe(label="body", recipe=_atomic_body_recipe())
     return fr.schemas.ForEachRecipe(
         inputs=["x", "y"],
         outputs=["out"],
