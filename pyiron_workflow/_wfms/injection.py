@@ -16,12 +16,12 @@ from __future__ import annotations
 
 import abc
 from collections.abc import Callable
-from typing import TYPE_CHECKING
+from typing import TYPE_CHECKING, Protocol
 
 import flowrep as fr
 from flowrep.parsers import label_helpers
 
-from pyiron_workflow._wfms import lexical, std
+from pyiron_workflow._wfms import lexical
 
 if TYPE_CHECKING:
     from pyiron_workflow._wfms import atomic, workflow
@@ -84,10 +84,12 @@ class OperatorInjectionMixin(abc.ABC):
         """The single point of interaction for mixin users."""
 
     def _unary_operation(
-        self, operation: fr.schemas.LabeledRecipe
+        self,
+        operation: fr.schemas.AtomicRecipe,
+        operation_label: fr.schemas.Label,
     ) -> atomic.Atomic | workflow.Workflow:
         context_graph = self._injection.graph
-        label = f"{operation.label}_{self._injection.label}"
+        label = f"{operation_label}_{self._injection.label}"
         return _build_injection_graph(
             operation,
             label,
@@ -96,117 +98,127 @@ class OperatorInjectionMixin(abc.ABC):
         )
 
     def _binary_operations(
-        self, other: OperatorInjectionMixin, operation: fr.schemas.LabeledRecipe
+        self,
+        other: OperatorInjectionMixin,
+        operation: fr.schemas.AtomicRecipe,
+        operation_label: fr.schemas.Label,
     ) -> atomic.Atomic | workflow.Workflow:
         self_context = self._injection.graph
         other_context = other._injection.graph
         context_graph = self_context or other_context
 
-        label = f"{self._injection.label}_{operation.label}_{other._injection.label}"
+        label = f"{self._injection.label}_{operation_label}_{other._injection.label}"
 
         if self_context and other_context and self_context is not other_context:
             raise ValueError(
                 f"Can't inject across graph contexts. "
                 f"{self._injection.lexical_path!r} cannot inject operation "
-                f"{operation.label!r} with {other._injection.lexical_path!r} because "
+                f"{operation.__name__!r} with {other._injection.lexical_path!r} because "
                 "of mis-matched owners."
             )
         return _build_injection_graph(operation, label, context_graph, self, other)
 
     def __abs__(self) -> atomic.Atomic | workflow.Workflow:
-        return self._unary_operation(std.abs)
+        return self._unary_operation(fr.std.abs, "abs")
 
     def __add__(
         self, other: OperatorInjectionMixin
     ) -> atomic.Atomic | workflow.Workflow:
-        return self._binary_operations(other, std.add)
+        return self._binary_operations(other, fr.std.add, "add")
 
     def __mul__(
         self, other: OperatorInjectionMixin
     ) -> atomic.Atomic | workflow.Workflow:
-        return self._binary_operations(other, std.mul)
+        return self._binary_operations(other, fr.std.mul, "mul")
 
     def __neg__(self) -> atomic.Atomic | workflow.Workflow:
-        return self._unary_operation(std.neg)
+        return self._unary_operation(fr.std.neg, "neg")
 
     def __pos__(self) -> atomic.Atomic | workflow.Workflow:
-        return self._unary_operation(std.pos)
+        return self._unary_operation(fr.std.pos, "pos")
 
     def __invert__(self) -> atomic.Atomic | workflow.Workflow:
-        return self._unary_operation(std.invert)
+        return self._unary_operation(fr.std.invert, "invert")
 
     def __sub__(
         self, other: OperatorInjectionMixin
     ) -> atomic.Atomic | workflow.Workflow:
-        return self._binary_operations(other, std.sub)
+        return self._binary_operations(other, fr.std.sub, "sub")
 
     def __truediv__(
         self, other: OperatorInjectionMixin
     ) -> atomic.Atomic | workflow.Workflow:
-        return self._binary_operations(other, std.truediv)
+        return self._binary_operations(other, fr.std.truediv, "truediv")
 
     def __floordiv__(
         self, other: OperatorInjectionMixin
     ) -> atomic.Atomic | workflow.Workflow:
-        return self._binary_operations(other, std.floordiv)
+        return self._binary_operations(other, fr.std.floordiv, "floordiv")
 
     def __mod__(
         self, other: OperatorInjectionMixin
     ) -> atomic.Atomic | workflow.Workflow:
-        return self._binary_operations(other, std.mod)
+        return self._binary_operations(other, fr.std.mod, "mod")
 
     def __pow__(
         self, other: OperatorInjectionMixin
     ) -> atomic.Atomic | workflow.Workflow:
-        return self._binary_operations(other, std.pow)
+        return self._binary_operations(other, fr.std.pow, "pow")
 
     def __lshift__(
         self, other: OperatorInjectionMixin
     ) -> atomic.Atomic | workflow.Workflow:
-        return self._binary_operations(other, std.lshift)
+        return self._binary_operations(other, fr.std.lshift, "lshift")
 
     def __rshift__(
         self, other: OperatorInjectionMixin
     ) -> atomic.Atomic | workflow.Workflow:
-        return self._binary_operations(other, std.rshift)
+        return self._binary_operations(other, fr.std.rshift, "rshift")
 
     def __and__(
         self, other: OperatorInjectionMixin
     ) -> atomic.Atomic | workflow.Workflow:
-        return self._binary_operations(other, std.and_)
+        return self._binary_operations(other, fr.std.and_, "and")
 
     def __or__(
         self, other: OperatorInjectionMixin
     ) -> atomic.Atomic | workflow.Workflow:
-        return self._binary_operations(other, std.or_)
+        return self._binary_operations(other, fr.std.or_, "or")
 
     def __xor__(
         self, other: OperatorInjectionMixin
     ) -> atomic.Atomic | workflow.Workflow:
-        return self._binary_operations(other, std.xor)
+        return self._binary_operations(other, fr.std.xor, "xor")
 
     def __matmul__(
         self, other: OperatorInjectionMixin
     ) -> atomic.Atomic | workflow.Workflow:
-        return self._binary_operations(other, std.matmul)
+        return self._binary_operations(other, fr.std.matmul, "matmul")
 
     def __getitem__(
         self, item: OperatorInjectionMixin
     ) -> atomic.Atomic | workflow.Workflow:
-        return self._binary_operations(item, std.getitem)
+        return self._binary_operations(item, fr.std.getitem, "getitem")
+
+
+class _HasRecipe(Protocol):
+    __name__: str
+    flowrep_recipe: fr.schemas.AtomicRecipe
 
 
 def _build_operation(
-    operation: fr.schemas.LabeledRecipe,
+    operation: _HasRecipe,
     label: fr.schemas.Label,
     context_graph: MutableDag | None,
     *sources: OperatorInjectionMixin,
 ) -> atomic.Atomic:
     from pyiron_workflow._wfms import atomic  # noqa: PLC0415
 
-    if not isinstance(operation.node, fr.schemas.AtomicRecipe):  # pragma: no cover
+    if not isinstance(
+        operation.flowrep_recipe, fr.schemas.AtomicRecipe
+    ):  # pragma: no cover
         raise TypeError(
-            f"Can't inject non-atomic recipe as an operator {operation.node!r}."
+            f"Can't inject non-atomic recipe as an operator {operation.__name__!r}."
             f"This should be unreachable, and is a fallback in case injection gets "
             f"extended later."
         )
@@ -216,7 +228,7 @@ def _build_operation(
         if context_graph
         else label
     )
-    operation_node = atomic.Atomic(label, operation.node)
+    operation_node = atomic.Atomic(label, operation.flowrep_recipe)
     operation_node.connect_input(*[s._injection.port for s in sources])
 
     return operation_node
