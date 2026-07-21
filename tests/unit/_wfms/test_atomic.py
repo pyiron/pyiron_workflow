@@ -58,7 +58,6 @@ def _atomic_recipe(
     *,
     inputs: list[str],
     outputs: list[str],
-    unpack_mode: fr.schemas.UnpackMode,
     restricted: dict[str, fr.schemas.RestrictedParamKind] | None = None,
     inputs_with_defaults: list[str] | None = None,
 ) -> fr.schemas.AtomicRecipe:
@@ -71,7 +70,6 @@ def _atomic_recipe(
         reference=reference,
         inputs=inputs,
         outputs=outputs,
-        unpack_mode=unpack_mode,
     )
 
 
@@ -90,7 +88,6 @@ class TestAtomicInit(unittest.TestCase):
             func_with_metadata,
             inputs=["x"],
             outputs=["out"],
-            unpack_mode=fr.schemas.UnpackMode.NONE,
         )
         node = atomic.Atomic("lbl", recipe)
         self.assertIs(node.function_metadata, _METADATA_SENTINEL)
@@ -138,7 +135,6 @@ class TestCallAtomic(unittest.TestCase):
             with_default,
             inputs=["x", "y"],
             outputs=["out"],
-            unpack_mode=fr.schemas.UnpackMode.NONE,
             inputs_with_defaults=["y"],
         )
         live = fr.schemas.AtomicData.from_recipe(recipe)
@@ -151,7 +147,6 @@ class TestCallAtomic(unittest.TestCase):
             add_no_default,
             inputs=["x", "y"],
             outputs=["out"],
-            unpack_mode=fr.schemas.UnpackMode.NONE,
         )
         live = fr.schemas.AtomicData.from_recipe(recipe)
         live.input_ports["x"].value = 1
@@ -172,7 +167,6 @@ class TestStoreAtomicOutputs(unittest.TestCase):
             with_default,
             inputs=["x"],
             outputs=["out"],
-            unpack_mode=fr.schemas.UnpackMode.NONE,
         )
         live = fr.schemas.AtomicData.from_recipe(recipe)
         payload = [1, 2, 3]
@@ -184,7 +178,6 @@ class TestStoreAtomicOutputs(unittest.TestCase):
             with_default,
             inputs=["x"],
             outputs=["out"],
-            unpack_mode=fr.schemas.UnpackMode.TUPLE,
         )
         live = fr.schemas.AtomicData.from_recipe(recipe)
         payload = (1, 2, 3)
@@ -196,7 +189,6 @@ class TestStoreAtomicOutputs(unittest.TestCase):
             with_default,
             inputs=["x"],
             outputs=["a", "b", "c"],
-            unpack_mode=fr.schemas.UnpackMode.TUPLE,
         )
         live = fr.schemas.AtomicData.from_recipe(recipe)
         atomic._store_atomic_outputs(live, (1, 2, 3))
@@ -209,7 +201,6 @@ class TestStoreAtomicOutputs(unittest.TestCase):
             with_default,
             inputs=["x"],
             outputs=["a", "b", "c"],
-            unpack_mode=fr.schemas.UnpackMode.TUPLE,
         )
         live = fr.schemas.AtomicData.from_recipe(recipe)
         with self.assertRaises(ValueError):

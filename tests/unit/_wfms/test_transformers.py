@@ -34,10 +34,6 @@ class TestTransform1toN(unittest.TestCase):
         recipe = transformers.Transform1toN(3).recipe
         self.assertEqual(recipe.outputs, ["output_0", "output_1", "output_2"])
 
-    def test_recipe_unpack_mode(self) -> None:
-        recipe = transformers.Transform1toN(3).recipe
-        self.assertEqual(recipe.unpack_mode, fr.schemas.UnpackMode.TUPLE)
-
     def test_recipe_restricted_input_kinds(self) -> None:
         recipe = transformers.Transform1toN(3).recipe
         self.assertEqual(
@@ -77,10 +73,6 @@ class TestTransformNto1(unittest.TestCase):
     def test_recipe_outputs(self) -> None:
         recipe = transformers.TransformNto1(3).recipe
         self.assertEqual(recipe.outputs, ["output_0"])
-
-    def test_recipe_unpack_mode(self) -> None:
-        recipe = transformers.TransformNto1(3).recipe
-        self.assertEqual(recipe.unpack_mode, fr.schemas.UnpackMode.TUPLE)
 
     def test_recipe_restricted_input_kinds(self) -> None:
         recipe = transformers.TransformNto1(3).recipe

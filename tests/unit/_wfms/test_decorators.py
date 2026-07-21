@@ -204,9 +204,7 @@ class TestAtomicWorkflowDecorators(unittest.TestCase):
             wfms.atomic(123)
 
     def test_keyword_param_form_attaches_tool(self) -> None:
-        decorated = wfms.atomic(unpack_mode=fr.schemas.UnpackMode.NONE)(
-            _nounpack_target
-        )
+        decorated = wfms.atomic("single_output")(_nounpack_target)
         self.assertIsInstance(decorated.pwf, decorators.DecoratedAtomic)
         self.assertEqual(len(list(decorated.pwf.node().outputs)), 1)
 
