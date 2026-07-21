@@ -13,8 +13,10 @@ def _constant_recipe(value: object) -> fr.schemas.ConstantRecipe:
 
 class TestConstantConstruction(unittest.TestCase):
     def test_from_value(self):
-        reference = constant.Constant("c", _constant_recipe(42))
-        self.assertEqual(reference.recipe, constant.Constant.from_value(42).recipe)
+        reference = constant.Constant("foo", _constant_recipe(42))
+        from_value = constant.Constant.from_value(42, "foo")
+        self.assertEqual(reference.recipe, from_value.recipe)
+        self.assertEqual(reference.label, from_value.label)
 
 
 class TestConstantResultType(unittest.TestCase):
