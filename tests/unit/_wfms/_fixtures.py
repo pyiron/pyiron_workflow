@@ -128,6 +128,13 @@ def container():
 
 
 @fr.workflow
+def uses_constant(x):
+    """`add`'s second addend is a parsed literal constant (5)."""
+    y = add(x, 5)
+    return y
+
+
+@fr.workflow
 def annotated_wf(
     w, x: int, y: int = 100, z: Annotated[float, ("units", "meters")] = 1.0
 ) -> tuple[int, Annotated[float, ("units", "centimeters")]]:
@@ -277,6 +284,11 @@ def passthrough_node(label: str = "my_passthrough"):
 def container_node(label: str = "container"):
     """Return a fresh `Macro` wrapping `container`."""
     return wfms.tools.function2node(container, label)
+
+
+def uses_constant_node(label: str = "uses_constant"):
+    """Return a fresh `Macro` wrapping `uses_constant` (exploits a parsed constant)."""
+    return wfms.tools.function2node(uses_constant, label)
 
 
 def autoencoder_node(label: str = "autoencoder"):
