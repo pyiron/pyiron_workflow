@@ -44,7 +44,7 @@ class TestDataclassDecorator(unittest.TestCase):
     def test_attaches_both_tools(self) -> None:
         self.assertIsInstance(_fixtures.PlainPoint.pwf, decorators.DecoratedDataclass)
         self.assertIsInstance(
-            _fixtures.PlainPoint.pwf_inverse, decorators.UnpackDataclass
+            _fixtures.PlainPoint.pwf_unpacking, decorators.UnpackDataclass
         )
 
     def test_still_a_dataclass(self) -> None:
@@ -66,7 +66,7 @@ class TestDataclassDecorator(unittest.TestCase):
     def test_node_labels_default_and_explicit(self) -> None:
         self.assertEqual(_fixtures.PlainPoint.pwf.node().label, "PlainPoint")
         self.assertEqual(
-            _fixtures.PlainPoint.pwf_inverse.node().label, "unpack_PlainPoint"
+            _fixtures.PlainPoint.pwf_unpacking.node().label, "unpack_PlainPoint"
         )
         self.assertEqual(_fixtures.PlainPoint.pwf.node("custom").label, "custom")
 
@@ -102,33 +102,35 @@ class TestInputs2Dataclass(unittest.TestCase):
 
 class TestDataclass2Outputs(unittest.TestCase):
     def test_string_annotation_resolves(self):
-        node = _fixtures.WithInitVar.pwf_inverse.node()
+        node = _fixtures.WithInitVar.pwf_unpacking.node()
         self.assertEqual(node.outputs["a"].type_hint, int)
 
     def test_plain_ports(self) -> None:
-        node = _fixtures.PlainPoint.pwf_inverse.node()
+        node = _fixtures.PlainPoint.pwf_unpacking.node()
         self.assertEqual(list(node.inputs), ["dataclass"])
         self.assertEqual(list(node.outputs), ["x", "y"])
 
     def test_plain_run_unpacks_fields(self) -> None:
-        run = _fixtures.PlainPoint.pwf_inverse.run(
+        run = _fixtures.PlainPoint.pwf_unpacking.run(
             dataclass=_fixtures.PlainPoint(1.0, 2.0)
         )
         self.assertEqual(run.outputs["x"].value, 1.0)
         self.assertEqual(run.outputs["y"].value, 2.0)
 
     def test_frozen_read_back(self) -> None:
-        run = _fixtures.FrozenKw.pwf_inverse.run(dataclass=_fixtures.FrozenKw(nova=1.1))
+        run = _fixtures.FrozenKw.pwf_unpacking.run(
+            dataclass=_fixtures.FrozenKw(nova=1.1)
+        )
         self.assertEqual(run.outputs["nova"].value, 1.1)
         self.assertEqual(run.outputs["foo"].value, 42)
 
     def test_init_false_field_is_output_not_input(self) -> None:
         # init=False -> real field (output) but not a constructor param (no input)
         self.assertEqual(
-            list(_fixtures.WithInitFalse.pwf_inverse.node().outputs), ["a", "c"]
+            list(_fixtures.WithInitFalse.pwf_unpacking.node().outputs), ["a", "c"]
         )
         self.assertEqual(list(_fixtures.WithInitFalse.pwf.node().inputs), ["a"])
-        run = _fixtures.WithInitFalse.pwf_inverse.run(
+        run = _fixtures.WithInitFalse.pwf_unpacking.run(
             dataclass=_fixtures.WithInitFalse(a=1)
         )
         self.assertEqual(run.outputs["c"].value, 7)
@@ -136,13 +138,13 @@ class TestDataclass2Outputs(unittest.TestCase):
     def test_init_var_is_input_not_output(self) -> None:
         # InitVar -> constructor param (input) but not a real field (no output)
         self.assertEqual(
-            list(_fixtures.WithInitVar.pwf_inverse.node().outputs), ["a", "b"]
+            list(_fixtures.WithInitVar.pwf_unpacking.node().outputs), ["a", "b"]
         )
         self.assertEqual(list(_fixtures.WithInitVar.pwf.node().inputs), ["a", "d", "b"])
 
     def test_round_trip(self) -> None:
         wf = wfms.Workflow("roundtrip")
-        wf.to_values = _fixtures.PlainPoint.pwf_inverse.node()
+        wf.to_values = _fixtures.PlainPoint.pwf_unpacking.node()
         wf.to_dc = _fixtures.PlainPoint.pwf.node()
         wf.create_input_for(wf.to_values.inputs.dataclass)
         wf.create_output_from(wf.to_dc)

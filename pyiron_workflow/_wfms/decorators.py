@@ -98,11 +98,11 @@ class UnpackDataclass(
     _PwfTools[type, fr.schemas.AtomicRecipe, atomic_mod.Atomic], abc.ABC
 ):
     _node_type = atomic_mod.Atomic
-    assign_to: ClassVar[str] = "pwf_inverse"
+    assign_to: ClassVar[str] = "pwf_unpacking"
 
     @property
     def recipe(self) -> atomic_mod.Atomic:
-        return self._decorated_object.flowrep_recipe_inverse  # type: ignore[attr-defined]
+        return self._decorated_object.flowrep_recipe_unpacking  # type: ignore[attr-defined]
 
     def _label(self, label: fr.schemas.Label | None = None) -> fr.schemas.Label:
         return "unpack_" + self._decorated_object.__name__ if label is None else label
