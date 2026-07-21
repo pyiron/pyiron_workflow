@@ -6,18 +6,15 @@ import flowrep as fr
 
 from pyiron_workflow._wfms import constant, execution
 
-# --------------------------------------------------------------------------- #
-# Tiny recipe builder.                                                        #
-# --------------------------------------------------------------------------- #
-
 
 def _constant_recipe(value: object) -> fr.schemas.ConstantRecipe:
     return fr.schemas.ConstantRecipe(constant=value)
 
 
-# --------------------------------------------------------------------------- #
-# Constant._result_type / evaluate                                            #
-# --------------------------------------------------------------------------- #
+class TestConstantConstruction(unittest.TestCase):
+    def test_from_value(self):
+        reference = constant.Constant("c", _constant_recipe(42))
+        self.assertEqual(reference.recipe, constant.Constant.from_value(42).recipe)
 
 
 class TestConstantResultType(unittest.TestCase):
