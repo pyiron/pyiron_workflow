@@ -135,6 +135,7 @@ RecipeType = TypeVar(
     fr.schemas.TryRecipe,
     fr.schemas.WhileRecipe,
     fr.schemas.WorkflowRecipe,
+    fr.schemas.ConstantRecipe,
 )
 
 
