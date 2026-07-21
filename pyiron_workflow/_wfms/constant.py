@@ -9,7 +9,7 @@ from pyiron_workflow._wfms.datatypes import StaticNode
 class Constant(StaticNode[fr.schemas.ConstantRecipe, fr.schemas.ConstantData]):
 
     @classmethod
-    def from_value(cls, value: fr.schemas.JSON):
+    def from_value(cls, value: fr.schemas.JSONABLE):
         return cls("constant", fr.schemas.ConstantRecipe(constant=value))
 
     @classmethod
