@@ -7,6 +7,7 @@ from pyiron_snippets import versions
 
 from pyiron_workflow._wfms import (
     atomic,
+    constant,
     constructors,
     dag,
     datatypes,
@@ -128,9 +129,9 @@ class TestNode(unittest.TestCase):
         self.assertIs(result, node)
         self.assertEqual(result.label, "renamed")
 
-    def test_node_rejects_non_node(self) -> None:
+    def test_node_rejects_non_node_non_jsonable(self) -> None:
         with self.assertRaisesRegex(TypeError, "expected a Node"):
-            constructors.node(42, "x")
+            constructors.node((42,), "x")
 
     def test_atomic_recipe(self) -> None:
         result = constructors.node(_fixtures.add.flowrep_recipe, "added")
@@ -151,6 +152,11 @@ class TestNode(unittest.TestCase):
         result = constructors.node(_fixtures.plain_increment, "inc")
         self.assertIsInstance(result, atomic.Atomic)
         self.assertEqual(result.label, "inc")
+
+    def test_jsonable_constant(self) -> None:
+        result = constructors.node([42], "forty_two")
+        self.assertIsInstance(result, constant.Constant)
+        self.assertEqual(result.label, "forty_two")
 
 
 # --------------------------------------------------------------------------- #
