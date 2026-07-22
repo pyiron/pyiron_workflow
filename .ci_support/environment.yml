@@ -5,7 +5,7 @@ dependencies:
 - bidict =0.23.1
 - cloudpickle =3.1.2
 - executorlib =1.10.1
-- flowrep =0.5.2
+- flowrep =0.6.0
 - graphviz =12.2.1
 - hatchling =1.30.1
 - hatch-vcs =0.5.0
