@@ -379,8 +379,8 @@ class StaticNode(Node[RecipeType, execution.ResultType], abc.ABC):
 
     def __init__(
         self,
-        label: fr.schemas.Label,
         recipe: RecipeType,
+        label: fr.schemas.Label,
         /,
         *positional_connections: Port | Node,
         **keyword_connections: Port | Node,
@@ -413,7 +413,7 @@ class StaticNode(Node[RecipeType, execution.ResultType], abc.ABC):
     def copy(
         self, new_label: fr.schemas.Label | None = None, _copy_to: Self | None = None
     ) -> Self:
-        node_copy = _copy_to or self.__class__(new_label or self.label, self.recipe)
+        node_copy = _copy_to or self.__class__(self.recipe, new_label or self.label)
         self._copy_data(self, node_copy)
         return node_copy
 
@@ -544,13 +544,13 @@ class StaticGraph(StaticNode[RecipeType, execution.ResultType], Graph, abc.ABC):
 
     def __init__(
         self,
-        label: fr.schemas.Label,
         recipe: RecipeType,
+        label: fr.schemas.Label,
         /,
         *positional_connections: Port | Node,
         **keyword_connections: Port | Node,
     ):
-        super().__init__(label, recipe, *positional_connections, **keyword_connections)
+        super().__init__(recipe, label, *positional_connections, **keyword_connections)
         self._nodes = self._build_nodes(recipe)
         self._edges = self._build_edges(recipe)
 

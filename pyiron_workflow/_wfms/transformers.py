@@ -37,7 +37,7 @@ class Transform1toN:
         self,
         label: fr.schemas.Label,
     ) -> atomic.Atomic:
-        return atomic.Atomic(label, self.recipe)
+        return atomic.Atomic(self.recipe, label)
 
 
 class TransformNto1:
@@ -72,4 +72,4 @@ class TransformNto1:
         self,
         label: fr.schemas.Label,
     ) -> atomic.Atomic:
-        return atomic.Atomic(label, self.recipe)
+        return atomic.Atomic(self.recipe, label)

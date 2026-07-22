@@ -42,7 +42,7 @@ class _FailingAtomic(atomic.Atomic):
 
 def _make_failing_node(label: str = "boom_node") -> _FailingAtomic:
     """Build a :class:`_FailingDumpingAtomic` reusing the `add` recipe."""
-    return _FailingAtomic(label, _fixtures.add.flowrep_recipe)
+    return _FailingAtomic(_fixtures.add.flowrep_recipe, label)
 
 
 # --------------------------------------------------------------------------- #
@@ -377,7 +377,7 @@ class TestRunExecutorBranches(unittest.TestCase):
         # The prime-mover failure branch will call `node.dump` after the
         # TypeError. Use `_DumpingAtomic` so that no-op succeeds rather than
         # surfacing `NotImplementedError`.
-        node = _FailingAtomic("add_invalid", _fixtures.add.flowrep_recipe)
+        node = _FailingAtomic(_fixtures.add.flowrep_recipe, "add_invalid")
         # Bypass static type checking — the branch under test is specifically
         # the "anything other than ExecutorInstructions / futures.Executor"
         # fallthrough.

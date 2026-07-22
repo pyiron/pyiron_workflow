@@ -13,8 +13,8 @@ class Constant(StaticNode[fr.schemas.ConstantRecipe, fr.schemas.ConstantData]):
         cls, value: fr.schemas.JSONABLE, label: fr.schemas.Label | None = None
     ):
         return cls(
-            "constant" if label is None else label,
             fr.schemas.ConstantRecipe(constant=value),
+            "constant" if label is None else label,
         )
 
     @classmethod

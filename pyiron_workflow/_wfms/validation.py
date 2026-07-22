@@ -134,7 +134,7 @@ def validate_types(
     if isinstance(target, dag.Macro | workflow.Workflow):
         owner: StaticGraph | workflow.Workflow = target
     elif isinstance(target, fr.schemas.WorkflowRecipe):
-        owner = dag.Macro("from_recipe", target)
+        owner = dag.Macro(target, "from_recipe")
     else:
         raise TypeError(
             f"Cannot validate types for {target!r}; expected a "

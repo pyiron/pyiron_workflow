@@ -14,13 +14,13 @@ class Atomic(StaticNode[fr.schemas.AtomicRecipe, fr.schemas.AtomicData]):
 
     def __init__(
         self,
-        label: fr.schemas.Label,
         recipe: fr.schemas.AtomicRecipe,
+        label: fr.schemas.Label,
         /,
         *positional_connections: Port | Node,
         **keyword_connections: Port | Node,
     ):
-        super().__init__(label, recipe, *positional_connections, **keyword_connections)
+        super().__init__(recipe, label, *positional_connections, **keyword_connections)
         func = retrieve.import_from_string(recipe.fully_qualified_name)
         self._function_metadata = getattr(func, "_semantikon_metadata", None)
 

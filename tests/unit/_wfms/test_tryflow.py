@@ -220,7 +220,7 @@ def _macro_wrapping_try() -> fr.schemas.WorkflowRecipe:
 class TestEvaluateTrySucceeds(unittest.TestCase):
     def setUp(self) -> None:
         self.recipe = _fixtures.try_recipe()
-        self.tryn = tryflow.Try("tryn", self.recipe)
+        self.tryn = tryflow.Try(self.recipe, "tryn")
         self.run = self.tryn.run(x=10, y=2)
 
     def test_run_finished(self) -> None:
@@ -248,7 +248,7 @@ class TestEvaluateTrySucceeds(unittest.TestCase):
 class TestEvaluateExceptionHandled(unittest.TestCase):
     def setUp(self) -> None:
         self.recipe = _fixtures.try_recipe()
-        self.tryn = tryflow.Try("tryn", self.recipe)
+        self.tryn = tryflow.Try(self.recipe, "tryn")
         self.run = self.tryn.run(x=10, y=0)
 
     def test_run_finished(self) -> None:
@@ -283,7 +283,7 @@ class TestEvaluateExceptionUnmatched(unittest.TestCase):
 
     def setUp(self) -> None:
         self.recipe = _no_match_recipe()
-        self.tryn = tryflow.Try("tryn", self.recipe)
+        self.tryn = tryflow.Try(self.recipe, "tryn")
 
     def test_unmatched_exception_propagates(self) -> None:
         with self.assertRaises(tryflow.UnmatchedExceptionError) as ctx:
@@ -299,7 +299,7 @@ class TestEvaluateExceptionUnmatched(unittest.TestCase):
 class TestEvaluateMultiCaseFirstMatchWins(unittest.TestCase):
     def setUp(self) -> None:
         self.recipe = _multi_case_recipe()
-        self.tryn = tryflow.Try("tryn", self.recipe)
+        self.tryn = tryflow.Try(self.recipe, "tryn")
         # x="bad" triggers TypeError in divide("bad", 1)
         self.run = self.tryn.run(x="bad", y=1)
 
@@ -323,14 +323,14 @@ class TestEvaluateMultiCaseFirstMatchWins(unittest.TestCase):
 class TestEvaluateTupleExceptions(unittest.TestCase):
     def test_zero_division_matches_tuple(self) -> None:
         recipe = _tuple_exceptions_recipe()
-        tryn = tryflow.Try("tryn", recipe)
+        tryn = tryflow.Try(recipe, "tryn")
         run = tryn.run(x=10, y=0)
         self.assertEqual(run.status, execution.RunStatus.FINISHED)
         self.assertEqual(run.outputs.z, 10)
 
     def test_type_error_matches_tuple(self) -> None:
         recipe = _tuple_exceptions_recipe()
-        tryn = tryflow.Try("tryn", recipe)
+        tryn = tryflow.Try(recipe, "tryn")
         run = tryn.run(x="bad", y=1)
         self.assertEqual(run.status, execution.RunStatus.FINISHED)
         self.assertEqual(run.outputs.z, "bad")
@@ -346,12 +346,12 @@ class TestEvaluateHandlerBodyRaisesPropagates(unittest.TestCase):
 
     def setUp(self) -> None:
         self.recipe = _handler_raises_recipe()
-        self.tryn = tryflow.Try("tryn", self.recipe)
+        self.tryn = tryflow.Try(self.recipe, "tryn")
         # Both try and handler call divide(x, y) with y=0 → ZeroDivisionError twice
 
     def test_propagated_exception_is_from_handler(self) -> None:
         with self.assertRaises(self._EXPECTED_EXC):
-            tryflow.Try("tryn2", self.recipe).run(x=10, y=0)
+            tryflow.Try(self.recipe, "tryn2").run(x=10, y=0)
 
 
 # --------------------------------------------------------------------------- #
@@ -449,7 +449,7 @@ class TestResolveExceptionTypes(unittest.TestCase):
 class TestStageNodeInputEdges(unittest.TestCase):
     def setUp(self) -> None:
         self.recipe = _fixtures.try_recipe()
-        self.tryn = tryflow.Try("tryn", self.recipe)
+        self.tryn = tryflow.Try(self.recipe, "tryn")
         self.live = self.tryn.generate_flowrep_live_node()
 
     def test_only_matching_target_node_edges_copied(self) -> None:
@@ -480,7 +480,7 @@ class TestStageNodeInputEdges(unittest.TestCase):
 class TestStageBodyOutputEdges(unittest.TestCase):
     def setUp(self) -> None:
         self.recipe = _fixtures.try_recipe()
-        self.tryn = tryflow.Try("tryn", self.recipe)
+        self.tryn = tryflow.Try(self.recipe, "tryn")
         self.live = self.tryn.generate_flowrep_live_node()
 
     def test_picks_try_body_source(self) -> None:

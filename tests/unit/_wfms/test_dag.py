@@ -235,8 +235,8 @@ class TestMacroPickle(unittest.TestCase):
 
 class TestErrorParallelism(unittest.TestCase):
     def setUp(self) -> None:
-        self.single = dag.Macro("single", _single_error.flowrep_recipe)
-        self.double = dag.Macro("double", _double_error.flowrep_recipe)
+        self.single = dag.Macro(_single_error.flowrep_recipe, "single")
+        self.double = dag.Macro(_double_error.flowrep_recipe, "double")
 
     def test_single_error_raises(self):
         with self.assertRaises(ValueError):

@@ -40,7 +40,7 @@ class _PwfTools(Generic[_DecoratedType, _RecipeType, _NodeType], abc.ABC):
     def node(
         self, label: fr.schemas.Label | None = None, /, *positional, **keyword
     ) -> _NodeType:
-        return self._node_type(self._label(label), self.recipe, *positional, **keyword)
+        return self._node_type(self.recipe, self._label(label), *positional, **keyword)
 
     def run(self, config: execution.RunConfig | None = None, **input_data):
         return self.node().run(config, **input_data)
