@@ -53,8 +53,8 @@ class TestMacro(unittest.TestCase):
         run = n.run(x=1, y=2, z=3)
         self.assertEqual(run.status, execution.RunStatus.FINISHED)
         # Macro outputs come from inner `add` (a) and `sub` (s).
-        self.assertEqual(run.outputs["a"].value, 3)
-        self.assertEqual(run.outputs["s"].value, 0)
+        self.assertEqual(run.outputs.a, 3)
+        self.assertEqual(run.outputs.s, 0)
 
     def test_run_records_one_step_per_child(self) -> None:
         n = _fixtures.macro_node()
@@ -171,8 +171,8 @@ class TestPopulateOutputs(unittest.TestCase):
         # `macro` output `s` is fed by `sub_0.output_0` (a SourceHandle).
         n = _fixtures.macro_node()
         run = n.run(x=1, y=2, z=3)
-        self.assertEqual(run.outputs["s"].value, 0)
-        self.assertEqual(run.outputs["a"].value, 3)
+        self.assertEqual(run.outputs.s, 0)
+        self.assertEqual(run.outputs.a, 3)
 
     def test_input_source_path(self) -> None:
         # `passthrough` output `x` is fed directly by parent input `x`
@@ -180,8 +180,8 @@ class TestPopulateOutputs(unittest.TestCase):
         # check that both branches coexist in one run.
         n = _fixtures.passthrough_node()
         run = n.run(x=42, y=5)
-        self.assertEqual(run.outputs["x"].value, 42)
-        self.assertEqual(run.outputs["s"].value, 47)
+        self.assertEqual(run.outputs.x, 42)
+        self.assertEqual(run.outputs.s, 47)
 
 
 class TestMacroAttributeSugar(unittest.TestCase):

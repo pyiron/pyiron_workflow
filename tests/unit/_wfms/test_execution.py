@@ -207,7 +207,7 @@ class TestRunHappyPath(unittest.TestCase):
             run = execution.run(node, config, x=1, y=2)
 
         self.assertEqual(run.status, execution.RunStatus.FINISHED)
-        self.assertEqual(run.outputs["output_0"].value, 3)
+        self.assertEqual(run.outputs.output_0, 3)
         self.assertIsNotNone(run.duration)
 
         # Hook sees RUNNING and FINISHED (never PENDING).
@@ -271,7 +271,7 @@ class TestRunExecutorBranches(unittest.TestCase):
             config = execution.RunConfig(run_dir=pathlib.Path(tmp))
             run = execution.run(node, config, x=1, y=2)
         self.assertEqual(run.status, execution.RunStatus.FINISHED)
-        self.assertEqual(run.outputs["output_0"].value, 3)
+        self.assertEqual(run.outputs.output_0, 3)
 
     def test_live_executor_branch_succeeds(self) -> None:
         node = _fixtures.atomic_add_node()
@@ -281,7 +281,7 @@ class TestRunExecutorBranches(unittest.TestCase):
                 config = execution.RunConfig(run_dir=pathlib.Path(tmp))
                 run = execution.run(node, config, x=1, y=2)
         self.assertEqual(run.status, execution.RunStatus.FINISHED)
-        self.assertEqual(run.outputs["output_0"].value, 3)
+        self.assertEqual(run.outputs.output_0, 3)
 
     def test_none_executor_branch_succeeds(self) -> None:
         node = _fixtures.atomic_add_node()
@@ -290,7 +290,7 @@ class TestRunExecutorBranches(unittest.TestCase):
             config = execution.RunConfig(run_dir=pathlib.Path(tmp))
             run = execution.run(node, config, x=1, y=2)
         self.assertEqual(run.status, execution.RunStatus.FINISHED)
-        self.assertEqual(run.outputs["output_0"].value, 3)
+        self.assertEqual(run.outputs.output_0, 3)
 
     def test_invalid_executor_type_raises_with_lexical_path(self) -> None:
         # The prime-mover failure branch will call `node.dump` after the
@@ -531,7 +531,7 @@ class TestRunDoesNotBlockOnHooks(unittest.TestCase):
             self.assertTrue(entered.wait(timeout=5))
             self.assertFalse(release.is_set())
             self.assertEqual(run.status, execution.RunStatus.FINISHED)
-            self.assertEqual(run.outputs["output_0"].value, 3)
+            self.assertEqual(run.outputs.output_0, 3)
             release.set()  # let the hook finish before teardown flushes the pool
 
 

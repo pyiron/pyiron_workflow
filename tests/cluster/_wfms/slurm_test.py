@@ -117,7 +117,7 @@ def interruption():
         dt > 0.5 * T_SLEEP
     ), f"Expected to need to wait for the job to finish, but got a small dt -- {dt}"
     assert (
-        out.outputs["n3"].value == T_SLEEP
+        out.outputs.n3 == T_SLEEP
     ), f"Sanity check that the workflow returned T_SLEEP, but got {out.outputs['n3'].value}"
 
 
@@ -135,7 +135,7 @@ def discovery():
         dt < 0.1 * T_SLEEP
     ), f"Expected to get a quick cache hit, but got a large -- {dt}"
     assert (
-        out.outputs["n3"].value == T_SLEEP
+        out.outputs.n3 == T_SLEEP
     ), f"Sanity check that the workflow returned T_SLEEP, but got {out.outputs['n3'].value}"
 
 

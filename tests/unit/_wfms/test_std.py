@@ -32,201 +32,201 @@ class TestStdExecution(unittest.TestCase):
 
     def test_abs(self):
         n = constructors.recipe2node(fr.std.abs.flowrep_recipe)
-        self.assertEqual(3, n.run(a=-3).outputs["absolute"].value)
+        self.assertEqual(3, n.run(a=-3).outputs.absolute)
 
     def test_add(self):
         n = constructors.recipe2node(fr.std.add.flowrep_recipe)
-        self.assertEqual(3, n.run(a=1, b=2).outputs["added"].value)
+        self.assertEqual(3, n.run(a=1, b=2).outputs.added)
 
     def test_index(self):
         n = constructors.recipe2node(fr.std.index.flowrep_recipe)
-        self.assertEqual(5, n.run(a=5).outputs["index"].value)
+        self.assertEqual(5, n.run(a=5).outputs.index)
 
     def test_inv(self):
         n = constructors.recipe2node(fr.std.inv.flowrep_recipe)
-        self.assertEqual(-1, n.run(a=0).outputs["inverted"].value)
+        self.assertEqual(-1, n.run(a=0).outputs.inverted)
 
     def test_invert(self):
         n = constructors.recipe2node(fr.std.invert.flowrep_recipe)
-        self.assertEqual(-1, n.run(a=0).outputs["inverted"].value)
+        self.assertEqual(-1, n.run(a=0).outputs.inverted)
 
     def test_neg(self):
         n = constructors.recipe2node(fr.std.neg.flowrep_recipe)
-        self.assertEqual(-2, n.run(a=2).outputs["negative"].value)
+        self.assertEqual(-2, n.run(a=2).outputs.negative)
 
     def test_pos(self):
         n = constructors.recipe2node(fr.std.pos.flowrep_recipe)
-        self.assertEqual(-2, n.run(a=-2).outputs["positive"].value)
+        self.assertEqual(-2, n.run(a=-2).outputs.positive)
 
     def test_not_(self):
         n = constructors.recipe2node(fr.std.not_.flowrep_recipe)
-        self.assertEqual(True, n.run(a=False).outputs["negated"].value)
+        self.assertEqual(True, n.run(a=False).outputs.negated)
 
     def test_truth(self):
         n = constructors.recipe2node(fr.std.truth.flowrep_recipe)
-        self.assertEqual(False, n.run(a=[]).outputs["truth"].value)
+        self.assertEqual(False, n.run(a=[]).outputs.truth)
 
     def test_length_hint(self):
         n = constructors.recipe2node(fr.std.length_hint.flowrep_recipe)
-        self.assertEqual(3, n.run(obj=[1, 2, 3]).outputs["length"].value)
+        self.assertEqual(3, n.run(obj=[1, 2, 3]).outputs.length)
 
     def test_sub(self):
         n = constructors.recipe2node(fr.std.sub.flowrep_recipe)
-        self.assertEqual(3, n.run(a=5, b=2).outputs["difference"].value)
+        self.assertEqual(3, n.run(a=5, b=2).outputs.difference)
 
     def test_isub(self):
         n = constructors.recipe2node(fr.std.isub.flowrep_recipe)
-        self.assertEqual(3, n.run(a=5, b=2).outputs["difference"].value)
+        self.assertEqual(3, n.run(a=5, b=2).outputs.difference)
 
     def test_iadd(self):
         n = constructors.recipe2node(fr.std.iadd.flowrep_recipe)
-        self.assertEqual(3, n.run(a=1, b=2).outputs["added"].value)
+        self.assertEqual(3, n.run(a=1, b=2).outputs.added)
 
     def test_mul(self):
         n = constructors.recipe2node(fr.std.mul.flowrep_recipe)
-        self.assertEqual(6, n.run(a=2, b=3).outputs["product"].value)
+        self.assertEqual(6, n.run(a=2, b=3).outputs.product)
 
     def test_imul(self):
         n = constructors.recipe2node(fr.std.imul.flowrep_recipe)
-        self.assertEqual(6, n.run(a=2, b=3).outputs["product"].value)
+        self.assertEqual(6, n.run(a=2, b=3).outputs.product)
 
     def test_floordiv(self):
         n = constructors.recipe2node(fr.std.floordiv.flowrep_recipe)
-        self.assertEqual(3, n.run(a=7, b=2).outputs["quotient"].value)
+        self.assertEqual(3, n.run(a=7, b=2).outputs.quotient)
 
     def test_ifloordiv(self):
         n = constructors.recipe2node(fr.std.ifloordiv.flowrep_recipe)
-        self.assertEqual(3, n.run(a=7, b=2).outputs["quotient"].value)
+        self.assertEqual(3, n.run(a=7, b=2).outputs.quotient)
 
     def test_truediv(self):
         n = constructors.recipe2node(fr.std.truediv.flowrep_recipe)
-        self.assertEqual(3.0, n.run(a=6, b=2).outputs["quotient"].value)
+        self.assertEqual(3.0, n.run(a=6, b=2).outputs.quotient)
 
     def test_itruediv(self):
         n = constructors.recipe2node(fr.std.itruediv.flowrep_recipe)
-        self.assertEqual(3.0, n.run(a=6, b=2).outputs["quotient"].value)
+        self.assertEqual(3.0, n.run(a=6, b=2).outputs.quotient)
 
     def test_mod(self):
         n = constructors.recipe2node(fr.std.mod.flowrep_recipe)
-        self.assertEqual(1, n.run(a=7, b=3).outputs["remainder"].value)
+        self.assertEqual(1, n.run(a=7, b=3).outputs.remainder)
 
     def test_imod(self):
         n = constructors.recipe2node(fr.std.imod.flowrep_recipe)
-        self.assertEqual(1, n.run(a=7, b=3).outputs["remainder"].value)
+        self.assertEqual(1, n.run(a=7, b=3).outputs.remainder)
 
     def test_pow(self):
         n = constructors.recipe2node(fr.std.pow.flowrep_recipe)
-        self.assertEqual(8, n.run(a=2, b=3).outputs["power"].value)
+        self.assertEqual(8, n.run(a=2, b=3).outputs.power)
 
     def test_ipow(self):
         n = constructors.recipe2node(fr.std.ipow.flowrep_recipe)
-        self.assertEqual(8, n.run(a=2, b=3).outputs["power"].value)
+        self.assertEqual(8, n.run(a=2, b=3).outputs.power)
 
     def test_and_(self):
         n = constructors.recipe2node(fr.std.and_.flowrep_recipe)
-        self.assertEqual(2, n.run(a=6, b=3).outputs["conjunction"].value)
+        self.assertEqual(2, n.run(a=6, b=3).outputs.conjunction)
 
     def test_iand(self):
         n = constructors.recipe2node(fr.std.iand.flowrep_recipe)
-        self.assertEqual(2, n.run(a=6, b=3).outputs["conjunction"].value)
+        self.assertEqual(2, n.run(a=6, b=3).outputs.conjunction)
 
     def test_or_(self):
         n = constructors.recipe2node(fr.std.or_.flowrep_recipe)
-        self.assertEqual(7, n.run(a=6, b=1).outputs["disjunction"].value)
+        self.assertEqual(7, n.run(a=6, b=1).outputs.disjunction)
 
     def test_ior(self):
         n = constructors.recipe2node(fr.std.ior.flowrep_recipe)
-        self.assertEqual(7, n.run(a=6, b=1).outputs["disjunction"].value)
+        self.assertEqual(7, n.run(a=6, b=1).outputs.disjunction)
 
     def test_xor(self):
         n = constructors.recipe2node(fr.std.xor.flowrep_recipe)
-        self.assertEqual(5, n.run(a=6, b=3).outputs["exclusive_or"].value)
+        self.assertEqual(5, n.run(a=6, b=3).outputs.exclusive_or)
 
     def test_ixor(self):
         n = constructors.recipe2node(fr.std.ixor.flowrep_recipe)
-        self.assertEqual(5, n.run(a=6, b=3).outputs["exclusive_or"].value)
+        self.assertEqual(5, n.run(a=6, b=3).outputs.exclusive_or)
 
     def test_lshift(self):
         n = constructors.recipe2node(fr.std.lshift.flowrep_recipe)
-        self.assertEqual(8, n.run(a=1, b=3).outputs["left_shifted"].value)
+        self.assertEqual(8, n.run(a=1, b=3).outputs.left_shifted)
 
     def test_ilshift(self):
         n = constructors.recipe2node(fr.std.ilshift.flowrep_recipe)
-        self.assertEqual(8, n.run(a=1, b=3).outputs["left_shifted"].value)
+        self.assertEqual(8, n.run(a=1, b=3).outputs.left_shifted)
 
     def test_rshift(self):
         n = constructors.recipe2node(fr.std.rshift.flowrep_recipe)
-        self.assertEqual(2, n.run(a=8, b=2).outputs["right_shifted"].value)
+        self.assertEqual(2, n.run(a=8, b=2).outputs.right_shifted)
 
     def test_irshift(self):
         n = constructors.recipe2node(fr.std.irshift.flowrep_recipe)
-        self.assertEqual(2, n.run(a=8, b=2).outputs["right_shifted"].value)
+        self.assertEqual(2, n.run(a=8, b=2).outputs.right_shifted)
 
     def test_matmul(self):
         n = constructors.recipe2node(fr.std.matmul.flowrep_recipe)
-        result = n.run(a=_Mat(1), b=_Mat(2)).outputs["matrix_product"].value
+        result = n.run(a=_Mat(1), b=_Mat(2)).outputs.matrix_product
         self.assertEqual(("mm", 1, 2), result)
 
     def test_imatmul(self):
         n = constructors.recipe2node(fr.std.imatmul.flowrep_recipe)
-        result = n.run(a=_Mat(1), b=_Mat(2)).outputs["matrix_product"].value
+        result = n.run(a=_Mat(1), b=_Mat(2)).outputs.matrix_product
         self.assertEqual(("imm", 1, 2), result)
 
     def test_eq(self):
         n = constructors.recipe2node(fr.std.eq.flowrep_recipe)
-        self.assertEqual(True, n.run(a=1, b=1).outputs["equal"].value)
+        self.assertEqual(True, n.run(a=1, b=1).outputs.equal)
 
     def test_ne(self):
         n = constructors.recipe2node(fr.std.ne.flowrep_recipe)
-        self.assertEqual(True, n.run(a=1, b=2).outputs["not_equal"].value)
+        self.assertEqual(True, n.run(a=1, b=2).outputs.not_equal)
 
     def test_lt(self):
         n = constructors.recipe2node(fr.std.lt.flowrep_recipe)
-        self.assertEqual(True, n.run(a=1, b=2).outputs["less"].value)
+        self.assertEqual(True, n.run(a=1, b=2).outputs.less)
 
     def test_le(self):
         n = constructors.recipe2node(fr.std.le.flowrep_recipe)
-        self.assertEqual(True, n.run(a=2, b=2).outputs["less_equal"].value)
+        self.assertEqual(True, n.run(a=2, b=2).outputs.less_equal)
 
     def test_gt(self):
         n = constructors.recipe2node(fr.std.gt.flowrep_recipe)
-        self.assertEqual(True, n.run(a=2, b=1).outputs["greater"].value)
+        self.assertEqual(True, n.run(a=2, b=1).outputs.greater)
 
     def test_ge(self):
         n = constructors.recipe2node(fr.std.ge.flowrep_recipe)
-        self.assertEqual(True, n.run(a=2, b=2).outputs["greater_equal"].value)
+        self.assertEqual(True, n.run(a=2, b=2).outputs.greater_equal)
 
     def test_is_(self):
         n = constructors.recipe2node(fr.std.is_.flowrep_recipe)
-        self.assertEqual(True, n.run(a=None, b=None).outputs["identical"].value)
+        self.assertEqual(True, n.run(a=None, b=None).outputs.identical)
 
     def test_is_not(self):
         n = constructors.recipe2node(fr.std.is_not.flowrep_recipe)
-        self.assertEqual(True, n.run(a=1, b=2).outputs["not_identical"].value)
+        self.assertEqual(True, n.run(a=1, b=2).outputs.not_identical)
 
     def test_contains(self):
         n = constructors.recipe2node(fr.std.contains.flowrep_recipe)
-        self.assertEqual(True, n.run(a=[1, 2, 3], b=2).outputs["contains"].value)
+        self.assertEqual(True, n.run(a=[1, 2, 3], b=2).outputs.contains)
 
     def test_countOf(self):
         n = constructors.recipe2node(fr.std.countOf.flowrep_recipe)
-        self.assertEqual(2, n.run(a=[1, 2, 2, 3], b=2).outputs["count"].value)
+        self.assertEqual(2, n.run(a=[1, 2, 2, 3], b=2).outputs.count)
 
     def test_indexOf(self):
         n = constructors.recipe2node(fr.std.indexOf.flowrep_recipe)
-        self.assertEqual(2, n.run(a=[1, 2, 3], b=3).outputs["index"].value)
+        self.assertEqual(2, n.run(a=[1, 2, 3], b=3).outputs.index)
 
     def test_concat(self):
         n = constructors.recipe2node(fr.std.concat.flowrep_recipe)
-        self.assertEqual([1, 2], n.run(a=[1], b=[2]).outputs["concatenated"].value)
+        self.assertEqual([1, 2], n.run(a=[1], b=[2]).outputs.concatenated)
 
     def test_iconcat(self):
         n = constructors.recipe2node(fr.std.iconcat.flowrep_recipe)
-        self.assertEqual([1, 2], n.run(a=[1], b=[2]).outputs["concatenated"].value)
+        self.assertEqual([1, 2], n.run(a=[1], b=[2]).outputs.concatenated)
 
     def test_getitem(self):
         n = constructors.recipe2node(fr.std.getitem.flowrep_recipe)
-        self.assertEqual(20, n.run(a=[10, 20], b=1).outputs["item"].value)
+        self.assertEqual(20, n.run(a=[10, 20], b=1).outputs.item)
 
     def test_setitem(self):
         d = {}
@@ -243,23 +243,23 @@ class TestStdExecution(unittest.TestCase):
     def test_call(self):
         n = constructors.recipe2node(fr.std.call.flowrep_recipe)
         with self.subTest("no variadics"):
-            self.assertEqual(42, n.run(obj=_return_42).outputs["result"].value)
+            self.assertEqual(42, n.run(obj=_return_42).outputs.result)
         with self.subTest("args"):
             self.assertEqual(
                 (42, (1, 2)),
-                n.run(obj=_return_42, args_=(1, 2)).outputs["result"].value,
+                n.run(obj=_return_42, args_=(1, 2)).outputs.result,
             )
         with self.subTest("kwargs"):
             self.assertEqual(
                 (42, {"a": 3, "b": 4}),
-                n.run(obj=_return_42, kwargs_={"a": 3, "b": 4}).outputs["result"].value,
+                n.run(obj=_return_42, kwargs_={"a": 3, "b": 4}).outputs.result,
             )
         with self.subTest("both"):
             self.assertEqual(
                 (42, (1, 2), {"a": 3, "b": 4}),
-                n.run(obj=_return_42, args_=(1, 2), kwargs_={"a": 3, "b": 4})
-                .outputs["result"]
-                .value,
+                n.run(obj=_return_42, args_=(1, 2), kwargs_={"a": 3, "b": 4}).outputs[
+                    "result"
+                ],
             )
 
 

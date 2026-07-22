@@ -227,7 +227,7 @@ class TestEvaluateTrySucceeds(unittest.TestCase):
         self.assertEqual(self.run.status, execution.RunStatus.FINISHED)
 
     def test_output_value(self) -> None:
-        self.assertEqual(self.run.outputs["z"].value, 5.0)
+        self.assertEqual(self.run.outputs.z, 5.0)
 
     def test_only_try_body_in_steps(self) -> None:
         labels = [step.label for step in self.run.steps]
@@ -255,7 +255,7 @@ class TestEvaluateExceptionHandled(unittest.TestCase):
         self.assertEqual(self.run.status, execution.RunStatus.FINISHED)
 
     def test_output_is_identity_fallback(self) -> None:
-        self.assertEqual(self.run.outputs["z"].value, 10)
+        self.assertEqual(self.run.outputs.z, 10)
 
     def test_steps_include_both_bodies(self) -> None:
         labels = [step.label for step in self.run.steps]
@@ -312,7 +312,7 @@ class TestEvaluateMultiCaseFirstMatchWins(unittest.TestCase):
 
     def test_output_from_second_handler(self) -> None:
         # identity("bad") → "bad"
-        self.assertEqual(self.run.outputs["z"].value, "bad")
+        self.assertEqual(self.run.outputs.z, "bad")
 
 
 # --------------------------------------------------------------------------- #
@@ -326,14 +326,14 @@ class TestEvaluateTupleExceptions(unittest.TestCase):
         tryn = tryflow.Try("tryn", recipe)
         run = tryn.run(x=10, y=0)
         self.assertEqual(run.status, execution.RunStatus.FINISHED)
-        self.assertEqual(run.outputs["z"].value, 10)
+        self.assertEqual(run.outputs.z, 10)
 
     def test_type_error_matches_tuple(self) -> None:
         recipe = _tuple_exceptions_recipe()
         tryn = tryflow.Try("tryn", recipe)
         run = tryn.run(x="bad", y=1)
         self.assertEqual(run.status, execution.RunStatus.FINISHED)
-        self.assertEqual(run.outputs["z"].value, "bad")
+        self.assertEqual(run.outputs.z, "bad")
 
 
 # --------------------------------------------------------------------------- #
@@ -364,13 +364,13 @@ class TestMacroWrappedTry(unittest.TestCase):
         node = _fixtures.try_safe_divide_node()
         run = node.run(x=10, y=2)
         self.assertEqual(run.status, execution.RunStatus.FINISHED)
-        self.assertEqual(run.outputs["z"].value, 5.0)
+        self.assertEqual(run.outputs.z, 5.0)
 
     def test_exception_path(self) -> None:
         node = _fixtures.try_safe_divide_node()
         run = node.run(x=10, y=0)
         self.assertEqual(run.status, execution.RunStatus.FINISHED)
-        self.assertEqual(run.outputs["z"].value, 10)
+        self.assertEqual(run.outputs.z, 10)
 
 
 # --------------------------------------------------------------------------- #

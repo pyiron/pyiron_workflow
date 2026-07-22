@@ -45,7 +45,7 @@ class TestFlecheCaching(unittest.TestCase):
             pwf.RunConfig(run_dir=self.root / "run", fleche_cache=cache),
             t=self.T,
         )
-        return out.duration.total_seconds(), out.outputs["s"].value
+        return out.duration.total_seconds(), out.outputs.s
 
     def _assert_speedup(self, place_executors, replace_executors) -> None:
         cache = integration_fixtures.make_cache(self.root)

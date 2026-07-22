@@ -718,7 +718,7 @@ class TestEdgeMutations(unittest.TestCase):
         self.wf.connect(self.wf.inputs.a, self.wf.second.inputs.y)
         self.wf.connect(self.wf.first.outputs.output_0, self.wf.second.inputs.x)
         self.wf.connect(self.wf.second, self.wf.outputs.y)
-        self.assertEqual(42 + 2, self.wf.run(x=42, a=1).outputs["y"].value)
+        self.assertEqual(42 + 2, self.wf.run(x=42, a=1).outputs.y)
         self.wf.undo(5)  # n connect calls
         self.assertEqual([], self.wf.edges)
 
@@ -1663,7 +1663,7 @@ class TestWorkflowEvaluate(unittest.TestCase):
             ],
         )
         run = wf.run()
-        self.assertEqual(run.outputs["out"].value, 2)  # 1*2=2
+        self.assertEqual(run.outputs.out, 2)  # 1*2=2
 
     def test_sibling_edge_sequences_nodes(self) -> None:
         # n1 uses defaults (1*2=2); n2 receives x=n1.output_0=2, uses default y=2 → 4.
@@ -1686,7 +1686,7 @@ class TestWorkflowEvaluate(unittest.TestCase):
         )
         run = wf.run()
         self.assertEqual(run.status, execution.RunStatus.FINISHED)
-        self.assertEqual(run.outputs["result"].value, 4)
+        self.assertEqual(run.outputs.result, 4)
 
     def test_full_wiring_matches_expected_values(self) -> None:
         wf = _fixtures.build_workflow(
@@ -1699,8 +1699,8 @@ class TestWorkflowEvaluate(unittest.TestCase):
             edges=_fixtures._MACRO_WF_EDGES,
         )
         run = wf.run(x=1, y=2, z=3)
-        self.assertEqual(run.outputs["a"].value, 3)  # 1+2
-        self.assertEqual(run.outputs["s"].value, 0)  # 3-3
+        self.assertEqual(run.outputs.a, 3)  # 1+2
+        self.assertEqual(run.outputs.s, 0)  # 3-3
 
     def test_passthrough_input_to_output(self) -> None:
         # No child nodes: InputSource edge wired directly to OutputTarget.
@@ -1715,7 +1715,7 @@ class TestWorkflowEvaluate(unittest.TestCase):
             ],
         )
         run = wf.run(x=42)
-        self.assertEqual(run.outputs["out"].value, 42)
+        self.assertEqual(run.outputs.out, 42)
 
     def test_steps_and_status(self) -> None:
         wf = _fixtures.build_workflow(
@@ -1738,7 +1738,7 @@ class TestWorkflowEvaluate(unittest.TestCase):
         wf = constructors.macro2workflow(_fixtures.uses_constant_node())
         run = wf.run(x=10)
         self.assertEqual(run.status, execution.RunStatus.FINISHED)
-        self.assertEqual(run.outputs["y"].value, 15)  # 10 + 5
+        self.assertEqual(run.outputs.y, 15)  # 10 + 5
 
 
 class TestUnlockSubgraph(unittest.TestCase):
@@ -2489,8 +2489,8 @@ class TestWorkflowFromRecipe(unittest.TestCase):
         rebuilt = workflow.Workflow.from_recipe("rebuilt", src.recipe)
         rebuilt_run = rebuilt.run(x=2, y=3, z=4)
         self.assertEqual(
-            src_run.outputs["diff"].value,
-            rebuilt_run.outputs["diff"].value,
+            src_run.outputs.diff,
+            rebuilt_run.outputs.diff,
         )
 
     def test_undo_stack_empty(self) -> None:
