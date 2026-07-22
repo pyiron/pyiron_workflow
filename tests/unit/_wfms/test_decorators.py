@@ -91,7 +91,7 @@ class TestInputs2Dataclass(unittest.TestCase):
 
     def test_run_constructs_instance(self) -> None:
         run = _fixtures.PlainPoint.pwf_inputs2dc.run(x=1.0, y=2.0)
-        self.assertEqual(run.outputs["dataclass"].value, _fixtures.PlainPoint(1.0, 2.0))
+        self.assertEqual(run.outputs.dataclass, _fixtures.PlainPoint(1.0, 2.0))
 
     def test_inputs_with_defaults(self) -> None:
         ref = _fixtures.WithDefaults.pwf_inputs2dc.recipe.reference
@@ -99,7 +99,7 @@ class TestInputs2Dataclass(unittest.TestCase):
 
     def test_default_factory_resolves_on_run(self) -> None:
         run = _fixtures.WithDefaults.pwf_inputs2dc.run(a=1)
-        self.assertEqual(run.outputs["dataclass"].value, _fixtures.WithDefaults(a=1))
+        self.assertEqual(run.outputs.dataclass, _fixtures.WithDefaults(a=1))
 
     def test_kw_only_recorded_as_restricted(self) -> None:
         ref = _fixtures.FrozenKw.pwf_inputs2dc.recipe.reference
@@ -126,15 +126,15 @@ class TestDataclass2Outputs(unittest.TestCase):
         run = _fixtures.PlainPoint.pwf_dc2outputs.run(
             dataclass=_fixtures.PlainPoint(1.0, 2.0)
         )
-        self.assertEqual(run.outputs["x"].value, 1.0)
-        self.assertEqual(run.outputs["y"].value, 2.0)
+        self.assertEqual(run.outputs.x, 1.0)
+        self.assertEqual(run.outputs.y, 2.0)
 
     def test_frozen_read_back(self) -> None:
         run = _fixtures.FrozenKw.pwf_dc2outputs.run(
             dataclass=_fixtures.FrozenKw(nova=1.1)
         )
-        self.assertEqual(run.outputs["nova"].value, 1.1)
-        self.assertEqual(run.outputs["foo"].value, 42)
+        self.assertEqual(run.outputs.nova, 1.1)
+        self.assertEqual(run.outputs.foo, 42)
 
     def test_init_false_field_is_output_not_input(self) -> None:
         # init=False -> real field (output) but not a constructor param (no input)
@@ -147,7 +147,7 @@ class TestDataclass2Outputs(unittest.TestCase):
         run = _fixtures.WithInitFalse.pwf_dc2outputs.run(
             dataclass=_fixtures.WithInitFalse(a=1)
         )
-        self.assertEqual(run.outputs["c"].value, 7)
+        self.assertEqual(run.outputs.c, 7)
 
     def test_init_var_is_input_not_output(self) -> None:
         # InitVar -> constructor param (input) but not a real field (no output)
@@ -166,9 +166,7 @@ class TestDataclass2Outputs(unittest.TestCase):
         wf.create_output_from(wf.to_dc)
         for k in wf.to_values.outputs:
             wf.connect(wf.to_values.outputs[k], wf.to_dc.inputs[k])
-        result = (
-            wf.run(dataclass=_fixtures.PlainPoint(1.0, 2.0)).outputs["dataclass"].value
-        )
+        result = wf.run(dataclass=_fixtures.PlainPoint(1.0, 2.0)).outputs.dataclass
         self.assertEqual(result, _fixtures.PlainPoint(1.0, 2.0))
 
 
@@ -204,7 +202,7 @@ class TestAtomicWorkflowDecorators(unittest.TestCase):
     def test_atomic_run(self) -> None:
         run = _fixtures.wfms_add.pwf.run(x=1, y=2)
         (only,) = run.outputs.keys()
-        self.assertEqual(run.outputs[only].value, 3)
+        self.assertEqual(run.outputs[only], 3)
 
     def test_string_dispatch_relabels_output(self) -> None:
         self.assertIsInstance(

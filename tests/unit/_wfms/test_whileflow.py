@@ -84,7 +84,7 @@ class TestEvaluateZeroIterations(unittest.TestCase):
         self.assertEqual(self.run.status, execution.RunStatus.FINISHED)
 
     def test_output_sourced_from_input(self) -> None:
-        self.assertEqual(self.run.outputs["n"].value, 0)
+        self.assertEqual(self.run.outputs.n, 0)
 
     def test_only_condition_ran(self) -> None:
         labels = [step.label for step in self.run.steps]
@@ -112,7 +112,7 @@ class TestEvaluateSingleIteration(unittest.TestCase):
         self.assertEqual(self.run.status, execution.RunStatus.FINISHED)
 
     def test_output_value(self) -> None:
-        self.assertEqual(self.run.outputs["n"].value, 0)
+        self.assertEqual(self.run.outputs.n, 0)
 
     def test_steps_order(self) -> None:
         labels = [step.label for step in self.run.steps]
@@ -137,7 +137,7 @@ class TestEvaluateMultipleIterations(unittest.TestCase):
         self.run = self.whl.run(n=3)
 
     def test_output_value(self) -> None:
-        self.assertEqual(self.run.outputs["n"].value, 0)
+        self.assertEqual(self.run.outputs.n, 0)
 
     def test_step_count_and_order(self) -> None:
         labels = [step.label for step in self.run.steps]
@@ -209,7 +209,7 @@ class TestMacroWrappedWhile(unittest.TestCase):
         self.whl = self.node.nodes.while_0
 
     def test_output_matches_python_countdown(self) -> None:
-        self.assertEqual(self.run.outputs["n"].value, _fixtures.while_countdown(n=3))
+        self.assertEqual(self.run.outputs.n, _fixtures.while_countdown(n=3))
 
     def test_inner_while_steps_are_wired(self) -> None:
         inner_steps = self.run.steps[0].steps
@@ -394,7 +394,7 @@ class TestNonLoopingInputs(unittest.TestCase):
         self.run = self.whl.run(n=3, step=1)
 
     def test_output_value(self) -> None:
-        self.assertEqual(self.run.outputs["n"].value, 0)
+        self.assertEqual(self.run.outputs.n, 0)
 
     def test_step_always_sourced_from_input(self) -> None:
         for key, val in self.run.result.input_edges.items():

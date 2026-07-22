@@ -163,7 +163,7 @@ class TestEvaluateSingleCaseTrue(unittest.TestCase):
         self.assertEqual(self.run.status, execution.RunStatus.FINISHED)
 
     def test_body_output_routed_to_parent(self) -> None:
-        self.assertEqual(self.run.outputs["out"].value, 3)
+        self.assertEqual(self.run.outputs.out, 3)
 
     def test_steps_in_run_order(self) -> None:
         labels = [step.label for step in self.run.steps]
@@ -184,7 +184,7 @@ class TestEvaluateSingleCaseFalseNoElse(unittest.TestCase):
         self.assertEqual(self.run.status, execution.RunStatus.FINISHED)
 
     def test_output_stays_not_data(self) -> None:
-        self.assertIsInstance(self.run.outputs["out"].value, fr.schemas.NotData)
+        self.assertIsInstance(self.run.outputs.out, fr.schemas.NotData)
 
     def test_only_condition_ran(self) -> None:
         labels = [step.label for step in self.run.steps]
@@ -206,7 +206,7 @@ class TestEvaluateSingleCaseFalseWithElse(unittest.TestCase):
         self.assertEqual(self.run.status, execution.RunStatus.FINISHED)
 
     def test_else_body_output_routed(self) -> None:
-        self.assertEqual(self.run.outputs["y"].value, 5)
+        self.assertEqual(self.run.outputs.y, 5)
 
     def test_steps_visit_condition_then_else_body(self) -> None:
         labels = [step.label for step in self.if_step.steps]
@@ -228,7 +228,7 @@ class TestEvaluateMultipleCases(unittest.TestCase):
         ifn = ifflow.If("ifn", _two_case_recipe(with_else=True))
         # x=5: is_positive(5) → True, identity(5) → 5. cond_neg must not run.
         run = ifn.run(x=5)
-        self.assertEqual(run.outputs["out"].value, 5)
+        self.assertEqual(run.outputs.out, 5)
         labels = [step.label for step in run.steps]
         self.assertEqual(labels, ["cond_pos", "body_pos"])
 
@@ -236,7 +236,7 @@ class TestEvaluateMultipleCases(unittest.TestCase):
         ifn = ifflow.If("ifn", _two_case_recipe(with_else=True))
         # x=-5: cond_pos False, cond_neg True, negate(-5)=5.
         run = ifn.run(x=-5)
-        self.assertEqual(run.outputs["out"].value, 5)
+        self.assertEqual(run.outputs.out, 5)
         labels = [step.label for step in run.steps]
         self.assertEqual(labels, ["cond_pos", "cond_neg", "body_neg"])
 
@@ -244,7 +244,7 @@ class TestEvaluateMultipleCases(unittest.TestCase):
         ifn = ifflow.If("ifn", _two_case_recipe(with_else=True))
         # x=0: both predicates False, else returns identity(0)=0.
         run = ifn.run(x=0)
-        self.assertEqual(run.outputs["out"].value, 0)
+        self.assertEqual(run.outputs.out, 0)
         labels = [step.label for step in run.steps]
         self.assertEqual(labels, ["cond_pos", "cond_neg", "else_body"])
 
@@ -252,7 +252,7 @@ class TestEvaluateMultipleCases(unittest.TestCase):
         ifn = ifflow.If("ifn", _two_case_recipe(with_else=False))
         run = ifn.run(x=0)
         self.assertEqual(run.status, execution.RunStatus.FINISHED)
-        self.assertIsInstance(run.outputs["out"].value, fr.schemas.NotData)
+        self.assertIsInstance(run.outputs.out, fr.schemas.NotData)
         labels = [step.label for step in run.steps]
         self.assertEqual(labels, ["cond_pos", "cond_neg"])
         self.assertEqual(run.result.output_edges, {})
@@ -283,7 +283,7 @@ class TestMacroDownstreamOfFalsyIfIsSkipped(unittest.TestCase):
         self.assertEqual(self.run.status, execution.RunStatus.FINISHED)
 
     def test_macro_output_is_not_data(self) -> None:
-        self.assertIsInstance(self.run.outputs["z"].value, fr.schemas.NotData)
+        self.assertIsInstance(self.run.outputs.z, fr.schemas.NotData)
 
     def test_downstream_step_not_recorded(self) -> None:
         labels = [step.label for step in self.run.steps]

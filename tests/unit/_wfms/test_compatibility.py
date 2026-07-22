@@ -165,11 +165,11 @@ class TestAsFunctionNodeBehaviour(unittest.TestCase):
         node = add()
         self.assertEqual(node.label, add.decorated.__name__)
         run = node.run(x=-1, y=43)
-        self.assertEqual(run.outputs["z"].value, 42)
+        self.assertEqual(run.outputs.z, 42)
 
     def test_nested_scope_works(self) -> None:
         run = NestedScope.add().run(x=2, y=3)
-        self.assertEqual(run.outputs["z"].value, 5)
+        self.assertEqual(run.outputs.z, 5)
 
     def test_locals_fail_at_decoration(self) -> None:
         # A `<locals>` function can never be instantiated (it is unimportable), so we
@@ -197,7 +197,7 @@ class TestAsFunctionNodeBehaviour(unittest.TestCase):
             ["renamed"],
             msg="A positional string argument should override the scraped label.",
         )
-        self.assertEqual(run.outputs["renamed"].value, 5)
+        self.assertEqual(run.outputs.renamed, 5)
 
 
 class TestMultipleDispatch(unittest.TestCase):
@@ -246,43 +246,43 @@ class TestFlatMacroConstruction(unittest.TestCase):
 
     def test_positional_child_construction(self) -> None:
         run = macro_args().run(x=1, y=2)
-        self.assertEqual(run.outputs["summed"].value, 3)
+        self.assertEqual(run.outputs.summed, 3)
 
     def test_keyword_child_construction(self) -> None:
         run = macro_kwargs().run(x=1, y=2)
-        self.assertEqual(run.outputs["summed"].value, 3)
+        self.assertEqual(run.outputs.summed, 3)
 
     def test_single_output_node_as_input(self) -> None:
         # double(self.s) -- the whole single-output node feeds the next child.
         run = macro_node_input().run(x=1, y=2)
-        self.assertEqual(run.outputs["doubled_sum"].value, 6)
+        self.assertEqual(run.outputs.doubled_sum, 6)
 
     def test_specific_port_as_input(self) -> None:
         # double(self.s.outputs["z"]) -- a named child port feeds the next child.
         run = macro_port_input().run(x=1, y=2)
-        self.assertEqual(run.outputs["doubled_sum"].value, 6)
+        self.assertEqual(run.outputs.doubled_sum, 6)
 
 
 class TestMacroReturns(unittest.TestCase):
     def test_single_output_node_return(self) -> None:
         run = macro_args().run(x=1, y=2)
         self.assertEqual(list(run.outputs.keys()), ["summed"])
-        self.assertEqual(run.outputs["summed"].value, 3)
+        self.assertEqual(run.outputs.summed, 3)
 
     def test_specific_port_return(self) -> None:
         run = macro_port_return().run(x=1, y=2)
-        self.assertEqual(run.outputs["summed"].value, 3)
+        self.assertEqual(run.outputs.summed, 3)
 
     def test_mixed_multi_return(self) -> None:
         run = macro_multi_return().run(x=1, y=2)
-        self.assertEqual(run.outputs["summed"].value, 3)
-        self.assertEqual(run.outputs["doubled"].value, 6)
+        self.assertEqual(run.outputs.summed, 3)
+        self.assertEqual(run.outputs.doubled, 6)
 
     def test_parent_input_passthrough(self) -> None:
         # `return x, self.s` wires a parent input straight to a parent output.
         run = macro_passthrough().run(x=4, y=5)
-        self.assertEqual(run.outputs["echoed"].value, 4)
-        self.assertEqual(run.outputs["summed"].value, 9)
+        self.assertEqual(run.outputs.echoed, 4)
+        self.assertEqual(run.outputs.summed, 9)
 
 
 class TestMacroOutputLabels(unittest.TestCase):
@@ -293,7 +293,7 @@ class TestMacroOutputLabels(unittest.TestCase):
         # No decorator argument: the label is scraped from `return self.s`.
         run = macro_scraped().run(x=1, y=2)
         self.assertEqual(list(run.outputs.keys()), ["s"])
-        self.assertEqual(run.outputs["s"].value, 3)
+        self.assertEqual(run.outputs.s, 3)
 
     def test_incommensurate_explicit_labels_raise(self) -> None:
         factory = compatibility.as_macro_node("only_one")(too_few_labels)
@@ -325,7 +325,7 @@ class TestMacroDefaultCapture(unittest.TestCase):
     def test_child_default_is_used_at_run_time(self) -> None:
         # Only `x` is supplied; the child's `y=10` default is applied: 5 + 10.
         run = macro_child_default().run(x=5)
-        self.assertEqual(run.outputs["result"].value, 15)
+        self.assertEqual(run.outputs.result, 15)
 
 
 class TestNestedMacroConstruction(unittest.TestCase):
@@ -334,12 +334,12 @@ class TestNestedMacroConstruction(unittest.TestCase):
     def test_nested_macro_with_positional_child(self) -> None:
         # Sum of the inner macro's two outputs: three plus six.
         run = macro_outer_args().run(x=1, y=2)
-        self.assertEqual(run.outputs["total"].value, 9)
+        self.assertEqual(run.outputs.total, 9)
 
     def test_nested_macro_with_keyword_child(self) -> None:
         # The inner macro's single output (three), doubled.
         run = macro_outer_kwargs().run(x=1, y=2)
-        self.assertEqual(run.outputs["total"].value, 6)
+        self.assertEqual(run.outputs.total, 6)
 
 
 class TestUnsupportedReturns(unittest.TestCase):

@@ -39,9 +39,9 @@ class TestOutOfProcess(unittest.TestCase):
                 with futures.ProcessPoolExecutor() as exe:
                     node.executor = exe
                     result = node.run(x=-1, y=43)
-                self.assertEqual(result.outputs["total"].value, 42)
+                self.assertEqual(result.outputs.total, 42)
                 self.assertNotEqual(
-                    result.outputs["pid"].value,
+                    result.outputs.pid,
                     os.getpid(),
                     msg="The node should have executed in a separate process.",
                 )

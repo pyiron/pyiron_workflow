@@ -39,7 +39,7 @@ def _run_binary(label, op, a_val, b_val):
     wf.create_output("out")
     wf.r = op(wf.inputs.a, wf.inputs.b)
     wf.connect(wf.r, wf.outputs.out)
-    return wf.run(a=a_val, b=b_val).outputs["out"].value
+    return wf.run(a=a_val, b=b_val).outputs.out
 
 
 class TestUnaryInjection(unittest.TestCase):
@@ -50,7 +50,7 @@ class TestUnaryInjection(unittest.TestCase):
         self.assertEqual(2, len(result.nodes))
         in_label = _only(result.inputs)
         out_label = _only(result.outputs)
-        value = result.run(**{in_label: -5}).outputs[out_label].value
+        value = result.run(**{in_label: -5}).outputs[out_label]
         self.assertEqual(abs(-5 + 1), value)  # abs(-4) == 4
 
     def test_unary_on_input_port(self):
@@ -59,7 +59,7 @@ class TestUnaryInjection(unittest.TestCase):
         wf.create_output("out")
         wf.absn = abs(wf.inputs.n)
         wf.connect(wf.absn, wf.outputs.out)
-        self.assertEqual(42, wf.run(n=-42).outputs["out"].value)
+        self.assertEqual(42, wf.run(n=-42).outputs.out)
 
     def test_unary_on_output_port(self):
         wf = workflow.Workflow("unary_output")
@@ -69,7 +69,7 @@ class TestUnaryInjection(unittest.TestCase):
         wf.connect(wf.inputs.n, wf.first.inputs.x)
         wf.absf = abs(wf.first.outputs.output_0)
         wf.connect(wf.absf, wf.outputs.out)
-        self.assertEqual(42, wf.run(n=-43).outputs["out"].value)  # abs(-43 + 1) == 42
+        self.assertEqual(42, wf.run(n=-43).outputs.out)  # abs(-43 + 1) == 42
 
     def test_owned_unary(self):
         wf = workflow.Workflow("owned_unary")
@@ -79,7 +79,7 @@ class TestUnaryInjection(unittest.TestCase):
         wf.absf = abs(wf.first)
         wf.connect(wf.inputs.n, wf.first.inputs.x)
         wf.connect(wf.absf, wf.outputs.out)
-        self.assertEqual(42, wf.run(n=-43).outputs["out"].value)
+        self.assertEqual(42, wf.run(n=-43).outputs.out)
 
     def test_repeated_injection_unique_labels(self):
         wf = workflow.Workflow("repeated_unary")
@@ -101,7 +101,7 @@ class TestBinaryInjection(unittest.TestCase):
         # inputs to the add operation. Running result directly feeds those plumbing
         # inputs; the increment nodes inside wf do not execute again here.
         out_label = _only(result.outputs)
-        value = result.run(first=1, second=2).outputs[out_label].value
+        value = result.run(first=1, second=2).outputs[out_label]
         self.assertEqual(1 + 2, value)  # 3
 
     def test_binary_naming_node_vs_output_port(self):
@@ -114,10 +114,10 @@ class TestBinaryInjection(unittest.TestCase):
 
         node_out = _only(by_node.outputs)
         port_out = _only(by_port.outputs)
-        self.assertEqual(3, by_node.run(first=1, second=2).outputs[node_out].value)
+        self.assertEqual(3, by_node.run(first=1, second=2).outputs[node_out])
         self.assertEqual(
             3,
-            by_port.run(first_output_0=1, second_output_0=2).outputs[port_out].value,
+            by_port.run(first_output_0=1, second_output_0=2).outputs[port_out],
         )
 
     def test_binary_on_input_ports(self):
@@ -127,7 +127,7 @@ class TestBinaryInjection(unittest.TestCase):
         wf.create_output("product")
         wf.prod = wf.inputs.m * wf.inputs.n
         wf.connect(wf.prod, wf.outputs.product)
-        self.assertEqual(6, wf.run(m=2, n=3).outputs["product"].value)
+        self.assertEqual(6, wf.run(m=2, n=3).outputs.product)
 
     def test_self_binary_same_port(self):
         wf = workflow.Workflow("self_binary")
@@ -135,7 +135,7 @@ class TestBinaryInjection(unittest.TestCase):
         wf.create_output("out")
         wf.doubled = wf.inputs.m + wf.inputs.m
         wf.connect(wf.doubled, wf.outputs.out)
-        self.assertEqual(8, wf.run(m=4).outputs["out"].value)
+        self.assertEqual(8, wf.run(m=4).outputs.out)
 
 
 class TestMixedOwnership(unittest.TestCase):
@@ -154,7 +154,7 @@ class TestMixedOwnership(unittest.TestCase):
         wf.connect(wf.inputs.b, wf.y.inputs["plain_increment_0_x"])
         wf.create_output("y")
         wf.connect(wf.y, wf.outputs.y)
-        self.assertEqual(5.5, wf.run(m=1, x=2, b=0.5).outputs["y"].value)
+        self.assertEqual(5.5, wf.run(m=1, x=2, b=0.5).outputs.y)
 
     def test_right_owned_left_free(self):
         # (increment(k) + b) with b owned, increment free.
@@ -169,7 +169,7 @@ class TestMixedOwnership(unittest.TestCase):
         wf.connect(wf.y, wf.outputs.out)
         self.assertEqual(
             (5 + 1) + 10,
-            wf.run(k=5, b=10).outputs["out"].value,
+            wf.run(k=5, b=10).outputs.out,
         )
 
 
@@ -182,7 +182,7 @@ class TestChainedInjection(unittest.TestCase):
         wf.y = (wf.inputs.m * wf.inputs.x) + wf.inputs.b
         wf.create_output("result")
         wf.connect(wf.y, wf.outputs.result)
-        self.assertEqual((2 * 3) + 4, wf.run(m=2, x=3, b=4).outputs["result"].value)
+        self.assertEqual((2 * 3) + 4, wf.run(m=2, x=3, b=4).outputs.result)
 
     def test_no_context_chain_still_works(self):
         # Regression: chaining unowned nodes must keep working.
@@ -198,9 +198,7 @@ class TestChainedInjection(unittest.TestCase):
                 plain_increment_mul_plain_increment_0_plain_increment_0_x=1,
                 plain_increment_mul_plain_increment_0_plain_increment_1_x=2,
                 plain_increment_0_x=0.5,
-            )
-            .outputs[out_label]
-            .value,
+            ).outputs[out_label],
         )
 
     def test_cross_context_via_pending_rejected_early(self):
@@ -235,7 +233,7 @@ class TestPendingConnectionLifting(unittest.TestCase):
         )
         outer.connect(outer.sub, outer.outputs.out)
         # abs((x+1)+1) with x=-7 -> abs(-5) == 5
-        self.assertEqual(5, outer.run(x=-7).outputs["out"].value)
+        self.assertEqual(5, outer.run(x=-7).outputs.out)
 
 
 class TestInjectionFailures(unittest.TestCase):
@@ -288,7 +286,7 @@ class TestInjectionFailures(unittest.TestCase):
         wf.connect(wf.added, wf.outputs.out)
         self.assertEqual(
             (1 + 1) + (2 + 1),
-            wf.run(a=1, b_in=2).outputs["out"].value,
+            wf.run(a=1, b_in=2).outputs.out,
         )
 
 
@@ -380,7 +378,7 @@ class TestUnaryOperators(unittest.TestCase):
         wf.create_output("out")
         wf.r = -wf.inputs.a
         wf.connect(wf.r, wf.outputs.out)
-        self.assertEqual(-5, wf.run(a=5).outputs["out"].value)
+        self.assertEqual(-5, wf.run(a=5).outputs.out)
 
     def test_pos(self):
         wf = workflow.Workflow("pos")
@@ -388,7 +386,7 @@ class TestUnaryOperators(unittest.TestCase):
         wf.create_output("out")
         wf.r = +wf.inputs.a
         wf.connect(wf.r, wf.outputs.out)
-        self.assertEqual(-5, wf.run(a=-5).outputs["out"].value)
+        self.assertEqual(-5, wf.run(a=-5).outputs.out)
 
     def test_invert(self):
         wf = workflow.Workflow("invert")
@@ -396,7 +394,7 @@ class TestUnaryOperators(unittest.TestCase):
         wf.create_output("out")
         wf.r = ~wf.inputs.a
         wf.connect(wf.r, wf.outputs.out)
-        self.assertEqual(-6, wf.run(a=5).outputs["out"].value)  # ~5 == -6
+        self.assertEqual(-6, wf.run(a=5).outputs.out)  # ~5 == -6
 
 
 if __name__ == "__main__":

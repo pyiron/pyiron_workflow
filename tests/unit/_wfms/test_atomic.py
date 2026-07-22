@@ -108,7 +108,7 @@ class TestAtomicEvaluate(unittest.TestCase):
         self.assertEqual(run.status, execution.RunStatus.FINISHED)
         # `add`'s single output is named `output_0` by flowrep.
         (only_name,) = run.outputs.keys()
-        self.assertEqual(run.outputs[only_name].value, 3)
+        self.assertEqual(run.outputs[only_name], 3)
 
 
 # --------------------------------------------------------------------------- #
