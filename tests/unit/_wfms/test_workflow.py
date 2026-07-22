@@ -141,7 +141,8 @@ class TestMutableNodeMap(unittest.TestCase):
         with self.assertRaisesRegex(
             TypeError, "expected a Node, flowrep recipe, or function"
         ):
-            self.wf.nodes.adder = 42
+            # Tuples are not JSONable, so this cannot be coerced to a Constant node
+            self.wf.nodes.adder = (42,)
 
     def test_setattr_accepts_recipe(self) -> None:
         self.wf.nodes.m = _fixtures.macro.flowrep_recipe
