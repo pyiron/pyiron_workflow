@@ -1,37 +1,79 @@
 import argparse
 import os
+import pathlib
+import subprocess
 import time
 
-import pyiron_workflow as pwf
-import pyiron_workflow.data
-from pyiron_workflow.executors.wrapped_executorlib import NodeSlurmExecutor
+from pip._internal.utils import datetime
 
-t_overhead = 2
-t_sleep = 10
+import pyiron_workflow._wfms.api as pwf
 
 
-def state_check(
-    wf, expected_wf, expected_n2, expected_result=pyiron_workflow.data.NOT_DATA
+@pwf.atomic
+def identity(x):
+    return x
+
+
+@pwf.atomic
+def sleepy(t):
+    time.sleep(t)
+    return t
+
+
+@pwf.workflow
+def three_step(t):
+    n1 = identity(t)
+    n2 = sleepy(n1)
+    n3 = identity(n2)
+    return n3
+
+
+CACHE_DIR = pathlib.Path("/tmp/slurm_test")
+CACHE_DIR.mkdir(parents=True, exist_ok=True)
+T_SLEEP = 10
+
+
+def kill_sleeper(
+    run_dir: pathlib.Path,
+    timestamp: datetime.datetime,
+    lexical_path: str,
+    status: pwf.schemas.RunStatus,
 ):
-    wf_running, n_running, outputs = (
-        wf.running,
-        wf.n2.running,
-        wf.outputs.to_value_dict(),
-    )
-    print(
-        "wf.running, wf.n2.running, wf.outputs.to_value_dict()",
-        wf_running,
-        n_running,
-        outputs,
-    )
-    assert (wf_running, n_running, outputs["n3__user_input"]) == (
-        expected_wf,
-        expected_n2,
-        expected_result,
-    )
+    hard_coded_sleepy_path = "three_step.sleepy_0"
+    if (
+        lexical_path == hard_coded_sleepy_path
+        and status == pwf.schemas.RunStatus.RUNNING
+    ):
+        time.sleep(1)  # give the job a second to process
+        print_queue("Queue at kill time")
+        assert_queue_has_n_items(1)
+        os._exit(0)  # Then hard exit so that we don't even wait for the executor
 
 
-def submission():
+def get_queue() -> list[dict[str, str]]:
+    """Return current squeue entries as list of dicts."""
+    cmd = ["squeue", "--noheader", "--format=%i|%j|%T|%u"]
+    result = subprocess.run(cmd, capture_output=True, text=True, check=True)
+    jobs = []
+    for line in result.stdout.splitlines():
+        job_id, name, state, job_user = line.split("|")
+        jobs.append({"job_id": job_id, "name": name, "state": state, "user": job_user})
+    return jobs
+
+
+def print_queue(extra_message: str | None = None) -> None:
+    if extra_message:
+        print(extra_message)
+    cmd = ["squeue"]
+    subprocess.run(cmd, check=True)
+
+
+def assert_queue_has_n_items(n: int) -> None:
+    jobs = get_queue()
+    assert len(jobs) == n, f"Expected {n} job(s) in queue, found {len(jobs)}: {jobs}"
+
+
+def setup(callbacks=None):
     submission_template = """\
 #!/bin/bash
 #SBATCH --output=time.out
@@ -44,59 +86,57 @@ def submission():
 """
     resource_dict = {"submission_template": submission_template}
 
-    wf = pwf.Workflow("slurm_test")
-    wf.n1 = pwf.std.UserInput(t_sleep)
-    wf.n2 = pwf.std.Sleep(wf.n1)
-    wf.n3 = pwf.std.UserInput(wf.n2)
+    wf = three_step.pwf.node()
 
-    print("submitting")
-    print(time.time())
-    wf.n2.executor = (NodeSlurmExecutor, (), {"resource_dict": resource_dict})
-    out = wf.run_in_thread()
-    print("run return", out)
-    state_check(wf, True, True)
-    print("sleeping", t_overhead + t_sleep / 4)
-    time.sleep(t_overhead + t_sleep / 4)
-    print("saving")
-    state_check(wf, True, True)
-    wf.save()
-    print("sleeping", t_sleep / 4)
-    time.sleep(t_sleep / 4)
-    print("pre-exit state")
-    state_check(wf, True, True)
-    print("hard exit at time", time.time())
-    os._exit(0)  # Hard exit so that we don't wait for the executor
+    wf.sleepy_0.executor = pwf.ExecutorInstructions(
+        pwf.tools.NodeSlurmExecutor,
+        (),
+        {"resource_dict": resource_dict},
+    )
+
+    cfg = pwf.RunConfig(run_dir=CACHE_DIR, progress_hooks=callbacks or [])
+    return wf, cfg
+
+
+def submission():
+    wf, cfg = setup([pwf.ProgressHook(kill_sleeper)])
+    wf.run(cfg, t=T_SLEEP)
 
 
 def interruption():
-    print("loading at time", time.time())
-    wf = pwf.Workflow("slurm_test")
-    state_check(wf, True, True)
-    print("re-running")
-    out = wf.run_in_thread(rerun=True)
-    print("run return", out)
-    state_check(wf, True, True)
-    print("sleeping", t_overhead + t_sleep)
-    time.sleep(t_overhead + t_sleep)
-    state_check(wf, False, False, t_sleep)
-    wf.delete_storage()
+    print_queue("Queue at interruption time")
+    assert_queue_has_n_items(1)
+    wf, cfg = setup()
+    t0 = time.time()
+    out = wf.run(cfg, t=T_SLEEP)
+    dt = time.time() - t0
+    print("Result", out.outputs, "in", dt)
+    time.sleep(1)  # Let everything settle
+    assert_queue_has_n_items(0)
+    assert (
+        dt > 0.5 * T_SLEEP
+    ), f"Expected to need to wait for the job to finish, but got a small dt -- {dt}"
+    assert (
+        out.outputs.n3 == T_SLEEP
+    ), f"Sanity check that the workflow returned T_SLEEP, but got {out.outputs['n3'].value}"
 
 
 def discovery():
-    print("loading at time", time.time())
-    wf = pwf.Workflow("slurm_test")
-    state_check(wf, True, True)
-    print("sleeping", t_overhead + t_sleep)
-    time.sleep(t_overhead + t_sleep)
-    print("re-running")
-    out = wf.run_in_thread(rerun=True)
-    print("run return", out)
-    state_check(wf, True, True)
-    print("sleeping", t_sleep / 10)
-    time.sleep(t_sleep / 10)
-    print("finally")
-    state_check(wf, False, False, t_sleep)
-    wf.delete_storage()
+    print_queue("Queue at discovery time")
+    assert_queue_has_n_items(1)
+    time.sleep(1.5 * T_SLEEP)  # Wait for it to finish
+    assert_queue_has_n_items(0)
+    wf, cfg = setup()
+    t0 = time.time()
+    out = wf.run(cfg, t=T_SLEEP)
+    dt = time.time() - t0
+    print("Result", out.outputs, "in", dt)
+    assert (
+        dt < 0.1 * T_SLEEP
+    ), f"Expected to get a quick cache hit, but got a large -- {dt}"
+    assert (
+        out.outputs.n3 == T_SLEEP
+    ), f"Sanity check that the workflow returned T_SLEEP, but got {out.outputs['n3'].value}"
 
 
 def main():

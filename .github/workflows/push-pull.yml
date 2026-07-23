@@ -15,7 +15,7 @@ jobs:
       tests-env-files: .ci_support/environment.yml .ci_support/environment-optional.yml
       docs-env-files: .ci_support/environment.yml .ci_support/environment-notebook.yml .ci_support/environment-optional.yml
       notebooks-env-files: .ci_support/environment.yml .ci_support/environment-notebook.yml .ci_support/environment-optional.yml
-      extra-python-paths: tests tests/benchmark tests/integration tests/static tests/unit  # For executorlib
+      extra-python-paths: tests tests/benchmark tests/integration tests/unit tests/legacy tests/legacy/integration tests/legacy/static tests/legacy/unit  # For executorlib
       python-version-alt1: 'exclude'
       python-version-alt2: '3.11'
       python-version: '3.12'
@@ -42,13 +42,13 @@ jobs:
 
   slurm-interruption-wfms:
     if: github.event_name == 'pull_request'
-    uses: ./.github/workflows/slurm-test-wfms.yml
+    uses: ./.github/workflows/slurm-test-legacy.yml
     with:
       mode: interrupt
 
   slurm-discovery-wfms:
     if: github.event_name == 'pull_request'
-    uses: ./.github/workflows/slurm-test-wfms.yml
+    uses: ./.github/workflows/slurm-test-legacy.yml
     with:
       mode: discover
 
@@ -58,6 +58,6 @@ jobs:
     with:
       tests-env-files: .ci_support/environment.yml
       test-dir: tests/unit
-      extra-python-paths: tests tests/static tests/unit
+      extra-python-paths: tests tests/static tests/unit tests/legacy tests/legacy/static tests/legacy/unit
       do-coveralls: false
       do-codecov: false
