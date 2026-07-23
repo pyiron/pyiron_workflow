@@ -135,6 +135,8 @@ ignore = [
     "PLR0915",
     # Too many return statements
     "PLR0911",
+    # Too many not-keyword-only arguments,
+    "PLR0917"
 ]
 
 [tool.ruff.lint.per-file-ignores]
