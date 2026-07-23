@@ -13,7 +13,7 @@ def _constant_recipe(value: object) -> fr.schemas.ConstantRecipe:
 
 class TestConstantConstruction(unittest.TestCase):
     def test_from_value(self):
-        reference = constant.Constant("foo", _constant_recipe(42))
+        reference = constant.Constant(_constant_recipe(42), "foo")
         from_value = constant.Constant.from_value(42, "foo")
         self.assertEqual(reference.recipe, from_value.recipe)
         self.assertEqual(reference.label, from_value.label)
@@ -30,7 +30,7 @@ class TestConstantEvaluate(unittest.TestCase):
         # on the single output port named `constant`.
         for value in (42, "hi", [1, 2, 3], {"a": [1, 2]}):
             with self.subTest(value=value):
-                node = constant.Constant("c", _constant_recipe(value))
+                node = constant.Constant(_constant_recipe(value), "c")
                 run = node.run()
                 self.assertEqual(run.status, execution.RunStatus.FINISHED)
                 self.assertEqual(run.outputs.constant, value)

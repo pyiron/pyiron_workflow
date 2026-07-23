@@ -74,7 +74,7 @@ def function2node(
     else:
         # Otherwise parse undecorated functions as atomic nodes
         recipe = fr.tools.parse_atomic(function)
-        return atomic.Atomic(label or function.__name__, recipe)
+        return atomic.Atomic(recipe, label or function.__name__)
 
 
 def recipe2node(
@@ -87,19 +87,19 @@ def recipe2node(
     )
 
     if isinstance(recipe, fr.schemas.AtomicRecipe):
-        return atomic.Atomic(label, recipe)
+        return atomic.Atomic(recipe, label)
     elif isinstance(recipe, fr.schemas.ForEachRecipe):
-        return flowcontrollers.ForEach(label, recipe)
+        return flowcontrollers.ForEach(recipe, label)
     elif isinstance(recipe, fr.schemas.IfRecipe):
-        return flowcontrollers.If(label, recipe)
+        return flowcontrollers.If(recipe, label)
     elif isinstance(recipe, fr.schemas.TryRecipe):
-        return flowcontrollers.Try(label, recipe)
+        return flowcontrollers.Try(recipe, label)
     elif isinstance(recipe, fr.schemas.WhileRecipe):
-        return flowcontrollers.While(label, recipe)
+        return flowcontrollers.While(recipe, label)
     elif isinstance(recipe, fr.schemas.WorkflowRecipe):
-        return dag.Macro(label, recipe)
+        return dag.Macro(recipe, label)
     elif isinstance(recipe, fr.schemas.ConstantRecipe):
-        return constant.Constant(label, recipe)
+        return constant.Constant(recipe, label)
     else:
         raise TypeError(
             f"Unknown recipe type: {recipe}. Expected one of {RecipeOptions}."
@@ -178,7 +178,7 @@ def _copy_executors(src: datatypes.Node, dst: datatypes.Node) -> None:
 
 
 def workflow2macro(wf: workflow.Workflow) -> dag.Macro:
-    macro = dag.Macro(wf.label, wf.recipe)
+    macro = dag.Macro(wf.recipe, wf.label)
     _copy_port_annotations(wf.inputs, macro.inputs)
     _copy_port_annotations(wf.outputs, macro.outputs)
     _copy_executors(wf, macro)

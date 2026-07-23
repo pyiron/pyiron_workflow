@@ -142,7 +142,7 @@ def _prepare_run(
 class TestBuildRuntimeDagNestedOnly(unittest.TestCase):
     def setUp(self) -> None:
         self.recipe = _build_nested_only_recipe()
-        self.fe = forflow.ForEach("fe", self.recipe)
+        self.fe = forflow.ForEach(self.recipe, "fe")
         self.dag_run = _prepare_run(self.fe, {"xs": [1, 2], "y": 100})
         self.nodes = self.fe._build_runtime_dag(self.dag_run)
 
@@ -211,7 +211,7 @@ class TestBuildRuntimeDagNestedOnly(unittest.TestCase):
 class TestBuildRuntimeDagZippedOnly(unittest.TestCase):
     def setUp(self) -> None:
         self.recipe = _build_zipped_only_recipe()
-        self.fe = forflow.ForEach("fe", self.recipe)
+        self.fe = forflow.ForEach(self.recipe, "fe")
         self.dag_run = _prepare_run(self.fe, {"xs": [1, 2, 3], "ys": [10, 20, 30]})
         self.nodes = self.fe._build_runtime_dag(self.dag_run)
 
@@ -250,7 +250,7 @@ class TestBuildRuntimeDagZippedOnly(unittest.TestCase):
 class TestBuildRuntimeDagMixed(unittest.TestCase):
     def setUp(self) -> None:
         self.recipe = _build_mixed_recipe()
-        self.fe = forflow.ForEach("fe", self.recipe)
+        self.fe = forflow.ForEach(self.recipe, "fe")
         self.dag_run = _prepare_run(
             self.fe,
             {"xs": [1, 2], "ys": [10, 20, 30], "ws": [100, 200, 300]},
@@ -348,7 +348,7 @@ class TestBuildRuntimeDagBroadcastOnly(unittest.TestCase):
         # Build with a valid seed recipe whose inputs (x, y) match the
         # broadcast-only recipe; then swap recipes on the live.
         seed_recipe = _build_broadcast_seed_recipe()
-        self.fe = forflow.ForEach("fe", seed_recipe)
+        self.fe = forflow.ForEach(seed_recipe, "fe")
         self.dag_run = _prepare_run(self.fe, {"x": 42, "y": 100})
 
         self.dag_run.result.recipe = _make_broadcast_only_recipe()

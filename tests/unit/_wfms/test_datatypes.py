@@ -326,7 +326,7 @@ class TestConnectAtInit(unittest.TestCase):
 
     @staticmethod
     def _macro(**connections):
-        return dag.Macro("m", _fixtures.macro.flowrep_recipe, **connections)
+        return dag.Macro(_fixtures.macro.flowrep_recipe, "m", **connections)
 
     def test_connect_port_is_pending(self):
         src = _fixtures.atomic_add_node("src")
@@ -359,13 +359,13 @@ class TestConnectAtInit(unittest.TestCase):
         # the fixture's inputs are (x, y, z), so a lone positional lands on `x`.
         src = _fixtures.atomic_add_node("src")
         port = src.outputs["output_0"]
-        m = dag.Macro("m", _fixtures.macro.flowrep_recipe, port)
+        m = dag.Macro(_fixtures.macro.flowrep_recipe, "m", port)
         self.assertIs(m._pending_connections["x"], port)
 
     def test_positional_and_keyword_connections_combine(self):
         src = _fixtures.atomic_add_node("src")
         port = src.outputs["output_0"]
-        m = dag.Macro("m", _fixtures.macro.flowrep_recipe, port, z=src)
+        m = dag.Macro(_fixtures.macro.flowrep_recipe, "m", port, z=src)
         self.assertIs(m._pending_connections["x"], port)
         self.assertIs(m._pending_connections["z"], src.outputs["output_0"])
 

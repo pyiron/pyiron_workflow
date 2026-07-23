@@ -394,7 +394,7 @@ def foreach_node(label: str = "fe"):
         nested_ports=["x"],
         zipped_ports=[],
     )
-    return wfms.schemas.ForEach(label, recipe)
+    return wfms.schemas.ForEach(recipe, label)
 
 
 def if_abs_node(label: str = "if_abs"):
@@ -545,7 +545,7 @@ def attr_sugar_recipe() -> fr.schemas.WorkflowRecipe:
 
 def attr_sugar_macro_node(label: str = "attr_sugar_macro"):
     """Return a fresh `Macro` whose node labels collide with graph attributes."""
-    return wfms.schemas.Macro(label, attr_sugar_recipe())
+    return wfms.schemas.Macro(attr_sugar_recipe(), label)
 
 
 # --------------------------------------------------------------------------- #

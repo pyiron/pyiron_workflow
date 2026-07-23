@@ -339,7 +339,7 @@ def _build_operation(
         if context_graph
         else label
     )
-    operation_node = atomic.Atomic(label, operation.flowrep_recipe)
+    operation_node = atomic.Atomic(operation.flowrep_recipe, label)
     operation_node.connect_input(*[s._injection.port for s in sources])
 
     return operation_node

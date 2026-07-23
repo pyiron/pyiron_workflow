@@ -177,7 +177,7 @@ def _foreach_with_macro_body():
         zipped_ports=[],
     )
 
-    return flowcontrollers.ForEach("fe", recipe)
+    return flowcontrollers.ForEach(recipe, "fe")
 
 
 class TestPullFlowControl(unittest.TestCase):

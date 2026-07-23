@@ -154,7 +154,7 @@ def _macro_with_no_else_and_downstream() -> fr.schemas.WorkflowRecipe:
 class TestEvaluateSingleCaseTrue(unittest.TestCase):
     def setUp(self) -> None:
         self.recipe = _fixtures.if_recipe()
-        self.ifn = ifflow.If("ifn", self.recipe)
+        self.ifn = ifflow.If(self.recipe, "ifn")
         # cond and body both wrap `add`; with x=1, y=2 the condition returns
         # 3 (truthy) and the body returns 3.
         self.run = self.ifn.run(x=1, y=2)
@@ -176,7 +176,7 @@ class TestEvaluateSingleCaseTrue(unittest.TestCase):
 class TestEvaluateSingleCaseFalseNoElse(unittest.TestCase):
     def setUp(self) -> None:
         self.recipe = _no_else_recipe()
-        self.ifn = ifflow.If("ifn", self.recipe)
+        self.ifn = ifflow.If(self.recipe, "ifn")
         # x=1, y=-1 → add → 0 (falsy); no else → output stays NOT_DATA.
         self.run = self.ifn.run(x=1, y=-1)
 
@@ -225,7 +225,7 @@ class TestEvaluateSingleCaseFalseWithElse(unittest.TestCase):
 
 class TestEvaluateMultipleCases(unittest.TestCase):
     def test_first_true_wins_and_short_circuits(self) -> None:
-        ifn = ifflow.If("ifn", _two_case_recipe(with_else=True))
+        ifn = ifflow.If(_two_case_recipe(with_else=True), "ifn")
         # x=5: is_positive(5) → True, identity(5) → 5. cond_neg must not run.
         run = ifn.run(x=5)
         self.assertEqual(run.outputs.out, 5)
@@ -233,7 +233,7 @@ class TestEvaluateMultipleCases(unittest.TestCase):
         self.assertEqual(labels, ["cond_pos", "body_pos"])
 
     def test_second_case_fires_when_first_false(self) -> None:
-        ifn = ifflow.If("ifn", _two_case_recipe(with_else=True))
+        ifn = ifflow.If(_two_case_recipe(with_else=True), "ifn")
         # x=-5: cond_pos False, cond_neg True, negate(-5)=5.
         run = ifn.run(x=-5)
         self.assertEqual(run.outputs.out, 5)
@@ -241,7 +241,7 @@ class TestEvaluateMultipleCases(unittest.TestCase):
         self.assertEqual(labels, ["cond_pos", "cond_neg", "body_neg"])
 
     def test_all_false_falls_to_else(self) -> None:
-        ifn = ifflow.If("ifn", _two_case_recipe(with_else=True))
+        ifn = ifflow.If(_two_case_recipe(with_else=True), "ifn")
         # x=0: both predicates False, else returns identity(0)=0.
         run = ifn.run(x=0)
         self.assertEqual(run.outputs.out, 0)
@@ -249,7 +249,7 @@ class TestEvaluateMultipleCases(unittest.TestCase):
         self.assertEqual(labels, ["cond_pos", "cond_neg", "else_body"])
 
     def test_all_false_no_else_leaves_not_data(self) -> None:
-        ifn = ifflow.If("ifn", _two_case_recipe(with_else=False))
+        ifn = ifflow.If(_two_case_recipe(with_else=False), "ifn")
         run = ifn.run(x=0)
         self.assertEqual(run.status, execution.RunStatus.FINISHED)
         self.assertIsInstance(run.outputs.out, fr.schemas.NotData)
@@ -302,7 +302,7 @@ class TestStageNodeInputEdges(unittest.TestCase):
 
     def setUp(self) -> None:
         self.recipe = _fixtures.if_recipe()
-        self.ifn = ifflow.If("ifn", self.recipe)
+        self.ifn = ifflow.If(self.recipe, "ifn")
         self.live = self.ifn.generate_flowrep_live_node()
 
     def test_only_matching_target_node_edges_copied(self) -> None:
@@ -329,7 +329,7 @@ class TestStageBodyOutputEdges(unittest.TestCase):
 
     def setUp(self) -> None:
         self.recipe = _two_case_recipe(with_else=True)
-        self.ifn = ifflow.If("ifn", self.recipe)
+        self.ifn = ifflow.If(self.recipe, "ifn")
         self.live = self.ifn.generate_flowrep_live_node()
 
     def test_picks_body_pos_handle(self) -> None:
@@ -393,7 +393,7 @@ class TestStageBodyOutputEdges(unittest.TestCase):
                 ],
             },
         )
-        ifn = ifflow.If("ifn", unrelated_body_recipe)
+        ifn = ifflow.If(unrelated_body_recipe, "ifn")
         live = ifn.generate_flowrep_live_node()
         ifflow.If._stage_body_output_edges("body_a", live, unrelated_body_recipe)
         self.assertEqual(
@@ -405,7 +405,7 @@ class TestStageBodyOutputEdges(unittest.TestCase):
 class TestConditionValue(unittest.TestCase):
     def test_falls_back_to_sole_output_label(self) -> None:
         recipe = _fixtures.if_recipe()
-        ifn = ifflow.If("ifn", recipe)
+        ifn = ifflow.If(recipe, "ifn")
         live = ifn.generate_flowrep_live_node()
         case = recipe.cases[0]
         cond_live = fr.schemas.AtomicData.from_recipe(case.condition.recipe)
@@ -442,7 +442,7 @@ class TestConditionValue(unittest.TestCase):
                 ],
             },
         )
-        ifn = ifflow.If("ifn", recipe)
+        ifn = ifflow.If(recipe, "ifn")
         live = ifn.generate_flowrep_live_node()
         cond_live = fr.schemas.AtomicData.from_recipe(cond_recipe)
         cond_live.output_ports["output_0"].value = 0  # falsy via explicit label

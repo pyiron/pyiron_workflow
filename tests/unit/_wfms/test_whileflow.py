@@ -77,7 +77,7 @@ def _non_looping_recipe() -> fr.schemas.WhileRecipe:
 class TestEvaluateZeroIterations(unittest.TestCase):
     def setUp(self) -> None:
         self.recipe = _fixtures.while_recipe()
-        self.whl = whileflow.While("whl", self.recipe)
+        self.whl = whileflow.While(self.recipe, "whl")
         self.run = self.whl.run(n=0)
 
     def test_run_finished(self) -> None:
@@ -105,7 +105,7 @@ class TestEvaluateZeroIterations(unittest.TestCase):
 class TestEvaluateSingleIteration(unittest.TestCase):
     def setUp(self) -> None:
         self.recipe = _fixtures.while_recipe()
-        self.whl = whileflow.While("whl", self.recipe)
+        self.whl = whileflow.While(self.recipe, "whl")
         self.run = self.whl.run(n=1)
 
     def test_run_finished(self) -> None:
@@ -133,7 +133,7 @@ class TestEvaluateSingleIteration(unittest.TestCase):
 class TestEvaluateMultipleIterations(unittest.TestCase):
     def setUp(self) -> None:
         self.recipe = _fixtures.while_recipe()
-        self.whl = whileflow.While("whl", self.recipe)
+        self.whl = whileflow.While(self.recipe, "whl")
         self.run = self.whl.run(n=3)
 
     def test_output_value(self) -> None:
@@ -235,7 +235,7 @@ class TestMacroWrappedWhile(unittest.TestCase):
 class TestStageChildEdges(unittest.TestCase):
     def setUp(self) -> None:
         self.recipe = _fixtures.while_recipe()
-        self.whl = whileflow.While("whl", self.recipe)
+        self.whl = whileflow.While(self.recipe, "whl")
         self.result = self.whl.generate_flowrep_live_node()
 
     def test_first_call_routes_all_to_input_edges(self) -> None:
@@ -266,7 +266,7 @@ class TestStageChildEdges(unittest.TestCase):
 
     def test_non_looping_port_always_from_input_edges(self) -> None:
         recipe = _non_looping_recipe()
-        whl = whileflow.While("whl", recipe)
+        whl = whileflow.While(recipe, "whl")
         result = whl.generate_flowrep_live_node()
 
         # Second call (last_body_label set): "step" is not a while output,
@@ -291,7 +291,7 @@ class TestStageChildEdges(unittest.TestCase):
 class TestStageFinalOutputEdges(unittest.TestCase):
     def setUp(self) -> None:
         self.recipe = _fixtures.while_recipe()
-        self.whl = whileflow.While("whl", self.recipe)
+        self.whl = whileflow.While(self.recipe, "whl")
 
     def test_no_iterations_produces_input_source_fallback(self) -> None:
         result = self.whl.generate_flowrep_live_node()
@@ -320,7 +320,7 @@ class TestConditionValue(unittest.TestCase):
         self, cond_label: str, output_val: object
     ) -> fr.schemas.WhileData:
         recipe = _fixtures.while_recipe()
-        whl = whileflow.While("whl", recipe)
+        whl = whileflow.While(recipe, "whl")
         result = whl.generate_flowrep_live_node()
         cond_live = fr.schemas.AtomicData.from_recipe(recipe.case.condition.recipe)
         cond_live.output_ports["output_0"].value = output_val
@@ -368,7 +368,7 @@ class TestConditionValue(unittest.TestCase):
                 ),
             },
         )
-        whl = whileflow.While("whl", recipe)
+        whl = whileflow.While(recipe, "whl")
         result = whl.generate_flowrep_live_node()
         cond_live = fr.schemas.AtomicData.from_recipe(cond_recipe)
         cond_live.output_ports["output_0"].value = 0  # falsy via explicit label
@@ -389,7 +389,7 @@ class TestNonLoopingInputs(unittest.TestCase):
 
     def setUp(self) -> None:
         self.recipe = _non_looping_recipe()
-        self.whl = whileflow.While("whl", self.recipe)
+        self.whl = whileflow.While(self.recipe, "whl")
         # n=3, step=1 → 3-1=2, 2-1=1, 1-1=0 → terminates
         self.run = self.whl.run(n=3, step=1)
 
