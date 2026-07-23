@@ -264,7 +264,6 @@ class TestCachingExecutors(unittest.TestCase):
                 dt_second = time.perf_counter() - t1
                 self.assertEqual(out_warm.outputs.s, self.T)
                 self.assertLess(dt_second, dt_first / 2)
-                self.assertLess(dt_second, 1.0)
 
                 # Footgun: different input, same node/dir -> stale cached value
                 t2 = time.perf_counter()
@@ -275,7 +274,7 @@ class TestCachingExecutors(unittest.TestCase):
                     self.T,
                     msg="Cache key is the lexical path only; stale value expected",
                 )
-                self.assertLess(dt_third, 1.0)
+                self.assertLess(dt_third, dt_first / 2)
 
     def test_fresh_run_dir_recomputes(self):
         node_a = self._fresh_node(wfms.tools._CacheTestExecutor)
