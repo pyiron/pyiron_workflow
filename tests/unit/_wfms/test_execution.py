@@ -2,11 +2,13 @@ from __future__ import annotations
 
 import datetime
 import logging
+import multiprocessing
 import pathlib
 import tempfile
 import threading
 import unittest
 from concurrent import futures
+from typing import Any
 
 import flowrep as fr
 
@@ -166,6 +168,85 @@ class TestExecutorInstructions(unittest.TestCase):
             self.assertEqual(exe._max_workers, 2)
         finally:
             exe.shutdown(wait=True)
+
+    def test_process_pool_is_forced_off_fork(self) -> None:
+        instructions = execution.ExecutorInstructions(
+            constructor=futures.ProcessPoolExecutor,
+            kwargs={"max_workers": 1},
+        )
+        resolved = instructions._resolved_kwargs()
+        self.assertEqual(
+            resolved["mp_context"].get_start_method(),
+            "spawn",
+            msg="Sibling DAG nodes fork concurrently from worker threads, which is "
+            "unsafe on any platform and an error once filelock >= 3.30 is imported",
+        )
+        self.assertEqual(
+            resolved["max_workers"],
+            1,
+            msg="The caller's own kwargs should survive untouched",
+        )
+        self.assertNotIn(
+            "mp_context",
+            instructions.kwargs,
+            msg="The stored kwargs should not be mutated in place",
+        )
+
+    def test_explicit_mp_context_wins(self) -> None:
+        context = multiprocessing.get_context("spawn")
+        instructions = execution.ExecutorInstructions(
+            constructor=futures.ProcessPoolExecutor,
+            kwargs={"mp_context": context},
+            start_method="forkserver",
+        )
+        self.assertIs(
+            instructions._resolved_kwargs()["mp_context"],
+            context,
+            msg="A deliberate context choice should never be overridden",
+        )
+
+    def test_opting_out_leaves_kwargs_alone(self) -> None:
+        instructions = execution.ExecutorInstructions(
+            constructor=futures.ProcessPoolExecutor,
+            kwargs={"max_workers": 1},
+            start_method=None,
+        )
+        self.assertNotIn(
+            "mp_context",
+            instructions._resolved_kwargs(),
+            msg="None is the escape hatch back to the platform default",
+        )
+
+    def test_unavailable_start_method_is_ignored(self) -> None:
+        instructions = execution.ExecutorInstructions(
+            constructor=futures.ProcessPoolExecutor,
+            start_method="not-a-start-method",
+        )
+        self.assertNotIn(
+            "mp_context",
+            instructions._resolved_kwargs(),
+            msg="Requesting a method this platform lacks should degrade quietly "
+            "rather than raise at instantiation time",
+        )
+
+    def test_non_process_pools_are_untouched(self) -> None:
+        def build_thread_pool(**kwargs: Any) -> futures.Executor:
+            return futures.ThreadPoolExecutor(**kwargs)
+
+        for label, constructor in (
+            ("thread pool", futures.ThreadPoolExecutor),
+            ("non-class factory", build_thread_pool),
+        ):
+            with self.subTest(label):
+                instructions = execution.ExecutorInstructions(
+                    constructor=constructor,  # type: ignore[arg-type]
+                    kwargs={"max_workers": 1},
+                )
+                self.assertNotIn(
+                    "mp_context",
+                    instructions._resolved_kwargs(),
+                    msg="Only process pools understand mp_context",
+                )
 
     def test_instantiate_returns_fresh_instance_per_call(self) -> None:
         instructions = execution.ExecutorInstructions(
