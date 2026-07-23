@@ -1,6 +1,5 @@
 import bidict
 import toposort
-from semantikon import metadata as meta
 
 from pyiron_workflow import channels, io, topology, type_hinting
 from pyiron_workflow.nodes import static_io
@@ -65,15 +64,6 @@ def suggest_connections(
                 continue
             if not type_hinting.type_hint_is_as_or_more_specific_than(
                 upstream.type_hint, downstream.type_hint
-            ):
-                continue
-
-            if (
-                meta._is_annotated(upstream.type_hint)
-                and meta._is_annotated(downstream.type_hint)
-                and upstream.owner.graph_root._validate_ontologies
-                and upstream.owner.graph_root is downstream.owner.graph_root
-                and not upstream.has_ontologically_valid_connection(downstream)
             ):
                 continue
 
