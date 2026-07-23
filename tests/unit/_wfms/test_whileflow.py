@@ -46,9 +46,9 @@ def _non_looping_recipe() -> fr.schemas.WhileRecipe:
         outputs=["n"],
         case=fr.schemas.ConditionalCase(
             condition=fr.schemas.LabeledRecipe(
-                label="condition", node=_fixtures.is_positive.flowrep_recipe
+                label="condition", recipe=_fixtures.is_positive.flowrep_recipe
             ),
-            body=fr.schemas.LabeledRecipe(label="body", node=body),
+            body=fr.schemas.LabeledRecipe(label="body", recipe=body),
         ),
         input_edges={
             fr.schemas.TargetHandle(node="condition", port="n"): fr.schemas.InputSource(
@@ -322,7 +322,7 @@ class TestConditionValue(unittest.TestCase):
         recipe = _fixtures.while_recipe()
         whl = whileflow.While("whl", recipe)
         result = whl.generate_flowrep_live_node()
-        cond_live = fr.schemas.AtomicData.from_recipe(recipe.case.condition.node)
+        cond_live = fr.schemas.AtomicData.from_recipe(recipe.case.condition.recipe)
         cond_live.output_ports["output_0"].value = output_val
         result.nodes[cond_label] = cond_live
         return result, recipe
@@ -343,8 +343,8 @@ class TestConditionValue(unittest.TestCase):
         cond_recipe = _fixtures.add.flowrep_recipe
         body_recipe = _fixtures.identity.flowrep_recipe
         case = fr.schemas.ConditionalCase(
-            condition=fr.schemas.LabeledRecipe(label="condition", node=cond_recipe),
-            body=fr.schemas.LabeledRecipe(label="body", node=body_recipe),
+            condition=fr.schemas.LabeledRecipe(label="condition", recipe=cond_recipe),
+            body=fr.schemas.LabeledRecipe(label="body", recipe=body_recipe),
             condition_output="output_0",
         )
         recipe = fr.schemas.WhileRecipe(

@@ -141,7 +141,8 @@ class TestMutableNodeMap(unittest.TestCase):
         with self.assertRaisesRegex(
             TypeError, "expected a Node, flowrep recipe, or function"
         ):
-            self.wf.nodes.adder = 42
+            # Tuples are not JSONable, so this cannot be coerced to a Constant node
+            self.wf.nodes.adder = (42,)
 
     def test_setattr_accepts_recipe(self) -> None:
         self.wf.nodes.m = _fixtures.macro.flowrep_recipe
@@ -1730,6 +1731,14 @@ class TestWorkflowEvaluate(unittest.TestCase):
         self.assertEqual(run.status, execution.RunStatus.FINISHED)
         self.assertEqual(len(run.steps), 2)
         self.assertEqual({step.label for step in run.steps}, {"add_0", "sub_0"})
+
+    def test_parsed_workflow_with_constant(self) -> None:
+        # `uses_constant` parses to a `Constant` node feeding `add`'s second
+        # addend; the value flows through the live workflow.
+        wf = constructors.macro2workflow(_fixtures.uses_constant_node())
+        run = wf.run(x=10)
+        self.assertEqual(run.status, execution.RunStatus.FINISHED)
+        self.assertEqual(run.outputs["y"].value, 15)  # 10 + 5
 
 
 class TestUnlockSubgraph(unittest.TestCase):

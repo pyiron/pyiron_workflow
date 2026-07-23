@@ -22,14 +22,14 @@ class If(StaticGraph[fr.schemas.IfRecipe, fr.schemas.IfData]):
         nodes: dict[fr.schemas.Label, Node] = {}
         for case in recipe.cases:
             nodes[case.condition.label] = constructors.recipe2node(
-                case.condition.node, case.condition.label
+                case.condition.recipe, case.condition.label
             )
             nodes[case.body.label] = constructors.recipe2node(
-                case.body.node, case.body.label
+                case.body.recipe, case.body.label
             )
         if recipe.else_case is not None:
             nodes[recipe.else_case.label] = constructors.recipe2node(
-                recipe.else_case.node, recipe.else_case.label
+                recipe.else_case.recipe, recipe.else_case.label
             )
         return NodeMap(self, nodes)
 
@@ -46,14 +46,14 @@ class If(StaticGraph[fr.schemas.IfRecipe, fr.schemas.IfData]):
 
         for case in recipe.cases:
             condition_label = case.condition.label
-            self._stage_node(condition_label, result, case.condition.node)
+            self._stage_node(condition_label, result, case.condition.recipe)
             self._stage_node_input_edges(condition_label, result, recipe)
             condition_node = self.nodes[condition_label]
             dag.evaluate_node(condition_node, condition_label, run, config)
 
             if self._condition_value(case, result):
                 body_label = case.body.label
-                self._stage_node(body_label, result, case.body.node)
+                self._stage_node(body_label, result, case.body.recipe)
                 self._stage_node_input_edges(body_label, result, recipe)
                 self._stage_body_output_edges(body_label, result, recipe)
                 body_node = self.nodes[body_label]
@@ -64,7 +64,7 @@ class If(StaticGraph[fr.schemas.IfRecipe, fr.schemas.IfData]):
 
         if recipe.else_case is not None:
             else_label = recipe.else_case.label
-            self._stage_node(else_label, result, recipe.else_case.node)
+            self._stage_node(else_label, result, recipe.else_case.recipe)
             self._stage_node_input_edges(else_label, result, recipe)
             self._stage_body_output_edges(else_label, result, recipe)
             else_node = self.nodes[else_label]
@@ -133,6 +133,6 @@ class If(StaticGraph[fr.schemas.IfRecipe, fr.schemas.IfData]):
     ) -> bool:
         output_label = case.condition_output
         if output_label is None:
-            output_label = next(iter(case.condition.node.outputs))
+            output_label = next(iter(case.condition.recipe.outputs))
         live_condition = result.nodes[case.condition.label]
         return bool(live_condition.output_ports[output_label].value)

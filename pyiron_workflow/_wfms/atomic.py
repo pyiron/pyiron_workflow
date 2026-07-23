@@ -1,6 +1,5 @@
 from __future__ import annotations
 
-import dataclasses
 from typing import Any
 
 import flowrep as fr
@@ -75,20 +74,10 @@ def _call_atomic(node: fr.schemas.AtomicData) -> Any:
 
 
 def _store_atomic_outputs(node: fr.schemas.AtomicData, result: Any) -> None:
-    recipe = node.recipe
     output_names = list(node.output_ports.keys())
 
-    if recipe.unpack_mode == fr.schemas.UnpackMode.NONE:
+    if len(output_names) == 1:
         node.output_ports[output_names[0]].value = result
-
-    elif recipe.unpack_mode == fr.schemas.UnpackMode.TUPLE:
-        if len(output_names) == 1:
-            node.output_ports[output_names[0]].value = result
-        else:
-            for name, val in zip(output_names, result, strict=True):
-                node.output_ports[name].value = val
-
-    elif recipe.unpack_mode == fr.schemas.UnpackMode.DATACLASS:
-        fields = dataclasses.fields(result)
-        for label, field in zip(node.recipe.outputs, fields, strict=True):
-            node.output_ports[label].value = getattr(result, field.name)
+    else:
+        for name, val in zip(output_names, result, strict=True):
+            node.output_ports[name].value = val

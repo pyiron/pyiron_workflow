@@ -6,6 +6,7 @@ import dataclasses
 import datetime
 import enum
 import logging
+import multiprocessing
 import pathlib
 import threading
 from collections.abc import Callable, Iterable
@@ -225,9 +226,40 @@ class ExecutorInstructions:
     constructor: type[futures.Executor]
     args: tuple[Any, ...] = dataclasses.field(default_factory=tuple)
     kwargs: dict[str, Any] = dataclasses.field(default_factory=dict)
+    start_method: str | None = "spawn"
 
     def instantiate(self) -> futures.Executor:
-        return self.constructor(*self.args, **self.kwargs)
+        return self.constructor(*self.args, **self._resolved_kwargs())
+
+    def _resolved_kwargs(self) -> dict[str, Any]:
+        """:attr:`kwargs`, with a non-``fork`` context forced onto process pools.
+
+        Sibling nodes in a DAG layer are evaluated on separate threads, so pools
+        built from these instructions can fork concurrently out of a
+        multi-threaded parent. That is unsafe regardless -- the child inherits
+        locks held by threads that do not exist in it -- and ``filelock >= 3.30``
+        promotes it to an outright ``RuntimeError`` via a process-wide audit
+        hook, from nothing more than being imported.
+
+        ``spawn`` is what macOS and Windows already default to, so forcing it
+        makes every platform behave alike rather than leaving Linux on the fast,
+        unsafe path. CPython 3.14 moves Linux off ``fork`` for the same reason.
+
+        An explicit ``mp_context`` in :attr:`kwargs` always wins, and
+        ``start_method=None`` opts out entirely.
+        """
+        if (
+            self.start_method is None
+            or "mp_context" in self.kwargs
+            or not isinstance(self.constructor, type)
+            or not issubclass(self.constructor, futures.ProcessPoolExecutor)
+            or self.start_method not in multiprocessing.get_all_start_methods()
+        ):
+            return self.kwargs
+        return {
+            **self.kwargs,
+            "mp_context": multiprocessing.get_context(self.start_method),
+        }
 
 
 def run(

@@ -128,6 +128,13 @@ def container():
 
 
 @fr.workflow
+def uses_constant(x):
+    """`add`'s second addend is a parsed literal constant (5)."""
+    y = add(x, 5)
+    return y
+
+
+@fr.workflow
 def annotated_wf(
     w, x: int, y: int = 100, z: Annotated[float, ("units", "meters")] = 1.0
 ) -> tuple[int, Annotated[float, ("units", "centimeters")]]:
@@ -177,8 +184,8 @@ def if_recipe() -> fr.schemas.IfRecipe:
         outputs=["out"],
         cases=[
             fr.schemas.ConditionalCase(
-                condition=fr.schemas.LabeledRecipe(label="cond", node=add_recipe),
-                body=fr.schemas.LabeledRecipe(label="body", node=add_recipe),
+                condition=fr.schemas.LabeledRecipe(label="cond", recipe=add_recipe),
+                body=fr.schemas.LabeledRecipe(label="body", recipe=add_recipe),
             )
         ],
         input_edges={
@@ -279,6 +286,11 @@ def container_node(label: str = "container"):
     return wfms.tools.function2node(container, label)
 
 
+def uses_constant_node(label: str = "uses_constant"):
+    """Return a fresh `Macro` wrapping `uses_constant` (exploits a parsed constant)."""
+    return wfms.tools.function2node(uses_constant, label)
+
+
 def autoencoder_node(label: str = "autoencoder"):
     """Return a fresh `Macro` wrapping `autoencoder`."""
     return wfms.tools.function2node(autoencoder, label)
@@ -361,7 +373,7 @@ def for_wf_node(label: str = "for_wf"):
 def foreach_node(label: str = "fe"):
     """Return a fresh `ForEach` flow-control node (a `NotParseable` to the type
     validator) wrapping `add(x, y)` with `x` nested and `y` broadcast."""
-    body = fr.schemas.LabeledRecipe(label="body", node=add.flowrep_recipe)
+    body = fr.schemas.LabeledRecipe(label="body", recipe=add.flowrep_recipe)
     recipe = fr.schemas.ForEachRecipe(
         inputs=["xs", "y"],
         outputs=["sums"],
@@ -427,12 +439,14 @@ def try_recipe() -> fr.schemas.TryRecipe:
     return fr.schemas.TryRecipe(
         inputs=["x", "y"],
         outputs=["z"],
-        try_node=fr.schemas.LabeledRecipe(label="try_body", node=divide.flowrep_recipe),
+        try_node=fr.schemas.LabeledRecipe(
+            label="try_body", recipe=divide.flowrep_recipe
+        ),
         exception_cases=[
             fr.schemas.ExceptionCase(
                 exceptions=[versions.VersionInfo.of(ZeroDivisionError)],
                 body=fr.schemas.LabeledRecipe(
-                    label="except_body_0", node=identity.flowrep_recipe
+                    label="except_body_0", recipe=identity.flowrep_recipe
                 ),
             ),
         ],
@@ -484,9 +498,9 @@ def while_recipe() -> fr.schemas.WhileRecipe:
         outputs=["n"],
         case=fr.schemas.ConditionalCase(
             condition=fr.schemas.LabeledRecipe(
-                label="condition", node=is_positive.flowrep_recipe
+                label="condition", recipe=is_positive.flowrep_recipe
             ),
-            body=fr.schemas.LabeledRecipe(label="body", node=body),
+            body=fr.schemas.LabeledRecipe(label="body", recipe=body),
         ),
         input_edges={
             fr.schemas.TargetHandle(node="condition", port="n"): fr.schemas.InputSource(

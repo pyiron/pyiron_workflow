@@ -31,7 +31,6 @@ class Transform1toN:
             ),
             inputs=[self.input_label],
             outputs=[self.output_label(i) for i in range(self.n)],
-            unpack_mode=fr.schemas.UnpackMode.TUPLE,
         )
 
     def node(
@@ -67,7 +66,6 @@ class TransformNto1:
             ),
             inputs=[self.input_label(i) for i in range(self.n)],
             outputs=[self.output_label],
-            unpack_mode=fr.schemas.UnpackMode.TUPLE,
         )
 
     def node(

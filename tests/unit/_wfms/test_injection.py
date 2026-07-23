@@ -323,12 +323,21 @@ class TestGetitemOperator(unittest.TestCase):
         # container[index] with both supplied as ports -> indexed element
         self.assertEqual(20, _run_binary("getitem", operator.getitem, [10, 20, 30], 1))
 
-    def test_literal_index_rejected(self):
-        # The index must be a port/single-output node; a literal has no `_injection`.
+    def test_literal_index_supported(self):
+        # A JSONable literal index is wrapped in a Constant and works.
         wf = workflow.Workflow("getitem_literal")
         wf.create_input("container")
-        with self.assertRaises((AttributeError, TypeError)):
-            wf.inputs.container[0]
+        wf.create_output("out")
+        wf.r = wf.inputs.container[1]
+        wf.connect(wf.r, wf.outputs.out)
+        self.assertEqual(20, wf.run(container=[10, 20, 30]).outputs["out"].value)
+
+    def test_non_jsonable_index_rejected(self):
+        # A non-JSONable index (a tuple) is neither injectable nor JSONable.
+        wf = workflow.Workflow("getitem_bad")
+        wf.create_input("container")
+        with self.assertRaisesRegex(TypeError, "getitem"):
+            wf.inputs.container[(1, 2)]
 
 
 class TestMatmulOperator(unittest.TestCase):
@@ -397,6 +406,104 @@ class TestUnaryOperators(unittest.TestCase):
         wf.r = ~wf.inputs.a
         wf.connect(wf.r, wf.outputs.out)
         self.assertEqual(-6, wf.run(a=5).outputs["out"].value)  # ~5 == -6
+
+
+_CONSTANT_BINARY_CASES = [
+    # (name, build(port), a_val, expected). Covers forward (literal-on-right) and
+    # reflected (literal-on-left) forms; reflected arithmetic proves operand order.
+    ("add_right", lambda a: a + 3, 5, 8),
+    ("add_left", lambda a: 3 + a, 5, 8),
+    ("sub_right", lambda a: a - 3, 10, 7),
+    ("sub_left", lambda a: 3 - a, 10, -7),
+    ("mul_right", lambda a: a * 3, 4, 12),
+    ("mul_left", lambda a: 3 * a, 4, 12),
+    ("truediv_right", lambda a: a / 4, 10, 2.5),
+    ("truediv_left", lambda a: 20 / a, 4, 5.0),
+    ("floordiv_right", lambda a: a // 3, 10, 3),
+    ("floordiv_left", lambda a: 20 // a, 3, 6),
+    ("mod_right", lambda a: a % 3, 10, 1),
+    ("mod_left", lambda a: 20 % a, 3, 2),
+    ("pow_right", lambda a: a**2, 3, 9),
+    ("pow_left", lambda a: 2**a, 3, 8),
+    ("lshift_right", lambda a: a << 2, 1, 4),
+    ("lshift_left", lambda a: 1 << a, 3, 8),
+    ("rshift_right", lambda a: a >> 1, 8, 4),
+    ("rshift_left", lambda a: 32 >> a, 2, 8),
+    ("and_right", lambda a: a & 3, 6, 2),
+    ("and_left", lambda a: 3 & a, 6, 2),
+    ("or_right", lambda a: a | 1, 6, 7),
+    ("or_left", lambda a: 1 | a, 6, 7),
+    ("xor_right", lambda a: a ^ 3, 6, 5),
+    ("xor_left", lambda a: 3 ^ a, 6, 5),
+]
+
+
+class TestConstantInjection(unittest.TestCase):
+    """Binary injection where one operand is a JSONable literal."""
+
+    @staticmethod
+    def _run(build, a_val):
+        wf = workflow.Workflow("const_inj")
+        wf.create_input("a")
+        wf.create_output("out")
+        wf.r = build(wf.inputs.a)
+        wf.connect(wf.r, wf.outputs.out)
+        return wf.run(a=a_val).outputs["out"].value
+
+    def test_binary_literal_operands(self):
+        for name, build, a_val, expected in _CONSTANT_BINARY_CASES:
+            with self.subTest(name):
+                self.assertEqual(expected, self._run(build, a_val))
+
+    def test_reflected_arithmetic_is_not_commuted(self):
+        # Guards the operand-order contract: `2 - port` must not equal `port - 2`.
+        self.assertNotEqual(
+            self._run(lambda a: 2 - a, 10), self._run(lambda a: a - 2, 10)
+        )
+
+    def test_float_constant(self):
+        self.assertEqual(6.0, self._run(lambda a: a * 1.5, 4))
+
+    def test_list_constant(self):
+        self.assertEqual([1, 9], self._run(lambda a: a + [9], [1]))
+
+    def test_owned_context_chained_literals(self):
+        # Literal on the right, then on the left, both within the same graph context.
+        wf = workflow.Workflow("owned_const")
+        wf.create_input("a")
+        wf.create_output("out")
+        wf.chained = 3 ** (wf.inputs.a * 2)
+        wf.connect(wf.chained, wf.outputs.out)
+        self.assertEqual(3 ** (2 * 2), wf.run(a=2).outputs["out"].value)  # 81
+
+    def test_free_node_with_literal(self):
+        result = _new_node() * 2  # plain_increment(x) then * 2
+        self.assertIsInstance(result, workflow.Workflow)
+        in_label = _only(result.inputs)
+        out_label = _only(result.outputs)
+        self.assertEqual(
+            (7 + 1) * 2, result.run(**{in_label: 7}).outputs[out_label].value
+        )
+
+    def test_reflected_matmul_builds_graph(self):
+        # matmul of two constants is not runnable, but the reflected dunder must still
+        # build an injection graph (int has no __matmul__, so `2 @ port` dispatches here).
+        wf = workflow.Workflow("rmm")
+        wf.create_input("a")
+        result = 2 @ wf.inputs.a
+        self.assertIsInstance(result, workflow.Workflow)
+
+    def test_non_jsonable_right_operand_rejected(self):
+        wf = workflow.Workflow("bad_right")
+        wf.create_input("a")
+        with self.assertRaisesRegex(TypeError, "mul"):
+            wf.inputs.a * (2,)
+
+    def test_non_jsonable_left_operand_rejected(self):
+        wf = workflow.Workflow("bad_left")
+        wf.create_input("a")
+        with self.assertRaisesRegex(TypeError, "mul"):
+            (2,) * wf.inputs.a
 
 
 if __name__ == "__main__":

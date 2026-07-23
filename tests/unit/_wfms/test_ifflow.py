@@ -21,8 +21,8 @@ def _no_else_recipe() -> fr.schemas.IfRecipe:
         outputs=["out"],
         cases=[
             fr.schemas.ConditionalCase(
-                condition=fr.schemas.LabeledRecipe(label="cond", node=add_recipe),
-                body=fr.schemas.LabeledRecipe(label="body", node=add_recipe),
+                condition=fr.schemas.LabeledRecipe(label="cond", recipe=add_recipe),
+                body=fr.schemas.LabeledRecipe(label="body", recipe=add_recipe),
             )
         ],
         input_edges={
@@ -61,12 +61,12 @@ def _two_case_recipe(with_else: bool) -> fr.schemas.IfRecipe:
 
     cases = [
         fr.schemas.ConditionalCase(
-            condition=fr.schemas.LabeledRecipe(label="cond_pos", node=pos_recipe),
-            body=fr.schemas.LabeledRecipe(label="body_pos", node=identity_recipe),
+            condition=fr.schemas.LabeledRecipe(label="cond_pos", recipe=pos_recipe),
+            body=fr.schemas.LabeledRecipe(label="body_pos", recipe=identity_recipe),
         ),
         fr.schemas.ConditionalCase(
-            condition=fr.schemas.LabeledRecipe(label="cond_neg", node=neg_recipe),
-            body=fr.schemas.LabeledRecipe(label="body_neg", node=negate_recipe),
+            condition=fr.schemas.LabeledRecipe(label="cond_neg", recipe=neg_recipe),
+            body=fr.schemas.LabeledRecipe(label="body_neg", recipe=negate_recipe),
         ),
     ]
     input_edges: dict[fr.schemas.TargetHandle, fr.schemas.InputSource] = {
@@ -100,7 +100,7 @@ def _two_case_recipe(with_else: bool) -> fr.schemas.IfRecipe:
         prospective_output_edges[fr.schemas.OutputTarget(port="out")].append(
             fr.schemas.SourceHandle(node="else_body", port="x")
         )
-        else_case = fr.schemas.LabeledRecipe(label="else_body", node=identity_recipe)
+        else_case = fr.schemas.LabeledRecipe(label="else_body", recipe=identity_recipe)
 
     return fr.schemas.IfRecipe(
         inputs=["x"],
@@ -357,18 +357,18 @@ class TestStageBodyOutputEdges(unittest.TestCase):
             cases=[
                 fr.schemas.ConditionalCase(
                     condition=fr.schemas.LabeledRecipe(
-                        label="cond", node=_fixtures.is_positive.flowrep_recipe
+                        label="cond", recipe=_fixtures.is_positive.flowrep_recipe
                     ),
                     body=fr.schemas.LabeledRecipe(
-                        label="body_a", node=_fixtures.identity.flowrep_recipe
+                        label="body_a", recipe=_fixtures.identity.flowrep_recipe
                     ),
                 ),
                 fr.schemas.ConditionalCase(
                     condition=fr.schemas.LabeledRecipe(
-                        label="cond2", node=_fixtures.is_negative.flowrep_recipe
+                        label="cond2", recipe=_fixtures.is_negative.flowrep_recipe
                     ),
                     body=fr.schemas.LabeledRecipe(
-                        label="body_b", node=_fixtures.identity.flowrep_recipe
+                        label="body_b", recipe=_fixtures.identity.flowrep_recipe
                     ),
                 ),
             ],
@@ -408,7 +408,7 @@ class TestConditionValue(unittest.TestCase):
         ifn = ifflow.If("ifn", recipe)
         live = ifn.generate_flowrep_live_node()
         case = recipe.cases[0]
-        cond_live = fr.schemas.AtomicData.from_recipe(case.condition.node)
+        cond_live = fr.schemas.AtomicData.from_recipe(case.condition.recipe)
         cond_live.output_ports["output_0"].value = 7  # truthy
         live.nodes[case.condition.label] = cond_live
         self.assertTrue(ifflow.If._condition_value(case, live))
@@ -417,8 +417,8 @@ class TestConditionValue(unittest.TestCase):
         cond_recipe = _fixtures.add.flowrep_recipe
         body_recipe = _fixtures.identity.flowrep_recipe
         case = fr.schemas.ConditionalCase(
-            condition=fr.schemas.LabeledRecipe(label="cond", node=cond_recipe),
-            body=fr.schemas.LabeledRecipe(label="body", node=body_recipe),
+            condition=fr.schemas.LabeledRecipe(label="cond", recipe=cond_recipe),
+            body=fr.schemas.LabeledRecipe(label="body", recipe=body_recipe),
             condition_output="output_0",
         )
         recipe = fr.schemas.IfRecipe(

@@ -7,6 +7,7 @@ from pyiron_snippets import versions
 
 from pyiron_workflow._wfms import (
     atomic,
+    constant,
     constructors,
     dag,
     datatypes,
@@ -34,8 +35,8 @@ def plain_add(x, y):
 def _conditional_case() -> fr.schemas.ConditionalCase:
     """Build a minimal `ConditionalCase` whose condition and body wrap `add`."""
     add_recipe = _fixtures.add.flowrep_recipe
-    condition = fr.schemas.LabeledRecipe(label="cond", node=add_recipe)
-    body = fr.schemas.LabeledRecipe(label="body", node=add_recipe)
+    condition = fr.schemas.LabeledRecipe(label="cond", recipe=add_recipe)
+    body = fr.schemas.LabeledRecipe(label="body", recipe=add_recipe)
     return fr.schemas.ConditionalCase(condition=condition, body=body)
 
 
@@ -77,8 +78,8 @@ def _while_recipe() -> fr.schemas.WhileRecipe:
 
 def _try_recipe() -> fr.schemas.TryRecipe:
     add_recipe = _fixtures.add.flowrep_recipe
-    try_body = fr.schemas.LabeledRecipe(label="trybody", node=add_recipe)
-    handler = fr.schemas.LabeledRecipe(label="handler", node=add_recipe)
+    try_body = fr.schemas.LabeledRecipe(label="trybody", recipe=add_recipe)
+    handler = fr.schemas.LabeledRecipe(label="handler", recipe=add_recipe)
     exc_case = fr.schemas.ExceptionCase(
         exceptions=[versions.VersionInfo.of(ValueError)],
         body=handler,
@@ -128,9 +129,9 @@ class TestNode(unittest.TestCase):
         self.assertIs(result, node)
         self.assertEqual(result.label, "renamed")
 
-    def test_node_rejects_non_node(self) -> None:
+    def test_node_rejects_non_node_non_jsonable(self) -> None:
         with self.assertRaisesRegex(TypeError, "expected a Node"):
-            constructors.node(42, "x")
+            constructors.node((42,), "x")
 
     def test_atomic_recipe(self) -> None:
         result = constructors.node(_fixtures.add.flowrep_recipe, "added")
@@ -151,6 +152,11 @@ class TestNode(unittest.TestCase):
         result = constructors.node(_fixtures.plain_increment, "inc")
         self.assertIsInstance(result, atomic.Atomic)
         self.assertEqual(result.label, "inc")
+
+    def test_jsonable_constant(self) -> None:
+        result = constructors.node([42], "forty_two")
+        self.assertIsInstance(result, constant.Constant)
+        self.assertEqual(result.label, "forty_two")
 
 
 # --------------------------------------------------------------------------- #

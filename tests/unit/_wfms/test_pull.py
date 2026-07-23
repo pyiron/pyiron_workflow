@@ -152,7 +152,7 @@ class TestPullNestedPunchingAndStopping(unittest.TestCase):
 
 def _foreach_with_macro_body():
     """ForEach whose body is the `macro` fixture: a = add(x, y); s = sub(a, z)."""
-    body = fr.schemas.LabeledRecipe(label="body", node=_fixtures.macro.flowrep_recipe)
+    body = fr.schemas.LabeledRecipe(label="body", recipe=_fixtures.macro.flowrep_recipe)
     recipe = fr.schemas.ForEachRecipe(
         inputs=["xs", "y", "z"],
         outputs=["sums"],

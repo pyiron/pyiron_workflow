@@ -7,7 +7,14 @@ from typing import TypeAlias, cast
 
 import flowrep as fr
 
-from pyiron_workflow._wfms import atomic, dag, datatypes, flowcontrollers, workflow
+from pyiron_workflow._wfms import (
+    atomic,
+    constant,
+    dag,
+    datatypes,
+    flowcontrollers,
+    workflow,
+)
 from pyiron_workflow._wfms.datatypes import EdgeList, EdgeTuple, StaticNode
 
 RecipeOptions: TypeAlias = (
@@ -17,6 +24,7 @@ RecipeOptions: TypeAlias = (
     | fr.schemas.TryRecipe
     | fr.schemas.WhileRecipe
     | fr.schemas.WorkflowRecipe
+    | fr.schemas.ConstantRecipe
 )
 
 
@@ -36,14 +44,17 @@ def node(value: object, label: fr.schemas.Label | None = None) -> datatypes.Node
         if label is not None:
             value.label = label
         return value
-    if isinstance(value, RecipeOptions):
+    elif isinstance(value, RecipeOptions):
         return recipe2node(value, label)
-    if isinstance(value, types.FunctionType):
+    elif isinstance(value, types.FunctionType):
         return function2node(value, label)
-    raise TypeError(
-        f"Cannot assign {value!r} as node {label!r}: expected a Node, "
-        f"flowrep recipe, or function (with or without a flowrep recipe attached)."
-    )
+    elif fr.tools.is_jsonable(value):
+        return constant.Constant.from_value(value, label)
+    else:
+        raise TypeError(
+            f"Cannot assign {value!r} as node {label!r}: expected a Node, "
+            f"flowrep recipe, or function (with or without a flowrep recipe attached)."
+        )
 
 
 def function2node(
@@ -87,6 +98,8 @@ def recipe2node(
         return flowcontrollers.While(label, recipe)
     elif isinstance(recipe, fr.schemas.WorkflowRecipe):
         return dag.Macro(label, recipe)
+    elif isinstance(recipe, fr.schemas.ConstantRecipe):
+        return constant.Constant(label, recipe)
     else:
         raise TypeError(
             f"Unknown recipe type: {recipe}. Expected one of {RecipeOptions}."
