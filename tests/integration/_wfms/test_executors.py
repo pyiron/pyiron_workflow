@@ -96,7 +96,7 @@ class TestExecutors(unittest.TestCase):
     def test_local(self):
         out = self._run()
         self.assertEqual(
-            out.outputs["pids"].value,
+            out.outputs.pids,
             [os.getpid()] * self.n,
             msg="Running locally all should have the same (main process) PID",
         )
@@ -108,7 +108,7 @@ class TestExecutors(unittest.TestCase):
                 exe
             )
             out = self._run()
-        else_ids = list(out.outputs["pids"].value)
+        else_ids = list(out.outputs.pids)
         if_id = else_ids.pop(self.expected_id)
         self.assertEqual(
             else_ids,
@@ -133,7 +133,7 @@ class TestExecutors(unittest.TestCase):
             kwargs={"max_workers": self.n},
         )
         out = self._run()
-        else_ids = list(out.outputs["pids"].value)
+        else_ids = list(out.outputs.pids)
         if_id = else_ids.pop(self.expected_id)
         self.assertEqual(
             if_id,
@@ -160,7 +160,7 @@ class TestExecutors(unittest.TestCase):
                 constructor=futures.ProcessPoolExecutor, kwargs={"max_workers": self.n}
             )
             out = self._run()
-        ids = out.outputs["pids"].value
+        ids = out.outputs.pids
         else_ids = list(ids)
         if_id = else_ids.pop(self.expected_id)
         self.assertNotIn(
@@ -196,7 +196,7 @@ class TestDagParallelism(unittest.TestCase):
         self.assertLess(diff_to_max, diff_to_tot)
 
         self.assertListEqual(
-            out.outputs["slept_for"].value,
+            out.outputs.slept_for,
             self.times,
             msg="Regardless of the fact the last entry finished first, the for-loop"
             "should be re-aggregating the results according to the original error.",
@@ -254,7 +254,7 @@ class TestCachingExecutors(unittest.TestCase):
                 t0 = time.perf_counter()
                 out_cold = node.run(cfg, t=self.T)
                 dt_first = time.perf_counter() - t0
-                self.assertEqual(out_cold.outputs["s"].value, self.T)
+                self.assertEqual(out_cold.outputs.s, self.T)
                 self._assert_cached(run_dir, node.sleepy_0.lexical_path)
 
                 # Fresh node instance + same run_dir -> reconnect to the cache
@@ -262,7 +262,7 @@ class TestCachingExecutors(unittest.TestCase):
                 t1 = time.perf_counter()
                 out_warm = warm.run(cfg, t=self.T)
                 dt_second = time.perf_counter() - t1
-                self.assertEqual(out_warm.outputs["s"].value, self.T)
+                self.assertEqual(out_warm.outputs.s, self.T)
                 self.assertLess(dt_second, dt_first / 2)
                 self.assertLess(dt_second, 1.0)
 
@@ -271,7 +271,7 @@ class TestCachingExecutors(unittest.TestCase):
                 out_stale = warm.run(cfg, t=self.T * 99)
                 dt_third = time.perf_counter() - t2
                 self.assertEqual(
-                    out_stale.outputs["s"].value,
+                    out_stale.outputs.s,
                     self.T,
                     msg="Cache key is the lexical path only; stale value expected",
                 )
@@ -280,13 +280,13 @@ class TestCachingExecutors(unittest.TestCase):
     def test_fresh_run_dir_recomputes(self):
         node_a = self._fresh_node(wfms.tools._CacheTestExecutor)
         out_a = node_a.run(wfms.RunConfig(run_dir=self.run_root / "a"), t=self.T)
-        self.assertEqual(out_a.outputs["s"].value, self.T)
+        self.assertEqual(out_a.outputs.s, self.T)
 
         # A different run_dir must miss the cache and recompute the new value
         node_b = self._fresh_node(wfms.tools._CacheTestExecutor)
         out_b = node_b.run(wfms.RunConfig(run_dir=self.run_root / "b"), t=self.T * 2)
         self.assertEqual(
-            out_b.outputs["s"].value,
+            out_b.outputs.s,
             self.T * 2,
             msg="A fresh run_dir must not return a stale cache hit",
         )
@@ -300,7 +300,7 @@ class TestCachingExecutors(unittest.TestCase):
             t0 = time.perf_counter()
             out_cold = cold.run(cfg, t=self.T)
             dt_first = time.perf_counter() - t0
-        self.assertEqual(out_cold.outputs["s"].value, self.T)
+        self.assertEqual(out_cold.outputs.s, self.T)
 
         warm = wfms.node(slow_wf.flowrep_recipe)
         with wfms.tools._CacheTestExecutor() as exe:
@@ -308,7 +308,7 @@ class TestCachingExecutors(unittest.TestCase):
             t1 = time.perf_counter()
             out_warm = warm.run(cfg, t=self.T)
             dt_second = time.perf_counter() - t1
-        self.assertEqual(out_warm.outputs["s"].value, self.T)
+        self.assertEqual(out_warm.outputs.s, self.T)
         self.assertLess(dt_second, dt_first / 2)
         self.assertLess(dt_second, 1.0)
 

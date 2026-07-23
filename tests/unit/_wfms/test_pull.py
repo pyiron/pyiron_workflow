@@ -14,7 +14,7 @@ class TestPullUnparented(unittest.TestCase):
     def test_runs_and_returns_node_outputs(self):
         n = _fixtures.atomic_add_node()  # add(x, y), unparented
         run = n.pull(x=2, y=3)
-        self.assertEqual(run.outputs["output_0"].value, 5)
+        self.assertEqual(run.outputs.output_0, 5)
 
     def test_required_input_keys_are_bare_port_names(self):
         n = _fixtures.atomic_add_node()
@@ -28,14 +28,14 @@ class TestPullUnparented(unittest.TestCase):
     def test_defaults_ride_and_are_not_surfaced(self):
         m = _fixtures.multiply_with_defaults_node()  # x=1, y=2
         run = m.pull()
-        self.assertEqual(run.outputs["output_0"].value, 2)
+        self.assertEqual(run.outputs.output_0, 2)
         self.assertEqual(set(m.pulled_inputs().keys()), set())
 
     def test_expose_defaults_surfaces_them_as_required(self):
         m = _fixtures.multiply_with_defaults_node()
         self.assertEqual(set(m.pulled_inputs(False, True).keys()), {"x", "y"})
         run = m.pull(None, False, True, x=4, y=5)
-        self.assertEqual(run.outputs["output_0"].value, 20)
+        self.assertEqual(run.outputs.output_0, 20)
 
     def test_unknown_kwarg_raises_pointing_at_pulled_inputs(self):
         n = _fixtures.atomic_add_node()
@@ -52,7 +52,7 @@ class TestPullUnparented(unittest.TestCase):
     def test_free_function_matches_method(self):
         n = _fixtures.atomic_add_node()
         run = pull.pull(n, None, False, False, x=1, y=1)
-        self.assertEqual(run.outputs["output_0"].value, 2)
+        self.assertEqual(run.outputs.output_0, 2)
 
 
 def _diamond_workflow():
@@ -112,12 +112,12 @@ class TestPullWorkflowStopping(unittest.TestCase):
     def test_runs_the_cone(self):
         wf = _diamond_workflow()
         run = wf.nodes["sub_0"].pull(x=1, y=2, z=1)  # add_0=3, sub_0=3-1=2
-        self.assertEqual(run.outputs["output_0"].value, 2)
+        self.assertEqual(run.outputs.output_0, 2)
 
     def test_macro_child_stopping(self):
         macro = _fixtures.macro_node()  # a=add(x,y), s=sub(a,z)
         run = macro.nodes["sub_0"].pull(x=1, y=2, z=1)
-        self.assertEqual(run.outputs["output_0"].value, 2)
+        self.assertEqual(run.outputs.output_0, 2)
         self.assertEqual(
             set(macro.nodes["sub_0"].pulled_inputs().keys()), {"x", "y", "z"}
         )
@@ -134,7 +134,7 @@ class TestPullNestedPunchingAndStopping(unittest.TestCase):
         # ceiling = inner macro: sub_0.x <- inner add_0 (peer), sub_0.y <- z, add_0.x/y <- x/y
         self.assertEqual(set(self.inner_sub.pulled_inputs().keys()), {"x", "y", "z"})
         run = self.inner_sub.pull(x=1, y=2, z=5)  # add_0=3, sub=3-5=-2
-        self.assertEqual(run.outputs["output_0"].value, -2)
+        self.assertEqual(run.outputs.output_0, -2)
 
     def test_punching_uses_root_keys_and_flat_labels(self):
         keys = set(self.inner_sub.pulled_inputs(True).keys())
@@ -147,7 +147,7 @@ class TestPullNestedPunchingAndStopping(unittest.TestCase):
     def test_punching_runs_the_full_cone(self):
         # root add_0 (z) = 1+2 = 3; inner add_0 = 1+2 = 3; inner sub = 3 - 3 = 0
         run = self.inner_sub.pull(None, True, False, x=1, y=2)
-        self.assertEqual(run.outputs["output_0"].value, 0)
+        self.assertEqual(run.outputs.output_0, 0)
 
 
 def _foreach_with_macro_body():
@@ -195,7 +195,7 @@ class TestPullFlowControl(unittest.TestCase):
         body = fe.nodes["body"]
         self.assertEqual(set(body.pulled_inputs().keys()), {"body__x", "body__y"})
         run = body.pull(None, False, False, body__x=2, body__y=3)
-        self.assertEqual(run.outputs["output_0"].value, 5)
+        self.assertEqual(run.outputs.output_0, 5)
 
     def test_macro_inside_controller_punch_fails_stop_succeeds(self):
         fe = _foreach_with_macro_body()
@@ -203,8 +203,8 @@ class TestPullFlowControl(unittest.TestCase):
         with self.assertRaises(ValueError):
             inner_macro.pulled_workflow(True)
         run = inner_macro.pull(None, False, False, body__x=1, body__y=2, body__z=1)
-        self.assertEqual(run.outputs["a"].value, 3)  # add(1, 2)
-        self.assertEqual(run.outputs["s"].value, 2)  # 3 - 1
+        self.assertEqual(run.outputs.a, 3)  # add(1, 2)
+        self.assertEqual(run.outputs.s, 2)  # 3 - 1
 
 
 class TestPullCoverageEdgeCases(unittest.TestCase):
@@ -285,7 +285,7 @@ class TestPullExposeDefaultsNestedScoping(unittest.TestCase):
                 "inner__multiply_with_defaults_0__y": 4,
             },
         )
-        self.assertEqual(run.outputs["output_0"].value, 12)
+        self.assertEqual(run.outputs.output_0, 12)
 
 
 class TestPullCopiesExecutors(unittest.TestCase):
@@ -307,7 +307,7 @@ class TestPullPublicSurface(unittest.TestCase):
     def test_exposed_via_tools(self):
         n = _fixtures.atomic_add_node()
         self.assertEqual(
-            api.tools.pull(n, None, False, False, x=1, y=4).outputs["output_0"].value, 5
+            api.tools.pull(n, None, False, False, x=1, y=4).outputs.output_0, 5
         )
         self.assertEqual(set(api.tools.pulled_inputs(n).keys()), {"x", "y"})
         self.assertIsNotNone(api.tools.pulled_workflow(n))

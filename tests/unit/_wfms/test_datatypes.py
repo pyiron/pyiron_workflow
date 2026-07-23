@@ -146,7 +146,7 @@ class TestNodeRun(unittest.TestCase):
         # The fixture's `add` function returns a single value; flowrep's
         # parser auto-labels it `output_0`.
         out_label = next(iter(run.outputs.keys()))
-        self.assertEqual(run.outputs[out_label].value, 3)
+        self.assertEqual(run.outputs[out_label], 3)
 
     def test_run_forwards_positional_config(self):
         """A config passed positionally reaches `execution.run`."""
@@ -193,7 +193,7 @@ class TestNodeRun(unittest.TestCase):
         # `**input_data`.
         self.assertTrue(seen_paths)
         out_label = next(iter(run.outputs.keys()))
-        self.assertEqual(run.outputs[out_label].value, 3)
+        self.assertEqual(run.outputs[out_label], 3)
 
 
 class TestNodeGetState(unittest.TestCase):

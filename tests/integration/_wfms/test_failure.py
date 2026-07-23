@@ -167,8 +167,8 @@ class TestLinearFailure(unittest.TestCase):
         )
 
         # Steps mirror the same picture.
-        self.assertEqual(run_obj.steps[0].outputs["x"].value, 42)
-        self.assertTrue(_is_not_data(run_obj.steps[1].outputs["x"].value))
+        self.assertEqual(run_obj.steps[0].outputs.x, 42)
+        self.assertTrue(_is_not_data(run_obj.steps[1].outputs.x))
 
 
 # --------------------------------------------------------------------------- #
@@ -193,11 +193,11 @@ class TestNestedFailure(unittest.TestCase):
         # Step tree: top -> nested macro -> raise_if_5_{0,1}.
         inner_steps = run_obj.steps[0].steps
         self.assertEqual(
-            inner_steps[0].outputs["x"].value,
+            inner_steps[0].outputs.x,
             42,
             msg="Finishes running before we get to the failure",
         )
-        self.assertTrue(_is_not_data(inner_steps[1].outputs["x"].value))
+        self.assertTrue(_is_not_data(inner_steps[1].outputs.x))
 
 
 # --------------------------------------------------------------------------- #
@@ -222,21 +222,17 @@ class TestWhileFailure(unittest.TestCase):
 
         # Iteration 0 body: raise_if_5(0) -> x=0, increment(0) -> 1.
         body_0 = while_steps[1]
-        self.assertEqual(body_0.steps[0].outputs["x"].value, 0)
+        self.assertEqual(body_0.steps[0].outputs.x, 0)
 
         # Iteration 4 body: raise_if_5(4) -> x=4.
         # Counting from the end: -1 = body_5 (crashed), -2 = cond_5, -3 = body_4.
         body_4 = while_steps[-3]
-        self.assertEqual(
-            body_4.steps[0].outputs["x"].value, 4, msg="Raise if should pass"
-        )
-        self.assertEqual(
-            body_4.steps[1].outputs["output_0"].value, 5, msg="Incremented"
-        )
+        self.assertEqual(body_4.steps[0].outputs.x, 4, msg="Raise if should pass")
+        self.assertEqual(body_4.steps[1].outputs.output_0, 5, msg="Incremented")
 
         # Iteration 5 body: raise_if_5(5) crashed; output stays NOT_DATA.
         body_5 = while_steps[-1]
-        self.assertTrue(_is_not_data(body_5.steps[0].outputs["x"].value))
+        self.assertTrue(_is_not_data(body_5.steps[0].outputs.x))
 
 
 # --------------------------------------------------------------------------- #
@@ -266,9 +262,9 @@ class TestForEachFailure(unittest.TestCase):
         for_each_step = run_obj.steps[1]
         self.assertEqual(len(for_each_step.steps), 7)
         self.assertIn("scatter", for_each_step.steps[0].label)
-        self.assertEqual(for_each_step.steps[1].outputs["m"].value, 0)
-        self.assertEqual(for_each_step.steps[-2].outputs["m"].value, 4)
-        self.assertTrue(_is_not_data(for_each_step.steps[-1].outputs["m"].value))
+        self.assertEqual(for_each_step.steps[1].outputs.m, 0)
+        self.assertEqual(for_each_step.steps[-2].outputs.m, 4)
+        self.assertTrue(_is_not_data(for_each_step.steps[-1].outputs.m))
 
 
 # --------------------------------------------------------------------------- #
@@ -285,12 +281,12 @@ class TestIfFailure(unittest.TestCase):
         self.assertEqual(run_obj.status, wfms.schemas.RunStatus.FAILED)
 
         condition_step = run_obj.steps[0].steps[0]
-        self.assertEqual(condition_step.outputs["lt"].value, False)
+        self.assertEqual(condition_step.outputs.lt, False)
         self.assertEqual(condition_step.status, wfms.schemas.RunStatus.FINISHED)
 
         else_step = run_obj.steps[0].steps[1]
         self.assertEqual(else_step.status, wfms.schemas.RunStatus.FAILED)
-        self.assertTrue(_is_not_data(else_step.outputs["x"].value))
+        self.assertTrue(_is_not_data(else_step.outputs.x))
 
 
 # --------------------------------------------------------------------------- #
@@ -360,7 +356,7 @@ class TestOutOfProcessFailure(unittest.TestCase):
                 .steps[1]  # raise_if_5_0
             )
             self.assertEqual(
-                penultimate_body_child.outputs["x"].value,
+                penultimate_body_child.outputs.x,
                 4,
                 msg="Penultimate state should be recovered, even though it's from a "
                 "remote process (and different remote than the failure process)",
@@ -375,17 +371,17 @@ class TestOutOfProcessFailure(unittest.TestCase):
             failed_body_increment = failed_body.steps[0]
             failed_body_raise_if_5 = failed_body.steps[1]
             self.assertEqual(
-                failed_body_increment.outputs["output_0"].value,
+                failed_body_increment.outputs.output_0,
                 5,
                 msg="We should be recovering state right up until the very last minute",
             )
             self.assertTrue(
-                _is_not_data(failed_body_raise_if_5.outputs["x"].value),
+                _is_not_data(failed_body_raise_if_5.outputs.x),
                 msg="And this is it, this is the last instance and we cannot recover "
                 "data from the failed atomic node",
             )
             self.assertTrue(
-                _is_not_data(failed_body.outputs["m"].value),
+                _is_not_data(failed_body.outputs.m),
                 msg="Unavailability of output should have propagated up to the parent "
                 "output.",
             )

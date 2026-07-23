@@ -14,7 +14,7 @@ from concurrent import futures
 from typing import TYPE_CHECKING, Any, Generic, NamedTuple, TypeAlias, TypeVar
 
 import flowrep as fr
-from pyiron_snippets import import_alarm
+from pyiron_snippets import dotdict, import_alarm
 
 from pyiron_workflow._wfms import lexical
 
@@ -126,7 +126,9 @@ class Run(Generic[ResultType]):
 
     @property
     def outputs(self):
-        return self.result.output_ports
+        return dotdict.DotDict(
+            {k: v.value for k, v in self.result.output_ports.items()}
+        )
 
     @property
     def duration(self) -> datetime.timedelta | None:

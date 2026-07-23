@@ -60,7 +60,7 @@ class TestFlecheCaching(unittest.TestCase):
             pwf.RunConfig(run_dir=self.root / "run", fleche_cache=cache),
             t=self.T if t is None else t,
         )
-        return out.duration.total_seconds(), out.outputs["s"].value
+        return out.duration.total_seconds(), out.outputs.s
 
     def _fresh_node(self, place_executors):
         node = pwf.node(integration_fixtures.outer_caching.flowrep_recipe)

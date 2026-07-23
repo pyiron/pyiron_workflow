@@ -94,9 +94,9 @@ class TestAutoencoderRoundTrip(unittest.TestCase):
     def test_values_round_trip_through_compress_then_expand(self) -> None:
         node = _fixtures.autoencoder_node()
         run = node.run(a=1, b=20, c=300)
-        self.assertEqual(run.outputs["x"].value, 1)
-        self.assertEqual(run.outputs["y"].value, 20)
-        self.assertEqual(run.outputs["z"].value, 300)
+        self.assertEqual(run.outputs.x, 1)
+        self.assertEqual(run.outputs.y, 20)
+        self.assertEqual(run.outputs.z, 300)
 
 
 if __name__ == "__main__":

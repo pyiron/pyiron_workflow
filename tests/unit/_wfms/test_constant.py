@@ -33,7 +33,7 @@ class TestConstantEvaluate(unittest.TestCase):
                 node = constant.Constant("c", _constant_recipe(value))
                 run = node.run()
                 self.assertEqual(run.status, execution.RunStatus.FINISHED)
-                self.assertEqual(run.outputs["constant"].value, value)
+                self.assertEqual(run.outputs.constant, value)
 
 
 if __name__ == "__main__":
