@@ -12,10 +12,7 @@ import inspect
 import typing
 from abc import ABC, abstractmethod
 
-import networkx as nx
-from semantikon import metadata as meta
-
-from pyiron_workflow.data import NOT_DATA, SemantikonRecipeChange
+from pyiron_workflow.data import NOT_DATA
 from pyiron_workflow.mixin.display_state import HasStateDisplay
 from pyiron_workflow.mixin.has_interface_mixins import HasChannel, HasLabel
 from pyiron_workflow.type_hinting import (
@@ -478,33 +475,9 @@ class DataChannel(FlavorChannel["DataChannel"], typing.Generic[ReceiverType], AB
                     f"type hint ({self.type_hint}) is not as or more specific than "
                     f"the receiving type hint ({new_partner.type_hint})."
                 )
-            if (
-                meta._is_annotated(self.type_hint)
-                and meta._is_annotated(new_partner.type_hint)
-                and self.owner.graph_root._validate_ontologies
-            ):
-                # Importing semantikon.ontology is expensive, so we delay importing
-                # the knowledge submodule until the last minute
-                from pyiron_workflow import knowledge  # noqa: PLC0415
-
-                new_edge_info = self._get_value_receiver_change(new_partner)
-                validation = knowledge.validate_workflow(
-                    self.owner.graph_root,
-                    new_edge_info,
-                )
-                if not knowledge.is_valid(validation):
-                    raise InvalidReceiverError(
-                        f"Ontological error on value passing: {validation}"
-                    )
-
             new_partner.value = self.value
 
         self._value_receiver = typing.cast(ReceiverType, new_partner)
-
-    @abstractmethod
-    def _get_value_receiver_change(
-        self, new_partner: DataChannel
-    ) -> SemantikonRecipeChange: ...
 
     @property
     def ready(self) -> bool:
@@ -530,9 +503,7 @@ class DataChannel(FlavorChannel["DataChannel"], typing.Generic[ReceiverType], AB
         return self.type_hint is not None
 
     def _valid_connection(self, other: DataChannel) -> bool:
-        return self._validate_typing(other) and self.has_ontologically_valid_connection(
-            other, exception_on_invalid=True
-        )
+        return self._validate_typing(other)
 
     def _validate_typing(self, other: DataChannel) -> bool:
         if self._both_typed(other):
@@ -546,67 +517,6 @@ class DataChannel(FlavorChannel["DataChannel"], typing.Generic[ReceiverType], AB
                     f"hint ({out.type_hint}) is not as or more specific than the "
                     f"downstream type hint ({inp.type_hint})."
                 )
-        return True
-
-    def has_ontologically_valid_connection(
-        self, other: DataChannel, exception_on_invalid: bool = False
-    ) -> bool:
-        if meta._is_annotated(self.type_hint) and meta._is_annotated(other.type_hint):
-
-            # Build a recipe from the total graph
-            root = self.owner.graph_root
-            if not root._validate_ontologies:
-                return True
-            elif root is not other.owner.graph_root:
-                raise ChannelConnectionError(
-                    f"The channel {self.full_label} cannot connect to "
-                    f"{other.full_label} because they triggered ontological type "
-                    f"validation, but have different graph roots (i.e. they probably "
-                    f"do not belong to _any_ parent graph). If you really want to "
-                    f"proceed, you can try disabling ontological validation for all "
-                    f"involved nodes using `node._validate_ontologies = False`."
-                )
-
-            # Importing semantikon.ontology is expensive, so we delay importing
-            # the knowledge submodule until the last minute
-            from pyiron_workflow import knowledge  # noqa: PLC0415
-
-            out, inp = self._figure_out_who_is_who(other)
-            recipe_change = SemantikonRecipeChange(
-                location=str(self.owner.lexical_path).split(
-                    self.owner.lexical_delimiter
-                )[1:-1],
-                new_edge=(
-                    f"{out.owner.label}.outputs.{out.label}",
-                    f"{inp.owner.label}.inputs.{inp.label}",
-                ),
-                parent_input=inp.scoped_label,
-                parent_output=out.scoped_label,
-            )
-            try:
-                validation = knowledge.validate_workflow(root, recipe_change)
-            except RuntimeError as e:
-                if _is_nx_unfeasible(e):
-                    # Semantikon obfuscates the nx error behind a RuntimeError such that
-                    # validation on bad graphs can just fail hard.
-                    # We want to catch this particular case of invalidation and cleanly
-                    # report the invalidity.
-                    is_valid = False
-                else:
-                    raise e
-            else:
-                is_valid = knowledge.is_valid(validation) or not knowledge.is_involved(
-                    validation, recipe_change
-                )
-            if not is_valid and exception_on_invalid:
-                raise ChannelConnectionError(
-                    f"The upstream channel {out.full_label} cannot connect to the "
-                    f"downstream channel {inp.full_label} because the upstream type "
-                    f"hint ({out.type_hint}) and downstream type hint "
-                    f"({inp.type_hint}) produce a non-empty ontological validation "
-                    f"report:\n{validation}"
-                )
-            return is_valid
         return True
 
     def _connection_conjugate_failure_message(self, other: DataChannel) -> str:
@@ -664,19 +574,6 @@ class InputData(DataChannel["InputData"], InputChannel["OutputData"]):
     def connection_conjugate(cls) -> type[OutputData]:
         return OutputData
 
-    def _get_value_receiver_change(
-        self, new_partner: DataChannel
-    ) -> SemantikonRecipeChange:
-        proximate_parent = str(self.owner.lexical_path).split(
-            self.owner.lexical_delimiter
-        )[1:]
-        new_edge = (
-            f"inputs.{self.label}",
-            f"{new_partner.owner.label}.inputs.{new_partner.label}",
-        )
-        recipe_change = SemantikonRecipeChange(proximate_parent, new_edge)
-        return recipe_change
-
     def _valid_connection(self, other: DataChannel[typing.Any]) -> bool:
         if len(self.connections) > 0:
             raise TooManyConnectionsError(
@@ -724,19 +621,6 @@ class OutputData(DataChannel["OutputData"], OutputChannel["InputData"]):
     @classmethod
     def connection_conjugate(cls) -> type[InputData]:
         return InputData
-
-    def _get_value_receiver_change(
-        self, new_partner: DataChannel
-    ) -> SemantikonRecipeChange:
-        proximate_parent = str(self.owner.lexical_path).split(
-            self.owner.lexical_delimiter
-        )[1:-1]
-        new_edge = (
-            f"{self.owner.label}.outputs.{self.label}",
-            f"outputs.{new_partner.label}",
-        )
-        recipe_change = SemantikonRecipeChange(proximate_parent, new_edge)
-        return recipe_change
 
 
 SignalType = typing.TypeVar("SignalType", bound="SignalChannel")
@@ -905,12 +789,3 @@ class OutputSignal(SignalChannel["InputSignal"], OutputChannel["InputSignal"]):
 
     def _connect_accumulating_input_signal(self, signal: AccumulatingInputSignal):
         self.connect(signal)
-
-
-def _is_nx_unfeasible(e: BaseException) -> bool:
-    ex: BaseException | None = e
-    while ex:
-        if isinstance(ex, nx.exception.NetworkXUnfeasible):
-            return True
-        ex = ex.__context__ or ex.__cause__
-    return False
