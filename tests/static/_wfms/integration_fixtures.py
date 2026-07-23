@@ -1,4 +1,3 @@
-import pathlib
 import time
 
 try:
@@ -31,14 +30,6 @@ if HAS_FLECHE:
     def outer_caching(t):
         s = inner_caching(t)
         return s
-
-    def make_cache(root: pathlib.Path):
-        return fleche.caches.Cache(
-            values=fleche.storage.ValuePickleFile.with_pickle(
-                root=str(root / "values")
-            ),
-            calls=fleche.storage.CallPickleFile.with_pickle(root=str(root / "calls")),
-        )
 
 else:
     cached_sleep = None

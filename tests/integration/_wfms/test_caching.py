@@ -12,6 +12,7 @@ import pyiron_workflow._wfms.api as pwf
 
 try:
     import fleche
+    from fleche.caches import Cache
 
     HAS_FLECHE = True
 except ImportError:
@@ -73,7 +74,7 @@ class TestFlecheCaching(unittest.TestCase):
 
     def _assert_sleep_is_skipped(self, place_executors) -> None:
         """Apples to apples: one executor configuration, so timing is comparable."""
-        cache = integration_fixtures.make_cache(self.root)
+        cache = Cache.from_config({"template": "pickle", "root": self.root})
 
         dt_cold, v_cold = self._run(self._fresh_node(place_executors), cache)
         dt_warm, v_warm = self._run(self._fresh_node(place_executors), cache)
@@ -98,7 +99,7 @@ class TestFlecheCaching(unittest.TestCase):
 
     def _assert_cache_is_reused(self, place_cold, place_warm) -> None:
         """Apples to oranges: mismatched executors, so count entries, not seconds."""
-        cache = integration_fixtures.make_cache(self.root)
+        cache = Cache.from_config({"template": "pickle", "root": self.root})
 
         _, v_cold = self._run(self._fresh_node(place_cold), cache)
         n_cold = self._entry_count(cache)
@@ -177,7 +178,7 @@ class TestFlecheCaching(unittest.TestCase):
         Without this, ``_assert_cache_is_reused`` would pass just as happily against
         a cache that had quietly stopped recording anything at all.
         """
-        cache = integration_fixtures.make_cache(self.root)
+        cache = Cache.from_config({"template": "pickle", "root": self.root})
 
         self._run(self._fresh_node(self._no_executors), cache)
         n_first = self._entry_count(cache)
