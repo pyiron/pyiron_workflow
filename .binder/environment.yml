@@ -7,7 +7,7 @@ dependencies:
 - executorlib =1.10.1
 - flowrep =0.6.0
 - graphviz =12.2.1
-- hatchling =1.30.1
+- hatchling =1.31.0
 - hatch-vcs =0.5.0
 - pandas =3.0.3
 - pint =0.25.3
