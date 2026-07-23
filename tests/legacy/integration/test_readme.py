@@ -3,7 +3,7 @@ import unittest
 
 
 def load_tests(loader, tests, ignore):
-    tests.addTests(doctest.DocFileSuite("../../../docs/README.md"))
+    tests.addTests(doctest.DocFileSuite("../../../docs/_legacy_README.md"))
     return tests
 
 
