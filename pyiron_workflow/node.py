@@ -169,6 +169,8 @@ class Node(
         """
         super().__init__(label=label, parent=parent)
         self._validate_ontologies = True  # Back-door to turn off the alpha feature
+        # No longer used,  but we leave the private state in place to avoid needing to
+        # recreate serialized instances to compare against for storage tests
 
         self._signals = Signals()
         self._signals.input.run = InputSignal("run", self, self.run)
