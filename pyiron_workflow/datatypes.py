@@ -18,16 +18,16 @@ from typing import (
 import flowrep as fr
 import semantikon
 
-from pyiron_workflow._wfms import execution, injection, lexical
+from pyiron_workflow import execution, injection, lexical
 
 if TYPE_CHECKING:
-    from pyiron_workflow._wfms import actions
+    from pyiron_workflow import actions
 
 
 @dataclasses.dataclass(frozen=True)
 class Port(
     injection.OperatorInjectionMixin, abc.ABC
-):  # Satisfies pyiron_workflow._wfms.lexical.Lexical["Node"]
+):  # Satisfies pyiron_workflow.lexical.Lexical["Node"]
     label: fr.schemas.Label
     owner: Node
     type_hint: type | None
@@ -231,7 +231,7 @@ class Node(
         /,
         **input_kwargs,
     ) -> execution.Run[execution.ResultType]:
-        from pyiron_workflow._wfms import pull as _pull  # noqa: PLC0415 -- cycle guard
+        from pyiron_workflow import pull as _pull  # noqa: PLC0415 -- cycle guard
 
         return _pull.pull(
             self, config, break_out_of_context, expose_defaults, **input_kwargs
@@ -240,14 +240,14 @@ class Node(
     def pulled_workflow(
         self, break_out_of_context: bool = False, expose_defaults: bool = False, /
     ):
-        from pyiron_workflow._wfms import pull as _pull  # noqa: PLC0415 -- cycle guard
+        from pyiron_workflow import pull as _pull  # noqa: PLC0415 -- cycle guard
 
         return _pull.pulled_workflow(self, break_out_of_context, expose_defaults)
 
     def pulled_inputs(
         self, break_out_of_context: bool = False, expose_defaults: bool = False, /
     ):
-        from pyiron_workflow._wfms import pull as _pull  # noqa: PLC0415 -- cycle guard
+        from pyiron_workflow import pull as _pull  # noqa: PLC0415 -- cycle guard
 
         return _pull.pulled_inputs(self, break_out_of_context, expose_defaults)
 

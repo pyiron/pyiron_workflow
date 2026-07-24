@@ -1,0 +1,3 @@
+from pyiron_workflow.compatibility import as_function_node as as_function_node
+from pyiron_workflow.compatibility import as_macro_node as as_macro_node
+from pyiron_workflow.workflow import Workflow as Workflow

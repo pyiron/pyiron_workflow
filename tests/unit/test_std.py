@@ -4,7 +4,7 @@ import unittest
 
 import flowrep as fr
 
-from pyiron_workflow._wfms import constructors
+from pyiron_workflow import constructors
 
 
 def _return_42(*args, **kwargs):

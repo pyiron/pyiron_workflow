@@ -22,11 +22,11 @@ from typing import TYPE_CHECKING, Protocol
 import flowrep as fr
 from flowrep.parsers import label_helpers
 
-from pyiron_workflow._wfms import lexical
+from pyiron_workflow import lexical
 
 if TYPE_CHECKING:
-    from pyiron_workflow._wfms import atomic, workflow
-    from pyiron_workflow._wfms.datatypes import Graph, MutableDag, Node, Port
+    from pyiron_workflow import atomic, workflow
+    from pyiron_workflow.datatypes import Graph, MutableDag, Node, Port
 
 
 class InjectionContext:
@@ -67,7 +67,7 @@ class InjectionContext:
     def _validate_injection_context_graph(
         self, graph: Node | Graph | None
     ) -> MutableDag | None:
-        from pyiron_workflow._wfms.datatypes import MutableDag  # noqa: PLC0415
+        from pyiron_workflow.datatypes import MutableDag  # noqa: PLC0415
 
         if graph is not None and not isinstance(graph, MutableDag):
             raise TypeError(
@@ -106,7 +106,7 @@ class OperatorInjectionMixin(abc.ABC):
         """Resolve a binary operand into an injectable, wrapping JSONable
         constants in a fresh :class:`~constant.Constant` source node."""
         if fr.tools.is_jsonable(other):
-            from pyiron_workflow._wfms import constant  # noqa: PLC0415
+            from pyiron_workflow import constant  # noqa: PLC0415
 
             return constant.Constant.from_value(other)
         elif isinstance(other, OperatorInjectionMixin):
@@ -323,7 +323,7 @@ def _build_operation(
     context_graph: MutableDag | None,
     *sources: OperatorInjectionMixin,
 ) -> atomic.Atomic:
-    from pyiron_workflow._wfms import atomic  # noqa: PLC0415
+    from pyiron_workflow.atomic import Atomic  # noqa: PLC0415
 
     if not isinstance(
         operation.flowrep_recipe, fr.schemas.AtomicRecipe
@@ -339,7 +339,7 @@ def _build_operation(
         if context_graph
         else label
     )
-    operation_node = atomic.Atomic(operation.flowrep_recipe, label)
+    operation_node = Atomic(operation.flowrep_recipe, label)
     operation_node.connect_input(*[s._injection.port for s in sources])
 
     return operation_node
@@ -351,9 +351,9 @@ def _build_injection_graph(
     context_graph: MutableDag | None,
     *sources: OperatorInjectionMixin,
 ) -> workflow.Workflow:
-    from pyiron_workflow._wfms import workflow  # noqa: PLC0415
+    from pyiron_workflow.workflow import Workflow  # noqa: PLC0415
 
-    graph = workflow.Workflow(label)
+    graph = Workflow(label)
 
     # Add the operation and wire its outputs to graph outputs
     operation_node = _build_operation(operation, label, None)

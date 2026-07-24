@@ -3,7 +3,7 @@ from typing import ClassVar
 import flowrep as fr
 from pyiron_snippets import versions
 
-from pyiron_workflow._wfms import atomic
+from pyiron_workflow import atomic
 
 
 class Transform1toN:

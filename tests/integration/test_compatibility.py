@@ -4,7 +4,7 @@ import os
 import unittest
 from concurrent import futures
 
-from pyiron_workflow._wfms import compatibility
+from pyiron_workflow import compatibility
 
 # Module-level so the shadowed function is importable in the worker process.
 

@@ -1,4 +1,4 @@
-"""Unit tests for :mod:`pyiron_workflow._wfms.transformers`."""
+"""Unit tests for :mod:`pyiron_workflow.transformers`."""
 
 from __future__ import annotations
 
@@ -7,7 +7,7 @@ import unittest
 import flowrep as fr
 from unit import _fixtures
 
-from pyiron_workflow._wfms import atomic, transformers
+from pyiron_workflow import atomic, transformers
 
 
 class TestTransform1toN(unittest.TestCase):

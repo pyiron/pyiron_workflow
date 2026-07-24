@@ -20,7 +20,7 @@ import unittest
 import flowrep as fr
 from unit import _fixtures
 
-from pyiron_workflow._wfms import dag, datatypes, execution
+from pyiron_workflow import dag, datatypes, execution
 
 
 @fr.atomic

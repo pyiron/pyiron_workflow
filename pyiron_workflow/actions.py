@@ -6,7 +6,7 @@ from typing import TYPE_CHECKING, Protocol, TypeAlias
 if TYPE_CHECKING:
     import flowrep as fr
 
-    from pyiron_workflow._wfms.datatypes import (
+    from pyiron_workflow.datatypes import (
         EdgeTuple,
         InputPort,
         MutableDag,

@@ -6,7 +6,7 @@ import time
 
 from pip._internal.utils import datetime
 
-import pyiron_workflow._wfms.api as pwf
+import pyiron_workflow as pwf
 
 
 @pwf.atomic

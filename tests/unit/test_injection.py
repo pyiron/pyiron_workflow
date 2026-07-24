@@ -5,7 +5,7 @@ import unittest
 
 from unit import _fixtures
 
-from pyiron_workflow._wfms import constructors, workflow
+from pyiron_workflow import constructors, workflow
 
 
 def _only(mapping):

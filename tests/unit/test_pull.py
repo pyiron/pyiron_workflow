@@ -6,8 +6,8 @@ from concurrent import futures
 import flowrep as fr
 from unit import _fixtures
 
-from pyiron_workflow._wfms import api, execution, flowcontrollers, pull
-from pyiron_workflow._wfms.datatypes import EdgeTuple
+from pyiron_workflow import api, execution, flowcontrollers, pull
+from pyiron_workflow.datatypes import EdgeTuple
 
 
 class TestPullUnparented(unittest.TestCase):

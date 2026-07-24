@@ -2,8 +2,8 @@ from __future__ import annotations
 
 import flowrep as fr
 
-from pyiron_workflow._wfms import constructors, dag, execution
-from pyiron_workflow._wfms.datatypes import (
+from pyiron_workflow import constructors, dag, execution
+from pyiron_workflow.datatypes import (
     EdgeList,
     Node,
     NodeMap,

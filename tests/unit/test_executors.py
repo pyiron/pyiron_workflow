@@ -4,7 +4,7 @@ Most executor tests are in the integration suite due to their non-trivial run ti
 
 import unittest
 
-from pyiron_workflow._wfms import execution, executorlib
+from pyiron_workflow import execution, executorlib
 
 
 class TestFailureHandling(unittest.TestCase):

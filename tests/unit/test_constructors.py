@@ -6,7 +6,7 @@ import flowrep as fr
 from pyiron_snippets import versions
 from unit import _fixtures
 
-from pyiron_workflow._wfms import (
+from pyiron_workflow import (
     atomic,
     constant,
     constructors,

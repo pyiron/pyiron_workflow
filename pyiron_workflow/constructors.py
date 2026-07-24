@@ -7,7 +7,7 @@ from typing import TypeAlias, cast
 
 import flowrep as fr
 
-from pyiron_workflow._wfms import (
+from pyiron_workflow import (
     atomic,
     constant,
     dag,
@@ -15,7 +15,7 @@ from pyiron_workflow._wfms import (
     flowcontrollers,
     workflow,
 )
-from pyiron_workflow._wfms.datatypes import EdgeList, EdgeTuple, StaticNode
+from pyiron_workflow.datatypes import EdgeList, EdgeTuple, StaticNode
 
 RecipeOptions: TypeAlias = (
     fr.schemas.AtomicRecipe

@@ -22,7 +22,7 @@ import rdflib
 import semantikon
 from pyiron_snippets import versions
 
-from pyiron_workflow._wfms import api as wfms
+from pyiron_workflow import api as wfms
 
 # --------------------------------------------------------------------------- #
 # Plain functions                                                             #

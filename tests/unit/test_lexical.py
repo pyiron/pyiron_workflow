@@ -6,7 +6,7 @@ from dataclasses import dataclass, field
 
 import flowrep as fr
 
-from pyiron_workflow._wfms import lexical
+from pyiron_workflow import lexical
 
 # --------------------------------------------------------------------------- #
 # Tiny structural stubs (satisfy `HasLexicalPath` / `Lexical` protocols).     #

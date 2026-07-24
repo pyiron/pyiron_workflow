@@ -11,7 +11,7 @@ import flowrep as fr
 import semantikon
 from unit import _fixtures
 
-from pyiron_workflow._wfms import (
+from pyiron_workflow import (
     actions,
     atomic,
     constructors,

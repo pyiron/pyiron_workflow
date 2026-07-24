@@ -5,8 +5,8 @@ import unittest
 import flowrep as fr
 from unit import _fixtures
 
-from pyiron_workflow._wfms import execution
-from pyiron_workflow._wfms.flowcontrollers import whileflow
+from pyiron_workflow import execution
+from pyiron_workflow.flowcontrollers import whileflow
 
 # --------------------------------------------------------------------------- #
 # Recipe builders                                                             #

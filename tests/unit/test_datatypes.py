@@ -14,7 +14,7 @@ from concurrent import futures
 
 from unit import _fixtures
 
-from pyiron_workflow._wfms import dag, datatypes, execution
+from pyiron_workflow import dag, datatypes, execution
 
 
 class TestPort(unittest.TestCase):

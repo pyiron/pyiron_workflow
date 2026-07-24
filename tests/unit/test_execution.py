@@ -13,7 +13,7 @@ from typing import Any
 import flowrep as fr
 from unit import _fixtures
 
-from pyiron_workflow._wfms import atomic, execution
+from pyiron_workflow import atomic, execution
 
 try:
     import fleche  # noqa: F401

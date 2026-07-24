@@ -1,5 +1,5 @@
 """
-Unit tests for :mod:`pyiron_workflow._wfms.validation`.
+Unit tests for :mod:`pyiron_workflow.validation`.
 
 These tests construct small :class:`Workflow` instances directly and invoke
 `validate_edge` against them in isolation (i.e. not through
@@ -15,7 +15,7 @@ import flowrep as fr
 import rdflib
 from unit import _fixtures
 
-from pyiron_workflow._wfms import (
+from pyiron_workflow import (
     dag,
     datatypes,
     decorators,

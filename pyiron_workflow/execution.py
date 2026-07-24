@@ -16,7 +16,7 @@ from typing import TYPE_CHECKING, Any, Generic, NamedTuple, TypeAlias, TypeVar
 import flowrep as fr
 from pyiron_snippets import dotdict, import_alarm
 
-from pyiron_workflow._wfms import lexical
+from pyiron_workflow import lexical
 
 with import_alarm.ImportAlarm(
     "Using a fleche-cache requires 'fleche'.", raise_exception=True
@@ -25,7 +25,7 @@ with import_alarm.ImportAlarm(
     from fleche.caches import BaseCache, Cache
 
 if TYPE_CHECKING:
-    from pyiron_workflow._wfms.datatypes import Node
+    from pyiron_workflow.datatypes import Node
 
 
 class RunStatus(enum.StrEnum):

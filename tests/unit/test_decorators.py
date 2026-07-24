@@ -6,8 +6,8 @@ import unittest
 import flowrep as fr
 from unit import _fixtures
 
-from pyiron_workflow._wfms import api as wfms
-from pyiron_workflow._wfms import decorators, validation
+from pyiron_workflow import api as wfms
+from pyiron_workflow import decorators, validation
 
 
 class _ReservedFieldCarrier:

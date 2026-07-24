@@ -8,10 +8,10 @@ from typing import TYPE_CHECKING, Any, ClassVar, Generic, TypeVar, cast
 
 import flowrep as fr
 
-from pyiron_workflow._wfms import (
+from pyiron_workflow import (
     atomic as atomic_mod,
 )
-from pyiron_workflow._wfms import dag, execution, validation
+from pyiron_workflow import dag, execution, validation
 
 if TYPE_CHECKING:
     import rdflib
@@ -124,7 +124,7 @@ atomic.__doc__ = """
 A powered-up version of the `flowrep` decorator of the same name.
 
 Additionally adds a `.pwf` attribute holding methods to instantiate the function as a 
-`pyiron_workflow._wfms.api.schemas.Atomic` node instance or create a dynamic node  
+`pyiron_workflow.api.schemas.Atomic` node instance or create a dynamic node  
 instance and run it.
 
 Base `flowrep` documentation:
@@ -141,7 +141,7 @@ workflow.__doc__ = """
 A powered-up version of the `flowrep` decorator of the same name.
 
 Additionally adds a `.pwf` attribute holding methods to instantiate the function as a 
-`pyiron_workflow._wfms.api.schemas.Macro` node instance, validate the underlying graph, 
+`pyiron_workflow.api.schemas.Macro` node instance, validate the underlying graph, 
 or create a dynamic node instance and run it.
 
 Base `flowrep` documentation:
@@ -163,7 +163,7 @@ dataclass.__doc__ = """
 A powered-up version of the `flowrep` decorator of the same name.
 
 Additionally adds a `.pwf` attribute holding methods to instantiate the function as a 
-`pyiron_workflow._wfms.api.schemas.Atomic` node instance, validate the underlying graph, 
+`pyiron_workflow.api.schemas.Atomic` node instance, validate the underlying graph, 
 or create a dynamic node instance and run it. Attaches the analogous tools for 
 the inverse operation of unpacking the dataclass (dataclass -> one output per field).
 

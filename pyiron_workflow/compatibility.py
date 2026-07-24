@@ -8,9 +8,9 @@ import flowrep as fr
 import semantikon
 from pyiron_snippets import versions
 
+from pyiron_workflow import datatypes, decorators, workflow
 from pyiron_workflow._legacy import output_parser
 from pyiron_workflow._legacy.nodes import multiple_distpatch
-from pyiron_workflow._wfms import datatypes, decorators, workflow
 
 
 @multiple_distpatch.dispatch_output_labels
@@ -161,7 +161,7 @@ class _MacroFactory(_CompatibilityFactory):
             signature=selfless_signature,
             function_name=func.__name__,
             _workflow_decorator=(
-                "pyiron_workflow._wfms.api",  # Recovering proximate modules is tough,
+                "pyiron_workflow.api",  # Recovering proximate modules is tough,
                 # so just hard-code the proximate API reference
                 "workflow",
             ),

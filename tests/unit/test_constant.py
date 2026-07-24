@@ -4,7 +4,7 @@ import unittest
 
 import flowrep as fr
 
-from pyiron_workflow._wfms import constant, execution
+from pyiron_workflow import constant, execution
 
 
 def _constant_recipe(value: object) -> fr.schemas.ConstantRecipe:

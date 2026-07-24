@@ -5,13 +5,13 @@ from collections.abc import MutableMapping
 
 import flowrep as fr
 
-from pyiron_workflow._wfms import (
+from pyiron_workflow import (
     constructors,
     dag,
     execution,
     transformers,
 )
-from pyiron_workflow._wfms.datatypes import (
+from pyiron_workflow.datatypes import (
     EdgeList,
     EdgeTuple,
     Node,

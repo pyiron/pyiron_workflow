@@ -5,8 +5,8 @@ import unittest
 import flowrep as fr
 from unit import _fixtures
 
-from pyiron_workflow._wfms import execution, transformers
-from pyiron_workflow._wfms.flowcontrollers import forflow
+from pyiron_workflow import execution, transformers
+from pyiron_workflow.flowcontrollers import forflow
 
 
 def _atomic_body_recipe() -> fr.schemas.AtomicRecipe:

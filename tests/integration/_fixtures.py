@@ -3,7 +3,7 @@ import time
 try:
     import fleche
 
-    import pyiron_workflow._wfms.api as pwf
+    import pyiron_workflow as pwf
 
     HAS_FLECHE = True
 except ImportError:

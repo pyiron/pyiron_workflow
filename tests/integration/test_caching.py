@@ -8,7 +8,7 @@ from concurrent import futures
 
 from integration import _fixtures
 
-import pyiron_workflow._wfms.api as pwf
+import pyiron_workflow as pwf
 
 try:
     import fleche

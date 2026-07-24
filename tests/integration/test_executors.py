@@ -8,8 +8,8 @@ from concurrent import futures
 
 import flowrep as fr
 
-from pyiron_workflow._wfms import api as wfms
-from pyiron_workflow._wfms import executorlib
+from pyiron_workflow import api as wfms
+from pyiron_workflow import executorlib
 
 
 def get_pid(trigger):

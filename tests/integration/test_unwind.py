@@ -2,7 +2,7 @@ import unittest
 
 import flowrep as fr
 
-from pyiron_workflow._wfms import api as wfms
+from pyiron_workflow import api as wfms
 
 
 def add(n: int, y: int | float) -> float:

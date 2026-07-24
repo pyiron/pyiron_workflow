@@ -7,7 +7,7 @@ import flowrep as fr
 from pyiron_snippets import versions
 from unit import _fixtures
 
-from pyiron_workflow._wfms import atomic, execution, transformers
+from pyiron_workflow import atomic, execution, transformers
 
 # --------------------------------------------------------------------------- #
 # Module-level helpers (must be importable by flowrep / VersionInfo).         #

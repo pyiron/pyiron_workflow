@@ -1,14 +1,4 @@
-import importlib.metadata
-
-try:
-    # Installed package will find its version
-    __version__ = importlib.metadata.version(__name__)
-except importlib.metadata.PackageNotFoundError:
-    # Repository clones will register an unknown version
-    __version__ = "0.0.0+unknown"
-
-# Public API
-from pyiron_workflow.api import compatibility as compatibility
+from pyiron_workflow import compatibility as compatibility
 from pyiron_workflow.api import schemas as schemas
 from pyiron_workflow.api import tools as tools
 from pyiron_workflow.api.schemas import (

@@ -6,8 +6,8 @@ import flowrep as fr
 import semantikon
 from pyiron_snippets import retrieve
 
-from pyiron_workflow._wfms import execution
-from pyiron_workflow._wfms.datatypes import Node, Port, StaticNode
+from pyiron_workflow import execution
+from pyiron_workflow.datatypes import Node, Port, StaticNode
 
 
 class Atomic(StaticNode[fr.schemas.AtomicRecipe, fr.schemas.AtomicData]):

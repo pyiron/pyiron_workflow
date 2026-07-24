@@ -6,8 +6,8 @@ from typing import TYPE_CHECKING
 import flowrep as fr
 import typing_extensions
 
-from pyiron_workflow._wfms import execution, workflow
-from pyiron_workflow._wfms.datatypes import (
+from pyiron_workflow import execution, workflow
+from pyiron_workflow.datatypes import (
     EdgeList,
     EdgeTuple,
     Graph,
@@ -19,7 +19,7 @@ from pyiron_workflow._wfms.datatypes import (
 if TYPE_CHECKING:
     import semantikon
 
-    from pyiron_workflow._wfms.datatypes import InputPort
+    from pyiron_workflow.datatypes import InputPort
 
 
 @dataclasses.dataclass

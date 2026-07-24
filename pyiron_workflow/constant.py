@@ -2,8 +2,8 @@ from __future__ import annotations
 
 import flowrep as fr
 
-from pyiron_workflow._wfms import execution
-from pyiron_workflow._wfms.datatypes import StaticNode
+from pyiron_workflow import execution
+from pyiron_workflow.datatypes import StaticNode
 
 
 class Constant(StaticNode[fr.schemas.ConstantRecipe, fr.schemas.ConstantData]):

@@ -7,11 +7,11 @@ import flowrep as fr
 import semantikon
 from pyiron_snippets import retrieve
 
-from pyiron_workflow._wfms import constructors, execution, lexical, validation
+from pyiron_workflow import constructors, execution, lexical, validation
 
 if TYPE_CHECKING:
     import rdflib
-from pyiron_workflow._wfms.datatypes import (
+from pyiron_workflow.datatypes import (
     EdgeList,
     ImmutableDag,
     Node,

@@ -6,8 +6,8 @@ import flowrep as fr
 from pyiron_snippets import versions
 from unit import _fixtures
 
-from pyiron_workflow._wfms import execution
-from pyiron_workflow._wfms.flowcontrollers import tryflow
+from pyiron_workflow import execution
+from pyiron_workflow.flowcontrollers import tryflow
 
 # --------------------------------------------------------------------------- #
 # Recipe builders                                                             #

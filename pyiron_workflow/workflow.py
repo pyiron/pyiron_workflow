@@ -11,8 +11,8 @@ import flowrep as fr
 import semantikon
 from semantikon.metadata import Missing
 
-from pyiron_workflow._wfms import actions, constructors, dag, execution, validation
-from pyiron_workflow._wfms.datatypes import (
+from pyiron_workflow import actions, constructors, dag, execution, validation
+from pyiron_workflow.datatypes import (
     EdgeList,
     EdgeTuple,
     Graph,

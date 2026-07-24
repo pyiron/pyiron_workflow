@@ -16,7 +16,7 @@ from typing import ClassVar
 import executorlib
 import executorlib.api as exlib_api
 
-from pyiron_workflow._wfms import execution
+from pyiron_workflow import execution
 
 
 class DedicatedExecutorError(TypeError):
