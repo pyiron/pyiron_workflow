@@ -1,0 +1,496 @@
+import pickle
+import unittest
+from pathlib import Path
+
+from pyiron_workflow._legacy.data import NOT_DATA
+from pyiron_workflow._legacy.node import (
+    Node as NonBuiltinTypeHint,
+)
+from pyiron_workflow._legacy.nodes.function import (
+    Function,
+    as_function_node,
+    function_node,
+    to_function_node,
+)
+from pyiron_workflow._legacy.nodes.multiple_distpatch import MultipleDispatchError
+from pyiron_workflow._legacy.topology import get_nodes_in_data_tree
+
+
+def throw_error(x: int | None = None):
+    raise RuntimeError
+
+
+def plus_one(x=1) -> int | float:
+    y = x + 1
+    return y
+
+
+def no_default(x, y):
+    return x + y + 1
+
+
+def returns_multiple(x, y):
+    return x, y, x + y
+
+
+def void():
+    pass
+
+
+def multiple_branches(x):
+    if x < 10:  # noqa: SIM103
+        return True
+    else:
+        return False
+
+
+def has_variadics(x, *args, **kwargs):
+    return (x, args, kwargs)
+
+
+def trapz(y, x=None, dx=1.0):
+    if x is None:
+        x = [i * dx for i in range(len(y))]
+    return sum((x[i + 1] - x[i]) * (y[i] + y[i + 1]) / 2 for i in range(len(y) - 1))
+
+
+class TestFunction(unittest.TestCase):
+    def test_instantiation(self):
+        with self.subTest("Void function is allowable"):
+            void_node = function_node(void)
+            self.assertEqual(len(void_node.outputs), 1)
+
+        with self.subTest("Args and kwargs at initialization"):
+            node = function_node(plus_one)
+            self.assertIs(
+                NOT_DATA,
+                node.outputs.y.value,
+                msg="Sanity check that output just has the standard not-data value at "
+                "instantiation",
+            )
+            node.inputs.x = 10
+            self.assertIs(
+                node.outputs.y.value,
+                NOT_DATA,
+                msg="Nodes should not run on input updates",
+            )
+            node.run()
+            self.assertEqual(
+                node.outputs.y.value,
+                11,
+                msg="Expected the run to update the output -- did the test function"
+                "change or something?",
+            )
+
+            node = function_node(no_default, 1, y=2, output_labels="output")
+            node.run()
+            self.assertEqual(
+                no_default(1, 2),
+                node.outputs.output.value,
+                msg="Nodes should allow input initialization by arg _and_ kwarg",
+            )
+            node(2, y=3)
+            self.assertEqual(
+                no_default(2, 3),
+                node.outputs.output.value,
+                msg="Nodes should allow input update on call by arg and kwarg",
+            )
+
+            with self.assertRaises(ValueError):
+                # Can't pass more args than the function takes
+                function_node(returns_multiple, 1, 2, 3)
+
+        with self.subTest("Initializing with connections"):
+            node = function_node(plus_one, x=2)
+            node2 = function_node(plus_one, x=node.outputs.y)
+            self.assertIs(
+                node2.inputs.x.connections[0],
+                node.outputs.y,
+                msg="Should be able to make a connection at initialization",
+            )
+            node >> node2
+            node.run()
+            self.assertEqual(4, node2.outputs.y.value, msg="Initialize from connection")
+
+    def test_defaults(self):
+        with_defaults = function_node(plus_one)
+        self.assertEqual(
+            with_defaults.inputs.x.value,
+            1,
+            msg=f"Expected to get the default provided in the underlying function but "
+            f"got {with_defaults.inputs.x.value}",
+        )
+        without_defaults = function_node(no_default)
+        self.assertIs(
+            without_defaults.inputs.x.value,
+            NOT_DATA,
+            msg=f"Expected values with no default specified to start as {NOT_DATA} but "
+            f"got {without_defaults.inputs.x.value}",
+        )
+        self.assertFalse(
+            without_defaults.ready,
+            msg="I guess we should test for behaviour and not implementation... Without"
+            "defaults, the node should not be ready!",
+        )
+
+    def test_label_choices(self):
+        with self.subTest("Automatically scrape output labels"):
+            n = function_node(plus_one)
+            self.assertListEqual(n.outputs.labels, ["y"])
+
+        with self.subTest("Allow overriding them"):
+            n = function_node(no_default, output_labels=("sum_plus_one",))
+            self.assertListEqual(n.outputs.labels, ["sum_plus_one"])
+
+        with self.subTest("Allow forcing _one_ output channel"):
+            n = function_node(
+                returns_multiple,
+                output_labels="its_a_tuple",
+                validate_output_labels=False,
+            )
+            self.assertListEqual(n.outputs.labels, ["its_a_tuple"])
+
+        with (
+            self.subTest("Fail on multiple return values"),
+            self.assertRaises(ValueError),
+        ):
+            # Can't automatically parse output labels from a function with
+            # multiple return expressions
+            function_node(multiple_branches)
+
+        with self.subTest("Override output label scraping"):
+            with self.assertRaises(
+                ValueError, msg="Multiple return branches can't be parsed"
+            ):
+                switch = function_node(multiple_branches, output_labels="bool")
+                self.assertListEqual(switch.outputs.labels, ["bool"])
+
+            switch = function_node(
+                multiple_branches, output_labels="bool", validate_output_labels=False
+            )
+            self.assertListEqual(switch.outputs.labels, ["bool"])
+
+    def test_default_label(self):
+        n = function_node(plus_one)
+        self.assertEqual(plus_one.__name__, n.label)
+
+    def test_availability_of_node_function(self):
+        @as_function_node
+        def linear(x):
+            return x
+
+        @as_function_node
+        def bilinear(x, y):
+            xy = linear.node_function(x) * linear.node_function(y)
+            return xy
+
+        self.assertEqual(
+            bilinear(2, 3).run(),
+            2 * 3,
+            msg="Children of `Function` should have their `node_function` exposed for "
+            "use at the class level",
+        )
+
+    def test_statuses(self):
+        n = function_node(plus_one)
+        n.recovery = None  # The test intentionally fails, and we don't want a file
+        self.assertTrue(n.ready)
+        self.assertFalse(n.running)
+        self.assertFalse(n.failed)
+
+        n.inputs.x = "Can't be added together with an int"
+        with self.assertRaises(
+            TypeError,
+            msg="We expect the int+str type error because there were no type hints "
+            "guarding this function from running with bad data",
+        ):
+            n.run()
+        self.assertFalse(n.ready)
+        self.assertFalse(n.running)
+        self.assertTrue(n.failed)
+
+    def test_call(self):
+        node = function_node(no_default, output_labels="output")
+
+        with self.subTest("Ensure desired failures occur"):
+            with self.assertRaises(ValueError):
+                # More input args than there are input channels
+                node(1, 2, 3)
+
+            with self.assertRaises(ValueError):
+                # Using input as an arg _and_ a kwarg
+                node(1, y=2, x=3)
+
+        with self.subTest("Make sure data updates work as planned"):
+            node(1, y=2)
+            self.assertEqual(
+                node.inputs.x.value,
+                1,
+                msg="__call__ should accept args to update input",
+            )
+            self.assertEqual(
+                node.inputs.y.value,
+                2,
+                msg="__call__ should accept kwargs to update input",
+            )
+            self.assertEqual(
+                node.outputs.output.value, 1 + 2 + 1, msg="__call__ should run things"
+            )
+
+            node(3)  # Implicitly test partial update
+            self.assertEqual(
+                no_default(3, 2),
+                node.outputs.output.value,
+                msg="__call__ should allow updating only _some_ input before running",
+            )
+
+        with self.assertRaises(ValueError, msg="Check that bad kwargs raise an error"):
+            node(4, label="won't get read", y=5, foobar="not a kwarg of any sort")
+
+    def test_return_value(self):
+        node = function_node(plus_one)
+
+        with self.subTest("Run on main process"):
+            node.inputs.x = 2
+            return_on_explicit_run = node.run()
+            self.assertEqual(
+                return_on_explicit_run,
+                plus_one(2),
+                msg="On explicit run, the most recent input data should be used and "
+                "the result should be returned",
+            )
+
+            return_on_call = node(1)
+            self.assertEqual(
+                return_on_call,
+                plus_one(1),
+                msg="Run output should be returned on call",
+                # This is a duplicate test, since __call__ just invokes run, but it is
+                # such a core promise that let's just double-check it
+            )
+
+    @staticmethod
+    def _setup_move_nodes():
+        node = function_node(plus_one, label="node")
+
+        upstream = function_node(plus_one, label="upstream")
+        to_copy = function_node(plus_one, x=upstream.outputs.y, label="to_copy")
+        downstream = function_node(plus_one, x=to_copy.outputs.y, label="downstream")
+        upstream >> to_copy >> downstream
+
+        return upstream, to_copy, downstream, node
+
+    def test_easy_output_connection(self):
+        n1 = function_node(plus_one)
+        n2 = function_node(plus_one)
+
+        n2.inputs.x = n1
+
+        self.assertIn(
+            n1.outputs.y,
+            n2.inputs.x.connections,
+            msg="Single-output functions should be able to make connections between "
+            "their output and another node's input by passing themselves",
+        )
+
+        n1 >> n2
+        n1.run()
+        self.assertEqual(
+            n2.outputs.y.value,
+            3,
+            msg="Single-output function connections should pass data just like usual; "
+            "in this case default->plus_one->plus_one = 1 + 1 +1 = 3",
+        )
+
+        at_instantiation = function_node(plus_one, x=n1)
+        self.assertIn(
+            n1.outputs.y,
+            at_instantiation.inputs.x.connections,
+            msg="The parsing of Single-output functions' output as a connection should "
+            "also work from assignment at instantiation",
+        )
+
+    def test_nested_declaration(self):
+        # It's really just a silly case of running without a parent, where you don't
+        # store references to all the nodes declared
+        node = function_node(
+            plus_one, x=function_node(plus_one, x=function_node(plus_one, x=2))
+        )
+        self.assertEqual(2 + 1 + 1 + 1, node.pull())
+
+    def test_single_output_item_and_attribute_access(self):
+        class Foo:
+            some_attribute = "exists"
+            connected = True  # Overlaps with an attribute of the node
+
+            def __getitem__(self, item):
+                return item == 0
+
+        def returns_foo() -> Foo:
+            return Foo()
+
+        single_output = function_node(returns_foo, output_labels="foo")
+
+        self.assertEqual(
+            single_output.connected,
+            False,
+            msg="Should return the _node_ attribute, not acting on the output channel",
+        )
+
+        injection = single_output[0]  # Should pass cleanly, even though it tries to run
+        single_output.run()
+
+        self.assertEqual(
+            single_output.some_attribute.value,  # The call runs the dynamic node
+            "exists",
+            msg="Should fall back to acting on the output channel and creating a node",
+        )
+
+        self.assertEqual(
+            single_output.connected,
+            True,
+            msg="Should now be connected to the dynamically created nodes",
+        )
+
+        with self.assertRaises(
+            AttributeError,
+            msg="Aggressive running hits the problem that no such attribute exists",
+        ):
+            injected = single_output.doesnt_exists_anywhere  # noqa: F841
+        # The injected node fails at runtime and generates a recovery file
+        # We want to clean it up, but this is a pain because the node failed during
+        # instantiation, so we have no good reference to the node object, and it's
+        # injection label relies on a hash which can vary
+        # Still, we know we're injecting a get attribute node, so we can manage:
+        for p in Path("").glob("injected_GetAttr*"):
+            p.joinpath("recovery.cpckl").unlink()
+            p.rmdir()
+
+        self.assertEqual(
+            injection(), True, msg="Should be able to query injection later"
+        )
+
+        self.assertEqual(
+            single_output["some other key"].value,
+            False,
+            msg="Should fall back to looking on the single value",
+        )
+
+        with self.assertRaises(
+            AttributeError,
+            msg="Attribute injection should not work for private attributes",
+        ):
+            single_output._some_nonexistant_private_var  # noqa: B018
+
+    def test_void_return(self):
+        """Test extensions to the `ScrapesIO` mixin."""
+
+        @as_function_node
+        def NoReturn(x):
+            x + 1
+
+        self.assertDictEqual(
+            {"None": type(None)},
+            NoReturn.preview_outputs(),
+            msg="Functions without a return value should be permissible, although it "
+            "is not interesting",
+        )
+        # Honestly, functions with no return should probably be made illegal to
+        # encourage functional setups...
+
+    def test_pickle(self):
+        n = function_node(plus_one, 5, output_labels="p1")
+        n()
+        reloaded = pickle.loads(pickle.dumps(n))
+        self.assertListEqual(n.outputs.labels, reloaded.outputs.labels)
+        self.assertDictEqual(
+            n.outputs.to_value_dict(), reloaded.outputs.to_value_dict()
+        )
+
+    def test_decoration(self):
+        with self.subTest("@as_function_node(*output_labels, ...)"):
+            WithDecoratorSignature = as_function_node("z")(plus_one)
+            self.assertTrue(
+                issubclass(WithDecoratorSignature, Function), msg="Sanity check"
+            )
+            self.assertListEqual(
+                ["z"],
+                list(WithDecoratorSignature.preview_outputs().keys()),
+                msg="Decorator should capture new output label",
+            )
+
+        with self.subTest("@as_function_node"):
+            WithoutDecoratorSignature = as_function_node(plus_one)
+            self.assertTrue(
+                issubclass(WithoutDecoratorSignature, Function), msg="Sanity check"
+            )
+            self.assertListEqual(
+                ["y"],  # "Default" copied here from the function definition return
+                list(WithoutDecoratorSignature.preview_outputs().keys()),
+                msg="Decorator should capture new output label",
+            )
+
+        with self.assertRaises(
+            MultipleDispatchError,
+            msg="This shouldn't be accessible from a regular decorator usage pattern, "
+            "but make sure that mixing-and-matching argument-free calls and calls "
+            "directly providing the wrapped node fail cleanly",
+        ):
+            as_function_node(plus_one, "z")
+
+    def test_inline_creation(self):
+        with self.assertRaises(
+            ValueError,
+            msg="Known limitation: Can't have a bad signature, in this case '*args'",
+        ):
+            to_function_node("HasVariadics", has_variadics, "x", "args", "kwargs")
+
+        with self.assertRaises(ValueError, msg="Known limitation: Must be inspectable"):
+            to_function_node("StrCast", str, "s")
+
+        with self.subTest("Non-builtin type hints should be ok via a scoping kwarg"):
+
+            GetNodes = to_function_node(
+                "GetNodes",
+                get_nodes_in_data_tree,
+                "node_set",
+                scope={"Node": NonBuiltinTypeHint},
+            )
+            self.assertEqual(
+                set[NonBuiltinTypeHint],
+                GetNodes.preview_outputs()["node_set"],
+                msg="Although non-builtin type hints are not normally accessible to "
+                "the signature inspection, we should be able to provide them",
+            )
+            self.assertEqual(
+                "Node",
+                GetNodes.preview_outputs()["node_set"].__args__[0].__name__,
+                msg="Sanity check: it shouldn't matter what we import it under, we are "
+                "providing the right class to the new node subclass.",
+            )
+
+        output_label = "trapz"
+        Trapz = to_function_node("Trapz", trapz, output_label)
+        self.assertIs(
+            trapz,
+            Trapz.node_function,
+            msg="We should be wrapping the requested function",
+        )
+        self.assertEqual(
+            output_label,
+            list(Trapz.preview_outputs().keys())[0],
+            msg="We should be able to name the output however we want",
+        )
+
+        n = Trapz()
+        out = n([0, 0.25, 0.5, 0.75])
+        reloaded = pickle.loads(pickle.dumps(n))
+        self.assertAlmostEqual(
+            out,
+            reloaded.outputs.trapz.value,
+            msg="Save load cycle should work fine like for any other node",
+        )
+
+
+if __name__ == "__main__":
+    unittest.main()

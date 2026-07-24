@@ -1,4 +1,4 @@
-from pyiron_workflow._wfms.api import compatibility as compatibility
+from pyiron_workflow._wfms import compatibility as compatibility
 from pyiron_workflow._wfms.api import schemas as schemas
 from pyiron_workflow._wfms.api import tools as tools
 from pyiron_workflow._wfms.api.schemas import (

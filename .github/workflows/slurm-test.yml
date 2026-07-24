@@ -1,9 +1,4 @@
-# Configure the CI with SLURM, and send a job to the queue via a workflow
-# The submission job gets hard-killed, then we follow up by either restarting while the
-# slurm job is running (mode = interrupt) or by waiting for it to finish
-# (mode = discover)
-
-name: Slurm Test
+name: Slurm Test WfMS
 on:
   workflow_call:
     inputs:
