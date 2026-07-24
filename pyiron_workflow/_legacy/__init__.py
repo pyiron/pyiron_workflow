@@ -20,15 +20,6 @@ Key features:
 - Easy extensibility by collecting nodes together in a python module for sharing/reusing
 """
 
-import importlib.metadata
-
-try:
-    # Installed package will find its version
-    __version__ = importlib.metadata.version(__name__)
-except importlib.metadata.PackageNotFoundError:
-    # Repository clones will register an unknown version
-    __version__ = "0.0.0+unknown"
-
 # User API
 
 from pyiron_workflow._legacy.api import NodeSlurmExecutor as NodeSlurmExecutor
