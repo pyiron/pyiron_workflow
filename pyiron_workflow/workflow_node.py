@@ -17,9 +17,11 @@ if TYPE_CHECKING:
     import rdflib
 
 
-def _duplicate_node_error(owner: datatypes.Graph, key: fr.schemas.Label) -> ValueError:
+def _duplicate_entry_error(
+    owner: datatypes.Graph, key: fr.schemas.Label, entry_type: str
+) -> ValueError:
     return ValueError(
-        f"{owner.lexical_path!r} already has a node {key!r}; remove or rename "
+        f"{owner.lexical_path!r} already has a {entry_type} {key!r}; remove or rename "
         f"it before assigning a new one."
     )
 
@@ -36,6 +38,8 @@ class MutablePortMap(
     MutableMapping[fr.schemas.Label, datatypes.PortType],
 ):
     def __setitem__(self, key: fr.schemas.Label, value: datatypes.PortType):
+        if key in self._pwf_lexical_map__data:
+            raise _duplicate_entry_error(self._pwf_lexical_map__owner, key, "port")
         owner = self._pwf_lexical_map__owner
         if value.owner is not owner:
             raise ValueError(
@@ -55,7 +59,7 @@ class MutableNodeMap(
 
     def __setitem__(self, key: fr.schemas.Label, value: datatypes.Node):
         if key in self._pwf_lexical_map__data:
-            raise _duplicate_node_error(self._pwf_lexical_map__owner, key)
+            raise _duplicate_entry_error(self._pwf_lexical_map__owner, key, "node")
         if value.owner is not None and value.owner is not self._pwf_lexical_map__owner:
             raise ValueError(
                 f"Node {key!r} already has owner {value.owner.lexical_path!r} and "
@@ -88,7 +92,7 @@ class MutableNodeMap(
             object.__setattr__(self, key, value)
             return
         if key in self._pwf_lexical_map__data:
-            raise _duplicate_node_error(self._pwf_lexical_map__owner, key)
+            raise _duplicate_entry_error(self._pwf_lexical_map__owner, key, "node")
         self._pwf_lexical_map__owner.add_node(constructors.node(value, key))
 
 
@@ -209,7 +213,7 @@ class Workflow(datatypes.MutableDag):
             )
 
         if name in self.nodes and self.nodes[name] is not value:
-            raise _duplicate_node_error(self, name)
+            raise _duplicate_entry_error(self, name, "node")
 
         if value in self.nodes.values():
             node = cast(datatypes.Node, value)
@@ -368,6 +372,10 @@ class Workflow(datatypes.MutableDag):
 
     @_records
     def _add_edge(self, edge: datatypes.EdgeTuple) -> actions.AddEdge:
+        if edge in self.edges:
+            raise ValueError(
+                f"Edge '{edge.source.serialize()}->{edge.target.serialize()}' already exists in {self.lexical_path!r}"
+            )
         self.edges.append(edge)
         return actions.AddEdge(edge)
 
@@ -415,6 +423,8 @@ class Workflow(datatypes.MutableDag):
             raise KeyError(
                 f"Port {old.label!r} is not owned by this workflow's inputs or outputs"
             )
+        if new.label != old.label and new.label in target_map:
+            raise _duplicate_entry_error(self, new.label, "port")
         del target_map[old.label]
         target_map[new.label] = new  # type: ignore[assignment]
         return actions.ReplacePort(old, new)
@@ -804,7 +814,7 @@ class Workflow(datatypes.MutableDag):
                 f"Cannot group an empty set of nodes on {self.lexical_path!r}."
             )
         if label in self.nodes:
-            raise _duplicate_node_error(self, label)
+            raise _duplicate_entry_error(self, label, "node")
 
         resolved = [self.get_node(n) for n in nodes]
         if duplicate := {x.label for x in resolved if resolved.count(x) > 1}:

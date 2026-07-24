@@ -367,6 +367,7 @@ def _build_injection_graph(
         graph.connect(oport, graph.outputs[port_label])
 
     negotiated_source_ports: list[datatypes.Port] = []
+    seen: set[datatypes.Port] = set()
     for source in sources:
         source_port = source._injection.port
         source_node = source_port.owner
@@ -375,11 +376,13 @@ def _build_injection_graph(
         ):
             # Create a new input to accept the source, and wire graph and child inputs
             port_label = source._injection.label
-            graph.create_input(
-                port_label,
-                type_hint=source_port.type_hint,
-                type_metadata=source_port.type_metadata,
-            )
+            if source_port not in seen:
+                graph.create_input(
+                    port_label,
+                    type_hint=source_port.type_hint,
+                    type_metadata=source_port.type_metadata,
+                )
+                seen.add(source_port)
             negotiated_source_ports.append(graph.inputs[port_label])
             graph.connect_input(**{port_label: source_port})
         elif source_node.owner is None:
