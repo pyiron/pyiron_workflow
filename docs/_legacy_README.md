@@ -163,7 +163,7 @@ Or dive in and resolving macro nodes to a specified depth:
 
 ![](_static/_legacy_readme_diagram_deep.png)
 
-To explore other benefits of `pyiron_workflow._legacy`, look at the `quickstart.ipynb` in the demo [notebooks](../notebooks). There we explore
+To explore other benefits of `pyiron_workflow._legacy`, look at the `quickstart.ipynb` in the demo [notebooks](../_legacy/notebooks). There we explore
 - Making nodes (optionally) strongly-typed
 - Saving and loading (perhaps partially) executed workflows
 - Parallelizing workflow computation by assigning executors to specific nodes
