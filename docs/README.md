@@ -12,9 +12,31 @@
 [![Platform](https://anaconda.org/conda-forge/pyiron_workflow/badges/platforms.svg)](https://anaconda.org/conda-forge/pyiron_workflow)
 [![Downloads](https://anaconda.org/conda-forge/pyiron_workflow/badges/downloads.svg)](https://anaconda.org/conda-forge/pyiron_workflow)
 
-[![Decision](https://img.shields.io/badge/pyiron-25--001_v2-blue)](https://github.com/pyiron/decisions/blob/main/decisions/25-001-split-api.md)
 
-## Overview
+## pyiron_workflow
 
-`pyiron_workflow` is a workflow management system (WfMS) built on top of the [`flowrep`]() data paradigm, for transforming prospective recipes into retrospective data results.
-It offers tools for allocating resources to node computation, an event system for checkpointing and for GUIs to grab onto, a system for dynamically and interactively building a workflow, and more.
+A workflow management system (WfMS) built on top of the [flowrep](https://github.com/pyiron/flowrep/) data paradigm, for transforming prospective recipes into retrospective data results.
+
+## Features
+
+- **Clear provenance** with coupling `flowrep`'s recipes to resulting data, augmented with practical metadata for each run
+- **Easy, dynamic workflow construction** with the core `Workflow` object
+- **Type and ontological validation** of recipes using [semantikon](https://github.com/pyiron/semantikon) for ontological analysis
+- **Scaling compute** by applying python executors to any node in the workflow, including HPC SLURM-allocated resources leveraging [executorlib](https://github.com/pyiron/executorlib)
+- **Monitor progress** with a flexible event hook system, useful for dumping checkpoints or state-at-exception for failed runs, or for GUIs to grab onto for visually monitoring what has been executed so far
+
+For an introduction and full tour of available features, check out the [user guide notebook](../notebooks/user_guide.ipynb)
+
+## Installation
+
+`conda install -c conda-forge pyiron_workflow`
+
+See the [pyproject file](../pyproject.toml) for optional dependencies to unlock extra functionality.
+
+## Compatibility
+
+Versions of `pyiron_workflow` <0.17.0 pre-date `flowrep`. In `pwf.compatibility`, we provide new import locations for the old `@as_function_node` and `@as_macro_node` decorators to help with the migration process. See the [compatiblity notebook](../notebooks/compatibility.ipynb) for more details.
+
+## Citing
+
+If you use `pyiron_workflow` in your research, please cite the [Zenodo DOI](https://doi.org/10.5281/zenodo.19114207)
