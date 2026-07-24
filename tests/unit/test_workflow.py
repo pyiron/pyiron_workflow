@@ -45,6 +45,30 @@ class TestMutablePortMap(unittest.TestCase):
         ):
             self.wf.inputs["y"] = foreign
 
+    def test_setitem_duplicate_key_raises(self) -> None:
+        self.wf.inputs["x"] = self.port
+        replacement = datatypes.InputPort(
+            label="x", owner=self.wf, type_hint=None, type_metadata=None
+        )
+        with self.assertRaisesRegex(ValueError, "'wf' already has a port 'x'"):
+            self.wf.inputs["x"] = replacement
+        self.assertIs(
+            self.wf.inputs["x"],
+            self.port,
+            msg="The original entry must be left untouched by the rejected write",
+        )
+
+    def test_setitem_duplicate_key_raises_on_outputs(self) -> None:
+        port = datatypes.OutputPort(
+            label="z", owner=self.wf, type_hint=None, type_metadata=None
+        )
+        self.wf.outputs["z"] = port
+        replacement = datatypes.OutputPort(
+            label="z", owner=self.wf, type_hint=None, type_metadata=None
+        )
+        with self.assertRaisesRegex(ValueError, "'wf' already has a port 'z'"):
+            self.wf.outputs["z"] = replacement
+
     def test_delitem_removes_entry(self) -> None:
         self.wf.inputs["x"] = self.port
         self.assertIn("x", self.wf.inputs)
@@ -651,6 +675,45 @@ class TestEdgeMutations(unittest.TestCase):
         self.assertEqual(len(diff), 1)
         self.assertIsInstance(diff[0], actions.AddEdge)
 
+    def test_add_duplicate_edge_raises(self) -> None:
+        self.wf.add_edge(self.edge)
+        with self.assertRaisesRegex(ValueError, "Edge 'x->y' already exists in 'wf'"):
+            self.wf.add_edge(self.edge)
+        self.assertEqual(
+            [self.edge],
+            self.wf.edges,
+            msg="The edge must appear exactly once, not be duplicated",
+        )
+
+    def test_connect_same_ports_twice_raises(self) -> None:
+        node = _fixtures.atomic_add_node("adder")
+        self.wf.add_node(node)
+        self.wf.connect(node.outputs.output_0, self.wf.outputs.y)
+        with self.assertRaisesRegex(ValueError, "already exists in 'wf'"):
+            self.wf.connect(node.outputs.output_0, self.wf.outputs.y)
+
+    def test_add_duplicate_edge_partial_batch_rolls_back(self) -> None:
+        self.wf.create_output("z")
+        other = datatypes.EdgeTuple(
+            fr.schemas.InputSource(port="x"), fr.schemas.OutputTarget(port="z")
+        )
+        self.wf.add_edge(self.edge)
+        with self.assertRaises(ValueError):
+            # 'other' is new, 'self.edge' is a duplicate; the whole batch must roll back
+            self.wf.add_edge(other, self.edge)
+        self.assertNotIn(
+            other,
+            self.wf.edges,
+            msg="A failed multi-edge add must not leave the earlier edge behind",
+        )
+        self.assertEqual([self.edge], self.wf.edges)
+
+    def test_remove_then_readd_edge_allowed(self) -> None:
+        self.wf.add_edge(self.edge)
+        self.wf.remove_edge(self.edge)
+        self.wf.add_edge(self.edge)  # must not be blocked as a "duplicate"
+        self.assertEqual([self.edge], self.wf.edges)
+
     def test_remove_edge_state(self) -> None:
         self.wf.add_edge(self.edge)
         self.wf.remove_edge(self.edge)
@@ -708,9 +771,7 @@ class TestEdgeMutations(unittest.TestCase):
         self.assertIn(edge, self.wf.edges)
 
     def test_connect(self):
-        self.wf.create_input("x")
         self.wf.create_input("a")
-        self.wf.create_output("y")
         self.wf.first = _fixtures.atomic_add_node("first")
         self.wf.second = _fixtures.atomic_add_node("first")
         self.wf.connect(self.wf.inputs.x, self.wf.first.inputs.x)
@@ -850,6 +911,32 @@ class TestInputPortMutations(unittest.TestCase):
         self.wf.undo()
         self.assertNotIn("x", self.wf.inputs)
 
+    def test_create_input_duplicate_label_raises(self) -> None:
+        self.wf.create_input("x")
+        with self.assertRaisesRegex(ValueError, "'wf' already has a port 'x'"):
+            self.wf.create_input("x")
+
+    def test_create_input_repeated_positional_label_raises(self) -> None:
+        with self.assertRaisesRegex(ValueError, "'wf' already has a port 'a'"):
+            self.wf.create_input("a", "a")
+
+    def test_create_input_partial_batch_rolls_back(self) -> None:
+        self.wf.create_input("b")
+        with self.assertRaises(ValueError):
+            self.wf.create_input("a", "b")  # 'a' is new, 'b' collides
+        self.assertNotIn(
+            "a",
+            self.wf.inputs,
+            msg="A failed multi-create must not leave the earlier port behind",
+        )
+        self.assertEqual(["b"], list(self.wf.inputs))
+
+    def test_input_and_output_may_share_a_label(self) -> None:
+        self.wf.create_input("shared")
+        self.wf.create_output("shared")  # separate map -- must be allowed
+        self.assertIn("shared", self.wf.inputs)
+        self.assertIn("shared", self.wf.outputs)
+
     def test_remove_input_by_label(self) -> None:
         self.wf.create_input("x")
         self.wf.remove_input("x")
@@ -927,6 +1014,17 @@ class TestInputPortMutations(unittest.TestCase):
         src = self.wf.edges[0].source
         self.assertIsInstance(src, fr.schemas.InputSource)
         self.assertEqual(src.port, "z")  # type: ignore[union-attr]
+
+    def test_rename_input_onto_existing_raises_and_preserves_state(self) -> None:
+        self.wf.create_input("a")
+        self.wf.create_input("b")
+        with self.assertRaisesRegex(ValueError, "'wf' already has a port 'b'"):
+            self.wf.rename_input("a", "b")
+        self.assertEqual(
+            ["a", "b"],
+            list(self.wf.inputs),
+            msg="A rejected rename must leave both ports intact (no lost 'a')",
+        )
 
     def test_rename_input_undo(self) -> None:
         self.wf.create_input("x")
@@ -1011,6 +1109,11 @@ class TestOutputPortMutations(unittest.TestCase):
         self.assertEqual(len(diff), 1)
         self.assertIsInstance(diff[0], actions.AddOutput)
 
+    def test_create_output_duplicate_label_raises(self) -> None:
+        self.wf.create_output("y")
+        with self.assertRaisesRegex(ValueError, "'wf' already has a port 'y'"):
+            self.wf.create_output("y")
+
     def test_create_output_undo(self) -> None:
         self.wf.create_output("y")
         self.wf.undo()
@@ -1078,6 +1181,17 @@ class TestOutputPortMutations(unittest.TestCase):
         port = self.wf.outputs["y"]
         self.wf.rename_output(port, "z")
         self.assertIn("z", self.wf.outputs)
+
+    def test_rename_output_onto_existing_raises_and_preserves_state(self) -> None:
+        self.wf.create_output("a")
+        self.wf.create_output("b")
+        with self.assertRaisesRegex(ValueError, "'wf' already has a port 'b'"):
+            self.wf.rename_output("a", "b")
+        self.assertEqual(
+            ["a", "b"],
+            list(self.wf.outputs),
+            msg="A rejected rename must leave both ports intact (no lost 'a')",
+        )
 
     def test_rename_output_rewrites_edges(self) -> None:
         node = _fixtures.atomic_add_node("adder")
@@ -1202,6 +1316,16 @@ class TestCreateInputFor(unittest.TestCase):
         self.assertEqual([], list(self.wf.inputs))
         self.assertEqual([], self.wf.edges)
 
+    def test_duplicate_label_raises(self) -> None:
+        self.wf.create_input_for(self.wf.adder.inputs.x)  # label defaults to 'x'
+        with self.assertRaisesRegex(ValueError, "'wf' already has a port 'x'"):
+            self.wf.create_input_for(self.wf.adder.inputs.y, label="x")
+        self.assertEqual(
+            ["x"],
+            list(self.wf.inputs),
+            msg="The first input must survive the rejected collision",
+        )
+
 
 class TestCreateOutputFrom(unittest.TestCase):
     def setUp(self) -> None:
@@ -1269,6 +1393,31 @@ class TestCreateOutputFrom(unittest.TestCase):
         other.add_node(_fixtures.atomic_add_node("adder"))
         with self.assertRaises(ValueError):
             self.wf.create_output_from(other.adder.outputs.output_0)
+
+    def test_duplicate_default_label_raises(self) -> None:
+        # Regression: two sources sharing a default output label ('output_0') used to
+        # silently overwrite the first port, dropping an output.
+        self.wf.add_node(_fixtures.atomic_add_node("adder2"))
+        self.wf.create_output_from(self.wf.adder)
+        with self.assertRaisesRegex(ValueError, "'wf' already has a port 'output_0'"):
+            self.wf.create_output_from(self.wf.adder2)
+        self.assertEqual(
+            ["output_0"],
+            list(self.wf.outputs),
+            msg="The first output must survive the rejected second creation",
+        )
+
+    def test_duplicate_default_label_leaves_workflow_unchanged(self) -> None:
+        self.wf.add_node(_fixtures.atomic_add_node("adder2"))
+        self.wf.create_output_from(self.wf.adder)
+        edges_before = list(self.wf.edges)
+        with contextlib.suppress(ValueError):
+            self.wf.create_output_from(self.wf.adder2)
+        self.assertEqual(
+            edges_before,
+            self.wf.edges,
+            msg="A rejected creation must not leave a dangling edge behind",
+        )
 
 
 class TestUndoRedo(unittest.TestCase):
