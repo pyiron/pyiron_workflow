@@ -19,11 +19,11 @@ A workflow management system (WfMS) built on top of the [flowrep](https://github
 
 ## Features
 
-- **Clear provenance** with coupling `flowrep`'s recipes to resulting data, augmented with practical metadata for each run
-- **Easy, dynamic workflow construction** with the core `Workflow` object
-- **Type and ontological validation** of recipes using [semantikon](https://github.com/pyiron/semantikon) for ontological analysis
-- **Scaling compute** by applying python executors to any node in the workflow, including HPC SLURM-allocated resources leveraging [executorlib](https://github.com/pyiron/executorlib)
-- **Monitor progress** with a flexible event hook system, useful for dumping checkpoints or state-at-exception for failed runs, or for GUIs to grab onto for visually monitoring what has been executed so far
+- **_Clear provenance_** coupling `flowrep`'s recipes to resulting data, augmented with practical metadata for each run
+- **_Easy, dynamic workflow construction_** with the core `Workflow` object
+- **_Type and ontological validation_** of recipes using [semantikon](https://github.com/pyiron/semantikon) for ontological analysis
+- **_Scale compute_** by applying python executors to any node in the workflow, including HPC SLURM-allocated resources leveraging [executorlib](https://github.com/pyiron/executorlib)
+- **_Monitor progress_** with a flexible event hook system, useful for dumping checkpoints or state-at-exception for failed runs, or for GUIs to grab onto for visually monitoring what has been executed so far
 
 For an introduction and full tour of available features, check out the [user guide notebook](../notebooks/user_guide.ipynb)
 
