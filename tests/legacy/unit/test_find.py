@@ -1,8 +1,8 @@
 import unittest
 from pathlib import Path
 
-from pyiron_workflow._tests import ensure_tests_in_python_path
-from pyiron_workflow.find import find_nodes
+from pyiron_workflow._legacy._tests import ensure_tests_in_python_path
+from pyiron_workflow._legacy.find import find_nodes
 
 ensure_tests_in_python_path()
 from legacy.static import demo_nodes  # noqa: E402

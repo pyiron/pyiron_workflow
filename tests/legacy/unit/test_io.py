@@ -1,12 +1,12 @@
 import unittest
 
-from pyiron_workflow.channels import (
+from pyiron_workflow._legacy.channels import (
     InputData,
     InputSignal,
     OutputData,
     OutputSignal,
 )
-from pyiron_workflow.io import Inputs, Outputs, Signals
+from pyiron_workflow._legacy.io import Inputs, Outputs, Signals
 
 
 class Dummy:

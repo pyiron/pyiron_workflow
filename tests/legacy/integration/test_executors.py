@@ -2,9 +2,9 @@ import time
 import unittest
 from concurrent import futures
 
-import pyiron_workflow as pwf
-from pyiron_workflow import _tests
-from pyiron_workflow.node import WaitingForFutureError
+import pyiron_workflow._legacy as pwf
+from pyiron_workflow._legacy import _tests
+from pyiron_workflow._legacy.node import WaitingForFutureError
 
 _tests.ensure_tests_in_python_path()
 from legacy.static import demo_nodes  # noqa: E402

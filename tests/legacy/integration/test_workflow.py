@@ -8,12 +8,12 @@ from concurrent import futures
 import executorlib
 from legacy.static import demo_nodes
 
-from pyiron_workflow._tests import ensure_tests_in_python_path
-from pyiron_workflow.channels import OutputSignal
-from pyiron_workflow.data import NOT_DATA
-from pyiron_workflow.nodes.composite import FailedChildError
-from pyiron_workflow.nodes.function import Function
-from pyiron_workflow.workflow import Workflow
+from pyiron_workflow._legacy._tests import ensure_tests_in_python_path
+from pyiron_workflow._legacy.channels import OutputSignal
+from pyiron_workflow._legacy.data import NOT_DATA
+from pyiron_workflow._legacy.nodes.composite import FailedChildError
+from pyiron_workflow._legacy.nodes.function import Function
+from pyiron_workflow._legacy.workflow import Workflow
 
 ensure_tests_in_python_path()
 
@@ -144,7 +144,7 @@ class TestWorkflow(unittest.TestCase):
         We code around this, but lets make sure it stays working by adding a test!
         Critical in this test is that the node used has complex type hints.
 
-        C.f. `pyiron_workflow.function._wrapper_factory` for more detail.
+        C.f. `pyiron_workflow._legacy.function._wrapper_factory` for more detail.
         """
         wf = Workflow("depickle")
 

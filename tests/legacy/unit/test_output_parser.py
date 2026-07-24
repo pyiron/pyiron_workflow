@@ -1,7 +1,7 @@
 import math
 import unittest
 
-from pyiron_workflow.output_parser import ParseOutput
+from pyiron_workflow._legacy.output_parser import ParseOutput
 
 
 class TestParseOutput(unittest.TestCase):

@@ -1,6 +1,6 @@
 import unittest
 
-from pyiron_workflow.create import Creator
+from pyiron_workflow._legacy.create import Creator
 
 
 class TestCreator(unittest.TestCase):

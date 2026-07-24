@@ -3,7 +3,7 @@ import unittest
 
 from pint import UnitRegistry
 
-from pyiron_workflow.type_hinting import (
+from pyiron_workflow._legacy.type_hinting import (
     _get_type_hints,
     type_hint_is_as_or_more_specific_than,
     type_hint_to_tuple,

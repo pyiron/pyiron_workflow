@@ -5,9 +5,9 @@ from tempfile import TemporaryDirectory
 import cloudpickle
 from pint import UnitRegistry
 
-from pyiron_workflow.nodes.function import as_function_node
-from pyiron_workflow.nodes.standard import UserInput
-from pyiron_workflow.storage import (
+from pyiron_workflow._legacy.nodes.function import as_function_node
+from pyiron_workflow._legacy.nodes.standard import UserInput
+from pyiron_workflow._legacy.storage import (
     FileTypeError,
     H5BagStorage,
     PickleStorage,

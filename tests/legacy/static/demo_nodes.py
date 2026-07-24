@@ -2,7 +2,7 @@
 A demo node package for the purpose of testing.
 """
 
-from pyiron_workflow import Workflow
+from pyiron_workflow._legacy import Workflow
 
 
 @Workflow.wrap.as_function_node("sum")

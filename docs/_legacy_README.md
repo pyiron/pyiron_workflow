@@ -16,7 +16,7 @@
 
 ## Overview
 
-`pyiron_workflow` is a framework for constructing workflows as computational graphs from simple python functions. Its objective is to make it as easy as possible to create reliable, reusable, and sharable workflows, with a special focus on research workflows for HPC environments.
+`pyiron_workflow._legacy` is a framework for constructing workflows as computational graphs from simple python functions. Its objective is to make it as easy as possible to create reliable, reusable, and sharable workflows, with a special focus on research workflows for HPC environments.
 
 Nodes are formed from python functions with simple decorators, and the resulting nodes can have their data inputs and outputs connected. 
 Unlike regular python, they operate in a delayed way.
@@ -25,7 +25,7 @@ By allowing (but not demanding, in the case of data DAGs) users to specify the e
 
 By scraping type hints from decorated functions, both new data values and new graph connections are (optionally) required to conform to hints, making workflows strongly typed.
 
-Individual node computations can be shipped off to parallel processes for scalability. Standard python executors like `concurrent.futures.ThreadPoolExecutor` and `ProcessPoolExecutor` work, but so does, e.g., the `Executor` executor from [`executorlib`](https://github.com/pyiron/executorlib), which facilitates running on HPC. With the wrapped `executorlib.SlurmClusterExecutor` in `pyiron_workflow`, it is possible to run individual nodes on SLURM allocation as easily as in a typical process pool. After the nodes submit their SLURM jobs, the workflow can be saved and the python process terminated -- recovery is as simple as reloading and re-executing the workflow.
+Individual node computations can be shipped off to parallel processes for scalability. Standard python executors like `concurrent.futures.ThreadPoolExecutor` and `ProcessPoolExecutor` work, but so does, e.g., the `Executor` executor from [`executorlib`](https://github.com/pyiron/executorlib), which facilitates running on HPC. With the wrapped `executorlib.SlurmClusterExecutor` in `pyiron_workflow._legacy`, it is possible to run individual nodes on SLURM allocation as easily as in a typical process pool. After the nodes submit their SLURM jobs, the workflow can be saved and the python process terminated -- recovery is as simple as reloading and re-executing the workflow.
 
 Once you're happy with a workflow, it can be easily turned it into a macro for use in other workflows. This allows the clean construction of increasingly complex computation graphs by composing simpler graphs.
 
@@ -40,19 +40,19 @@ Executed or partially-executed graphs can be stored to file, either by explicit 
 Additional packages to support HPC execution with
 
 ```python
-from pyiron_workflow import NodeSlurmExecutor
+from pyiron_workflow._legacy import NodeSlurmExecutor
 ```
 
 Can be found under the optional dependencies.
 
 ## User introduction
 
-`pyiron_workflow` offers a single-point-of-entry in the form of the `Workflow` object, and uses decorators to make it easy to turn regular python functions into "nodes" that can be put in a computation graph.
+`pyiron_workflow._legacy` offers a single-point-of-entry in the form of the `Workflow` object, and uses decorators to make it easy to turn regular python functions into "nodes" that can be put in a computation graph.
 
 Decorating your python function as a node means that it's actually now a class, so you'll need to instantiate it before you can call it -- but otherwise it's a _lot_ like a regular python function. You can put regular python code inside it, and it that code will run whenever you run the node.
 
 ```python
->>> from pyiron_workflow import Workflow
+>>> from pyiron_workflow._legacy import Workflow
 >>>
 >>> @Workflow.wrap.as_function_node
 ... def HelloWorld(greeting="Hello", subject="World"):
@@ -83,7 +83,7 @@ Each time it runs, the `Function` node is taking its input, passing it to the fu
 >>> second = HelloWorld("Greetings", "All")
 >>> combined = first + " and " + second
 >>> print(type(combined))
-<class 'pyiron_workflow.nodes.standard.Add'>
+<class 'pyiron_workflow._legacy.nodes.standard.Add'>
 >>> combined()
 'Welcome One and Greetings All'
 
@@ -157,13 +157,13 @@ Although the macro exposes only particular data for IO, you can always dig into 
 
 This lets us build increasingly complex workflows by composing simpler blocks. These building blocks are shareable and reusable by storing your macro in a `.py` file, or even releasing them as a python package. These workflows are formally defined, so unlike a plain python script it's easy to give them non-code representations, e.g. we can `.draw` our workflows or nodes at a high level:
 
-![](_static/readme_diagram_shallow.png)
+![](_static/_legacy_readme_diagram_shallow.png)
 
 Or dive in and resolving macro nodes to a specified depth:
 
-![](_static/readme_diagram_deep.png)
+![](_static/_legacy_readme_diagram_deep.png)
 
-To explore other benefits of `pyiron_workflow`, look at the `quickstart.ipynb` in the demo [notebooks](../notebooks). There we explore
+To explore other benefits of `pyiron_workflow._legacy`, look at the `quickstart.ipynb` in the demo [notebooks](../notebooks). There we explore
 - Making nodes (optionally) strongly-typed
 - Saving and loading (perhaps partially) executed workflows
 - Parallelizing workflow computation by assigning executors to specific nodes
@@ -173,41 +173,41 @@ For more advanced topics, like cyclic graphs, check the `deepdive.ipynb` noteboo
 
 ## Structure
 
-This section is targeted at readers who want to contribute to the core platform of `pyiron_workflow`, or power-users who have hit a behaviour or edge case they want to understand more deeply and need some hints where to look.
+This section is targeted at readers who want to contribute to the core platform of `pyiron_workflow._legacy`, or power-users who have hit a behaviour or edge case they want to understand more deeply and need some hints where to look.
 
-The core classes responsible for structuring workflows as a graph are `pyiron_workflow.channels.Channel` and `pyiron_workflow.node.Node` which form the edges and (unsurprisingly) nodes of the computational graph.
+The core classes responsible for structuring workflows as a graph are `pyiron_workflow._legacy.channels.Channel` and `pyiron_workflow._legacy.node.Node` which form the edges and (unsurprisingly) nodes of the computational graph.
 Each node holds multiple channels which specify how it interfaces with other nodes.
 
-As far as possible, the different tasks and roles of a node have been decomposed, such that `pyiron_workflow.node.Node` (and to a lesser extent `pyiron_workflow.channels.Channel`) inherits individual pieces of behaviour from simpler, specialized classes.
-All of these classes that are upstream of nodes (and channels) are stored in the `pyiron_workflow.mixin` sub-module.
-They range from extremely simple mix-ins like `pyiron_workflow.has_interface_mixins.has_label`, which does nothing more than guarantee that child classes have `label: str` and `full_label: str` attributes, to complex mix-ins like `pyiron_workflow.run.Runnable`, which provides the capability for children to use the `run()` method, along with specifying what else needs to be implemented for this to be possible and provided other associated tools and methods.
+As far as possible, the different tasks and roles of a node have been decomposed, such that `pyiron_workflow._legacy.node.Node` (and to a lesser extent `pyiron_workflow._legacy.channels.Channel`) inherits individual pieces of behaviour from simpler, specialized classes.
+All of these classes that are upstream of nodes (and channels) are stored in the `pyiron_workflow._legacy.mixin` sub-module.
+They range from extremely simple mix-ins like `pyiron_workflow._legacy.has_interface_mixins.has_label`, which does nothing more than guarantee that child classes have `label: str` and `full_label: str` attributes, to complex mix-ins like `pyiron_workflow._legacy.run.Runnable`, which provides the capability for children to use the `run()` method, along with specifying what else needs to be implemented for this to be possible and provided other associated tools and methods.
 Each of these mix-in modules has a rationale for its existence -- it's "why" -- as the module-level docstring, and provides insight into the roll of each class at the class-level docstrings.
 The node class brings together these individual capabilities and controls their interactions, but to understand each inherited power on its own, review these modules.
 
-Everything[^1] _downstream_ in the inheritance tree from nodes is in the `pyiron_workflow.nodes` sub-module.
-Where `pyiron_workflow.mixin` defines the core capabilities of `pyiron_workflow.nodes.Node`, `pyiron_workflow.nodes` provides specialization and diversification of roles.
-A key player is `pyiron_workflow.nodes.static_io.StaticNode`, which holds tools facilitating and ensuring that node IO is specified at the _class_ level -- a critical capability if we start thinking about assessing node interoperability and guided workflow design, where we don't want to need to first instantiate nodes to find out whether they'll work!
-It also holds familiar user facing nodes like `pyiron_workflow.nodes.function.Function`, which makes sure each run of the node executes a particular python function, and `pyiron_workflow.nodes.macro.Macro` which inherits from the more generic `pyiron_workflow.nodes.composite.Composite` and holds its own sub-graph and executes _that_ when you run the node.
-Other than `pyiron_workflow.nodes.multiple_dispatch`, which holds some helpers for making sure we can make both calls like `@as_function_node` _and_ `@as_function_node()`, the submodules here all define different node classes somewhere on the spectrum between abstract mix-in or base classes down to the user-facing, extremely specific `pyiron_workflow.nodes.standard` library of nodes to be included in user workflows!
+Everything[^1] _downstream_ in the inheritance tree from nodes is in the `pyiron_workflow._legacy.nodes` sub-module.
+Where `pyiron_workflow._legacy.mixin` defines the core capabilities of `pyiron_workflow._legacy.nodes.Node`, `pyiron_workflow._legacy.nodes` provides specialization and diversification of roles.
+A key player is `pyiron_workflow._legacy.nodes.static_io.StaticNode`, which holds tools facilitating and ensuring that node IO is specified at the _class_ level -- a critical capability if we start thinking about assessing node interoperability and guided workflow design, where we don't want to need to first instantiate nodes to find out whether they'll work!
+It also holds familiar user facing nodes like `pyiron_workflow._legacy.nodes.function.Function`, which makes sure each run of the node executes a particular python function, and `pyiron_workflow._legacy.nodes.macro.Macro` which inherits from the more generic `pyiron_workflow._legacy.nodes.composite.Composite` and holds its own sub-graph and executes _that_ when you run the node.
+Other than `pyiron_workflow._legacy.nodes.multiple_dispatch`, which holds some helpers for making sure we can make both calls like `@as_function_node` _and_ `@as_function_node()`, the submodules here all define different node classes somewhere on the spectrum between abstract mix-in or base classes down to the user-facing, extremely specific `pyiron_workflow._legacy.nodes.standard` library of nodes to be included in user workflows!
 
-[^1]: Ok, not quite _everything_ downstream from `pyiron_workflow.node.Node` is in `pyiron_workflow.nodes`.
-There is also `pyiron_workflow.workflow.Workflow` -- the main entry point for users.
+[^1]: Ok, not quite _everything_ downstream from `pyiron_workflow._legacy.node.Node` is in `pyiron_workflow._legacy.nodes`.
+There is also `pyiron_workflow._legacy.workflow.Workflow` -- the main entry point for users.
 Unlike literally every other node, workflow objects have dynamic and variable IO and _cannot_ be inserted as part of any other workflow (i.e. they must be a parent-most object in their workflow graph).
-Otherwise, they inherit from `pyiron_workflow.nodes.composite.Composite` just like macros, and behave in a similar way.
-In principle the classes should be refactored so that nodes and workflows both inherit from shared capability, but that workflows are themselves not directly nodes -- i.e. pull the `pyiron_workflow.nodes.static_io.StaticNode` behaviour right up into `pyiron_workflow.node.Node`, and spin off some ur-ancestor for `pyiron_workflow.node.Node` and `pyiron_workflow.workflow.Workflow`.
+Otherwise, they inherit from `pyiron_workflow._legacy.nodes.composite.Composite` just like macros, and behave in a similar way.
+In principle the classes should be refactored so that nodes and workflows both inherit from shared capability, but that workflows are themselves not directly nodes -- i.e. pull the `pyiron_workflow._legacy.nodes.static_io.StaticNode` behaviour right up into `pyiron_workflow._legacy.node.Node`, and spin off some ur-ancestor for `pyiron_workflow._legacy.node.Node` and `pyiron_workflow._legacy.workflow.Workflow`.
 There is an open issue to this effect: https://github.com/pyiron/pyiron_workflow/issues/360.
 
-Just like nodes, there are more-specific children for `pyiron_workflow.channels.Channel`.
+Just like nodes, there are more-specific children for `pyiron_workflow._legacy.channels.Channel`.
 In general, they can be divided along two sets of axes: input/output and data/signal.
 The input/output division is clear, and is just to ensure that no connections are made between, e.g., two input nodes.
-Where we _do_ need to pass data from input-to-input, for instance from the outer IO layer of a "walled garden" macro down to its child nodes (cf. the user documentation for more details), we exploit the `pyiron_workflow.channels.DataChannel.value_receiver: pyiron_workflow.channel.DataChannel | None` attribute to keep two like-typed channels synchronized.
-For `pyiron_workflow.channels.SignalChannel`, there is no equivalent -- these control execution flow and it is nonsensical to have a connection between two inputs or two outputs.
+Where we _do_ need to pass data from input-to-input, for instance from the outer IO layer of a "walled garden" macro down to its child nodes (cf. the user documentation for more details), we exploit the `pyiron_workflow._legacy.channels.DataChannel.value_receiver: pyiron_workflow._legacy.channel.DataChannel | None` attribute to keep two like-typed channels synchronized.
+For `pyiron_workflow._legacy.channels.SignalChannel`, there is no equivalent -- these control execution flow and it is nonsensical to have a connection between two inputs or two outputs.
 In fact, most of the time you won't think about signal channels at all; for directed acyclic graphs (DAGs), appropriate execution flow can be automatically determined from the structure of the data channel connections and signals channel connections are fully automated.
-Direct management of signal channels only comes up for cyclic graphs or conditional execution patterns (cf. `pyiron_workflow.nodes.standard.If`).
+Direct management of signal channels only comes up for cyclic graphs or conditional execution patterns (cf. `pyiron_workflow._legacy.nodes.standard.If`).
 
-The `pyiron_workflow.executors` sub-module holds objects to the `pyiron_workflow.node.Node.executor: concurrent.futures.Executor` attribute, and the remaining top-level modules are quite independent and can each be explored on its own.
-Some are simple things we put onto nodes, like `pyiron_workflow.io` which are just containers for holding channels, or things that take a node and do something with it, like `pyiron_workflow.draw`.
+The `pyiron_workflow._legacy.executors` sub-module holds objects to the `pyiron_workflow._legacy.node.Node.executor: concurrent.futures.Executor` attribute, and the remaining top-level modules are quite independent and can each be explored on its own.
+Some are simple things we put onto nodes, like `pyiron_workflow._legacy.io` which are just containers for holding channels, or things that take a node and do something with it, like `pyiron_workflow._legacy.draw`.
 
 Stuff that didn't fit in the narrative flow but is interesting anyhow:
-- Nodes (except for workflows) are required to have a static _interface_, but what they do internally is free to change! A simple example is to think of a function node, which might return `True` under some input conditions, or `False` under others. A more complex example that is worth examining is the `pyiron_workflow.nodes.for_loop.For` node. It is composite and executes its subgraph, but at each run it internally modifies its children in order to accommodate for the length of input it is given! This is bold, but perfectly permissible since the IO channels for the for-node stay the same throughout.
-- The main user-interface for `pyiron_workflow` is `pyiron_workflow.Workflow`, but there are other tools available in `pyiron_workflow.__init__` that specify the full API and may be useful to power-users and node developers; changes that don't impact the interface or behaviour of the publicly available tools there are free from the constraints of semantic versioning, but if a change touches anything listed there we should aim for backwards compatibility.
+- Nodes (except for workflows) are required to have a static _interface_, but what they do internally is free to change! A simple example is to think of a function node, which might return `True` under some input conditions, or `False` under others. A more complex example that is worth examining is the `pyiron_workflow._legacy.nodes.for_loop.For` node. It is composite and executes its subgraph, but at each run it internally modifies its children in order to accommodate for the length of input it is given! This is bold, but perfectly permissible since the IO channels for the for-node stay the same throughout.
+- The main user-interface for `pyiron_workflow` is `pyiron_workflow._legacy.Workflow`, but there are other tools available in `pyiron_workflow._legacy.__init__` that specify the full API and may be useful to power-users and node developers; changes that don't impact the interface or behaviour of the publicly available tools there are free from the constraints of semantic versioning, but if a change touches anything listed there we should aim for backwards compatibility.

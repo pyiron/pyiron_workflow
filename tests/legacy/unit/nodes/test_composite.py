@@ -4,12 +4,12 @@ from concurrent.futures import ProcessPoolExecutor
 import typeguard
 from legacy.static import demo_nodes
 
-from pyiron_workflow._tests import ensure_tests_in_python_path
-from pyiron_workflow.data import NOT_DATA
-from pyiron_workflow.io import Inputs
-from pyiron_workflow.mixin.injection import OutputsWithInjection
-from pyiron_workflow.nodes.composite import Composite
-from pyiron_workflow.topology import CircularDataFlowError
+from pyiron_workflow._legacy._tests import ensure_tests_in_python_path
+from pyiron_workflow._legacy.data import NOT_DATA
+from pyiron_workflow._legacy.io import Inputs
+from pyiron_workflow._legacy.mixin.injection import OutputsWithInjection
+from pyiron_workflow._legacy.nodes.composite import Composite
+from pyiron_workflow._legacy.topology import CircularDataFlowError
 
 ensure_tests_in_python_path()
 

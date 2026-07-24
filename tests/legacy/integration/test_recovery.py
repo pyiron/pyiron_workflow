@@ -6,14 +6,14 @@ import sys
 import time
 import unittest
 
-import pyiron_workflow as pwf
-from pyiron_workflow.mixin.run import ReadinessError
+import pyiron_workflow._legacy as pwf
+from pyiron_workflow._legacy.mixin.run import ReadinessError
 
 SCRIPT = """
 import time
 from concurrent import futures
 
-import pyiron_workflow as pwf
+import pyiron_workflow._legacy as pwf
 
 wf = pwf.Workflow("passive_run")
 wf.n1 = pwf.std.UserInput(5)

@@ -5,14 +5,18 @@ from time import sleep
 
 from legacy.static import demo_nodes
 
-import pyiron_workflow.data
-from pyiron_workflow import channels
-from pyiron_workflow._tests import ensure_tests_in_python_path
-from pyiron_workflow.mixin import injection
-from pyiron_workflow.nodes.function import as_function_node, function_node
-from pyiron_workflow.nodes.macro import Macro, as_macro_node, macro_node
-from pyiron_workflow.storage import H5BagStorage, PickleStorage, available_backends
-from pyiron_workflow.topology import CircularDataFlowError
+import pyiron_workflow._legacy.data
+from pyiron_workflow._legacy import channels
+from pyiron_workflow._legacy._tests import ensure_tests_in_python_path
+from pyiron_workflow._legacy.mixin import injection
+from pyiron_workflow._legacy.nodes.function import as_function_node, function_node
+from pyiron_workflow._legacy.nodes.macro import Macro, as_macro_node, macro_node
+from pyiron_workflow._legacy.storage import (
+    H5BagStorage,
+    PickleStorage,
+    available_backends,
+)
+from pyiron_workflow._legacy.topology import CircularDataFlowError
 
 ensure_tests_in_python_path()
 
@@ -149,7 +153,7 @@ class TestMacro(unittest.TestCase):
 
         self.assertIs(
             m.outputs.three__result.value,
-            pyiron_workflow.data.NOT_DATA,
+            pyiron_workflow._legacy.data.NOT_DATA,
             msg="Output should be accessible with the usual naming convention, but we "
             "have not run yet so there shouldn't be any data",
         )
@@ -222,7 +226,7 @@ class TestMacro(unittest.TestCase):
         macro.executor = futures.ProcessPoolExecutor()
 
         self.assertIs(
-            pyiron_workflow.data.NOT_DATA,
+            pyiron_workflow._legacy.data.NOT_DATA,
             macro.outputs.three__result.value,
             msg="Sanity check that test is in right starting condition",
         )
@@ -232,7 +236,7 @@ class TestMacro(unittest.TestCase):
             result, futures.Future, msg="Should be running as a parallel process"
         )
         self.assertIs(
-            pyiron_workflow.data.NOT_DATA,
+            pyiron_workflow._legacy.data.NOT_DATA,
             downstream.outputs.result.value,
             msg="Downstream events should not yet have triggered either, we should wait"
             "for the callback when the result is ready",
@@ -658,7 +662,7 @@ class TestMacro(unittest.TestCase):
 
             self.assertIs(
                 DoesntAutoloadChildren().some_child.outputs.x.value,
-                pyiron_workflow.data.NOT_DATA,
+                pyiron_workflow._legacy.data.NOT_DATA,
                 msg="Despite having the same label as a saved node at instantiation time, "
                 "without autoloading children, our macro safely gets a fresh instance. "
                 "Since this is clearly preferable, here we leave autoload to take its "

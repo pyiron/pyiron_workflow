@@ -3,8 +3,8 @@ from __future__ import annotations
 import pickle
 import unittest
 
+from pyiron_workflow._legacy.nodes.multiple_distpatch import MultipleDispatchError
 from pyiron_workflow._wfms import compatibility, dag
-from pyiron_workflow.nodes.multiple_distpatch import MultipleDispatchError
 
 # --------------------------------------------------------------------------- #
 # Compatibility fixtures                                                      #

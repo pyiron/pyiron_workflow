@@ -3,22 +3,22 @@ import unittest
 
 import bagofholding as boh
 
-from pyiron_workflow.channels import (
+from pyiron_workflow._legacy.channels import (
     InputData,
     InputLockedError,
 )
-from pyiron_workflow.data import NOT_DATA
-from pyiron_workflow.io import Inputs
-from pyiron_workflow.mixin.injection import (
+from pyiron_workflow._legacy.data import NOT_DATA
+from pyiron_workflow._legacy.io import Inputs
+from pyiron_workflow._legacy.mixin.injection import (
     OutputDataWithInjection,
     OutputsWithInjection,
 )
-from pyiron_workflow.mixin.run import ReadinessError
-from pyiron_workflow.node import (
+from pyiron_workflow._legacy.mixin.run import ReadinessError
+from pyiron_workflow._legacy.node import (
     AmbiguousOutputError,
     Node,
 )
-from pyiron_workflow.storage import PickleStorage, available_backends
+from pyiron_workflow._legacy.storage import PickleStorage, available_backends
 
 
 def add_one(x):

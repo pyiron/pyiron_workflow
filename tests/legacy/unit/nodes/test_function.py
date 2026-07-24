@@ -2,18 +2,18 @@ import pickle
 import unittest
 from pathlib import Path
 
-from pyiron_workflow.data import NOT_DATA
-from pyiron_workflow.node import (
+from pyiron_workflow._legacy.data import NOT_DATA
+from pyiron_workflow._legacy.node import (
     Node as NonBuiltinTypeHint,
 )
-from pyiron_workflow.nodes.function import (
+from pyiron_workflow._legacy.nodes.function import (
     Function,
     as_function_node,
     function_node,
     to_function_node,
 )
-from pyiron_workflow.nodes.multiple_distpatch import MultipleDispatchError
-from pyiron_workflow.topology import get_nodes_in_data_tree
+from pyiron_workflow._legacy.nodes.multiple_distpatch import MultipleDispatchError
+from pyiron_workflow._legacy.topology import get_nodes_in_data_tree
 
 
 def throw_error(x: int | None = None):

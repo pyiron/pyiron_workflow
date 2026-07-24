@@ -8,9 +8,9 @@ import flowrep as fr
 import semantikon
 from pyiron_snippets import versions
 
-from pyiron_workflow import output_parser
+from pyiron_workflow._legacy import output_parser
+from pyiron_workflow._legacy.nodes import multiple_distpatch
 from pyiron_workflow._wfms import datatypes, decorators, workflow
-from pyiron_workflow.nodes import multiple_distpatch
 
 
 @multiple_distpatch.dispatch_output_labels

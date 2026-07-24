@@ -2,8 +2,8 @@ import threading
 import unittest
 from concurrent import futures
 
-from pyiron_workflow.nodes import function
-from pyiron_workflow.nodes.while_loop import (
+from pyiron_workflow._legacy.nodes import function
+from pyiron_workflow._legacy.nodes.while_loop import (
     InvalidEdgeError,
     InvalidTestOutputError,
     NonTerminatingLoopError,

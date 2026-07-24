@@ -7,9 +7,9 @@ import flowrep as fr
 import rdflib
 import semantikon
 
+from pyiron_workflow._legacy.type_hinting import type_hint_is_as_or_more_specific_than
 from pyiron_workflow._wfms import atomic, dag, execution, workflow
 from pyiron_workflow._wfms.datatypes import EdgeList, EdgeTuple, Node, StaticGraph
-from pyiron_workflow.type_hinting import type_hint_is_as_or_more_specific_than
 
 
 def _resolve_edge_hints(

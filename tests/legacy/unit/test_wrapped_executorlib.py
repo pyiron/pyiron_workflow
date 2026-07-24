@@ -1,11 +1,11 @@
 import unittest
 
-from pyiron_workflow.executors.wrapped_executorlib import (
+from pyiron_workflow._legacy.executors.wrapped_executorlib import (
     DedicatedExecutorError,
     NodeSingleExecutor,
     ProtectedResourceError,
 )
-from pyiron_workflow.nodes import standard as std
+from pyiron_workflow._legacy.nodes import standard as std
 
 
 def foo(x):

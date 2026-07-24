@@ -7,10 +7,10 @@ from bidict import ValueDuplicationError
 from legacy.static import demo_nodes
 from pyiron_snippets.dotdict import DotDict
 
-from pyiron_workflow._tests import ensure_tests_in_python_path
-from pyiron_workflow.data import NOT_DATA
-from pyiron_workflow.storage import TypeNotFoundError, available_backends
-from pyiron_workflow.workflow import NoArgsError, ParentMostError, Workflow
+from pyiron_workflow._legacy._tests import ensure_tests_in_python_path
+from pyiron_workflow._legacy.data import NOT_DATA
+from pyiron_workflow._legacy.storage import TypeNotFoundError, available_backends
+from pyiron_workflow._legacy.workflow import NoArgsError, ParentMostError, Workflow
 
 ensure_tests_in_python_path()
 

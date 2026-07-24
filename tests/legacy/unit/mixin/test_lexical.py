@@ -4,7 +4,7 @@ import tempfile
 import unittest
 from pathlib import Path
 
-from pyiron_workflow.mixin.lexical import (
+from pyiron_workflow._legacy.mixin.lexical import (
     CyclicPathError,
     Lexical,
     LexicalParent,

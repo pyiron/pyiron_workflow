@@ -1,8 +1,8 @@
 import time
 import unittest
 
-import pyiron_workflow as pwf
-from pyiron_workflow.executors.wrapped_executorlib import (
+import pyiron_workflow._legacy as pwf
+from pyiron_workflow._legacy.executors.wrapped_executorlib import (
     NodeSingleExecutor,
     _CacheTestClusterExecutor,
 )

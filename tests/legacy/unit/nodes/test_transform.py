@@ -6,9 +6,9 @@ from dataclasses import dataclass, field, is_dataclass
 
 from pandas import DataFrame
 
-from pyiron_workflow.data import NOT_DATA
-from pyiron_workflow.nodes.function import as_function_node
-from pyiron_workflow.nodes.transform import (
+from pyiron_workflow._legacy.data import NOT_DATA
+from pyiron_workflow._legacy.nodes.function import as_function_node
+from pyiron_workflow._legacy.nodes.transform import (
     Transformer,
     as_dataclass_node,
     dataclass_node,

@@ -1,6 +1,6 @@
 import unittest
 
-from pyiron_workflow.overloading import (
+from pyiron_workflow._legacy.overloading import (
     overloaded_classmethod,
 )  # replace with actual module path
 

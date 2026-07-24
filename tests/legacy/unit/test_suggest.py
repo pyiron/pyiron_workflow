@@ -1,9 +1,9 @@
 import unittest
 from typing import Literal
 
-import pyiron_workflow as pwf
-from pyiron_workflow.nodes import static_io
-from pyiron_workflow.suggest import (
+import pyiron_workflow._legacy as pwf
+from pyiron_workflow._legacy.nodes import static_io
+from pyiron_workflow._legacy.suggest import (
     ConnectedInputError,
     NonSiblingError,
     UnhintedError,

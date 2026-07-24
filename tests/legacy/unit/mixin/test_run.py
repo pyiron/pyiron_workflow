@@ -1,10 +1,10 @@
 import unittest
 from concurrent.futures import Future
 
-from pyiron_workflow.executors.cloudpickleprocesspool import (
+from pyiron_workflow._legacy.executors.cloudpickleprocesspool import (
     CloudpickleProcessPoolExecutor,
 )
-from pyiron_workflow.mixin.run import (
+from pyiron_workflow._legacy.mixin.run import (
     NotInterpretableAsExecutorError,
     ReadinessError,
     Runnable,

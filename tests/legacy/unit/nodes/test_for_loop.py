@@ -7,18 +7,18 @@ from time import perf_counter
 from pandas import DataFrame
 from pyiron_snippets.dotdict import DotDict
 
-from pyiron_workflow._tests import ensure_tests_in_python_path
-from pyiron_workflow.mixin.run import ReadinessError
-from pyiron_workflow.nodes.for_loop import (
+from pyiron_workflow._legacy._tests import ensure_tests_in_python_path
+from pyiron_workflow._legacy.mixin.run import ReadinessError
+from pyiron_workflow._legacy.nodes.for_loop import (
     MapsToNonexistentOutputError,
     UnmappedConflictError,
     dictionary_to_index_maps,
     for_node,
 )
-from pyiron_workflow.nodes.function import as_function_node
-from pyiron_workflow.nodes.macro import as_macro_node
-from pyiron_workflow.nodes.standard import Add, Sleep
-from pyiron_workflow.nodes.transform import inputs_to_list
+from pyiron_workflow._legacy.nodes.function import as_function_node
+from pyiron_workflow._legacy.nodes.macro import as_macro_node
+from pyiron_workflow._legacy.nodes.standard import Add, Sleep
+from pyiron_workflow._legacy.nodes.transform import inputs_to_list
 
 ensure_tests_in_python_path()
 from legacy.static.demo_nodes import AddThree  # noqa: E402

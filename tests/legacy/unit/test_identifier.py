@@ -1,6 +1,6 @@
 import unittest
 
-from pyiron_workflow.identifier import to_identifier
+from pyiron_workflow._legacy.identifier import to_identifier
 
 
 class TestToIdentifier(unittest.TestCase):

@@ -2,7 +2,7 @@ import unittest
 from concurrent.futures import ThreadPoolExecutor
 from time import sleep
 
-from pyiron_workflow.workflow import Workflow
+from pyiron_workflow._legacy.workflow import Workflow
 
 
 class TestProvenance(unittest.TestCase):

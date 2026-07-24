@@ -1,7 +1,7 @@
 import unittest
 
-from pyiron_workflow import Workflow
-from pyiron_workflow.node import Node
+from pyiron_workflow._legacy import Workflow
+from pyiron_workflow._legacy.node import Node
 
 
 class TestOutputInjection(unittest.TestCase):

@@ -2,7 +2,7 @@ import unittest
 from concurrent import futures
 from time import perf_counter, sleep
 
-from pyiron_workflow import Workflow
+from pyiron_workflow._legacy import Workflow
 
 
 class TestSpeedup(unittest.TestCase):
