@@ -2,13 +2,15 @@ import doctest
 import pkgutil
 import unittest
 
-import pyiron_workflow
+import pyiron_workflow._legacy
 
 
 def load_tests(loader, tests, ignore):
     for _importer, name, _ispkg in pkgutil.walk_packages(
         pyiron_workflow.__path__, pyiron_workflow.__name__ + "."
     ):
+        if "_legacy" in name:
+            continue
         tests.addTests(doctest.DocTestSuite(name))
     return tests
 

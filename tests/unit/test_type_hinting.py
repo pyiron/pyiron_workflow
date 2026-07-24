@@ -3,12 +3,7 @@ import unittest
 
 from pint import UnitRegistry
 
-from pyiron_workflow.type_hinting import (
-    _get_type_hints,
-    type_hint_is_as_or_more_specific_than,
-    type_hint_to_tuple,
-    valid_value,
-)
+from pyiron_workflow import type_hinting
 
 
 class TestTypeHinting(unittest.TestCase):
@@ -35,27 +30,27 @@ class TestTypeHinting(unittest.TestCase):
             (int, 1 * ureg.seconds, 1.0 * ureg.seconds),  # Disregard unit, look@type
         ):
             with self.subTest(msg=f"Good {good} vs hint {hint}"):
-                self.assertTrue(valid_value(good, hint))
+                self.assertTrue(type_hinting.valid_value(good, hint))
             with self.subTest(msg=f"Bad {bad} vs hint {hint}"):
-                self.assertFalse(valid_value(bad, hint))
+                self.assertFalse(type_hinting.valid_value(bad, hint))
 
         with self.subTest(msg="Test strictness"):
             self.assertTrue(
-                valid_value(Bar(), callable, strict_callables=False),
+                type_hinting.valid_value(Bar(), callable, strict_callables=False),
                 msg="Sanity: Bar implements __call__ and should always appear callable",
             )
             self.assertTrue(
-                valid_value(Bar(), callable, strict_callables=True),
+                type_hinting.valid_value(Bar(), callable, strict_callables=True),
                 msg="Sanity: Bar implements __call__ and should always appear callable",
             )
 
             self.assertTrue(
-                valid_value(Foo(), callable, strict_callables=False),
+                type_hinting.valid_value(Foo(), callable, strict_callables=False),
                 msg="typeguard is relaxed about callable, and doesn't care that Foo "
                 "fails to implement __call__",
             )
             self.assertFalse(
-                valid_value(Foo(), callable, strict_callables=True),
+                type_hinting.valid_value(Foo(), callable, strict_callables=True),
                 msg="typeguard is stringent about Callable, and notices that Foo fails "
                 "to implement __call__",
             )
@@ -122,7 +117,9 @@ class TestTypeHinting(unittest.TestCase):
                 target=target, reference=reference, expected=is_more_specific
             ):
                 self.assertEqual(
-                    type_hint_is_as_or_more_specific_than(target, reference),
+                    type_hinting.type_hint_is_as_or_more_specific_than(
+                        target, reference
+                    ),
                     is_more_specific,
                     msg=f"{target} is {'not ' if not is_more_specific else ''}more specific than {reference}",
                 )
@@ -137,7 +134,7 @@ class TestTypeHinting(unittest.TestCase):
             (list[int], list),
         ]:
             with self.subTest(hint=hint, origin=origin):
-                self.assertEqual(_get_type_hints(hint)[0], origin)
+                self.assertEqual(type_hinting._get_type_hints(hint)[0], origin)
 
     def test_type_hint_to_tuple(self):
         for hint, tuple_ in (
@@ -156,7 +153,7 @@ class TestTypeHinting(unittest.TestCase):
             ),
         ):
             self.assertEqual(
-                type_hint_to_tuple(hint),
+                type_hinting.type_hint_to_tuple(hint),
                 tuple_,
                 msg="Old- and new-style hints should both be split into a tuple",
             )
