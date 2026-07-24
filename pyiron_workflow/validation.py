@@ -7,8 +7,14 @@ import flowrep as fr
 import rdflib
 import semantikon
 
-from pyiron_workflow import atomic_node, dag, datatypes, execution, workflow_node
-from pyiron_workflow._legacy.type_hinting import type_hint_is_as_or_more_specific_than
+from pyiron_workflow import (
+    atomic_node,
+    dag,
+    datatypes,
+    execution,
+    type_hinting,
+    workflow_node,
+)
 
 
 def _resolve_edge_hints(
@@ -37,7 +43,9 @@ def validate_edge(
     source_hint, target_hint = _resolve_edge_hints(edge, owner)
 
     if source_hint is not None and target_hint is not None:
-        if not type_hint_is_as_or_more_specific_than(source_hint, target_hint):
+        if not type_hinting.type_hint_is_as_or_more_specific_than(
+            source_hint, target_hint
+        ):
             raise TypeError(
                 "Processing edge "
                 f"'{edge.source.serialize()}->{edge.target.serialize()}' on "
@@ -153,7 +161,9 @@ def _validate_graph(
     for edge in owner.edges:
         source_hint, target_hint = _resolve_edge_hints(edge, owner)
         if source_hint is not None and target_hint is not None:
-            if not type_hint_is_as_or_more_specific_than(source_hint, target_hint):
+            if not type_hinting.type_hint_is_as_or_more_specific_than(
+                source_hint, target_hint
+            ):
                 invalid_edges.append(edge)
         elif target_hint is not None and source_hint is None:
             unfulfilled_edges.append(edge)
