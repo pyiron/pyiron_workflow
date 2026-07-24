@@ -40,13 +40,13 @@ jobs:
     with:
       mode: discover
 
-  slurm-interruption-wfms:
+  slurm-interruption-legacy:
     if: github.event_name == 'pull_request'
     uses: ./.github/workflows/slurm-test-legacy.yml
     with:
       mode: interrupt
 
-  slurm-discovery-wfms:
+  slurm-discovery-legacy:
     if: github.event_name == 'pull_request'
     uses: ./.github/workflows/slurm-test-legacy.yml
     with:
