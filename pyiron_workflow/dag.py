@@ -7,27 +7,21 @@ import flowrep as fr
 import semantikon
 from pyiron_snippets import retrieve
 
-from pyiron_workflow import constructors, execution, lexical, validation
+from pyiron_workflow import constructors, datatypes, execution, lexical, validation
 
 if TYPE_CHECKING:
     import rdflib
-from pyiron_workflow.datatypes import (
-    EdgeList,
-    ImmutableDag,
-    Node,
-    NodeMap,
-)
 
 
-class Macro(ImmutableDag):
+class Macro(datatypes.ImmutableDag):
     _recipe: fr.schemas.WorkflowRecipe
 
     @classmethod
     def _result_type(cls) -> type[fr.schemas.DagData]:
         return fr.schemas.DagData
 
-    def _build_nodes(self, recipe: fr.schemas.WorkflowRecipe) -> NodeMap:
-        return NodeMap(
+    def _build_nodes(self, recipe: fr.schemas.WorkflowRecipe) -> datatypes.NodeMap:
+        return datatypes.NodeMap(
             self,
             {
                 node_label: constructors.recipe2node(node_recipe, node_label)
@@ -35,7 +29,7 @@ class Macro(ImmutableDag):
             },
         )
 
-    def _build_edges(self, recipe: fr.schemas.WorkflowRecipe) -> EdgeList:
+    def _build_edges(self, recipe: fr.schemas.WorkflowRecipe) -> datatypes.EdgeList:
         return constructors.edges2edgelist(
             recipe.input_edges, recipe.edges, recipe.output_edges
         )
@@ -76,7 +70,7 @@ class Macro(ImmutableDag):
 
 
 def evaluate_dag_by_layer(
-    nodes: NodeMap,
+    nodes: datatypes.NodeMap,
     run: execution.Run[fr.schemas.CompositeData],
     config: execution.RunConfig,
 ) -> None:
@@ -93,7 +87,7 @@ def evaluate_dag_by_layer(
 
 def _multithreaded_layers(
     layers: list[list[fr.schemas.Label]],
-    nodes: NodeMap,
+    nodes: datatypes.NodeMap,
     run: execution.Run[fr.schemas.CompositeData],
     config: execution.RunConfig,
 ):
@@ -125,7 +119,7 @@ def _multithreaded_layers(
 
 
 def topo_sort_nodes(
-    nodes: NodeMap, edges: fr.schemas.Edges
+    nodes: datatypes.NodeMap, edges: fr.schemas.Edges
 ) -> list[list[fr.schemas.Label]]:
     """
     Kahn's algorithm over sibling edges, grouped into independent layers.
@@ -169,7 +163,7 @@ def topo_sort_nodes(
 
 
 def evaluate_node(
-    node: Node[Any, execution.ResultType],
+    node: datatypes.Node[Any, execution.ResultType],
     label_in_run: fr.schemas.Label,
     run: execution.Run[fr.schemas.CompositeData],
     config: execution.RunConfig,

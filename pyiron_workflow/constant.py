@@ -2,11 +2,12 @@ from __future__ import annotations
 
 import flowrep as fr
 
-from pyiron_workflow import execution
-from pyiron_workflow.datatypes import StaticNode
+from pyiron_workflow import datatypes, execution
 
 
-class Constant(StaticNode[fr.schemas.ConstantRecipe, fr.schemas.ConstantData]):
+class Constant(
+    datatypes.StaticNode[fr.schemas.ConstantRecipe, fr.schemas.ConstantData]
+):
 
     @classmethod
     def from_value(
@@ -18,7 +19,7 @@ class Constant(StaticNode[fr.schemas.ConstantRecipe, fr.schemas.ConstantData]):
         )
 
     @classmethod
-    def _result_type(cls) -> type[fr.schemas.AtomicData]:
+    def _result_type(cls) -> type[fr.schemas.ConstantData]:
         return fr.schemas.ConstantData
 
     def evaluate(

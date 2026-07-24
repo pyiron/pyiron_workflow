@@ -3,27 +3,21 @@ from __future__ import annotations
 import flowrep as fr
 from pyiron_snippets import retrieve
 
-from pyiron_workflow import constructors, dag, execution
-from pyiron_workflow.datatypes import (
-    EdgeList,
-    Node,
-    NodeMap,
-    StaticGraph,
-)
+from pyiron_workflow import constructors, dag, datatypes, execution
 
 
 class UnmatchedExceptionError(TypeError): ...
 
 
-class Try(StaticGraph[fr.schemas.TryRecipe, fr.schemas.TryData]):
+class Try(datatypes.StaticGraph[fr.schemas.TryRecipe, fr.schemas.TryData]):
     _recipe: fr.schemas.TryRecipe
 
     @classmethod
     def _result_type(cls) -> type[fr.schemas.TryData]:
         return fr.schemas.TryData
 
-    def _build_nodes(self, recipe: fr.schemas.TryRecipe) -> NodeMap:
-        nodes: dict[fr.schemas.Label, Node] = {
+    def _build_nodes(self, recipe: fr.schemas.TryRecipe) -> datatypes.NodeMap:
+        nodes: dict[fr.schemas.Label, datatypes.Node] = {
             recipe.try_node.label: constructors.recipe2node(
                 recipe.try_node.recipe, recipe.try_node.label
             )
@@ -32,9 +26,9 @@ class Try(StaticGraph[fr.schemas.TryRecipe, fr.schemas.TryData]):
             nodes[case.body.label] = constructors.recipe2node(
                 case.body.recipe, case.body.label
             )
-        return NodeMap(self, nodes)
+        return datatypes.NodeMap(self, nodes)
 
-    def _build_edges(self, recipe: fr.schemas.TryRecipe) -> EdgeList:
+    def _build_edges(self, recipe: fr.schemas.TryRecipe) -> datatypes.EdgeList:
         return []
 
     def evaluate(

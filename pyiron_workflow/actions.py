@@ -6,13 +6,7 @@ from typing import TYPE_CHECKING, Protocol, TypeAlias
 if TYPE_CHECKING:
     import flowrep as fr
 
-    from pyiron_workflow.datatypes import (
-        EdgeTuple,
-        InputPort,
-        MutableDag,
-        Node,
-        OutputPort,
-    )
+    from pyiron_workflow import datatypes
 
 
 class GraphAction(Protocol):
@@ -21,7 +15,7 @@ class GraphAction(Protocol):
 
 @dataclasses.dataclass(frozen=True)
 class AddInput:
-    port: InputPort
+    port: datatypes.InputPort
 
     def inverse(self) -> RemoveInput:
         return RemoveInput(self.port)
@@ -29,7 +23,7 @@ class AddInput:
 
 @dataclasses.dataclass(frozen=True)
 class RemoveInput:
-    port: InputPort
+    port: datatypes.InputPort
 
     def inverse(self) -> AddInput:
         return AddInput(self.port)
@@ -37,7 +31,7 @@ class RemoveInput:
 
 @dataclasses.dataclass(frozen=True)
 class AddOutput:
-    port: OutputPort
+    port: datatypes.OutputPort
 
     def inverse(self) -> RemoveOutput:
         return RemoveOutput(self.port)
@@ -45,7 +39,7 @@ class AddOutput:
 
 @dataclasses.dataclass(frozen=True)
 class RemoveOutput:
-    port: OutputPort
+    port: datatypes.OutputPort
 
     def inverse(self) -> AddOutput:
         return AddOutput(self.port)
@@ -53,8 +47,8 @@ class RemoveOutput:
 
 @dataclasses.dataclass(frozen=True)
 class ReplacePort:
-    old_port: InputPort | OutputPort
-    new_port: InputPort | OutputPort
+    old_port: datatypes.InputPort | datatypes.OutputPort
+    new_port: datatypes.InputPort | datatypes.OutputPort
 
     def inverse(self) -> ReplacePort:
         return ReplacePort(self.new_port, self.old_port)
@@ -62,7 +56,7 @@ class ReplacePort:
 
 @dataclasses.dataclass(frozen=True)
 class AddNode:
-    node: Node
+    node: datatypes.Node
 
     def inverse(self) -> RemoveNode:
         return RemoveNode(self.node)
@@ -70,7 +64,7 @@ class AddNode:
 
 @dataclasses.dataclass(frozen=True)
 class RemoveNode:
-    node: Node
+    node: datatypes.Node
 
     def inverse(self) -> AddNode:
         return AddNode(self.node)
@@ -78,7 +72,7 @@ class RemoveNode:
 
 @dataclasses.dataclass(frozen=True)
 class AddEdge:
-    edge: EdgeTuple
+    edge: datatypes.EdgeTuple
 
     def inverse(self) -> RemoveEdge:
         return RemoveEdge(self.edge)
@@ -86,7 +80,7 @@ class AddEdge:
 
 @dataclasses.dataclass(frozen=True)
 class RemoveEdge:
-    edge: EdgeTuple
+    edge: datatypes.EdgeTuple
 
     def inverse(self) -> AddEdge:
         return AddEdge(self.edge)
@@ -94,7 +88,7 @@ class RemoveEdge:
 
 @dataclasses.dataclass(frozen=True)
 class RenameNode:
-    node: Node
+    node: datatypes.Node
     old_label: fr.schemas.Label
     new_label: fr.schemas.Label
 
@@ -104,9 +98,9 @@ class RenameNode:
 
 @dataclasses.dataclass(frozen=True)
 class MoveNode:
-    node: Node
-    from_graph: MutableDag
-    to_graph: MutableDag
+    node: datatypes.Node
+    from_graph: datatypes.MutableDag
+    to_graph: datatypes.MutableDag
     old_label: fr.schemas.Label
     new_label: fr.schemas.Label
 

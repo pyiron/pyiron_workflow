@@ -2,24 +2,18 @@ from __future__ import annotations
 
 import flowrep as fr
 
-from pyiron_workflow import constructors, dag, execution
-from pyiron_workflow.datatypes import (
-    EdgeList,
-    Node,
-    NodeMap,
-    StaticGraph,
-)
+from pyiron_workflow import constructors, dag, datatypes, execution
 
 
-class If(StaticGraph[fr.schemas.IfRecipe, fr.schemas.IfData]):
+class If(datatypes.StaticGraph[fr.schemas.IfRecipe, fr.schemas.IfData]):
     _recipe: fr.schemas.IfRecipe
 
     @classmethod
     def _result_type(cls) -> type[fr.schemas.IfData]:
         return fr.schemas.IfData
 
-    def _build_nodes(self, recipe: fr.schemas.IfRecipe) -> NodeMap:
-        nodes: dict[fr.schemas.Label, Node] = {}
+    def _build_nodes(self, recipe: fr.schemas.IfRecipe) -> datatypes.NodeMap:
+        nodes: dict[fr.schemas.Label, datatypes.Node] = {}
         for case in recipe.cases:
             nodes[case.condition.label] = constructors.recipe2node(
                 case.condition.recipe, case.condition.label
@@ -31,9 +25,9 @@ class If(StaticGraph[fr.schemas.IfRecipe, fr.schemas.IfData]):
             nodes[recipe.else_case.label] = constructors.recipe2node(
                 recipe.else_case.recipe, recipe.else_case.label
             )
-        return NodeMap(self, nodes)
+        return datatypes.NodeMap(self, nodes)
 
-    def _build_edges(self, recipe: fr.schemas.IfRecipe) -> EdgeList:
+    def _build_edges(self, recipe: fr.schemas.IfRecipe) -> datatypes.EdgeList:
         return []
 
     def evaluate(

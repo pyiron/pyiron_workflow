@@ -8,37 +8,33 @@ import flowrep as fr
 from pyiron_workflow import (
     constructors,
     dag,
+    datatypes,
     execution,
     transformers,
 )
-from pyiron_workflow.datatypes import (
-    EdgeList,
-    EdgeTuple,
-    Node,
-    NodeMap,
-    StaticGraph,
-)
 
 
-class ForEach(StaticGraph[fr.schemas.ForEachRecipe, fr.schemas.ForEachData]):
+class ForEach(datatypes.StaticGraph[fr.schemas.ForEachRecipe, fr.schemas.ForEachData]):
     _recipe: fr.schemas.ForEachRecipe
 
     @classmethod
     def _result_type(cls) -> type[fr.schemas.ForEachData]:
         return fr.schemas.ForEachData
 
-    def _build_nodes(self, recipe: fr.schemas.ForEachRecipe) -> NodeMap:
+    def _build_nodes(self, recipe: fr.schemas.ForEachRecipe) -> datatypes.NodeMap:
         bn = self.recipe.body_node
-        return NodeMap(
+        return datatypes.NodeMap(
             self,
             {bn.label: constructors.recipe2node(bn.recipe, bn.label)},
         )
 
-    def _build_edges(self, recipe: fr.schemas.ForEachRecipe) -> EdgeList:
-        return EdgeList(
-            EdgeTuple(source, target) for target, source in recipe.input_edges.items()
-        ) + EdgeList(
-            EdgeTuple(source, target) for target, source in recipe.output_edges.items()
+    def _build_edges(self, recipe: fr.schemas.ForEachRecipe) -> datatypes.EdgeList:
+        return datatypes.EdgeList(
+            datatypes.EdgeTuple(source, target)
+            for target, source in recipe.input_edges.items()
+        ) + datatypes.EdgeList(
+            datatypes.EdgeTuple(source, target)
+            for target, source in recipe.output_edges.items()
         )  # No peer-edges for the for-each loop recipes
 
     def evaluate(
@@ -52,8 +48,10 @@ class ForEach(StaticGraph[fr.schemas.ForEachRecipe, fr.schemas.ForEachData]):
         dag.populate_outputs(result)
         return run
 
-    def _build_runtime_dag(self, run: execution.Run[fr.schemas.ForEachData]) -> NodeMap:
-        runtime_map: dict[fr.schemas.Label, Node] = {}
+    def _build_runtime_dag(
+        self, run: execution.Run[fr.schemas.ForEachData]
+    ) -> datatypes.NodeMap:
+        runtime_map: dict[fr.schemas.Label, datatypes.Node] = {}
 
         result = run.result
         recipe = result.recipe
@@ -237,7 +235,7 @@ class ForEach(StaticGraph[fr.schemas.ForEachRecipe, fr.schemas.ForEachData]):
         }
         result.output_edges = output_edges
 
-        return NodeMap(self, runtime_map)
+        return datatypes.NodeMap(self, runtime_map)
 
     @staticmethod
     def _body_to_parent_label_map(

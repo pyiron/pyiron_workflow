@@ -6,20 +6,10 @@ from typing import TYPE_CHECKING
 import flowrep as fr
 import typing_extensions
 
-from pyiron_workflow import execution, workflow_node
-from pyiron_workflow.datatypes import (
-    EdgeList,
-    EdgeTuple,
-    Graph,
-    ImmutableDag,
-    MutableDag,
-    Node,
-)
+from pyiron_workflow import datatypes, execution, workflow_node
 
 if TYPE_CHECKING:
     import semantikon
-
-    from pyiron_workflow.datatypes import InputPort
 
 
 @dataclasses.dataclass
@@ -27,25 +17,27 @@ class _Cone:
     """Accumulates the flattened dependency cone of a pulled node."""
 
     pulled_label: str
-    members: dict[str, Node] = dataclasses.field(default_factory=dict)
-    internal_edges: EdgeList = dataclasses.field(default_factory=list)
+    members: dict[str, datatypes.Node] = dataclasses.field(default_factory=dict)
+    internal_edges: datatypes.EdgeList = dataclasses.field(default_factory=list)
     input_specs: dict[str, tuple[type | None, semantikon.TypeMetadata | None]] = (
         dataclasses.field(default_factory=dict)
     )
-    input_edges: EdgeList = dataclasses.field(default_factory=list)
+    input_edges: datatypes.EdgeList = dataclasses.field(default_factory=list)
 
 
-def _ceiling(node: Node, break_out_of_context: bool) -> Graph | None:
+def _ceiling(
+    node: datatypes.Node, break_out_of_context: bool
+) -> datatypes.Graph | None:
     if break_out_of_context:
-        root: Graph | None = node.owner
-        while isinstance(root, Node) and root.owner is not None:
+        root: datatypes.Graph | None = node.owner
+        while isinstance(root, datatypes.Node) and root.owner is not None:
             root = root.owner
         return root
     else:
         return node.owner
 
 
-def _relative(node: Node, ceiling: Graph | None) -> str:
+def _relative(node: datatypes.Node, ceiling: datatypes.Graph | None) -> str:
     """Flat label relative to `ceiling`; '' iff `node is ceiling`."""
     if ceiling is None:
         return ""
@@ -53,16 +45,20 @@ def _relative(node: Node, ceiling: Graph | None) -> str:
     return node.lexical_path[len(prefix) + 1 :].replace(".", "__")
 
 
-def _member_label(node: Node, ceiling: Graph | None) -> str:
+def _member_label(node: datatypes.Node, ceiling: datatypes.Graph | None) -> str:
     return _relative(node, ceiling) or node.label
 
 
-def _is_traceable(graph: object) -> typing_extensions.TypeIs[ImmutableDag | MutableDag]:
+def _is_traceable(
+    graph: object,
+) -> typing_extensions.TypeIs[datatypes.ImmutableDag | datatypes.MutableDag]:
     """Whether a graph exposes concrete (non-prospective) edges we may walk."""
-    return isinstance(graph, ImmutableDag | MutableDag)
+    return isinstance(graph, datatypes.ImmutableDag | datatypes.MutableDag)
 
 
-def _incoming_edge(graph: Graph, node_label: str, port: str) -> EdgeTuple | None:
+def _incoming_edge(
+    graph: datatypes.Graph, node_label: str, port: str
+) -> datatypes.EdgeTuple | None:
     target = fr.schemas.TargetHandle(node=node_label, port=port)
     for edge in graph.edges:
         if edge.target == target:
@@ -70,7 +66,9 @@ def _incoming_edge(graph: Graph, node_label: str, port: str) -> EdgeTuple | None
     return None
 
 
-def _flow_control_error(controller: Graph, pulled: Node) -> ValueError:
+def _flow_control_error(
+    controller: datatypes.Graph, pulled: datatypes.Node
+) -> ValueError:
     return ValueError(
         f"Cannot pull {pulled.lexical_path!r} out of the flow controller "
         f"{controller.lexical_path!r} (a {type(controller).__name__}): a pull cannot "
@@ -89,7 +87,7 @@ def _add_input(
 ) -> None:
     cone.input_specs.setdefault(key, (hint, metadata))
     cone.input_edges.append(
-        EdgeTuple(
+        datatypes.EdgeTuple(
             fr.schemas.InputSource(port=key),
             fr.schemas.TargetHandle(node=target_node_label, port=target_port_label),
         )
@@ -97,7 +95,11 @@ def _add_input(
 
 
 def _require(
-    member: Node, port_label: str, port: InputPort, ceiling: Graph | None, cone: _Cone
+    member: datatypes.Node,
+    port_label: str,
+    port: datatypes.InputPort,
+    ceiling: datatypes.Graph | None,
+    cone: _Cone,
 ) -> None:
     """Surface a genuinely-unfed input port as a required workflow input."""
     rel = _relative(member, ceiling)
@@ -107,18 +109,18 @@ def _require(
 
 
 def _add_dependency(
-    dep: Node,
+    dep: datatypes.Node,
     dep_port: str,
     consumer_label: str,
     consumer_port: str,
-    ceiling: Graph | None,
+    ceiling: datatypes.Graph | None,
     cone: _Cone,
-    worklist: list[Node],
+    worklist: list[datatypes.Node],
     seen: set[str],
 ) -> None:
     dep_label = _member_label(dep, ceiling)
     cone.internal_edges.append(
-        EdgeTuple(
+        datatypes.EdgeTuple(
             fr.schemas.SourceHandle(node=dep_label, port=dep_port),
             fr.schemas.TargetHandle(node=consumer_label, port=consumer_port),
         )
@@ -129,16 +131,16 @@ def _add_dependency(
 
 
 def _resolve_boundary(
-    graph: ImmutableDag | MutableDag,
+    graph: datatypes.ImmutableDag | datatypes.MutableDag,
     boundary_port: str,
     consumer_label: str,
     consumer_port: str,
-    consumer_port_obj: InputPort,
-    ceiling: Graph | None,
+    consumer_port_obj: datatypes.InputPort,
+    ceiling: datatypes.Graph | None,
     cone: _Cone,
-    worklist: list[Node],
+    worklist: list[datatypes.Node],
     seen: set[str],
-    pulled: Node,
+    pulled: datatypes.Node,
 ) -> None:
     parent = graph.owner  # the subgraph `graph` is itself a child of `parent`
     if (
@@ -200,8 +202,8 @@ def _resolve_boundary(
 
 
 def _build_cone(
-    node: Node, break_out_of_context: bool, expose_defaults: bool
-) -> tuple[_Cone, Graph | None]:
+    node: datatypes.Node, break_out_of_context: bool, expose_defaults: bool
+) -> tuple[_Cone, datatypes.Graph | None]:
     ceiling = _ceiling(node, break_out_of_context)
     cone = _Cone(pulled_label=_member_label(node, ceiling))
     seen = {cone.pulled_label}
@@ -226,16 +228,16 @@ def _build_cone(
 
 
 def _resolve_input(
-    member: Node,
+    member: datatypes.Node,
     port_label: str,
-    port: InputPort,
-    ceiling: Graph | None,
+    port: datatypes.InputPort,
+    ceiling: datatypes.Graph | None,
     break_out: bool,
     expose_defaults: bool,
     cone: _Cone,
-    worklist: list[Node],
+    worklist: list[datatypes.Node],
     seen: set[str],
-    pulled: Node,
+    pulled: datatypes.Node,
 ) -> None:
     if port.has_default and not expose_defaults:
         return
@@ -281,7 +283,10 @@ def _resolve_input(
 
 
 def pulled_workflow(
-    node: Node, break_out_of_context: bool = False, expose_defaults: bool = False, /
+    node: datatypes.Node,
+    break_out_of_context: bool = False,
+    expose_defaults: bool = False,
+    /,
 ) -> workflow_node.Workflow:
     cone, _ = _build_cone(node, break_out_of_context, expose_defaults)
     wf = workflow_node.Workflow(f"pulled_{node.label}")
@@ -300,7 +305,7 @@ def pulled_workflow(
             type_metadata=out_port.type_metadata,
         )
         wf.add_edge(
-            EdgeTuple(
+            datatypes.EdgeTuple(
                 fr.schemas.SourceHandle(node=cone.pulled_label, port=port_label),
                 fr.schemas.OutputTarget(port=port_label),
             ),
@@ -310,13 +315,16 @@ def pulled_workflow(
 
 
 def pulled_inputs(
-    node: Node, break_out_of_context: bool = False, expose_defaults: bool = False, /
+    node: datatypes.Node,
+    break_out_of_context: bool = False,
+    expose_defaults: bool = False,
+    /,
 ):
     return pulled_workflow(node, break_out_of_context, expose_defaults).inputs
 
 
 def pull(
-    node: Node,
+    node: datatypes.Node,
     config: execution.RunConfig | None = None,
     break_out_of_context: bool = False,
     expose_defaults: bool = False,

@@ -6,8 +6,7 @@ from concurrent import futures
 import flowrep as fr
 from unit import _fixtures
 
-from pyiron_workflow import api, execution, flowcontrollers, pull
-from pyiron_workflow.datatypes import EdgeTuple
+from pyiron_workflow import api, datatypes, execution, flowcontrollers, pull
 
 
 class TestPullUnparented(unittest.TestCase):
@@ -66,31 +65,31 @@ def _diamond_workflow():
             "mul_0": _fixtures.multiply_with_defaults_node,
         },
         edges=[
-            EdgeTuple(
+            datatypes.EdgeTuple(
                 fr.schemas.InputSource(port="x"),
                 fr.schemas.TargetHandle(node="add_0", port="x"),
             ),
-            EdgeTuple(
+            datatypes.EdgeTuple(
                 fr.schemas.InputSource(port="y"),
                 fr.schemas.TargetHandle(node="add_0", port="y"),
             ),
-            EdgeTuple(
+            datatypes.EdgeTuple(
                 fr.schemas.SourceHandle(node="add_0", port="output_0"),
                 fr.schemas.TargetHandle(node="sub_0", port="x"),
             ),
-            EdgeTuple(
+            datatypes.EdgeTuple(
                 fr.schemas.InputSource(port="z"),
                 fr.schemas.TargetHandle(node="sub_0", port="y"),
             ),
-            EdgeTuple(
+            datatypes.EdgeTuple(
                 fr.schemas.SourceHandle(node="sub_0", port="output_0"),
                 fr.schemas.OutputTarget(port="out"),
             ),
-            EdgeTuple(
+            datatypes.EdgeTuple(
                 fr.schemas.InputSource(port="x"),
                 fr.schemas.TargetHandle(node="mul_0", port="x"),
             ),
-            EdgeTuple(
+            datatypes.EdgeTuple(
                 fr.schemas.SourceHandle(node="mul_0", port="output_0"),
                 fr.schemas.OutputTarget(port="side"),
             ),
@@ -218,7 +217,7 @@ class TestPullCoverageEdgeCases(unittest.TestCase):
             inputs=["x"],
             node_specs={"add_0": _fixtures.atomic_add_node},
             edges=[
-                EdgeTuple(
+                datatypes.EdgeTuple(
                     fr.schemas.InputSource(port="x"),
                     fr.schemas.TargetHandle(node="add_0", port="x"),
                 ),

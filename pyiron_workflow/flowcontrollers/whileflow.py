@@ -2,22 +2,18 @@ from __future__ import annotations
 
 import flowrep as fr
 
-from pyiron_workflow import constructors, dag, execution
-from pyiron_workflow.datatypes import (
-    NodeMap,
-    StaticGraph,
-)
+from pyiron_workflow import constructors, dag, datatypes, execution
 
 
-class While(StaticGraph[fr.schemas.WhileRecipe, fr.schemas.WhileData]):
+class While(datatypes.StaticGraph[fr.schemas.WhileRecipe, fr.schemas.WhileData]):
     _recipe: fr.schemas.WhileRecipe
 
     @classmethod
     def _result_type(cls) -> type[fr.schemas.WhileData]:
         return fr.schemas.WhileData
 
-    def _build_nodes(self, recipe: fr.schemas.WhileRecipe) -> NodeMap:
-        return NodeMap(
+    def _build_nodes(self, recipe: fr.schemas.WhileRecipe) -> datatypes.NodeMap:
+        return datatypes.NodeMap(
             self,
             {
                 recipe.case.condition.label: constructors.recipe2node(

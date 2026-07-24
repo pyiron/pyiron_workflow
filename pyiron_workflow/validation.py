@@ -7,13 +7,12 @@ import flowrep as fr
 import rdflib
 import semantikon
 
-from pyiron_workflow import atomic_node, dag, execution, workflow_node
+from pyiron_workflow import atomic_node, dag, datatypes, execution, workflow_node
 from pyiron_workflow._legacy.type_hinting import type_hint_is_as_or_more_specific_than
-from pyiron_workflow.datatypes import EdgeList, EdgeTuple, Node, StaticGraph
 
 
 def _resolve_edge_hints(
-    edge: EdgeTuple, owner: StaticGraph | workflow_node.Workflow
+    edge: datatypes.EdgeTuple, owner: datatypes.StaticGraph | workflow_node.Workflow
 ) -> tuple[type | None, type | None]:
     source_node = owner.get_node(edge.source.node) if edge.source.node else owner
     source_port = (
@@ -31,10 +30,10 @@ def _resolve_edge_hints(
 
 
 def validate_edge(
-    edge: EdgeTuple,
-    owner: StaticGraph | workflow_node.Workflow,
+    edge: datatypes.EdgeTuple,
+    owner: datatypes.StaticGraph | workflow_node.Workflow,
     strict: bool = False,
-) -> EdgeTuple:
+) -> datatypes.EdgeTuple:
     source_hint, target_hint = _resolve_edge_hints(edge, owner)
 
     if source_hint is not None and target_hint is not None:
@@ -66,8 +65,8 @@ class NotParseable:
 @dataclasses.dataclass(frozen=True)
 class TypeValidationReport:
     name: str
-    invalid_edges: EdgeList
-    unfulfilled_edges: EdgeList
+    invalid_edges: datatypes.EdgeList
+    unfulfilled_edges: datatypes.EdgeList
     subreports: dict[str, TypeValidationReport | NotParseable]
     depth: int = 0
 
@@ -132,7 +131,7 @@ def validate_types(
         # An Atomic has no internal structure, so it is trivially valid.
         return TypeValidationReport(target.lexical_path, [], [], {})
     if isinstance(target, dag.Macro | workflow_node.Workflow):
-        owner: StaticGraph | workflow_node.Workflow = target
+        owner: datatypes.StaticGraph | workflow_node.Workflow = target
     elif isinstance(target, fr.schemas.WorkflowRecipe):
         owner = dag.Macro(target, "from_recipe")
     else:
@@ -145,10 +144,10 @@ def validate_types(
 
 
 def _validate_graph(
-    owner: StaticGraph | workflow_node.Workflow, depth: int
+    owner: datatypes.StaticGraph | workflow_node.Workflow, depth: int
 ) -> TypeValidationReport:
-    invalid_edges: EdgeList = []
-    unfulfilled_edges: EdgeList = []
+    invalid_edges: datatypes.EdgeList = []
+    unfulfilled_edges: datatypes.EdgeList = []
     subreports: dict[str, TypeValidationReport | NotParseable] = {}
 
     for edge in owner.edges:
@@ -184,19 +183,19 @@ class SemantikonValidationReport:
 
 def validate_ontology(
     data: (
-        Node[fr.schemas.WorkflowRecipe, fr.schemas.DagData]
+        datatypes.Node[fr.schemas.WorkflowRecipe, fr.schemas.DagData]
         | execution.Run[fr.schemas.DagData]
     ),
     extra_knowledge: rdflib.Graph | None = None,
 ):
-    if isinstance(data, Node):
+    if isinstance(data, datatypes.Node):
         resolved_data = data.generate_flowrep_live_node()
     elif isinstance(data, execution.Run):
         resolved_data = data.result
     else:
         raise TypeError(
             f"Cannot validate ontology for {data!r}; expected a "
-            f"{Node.__name__} or {execution.Run.__name__}."
+            f"{datatypes.Node.__name__} or {execution.Run.__name__}."
         )
 
     kg = semantikon.get_knowledge_graph(wf_dict=resolved_data)

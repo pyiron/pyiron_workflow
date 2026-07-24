@@ -15,7 +15,6 @@ from pyiron_workflow import (
     flowcontrollers,
     workflow_node,
 )
-from pyiron_workflow.datatypes import EdgeList, EdgeTuple, StaticNode
 
 RecipeOptions: TypeAlias = (
     fr.schemas.AtomicRecipe
@@ -79,7 +78,7 @@ def function2node(
 
 def recipe2node(
     recipe: RecipeOptions, label: fr.schemas.Label | None = None
-) -> StaticNode:
+) -> datatypes.StaticNode:
     label = (
         f"{_pascal_to_snake(recipe.__class__.__name__)}_node"
         if label is None
@@ -115,16 +114,16 @@ def edges2edgelist(
     input_edges: fr.schemas.InputEdges,
     edges: fr.schemas.Edges,
     output_edges: fr.schemas.OutputEdges,
-) -> EdgeList:
+) -> datatypes.EdgeList:
     return (
-        EdgeList(EdgeTuple(s, t) for t, s in input_edges.items())
-        + EdgeList(EdgeTuple(s, t) for t, s in edges.items())
-        + EdgeList(EdgeTuple(s, t) for t, s in output_edges.items())
+        datatypes.EdgeList(datatypes.EdgeTuple(s, t) for t, s in input_edges.items())
+        + datatypes.EdgeList(datatypes.EdgeTuple(s, t) for t, s in edges.items())
+        + datatypes.EdgeList(datatypes.EdgeTuple(s, t) for t, s in output_edges.items())
     )
 
 
 def edgelist2edges(
-    edges: EdgeList,
+    edges: datatypes.EdgeList,
     scope: str = "<unknown EdgeList owner>",
 ) -> tuple[fr.schemas.InputEdges, fr.schemas.Edges, fr.schemas.OutputEdges]:
     inp: fr.schemas.InputEdges = {}

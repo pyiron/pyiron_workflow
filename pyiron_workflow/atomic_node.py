@@ -6,19 +6,18 @@ import flowrep as fr
 import semantikon
 from pyiron_snippets import retrieve
 
-from pyiron_workflow import execution
-from pyiron_workflow.datatypes import Node, Port, StaticNode
+from pyiron_workflow import datatypes, execution
 
 
-class Atomic(StaticNode[fr.schemas.AtomicRecipe, fr.schemas.AtomicData]):
+class Atomic(datatypes.StaticNode[fr.schemas.AtomicRecipe, fr.schemas.AtomicData]):
 
     def __init__(
         self,
         recipe: fr.schemas.AtomicRecipe,
         label: fr.schemas.Label,
         /,
-        *positional_connections: Port | Node,
-        **keyword_connections: Port | Node,
+        *positional_connections: datatypes.Port | datatypes.Node,
+        **keyword_connections: datatypes.Port | datatypes.Node,
     ):
         super().__init__(recipe, label, *positional_connections, **keyword_connections)
         func = retrieve.import_from_string(recipe.fully_qualified_name)

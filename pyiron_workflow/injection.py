@@ -25,8 +25,7 @@ from flowrep.parsers import label_helpers
 from pyiron_workflow import lexical
 
 if TYPE_CHECKING:
-    from pyiron_workflow import atomic_node, workflow_node
-    from pyiron_workflow.datatypes import Graph, MutableDag, Node, Port
+    from pyiron_workflow import atomic_node, datatypes, workflow_node
 
 
 class InjectionContext:
@@ -38,8 +37,8 @@ class InjectionContext:
     def __init__(
         self,
         *,
-        port: Callable[[], Port],
-        graph: Callable[[], Graph | Node | None],
+        port: Callable[[], datatypes.Port],
+        graph: Callable[[], datatypes.Graph | datatypes.Node | None],
         label: Callable[[], fr.schemas.Label],
         lexical_path: Callable[[], lexical.LexicalPath],
     ) -> None:
@@ -49,11 +48,11 @@ class InjectionContext:
         self._label = label
 
     @property
-    def port(self) -> Port:
+    def port(self) -> datatypes.Port:
         return self._port()
 
     @property
-    def graph(self) -> MutableDag | None:
+    def graph(self) -> datatypes.MutableDag | None:
         return self._validate_injection_context_graph(self._graph())
 
     @property
@@ -65,15 +64,15 @@ class InjectionContext:
         return self._lexical_path()
 
     def _validate_injection_context_graph(
-        self, graph: Node | Graph | None
-    ) -> MutableDag | None:
-        from pyiron_workflow.datatypes import MutableDag  # noqa: PLC0415
+        self, graph: datatypes.Node | datatypes.Graph | None
+    ) -> datatypes.MutableDag | None:
+        from pyiron_workflow import datatypes  # noqa: PLC0415
 
-        if graph is not None and not isinstance(graph, MutableDag):
+        if graph is not None and not isinstance(graph, datatypes.MutableDag):
             raise TypeError(
                 f"{self.lexical_path!r} cannot be used for injection, "
                 f"because its injection context graph non-None and not a "
-                f"{MutableDag.__name__}. {graph!r} is a {type(graph)!r}."
+                f"{datatypes.MutableDag.__name__}. {graph!r} is a {type(graph)!r}."
             )
         return graph
 
@@ -320,7 +319,7 @@ class _HasRecipe(Protocol):
 def _build_operation(
     operation: _HasRecipe,
     label: fr.schemas.Label,
-    context_graph: MutableDag | None,
+    context_graph: datatypes.MutableDag | None,
     *sources: OperatorInjectionMixin,
 ) -> atomic_node.Atomic:
     from pyiron_workflow.atomic_node import Atomic  # noqa: PLC0415
@@ -348,7 +347,7 @@ def _build_operation(
 def _build_injection_graph(
     operation: fr.schemas.LabeledRecipe,
     label: fr.schemas.Label,
-    context_graph: MutableDag | None,
+    context_graph: datatypes.MutableDag | None,
     *sources: OperatorInjectionMixin,
 ) -> workflow_node.Workflow:
     from pyiron_workflow.workflow_node import Workflow  # noqa: PLC0415
@@ -367,7 +366,7 @@ def _build_injection_graph(
         )
         graph.connect(oport, graph.outputs[port_label])
 
-    negotiated_source_ports: list[Port] = []
+    negotiated_source_ports: list[datatypes.Port] = []
     for source in sources:
         source_port = source._injection.port
         source_node = source_port.owner

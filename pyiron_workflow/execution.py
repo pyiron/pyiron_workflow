@@ -25,7 +25,7 @@ with import_alarm.ImportAlarm(
     from fleche.caches import BaseCache, Cache
 
 if TYPE_CHECKING:
-    from pyiron_workflow.datatypes import Node
+    from pyiron_workflow import datatypes
 
 
 class RunStatus(enum.StrEnum):
@@ -209,7 +209,7 @@ class RunConfig:
         for hook in self.exception_hooks:
             hook(self.run_dir, failed_run, exception)
 
-    def is_prime_mover(self, candidate: Node[Any, Any]) -> bool:
+    def is_prime_mover(self, candidate: datatypes.Node[Any, Any]) -> bool:
         return candidate.lexical_path == self.prime_mover
 
     def _fleche_cache_context(self) -> BaseCache | contextlib.AbstractContextManager:
@@ -265,7 +265,7 @@ class ExecutorInstructions:
 
 
 def run(
-    node: Node,
+    node: datatypes.Node,
     config: RunConfig | None = None,
     _current_run: Run[ResultType] | None = None,
     /,
@@ -319,7 +319,7 @@ def run(
 
 
 def _submit(
-    node: Node, current_run: Run[ResultType], config: RunConfig
+    node: datatypes.Node, current_run: Run[ResultType], config: RunConfig
 ) -> futures.Future:
     if isinstance(node.executor, ExecutorInstructions):
         with config._fleche_cache_context(), node.executor.instantiate() as exe:
@@ -344,7 +344,10 @@ def _submit(
 
 
 def _return_mutated_state_with_any_exception(
-    node: Node[Any, ResultType], current_run: Run[ResultType], config: RunConfig, /
+    node: datatypes.Node[Any, ResultType],
+    current_run: Run[ResultType],
+    config: RunConfig,
+    /,
 ) -> tuple[Run[ResultType], BaseException | None]:
     """
     If an out-of-process evaluation fails, we have no way of recovering its
