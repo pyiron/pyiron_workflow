@@ -7,14 +7,14 @@ from pyiron_snippets import versions
 from unit import _fixtures
 
 from pyiron_workflow import (
-    atomic,
+    atomic_node,
     constant,
     constructors,
     dag,
     datatypes,
     flowcontrollers,
     transformers,
-    workflow,
+    workflow_node,
 )
 
 # --------------------------------------------------------------------------- #
@@ -135,7 +135,7 @@ class TestNode(unittest.TestCase):
 
     def test_atomic_recipe(self) -> None:
         result = constructors.node(_fixtures.add.flowrep_recipe, "added")
-        self.assertIsInstance(result, atomic.Atomic)
+        self.assertIsInstance(result, atomic_node.Atomic)
         self.assertEqual(result.label, "added")
 
     def test_workflow_recipe(self) -> None:
@@ -145,12 +145,12 @@ class TestNode(unittest.TestCase):
 
     def test_decorated_function(self) -> None:
         result = constructors.node(_fixtures.add, "added")
-        self.assertIsInstance(result, atomic.Atomic)
+        self.assertIsInstance(result, atomic_node.Atomic)
         self.assertEqual(result.label, "added")
 
     def test_undecorated_function(self) -> None:
         result = constructors.node(_fixtures.plain_increment, "inc")
-        self.assertIsInstance(result, atomic.Atomic)
+        self.assertIsInstance(result, atomic_node.Atomic)
         self.assertEqual(result.label, "inc")
 
     def test_jsonable_constant(self) -> None:
@@ -167,12 +167,12 @@ class TestNode(unittest.TestCase):
 class TestFunction2Node(unittest.TestCase):
     def test_atomic_decorated_default_label(self) -> None:
         n = constructors.function2node(_fixtures.add)
-        self.assertIsInstance(n, atomic.Atomic)
+        self.assertIsInstance(n, atomic_node.Atomic)
         self.assertEqual(n.label, "add")
 
     def test_atomic_decorated_explicit_label(self) -> None:
         n = constructors.function2node(_fixtures.add, label="custom")
-        self.assertIsInstance(n, atomic.Atomic)
+        self.assertIsInstance(n, atomic_node.Atomic)
         self.assertEqual(n.label, "custom")
 
     def test_workflow_decorated_default_label(self) -> None:
@@ -182,7 +182,7 @@ class TestFunction2Node(unittest.TestCase):
 
     def test_undecorated_function_parses_as_atomic(self) -> None:
         n = constructors.function2node(plain_add)
-        self.assertIsInstance(n, atomic.Atomic)
+        self.assertIsInstance(n, atomic_node.Atomic)
         self.assertEqual(n.label, "plain_add")
 
 
@@ -195,7 +195,7 @@ class TestRecipe2Node(unittest.TestCase):
     def test_atomic_recipe_returns_atomic(self) -> None:
         recipe = transformers.Transform1toN(2).recipe
         n = constructors.recipe2node(recipe)
-        self.assertIsInstance(n, atomic.Atomic)
+        self.assertIsInstance(n, atomic_node.Atomic)
 
     def test_label(self) -> None:
         recipe = transformers.Transform1toN(2).recipe
@@ -429,7 +429,7 @@ class TestEdgeList2Edges(unittest.TestCase):
 
 
 class TestWorkflow2Macro(unittest.TestCase):
-    def _build_wf(self) -> workflow.Workflow:
+    def _build_wf(self) -> workflow_node.Workflow:
         return _fixtures.build_workflow(
             inputs=["x", "y", "z"],
             outputs=["a", "s"],
@@ -463,7 +463,7 @@ class TestMacro2Workflow(unittest.TestCase):
     def test_basic_shape(self) -> None:
         m = _fixtures.macro_node("m")
         wf = constructors.macro2workflow(m)
-        self.assertIsInstance(wf, workflow.Workflow)
+        self.assertIsInstance(wf, workflow_node.Workflow)
         self.assertEqual(wf.label, m.label)
         self.assertEqual(set(wf.nodes.keys()), set(m.nodes.keys()))
         self.assertEqual(set(wf.inputs.keys()), set(m.inputs.keys()))

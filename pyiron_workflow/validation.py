@@ -7,13 +7,13 @@ import flowrep as fr
 import rdflib
 import semantikon
 
-from pyiron_workflow import atomic, dag, execution, workflow
+from pyiron_workflow import atomic_node, dag, execution, workflow_node
 from pyiron_workflow._legacy.type_hinting import type_hint_is_as_or_more_specific_than
 from pyiron_workflow.datatypes import EdgeList, EdgeTuple, Node, StaticGraph
 
 
 def _resolve_edge_hints(
-    edge: EdgeTuple, owner: StaticGraph | workflow.Workflow
+    edge: EdgeTuple, owner: StaticGraph | workflow_node.Workflow
 ) -> tuple[type | None, type | None]:
     source_node = owner.get_node(edge.source.node) if edge.source.node else owner
     source_port = (
@@ -32,7 +32,7 @@ def _resolve_edge_hints(
 
 def validate_edge(
     edge: EdgeTuple,
-    owner: StaticGraph | workflow.Workflow,
+    owner: StaticGraph | workflow_node.Workflow,
     strict: bool = False,
 ) -> EdgeTuple:
     source_hint, target_hint = _resolve_edge_hints(edge, owner)
@@ -122,30 +122,30 @@ class TypeValidationReport:
 
 def validate_types(
     target: (
-        atomic.Atomic
+        atomic_node.Atomic
         | dag.Macro
-        | workflow.Workflow  # Prospective nodes
+        | workflow_node.Workflow  # Prospective nodes
         | fr.schemas.WorkflowRecipe  # Prospective flowrep recipes
     ),
 ) -> TypeValidationReport:
-    if isinstance(target, atomic.Atomic):
+    if isinstance(target, atomic_node.Atomic):
         # An Atomic has no internal structure, so it is trivially valid.
         return TypeValidationReport(target.lexical_path, [], [], {})
-    if isinstance(target, dag.Macro | workflow.Workflow):
-        owner: StaticGraph | workflow.Workflow = target
+    if isinstance(target, dag.Macro | workflow_node.Workflow):
+        owner: StaticGraph | workflow_node.Workflow = target
     elif isinstance(target, fr.schemas.WorkflowRecipe):
         owner = dag.Macro(target, "from_recipe")
     else:
         raise TypeError(
             f"Cannot validate types for {target!r}; expected a "
-            f"{atomic.Atomic.__name__}, {dag.Macro.__name__}, "
-            f"{workflow.Workflow.__name__}, or {fr.schemas.WorkflowRecipe.__name__}."
+            f"{atomic_node.Atomic.__name__}, {dag.Macro.__name__}, "
+            f"{workflow_node.Workflow.__name__}, or {fr.schemas.WorkflowRecipe.__name__}."
         )
     return _validate_graph(owner, depth=0)
 
 
 def _validate_graph(
-    owner: StaticGraph | workflow.Workflow, depth: int
+    owner: StaticGraph | workflow_node.Workflow, depth: int
 ) -> TypeValidationReport:
     invalid_edges: EdgeList = []
     unfulfilled_edges: EdgeList = []
@@ -160,9 +160,9 @@ def _validate_graph(
             unfulfilled_edges.append(edge)
 
     for label, node in owner.nodes.items():
-        if isinstance(node, atomic.Atomic):
+        if isinstance(node, atomic_node.Atomic):
             continue
-        elif isinstance(node, dag.Macro | workflow.Workflow):
+        elif isinstance(node, dag.Macro | workflow_node.Workflow):
             subreports[label] = _validate_graph(node, depth=depth + 1)
         else:
             subreports[label] = NotParseable()
@@ -219,7 +219,7 @@ class CombinedValidationReport:
 
 
 def validate_plan(
-    target: atomic.Atomic | dag.Macro | workflow.Workflow,
+    target: atomic_node.Atomic | dag.Macro | workflow_node.Workflow,
     do_types: bool = True,
     do_ontology: bool = True,
     extra_knowledge: rdflib.Graph | None = None,
@@ -230,7 +230,7 @@ def validate_plan(
             target,
             extra_knowledge=extra_knowledge,
         )
-        if do_ontology and isinstance(target, dag.Macro | workflow.Workflow)
+        if do_ontology and isinstance(target, dag.Macro | workflow_node.Workflow)
         else None
     )
     return CombinedValidationReport(types_report, onto_report)

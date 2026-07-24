@@ -1,4 +1,4 @@
-from pyiron_workflow.atomic import Atomic as Atomic
+from pyiron_workflow.atomic_node import Atomic as Atomic
 from pyiron_workflow.dag import Macro as Macro
 from pyiron_workflow.datatypes import EdgeTuple as EdgeTuple
 from pyiron_workflow.execution import ExecutorInstructions as ExecutorInstructions
@@ -18,4 +18,4 @@ from pyiron_workflow.transformers import TransformNto1 as TransformNto1
 from pyiron_workflow.validation import (
     CombinedValidationReport as CombinedValidationReport,
 )
-from pyiron_workflow.workflow import Workflow as Workflow
+from pyiron_workflow.workflow_node import Workflow as Workflow

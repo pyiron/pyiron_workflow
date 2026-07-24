@@ -25,7 +25,7 @@ from flowrep.parsers import label_helpers
 from pyiron_workflow import lexical
 
 if TYPE_CHECKING:
-    from pyiron_workflow import atomic, workflow
+    from pyiron_workflow import atomic_node, workflow_node
     from pyiron_workflow.datatypes import Graph, MutableDag, Node, Port
 
 
@@ -88,7 +88,7 @@ class OperatorInjectionMixin(abc.ABC):
         self,
         operation: fr.schemas.AtomicRecipe,
         operation_label: fr.schemas.Label,
-    ) -> atomic.Atomic | workflow.Workflow:
+    ) -> atomic_node.Atomic | workflow_node.Workflow:
         context_graph = self._injection.graph
         label = f"{operation_label}_{self._injection.label}"
         return _build_injection_graph(
@@ -123,7 +123,7 @@ class OperatorInjectionMixin(abc.ABC):
         other: OperatorInjectionMixin | fr.schemas.JSONABLE,
         operation: fr.schemas.AtomicRecipe,
         operation_label: fr.schemas.Label,
-    ) -> atomic.Atomic | workflow.Workflow:
+    ) -> atomic_node.Atomic | workflow_node.Workflow:
         return self._dispatch_binary(other, operation, operation_label, reflected=False)
 
     def _reflected_binary_operations(
@@ -131,7 +131,7 @@ class OperatorInjectionMixin(abc.ABC):
         other: OperatorInjectionMixin | fr.schemas.JSONABLE,
         operation: fr.schemas.AtomicRecipe,
         operation_label: fr.schemas.Label,
-    ) -> atomic.Atomic | workflow.Workflow:
+    ) -> atomic_node.Atomic | workflow_node.Workflow:
         """Reflected (right-hand) form: builds ``operation(other, self)`` so that
         e.g. ``2 - port`` computes ``sub(2, port)`` rather than ``sub(port, 2)``."""
         return self._dispatch_binary(other, operation, operation_label, reflected=True)
@@ -143,7 +143,7 @@ class OperatorInjectionMixin(abc.ABC):
         operation_label: fr.schemas.Label,
         *,
         reflected: bool,
-    ) -> atomic.Atomic | workflow.Workflow:
+    ) -> atomic_node.Atomic | workflow_node.Workflow:
         other_injectable = self._coerce_injectable(other, operation_label)
 
         self_context = self._injection.graph
@@ -164,151 +164,151 @@ class OperatorInjectionMixin(abc.ABC):
         label = f"{first._injection.label}_{operation_label}_{second._injection.label}"
         return _build_injection_graph(operation, label, context_graph, first, second)
 
-    def __abs__(self) -> atomic.Atomic | workflow.Workflow:
+    def __abs__(self) -> atomic_node.Atomic | workflow_node.Workflow:
         return self._unary_operation(fr.std.abs, "abs")
 
     def __add__(
         self, other: OperatorInjectionMixin | fr.schemas.JSONABLE
-    ) -> atomic.Atomic | workflow.Workflow:
+    ) -> atomic_node.Atomic | workflow_node.Workflow:
         return self._binary_operations(other, fr.std.add, "add")
 
     def __radd__(
         self, other: OperatorInjectionMixin | fr.schemas.JSONABLE
-    ) -> atomic.Atomic | workflow.Workflow:
+    ) -> atomic_node.Atomic | workflow_node.Workflow:
         return self._reflected_binary_operations(other, fr.std.add, "add")
 
     def __mul__(
         self, other: OperatorInjectionMixin | fr.schemas.JSONABLE
-    ) -> atomic.Atomic | workflow.Workflow:
+    ) -> atomic_node.Atomic | workflow_node.Workflow:
         return self._binary_operations(other, fr.std.mul, "mul")
 
     def __rmul__(
         self, other: OperatorInjectionMixin | fr.schemas.JSONABLE
-    ) -> atomic.Atomic | workflow.Workflow:
+    ) -> atomic_node.Atomic | workflow_node.Workflow:
         return self._reflected_binary_operations(other, fr.std.mul, "mul")
 
-    def __neg__(self) -> atomic.Atomic | workflow.Workflow:
+    def __neg__(self) -> atomic_node.Atomic | workflow_node.Workflow:
         return self._unary_operation(fr.std.neg, "neg")
 
-    def __pos__(self) -> atomic.Atomic | workflow.Workflow:
+    def __pos__(self) -> atomic_node.Atomic | workflow_node.Workflow:
         return self._unary_operation(fr.std.pos, "pos")
 
-    def __invert__(self) -> atomic.Atomic | workflow.Workflow:
+    def __invert__(self) -> atomic_node.Atomic | workflow_node.Workflow:
         return self._unary_operation(fr.std.invert, "invert")
 
     def __sub__(
         self, other: OperatorInjectionMixin | fr.schemas.JSONABLE
-    ) -> atomic.Atomic | workflow.Workflow:
+    ) -> atomic_node.Atomic | workflow_node.Workflow:
         return self._binary_operations(other, fr.std.sub, "sub")
 
     def __rsub__(
         self, other: OperatorInjectionMixin | fr.schemas.JSONABLE
-    ) -> atomic.Atomic | workflow.Workflow:
+    ) -> atomic_node.Atomic | workflow_node.Workflow:
         return self._reflected_binary_operations(other, fr.std.sub, "sub")
 
     def __truediv__(
         self, other: OperatorInjectionMixin | fr.schemas.JSONABLE
-    ) -> atomic.Atomic | workflow.Workflow:
+    ) -> atomic_node.Atomic | workflow_node.Workflow:
         return self._binary_operations(other, fr.std.truediv, "truediv")
 
     def __rtruediv__(
         self, other: OperatorInjectionMixin | fr.schemas.JSONABLE
-    ) -> atomic.Atomic | workflow.Workflow:
+    ) -> atomic_node.Atomic | workflow_node.Workflow:
         return self._reflected_binary_operations(other, fr.std.truediv, "truediv")
 
     def __floordiv__(
         self, other: OperatorInjectionMixin | fr.schemas.JSONABLE
-    ) -> atomic.Atomic | workflow.Workflow:
+    ) -> atomic_node.Atomic | workflow_node.Workflow:
         return self._binary_operations(other, fr.std.floordiv, "floordiv")
 
     def __rfloordiv__(
         self, other: OperatorInjectionMixin | fr.schemas.JSONABLE
-    ) -> atomic.Atomic | workflow.Workflow:
+    ) -> atomic_node.Atomic | workflow_node.Workflow:
         return self._reflected_binary_operations(other, fr.std.floordiv, "floordiv")
 
     def __mod__(
         self, other: OperatorInjectionMixin | fr.schemas.JSONABLE
-    ) -> atomic.Atomic | workflow.Workflow:
+    ) -> atomic_node.Atomic | workflow_node.Workflow:
         return self._binary_operations(other, fr.std.mod, "mod")
 
     def __rmod__(
         self, other: OperatorInjectionMixin | fr.schemas.JSONABLE
-    ) -> atomic.Atomic | workflow.Workflow:
+    ) -> atomic_node.Atomic | workflow_node.Workflow:
         return self._reflected_binary_operations(other, fr.std.mod, "mod")
 
     def __pow__(
         self, other: OperatorInjectionMixin | fr.schemas.JSONABLE
-    ) -> atomic.Atomic | workflow.Workflow:
+    ) -> atomic_node.Atomic | workflow_node.Workflow:
         return self._binary_operations(other, fr.std.pow, "pow")
 
     def __rpow__(
         self, other: OperatorInjectionMixin | fr.schemas.JSONABLE
-    ) -> atomic.Atomic | workflow.Workflow:
+    ) -> atomic_node.Atomic | workflow_node.Workflow:
         return self._reflected_binary_operations(other, fr.std.pow, "pow")
 
     def __lshift__(
         self, other: OperatorInjectionMixin | fr.schemas.JSONABLE
-    ) -> atomic.Atomic | workflow.Workflow:
+    ) -> atomic_node.Atomic | workflow_node.Workflow:
         return self._binary_operations(other, fr.std.lshift, "lshift")
 
     def __rlshift__(
         self, other: OperatorInjectionMixin | fr.schemas.JSONABLE
-    ) -> atomic.Atomic | workflow.Workflow:
+    ) -> atomic_node.Atomic | workflow_node.Workflow:
         return self._reflected_binary_operations(other, fr.std.lshift, "lshift")
 
     def __rshift__(
         self, other: OperatorInjectionMixin | fr.schemas.JSONABLE
-    ) -> atomic.Atomic | workflow.Workflow:
+    ) -> atomic_node.Atomic | workflow_node.Workflow:
         return self._binary_operations(other, fr.std.rshift, "rshift")
 
     def __rrshift__(
         self, other: OperatorInjectionMixin | fr.schemas.JSONABLE
-    ) -> atomic.Atomic | workflow.Workflow:
+    ) -> atomic_node.Atomic | workflow_node.Workflow:
         return self._reflected_binary_operations(other, fr.std.rshift, "rshift")
 
     def __and__(
         self, other: OperatorInjectionMixin | fr.schemas.JSONABLE
-    ) -> atomic.Atomic | workflow.Workflow:
+    ) -> atomic_node.Atomic | workflow_node.Workflow:
         return self._binary_operations(other, fr.std.and_, "and")
 
     def __rand__(
         self, other: OperatorInjectionMixin | fr.schemas.JSONABLE
-    ) -> atomic.Atomic | workflow.Workflow:
+    ) -> atomic_node.Atomic | workflow_node.Workflow:
         return self._reflected_binary_operations(other, fr.std.and_, "and")
 
     def __or__(
         self, other: OperatorInjectionMixin | fr.schemas.JSONABLE
-    ) -> atomic.Atomic | workflow.Workflow:
+    ) -> atomic_node.Atomic | workflow_node.Workflow:
         return self._binary_operations(other, fr.std.or_, "or")
 
     def __ror__(
         self, other: OperatorInjectionMixin | fr.schemas.JSONABLE
-    ) -> atomic.Atomic | workflow.Workflow:
+    ) -> atomic_node.Atomic | workflow_node.Workflow:
         return self._reflected_binary_operations(other, fr.std.or_, "or")
 
     def __xor__(
         self, other: OperatorInjectionMixin | fr.schemas.JSONABLE
-    ) -> atomic.Atomic | workflow.Workflow:
+    ) -> atomic_node.Atomic | workflow_node.Workflow:
         return self._binary_operations(other, fr.std.xor, "xor")
 
     def __rxor__(
         self, other: OperatorInjectionMixin | fr.schemas.JSONABLE
-    ) -> atomic.Atomic | workflow.Workflow:
+    ) -> atomic_node.Atomic | workflow_node.Workflow:
         return self._reflected_binary_operations(other, fr.std.xor, "xor")
 
     def __matmul__(
         self, other: OperatorInjectionMixin | fr.schemas.JSONABLE
-    ) -> atomic.Atomic | workflow.Workflow:
+    ) -> atomic_node.Atomic | workflow_node.Workflow:
         return self._binary_operations(other, fr.std.matmul, "matmul")
 
     def __rmatmul__(
         self, other: OperatorInjectionMixin | fr.schemas.JSONABLE
-    ) -> atomic.Atomic | workflow.Workflow:
+    ) -> atomic_node.Atomic | workflow_node.Workflow:
         return self._reflected_binary_operations(other, fr.std.matmul, "matmul")
 
     def __getitem__(
         self, item: OperatorInjectionMixin | fr.schemas.JSONABLE
-    ) -> atomic.Atomic | workflow.Workflow:
+    ) -> atomic_node.Atomic | workflow_node.Workflow:
         return self._binary_operations(item, fr.std.getitem, "getitem")
 
 
@@ -322,8 +322,8 @@ def _build_operation(
     label: fr.schemas.Label,
     context_graph: MutableDag | None,
     *sources: OperatorInjectionMixin,
-) -> atomic.Atomic:
-    from pyiron_workflow.atomic import Atomic  # noqa: PLC0415
+) -> atomic_node.Atomic:
+    from pyiron_workflow.atomic_node import Atomic  # noqa: PLC0415
 
     if not isinstance(
         operation.flowrep_recipe, fr.schemas.AtomicRecipe
@@ -350,8 +350,8 @@ def _build_injection_graph(
     label: fr.schemas.Label,
     context_graph: MutableDag | None,
     *sources: OperatorInjectionMixin,
-) -> workflow.Workflow:
-    from pyiron_workflow.workflow import Workflow  # noqa: PLC0415
+) -> workflow_node.Workflow:
+    from pyiron_workflow.workflow_node import Workflow  # noqa: PLC0415
 
     graph = Workflow(label)
 

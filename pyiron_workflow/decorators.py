@@ -8,17 +8,14 @@ from typing import TYPE_CHECKING, Any, ClassVar, Generic, TypeVar, cast
 
 import flowrep as fr
 
-from pyiron_workflow import (
-    atomic as atomic_mod,
-)
-from pyiron_workflow import dag, execution, validation
+from pyiron_workflow import atomic_node, dag, execution, validation
 
 if TYPE_CHECKING:
     import rdflib
 
 _DecoratedType = TypeVar("_DecoratedType", bound=Callable[..., Any])
 _RecipeType = TypeVar("_RecipeType", fr.schemas.AtomicRecipe, fr.schemas.WorkflowRecipe)
-_NodeType = TypeVar("_NodeType", atomic_mod.Atomic, dag.Macro)
+_NodeType = TypeVar("_NodeType", atomic_node.Atomic, dag.Macro)
 
 
 class _PwfTools(Generic[_DecoratedType, _RecipeType, _NodeType], abc.ABC):
@@ -64,9 +61,9 @@ class _PwfTools(Generic[_DecoratedType, _RecipeType, _NodeType], abc.ABC):
 
 
 class DecoratedAtomic(
-    _PwfTools[Callable[..., Any], fr.schemas.AtomicRecipe, atomic_mod.Atomic]
+    _PwfTools[Callable[..., Any], fr.schemas.AtomicRecipe, atomic_node.Atomic]
 ):
-    _node_type = atomic_mod.Atomic
+    _node_type = atomic_node.Atomic
 
 
 class DecoratedMacro(
@@ -88,20 +85,20 @@ class DecoratedMacro(
 
 
 class DecoratedDataclass(
-    _PwfTools[type, fr.schemas.AtomicRecipe, atomic_mod.Atomic], abc.ABC
+    _PwfTools[type, fr.schemas.AtomicRecipe, atomic_node.Atomic], abc.ABC
 ):
-    _node_type = atomic_mod.Atomic
+    _node_type = atomic_node.Atomic
     assign_to: ClassVar[str] = "pwf"
 
 
 class UnpackDataclass(
-    _PwfTools[type, fr.schemas.AtomicRecipe, atomic_mod.Atomic], abc.ABC
+    _PwfTools[type, fr.schemas.AtomicRecipe, atomic_node.Atomic], abc.ABC
 ):
-    _node_type = atomic_mod.Atomic
+    _node_type = atomic_node.Atomic
     assign_to: ClassVar[str] = "pwf_unpacking"
 
     @property
-    def recipe(self) -> atomic_mod.Atomic:
+    def recipe(self) -> atomic_node.Atomic:
         return self._decorated_object.flowrep_recipe_unpacking  # type: ignore[attr-defined]
 
     def _label(self, label: fr.schemas.Label | None = None) -> fr.schemas.Label:

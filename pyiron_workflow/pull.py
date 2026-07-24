@@ -6,7 +6,7 @@ from typing import TYPE_CHECKING
 import flowrep as fr
 import typing_extensions
 
-from pyiron_workflow import execution, workflow
+from pyiron_workflow import execution, workflow_node
 from pyiron_workflow.datatypes import (
     EdgeList,
     EdgeTuple,
@@ -282,9 +282,9 @@ def _resolve_input(
 
 def pulled_workflow(
     node: Node, break_out_of_context: bool = False, expose_defaults: bool = False, /
-) -> workflow.Workflow:
+) -> workflow_node.Workflow:
     cone, _ = _build_cone(node, break_out_of_context, expose_defaults)
-    wf = workflow.Workflow(f"pulled_{node.label}")
+    wf = workflow_node.Workflow(f"pulled_{node.label}")
     for label, member in cone.members.items():
         wf.add_node(member.copy(label))
     if cone.internal_edges:

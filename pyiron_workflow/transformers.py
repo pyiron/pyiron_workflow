@@ -3,7 +3,7 @@ from typing import ClassVar
 import flowrep as fr
 from pyiron_snippets import versions
 
-from pyiron_workflow import atomic
+from pyiron_workflow import atomic_node
 
 
 class Transform1toN:
@@ -36,8 +36,8 @@ class Transform1toN:
     def node(
         self,
         label: fr.schemas.Label,
-    ) -> atomic.Atomic:
-        return atomic.Atomic(self.recipe, label)
+    ) -> atomic_node.Atomic:
+        return atomic_node.Atomic(self.recipe, label)
 
 
 class TransformNto1:
@@ -71,5 +71,5 @@ class TransformNto1:
     def node(
         self,
         label: fr.schemas.Label,
-    ) -> atomic.Atomic:
-        return atomic.Atomic(self.recipe, label)
+    ) -> atomic_node.Atomic:
+        return atomic_node.Atomic(self.recipe, label)

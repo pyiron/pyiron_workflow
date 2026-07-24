@@ -13,19 +13,19 @@ from unit import _fixtures
 
 from pyiron_workflow import (
     actions,
-    atomic,
+    atomic_node,
     constructors,
     dag,
     datatypes,
     execution,
-    workflow,
+    workflow_node,
 )
 
 
 class TestMutablePortMap(unittest.TestCase):
     def setUp(self) -> None:
-        self.wf = workflow.Workflow("wf")
-        self.other = workflow.Workflow("other")
+        self.wf = workflow_node.Workflow("wf")
+        self.other = workflow_node.Workflow("other")
         self.port = datatypes.InputPort(
             label="x", owner=self.wf, type_hint=None, type_metadata=None
         )
@@ -54,7 +54,7 @@ class TestMutablePortMap(unittest.TestCase):
 
 class TestWorkflowInit(unittest.TestCase):
     def test_empty_workflow_has_empty_maps(self) -> None:
-        wf = workflow.Workflow("wf")
+        wf = workflow_node.Workflow("wf")
         self.assertEqual(len(wf.inputs), 0)
         self.assertEqual(len(wf.outputs), 0)
         self.assertEqual(len(wf.nodes), 0)
@@ -63,26 +63,26 @@ class TestWorkflowInit(unittest.TestCase):
         explicit_limit = 3
 
         with self.subTest("Baseline"):
-            wf = workflow.Workflow("wf")
+            wf = workflow_node.Workflow("wf")
             self.assertIsInstance(wf.undo_stack, collections.deque)
             self.assertIsInstance(wf.redo_stack, collections.deque)
             self.assertNotEqual(wf.undo_stack.maxlen, explicit_limit)
             self.assertNotEqual(wf.redo_stack.maxlen, explicit_limit)
 
         with self.subTest("Explicit limit set"):
-            wf = workflow.Workflow("wf", explicit_limit)
+            wf = workflow_node.Workflow("wf", explicit_limit)
             self.assertEqual(wf.undo_stack.maxlen, explicit_limit)
             self.assertEqual(wf.redo_stack.maxlen, explicit_limit)
             self.assertEqual(wf.undo_limit, explicit_limit)
 
     def test_diff_accumulator_starts_none(self) -> None:
-        wf = workflow.Workflow("wf")
+        wf = workflow_node.Workflow("wf")
         self.assertIsNone(wf._diff_accumulator)
 
 
 class TestWorkflowUndoLimit(unittest.TestCase):
     def test_setter_updates_both_stacks(self) -> None:
-        wf = workflow.Workflow("wf", 5)
+        wf = workflow_node.Workflow("wf", 5)
         wf.undo_limit = 12
         self.assertEqual(wf.undo_limit, 12)
         self.assertEqual(wf.undo_stack.maxlen, 12)
@@ -91,8 +91,8 @@ class TestWorkflowUndoLimit(unittest.TestCase):
 
 class TestMutableNodeMap(unittest.TestCase):
     def setUp(self) -> None:
-        self.wf = workflow.Workflow("wf")
-        self.other = workflow.Workflow("other")
+        self.wf = workflow_node.Workflow("wf")
+        self.other = workflow_node.Workflow("other")
 
     def test_setitem_unowned_node_reparents(self) -> None:
         node = _fixtures.atomic_add_node()
@@ -151,26 +151,26 @@ class TestMutableNodeMap(unittest.TestCase):
 
 class TestIsNode(unittest.TestCase):
     def test_is_node_like_true_for_node(self) -> None:
-        self.assertTrue(workflow.is_nodelike(_fixtures.atomic_add_node()))
+        self.assertTrue(workflow_node.is_nodelike(_fixtures.atomic_add_node()))
 
     def test_is_node_like_false_for_non_node(self) -> None:
-        self.assertFalse(workflow.is_nodelike(42))
-        self.assertFalse(workflow.is_nodelike("a string"))
-        self.assertFalse(workflow.is_nodelike(None))
+        self.assertFalse(workflow_node.is_nodelike(42))
+        self.assertFalse(workflow_node.is_nodelike("a string"))
+        self.assertFalse(workflow_node.is_nodelike(None))
 
     def test_is_node_like_true_for_recipe(self) -> None:
-        self.assertTrue(workflow.is_nodelike(_fixtures.add.flowrep_recipe))
+        self.assertTrue(workflow_node.is_nodelike(_fixtures.add.flowrep_recipe))
 
     def test_is_node_like_true_for_function(self) -> None:
-        self.assertTrue(workflow.is_nodelike(_fixtures.add))
-        self.assertTrue(workflow.is_nodelike(_fixtures.plain_increment))
+        self.assertTrue(workflow_node.is_nodelike(_fixtures.add))
+        self.assertTrue(workflow_node.is_nodelike(_fixtures.plain_increment))
 
 
 class TestGraphActions(unittest.TestCase):
     """Each action's inverse() is symmetric and _dispatch applies it correctly."""
 
     def setUp(self) -> None:
-        self.wf = workflow.Workflow("wf")
+        self.wf = workflow_node.Workflow("wf")
 
     def _fresh_node(self, label: str = "n") -> datatypes.Node:
         return _fixtures.atomic_add_node(label)
@@ -245,7 +245,7 @@ class TestGraphActions(unittest.TestCase):
         self.assertEqual(a.inverse().inverse(), a)
 
     def test_adding_circular_node_raises(self):
-        sub_wf = workflow.Workflow("sub_wf")
+        sub_wf = workflow_node.Workflow("sub_wf")
         sub_wf.my_own_grandpa = self.wf
         with self.assertRaisesRegex(ValueError, "contains a cycle"):
             self.wf.add_node(sub_wf)
@@ -323,7 +323,7 @@ class TestRecordsDecorator(unittest.TestCase):
     """_records appends to active accumulator, no-ops when None, returns action."""
 
     def setUp(self) -> None:
-        self.wf = workflow.Workflow("wf")
+        self.wf = workflow_node.Workflow("wf")
 
     def test_appends_to_active_accumulator(self) -> None:
         acc: actions.GraphDiff = []
@@ -362,7 +362,7 @@ class TestUndoableDecorator(unittest.TestCase):
     """_undoable manages the accumulator, pushes diff, clears redo, rolls back on failure."""
 
     def setUp(self) -> None:
-        self.wf = workflow.Workflow("wf")
+        self.wf = workflow_node.Workflow("wf")
 
     def test_pushes_diff_on_success(self) -> None:
         initial_len = len(self.wf.undo_stack)
@@ -388,7 +388,7 @@ class TestUndoableDecorator(unittest.TestCase):
         self.assertIsNone(self.wf._diff_accumulator)
 
     def test_rollback_on_exception_restores_state(self) -> None:
-        other = workflow.Workflow("other")
+        other = workflow_node.Workflow("other")
         node1 = _fixtures.atomic_add_node("n1")
         node2 = _fixtures.atomic_add_node("n2")
         other.add_node(node2)  # node2 is foreign-owned
@@ -402,7 +402,7 @@ class TestUndoableDecorator(unittest.TestCase):
         self.assertEqual(len(self.wf.undo_stack), initial_undo_len)
 
     def test_reraises_original_exception(self) -> None:
-        other = workflow.Workflow("other")
+        other = workflow_node.Workflow("other")
         node = _fixtures.atomic_add_node()
         other.add_node(node)
 
@@ -410,7 +410,7 @@ class TestUndoableDecorator(unittest.TestCase):
             self.wf.add_node(node)
 
     def test_accumulator_none_after_exception(self) -> None:
-        other = workflow.Workflow("other")
+        other = workflow_node.Workflow("other")
         node = _fixtures.atomic_add_node()
         other.add_node(node)
 
@@ -447,7 +447,7 @@ class TestUndoableDecorator(unittest.TestCase):
 
 class TestGetAccessors(unittest.TestCase):
     def setUp(self) -> None:
-        self.wf = workflow.Workflow("wf")
+        self.wf = workflow_node.Workflow("wf")
         self.wf.create_input("x")
         self.wf.create_output("y")
 
@@ -466,7 +466,7 @@ class TestGetAccessors(unittest.TestCase):
             self.wf.get_input("missing")
 
     def test_get_input_foreign_port_raises(self) -> None:
-        other = workflow.Workflow("other")
+        other = workflow_node.Workflow("other")
         other.create_input("x")
         foreign = other.inputs["x"]
         with self.assertRaises(KeyError):
@@ -487,7 +487,7 @@ class TestGetAccessors(unittest.TestCase):
             self.wf.get_output("missing")
 
     def test_get_output_foreign_port_raises(self) -> None:
-        other = workflow.Workflow("other")
+        other = workflow_node.Workflow("other")
         other.create_output("y")
         foreign = other.outputs["y"]
         with self.assertRaises(KeyError):
@@ -496,7 +496,7 @@ class TestGetAccessors(unittest.TestCase):
 
 class TestNodeMutations(unittest.TestCase):
     def setUp(self) -> None:
-        self.wf = workflow.Workflow("wf")
+        self.wf = workflow_node.Workflow("wf")
 
     def test_add_node_state(self) -> None:
         node = _fixtures.atomic_add_node("adder")
@@ -635,7 +635,7 @@ class TestNodeMutations(unittest.TestCase):
 
 class TestEdgeMutations(unittest.TestCase):
     def setUp(self) -> None:
-        self.wf = workflow.Workflow("wf")
+        self.wf = workflow_node.Workflow("wf")
         self.wf.create_input("x")
         self.wf.create_output("y")
         self.edge = datatypes.EdgeTuple(
@@ -753,7 +753,7 @@ class TestAddEdgeValidation(unittest.TestCase):
         self.assertNotIn(edge, wf.edges)
 
     def test_validates_by_default_rejects_unknown_port(self) -> None:
-        wf = workflow.Workflow("wf")
+        wf = workflow_node.Workflow("wf")
         bad = datatypes.EdgeTuple(
             fr.schemas.InputSource(port="nope"), fr.schemas.OutputTarget(port="nada")
         )
@@ -768,7 +768,7 @@ class TestAddEdgeValidation(unittest.TestCase):
         self.assertIn(edge, wf.edges)
 
     def test_skip_validation_allows_unknown_port(self) -> None:
-        wf = workflow.Workflow("wf")
+        wf = workflow_node.Workflow("wf")
         bad = datatypes.EdgeTuple(
             fr.schemas.InputSource(port="nope"), fr.schemas.OutputTarget(port="nada")
         )
@@ -830,7 +830,7 @@ class TestAddEdgeValidation(unittest.TestCase):
 
 class TestInputPortMutations(unittest.TestCase):
     def setUp(self) -> None:
-        self.wf = workflow.Workflow("wf")
+        self.wf = workflow_node.Workflow("wf")
 
     def test_create_input_state(self) -> None:
         self.wf.create_input("x")
@@ -996,7 +996,7 @@ class TestInputPortMutations(unittest.TestCase):
 
 class TestOutputPortMutations(unittest.TestCase):
     def setUp(self) -> None:
-        self.wf = workflow.Workflow("wf")
+        self.wf = workflow_node.Workflow("wf")
 
     def test_create_output_state(self) -> None:
         self.wf.create_output("y")
@@ -1126,7 +1126,7 @@ class TestOutputPortMutations(unittest.TestCase):
 
 class TestCreateInputFor(unittest.TestCase):
     def setUp(self) -> None:
-        self.wf = workflow.Workflow("wf")
+        self.wf = workflow_node.Workflow("wf")
         self.wf.add_node(_fixtures.atomic_add_node("adder"))
 
     def test_creates_input_port(self) -> None:
@@ -1189,13 +1189,13 @@ class TestCreateInputFor(unittest.TestCase):
             self.wf.create_input_for(self.wf.outputs.y)
 
     def test_foreign_child_port_raises(self) -> None:
-        other = workflow.Workflow("other")
+        other = workflow_node.Workflow("other")
         other.add_node(_fixtures.atomic_add_node("adder"))
         with self.assertRaises(ValueError):
             self.wf.create_input_for(other.adder.inputs.x)
 
     def test_foreign_port_leaves_workflow_unchanged(self) -> None:
-        other = workflow.Workflow("other")
+        other = workflow_node.Workflow("other")
         other.add_node(_fixtures.atomic_add_node("adder"))
         with contextlib.suppress(ValueError):
             self.wf.create_input_for(other.adder.inputs.x)
@@ -1205,7 +1205,7 @@ class TestCreateInputFor(unittest.TestCase):
 
 class TestCreateOutputFrom(unittest.TestCase):
     def setUp(self) -> None:
-        self.wf = workflow.Workflow("wf")
+        self.wf = workflow_node.Workflow("wf")
         self.wf.add_node(_fixtures.atomic_add_node("adder"))
 
     def test_creates_output_port_from_port(self) -> None:
@@ -1265,7 +1265,7 @@ class TestCreateOutputFrom(unittest.TestCase):
             self.wf.create_output_from(self.wf.inputs.x)
 
     def test_foreign_child_source_raises(self) -> None:
-        other = workflow.Workflow("other")
+        other = workflow_node.Workflow("other")
         other.add_node(_fixtures.atomic_add_node("adder"))
         with self.assertRaises(ValueError):
             self.wf.create_output_from(other.adder.outputs.output_0)
@@ -1273,7 +1273,7 @@ class TestCreateOutputFrom(unittest.TestCase):
 
 class TestUndoRedo(unittest.TestCase):
     def setUp(self) -> None:
-        self.wf = workflow.Workflow("wf")
+        self.wf = workflow_node.Workflow("wf")
 
     def test_undo_empty_stack_is_noop(self) -> None:
         result = self.wf.undo()
@@ -1304,7 +1304,7 @@ class TestUndoRedo(unittest.TestCase):
         self.assertEqual(len(self.wf.redo_stack), 0)
 
     def test_undo_limit_eviction(self) -> None:
-        wf = workflow.Workflow("wf", 3)
+        wf = workflow_node.Workflow("wf", 3)
         for label in ("a", "b", "c", "d"):
             wf.create_input(label)
         self.assertEqual(len(wf.undo_stack), 3)
@@ -1348,11 +1348,11 @@ class TestUndoRedo(unittest.TestCase):
 
 class TestAtomicRollback(unittest.TestCase):
     def setUp(self) -> None:
-        self.wf = workflow.Workflow("wf")
+        self.wf = workflow_node.Workflow("wf")
 
     def test_rollback_on_foreign_node_in_batch(self) -> None:
         """If the second node in add_node fails, the first must be rolled back."""
-        other = workflow.Workflow("other")
+        other = workflow_node.Workflow("other")
         n1 = _fixtures.atomic_add_node("n1")
         n2 = _fixtures.atomic_add_node("n2")
         other.add_node(n2)
@@ -1403,7 +1403,7 @@ class TestAtomicRollback(unittest.TestCase):
         self.wf.undo()
         redo_len_before = len(self.wf.redo_stack)
 
-        other = workflow.Workflow("other")
+        other = workflow_node.Workflow("other")
         node = _fixtures.atomic_add_node()
         other.add_node(node)
 
@@ -1456,7 +1456,7 @@ class TestWorkflowSetattrSugar(unittest.TestCase):
     """`Workflow.__setattr__` node-assignment sugar."""
 
     def setUp(self) -> None:
-        self.wf = workflow.Workflow("wf")
+        self.wf = workflow_node.Workflow("wf")
 
     def test_assigning_node_adds_it(self) -> None:
         node = _fixtures.atomic_add_node("original")
@@ -1504,7 +1504,7 @@ class TestWorkflowSetattrSugar(unittest.TestCase):
         self.assertEqual(1, len(self.wf.nodes))
 
     def test_assigning_owned_node_raises(self) -> None:
-        other = workflow.Workflow("other")
+        other = workflow_node.Workflow("other")
         node = _fixtures.atomic_add_node()
         other.adder = node
         with self.assertRaisesRegex(ValueError, "already has an owner"):
@@ -1525,7 +1525,7 @@ class TestWorkflowSetattrSugar(unittest.TestCase):
         self.assertNotIn("_stash", self.wf.nodes)
 
     def test_init_still_works(self) -> None:
-        wf = workflow.Workflow("fresh", 4)
+        wf = workflow_node.Workflow("fresh", 4)
         self.assertEqual(len(wf.nodes), 0)
         self.assertIsNone(wf.executor)
         self.assertIsNone(wf.last_run)
@@ -1537,15 +1537,15 @@ class TestWorkflowSetattrSugar(unittest.TestCase):
 
     def test_assigning_function_adds_atomic(self) -> None:
         self.wf.inc = _fixtures.plain_increment
-        self.assertIsInstance(self.wf.nodes["inc"], atomic.Atomic)
+        self.assertIsInstance(self.wf.nodes["inc"], atomic_node.Atomic)
 
 
 class TestWorkflowAttributeSugar(unittest.TestCase):
     """`__getattr__` node-map fallback on `Workflow`."""
 
     @staticmethod
-    def _populated_workflow() -> workflow.Workflow:
-        wf = workflow.Workflow("wf")
+    def _populated_workflow() -> workflow_node.Workflow:
+        wf = workflow_node.Workflow("wf")
         wf.add_node(
             _fixtures.atomic_add_node("executor"),
             _fixtures.atomic_add_node("nodes"),
@@ -1563,10 +1563,10 @@ class TestWorkflowAttributeSugar(unittest.TestCase):
         self.assertIsNone(wf.executor)
         self.assertIsNot(wf.executor, wf.nodes["executor"])
         # `nodes` is a real property returning the node map itself.
-        self.assertIsInstance(wf.nodes, workflow.MutableNodeMap)
+        self.assertIsInstance(wf.nodes, workflow_node.MutableNodeMap)
 
     def test_underscore_label_excluded(self) -> None:
-        wf = workflow.Workflow("wf")
+        wf = workflow_node.Workflow("wf")
         hidden = _fixtures.atomic_add_node("_hidden")
         wf.add_node(hidden)
         with self.assertRaises(AttributeError):
@@ -1575,7 +1575,7 @@ class TestWorkflowAttributeSugar(unittest.TestCase):
         self.assertIs(wf.nodes["_hidden"], hidden)
 
     def test_unknown_attribute_raises(self) -> None:
-        wf = workflow.Workflow("wf")
+        wf = workflow_node.Workflow("wf")
         with self.assertRaises(AttributeError):
             _ = wf.does_not_exist
 
@@ -1584,7 +1584,7 @@ class TestWorkflowPickle(unittest.TestCase):
     """A Workflow must survive a pickle round-trip with children parented."""
 
     def test_round_trip_reparents_children(self) -> None:
-        wf = workflow.Workflow("wf")
+        wf = workflow_node.Workflow("wf")
         wf.add_node(_fixtures.atomic_add_node("a"), _fixtures.atomic_sub_node("b"))
         restored = pickle.loads(pickle.dumps(wf))
         self.assertEqual(sorted(restored.nodes), ["a", "b"])
@@ -1734,7 +1734,7 @@ class TestWorkflowEvaluate(unittest.TestCase):
 
     def test_parsed_workflow_with_constant(self) -> None:
         # `uses_constant` parses to a `Constant` node feeding `add`'s second
-        # addend; the value flows through the live workflow.
+        # addend; the value flows through the live workflow_node.
         wf = constructors.macro2workflow(_fixtures.uses_constant_node())
         run = wf.run(x=10)
         self.assertEqual(run.status, execution.RunStatus.FINISHED)
@@ -1750,8 +1750,10 @@ class TestUnlockSubgraph(unittest.TestCase):
         self.assertIn("a", str(ctx.exception))
         self.assertIn(dag.Macro.__name__, str(ctx.exception))
 
-    def _parent_with_macro_child(self, child_label: str = "m") -> workflow.Workflow:
-        parent = workflow.Workflow("parent")
+    def _parent_with_macro_child(
+        self, child_label: str = "m"
+    ) -> workflow_node.Workflow:
+        parent = workflow_node.Workflow("parent")
         parent.create_input("x", "y", "z")
         parent.create_output("a", "s")
         parent.add_node(_fixtures.macro_node(child_label))
@@ -1784,15 +1786,17 @@ class TestUnlockSubgraph(unittest.TestCase):
         edges_before = set(parent.edges)
         parent.unlock_subgraph("m")
         # Use class name to avoid dual-import-root isinstance failure
-        self.assertEqual(type(parent.nodes["m"]).__name__, workflow.Workflow.__name__)
+        self.assertEqual(
+            type(parent.nodes["m"]).__name__, workflow_node.Workflow.__name__
+        )
         self.assertEqual(set(parent.edges), edges_before)
 
     def test_passing_workflow_is_noop(self) -> None:
-        parent = workflow.Workflow("parent")
-        parent.add_node(workflow.Workflow("inner"))
+        parent = workflow_node.Workflow("parent")
+        parent.add_node(workflow_node.Workflow("inner"))
         # Use class name to avoid dual-import-root isinstance failure
         self.assertEqual(
-            type(parent.nodes["inner"]).__name__, workflow.Workflow.__name__
+            type(parent.nodes["inner"]).__name__, workflow_node.Workflow.__name__
         )
         # _undoable always pushes a diff (even empty) so the stack grows by at
         # most 1; the diff itself should be empty (no graph mutations occurred).
@@ -1804,7 +1808,7 @@ class TestUnlockSubgraph(unittest.TestCase):
             self.assertEqual(parent.undo_stack[-1], [])
 
     def test_unknown_label_raises_keyerror(self) -> None:
-        parent = workflow.Workflow("parent")
+        parent = workflow_node.Workflow("parent")
         with self.assertRaises(KeyError):
             parent.unlock_subgraph("not_there")
 
@@ -1842,8 +1846,8 @@ class TestUnlockSubgraph(unittest.TestCase):
 
 
 class TestLockSubgraph(unittest.TestCase):
-    def _parent_with_workflow_child(self) -> workflow.Workflow:
-        parent = workflow.Workflow("parent")
+    def _parent_with_workflow_child(self) -> workflow_node.Workflow:
+        parent = workflow_node.Workflow("parent")
         parent.create_input("x")
         parent.create_input("y")
         parent.create_input("z")
@@ -1883,7 +1887,7 @@ class TestLockSubgraph(unittest.TestCase):
         self.assertEqual(set(parent.edges), edges_before)
 
     def test_passing_macro_is_noop(self) -> None:
-        parent = workflow.Workflow("parent")
+        parent = workflow_node.Workflow("parent")
         parent.add_node(_fixtures.macro_node("m"))
         undo_len_before = len(parent.undo_stack)
         parent.lock_subgraph("m")
@@ -1896,15 +1900,15 @@ class TestLockSubgraph(unittest.TestCase):
             self.assertEqual(parent.undo_stack[-1], [])
 
     def test_passing_atomic_raises_typeerror(self) -> None:
-        parent = workflow.Workflow("parent")
+        parent = workflow_node.Workflow("parent")
         parent.add_node(_fixtures.atomic_add_node("a"))
         with self.assertRaises(TypeError) as ctx:
             parent.lock_subgraph("a")
         self.assertIn("a", str(ctx.exception))
-        self.assertIn(workflow.Workflow.__name__, str(ctx.exception))
+        self.assertIn(workflow_node.Workflow.__name__, str(ctx.exception))
 
     def test_unknown_label_raises_keyerror(self) -> None:
-        parent = workflow.Workflow("parent")
+        parent = workflow_node.Workflow("parent")
         with self.assertRaises(KeyError):
             parent.lock_subgraph("not_there")
 
@@ -1933,7 +1937,7 @@ class TestLockSubgraph(unittest.TestCase):
         parent.lock_subgraph("m")
         parent.unlock_subgraph("m")
         round_tripped = parent.nodes["m"]
-        self.assertIsInstance(round_tripped, workflow.Workflow)
+        self.assertIsInstance(round_tripped, workflow_node.Workflow)
         self.assertEqual(round_tripped.inputs["x"].type_hint, int)
         self.assertEqual(round_tripped.outputs["a"].type_hint, float)
 
@@ -1961,7 +1965,7 @@ class TestGroup(unittest.TestCase):
         self.assertEqual(set(parent.nodes.keys()), {"grp", "mul_0"})
         grp = parent.nodes["grp"]
         # Use class-name check to avoid dual-import-root isinstance failure
-        self.assertEqual(type(grp).__name__, workflow.Workflow.__name__)
+        self.assertEqual(type(grp).__name__, workflow_node.Workflow.__name__)
         self.assertEqual(set(grp.nodes.keys()), {"add_0", "sub_0"})
 
         # The internal `add_0 -> sub_0` edge moved into the subgraph.
@@ -2006,7 +2010,7 @@ class TestGroup(unittest.TestCase):
         self.assertIn("grp", parent.nodes)
         grp = parent.nodes["grp"]
         # Use class-name check to avoid dual-import-root isinstance failure
-        self.assertEqual(type(grp).__name__, workflow.Workflow.__name__)
+        self.assertEqual(type(grp).__name__, workflow_node.Workflow.__name__)
         self.assertEqual(set(grp.nodes.keys()), {"mul_0"})
 
     def test_label_collision_raises(self) -> None:
@@ -2189,7 +2193,7 @@ class TestGroup(unittest.TestCase):
 
 
 class TestUngroup(unittest.TestCase):
-    def _group_then(self) -> workflow.Workflow:
+    def _group_then(self) -> workflow_node.Workflow:
         """Return a parent that has had `add_0` + `sub_0` grouped into 'grp'."""
         parent = _fixtures.grouping_wf("parent")
         parent.group("grp", parent.nodes["add_0"], parent.nodes["sub_0"])
@@ -2222,7 +2226,7 @@ class TestUngroup(unittest.TestCase):
         )
 
     def test_ungroup_macro_child_calls_unlock_first(self) -> None:
-        parent = workflow.Workflow("parent")
+        parent = workflow_node.Workflow("parent")
         parent.create_input("x")
         parent.create_input("y")
         parent.create_input("z")
@@ -2306,19 +2310,19 @@ class TestUngroup(unittest.TestCase):
             parent.ungroup("grp")
 
     def test_block_if_reference_blocks(self) -> None:
-        parent = workflow.Workflow("parent")
+        parent = workflow_node.Workflow("parent")
         parent.add_node(_fixtures.macro_node("m"))
         with self.assertRaises(ValueError):
             parent.ungroup("m", block_if_reference=True)
 
     def test_block_if_reference_false_succeeds(self) -> None:
-        parent = workflow.Workflow("parent")
+        parent = workflow_node.Workflow("parent")
         parent.add_node(_fixtures.macro_node("m"))
         parent.ungroup("m", block_if_reference=False)
         self.assertNotIn("m", parent.nodes)
 
     def test_inner_passthrough_composes_outer_edges(self) -> None:
-        parent = workflow.Workflow("parent")
+        parent = workflow_node.Workflow("parent")
         parent.create_input("p_in")
         parent.create_output("p_out")
         sub = _fixtures.passthrough_subgraph_wf("sub")
@@ -2348,7 +2352,7 @@ class TestUngroup(unittest.TestCase):
         )
 
     def test_inner_passthrough_multi_driver_multi_consumer(self) -> None:
-        parent = workflow.Workflow("parent")
+        parent = workflow_node.Workflow("parent")
         parent.create_input("p_in_1")
         parent.create_input("p_in_2")
         parent.create_output("p_out_1")
@@ -2407,13 +2411,13 @@ class TestUngroup(unittest.TestCase):
         )
 
     def test_passing_atomic_raises_typeerror(self) -> None:
-        parent = workflow.Workflow("parent")
+        parent = workflow_node.Workflow("parent")
         parent.add_node(_fixtures.atomic_add_node("a"))
         with self.assertRaises(TypeError):
             parent.ungroup("a")
 
     def test_flatten(self):
-        wf = workflow.Workflow("to_flatten")
+        wf = workflow_node.Workflow("to_flatten")
         wf.create_input("m", "x", "b")
         wf.y = wf.inputs.m * wf.inputs.x + wf.inputs.b
         wf.create_output_from(wf.y, "y")
@@ -2427,7 +2431,7 @@ class TestUngroup(unittest.TestCase):
         )
 
     def test_flatten_flow_control_raises(self):
-        wf = workflow.Workflow("to_flatten")
+        wf = workflow_node.Workflow("to_flatten")
         wf.child_with_flow_controls = _fixtures.if_abs_node()
         with self.assertRaisesRegex(
             TypeError,
@@ -2440,44 +2444,44 @@ class TestWorkflowFromRecipe(unittest.TestCase):
     """`Workflow.from_recipe` round-trips structure through a `WorkflowRecipe`."""
 
     @staticmethod
-    def _source() -> workflow.Workflow:
+    def _source() -> workflow_node.Workflow:
         # 3 inputs, 1 output, 3 nodes, edges covering input/peer/output kinds.
         return _fixtures.grouping_wf("source")
 
     def test_nodes_preserved(self) -> None:
         src = self._source()
-        rebuilt = workflow.Workflow.from_recipe("rebuilt", src.recipe)
+        rebuilt = workflow_node.Workflow.from_recipe("rebuilt", src.recipe)
         self.assertEqual(set(rebuilt.nodes.keys()), set(src.nodes.keys()))
 
     def test_inputs_preserved(self) -> None:
         src = self._source()
-        rebuilt = workflow.Workflow.from_recipe("rebuilt", src.recipe)
+        rebuilt = workflow_node.Workflow.from_recipe("rebuilt", src.recipe)
         self.assertEqual(set(rebuilt.inputs.keys()), set(src.inputs.keys()))
 
     def test_outputs_preserved(self) -> None:
         src = self._source()
-        rebuilt = workflow.Workflow.from_recipe("rebuilt", src.recipe)
+        rebuilt = workflow_node.Workflow.from_recipe("rebuilt", src.recipe)
         self.assertEqual(set(rebuilt.outputs.keys()), set(src.outputs.keys()))
 
     def test_edges_preserved(self) -> None:
         src = self._source()
-        rebuilt = workflow.Workflow.from_recipe("rebuilt", src.recipe)
+        rebuilt = workflow_node.Workflow.from_recipe("rebuilt", src.recipe)
         self.assertEqual(set(rebuilt.edges), set(src.edges))
 
     def test_label_uses_argument(self) -> None:
         src = self._source()
-        rebuilt = workflow.Workflow.from_recipe("custom", src.recipe)
+        rebuilt = workflow_node.Workflow.from_recipe("custom", src.recipe)
         self.assertEqual(rebuilt.label, "custom")
 
     def test_rebuilt_owns_children(self) -> None:
         src = self._source()
-        rebuilt = workflow.Workflow.from_recipe("rebuilt", src.recipe)
+        rebuilt = workflow_node.Workflow.from_recipe("rebuilt", src.recipe)
         for child in rebuilt.nodes.values():
             self.assertIs(child.owner, rebuilt)
 
     def test_ports_owned_by_rebuilt(self) -> None:
         src = self._source()
-        rebuilt = workflow.Workflow.from_recipe("rebuilt", src.recipe)
+        rebuilt = workflow_node.Workflow.from_recipe("rebuilt", src.recipe)
         for port in rebuilt.inputs.values():
             self.assertIs(port.owner, rebuilt)
         for port in rebuilt.outputs.values():
@@ -2486,7 +2490,7 @@ class TestWorkflowFromRecipe(unittest.TestCase):
     def test_run_matches_source(self) -> None:
         src = self._source()
         src_run = src.run(x=2, y=3, z=4)
-        rebuilt = workflow.Workflow.from_recipe("rebuilt", src.recipe)
+        rebuilt = workflow_node.Workflow.from_recipe("rebuilt", src.recipe)
         rebuilt_run = rebuilt.run(x=2, y=3, z=4)
         self.assertEqual(
             src_run.outputs.diff,
@@ -2495,13 +2499,13 @@ class TestWorkflowFromRecipe(unittest.TestCase):
 
     def test_undo_stack_empty(self) -> None:
         src = self._source()
-        rebuilt = workflow.Workflow.from_recipe("rebuilt", src.recipe)
+        rebuilt = workflow_node.Workflow.from_recipe("rebuilt", src.recipe)
         self.assertEqual(len(rebuilt.undo_stack), 0)
         self.assertEqual(len(rebuilt.redo_stack), 0)
 
     def test_empty_recipe(self) -> None:
-        empty_recipe = workflow.Workflow("empty").recipe
-        rebuilt = workflow.Workflow.from_recipe("rebuilt", empty_recipe)
+        empty_recipe = workflow_node.Workflow("empty").recipe
+        rebuilt = workflow_node.Workflow.from_recipe("rebuilt", empty_recipe)
         self.assertEqual(len(rebuilt.nodes), 0)
         self.assertEqual(len(rebuilt.inputs), 0)
         self.assertEqual(len(rebuilt.outputs), 0)
@@ -2518,40 +2522,42 @@ class TestWorkflowConnectAtInit(unittest.TestCase):
     def test_connect_port_is_pending(self) -> None:
         src = _fixtures.atomic_add_node("src")
         port = src.outputs["output_0"]
-        wf = workflow.Workflow("wf", x=port)
+        wf = workflow_node.Workflow("wf", x=port)
         self.assertIs(wf._pending_connections["x"], port)
 
     def test_connect_single_output_node_coerces_to_its_port(self) -> None:
         src = _fixtures.atomic_add_node("src")
-        wf = workflow.Workflow("wf", y=src)
+        wf = workflow_node.Workflow("wf", y=src)
         self.assertIs(wf._pending_connections["y"], src.outputs["output_0"])
 
     def test_connect_multi_output_node_raises(self) -> None:
         multi = _fixtures.macro_node("multi")  # outputs `a` and `s`
         with self.assertRaises(ValueError):
-            workflow.Workflow("wf", x=multi)
+            workflow_node.Workflow("wf", x=multi)
 
     def test_connect_wrong_type_raises(self) -> None:
         with self.assertRaises(TypeError):
-            workflow.Workflow("wf", x=42)
+            workflow_node.Workflow("wf", x=42)
 
     def test_connections_stay_pending_without_owner(self) -> None:
         src = _fixtures.atomic_add_node("src")
-        wf = workflow.Workflow("wf", x=src.outputs["output_0"])
+        wf = workflow_node.Workflow("wf", x=src.outputs["output_0"])
         self.assertIsNone(wf.owner)
         self.assertEqual(wf.edges, [])
         self.assertIn("x", wf._pending_connections)
 
     def test_undo_limit_and_connections_coexist(self) -> None:
         src = _fixtures.atomic_add_node("src")
-        wf = workflow.Workflow("wf", 5, x=src.outputs["output_0"])
+        wf = workflow_node.Workflow("wf", 5, x=src.outputs["output_0"])
         self.assertEqual(wf.undo_limit, 5)
         self.assertIn("x", wf._pending_connections)
 
 
 class TestWorkflowData(unittest.TestCase):
     def test_annotations_propagate_from_wfms_to_data(self):
-        wf = workflow.Workflow.from_recipe("wf", _fixtures.annotated_wf.flowrep_recipe)
+        wf = workflow_node.Workflow.from_recipe(
+            "wf", _fixtures.annotated_wf.flowrep_recipe
+        )
         self.assertIs(wf.inputs.w.type_hint, None)
         self.assertIs(wf.inputs.w.type_metadata, None)
         self.assertIs(wf.inputs.x.type_hint, int)

@@ -13,7 +13,7 @@ from typing import Any
 import flowrep as fr
 from unit import _fixtures
 
-from pyiron_workflow import atomic, execution
+from pyiron_workflow import atomic_node, execution
 
 try:
     import fleche  # noqa: F401
@@ -29,7 +29,7 @@ except ImportError:
 # --------------------------------------------------------------------------- #
 
 
-class _FailingAtomic(atomic.Atomic):
+class _FailingAtomic(atomic_node.Atomic):
     """:meth:`evaluate` raises `RuntimeError`."""
 
     def evaluate(

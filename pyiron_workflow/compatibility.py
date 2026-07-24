@@ -8,7 +8,7 @@ import flowrep as fr
 import semantikon
 from pyiron_snippets import versions
 
-from pyiron_workflow import datatypes, decorators, workflow
+from pyiron_workflow import datatypes, decorators, workflow_node
 from pyiron_workflow._legacy import output_parser
 from pyiron_workflow._legacy.nodes import multiple_distpatch
 
@@ -185,8 +185,8 @@ class _MacroFactory(_CompatibilityFactory):
 
 def _legacy_as_macro_node2workflow(
     func: types.FunctionType, *output_labels: str
-) -> workflow.Workflow:
-    wf = workflow.Workflow(func.__name__)
+) -> workflow_node.Workflow:
+    wf = workflow_node.Workflow(func.__name__)
     sig = inspect.signature(func)
     ports_to_pass = _build_inputs_and_collect_input_ports(wf, sig)
     returns: (
@@ -208,7 +208,7 @@ def _legacy_as_macro_node2workflow(
 
 
 def _build_inputs_and_collect_input_ports(
-    wf: workflow.Workflow, sig: inspect.Signature
+    wf: workflow_node.Workflow, sig: inspect.Signature
 ) -> dict[str, datatypes.Port]:
     kwargs: dict[str, datatypes.Port] = {}
     for port_name, param in itertools.islice(
@@ -260,7 +260,7 @@ def _get_output_labels(
 
 
 def _convert_returns_to_outputs_and_edges(
-    wf: workflow.Workflow,
+    wf: workflow_node.Workflow,
     returned_ports: tuple[datatypes.Node | datatypes.Port],
     output_port_labels: tuple[str, ...],
 ) -> None:

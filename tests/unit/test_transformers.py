@@ -7,7 +7,7 @@ import unittest
 import flowrep as fr
 from unit import _fixtures
 
-from pyiron_workflow import atomic, transformers
+from pyiron_workflow import atomic_node, transformers
 
 
 class TestTransform1toN(unittest.TestCase):
@@ -44,7 +44,7 @@ class TestTransform1toN(unittest.TestCase):
     def test_node_returns_atomic_with_label_and_recipe(self) -> None:
         transformer = transformers.Transform1toN(3)
         node = transformer.node("lbl")
-        self.assertIsInstance(node, atomic.Atomic)
+        self.assertIsInstance(node, atomic_node.Atomic)
         self.assertEqual(node.label, "lbl")
         self.assertEqual(node.recipe.inputs, ["items"])
         self.assertEqual(node.recipe.outputs, ["output_0", "output_1", "output_2"])
@@ -86,7 +86,7 @@ class TestTransformNto1(unittest.TestCase):
     def test_node_returns_atomic_with_label(self) -> None:
         transformer = transformers.TransformNto1(3)
         node = transformer.node("lbl")
-        self.assertIsInstance(node, atomic.Atomic)
+        self.assertIsInstance(node, atomic_node.Atomic)
         self.assertEqual(node.label, "lbl")
 
 

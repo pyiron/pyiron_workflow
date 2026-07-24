@@ -21,7 +21,7 @@ from pyiron_workflow import (
     decorators,
     execution,
     validation,
-    workflow,
+    workflow_node,
 )
 
 
@@ -285,7 +285,7 @@ class TestValidateTypes(unittest.TestCase):
         self.assertEqual(report.name, "from_recipe")
 
     def test_flow_control_child_is_notparseable(self):
-        wf = workflow.Workflow("wf")
+        wf = workflow_node.Workflow("wf")
         wf.add_node(_fixtures.foreach_node("fe"))
         report = validation.validate_types(wf)
         self.assertIsInstance(report.subreports["fe"], validation.NotParseable)
@@ -296,7 +296,7 @@ class TestValidateTypes(unittest.TestCase):
         inner = self._sibling_wf(
             _fixtures.typed_float_node, _fixtures.typed_int_node, type_validate=False
         )
-        outer = workflow.Workflow("outer")
+        outer = workflow_node.Workflow("outer")
         outer.add_node(inner)
         report = validation.validate_types(outer)
         self.assertFalse(report.valid)
@@ -323,7 +323,7 @@ class TestValidateTypes(unittest.TestCase):
         self.assertIn("unfulfilled edges:", validation.validate_types(unfulfilled).text)
 
     def test_text_nested_has_no_double_indent(self):
-        outer = workflow.Workflow("outer")
+        outer = workflow_node.Workflow("outer")
         outer.add_node(
             self._sibling_wf(
                 _fixtures.typed_float_node,
@@ -336,7 +336,7 @@ class TestValidateTypes(unittest.TestCase):
         self.assertIn("\n\tType validation for 'outer.wf'", report.text)
 
     def test_text_renders_notparseable_child(self):
-        wf = workflow.Workflow("wf")
+        wf = workflow_node.Workflow("wf")
         wf.add_node(_fixtures.foreach_node("fe"))
         report = validation.validate_types(wf)
         # `repr` round-trips through `text`; the NotParseable child is listed.
@@ -404,7 +404,7 @@ class TestCombinedValidationReport(unittest.TestCase):
 class TestValidatePlan(unittest.TestCase):
     """`validate_plan` with ontology disabled (the only branch we test now)."""
 
-    def _typed_wf(self) -> workflow.Workflow:
+    def _typed_wf(self) -> workflow_node.Workflow:
         return _fixtures.build_workflow(
             node_specs={
                 "src": _fixtures.typed_int_node,
@@ -466,7 +466,7 @@ class TestValidationSignatureCoherence(unittest.TestCase):
         ]  # drop `target`
         for fn in (
             dag.Macro.validate,
-            workflow.Workflow.validate,
+            workflow_node.Workflow.validate,
             decorators.DecoratedMacro.validate,
         ):
             self.assertEqual(

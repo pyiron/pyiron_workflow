@@ -7,7 +7,7 @@ import flowrep as fr
 from pyiron_snippets import versions
 from unit import _fixtures
 
-from pyiron_workflow import atomic, execution, transformers
+from pyiron_workflow import atomic_node, execution, transformers
 
 # --------------------------------------------------------------------------- #
 # Module-level helpers (must be importable by flowrep / VersionInfo).         #
@@ -89,13 +89,13 @@ class TestAtomicInit(unittest.TestCase):
             inputs=["x"],
             outputs=["out"],
         )
-        node = atomic.Atomic(recipe, "lbl")
+        node = atomic_node.Atomic(recipe, "lbl")
         self.assertIs(node.function_metadata, _METADATA_SENTINEL)
 
 
 class TestAtomicResultType(unittest.TestCase):
     def test_result_type_is_live_atomic(self) -> None:
-        self.assertIs(atomic.Atomic._result_type(), fr.schemas.AtomicData)
+        self.assertIs(atomic_node.Atomic._result_type(), fr.schemas.AtomicData)
 
 
 class TestAtomicEvaluate(unittest.TestCase):
@@ -120,7 +120,7 @@ class TestCallAtomic(unittest.TestCase):
         node = transformers.Transform1toN(2).node("split")
         live = node.generate_flowrep_live_node()
         live.input_ports["items"].value = [1, 2]
-        result = atomic._call_atomic(live)
+        result = atomic_node._call_atomic(live)
         self.assertEqual(result, (1, 2))
 
     def test_keyword_routing(self) -> None:
@@ -128,7 +128,7 @@ class TestCallAtomic(unittest.TestCase):
         live = node.generate_flowrep_live_node()
         live.input_ports["x"].value = 1
         live.input_ports["y"].value = 2
-        self.assertEqual(atomic._call_atomic(live), 3)
+        self.assertEqual(atomic_node._call_atomic(live), 3)
 
     def test_default_fallback(self) -> None:
         recipe = _atomic_recipe(
@@ -140,7 +140,7 @@ class TestCallAtomic(unittest.TestCase):
         live = fr.schemas.AtomicData.from_recipe(recipe)
         live.input_ports["x"].value = 1
         # `y` is left as NotData; the recipe carries a default of 10.
-        self.assertEqual(atomic._call_atomic(live), 11)
+        self.assertEqual(atomic_node._call_atomic(live), 11)
 
     def test_missing_value_raises_value_error(self) -> None:
         recipe = _atomic_recipe(
@@ -152,7 +152,7 @@ class TestCallAtomic(unittest.TestCase):
         live.input_ports["x"].value = 1
         # `y` has neither value nor default.
         with self.assertRaises(ValueError) as ctx:
-            atomic._call_atomic(live)
+            atomic_node._call_atomic(live)
         self.assertIn("'y'", str(ctx.exception))
 
 
@@ -170,7 +170,7 @@ class TestStoreAtomicOutputs(unittest.TestCase):
         )
         live = fr.schemas.AtomicData.from_recipe(recipe)
         payload = [1, 2, 3]
-        atomic._store_atomic_outputs(live, payload)
+        atomic_node._store_atomic_outputs(live, payload)
         self.assertEqual(live.output_ports["out"].value, payload)
 
     def test_unpack_tuple_single_output_writes_whole_tuple(self) -> None:
@@ -181,7 +181,7 @@ class TestStoreAtomicOutputs(unittest.TestCase):
         )
         live = fr.schemas.AtomicData.from_recipe(recipe)
         payload = (1, 2, 3)
-        atomic._store_atomic_outputs(live, payload)
+        atomic_node._store_atomic_outputs(live, payload)
         self.assertEqual(live.output_ports["out"].value, payload)
 
     def test_unpack_tuple_multi_output_distributes_elements(self) -> None:
@@ -191,7 +191,7 @@ class TestStoreAtomicOutputs(unittest.TestCase):
             outputs=["a", "b", "c"],
         )
         live = fr.schemas.AtomicData.from_recipe(recipe)
-        atomic._store_atomic_outputs(live, (1, 2, 3))
+        atomic_node._store_atomic_outputs(live, (1, 2, 3))
         self.assertEqual(live.output_ports["a"].value, 1)
         self.assertEqual(live.output_ports["b"].value, 2)
         self.assertEqual(live.output_ports["c"].value, 3)
@@ -204,7 +204,7 @@ class TestStoreAtomicOutputs(unittest.TestCase):
         )
         live = fr.schemas.AtomicData.from_recipe(recipe)
         with self.assertRaises(ValueError):
-            atomic._store_atomic_outputs(live, (1, 2))
+            atomic_node._store_atomic_outputs(live, (1, 2))
 
 
 if __name__ == "__main__":

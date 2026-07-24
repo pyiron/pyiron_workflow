@@ -8,12 +8,12 @@ from typing import TypeAlias, cast
 import flowrep as fr
 
 from pyiron_workflow import (
-    atomic,
+    atomic_node,
     constant,
     dag,
     datatypes,
     flowcontrollers,
-    workflow,
+    workflow_node,
 )
 from pyiron_workflow.datatypes import EdgeList, EdgeTuple, StaticNode
 
@@ -60,12 +60,12 @@ def node(value: object, label: fr.schemas.Label | None = None) -> datatypes.Node
 def function2node(
     function: types.FunctionType,
     label: fr.schemas.Label | None = None,
-) -> atomic.Atomic | dag.Macro:
+) -> atomic_node.Atomic | dag.Macro:
     recipe = getattr(function, "flowrep_recipe", None)
     if recipe:
         # flowrep-decorated functions are all either atomic or workflow recipes
         return cast(
-            atomic.Atomic | dag.Macro,
+            atomic_node.Atomic | dag.Macro,
             recipe2node(
                 cast(fr.schemas.AtomicRecipe | fr.schemas.WorkflowRecipe, recipe),
                 label or function.__name__,
@@ -74,7 +74,7 @@ def function2node(
     else:
         # Otherwise parse undecorated functions as atomic nodes
         recipe = fr.tools.parse_atomic(function)
-        return atomic.Atomic(recipe, label or function.__name__)
+        return atomic_node.Atomic(recipe, label or function.__name__)
 
 
 def recipe2node(
@@ -87,7 +87,7 @@ def recipe2node(
     )
 
     if isinstance(recipe, fr.schemas.AtomicRecipe):
-        return atomic.Atomic(recipe, label)
+        return atomic_node.Atomic(recipe, label)
     elif isinstance(recipe, fr.schemas.ForEachRecipe):
         return flowcontrollers.ForEach(recipe, label)
     elif isinstance(recipe, fr.schemas.IfRecipe):
@@ -177,7 +177,7 @@ def _copy_executors(src: datatypes.Node, dst: datatypes.Node) -> None:
                 _copy_executors(child, dst.nodes[label])
 
 
-def workflow2macro(wf: workflow.Workflow) -> dag.Macro:
+def workflow2macro(wf: workflow_node.Workflow) -> dag.Macro:
     macro = dag.Macro(wf.recipe, wf.label)
     _copy_port_annotations(wf.inputs, macro.inputs)
     _copy_port_annotations(wf.outputs, macro.outputs)
@@ -185,8 +185,8 @@ def workflow2macro(wf: workflow.Workflow) -> dag.Macro:
     return macro
 
 
-def macro2workflow(macro: dag.Macro) -> workflow.Workflow:
-    wf = workflow.Workflow(macro.label)
+def macro2workflow(macro: dag.Macro) -> workflow_node.Workflow:
+    wf = workflow_node.Workflow(macro.label)
     for label, node_recipe in macro.recipe.nodes.items():
         wf.add_node(recipe2node(node_recipe, label))
 

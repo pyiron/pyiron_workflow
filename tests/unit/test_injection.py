@@ -5,7 +5,7 @@ import unittest
 
 from unit import _fixtures
 
-from pyiron_workflow import constructors, workflow
+from pyiron_workflow import constructors, workflow_node
 
 
 def _only(mapping):
@@ -34,7 +34,7 @@ def _run_binary(label, op, a_val, b_val):
     """Build a workflow with inputs a, b; inject `op(a, b)` wired to output `out`;
     return the run value. `op` is an `operator` function so `op(port_a, port_b)`
     invokes the corresponding port dunder."""
-    wf = workflow.Workflow(label)
+    wf = workflow_node.Workflow(label)
     wf.create_input("a")
     wf.create_input("b")
     wf.create_output("out")
@@ -46,7 +46,7 @@ def _run_binary(label, op, a_val, b_val):
 class TestUnaryInjection(unittest.TestCase):
     def test_free_unary_on_single_output_node(self):
         result = abs(_new_node())
-        self.assertIsInstance(result, workflow.Workflow)
+        self.assertIsInstance(result, workflow_node.Workflow)
         # operation node + absorbed source node
         self.assertEqual(2, len(result.nodes))
         in_label = _only(result.inputs)
@@ -55,7 +55,7 @@ class TestUnaryInjection(unittest.TestCase):
         self.assertEqual(abs(-5 + 1), value)  # abs(-4) == 4
 
     def test_unary_on_input_port(self):
-        wf = workflow.Workflow("unary_input")
+        wf = workflow_node.Workflow("unary_input")
         wf.create_input("n")
         wf.create_output("out")
         wf.absn = abs(wf.inputs.n)
@@ -63,7 +63,7 @@ class TestUnaryInjection(unittest.TestCase):
         self.assertEqual(42, wf.run(n=-42).outputs.out)
 
     def test_unary_on_output_port(self):
-        wf = workflow.Workflow("unary_output")
+        wf = workflow_node.Workflow("unary_output")
         wf.create_input("n")
         wf.create_output("out")
         wf.first = _new_node()
@@ -73,7 +73,7 @@ class TestUnaryInjection(unittest.TestCase):
         self.assertEqual(42, wf.run(n=-43).outputs.out)  # abs(-43 + 1) == 42
 
     def test_owned_unary(self):
-        wf = workflow.Workflow("owned_unary")
+        wf = workflow_node.Workflow("owned_unary")
         wf.create_input("n")
         wf.create_output("out")
         wf.first = _new_node()
@@ -83,7 +83,7 @@ class TestUnaryInjection(unittest.TestCase):
         self.assertEqual(42, wf.run(n=-43).outputs.out)
 
     def test_repeated_injection_unique_labels(self):
-        wf = workflow.Workflow("repeated_unary")
+        wf = workflow_node.Workflow("repeated_unary")
         wf.first = _new_node()
         wf.a = abs(wf.first)
         wf.b = abs(wf.first)
@@ -93,11 +93,11 @@ class TestUnaryInjection(unittest.TestCase):
 
 class TestBinaryInjection(unittest.TestCase):
     def test_doubly_owned_binary_runs_independently(self):
-        wf = workflow.Workflow("doubly_owned")
+        wf = workflow_node.Workflow("doubly_owned")
         wf.first = _new_node()
         wf.second = _new_node()
         result = wf.first + wf.second
-        self.assertIsInstance(result, workflow.Workflow)
+        self.assertIsInstance(result, workflow_node.Workflow)
         # The inputs are the OUTPUT PORTS of the owned source nodes fed as plumbing
         # inputs to the add operation. Running result directly feeds those plumbing
         # inputs; the increment nodes inside wf do not execute again here.
@@ -106,7 +106,7 @@ class TestBinaryInjection(unittest.TestCase):
         self.assertEqual(1 + 2, value)  # 3
 
     def test_binary_naming_node_vs_output_port(self):
-        wf = workflow.Workflow("naming")
+        wf = workflow_node.Workflow("naming")
         wf.first = _new_node()
         wf.second = _new_node()
 
@@ -122,7 +122,7 @@ class TestBinaryInjection(unittest.TestCase):
         )
 
     def test_binary_on_input_ports(self):
-        wf = workflow.Workflow("binary_inputs")
+        wf = workflow_node.Workflow("binary_inputs")
         wf.create_input("m")
         wf.create_input("n")
         wf.create_output("product")
@@ -131,7 +131,7 @@ class TestBinaryInjection(unittest.TestCase):
         self.assertEqual(6, wf.run(m=2, n=3).outputs.product)
 
     def test_self_binary_same_port(self):
-        wf = workflow.Workflow("self_binary")
+        wf = workflow_node.Workflow("self_binary")
         wf.create_input("m")
         wf.create_output("out")
         wf.doubled = wf.inputs.m + wf.inputs.m
@@ -143,7 +143,7 @@ class TestMixedOwnership(unittest.TestCase):
     def test_full_mixed_pipeline(self):
         # lin is increment(m) multiplied by x; y is lin plus increment(b).
         # run(m=1, x=2, b=0.5) gives ((1+1)*2) + (0.5+1) == 5.5
-        wf = workflow.Workflow("mixed_ownership")
+        wf = workflow_node.Workflow("mixed_ownership")
         wf.create_input("m")
         wf.create_input("x")
         wf.create_input("b")
@@ -159,7 +159,7 @@ class TestMixedOwnership(unittest.TestCase):
 
     def test_right_owned_left_free(self):
         # (increment(k) + b) with b owned, increment free.
-        wf = workflow.Workflow("right_owned")
+        wf = workflow_node.Workflow("right_owned")
         wf.create_input("b")
         wf.create_input("k")
         wf.create_output("out")
@@ -176,7 +176,7 @@ class TestMixedOwnership(unittest.TestCase):
 
 class TestChainedInjection(unittest.TestCase):
     def test_chained_with_context_builds_and_runs(self):
-        wf = workflow.Workflow("chained_with_context")
+        wf = workflow_node.Workflow("chained_with_context")
         wf.create_input("m")
         wf.create_input("x")
         wf.create_input("b")
@@ -203,10 +203,10 @@ class TestChainedInjection(unittest.TestCase):
         )
 
     def test_cross_context_via_pending_rejected_early(self):
-        wf = workflow.Workflow("one_owner")
+        wf = workflow_node.Workflow("one_owner")
         wf.create_input("m")
         wf.create_input("x")
-        wf2 = workflow.Workflow("another_owner")
+        wf2 = workflow_node.Workflow("another_owner")
         wf2.create_input("b")
         with self.assertRaises(ValueError):
             (wf.inputs.m * wf.inputs.x) + wf2.inputs.b
@@ -221,10 +221,10 @@ class TestPendingConnectionLifting(unittest.TestCase):
         n2 = _new_node()
         n2(n1)  # connect_input: caches a pending connection on the free n2
         result = abs(n2)
-        self.assertIsInstance(result, workflow.Workflow)
+        self.assertIsInstance(result, workflow_node.Workflow)
         # n2 is absorbed; result has a pending connection 'plain_increment_0_x' <- n1.output_0
-        # To realise the full n1 -> n2 -> abs chain, attach both to an outer workflow.
-        outer = workflow.Workflow("outer_lifting")
+        # To realise the full n1 -> n2 -> abs chain, attach both to an outer workflow_node.
+        outer = workflow_node.Workflow("outer_lifting")
         outer.create_input("x")
         outer.create_output("out")
         outer.n1 = n1
@@ -239,9 +239,9 @@ class TestPendingConnectionLifting(unittest.TestCase):
 
 class TestInjectionFailures(unittest.TestCase):
     def test_cross_context_binary_direct(self):
-        wf = workflow.Workflow("ctx_a")
+        wf = workflow_node.Workflow("ctx_a")
         wf.create_input("a")
-        wf2 = workflow.Workflow("ctx_b")
+        wf2 = workflow_node.Workflow("ctx_b")
         wf2.create_input("b")
         with self.assertRaisesRegex(ValueError, "across graph contexts"):
             wf.inputs.a + wf2.inputs.b
@@ -252,16 +252,16 @@ class TestInjectionFailures(unittest.TestCase):
             abs(macro)
 
     def test_add_injection_graph_to_wrong_workflow(self):
-        wf = workflow.Workflow("owner")
+        wf = workflow_node.Workflow("owner")
         wf.first = _new_node()
         wf.second = _new_node()
         elsewise = wf.first + wf.second
-        wf2 = workflow.Workflow("stranger")
+        wf2 = workflow_node.Workflow("stranger")
         with self.assertRaisesRegex(ValueError, "not owned"):
             wf2.added = elsewise
 
     def test_source_node_removed_breaks_attachment(self):
-        wf = workflow.Workflow("owner_rm")
+        wf = workflow_node.Workflow("owner_rm")
         wf.first = _new_node()
         wf.second = _new_node()
         elsewise = wf.first + wf.second
@@ -272,7 +272,7 @@ class TestInjectionFailures(unittest.TestCase):
 
     def test_source_node_renamed_then_attaches(self):
         # Pending edges are by object reference, so renaming does not break attachment.
-        wf = workflow.Workflow("owner_rn")
+        wf = workflow_node.Workflow("owner_rn")
         wf.create_input("a")
         wf.create_input("b_in")
         wf.create_output("out")
@@ -324,7 +324,7 @@ class TestGetitemOperator(unittest.TestCase):
 
     def test_literal_index_supported(self):
         # A JSONable literal index is wrapped in a Constant and works.
-        wf = workflow.Workflow("getitem_literal")
+        wf = workflow_node.Workflow("getitem_literal")
         wf.create_input("container")
         wf.create_output("out")
         wf.r = wf.inputs.container[1]
@@ -333,7 +333,7 @@ class TestGetitemOperator(unittest.TestCase):
 
     def test_non_jsonable_index_rejected(self):
         # A non-JSONable index (a tuple) is neither injectable nor JSONable.
-        wf = workflow.Workflow("getitem_bad")
+        wf = workflow_node.Workflow("getitem_bad")
         wf.create_input("container")
         with self.assertRaisesRegex(TypeError, "getitem"):
             wf.inputs.container[(1, 2)]
@@ -383,7 +383,7 @@ class TestArithmeticOperators(unittest.TestCase):
 
 class TestUnaryOperators(unittest.TestCase):
     def test_neg(self):
-        wf = workflow.Workflow("neg")
+        wf = workflow_node.Workflow("neg")
         wf.create_input("a")
         wf.create_output("out")
         wf.r = -wf.inputs.a
@@ -391,7 +391,7 @@ class TestUnaryOperators(unittest.TestCase):
         self.assertEqual(-5, wf.run(a=5).outputs.out)
 
     def test_pos(self):
-        wf = workflow.Workflow("pos")
+        wf = workflow_node.Workflow("pos")
         wf.create_input("a")
         wf.create_output("out")
         wf.r = +wf.inputs.a
@@ -399,7 +399,7 @@ class TestUnaryOperators(unittest.TestCase):
         self.assertEqual(-5, wf.run(a=-5).outputs.out)
 
     def test_invert(self):
-        wf = workflow.Workflow("invert")
+        wf = workflow_node.Workflow("invert")
         wf.create_input("a")
         wf.create_output("out")
         wf.r = ~wf.inputs.a
@@ -442,7 +442,7 @@ class TestConstantInjection(unittest.TestCase):
 
     @staticmethod
     def _run(build, a_val):
-        wf = workflow.Workflow("const_inj")
+        wf = workflow_node.Workflow("const_inj")
         wf.create_input("a")
         wf.create_output("out")
         wf.r = build(wf.inputs.a)
@@ -468,7 +468,7 @@ class TestConstantInjection(unittest.TestCase):
 
     def test_owned_context_chained_literals(self):
         # Literal on the right, then on the left, both within the same graph context.
-        wf = workflow.Workflow("owned_const")
+        wf = workflow_node.Workflow("owned_const")
         wf.create_input("a")
         wf.create_output("out")
         wf.chained = 3 ** (wf.inputs.a * 2)
@@ -477,7 +477,7 @@ class TestConstantInjection(unittest.TestCase):
 
     def test_free_node_with_literal(self):
         result = _new_node() * 2  # plain_increment(x) then * 2
-        self.assertIsInstance(result, workflow.Workflow)
+        self.assertIsInstance(result, workflow_node.Workflow)
         in_label = _only(result.inputs)
         out_label = _only(result.outputs)
         self.assertEqual((7 + 1) * 2, result.run(**{in_label: 7}).outputs[out_label])
@@ -485,19 +485,19 @@ class TestConstantInjection(unittest.TestCase):
     def test_reflected_matmul_builds_graph(self):
         # matmul of two constants is not runnable, but the reflected dunder must still
         # build an injection graph (int has no __matmul__, so `2 @ port` dispatches here).
-        wf = workflow.Workflow("rmm")
+        wf = workflow_node.Workflow("rmm")
         wf.create_input("a")
         result = 2 @ wf.inputs.a
-        self.assertIsInstance(result, workflow.Workflow)
+        self.assertIsInstance(result, workflow_node.Workflow)
 
     def test_non_jsonable_right_operand_rejected(self):
-        wf = workflow.Workflow("bad_right")
+        wf = workflow_node.Workflow("bad_right")
         wf.create_input("a")
         with self.assertRaisesRegex(TypeError, "mul"):
             wf.inputs.a * (2,)
 
     def test_non_jsonable_left_operand_rejected(self):
-        wf = workflow.Workflow("bad_left")
+        wf = workflow_node.Workflow("bad_left")
         wf.create_input("a")
         with self.assertRaisesRegex(TypeError, "mul"):
             (2,) * wf.inputs.a
