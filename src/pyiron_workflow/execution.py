@@ -25,7 +25,7 @@ with import_alarm.ImportAlarm(
     from fleche.caches import BaseCache, Cache
 
 if TYPE_CHECKING:
-    from pyiron_workflow import datatypes
+    from pyiron_workflow import constructors, datatypes
 
 
 class RunStatus(enum.StrEnum):
@@ -265,6 +265,24 @@ class ExecutorInstructions:
 
 
 def run(
+    node: constructors.NodeLike,
+    config: RunConfig | None = None,
+    _current_run: Run[ResultType] | None = None,
+    /,
+    **input_data,
+):
+    from pyiron_workflow import datatypes  # noqa: PLC0415
+
+    if isinstance(node, datatypes.Node):
+        to_run = node
+    else:
+        from pyiron_workflow import constructors  # noqa: PLC0415
+
+        to_run = constructors.node(node)
+    return _run(to_run, config, _current_run, **input_data)
+
+
+def _run(
     node: datatypes.Node,
     config: RunConfig | None = None,
     _current_run: Run[ResultType] | None = None,

@@ -46,6 +46,23 @@ def _make_failing_node(label: str = "boom_node") -> _FailingAtomic:
 
 
 # --------------------------------------------------------------------------- #
+# Node-like helpers (flowrep parses these from source, so module scope)        #
+# --------------------------------------------------------------------------- #
+
+
+def plain_add(x, y):
+    """Undecorated callable — `run` must parse it as an atomic node."""
+    return x + y
+
+
+class PlainClass:
+    """Undecorated class — `run` must parse its constructor as an atomic node."""
+
+    def __init__(self, x: int) -> None:
+        self.x = x
+
+
+# --------------------------------------------------------------------------- #
 # Run.duration                                                                #
 # --------------------------------------------------------------------------- #
 
@@ -296,6 +313,141 @@ class TestRunHappyPath(unittest.TestCase):
         self.assertNotIn(execution.RunStatus.PENDING, statuses)
         self.assertIn(execution.RunStatus.FINISHED, statuses)
         self.assertIn(execution.RunStatus.RUNNING, statuses)
+
+
+# --------------------------------------------------------------------------- #
+# run() — node-like input                                                     #
+# --------------------------------------------------------------------------- #
+
+
+class TestRunNodeLike(unittest.TestCase):
+    """`run` accepts anything `constructors.node` can construct, not just `Node`."""
+
+    def test_node_instance(self) -> None:
+        node = _fixtures.atomic_add_node("explicitly_labelled")
+        run = execution.run(node, None, x=1, y=2)
+        self.assertEqual(run.status, execution.RunStatus.FINISHED)
+        self.assertEqual(run.outputs.output_0, 3)
+        self.assertEqual(
+            run.label,
+            "explicitly_labelled",
+            msg="A node instance brings its own label; only constructed nodes get a "
+            "label derived from what they were built from",
+        )
+
+    def test_workflow_instance(self) -> None:
+        run = execution.run(_fixtures.grouping_wf(), None, x=1, y=2, z=4)
+        self.assertEqual(run.status, execution.RunStatus.FINISHED)
+        self.assertEqual(run.outputs.diff, -1)
+
+    def test_atomic_recipe(self) -> None:
+        run = execution.run(_fixtures.add.flowrep_recipe, None, x=1, y=2)
+        self.assertEqual(run.status, execution.RunStatus.FINISHED)
+        self.assertEqual(run.outputs.output_0, 3)
+        self.assertEqual(run.label, "atomic_recipe_node")
+
+    def test_workflow_recipe(self) -> None:
+        run = execution.run(_fixtures.macro.flowrep_recipe, None, x=1, y=2, z=4)
+        self.assertEqual(run.status, execution.RunStatus.FINISHED)
+        self.assertEqual(run.outputs.a, 3)
+        self.assertEqual(run.outputs.s, -1)
+        self.assertEqual(run.label, "workflow_recipe_node")
+
+    def test_for_each_recipe(self) -> None:
+        # body = add(x, y) with `x` nested and `y` broadcast
+        recipe = _fixtures.foreach_node().recipe
+        run = execution.run(recipe, None, xs=[1, 2], y=100)
+        self.assertEqual(run.status, execution.RunStatus.FINISHED)
+        self.assertEqual(run.outputs.sums, [101, 102])
+
+    def test_if_recipe(self) -> None:
+        run = execution.run(_fixtures.if_recipe(), None, x=1, y=2)
+        self.assertEqual(run.status, execution.RunStatus.FINISHED)
+        self.assertEqual(run.outputs.out, 3)
+
+    def test_try_recipe(self) -> None:
+        for label, y, expected in (
+            ("try body", 2, 5.0),
+            ("except body", 0, 10),
+        ):
+            with self.subTest(label):
+                run = execution.run(_fixtures.try_recipe(), None, x=10, y=y)
+                self.assertEqual(run.status, execution.RunStatus.FINISHED)
+                self.assertEqual(run.outputs.z, expected)
+
+    def test_while_recipe(self) -> None:
+        # Counts `n` down to zero
+        run = execution.run(_fixtures.while_recipe(), None, n=3)
+        self.assertEqual(run.status, execution.RunStatus.FINISHED)
+        self.assertEqual(run.outputs.n, 0)
+
+    def test_constant_recipe(self) -> None:
+        run = execution.run(fr.schemas.ConstantRecipe(constant=42))
+        self.assertEqual(run.status, execution.RunStatus.FINISHED)
+        self.assertEqual(run.outputs.constant, 42)
+
+    def test_decorated_function(self) -> None:
+        run = execution.run(_fixtures.add, None, x=1, y=2)
+        self.assertEqual(run.status, execution.RunStatus.FINISHED)
+        self.assertEqual(run.outputs.output_0, 3)
+        self.assertEqual(run.label, "add")
+
+    def test_decorated_workflow_function(self) -> None:
+        run = execution.run(_fixtures.macro, None, x=1, y=2, z=4)
+        self.assertEqual(run.status, execution.RunStatus.FINISHED)
+        self.assertEqual(run.outputs.a, 3)
+        self.assertEqual(run.outputs.s, -1)
+
+    def test_undecorated_function(self) -> None:
+        run = execution.run(plain_add, None, x=1, y=2)
+        self.assertEqual(run.status, execution.RunStatus.FINISHED)
+        self.assertEqual(run.outputs.output_0, 3)
+        self.assertEqual(run.label, "plain_add")
+
+    def test_undecorated_class(self) -> None:
+        run = execution.run(PlainClass, None, x=5)
+        self.assertEqual(run.status, execution.RunStatus.FINISHED)
+        self.assertIsInstance(run.outputs.instance, PlainClass)
+        self.assertEqual(run.outputs.instance.x, 5)
+
+    def test_jsonable_constant(self) -> None:
+        for value in (42, "hi", [1, 2, 3], {"a": [1, 2]}):
+            with self.subTest(value=value):
+                run = execution.run(value)
+                self.assertEqual(run.status, execution.RunStatus.FINISHED)
+                self.assertEqual(run.outputs.constant, value)
+
+    def test_config_is_honoured_for_constructed_nodes(self) -> None:
+        captured: list[tuple[str, execution.RunStatus]] = []
+
+        def hook(
+            run_dir: pathlib.Path,
+            t: datetime.datetime,
+            lp: str,
+            status: execution.RunStatus,
+        ) -> None:
+            captured.append((lp, status))
+
+        with tempfile.TemporaryDirectory() as tmp:
+            config = execution.RunConfig(
+                run_dir=pathlib.Path(tmp),
+                progress_hooks=[execution.ProgressHook(hook, True)],
+            )
+            run = execution.run(plain_add, config, x=1, y=2)
+
+        self.assertEqual(run.outputs.output_0, 3)
+        self.assertEqual(
+            captured,
+            [
+                ("plain_add", execution.RunStatus.RUNNING),
+                ("plain_add", execution.RunStatus.FINISHED),
+            ],
+            msg="The wrapper should forward the config through to the node it built",
+        )
+
+    def test_non_node_like_raises(self) -> None:
+        with self.assertRaisesRegex(TypeError, "expected a Node"):
+            execution.run((1, 2), None, x=1)
 
 
 # --------------------------------------------------------------------------- #
