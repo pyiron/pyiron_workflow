@@ -92,10 +92,6 @@ packages = [
     "src/pyiron_workflow"
 ]
 
-[tool.hatch.version]
-source = "vcs"
-path = "src/pyiron_workflow/_version.py"
-
 [tool.ruff]
 exclude = ["docs", "notebooks"]
 
