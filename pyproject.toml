@@ -53,9 +53,8 @@ dynamic = [ "version",]
 authors = [
     { name = "Liam Huber", email = "liamhuber@greyhavensolutions.com" },
 ]
-
-[project.license]
-file = "LICENSE"
+license = "BSD-3-Clause"
+license-files = ["LICENSE"]
 
 [project.urls]
 Homepage = "https://github.com/pyiron/pyiron_workflow"
@@ -76,25 +75,24 @@ fleche = [
 
 [tool.hatch.build]
 include = [
-    "pyiron_workflow"
-]
-
-[tool.hatch.build.hooks.vcs]
-version-file = "pyiron_workflow/_version.py"
-
-[tool.hatch.build.targets.sdist]
-include = [
-    "pyiron_workflow"
-]
-
-[tool.hatch.build.targets.wheel]
-packages = [
-    "pyiron_workflow"
+    "src/pyiron_workflow"
 ]
 
 [tool.hatch.version]
 source = "vcs"
-path = "pyiron_workflow/_version.py"
+
+[tool.hatch.build.hooks.vcs]
+version-file = "src/pyiron_workflow/_version.py"
+
+[tool.hatch.build.targets.sdist]
+include = [
+    "src/pyiron_workflow"
+]
+
+[tool.hatch.build.targets.wheel]
+packages = [
+    "src/pyiron_workflow"
+]
 
 [tool.ruff]
 exclude = ["docs", "notebooks"]
@@ -138,13 +136,6 @@ ignore = [
     # Too many not-keyword-only arguments,
     "PLR0917"
 ]
-
-[tool.ruff.lint.per-file-ignores]
-"pyiron_workflow/executors/__init__.py" = ["F401"]  # Ignore unused imports in init files -- we specify APIs this way
-"pyiron_workflow/__init__.py" = ["F401"]  # Ignore unused imports in init files -- we specify APIs this way
-"pyiron_workflow/api.py" = ["F401"]  # Ignore unused imports in api file -- we specify APIs this way
-"pyiron_workflow/mixin/injection.py" = ["PLC0415"]  # Allow non-top imports
-"pyiron_workflow/create.py" = ["PLC0415"]  # Allow non-top imports
 
 [tool.black]
 extend-exclude = '''
