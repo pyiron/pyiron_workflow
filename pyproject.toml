@@ -53,9 +53,8 @@ dynamic = [ "version",]
 authors = [
     { name = "Liam Huber", email = "liamhuber@greyhavensolutions.com" },
 ]
-
-[project.license]
-file = "LICENSE"
+license = "BSD-3-Clause"
+license-files = ["LICENSE"]
 
 [project.urls]
 Homepage = "https://github.com/pyiron/pyiron_workflow"
