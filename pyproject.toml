@@ -76,25 +76,25 @@ fleche = [
 
 [tool.hatch.build]
 include = [
-    "pyiron_workflow"
+    "src/pyiron_workflow"
 ]
 
 [tool.hatch.build.hooks.vcs]
-version-file = "pyiron_workflow/_version.py"
+version-file = "src/pyiron_workflow/_version.py"
 
 [tool.hatch.build.targets.sdist]
 include = [
-    "pyiron_workflow"
+    "src/pyiron_workflow"
 ]
 
 [tool.hatch.build.targets.wheel]
 packages = [
-    "pyiron_workflow"
+    "src/pyiron_workflow"
 ]
 
 [tool.hatch.version]
 source = "vcs"
-path = "pyiron_workflow/_version.py"
+path = "src/pyiron_workflow/_version.py"
 
 [tool.ruff]
 exclude = ["docs", "notebooks"]
@@ -140,11 +140,11 @@ ignore = [
 ]
 
 [tool.ruff.lint.per-file-ignores]
-"pyiron_workflow/executors/__init__.py" = ["F401"]  # Ignore unused imports in init files -- we specify APIs this way
-"pyiron_workflow/__init__.py" = ["F401"]  # Ignore unused imports in init files -- we specify APIs this way
-"pyiron_workflow/api.py" = ["F401"]  # Ignore unused imports in api file -- we specify APIs this way
-"pyiron_workflow/mixin/injection.py" = ["PLC0415"]  # Allow non-top imports
-"pyiron_workflow/create.py" = ["PLC0415"]  # Allow non-top imports
+"src/pyiron_workflow/executors/__init__.py" = ["F401"]  # Ignore unused imports in init files -- we specify APIs this way
+"src/pyiron_workflow/__init__.py" = ["F401"]  # Ignore unused imports in init files -- we specify APIs this way
+"src/pyiron_workflow/api.py" = ["F401"]  # Ignore unused imports in api file -- we specify APIs this way
+"src/pyiron_workflow/mixin/injection.py" = ["PLC0415"]  # Allow non-top imports
+"src/pyiron_workflow/create.py" = ["PLC0415"]  # Allow non-top imports
 
 [tool.black]
 extend-exclude = '''
