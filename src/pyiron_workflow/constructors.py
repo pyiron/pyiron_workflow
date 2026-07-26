@@ -36,8 +36,8 @@ def node(value: NodeLike, label: fr.schemas.Label | None = None) -> datatypes.No
     """
     Convert a node-like `value` into a `Node` labelled `label`.
 
-    Accepts a `Node`, an `flowrep` recipe, or a plain function or class. Raises
-    `TypeError` otherwise.
+    Accepts a `Node`, an `flowrep` recipe, a plain function or class, or a JSONable
+    constant. Raises `TypeError` otherwise.
 
     When the passed object is already a node instance, simply attempts to relabel it.
 
