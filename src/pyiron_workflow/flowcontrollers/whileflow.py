@@ -16,10 +16,10 @@ class While(datatypes.StaticGraph[fr.schemas.WhileRecipe, fr.schemas.WhileData])
         return datatypes.NodeMap(
             self,
             {
-                recipe.case.condition.label: constructors.recipe2node(
+                recipe.case.condition.label: constructors.atomictype2node(
                     recipe.case.condition.recipe, recipe.case.condition.label
                 ),
-                recipe.case.body.label: constructors.recipe2node(
+                recipe.case.body.label: constructors.atomictype2node(
                     recipe.case.body.recipe, recipe.case.body.label
                 ),
             },

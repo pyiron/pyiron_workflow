@@ -50,7 +50,7 @@ def node(value: NodeLike, label: fr.schemas.Label | None = None) -> datatypes.No
             value.label = label
         return value
     elif isinstance(value, RecipeOptions):
-        return recipe2node(value, label)
+        return atomictype2node(value, label)
     elif isinstance(value, type | types.FunctionType):
         return function2node(value, label)
     elif fr.tools.is_jsonable(value):
@@ -86,7 +86,7 @@ def function2node(
         # flowrep-decorated functions are all either atomic or workflow recipes
         return cast(
             atomic_node.Atomic | dag.Macro,
-            recipe2node(
+            atomictype2node(
                 cast(fr.schemas.AtomicRecipe | fr.schemas.WorkflowRecipe, recipe),
                 label or function.__name__,
             ),
@@ -97,7 +97,7 @@ def function2node(
         return atomic_node.Atomic(recipe, label or function.__name__)
 
 
-def recipe2node(
+def atomictype2node(
     recipe: RecipeOptions, label: fr.schemas.Label | None = None
 ) -> datatypes.StaticNode:
     label = (
@@ -208,7 +208,7 @@ def workflow2macro(wf: workflow_node.Workflow) -> dag.Macro:
 def macro2workflow(macro: dag.Macro) -> workflow_node.Workflow:
     wf = workflow_node.Workflow(macro.label)
     for label, node_recipe in macro.recipe.nodes.items():
-        wf.add_node(recipe2node(node_recipe, label))
+        wf.add_node(atomictype2node(node_recipe, label))
 
     for port_creator, reference in (
         (wf.create_input, macro.inputs),
