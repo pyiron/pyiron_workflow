@@ -2,4 +2,5 @@ channels:
   - conda-forge
 dependencies:
   - bagofholding =0.2.0
+  - flowrep =0.7.0
   - pyiron_snippets =2.0.0
