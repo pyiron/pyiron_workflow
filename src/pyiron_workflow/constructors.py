@@ -27,45 +27,65 @@ RecipeOptions: TypeAlias = (
 )
 
 
-def node(value: object, label: fr.schemas.Label | None = None) -> datatypes.Node:
+NodeLike: TypeAlias = (
+    datatypes.Node | RecipeOptions | types.FunctionType | type | fr.schemas.JSONABLE
+)
+
+
+def node(value: NodeLike, label: fr.schemas.Label | None = None, /) -> datatypes.Node:
     """
     Convert a node-like `value` into a `Node` labelled `label`.
 
-    Accepts a `Node`, an `flowrep` recipe, or a plain function. Raises
-    `TypeError` otherwise.
+    Accepts a `Node`, an `flowrep` recipe, a plain function or class, or a JSONable
+    constant. Raises `TypeError` otherwise.
 
-    When the passed object is already a node instance, simply attempts to relabel it.
+    When the passed object is already a node instance, returns a copy.
 
-    Functions will be searched for an attached `flowrep` recipe, and otherwise parsed
-    as atomic nodes. Un-parseable functions will raise the underlying `flowrep` error.
+    Functions and classes will be searched for an attached `flowrep` recipe, and
+    otherwise parsed as atomic nodes. Un-parseable callables will raise the underlying
+    `flowrep` error.
     """
     if isinstance(value, datatypes.Node):
-        if label is not None:
-            value.label = label
-        return value
+        return value.copy(new_label=label)
     elif isinstance(value, RecipeOptions):
-        return recipe2node(value, label)
-    elif isinstance(value, types.FunctionType):
+        return atomictype2node(value, label)
+    elif isinstance(value, type | types.FunctionType):
         return function2node(value, label)
     elif fr.tools.is_jsonable(value):
         return constant.Constant.from_value(value, label)
     else:
         raise TypeError(
             f"Cannot assign {value!r} as node {label!r}: expected a Node, "
-            f"flowrep recipe, or function (with or without a flowrep recipe attached)."
+            f"flowrep recipe, or function or class (with or without a flowrep recipe "
+            f"attached)."
         )
 
 
 def function2node(
-    function: types.FunctionType,
+    function: types.FunctionType | type,
     label: fr.schemas.Label | None = None,
+    /,
 ) -> atomic_node.Atomic | dag.Macro:
-    recipe = getattr(function, "flowrep_recipe", None)
-    if recipe:
+    """
+    Convert a function or class into a node labelled `label` (defaulting to its
+    `__name__`).
+
+    Only a recipe attached to `function` _itself_ is honoured; an inherited recipe is
+    ignored, so that an undecorated subclass of a decorated class gets parsed afresh
+    instead of silently referencing its parent.
+    """
+    recipe = vars(function).get("flowrep_recipe", None)
+    if recipe is not None:
+        if not isinstance(recipe, fr.schemas.NodeRecipe):
+            raise TypeError(
+                f"Cannot convert {function!r} to a Node: it has a 'flowrep_recipe' "
+                f"attribute, but this is not a '{fr.schemas.NodeRecipe.__name__}' "
+                f"-- got {type(recipe)!r}: {recipe}"
+            )
         # flowrep-decorated functions are all either atomic or workflow recipes
         return cast(
             atomic_node.Atomic | dag.Macro,
-            recipe2node(
+            atomictype2node(
                 cast(fr.schemas.AtomicRecipe | fr.schemas.WorkflowRecipe, recipe),
                 label or function.__name__,
             ),
@@ -76,8 +96,8 @@ def function2node(
         return atomic_node.Atomic(recipe, label or function.__name__)
 
 
-def recipe2node(
-    recipe: RecipeOptions, label: fr.schemas.Label | None = None
+def atomictype2node(
+    recipe: RecipeOptions, label: fr.schemas.Label | None = None, /
 ) -> datatypes.StaticNode:
     label = (
         f"{_pascal_to_snake(recipe.__class__.__name__)}_node"
@@ -187,7 +207,7 @@ def workflow2macro(wf: workflow_node.Workflow) -> dag.Macro:
 def macro2workflow(macro: dag.Macro) -> workflow_node.Workflow:
     wf = workflow_node.Workflow(macro.label)
     for label, node_recipe in macro.recipe.nodes.items():
-        wf.add_node(recipe2node(node_recipe, label))
+        wf.add_node(atomictype2node(node_recipe, label))
 
     for port_creator, reference in (
         (wf.create_input, macro.inputs),

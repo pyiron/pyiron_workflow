@@ -15,14 +15,14 @@ class If(datatypes.StaticGraph[fr.schemas.IfRecipe, fr.schemas.IfData]):
     def _build_nodes(self, recipe: fr.schemas.IfRecipe) -> datatypes.NodeMap:
         nodes: dict[fr.schemas.Label, datatypes.Node] = {}
         for case in recipe.cases:
-            nodes[case.condition.label] = constructors.recipe2node(
+            nodes[case.condition.label] = constructors.atomictype2node(
                 case.condition.recipe, case.condition.label
             )
-            nodes[case.body.label] = constructors.recipe2node(
+            nodes[case.body.label] = constructors.atomictype2node(
                 case.body.recipe, case.body.label
             )
         if recipe.else_case is not None:
-            nodes[recipe.else_case.label] = constructors.recipe2node(
+            nodes[recipe.else_case.label] = constructors.atomictype2node(
                 recipe.else_case.recipe, recipe.else_case.label
             )
         return datatypes.NodeMap(self, nodes)

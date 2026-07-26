@@ -93,7 +93,12 @@ class MutableNodeMap(
             return
         if key in self._pwf_lexical_map__data:
             raise _duplicate_entry_error(self._pwf_lexical_map__owner, key, "node")
-        self._pwf_lexical_map__owner.add_node(constructors.node(value, key))
+        if isinstance(value, datatypes.Node):
+            value.label = key
+            to_add = value
+        else:
+            to_add = constructors.node(value, key)
+        self._pwf_lexical_map__owner.add_node(to_add)
 
 
 class Workflow(datatypes.MutableDag):
@@ -220,7 +225,12 @@ class Workflow(datatypes.MutableDag):
             if node.label != name:
                 self.rename_node(node, name)
         else:
-            self.add_node(constructors.node(value, name))
+            if isinstance(value, datatypes.Node):
+                value.label = name
+                to_add = value
+            else:
+                to_add = constructors.node(value, name)
+            self.add_node(to_add)
 
     @property
     def inputs(self) -> MutablePortMap[datatypes.InputPort]:

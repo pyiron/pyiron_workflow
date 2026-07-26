@@ -27,6 +27,44 @@ def plain_add(x, y):
     return x + y
 
 
+@fr.atomic
+class DecoratedClass:
+    """Decorated class — classes are node-like just like functions."""
+
+    def __init__(self, x: int) -> None:
+        self.x = x
+
+
+class PlainSubclass(DecoratedClass):
+    """Undecorated child of a decorated class — must _not_ reuse the parent recipe."""
+
+    def __init__(self, x: int, y: int = 2) -> None:
+        super().__init__(x)
+        self.y = y
+
+
+@fr.atomic
+class DecoratedSubclass(DecoratedClass):
+    """Decorated child of a decorated class — carries its own recipe."""
+
+    def __init__(self, x: int, y: int = 2) -> None:
+        super().__init__(x)
+        self.y = y
+
+
+class PlainClass:
+    """Undecorated class — parsed as an atomic node from its constructor."""
+
+    def __init__(self, x: int) -> None:
+        self.x = x
+
+
+class NotARecipeHolder:
+    """Occupies `flowrep_recipe` with something that isn't a recipe at all."""
+
+    flowrep_recipe = "not a recipe"
+
+
 # --------------------------------------------------------------------------- #
 # Helpers for building minimal If / Try / While recipes.                      #
 # --------------------------------------------------------------------------- #
@@ -118,15 +156,18 @@ def _try_recipe() -> fr.schemas.TryRecipe:
 
 
 class TestNode(unittest.TestCase):
-    def test_node_passes_through_node_instances(self) -> None:
+    def test_node_copies_node_instances(self) -> None:
         node = _fixtures.atomic_add_node("original")
         still_node = constructors.node(node)
-        self.assertIs(still_node, node)
+        self.assertIsInstance(still_node, datatypes.Node)
+        self.assertEqual(node.recipe, still_node.recipe)
+        self.assertEqual(node.label, still_node.label)
+        self.assertIsNot(node, still_node)
 
     def test_node_relabels_node(self) -> None:
         node = _fixtures.atomic_add_node("original")
         result = constructors.node(node, "renamed")
-        self.assertIs(result, node)
+        self.assertEqual(node.label, "original")
         self.assertEqual(result.label, "renamed")
 
     def test_node_rejects_non_node_non_jsonable(self) -> None:
@@ -153,6 +194,26 @@ class TestNode(unittest.TestCase):
         self.assertIsInstance(result, atomic_node.Atomic)
         self.assertEqual(result.label, "inc")
 
+    def test_unlabelled_decorated_function_takes_its_own_name(self) -> None:
+        """Without a label, the function name wins — not a generic recipe-class name."""
+        self.assertEqual(constructors.node(_fixtures.add).label, "add")
+        self.assertEqual(constructors.node(_fixtures.macro).label, "macro")
+
+    def test_decorated_class(self) -> None:
+        result = constructors.node(DecoratedClass)
+        self.assertIsInstance(result, atomic_node.Atomic)
+        self.assertEqual(result.label, "DecoratedClass")
+
+    def test_undecorated_class(self) -> None:
+        result = constructors.node(PlainClass)
+        self.assertIsInstance(result, atomic_node.Atomic)
+        self.assertEqual(result.label, "PlainClass")
+
+    def test_rejects_instance_of_decorated_class(self) -> None:
+        """Instances carry `flowrep_recipe` from their class, but aren't node-like."""
+        with self.assertRaisesRegex(TypeError, "expected a Node"):
+            constructors.node(DecoratedClass(1))
+
     def test_jsonable_constant(self) -> None:
         result = constructors.node([42], "forty_two")
         self.assertIsInstance(result, constant.Constant)
@@ -171,7 +232,7 @@ class TestFunction2Node(unittest.TestCase):
         self.assertEqual(n.label, "add")
 
     def test_atomic_decorated_explicit_label(self) -> None:
-        n = constructors.function2node(_fixtures.add, label="custom")
+        n = constructors.function2node(_fixtures.add, "custom")
         self.assertIsInstance(n, atomic_node.Atomic)
         self.assertEqual(n.label, "custom")
 
@@ -185,6 +246,38 @@ class TestFunction2Node(unittest.TestCase):
         self.assertIsInstance(n, atomic_node.Atomic)
         self.assertEqual(n.label, "plain_add")
 
+    def test_decorated_class_default_label(self) -> None:
+        n = constructors.function2node(DecoratedClass)
+        self.assertIsInstance(n, atomic_node.Atomic)
+        self.assertEqual(n.label, "DecoratedClass")
+        self.assertIs(n.recipe, DecoratedClass.flowrep_recipe)
+
+    def test_undecorated_subclass_is_parsed_afresh(self) -> None:
+        """An inherited recipe must be ignored, or the child would build its parent."""
+        n = constructors.function2node(PlainSubclass)
+        self.assertIsNot(n.recipe, DecoratedClass.flowrep_recipe)
+        self.assertTrue(
+            n.recipe.reference.info.fully_qualified_name.endswith("PlainSubclass"),
+            msg=f"Got {n.recipe.reference.info.fully_qualified_name}",
+        )
+        self.assertListEqual(
+            ["x", "y"],
+            list(n.inputs.keys()),
+            msg="The child's own constructor signature should be parsed",
+        )
+
+    def test_decorated_subclass_uses_its_own_recipe(self) -> None:
+        n = constructors.function2node(DecoratedSubclass)
+        self.assertIs(n.recipe, DecoratedSubclass.flowrep_recipe)
+        self.assertTrue(
+            n.recipe.reference.info.fully_qualified_name.endswith("DecoratedSubclass"),
+            msg=f"Got {n.recipe.reference.info.fully_qualified_name}",
+        )
+
+    def test_non_recipe_flowrep_attribute_raises(self) -> None:
+        with self.assertRaisesRegex(TypeError, "not a 'NodeRecipe'"):
+            constructors.function2node(NotARecipeHolder)
+
 
 # --------------------------------------------------------------------------- #
 # Tests for `recipe2node`                                                     #
@@ -194,41 +287,41 @@ class TestFunction2Node(unittest.TestCase):
 class TestRecipe2Node(unittest.TestCase):
     def test_atomic_recipe_returns_atomic(self) -> None:
         recipe = transformers.Transform1toN(2).recipe
-        n = constructors.recipe2node(recipe)
+        n = constructors.atomictype2node(recipe)
         self.assertIsInstance(n, atomic_node.Atomic)
 
     def test_label(self) -> None:
         recipe = transformers.Transform1toN(2).recipe
-        n = constructors.recipe2node(recipe)
+        n = constructors.atomictype2node(recipe)
         self.assertEqual(n.label, "atomic_recipe_node")
-        n = constructors.recipe2node(recipe, label="explicit_label")
+        n = constructors.atomictype2node(recipe, "explicit_label")
         self.assertEqual(n.label, "explicit_label")
 
     def test_workflow_recipe_returns_macro(self) -> None:
         recipe = _fixtures.macro.flowrep_recipe
-        n = constructors.recipe2node(recipe)
+        n = constructors.atomictype2node(recipe)
         self.assertIsInstance(n, dag.Macro)
 
     def test_for_each_recipe_returns_for_each(self) -> None:
         recipe = _fixtures.for_wf.flowrep_recipe.nodes["for_each_0"]
-        n = constructors.recipe2node(recipe)
+        n = constructors.atomictype2node(recipe)
         self.assertIsInstance(n, flowcontrollers.ForEach)
 
     def test_if_recipe_returns_if(self) -> None:
-        n = constructors.recipe2node(_if_recipe())
+        n = constructors.atomictype2node(_if_recipe())
         self.assertIsInstance(n, flowcontrollers.If)
 
     def test_try_recipe_returns_try(self) -> None:
-        n = constructors.recipe2node(_try_recipe())
+        n = constructors.atomictype2node(_try_recipe())
         self.assertIsInstance(n, flowcontrollers.Try)
 
     def test_while_recipe_returns_while(self) -> None:
-        n = constructors.recipe2node(_while_recipe())
+        n = constructors.atomictype2node(_while_recipe())
         self.assertIsInstance(n, flowcontrollers.While)
 
     def test_unknown_recipe_type_raises_type_error(self) -> None:
         with self.assertRaises(TypeError) as ctx:
-            constructors.recipe2node(recipe=object(), label="x")  # type: ignore[arg-type]
+            constructors.atomictype2node(object(), "x")  # type: ignore[arg-type]
         self.assertIn("Unknown recipe type", str(ctx.exception))
 
 
