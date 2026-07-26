@@ -126,7 +126,7 @@ def _run_and_reload(wf_fnc, **input_data) -> wfms.schemas.Run:
     """Run ``wf_fnc``, expect RuntimeError, return the loaded pickled failure."""
     with tempfile.TemporaryDirectory() as tmp:
         run_dir = pathlib.Path(tmp)
-        wf = wfms.node(wf_fnc, label=_LABEL)
+        wf = wfms.node(wf_fnc, _LABEL)
         config = wfms.RunConfig(
             run_dir=run_dir,
             progress_hooks=[],
@@ -333,7 +333,7 @@ class TestOutOfProcessFailure(unittest.TestCase):
     def test_while_failure_on_process_pool(self) -> None:
         with tempfile.TemporaryDirectory() as tmp:
             run_dir = pathlib.Path(tmp)
-            wf = wfms.node(composite_failure, label=_LABEL)
+            wf = wfms.node(composite_failure, _LABEL)
             config = wfms.RunConfig(
                 run_dir=run_dir,
                 progress_hooks=[],

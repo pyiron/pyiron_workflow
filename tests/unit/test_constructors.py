@@ -232,7 +232,7 @@ class TestFunction2Node(unittest.TestCase):
         self.assertEqual(n.label, "add")
 
     def test_atomic_decorated_explicit_label(self) -> None:
-        n = constructors.function2node(_fixtures.add, label="custom")
+        n = constructors.function2node(_fixtures.add, "custom")
         self.assertIsInstance(n, atomic_node.Atomic)
         self.assertEqual(n.label, "custom")
 
@@ -294,7 +294,7 @@ class TestRecipe2Node(unittest.TestCase):
         recipe = transformers.Transform1toN(2).recipe
         n = constructors.atomictype2node(recipe)
         self.assertEqual(n.label, "atomic_recipe_node")
-        n = constructors.atomictype2node(recipe, label="explicit_label")
+        n = constructors.atomictype2node(recipe, "explicit_label")
         self.assertEqual(n.label, "explicit_label")
 
     def test_workflow_recipe_returns_macro(self) -> None:
@@ -321,7 +321,7 @@ class TestRecipe2Node(unittest.TestCase):
 
     def test_unknown_recipe_type_raises_type_error(self) -> None:
         with self.assertRaises(TypeError) as ctx:
-            constructors.atomictype2node(recipe=object(), label="x")  # type: ignore[arg-type]
+            constructors.atomictype2node(object(), "x")  # type: ignore[arg-type]
         self.assertIn("Unknown recipe type", str(ctx.exception))
 
 

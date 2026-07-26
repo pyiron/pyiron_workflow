@@ -32,7 +32,7 @@ NodeLike: TypeAlias = (
 )
 
 
-def node(value: NodeLike, label: fr.schemas.Label | None = None) -> datatypes.Node:
+def node(value: NodeLike, label: fr.schemas.Label | None = None, /) -> datatypes.Node:
     """
     Convert a node-like `value` into a `Node` labelled `label`.
 
@@ -64,6 +64,7 @@ def node(value: NodeLike, label: fr.schemas.Label | None = None) -> datatypes.No
 def function2node(
     function: types.FunctionType | type,
     label: fr.schemas.Label | None = None,
+    /,
 ) -> atomic_node.Atomic | dag.Macro:
     """
     Convert a function or class into a node labelled `label` (defaulting to its
@@ -96,7 +97,7 @@ def function2node(
 
 
 def atomictype2node(
-    recipe: RecipeOptions, label: fr.schemas.Label | None = None
+    recipe: RecipeOptions, label: fr.schemas.Label | None = None, /
 ) -> datatypes.StaticNode:
     label = (
         f"{_pascal_to_snake(recipe.__class__.__name__)}_node"
