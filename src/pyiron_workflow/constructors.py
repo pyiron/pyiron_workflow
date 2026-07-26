@@ -39,16 +39,14 @@ def node(value: NodeLike, label: fr.schemas.Label | None = None) -> datatypes.No
     Accepts a `Node`, an `flowrep` recipe, a plain function or class, or a JSONable
     constant. Raises `TypeError` otherwise.
 
-    When the passed object is already a node instance, simply attempts to relabel it.
+    When the passed object is already a node instance, returns a copy.
 
     Functions and classes will be searched for an attached `flowrep` recipe, and
     otherwise parsed as atomic nodes. Un-parseable callables will raise the underlying
     `flowrep` error.
     """
     if isinstance(value, datatypes.Node):
-        if label is not None:
-            value.label = label
-        return value
+        return value.copy(new_label=label)
     elif isinstance(value, RecipeOptions):
         return atomictype2node(value, label)
     elif isinstance(value, type | types.FunctionType):

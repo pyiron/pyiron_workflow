@@ -156,15 +156,18 @@ def _try_recipe() -> fr.schemas.TryRecipe:
 
 
 class TestNode(unittest.TestCase):
-    def test_node_passes_through_node_instances(self) -> None:
+    def test_node_copies_node_instances(self) -> None:
         node = _fixtures.atomic_add_node("original")
         still_node = constructors.node(node)
-        self.assertIs(still_node, node)
+        self.assertIsInstance(still_node, datatypes.Node)
+        self.assertEqual(node.recipe, still_node.recipe)
+        self.assertEqual(node.label, still_node.label)
+        self.assertIsNot(node, still_node)
 
     def test_node_relabels_node(self) -> None:
         node = _fixtures.atomic_add_node("original")
         result = constructors.node(node, "renamed")
-        self.assertIs(result, node)
+        self.assertEqual(node.label, "original")
         self.assertEqual(result.label, "renamed")
 
     def test_node_rejects_non_node_non_jsonable(self) -> None:
