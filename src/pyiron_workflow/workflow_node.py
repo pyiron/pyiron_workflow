@@ -123,7 +123,7 @@ class Workflow(datatypes.MutableDag):
 
     @classmethod
     def from_recipe(
-        cls, recipe: fr.schemas.WorkflowRecipe, label: fr.schemas.Label, /
+        cls, recipe: fr.schemas.WorkflowRecipe, label: fr.schemas.Label | None = None, /
     ) -> Workflow:
         wf = cls(label)
         flowrep_data = fr.tools.recipe2data(recipe)
