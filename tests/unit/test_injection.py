@@ -219,7 +219,7 @@ class TestPendingConnectionLifting(unittest.TestCase):
         # outer workflow that also owns n1.
         n1 = _new_node()
         n2 = _new_node()
-        n2(n1)  # connect_input: caches a pending connection on the free n2
+        n2(x=n1)  # connect_input: caches a pending connection on the free n2
         result = abs(n2)
         self.assertIsInstance(result, workflow_node.Workflow)
         # n2 is absorbed; result has a pending connection 'plain_increment_0_x' <- n1.output_0

@@ -166,8 +166,7 @@ class Workflow(datatypes.MutableDag):
         label: fr.schemas.Label,
         undo_limit: int = 10,
         /,
-        *positional_connections: datatypes.Port | datatypes.Node,
-        **keyword_connections: datatypes.Port | datatypes.Node,
+        **connections: datatypes.Port | datatypes.Node,
     ):
         # Add a super call later if needed
         self._label = label
@@ -183,7 +182,7 @@ class Workflow(datatypes.MutableDag):
         self._diff_accumulator: actions.GraphDiff | None = None
         self.undo_stack = collections.deque(maxlen=undo_limit)
         self.redo_stack = collections.deque(maxlen=undo_limit)
-        self.connect_input(*positional_connections, **keyword_connections)
+        self.connect_input(**connections)
 
     def copy(
         self, new_label: fr.schemas.Label | None = None, _copy_to: Self | None = None

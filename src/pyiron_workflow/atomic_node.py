@@ -16,10 +16,9 @@ class Atomic(datatypes.StaticNode[fr.schemas.AtomicRecipe, fr.schemas.AtomicData
         recipe: fr.schemas.AtomicRecipe,
         label: fr.schemas.Label,
         /,
-        *positional_connections: datatypes.Port | datatypes.Node,
-        **keyword_connections: datatypes.Port | datatypes.Node,
+        **connections: datatypes.Port | datatypes.Node,
     ):
-        super().__init__(recipe, label, *positional_connections, **keyword_connections)
+        super().__init__(recipe, label, **connections)
         func = retrieve.import_from_string(recipe.fully_qualified_name)
         self._function_metadata = getattr(func, "_semantikon_metadata", None)
 

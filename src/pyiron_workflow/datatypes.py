@@ -267,20 +267,19 @@ class Node(
     def _copy_data(from_: Node, to_: Node, /) -> None:
         to_.executor = from_.executor
 
-    def __call__(self, *args: Port | Node, **kwargs: Port | Node) -> Self:
-        self.connect_input(*args, **kwargs)
+    def __call__(self, **kwargs: Port | Node) -> Self:
+        self.connect_input(**kwargs)
         return self
 
-    def connect_input(self, *args: Port | Node, **kwargs: Port | Node) -> None:
+    def connect_input(self, **kwargs: Port | Node) -> None:
         """
         A syntactic shortcut for adding new edges feeding this node on the owning graph.
 
         If this node does not yet have an owner, caches these edges for later use with
         :meth:`apply_pending_connections`.
         """
-        connections = dict(zip(self.inputs.keys(), args, strict=False))
-        connections.update(kwargs)
-        for k, v in connections.items():
+        connections: dict[str, Port] = {}
+        for k, v in kwargs.items():
             connections[k] = coerce_to_port(v)
         self._pending_connections.update(connections)
         if isinstance(self._owner, MutableDag):
@@ -382,8 +381,7 @@ class StaticNode(Node[RecipeType, execution.ResultType], abc.ABC):
         recipe: RecipeType,
         label: fr.schemas.Label,
         /,
-        *positional_connections: Port | Node,
-        **keyword_connections: Port | Node,
+        **connections: Port | Node,
     ):
         self._label = label  # TODO: also accept None and use function name for default
         self._owner = None
@@ -396,7 +394,7 @@ class StaticNode(Node[RecipeType, execution.ResultType], abc.ABC):
 
         self.executor = None
         self.last_run = None
-        self.connect_input(*positional_connections, **keyword_connections)
+        self.connect_input(**connections)
 
     @property
     def inputs(self) -> PortMap[InputPort, Node]:
@@ -547,10 +545,9 @@ class StaticGraph(StaticNode[RecipeType, execution.ResultType], Graph, abc.ABC):
         recipe: RecipeType,
         label: fr.schemas.Label,
         /,
-        *positional_connections: Port | Node,
-        **keyword_connections: Port | Node,
+        **connections: Port | Node,
     ):
-        super().__init__(recipe, label, *positional_connections, **keyword_connections)
+        super().__init__(recipe, label, **connections)
         self._nodes = self._build_nodes(recipe)
         self._edges = self._build_edges(recipe)
 

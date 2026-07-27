@@ -339,7 +339,12 @@ def _build_operation(
         else label
     )
     operation_node = Atomic(operation.flowrep_recipe, label)
-    operation_node.connect_input(*[s._injection.port for s in sources])
+    operation_node.connect_input(
+        **{
+            label: s._injection.port
+            for label, s in zip(operation_node.inputs, sources, strict=False)
+        }
+    )
 
     return operation_node
 
@@ -417,6 +422,8 @@ def _build_injection_graph(
                 "reachable."
             )
 
-    operation_node.connect_input(*negotiated_source_ports)
+    operation_node.connect_input(
+        **dict(zip(operation_node.inputs, negotiated_source_ports, strict=False))
+    )
 
     return graph
