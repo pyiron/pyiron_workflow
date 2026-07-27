@@ -163,7 +163,7 @@ class Workflow(datatypes.MutableDag):
 
     def __init__(
         self,
-        label: fr.schemas.Label | None,
+        label: fr.schemas.Label | None = None,
         undo_limit: int = 10,
         /,
         **connections: datatypes.Port | datatypes.Node,

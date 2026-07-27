@@ -543,7 +543,7 @@ class StaticGraph(StaticNode[RecipeType, execution.ResultType], Graph, abc.ABC):
     def __init__(
         self,
         recipe: RecipeType,
-        label: fr.schemas.Label | None,
+        label: fr.schemas.Label | None = None,
         /,
         **connections: Port | Node,
     ):
