@@ -32,7 +32,12 @@ NodeLike: TypeAlias = (
 )
 
 
-def node(value: NodeLike, label: fr.schemas.Label | None = None, /) -> datatypes.Node:
+def node(
+    value: NodeLike,
+    label: fr.schemas.Label | None = None,
+    /,
+    **connections: datatypes.Port | datatypes.Node,
+) -> datatypes.Node:
     """
     Convert a node-like `value` into a `Node` labelled `label`.
 
@@ -46,12 +51,16 @@ def node(value: NodeLike, label: fr.schemas.Label | None = None, /) -> datatypes
     `flowrep` error.
     """
     if isinstance(value, datatypes.Node):
-        return value.copy(new_label=label)
+        copied = value.copy(label)
+        copied.connect_input(**connections)
+        return copied
     elif isinstance(value, RecipeOptions):
-        return recipe2node(value, label)
+        return recipe2node(value, label, **connections)
     elif isinstance(value, type | types.FunctionType):
-        return atomictype2node(value, label)
+        return atomictype2node(value, label, **connections)
     elif fr.tools.is_jsonable(value):
+        if connections:
+            _raise_no_inputs_for_constants()
         return constant.Constant.from_value(value, label)
     else:
         raise TypeError(
@@ -59,6 +68,10 @@ def node(value: NodeLike, label: fr.schemas.Label | None = None, /) -> datatypes
             f"flowrep recipe, or function or class (with or without a flowrep recipe "
             f"attached)."
         )
+
+
+def _raise_no_inputs_for_constants():
+    raise TypeError("Constant nodes cannot take incoming connections.")
 
 
 def _disallow_locals(obj: types.FunctionType | type) -> None:
@@ -78,6 +91,7 @@ def atomictype2node(
     function: types.FunctionType | type,
     label: fr.schemas.Label | None = None,
     /,
+    **connections: datatypes.Port | datatypes.Node,
 ) -> atomic_node.Atomic | dag.Macro:
     """
     Convert a function or class into a node labelled `label` (defaulting to its
@@ -102,16 +116,20 @@ def atomictype2node(
             recipe2node(
                 cast(fr.schemas.AtomicRecipe | fr.schemas.WorkflowRecipe, recipe),
                 label or function.__name__,
+                **connections,
             ),
         )
     else:
         # Otherwise parse undecorated functions as atomic nodes
         recipe = fr.tools.parse_atomic(function)
-        return atomic_node.Atomic(recipe, label or function.__name__)
+        return atomic_node.Atomic(recipe, label or function.__name__, **connections)
 
 
 def recipe2node(
-    recipe: RecipeOptions, label: fr.schemas.Label | None = None, /
+    recipe: RecipeOptions,
+    label: fr.schemas.Label | None = None,
+    /,
+    **connections: datatypes.Port | datatypes.Node,
 ) -> datatypes.StaticNode:
     label = (
         f"{_pascal_to_snake(recipe.__class__.__name__)}_node"
@@ -120,19 +138,21 @@ def recipe2node(
     )
 
     if isinstance(recipe, fr.schemas.AtomicRecipe):
-        return atomic_node.Atomic(recipe, label)
+        return atomic_node.Atomic(recipe, label, **connections)
     elif isinstance(recipe, fr.schemas.ForEachRecipe):
-        return flowcontrollers.ForEach(recipe, label)
+        return flowcontrollers.ForEach(recipe, label, **connections)
     elif isinstance(recipe, fr.schemas.IfRecipe):
-        return flowcontrollers.If(recipe, label)
+        return flowcontrollers.If(recipe, label, **connections)
     elif isinstance(recipe, fr.schemas.TryRecipe):
-        return flowcontrollers.Try(recipe, label)
+        return flowcontrollers.Try(recipe, label, **connections)
     elif isinstance(recipe, fr.schemas.WhileRecipe):
-        return flowcontrollers.While(recipe, label)
+        return flowcontrollers.While(recipe, label, **connections)
     elif isinstance(recipe, fr.schemas.WorkflowRecipe):
-        return dag.Macro(recipe, label)
+        return dag.Macro(recipe, label, **connections)
     elif isinstance(recipe, fr.schemas.ConstantRecipe):
-        return constant.Constant(recipe, label)
+        if connections:
+            _raise_no_inputs_for_constants()
+        return constant.Constant(recipe, label, **connections)
     else:
         raise TypeError(
             f"Unknown recipe type: {recipe}. Expected one of {RecipeOptions}."

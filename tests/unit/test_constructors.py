@@ -220,6 +220,75 @@ class TestNode(unittest.TestCase):
         self.assertEqual(result.label, "forty_two")
 
 
+class TestConnectionsAtConstruction(unittest.TestCase):
+    """`**connections` sugar survives the trip through the constructors.
+
+    With no owner in play, every connection takes the 'pending' route.
+    """
+
+    def setUp(self) -> None:
+        self.src = _fixtures.atomic_add_node("src")
+        self.port = self.src.outputs["output_0"]
+
+    def test_node_instance(self) -> None:
+        original = _fixtures.atomic_add_node("original")
+        copied = constructors.node(original, "copied", x=self.port)
+        self.assertIs(copied._pending_connections["x"], self.port)
+        self.assertEqual(
+            {},
+            original._pending_connections,
+            msg="Connections belong to the copy, not the node we copied from",
+        )
+
+    def test_recipe(self) -> None:
+        n = constructors.node(
+            _fixtures.add.flowrep_recipe, "added", x=self.port, y=self.src
+        )
+        self.assertIs(n._pending_connections["x"], self.port)
+        self.assertIs(
+            n._pending_connections["y"],
+            self.port,
+            msg="Single-output nodes coerce to their port",
+        )
+
+    def test_flow_control_recipes(self) -> None:
+        for label, recipe, port_label in (
+            ("for_each", _fixtures.for_wf.flowrep_recipe.nodes["for_each_0"], "z"),
+            ("if", _if_recipe(), "x"),
+            ("try", _try_recipe(), "x"),
+            ("while", _while_recipe(), "x"),
+        ):
+            with self.subTest(label):
+                n = constructors.recipe2node(recipe, label, **{port_label: self.port})
+                self.assertIs(n._pending_connections[port_label], self.port)
+
+    def test_decorated_atomic_like(self) -> None:
+        """Goes by way of the attached recipe."""
+        n = constructors.node(_fixtures.add, "added", x=self.port)
+        self.assertIs(n._pending_connections["x"], self.port)
+
+    def test_undecorated_atomic_like(self) -> None:
+        """Gets parsed fresh instead."""
+        n = constructors.node(plain_add, "added", x=self.port)
+        self.assertIs(n._pending_connections["x"], self.port)
+
+    def test_constant_value_rejects_connections(self) -> None:
+        with self.assertRaisesRegex(TypeError, "cannot take incoming connections"):
+            constructors.node(42, "forty_two", x=self.port)
+
+    def test_constant_recipe_rejects_connections(self) -> None:
+        recipe = fr.schemas.ConstantRecipe(constant=42)
+        with self.assertRaisesRegex(TypeError, "cannot take incoming connections"):
+            constructors.recipe2node(recipe, "forty_two", x=self.port)
+
+    def test_constants_are_still_fine_without_connections(self) -> None:
+        self.assertIsInstance(constructors.node(42, "forty_two"), constant.Constant)
+        self.assertIsInstance(
+            constructors.recipe2node(fr.schemas.ConstantRecipe(constant=42)),
+            constant.Constant,
+        )
+
+
 # --------------------------------------------------------------------------- #
 # Tests for `function2node`                                                   #
 # --------------------------------------------------------------------------- #
