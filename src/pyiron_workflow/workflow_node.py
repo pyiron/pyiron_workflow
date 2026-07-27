@@ -123,7 +123,7 @@ class Workflow(datatypes.MutableDag):
 
     @classmethod
     def from_recipe(
-        cls, label: fr.schemas.Label, recipe: fr.schemas.WorkflowRecipe
+        cls, recipe: fr.schemas.WorkflowRecipe, label: fr.schemas.Label, /
     ) -> Workflow:
         wf = cls(label)
         flowrep_data = fr.tools.recipe2data(recipe)
@@ -187,7 +187,7 @@ class Workflow(datatypes.MutableDag):
     def copy(
         self, new_label: fr.schemas.Label | None = None, _copy_to: Self | None = None
     ) -> Workflow:
-        node_copy = _copy_to or self.from_recipe(new_label or self.label, self.recipe)
+        node_copy = _copy_to or self.from_recipe(self.recipe, new_label or self.label)
         self._copy_data(self, node_copy)
         for label, child in self.nodes.items():
             child.copy(_copy_to=node_copy.nodes[label])
