@@ -14,7 +14,7 @@ class Atomic(datatypes.StaticNode[fr.schemas.AtomicRecipe, fr.schemas.AtomicData
     def __init__(
         self,
         recipe: fr.schemas.AtomicRecipe,
-        label: fr.schemas.Label | None,
+        label: fr.schemas.Label | None = None,
         /,
         **connections: datatypes.Port | datatypes.Node,
     ):
