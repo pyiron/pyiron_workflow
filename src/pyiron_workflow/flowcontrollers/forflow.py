@@ -25,7 +25,7 @@ class ForEach(datatypes.StaticGraph[fr.schemas.ForEachRecipe, fr.schemas.ForEach
         bn = self.recipe.body_node
         return datatypes.NodeMap(
             self,
-            {bn.label: constructors.atomictype2node(bn.recipe, bn.label)},
+            {bn.label: constructors.recipe2node(bn.recipe, bn.label)},
         )
 
     def _build_edges(self, recipe: fr.schemas.ForEachRecipe) -> datatypes.EdgeList:

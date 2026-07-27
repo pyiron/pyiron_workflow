@@ -227,34 +227,34 @@ class TestNode(unittest.TestCase):
 
 class TestFunction2Node(unittest.TestCase):
     def test_atomic_decorated_default_label(self) -> None:
-        n = constructors.function2node(_fixtures.add)
+        n = constructors.atomictype2node(_fixtures.add)
         self.assertIsInstance(n, atomic_node.Atomic)
         self.assertEqual(n.label, "add")
 
     def test_atomic_decorated_explicit_label(self) -> None:
-        n = constructors.function2node(_fixtures.add, "custom")
+        n = constructors.atomictype2node(_fixtures.add, "custom")
         self.assertIsInstance(n, atomic_node.Atomic)
         self.assertEqual(n.label, "custom")
 
     def test_workflow_decorated_default_label(self) -> None:
-        n = constructors.function2node(_fixtures.macro)
+        n = constructors.atomictype2node(_fixtures.macro)
         self.assertIsInstance(n, dag.Macro)
         self.assertEqual(n.label, "macro")
 
     def test_undecorated_function_parses_as_atomic(self) -> None:
-        n = constructors.function2node(plain_add)
+        n = constructors.atomictype2node(plain_add)
         self.assertIsInstance(n, atomic_node.Atomic)
         self.assertEqual(n.label, "plain_add")
 
     def test_decorated_class_default_label(self) -> None:
-        n = constructors.function2node(DecoratedClass)
+        n = constructors.atomictype2node(DecoratedClass)
         self.assertIsInstance(n, atomic_node.Atomic)
         self.assertEqual(n.label, "DecoratedClass")
         self.assertIs(n.recipe, DecoratedClass.flowrep_recipe)
 
     def test_undecorated_subclass_is_parsed_afresh(self) -> None:
         """An inherited recipe must be ignored, or the child would build its parent."""
-        n = constructors.function2node(PlainSubclass)
+        n = constructors.atomictype2node(PlainSubclass)
         self.assertIsNot(n.recipe, DecoratedClass.flowrep_recipe)
         self.assertTrue(
             n.recipe.reference.info.fully_qualified_name.endswith("PlainSubclass"),
@@ -267,7 +267,7 @@ class TestFunction2Node(unittest.TestCase):
         )
 
     def test_decorated_subclass_uses_its_own_recipe(self) -> None:
-        n = constructors.function2node(DecoratedSubclass)
+        n = constructors.atomictype2node(DecoratedSubclass)
         self.assertIs(n.recipe, DecoratedSubclass.flowrep_recipe)
         self.assertTrue(
             n.recipe.reference.info.fully_qualified_name.endswith("DecoratedSubclass"),
@@ -276,7 +276,7 @@ class TestFunction2Node(unittest.TestCase):
 
     def test_non_recipe_flowrep_attribute_raises(self) -> None:
         with self.assertRaisesRegex(TypeError, "not a 'NodeRecipe'"):
-            constructors.function2node(NotARecipeHolder)
+            constructors.atomictype2node(NotARecipeHolder)
 
 
 # --------------------------------------------------------------------------- #
@@ -287,41 +287,41 @@ class TestFunction2Node(unittest.TestCase):
 class TestRecipe2Node(unittest.TestCase):
     def test_atomic_recipe_returns_atomic(self) -> None:
         recipe = transformers.Transform1toN(2).recipe
-        n = constructors.atomictype2node(recipe)
+        n = constructors.recipe2node(recipe)
         self.assertIsInstance(n, atomic_node.Atomic)
 
     def test_label(self) -> None:
         recipe = transformers.Transform1toN(2).recipe
-        n = constructors.atomictype2node(recipe)
+        n = constructors.recipe2node(recipe)
         self.assertEqual(n.label, "atomic_recipe_node")
-        n = constructors.atomictype2node(recipe, "explicit_label")
+        n = constructors.recipe2node(recipe, "explicit_label")
         self.assertEqual(n.label, "explicit_label")
 
     def test_workflow_recipe_returns_macro(self) -> None:
         recipe = _fixtures.macro.flowrep_recipe
-        n = constructors.atomictype2node(recipe)
+        n = constructors.recipe2node(recipe)
         self.assertIsInstance(n, dag.Macro)
 
     def test_for_each_recipe_returns_for_each(self) -> None:
         recipe = _fixtures.for_wf.flowrep_recipe.nodes["for_each_0"]
-        n = constructors.atomictype2node(recipe)
+        n = constructors.recipe2node(recipe)
         self.assertIsInstance(n, flowcontrollers.ForEach)
 
     def test_if_recipe_returns_if(self) -> None:
-        n = constructors.atomictype2node(_if_recipe())
+        n = constructors.recipe2node(_if_recipe())
         self.assertIsInstance(n, flowcontrollers.If)
 
     def test_try_recipe_returns_try(self) -> None:
-        n = constructors.atomictype2node(_try_recipe())
+        n = constructors.recipe2node(_try_recipe())
         self.assertIsInstance(n, flowcontrollers.Try)
 
     def test_while_recipe_returns_while(self) -> None:
-        n = constructors.atomictype2node(_while_recipe())
+        n = constructors.recipe2node(_while_recipe())
         self.assertIsInstance(n, flowcontrollers.While)
 
     def test_unknown_recipe_type_raises_type_error(self) -> None:
         with self.assertRaises(TypeError) as ctx:
-            constructors.atomictype2node(object(), "x")  # type: ignore[arg-type]
+            constructors.recipe2node(object(), "x")  # type: ignore[arg-type]
         self.assertIn("Unknown recipe type", str(ctx.exception))
 
 
