@@ -8,7 +8,6 @@ except importlib.metadata.PackageNotFoundError:
     __version__ = "0.0.0+unknown"
 
 # Public API
-from pyiron_workflow.api import compatibility as compatibility
 from pyiron_workflow.api import schemas as schemas
 from pyiron_workflow.api import tools as tools
 from pyiron_workflow.api.schemas import (

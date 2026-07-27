@@ -1,4 +1,3 @@
-from pyiron_workflow import compatibility as compatibility
 from pyiron_workflow.api import schemas as schemas
 from pyiron_workflow.api import tools as tools
 from pyiron_workflow.api.schemas import (

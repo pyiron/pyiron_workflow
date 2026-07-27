@@ -15,7 +15,7 @@ jobs:
       tests-env-files: .ci_support/environment.yml .ci_support/environment-optional.yml
       docs-env-files: .ci_support/environment.yml .ci_support/environment-notebook.yml .ci_support/environment-optional.yml
       notebooks-env-files: .ci_support/environment.yml .ci_support/environment-notebook.yml .ci_support/environment-optional.yml
-      extra-python-paths: tests tests/benchmark tests/integration tests/unit tests/legacy tests/legacy/integration tests/legacy/static tests/legacy/unit  # For executorlib
+      extra-python-paths: tests tests/benchmark tests/integration tests/unit  # For executorlib
       python-version-alt1: 'exclude'
       python-version-alt2: '3.11'
       python-version: '3.12'
@@ -40,24 +40,12 @@ jobs:
     with:
       mode: discover
 
-  slurm-interruption-legacy:
-    if: github.event_name == 'pull_request'
-    uses: ./.github/workflows/slurm-test-legacy.yml
-    with:
-      mode: interrupt
-
-  slurm-discovery-legacy:
-    if: github.event_name == 'pull_request'
-    uses: ./.github/workflows/slurm-test-legacy.yml
-    with:
-      mode: discover
-
   tests-without-optionals:
     uses: pyiron/actions/.github/workflows/tests-and-coverage.yml@actions-4.2.1
     secrets: inherit
     with:
       tests-env-files: .ci_support/environment.yml
       test-dir: tests/unit
-      extra-python-paths: tests tests/static tests/unit tests/legacy tests/legacy/static tests/legacy/unit
+      extra-python-paths: tests tests/static tests/unit
       do-coveralls: false
       do-codecov: false
