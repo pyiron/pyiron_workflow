@@ -629,7 +629,7 @@ class Clothes:
     pass
 
 
-@wfms.atomic
+@fr.atomic
 def wash(clothes: semantikon.u(Clothes, uri=EX.Clothes)) -> semantikon.u(
     Clothes,
     uri=EX.Clothes,
@@ -640,7 +640,7 @@ def wash(clothes: semantikon.u(Clothes, uri=EX.Clothes)) -> semantikon.u(
     return clothes
 
 
-@wfms.atomic
+@fr.atomic
 def dye(clothes: semantikon.u(Clothes, uri=EX.Clothes), color="blue") -> semantikon.u(
     Clothes,
     uri=EX.Clothes,
@@ -651,7 +651,7 @@ def dye(clothes: semantikon.u(Clothes, uri=EX.Clothes), color="blue") -> semanti
     return clothes
 
 
-@wfms.atomic
+@fr.atomic
 def sell(
     clothes: semantikon.u(
         Clothes,
@@ -672,7 +672,7 @@ def sell(
     return price
 
 
-@wfms.workflow
+@fr.workflow
 def my_correct_macro(clothes: Clothes):
     dyed_clothes = dye(clothes)
     washed_clothes = wash(dyed_clothes)
@@ -680,7 +680,7 @@ def my_correct_macro(clothes: Clothes):
     return money
 
 
-@wfms.workflow
+@fr.workflow
 def my_incorrect_macro(clothes: Clothes):
     dyed_clothes = dye(clothes)
     # Not washed! `cleaned` property is missing, so `sell` is unsatisfied.
@@ -690,73 +690,46 @@ def my_incorrect_macro(clothes: Clothes):
 
 def clothes_correct_macro_node(label: str = "my_correct_macro"):
     """Return a fresh `Macro` for the valid clothes pipeline (dye -> wash -> sell)."""
-    return my_correct_macro.pwf.node(label)
+    return wfms.node(my_correct_macro, label)
 
 
 def clothes_incorrect_macro_node(label: str = "my_incorrect_macro"):
     """Return a fresh `Macro` for the invalid clothes pipeline (dye -> sell)."""
-    return my_incorrect_macro.pwf.node(label)
+    return wfms.node(my_incorrect_macro, label)
 
 
 # --------------------------------------------------------------------------- #
-# Decorator-tool fixtures (wfms.atomic / wfms.workflow)                        #
+# Dataclass fixtures (fr.dataclass)                                            #
 # --------------------------------------------------------------------------- #
 
 
-@wfms.atomic
-def wfms_add(x, y):
-    return x + y
-
-
-@wfms.atomic
-def wfms_sub(x, y):
-    return x - y
-
-
-@wfms.atomic("relabelled_sum")
-def wfms_add_relabelled(x, y):
-    return x + y
-
-
-@wfms.workflow
-def wfms_macro(x, y, z):
-    a = wfms_add(x, y)
-    s = wfms_sub(a, z)
-    return a, s
-
-
-# --------------------------------------------------------------------------- #
-# Dataclass fixtures (wfms.dataclass)                                          #
-# --------------------------------------------------------------------------- #
-
-
-@wfms.dataclass
+@fr.dataclass
 class PlainPoint:
     x: float
     y: float
 
 
-@wfms.dataclass
+@fr.dataclass
 class WithDefaults:
     a: int
     b: int = 5
     c: list = dataclasses.field(default_factory=list)
 
 
-@wfms.dataclass(frozen=True, kw_only=True)
+@fr.dataclass(frozen=True, kw_only=True)
 class FrozenKw:
     nova: float
     foo: int = 42
     not_a_field = 13  # unannotated -> NOT a dataclass field
 
 
-@wfms.dataclass
+@fr.dataclass
 class WithInitFalse:
     a: int
     c: int = dataclasses.field(init=False, default=7)
 
 
-@wfms.dataclass
+@fr.dataclass
 class WithInitVar:
     a: "int"  # noqa: UP037
     d: dataclasses.InitVar[int] = 3

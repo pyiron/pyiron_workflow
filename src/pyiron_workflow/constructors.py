@@ -61,6 +61,19 @@ def node(value: NodeLike, label: fr.schemas.Label | None = None, /) -> datatypes
         )
 
 
+def _disallow_locals(obj: types.FunctionType | type) -> None:
+    """
+    Nodes hold a reference to their underlying object and must be able to re-import it,
+    e.g. to ship the node to another process, so locally-scoped objects are refused.
+    """
+    if "<locals>" in obj.__qualname__:
+        raise ImportError(
+            "To turn functions and classes into nodes, pyiron_workflow needs to be "
+            "able to import the underlying object; but "
+            f"{obj.__qualname__!r} contains '<locals>'."
+        )
+
+
 def function2node(
     function: types.FunctionType | type,
     label: fr.schemas.Label | None = None,
@@ -74,6 +87,7 @@ def function2node(
     ignored, so that an undecorated subclass of a decorated class gets parsed afresh
     instead of silently referencing its parent.
     """
+    _disallow_locals(function)
     recipe = vars(function).get("flowrep_recipe", None)
     if recipe is not None:
         if not isinstance(recipe, fr.schemas.NodeRecipe):

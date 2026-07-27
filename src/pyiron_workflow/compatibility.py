@@ -8,7 +8,7 @@ import flowrep as fr
 import semantikon
 from pyiron_snippets import versions
 
-from pyiron_workflow import datatypes, decorators, workflow_node
+from pyiron_workflow import constructors, datatypes, workflow_node
 from pyiron_workflow._legacy import output_parser
 from pyiron_workflow._legacy.nodes import multiple_distpatch
 
@@ -21,7 +21,7 @@ def as_function_node(*output_labels, **kwargs):
     return a ``flowrep``-based node.
 
     In the case of decorated atomic nodes, no changes need to be made to the function
-    definition to move from `@as_function_node` to `@atomic` -- just update the
+    definition to move from `@as_function_node` to `@flowrep.atomic` -- just update the
     decorator, and note that modern decorated function _stay functions_ and do not
     become node factories.
     """
@@ -42,8 +42,8 @@ def as_macro_node(*output_labels, **kwargs):
     return a ``flowrep``-based node.
 
     In the case of decorated macro nodes, changes need to be made to the function
-    definition to move from `@as_macro_node` to `@workflow` -- in particular, modern
-    workflow-decorated functions do not take any form of ``self`` argument.
+    definition to move from `@as_macro_node` to `@flowrep.workflow` -- in particular,
+    modern workflow-decorated functions do not take any form of ``self`` argument.
     ``flowrep.tools.flowrep2python`` provides tools for compiling recipes to source
     code and dumping it to a ``.py`` file; you may find this useful in transitioning
     legacy workflows to new workflows.
@@ -80,7 +80,7 @@ class _CompatibilityFactory(abc.ABC):
     """
 
     def __init__(self, func: types.FunctionType, *output_labels: str):
-        decorators._PwfTools._disallow_locals(func)
+        constructors._disallow_locals(func)
         self._received_function = func
         self._output_labels = output_labels
         self._decorated = None
@@ -102,7 +102,9 @@ class _CompatibilityFactory(abc.ABC):
         """
 
     def __call__(self, *args, **kwargs):
-        return self.decorated.pwf.node(self.decorated.__name__, *args, **kwargs)
+        node = constructors.node(self.decorated, self.decorated.__name__)
+        node.connect_input(*args, **kwargs)
+        return node
 
     @property
     def decorated(self):
@@ -141,9 +143,7 @@ class _AtomicFactory(_CompatibilityFactory):
         func: types.FunctionType,
         *output_labels: str,
     ) -> types.FunctionType:
-        decorated = fr.tools.atomic(*output_labels)(func)
-        decorated.pwf = decorators.DecoratedAtomic(decorated)
-        return decorated
+        return fr.tools.atomic(*output_labels)(func)
 
 
 class _MacroFactory(_CompatibilityFactory):
@@ -160,11 +160,6 @@ class _MacroFactory(_CompatibilityFactory):
             wf.recipe,
             signature=selfless_signature,
             function_name=func.__name__,
-            _workflow_decorator=(
-                "pyiron_workflow.api",  # Recovering proximate modules is tough,
-                # so just hard-code the proximate API reference
-                "workflow",
-            ),
         )
         new_form = rendered.build()
         new_form.__module__ = func.__module__

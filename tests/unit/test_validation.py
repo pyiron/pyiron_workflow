@@ -18,7 +18,6 @@ from unit import _fixtures
 from pyiron_workflow import (
     dag,
     datatypes,
-    decorators,
     execution,
     validation,
     workflow_node,
@@ -467,7 +466,6 @@ class TestValidationSignatureCoherence(unittest.TestCase):
         for fn in (
             dag.Macro.validate,
             workflow_node.Workflow.validate,
-            decorators.DecoratedMacro.validate,
         ):
             self.assertEqual(
                 list(inspect.signature(fn).parameters)[1:], base
@@ -530,7 +528,7 @@ class TestValidateOntology(unittest.TestCase):
 
 
 class TestValidatePlanOntology(unittest.TestCase):
-    """`validate_plan` / `.pwf.validate` with the ontology branch enabled."""
+    """`validate_plan` / `Node.validate` with the ontology branch enabled."""
 
     def test_correct_macro_plan_valid(self):
         report = validation.validate_plan(_fixtures.clothes_correct_macro_node())
@@ -554,8 +552,10 @@ class TestValidatePlanOntology(unittest.TestCase):
         self.assertIsInstance(report.metadata, validation.SemantikonValidationReport)
         self.assertTrue(report.metadata.valid)
 
-    def test_pwf_validate_runs_ontology(self):
-        report = _fixtures.my_correct_macro.pwf.validate()
+    def test_node_validate_runs_ontology(self):
+        report = workflow_node.Workflow(
+            _fixtures.my_correct_macro.flowrep_recipe
+        ).validate()
         self.assertIsInstance(report, validation.CombinedValidationReport)
         self.assertIsInstance(report.metadata, validation.SemantikonValidationReport)
         self.assertTrue(report.valid)
