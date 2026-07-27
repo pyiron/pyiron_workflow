@@ -253,62 +253,62 @@ def for_wf(xs, ys, z):
 
 def atomic_add_node(label: str = "add"):
     """Return a fresh `Atomic` wrapping `add`."""
-    return wfms.tools.function2node(add, label)
+    return wfms.tools.atomictype2node(add, label)
 
 
 def atomic_sub_node(label: str = "sub"):
     """Return a fresh `Atomic` wrapping `sub`."""
-    return wfms.tools.function2node(sub, label)
+    return wfms.tools.atomictype2node(sub, label)
 
 
 def macro_node(label: str = "my_macro"):
     """Return a fresh `Macro` wrapping `macro`."""
-    return wfms.tools.function2node(macro, label)
+    return wfms.tools.atomictype2node(macro, label)
 
 
 def annotated_macro_node(label: str = "my_annotated_macro"):
     """Return a fresh `Macro` wrapping `annotated_macro`."""
-    return wfms.tools.function2node(annotated_macro, label)
+    return wfms.tools.atomictype2node(annotated_macro, label)
 
 
 def nested_macro_node(label: str = "my_nested_macro"):
     """Return a fresh `Macro` wrapping `nested_macro`."""
-    return wfms.tools.function2node(nested_macro, label)
+    return wfms.tools.atomictype2node(nested_macro, label)
 
 
 def passthrough_node(label: str = "my_passthrough"):
     """Return a fresh `Macro` wrapping `passthrough`."""
-    return wfms.tools.function2node(passthrough, label)
+    return wfms.tools.atomictype2node(passthrough, label)
 
 
 def container_node(label: str = "container"):
     """Return a fresh `Macro` wrapping `container`."""
-    return wfms.tools.function2node(container, label)
+    return wfms.tools.atomictype2node(container, label)
 
 
 def uses_constant_node(label: str = "uses_constant"):
     """Return a fresh `Macro` wrapping `uses_constant` (exploits a parsed constant)."""
-    return wfms.tools.function2node(uses_constant, label)
+    return wfms.tools.atomictype2node(uses_constant, label)
 
 
 def autoencoder_node(label: str = "autoencoder"):
     """Return a fresh `Macro` wrapping `autoencoder`."""
-    return wfms.tools.function2node(autoencoder, label)
+    return wfms.tools.atomictype2node(autoencoder, label)
 
 
 def multiply_with_defaults_node(label: str = "multiply_with_defaults"):
     """Return a fresh `Atomic` wrapping `multiply_with_defaults`."""
-    return wfms.tools.function2node(multiply_with_defaults, label)
+    return wfms.tools.atomictype2node(multiply_with_defaults, label)
 
 
 def typed_int_node(label: str = "typed_int"):
     """Return a fresh `Atomic` wrapping `typed_int` (input/output hinted `int`)."""
-    return wfms.tools.function2node(typed_int, label)
+    return wfms.tools.atomictype2node(typed_int, label)
 
 
 def typed_float_node(label: str = "typed_float"):
     """Return a fresh `Atomic` wrapping `typed_float` (input/output hinted `float`)."""
-    return wfms.tools.function2node(typed_float, label)
+    return wfms.tools.atomictype2node(typed_float, label)
 
 
 # --------------------------------------------------------------------------- #
@@ -367,7 +367,7 @@ def build_workflow(inputs=(), outputs=(), node_specs=None, edges=(), label="wf")
 
 def for_wf_node(label: str = "for_wf"):
     """Return a fresh `Macro` wrapping `for_wf`."""
-    return wfms.tools.function2node(for_wf, label)
+    return wfms.tools.atomictype2node(for_wf, label)
 
 
 def foreach_node(label: str = "fe"):
@@ -399,17 +399,17 @@ def foreach_node(label: str = "fe"):
 
 def if_abs_node(label: str = "if_abs"):
     """Return a fresh `Macro` wrapping `if_abs`."""
-    return wfms.tools.function2node(if_abs, label)
+    return wfms.tools.atomictype2node(if_abs, label)
 
 
 def while_countdown_node(label: str = "while_countdown"):
     """Return a fresh `Macro` wrapping `while_countdown`."""
-    return wfms.tools.function2node(while_countdown, label)
+    return wfms.tools.atomictype2node(while_countdown, label)
 
 
 def try_safe_divide_node(label: str = "try_safe_divide"):
     """Return a fresh `Macro` wrapping `try_safe_divide`."""
-    return wfms.tools.function2node(try_safe_divide, label)
+    return wfms.tools.atomictype2node(try_safe_divide, label)
 
 
 # --------------------------------------------------------------------------- #

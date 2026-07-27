@@ -24,7 +24,7 @@ class Macro(datatypes.ImmutableDag):
         return datatypes.NodeMap(
             self,
             {
-                node_label: constructors.atomictype2node(node_recipe, node_label)
+                node_label: constructors.recipe2node(node_recipe, node_label)
                 for node_label, node_recipe in recipe.nodes.items()
             },
         )

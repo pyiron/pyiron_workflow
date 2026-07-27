@@ -18,12 +18,12 @@ class Try(datatypes.StaticGraph[fr.schemas.TryRecipe, fr.schemas.TryData]):
 
     def _build_nodes(self, recipe: fr.schemas.TryRecipe) -> datatypes.NodeMap:
         nodes: dict[fr.schemas.Label, datatypes.Node] = {
-            recipe.try_node.label: constructors.atomictype2node(
+            recipe.try_node.label: constructors.recipe2node(
                 recipe.try_node.recipe, recipe.try_node.label
             )
         }
         for case in recipe.exception_cases:
-            nodes[case.body.label] = constructors.atomictype2node(
+            nodes[case.body.label] = constructors.recipe2node(
                 case.body.recipe, case.body.label
             )
         return datatypes.NodeMap(self, nodes)
