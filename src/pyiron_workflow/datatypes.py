@@ -382,8 +382,7 @@ class StaticNode(Node[RecipeType, execution.ResultType], abc.ABC):
         recipe: RecipeType,
         label: fr.schemas.Label,
         /,
-        *positional_connections: Port | Node,
-        **keyword_connections: Port | Node,
+        **connections: Port | Node,
     ):
         self._label = label  # TODO: also accept None and use function name for default
         self._owner = None
@@ -396,7 +395,7 @@ class StaticNode(Node[RecipeType, execution.ResultType], abc.ABC):
 
         self.executor = None
         self.last_run = None
-        self.connect_input(*positional_connections, **keyword_connections)
+        self.connect_input(**connections)
 
     @property
     def inputs(self) -> PortMap[InputPort, Node]:
@@ -547,10 +546,9 @@ class StaticGraph(StaticNode[RecipeType, execution.ResultType], Graph, abc.ABC):
         recipe: RecipeType,
         label: fr.schemas.Label,
         /,
-        *positional_connections: Port | Node,
-        **keyword_connections: Port | Node,
+        **connections: Port | Node,
     ):
-        super().__init__(recipe, label, *positional_connections, **keyword_connections)
+        super().__init__(recipe, label, **connections)
         self._nodes = self._build_nodes(recipe)
         self._edges = self._build_edges(recipe)
 
