@@ -607,5 +607,156 @@ class TestMacro2Workflow(unittest.TestCase):
             )
 
 
+class TestLocalsGuard(unittest.TestCase):
+    """Nodes must be built from importable objects: `<locals>` is refused up front."""
+
+    def test_local_function_is_rejected(self) -> None:
+        def make():
+            def local_add(x, y):
+                return x + y
+
+            return local_add
+
+        with self.assertRaisesRegex(ImportError, "contains '<locals>'"):
+            constructors.node(make())
+
+    def test_local_class_is_rejected(self) -> None:
+        def make():
+            class Local:
+                def __init__(self, a: int) -> None:
+                    self.a = a
+
+            return Local
+
+        with self.assertRaisesRegex(ImportError, "contains '<locals>'"):
+            constructors.node(make())
+
+    def test_module_level_function_is_accepted(self) -> None:
+        self.assertEqual(constructors.node(plain_add).label, "plain_add")
+
+
+class TestInputs2Dataclass(unittest.TestCase):
+    """The packing direction: `pwf.node(SomeDataclass)`."""
+
+    def test_ports(self) -> None:
+        node = constructors.node(_fixtures.PlainPoint)
+        self.assertEqual(list(node.inputs), ["x", "y"])
+        self.assertEqual(list(node.outputs), ["instance"])
+
+    def test_labels_default_and_explicit(self) -> None:
+        self.assertEqual(constructors.node(_fixtures.PlainPoint).label, "PlainPoint")
+        self.assertEqual(
+            constructors.node(_fixtures.PlainPoint, "custom").label, "custom"
+        )
+
+    def test_unannotated_attribute_is_not_a_field(self) -> None:
+        self.assertNotIn(
+            "not_a_field", list(constructors.node(_fixtures.FrozenKw).inputs)
+        )
+
+    def test_run_constructs_instance(self) -> None:
+        run = constructors.node(_fixtures.PlainPoint).run(x=1.0, y=2.0)
+        self.assertEqual(run.outputs.instance, _fixtures.PlainPoint(1.0, 2.0))
+
+    def test_inputs_with_defaults(self) -> None:
+        ref = _fixtures.WithDefaults.flowrep_recipe.reference
+        self.assertEqual(ref.inputs_with_defaults, ["b", "c"])
+
+    def test_default_factory_resolves_on_run(self) -> None:
+        run = constructors.node(_fixtures.WithDefaults).run(a=1)
+        self.assertEqual(run.outputs.instance, _fixtures.WithDefaults(a=1))
+
+    def test_kw_only_recorded_as_restricted(self) -> None:
+        ref = _fixtures.FrozenKw.flowrep_recipe.reference
+        self.assertEqual(set(ref.restricted_input_kinds), {"nova", "foo"})
+        self.assertTrue(
+            all(
+                kind is fr.schemas.RestrictedParamKind.KEYWORD_ONLY
+                for kind in ref.restricted_input_kinds.values()
+            )
+        )
+
+
+class TestDataclass2Outputs(unittest.TestCase):
+    """The unpacking direction: `pwf.node(SomeDataclass.flowrep_recipe_unpacking)`."""
+
+    def test_string_annotation_resolves(self) -> None:
+        node = constructors.node(_fixtures.WithInitVar.flowrep_recipe_unpacking)
+        self.assertEqual(node.outputs["a"].type_hint, int)
+
+    def test_plain_ports(self) -> None:
+        node = constructors.node(_fixtures.PlainPoint.flowrep_recipe_unpacking)
+        self.assertEqual(list(node.inputs), ["dataclass"])
+        self.assertEqual(list(node.outputs), ["x", "y"])
+
+    def test_label_is_explicit_or_generic(self) -> None:
+        # Unpacking goes via the recipe, so there is no `__name__` to fall back on
+        self.assertEqual(
+            constructors.node(_fixtures.PlainPoint.flowrep_recipe_unpacking).label,
+            "atomic_recipe_node",
+        )
+        self.assertEqual(
+            constructors.node(
+                _fixtures.PlainPoint.flowrep_recipe_unpacking, "unpack_PlainPoint"
+            ).label,
+            "unpack_PlainPoint",
+        )
+
+    def test_plain_run_unpacks_fields(self) -> None:
+        run = constructors.node(_fixtures.PlainPoint.flowrep_recipe_unpacking).run(
+            dataclass=_fixtures.PlainPoint(1.0, 2.0)
+        )
+        self.assertEqual(run.outputs.x, 1.0)
+        self.assertEqual(run.outputs.y, 2.0)
+
+    def test_frozen_read_back(self) -> None:
+        run = constructors.node(_fixtures.FrozenKw.flowrep_recipe_unpacking).run(
+            dataclass=_fixtures.FrozenKw(nova=1.1)
+        )
+        self.assertEqual(run.outputs.nova, 1.1)
+        self.assertEqual(run.outputs.foo, 42)
+
+    def test_init_false_field_is_output_not_input(self) -> None:
+        # init=False -> real field (output) but not a constructor param (no input)
+        self.assertEqual(
+            list(
+                constructors.node(
+                    _fixtures.WithInitFalse.flowrep_recipe_unpacking
+                ).outputs
+            ),
+            ["a", "c"],
+        )
+        self.assertEqual(list(constructors.node(_fixtures.WithInitFalse).inputs), ["a"])
+        run = constructors.node(_fixtures.WithInitFalse.flowrep_recipe_unpacking).run(
+            dataclass=_fixtures.WithInitFalse(a=1)
+        )
+        self.assertEqual(run.outputs.c, 7)
+
+    def test_init_var_is_input_not_output(self) -> None:
+        # InitVar -> constructor param (input) but not a real field (no output)
+        self.assertEqual(
+            list(
+                constructors.node(
+                    _fixtures.WithInitVar.flowrep_recipe_unpacking
+                ).outputs
+            ),
+            ["a", "b"],
+        )
+        self.assertEqual(
+            list(constructors.node(_fixtures.WithInitVar).inputs), ["a", "d", "b"]
+        )
+
+    def test_round_trip(self) -> None:
+        wf = workflow_node.Workflow("roundtrip")
+        wf.to_values = constructors.node(_fixtures.PlainPoint.flowrep_recipe_unpacking)
+        wf.to_dc = constructors.node(_fixtures.PlainPoint)
+        wf.create_input_for(wf.to_values.inputs.dataclass)
+        wf.create_output_from(wf.to_dc)
+        for k in wf.to_values.outputs:
+            wf.connect(wf.to_values.outputs[k], wf.to_dc.inputs[k])
+        result = wf.run(dataclass=_fixtures.PlainPoint(1.0, 2.0)).outputs.instance
+        self.assertEqual(result, _fixtures.PlainPoint(1.0, 2.0))
+
+
 if __name__ == "__main__":
     unittest.main()

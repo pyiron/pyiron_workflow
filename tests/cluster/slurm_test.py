@@ -4,23 +4,24 @@ import pathlib
 import subprocess
 import time
 
+import flowrep as fr
 from pip._internal.utils import datetime
 
 import pyiron_workflow as pwf
 
 
-@pwf.atomic
+@fr.atomic
 def identity(x):
     return x
 
 
-@pwf.atomic
+@fr.atomic
 def sleepy(t):
     time.sleep(t)
     return t
 
 
-@pwf.workflow
+@fr.workflow
 def three_step(t):
     n1 = identity(t)
     n2 = sleepy(n1)
@@ -86,7 +87,7 @@ def setup(callbacks=None):
 """
     resource_dict = {"submission_template": submission_template}
 
-    wf = three_step.pwf.node()
+    wf = pwf.node(three_step)
 
     wf.sleepy_0.executor = pwf.ExecutorInstructions(
         pwf.tools.NodeSlurmExecutor,

@@ -2,8 +2,7 @@ import time
 
 try:
     import fleche
-
-    import pyiron_workflow as pwf
+    import flowrep as fr
 
     HAS_FLECHE = True
 except ImportError:
@@ -15,18 +14,18 @@ if HAS_FLECHE:
     # fleche-wrapped functions declared in the same file as the executor
     # Define them here behind a safety guardrail, then use them in the integration test
 
-    @pwf.atomic
+    @fr.atomic
     @fleche.fleche
     def cached_sleep(t):
         time.sleep(t)
         return t
 
-    @pwf.workflow
+    @fr.workflow
     def inner_caching(t):
         s = cached_sleep(t)
         return s
 
-    @pwf.workflow
+    @fr.workflow
     def outer_caching(t):
         s = inner_caching(t)
         return s
