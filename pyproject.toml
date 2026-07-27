@@ -2,18 +2,12 @@
 requires = [
     "hatchling==1.31.0",
     "hatch-vcs==0.5.0",
-    "bagofholding",
-    "bidict",
-    "cloudpickle",
     "executorlib",
     "flowrep",
-    "graphviz",
-    "pandas",
     "pint",
     "pyiron_snippets",
     "rdflib",
     "semantikon",
-    "toposort",
     "typeguard",
 ]
 build-backend = "hatchling.build"
@@ -35,18 +29,12 @@ classifiers = [
     "Programming Language :: Python :: 3.13",
 ]
 dependencies = [
-    "bagofholding==0.1.12",
-    "bidict==0.23.1",
-    "cloudpickle==3.1.2",
     "executorlib==1.10.1",
     "flowrep==0.6.0",
-    "graphviz==0.21",
-    "pandas==3.0.3",
     "pint==0.25.3",
     "pyiron_snippets==1.4.0",
     "rdflib==7.6.0",
     "semantikon==1.4.0",
-    "toposort==1.10",
     "typeguard==4.5.2",
 ]
 dynamic = [ "version",]

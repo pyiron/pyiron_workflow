@@ -33,9 +33,9 @@ For an introduction and full tour of available features, check out the [user gui
 
 See the [pyproject file](../pyproject.toml) for optional dependencies to unlock extra functionality.
 
-## Compatibility
+## Migrating from an older version
 
-Versions of `pyiron_workflow` <0.17.0 pre-date `flowrep`. In `pwf.compatibility`, we provide new import locations for the old `@as_function_node` and `@as_macro_node` decorators to help with the migration process. See the [compatiblity notebook](../notebooks/compatibility.ipynb) for more details.
+Versions of `pyiron_workflow` <0.17.0 pre-date `flowrep`. [Version 0.18.0](https://github.com/pyiron/pyiron_workflow/tree/pyiron_workflow-0.18.0) offers old and flowrep-based implementations concurrently, and includes a compatibility module and notebook to aid with migration.
 
 ## Citing
 
