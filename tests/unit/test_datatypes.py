@@ -14,7 +14,7 @@ from concurrent import futures
 
 from unit import _fixtures
 
-from pyiron_workflow import dag, datatypes, execution
+from pyiron_workflow import atomic_node, dag, datatypes, execution
 
 
 class TestPort(unittest.TestCase):
@@ -83,6 +83,15 @@ class TestNodeLabel(unittest.TestCase):
             n = _fixtures.passthrough_node(label="owner")
             with self.assertRaises(ValueError):
                 n.nodes["add_0"].label = "child"
+
+    def test_none_falls_back_to_class_name(self):
+        with self.subTest("StaticNode"):
+            recipe = _fixtures.atomic_add_node().recipe
+            self.assertEqual(atomic_node.Atomic(recipe, None).label, "atomic")
+
+        with self.subTest("StaticGraph"):
+            recipe = _fixtures.macro_node().recipe
+            self.assertEqual(dag.Macro(recipe, None).label, "macro")
 
 
 class TestNodeOwner(unittest.TestCase):

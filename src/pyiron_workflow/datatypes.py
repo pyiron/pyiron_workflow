@@ -379,11 +379,11 @@ class StaticNode(Node[RecipeType, execution.ResultType], abc.ABC):
     def __init__(
         self,
         recipe: RecipeType,
-        label: fr.schemas.Label,
+        label: fr.schemas.Label | None = None,
         /,
         **connections: Port | Node,
     ):
-        self._label = label  # TODO: also accept None and use function name for default
+        self._label = label or self.__class__.__name__.lower()
         self._owner = None
         self._detached_root = None
         self._pending_connections = {}
@@ -543,7 +543,7 @@ class StaticGraph(StaticNode[RecipeType, execution.ResultType], Graph, abc.ABC):
     def __init__(
         self,
         recipe: RecipeType,
-        label: fr.schemas.Label,
+        label: fr.schemas.Label | None,
         /,
         **connections: Port | Node,
     ):
