@@ -99,6 +99,10 @@ class TestWorkflowInit(unittest.TestCase):
             self.assertEqual(wf.redo_stack.maxlen, explicit_limit)
             self.assertEqual(wf.undo_limit, explicit_limit)
 
+    def test_none_label_falls_back_to_class_name(self) -> None:
+        wf = workflow_node.Workflow(None)
+        self.assertEqual(wf.label, "workflow")
+
     def test_diff_accumulator_starts_none(self) -> None:
         wf = workflow_node.Workflow("wf")
         self.assertIsNone(wf._diff_accumulator)

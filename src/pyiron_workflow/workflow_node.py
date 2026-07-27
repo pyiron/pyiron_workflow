@@ -163,13 +163,13 @@ class Workflow(datatypes.MutableDag):
 
     def __init__(
         self,
-        label: fr.schemas.Label,
+        label: fr.schemas.Label | None,
         undo_limit: int = 10,
         /,
         **connections: datatypes.Port | datatypes.Node,
     ):
         # Add a super call later if needed
-        self._label = label
+        self._label = label or self.__class__.__name__.lower()
         self._owner = None
         self._detached_root = None
         self._pending_connections = {}
