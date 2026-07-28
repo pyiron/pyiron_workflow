@@ -1,4 +1,5 @@
 from pyiron_workflow.atomic_node import Atomic as Atomic
+from pyiron_workflow.constant import Constant as Constant
 from pyiron_workflow.dag import Macro as Macro
 from pyiron_workflow.datatypes import EdgeTuple as EdgeTuple
 from pyiron_workflow.execution import ExecutorInstructions as ExecutorInstructions
