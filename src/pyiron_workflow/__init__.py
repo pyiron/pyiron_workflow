@@ -8,13 +8,13 @@ except importlib.metadata.PackageNotFoundError:
     __version__ = "0.0.0+unknown"
 
 # Public API
-from pyiron_workflow.api import schemas as schemas
-from pyiron_workflow.api import tools as tools
-from pyiron_workflow.api.schemas import (
+from pyiron_workflow.api import (
     ExecutorInstructions as ExecutorInstructions,
 )
-from pyiron_workflow.api.schemas import ProgressHook as ProgressHook
-from pyiron_workflow.api.schemas import RunConfig as RunConfig
-from pyiron_workflow.api.schemas import Workflow as Workflow
-from pyiron_workflow.api.tools import node as node
-from pyiron_workflow.api.tools import run as run
+from pyiron_workflow.api import ProgressHook as ProgressHook
+from pyiron_workflow.api import RunConfig as RunConfig
+from pyiron_workflow.api import Workflow as Workflow
+from pyiron_workflow.api import node as node
+from pyiron_workflow.api import run as run
+from pyiron_workflow.api import schemas as schemas
+from pyiron_workflow.api import tools as tools
