@@ -52,7 +52,7 @@ def node(
     """
     if isinstance(value, datatypes.Node):
         copied = value.copy(label)
-        copied.establish_sources(**connections)
+        copied._establish_sources(**connections)
         return copied
     elif isinstance(value, RecipeOptions):
         return recipe2node(value, label, **connections)

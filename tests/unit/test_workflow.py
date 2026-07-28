@@ -2752,13 +2752,13 @@ class TestWorkflowInitRejectsConnections(unittest.TestCase):
     def test_connections_are_fine_once_io_exists(self) -> None:
         wf = workflow_node.Workflow("wf")
         wf.create_input("x")
-        wf.establish_sources(x=5)
+        wf._establish_sources(x=5)
         self.assertEqual({"x": 5}, wf._pending_constants)
 
     def test_establishing_before_io_exists_raises(self) -> None:
         wf = workflow_node.Workflow("wf")
         with self.assertRaises(ValueError) as ctx:
-            wf.establish_sources(x=5)
+            wf._establish_sources(x=5)
         self.assertIn("x", str(ctx.exception))
 
 
@@ -2897,7 +2897,7 @@ class TestRealizePendingValidation(unittest.TestCase):
         self.assertIsNone(node.owner)
 
         # Re-establish a well-typed constant and confirm the node still works.
-        node.establish_sources(x=7)
+        node._establish_sources(x=7)
         other = workflow_node.Workflow("other")
         other.create_output("out")
         other.add_node(node)
@@ -2950,7 +2950,7 @@ class TestRealizePendingValidation(unittest.TestCase):
         parent.add_node(_fixtures.atomic_add_node("src"))
         child = workflow_node.Workflow("child")
         child.create_input("x")
-        child.establish_sources(x=parent.src.outputs["output_0"])
+        child._establish_sources(x=parent.src.outputs["output_0"])
         child.remove_input("x")
         with self.assertRaises(ValueError) as ctx:
             parent.add_node(child)

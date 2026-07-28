@@ -707,10 +707,13 @@ class Workflow(datatypes.MutableDag):
         return self.add_port_metadata(port, None)
 
     @_undoable
-    def realize_pending(self, node: datatypes.Node) -> None:
+    def _realize_pending(self, node: datatypes.Node) -> None:
         """
         Materialize `node`'s pending constants as sibling nodes, then draw down its
         pending connections as edges.
+
+        Used in a "python public" sense that it gets called from outside the object,
+        but part of the plumbing and not intended to be part of the public API.
 
         Each `Constant` must be `_add_node`'d before its own edge is validated, since
         `validate_constant_edge` resolves the source hint through `owner.get_node(...)`.
@@ -722,7 +725,7 @@ class Workflow(datatypes.MutableDag):
             itertools.chain(node._pending_constants, node._pending_connections)
         )
         with node._pending_state_restored_on_error():
-            for port_label, value in node.take_pending_constants().items():
+            for port_label, value in node._take_pending_constants().items():
                 child = constant.Constant.from_value(
                     value,
                     label_helpers.unique_suffix(
@@ -742,7 +745,7 @@ class Workflow(datatypes.MutableDag):
                         self,
                     )
                 )
-            for edge in node.use_pending_edges():
+            for edge in node._use_pending_edges():
                 self._add_edge(validation.validate_edge(edge, self))
 
     @_undoable
@@ -756,7 +759,7 @@ class Workflow(datatypes.MutableDag):
             # Then perform the potentially rollback-requiring operations
             for n in nodes:
                 self._add_node(n)
-                self.realize_pending(n)
+                self._realize_pending(n)
                 try:
                     n.lexical_root  # noqa: B018 -- brute-force cycle check
                 except RecursionError:

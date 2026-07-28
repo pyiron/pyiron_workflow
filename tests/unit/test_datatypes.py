@@ -372,31 +372,31 @@ class TestEstablishSources(unittest.TestCase):
 
     def test_splits_ports_from_constants(self) -> None:
         n = _fixtures.atomic_add_node("n")
-        n.establish_sources(x=self.port, y="bar")
+        n._establish_sources(x=self.port, y="bar")
         self.assertIs(n._pending_connections["x"], self.port)
         self.assertEqual({"y": "bar"}, n._pending_constants)
         self.assertNotIn("y", n._pending_connections)
 
     def test_node_source_coerces_to_port(self) -> None:
         n = _fixtures.atomic_add_node("n")
-        n.establish_sources(x=self.src)
+        n._establish_sources(x=self.src)
         self.assertIs(n._pending_connections["x"], self.port)
         self.assertEqual({}, n._pending_constants)
 
     def test_none_is_a_constant_not_an_absence(self) -> None:
         n = _fixtures.atomic_add_node("n")
-        n.establish_sources(x=None)
+        n._establish_sources(x=None)
         self.assertEqual({"x": None}, n._pending_constants)
 
     def test_container_literals_are_constants(self) -> None:
         n = _fixtures.atomic_add_node("n")
-        n.establish_sources(x=[1, 2], y={"a": 1})
+        n._establish_sources(x=[1, 2], y={"a": 1})
         self.assertEqual({"x": [1, 2], "y": {"a": 1}}, n._pending_constants)
 
     def test_non_jsonable_non_port_raises(self) -> None:
         n = _fixtures.atomic_add_node("n")
         with self.assertRaises(TypeError):
-            n.establish_sources(x=(1, 2))  # tuples are not JSONable
+            n._establish_sources(x=(1, 2))  # tuples are not JSONable
 
     def test_call_dunder_routes_through_establish_sources(self) -> None:
         n = _fixtures.atomic_add_node("n")
@@ -405,13 +405,13 @@ class TestEstablishSources(unittest.TestCase):
 
     def test_take_pending_constants_drains(self) -> None:
         n = _fixtures.atomic_add_node("n")
-        n.establish_sources(x=1, y=2)
-        self.assertEqual({"x": 1, "y": 2}, n.take_pending_constants())
+        n._establish_sources(x=1, y=2)
+        self.assertEqual({"x": 1, "y": 2}, n._take_pending_constants())
         self.assertEqual({}, n._pending_constants)
 
     def test_copy_loses_pending_constants(self) -> None:
         n = _fixtures.atomic_add_node("n")
-        n.establish_sources(y="bar")
+        n._establish_sources(y="bar")
         self.assertEqual({}, n.copy("copied")._pending_constants)
 
     def test_failed_connection_strands_no_constant(self) -> None:
@@ -420,17 +420,17 @@ class TestEstablishSources(unittest.TestCase):
         n = _fixtures.atomic_add_node("n")
         multi = _fixtures.macro_node("multi")  # outputs `a` and `s`
         with self.assertRaises(ValueError):
-            n.establish_sources(x=multi, y=5)
+            n._establish_sources(x=multi, y=5)
         self.assertEqual({}, n._pending_constants)
         self.assertEqual({}, n._pending_connections)
 
     def test_failed_connection_preserves_pre_existing_stores(self) -> None:
         # Only the failed call's partial stash is rolled back; earlier state survives.
         n = _fixtures.atomic_add_node("n")
-        n.establish_sources(x=1)
+        n._establish_sources(x=1)
         multi = _fixtures.macro_node("multi")
         with self.assertRaises(ValueError):
-            n.establish_sources(y=2, x=multi)
+            n._establish_sources(y=2, x=multi)
         self.assertEqual({"x": 1}, n._pending_constants)
         self.assertEqual({}, n._pending_connections)
 
@@ -439,7 +439,7 @@ class TestUnknownTargetGuard(unittest.TestCase):
     def test_constant_to_unknown_port_raises_eagerly(self) -> None:
         n = _fixtures.atomic_add_node("n")
         with self.assertRaises(ValueError) as ctx:
-            n.establish_sources(typo=1)
+            n._establish_sources(typo=1)
         self.assertIn("typo", str(ctx.exception))
         self.assertIn("x", str(ctx.exception))
 
@@ -447,13 +447,13 @@ class TestUnknownTargetGuard(unittest.TestCase):
         n = _fixtures.atomic_add_node("n")
         src = _fixtures.atomic_add_node("src")
         with self.assertRaises(ValueError) as ctx:
-            n.establish_sources(typo=src.outputs["output_0"])
+            n._establish_sources(typo=src.outputs["output_0"])
         self.assertIn("typo", str(ctx.exception))
 
     def test_nothing_is_stashed_when_the_guard_fires(self) -> None:
         n = _fixtures.atomic_add_node("n")
         with self.assertRaises(ValueError):
-            n.establish_sources(typo=1)
+            n._establish_sources(typo=1)
         self.assertEqual({}, n._pending_constants)
         self.assertEqual({}, n._pending_connections)
 

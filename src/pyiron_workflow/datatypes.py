@@ -270,7 +270,7 @@ class Node(
         to_.executor = from_.executor
 
     def __call__(self, **kwargs: Port | Node | fr.schemas.JSONABLE) -> Self:
-        self.establish_sources(**kwargs)
+        self._establish_sources(**kwargs)
         return self
 
     @contextlib.contextmanager
@@ -298,9 +298,12 @@ class Node(
             self._pending_connections.update(connections)
             raise
 
-    def establish_sources(self, **kwargs: Port | Node | fr.schemas.JSONABLE) -> None:
+    def _establish_sources(self, **kwargs: Port | Node | fr.schemas.JSONABLE) -> None:
         """
         Register the sources feeding this node's inputs.
+
+        Used in a "python public" sense that it gets called from outside the object,
+        but part of the plumbing and not intended to be part of the public API.
 
         :class:`Port` and :class:`Node` values become edges; JSONable values become
         :class:`~pyiron_workflow.constant.Constant` sibling nodes. Both are deferred
@@ -322,11 +325,14 @@ class Node(
                 )
         with self._pending_state_restored_on_error():
             self._pending_constants.update(constants)
-            self.connect_input(**connections)
+            self._connect_input(**connections)
 
-    def take_pending_constants(self) -> dict[fr.schemas.Label, fr.schemas.JSONABLE]:
+    def _take_pending_constants(self) -> dict[fr.schemas.Label, fr.schemas.JSONABLE]:
         """
         Return a copy of the pending constants and clear them.
+
+        Used in a "python public" sense that it gets called from outside the object,
+        but part of the plumbing and not intended to be part of the public API.
 
         Unlike :meth:`use_pending_edges` this imposes no owner requirement; the caller
         (a mutable graph realizing this node) is responsible for materializing them.
@@ -344,9 +350,12 @@ class Node(
                 f"Available: {list(self.inputs.keys())}"
             )
 
-    def connect_input(self, **kwargs: Port | Node) -> None:
+    def _connect_input(self, **kwargs: Port | Node) -> None:
         """
         A syntactic shortcut for adding new edges feeding this node on the owning graph.
+
+        Used in a "python public" sense that it gets called from outside the object,
+        but part of the plumbing and not intended to be part of the public API.
 
         If this node does not yet have an owner, caches these edges for later use with
         :meth:`apply_pending_connections`.
@@ -358,14 +367,17 @@ class Node(
         with self._pending_state_restored_on_error():
             self._pending_connections.update(connections)
             if isinstance(self._owner, MutableDag):
-                self._owner.realize_pending(self)
+                self._owner._realize_pending(self)
             elif self._owner is not None:
                 raise self._mutable_owner_error()
 
-    def use_pending_edges(self) -> EdgeList:
+    def _use_pending_edges(self) -> EdgeList:
         """
         Converts the internal pending connections to a list of edges and clears the
         pending dictionary -- use 'em or lose 'em.
+
+        Used in a "python public" sense that it gets called from outside the object,
+        but part of the plumbing and not intended to be part of the public API.
 
         Raises instead if the current owner is not a mutable dag.
         """
@@ -380,10 +392,13 @@ class Node(
         else:
             raise self._mutable_owner_error()
 
-    def detach_pending_connections(self) -> dict[str, Port]:
+    def _detach_pending_connections(self) -> dict[str, Port]:
         """
         Return a copy of the pending input connections and clear them, *without*
         attempting to realize them as edges.
+
+        Used in a "python public" sense that it gets called from outside the object,
+        but part of the plumbing and not intended to be part of the public API.
 
         Unlike :meth:`use_pending_edges`, this neither requires a mutable owner nor
         resolves the connections against one. It is used when a node carrying pending
@@ -470,7 +485,7 @@ class StaticNode(Node[RecipeType, execution.ResultType], abc.ABC):
 
         self.executor = None
         self.last_run = None
-        self.establish_sources(**connections)
+        self._establish_sources(**connections)
 
     @property
     def inputs(self) -> PortMap[InputPort, Node]:
@@ -710,7 +725,7 @@ class MutableDag(Node[fr.schemas.WorkflowRecipe, fr.schemas.DagData], Graph, abc
     def add_node(self, *nodes: Node) -> None: ...
 
     @abc.abstractmethod
-    def realize_pending(self, node: Node) -> None:
+    def _realize_pending(self, node: Node) -> None:
         """
         Materialize `node`'s pending constants as sibling nodes and draw down its
         pending connections as edges.

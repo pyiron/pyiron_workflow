@@ -339,7 +339,7 @@ def _build_operation(
         else label
     )
     operation_node = Atomic(operation.flowrep_recipe, label)
-    operation_node.connect_input(
+    operation_node._connect_input(
         **{
             label: s._injection.port
             for label, s in zip(operation_node.inputs, sources, strict=False)
@@ -389,12 +389,12 @@ def _build_injection_graph(
                 )
                 seen.add(source_port)
             negotiated_source_ports.append(graph.inputs[port_label])
-            graph.connect_input(**{port_label: source_port})
+            graph._connect_input(**{port_label: source_port})
         elif source_node.owner is None:
             # Add the source node to the new graph and wire its inputs from graph inputs.
             # Capture any pending connections *before* add_node would try to realize them
             # against the wrong context, so they can be lifted onto the new graph.
-            lifted = source_node.detach_pending_connections()
+            lifted = source_node._detach_pending_connections()
             source_node.label = label_helpers.unique_suffix(
                 source_node.label, graph.nodes
             )
@@ -427,14 +427,14 @@ def _build_injection_graph(
                     # This input was fed from an outer context; re-register the edge as a
                     # pending connection on the new (still unparented) graph so it resolves
                     # when the new graph is finally attached to that context.
-                    graph.connect_input(**{port_label: lifted[iport_label]})
+                    graph._connect_input(**{port_label: lifted[iport_label]})
         else:  # pragma: no cover
             raise ValueError(
                 "Can't inject across graph contexts. Fallback exception; should not be "
                 "reachable."
             )
 
-    operation_node.connect_input(
+    operation_node._connect_input(
         **dict(zip(operation_node.inputs, negotiated_source_ports, strict=False))
     )
 
