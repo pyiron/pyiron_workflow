@@ -289,6 +289,64 @@ class TestConnectionsAtConstruction(unittest.TestCase):
         )
 
 
+class TestConstantConnectionsAtConstruction(unittest.TestCase):
+    """JSONable connection values are stashed as pending constants by every route."""
+
+    def test_node_instance(self) -> None:
+        original = _fixtures.atomic_add_node("original")
+        copied = constructors.node(original, "copied", y=5)
+        self.assertEqual({"y": 5}, copied._pending_constants)
+        self.assertEqual(
+            {},
+            original._pending_constants,
+            msg="Constants belong to the copy, not the node we copied from",
+        )
+
+    def test_recipe(self) -> None:
+        n = constructors.node(_fixtures.add.flowrep_recipe, "added", x=1, y=2)
+        self.assertEqual({"x": 1, "y": 2}, n._pending_constants)
+
+    def test_flow_control_recipes(self) -> None:
+        for label, recipe, port_label in (
+            ("for_each", _fixtures.for_wf.flowrep_recipe.nodes["for_each_0"], "z"),
+            ("if", _if_recipe(), "x"),
+            ("try", _try_recipe(), "x"),
+            ("while", _while_recipe(), "x"),
+        ):
+            with self.subTest(label):
+                n = constructors.recipe2node(recipe, label, **{port_label: 3})
+                self.assertEqual({port_label: 3}, n._pending_constants)
+
+    def test_decorated_atomic_like(self) -> None:
+        n = constructors.node(_fixtures.add, "added", y=5)
+        self.assertEqual({"y": 5}, n._pending_constants)
+
+    def test_undecorated_atomic_like(self) -> None:
+        n = constructors.node(plain_add, "added", y=5)
+        self.assertEqual({"y": 5}, n._pending_constants)
+
+    def test_mixed_ports_and_constants(self) -> None:
+        src = _fixtures.atomic_add_node("src")
+        n = constructors.node(_fixtures.add, "added", x=src, y=5)
+        self.assertIs(n._pending_connections["x"], src.outputs["output_0"])
+        self.assertEqual({"y": 5}, n._pending_constants)
+
+    def test_constant_value_rejects_jsonable_connections(self) -> None:
+        with self.assertRaisesRegex(TypeError, "cannot take incoming connections"):
+            constructors.node(42, "forty_two", x=1)
+
+    def test_constant_recipe_rejects_jsonable_connections(self) -> None:
+        recipe = fr.schemas.ConstantRecipe(constant=42)
+        with self.assertRaisesRegex(TypeError, "cannot take incoming connections"):
+            constructors.recipe2node(recipe, "forty_two", x=1)
+
+    def test_workflow_copy_with_connections_still_works(self) -> None:
+        inner = workflow_node.Workflow("inner")
+        inner.create_input("x")
+        copied = constructors.node(inner, "copied", x=5)
+        self.assertEqual({"x": 5}, copied._pending_constants)
+
+
 # --------------------------------------------------------------------------- #
 # Tests for `function2node`                                                   #
 # --------------------------------------------------------------------------- #

@@ -16,6 +16,7 @@ import rdflib
 from unit import _fixtures
 
 from pyiron_workflow import (
+    constant,
     dag,
     datatypes,
     execution,
@@ -564,6 +565,74 @@ class TestValidatePlanOntology(unittest.TestCase):
         report = validation.validate_plan(_fixtures.clothes_correct_macro_node())
         self.assertIsInstance(repr(report), str)
         self.assertTrue(repr(report))
+
+
+class TestConstantHintCarveOut(unittest.TestCase):
+    def test_predicate_truth_table(self) -> None:
+        for source, target, expected in (
+            (list, list[int], True),
+            (dict, dict[str, int], True),
+            (tuple, tuple[int, str], True),
+            (int, int, False),
+            (int, float, False),
+            (list, list, False),
+            (type(None), int | None, False),
+            (list, int | None, False),
+            (list, tuple[int], False),
+        ):
+            with self.subTest(f"{source} -> {target}"):
+                self.assertEqual(
+                    expected,
+                    validation._constant_hint_is_uncheckable(source, target),
+                )
+
+    def test_container_constant_passes_unchecked(self) -> None:
+        wf = workflow_node.Workflow("wf")
+        wf.add_node(_fixtures.typed_list_node("consumer"))
+        wf.add_node(constant.Constant.from_value([1, 2], "c"))
+        edge = datatypes.EdgeTuple(
+            fr.schemas.SourceHandle(node="c", port="constant"),
+            fr.schemas.TargetHandle(node="consumer", port="x"),
+        )
+        self.assertIs(edge, validation.validate_constant_edge(edge, wf))
+
+    def test_mismatched_scalar_constant_still_raises(self) -> None:
+        wf = workflow_node.Workflow("wf")
+        wf.add_node(_fixtures.typed_int_node("consumer"))
+        wf.add_node(constant.Constant.from_value("nope", "c"))
+        edge = datatypes.EdgeTuple(
+            fr.schemas.SourceHandle(node="c", port="constant"),
+            fr.schemas.TargetHandle(node="consumer", port="x"),
+        )
+        with self.assertRaises(TypeError):
+            validation.validate_constant_edge(edge, wf)
+
+    def test_matching_scalar_constant_passes(self) -> None:
+        wf = workflow_node.Workflow("wf")
+        wf.add_node(_fixtures.typed_int_node("consumer"))
+        wf.add_node(constant.Constant.from_value(7, "c"))
+        edge = datatypes.EdgeTuple(
+            fr.schemas.SourceHandle(node="c", port="constant"),
+            fr.schemas.TargetHandle(node="consumer", port="x"),
+        )
+        self.assertIs(edge, validation.validate_constant_edge(edge, wf))
+
+    def test_validate_types_reports_carved_edge_as_unfulfilled(self) -> None:
+        wf = workflow_node.Workflow("wf")
+        wf.add_node(_fixtures.typed_list_node("consumer"))
+        wf.add_node(constant.Constant.from_value([1, 2], "c"))
+        wf.add_edge(
+            datatypes.EdgeTuple(
+                fr.schemas.SourceHandle(node="c", port="constant"),
+                fr.schemas.TargetHandle(node="consumer", port="x"),
+            ),
+            type_validate=False,
+        )
+        report = validation.validate_types(wf)
+        self.assertEqual([], report.invalid_edges)
+        self.assertEqual(1, len(report.unfulfilled_edges))
+        self.assertTrue(report.valid)
+        self.assertFalse(report.complete)
 
 
 if __name__ == "__main__":

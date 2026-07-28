@@ -16,7 +16,7 @@ class Atomic(datatypes.StaticNode[fr.schemas.AtomicRecipe, fr.schemas.AtomicData
         recipe: fr.schemas.AtomicRecipe,
         label: fr.schemas.Label | None = None,
         /,
-        **connections: datatypes.Port | datatypes.Node,
+        **connections: datatypes.Port | datatypes.Node | fr.schemas.JSONABLE,
     ):
         super().__init__(recipe, label, **connections)
         func = retrieve.import_from_string(recipe.fully_qualified_name)

@@ -36,7 +36,7 @@ def node(
     value: NodeLike,
     label: fr.schemas.Label | None = None,
     /,
-    **connections: datatypes.Port | datatypes.Node,
+    **connections: datatypes.Port | datatypes.Node | fr.schemas.JSONABLE,
 ) -> datatypes.Node:
     """
     Convert a node-like `value` into a `Node` labelled `label`.
@@ -52,7 +52,7 @@ def node(
     """
     if isinstance(value, datatypes.Node):
         copied = value.copy(label)
-        copied.connect_input(**connections)
+        copied.establish_sources(**connections)
         return copied
     elif isinstance(value, RecipeOptions):
         return recipe2node(value, label, **connections)
@@ -91,7 +91,7 @@ def atomictype2node(
     function: types.FunctionType | type,
     label: fr.schemas.Label | None = None,
     /,
-    **connections: datatypes.Port | datatypes.Node,
+    **connections: datatypes.Port | datatypes.Node | fr.schemas.JSONABLE,
 ) -> atomic_node.Atomic | dag.Macro:
     """
     Convert a function or class into a node labelled `label` (defaulting to its
@@ -129,7 +129,7 @@ def recipe2node(
     recipe: RecipeOptions,
     label: fr.schemas.Label | None = None,
     /,
-    **connections: datatypes.Port | datatypes.Node,
+    **connections: datatypes.Port | datatypes.Node | fr.schemas.JSONABLE,
 ) -> datatypes.StaticNode:
     label = (
         f"{_pascal_to_snake(recipe.__class__.__name__)}_node"

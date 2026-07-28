@@ -503,5 +503,37 @@ class TestConstantInjection(unittest.TestCase):
             (2,) * wf.inputs.a
 
 
+class TestPendingConstantAbsorption(unittest.TestCase):
+    # NOTE: `label_helpers.unique_suffix` always appends a numeric suffix, even
+    # absent a collision (see the existing "plain_increment_0_x" comment above),
+    # so the absorbed unparented node "f" is renamed "f_0" once it lands in the
+    # injection graph.
+    def test_constant_is_adopted_into_the_injection_graph(self) -> None:
+        n = constructors.node(_fixtures.add, "f", y=3) + 2
+        self.assertIsInstance(n, workflow_node.Workflow)
+        self.assertIn("f_0_y_constant_0", n.nodes)
+
+    def test_constant_fed_port_is_not_promoted(self) -> None:
+        n = constructors.node(_fixtures.add, "f", y=3) + 2
+        self.assertNotIn("f_0_y", n.inputs)
+        self.assertIn("f_0_x", n.inputs, msg="Unfed inputs are still promoted")
+
+    def test_no_target_is_double_fed(self) -> None:
+        n = constructors.node(_fixtures.add, "f", y=3) + 2
+        targets = [e.target for e in n.edges]
+        self.assertEqual(
+            len(targets), len(set(targets)), msg=f"Duplicate target in {n.edges}"
+        )
+
+    def test_absorbed_constant_runs(self) -> None:
+        outer = workflow_node.Workflow("outer")
+        outer.create_input("x")
+        outer.create_output("out")
+        outer.n = constructors.node(_fixtures.add, "f", y=3) + 2
+        outer.connect(outer.inputs.x, outer.n.inputs.f_0_x)
+        outer.connect(outer.n, outer.outputs.out)
+        self.assertEqual(15, outer.run(x=10).outputs.out)  # (10 + 3) + 2
+
+
 if __name__ == "__main__":
     unittest.main()

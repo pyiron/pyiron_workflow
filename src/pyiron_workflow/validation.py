@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import dataclasses
+import typing
 from typing import ClassVar
 
 import flowrep as fr
@@ -9,6 +10,7 @@ import semantikon
 
 from pyiron_workflow import (
     atomic_node,
+    constant,
     dag,
     datatypes,
     execution,
@@ -60,6 +62,32 @@ def validate_edge(
             f"({target_hint}) but the source provides none."
         )
     return edge
+
+
+def _constant_hint_is_uncheckable(
+    source_hint: type | None, target_hint: type | None
+) -> bool:
+    """
+    Whether a `Constant`-sourced edge's hints cannot meaningfully be compared.
+
+    A `Constant`'s annotation is `type(value)`, so a container literal arrives
+    unparameterised and can never satisfy a parameterised target of the same origin
+    (e.g. `[1, 2]` is hinted `list`, which is not as-or-more-specific-than `list[int]`).
+    Targets of a *different* origin (`list` -> `tuple[int]`) and non-generic targets
+    (`int` -> `float`) are still checked.
+    """
+    return typing.get_origin(target_hint) is source_hint
+
+
+def validate_constant_edge(
+    edge: datatypes.EdgeTuple,
+    owner: datatypes.StaticGraph | workflow_node.Workflow,
+) -> datatypes.EdgeTuple:
+    """As :func:`validate_edge`, but tolerant of an unparameterised container source."""
+    source_hint, target_hint = _resolve_edge_hints(edge, owner)
+    if _constant_hint_is_uncheckable(source_hint, target_hint):
+        return edge
+    return validate_edge(edge, owner)
 
 
 class NotParseable:
@@ -160,6 +188,12 @@ def _validate_graph(
 
     for edge in owner.edges:
         source_hint, target_hint = _resolve_edge_hints(edge, owner)
+        if (
+            edge.source.node is not None
+            and isinstance(owner.nodes[edge.source.node], constant.Constant)
+            and _constant_hint_is_uncheckable(source_hint, target_hint)
+        ):
+            source_hint = None
         if source_hint is not None and target_hint is not None:
             if not type_hinting.type_hint_is_as_or_more_specific_than(
                 source_hint, target_hint

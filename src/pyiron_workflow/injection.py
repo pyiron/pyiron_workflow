@@ -401,7 +401,19 @@ def _build_injection_graph(
             graph.add_node(source_node)
             negotiated_source_ports.append(source_port)
 
+            # `add_node` may have materialized pending constants as siblings feeding
+            # some of these inputs. Promoting those to graph inputs as well would put
+            # two sources on one target, so skip anything already fed.
+            already_fed = {
+                edge.target.port
+                for edge in graph.edges
+                if isinstance(edge.target, fr.schemas.TargetHandle)
+                and edge.target.node == source_node.label
+            }
+
             for iport_label, iport in source_node.inputs.items():
+                if iport_label in already_fed:
+                    continue
                 # Without an owner we always need to scope input ports by the (now
                 # forced-unique inside the new graph context) node label
                 port_label = f"{source_node.label}_{iport_label}"

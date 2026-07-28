@@ -83,6 +83,11 @@ def typed_float(x: float) -> float:
     return x + 0.0
 
 
+@fr.atomic
+def typed_list(x: list[int]) -> int:
+    return sum(x)
+
+
 # --------------------------------------------------------------------------- #
 # Macro recipes                                                               #
 # --------------------------------------------------------------------------- #
@@ -309,6 +314,11 @@ def typed_int_node(label: str = "typed_int"):
 def typed_float_node(label: str = "typed_float"):
     """Return a fresh `Atomic` wrapping `typed_float` (input/output hinted `float`)."""
     return wfms.tools.atomictype2node(typed_float, label)
+
+
+def typed_list_node(label: str = "typed_list"):
+    """Return a fresh `Atomic` wrapping `typed_list` (input hinted `list[int]`)."""
+    return wfms.tools.atomictype2node(typed_list, label)
 
 
 # --------------------------------------------------------------------------- #

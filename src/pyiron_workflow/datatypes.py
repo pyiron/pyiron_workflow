@@ -1,8 +1,9 @@
 from __future__ import annotations
 
 import abc
+import contextlib
 import dataclasses
-from collections.abc import Mapping
+from collections.abc import Iterable, Iterator, Mapping
 from concurrent import futures
 from typing import (
     TYPE_CHECKING,
@@ -149,6 +150,7 @@ class Node(
     _owner: Graph | None
     _detached_root: lexical.LexicalPath | None
     _pending_connections: dict[str, Port]
+    _pending_constants: dict[fr.schemas.Label, fr.schemas.JSONABLE]
     executor: futures.Executor | execution.ExecutorInstructions | None
     last_run: execution.Run[execution.ResultType] | None
 
@@ -267,9 +269,80 @@ class Node(
     def _copy_data(from_: Node, to_: Node, /) -> None:
         to_.executor = from_.executor
 
-    def __call__(self, **kwargs: Port | Node) -> Self:
-        self.connect_input(**kwargs)
+    def __call__(self, **kwargs: Port | Node | fr.schemas.JSONABLE) -> Self:
+        self.establish_sources(**kwargs)
         return self
+
+    @contextlib.contextmanager
+    def _pending_state_restored_on_error(self) -> Iterator[None]:
+        """
+        Restore both pending stores if the body raises.
+
+        Pending state is drained or written before the operations that can fail
+        (validation, edge resolution). :func:`workflow_node._undoable` rolls the
+        *graph* back on failure; this keeps the node's own state in step, so a node
+        that failed to be realized stays reusable rather than silently losing its
+        sources.
+
+        Nesting is safe: each level restores to its own snapshot, so the outermost
+        wins and the net result is the state from before the outermost call.
+        """
+        constants = dict(self._pending_constants)
+        connections = dict(self._pending_connections)
+        try:
+            yield
+        except Exception:
+            self._pending_constants.clear()
+            self._pending_constants.update(constants)
+            self._pending_connections.clear()
+            self._pending_connections.update(connections)
+            raise
+
+    def establish_sources(self, **kwargs: Port | Node | fr.schemas.JSONABLE) -> None:
+        """
+        Register the sources feeding this node's inputs.
+
+        :class:`Port` and :class:`Node` values become edges; JSONable values become
+        :class:`~pyiron_workflow.constant.Constant` sibling nodes. Both are deferred
+        until this node has a mutable owner.
+        """
+        self._reject_unknown_targets(kwargs.keys())
+        connections: dict[fr.schemas.Label, Port | Node] = {}
+        constants: dict[fr.schemas.Label, fr.schemas.JSONABLE] = {}
+        for k, v in kwargs.items():
+            if isinstance(v, Port | Node):
+                connections[k] = v
+            elif fr.tools.is_jsonable(v):
+                constants[k] = v
+            else:
+                raise TypeError(
+                    f"Cannot use {v!r} as the source for input {k!r} of "
+                    f"{self.lexical_path!r}: expected a {Port.__name__}, a "
+                    f"{Node.__name__}, or a JSONable constant."
+                )
+        with self._pending_state_restored_on_error():
+            self._pending_constants.update(constants)
+            self.connect_input(**connections)
+
+    def take_pending_constants(self) -> dict[fr.schemas.Label, fr.schemas.JSONABLE]:
+        """
+        Return a copy of the pending constants and clear them.
+
+        Unlike :meth:`use_pending_edges` this imposes no owner requirement; the caller
+        (a mutable graph realizing this node) is responsible for materializing them.
+        """
+        taken = dict(self._pending_constants)
+        self._pending_constants.clear()
+        return taken
+
+    def _reject_unknown_targets(self, labels: Iterable[fr.schemas.Label]) -> None:
+        """Raise for any label that is not currently one of this node's input ports."""
+        unknown = [label for label in labels if label not in self.inputs]
+        if unknown:
+            raise ValueError(
+                f"{self.lexical_path!r} has no input port(s) {unknown!r}. "
+                f"Available: {list(self.inputs.keys())}"
+            )
 
     def connect_input(self, **kwargs: Port | Node) -> None:
         """
@@ -278,14 +351,16 @@ class Node(
         If this node does not yet have an owner, caches these edges for later use with
         :meth:`apply_pending_connections`.
         """
+        self._reject_unknown_targets(kwargs.keys())
         connections: dict[str, Port] = {}
         for k, v in kwargs.items():
             connections[k] = coerce_to_port(v)
-        self._pending_connections.update(connections)
-        if isinstance(self._owner, MutableDag):
-            self._owner.add_edge(*self.use_pending_edges())
-        elif self._owner is not None:
-            raise self._mutable_owner_error()
+        with self._pending_state_restored_on_error():
+            self._pending_connections.update(connections)
+            if isinstance(self._owner, MutableDag):
+                self._owner.realize_pending(self)
+            elif self._owner is not None:
+                raise self._mutable_owner_error()
 
     def use_pending_edges(self) -> EdgeList:
         """
@@ -381,12 +456,13 @@ class StaticNode(Node[RecipeType, execution.ResultType], abc.ABC):
         recipe: RecipeType,
         label: fr.schemas.Label | None = None,
         /,
-        **connections: Port | Node,
+        **connections: Port | Node | fr.schemas.JSONABLE,
     ):
         self._label = label or self.__class__.__name__.lower()
         self._owner = None
         self._detached_root = None
         self._pending_connections = {}
+        self._pending_constants = {}
         self._recipe = recipe
         live_preview = self.generate_flowrep_live_node()
         self._inputs = self._build_inputs(live_preview)
@@ -394,7 +470,7 @@ class StaticNode(Node[RecipeType, execution.ResultType], abc.ABC):
 
         self.executor = None
         self.last_run = None
-        self.connect_input(**connections)
+        self.establish_sources(**connections)
 
     @property
     def inputs(self) -> PortMap[InputPort, Node]:
@@ -545,7 +621,7 @@ class StaticGraph(StaticNode[RecipeType, execution.ResultType], Graph, abc.ABC):
         recipe: RecipeType,
         label: fr.schemas.Label | None = None,
         /,
-        **connections: Port | Node,
+        **connections: Port | Node | fr.schemas.JSONABLE,
     ):
         super().__init__(recipe, label, **connections)
         self._nodes = self._build_nodes(recipe)
@@ -632,6 +708,13 @@ class MutableDag(Node[fr.schemas.WorkflowRecipe, fr.schemas.DagData], Graph, abc
 
     @abc.abstractmethod
     def add_node(self, *nodes: Node) -> None: ...
+
+    @abc.abstractmethod
+    def realize_pending(self, node: Node) -> None:
+        """
+        Materialize `node`'s pending constants as sibling nodes and draw down its
+        pending connections as edges.
+        """
 
     @abc.abstractmethod
     def remove_node(self, *nodes: Node | fr.schemas.Label) -> None: ...
