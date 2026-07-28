@@ -1,17 +1,28 @@
 from __future__ import annotations
 
 import collections
+import contextlib
 import dataclasses
 import functools
+import itertools
 import types
 from collections.abc import Callable, MutableMapping
 from typing import TYPE_CHECKING, Any, Self, cast
 
 import flowrep as fr
 import semantikon
+from flowrep.parsers import label_helpers
 from semantikon.metadata import Missing
 
-from pyiron_workflow import actions, constructors, dag, datatypes, execution, validation
+from pyiron_workflow import (
+    actions,
+    constant,
+    constructors,
+    dag,
+    datatypes,
+    execution,
+    validation,
+)
 
 if TYPE_CHECKING:
     import rdflib
@@ -166,13 +177,21 @@ class Workflow(datatypes.MutableDag):
         label: fr.schemas.Label | None = None,
         undo_limit: int = 10,
         /,
-        **connections: datatypes.Port | datatypes.Node,
+        **connections: datatypes.Port | datatypes.Node | fr.schemas.JSONABLE,
     ):
+        if connections:
+            raise TypeError(
+                f"A new {self.__class__.__name__} has no input ports, so it cannot "
+                f"accept the connection(s) {list(connections.keys())!r} at "
+                f"construction. Create the input(s) with `create_input` first, then "
+                f"feed them with `establish_sources`."
+            )
         # Add a super call later if needed
         self._label = label or self.__class__.__name__.lower()
         self._owner = None
         self._detached_root = None
         self._pending_connections = {}
+        self._pending_constants = {}
         self.executor = None
         self.last_run = None
         self._inputs = MutablePortMap[datatypes.InputPort](self)
@@ -182,7 +201,6 @@ class Workflow(datatypes.MutableDag):
         self._diff_accumulator: actions.GraphDiff | None = None
         self.undo_stack = collections.deque(maxlen=undo_limit)
         self.redo_stack = collections.deque(maxlen=undo_limit)
-        self.connect_input(**connections)
 
     def copy(
         self, new_label: fr.schemas.Label | None = None, _copy_to: Self | None = None
@@ -689,18 +707,66 @@ class Workflow(datatypes.MutableDag):
         return self.add_port_metadata(port, None)
 
     @_undoable
+    def _realize_pending(self, node: datatypes.Node) -> None:
+        """
+        Materialize `node`'s pending constants as sibling nodes, then draw down its
+        pending connections as edges.
+
+        Used in a "python public" sense that it gets called from outside the object,
+        but part of the plumbing and not intended to be part of the public API.
+
+        Each `Constant` must be `_add_node`'d before its own edge is validated, since
+        `validate_constant_edge` resolves the source hint through `owner.get_node(...)`.
+        The pending-connection edges have no such ordering constraint against the
+        constants -- `establish_sources` already routed every `Port`/`Node` value into
+        `_pending_connections`, so a constant can never appear as a pending-edge source.
+        """
+        node._reject_unknown_targets(
+            itertools.chain(node._pending_constants, node._pending_connections)
+        )
+        with node._pending_state_restored_on_error():
+            for port_label, value in node._take_pending_constants().items():
+                child = constant.Constant.from_value(
+                    value,
+                    label_helpers.unique_suffix(
+                        f"{node.label}_{port_label}_constant", self.nodes
+                    ),
+                )
+                self._add_node(child)
+                self._add_edge(
+                    validation.validate_constant_edge(
+                        datatypes.EdgeTuple(
+                            fr.schemas.SourceHandle(
+                                node=child.label,
+                                port=fr.schemas.ConstantRecipe.std_label,
+                            ),
+                            fr.schemas.TargetHandle(node=node.label, port=port_label),
+                        ),
+                        self,
+                    )
+                )
+            for edge in node._use_pending_edges():
+                self._add_edge(validation.validate_edge(edge, self))
+
+    @_undoable
     def add_node(self, *nodes: datatypes.Node) -> None:
-        for n in nodes:
-            self._add_node(n)
-            for edge in n.use_pending_edges():
-                self._add_edge(edge)
-            try:
-                n.lexical_root  # noqa: B018 -- brute-force cycle check
-            except RecursionError:
-                raise ValueError(
-                    f"Cannot add {n.label!r} to {self.label!r} because it "
-                    f"contains a cycle."
-                ) from None
+        with contextlib.ExitStack() as stack:
+            # Guard *every* node for the whole loop: a failure on a later node rolls
+            # the graph back past the earlier ones too, so their drained pending state
+            # has to come back with it.
+            for n in nodes:
+                stack.enter_context(n._pending_state_restored_on_error())
+            # Then perform the potentially rollback-requiring operations
+            for n in nodes:
+                self._add_node(n)
+                self._realize_pending(n)
+                try:
+                    n.lexical_root  # noqa: B018 -- brute-force cycle check
+                except RecursionError:
+                    raise ValueError(
+                        f"Cannot add {n.label!r} to {self.label!r} because it "
+                        f"contains a cycle."
+                    ) from None
 
     @_undoable
     def remove_node(self, *nodes: datatypes.Node | fr.schemas.Label) -> None:

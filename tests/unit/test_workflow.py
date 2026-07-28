@@ -14,10 +14,12 @@ from unit import _fixtures
 from pyiron_workflow import (
     actions,
     atomic_node,
+    constant,
     constructors,
     dag,
     datatypes,
     execution,
+    validation,
     workflow_node,
 )
 
@@ -2665,47 +2667,6 @@ class TestWorkflowFromRecipe(unittest.TestCase):
         self.assertEqual(len(rebuilt.edges), 0)
 
 
-class TestWorkflowConnectAtInit(unittest.TestCase):
-    """`Workflow` connection sugar at construction.
-
-    A freshly-built workflow has no owner, so every connection takes the
-    'pending' route rather than being applied as an edge immediately.
-    """
-
-    def test_connect_port_is_pending(self) -> None:
-        src = _fixtures.atomic_add_node("src")
-        port = src.outputs["output_0"]
-        wf = workflow_node.Workflow("wf", x=port)
-        self.assertIs(wf._pending_connections["x"], port)
-
-    def test_connect_single_output_node_coerces_to_its_port(self) -> None:
-        src = _fixtures.atomic_add_node("src")
-        wf = workflow_node.Workflow("wf", y=src)
-        self.assertIs(wf._pending_connections["y"], src.outputs["output_0"])
-
-    def test_connect_multi_output_node_raises(self) -> None:
-        multi = _fixtures.macro_node("multi")  # outputs `a` and `s`
-        with self.assertRaises(ValueError):
-            workflow_node.Workflow("wf", x=multi)
-
-    def test_connect_wrong_type_raises(self) -> None:
-        with self.assertRaises(TypeError):
-            workflow_node.Workflow("wf", x=42)
-
-    def test_connections_stay_pending_without_owner(self) -> None:
-        src = _fixtures.atomic_add_node("src")
-        wf = workflow_node.Workflow("wf", x=src.outputs["output_0"])
-        self.assertIsNone(wf.owner)
-        self.assertEqual(wf.edges, [])
-        self.assertIn("x", wf._pending_connections)
-
-    def test_undo_limit_and_connections_coexist(self) -> None:
-        src = _fixtures.atomic_add_node("src")
-        wf = workflow_node.Workflow("wf", 5, x=src.outputs["output_0"])
-        self.assertEqual(wf.undo_limit, 5)
-        self.assertIn("x", wf._pending_connections)
-
-
 class TestWorkflowData(unittest.TestCase):
     def test_annotations_propagate_from_wfms_to_data(self):
         wf = workflow_node.Workflow.from_recipe(
@@ -2770,6 +2731,239 @@ class TestWorkflowCopy(unittest.TestCase):
         self.assertIsNone(copy.owner)
         self.assertIs(copied_child.owner, copy)
         self.assertIs(wf.nodes["add_0"].owner, wf)
+
+
+class TestWorkflowInitRejectsConnections(unittest.TestCase):
+    def test_port_connection_raises(self) -> None:
+        src = _fixtures.atomic_add_node("src")
+        with self.assertRaises(TypeError) as ctx:
+            workflow_node.Workflow("wf", x=src.outputs["output_0"])
+        self.assertIn("create_input", str(ctx.exception))
+
+    def test_constant_connection_raises(self) -> None:
+        with self.assertRaises(TypeError) as ctx:
+            workflow_node.Workflow("wf", x=5)
+        self.assertIn("create_input", str(ctx.exception))
+
+    def test_plain_construction_still_works(self) -> None:
+        self.assertEqual("wf", workflow_node.Workflow("wf").label)
+        self.assertEqual(5, workflow_node.Workflow("wf", 5).undo_stack.maxlen)
+
+    def test_connections_are_fine_once_io_exists(self) -> None:
+        wf = workflow_node.Workflow("wf")
+        wf.create_input("x")
+        wf._establish_sources(x=5)
+        self.assertEqual({"x": 5}, wf._pending_constants)
+
+    def test_establishing_before_io_exists_raises(self) -> None:
+        wf = workflow_node.Workflow("wf")
+        with self.assertRaises(ValueError) as ctx:
+            wf._establish_sources(x=5)
+        self.assertIn("x", str(ctx.exception))
+
+
+class TestRealizePendingConstants(unittest.TestCase):
+    def test_deferred_use_case(self) -> None:
+        # Deferred: the constant materializes when the node is parented by assignment.
+        wf = workflow_node.Workflow("wf")
+        wf.create_input("x")
+        wf.create_output("out")
+        wf.foo = constructors.node(_fixtures.add, "foo", x=wf.inputs.x, y=5)
+        wf.connect(wf.foo, wf.outputs.out)
+        self.assertIn("foo_y_constant_0", wf.nodes)
+        self.assertEqual(12, wf.run(x=7).outputs.out)
+
+    def test_post_hoc_use_case(self) -> None:
+        # Post-hoc: the node is already owned, so the constant materializes immediately.
+        wf = workflow_node.Workflow("wf")
+        wf.create_input("x")
+        wf.create_output("out")
+        wf.add_node(_fixtures.atomic_add_node("foo"))
+        wf.connect(wf.inputs.x, wf.foo.inputs.x)
+        wf.connect(wf.foo, wf.outputs.out)
+        wf.foo(y=5)
+        self.assertIn("foo_y_constant_0", wf.nodes)
+        self.assertEqual(12, wf.run(x=7).outputs.out)
+
+    def test_constant_edge_is_wired_to_the_right_target(self) -> None:
+        wf = workflow_node.Workflow("wf")
+        wf.foo = constructors.node(_fixtures.add, "foo", y=5)
+        self.assertIn(
+            datatypes.EdgeTuple(
+                fr.schemas.SourceHandle(node="foo_y_constant_0", port="constant"),
+                fr.schemas.TargetHandle(node="foo", port="y"),
+            ),
+            wf.edges,
+        )
+
+    def test_two_constants_on_one_node_get_distinct_labels(self) -> None:
+        wf = workflow_node.Workflow("wf")
+        wf.foo = constructors.node(_fixtures.add, "foo", x=1, y=2)
+        self.assertIn("foo_x_constant_0", wf.nodes)
+        self.assertIn("foo_y_constant_0", wf.nodes)
+
+    def test_label_collision_is_suffixed(self) -> None:
+        wf = workflow_node.Workflow("wf")
+        wf.add_node(constant.Constant.from_value(99, "foo_y_constant_0"))
+        wf.foo = constructors.node(_fixtures.add, "foo", y=5)
+        self.assertIn("foo_y_constant_1", wf.nodes)
+        self.assertEqual(99, wf.nodes["foo_y_constant_0"].recipe.constant)
+
+    def test_distinct_consumers_get_distinct_constants(self) -> None:
+        wf = workflow_node.Workflow("wf")
+        wf.foo = constructors.node(_fixtures.add, "foo", y=5)
+        wf.baz = constructors.node(_fixtures.add, "baz", y=5)
+        self.assertIn("foo_y_constant_0", wf.nodes)
+        self.assertIn("baz_y_constant_0", wf.nodes)
+
+
+class TestRealizePendingAtomicity(unittest.TestCase):
+    def test_deferred_case_is_one_undo_entry(self) -> None:
+        wf = workflow_node.Workflow("wf")
+        before = len(wf.undo_stack)
+        wf.foo = constructors.node(_fixtures.add, "foo", y=5)
+        self.assertEqual(before + 1, len(wf.undo_stack))
+
+    def test_undo_removes_both_node_and_constant(self) -> None:
+        wf = workflow_node.Workflow("wf")
+        wf.foo = constructors.node(_fixtures.add, "foo", y=5)
+        wf.undo()
+        self.assertNotIn("foo", wf.nodes)
+        self.assertNotIn("foo_y_constant_0", wf.nodes)
+        self.assertEqual([], wf.edges)
+
+    def test_post_hoc_case_is_one_undo_entry(self) -> None:
+        wf = workflow_node.Workflow("wf")
+        wf.add_node(_fixtures.atomic_add_node("foo"))
+        before = len(wf.undo_stack)
+        wf.foo(y=5)
+        self.assertEqual(before + 1, len(wf.undo_stack))
+
+    def test_undo_of_post_hoc_case_removes_only_the_constant(self) -> None:
+        wf = workflow_node.Workflow("wf")
+        wf.add_node(_fixtures.atomic_add_node("foo"))
+        wf.foo(y=5)
+        wf.undo()
+        self.assertIn("foo", wf.nodes)
+        self.assertNotIn("foo_y_constant_0", wf.nodes)
+        self.assertEqual([], wf.edges)
+
+    def test_undo_of_two_constants_removes_both(self) -> None:
+        wf = workflow_node.Workflow("wf")
+        wf.foo = constructors.node(_fixtures.add, "foo", x=1, y=2)
+        wf.undo()
+        self.assertNotIn("foo", wf.nodes)
+        self.assertNotIn("foo_x_constant_0", wf.nodes)
+        self.assertNotIn("foo_y_constant_0", wf.nodes)
+        self.assertEqual([], wf.edges)
+
+    def test_redo_after_undo_restores_nodes_edges_and_owners(self) -> None:
+        wf = workflow_node.Workflow("wf")
+        wf.foo = constructors.node(_fixtures.add, "foo", y=5)
+        wf.undo()
+        wf.redo()
+        self.assertIn("foo", wf.nodes)
+        self.assertIn("foo_y_constant_0", wf.nodes)
+        self.assertIs(wf.nodes["foo"].owner, wf)
+        self.assertIs(wf.nodes["foo_y_constant_0"].owner, wf)
+        self.assertIn(
+            datatypes.EdgeTuple(
+                fr.schemas.SourceHandle(node="foo_y_constant_0", port="constant"),
+                fr.schemas.TargetHandle(node="foo", port="y"),
+            ),
+            wf.edges,
+        )
+
+
+class TestRealizePendingValidation(unittest.TestCase):
+    def test_ill_typed_constant_raises(self) -> None:
+        wf = workflow_node.Workflow("wf")
+        with self.assertRaises(TypeError):
+            wf.foo = constructors.node(_fixtures.typed_int, "foo", x="not an int")
+
+    def test_ill_typed_constant_leaves_graph_clean(self) -> None:
+        wf = workflow_node.Workflow("wf")
+        with self.assertRaises(TypeError):
+            wf.foo = constructors.node(_fixtures.typed_int, "foo", x="not an int")
+        self.assertEqual({}, dict(wf.nodes))
+        self.assertEqual([], wf.edges)
+
+    def test_failed_realization_leaves_node_reusable(self) -> None:
+        wf = workflow_node.Workflow("wf")
+        node = constructors.node(_fixtures.typed_int, "foo", x="not an int")
+        with self.assertRaises(TypeError):
+            wf.add_node(node)
+        self.assertEqual({"x": "not an int"}, node._pending_constants)
+        self.assertIsNone(node.owner)
+
+        # Re-establish a well-typed constant and confirm the node still works.
+        node._establish_sources(x=7)
+        other = workflow_node.Workflow("other")
+        other.create_output("out")
+        other.add_node(node)
+        other.connect(node, other.outputs.out)
+        self.assertIn("foo_x_constant_0", other.nodes)
+        self.assertEqual(7, other.run().outputs.out)
+
+    def test_container_constant_is_admitted(self) -> None:
+        wf = workflow_node.Workflow("wf")
+        wf.foo = constructors.node(_fixtures.typed_list, "foo", x=[1, 2, 3])
+        self.assertIn("foo_x_constant_0", wf.nodes)
+        report = validation.validate_types(wf)
+        self.assertEqual([], report.invalid_edges)
+
+    def test_well_typed_constant_is_admitted(self) -> None:
+        wf = workflow_node.Workflow("wf")
+        wf.foo = constructors.node(_fixtures.typed_int, "foo", x=7)
+        self.assertIn("foo_x_constant_0", wf.nodes)
+
+    def test_batch_add_failure_leaves_earlier_nodes_constant_driven(self) -> None:
+        # `add_node(a, b)` drains `a` before `b` fails; `_undoable` then unparents `a`.
+        # Without a node-level rollback `a` comes back unowned *and* de-constanted, so
+        # re-adding it silently computes with defaults instead of its constant.
+        wf = workflow_node.Workflow("wf")
+        a = constructors.node(_fixtures.multiply_with_defaults, "a", x=10)
+        b = constructors.node(_fixtures.typed_int, "b", x="not an int")
+        with self.assertRaises(TypeError):
+            wf.add_node(a, b)
+        self.assertEqual({"x": 10}, a._pending_constants)
+
+        other = workflow_node.Workflow("other")
+        other.create_output("out")
+        other.add_node(a)
+        other.connect(a, other.outputs.out)
+        self.assertEqual(20, other.run().outputs.out)  # 10 * 2, not the default 1 * 2
+
+    def test_failed_realization_on_owned_node_is_not_sticky(self) -> None:
+        # The owned branch writes the pending stores before realization can fail; a
+        # failure must not poison the node against every subsequent call.
+        wf = workflow_node.Workflow("wf")
+        wf.add_node(_fixtures.typed_int_node("t"))
+        with self.assertRaises(TypeError):
+            wf.t(x="not an int")
+        self.assertEqual({}, wf.t._pending_constants)
+        self.assertEqual({}, wf.t._pending_connections)
+        wf.t()  # Must not re-raise the earlier failure
+
+    def test_realize_time_backstop_covers_pending_connections(self) -> None:
+        parent = workflow_node.Workflow("parent")
+        parent.add_node(_fixtures.atomic_add_node("src"))
+        child = workflow_node.Workflow("child")
+        child.create_input("x")
+        child._establish_sources(x=parent.src.outputs["output_0"])
+        child.remove_input("x")
+        with self.assertRaises(ValueError) as ctx:
+            parent.add_node(child)
+        self.assertIn("no input port", str(ctx.exception))
+        self.assertIn("x", str(ctx.exception))
+
+    def test_pending_port_edges_are_now_validated_too(self) -> None:
+        wf = workflow_node.Workflow("wf")
+        wf.add_node(_fixtures.typed_float_node("src"))
+        with self.assertRaises(TypeError):
+            wf.foo = constructors.node(
+                _fixtures.typed_int, "foo", x=wf.src.outputs["output_0"]
+            )
 
 
 if __name__ == "__main__":
