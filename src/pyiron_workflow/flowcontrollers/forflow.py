@@ -77,8 +77,16 @@ class ForEach(datatypes.StaticGraph[fr.schemas.ForEachRecipe, fr.schemas.ForEach
         )
         iterated_length_map = {**nested_length_map, **zipped_length_map}
 
+        total_steps = self._calculate_total_steps(nested_length_map, zipped_length_map)
+
+        # An empty iterated port means zero body steps. Scatter nodes would then
+        # need zero outputs, which no atomic recipe can express -- and nothing
+        # would consume them anyway -- so only the aggregators get built, and
+        # they collect nothing into empty lists.
+        scattered_length_map = iterated_length_map if total_steps > 0 else {}
+
         # Scatter nodes
-        for label, length in iterated_length_map.items():
+        for label, length in scattered_length_map.items():
             result_scatter_label = self._scatter_label(label)
             scatter_node = transformers.Transform1toN(length).node(result_scatter_label)
             runtime_map[result_scatter_label] = scatter_node
@@ -86,7 +94,6 @@ class ForEach(datatypes.StaticGraph[fr.schemas.ForEachRecipe, fr.schemas.ForEach
                 scatter_node.generate_flowrep_live_node()
             )
 
-        total_steps = self._calculate_total_steps(nested_length_map, zipped_length_map)
         # Body nodes
         for i in range(total_steps):
             result_body_label = self._body_label(body_label, i)
@@ -113,23 +120,13 @@ class ForEach(datatypes.StaticGraph[fr.schemas.ForEachRecipe, fr.schemas.ForEach
         )
 
         input_edges = {
-            # parent to nested
+            # parent to scatters (nested and zipped alike)
             fr.schemas.TargetHandle(
                 node=self._scatter_label(parent_port),
                 port=transformers.Transform1toN.input_label,
             ): fr.schemas.InputSource(port=parent_port)
-            for child_port, parent_port in nested_label_map.items()
+            for parent_port in scattered_length_map
         }
-        input_edges.update(
-            # parent to zipped
-            {
-                fr.schemas.TargetHandle(
-                    node=self._scatter_label(parent_port),
-                    port=transformers.Transform1toN.input_label,
-                ): fr.schemas.InputSource(port=parent_port)
-                for child_port, parent_port in zipped_label_map.items()
-            }
-        )
         input_edges.update(
             # broadcast input to bodies
             {
@@ -310,6 +307,9 @@ class ForEach(datatypes.StaticGraph[fr.schemas.ForEachRecipe, fr.schemas.ForEach
         zipped ports occupy the innermost dimension (stride 1) and are not
         represented here.
         """
+        if total_steps == 0:
+            return {}  # No body indices exist, so there is nothing to decompose
+
         strides: dict[fr.schemas.Label, int] = {}
         running = total_steps
         for parent_label, length in nested_length_map.items():

@@ -5,7 +5,7 @@ import unittest
 import flowrep as fr
 from unit import _fixtures
 
-from pyiron_workflow import execution, transformers
+from pyiron_workflow import datatypes, execution, transformers
 from pyiron_workflow.flowcontrollers import forflow
 
 
@@ -204,6 +204,88 @@ class TestBuildRuntimeDagNestedOnly(unittest.TestCase):
             fr.schemas.SourceHandle(
                 node="aggregate_sums",
                 port=transformers.TransformNto1.output_label,
+            ),
+        )
+
+
+class TestBuildRuntimeDagEmptyIteration(unittest.TestCase):
+    """
+    An empty iterated port means zero body steps: no scatters and no bodies are
+    built, and the aggregators collect nothing into empty lists.
+    """
+
+    def setUp(self) -> None:
+        self.cases: dict[str, execution.Run[fr.schemas.ForEachData]] = {}
+        self.nodes: dict[str, datatypes.NodeMap] = {}
+        for name, recipe, inputs in (
+            ("nested", _build_nested_only_recipe(), {"xs": [], "y": 100}),
+            ("zipped", _build_zipped_only_recipe(), {"xs": [], "ys": []}),
+        ):
+            fe = forflow.ForEach(recipe, "fe")
+            dag_run = _prepare_run(fe, inputs)
+            self.cases[name] = dag_run
+            self.nodes[name] = fe._build_runtime_dag(dag_run)
+
+    def test_no_body_or_scatter_nodes(self) -> None:
+        for name, nodes in self.nodes.items():
+            with self.subTest(name):
+                self.assertEqual(
+                    [
+                        label
+                        for label in nodes
+                        if label.startswith(("body_", "scatter_"))
+                    ],
+                    [],
+                )
+
+    def test_aggregator_collects_nothing(self) -> None:
+        for name, nodes in self.nodes.items():
+            with self.subTest(name):
+                self.assertEqual(nodes["aggregate_sums"].recipe.inputs, [])
+
+    def test_no_edges(self) -> None:
+        for name, dag_run in self.cases.items():
+            with self.subTest(name):
+                self.assertEqual(dict(dag_run.result.edges), {})
+                self.assertEqual(dict(dag_run.result.input_edges), {})
+
+    def test_output_still_wired_to_aggregator(self) -> None:
+        for name, dag_run in self.cases.items():
+            with self.subTest(name):
+                self.assertEqual(
+                    dag_run.result.output_edges[fr.schemas.OutputTarget(port="sums")],
+                    fr.schemas.SourceHandle(
+                        node="aggregate_sums",
+                        port=transformers.TransformNto1.output_label,
+                    ),
+                )
+
+
+class TestBuildRuntimeDagSingleNested(unittest.TestCase):
+    """A 1-long iterable still gets a scatter node, so graph shape is uniform."""
+
+    def setUp(self) -> None:
+        self.recipe = _build_nested_only_recipe()
+        self.fe = forflow.ForEach(self.recipe, "fe")
+        self.dag_run = _prepare_run(self.fe, {"xs": [1], "y": 100})
+        self.nodes = self.fe._build_runtime_dag(self.dag_run)
+
+    def test_single_body_node(self) -> None:
+        body_labels = [label for label in self.nodes if label.startswith("body_")]
+        self.assertEqual(body_labels, ["body_0"])
+
+    def test_scatter_declares_one_output(self) -> None:
+        self.assertEqual(self.nodes["scatter_xs"].recipe.outputs, ["output_0"])
+
+    def test_scatter_to_body(self) -> None:
+        src = self.dag_run.result.edges[
+            fr.schemas.TargetHandle(node="body_0", port="x")
+        ]
+        self.assertEqual(
+            src,
+            fr.schemas.SourceHandle(
+                node="scatter_xs",
+                port=transformers.Transform1toN.output_label(0),
             ),
         )
 
@@ -435,6 +517,11 @@ class TestNestedStrides(unittest.TestCase):
     def test_empty(self) -> None:
         self.assertEqual(forflow.ForEach._nested_strides(1, {}), {})
 
+    def test_zero_total_steps(self) -> None:
+        # No body indices exist, so there is nothing to decompose -- and the
+        # naive stride arithmetic would divide by the zero-length port.
+        self.assertEqual(forflow.ForEach._nested_strides(0, {"a": 0, "b": 3}), {})
+
     def test_single_nested(self) -> None:
         self.assertEqual(forflow.ForEach._nested_strides(3, {"a": 3}), {"a": 1})
 
@@ -518,6 +605,75 @@ class TestTransferLabelMap(unittest.TestCase):
 
     def test_empty(self) -> None:
         self.assertEqual(forflow.ForEach._transfer_label_map({}), {})
+
+
+class TestNestedExecutionAcrossLengths(unittest.TestCase):
+    """
+    End-to-end over the degenerate and ordinary length combinations.
+
+    `for_wf(xs, ys, z)` is a doubly-nested loop over `macro`, so it exercises
+    captured outputs (`sums`), transfer outputs (`x_used`, `y_used`) and a
+    broadcast input (`z`) at once.
+    """
+
+    def _run(self, xs: list[int], ys: list[int]) -> dict[str, object]:
+        node = _fixtures.for_wf_node()
+        return dict(execution.run(node, xs=xs, ys=ys, z=1).outputs)
+
+    def test_both_empty(self) -> None:
+        self.assertEqual(self._run([], []), {"x_used": [], "y_used": [], "sums": []})
+
+    def test_empty_inner(self) -> None:
+        self.assertEqual(self._run([10], []), {"x_used": [], "y_used": [], "sums": []})
+
+    def test_empty_outer(self) -> None:
+        self.assertEqual(self._run([], [20]), {"x_used": [], "y_used": [], "sums": []})
+
+    def test_both_singletons(self) -> None:
+        # macro(x, y, z) -> s = (x + y) - z
+        self.assertEqual(
+            self._run([10], [20]),
+            {"x_used": [10], "y_used": [20], "sums": [29]},
+        )
+
+    def test_singleton_outer_multi_inner(self) -> None:
+        self.assertEqual(
+            self._run([10], [20, 30]),
+            {"x_used": [10, 10], "y_used": [20, 30], "sums": [29, 39]},
+        )
+
+    def test_multi_outer_singleton_inner(self) -> None:
+        self.assertEqual(
+            self._run([10, 40], [20]),
+            {"x_used": [10, 40], "y_used": [20, 20], "sums": [29, 59]},
+        )
+
+    def test_both_multi(self) -> None:
+        self.assertEqual(
+            self._run([10, 40], [20, 30]),
+            {
+                "x_used": [10, 10, 40, 40],
+                "y_used": [20, 30, 20, 30],
+                "sums": [29, 39, 59, 69],
+            },
+        )
+
+
+class TestZippedExecutionAcrossLengths(unittest.TestCase):
+    """The same length sweep on the zip axis, where both ports advance together."""
+
+    def _run(self, xs: list[int], ys: list[int]) -> list[int]:
+        fe = forflow.ForEach(_build_zipped_only_recipe(), "fe")
+        return execution.run(fe, xs=xs, ys=ys).outputs.sums
+
+    def test_empty(self) -> None:
+        self.assertEqual(self._run([], []), [])
+
+    def test_singleton(self) -> None:
+        self.assertEqual(self._run([1], [2]), [3])
+
+    def test_multi(self) -> None:
+        self.assertEqual(self._run([1, 2, 3], [10, 20, 30]), [11, 22, 33])
 
 
 if __name__ == "__main__":
