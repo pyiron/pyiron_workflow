@@ -1,4 +1,5 @@
-from typing import ClassVar
+from collections.abc import Callable
+from typing import Any, ClassVar
 
 import flowrep as fr
 from pyiron_snippets import versions
@@ -17,14 +18,28 @@ class Transform1toN:
     def iterable_to_outputs(items, /):
         return tuple(items)
 
+    @staticmethod
+    def iterable_to_output(items, /):
+        return items[0]
+
     def __init__(self, n: int):
+        if n < 1:
+            raise ValueError(f"Cannot scatter into {n} outputs; need at least 1.")
         self.n = n
+
+    @property
+    def _function(self) -> Callable[[Any], Any]:
+        """
+        A recipe declaring exactly one output receives the whole return value,
+        so a 1-wide scatter must return the element rather than a 1-tuple.
+        """
+        return self.iterable_to_output if self.n == 1 else self.iterable_to_outputs
 
     @property
     def recipe(self) -> fr.schemas.AtomicRecipe:
         return fr.schemas.AtomicRecipe(
             reference=fr.schemas.PythonReference(
-                info=versions.VersionInfo.of(self.iterable_to_outputs),
+                info=versions.VersionInfo.of(self._function),
                 restricted_input_kinds={
                     self.input_label: fr.schemas.RestrictedParamKind.POSITIONAL_ONLY
                 },

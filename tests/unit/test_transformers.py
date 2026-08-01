@@ -7,7 +7,7 @@ import unittest
 import flowrep as fr
 from unit import _fixtures
 
-from pyiron_workflow import atomic_node, transformers
+from pyiron_workflow import atomic_node, execution, transformers
 
 
 class TestTransform1toN(unittest.TestCase):
@@ -25,6 +25,9 @@ class TestTransform1toN(unittest.TestCase):
             transformers.Transform1toN.iterable_to_outputs([1, 2, 3]),
             (1, 2, 3),
         )
+
+    def test_iterable_to_output_returns_the_element(self) -> None:
+        self.assertEqual(transformers.Transform1toN.iterable_to_output([7]), 7)
 
     def test_recipe_inputs(self) -> None:
         recipe = transformers.Transform1toN(3).recipe
@@ -48,6 +51,30 @@ class TestTransform1toN(unittest.TestCase):
         self.assertEqual(node.label, "lbl")
         self.assertEqual(node.recipe.inputs, ["items"])
         self.assertEqual(node.recipe.outputs, ["output_0", "output_1", "output_2"])
+
+    def test_single_output_recipe_declares_one_port(self) -> None:
+        self.assertEqual(transformers.Transform1toN(1).recipe.outputs, ["output_0"])
+
+    def test_single_output_does_not_wrap_the_element(self) -> None:
+        """
+        A recipe declaring exactly one output receives the whole return value,
+        so a 1-wide scatter must return the element itself, not a 1-tuple.
+        """
+        node = transformers.Transform1toN(1).node("scatter")
+        self.assertEqual(
+            dict(execution.run(node, items=[42]).outputs), {"output_0": 42}
+        )
+
+    def test_multi_output_still_unpacks(self) -> None:
+        node = transformers.Transform1toN(2).node("scatter")
+        self.assertEqual(
+            dict(execution.run(node, items=[1, 2]).outputs),
+            {"output_0": 1, "output_1": 2},
+        )
+
+    def test_zero_outputs_rejected(self) -> None:
+        with self.assertRaisesRegex(ValueError, "at least 1"):
+            transformers.Transform1toN(0)
 
 
 class TestTransformNto1(unittest.TestCase):
