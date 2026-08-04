@@ -16,6 +16,6 @@ dependencies:
 - python >=3.11,<3.14
 - rdflib =7.6.0
 - semantikon =1.4.0
-- typeguard =4.5.2
+- typeguard =4.6.0
 - python-workflow-definition =0.1.5
 - fleche =0.21.0
