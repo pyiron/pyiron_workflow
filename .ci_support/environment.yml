@@ -9,5 +9,5 @@ dependencies:
 - pyiron_snippets =1.4.0
 - python >=3.11,<3.14
 - rdflib =7.6.0
-- semantikon =1.4.0
+- semantikon =1.4.1
 - typeguard =4.5.2
