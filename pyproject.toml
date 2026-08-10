@@ -34,7 +34,7 @@ dependencies = [
     "pint==0.25.3",
     "pyiron_snippets==1.4.0",
     "rdflib==7.6.0",
-    "semantikon==1.4.0",
+    "semantikon==1.4.1",
     "typeguard==4.5.2",
 ]
 dynamic = [ "version",]
