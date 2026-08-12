@@ -51,7 +51,7 @@ Repository = "https://github.com/pyiron/pyiron_workflow"
 
 [project.optional-dependencies]
 cluster = [
-    "pysqa==0.4.3",
+    "pysqa==0.4.4",
     "h5py==3.16.0",
 ]
 notebook = [

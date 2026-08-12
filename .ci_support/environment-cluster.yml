@@ -1,5 +1,5 @@
 channels:
 - conda-forge
 dependencies:
-- pysqa =0.4.3
+- pysqa =0.4.4
 - h5py =3.16.0
