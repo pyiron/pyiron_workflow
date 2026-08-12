@@ -34,7 +34,7 @@ dependencies = [
     "pint==0.25.3",
     "pyiron_snippets==1.4.0",
     "rdflib==7.6.0",
-    "semantikon==1.4.1",
+    "semantikon==1.4.2",
     "typeguard==4.5.2",
 ]
 dynamic = [ "version",]
@@ -51,14 +51,14 @@ Repository = "https://github.com/pyiron/pyiron_workflow"
 
 [project.optional-dependencies]
 cluster = [
-    "pysqa==0.4.3",
+    "pysqa==0.4.4",
     "h5py==3.16.0",
 ]
 notebook = [
     "python-workflow-definition==0.1.5",
 ]
 fleche = [
-    "fleche==0.21.0",
+    "fleche==0.21.1",
 ]
 
 [tool.hatch.build]
