@@ -3,3 +3,5 @@ channels:
 dependencies:
   - flowrep =0.7.0
   - pyiron_snippets =2.0.0
+  - rdflib =8.0.0
+  - typeguard =5.0.0
