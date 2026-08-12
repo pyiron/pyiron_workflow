@@ -17,7 +17,7 @@ name = "pyiron_workflow"
 description = "pyiron_workflow - Graph-and-node based workflow tools."
 readme = "docs/README.md"
 keywords = [ "pyiron",]
-requires-python = ">=3.11, <3.14"
+requires-python = ">=3.11, <3.15"
 classifiers = [
     "Development Status :: 4 - Beta",
     "Topic :: Scientific/Engineering",
@@ -27,6 +27,7 @@ classifiers = [
     "Programming Language :: Python :: 3.11",
     "Programming Language :: Python :: 3.12",
     "Programming Language :: Python :: 3.13",
+    "Programming Language :: Python :: 3.14",
 ]
 dependencies = [
     "executorlib==1.10.2",

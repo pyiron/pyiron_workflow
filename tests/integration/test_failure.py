@@ -261,10 +261,14 @@ class TestForEachFailure(unittest.TestCase):
         # Scatter + bodies 0-5 (final one fails) = 1 + 6 = 7 steps
         for_each_step = run_obj.steps[1]
         self.assertEqual(len(for_each_step.steps), 7)
-        self.assertIn("scatter", for_each_step.steps[0].label)
-        self.assertEqual(for_each_step.steps[1].outputs.m, 0)
-        self.assertEqual(for_each_step.steps[-2].outputs.m, 4)
-        self.assertTrue(_is_not_data(for_each_step.steps[-1].outputs.m))
+
+        # Bodies all sit in one DAG layer and are evaluated concurrently, so the
+        # order they land in `steps` is a race. Go by label inside a layer, not by step
+        self.assertEqual(for_each_result.nodes["body_0"].output_ports["m"].value, 0)
+        self.assertEqual(for_each_result.nodes["body_4"].output_ports["m"].value, 4)
+        self.assertTrue(
+            _is_not_data(for_each_result.nodes["body_5"].output_ports["m"].value)
+        )
 
 
 # --------------------------------------------------------------------------- #
