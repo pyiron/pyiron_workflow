@@ -33,7 +33,7 @@ dependencies = [
     "executorlib==1.10.2",
     "flowrep==0.6.2",
     "pint==0.25.3",
-    "pyiron_snippets==1.4.0",
+    "pyiron_snippets==1.5.0",
     "rdflib==7.6.0",
     "semantikon==1.4.2",
     "typeguard==4.5.2",
