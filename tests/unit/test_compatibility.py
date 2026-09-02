@@ -54,13 +54,6 @@ def two_outputs(a, b):
 
 
 @compatibility.as_macro_node("summed")
-def macro_args(self, x, y):
-    """Child built with positional args; returns a single-output node."""
-    self.s = add(x, y)
-    return self.s
-
-
-@compatibility.as_macro_node("summed")
 def macro_kwargs(self, x, y):
     """Child built with keyword args."""
     self.s = add(x=x, y=y)
@@ -70,23 +63,23 @@ def macro_kwargs(self, x, y):
 @compatibility.as_macro_node("doubled_sum")
 def macro_node_input(self, x, y):
     """A single-output child *node* is passed as input to the next child."""
-    self.s = add(x, y)
-    self.d = double(self.s)
+    self.s = add(x=x, y=y)
+    self.d = double(a=self.s)
     return self.d
 
 
 @compatibility.as_macro_node("doubled_sum")
 def macro_port_input(self, x, y):
     """A specific child output *port* is passed as input to the next child."""
-    self.s = add(x, y)
-    self.d = double(self.s.outputs["z"])
+    self.s = add(x=x, y=y)
+    self.d = double(a=self.s.outputs["z"])
     return self.d
 
 
 @compatibility.as_macro_node("summed")
 def macro_port_return(self, x, y):
     """A specific child port, bound to a local, is returned."""
-    self.s = add(x, y)
+    self.s = add(x=x, y=y)
     summed = self.s.outputs["z"]
     return summed
 
@@ -94,8 +87,8 @@ def macro_port_return(self, x, y):
 @compatibility.as_macro_node("summed", "doubled")
 def macro_multi_return(self, x, y):
     """Mixed multi-return: a specific child port and a single-output node."""
-    self.s = add(x, y)
-    self.d = double(self.s)
+    self.s = add(x=x, y=y)
+    self.d = double(a=self.s)
     summed = self.s.outputs["z"]
     return summed, self.d
 
@@ -103,55 +96,58 @@ def macro_multi_return(self, x, y):
 @compatibility.as_macro_node
 def macro_scraped(self, x, y):
     """No explicit labels: the output label is scraped from the return name."""
-    self.s = add(x, y)
+    self.s = add(x=x, y=y)
     return self.s
 
 
 @compatibility.as_macro_node("result")
 def macro_child_default(self, x):
     """The child's own default (``y=10``) must survive the round trip."""
-    self.a = add_with_default(x)
+    self.a = add_with_default(x=x)
     return self.a
 
 
 @compatibility.as_macro_node("echoed", "summed")
 def macro_passthrough(self, x, y):
     """A parent input wired straight to a parent output."""
-    self.s = add(x, y)
+    self.s = add(x=x, y=y)
     return x, self.s
 
 
 @compatibility.as_macro_node("total")
 def macro_outer_args(self, x, y):
     """Macro child built with positional args; its ports feed a function node."""
-    self.inner = macro_multi_return(x, y)
-    self.combined = add(self.inner.outputs["summed"], self.inner.outputs["doubled"])
+    self.inner = macro_multi_return(x=x, y=y)
+    self.combined = add(
+        x=self.inner.outputs["summed"],
+        y=self.inner.outputs["doubled"],
+    )
     return self.combined
 
 
 @compatibility.as_macro_node("total")
 def macro_outer_kwargs(self, x, y):
     """Macro child built with kwargs; the single-output macro is passed as input."""
-    self.inner = macro_args(x=x, y=y)
-    self.combined = double(self.inner)
+    self.inner = macro_kwargs(x=x, y=y)
+    self.combined = double(a=self.inner)
     return self.combined
 
 
 @compatibility.as_macro_node
 def dotted_return(self, x, y):
-    self.s = add(x, y)
+    self.s = add(x=x, y=y)
     return self.s.outputs["z"]
 
 
 def too_few_labels(self, x, y):
-    self.s = add(x, y)
-    self.t = add(y, x)
+    self.s = add(x=x, y=y)
+    self.t = add(x=y, y=x)
     return self.s, self.t
 
 
 @compatibility.as_macro_node("both")
 def returns_multi_output_node(self, a, b):
-    self.t = two_outputs(a, b)
+    self.t = two_outputs(a=a, b=b)
     return self.t
 
 
@@ -200,6 +196,21 @@ class TestAsFunctionNodeBehaviour(unittest.TestCase):
         self.assertEqual(run.outputs.renamed, 5)
 
 
+class TestPositionalCallArgsRaises(unittest.TestCase):
+    """
+    We test a simple function node call, but a similar error gets raised at
+    interpretation time if a `as_macro_node` definition calls with kwargs.
+    """
+
+    def test_positional_args_are_an_error(self) -> None:
+        with self.assertRaises(ValueError) as ctx:
+            add(1, 2)
+        self.assertIn(
+            "but 'add' received the args (1, 2). Please use keywords among ['x', 'y']",
+            str(ctx.exception),
+        )
+
+
 class TestMultipleDispatch(unittest.TestCase):
     def test_callable_with_extra_arguments_is_an_error(self) -> None:
         with self.assertRaises(compatibility.MultipleDispatchError):
@@ -232,20 +243,20 @@ class TestQualnameMangling(unittest.TestCase):
 
 class TestAsMacroNodeFactory(unittest.TestCase):
     def test_factory_is_a_simple_factory(self) -> None:
-        self.assertIsInstance(macro_args, decorators._MacroFactory)
+        self.assertIsInstance(macro_kwargs, decorators._MacroFactory)
 
     def test_calling_factory_builds_a_macro(self) -> None:
-        self.assertIsInstance(macro_args(), dag.Macro)
+        self.assertIsInstance(macro_kwargs(), dag.Macro)
 
     def test_macro_label_is_the_function_name(self) -> None:
-        self.assertEqual(macro_args().label, "macro_args")
+        self.assertEqual(macro_kwargs().label, "macro_kwargs")
 
 
 class TestFlatMacroConstruction(unittest.TestCase):
     """Children built only from `as_function_node`-decorated calls."""
 
     def test_positional_child_construction(self) -> None:
-        run = macro_args().run(x=1, y=2)
+        run = macro_kwargs().run(x=1, y=2)
         self.assertEqual(run.outputs.summed, 3)
 
     def test_keyword_child_construction(self) -> None:
@@ -265,7 +276,7 @@ class TestFlatMacroConstruction(unittest.TestCase):
 
 class TestMacroReturns(unittest.TestCase):
     def test_single_output_node_return(self) -> None:
-        run = macro_args().run(x=1, y=2)
+        run = macro_kwargs().run(x=1, y=2)
         self.assertEqual(list(run.outputs.keys()), ["summed"])
         self.assertEqual(run.outputs.summed, 3)
 
@@ -287,7 +298,7 @@ class TestMacroReturns(unittest.TestCase):
 
 class TestMacroOutputLabels(unittest.TestCase):
     def test_explicit_label_names_the_output(self) -> None:
-        self.assertEqual(list(macro_args().run(x=1, y=2).outputs.keys()), ["summed"])
+        self.assertEqual(list(macro_kwargs().run(x=1, y=2).outputs.keys()), ["summed"])
 
     def test_scraped_label_from_return_name(self) -> None:
         # No decorator argument: the label is scraped from `return self.s`.

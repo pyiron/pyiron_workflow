@@ -103,7 +103,14 @@ class _CompatibilityFactory(abc.ABC):
 
     def __call__(self, *args, **kwargs):
         node = constructors.node(self.decorated, self.decorated.__name__)
-        node.connect_input(*args, **kwargs)
+        if len(args) > 0:
+            raise ValueError(
+                "Flowrep-based pyiron_workflow requires that data be passed to nodes "
+                f"using keyword arguments, but {node.lexical_path!r} received the "
+                f"args {args!r}. Please use keywords among "
+                f"{list(node.inputs.keys())}"
+            )
+        node._establish_sources(**kwargs)
         return node
 
     @property
